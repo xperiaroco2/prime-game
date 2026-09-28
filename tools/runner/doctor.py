@@ -31,6 +31,7 @@ from .common import (
 )
 
 USER_SETTINGS = "~/.claude/settings.json"
+HOOKS_PATH = ".claude/githooks"
 
 
 def _dotted(parts: tuple[int, ...]) -> str:
@@ -86,6 +87,25 @@ class Doctor:
             ok(lfs.out.strip().split(" (")[0])
         else:
             self.fail("Git LFS not found", "Install Git LFS (bundled with Git for Windows), then run: git lfs install")
+
+    def githooks(self) -> None:
+        """Point git at the committed hooks. Only the runner sets this: the agent's own `git config *hooksPath*` is
+        denied (docs/AGENT_WORKFLOW.md §8.3)."""
+        if IS_CI:
+            skip("core.hooksPath (not needed in CI)")
+            return
+        if not (ROOT / HOOKS_PATH / "pre-push").is_file():
+            self.fail(f"{HOOKS_PATH}/pre-push is missing", "Restore it from git: it is committed in the repo.")
+            return
+        current = run(["git", "config", "--local", "--get", "core.hooksPath"], timeout=30).out.strip()
+        if current == HOOKS_PATH:
+            ok(f"git hooks: core.hooksPath = {HOOKS_PATH}")
+            return
+        res = run(["git", "config", "--local", "core.hooksPath", HOOKS_PATH], timeout=30)
+        if res.rc == 0:
+            ok(f"git hooks: set core.hooksPath to {HOOKS_PATH}" + (f" (it was {current})" if current else ""))
+        else:
+            self.fail("could not set core.hooksPath", res.out.strip())
 
     def bash(self) -> None:
         path = git_bash()
@@ -217,6 +237,7 @@ def main(quick: bool) -> int:
     doc.godot()
     doc.gdtoolkit()
     doc.addons()
+    doc.githooks()  # also in --quick: start-task runs the quick doctor
     if not quick:
         doc.git()
         doc.bash()

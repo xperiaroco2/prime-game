@@ -50,6 +50,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths]` | GdUnit4 headless; judged by exit code and `results.xml`; orphan nodes fail |
 | `verify` | Everything CI runs, in the same order: the definition-of-done gate |
+| `publish [--base B]` | Rebases the task branch on its PR base (else main), runs `verify`, pushes with a lease |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
 | `selftest` / `pins [--get X]` | The runner's own tests / pinned tool versions |
 
@@ -66,7 +67,8 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - In the Bash tool `\\` arrives as `\`, even inside single quotes and quoted heredocs (`"\\r"` became a CR).
   Write code that contains backslashes to a file with the Write tool, then run the file.
 - `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
-- Push an explicit task branch only: `git push -u origin <branch>`. Never `main`, never a force push by hand.
+- Push an explicit task branch only: `git push -u origin <branch>`, or `publish`. Never `main`, never a force push
+  by hand: the pre-push hook blocks both, and a rebased branch goes up only through `publish`.
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
 - **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot CLAUDE.md`,
@@ -99,9 +101,9 @@ Until a skill exists in `.claude/skills/`, follow `docs/AGENT_WORKFLOW.md` §4 b
 1. `verify` is green; paste its tail. Red → stop and report.
 2. Fresh-context review as routed above. Fix the findings or list them in the PR.
 3. Docs updated if durable knowledge changed; intervention and credit entries added if any.
-4. Ask once: "Publish now?". Then push the task branch, open the PR from the template (linked issue, summary,
-   verification commands and output, screenshots for visual changes, docs updated yes/no) and write the handoff
-   comment on the issue: done, left, decisions, gotchas.
+4. Ask once: "Publish now?". Then `publish` (rebase, verify, push), open the PR from the template (linked issue,
+   summary, verification commands and output, screenshots for visual changes, docs updated yes/no) and write the
+   handoff comment on the issue: done, left, decisions, gotchas.
 5. Only humans merge. Stacked PRs: after a parent PR merges, retarget each child with
    `gh pr edit <n> --base main` before its merge; GitHub does that itself only when the parent branch is deleted.
 
