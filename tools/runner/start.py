@@ -98,7 +98,7 @@ def main(
     here: bool = False,
     dry_run: bool = False,
 ) -> int:
-    say(f"start #{number}" + (" (dry run: changes nothing)" if dry_run else ""))
+    say(f"start #{number}" + (" (dry run: only fetches)" if dry_run else ""))
     if stash and include:
         raise Failure("pass --stash or --include, not both")
     if worktree and here:
@@ -127,10 +127,23 @@ def main(
     if worktree and current == branch:
         raise Failure(f"{branch} is checked out here, so it cannot also have a worktree; work here, or switch away first")
     use_worktree = worktree or (engineer and bool(others) and not here and current != branch)
+    if others and not use_worktree and not here and current != branch:
+        raise Failure(
+            "another Claude session is working on this checkout (above). Switching the branch here would put that "
+            "session's next commit on this task's branch. Nothing was changed. Finish or close that session first; "
+            "if it is really idle, run start again with --here."
+        )
 
     if use_worktree:
         path = create_worktree(number, branch, dry_run)
     else:
+        here_key = str(Path(REPO).resolve()).lower()
+        elsewhere = [p for p, b in listed_worktrees().items() if b == branch and p != here_key]
+        if elsewhere:
+            raise Failure(
+                f"{branch} is checked out in the worktree {elsewhere[0]}; work there (EnterWorktree with that path). "
+                "Nothing was changed."
+            )
         switch(branch, current, stash=stash, include=include, dry_run=dry_run, number=number)
         path = REPO
 
@@ -250,15 +263,26 @@ def worktree_done(number: int) -> int:
     if Path(str(REPO)).resolve() == path.resolve():
         raise Failure("run worktree-done from the main checkout, not from inside the worktree")
     branch = known[key]
+    inside = sessions.active_on(path)
+    if inside:
+        raise Failure(
+            f"a Claude session is working in the worktree: {inside[0].describe(time.time())}. "
+            "Nothing was removed; close that session (or leave the worktree) first."
+        )
     dirty = _git("status", "--porcelain", "--untracked-files=all", cwd=path).out.strip()
     if dirty:
         raise Failure(f"the worktree has uncommitted changes; nothing was removed:\n{dirty}")
     _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
-    if branch and _git("merge-base", "--is-ancestor", branch, f"{REMOTE}/{BASE}").rc != 0:
+    # The commit checked out there, not just the branch name: a detached HEAD can hold commits no branch has.
+    head = _must(_git("rev-parse", "HEAD", cwd=path), "reading the worktree's HEAD")
+    if _git("merge-base", "--is-ancestor", head, f"{REMOTE}/{BASE}").rc != 0:
         raise Failure(
-            f"{branch} is not merged into {REMOTE}/{BASE} yet; nothing was removed. "
-            "worktree-done runs after a human merged the PR."
+            f"{branch or 'the detached HEAD'} ({head[:10]}) is not merged into {REMOTE}/{BASE} yet; nothing was "
+            "removed. worktree-done runs after a human merged the PR with \"Create a merge commit\" (a squash merge "
+            "leaves the branch's own commits unmerged: then ask the human)."
         )
+    if branch and _git("merge-base", "--is-ancestor", branch, f"{REMOTE}/{BASE}").rc != 0:
+        raise Failure(f"{branch} is not merged into {REMOTE}/{BASE} yet; nothing was removed.")
     _must(_git("worktree", "remove", str(path)), "git worktree remove")
     ok(f"removed the worktree {path}")
     if branch:

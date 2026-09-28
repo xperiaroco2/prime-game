@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     where = p.add_mutually_exclusive_group()
     where.add_argument("--worktree", action="store_true", help="use .claude/worktrees/<n> (engineer only)")
     where.add_argument("--here", action="store_true", help="never a worktree, even with another session active")
-    p.add_argument("--dry-run", action="store_true", help="say what would happen; change nothing")
+    p.add_argument("--dry-run", action="store_true", help="say what would happen; only a git fetch runs")
 
     p = sub.add_parser("worktree-done", help="remove .claude/worktrees/<n> after its branch was merged")
     p.add_argument("issue", type=int, help="issue number")

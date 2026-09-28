@@ -66,14 +66,17 @@ class StartTest(unittest.TestCase):
             "url": "https://github.com/o/r/issues/42",
         }
         self.login = "xperiaroco2"
-        self.others: list[sessions.Session] = []
+        self.others: list[sessions.Session] = []  # sessions on the main checkout
+        self.inside: list[sessions.Session] = []  # sessions whose cwd is a worktree
         self.gh_calls: list[tuple[str, ...]] = []
         self.moves = mock.MagicMock()
         for patch in (
             mock.patch.object(start, "REPO", self.work),
             mock.patch.object(start, "_gh", side_effect=self.fake_gh),
             mock.patch.object(start.board, "move", self.moves),
-            mock.patch.object(start.sessions, "active_on", side_effect=lambda _repo: self.others),
+            mock.patch.object(
+                start.sessions, "active_on", side_effect=lambda repo: self.others if repo == self.work else self.inside
+            ),
             mock.patch.object(start, "say"),
             mock.patch.object(start, "ok"),
             mock.patch.object(start, "warn"),
@@ -170,6 +173,7 @@ class StartTest(unittest.TestCase):
         self.assertEqual(self.branch(), "main")
         self.assertEqual((self.work / "f.txt").read_text(encoding="utf-8"), "the other session's edit\n")
         self.assertEqual(self.branch(tree), "core/42-vote-tally")
+        self.assertEqual(subprocess.run(["git", "config", "branch.core/42-vote-tally.merge"], cwd=self.work).returncode, 1)
         self.assertEqual(start.main(42), 0)  # running it again reuses the worktree
 
         (tree / "g.txt").write_text("work\n", encoding="utf-8", newline="\n")
@@ -194,14 +198,45 @@ class StartTest(unittest.TestCase):
         self.assertIn("uncommitted", str(caught.exception))
         self.assertTrue(tree.is_dir())
 
-    def test_the_designer_never_gets_a_worktree(self) -> None:
+    def test_worktree_done_refuses_unmerged_detached_commits_and_live_sessions(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        git(tree, "switch", "-q", "--detach")
+        (tree / "fix.txt").write_text("fix\n", encoding="utf-8", newline="\n")
+        git(tree, "add", "fix.txt")
+        git(tree, "commit", "-q", "-m", "a fix on a detached HEAD")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42)
+        self.assertIn("detached HEAD", str(caught.exception))
+        self.assertTrue(tree.is_dir())
+        git(tree, "switch", "-q", "core/42-vote-tally")
+        self.inside = [sessions.Session(2, "wt", str(tree), "busy", time.time(), "in the worktree")]
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42)
+        self.assertIn("working in the worktree", str(caught.exception))
+        self.assertTrue(tree.is_dir())
+
+    def test_a_branch_in_a_worktree_is_never_stashed_for(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        self.write("f.txt", "edited\n")
+        with self.assertRaises(Failure) as caught:
+            start.main(42, stash=True)
+        self.assertIn("checked out in the worktree", str(caught.exception))
+        self.assertEqual(git(self.work, "stash", "list"), "")
+        self.assertEqual(self.branch(), "main")
+
+    def test_the_designer_never_gets_a_worktree_nor_switches_under_a_session(self) -> None:
         self.login = "designer"
         self.other_session()
-        self.assertEqual(start.main(42), 0)
-        self.assertEqual(self.branch(), "core/42-vote-tally")
-        self.assertFalse((self.work / ".claude" / "worktrees").exists())
+        with self.assertRaises(Failure) as caught:
+            start.main(42)
+        self.assertIn("another Claude session is working on this checkout", str(caught.exception))
+        self.assertEqual(self.branch(), "main")
         with self.assertRaises(Failure):
             start.main(42, worktree=True)
+        self.assertEqual(start.main(42, here=True), 0)  # the human said the other session is idle
+        self.assertEqual(self.branch(), "core/42-vote-tally")
+        self.assertFalse((self.work / ".claude" / "worktrees").exists())
 
     def test_no_worktree_for_the_branch_checked_out_here(self) -> None:
         self.assertEqual(start.main(42), 0)
@@ -230,7 +265,7 @@ class SessionsTest(unittest.TestCase):
         self.addCleanup(patch.stop)
 
     def add(self, pid: int, sid: str, cwd: Path, status: str, age_s: float) -> None:
-        data = {"pid": pid, "sessionId": sid, "cwd": str(cwd), "status": status, "updatedAt": (self.now - age_s) * 1000}
+        data = {"pid": pid, "sessionId": sid, "cwd": str(cwd), "status": status, "updatedAt": (self.now - age_s) * 1000, "procStart": f"{pid}0"}
         (self.tmp / f"{pid}.json").write_text(json.dumps(data), encoding="utf-8")
 
     def active(self, alive: bool = True) -> list[str]:
@@ -248,9 +283,14 @@ class SessionsTest(unittest.TestCase):
         self.assertEqual(sorted(self.active()), ["busy-old", "idle-recent"])
         self.assertEqual(self.active(alive=False), [])
 
-    def test_process_alive_checks_the_program(self) -> None:
-        self.assertFalse(sessions.process_alive(os.getpid()))  # alive, but Python, not Claude Code
+    def test_process_alive_checks_the_creation_time(self) -> None:
+        self.assertTrue(sessions.process_alive(os.getpid()))  # no procStart: any live process counts
+        if sessions.IS_WINDOWS:
+            # A reused pid: the live process was created at another time than the session file says.
+            self.assertFalse(sessions.process_alive(os.getpid(), "1"))
         self.assertFalse(sessions.process_alive(2**22 + 3))  # no such process
+        self.add(8, "real", self.checkout, "busy", 0)  # the procStart is kept for the check
+        self.assertEqual([s.proc_start for s in sessions.read_all(self.tmp)], ["80"])
 
 
 if __name__ == "__main__":

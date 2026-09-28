@@ -36,7 +36,10 @@ Commands below use the PowerShell form `tools\run.cmd`; in Git Bash use `tools/r
    - Output line `WORKTREE <path>`: another Claude session is working on this checkout. Enter it with the
      EnterWorktree tool (`path`). If that tool is not available, tell the human to open a new session in that
      folder, and stop here.
-   - Unsure what `start` would do? `tools\run.cmd start <n> --dry-run` changes nothing.
+   - "another Claude session is working on this checkout" (the designer, or `--here` not given): tell the human which
+     session, and ask them to finish or close it. Only if they say it is idle, run `start` again with `--here`.
+   - "checked out in the worktree <path>": enter that worktree (EnterWorktree) instead.
+   - Unsure what `start` would do? `tools\run.cmd start <n> --dry-run` only fetches and says what it would do.
 6. **Restate** in the human's chat language, briefly: the goal, the acceptance criteria, your plan, the verification
    commands you will run, and the risks. Non-trivial work: use plan mode and wait for "go" before editing. Small,
    obvious work ("just do it"): go ahead.

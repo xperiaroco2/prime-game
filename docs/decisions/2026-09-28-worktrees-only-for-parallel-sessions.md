@@ -22,15 +22,19 @@ Checked live on Claude Code 2.1.284 (Desktop): every running session keeps `~/.c
 session sees its own id in `CLAUDE_CODE_SESSION_ID`. Desktop sessions that were finished but never archived stay
 alive and idle: on the engineer's machine three such sessions from earlier stages were running on `D:\prime-game`.
 
-`start` counts another session as active on this checkout when its process is alive and is Claude Code (a pid can
-be reused), its `cwd` is the checkout or a folder in it but not one of its worktrees, it is not the calling session,
-and it is `busy` or was updated within the last hour. The hour keeps an idle session that is mid-task (waiting for
-an answer) in, and old unarchived sessions out. The engineer is the `gh` login that owns the repo. `--worktree` and
-`--here` override the detection; the designer never gets a worktree.
+`start` counts another session as active on this checkout when its process is alive with the creation time the file
+records as `procStart` (a pid can be reused; the two were equal for all four live sessions), its `cwd` is the
+checkout or a folder in it but not one of its worktrees, it is not the calling session, and it is `busy` or was
+updated within the last hour. The hour keeps an idle session that is mid-task (waiting for an answer) in, and old
+unarchived sessions out. The engineer is the `gh` login that owns the repo. `--worktree` and `--here` override the
+detection. The designer never gets a worktree: with another session active, `start` stops and changes nothing until
+the human closes it or confirms it is idle (`--here`). A session that moved into a worktree with EnterWorktree may
+still list the main checkout as its `cwd`; that errs towards a worktree.
 
 The risk left: a session idle for more than an hour in the middle of a task, whose checkout `start` then switches to
 another branch. Its own next `git status` shows the new branch. Committed work is safe, and uncommitted changes make
 `start` stop and ask.
 
-`worktree-done <n>` refuses a worktree with uncommitted changes or a branch not merged into `origin/main`. It then
-removes the worktree and deletes the merged local branch.
+`worktree-done <n>` refuses while a session works in the worktree, with uncommitted changes, or when the worktree's
+HEAD (a detached one included) or branch is not merged into `origin/main`. It then removes the worktree and deletes
+the merged local branch. Ignored files such as `.godot/` do not block the removal (checked with git 2.49).

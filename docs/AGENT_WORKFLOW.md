@@ -65,10 +65,11 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 4. `tools\run.cmd start 42` **[applied]**: creates `<area>/<issue>-<slug>` from `origin/main` with no upstream (the
    area from the issue's single `area:*` label, else `--area`), or resumes the issue's existing branch; assigns the
    issue if unassigned; moves the board item to **In progress**. Uncommitted changes stop it with the list:
-   `--include` carries them onto the task branch, `--stash` stashes them; it never discards. `--dry-run` changes
-   nothing. It creates a worktree `.claude/worktrees/<n>` instead **only when another Claude session is active on
-   this checkout**, engineer only (`--worktree` / `--here` override); `tools\run.cmd worktree-done <n>` removes it
-   once the branch is merged ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)).
+   `--include` carries them onto the task branch, `--stash` stashes them; it never discards. `--dry-run` only
+   fetches. It creates a worktree `.claude/worktrees/<n>` instead **only when another Claude session is active on
+   this checkout**, engineer only (`--worktree` / `--here` override); for the designer it then stops rather than
+   switch the branch under that session. `tools\run.cmd worktree-done <n>` removes the worktree once its branch is
+   merged ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)).
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)

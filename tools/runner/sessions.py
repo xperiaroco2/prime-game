@@ -28,6 +28,7 @@ class Session:
     status: str
     updated: float  # seconds since the epoch
     name: str
+    proc_start: str = ""  # Windows: the process creation time as a FILETIME, as Claude Code writes it
 
     def describe(self, now: float) -> str:
         minutes = max(0, int((now - self.updated) // 60))
@@ -56,6 +57,7 @@ def read_all(folder: Path | None = None) -> list[Session]:
                     status=str(data.get("status", "")),
                     updated=updated,
                     name=str(data.get("name", "")),
+                    proc_start=str(data.get("procStart", "")),
                 )
             )
         except (OSError, ValueError, KeyError, TypeError):
@@ -72,8 +74,10 @@ def _same_checkout(cwd: str, checkout: Path) -> bool:
     return inner.parts[:2] != (".claude", "worktrees")
 
 
-def process_alive(pid: int) -> bool:
-    """A running process whose executable is Claude Code (a pid can be reused by another program)."""
+def process_alive(pid: int, proc_start: str = "") -> bool:
+    """The session's own process is still running. A pid can be reused by another program: on Windows the process
+    creation time must equal the session file's procStart (checked on 2.1.284: equal for every live session). Without
+    procStart, any live process counts, which errs towards a worktree."""
     if IS_WINDOWS:
         import ctypes
         from ctypes import wintypes
@@ -87,11 +91,14 @@ def process_alive(pid: int) -> bool:
             code = wintypes.DWORD()
             if not kernel32.GetExitCodeProcess(handle, ctypes.byref(code)) or code.value != 259:  # STILL_ACTIVE
                 return False
-            size = wintypes.DWORD(1024)
-            buf = ctypes.create_unicode_buffer(size.value)
-            if not kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+            if not proc_start:
                 return True
-            return Path(buf.value).stem.lower().startswith("claude")
+            created, exited, kernel, user = (wintypes.FILETIME() for _ in range(4))
+            if not kernel32.GetProcessTimes(
+                handle, ctypes.byref(created), ctypes.byref(exited), ctypes.byref(kernel), ctypes.byref(user)
+            ):
+                return True
+            return str((created.dwHighDateTime << 32) | created.dwLowDateTime) == proc_start
         finally:
             kernel32.CloseHandle(handle)
     try:
@@ -100,8 +107,7 @@ def process_alive(pid: int) -> bool:
         return False
     except PermissionError:
         return True
-    comm = Path(f"/proc/{pid}/comm")
-    return not comm.is_file() or "claude" in comm.read_text(encoding="utf-8", errors="replace").lower()
+    return True
 
 
 def active_on(checkout: Path, now: float | None = None, folder: Path | None = None) -> list[Session]:
@@ -114,5 +120,5 @@ def active_on(checkout: Path, now: float | None = None, folder: Path | None = No
         if s.session_id != me
         and _same_checkout(s.cwd, checkout)
         and (s.status == "busy" or now - s.updated < ACTIVE_WINDOW_S)
-        and process_alive(s.pid)
+        and process_alive(s.pid, s.proc_start)
     ]
