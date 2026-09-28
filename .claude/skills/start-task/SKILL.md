@@ -32,7 +32,10 @@ Commands below use the PowerShell form `tools\run.cmd`; in Git Bash use `tools/r
    assigns the issue if nobody has it, and moves it to In progress.
    - "uncommitted changes": show the human the list and ask one question: do these changes belong to this task
      (`--include`) or should they be put away (`--stash`)? Never discard them. Run `start` again with the answer.
-   - "no area label": ask which area it is, then `gh issue edit <n> --add-label area:<x>` and run `start` again.
+     After `--stash`, tell the human the changes wait in the stash of the old branch (`git stash list`; switch back
+     and `git stash pop` to get them).
+   - "no area label": ask which area it is and run `start` again with `--area <x>`; add the label to the issue only
+     if the human wants it.
    - Output line `WORKTREE <path>`: another Claude session is working on this checkout. Enter it with the
      EnterWorktree tool (`path`). If that tool is not available, tell the human to open a new session in that
      folder, and stop here.

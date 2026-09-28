@@ -31,7 +31,8 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    is not, stop and ask. Everything must be committed (Conventional Commits, one logical change each).
 1. **Verify.** `tools\run.cmd verify`. Paste its summary (the lines from "verify summary" to the end) for the human.
    Red: stop and report the failures. Never weaken, skip or delete a test to make it pass.
-2. **Fresh-context reviews,** chosen from `git diff --name-only origin/main...HEAD`; launch them in one message:
+2. **Fresh-context reviews,** chosen from `git diff --name-only origin/<base>...HEAD`, where `<base>` is the open PR's
+   base (`gh pr view --json baseRefName`; a stacked PR's parent) or `main`; launch them in one message:
    - any code (`.gd`, `.py`, scripts, workflows) → agent `code-reviewer`; a docs-only or content-data-only diff →
      the bundled `/code-review` at medium, or none;
    - `core/`, `server/` or `net/` changed → also `netcode-security-reviewer`;

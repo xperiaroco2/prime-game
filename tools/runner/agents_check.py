@@ -49,6 +49,7 @@ def project_dirs(root: Path = ROOT, base: Path | None = None) -> list[Path]:
 
 def family(model: str) -> str | None:
     """'claude-opus-5-5' -> 'opus'; an alias ('sonnet') is its own family; '<synthetic>' and unknowns -> None."""
+    model = model.lower()
     if model in FAMILIES:
         return model
     match = FAMILY_RE.match(model)
@@ -115,7 +116,8 @@ def judge(t: Transcript, agents: dict[str, str], allowed: list[str]) -> tuple[st
     want = family(expected)
     if want is None:
         return "FAIL", f"{source} model {expected!r} is not a known family"
-    if expected not in allowed:
+    # By family, so a full ID such as claude-sonnet-5-5 counts as the allowed alias sonnet.
+    if want not in {family(a) for a in allowed}:
         if want in families:
             return "FAIL", f"{source} {expected}, outside availableModels, yet served {served}: the model guard failed"
         return "ok", f"{source} {expected} is outside availableModels; the guard served {served} instead"

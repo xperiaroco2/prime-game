@@ -38,6 +38,11 @@ class JudgeTest(unittest.TestCase):
         self.assertEqual(self.verdict(t("general-purpose", {"claude-sonnet-5-5"}, "sonnet")), "ok")
         self.assertEqual(self.verdict(t("general-purpose", {"claude-opus-5-5"}, "sonnet")), "FAIL")
 
+    def test_full_ids_and_case(self) -> None:
+        self.assertEqual(self.verdict(t("general-purpose", {"claude-sonnet-5-5"}, "claude-sonnet-5-5")), "ok")
+        self.assertEqual(self.verdict(t("general-purpose", {"claude-sonnet-5-5"}, "Sonnet")), "ok")
+        self.assertEqual(self.verdict(t("general-purpose", {"claude-opus-5-5"}, "claude-fable-5-1")), "ok")
+
     def test_model_guard(self) -> None:
         # fable is outside availableModels: the request must fall back, never be served.
         self.assertEqual(self.verdict(t("general-purpose", {"claude-opus-5-5"}, "fable")), "ok")
