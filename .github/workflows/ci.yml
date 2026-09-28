@@ -27,13 +27,18 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Plain assignments first: under `bash -e` a failing `pins --get` stops this step (inside echo it would not).
       - name: Read pins
         run: |
+          zip=$(tools/run.sh pins --get godot_linux_zip)
+          url=$(tools/run.sh pins --get godot_linux_url)
+          sha512=$(tools/run.sh pins --get godot_linux_sha512)
+          gdtoolkit=$(tools/run.sh pins --get gdtoolkit)
           {
-            echo "GODOT_ZIP=$(tools/run.sh pins --get godot_linux_zip)"
-            echo "GODOT_URL=$(tools/run.sh pins --get godot_linux_url)"
-            echo "GODOT_SHA512=$(tools/run.sh pins --get godot_linux_sha512)"
-            echo "GDTOOLKIT_PIN=$(tools/run.sh pins --get gdtoolkit)"
+            echo "GODOT_ZIP=$zip"
+            echo "GODOT_URL=$url"
+            echo "GODOT_SHA512=$sha512"
+            echo "GDTOOLKIT_PIN=$gdtoolkit"
           } >> "$GITHUB_ENV"
 
       - name: Cache the Godot download
