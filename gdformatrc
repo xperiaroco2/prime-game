@@ -1,0 +1,8 @@
+excluded_directories: !!set
+  .git: null
+  .godot: null
+  addons: null
+  out: null
+line_length: 100
+safety_checks: null
+use_spaces: null
