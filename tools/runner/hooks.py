@@ -19,7 +19,8 @@ if TYPE_CHECKING:
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # The engine parse check of one file; an import and a second check share the same budget.
 ENGINE_BUDGET = 60.0
-GDTOOLKIT_TIMEOUT = 60
+# gdformat and gdlint take about 1 s each; with the engine budget the worst case stays under the 120 s hook timeout.
+GDTOOLKIT_TIMEOUT = 20
 MAX_LINES = 40
 # Where the post-edit hook never formats or checks: third-party code, runner output, engine cache, other checkouts.
 SKIPPED_DIRS = ("addons/", "tools/out/", ".godot/", ".claude/")
@@ -60,7 +61,7 @@ def pre_tool_use(payload: dict[str, object]) -> int:
         return 0
     command = tool_input.get("command")
     if not isinstance(command, str):
-        return 0
+        raise ValueError(f"{tool} call without a command string")
     from . import guard
 
     shell = guard.BASH if tool == "Bash" else guard.POWERSHELL
