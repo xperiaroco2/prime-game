@@ -1,6 +1,7 @@
 # Permission rules and a thin guard hook
 
-- **Status:** Accepted
+- **Status:** Accepted; ask/allow lists and guard scope amended by
+  `2026-09-28-unattended-work-permissions.md`
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
