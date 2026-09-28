@@ -203,6 +203,15 @@ class StartTest(unittest.TestCase):
         with self.assertRaises(Failure):
             start.main(42, worktree=True)
 
+    def test_no_worktree_for_the_branch_checked_out_here(self) -> None:
+        self.assertEqual(start.main(42), 0)
+        with self.assertRaises(Failure) as caught:
+            start.main(42, worktree=True)
+        self.assertIn("checked out here", str(caught.exception))
+        self.other_session()
+        self.assertEqual(start.main(42), 0)  # already on it: stays here, no worktree
+        self.assertFalse((self.work / ".claude" / "worktrees").exists())
+
     def test_here_overrides_the_detection(self) -> None:
         self.other_session()
         self.assertEqual(start.main(42, here=True), 0)

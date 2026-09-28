@@ -124,6 +124,8 @@ def main(
         say(f"        another session is active on this checkout: {other.describe(now)}")
     if worktree and not engineer:
         raise Failure("worktrees are for the engineer only (docs/AGENT_WORKFLOW.md §4.1)")
+    if worktree and current == branch:
+        raise Failure(f"{branch} is checked out here, so it cannot also have a worktree; work here, or switch away first")
     use_worktree = worktree or (engineer and bool(others) and not here and current != branch)
 
     if use_worktree:
@@ -145,7 +147,7 @@ def main(
         say(f"WORKTREE {path}")
         say("        Work there: EnterWorktree with this path, or open a new session in that folder.")
         say("        Its first `tools\\run.cmd check` imports the project from scratch (slower once).")
-    say(f"start: on {branch}")
+    say(f"start: {branch}" + (f" in the worktree {path}" if use_worktree else " is checked out here"))
     return 0
 
 
