@@ -87,7 +87,8 @@ func _normalize(path: String) -> String:
 	var is_text_resource: bool = extension == "tscn" or extension == "tres"
 	if not path.begins_with("res://") or not is_text_resource or not ResourceLoader.exists(path):
 		return "not an existing res:// .tscn or .tres file"
-	var loaded: Resource = ResourceLoader.load(path)
+	# CACHE_MODE_IGNORE: a copy the editor scan already cached would load without its errors.
+	var loaded: Resource = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
 	if loaded == null:
 		return "failed to load"
 	var to_save: Resource = loaded

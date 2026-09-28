@@ -57,8 +57,11 @@ func _frame_if_needed(instance: Node) -> bool:
 		return false
 	var bounds: AABB = AABB()
 	var found: bool = false
-	for node: Node in instance.find_children("*", "VisualInstance3D", true, false):
-		var visual: VisualInstance3D = node as VisualInstance3D
+	# GeometryInstance3D: meshes and CSG, not lights (a light's AABB is its range).
+	for node: Node in instance.find_children("*", "GeometryInstance3D", true, false):
+		var visual: GeometryInstance3D = node as GeometryInstance3D
+		if not visual.is_visible_in_tree():
+			continue
 		var box: AABB = visual.global_transform * visual.get_aabb()
 		bounds = box if not found else bounds.merge(box)
 		found = true
@@ -77,7 +80,7 @@ func _frame_if_needed(instance: Node) -> bool:
 	if instance.find_children("*", "Light3D", true, false).is_empty():
 		var sun: DirectionalLight3D = DirectionalLight3D.new()
 		instance.add_child(sun)
-		sun.look_at_from_position(Vector3.ZERO, Vector3(-0.4, -1.0, -0.6))
+		sun.look_at_from_position(center, center + Vector3(-0.4, -1.0, -0.6))
 		added += " and a light"
 	print("SHOT framed: the scene has no camera; added ", added)
 	return true
