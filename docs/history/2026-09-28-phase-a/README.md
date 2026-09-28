@@ -7,6 +7,7 @@ This archive holds everything the engineer's agent produced for KICKOFF Phase A 
 
 | Path | What it is |
 |---|---|
+| `AGENT_WORKFLOW-proposal.md` | The proposal as it stood when the decision session started. The decided version is `docs/AGENT_WORKFLOW.md`; the choices are in `docs/decisions/2026-09-28-*.md` |
 | `session-log.md` | Chronology of steps 1–4, correction rates by model, disclosed side effects |
 | `research/<topic>.md` (10) | Per-topic research **merged with its adversarial verification**. Each fact carries a verdict (confirmed / corrected / refuted / unverifiable) and the correction. Also: missed facts, options, recommendation, the verifier's critique, config corrections |
 | `research/gaps.md` | The completeness critic's 6 gaps and their answers: GitHub Free enforcement, `gh` board mechanics, Godot UID handling, Fable billing, env in worktrees, `merge=union` on GitHub |
@@ -62,4 +63,5 @@ These files contain no secrets or tokens (scanned). They do contain:
 - the Claude plan tier;
 - local paths with the Windows user name.
 
-Decide whether to redact these before this folder is committed to a public repo.
+**Decided 2026-09-28:** no redaction. The repo is public and this archive is published as is
+(`docs/decisions/2026-09-28-public-repo-on-github-free.md`).
