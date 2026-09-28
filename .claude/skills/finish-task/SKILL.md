@@ -37,7 +37,8 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    - `core/`, `server/` or `net/` changed → also `netcode-security-reviewer`;
    - `.gd`, `.tscn` or `.tres` changed → also `godot-api-checker`.
    Fix each finding in a new commit and run `verify` again, or list the findings you leave, with the reason, in the
-   PR. Then `tools\run.cmd agents-check`: it confirms each reviewer ran on its own model.
+   PR. If a project subagent reviewed, `tools\run.cmd agents-check` confirms it ran on its own model (with no
+   project subagent in this session it has nothing to judge and fails; skip it then).
 3. **Docs.** Durable knowledge changed → update the owning doc (`docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`,
    `docs/GDD.md`, an ADR). A human corrected you during the task → skill `log-intervention`. A third-party asset →
    `docs/credits/<asset>.md`. Commit these too.

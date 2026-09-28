@@ -290,6 +290,11 @@ def skill_problems(folder: Path) -> list[str]:
     if shell is not None and shell not in ("bash", "powershell"):
         problems.append("shell: must be bash or powershell")
     rules = tool_rules(fm.fields.get("allowed-tools"))
+    for bare in sorted({r for r in rules if r in ("Bash", "PowerShell")}):
+        problems.append(f"allowed-tools: a bare {bare} pre-approves every command; name the commands")
+    for rule in rules:
+        if rule.startswith("Bash(") and "run.cmd" in rule or rule.startswith("PowerShell(") and "run.sh" in rule:
+            problems.append(f"allowed-tools: {rule} uses the other shell's runner (Bash: tools/run.sh, PowerShell: tools\\run.cmd)")
     bash = {_runner_neutral(r) for r in rules if r.startswith("Bash(") and r.endswith(")")}
     pwsh = {_runner_neutral(r) for r in rules if r.startswith("PowerShell(") and r.endswith(")")}
     for missing in sorted(bash - pwsh):

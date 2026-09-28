@@ -160,6 +160,14 @@ class SkillTest(unittest.TestCase):
         text = SKILL.replace("  - PowerShell(gh issue view *)\n", "")
         self.assertEqual(self.problems(text), [".claude/skills/start-task/SKILL.md: allowed-tools: Bash(gh issue view *) has no PowerShell twin"])
 
+    def test_swapped_runner_wrappers_and_bare_shells_fail(self) -> None:
+        swapped = SKILL.replace("Bash(tools/run.sh *)", "Bash(tools\\run.cmd *)").replace(
+            "PowerShell(tools\\run.cmd *)", "PowerShell(tools/run.sh *)"
+        )
+        self.assertEqual(sum("other shell's runner" in p for p in self.problems(swapped)), 2)
+        bare = SKILL.replace("  - Bash(gh issue view *)\n", "  - Bash\n")
+        self.assertTrue(any("a bare Bash" in p for p in self.problems(bare)))
+
     def test_section_6_rules(self) -> None:
         cases = {
             "context: fork\n": "context: fork loses the conversation",
