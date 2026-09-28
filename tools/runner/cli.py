@@ -42,6 +42,34 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("publish", help="fetch, rebase the task branch on its base, verify, push with a lease")
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else main)")
 
+    p = sub.add_parser("start", help="put the checkout on the task branch of an issue; assign it; board In progress")
+    p.add_argument("issue", type=int, help="issue number")
+    p.add_argument("--area", help="branch prefix when the issue has no single area label")
+    dirty = p.add_mutually_exclusive_group()
+    dirty.add_argument("--include", action="store_true", help="carry uncommitted changes onto the task branch")
+    dirty.add_argument("--stash", action="store_true", help="stash uncommitted changes first (never discarded)")
+    where = p.add_mutually_exclusive_group()
+    where.add_argument("--worktree", action="store_true", help="use .claude/worktrees/<n> (engineer only)")
+    where.add_argument("--here", action="store_true", help="never a worktree, even with another session active")
+    p.add_argument("--dry-run", action="store_true", help="say what would happen; change nothing")
+
+    p = sub.add_parser("worktree-done", help="remove .claude/worktrees/<n> after its branch was merged")
+    p.add_argument("issue", type=int, help="issue number")
+
+    p = sub.add_parser("normalize", help="re-save .tscn/.tres files in headless editor context")
+    p.add_argument("files", nargs="+", help="repo-relative or res:// paths")
+
+    p = sub.add_parser("shot", help="render a scene off-screen in a real window and save a PNG")
+    p.add_argument("scene", help="the .tscn to render (repo-relative or res://)")
+    p.add_argument("--out", help="PNG path (default: tools/out/shots/<scene>.png)")
+    p.add_argument("--size", default="1280x720", help="window size WxH (default 1280x720)")
+    p.add_argument("--frames", type=int, default=10, help="frames to wait before the capture (default 10)")
+
+    p = sub.add_parser("agents-check", help="assert each subagent was served by the model family it asked for")
+    scope = p.add_mutually_exclusive_group()
+    scope.add_argument("--session", help="session id (default: this Claude Code session, else all)")
+    scope.add_argument("--all", action="store_true", help="every session of this checkout")
+
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
 
@@ -89,6 +117,34 @@ def main(argv: list[str] | None = None) -> int:
             from . import publish
 
             return publish.main(base=args.base)
+        if args.command == "start":
+            from . import start
+
+            return start.main(
+                args.issue,
+                area=args.area,
+                stash=args.stash,
+                include=args.include,
+                worktree=args.worktree,
+                here=args.here,
+                dry_run=args.dry_run,
+            )
+        if args.command == "worktree-done":
+            from . import start
+
+            return start.worktree_done(args.issue)
+        if args.command == "normalize":
+            from . import normalize
+
+            return normalize.main(args.files)
+        if args.command == "shot":
+            from . import shot
+
+            return shot.main(args.scene, out=args.out, size=args.size, frames=args.frames)
+        if args.command == "agents-check":
+            from . import agents_check
+
+            return agents_check.main(session=args.session, all_sessions=args.all)
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0
