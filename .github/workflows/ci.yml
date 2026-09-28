@@ -1,0 +1,78 @@
+# CI runs exactly what `tools/run.sh verify` runs locally (the definition of done), on Linux.
+# Pins come from tools/runner/pins.py; see docs/decisions/2026-09-28-toolchain-pins.md.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      # No LFS content: addons/ is outside LFS, and there are no LFS assets yet (see the pins ADR).
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Read pins
+        run: |
+          {
+            echo "GODOT_ZIP=$(tools/run.sh pins --get godot_linux_zip)"
+            echo "GODOT_URL=$(tools/run.sh pins --get godot_linux_url)"
+            echo "GODOT_SHA512=$(tools/run.sh pins --get godot_linux_sha512)"
+            echo "GDTOOLKIT_PIN=$(tools/run.sh pins --get gdtoolkit)"
+          } >> "$GITHUB_ENV"
+
+      - name: Cache the Godot download
+        id: godot-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/godot-download
+          key: godot-linux-${{ env.GODOT_SHA512 }}
+
+      - name: Download Godot
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-download
+          curl -fsSL --retry 3 -o ~/godot-download/"$GODOT_ZIP" "$GODOT_URL"
+
+      # Checked on every run, cached or not.
+      - name: Check the Godot checksum and install it
+        run: |
+          cd ~/godot-download
+          echo "$GODOT_SHA512  $GODOT_ZIP" | sha512sum -c -
+          mkdir -p ~/godot
+          unzip -q -o "$GODOT_ZIP" -d ~/godot
+          mv ~/godot/"${GODOT_ZIP%.zip}" ~/godot/godot
+          chmod +x ~/godot/godot
+          ~/godot/godot --headless --version
+
+      - name: Install gdtoolkit
+        run: python -m pip install --disable-pip-version-check "gdtoolkit==$GDTOOLKIT_PIN"
+
+      - name: verify
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify
+
+      - name: Upload test reports and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-reports
+          path: |
+            tools/out/gdunit
+            tools/out/logs
+          if-no-files-found: ignore
+          retention-days: 14

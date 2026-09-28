@@ -16,6 +16,7 @@ errors, `load()` returns a script that does not compile, and the GdUnit4 console
 | Tool | Pin | Note |
 |---|---|---|
 | Godot | 4.7.2 official stable, standard build (`4.7.2.stable.official*`) | Every command that runs Godot checks the version first and stops with a download link |
+| Godot in CI | `Godot_v4.7.2-stable_linux.x86_64.zip` from the official release, SHA512 pinned as `godot_linux_sha512` | Copied from the release's `SHA512-SUMS.txt`; CI runs `sha512sum -c` on every run, cached or not |
 | GdUnit4 | 6.2.1, committed in `addons/gdUnit4` | Its README lists Godot up to 4.7.1; runs on 4.7.2 verified locally |
 | gdtoolkit | 4.5.0 | No upstream commits since 2025-10; Godot's parser in `check` stays the authority |
 | Python | 3.11 or newer | Runner uses the standard library only |
@@ -30,14 +31,21 @@ errors, `load()` returns a script that does not compile, and the GdUnit4 console
   `.gd`, `.tscn` and `.tres` outside `addons/`. Warn-level GDScript warnings are printed but do not fail. The loader
   runs with `-d --ignore-error-breaks`, never a bare `-d`, which hangs.
 - `test` trusts only the GdUnit4 exit code and `results.xml`. Exit 101 (**orphan nodes**) fails the build, and so
-  does a run with zero tests.
+  does a run with zero tests. `results.xml` does not record orphans, so `test` names the leaking test (or the
+  suite's `before()`/`after()`) from the console log.
 - `verify` runs doctor (quick), lint, check, test and the runner's own tests, and fails if the run left files in the
   working tree.
 - Every Godot call has a hard timeout and kills the whole process tree (the Windows console exe starts the engine as
   a child process).
 
-**Changing a pin** is a PR that edits `tools/runner/pins.py` (plus the addon for GdUnit4), updates this ADR, and
-shows `verify` green locally and in CI.
+**CI** (`.github/workflows/ci.yml`, job `verify`, ubuntu-24.04) reads every pin with `tools/run.sh pins --get`,
+installs the checked Godot build and `gdtoolkit==<pin>` on Python 3.12, then runs
+`GODOT_BIN=$HOME/godot/godot tools/run.sh verify`. It uploads `tools/out/gdunit` and `tools/out/logs` even when
+`verify` fails.
+
+**Changing a pin** is a PR that edits `tools/runner/pins.py` (plus the addon for GdUnit4, and
+`godot_linux_sha512` from the new release's `SHA512-SUMS.txt` for Godot), updates this ADR, and shows `verify`
+green locally and in CI.
 
 ## Alternatives
 - Orphans as a warning only: leaks in `core/` tests would pile up unseen.
