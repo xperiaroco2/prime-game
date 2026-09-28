@@ -1,0 +1,51 @@
+extends SceneTree
+## Renders one scene in a real window and saves a PNG. Used by `tools/run.py shot`.
+##
+## Run windowed and off-screen, never headless or minimized: Godot does not draw then, so
+## frame_post_draw would never fire.
+##   godot --position -30000,-30000 --resolution 1280x720 -s res://tools/shot/shot.gd
+##       -- <res://scene.tscn> <out.png> [frames]
+## Prints SHOT saved <png> <width>x<height>, or SHOT error <why>. A watchdog quits after 60 s.
+
+const WATCHDOG_S: float = 60.0
+
+
+func _initialize() -> void:
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	if DisplayServer.get_name() == "headless":
+		_fail("running headless; shot needs a real window")
+		return
+	if args.size() < 2:
+		_fail("usage: -- <res://scene.tscn> <out.png> [frames]")
+		return
+	create_timer(WATCHDOG_S).timeout.connect(
+		_fail.bind("no frame was drawn within %d s" % WATCHDOG_S)
+	)
+	var frames: int = int(args[2]) if args.size() > 2 else 10
+	_shoot(args[0], args[1], frames)
+
+
+func _shoot(scene_path: String, png_path: String, frames: int) -> void:
+	var scene: PackedScene = load(scene_path) as PackedScene
+	if scene == null:
+		_fail("cannot load %s" % scene_path)
+		return
+	root.add_child(scene.instantiate())
+	for i: int in frames:
+		await process_frame
+	await RenderingServer.frame_post_draw
+	var image: Image = root.get_viewport().get_texture().get_image()
+	if image == null or image.is_empty():
+		_fail("the viewport gave an empty image")
+		return
+	var error: Error = image.save_png(png_path)
+	if error != OK:
+		_fail("cannot save %s: %s" % [png_path, error_string(error)])
+		return
+	print("SHOT saved %s %dx%d" % [png_path, image.get_width(), image.get_height()])
+	quit(0)
+
+
+func _fail(why: String) -> void:
+	print("SHOT error ", why)
+	quit(1)
