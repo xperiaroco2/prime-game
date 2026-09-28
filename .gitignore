@@ -1,3 +1,13 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Claude Code: personal settings and agent worktrees
+.claude/settings.local.json
+.claude/worktrees/
+
+# Task runner output (screenshots, API dumps, logs)
+tools/out/
+
+# JetBrains Rider: personal files; shared run configurations may be un-ignored deliberately
+.idea/
