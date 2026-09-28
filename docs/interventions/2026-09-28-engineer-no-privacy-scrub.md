@@ -24,4 +24,4 @@
 **Where the rule lives now.**
 - `docs/AGENT_WORKFLOW.md` §1 ("Proportionate protection").
 - `docs/decisions/2026-09-28-public-repo-on-github-free.md` (the archive is published as is).
-- To be promoted into root `CLAUDE.md` (hard rules) in M0.
+- Root `CLAUDE.md`, "Hard rules" (promoted in M0 stage 3).

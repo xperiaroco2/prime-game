@@ -27,4 +27,4 @@
 **Where the rule lives now.**
 - `docs/AGENT_WORKFLOW.md` §13 ("The agent explains choices plainly").
 - `docs/decisions/2026-09-28-godot-editor-save-first-convention.md`.
-- To be promoted into root `CLAUDE.md` (communication conventions) in M0.
+- Root `CLAUDE.md`, "Talking to the humans" (promoted in M0 stage 3).

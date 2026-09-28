@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from . import pins
+from . import instructions, pins
 from .common import ROOT, Failure, Result, bad, gd_files, gdtoolkit_exe, ok, rel, run, say
 
 TIMEOUT = 300
@@ -59,10 +59,31 @@ def main(fix: bool = False, files: list[str] | None = None) -> int:
     say("lint" + (" --fix" if fix else ""))
     targets = [ROOT / f for f in files] if files else gd_files()
     targets = [p for p in targets if not rel(p).startswith("addons/")]
+    failed = gdscript(targets, fix) if targets else False
     if not targets:
         ok("no GDScript files to lint")
-        say("lint: passed")
-        return 0
+    if not files:
+        failed = instruction_files() or failed
+    say("lint: FAILED" if failed else "lint: passed")
+    return 1 if failed else 0
+
+
+def instruction_files() -> bool:
+    """CLAUDE.md budgets and rule/agent frontmatter. Returns True when something failed."""
+    report = instructions.check(ROOT)
+    for line in report.errors:
+        bad(line)
+    if any("budget" in line for line in report.errors):
+        bad("instruction files over budget", instructions.OVER_BUDGET_FIX)
+    if report.errors:
+        return True
+    for line in report.notes:
+        ok(line)
+    return False
+
+
+def gdscript(targets: list[Path], fix: bool) -> bool:
+    """gdformat (--check unless fix) and gdlint. Returns True when something failed."""
     names = [rel(p) for p in targets]
     failed = False
 
@@ -87,6 +108,4 @@ def main(fix: bool = False, files: list[str] | None = None) -> int:
             bad(line)
     else:
         ok(f"gdlint ({len(names)} files)")
-
-    say("lint: FAILED" if failed else "lint: passed")
-    return 1 if failed else 0
+    return failed

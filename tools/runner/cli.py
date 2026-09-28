@@ -20,7 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("doctor", help="check the environment and print fixes")
     p.add_argument("--quick", action="store_true", help="only what verify needs (Python, Godot, gdtoolkit, addons)")
 
-    p = sub.add_parser("lint", help="gdformat --check + gdlint on project GDScript")
+    p = sub.add_parser("lint", help="gdformat --check + gdlint; CLAUDE.md budgets and rule/agent frontmatter")
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
     p.add_argument("files", nargs="*", help="repo-relative .gd files (default: all project GDScript)")
 
@@ -32,6 +32,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
     sub.add_parser("selftest", help="unit tests of the runner itself")
+
+    p = sub.add_parser("board", help="the GitHub project board")
+    board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
+    p = board_sub.add_parser("move", help="put an issue on the board in a column (agents use only these two)")
+    p.add_argument("issue", type=int, help="issue number")
+    p.add_argument("column", choices=["in-progress", "in-review"])
 
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
@@ -69,6 +75,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import verify
 
             return verify.selftest()
+        if args.command == "board":
+            from . import board
+
+            return board.move(args.issue, args.column)
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0
