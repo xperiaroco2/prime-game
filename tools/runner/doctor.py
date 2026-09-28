@@ -174,6 +174,24 @@ class Doctor:
                 "Update it (claude update) or remove it from PATH, so Rider cannot start an old build.",
             )
 
+    def disk(self) -> None:
+        """Temp files of every tool (pip, Godot, Claude Code) go to the TEMP drive, often C:."""
+        folders = {"project": ROOT, "temp": Path(os.environ.get("TEMP") or os.environ.get("TMPDIR") or "/tmp")}
+        seen: set[str] = set()
+        for label, folder in folders.items():
+            anchor = folder.anchor or "/"
+            if anchor in seen or not folder.exists():
+                continue
+            seen.add(anchor)
+            free_gb = shutil.disk_usage(folder).free / 1024**3
+            text = f"{free_gb:.1f} GB free on {anchor} ({label})"
+            if free_gb < 1:
+                self.fail(text, "Free some space: tools fail with 'No space left on device' below about 1 GB.")
+            elif free_gb < 5:
+                warn(text + "; below 5 GB, clean up soon")
+            else:
+                ok(text)
+
     def api_dump(self) -> None:
         target = OUT / "godot-api" / pins.GODOT / "extension_api.json"
         if target.is_file():
@@ -195,6 +213,7 @@ def main(quick: bool) -> int:
     say("doctor" + (" --quick" if quick else ""))
     doc = Doctor()
     doc.python()
+    doc.disk()
     doc.godot()
     doc.gdtoolkit()
     doc.addons()
