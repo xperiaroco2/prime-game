@@ -46,7 +46,10 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
 - Invariants live in root because nested files drop out after compaction.
-- A budget lint in `verify` fails over budget. The same PR then scopes a rule to paths, moves it into a skill, or
+- **[applied]** All files in this table exist (M0 stage 3). `toolsun.cmd lint` (part of `verify`) fails over
+  budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
+  `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
+  Code would then load the rule at every launch). The same PR then scopes a rule to paths, moves it into a skill, or
   retires it, and the intervention entry says which.
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
@@ -120,7 +123,8 @@ Committed in `.claude/skills/<name>/SKILL.md`; no plugins.
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
 - `start-task` and `finish-task` never use `context: fork`. `allowed-tools` carry Bash and PowerShell forms.
-- The Python runner lints skill and agent frontmatter in `verify`, so CI needs no Claude Code install.
+- The Python runner lints agent frontmatter in `verify` [applied] and skill frontmatter [M0], so CI needs no
+  Claude Code install.
 
 ## 7. Effort and orchestration
 
@@ -234,9 +238,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 ## 11. Godot specifics
 
 - **Editor convention** ([ADR](decisions/2026-09-28-godot-editor-save-first-convention.md)): nobody edits by hand
-  while an agent works. Before asking the agent for anything, **Save All** in Godot. If Godot asks about files changed
-  on disk, always choose **Reload from disk** (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні
-  зміни»). The agent reminds the human; nothing blocks. Headless runs next to an open editor were verified in M0.
+  while an agent works. Before asking the agent for anything, Scene → **Save All Scenes** (Ctrl+Shift+Alt+S;
+  Ukrainian UI «Зберегти всі сцени»). If Godot asks about files changed on disk, always choose **Reload from disk**
+  (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні зміни»). The agent reminds the human; nothing blocks. Headless runs next to an open editor were verified in M0.
 - **`.tscn` / `.tres`:** the agent hand-writes readable text and never copies a uid or a `.uid` sidecar;
   `tools\run.cmd normalize <files>` re-saves them in headless editor context; `check` fails on UID problems, on files
   left modified by `--import`, and on an `ext_resource` uid that resolves to a different file than its `path=`.
