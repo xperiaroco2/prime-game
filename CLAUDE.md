@@ -102,7 +102,8 @@ Until a skill exists in `.claude/skills/`, follow `docs/AGENT_WORKFLOW.md` §4 b
 4. Ask once: "Publish now?". Then push the task branch, open the PR from the template (linked issue, summary,
    verification commands and output, screenshots for visual changes, docs updated yes/no) and write the handoff
    comment on the issue: done, left, decisions, gotchas.
-5. Only humans merge.
+5. Only humans merge. Stacked PRs: after a parent PR merges, retarget each child with
+   `gh pr edit <n> --base main` before its merge; GitHub does that itself only when the parent branch is deleted.
 
 ## Stop and ask before
 - Adding a dependency or addon; changing an architecture boundary; touching the other owner's area.
