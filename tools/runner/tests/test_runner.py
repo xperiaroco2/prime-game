@@ -1,12 +1,14 @@
-"""Pure helpers of the runner: JUnit and orphan parsing, version parsing, warnings policy, process timeout."""
+"""Pure helpers of the runner: JUnit and orphan parsing, pins, version parsing, warnings policy, process timeout."""
 
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import check, common, gdunit
+from runner import check, cli, common, gdunit, pins
 
 JUNIT_FAIL = """<?xml version="1.0" encoding="UTF-8"?>
 <testsuites><testsuite name="s" tests="2" failures="1">
@@ -70,6 +72,20 @@ class OrphanTest(unittest.TestCase):
     def test_clean_log_has_no_orphans(self) -> None:
         clean = "\n".join(line for line in ORPHAN_LOG.splitlines() if "orphan nodes" not in line)
         self.assertEqual(gdunit.parse_orphans(clean), [])
+
+
+class PinsTest(unittest.TestCase):
+    def test_linux_checksum_is_a_sha512(self) -> None:
+        self.assertRegex(pins.GODOT_LINUX_SHA512, r"^[0-9a-f]{128}$")
+        self.assertTrue(pins.GODOT_LINUX_URL.endswith(f"/{pins.GODOT}-stable/{pins.GODOT_LINUX_ZIP}"))
+
+    def test_pins_get_prints_one_value(self) -> None:
+        # CI reads the checksum this way: tools/run.sh pins --get godot_linux_sha512
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = cli.main(["pins", "--get", "godot_linux_sha512"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out.getvalue().strip(), pins.GODOT_LINUX_SHA512)
 
 
 class VersionTest(unittest.TestCase):
