@@ -21,7 +21,7 @@ Body.
 def write(root: Path, rel: str, text: str) -> None:
     path = root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    path.write_bytes(text.encode("utf-8"))  # exact bytes: write_text would turn "\n" into CRLF on Windows
 
 
 def lines(n: int) -> str:
@@ -110,6 +110,11 @@ class BudgetTest(unittest.TestCase):
 
     def test_missing_root_claude_md(self) -> None:
         self.assertIn("CLAUDE.md is missing at the repo root", self.check({}).errors)
+
+    def test_control_character_in_markdown_fails(self) -> None:
+        # The real case: "\r" from a script escape turned `tools\run.cmd` into "tools<CR>un.cmd".
+        report = self.check({"CLAUDE.md": "ok\r\n", "docs/x.md": "a\r\n`tools\run.cmd`\n\tindented tab is fine\n"})
+        self.assertEqual(report.errors, ["docs/x.md:2: control character 0x0D"])  # CRLF on line 1 is fine
 
     def test_agent_model_guard_and_read_only(self) -> None:
         bad = AGENT.replace("model: sonnet", "model: fable").replace(", Agent", "")

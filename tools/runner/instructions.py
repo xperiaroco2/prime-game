@@ -178,6 +178,8 @@ def check(root: Path) -> Report:
         name, lines = max(nested, key=lambda item: item[1])
         report.notes.append(f"{len(nested)} nested CLAUDE.md, largest {name} {lines}/{NESTED_BUDGET} lines")
 
+    report.errors += control_characters(root)
+
     agents_dir = root / ".claude" / "agents"
     agents = sorted(agents_dir.glob("*.md")) if agents_dir.is_dir() else []
     for path in agents:
@@ -185,6 +187,23 @@ def check(root: Path) -> Report:
     if agents:
         report.notes.append(f"{len(agents)} subagents: frontmatter, model guard, read-only")
     return report
+
+
+def control_characters(root: Path) -> list[str]:
+    """A lone CR or another control character (except tab) in Markdown is always a mistake, such as an escape
+    sequence that leaked out of a script (`\\r` in `tools\\run.cmd`). CRLF line ends are fine: git normalizes them."""
+    problems = []
+    for folder, dirs, files in os.walk(root):
+        rel = Path(folder).relative_to(root).as_posix()
+        dirs[:] = sorted(d for d in dirs if (f"{rel}/{d}" if rel != "." else d) not in SKIP)
+        for name in sorted(f for f in files if f.endswith(".md")):
+            path = Path(folder) / name
+            for number, line in enumerate(path.read_bytes().split(b"\n"), start=1):
+                bad = sorted({b for b in line.removesuffix(b"\r") if b < 32 and b != 9})
+                if bad:
+                    codes = ", ".join(f"0x{b:02X}" for b in bad)
+                    problems.append(f"{path.relative_to(root).as_posix()}:{number}: control character {codes}")
+    return problems
 
 
 def agent_problems(path: Path) -> list[str]:

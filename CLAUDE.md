@@ -50,6 +50,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths]` | GdUnit4 headless; judged by exit code and `results.xml`; orphan nodes fail |
 | `verify` | Everything CI runs, in the same order: the definition-of-done gate |
+| `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
 | `selftest` / `pins [--get X]` | The runner's own tests / pinned tool versions |
 
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.
@@ -62,6 +63,8 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
   `gh pr create --body-file <file>`. Structured arguments go in files, not inline JSON.
 - Keep file writes and `Remove-Item` in separate commands (the delete guard misreads combined ones).
 - `bash` on PATH is the WSL launcher, not Git Bash. In Git Bash `python` is a Store stub: use `$PYTHON_BIN`.
+- In the Bash tool `\\` arrives as `\`, even inside single quotes and quoted heredocs (`"\\r"` became a CR).
+  Write code that contains backslashes to a file with the Write tool, then run the file.
 - `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
 - Push an explicit task branch only: `git push -u origin <branch>`. Never `main`, never a force push by hand.
 
