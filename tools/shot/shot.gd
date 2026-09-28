@@ -30,9 +30,13 @@ func _shoot(scene_path: String, png_path: String, frames: int) -> void:
 	if scene == null:
 		_fail("cannot load %s" % scene_path)
 		return
-	root.add_child(scene.instantiate())
+	var instance: Node = scene.instantiate()
+	root.add_child(instance)
 	for i: int in frames:
 		await process_frame
+	if _frame_if_needed(instance):
+		for i: int in 2:
+			await process_frame
 	await RenderingServer.frame_post_draw
 	var image: Image = root.get_viewport().get_texture().get_image()
 	if image == null or image.is_empty():
@@ -44,6 +48,39 @@ func _shoot(scene_path: String, png_path: String, frames: int) -> void:
 		return
 	print("SHOT saved %s %dx%d" % [png_path, image.get_width(), image.get_height()])
 	quit(0)
+
+
+## A level piece has no camera or light of its own: add a camera that frames all its geometry
+## from above at an angle, and a sun if it has no light. Returns true when something was added.
+func _frame_if_needed(instance: Node) -> bool:
+	if root.get_viewport().get_camera_3d() != null:
+		return false
+	var bounds: AABB = AABB()
+	var found: bool = false
+	for node: Node in instance.find_children("*", "VisualInstance3D", true, false):
+		var visual: VisualInstance3D = node as VisualInstance3D
+		var box: AABB = visual.global_transform * visual.get_aabb()
+		bounds = box if not found else bounds.merge(box)
+		found = true
+	if not found:
+		return false
+	var center: Vector3 = bounds.get_center()
+	var radius: float = maxf(bounds.size.length() * 0.5, 0.5)
+	var camera: Camera3D = Camera3D.new()
+	instance.add_child(camera)
+	camera.look_at_from_position(
+		center + Vector3(1.0, 0.9, 1.3).normalized() * radius * 1.7, center
+	)
+	camera.far = radius * 10.0 + 100.0
+	camera.make_current()
+	var added: String = "a camera"
+	if instance.find_children("*", "Light3D", true, false).is_empty():
+		var sun: DirectionalLight3D = DirectionalLight3D.new()
+		instance.add_child(sun)
+		sun.look_at_from_position(Vector3.ZERO, Vector3(-0.4, -1.0, -0.6))
+		added += " and a light"
+	print("SHOT framed: the scene has no camera; added ", added)
+	return true
 
 
 func _fail(why: String) -> void:
