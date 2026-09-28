@@ -141,7 +141,9 @@ Rules for every workflow run:
 - A run never decides a human-reserved item; it records options and a recommendation and continues.
 - Design runs produce documents first. Output lands as focused PRs, each with its verification, checked by a
   **fresh** agent.
-- `.claude/` changes are done interactively, not as workflows (protected-path prompts stall runs).
+- Changes to `.claude/settings*.json` and `addons/` wait for the human (ask rules prompt in every mode). Other
+  `.claude/` paths are protected by Claude Code itself and prompt in every mode except bypass, so unattended runs
+  that edit them need bypass.
 - `effortLevel` is never put in shared settings.
 
 ## 8. Permissions, guards and hooks
@@ -150,27 +152,34 @@ Rules for every workflow run:
 
 ### 8.1 Permission rules [applied]
 `.claude/settings.json`, strict JSON. Every `Bash(...)` rule has a `PowerShell(...)` twin. Deny beats ask beats allow.
-- **Allow:** the runner (`tools/run.sh`, `tools\run.cmd`), `git fetch origin`, `git add`, `git commit`, read-only
-  `gh` (issue/pr view, list, checks, diff; run list/view; label list; `gh auth status --active --json`), and
-  **`gh issue create`, `gh issue comment`, `gh pr create`**; WebFetch to Godot, Claude Code, GitHub and git docs.
-  Read-only git (`status`, `diff`, `log`, `show`) needs no rule; `git log` is deliberately not allowlisted because
-  of `--output=`.
-- **Ask:** edits to `.claude/hooks|githooks|agents|skills/`, `.claude/settings*.json`, `.github/`, `addons/`, the
-  runner files; raw `git push`, `switch`, `checkout`, `restore`, `reset`, `clean`, `rebase`, `worktree`,
-  `branch -d`, `stash drop|clear`, `git -c`; recursive deletes and `Remove-Item`; `gh` with `-R/--repo`; `gh` edits,
-  closes, deletes, reviews, `api`, `workflow`, `release`, `repo`, `project`, `secret`, `variable`, `ruleset`.
-- **Deny:** force pushes, pushes to `main` in any spelling, `--no-verify`, remote deletes, `--prune`, `--mirror`,
-  `--all`, `git branch -D`, `git config` on `hooksPath` or `--unset`, `--upload-pack`, `--output`,
-  **`gh pr merge` and `mcp__ccd_pr__set_auto_merge`**, `gh repo delete`, `gh auth token`, token-printing
-  `gh auth status`.
-- Godot, Python and gdtoolkit run without a prompt **only through the runner**; their raw forms prompt.
+**Goal: an agent can work unattended for an hour** (read status, branch, commit, push its task branch, open PRs and
+issues, edit tooling) and stops only for the rare items below
+([ADR](decisions/2026-09-28-unattended-work-permissions.md)).
+- Deny and ask rules apply in **every** permission mode, including bypass; allow rules matter only in the modes that
+  prompt (the designer's `acceptEdits`).
+- **Allow:** the runner; `git fetch origin`, `add`, `commit`, `log`, `switch`, `branch`, `stash` (push/list/pop),
+  `git push [-u] origin <branch>`; `gh` issue and PR create/view/list/comment/edit/close/ready, run
+  list/view/watch/rerun, workflow list/view, `label`, `project`, `ruleset`, `repo view`, `api` (GET and POST);
+  WebFetch to Godot, Claude Code, GitHub and git docs.
+- **Ask (the agent's stop points):** edits to `.claude/settings*.json` (its own permissions) and `addons/`
+  (dependencies); work-discarding or history-rewriting git (`checkout`, `switch --discard-changes|-f`, `restore`,
+  `reset`, `clean`, `rebase`, `worktree`, `branch -d`, `stash drop|clear`, `git -c`); recursive deletes; `gh` with
+  `-R/--repo`; `gh api` PUT/PATCH/DELETE; deleting issues, labels, projects or the last comment; `gh pr review`;
+  `gh workflow run|enable|disable`; `gh release`, `secret`, `variable`; `gh repo edit|rename|archive|deploy-key`.
+- **Deny:** force pushes; pushes to `main` in any spelling, including a bare `git push`, `git push [-u] origin` with
+  no branch and any push naming `HEAD` (always push an explicit branch name); `--no-verify`, remote deletes,
+  `--prune`, `--mirror`, `--all`, `git branch -D`, `git config` on `hooksPath` or `--unset`, `--upload-pack`,
+  `--output`, **`gh pr merge` and `mcp__ccd_pr__set_auto_merge`**, `gh repo delete`, `gh auth token`,
+  token-printing `gh auth status`.
+- Godot, Python and gdtoolkit run without a prompt **only through the runner**; their raw forms prompt in modes that
+  prompt.
 - `GH_PROMPT_DISABLED=1` is set in the shared `env`.
 
 ### 8.2 Thin guard [M0]
 A PreToolUse hook (`Bash|PowerShell|Edit|Write|NotebookEdit`), Python, fail-closed (a crash or missing Python becomes
-exit 2), no network calls. It only asks before **shell commands that write to protected paths** (`Copy-Item`,
-`Move-Item`, `Set-Content`, `Out-File`, `>`, `cp`, `mv` into `.claude/`, `tools/run*`, `tools/runner/`,
-`.github/`), which text rules cannot see. It does not check ownership or the Godot editor. The runner and hooks find
+exit 2), no network calls. It only asks before **shell commands that write to the ask-protected paths**
+(`Copy-Item`, `Move-Item`, `Set-Content`, `Out-File`, `>`, `cp`, `mv` into `.claude/settings*.json` or `addons/`),
+which text rules cannot see. It does not check ownership or the Godot editor. The runner and hooks find
 Python as `PYTHON_BIN`, else `py -3`. `doctor` is red when Git Bash is missing, because hooks then fail open.
 
 ### 8.3 Pre-push hook and publishing [M0]
