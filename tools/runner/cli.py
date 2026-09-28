@@ -20,7 +20,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("doctor", help="check the environment and print fixes")
     p.add_argument("--quick", action="store_true", help="only what verify needs (Python, Godot, gdtoolkit, addons)")
 
-    p = sub.add_parser("lint", help="gdformat --check + gdlint on project GDScript")
+    p = sub.add_parser("lint", help="gdformat --check + gdlint; CLAUDE.md budgets and rule/agent frontmatter")
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
     p.add_argument("files", nargs="*", help="repo-relative .gd files (default: all project GDScript)")
 
