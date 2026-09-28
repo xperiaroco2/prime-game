@@ -20,8 +20,10 @@ paths:
   it must be the one in the target's own `.uid` sidecar or header: `check` fails when a uid resolves to a different
   file than `path=`.
 - Property names and enum values come from the API dump (`tools/out/godot-api/4.7.2/extension_api.json`), not memory.
-- Once `tools\run.cmd normalize <files>` exists, run it on new or hand-edited files: it re-saves them in editor
-  context, so the editor will not rewrite them later.
+- `Transform3D(...)` lists the basis **row by row** (x.x, y.x, z.x, x.y, …), then the origin: a rotation written as
+  columns turns the other way.
+- Run `tools\run.cmd normalize <files>` on new or hand-edited files: it re-saves them in editor context, so the
+  editor will not rewrite them later. If it reports a dropped property, that line is a typo or a default value.
 
 ## Sidecars
 - Commit every `.uid` and `.import` file with the file it belongs to. Never copy one to a new file.

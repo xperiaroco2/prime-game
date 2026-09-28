@@ -62,11 +62,13 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 2. `gh issue view 42`; read the linked docs and the area's `CLAUDE.md`.
 3. If the task touches the other owner's area, stop and ask (§9). If another human has an open PR on a scene the task
    edits, stop (KICKOFF §5.3).
-4. `tools\run.cmd start 42`: handles a dirty tree (include or stash, never discard), creates the branch
-   `<area>/<issue>-<slug>`, assigns the issue if unassigned, and moves the board item to **In progress**.
-   It creates a worktree `.claude/worktrees/<n>` **only when another Claude session is already active on this
-   checkout**, engineer only; `tools\run.cmd worktree-done <n>` removes it after merge
-   ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)).
+4. `tools\run.cmd start 42` **[applied]**: creates `<area>/<issue>-<slug>` from `origin/main` with no upstream (the
+   area from the issue's single `area:*` label, else `--area`), or resumes the issue's existing branch; assigns the
+   issue if unassigned; moves the board item to **In progress**. Uncommitted changes stop it with the list:
+   `--include` carries them onto the task branch, `--stash` stashes them; it never discards. `--dry-run` changes
+   nothing. It creates a worktree `.claude/worktrees/<n>` instead **only when another Claude session is active on
+   this checkout**, engineer only (`--worktree` / `--here` override); `tools\run.cmd worktree-done <n>` removes it
+   once the branch is merged ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)).
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
@@ -104,14 +106,18 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
   another model falls back with a warning. Fable appears in no shared file
   ([ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)). 👤 Both humans keep **usage credits off**
   or set a spend cap: the only hard stop on money.
-- **Routing check:** each subagent transcript under
-  `~/.claude/projects/D--prime-game/<session>/subagents/agent-*.jsonl` records the model that actually served it.
-  M0 adds `tools\run.cmd agents-check`, which asserts the model **family**, not exact IDs.
+- **Routing check [applied]:** each subagent transcript under
+  `~/.claude/projects/D--prime-game/<session>/subagents/agent-*.jsonl` records the model that actually served it,
+  and `agent-*.meta.json` next to it the `agentType` and any requested `model`. `tools\run.cmd agents-check`
+  (this session; `--all` for every session of the checkout and its worktrees) asserts the model **family**, not exact
+  IDs: the requested model, else the agent file's `model:`. A request outside `availableModels` must be served by
+  another family (the model guard). `finish-task` runs it after the reviews.
 - A new `.claude/agents/` directory is only seen by sessions started after it exists.
 
-## 6. Skills [M0]
+## 6. Skills [applied]
 
-Committed in `.claude/skills/<name>/SKILL.md`; no plugins.
+Committed in `.claude/skills/<name>/SKILL.md` (M0 stage 6); no plugins. The two designer skills are designer-owned
+and wait for the designer's review.
 
 | Skill | For | Does |
 |---|---|---|
@@ -124,8 +130,14 @@ Committed in `.claude/skills/<name>/SKILL.md`; no plugins.
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
 - `start-task` and `finish-task` never use `context: fork`. `allowed-tools` carry Bash and PowerShell forms.
-- The Python runner lints agent frontmatter in `verify` [applied] and skill frontmatter [M0], so CI needs no
-  Claude Code install.
+- The Python runner lints agent and skill frontmatter in `verify` [applied], so CI needs no Claude Code install.
+  For skills: strict YAML subset, `name` = folder, no unknown field (Claude Code ignores one silently), the rules
+  above, `description` + `when_to_use` within the 1,536-character listing cap, and a PowerShell twin for every Bash
+  rule. `claude plugin validate .claude/skills` is no substitute: it passed a description YAML cannot parse.
+- `allowed-tools` only pre-approves tools for the turn that invokes the skill; ask and deny rules still win, so a
+  skill never bypasses the guard or the settings prompts.
+- A running session sees edits to existing skills at once, but a `.claude/skills/` folder created after it started
+  only after `/reload-skills` (code.claude.com/docs/en/skills, checked 2026-09-29).
 
 ## 7. Effort and orchestration
 
@@ -295,13 +307,21 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   Ukrainian UI «Зберегти всі сцени»). If Godot asks about files changed on disk, always choose **Reload from disk**
   (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні зміни»). The agent reminds the human; nothing blocks. Headless runs next to an open editor were verified in M0.
 - **`.tscn` / `.tres`:** the agent hand-writes readable text and never copies a uid or a `.uid` sidecar;
-  `tools\run.cmd normalize <files>` re-saves them in headless editor context; `check` fails on UID problems, on files
-  left modified by `--import`, and on an `ext_resource` uid that resolves to a different file than its `path=`.
+  `tools\run.cmd normalize <files>` **[applied]** re-saves them in headless editor context (`--headless -e -s`,
+  after the first file-system scan), which adds the header uid and node `unique_id`s the editor would. A second run
+  leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
+  after a parse error, without an error: `normalize` compares property keys before and after, and on a loss restores
+  the file and fails. `check` fails on UID problems, on files left modified by `--import`, and on an `ext_resource`
+  uid that resolves to a different file than its `path=`.
+- **`shot <scene>` [applied]:** a real window at `--position -30000,-30000` (off-screen), never headless or minimized
+  (Godot then never draws), a 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
+  one that frames all its geometry, plus a light if it has none. Desktop only: CI never runs it, and the designer
+  gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]:** Python core `tools/run.py` with `tools\run.cmd` (immune to the execution policy) and
-  `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`, `test`, `verify`, `selftest`, `pins`, `board`, `publish`,
-  and `hook` (for Claude Code only). Pins and pass/fail
+  `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`, `test`, `verify`, `selftest`, `pins`, `board`, `start`,
+  `worktree-done`, `publish`, `normalize`, `shot`, `agents-check`, and `hook` (for Claude Code only). Pins and pass/fail
   rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
   Bash; `doctor` finds Git Bash through git's install folder.
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
@@ -312,12 +332,14 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 ## 12. The designer's agent
 
-- **Onboarding [M0]:** after M0 merges, the designer opens the clone in Desktop and says "налаштуй мене". `onboard`
-  runs `doctor`, writes her user settings (`env`, `language`, `defaultMode`) after she approves the exact content,
-  installs gdtoolkit via a real Python, runs `git lfs install` and sets `core.hooksPath`. Then it prints the clicks
-  only she can make: Git for Windows (required), Python 3.11+, Godot 4.7.2, repo and project invites,
-  `gh auth login` + `gh auth refresh -s project`, trusting the folder, checking her Claude plan, usage credits off.
-  It ends with a one-page summary for her sign-off, where she may reopen any decision that binds her.
+- **Onboarding [applied]:** after M0 merges, the designer opens the clone in Desktop and says "налаштуй мене".
+  `onboard` runs `doctor` (which sets `core.hooksPath`), writes her user settings (`env`, `language`, `defaultMode`)
+  after she approves the exact content, installs gdtoolkit via a real Python with her OK, and runs
+  `git lfs install --skip-repo` (§8.3). It explains the save-first rule (§11) and the one-time answer to a guard
+  prompt (§8.2). Then it prints the clicks only she can make: Git for Windows (required), Python 3.11+, Godot 4.7.2,
+  repo and project invites, `gh auth login` + `gh auth refresh -s project`, trusting the folder, checking her Claude
+  plan, usage credits off. It ends with a one-page summary for her sign-off, where she may reopen any decision that
+  binds her.
 - **Reads:** root `CLAUDE.md`, `content/CLAUDE.md`, `levels/CLAUDE.md`, `docs/GDD.md`, and the content API section
   of `docs/ARCHITECTURE.md` (the contract). **Effort:** medium.
 - **By milestone:** M0–M1 GDD open questions, `mechanic` issues, review of the content-API draft · M2 first content
