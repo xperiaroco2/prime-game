@@ -235,13 +235,17 @@ are added **after the CI PR has merged**. Code-owner review stays off. No bypass
 
 - **Editor convention** ([ADR](decisions/2026-09-28-godot-editor-save-first-convention.md)): nobody edits by hand
   while an agent works. Before asking the agent for anything, **Save All** in Godot. If Godot asks about files changed
-  on disk, always choose **Reload from disk**. The agent reminds the human; nothing blocks.
+  on disk, always choose **Reload from disk** (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні
+  зміни»). The agent reminds the human; nothing blocks. Headless runs next to an open editor were verified in M0.
 - **`.tscn` / `.tres`:** the agent hand-writes readable text and never copies a uid or a `.uid` sidecar;
   `tools\run.cmd normalize <files>` re-saves them in headless editor context; `check` fails on UID problems, on files
   left modified by `--import`, and on an `ext_resource` uid that resolves to a different file than its `path=`.
-- **Warnings:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`, `unsafe_call_argument` =
-  Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
-- **Runner:** Python core `tools/run.py` with `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`.
+- **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
+  `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
+- **Runner [applied]:** Python core `tools/run.py` with `tools\run.cmd` (immune to the execution policy) and
+  `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`, `test`, `verify`, `selftest`, `pins`. Pins and pass/fail
+  rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
+  Bash; `doctor` finds Git Bash through git's install folder.
 - **No Godot MCP server** before M4 (§14). API facts come from `check`, the engine API dump that `doctor` generates
   into `tools/out/godot-api/4.7.2/`, and `docs.godotengine.org/en/4.7/`.
 
