@@ -138,7 +138,8 @@ and wait for the designer's review.
 - `allowed-tools` only pre-approves tools for the turn that invokes the skill; ask and deny rules still win, so a
   skill never bypasses the guard or the settings prompts.
 - A running session sees edits to existing skills at once, but a `.claude/skills/` folder created after it started
-  only after `/reload-skills` (code.claude.com/docs/en/skills, checked 2026-09-29).
+  only after `/reload-skills`, and it is not watched afterwards: each later edit needs `/reload-skills` again
+  (code.claude.com/docs/en/skills; seen live on 2026-09-29, when `finish-task` loaded its text from the reload).
 
 ## 7. Effort and orchestration
 
