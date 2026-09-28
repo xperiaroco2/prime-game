@@ -2,12 +2,16 @@
 .godot/
 /android/
 
+# GdUnit4 reports when tests run from the editor (the runner writes to tools/out/gdunit instead)
+/reports/
+
 # Claude Code: personal settings and agent worktrees
 .claude/settings.local.json
 .claude/worktrees/
 
-# Task runner output (screenshots, API dumps, logs)
+# Task runner output (screenshots, API dumps, logs) and Python caches
 tools/out/
+__pycache__/
 
 # JetBrains Rider: personal files; shared run configurations may be un-ignored deliberately
 .idea/
