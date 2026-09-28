@@ -188,19 +188,24 @@ a crash, or any exit code other than 0 and 2 becomes exit 2, which blocks the ca
 that times out, fails open: `doctor` is red when Git Bash is missing.
 
 The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It only asks before **shell commands
-that write to the ask-protected paths** of this project (`.claude/settings*.json` and `addons/`, worktrees included):
-`Copy-Item`, `Move-Item`, `Set-Content`, `Out-File`, `>`, `tee`, `cp`, `mv`, `rm`, `sed -i`, archive extraction,
-downloads, `git checkout|restore|rm|mv|clean|stash` naming those paths, `Get-ChildItem addons | Remove-Item`, `bash -c`
-and `powershell -Command` bodies, and one-line inline writes (`python -c`, `[IO.File]::WriteAllText`). Text rules
-cannot see these writes: Claude Code checks a redirect or `tee` target against Edit allow and deny rules, not ask
-rules. The file tools need no guard, because `Edit(...)` rules cover Edit, Write and NotebookEdit.
+that write to the ask-protected paths** of this project (top-level `.claude/settings*.json` and `addons/`, of the
+main checkout or a worktree): `Copy-Item`, `Move-Item`, `Set-Content`, `Out-File`, `>`, `tee`, `cp`, `mv`, `rm`,
+`sed -i`, archive extraction, downloads, `git checkout|restore|rm|mv|clean|stash` naming those paths, paths fed by a
+pipeline (`Get-ChildItem addons | Remove-Item`, `| xargs rm`), `for` loops over them, `bash -c`, `powershell -Command`
+and `$(...)` bodies, and the inline code of interpreters and .NET calls (`python -c`, a heredoc fed to Python,
+`node -e`, `[IO.File]::WriteAllText`). Text rules cannot see these writes: Claude Code checks a redirect or `tee`
+target against Edit allow and deny rules, not ask rules. The file tools need no guard, because `Edit(...)` rules
+cover Edit, Write and NotebookEdit.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
-  `$TEMP`, `$env:TEMP` and `~` are outside the project, so scratch copies never ask. A target it cannot resolve asks
-  when its text names a protected path. It does not run scripts, and it does not check ownership or the Godot editor.
+  `$TEMP`, `$env:TEMP` and `~` are outside the project, so scratch copies never ask. A target it cannot resolve (an
+  unknown variable, `$(...)`, a PowerShell `(...)` argument) asks when its text names a protected path. Content is
+  not a target: `Add-Content .gitignore "addons/"` stays silent. Out of scope: scripts it would have to run, globs
+  that match only by expansion (`a*ons`), `git apply`, `awk -i`, `ed`. It does not check ownership or the editor.
 - The prompt appears in every mode, bypass included. 👤 Answer it with a one-time "Yes" or "No": "don't ask again"
   silences the guard for the rest of the session (verified live 2026-09-29).
-- Replayed over the 1,605 distinct shell commands of the Phase A and B transcripts: no crash, one ask (the real
-  install of GdUnit4 into `addons/`). It adds about 0.2 s to each shell command.
+- Replayed over the 1,683 distinct shell commands of the Phase A and B transcripts (stage 4 included): no crash; it
+  asks for the real install of GdUnit4 into `addons/` and the three commands of the live test, nothing else. It adds
+  about 0.2 s to each shell command.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
@@ -212,8 +217,12 @@ marker and is blocked; `--dry-run` pushes run the hook too. The agent never forc
 - The hook lives in the working tree. A checkout of a commit from before M0 stage 4 has no
   `.claude/githooks/pre-push`, and git then runs no pre-push hook at all (not even LFS's): only the deny rules and
   the server ruleset stand. Task branches start from `main`, which has the hook.
-- `publish`: `git fetch --prune origin`, rebase on the open PR's base (a stacked PR's parent) or `main`, `verify`,
-  then the lease push. A conflict aborts the rebase and leaves the branch as it was; a red `verify` pushes nothing.
+- `publish`: `git fetch --prune origin`, rebase (`--fork-point`) on the open PR's base (a stacked PR's parent) or
+  `main`, `verify`, then the lease push. It stops before touching anything when the remote branch has a commit this
+  branch never had (a suggestion committed on GitHub, "Update branch", a push from the other machine): the lease
+  alone would not protect it, because the fetch just updated the expected value. A conflict aborts the rebase and
+  leaves the branch as it was; a red `verify` pushes nothing. `--fork-point` lets a stacked child replay only its own
+  commits after its parent was rebased or amended.
 - `core.hooksPath` switches off the hooks Git LFS installs in `.git/hooks`, so the hook runs `git lfs pre-push`
   itself. The other three LFS hooks only serve file locking, which the project does not use. With `core.hooksPath`
   set, `git lfs install` and `git lfs update` stop with "Hook already exists" and change nothing; use
@@ -221,7 +230,8 @@ marker and is blocked; `--dry-run` pushes run the hook too. The agent never forc
 
 ### 8.4 `.gd` post-edit hook [applied]
 PostToolUse on `Edit|Write`, for a project `*.gd` outside `addons/`, `tools/out/`, `.godot/` and `.claude/`:
-gdformat, restore LF, gdlint, then an engine load of that one file (`tools/check/check_project.gd`) within 60 s. When
+gdformat and gdlint (20 s each at most), restore LF, then an engine load of that one file
+(`tools/check/check_project.gd`) within 60 s, so the whole hook fits its 120 s timeout. When
 the engine reports errors, it imports once (a new `class_name` may be missing from the class cache) and loads again
 in the same budget. Problems → exit 2 with `file:line: message`; a reformat or engine warnings reach Claude as
 context ("Read it again before the next Edit"). About 2 s per edit, 8 s when the file has errors. A shell write to a
