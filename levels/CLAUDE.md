@@ -1,0 +1,38 @@
+# levels/: maps from reusable pieces (designer)
+
+Loaded when a file in `levels/` is read. This folder belongs to the **designer**. Maps are assembled from small,
+reusable sub-scenes: rooms, props, interactables and task stations. Read the root `CLAUDE.md`, `docs/GDD.md` and
+the content-API section of `docs/ARCHITECTURE.md` (which interactables and stations exist) first.
+
+## Pieces, not big scenes
+- One reusable piece per scene file. A map instances pieces; it does not copy them.
+- Small files mean two people rarely touch the same scene. Scenes are single-owner: never edit a scene that someone
+  else has an open PR on.
+- Godot file and folder names are `snake_case` (`storage_room.tscn`); node names are `PascalCase`.
+- The folder layout inside `levels/` and the piece conventions are agreed with the designer when level work starts
+  (M4); skill `new-level-piece` then encodes them.
+- Greybox with CSG and CC0 low-poly packs. Stylized low-poly, no texture-heavy art.
+
+## Never edit engine code
+- Interactables and task stations come from the engine. If a level needs one that does not exist, open an
+  `engine-request` issue with a precise spec (see `content/CLAUDE.md` for what the spec says) and continue with the
+  rest of the level.
+- The designer's agent edits only `content/`, `levels/`, `docs/GDD.md`, `docs/design/` and the two designer skills.
+
+## Working next to the Godot editor
+The designer may have this project open in the Godot editor while the agent works. The editor does not merge
+changes: whichever copy is saved last wins. Remind the human of the convention:
+1. Before asking the agent for anything: Scene → **Save All Scenes** («Зберегти всі сцени», Ctrl+Shift+Alt+S).
+2. When Godot says files changed on disk («Файли були змінені за межами Godot»), choose **Reload from disk**, which
+   the Ukrainian editor labels **«Джерело отримання»**. Never click **«Ігнорувати зовнішні зміни»**: the editor would
+   later save its old copy over the agent's work.
+3. Nobody edits a scene by hand while the agent is working on it.
+
+## Assets
+- Binary assets (models, textures, audio, fonts) go through Git LFS automatically (`.gitattributes`).
+- Every third-party asset gets a credits file in `docs/credits/<asset>.md` (source, author, license) in the same PR.
+
+## Checking the work
+- Hand-written `.tscn` files follow `.claude/rules/godot-resources.md`; `verify` must be green.
+- Headless runs cannot see a level. Each new or changed piece gets a `shot` screenshot (once `shot` exists) in the
+  PR, and the designer checks the look and feel in a playtest.
