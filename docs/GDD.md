@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | The designer. The engineer's agent never fills in or changes design content here without the designer's approval. |
-| **Status** | Skeleton (M0): sections and open questions only. Nothing below is decided. |
+| **Status** | Skeleton (M0): sections and open questions only. Nothing below is decided; examples inside a question are prompts for the designer, not proposals. |
 | **How it grows** | "нова механіка: …" → skill `new-mechanic` adds a section with its open questions and a `mechanic` issue. When this file gets long, systems move to `docs/design/<system>.md` and this file links to them. |
 | **Constraints** | What the engine can express is the content API in `docs/ARCHITECTURE.md` §9. |
 

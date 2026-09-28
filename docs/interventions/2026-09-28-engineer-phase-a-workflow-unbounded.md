@@ -41,4 +41,4 @@ Metrics are in `docs/history/2026-09-28-phase-a/agent-metrics.csv`.
 
 **Update (2026-09-28, decision session).** Rule 1 is applied: `workflowSizeGuideline: "small"` is in the shared
 `.claude/settings.json`. Rules 1–3 are part of the decided `docs/AGENT_WORKFLOW.md` §7 and ADR
-`docs/decisions/2026-09-28-effort-and-workflow-bounds.md`. Promotion into root `CLAUDE.md` remains an M0 task.
+`docs/decisions/2026-09-28-effort-and-workflow-bounds.md`. Rules 2 and 3 were promoted into root `CLAUDE.md` in M0 stage 3 (see above).

@@ -17,7 +17,7 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - Interactables and task stations come from the engine. If a level needs one that does not exist, open an
   `engine-request` issue with a precise spec (see `content/CLAUDE.md` for what the spec says) and continue with the
   rest of the level.
-- The designer's agent edits only `content/`, `levels/`, `docs/GDD.md`, `docs/design/` and the two designer skills.
+- The designer's agent edits only its own paths and the shared logs, as listed in `content/CLAUDE.md`.
 
 ## Working next to the Godot editor
 The designer may have this project open in the Godot editor while the agent works. The editor does not merge

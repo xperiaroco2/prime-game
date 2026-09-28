@@ -46,7 +46,7 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
 - Invariants live in root because nested files drop out after compaction.
-- **[applied]** All files in this table exist (M0 stage 3). `toolsun.cmd lint` (part of `verify`) fails over
+- **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
   Code would then load the rule at every launch). The same PR then scopes a rule to paths, moves it into a skill, or

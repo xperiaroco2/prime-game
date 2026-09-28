@@ -29,7 +29,7 @@ paths:
 Do not trust memory for any other API: grep `tools/out/godot-api/4.7.2/extension_api.json` (it has the docs) or
 read `docs.godotengine.org/en/4.7/`. Agent `godot-api-checker` reviews `.gd` changes.
 
-## Style (enforced by `lint`)
+## Style (gdformat and gdlint check most of it)
 - gdformat: tabs, lines up to 100 characters. Fix with `tools\run.cmd lint --fix`.
 - gdlint names: `snake_case` functions, variables and signals; `PascalCase` classes; `CONSTANT_CASE` constants.
   File names are `snake_case.gd`.

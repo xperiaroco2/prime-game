@@ -12,9 +12,10 @@ Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `doc
   `mechanic` issues instead.
 
 ## Never edit engine code
-- The designer's agent edits only `content/`, `levels/`, `docs/GDD.md`, `docs/design/`, and the skills
-  `new-mechanic` and `new-level-piece`. Everything else is engine code or shared tooling: `core/ server/ net/
-  client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot`. Do not edit those, not even "one line".
+- The designer's agent edits only its own paths (`content/`, `levels/`, `docs/GDD.md`, `docs/design/`, the skills
+  `new-mechanic` and `new-level-piece`) and the shared logs (a new file in `docs/interventions/`, `docs/credits/`
+  or `docs/decisions/`). Everything else is engine code or shared tooling: `core/ server/ net/ client/ voice/
+  tools/ tests/ addons/ .github/ .claude/ project.godot`. Do not edit those, not even "one line".
 - When a mechanic needs a part that does not exist, open an `engine-request` issue with a precise spec, then
   continue with whatever can be done in data. The spec says:
   - what the part does, in one sentence, and which kind it is (trigger, condition, effect, interactable, station);
@@ -36,6 +37,7 @@ Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `doc
 - A new idea ("нова механіка: …"): skill `new-mechanic` (a `mechanic` issue, a GDD section with open questions,
   `engine-request` issues for missing parts, then data once the parts exist).
 - Existing work: "start task 42" (skill `start-task`).
-- Hand-written `.tres` files follow `.claude/rules/godot-resources.md`.
+- Hand-written `.tres` files follow `.claude/rules/godot-resources.md`. The designer may have them open in the
+  Godot editor: remind them of the save-first convention in `levels/CLAUDE.md`.
 - Done means `verify` is green. Each mechanic gets a bot scenario once the bot harness exists (M3).
 - The designer reviews results through screenshots and playtests, not code: put both in the PR where they apply.

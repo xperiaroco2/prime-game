@@ -74,7 +74,8 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
   spec. The engineer's agent never rebalances or redesigns content without the designer's approval in the PR.
 - Scenes are single-owner: never edit a scene someone else has an open PR on.
 - The Godot editor may be open on this checkout. Remind the human: Save All Scenes (Ctrl+Shift+Alt+S) before asking
-  the agent; on "files changed on disk" choose Reload («Джерело отримання»), never «Ігнорувати зовнішні зміни».
+  the agent, no hand edits while it works, and on "files changed on disk" choose Reload («Джерело отримання»), never
+  «Ігнорувати зовнішні зміни».
 
 ## Routing
 | When | Use |
