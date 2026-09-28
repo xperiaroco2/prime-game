@@ -44,6 +44,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
+
+    p = sub.add_parser("hook", help="Claude Code hooks (run by .claude/hooks/run-hook.sh, input on stdin)")
+    p.add_argument("name", choices=["guard", "gd-edit"])
     return parser
 
 
@@ -89,6 +92,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0
+        if args.command == "hook":
+            from . import hooks
+
+            return hooks.main(args.name)
     except Failure as exc:
         bad(str(exc))
         return 1
