@@ -39,6 +39,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("issue", type=int, help="issue number")
     p.add_argument("column", choices=["in-progress", "in-review"])
 
+    p = sub.add_parser("publish", help="fetch, rebase the task branch on its base, verify, push with a lease")
+    p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else main)")
+
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
     return parser
@@ -79,6 +82,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import board
 
             return board.move(args.issue, args.column)
+        if args.command == "publish":
+            from . import publish
+
+            return publish.main(base=args.base)
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0
