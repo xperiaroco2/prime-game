@@ -3,14 +3,20 @@
 Run `tools\\run.cmd --help` for the command list.
 """
 
+import os
 import sys
-from pathlib import Path
 
 if sys.version_info < (3, 11):
     sys.exit(f"The task runner needs Python 3.11+, this is {sys.version.split()[0]}. Set PYTHON_BIN.")
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.dont_write_bytecode = True
+
+if sys.argv[1:2] == ["hook"] and len(sys.argv) == 3:
+    # Claude Code runs the guard before every shell command: skip the CLI imports (about 100 ms).
+    from runner.hooks import main as hook
+
+    sys.exit(hook(sys.argv[2]))
 
 from runner.cli import main  # noqa: E402
 

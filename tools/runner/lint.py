@@ -13,11 +13,11 @@ TIMEOUT = 300
 BATCH = 100
 
 
-def _exe(name: str) -> str:
-    exe = gdtoolkit_exe(name)
-    if not exe:
+def exe(name: str) -> str:
+    path = gdtoolkit_exe(name)
+    if not path:
         raise Failure(f"{name} not found: python -m pip install gdtoolkit=={pins.GDTOOLKIT}, set GDTOOLKIT_DIR")
-    return exe
+    return path
 
 
 def _batched(cmd: list[str], names: list[str], log: str) -> Result:
@@ -88,7 +88,7 @@ def gdscript(targets: list[Path], fix: bool) -> bool:
     failed = False
 
     # gdformat and gdlint must run one after the other (gdtoolkit #428: concurrent runs race).
-    res = _batched([_exe("gdformat"), *([] if fix else ["--check"])], names, "gdformat")
+    res = _batched([exe("gdformat"), *([] if fix else ["--check"])], names, "gdformat")
     if fix:
         for path in targets:
             strip_cr(path)
@@ -101,7 +101,7 @@ def gdscript(targets: list[Path], fix: bool) -> bool:
     else:
         ok(f"gdformat ({len(names)} files)" + (", reformatted where needed" if fix else ""))
 
-    res = _batched([_exe("gdlint")], names, "gdlint")
+    res = _batched([exe("gdlint")], names, "gdlint")
     if res.rc != 0:
         failed = True
         for line in condense(res.lines):
