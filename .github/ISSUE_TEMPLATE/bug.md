@@ -16,4 +16,4 @@ labels: bug
 <!-- The command and its output, a log excerpt (tools/out/logs/), a screenshot, the commit or PR. -->
 
 ## Area
-<!-- area:core, area:net, area:voice, area:content, area:level or area:tooling. -->
+<!-- area:core, area:server, area:net, area:client, area:voice, area:content, area:level or area:tooling. -->

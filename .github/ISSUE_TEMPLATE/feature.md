@@ -17,4 +17,5 @@ title: ""
 <!-- What proves it is done: `verify`, a unit test, a bot scenario, a `shot` screenshot, a playtest. -->
 
 ## Links
-<!-- Area label (area:core, area:net, area:voice, area:tooling …), docs, ADRs, related issues. -->
+<!-- Area label (area:core, area:server, area:net, area:client, area:voice, area:tooling), docs, ADRs, related
+     issues. -->

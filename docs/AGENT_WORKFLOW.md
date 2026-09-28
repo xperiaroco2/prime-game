@@ -234,8 +234,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Issue templates [applied]:** `feature`, `mechanic`, `bug`, `engine-request`, `intervention` in
   `.github/ISSUE_TEMPLATE/`, as Markdown with front matter, plus `.github/pull_request_template.md`. Agents build
   bodies from them and pass `--label` explicitly.
-- **Labels and milestones [applied]:** `area:core`, `area:net` (also `server/`), `area:voice`, `area:content`,
-  `area:level`, `area:tooling`, `blocked`, `needs-design`, `needs-engine`; milestones `M0` to `M7` with the
+- **Labels and milestones [applied]:** one area label per folder, `area:core`, `area:server`, `area:net`,
+  `area:client`, `area:voice`, `area:content`, `area:level`, `area:tooling` (KICKOFF §5.1 plus `server` and
+  `client`, the engineer's choice on 2026-09-29), and `blocked`, `needs-design`, `needs-engine`; milestones `M0` to
+  `M7` with the
   roadmap goals.
 - **CODEOWNERS [applied]:** `.github/CODEOWNERS` mirrors §9. 👤 `@REPLACE_WITH_DESIGNER_HANDLE` is a placeholder
   until the designer's handle is known.
