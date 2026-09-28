@@ -197,6 +197,8 @@ rules. The file tools need no guard, because `Edit(...)` rules cover Edit, Write
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
   `$TEMP`, `$env:TEMP` and `~` are outside the project, so scratch copies never ask. A target it cannot resolve asks
   when its text names a protected path. It does not run scripts, and it does not check ownership or the Godot editor.
+- The prompt appears in every mode, bypass included. 👤 Answer it with a one-time "Yes" or "No": "don't ask again"
+  silences the guard for the rest of the session (verified live 2026-09-29).
 - Replayed over the 1,605 distinct shell commands of the Phase A and B transcripts: no crash, one ask (the real
   install of GdUnit4 into `addons/`). It adds about 0.2 s to each shell command.
 

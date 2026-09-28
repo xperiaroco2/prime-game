@@ -43,5 +43,11 @@ Facts checked on 2026-09-29 against `code.claude.com/docs/en/hooks` and on the e
 ## Consequences
 - Git for Windows is required on both machines; without Git Bash every hook fails open, so `doctor` is red.
 - A hook that times out fails open. The guard's timeout is generous (30 s) for a check that takes 0.2 s.
-- The live checks in the stage 4 PR (#TBD) record whether a hook's "ask" prompts in `bypassPermissions` mode and that
-  a crash blocks shell calls.
+- **Verified live on 2026-09-29** in the engineer's session, in `bypassPermissions` mode, right after wiring:
+  - A guard "ask" shows the permission prompt even in bypass mode.
+  - Choosing "don't ask again" in that prompt silenced the guard's later asks for the rest of the session: the hook
+    still returned "ask", but no prompt appeared. Nothing was written to `settings.local.json`. So a human answers a
+    guard prompt with a one-time "Yes" or "No", never "don't ask again".
+  - A guard that raised an exception blocked the next PowerShell call and showed its traceback.
+  - A Write of a `.gd` with an unknown identifier returned `core/…:5: Parse Error: …` to Claude after the
+    reformat.
