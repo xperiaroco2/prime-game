@@ -280,8 +280,9 @@ are added **after the CI PR has merged**. Code-owner review stays off. No bypass
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
 | Git LFS in CI (uses LFS bandwidth quota) | Ask the humans before enabling |
 
-**Pending human actions 👤:** create the public repo and its ruleset; `gh auth refresh -s project` and upgrade gh;
-usage credits off; update or remove the PATH `claude`; invite the designer; set the board workflows.
+**Pending human actions 👤:** add the ruleset on `main` of the existing public repo `xperiaroco2/prime-game`;
+`gh auth refresh -s project` and upgrade gh; usage credits off; update or remove the PATH `claude`; invite the
+designer; set the board workflows.
 
-**Pending verification:** subagent routing (all four agents) and the user-settings `env` must be proven in a
-session started after 2026-09-28's Phase A wrap-up; M0's `agents-check` makes this repeatable.
+**Verification of the Phase A setup:** done on 2026-09-28. A fresh session confirmed subagent routing for all four
+agents and the user-settings `env`. M0's `agents-check` makes the routing check repeatable.

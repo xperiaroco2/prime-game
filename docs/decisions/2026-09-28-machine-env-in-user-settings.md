@@ -20,5 +20,5 @@ approvals only and is gitignored.
 ## Consequences
 - Applied for the engineer on 2026-09-28. `settings.local.json` had been tracked since the initial commit; it is now
   removed from the index and ignored.
-- The `language` setting took effect in the running session. Proof that a fresh session sees `env` from user
-  settings is pending (`docs/AGENT_WORKFLOW.md` §14).
+- The `language` setting took effect in the running session. A fresh session confirmed that it sees `env` from user
+  settings (checked by the engineer, 2026-09-28).
