@@ -237,9 +237,9 @@ def main(quick: bool) -> int:
     doc.godot()
     doc.gdtoolkit()
     doc.addons()
+    doc.githooks()  # also in --quick: start-task runs the quick doctor
     if not quick:
         doc.git()
-        doc.githooks()
         doc.bash()
         doc.gh()
         doc.claude()

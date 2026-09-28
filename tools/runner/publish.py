@@ -12,16 +12,18 @@ import re
 import shutil
 
 from . import verify
-from .common import Failure, Result, bad, ok, run, say
+from .common import ROOT, Failure, Result, bad, ok, run, say
 
 REMOTE = "origin"
+# The checkout publish works on (tests point it at a temp repo).
+REPO = ROOT
 TASK_BRANCH_RE = re.compile(r"^[a-z][a-z0-9]*/[0-9]+-[a-z0-9][a-z0-9._-]*$")
 MARKER = {"PRIME_GAME_PUBLISH": "force-with-lease"}
 TIMEOUT = 300
 
 
 def _git(*args: str, env: dict[str, str] | None = None) -> Result:
-    return run(["git", *args], timeout=TIMEOUT, env=env)
+    return run(["git", *args], timeout=TIMEOUT, env=env, cwd=REPO)
 
 
 def _must(res: Result, what: str) -> str:
@@ -45,6 +47,15 @@ def pr_base(branch: str) -> str | None:
     return data.get("baseRefName") if data.get("state") == "OPEN" else None
 
 
+def was_local(branch: str, oid: str) -> bool:
+    """oid is in the branch's history or was once its tip (reflog): the remote holds nothing the branch never had.
+    A rebase or an amend keeps the old tips in the reflog, so publishing over them loses nothing."""
+    if _git("merge-base", "--is-ancestor", oid, "HEAD").rc == 0:
+        return True
+    reflog = _git("reflog", "show", "--format=%H", f"refs/heads/{branch}").out.split()
+    return oid in reflog
+
+
 def main(base: str | None = None) -> int:
     say("publish")
     branch = _git("symbolic-ref", "--quiet", "--short", "HEAD").out.strip()
@@ -65,7 +76,16 @@ def main(base: str | None = None) -> int:
     ok(f"fetched {REMOTE}; base {upstream}")
 
     before = _must(_git("rev-parse", "HEAD"), "reading HEAD")
-    res = _git("rebase", upstream)
+    remote_oid = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").out.strip()
+    if remote_oid and not was_local(branch, remote_oid):
+        raise Failure(
+            f"{REMOTE}/{branch} has commits this branch never had (a suggestion committed on GitHub, \"Update "
+            "branch\", or a push from the other machine). The lease push would delete them, so publish stopped "
+            f"before changing anything. Ask the human; usually: git merge {REMOTE}/{branch}, then publish again."
+        )
+
+    # --fork-point: after a stacked parent was rebased, replay only this branch's own commits onto it.
+    res = _git("rebase", "--fork-point", upstream)
     if res.rc != 0 or res.timed_out:
         _git("rebase", "--abort")
         raise Failure(
@@ -80,7 +100,6 @@ def main(base: str | None = None) -> int:
         raise Failure("verify is red after the rebase; nothing was pushed")
     say()
 
-    remote_oid = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").out.strip()
     # An empty expected value means the branch must not exist on the remote yet.
     lease = f"--force-with-lease=refs/heads/{branch}:{remote_oid}"
     res = _git("push", lease, "-u", REMOTE, f"{branch}:{branch}", env=MARKER)
