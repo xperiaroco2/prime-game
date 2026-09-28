@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import normalize, shot
-from runner.common import ROOT, Failure, Result
+from runner.common import ROOT, Failure, Result, godot_bin, run
 
 PROBE = "tools/shot/probe.tscn"
 
@@ -70,6 +70,55 @@ class NormalizeTest(unittest.TestCase):
                 self.assertEqual(normalize.main(["m.tres"]), 1)
             self.assertEqual((root / "m.tres").read_bytes(), original)
             self.assertIn("albedo_colour", bad.call_args.args[0])
+
+
+    def test_a_timeout_restores_a_half_written_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "m.tres").write_bytes(b"[gd_resource format=3]\n\n[resource]\nmetallic = 0.5\n")
+            original = (root / "m.tres").read_bytes()
+
+            def dies_mid_write(*_args: object, **_kwargs: object) -> Result:
+                (root / "m.tres").write_bytes(b"[gd_reso")
+                return Result(-9, "", True, 300.0)
+
+            with mock.patch.object(normalize, "ROOT", root), mock.patch.object(normalize, "godot", dies_mid_write), \
+                    mock.patch.object(normalize, "git_status", return_value=set()), \
+                    mock.patch.object(normalize, "say"), mock.patch.object(normalize, "bad"):  # fmt: skip
+                with self.assertRaises(Failure):
+                    normalize.main(["m.tres"])
+            self.assertEqual((root / "m.tres").read_bytes(), original)
+
+
+@unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
+class RealNormalizeTest(unittest.TestCase):
+    """normalize.gd in a real headless editor, on a throwaway project with a copy of the probe scene."""
+
+    def test_adds_uids_then_is_idempotent_and_never_saves_a_broken_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project / "project.godot").write_text('config_version=5\n\n[application]\nconfig/name="n"\n', "utf-8")
+            (project / "normalize.gd").write_bytes((ROOT / "tools/normalize/normalize.gd").read_bytes())
+            (project / "probe.tscn").write_bytes((ROOT / PROBE).read_bytes())
+            broken = b"[gd_resource type=\"Resource\" format=3]\n\n[resource]\nx = Vector3(1, 2\n"
+            (project / "broken.tres").write_bytes(broken)
+
+            def run_it(*paths: str) -> list[str]:
+                cmd = [str(godot_bin()), "--no-header", "--path", str(project), "--headless", "-e", "-s",
+                       "res://normalize.gd", "--", *paths]  # fmt: skip
+                res = run(cmd, timeout=180, cwd=project)
+                self.assertFalse(res.timed_out, res.out[-2000:])
+                return [line for line in res.lines if line.startswith("NORMALIZE")]
+
+            lines = run_it("res://probe.tscn", "res://broken.tres")
+            self.assertIn("NORMALIZE saved res://probe.tscn", lines)
+            self.assertTrue(any(line.startswith("NORMALIZE error res://broken.tres") for line in lines), lines)
+            self.assertEqual((project / "broken.tres").read_bytes(), broken)
+            first = (project / "probe.tscn").read_bytes()
+            self.assertIn(b'uid="uid://', first.splitlines()[0])
+            self.assertIn(b"unique_id=", first)
+            run_it("res://probe.tscn")
+            self.assertEqual((project / "probe.tscn").read_bytes(), first)
 
 
 class ShotTest(unittest.TestCase):

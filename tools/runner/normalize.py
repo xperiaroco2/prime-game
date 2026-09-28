@@ -83,9 +83,16 @@ def main(files: list[str]) -> int:
     before = git_status()
     contents = {p: _file(p).read_bytes() for p in paths}
     res = godot(command(paths), timeout=TIMEOUT, log="normalize")
+    saved, problems = parse([] if res.timed_out else res.lines, paths)
+    # A file Godot changed without reporting it saved (a timeout, a crash mid-write) goes back to its old bytes.
+    for path in paths:
+        if path not in saved and _file(path).read_bytes() != contents[path]:
+            _file(path).write_bytes(contents[path])
+            problems.append(f"{path}: changed without a finished save; restored unchanged")
     if res.timed_out:
+        for line in problems:
+            bad(line)
         raise Failure(f"normalize timed out after {TIMEOUT}s (log: tools/out/logs/normalize.log)")
-    saved, problems = parse(res.lines, paths)
     for path in saved[:]:
         strip_cr(_file(path))  # the repo is LF (.gitattributes)
         dropped = property_keys(contents[path].decode("utf-8")) - property_keys(_file(path).read_text("utf-8"))
