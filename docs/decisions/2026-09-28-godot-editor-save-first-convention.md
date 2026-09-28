@@ -11,7 +11,7 @@ open in Godot.
 
 ## Decision
 A convention, not enforcement. Nobody edits by hand while an agent works. Before asking the agent for anything, the
-human does **Save All**. If Godot asks about files changed on disk, always choose **Reload from disk**. In the
+human does **Save All Scenes** (Scene menu, Ctrl+Shift+Alt+S; Ukrainian UI «Зберегти всі сцени»). If Godot asks about files changed on disk, always choose **Reload from disk**. In the
 Ukrainian editor UI the dialog is titled «Файли були змінені за межами Godot» and that button reads
 **«Джерело отримання»** (a poor translation); never click «Ігнорувати зовнішні зміни», which overwrites the agent's
 file. The agent reminds the human; nothing blocks.
@@ -33,3 +33,7 @@ No editor-process detection in the guard or runner.
 - A scene **open in the editor** and changed on disk: nothing happens until the editor window gets focus. Until then
   the editor shows the stale scene, and a save would overwrite the agent's change. On focus it shows the dialog above;
   «Джерело отримання» reloaded the scene with the agent's node, and the file on disk stayed intact.
+
+**Labels checked 2026-09-29** against the 4.7.2-stable sources: the shortcut in `editor/editor_node.cpp`
+(`editor/save_all_scenes`) and the Ukrainian strings in `editor/translations/editor/uk.po`. Ctrl+Shift+S is
+"Save Scene As…", not Save All.

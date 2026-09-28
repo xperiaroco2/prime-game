@@ -19,4 +19,5 @@
 2. When a doc and the live state disagree, trust the live state and fix the doc.
 
 **Where the rule lives now.**
-- This entry. To be promoted into root `CLAUDE.md` (hard rules, next to "never claim without running") in M0.
+- This entry.
+- Root `CLAUDE.md`, "Hard rules", next to "never claim without running" (promoted in M0 stage 3).

@@ -23,4 +23,4 @@
 **Where the rule lives now.**
 - `.claude/settings.json` and `docs/AGENT_WORKFLOW.md` §8.1.
 - `docs/decisions/2026-09-28-unattended-work-permissions.md`.
-- To be promoted into root `CLAUDE.md` (stop-and-ask list) in M0.
+- Root `CLAUDE.md`, "Stop and ask before" (rules 1 and 2, promoted in M0 stage 3).
