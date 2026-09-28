@@ -1,0 +1,25 @@
+# Code owners: docs/AGENT_WORKFLOW.md §9 and docs/decisions/2026-09-28-ownership-by-codeowners-and-convention.md.
+# Code-owner review is off in the ruleset. This file records ownership and suggests reviewers; the rules in the
+# CLAUDE.md files are what agents follow. The last matching pattern wins.
+#
+# PLACEHOLDER: @REPLACE_WITH_DESIGNER_HANDLE is not an account (GitHub names cannot contain "_"). When the designer
+# joins, replace every occurrence with the designer's GitHub handle.
+
+# Engineer: engine, tooling, CI, agent setup and everything not listed below.
+*                                   @xperiaroco2
+
+# Designer
+/content/                           @REPLACE_WITH_DESIGNER_HANDLE
+/levels/                            @REPLACE_WITH_DESIGNER_HANDLE
+/docs/GDD.md                        @REPLACE_WITH_DESIGNER_HANDLE
+/docs/design/                       @REPLACE_WITH_DESIGNER_HANDLE
+/.claude/skills/new-mechanic/       @REPLACE_WITH_DESIGNER_HANDLE
+/.claude/skills/new-level-piece/    @REPLACE_WITH_DESIGNER_HANDLE
+
+# Shared by both
+/docs/interventions/                @xperiaroco2 @REPLACE_WITH_DESIGNER_HANDLE
+/docs/decisions/                    @xperiaroco2 @REPLACE_WITH_DESIGNER_HANDLE
+/docs/credits/                      @xperiaroco2 @REPLACE_WITH_DESIGNER_HANDLE
+/docs/history/                      @xperiaroco2 @REPLACE_WITH_DESIGNER_HANDLE
+/CREDITS.md                         @xperiaroco2 @REPLACE_WITH_DESIGNER_HANDLE
+/.claude/rules/                     @xperiaroco2 @REPLACE_WITH_DESIGNER_HANDLE
