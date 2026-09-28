@@ -124,5 +124,69 @@ class BudgetTest(unittest.TestCase):
         self.assertIn("disallowedTools: must include Agent", joined)
 
 
+SKILL = """---
+name: start-task
+description: Start work on an issue. Use for "start task 42".
+argument-hint: "[issue-number]"
+allowed-tools:
+  - Bash(tools/run.sh *)
+  - PowerShell(tools\\run.cmd *)
+  - Bash(gh issue view *)
+  - PowerShell(gh issue view *)
+---
+
+Body.
+"""
+
+
+class SkillTest(unittest.TestCase):
+    def problems(self, text: str, folder: str = "start-task") -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root, "CLAUDE.md", "x\n")
+            write(root, f".claude/skills/{folder}/SKILL.md", text)
+            return instructions.check(root).errors
+
+    def test_valid_skill(self) -> None:
+        self.assertEqual(self.problems(SKILL), [])
+
+    def test_tool_rules_split_outside_parentheses(self) -> None:
+        self.assertEqual(
+            instructions.tool_rules("Read Grep, Bash(git add *) PowerShell(git add *)"),
+            ["Read", "Grep", "Bash(git add *)", "PowerShell(git add *)"],
+        )
+
+    def test_bash_rule_needs_a_powershell_twin(self) -> None:
+        text = SKILL.replace("  - PowerShell(gh issue view *)\n", "")
+        self.assertEqual(self.problems(text), [".claude/skills/start-task/SKILL.md: allowed-tools: Bash(gh issue view *) has no PowerShell twin"])
+
+    def test_section_6_rules(self) -> None:
+        cases = {
+            "context: fork\n": "context: fork loses the conversation",
+            "disable-model-invocation: true\n": "model-invocable",
+            "user-invocable: no\n": "user-invocable",
+            "allowed_tools: Read\n": "unknown field(s) allowed_tools",
+            "shell: cmd\n": "shell: must be",
+        }
+        for line, text in cases.items():
+            with self.subTest(line=line):
+                joined = " | ".join(self.problems(SKILL.replace("---\n\nBody", line + "---\n\nBody")))
+                self.assertIn(text, joined)
+
+    def test_names(self) -> None:
+        self.assertIn("name: must be 'start-task'", " ".join(self.problems(SKILL.replace("name: start-task", "name: begin"))))
+        reserved = self.problems(SKILL.replace("name: start-task", "name: doctor"), folder="doctor")
+        self.assertTrue(any("bundled /doctor" in p for p in reserved), reserved)
+
+    def test_listing_cap_and_missing_file(self) -> None:
+        long = SKILL.replace("Use for", "x" * 1600)
+        self.assertTrue(any("listing cuts at 1536" in p for p in self.problems(long)))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root, "CLAUDE.md", "x\n")
+            (root / ".claude" / "skills" / "empty").mkdir(parents=True)
+            self.assertIn(".claude/skills/empty/SKILL.md: missing", " ".join(instructions.check(root).errors))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -18,6 +18,20 @@ NESTED_BUDGET = 100  # each CLAUDE.md below the root (loads when a file in its f
 RULE_BUDGET = 60  # each .claude/rules/**/*.md
 AGENT_MODELS = ("opus", "sonnet", "haiku")  # docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md
 READ_ONLY = ("Edit", "Write", "NotebookEdit", "Agent")  # every project subagent is read-only (§5)
+# Skills (§6), against the frontmatter reference at code.claude.com/docs/en/skills (checked 2026-09-29). Claude Code
+# ignores an unknown field without a word, so a misspelled `allowed_tools` would silently grant nothing.
+SKILL_FIELDS = {
+    "name", "description", "when_to_use", "argument-hint", "arguments", "disable-model-invocation",
+    "user-invocable", "allowed-tools", "disallowed-tools", "model", "effort", "context", "agent", "background",
+    "hooks", "paths", "shell", "metadata", "license", "compatibility",
+}  # fmt: skip
+SKILL_RESERVED = ("doctor", "verify", "run")  # would replace bundled commands (§6)
+SKILL_NO_FORK = ("start-task", "finish-task")  # they need the conversation (§6)
+SKILL_LISTING_CAP = 1536  # description + when_to_use are cut here in the skill listing
+SKILL_BUDGET = 500  # lines of SKILL.md body; the docs advise moving detail to supporting files beyond this
+SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+FALSE = ("false", "no", "off", "0")
+TRUE = ("true", "yes", "on", "1")
 SKIP = {".git", ".godot", "addons", "tools/out", "docs/history", ".claude/worktrees"}
 OVER_BUDGET_FIX = (
     "Scope a rule to paths:, move it into a skill, or retire it; the intervention entry says which "
@@ -186,6 +200,13 @@ def check(root: Path) -> Report:
         report.errors += [f"{rel(path)}: {problem}" for problem in agent_problems(path)]
     if agents:
         report.notes.append(f"{len(agents)} subagents: frontmatter, model guard, read-only")
+
+    skills_dir = root / ".claude" / "skills"
+    skills = sorted(p for p in skills_dir.iterdir() if p.is_dir()) if skills_dir.is_dir() else []
+    for folder in skills:
+        report.errors += [f"{rel(folder)}/SKILL.md: {problem}" for problem in skill_problems(folder)]
+    if skills:
+        report.notes.append(f"{len(skills)} skills: frontmatter, model-invocable, Bash and PowerShell twins")
     return report
 
 
@@ -203,6 +224,81 @@ def control_characters(root: Path) -> list[str]:
                 if bad:
                     codes = ", ".join(f"0x{b:02X}" for b in bad)
                     problems.append(f"{path.relative_to(root).as_posix()}:{number}: control character {codes}")
+    return problems
+
+
+def tool_rules(value: str | list[str] | None) -> list[str]:
+    """allowed-tools as a YAML list, or a string separated by spaces or commas outside parentheses."""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [v.strip() for v in value if v.strip()]
+    rules, depth, current = [], 0, ""
+    for char in value:
+        depth += (char == "(") - (char == ")")
+        if depth == 0 and (char.isspace() or char == ","):
+            if current:
+                rules.append(current)
+            current = ""
+        else:
+            current += char
+    return rules + ([current] if current else [])
+
+
+def _runner_neutral(rule: str) -> str:
+    """The shell-independent text of a Bash(...) or PowerShell(...) rule: both runner wrappers read the same."""
+    inner = rule[rule.index("(") + 1 : -1]
+    for wrapper in ("./tools/run.sh", ".\\tools\\run.cmd", "tools/run.sh", "tools\\run.cmd"):
+        inner = inner.replace(wrapper, "<runner>")
+    return inner
+
+
+def skill_problems(folder: Path) -> list[str]:
+    path = folder / "SKILL.md"
+    if not path.is_file():
+        return ["missing (every folder in .claude/skills/ is one skill)"]
+    fm = parse(path.read_text(encoding="utf-8"))
+    if fm.error:
+        return [f"{fm.error}; Claude Code would load the skill with no frontmatter at all"]
+    if not fm.fields:
+        return ["no frontmatter"]
+    problems = []
+    name = fm.fields.get("name")
+    if name != folder.name:
+        problems.append(f"name: must be {folder.name!r} (the folder name)")
+    if not SKILL_NAME_RE.match(folder.name):
+        problems.append("the folder name must be lowercase words joined by '-'")
+    if folder.name in SKILL_RESERVED:
+        problems.append(f"'{folder.name}' would replace the bundled /{folder.name} (§6)")
+    unknown = sorted(set(fm.fields) - SKILL_FIELDS)
+    if unknown:
+        problems.append(f"unknown field(s) {', '.join(unknown)}: Claude Code ignores them silently")
+    description = fm.fields.get("description")
+    if not isinstance(description, str) or not description:
+        problems.append("description: is empty")
+    else:
+        listing = len(description) + len(str(fm.fields.get("when_to_use") or ""))
+        if listing > SKILL_LISTING_CAP:
+            problems.append(f"description + when_to_use is {listing} characters; the listing cuts at {SKILL_LISTING_CAP}")
+    if str(fm.fields.get("disable-model-invocation", "")).lower() in TRUE:
+        problems.append("disable-model-invocation: every skill stays model-invocable, so dictation works (§6)")
+    if str(fm.fields.get("user-invocable", "")).lower() in FALSE:
+        problems.append("user-invocable: false hides it from the / menu; humans invoke skills too (§6)")
+    if folder.name in SKILL_NO_FORK and fm.fields.get("context") == "fork":
+        problems.append("context: fork loses the conversation; start-task and finish-task run inline (§6)")
+    shell = fm.fields.get("shell")
+    if shell is not None and shell not in ("bash", "powershell"):
+        problems.append("shell: must be bash or powershell")
+    rules = tool_rules(fm.fields.get("allowed-tools"))
+    bash = {_runner_neutral(r) for r in rules if r.startswith("Bash(") and r.endswith(")")}
+    pwsh = {_runner_neutral(r) for r in rules if r.startswith("PowerShell(") and r.endswith(")")}
+    for missing in sorted(bash - pwsh):
+        problems.append(f"allowed-tools: Bash({missing}) has no PowerShell twin")
+    for missing in sorted(pwsh - bash):
+        problems.append(f"allowed-tools: PowerShell({missing}) has no Bash twin")
+    lines = loaded_lines(fm.body)
+    if lines > SKILL_BUDGET:
+        problems.append(f"{lines} lines, budget {SKILL_BUDGET}: move detail into a supporting file")
     return problems
 
 
