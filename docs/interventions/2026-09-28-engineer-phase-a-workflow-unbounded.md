@@ -36,7 +36,8 @@ Metrics are in `docs/history/2026-09-28-phase-a/agent-metrics.csv`.
 
 **Where the rule lives now.**
 - This entry.
-- To be promoted into root `CLAUDE.md` (stop-and-ask list) and into `.claude/settings.json` during M0.
+- Root `CLAUDE.md`, "Stop and ask before" (rules 2 and 3, promoted in M0 stage 3).
+- `.claude/settings.json`: `workflowSizeGuideline: "small"` (rule 1).
 
 **Update (2026-09-28, decision session).** Rule 1 is applied: `workflowSizeGuideline: "small"` is in the shared
 `.claude/settings.json`. Rules 1–3 are part of the decided `docs/AGENT_WORKFLOW.md` §7 and ADR
