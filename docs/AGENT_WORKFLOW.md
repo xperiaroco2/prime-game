@@ -207,6 +207,9 @@ update), with one exception: the **current task branch** `<area>/<n>-*` pushed b
 marks its `--force-with-lease` push with `PRIME_GAME_PUBLISH=force-with-lease`. A force push typed by hand has no
 marker and is blocked; `--dry-run` pushes run the hook too. The agent never force-pushes by hand
 ([ADR](decisions/2026-09-28-force-with-lease-on-task-branches.md)).
+- The hook lives in the working tree. A checkout of a commit from before M0 stage 4 has no
+  `.claude/githooks/pre-push`, and git then runs no pre-push hook at all (not even LFS's): only the deny rules and
+  the server ruleset stand. Task branches start from `main`, which has the hook.
 - `publish`: `git fetch --prune origin`, rebase on the open PR's base (a stacked PR's parent) or `main`, `verify`,
   then the lease push. A conflict aborts the rebase and leaves the branch as it was; a red `verify` pushes nothing.
 - `core.hooksPath` switches off the hooks Git LFS installs in `.git/hooks`, so the hook runs `git lfs pre-push`

@@ -29,6 +29,11 @@ class PrBaseTest(unittest.TestCase):
 
 
 class RefusalTest(unittest.TestCase):
+    def setUp(self) -> None:
+        quiet = mock.patch.object(publish, "say")
+        quiet.start()
+        self.addCleanup(quiet.stop)
+
     def test_only_task_branches(self) -> None:
         for branch in ("main", "feature-x", "tooling/hooks", ""):
             with self.subTest(branch=branch), mock.patch.object(publish, "_git", return_value=_result(0, branch)):
