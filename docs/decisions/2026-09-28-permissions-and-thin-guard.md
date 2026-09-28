@@ -1,7 +1,7 @@
 # Permission rules and a thin guard hook
 
 - **Status:** Accepted; ask/allow lists and guard scope amended by
-  `2026-09-28-unattended-work-permissions.md`
+  `2026-09-28-unattended-work-permissions.md`; the guard's runtime is in `2026-09-29-claude-code-hooks-in-git-bash.md`
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -29,3 +29,7 @@ ADRs).
 - **Verified 2026-09-28** (the running session picked the rules up without a restart): a force push (Bash), a push
   to `HEAD:main` (PowerShell) and `gh pr merge 999` were all denied before running. The settings generator found no
   `Bash(...)` rule without its `PowerShell(...)` twin (46 allow, 77 ask, 55 deny).
+- **Built in M0 stage 4 (2026-09-29):** the guard matches `Bash|PowerShell` only. Edit rules already cover the file
+  tools (Edit, Write, NotebookEdit), and a shell write is the one path they miss: Claude Code checks a redirect or
+  `tee` target against Edit allow and deny rules, not ask rules. The pre-push hook blocks force pushes, deletions
+  and pushes to `main` locally, which matters while the `main-2` ruleset lets admins bypass it.

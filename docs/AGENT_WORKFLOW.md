@@ -76,7 +76,8 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. One question: **"Publish now? (push + PR + handoff comment)"**.
-5. `tools\run.cmd publish`: rebase on `origin/main`, re-run `verify`, push the task branch (§8.3).
+5. `tools\run.cmd publish`: rebase on the open PR's base (else `origin/main`), re-run `verify`, push the task branch
+   with a lease (§8.3).
 6. Open the PR from the template: `Closes #42`, summary, verification commands and output, `shot` screenshots for
    visual changes, docs updated yes/no, `--reviewer <other human>` if the other owner's paths are touched.
 7. Handoff comment on the issue (done / left / decisions / gotchas); board item → **In review** via the runner.
@@ -179,22 +180,47 @@ issues, edit tooling) and stops only for the rare items below
   prompt.
 - `GH_PROMPT_DISABLED=1` is set in the shared `env`.
 
-### 8.2 Thin guard [M0]
-A PreToolUse hook (`Bash|PowerShell|Edit|Write|NotebookEdit`), Python, fail-closed (a crash or missing Python becomes
-exit 2), no network calls. It only asks before **shell commands that write to the ask-protected paths**
-(`Copy-Item`, `Move-Item`, `Set-Content`, `Out-File`, `>`, `cp`, `mv` into `.claude/settings*.json` or `addons/`),
-which text rules cannot see. It does not check ownership or the Godot editor. The runner and hooks find
-Python as `PYTHON_BIN`, else `py -3`. `doctor` is red when Git Bash is missing, because hooks then fail open.
+### 8.2 Thin guard [applied]
+Hooks live in `.claude/settings.json` and run in Git Bash through `.claude/hooks/run-hook.sh`, which finds Python as
+`PYTHON_BIN`, else `py -3`, else a `python3` that really runs; the logic is in the runner (`run hook <name>`), so
+`selftest` covers it in CI ([ADR](decisions/2026-09-29-claude-code-hooks-in-git-bash.md)). **Fail-closed:** no Python,
+a crash, or any exit code other than 0 and 2 becomes exit 2, which blocks the call. A hook that cannot start, or
+that times out, fails open: `doctor` is red when Git Bash is missing.
 
-### 8.3 Pre-push hook and publishing [M0]
-Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to it. It blocks pushes to `main`, all
-deletions and force pushes, with one exception: a non-fast-forward update of the **current task branch**
-`<area>/<n>-*`, which `tools\run.cmd publish` does with `--force-with-lease` after a rebase. The agent never
-force-pushes by hand ([ADR](decisions/2026-09-28-force-with-lease-on-task-branches.md)).
+The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It only asks before **shell commands
+that write to the ask-protected paths** of this project (`.claude/settings*.json` and `addons/`, worktrees included):
+`Copy-Item`, `Move-Item`, `Set-Content`, `Out-File`, `>`, `tee`, `cp`, `mv`, `rm`, `sed -i`, archive extraction,
+downloads, `git checkout|restore|rm|mv|clean|stash` naming those paths, `Get-ChildItem addons | Remove-Item`, `bash -c`
+and `powershell -Command` bodies, and one-line inline writes (`python -c`, `[IO.File]::WriteAllText`). Text rules
+cannot see these writes: Claude Code checks a redirect or `tee` target against Edit allow and deny rules, not ask
+rules. The file tools need no guard, because `Edit(...)` rules cover Edit, Write and NotebookEdit.
+- It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
+  `$TEMP`, `$env:TEMP` and `~` are outside the project, so scratch copies never ask. A target it cannot resolve asks
+  when its text names a protected path. It does not run scripts, and it does not check ownership or the Godot editor.
+- Replayed over the 1,605 distinct shell commands of the Phase A and B transcripts: no crash, one ask (the real
+  install of GdUnit4 into `addons/`). It adds about 0.2 s to each shell command.
 
-### 8.4 `.gd` post-edit hook [M0]
-`Edit|Write` on `*.gd` (not `addons/` or `tools/out/`): gdformat, restore LF, gdlint, then an engine parse check with
-a 60 s inner timeout. Problems → exit 2 with `file:line: message`. Autoloads must be side-effect-free under
+### 8.3 Pre-push hook and publishing [applied]
+Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
+`git config *hooksPath*` is denied). It blocks pushes to `main`, all deletions and force pushes (any non-fast-forward
+update), with one exception: the **current task branch** `<area>/<n>-*` pushed by `tools\run.cmd publish`, which
+marks its `--force-with-lease` push with `PRIME_GAME_PUBLISH=force-with-lease`. A force push typed by hand has no
+marker and is blocked; `--dry-run` pushes run the hook too. The agent never force-pushes by hand
+([ADR](decisions/2026-09-28-force-with-lease-on-task-branches.md)).
+- `publish`: `git fetch --prune origin`, rebase on the open PR's base (a stacked PR's parent) or `main`, `verify`,
+  then the lease push. A conflict aborts the rebase and leaves the branch as it was; a red `verify` pushes nothing.
+- `core.hooksPath` switches off the hooks Git LFS installs in `.git/hooks`, so the hook runs `git lfs pre-push`
+  itself. The other three LFS hooks only serve file locking, which the project does not use. With `core.hooksPath`
+  set, `git lfs install` and `git lfs update` stop with "Hook already exists" and change nothing; use
+  `git lfs install --skip-repo`, and never `git lfs update --force` (it would overwrite the pre-push hook).
+
+### 8.4 `.gd` post-edit hook [applied]
+PostToolUse on `Edit|Write`, for a project `*.gd` outside `addons/`, `tools/out/`, `.godot/` and `.claude/`:
+gdformat, restore LF, gdlint, then an engine load of that one file (`tools/check/check_project.gd`) within 60 s. When
+the engine reports errors, it imports once (a new `class_name` may be missing from the class cache) and loads again
+in the same budget. Problems → exit 2 with `file:line: message`; a reformat or engine warnings reach Claude as
+context ("Read it again before the next Edit"). About 2 s per edit, 8 s when the file has errors. A shell write to a
+`.gd` does not trigger it; `lint` in `verify` and CI covers that. Autoloads must be side-effect-free under
 `--check-mode`.
 
 ### 8.5 Server side 👤
@@ -259,7 +285,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]:** Python core `tools/run.py` with `tools\run.cmd` (immune to the execution policy) and
-  `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`, `test`, `verify`, `selftest`, `pins`. Pins and pass/fail
+  `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`, `test`, `verify`, `selftest`, `pins`, `board`, `publish`,
+  and `hook` (for Claude Code only). Pins and pass/fail
   rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
   Bash; `doctor` finds Git Bash through git's install folder.
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR

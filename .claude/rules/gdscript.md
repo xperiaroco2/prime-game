@@ -38,6 +38,9 @@ read `docs.godotengine.org/en/4.7/`. Agent `godot-api-checker` reviews `.gd` cha
 - Doc comments use `##`. Comment the why, not the what.
 
 ## Verify after editing
+- A hook runs after every Edit or Write of a `.gd` (not `addons/`): gdformat, LF, gdlint, and an engine load of that
+  file. Exit 2 lists `file:line: message` problems: fix them. After "gdformat reformatted", Read the file again
+  before the next Edit. A shell write skips the hook, so lint that file by hand.
 - `tools\run.cmd lint <file>` and `tools\run.cmd check res://<path>`, then `test` for the code it touches.
 - Autoloads must have no side effects when loaded by `check` (no network, no files, no scene changes in `_init`).
 - Never pass a bare `-d` to Godot: it hangs on a script error. The runner uses `-d --ignore-error-breaks`.
