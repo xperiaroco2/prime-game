@@ -194,8 +194,8 @@ a 60 s inner timeout. Problems → exit 2 with `file:line: message`. Autoloads m
 `--check-mode`.
 
 ### 8.5 Server side 👤
-A ruleset on `main` of the public repo: block force pushes, restrict deletions, require a PR. Required status checks
-are added **after the CI PR has merged**. Code-owner review stays off. No bypass for admins.
+A ruleset on `main` of the public repo: block force pushes, restrict deletions, require a PR. The required status
+check `verify` is added **after the CI PR has merged**. Code-owner review stays off. No bypass for admins.
 
 ## 9. Ownership
 
@@ -246,6 +246,9 @@ are added **after the CI PR has merged**. Code-owner review stays off. No bypass
   `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`, `test`, `verify`, `selftest`, `pins`. Pins and pass/fail
   rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
   Bash; `doctor` finds Git Bash through git's install folder.
+- **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
+  and on `main`, with the checksum-checked Godot build from the pins. Test suites are named `<name>_test.gd`
+  (GdUnit4's snake_case convention).
 - **No Godot MCP server** before M4 (§14). API facts come from `check`, the engine API dump that `doctor` generates
   into `tools/out/godot-api/4.7.2/`, and `docs.godotengine.org/en/4.7/`.
 

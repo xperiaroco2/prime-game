@@ -1,12 +1,14 @@
-"""Pure helpers of the runner: JUnit parsing, version parsing, warnings policy, process timeout."""
+"""Pure helpers of the runner: JUnit and orphan parsing, pins, version parsing, warnings policy, process timeout."""
 
+import contextlib
+import io
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import check, common, gdunit
+from runner import check, cli, common, gdunit, pins
 
 JUNIT_FAIL = """<?xml version="1.0" encoding="UTF-8"?>
 <testsuites><testsuite name="s" tests="2" failures="1">
@@ -27,6 +29,63 @@ class JUnitTest(unittest.TestCase):
         self.assertEqual(len(result.failures), 1)
         self.assertIn("test_bad", result.failures[0])
         self.assertIn("Expecting: '3'", result.failures[0])
+
+
+# Excerpt of a real GdUnit4 6.2.1 console log (tools/out/logs/test.log, 2026-09-29) from two suites that leaked a
+# Node on purpose: one in a test body, one in before(). Colour codes kept; blank and repeated lines dropped.
+E = "\x1b"
+ORPHAN_LOG = "\n".join(
+    [
+        f"{E}[38;2;0;206;209mRun Test Suite: {E}[0m{E}[38;2;250;235;215mres://tests/unit/leak_probe_test.gd{E}[0m",
+        f"  {E}[38;2;250;235;215mres://tests/unit/leak_probe_test.gd{E}[0m{E}[38;2;128;128;128m > {E}[0m"
+        f"{E}[38;2;250;235;215mtest_clean{E}[0m{E}[38;2;34;139;34m PASSED{E}[0m{E}[38;2;100;149;237m 4ms{E}[0m",
+        f"  {E}[38;2;250;235;215mres://tests/unit/leak_probe_test.gd{E}[0m{E}[38;2;128;128;128m > {E}[0m"
+        f"{E}[38;2;250;235;215mtest_leaks_a_node{E}[0m{E}[38;2;34;139;34m PASSED{E}[0m{E}[38;2;100;149;237m 3ms{E}[0m",
+        f"  {E}[38;2;0;206;209m{E}[1m{E}[4mReport:{E}[0m",
+        f"  {E}[38;2;128;128;128m{E}[38;2;184;134;11mWARNING:{E}[0m Detected {E}[38;2;30;144;255m1{E}[0m"
+        " possible orphan nodes.",
+        f"\t{E}[38;2;184;134;11m⚠️No details available. Run tests in debug mode to collect details.{E}[0m",
+        f"{E}[38;2;30;144;255mStatistics:{E}[0m{E}[38;2;128;128;128m 2 test cases | 0 errors | 0 failures | 0 flaky"
+        f" | 0 skipped | 1 orphans |{E}[0m{E}[38;2;34;139;34m PASSED{E}[0m",
+        f"{E}[38;2;0;206;209mRun Test Suite: {E}[0m{E}[38;2;250;235;215mres://tests/unit/leak_hook_probe_test.gd{E}[0m",
+        f"  {E}[38;2;250;235;215mres://tests/unit/leak_hook_probe_test.gd{E}[0m{E}[38;2;128;128;128m > {E}[0m"
+        f"{E}[38;2;250;235;215mtest_nothing{E}[0m{E}[38;2;34;139;34m PASSED{E}[0m{E}[38;2;100;149;237m 3ms{E}[0m",
+        f"  {E}[38;2;250;235;215mleak_hook_probe_test{E}[0m{E}[38;2;128;128;128m > {E}[0m"
+        f"{E}[38;2;250;235;215mfinalize(){E}[0m  {E}[38;2;0;206;209m{E}[1m{E}[4mReport:{E}[0m",
+        f"  {E}[38;2;128;128;128m{E}[38;2;184;134;11mWARNING:{E}[0m Detected {E}[38;2;30;144;255m1{E}[0m"
+        " possible orphan nodes.",
+        f"{E}[38;2;218;165;32mExit code: 101{E}[0m",
+    ]
+)
+
+
+class OrphanTest(unittest.TestCase):
+    def test_names_the_leaking_test_and_suite_hook(self) -> None:
+        self.assertEqual(
+            gdunit.parse_orphans(ORPHAN_LOG),
+            [
+                "res://tests/unit/leak_probe_test.gd > test_leaks_a_node: 1 orphan node(s)",
+                "res://tests/unit/leak_hook_probe_test.gd > before()/after(): 1 orphan node(s)",
+            ],
+        )
+
+    def test_clean_log_has_no_orphans(self) -> None:
+        clean = "\n".join(line for line in ORPHAN_LOG.splitlines() if "orphan nodes" not in line)
+        self.assertEqual(gdunit.parse_orphans(clean), [])
+
+
+class PinsTest(unittest.TestCase):
+    def test_linux_checksum_is_a_sha512(self) -> None:
+        self.assertRegex(pins.GODOT_LINUX_SHA512, r"^[0-9a-f]{128}$")
+        self.assertTrue(pins.GODOT_LINUX_URL.endswith(f"/{pins.GODOT}-stable/{pins.GODOT_LINUX_ZIP}"))
+
+    def test_pins_get_prints_one_value(self) -> None:
+        # CI reads the checksum this way: tools/run.sh pins --get godot_linux_sha512
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = cli.main(["pins", "--get", "godot_linux_sha512"])
+        self.assertEqual(rc, 0)
+        self.assertEqual(out.getvalue().strip(), pins.GODOT_LINUX_SHA512)
 
 
 class VersionTest(unittest.TestCase):

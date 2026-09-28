@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -15,7 +16,7 @@ REPORT_DIR = OUT / "gdunit"
 EXIT_MEANING = {
     0: "all tests passed",
     100: "tests failed",
-    101: "orphan nodes detected (a test leaked Nodes; free them). Orphans fail the build",
+    101: "orphan nodes detected: free the Nodes a test creates, or wrap them in auto_free(). Orphans fail the build",
     103: "GdUnit4 refused to run headless (missing --ignoreHeadlessMode)",
     104: "GdUnit4 does not support this Godot version",
     105: "script errors while discovering tests (a test file does not compile; run `check`)",
@@ -43,6 +44,32 @@ def parse_junit(path: Path) -> JUnit:
                 body = [line for line in body if not line.startswith("at '")][:6]
                 result.failures.append(f"{where}: {head}" + (f" | {' '.join(body)}" if body else ""))
     return result
+
+
+# Orphans appear only in the console log, never in results.xml (GdUnit4 6.2.1, GdUnitConsoleTestReporter.gd).
+# The log is ANSI-coloured. A test's orphans (including leaks in before_test/after_test) follow its status line
+# "res://<suite>.gd > <test> PASSED"; a suite's before()/after() orphans follow "<suite_name> > finalize()".
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+SUITE_RE = re.compile(r"Run Test Suite: (res://\S+)")
+TEST_RE = re.compile(r"^\s*(res://\S+) > (.+?) (?:STARTED|PASSED|FAILED|WARNING|SKIPPED|FLAKY)\b")
+FINALIZE_RE = re.compile(r"^\s*\S+ > finalize\(\)")
+ORPHANS_RE = re.compile(r"Detected (\d+) (?:possible )?orphan nodes")
+
+
+def parse_orphans(log: str) -> list[str]:
+    """Which test or suite hook leaked how many nodes, from a GdUnit4 console log."""
+    suite, subject, found = "?", "?", []
+    for raw in log.splitlines():
+        line = ANSI_RE.sub("", raw)
+        if match := SUITE_RE.search(line):
+            suite = subject = match.group(1)
+        elif match := TEST_RE.match(line):
+            subject = f"{match.group(1)} > {match.group(2)}"
+        elif FINALIZE_RE.match(line):
+            subject = f"{suite} > before()/after()"
+        elif match := ORPHANS_RE.search(line):
+            found.append(f"{subject}: {match.group(1)} orphan node(s)")
+    return found
 
 
 def main(paths: list[str] | None = None, run_import: bool = True) -> int:
@@ -84,6 +111,12 @@ def main(paths: list[str] | None = None, run_import: bool = True) -> int:
         bad(f"GdUnit4 crashed or exited unexpectedly (exit {res.rc}); log: tools/out/logs/test.log")
     elif res.rc != 0:
         bad(f"exit {res.rc}: {EXIT_MEANING[res.rc]}")
+    if res.rc == 101:
+        leaks = parse_orphans(res.out)
+        for line in leaks:
+            bad(line)
+        if not leaks:
+            bad("could not tell which test leaked; log: tools/out/logs/test.log")
     if junit is None:
         failed = True
         bad("no results.xml written; log: tools/out/logs/test.log")

@@ -6,6 +6,13 @@ See docs/decisions/2026-09-28-toolchain-pins.md before changing any of these.
 GODOT = "4.7.2"
 # Prefix of `godot --version` for the official 4.7.2 stable build.
 GODOT_VERSION_PREFIX = "4.7.2.stable.official"
+# The Linux build CI downloads from the official release, and its checksum from that release's SHA512-SUMS.txt.
+GODOT_LINUX_ZIP = f"Godot_v{GODOT}-stable_linux.x86_64.zip"
+GODOT_LINUX_URL = f"https://github.com/godotengine/godot/releases/download/{GODOT}-stable/{GODOT_LINUX_ZIP}"
+GODOT_LINUX_SHA512 = (
+    "9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b14"
+    "67edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65"
+)
 GDTOOLKIT = "4.5.0"
 GDUNIT4 = "6.2.1"
 PYTHON_MIN = (3, 11)
@@ -14,6 +21,9 @@ CLAUDE_CODE_MIN = (2, 1, 281)
 
 ALL = {
     "godot": GODOT,
+    "godot_linux_zip": GODOT_LINUX_ZIP,
+    "godot_linux_url": GODOT_LINUX_URL,
+    "godot_linux_sha512": GODOT_LINUX_SHA512,
     "gdtoolkit": GDTOOLKIT,
     "gdunit4": GDUNIT4,
     "python_min": ".".join(map(str, PYTHON_MIN)),
