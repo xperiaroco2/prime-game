@@ -1,0 +1,293 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Ініціалізація проекту (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Сканування структури файлу...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Завантаження глобальних назв класів...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Перевірка GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Створення сценаріїв автозавантаження...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Ініціалізація плагінів...[39m[0m
+[38;2;218;165;32mIt was recognized that GdUnit4 is running in a test environment, therefore the GdUnit4 plugin will not be executed![0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Початок сканування файлів...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Реєстрація глобальних класів... (237 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | CallBackValueProvider[39m[0m
+[   1% ] [90m[1mupdate_scripts_classes[22m | DefaultValueProvider[39m[0m
+[   1% ] [90m[1mupdate_scripts_classes[22m | GdAssertMessages[39m[0m
+[   2% ] [90m[1mupdate_scripts_classes[22m | GdAssertReports[39m[0m
+[   2% ] [90m[1mupdate_scripts_classes[22m | GdUnitArrayAssertImpl[39m[0m
+[   2% ] [90m[1mupdate_scripts_classes[22m | GdUnitAssertImpl[39m[0m
+[   3% ] [90m[1mupdate_scripts_classes[22m | GdUnitAssertions[39m[0m
+[   3% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   4% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   4% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   5% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   5% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   5% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   6% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   6% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   7% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   7% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   7% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   8% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   8% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   9% ] [90m[1mupdate_scripts_classes[22m | ValueProvider[39m[0m
+[   9% ] [90m[1mupdate_scripts_classes[22m | CmdArgumentParser[39m[0m
+[  10% ] [90m[1mupdate_scripts_classes[22m | CmdCommand[39m[0m
+[  10% ] [90m[1mupdate_scripts_classes[22m | CmdCommandHandler[39m[0m
+[  10% ] [90m[1mupdate_scripts_classes[22m | CmdOption[39m[0m
+[  11% ] [90m[1mupdate_scripts_classes[22m | CmdOptions[39m[0m
+[  11% ] [90m[1mupdate_scripts_classes[22m | TestCaseAttribute[39m[0m
+[  12% ] [90m[1mupdate_scripts_classes[22m | GdUnitBaseCommand[39m[0m
+[  12% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandFileSystem[39m[0m
+[  13% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandFileSystemDebugTests[39m[0m
+[  13% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandFileSystemRunTests[39m[0m
+[  13% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandHandler[39m[0m
+[  14% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandInspectorDebugTests[39m[0m
+[  14% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandInspectorRerunTestsUntilFailure[39m[0m
+[  15% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandInspectorRunTests[39m[0m
+[  15% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandInspectorTreeCollapse[39m[0m
+[  15% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandInspectorTreeExpand[39m[0m
+[  16% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandRunTestsOverall[39m[0m
+[  16% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandScriptEditor[39m[0m
+[  17% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandScriptEditorCreateTest[39m[0m
+[  17% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandScriptEditorDebugTests[39m[0m
+[  18% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandScriptEditorRunTests[39m[0m
+[  18% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandStopTestSession[39m[0m
+[  18% ] [90m[1mupdate_scripts_classes[22m | GdUnitCommandTestSession[39m[0m
+[  19% ] [90m[1mupdate_scripts_classes[22m | GdUnitShortcut[39m[0m
+[  19% ] [90m[1mupdate_scripts_classes[22m | GdUnitGUID[39m[0m
+[  20% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCase[39m[0m
+[  20% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestDiscoverer[39m[0m
+[  21% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestDiscoverGuard[39m[0m
+[  21% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestDiscoverSink[39m[0m
+[  21% ] [90m[1mupdate_scripts_classes[22m | GdUnitEvent[39m[0m
+[  22% ] [90m[1mupdate_scripts_classes[22m | GdUnitInit[39m[0m
+[  22% ] [90m[1mupdate_scripts_classes[22m | GdUnitStop[39m[0m
+[  23% ] [90m[1mupdate_scripts_classes[22m | GdUnitEventTestDiscoverEnd[39m[0m
+[  23% ] [90m[1mupdate_scripts_classes[22m | GdUnitEventTestDiscoverStart[39m[0m
+[  23% ] [90m[1mupdate_scripts_classes[22m | GdUnitSessionClose[39m[0m
+[  24% ] [90m[1mupdate_scripts_classes[22m | GdUnitSessionStart[39m[0m
+[  24% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCaseFuzzedExecutionStage[39m[0m
+[  25% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCaseFuzzedTestStage[39m[0m
+[  25% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCaseSingleExecutionStage[39m[0m
+[  26% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCaseSingleTestStage[39m[0m
+[  26% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCaseAfterStage[39m[0m
+[  26% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCaseBeforeStage[39m[0m
+[  27% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCaseExecutionStage[39m[0m
+[  27% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteAfterStage[39m[0m
+[  28% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteBeforeStage[39m[0m
+[  28% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteExecutionStage[39m[0m
+[  28% ] [90m[1mupdate_scripts_classes[22m | IGdUnitExecutionStage[39m[0m
+[  29% ] [90m[1mupdate_scripts_classes[22m | GdUnitExecutionContext[39m[0m
+[  29% ] [90m[1mupdate_scripts_classes[22m | GdUnitMemoryObserver[39m[0m
+[  30% ] [90m[1mupdate_scripts_classes[22m | GdUnitProjectSettingsSnapshot[39m[0m
+[  30% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestReportCollector[39m[0m
+[  31% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteExecutor[39m[0m
+[  31% ] [90m[1mupdate_scripts_classes[22m | GdUnitBaseReporterTestSessionHook[39m[0m
+[  31% ] [90m[1mupdate_scripts_classes[22m | GdUnitHtmlReporterTestSessionHook[39m[0m
+[  32% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSessionHook[39m[0m
+[  32% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSessionHookService[39m[0m
+[  33% ] [90m[1mupdate_scripts_classes[22m | GdUnitXMLReporterTestSessionHook[39m[0m
+[  33% ] [90m[1mupdate_scripts_classes[22m | GdBuiltinConstants[39m[0m
+[  34% ] [90m[1mupdate_scripts_classes[22m | GdCallableParameterSetResolver[39m[0m
+[  34% ] [90m[1mupdate_scripts_classes[22m | GdInlineParameterSetResolver[39m[0m
+[  34% ] [90m[1mupdate_scripts_classes[22m | GdParameterSetResolver[39m[0m
+[  35% ] [90m[1mupdate_scripts_classes[22m | GdParameterSetResolverFactory[39m[0m
+[  35% ] [90m[1mupdate_scripts_classes[22m | GdPropertyParameterSetResolver[39m[0m
+[  36% ] [90m[1mupdate_scripts_classes[22m | GdClassDescriptor[39m[0m
+[  36% ] [90m[1mupdate_scripts_classes[22m | GdDefaultValueDecoder[39m[0m
+[  36% ] [90m[1mupdate_scripts_classes[22m | GdFunctionArgument[39m[0m
+[  37% ] [90m[1mupdate_scripts_classes[22m | GdFunctionDescriptor[39m[0m
+[  37% ] [90m[1mupdate_scripts_classes[22m | GdScriptParser[39m[0m
+[  38% ] [90m[1mupdate_scripts_classes[22m | GdUnitExpressionRunner[39m[0m
+[  38% ] [90m[1mupdate_scripts_classes[22m | GdUnitError[39m[0m
+[  39% ] [90m[1mupdate_scripts_classes[22m | GdUnitReport[39m[0m
+[  39% ] [90m[1mupdate_scripts_classes[22m | GdUnitScriptErrorCollector[39m[0m
+[  39% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCIRunner[39m[0m
+[  40% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  40% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSession[39m[0m
+[  41% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  41% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteDefaultTemplate[39m[0m
+[  42% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteTemplate[39m[0m
+[  42% ] [90m[1mupdate_scripts_classes[22m | GdUnitThreadContext[39m[0m
+[  42% ] [90m[1mupdate_scripts_classes[22m | GdUnitThreadManager[39m[0m
+[  43% ] [90m[1mupdate_scripts_classes[22m | GdUnitCSIMessageWriter[39m[0m
+[  43% ] [90m[1mupdate_scripts_classes[22m | GdUnitMessageWriter[39m[0m
+[  44% ] [90m[1mupdate_scripts_classes[22m | GdUnitRichTextMessageWriter[39m[0m
+[  44% ] [90m[1mupdate_scripts_classes[22m | _TestCase[39m[0m
+[  44% ] [90m[1mupdate_scripts_classes[22m | GdArrayTools[39m[0m
+[  45% ] [90m[1mupdate_scripts_classes[22m | GdDiffTool[39m[0m
+[  45% ] [90m[1mupdate_scripts_classes[22m | GdObjects[39m[0m
+[  46% ] [90m[1mupdate_scripts_classes[22m | GdUnit4Version[39m[0m
+[  46% ] [90m[1mupdate_scripts_classes[22m | GdUnitFileAccess[39m[0m
+[  47% ] [90m[1mupdate_scripts_classes[22m | GdUnitProperty[39m[0m
+[  47% ] [90m[1mupdate_scripts_classes[22m | GdUnitResult[39m[0m
+[  47% ] [90m[1mupdate_scripts_classes[22m | GdUnitRunnerConfig[39m[0m
+[  48% ] [90m[1mupdate_scripts_classes[22m | GdUnitSceneRunnerImpl[39m[0m
+[  48% ] [90m[1mupdate_scripts_classes[22m | GdUnitSettings[39m[0m
+[  49% ] [90m[1mupdate_scripts_classes[22m | GdUnitSignalAwaiter[39m[0m
+[  49% ] [90m[1mupdate_scripts_classes[22m | GdUnitSignalCollector[39m[0m
+[  50% ] [90m[1mupdate_scripts_classes[22m | GdUnitSignals[39m[0m
+[  50% ] [90m[1mupdate_scripts_classes[22m | GdUnitSingleton[39m[0m
+[  50% ] [90m[1mupdate_scripts_classes[22m | GdUnitStackTrace[39m[0m
+[  51% ] [90m[1mupdate_scripts_classes[22m | GdUnitStackTraceElement[39m[0m
+[  51% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestResourceLoader[39m[0m
+[  52% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteBuilder[39m[0m
+[  52% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteScanner[39m[0m
+[  52% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  53% ] [90m[1mupdate_scripts_classes[22m | GodotVersionFixures[39m[0m
+[  53% ] [90m[1mupdate_scripts_classes[22m | LocalTime[39m[0m
+[  54% ] [90m[1mupdate_scripts_classes[22m | GdUnit4CSharpApiLoader[39m[0m
+[  54% ] [90m[1mupdate_scripts_classes[22m | CallableDoubler[39m[0m
+[  55% ] [90m[1mupdate_scripts_classes[22m | GdFunctionDoubler[39m[0m
+[  55% ] [90m[1mupdate_scripts_classes[22m | GdUnitClassDoubler[39m[0m
+[  55% ] [90m[1mupdate_scripts_classes[22m | GdUnitFunctionDoublerBuilder[39m[0m
+[  56% ] [90m[1mupdate_scripts_classes[22m | GdUnitMockFunctionDoubler[39m[0m
+[  56% ] [90m[1mupdate_scripts_classes[22m | GdUnitObjectInteractions[39m[0m
+[  57% ] [90m[1mupdate_scripts_classes[22m | GdUnitObjectInteractionsVerifier[39m[0m
+[  57% ] [90m[1mupdate_scripts_classes[22m | GdUnitSpyFunctionDoubler[39m[0m
+[  57% ] [90m[1mupdate_scripts_classes[22m | GdUnitFuncValueExtractor[39m[0m
+[  58% ] [90m[1mupdate_scripts_classes[22m | BoolFuzzer[39m[0m
+[  58% ] [90m[1mupdate_scripts_classes[22m | FloatFuzzer[39m[0m
+[  59% ] [90m[1mupdate_scripts_classes[22m | Fuzzer[39m[0m
+[  59% ] [90m[1mupdate_scripts_classes[22m | IntFuzzer[39m[0m
+[  60% ] [90m[1mupdate_scripts_classes[22m | StringFuzzer[39m[0m
+[  60% ] [90m[1mupdate_scripts_classes[22m | Vector2Fuzzer[39m[0m
+[  60% ] [90m[1mupdate_scripts_classes[22m | Vector3Fuzzer[39m[0m
+[  61% ] [90m[1mupdate_scripts_classes[22m | AnyArgumentMatcher[39m[0m
+[  61% ] [90m[1mupdate_scripts_classes[22m | AnyBuildInTypeArgumentMatcher[39m[0m
+[  62% ] [90m[1mupdate_scripts_classes[22m | AnyClazzArgumentMatcher[39m[0m
+[  62% ] [90m[1mupdate_scripts_classes[22m | ChainedArgumentMatcher[39m[0m
+[  63% ] [90m[1mupdate_scripts_classes[22m | EqualsArgumentMatcher[39m[0m
+[  63% ] [90m[1mupdate_scripts_classes[22m | GdUnitArgumentMatcher[39m[0m
+[  63% ] [90m[1mupdate_scripts_classes[22m | GdUnitArgumentMatchers[39m[0m
+[  64% ] [90m[1mupdate_scripts_classes[22m | GdUnitMock[39m[0m
+[  64% ] [90m[1mupdate_scripts_classes[22m | GdUnitMockBuilder[39m[0m
+[  65% ] [90m[1mupdate_scripts_classes[22m | DoubledMockClassSourceClassName[39m[0m
+[  65% ] [90m[1mupdate_scripts_classes[22m | ErrorLogEntry[39m[0m
+[  65% ] [90m[1mupdate_scripts_classes[22m | GdUnitMonitor[39m[0m
+[  66% ] [90m[1mupdate_scripts_classes[22m | GdUnitOrphanNodeInfo[39m[0m
+[  66% ] [90m[1mupdate_scripts_classes[22m | GdUnitOrphanNodesMonitor[39m[0m
+[  67% ] [90m[1mupdate_scripts_classes[22m | GodotGdErrorMonitor[39m[0m
+[  67% ] [90m[1mupdate_scripts_classes[22m | RPC[39m[0m
+[  68% ] [90m[1mupdate_scripts_classes[22m | RPCClientConnect[39m[0m
+[  68% ] [90m[1mupdate_scripts_classes[22m | RPCClientDisconnect[39m[0m
+[  68% ] [90m[1mupdate_scripts_classes[22m | RPCGdUnitEvent[39m[0m
+[  69% ] [90m[1mupdate_scripts_classes[22m | RPCMessage[39m[0m
+[  69% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  70% ] [90m[1mupdate_scripts_classes[22m | GdUnitServerConstants[39m[0m
+[  70% ] [90m[1mupdate_scripts_classes[22m | GdUnitTask[39m[0m
+[  71% ] [90m[1mupdate_scripts_classes[22m | GdUnitTcpClient[39m[0m
+[  71% ] [90m[1mupdate_scripts_classes[22m | GdUnitTcpNode[39m[0m
+[  71% ] [90m[1mupdate_scripts_classes[22m | GdUnitTcpServer[39m[0m
+[  72% ] [90m[1mupdate_scripts_classes[22m | GdUnitConsoleTestReporter[39m[0m
+[  72% ] [90m[1mupdate_scripts_classes[22m | GdUnitByPathReport[39m[0m
+[  73% ] [90m[1mupdate_scripts_classes[22m | GdUnitHtmlEncoder[39m[0m
+[  73% ] [90m[1mupdate_scripts_classes[22m | GdUnitHtmlPatterns[39m[0m
+[  73% ] [90m[1mupdate_scripts_classes[22m | GdUnitHtmlReportWriter[39m[0m
+[  74% ] [90m[1mupdate_scripts_classes[22m | JUnitXmlReportWriter[39m[0m
+[  74% ] [90m[1mupdate_scripts_classes[22m | XmlElement[39m[0m
+[  75% ] [90m[1mupdate_scripts_classes[22m | GdUnitReportSummary[39m[0m
+[  75% ] [90m[1mupdate_scripts_classes[22m | GdUnitReportWriter[39m[0m
+[  76% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestCaseReport[39m[0m
+[  76% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestReporter[39m[0m
+[  76% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuiteReport[39m[0m
+[  77% ] [90m[1mupdate_scripts_classes[22m | GdUnitSpyBuilder[39m[0m
+[  77% ] [90m[1mupdate_scripts_classes[22m | DoubledSpyClassSourceClassName[39m[0m
+[  78% ] [90m[1mupdate_scripts_classes[22m | GdUnitContextMenuItem[39m[0m
+[  78% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  78% ] [90m[1mupdate_scripts_classes[22m | GdUnitInspectorContextMenu[39m[0m
+[  79% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  79% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  80% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  80% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  81% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  81% ] [90m[1mupdate_scripts_classes[22m | GdUnitReportPanel[39m[0m
+[  81% ] [90m[1mupdate_scripts_classes[22m | GdUnitInputCapture[39m[0m
+[  82% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  82% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  83% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  83% ] [90m[1mupdate_scripts_classes[22m | GdUnitEditorColorTheme[39m[0m
+[  84% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  84% ] [90m[1mupdate_scripts_classes[22m | GdUnitFonts[39m[0m
+[  84% ] [90m[1mupdate_scripts_classes[22m | GdUnitInspecor[39m[0m
+[  85% ] [90m[1mupdate_scripts_classes[22m | GdUnitInspectorTreeConstants[39m[0m
+[  85% ] [90m[1mupdate_scripts_classes[22m | GdUnitScriptEditorControls[39m[0m
+[  86% ] [90m[1mupdate_scripts_classes[22m | GdUnitUiTools[39m[0m
+[  86% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  86% ] [90m[1mupdate_scripts_classes[22m | GdUnitPatch[39m[0m
+[  87% ] [90m[1mupdate_scripts_classes[22m | GdUnitPatcher[39m[0m
+[  87% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  88% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  88% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  89% ] [90m[1mupdate_scripts_classes[22m | Comparator[39m[0m
+[  89% ] [90m[1mupdate_scripts_classes[22m | Fuzzers[39m[0m
+[  89% ] [90m[1mupdate_scripts_classes[22m | GdUnitArrayAssert[39m[0m
+[  90% ] [90m[1mupdate_scripts_classes[22m | GdUnitAssert[39m[0m
+[  90% ] [90m[1mupdate_scripts_classes[22m | GdUnitAwaiter[39m[0m
+[  91% ] [90m[1mupdate_scripts_classes[22m | GdUnitBoolAssert[39m[0m
+[  91% ] [90m[1mupdate_scripts_classes[22m | GdUnitConstants[39m[0m
+[  92% ] [90m[1mupdate_scripts_classes[22m | GdUnitDictionaryAssert[39m[0m
+[  92% ] [90m[1mupdate_scripts_classes[22m | GdUnitFailureAssert[39m[0m
+[  92% ] [90m[1mupdate_scripts_classes[22m | GdUnitFileAssert[39m[0m
+[  93% ] [90m[1mupdate_scripts_classes[22m | GdUnitFloatAssert[39m[0m
+[  93% ] [90m[1mupdate_scripts_classes[22m | GdUnitFuncAssert[39m[0m
+[  94% ] [90m[1mupdate_scripts_classes[22m | GdUnitGodotErrorAssert[39m[0m
+[  94% ] [90m[1mupdate_scripts_classes[22m | GdUnitIntAssert[39m[0m
+[  94% ] [90m[1mupdate_scripts_classes[22m | GdUnitObjectAssert[39m[0m
+[  95% ] [90m[1mupdate_scripts_classes[22m | GdUnitResultAssert[39m[0m
+[  95% ] [90m[1mupdate_scripts_classes[22m | GdUnitSceneRunner[39m[0m
+[  96% ] [90m[1mupdate_scripts_classes[22m | GdUnitSignalAssert[39m[0m
+[  96% ] [90m[1mupdate_scripts_classes[22m | GdUnitStringAssert[39m[0m
+[  97% ] [90m[1mupdate_scripts_classes[22m | GdUnitTestSuite[39m[0m
+[  97% ] [90m[1mupdate_scripts_classes[22m | GdUnitTuple[39m[0m
+[  97% ] [90m[1mupdate_scripts_classes[22m | GdUnitValueExtractor[39m[0m
+[  98% ] [90m[1mupdate_scripts_classes[22m | GdUnitVectorAssert[39m[0m
+[  98% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  99% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Дії сканування... (8 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | touch-button.png[39m[0m
+[  11% ] [90m[1m_update_scan_actions[22m | logo.png[39m[0m
+[  22% ] [90m[1m_update_scan_actions[22m | border_bottom.png[39m[0m
+[  33% ] [90m[1m_update_scan_actions[22m | border_top.png[39m[0m
+[  44% ] [90m[1m_update_scan_actions[22m | dot1.png[39m[0m
+[  55% ] [90m[1m_update_scan_actions[22m | dot2.png[39m[0m
+[  66% ] [90m[1m_update_scan_actions[22m | embedded.png[39m[0m
+[  77% ] [90m[1m_update_scan_actions[22m | horizontal-line2.png[39m[0m
+[92m[ DONE ][39m [1m_update_scan_actions[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Повторний) імпорт ресурсів (8 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  11% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  22% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  33% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  44% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  55% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  66% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  77% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[   0% ] [90m[1mreimport[22m | Виконання операцій перед повторним імпортом...[39m[0m
+[   0% ] [90m[1mreimport[22m | touch-button.png[39m[0m
+[  11% ] [90m[1mreimport[22m | logo.png[39m[0m
+[  22% ] [90m[1mreimport[22m | border_bottom.png[39m[0m
+[  33% ] [90m[1mreimport[22m | border_top.png[39m[0m
+[  44% ] [90m[1mreimport[22m | dot1.png[39m[0m
+[  55% ] [90m[1mreimport[22m | dot2.png[39m[0m
+[  66% ] [90m[1mreimport[22m | embedded.png[39m[0m
+[  77% ] [90m[1mreimport[22m | horizontal-line2.png[39m[0m
+[  88% ] [90m[1mreimport[22m | Завершення імпорту активів...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Повторний) імпорт ресурсів (8 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Виконання операцій після повторного імпорту...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Завантаження редактора (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Завантаження макета редактора...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Завантаження доків...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m

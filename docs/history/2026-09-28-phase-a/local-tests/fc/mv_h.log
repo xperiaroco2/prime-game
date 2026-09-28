@@ -1,0 +1,30 @@
+Movie Maker mode enabled, recording movie in 1152×648 @ 10 FPS...
+WARNING: Current available space on disk is low (9.89 GiB). MovieWriter will fail during movie recording if the disk runs out of available space.
+   at: begin (servers/movie_writer/movie_writer.cpp:117)
+ERROR: Parameter "t" is null.
+   at: texture_2d_get (./servers/rendering/dummy/storage/texture_storage.h:110)
+
+================================================================
+CrashHandlerException: Program crashed with signal 11
+Engine version: Godot Engine v4.7.2.stable.official (ed1daf0bf001b61586d9930840f2f1394092c079)
+Dumping the backtrace. Please include this when reporting the bug on: https://github.com/godotengine/godot/issues
+Load address: 7ff601fc0000
+
+[1] 7ff746094d61 (main+40d4d61) - no debug info in PE/COFF executable
+[2] 7ffd89ee4702 (ntdll.dll+124702) - no debug info in PE/COFF executable
+[3] 7ffd89f254fe (ntdll.dll+1654fe) - no debug info in PE/COFF executable
+[4] 7ffd89e8bd24 (ntdll.dll+cbd24) - no debug info in PE/COFF executable
+[5] 7ffd89f24e3d (ntdll.dll+164e3d) - no debug info in PE/COFF executable
+[6] 7ff74599c49f (main+39dc49f) - no debug info in PE/COFF executable
+[7] 7ff745230d95 (main+3270d95) - no debug info in PE/COFF executable
+[8] 7ff74201deb9 (main+5deb9) - no debug info in PE/COFF executable
+[9] 7ff741fc2ef0 (main+2ef0) - no debug info in PE/COFF executable
+[10] 7ff742012b41 (main+52b41) - no debug info in PE/COFF executable
+[11] 7ff742012b7d (main+52b7d) - no debug info in PE/COFF executable
+[12] 7ff741fc10c8 (main+10c8) - no debug info in PE/COFF executable
+[13] 7ff741fc13f5 (main+13f5) - no debug info in PE/COFF executable
+[14] 7ffd895ccd86 (kernel32.dll+2cd86) - no debug info in PE/COFF executable
+[15] 7ffd89e6caeb (ntdll.dll+acaeb) - no debug info in PE/COFF executable
+[16] -1 (main+-7ff741fc0001) - no debug info in PE/COFF executable
+-- END OF C++ BACKTRACE --
+================================================================

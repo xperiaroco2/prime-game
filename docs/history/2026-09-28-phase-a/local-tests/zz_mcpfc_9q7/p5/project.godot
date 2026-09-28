@@ -1,0 +1,9 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+config/name="scratch"
+
+[debug]
+gdscript/warnings/untyped_declaration=2
+gdscript/warnings/inferred_declaration=0

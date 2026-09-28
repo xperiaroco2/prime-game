@@ -1,0 +1,30 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Ініціалізація проекту (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Сканування структури файлу...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Завантаження глобальних назв класів...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Перевірка GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Створення сценаріїв автозавантаження...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Ініціалізація плагінів...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Початок сканування файлів...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Реєстрація глобальних класів... (11 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   8% ] [90m[1mupdate_scripts_classes[22m | AbsBase[39m[0m
+[  16% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  25% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  33% ] [90m[1mupdate_scripts_classes[22m | OkThing[39m[0m
+[  41% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  50% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  58% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  66% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  75% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  83% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Завантаження редактора (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Завантаження макета редактора...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Завантаження доків...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m

@@ -1,0 +1,2 @@
+t.gd:7: Error: Function-scope variable name "Bad_Name" is not valid (function-variable-name)
+Failure: 1 problem found

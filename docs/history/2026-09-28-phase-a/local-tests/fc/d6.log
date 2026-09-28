@@ -1,0 +1,2 @@
+WARNING: The local variable "unused_thing" is declared but never used in the block. If this is intended, prefix it with an underscore: "_unused_thing".
+   at: GDScript::reload (res://src/warn_only.gd:4)

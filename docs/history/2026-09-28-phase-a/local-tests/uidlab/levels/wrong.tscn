@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cd4ma6qtb6hy7"]
+
+[ext_resource type="Resource" uid="uid://dhky75l4fxvbj" path="res://content/c.tres" id="1_ref"]
+
+[node name="Root" type="Node3D"]
+metadata/item = ExtResource("1_ref")

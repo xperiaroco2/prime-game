@@ -1,0 +1,43 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[2J[H[38;2;233;150;122m
+--------------------------------------------------------------------------------------------------
+GdUnit4 Comandline Tool
+--------------------------------------------------------------------------------------------------[0m
+[38;2;0;191;255mDisabled fail fast![0m
+[38;2;0;191;255mSet write reports to C:/Users/xperi/AppData/Local/Temp/claude/D--prime-game/40c5c58a-0dc5-4821-beca-a406804c7d8a/scratchpad/gdu/tools/out/gdunit[0m
+[38;2;0;191;255mSet report history count to 1[0m
+[38;2;218;165;32m
+Headless mode is ignored by option '--ignoreHeadlessMode'"
+
+Please note that tests that use UI interaction do not work correctly in headless mode.
+Godot 'InputEvents' are not transported by the Godot engine in headless mode and therefore
+have no effect in the test!
+[0m
+Scanning for test suites in: res://tests
+[38;2;100;149;237mInstalling GdUnit4 session system hooks.[0m
+[38;2;100;149;237mSession hook 'GdUnitHtmlTestReporter' installed.[0m
+[38;2;100;149;237mSession hook 'GdUnitXMLTestReporter' installed.[0m
+[38;2;0;206;209mRun Test Suite: [0m[38;2;250;235;215mres://tests/sample_test.gd[0m
+  [38;2;250;235;215mres://tests/sample_test.gd[0m[38;2;128;128;128m > [0m[38;2;250;235;215mtest_passes[0m[38;2;34;139;34m STARTED[0m[38;2;128;128;128m[0m
+  [38;2;250;235;215mres://tests/sample_test.gd[0m[38;2;128;128;128m > [0m[38;2;250;235;215mtest_passes[0m[38;2;34;139;34m PASSED[0m[38;2;100;149;237m 10ms[0m
+[38;2;128;128;128m[0m
+  [38;2;250;235;215mres://tests/sample_test.gd[0m[38;2;128;128;128m > [0m[38;2;250;235;215mtest_fails[0m[38;2;34;139;34m STARTED[0m[38;2;128;128;128m[0m
+  [38;2;250;235;215mres://tests/sample_test.gd[0m[38;2;128;128;128m > [0m[38;2;250;235;215mtest_fails[0m[38;2;178;34;34m[1m FAILED[0m[38;2;100;149;237m 13ms[0m
+  [38;2;0;206;209m[1m[4mReport:[0m
+  [38;2;128;128;128m[38;2;255;69;0mExpecting:[0m
+ '[38;2;30;144;255mabd[0m'
+ but was
+ '[38;2;30;144;255mab[48;2;38;0;0m[38;2;255;255;255md[0m[38;2;30;144;255m[48;2;38;0;0m[0m[38;2;30;144;255m[48;2;0;38;0m[38;2;255;255;255mc[0m[38;2;30;144;255m[48;2;0;38;0m[0m[38;2;30;144;255m[0m'[0m[38;2;173;216;230m	at 'test_fails' in res://tests/sample_test.gd:9[0m[38;2;128;128;128m[0m
+[38;2;128;128;128m[0m
+[38;2;30;144;255mStatistics:[0m[38;2;128;128;128m 2 test cases | 0 errors | 1 failures | 0 flaky | 0 skipped | 0 orphans |[0m[38;2;34;139;34m PASSED[0m[38;2;100;149;237m 65ms[0m
+[38;2;128;128;128m[0m
+[38;2;128;128;128m[0m
+[38;2;30;144;255mOverall Summary:[0m[38;2;255;255;255m 2 test cases | 0 errors | 1 failures | 0 flaky | 0 skipped | 0 orphans |[0m
+[38;2;233;150;122mExecuted test suites: (1/1)[0m
+[38;2;233;150;122mExecuted test cases : (2/2)[0m
+[38;2;233;150;122mTotal execution time: 65ms[0m
+[38;2;255;255;255m [0m[38;2;100;149;237mOpen XML Report at: file://C:/Users/xperi/AppData/Local/Temp/claude/D--prime-game/40c5c58a-0dc5-4821-beca-a406804c7d8a/scratchpad/gdu/tools/out/gdunit/report_1/results.xml[0m
+[38;2;100;149;237mOpen HTML Report at: file://C:/Users/xperi/AppData/Local/Temp/claude/D--prime-game/40c5c58a-0dc5-4821-beca-a406804c7d8a/scratchpad/gdu/tools/out/gdunit/report_1/index.html[0m
+[38;2;178;34;34mExit code: 100[0m
+Run dispose test resources

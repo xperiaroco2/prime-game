@@ -1,0 +1,5 @@
+ERROR: Parameter "t" is null.
+   at: texture_2d_get (./servers/rendering/dummy/storage/texture_storage.h:110)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/shot_nowait.gd:14)
+SHOT: empty image (display=headless)

@@ -1,0 +1,77 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Ініціалізація проекту (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Сканування структури файлу...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Завантаження глобальних назв класів...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Перевірка GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Створення сценаріїв автозавантаження...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Ініціалізація плагінів...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Початок сканування файлів...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+WARNING: UID duplicate detected between res://content/b.tres and res://content/a.tres.
+   at: _process_file_system (editor/file_system/editor_file_system.cpp:1405)
+[   0% ] [90m[1mloading_editor_layout[22m | Started Завантаження редактора (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Завантаження макета редактора...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Завантаження доків...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+inplace save c err=0
+[   0% ] [90m[1m_update_scan_actions[22m | Started Дії сканування... (3 steps)[39m[0m
+WARNING: Duplicate UID detected for Resource at "res://content/copied_from_c.tres".
+Old Resource path: "res://content/c.tres". The new file UID was changed automatically.
+   at: _update_scan_actions (editor/file_system/editor_file_system.cpp:930)
+[   0% ] [90m[1m_update_scan_actions[22m | copied_from_c.tres[39m[0m
+[  25% ] [90m[1m_update_scan_actions[22m | new_legacy.tres[39m[0m
+[  50% ] [90m[1m_update_scan_actions[22m | new_nouid.tres[39m[0m
+[92m[ DONE ][39m [1m_update_scan_actions[22m
+[0m
+== res://content/copied_from_c.tres
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://ca40f8xk8okpt"]
+
+[ext_resource type="Script" uid="uid://c56ipcsh432gw" path="res://scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+display_name = "CopyOfC"
+weight = 1
+
+== res://content/new_legacy.tres
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://bt6q0f2wm0563"]
+
+[ext_resource type="Script" path="res://scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+display_name = "NewLegacy"
+
+== res://content/new_nouid.tres
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+display_name = "NewNoUid"
+
+== res://content/c.tres
+[gd_resource type="Resource" script_class="ItemData" format=3 uid="uid://gr8upidggmur"]
+
+[ext_resource type="Script" uid="uid://c56ipcsh432gw" path="res://scripts/item_data.gd" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+display_name = "C"
+weight = 7
+
+ERROR: 6 RID allocations of type 'N16RendererViewport8ViewportE' were leaked at exit.
+ERROR: 9 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.
+ERROR: 1 RID allocations of type 'N17RendererSceneCull8ScenarioE' were leaked at exit.
+ERROR: 83 RID allocations of type 'PN18TextServerAdvanced22ShapedTextDataAdvancedE' were leaked at exit.
+ERROR: 1 RID allocations of type 'PN18TextServerAdvanced12FontAdvancedE' were leaked at exit.
+WARNING: 6 RIDs of type "Canvas" were leaked.
+   at: _free_rids (servers/rendering/renderer_canvas_cull.cpp:2735)
+WARNING: 36 RIDs of type "CanvasItem" were leaked.
+   at: _free_rids (servers/rendering/renderer_canvas_cull.cpp:2735)
+WARNING: 209 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

@@ -1,0 +1,69 @@
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Ініціалізація проекту (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Сканування структури файлу...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Завантаження глобальних назв класів...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Перевірка GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Створення сценаріїв автозавантаження...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Ініціалізація плагінів...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Початок сканування файлів...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Реєстрація глобальних класів... (13 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   7% ] [90m[1mupdate_scripts_classes[22m | NewThing[39m[0m
+[  14% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  21% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  28% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  35% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  42% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  50% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  57% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  64% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  71% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  78% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  85% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Дії сканування... (7 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | h.wav[39m[0m
+[  12% ] [90m[1m_update_scan_actions[22m | w00000000.png[39m[0m
+[  25% ] [90m[1m_update_scan_actions[22m | w00000001.png[39m[0m
+[  37% ] [90m[1m_update_scan_actions[22m | w00000002.png[39m[0m
+[  50% ] [90m[1m_update_scan_actions[22m | w.wav[39m[0m
+[  62% ] [90m[1m_update_scan_actions[22m | off.png[39m[0m
+[  75% ] [90m[1m_update_scan_actions[22m | p.png[39m[0m
+[92m[ DONE ][39m [1m_update_scan_actions[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Повторний) імпорт ресурсів (7 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  12% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  25% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  37% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  50% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  62% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  75% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[   0% ] [90m[1mreimport[22m | Виконання операцій перед повторним імпортом...[39m[0m
+[   0% ] [90m[1mreimport[22m | w00000000.png[39m[0m
+[  12% ] [90m[1mreimport[22m | w00000001.png[39m[0m
+[  25% ] [90m[1mreimport[22m | w00000002.png[39m[0m
+[  37% ] [90m[1mreimport[22m | off.png[39m[0m
+[  50% ] [90m[1mreimport[22m | p.png[39m[0m
+[  62% ] [90m[1mreimport[22m | w00000000.png[39m[0m
+ERROR: Cannot open file 'res://out/mv/h.wav'.
+   at: load_from_file (scene/resources/audio_stream_wav.cpp:1205)
+ERROR: Can't save empty resource to path 'res://.godot/imported/h.wav-6568d649a4bfd1e03f651c2ce3feea70.sample'.
+   at: save (core/io/resource_saver.cpp:103)
+ERROR: Condition "f.is_null()" is true. Continuing.
+   at: get_multiple_md5 (core/io/file_access.cpp:967)
+[  75% ] [90m[1mreimport[22m | w00000001.png[39m[0m
+[  87% ] [90m[1mreimport[22m | Завершення імпорту активів...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Повторний) імпорт ресурсів (7 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Виконання операцій після повторного імпорту...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Завантаження редактора (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Завантаження макета редактора...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Завантаження доків...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m

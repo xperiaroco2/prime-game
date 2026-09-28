@@ -1,0 +1,67 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+SCRIPT ERROR: Parse Error: The "export" keyword was removed in Godot 4. Use an export annotation ("@export", "@export_range", etc.) instead.
+   at: GDScript::reload (res://godot3.gd:3)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+ERROR: Failed to load script "res://godot3.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+CHECK FAIL: res://godot3.gd
+SCRIPT ERROR: Parse Error: "yield" was removed in Godot 4. Use "await" instead.
+   at: GDScript::reload (res://godot3b.gd:6)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+ERROR: Failed to load script "res://godot3b.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+CHECK FAIL: res://godot3b.gd
+SCRIPT ERROR: Parse Error: Invalid argument for "connect()" function: argument 2 should be "Callable" but is "res://godot3c.gd".
+   at: GDScript::reload (res://godot3c.gd:7)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+SCRIPT ERROR: Parse Error: Cannot pass a value of type "String" as "int".
+   at: GDScript::reload (res://godot3c.gd:7)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+SCRIPT ERROR: Parse Error: Invalid argument for "connect()" function: argument 3 should be "int" but is "String".
+   at: GDScript::reload (res://godot3c.gd:7)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+SCRIPT ERROR: Parse Error: Static function "get_ticks_msec()" not found in base "GDScriptNativeClass".
+   at: GDScript::reload (res://godot3c.gd:8)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+SCRIPT ERROR: Parse Error: Function "rset()" not found in base self.
+   at: GDScript::reload (res://godot3c.gd:9)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+ERROR: Failed to load script "res://godot3c.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+CHECK FAIL: res://godot3c.gd
+SCRIPT ERROR: Parse Error: Cannot assign a value of type "String" as "float".
+   at: GDScript::reload (res://typed_bad.gd:8)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+SCRIPT ERROR: Parse Error: Value of type "String" cannot be assigned to a variable of type "float".
+   at: GDScript::reload (res://typed_bad.gd:8)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+SCRIPT ERROR: Parse Error: Too many arguments for "move_and_slide()" call. Expected at most 0 but received 1.
+   at: GDScript::reload (res://typed_bad.gd:9)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+SCRIPT ERROR: Parse Error: Variable "untyped" has no static type. (Warning treated as error.)
+   at: GDScript::reload (res://typed_bad.gd:4)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+ERROR: Failed to load script "res://typed_bad.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _init (res://tools/check_scripts.gd:8)
+CHECK FAIL: res://typed_bad.gd
+checked=5 failed=4

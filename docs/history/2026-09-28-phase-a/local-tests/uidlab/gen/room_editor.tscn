@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://btbjomtbxe2c4"]
+
+[ext_resource type="Resource" uid="uid://gr8upidggmur" path="res://content/c.tres" id="1_a851a"]
+
+[node name="Room" type="Node3D" unique_id=770425951]
+metadata/item = ExtResource("1_a851a")

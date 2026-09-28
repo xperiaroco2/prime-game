@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://bbxf4n4ptfv4j"]
+
+[ext_resource type="Resource" uid="uid://gr8upidggmur" path="res://content/c.tres" id="1_item"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(4, 0.2, 4)
+
+[node name="HandRoom" type="Node3D" unique_id=6496152]
+metadata/item = ExtResource("1_item")
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=2072813823]
+mesh = SubResource("BoxMesh_floor")
+
+[node name="Spawn" type="Marker3D" parent="." unique_id=1902347215]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

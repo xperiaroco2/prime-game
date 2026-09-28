@@ -1,0 +1,61 @@
+SCRIPT ERROR: Parse Error: The "onready" keyword was removed in Godot 4. Use the "@onready" annotation instead.
+   at: GDScript::reload (res://src/godot3.gd:3)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+ERROR: Failed to load script "res://src/godot3.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+SCRIPT ERROR: Parse Error: Unexpected "Indent" in class body.
+   at: GDScript::reload (res://src/syntax_err.gd:4)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+ERROR: Failed to load script "res://src/syntax_err.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+SCRIPT ERROR: Parse Error: Cannot assign a value of type "String" as "int".
+   at: GDScript::reload (res://src/type_err.gd:4)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+SCRIPT ERROR: Parse Error: Cannot assign a value of type String to variable "n" with specified type int.
+   at: GDScript::reload (res://src/type_err.gd:4)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+ERROR: Failed to load script "res://src/type_err.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+SCRIPT ERROR: Parse Error: The method "do_thing()" is not present on the inferred type "Variant" (but may be present on a subtype). (Warning treated as error.)
+   at: GDScript::reload (res://src/unsafe.gd:6)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+ERROR: Failed to load script "res://src/unsafe.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+SCRIPT ERROR: Parse Error: Cannot infer the type of "y" variable because the value doesn't have a set type.
+   at: GDScript::reload (res://src/untyped.gd:7)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+SCRIPT ERROR: Parse Error: Variable "x" has no static type. (Warning treated as error.)
+   at: GDScript::reload (res://src/untyped.gd:3)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+SCRIPT ERROR: Parse Error: Parameter "a" has no static type. (Warning treated as error.)
+   at: GDScript::reload (res://src/untyped.gd:6)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+ERROR: Failed to load script "res://src/untyped.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+SCRIPT ERROR: Parse Error: Variable "x" has no static type. (Warning treated as error.)
+   at: GDScript::reload (res://src/untyped2.gd:3)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+ERROR: Failed to load script "res://src/untyped2.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+   GDScript backtrace (most recent call first):
+       [0] _initialize (res://tools/check4.gd:24)
+logged_errors=15

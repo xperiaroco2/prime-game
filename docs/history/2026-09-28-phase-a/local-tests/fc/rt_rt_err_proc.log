@@ -1,0 +1,4 @@
+SCRIPT ERROR: Cannot call method 'get_name' on a null value.
+   at: _process (res://tools/rt/rt_err_proc.gd:9)
+   GDScript backtrace (most recent call first):
+       [0] _process (res://tools/rt/rt_err_proc.gd:9)

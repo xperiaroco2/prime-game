@@ -1,0 +1,111 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Ініціалізація проекту (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Сканування структури файлу...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Завантаження глобальних назв класів...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Перевірка GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Створення сценаріїв автозавантаження...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Ініціалізація плагінів...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Початок сканування файлів...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Реєстрація глобальних класів... (26 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   3% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   7% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  11% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  14% ] [90m[1mupdate_scripts_classes[22m | AbstractEffect[39m[0m
+[  18% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  22% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  25% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  29% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  33% ] [90m[1mupdate_scripts_classes[22m | AbstractEffectFmt[39m[0m
+[  37% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  40% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  44% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  48% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  51% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  55% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  59% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  62% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  66% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  70% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  74% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  77% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  81% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  85% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  88% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  92% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Дії сканування... (9 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | hmovie.wav[39m[0m
+[  10% ] [90m[1m_update_scan_actions[22m | movie00000000.png[39m[0m
+[  20% ] [90m[1m_update_scan_actions[22m | movie00000001.png[39m[0m
+[  30% ] [90m[1m_update_scan_actions[22m | movie00000002.png[39m[0m
+[  40% ] [90m[1m_update_scan_actions[22m | movie.wav[39m[0m
+[  50% ] [90m[1m_update_scan_actions[22m | win_d3d12.png[39m[0m
+[  60% ] [90m[1m_update_scan_actions[22m | win_default.png[39m[0m
+[  70% ] [90m[1m_update_scan_actions[22m | win_min.png[39m[0m
+[  80% ] [90m[1m_update_scan_actions[22m | win_opengl3.png[39m[0m
+[92m[ DONE ][39m [1m_update_scan_actions[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Повторний) імпорт ресурсів (9 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  10% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  20% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  30% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  40% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  50% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  60% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  70% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[  80% ] [90m[1mreimport[22m | Підготовка файлів до повторного імпорту...[39m[0m
+[   0% ] [90m[1mreimport[22m | Виконання операцій перед повторним імпортом...[39m[0m
+[   0% ] [90m[1mreimport[22m | movie00000000.png[39m[0m
+[  10% ] [90m[1mreimport[22m | movie00000001.png[39m[0m
+[  20% ] [90m[1mreimport[22m | movie00000002.png[39m[0m
+[  30% ] [90m[1mreimport[22m | win_d3d12.png[39m[0m
+[  40% ] [90m[1mreimport[22m | win_default.png[39m[0m
+[  50% ] [90m[1mreimport[22m | win_min.png[39m[0m
+[  60% ] [90m[1mreimport[22m | win_opengl3.png[39m[0m
+[  70% ] [90m[1mreimport[22m | movie00000000.png[39m[0m
+ERROR: Cannot open file 'res://out/hmovie.wav'.
+   at: load_from_file (scene/resources/audio_stream_wav.cpp:1205)
+ERROR: Can't save empty resource to path 'res://.godot/imported/hmovie.wav-5ec763578401f1fd06a093c712e3dd7a.sample'.
+   at: save (core/io/resource_saver.cpp:103)
+ERROR: Condition "f.is_null()" is true. Continuing.
+   at: get_multiple_md5 (core/io/file_access.cpp:967)
+[  80% ] [90m[1mreimport[22m | movie00000001.png[39m[0m
+[  90% ] [90m[1mreimport[22m | Завершення імпорту активів...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Повторний) імпорт ресурсів (9 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Виконання операцій після повторного імпорту...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Завантаження редактора (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Завантаження макета редактора...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Завантаження доків...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m
+ERROR: LSP: Failed to parse script: res://src/godot3.gd
+The "onready" keyword was removed in Godot 4. Use the "@onready" annotation instead.
+   at: reload_all_workspace_scripts (modules/gdscript/language_server/gdscript_workspace.cpp:201)
+ERROR: LSP: Failed to parse script: res://src/syntax_err.gd
+Unexpected "Indent" in class body.
+   at: reload_all_workspace_scripts (modules/gdscript/language_server/gdscript_workspace.cpp:201)
+ERROR: LSP: Failed to parse script: res://src/type_err.gd
+Cannot assign a value of type "String" as "int".
+   at: reload_all_workspace_scripts (modules/gdscript/language_server/gdscript_workspace.cpp:201)
+ERROR: LSP: Failed to parse script: res://src/unsafe.gd
+The method "do_thing()" is not present on the inferred type "Variant" (but may be present on a subtype). (Warning treated as error.)
+   at: reload_all_workspace_scripts (modules/gdscript/language_server/gdscript_workspace.cpp:201)
+ERROR: LSP: Failed to parse script: res://src/untyped.gd
+Cannot infer the type of "y" variable because the value doesn't have a set type.
+   at: reload_all_workspace_scripts (modules/gdscript/language_server/gdscript_workspace.cpp:201)
+ERROR: LSP: Failed to parse script: res://src/untyped2.gd
+Variable "x" has no static type. (Warning treated as error.)
+   at: reload_all_workspace_scripts (modules/gdscript/language_server/gdscript_workspace.cpp:201)
+ERROR: LSP: Failed to parse script: res://tools/main_parse_err.gd
+Unexpected "Indent" in class body.
+   at: reload_all_workspace_scripts (modules/gdscript/language_server/gdscript_workspace.cpp:201)

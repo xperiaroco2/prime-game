@@ -1,0 +1,10 @@
+bad.gd:
+
+func (:
+     ^
+
+Unexpected token Token('LPAR', '(') at line 1, column 6.
+Expected one of: 
+	* NAME
+Previous tokens: [Token('FUNC', 'func')]
+
