@@ -14,6 +14,22 @@
 # -Shots saves each window as a PNG next to its log (windowed only) after -ShotAt seconds (default 6). -TickHz and -InterpTicks set the snapshot rate
 # and the interpolation delay. -LatencyMs, -JitterMs and -Loss make every process delay and drop incoming moves and
 # snapshots like a real network (one way; the round trip is twice that). Exit code 0 means PASS.
+#
+# Proximity voice (#15): -Voice tone makes both clients speak a tone (440 and 660 Hz); -Voice mic makes client 1
+# speak into the microphone and client 2 a tone (one machine has one microphone). -Cutoff sets the host's delivery
+# cutoff and the players' max_distance (default 8 m; the -Seconds checks want some time beyond it, so use 5).
+# -Listen 1 or 2 mutes the other client's output, so you hear the game from one client only; -Listen 0 mutes both
+# (the default with -Seconds, so a check run is silent; the levels are still measured). Use headphones.
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Voice mic -Listen 1      # hear client 2's tone
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Voice mic -Listen 2      # hear your own voice
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Headless -Seconds 20 -Voice tone -Cutoff 5
+# With -Seconds and -Voice the script also checks: the host relays each client's voice to the other, never beyond
+# the cutoff, and culls it beyond; almost every frame arrives; each listener's Voice bus is louder near than far
+# and silent beyond the cutoff (client 2's level is checked only for a tone speaker).
+# Two machines on one LAN: on the first, -Lan starts the host (listening on every address) and client 1 and prints
+# this machine's addresses; on the second, -Join <address> starts client 2 only. Neither checks logs.
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Lan -Voice mic
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join 192.168.1.23 -Voice mic
 param(
     [switch]$Headless,
     [int]$Seconds = 0,
@@ -26,7 +42,13 @@ param(
     [double]$JitterMs = 0,
     [double]$Loss = 0,
     [double]$ShotAt = 6,
-    [int]$Port = 24560
+    [int]$Port = 24560,
+    [ValidateSet('off', 'mic', 'tone')][string]$Voice = 'off',
+    [double]$Cutoff = 8,
+    [ValidateSet(-1, 0, 1, 2)][int]$Listen = -1,
+    [switch]$Lan,
+    [string]$Join = '',
+    [string]$Godot = ''
 )
 $ErrorActionPreference = 'Stop'
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -46,10 +68,10 @@ function Get-GodotVar([string]$Name) {
     }
     return $value
 }
-$Godot = if ($Headless) { Get-GodotVar 'GODOT_BIN' } else { Get-GodotVar 'GODOT_GUI_BIN' }
+if (-not $Godot) { $Godot = if ($Headless) { Get-GodotVar 'GODOT_BIN' } else { Get-GodotVar 'GODOT_GUI_BIN' } }
 if (-not $Godot) { $Godot = Get-GodotVar 'GODOT_BIN' }
 if (-not $Godot -or -not (Test-Path $Godot)) {
-    throw "Godot not found: set GODOT_BIN (and GODOT_GUI_BIN for windows) here or in the env block of $ClaudeSettings"
+    throw "Godot not found: pass -Godot <path to the Godot exe>, or set GODOT_BIN (and GODOT_GUI_BIN for windows) here or in the env block of $ClaudeSettings"
 }
 if ($KillClientAfter -gt 0 -and ($Seconds -le 0 -or $KillClientAfter -ge $Seconds)) {
     throw '-KillClientAfter needs -Seconds larger than it'
@@ -57,6 +79,11 @@ if ($KillClientAfter -gt 0 -and ($Seconds -le 0 -or $KillClientAfter -ge $Second
 if ($Cheat -and $Seconds -le ($CheatSpeedAt + 3)) { throw "-Cheat needs -Seconds above $($CheatSpeedAt + 3)" }
 if ($Shots -and $Headless) { throw '-Shots needs windows (no -Headless)' }
 if ($Shots -and $Seconds -le $ShotAt) { throw "-Shots needs -Seconds above $ShotAt" }
+if ($Lan -and $Join) { throw 'pass -Lan on the first machine and -Join on the second, not both' }
+if (($Lan -or $Join) -and ($Seconds -gt 0 -or $Headless -or $Cheat -or $KillClientAfter -gt 0)) {
+    throw '-Lan and -Join start windows for people to play; no -Seconds, -Headless, -Cheat or -KillClientAfter'
+}
+if ($Listen -lt 0) { $Listen = if ($Seconds -gt 0) { 0 } else { 1 } }
 New-Item -ItemType Directory -Force $Logs | Out-Null
 
 function Start-Peer([string]$Name, [int]$X, [string[]]$UserArgs) {
@@ -79,12 +106,33 @@ function Start-Peer([string]$Name, [int]$X, [string[]]$UserArgs) {
     return [pscustomobject]@{ Name = $Name; Process = $p; Log = $log; Png = $png }
 }
 
+# What each client says and whether its output is muted (the Voice bus is measured either way).
+function Voice-Args([int]$N) {
+    $source = if ($Voice -eq 'mic' -and $N -eq 1) { 'mic' } elseif ($Voice -eq 'off') { 'off' } else { 'tone' }
+    $voiceArgs = @('--voice', $source, '--tone-hz', $(if ($N -eq 1) { '440' } else { '660' }), '--voice-cutoff', "$Cutoff")
+    if (-not $Lan -and -not $Join -and $Listen -ne $N) { $voiceArgs += '--mute-output' }
+    return $voiceArgs
+}
+$hostArgs = @('--host', '--port', "$Port", '--voice-cutoff', "$Cutoff")
+if ($Join) {
+    $client2 = Start-Peer 'client2' 670 (@('--join', $Join, '--port', "$Port", '--auto') + (Voice-Args 2))
+    Write-Host "one client joining $Join`:$Port started; close its window to stop. Log as above."
+    exit 0
+}
+if ($Lan) { $hostArgs += @('--bind', '0.0.0.0') }
 $joinArgs = @('--join', '127.0.0.1', '--port', "$Port", '--auto')
 $cheatArgs = if ($Cheat) { @('--cheat-teleport-at', "$CheatTeleportAt", '--cheat-speed-at', "$CheatSpeedAt") } else { @() }
-$hostPeer = Start-Peer 'host' 20 @('--host', '--port', "$Port")
+$hostPeer = Start-Peer 'host' 20 $hostArgs
 Start-Sleep -Milliseconds 800
-$client1 = Start-Peer 'client1' 670 $joinArgs
-$client2 = Start-Peer 'client2' 1320 ($joinArgs + $cheatArgs)
+$client1 = Start-Peer 'client1' 670 ($joinArgs + (Voice-Args 1))
+if ($Lan) {
+    $addresses = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' } | ForEach-Object { $_.IPAddress })
+    Write-Host "host and client 1 started. On the second machine run, with one of: $($addresses -join ', ')"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join <address> -Voice $Voice -Port $Port"
+    exit 0
+}
+$client2 = Start-Peer 'client2' 1320 ($joinArgs + $cheatArgs + (Voice-Args 2))
 if ($Seconds -le 0) {
     Write-Host 'three windows started; close them to stop. Logs as above.'
     exit 0
@@ -185,6 +233,58 @@ if ($KillClientAfter -gt 0) {
     Need ($c1Quit -match 'status=connected .*players=\[\]$') "client1 ends connected with no remote players: $c1Quit"
 } else {
     Need ($client2.Process.ExitCode -eq 0) "client2 ran to the end (exit $($client2.Process.ExitCode))"
+}
+
+if ($Voice -ne 'off') {
+    $simulated = $LatencyMs -gt 0 -or $JitterMs -gt 0 -or $Loss -gt 0
+    $hostVoice = @($hostLog -match '^WALK host voice quit ') | Select-Object -Last 1
+    Need ([bool]$hostVoice) 'host logged its voice totals'
+    foreach ($pair in @("$id1>$id2", "$id2>$id1")) {
+        Need (Has $hostLog "^WALK host voice_first $pair ") "host relayed voice $pair"
+    }
+    if ($hostVoice -match 'max_delivered=(-?[\d.]+) ') {
+        Need ([double]$Matches[1] -le $Cutoff + 0.001) "host delivered nothing beyond $Cutoff m (max $($Matches[1]))"
+    }
+    Need ($hostVoice -match ' flood=0 unplaced=0 ') "host dropped no honest voice frames: $hostVoice"
+    # How far apart the clients got, as client 1 measured it.
+    $levels = @{}
+    foreach ($pair in @(@($client1, $c1Log, $id2), @($client2, $c2Log, $id1))) {
+        $name = $pair[0].Name
+        Need (Has $pair[1] "^WALK client voice_first from=$($pair[2])$") "$name played voice from $($pair[2])"
+        $levels[$name] = @($pair[1] | Select-String "^WALK client level from=$($pair[2]) dist=([\d.]+) peak_db=(-?[\d.]+)" |
+            ForEach-Object { [pscustomobject]@{ D = [double]$_.Matches[0].Groups[1].Value; Db = [double]$_.Matches[0].Groups[2].Value } })
+        $quit = @($pair[1] -match '^WALK client voice quit ') | Select-Object -Last 1
+        if (-not $simulated -and $quit -match "from=\[.*$($pair[2]):\{recv=(\d+) late=\d+ fec=(\d+) lost=(\d+) ") {
+            $recv = [int]$Matches[1]; $gaps = [int]$Matches[2] + [int]$Matches[3]
+            # The first second after connecting may lose a few dozen frames (see the handoff); after that none.
+            Need ($gaps -le [math]::Max(60, 0.1 * $recv)) "$name missed few voice frames ($gaps of $recv)"
+        }
+    }
+    $beyondSeen = $false
+    foreach ($name in @('client1', 'client2')) {
+        if ($name -eq 'client2' -and $Voice -eq 'mic') { continue }  # client 1's microphone level is anything
+        $rows = @($levels[$name])
+        $near = @($rows | Where-Object { $_.D -lt $Cutoff / 2 -and $_.Db -gt -150 } | ForEach-Object { $_.Db } | Sort-Object)
+        $far = @($rows | Where-Object { $_.D -gt $Cutoff * 0.75 -and $_.D -lt $Cutoff } | ForEach-Object { $_.Db } | Sort-Object)
+        Need ($near.Count -ge 3) "$name heard voice nearer than $($Cutoff / 2) m"
+        if ($near.Count -ge 3 -and $far.Count -ge 3) {
+            $nearMedian = $near[[int]($near.Count / 2)]
+            $farMedian = $far[[int]($far.Count / 2)]
+            Need ($nearMedian -gt $farMedian + 3) "$name louder near than far (median $nearMedian dB vs $farMedian dB)"
+        }
+        # Silent beyond the cutoff: only windows that began and ended beyond it (+0.3 m) count.
+        for ($i = 1; $i -lt $rows.Count; $i++) {
+            if ($rows[$i - 1].D -gt $Cutoff + 0.3 -and $rows[$i].D -gt $Cutoff + 0.3) {
+                $beyondSeen = $true
+                Need ($rows[$i].Db -le -100) "$name silent beyond the cutoff (at $($rows[$i].D) m: $($rows[$i].Db) dB)"
+            }
+        }
+    }
+    if ($beyondSeen) {
+        Need ($hostVoice -notmatch 'culled=\{\s*\}') "host culled voice beyond the cutoff: $hostVoice"
+    } else {
+        Write-Host "note: the clients never stayed beyond $Cutoff m, so silence beyond the cutoff was not checked (a smaller -Cutoff helps)"
+    }
 }
 
 Write-Host "host:    $hostQuit"

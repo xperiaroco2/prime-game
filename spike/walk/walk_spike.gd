@@ -6,6 +6,7 @@ extends Node3D
 ## shows the other players interpolated between snapshots (SpikeSnapshotBuffer). The host is not
 ## a player: it watches from above. User args after "--":
 ##   --host | --join ADDRESS   role (default --host)
+##   --bind IP                 the host's listening address (default 127.0.0.1; 0.0.0.0 for a LAN)
 ##   --port N                  port (default 24560)
 ##   --tick-hz N               moves and snapshots per second (default 20)
 ##   --interp-ticks N          interpolation delay in ticks (default 2)
@@ -18,7 +19,16 @@ extends Node3D
 ##                             delay incoming MOVE and SNAPSHOT packets by N + random(0, jitter) ms
 ##                             and drop a share P of them, like a real network (seeded; PLACE is
 ##                             reliable and passes untouched). Out-of-order ones are then dropped as
-##                             ENet's unreliable ordered mode would.
+##                             ENet's unreliable ordered mode would. Voice frames are delayed and
+##                             lost too, but arrive out of order (they are sent unordered).
+## Proximity voice (#15, spike/voice/): a client speaks, the host relays each frame only to the
+## listeners its routing rule allows (a distance cutoff, SpikeVoiceRelay), and each listener plays
+## it from an AudioStreamPlayer3D on the speaker's capsule (SpikeVoiceSpeaker), on a "Voice" bus
+## whose peak level every client logs with the distance ("WALK client level ...").
+##   --voice off|mic|tone      what a client speaks (default off; listening is always on)
+##   --tone-hz N               the tone's pitch (default 440)
+##   --voice-cutoff M          the host's delivery cutoff and the players' max_distance (default 8)
+##   --mute-output             mute the Master bus; the Voice bus is still mixed and measured
 ## Every process prints "WALK ..." lines; spike/walk/launch.ps1 starts three and checks the logs.
 
 const ROOM := preload("res://spike/walk/greybox_room.tscn")
@@ -37,6 +47,10 @@ const CAPSULE_RADIUS := 0.35
 const CAPSULE_HEIGHT := 1.8
 const EYE_OFFSET := 0.7  # camera above the capsule centre
 const SEES_MOVING_AFTER := 1.0  # metres a remote player must move before "sees_moving" is logged
+const VOICE_BUS := &"Voice"
+const MOUTH := Vector3(0, EYE_OFFSET - 0.1, 0)  # the voice player on an avatar
+const LEVEL_EVERY := 0.25  # seconds between "level" lines
+const SILENT_DB := -200.0  # the floor the level lines report for no signal
 # The --auto circles of the first two stay clear of the walls, the others brush the inner wall.
 const SPAWNS: Array[Vector3] = [
 	Vector3(-7, 1, 2.5), Vector3(-7, 1, -2.5), Vector3(3.6, 1, 2.5), Vector3(3.6, 1, -2.5)
@@ -44,6 +58,7 @@ const SPAWNS: Array[Vector3] = [
 
 var _transport: SpikeTransport = SpikeEnetTransport.new()
 var _is_host := true
+var _bind_ip := BIND_IP
 var _address := BIND_IP
 var _port := DEFAULT_PORT
 var _tick_hz := 20.0
@@ -90,6 +105,27 @@ var _snapshots := 0
 var _corrections := 0
 var _first_seen: Dictionary[int, Vector3] = {}
 var _seen_moving: Dictionary[int, bool] = {}
+# Voice.
+var _voice := "off"
+var _tone_hz := 440.0
+var _cutoff := 8.0
+var _mute_output := false
+# Voice, host only.
+var _relay := SpikeVoiceRelay.new()
+var _voice_pairs_logged: Dictionary[String, bool] = {}
+var _payload_out_before := 0
+var _voice_kbps := 0.0
+var _net_kbps := 0.0
+# Voice, client only.
+var _source: SpikeVoiceSource
+var _voice_seq := 0
+var _voice_sent := 0
+var _speakers: Dictionary[int, SpikeVoiceSpeaker] = {}
+var _voice_no_avatar := 0
+var _voice_bus := -1
+var _level_db := SILENT_DB
+var _since_level := 0.0
+var _last_throttle := ""
 
 
 func _ready() -> void:
@@ -113,11 +149,13 @@ func _ready() -> void:
 		_spawn_overhead_camera()
 		# The host allows the walking speed; SpikeMoveCheck.slack covers the jitter.
 		_check.max_speed = WALK_SPEED
-		err = _transport.host(BIND_IP, _port, MAX_CLIENTS)
+		_relay.routing.cutoff = _cutoff
+		err = _transport.host(_bind_ip, _port, MAX_CLIENTS)
 		_own_id = SpikeTransport.HOST_ID if err == OK else 0
-		_status = "listening on %s:%d" % [BIND_IP, _port]
+		_status = "listening on %s:%d" % [_bind_ip, _port]
 	else:
 		_spawn_local_player()
+		_setup_voice()
 		err = _transport.join(_address, _port)
 		_status = "joining %s:%d" % [_address, _port]
 	if err != OK:
@@ -138,8 +176,12 @@ func _process(delta: float) -> void:
 	# screenshot) the moves queued during it arrive at once and must find the time already paid.
 	if _is_host:
 		_check.advance(delta)
+		_relay.advance(delta)
 	_transport.poll()
 	_release_simulated()
+	if not _is_host:
+		_update_voice(delta)
+	_log_throttle_changes()
 	# The tick comes from the clock, so tick / tick_hz stays the sender's time; after a long frame
 	# (or a tick rate above the frame rate) ticks are skipped, never sent in a burst.
 	var tick := floori(_clock * _tick_hz)
@@ -152,12 +194,18 @@ func _process(delta: float) -> void:
 	_update_avatars()
 	_since_stats += delta
 	if _since_stats >= STATS_EVERY:
+		_measure_bandwidth(_since_stats)
 		_since_stats = 0.0
 		_log("t=%.1f %s" % [_clock, _summary()])
+		_log("voice t=%.1f %s" % [_clock, _voice_summary()])
+		var enet := _transport as SpikeEnetTransport
+		if enet != null:
+			_log("enet t=%.1f fps=%.0f %s" % [_clock, Engine.get_frames_per_second(), enet.peers_line()])
 	if _screenshot_at >= 0.0 and _clock >= _screenshot_at:
 		_screenshot_at = -1.0
 		_save_screenshot()
 	if _quit_after > 0.0 and _clock >= _quit_after:
+		_log("voice quit %s" % _voice_summary())
 		_log("quit %s" % _summary())
 		get_tree().quit(0)
 		set_process(false)
@@ -212,6 +260,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _exit_tree() -> void:
+	if _source != null:
+		_source.stop()
 	_transport.close()
 
 
@@ -224,8 +274,18 @@ func _parse_args(args: PackedStringArray) -> void:
 			"--join":
 				_is_host = false
 				_address = next if next != "" else BIND_IP
+			"--bind":
+				_bind_ip = next if next != "" else BIND_IP
 			"--port":
 				_port = next.to_int()
+			"--voice":
+				_voice = next if next in ["off", "mic", "tone"] else "off"
+			"--tone-hz":
+				_tone_hz = clampf(next.to_float(), 50.0, 4000.0)
+			"--voice-cutoff":
+				_cutoff = clampf(next.to_float(), 0.5, 100.0)
+			"--mute-output":
+				_mute_output = true
 			"--tick-hz":
 				_tick_hz = clampf(next.to_float(), 1.0, 120.0)
 			"--interp-ticks":
@@ -303,8 +363,10 @@ func _update_avatars() -> void:
 	var ids := _buffer.ids()
 	for id: int in _avatars.keys():
 		if not ids.has(id):
+			# The voice player is a child of the avatar and goes with it.
 			_avatars[id].queue_free()
 			_avatars.erase(id)
+			_speakers.erase(id)
 	for id: int in ids:
 		if id == own and not _is_host:
 			continue
@@ -363,6 +425,7 @@ func _on_peer_left(id: int) -> void:
 	_sim_queue = kept
 	if _is_host:
 		_check.forget(id)
+		_relay.forget(id)
 		_yaws.erase(id)
 		_moves.erase(id)
 
@@ -392,7 +455,9 @@ func _on_packet(from_peer: int, bytes: PackedByteArray) -> void:
 			return
 		var release := _clock + _sim_latency + _sim_rng.randf() * _sim_jitter
 		_sim_seq += 1
-		_sim_queue.append([release, from_peer, bytes, _sim_seq])
+		# Voice travels unordered on its own channel: late voice frames still arrive.
+		var ordered := SpikeVoiceMessages.decode(bytes).is_empty()
+		_sim_queue.append([release, from_peer, bytes, _sim_seq, ordered])
 		return
 	_handle_packet(from_peer, bytes)
 
@@ -417,14 +482,22 @@ func _release_simulated() -> void:
 	for item: Array in due:
 		var from_peer: int = item[1]
 		var seq: int = item[3]
-		if seq < _sim_last_seq.get(from_peer, 0):
-			_sim_dropped += 1
-			continue
-		_sim_last_seq[from_peer] = seq
+		if item[4] as bool:
+			if seq < _sim_last_seq.get(from_peer, 0):
+				_sim_dropped += 1
+				continue
+			_sim_last_seq[from_peer] = seq
 		_handle_packet(from_peer, item[2] as PackedByteArray)
 
 
 func _handle_packet(from_peer: int, bytes: PackedByteArray) -> void:
+	var voice := SpikeVoiceMessages.decode(bytes)
+	if not voice.is_empty():
+		if _is_host:
+			_host_voice(from_peer, voice)
+		else:
+			_client_voice(from_peer, voice)
+		return
 	var msg := SpikeWalkMessages.decode(bytes)
 	if _is_host:
 		_host_receive(from_peer, msg, bytes.size())
@@ -508,6 +581,171 @@ func _client_snapshot(msg: Array) -> void:
 	_snapshots += 1
 
 
+func _setup_voice() -> void:
+	# Every voice player plays on its own bus, so its level can be measured apart from anything
+	# else and even with the Master bus muted.
+	AudioServer.add_bus()
+	_voice_bus = AudioServer.bus_count - 1
+	AudioServer.set_bus_name(_voice_bus, VOICE_BUS)
+	AudioServer.set_bus_send(_voice_bus, &"Master")
+	if _mute_output:
+		AudioServer.set_bus_mute(0, true)
+	if _voice != "off":
+		_source = SpikeVoiceSource.new()
+		var problem := _source.start(0.0 if _voice == "mic" else _tone_hz)
+		if problem != "":
+			push_error("WALK voice source failed: " + problem)
+			_source = null
+	_log(
+		(
+			"voice source=%s cutoff=%.1f audio_driver=%s mute_output=%s"
+			% [
+				_source.describe() if _source != null else "off",
+				_cutoff,
+				AudioServer.get_driver_name(),
+				_mute_output,
+			]
+		)
+	)
+
+
+func _update_voice(delta: float) -> void:
+	if _source != null:
+		# Always drain the source, so the microphone never backs up before the host places us.
+		var frames := _source.pull(delta)
+		if _epoch != 0 and _status == "connected":
+			for opus: PackedByteArray in frames:
+				if opus.size() > SpikeVoiceMessages.MAX_OPUS_BYTES:
+					continue
+				_voice_seq += 1
+				var bytes := SpikeVoiceMessages.encode_up(_voice_seq, opus)
+				_transport.send(SpikeTransport.HOST_ID, bytes, false, SpikeTransport.CHANNEL_VOICE)
+				_voice_sent += 1
+	for speaker: SpikeVoiceSpeaker in _speakers.values():
+		speaker.update()
+	if _voice_bus < 0:
+		return
+	var peak := maxf(
+		AudioServer.get_bus_peak_volume_left_db(_voice_bus, 0),
+		AudioServer.get_bus_peak_volume_right_db(_voice_bus, 0)
+	)
+	_level_db = maxf(_level_db, peak)
+	_since_level += delta
+	if _since_level < LEVEL_EVERY:
+		return
+	_since_level = 0.0
+	if _epoch != 0:
+		# The listener is the camera on this body; the distance is measured as the audio engine
+		# sees it, to the voice player on each drawn avatar.
+		var ear := _camera.global_position
+		for id: int in _avatars:
+			var mouth := _avatars[id].to_global(MOUTH)
+			_log(
+				(
+					"level from=%d dist=%.2f peak_db=%.1f"
+					% [id, ear.distance_to(mouth), maxf(_level_db, SILENT_DB)]
+				)
+			)
+	_level_db = SILENT_DB
+
+
+## Host: a VOICE_UP frame from a client, relayed to the listeners the routing rule allows.
+func _host_voice(from_peer: int, msg: Array) -> void:
+	if msg[0] != SpikeVoiceMessages.KIND_VOICE_UP:
+		_count_reject("voice", from_peer, "kind %d" % (msg[0] as int))
+		return
+	var positions: Dictionary[int, Vector3] = {}
+	for id: int in _yaws:
+		positions[id] = _check.position_of(id)
+	var sends := _relay.relay(from_peer, msg[1] as int, msg[2] as PackedByteArray, positions)
+	for item: Array in sends:
+		var to: int = item[0]
+		_transport.send(to, item[1] as PackedByteArray, false, SpikeTransport.CHANNEL_VOICE)
+		var pair := "%d>%d" % [from_peer, to]
+		if not _voice_pairs_logged.has(pair):
+			_voice_pairs_logged[pair] = true
+			var dist := positions[from_peer].distance_to(positions[to])
+			_log("voice_first %s dist=%.2f" % [pair, dist])
+
+
+## Client: a VOICE_DOWN frame, played from the speaker's avatar.
+func _client_voice(from_peer: int, msg: Array) -> void:
+	if from_peer != SpikeTransport.HOST_ID or msg[0] != SpikeVoiceMessages.KIND_VOICE_DOWN:
+		_log("rejected voice from id=%d" % from_peer)
+		return
+	var speaker: int = msg[1]
+	if speaker == _own_id:
+		_log("rejected own voice")
+		return
+	if not _speakers.has(speaker):
+		# Voice comes from a drawn player only; the first snapshots arrive before any voice.
+		if not _avatars.has(speaker):
+			_voice_no_avatar += 1
+			return
+		var created := SpikeVoiceSpeaker.new(_cutoff, VOICE_BUS)
+		if not created.attach(_avatars[speaker], MOUTH):
+			push_error("WALK voice: no AudioStreamPlaybackOpus for id=%d" % speaker)
+			return
+		_speakers[speaker] = created
+		_log("voice_first from=%d" % speaker)
+	_speakers[speaker].push(msg[2] as int, msg[3] as PackedByteArray)
+
+
+## ENet's throttle drops unreliable packets at random; every change is logged with its time.
+func _log_throttle_changes() -> void:
+	var enet := _transport as SpikeEnetTransport
+	if enet == null:
+		return
+	var line := enet.throttle_line()
+	if line != _last_throttle:
+		_last_throttle = line
+		_log("throttle t=%.3f %s" % [_clock, line])
+
+
+func _measure_bandwidth(seconds: float) -> void:
+	if not _is_host or seconds <= 0.0:
+		return
+	var sent := _transport.pop_sent_bytes()
+	_net_kbps = sent * 8.0 / 1000.0 / seconds if sent >= 0 else -1.0
+	_voice_kbps = (_relay.payload_bytes_out - _payload_out_before) * 8.0 / 1000.0 / seconds
+	_payload_out_before = _relay.payload_bytes_out
+
+
+func _voice_summary() -> String:
+	if _is_host:
+		var r := _relay
+		return (
+			(
+				"cutoff=%.1f received=%s delivered=%s culled=%s max_delivered=%.2f min_culled=%.2f"
+				+ " flood=%d unplaced=%d voice_payload_kbps=%.1f net_out_kbps=%.1f"
+			)
+			% [
+				r.routing.cutoff,
+				r.received,
+				r.delivered,
+				r.culled,
+				r.max_delivered_distance,
+				r.min_culled_distance if r.min_culled_distance != INF else -1.0,
+				r.dropped_flood,
+				r.dropped_unplaced,
+				_voice_kbps,
+				_net_kbps,
+			]
+		)
+	var parts := PackedStringArray()
+	var ids: Array[int] = _speakers.keys()
+	ids.sort()
+	for id: int in ids:
+		parts.append("%d:{%s}" % [id, _speakers[id].stats()])
+	var peak := _source.peak if _source != null else 0.0
+	if _source != null:
+		_source.peak = 0.0
+	return (
+		"sent=%d src_peak=%.3f no_avatar=%d from=[%s]"
+		% [_voice_sent, peak, _voice_no_avatar, ", ".join(parts)]
+	)
+
+
 func _save_screenshot() -> void:
 	if DisplayServer.get_name() == "headless" or _screenshot_path == "":
 		return
@@ -543,13 +781,25 @@ func _refresh_label() -> void:
 	var role := "HOST (not a player)" if _is_host else "CLIENT"
 	var id := _own_id
 	_label.text = (
-		"%s  peer id %s\n%s\ntick %.0f Hz, interpolation delay %.0f ms\n%s"
+		"%s  peer id %s\n%s\ntick %.0f Hz, interpolation delay %.0f ms\n%s\n%s"
 		% [
 			role,
 			str(id) if id != 0 else "-",
 			_status,
 			_tick_hz,
 			_buffer.delay * 1000.0,
+			(
+				"voice cutoff %.0f m" % _cutoff
+				if _is_host
+				else (
+					"voice: %s, output %s, cutoff %.0f m"
+					% [
+						_source.describe() if _source != null else "listen only",
+						"MUTED" if _mute_output else "on",
+						_cutoff,
+					]
+				)
+			),
 			"" if _is_host else "click: mouse look, Esc: release, WASD: walk",
 		]
 	)
