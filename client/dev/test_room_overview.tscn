@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://b11mk6jrqij6x"]
+
+[ext_resource type="PackedScene" uid="uid://dl2d4g885itfs" path="res://client/dev/test_room.tscn" id="1_room"]
+
+[node name="TestRoomOverview" type="Node3D" unique_id=205306454]
+
+[node name="TestRoom" parent="." unique_id=615211032 instance=ExtResource("1_room")]
+
+[node name="OverviewCamera" type="Camera3D" parent="." unique_id=1890350622]
+transform = Transform3D(1, 0, 0, 0, 0.642788, 0.766044, 0, -0.766044, 0.642788, 0, 11, 10)
+current = true

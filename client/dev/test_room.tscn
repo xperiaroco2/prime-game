@@ -1,0 +1,162 @@
+[gd_scene format=3 uid="uid://dl2d4g885itfs"]
+
+[ext_resource type="Script" uid="uid://bl3jng1fkcyxl" path="res://client/dev/test_room.gd" id="1_room"]
+[ext_resource type="PackedScene" uid="uid://bad5nvl80w4gr" path="res://client/player/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" uid="uid://b0vnu4563blfy" path="res://client/player/remote_player_body.tscn" id="3_remote"]
+
+[sub_resource type="Environment" id="Environment_room"]
+background_mode = 1
+background_color = Color(0.55, 0.68, 0.82, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.75, 0.78, 0.85, 1)
+ambient_light_energy = 0.6
+
+[sub_resource type="StandardMaterial3D" id="Material_floor"]
+albedo_color = Color(0.42, 0.43, 0.45, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_Floor"]
+material = SubResource("Material_floor")
+size = Vector3(16, 1, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_Floor"]
+size = Vector3(16, 1, 16)
+
+[sub_resource type="StandardMaterial3D" id="Material_wall"]
+albedo_color = Color(0.78, 0.76, 0.7, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_WallNorth"]
+material = SubResource("Material_wall")
+size = Vector3(16.6, 3, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_WallNorth"]
+size = Vector3(16.6, 3, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_WallSouth"]
+material = SubResource("Material_wall")
+size = Vector3(16.6, 3, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_WallSouth"]
+size = Vector3(16.6, 3, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_WallWest"]
+material = SubResource("Material_wall")
+size = Vector3(0.3, 3, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_WallWest"]
+size = Vector3(0.3, 3, 16)
+
+[sub_resource type="BoxMesh" id="Mesh_WallEast"]
+material = SubResource("Material_wall")
+size = Vector3(0.3, 3, 16)
+
+[sub_resource type="BoxShape3D" id="Shape_WallEast"]
+size = Vector3(0.3, 3, 16)
+
+[sub_resource type="StandardMaterial3D" id="Material_step"]
+albedo_color = Color(0.9, 0.55, 0.15, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_Step"]
+material = SubResource("Material_step")
+size = Vector3(3, 0.3, 2.5)
+
+[sub_resource type="BoxShape3D" id="Shape_Step"]
+size = Vector3(3, 0.3, 2.5)
+
+[sub_resource type="StandardMaterial3D" id="Material_ledge"]
+albedo_color = Color(0.6, 0.18, 0.15, 1)
+
+[sub_resource type="BoxMesh" id="Mesh_HighLedge"]
+material = SubResource("Material_ledge")
+size = Vector3(2, 0.6, 2.5)
+
+[sub_resource type="BoxShape3D" id="Shape_HighLedge"]
+size = Vector3(2, 0.6, 2.5)
+
+[node name="TestRoom" type="Node3D" unique_id=161776867]
+script = ExtResource("1_room")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1699039080]
+environment = SubResource("Environment_room")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1383619267]
+transform = Transform3D(0.866025, -0.383022, 0.321394, 0, 0.642788, 0.766044, -0.5, -0.663414, 0.55667, 0, 6, 0)
+shadow_enabled = true
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1208214718]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Floor" unique_id=1189796644]
+mesh = SubResource("Mesh_Floor")
+
+[node name="Shape" type="CollisionShape3D" parent="Floor" unique_id=1836919230]
+shape = SubResource("Shape_Floor")
+
+[node name="WallNorth" type="StaticBody3D" parent="." unique_id=17244914]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -8.15)
+
+[node name="Mesh" type="MeshInstance3D" parent="WallNorth" unique_id=2106719281]
+mesh = SubResource("Mesh_WallNorth")
+
+[node name="Shape" type="CollisionShape3D" parent="WallNorth" unique_id=1011477566]
+shape = SubResource("Shape_WallNorth")
+
+[node name="WallSouth" type="StaticBody3D" parent="." unique_id=109684124]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 8.15)
+
+[node name="Mesh" type="MeshInstance3D" parent="WallSouth" unique_id=1369890366]
+mesh = SubResource("Mesh_WallSouth")
+
+[node name="Shape" type="CollisionShape3D" parent="WallSouth" unique_id=341945306]
+shape = SubResource("Shape_WallSouth")
+
+[node name="WallWest" type="StaticBody3D" parent="." unique_id=1951379644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.15, 1.5, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="WallWest" unique_id=1672778396]
+mesh = SubResource("Mesh_WallWest")
+
+[node name="Shape" type="CollisionShape3D" parent="WallWest" unique_id=1213475190]
+shape = SubResource("Shape_WallWest")
+
+[node name="WallEast" type="StaticBody3D" parent="." unique_id=2147079273]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.15, 1.5, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="WallEast" unique_id=1134126667]
+mesh = SubResource("Mesh_WallEast")
+
+[node name="Shape" type="CollisionShape3D" parent="WallEast" unique_id=1900005988]
+shape = SubResource("Shape_WallEast")
+
+[node name="Step" type="StaticBody3D" parent="." unique_id=260831157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.15, -3)
+
+[node name="Mesh" type="MeshInstance3D" parent="Step" unique_id=1498223935]
+mesh = SubResource("Mesh_Step")
+
+[node name="Shape" type="CollisionShape3D" parent="Step" unique_id=363756649]
+shape = SubResource("Shape_Step")
+
+[node name="HighLedge" type="StaticBody3D" parent="." unique_id=1006260493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.3, -3)
+
+[node name="Mesh" type="MeshInstance3D" parent="HighLedge" unique_id=686698794]
+mesh = SubResource("Mesh_HighLedge")
+
+[node name="Shape" type="CollisionShape3D" parent="HighLedge" unique_id=2026377275]
+shape = SubResource("Shape_HighLedge")
+
+[node name="DummyBlue" parent="." unique_id=953610924 instance=ExtResource("3_remote")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0, -2.5)
+
+[node name="DummyRed" parent="." unique_id=1533515469 instance=ExtResource("3_remote")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, 0, -2.5)
+color = Color(0.85, 0.25, 0.25, 1)
+
+[node name="Player" parent="." unique_id=872730641 instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)
+
+[node name="Overlay" type="Label" parent="." unique_id=630968113]
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 612.0
+offset_bottom = 120.0
