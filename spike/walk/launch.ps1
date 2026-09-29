@@ -27,7 +27,9 @@
 # the cutoff, and culls it beyond; almost every frame arrives; each listener's Voice bus is louder near than far
 # and silent beyond the cutoff (client 2's level is checked only for a tone speaker).
 # Two machines on one LAN: on the first, -Lan starts the host (listening on every address) and client 1 and prints
-# this machine's addresses; on the second, -Join <address> starts client 2 only. Neither checks logs.
+# this machine's addresses; on the second, -Join <address> starts client 2 only. With -Voice mic each machine's
+# client speaks into its own microphone. Neither checks logs. The two machines must reach each other: a router with
+# client (AP) isolation keeps a Wi-Fi laptop from a wired PC (#15: both on Wi-Fi worked).
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Lan -Voice mic
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join 192.168.1.23 -Voice mic
 param(
@@ -108,7 +110,8 @@ function Start-Peer([string]$Name, [int]$X, [string[]]$UserArgs) {
 
 # What each client says and whether its output is muted (the Voice bus is measured either way).
 function Voice-Args([int]$N) {
-    $source = if ($Voice -eq 'mic' -and $N -eq 1) { 'mic' } elseif ($Voice -eq 'off') { 'off' } else { 'tone' }
+    # One machine has one microphone, so client 2 plays a tone; with -Join client 2 is alone on its machine.
+    $source = if ($Voice -eq 'mic' -and ($N -eq 1 -or $Join)) { 'mic' } elseif ($Voice -eq 'off') { 'off' } else { 'tone' }
     $voiceArgs = @('--voice', $source, '--tone-hz', $(if ($N -eq 1) { '440' } else { '660' }), '--voice-cutoff', "$Cutoff")
     if (-not $Lan -and -not $Join -and $Listen -ne $N) { $voiceArgs += '--mute-output' }
     return $voiceArgs
@@ -127,7 +130,8 @@ Start-Sleep -Milliseconds 800
 $client1 = Start-Peer 'client1' 670 ($joinArgs + (Voice-Args 1))
 if ($Lan) {
     $addresses = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-        Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' } | ForEach-Object { $_.IPAddress })
+        Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' -and $_.InterfaceAlias -notmatch '^vEthernet' } |
+        ForEach-Object { $_.IPAddress })  # vEthernet: WSL and Hyper-V, unreachable from another machine
     Write-Host "host and client 1 started. On the second machine run, with one of: $($addresses -join ', ')"
     Write-Host "  powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join <address> -Voice $Voice -Port $Port"
     exit 0
