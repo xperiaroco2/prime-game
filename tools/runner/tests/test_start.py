@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -10,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import sessions, start
-from runner.common import Failure
+from runner.common import Failure, Result
 from runner.tests.test_githooks import _rmtree
 
 
@@ -77,6 +78,7 @@ class StartTest(unittest.TestCase):
             mock.patch.object(
                 start.sessions, "active_on", side_effect=lambda repo: self.others if repo == self.work else self.inside
             ),
+            mock.patch.object(start.sessions, "alive_in", side_effect=lambda path: self.inside),
             mock.patch.object(start, "say"),
             mock.patch.object(start, "ok"),
             mock.patch.object(start, "warn"),
@@ -213,8 +215,187 @@ class StartTest(unittest.TestCase):
         self.inside = [sessions.Session(2, "wt", str(tree), "busy", time.time(), "in the worktree")]
         with self.assertRaises(Failure) as caught:
             start.worktree_done(42)
-        self.assertIn("working in the worktree", str(caught.exception))
+        self.assertIn("still open in the worktree", str(caught.exception))
         self.assertTrue(tree.is_dir())
+
+    def commit_in(self, tree: Path, name: str) -> None:
+        (tree / name).write_text(f"{name}\n", encoding="utf-8", newline="\n")
+        git(tree, "add", name)
+        git(tree, "commit", "-q", "-m", name)
+
+    def test_worktree_done_pushed_removes_a_spike_worktree_once_origin_has_it(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "spike.txt")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42)
+        self.assertIn("--pushed", str(caught.exception))
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("has no branch", str(caught.exception))
+        # A stale tracking ref (the branch was deleted on origin) does not count as pushed.
+        git(self.work, "update-ref", "refs/remotes/origin/core/42-vote-tally", git(tree, "rev-parse", "HEAD"))
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("has no branch", str(caught.exception))
+        self.assertTrue(tree.is_dir())
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        self.commit_in(tree, "later.txt")  # a commit origin does not have yet
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("has commits", str(caught.exception))
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        (tree / "stray.txt").write_text("untracked\n", encoding="utf-8", newline="\n")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("uncommitted", str(caught.exception))
+        (tree / "stray.txt").unlink()
+        # An ignored folder (like .godot/) does not block the removal.
+        exclude = Path(git(self.work, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "info" / "exclude"
+        exclude.parent.mkdir(exist_ok=True)
+        exclude.write_text("cache/\n", encoding="utf-8")
+        (tree / "cache").mkdir()
+        (tree / "cache" / "import.bin").write_text("ignored\n", encoding="utf-8")
+
+        self.assertEqual(start.worktree_done(42, pushed=True), 0)
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "core/42-vote-tally")  # kept
+        self.assertIn("refs/heads/core/42-vote-tally", git(self.work, "ls-remote", "--heads", "origin"))
+
+    def test_worktree_done_pushed_refuses_a_detached_head(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        git(tree, "switch", "-q", "--detach")
+        self.commit_in(tree, "fix.txt")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("detached HEAD", str(caught.exception))
+        self.assertTrue(tree.is_dir())
+
+    def test_worktree_done_pushed_still_deletes_a_merged_branch(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")
+        self.assertEqual(start.worktree_done(42, pushed=True), 0)
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "")
+
+    def test_worktree_done_refuses_up_front_from_inside_the_worktree(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        (tree / "sub").mkdir()
+        self.addCleanup(os.chdir, os.getcwd())
+        for where in (tree, tree / "sub"):
+            os.chdir(where)
+            with self.subTest(cwd=where), self.assertRaises(Failure) as caught:
+                start.worktree_done(42, pushed=True)
+            self.assertIn("run worktree-done from the main checkout: cd", str(caught.exception))
+        os.chdir(self.work)
+        with mock.patch.object(start, "REPO", tree), self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)  # the worktree's own tools\run.cmd
+        self.assertIn("the worktree's own runner", str(caught.exception))
+        self.inside = [sessions.Session(2, "me", str(tree), "busy", time.time(), "this session")]
+        with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "me"}), self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)  # the calling session itself sits in the worktree
+        self.assertIn("this Claude session's own folder is the worktree", str(caught.exception))
+        self.assertIn(str(tree.resolve()).lower(), start.listed_worktrees())  # still registered, nothing touched
+
+    def test_worktree_done_finishes_a_removal_windows_left_half_done(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")  # merged
+        git(self.work, "worktree", "remove", str(tree))  # git unregistered it...
+        (tree / "addons" / "empty").mkdir(parents=True)  # ...but the folder stayed, emptied
+        self.assertEqual(start.worktree_done(42), 0)
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42)
+        self.assertIn("nothing left over", str(caught.exception))
+
+    def test_worktree_done_leftovers_keep_files_and_unmerged_branches(self) -> None:
+        git(self.work, "branch", "core/43-merged")  # at origin/main: merged
+        self.assertEqual(start.worktree_done(43), 0)  # only the merged branch was left
+        self.assertEqual(git(self.work, "branch", "--list", "core/43-merged"), "")
+
+        git(self.work, "switch", "-q", "-c", "core/44-unmerged")
+        self.write("u.txt", "unmerged\n")
+        git(self.work, "add", "u.txt")
+        git(self.work, "commit", "-q", "-m", "unmerged")
+        git(self.work, "switch", "-q", "main")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(44)
+        self.assertIn("kept", str(caught.exception))
+        self.assertEqual(git(self.work, "branch", "--list", "core/44-unmerged"), "core/44-unmerged")
+
+        stray = self.work / ".claude" / "worktrees" / "45" / "notes.txt"
+        stray.parent.mkdir(parents=True)
+        stray.write_text("someone's notes\n", encoding="utf-8")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(45)
+        self.assertIn("still holds files", str(caught.exception))
+        self.assertTrue(stray.is_file())
+
+    def test_worktree_done_refuses_any_live_session_left_in_an_empty_folder(self) -> None:
+        tree = self.work / ".claude" / "worktrees" / "46"
+        tree.mkdir(parents=True)
+        self.inside = [sessions.Session(3, "old", str(tree), "idle", time.time() - 7 * 3600, "task 46, idle for hours")]
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(46)
+        self.assertIn("Archive or close that session", str(caught.exception))
+        self.assertTrue(tree.is_dir())
+        self.inside = []
+        with mock.patch.object(start.shutil, "rmtree", side_effect=PermissionError(13, "Access is denied")):
+            with self.assertRaises(Failure) as caught:
+                start.worktree_done(46)
+        self.assertIn("could not delete the empty leftover folder", str(caught.exception))
+        self.assertEqual(start.worktree_done(46), 0)
+        self.assertFalse(tree.exists())
+
+    def test_a_half_done_removal_says_a_rerun_finishes_it_on_any_os(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "spike.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        real = start._git
+
+        def windows_like(*args: str, **kwargs: object) -> Result:
+            if args[:2] != ("worktree", "remove"):
+                return real(*args, **kwargs)
+            real(*args, **kwargs)
+            Path(args[2]).mkdir(parents=True)  # git unregistered it, but the folder stayed
+            return Result(255, f"error: failed to delete '{args[2]}': Permission denied", False, 0.0)
+
+        with mock.patch.object(start, "_git", side_effect=windows_like), self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("git already unregistered the worktree", str(caught.exception))
+        self.assertTrue(tree.is_dir())
+        self.assertEqual(start.worktree_done(42), 0)
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "core/42-vote-tally")  # not merged
+
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses to delete a folder that is a process's current folder")
+    def test_a_process_sitting_in_the_worktree_leaves_a_removal_that_a_rerun_finishes(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "spike.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        holder = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"], cwd=tree)
+        self.addCleanup(holder.wait)
+        self.addCleanup(holder.kill)
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("removes the folder once it is empty", str(caught.exception))
+        self.assertNotIn(str(tree.resolve()).lower(), start.listed_worktrees())  # git unregistered it...
+        self.assertTrue(tree.is_dir())  # ...but the folder stayed
+        holder.kill()
+        holder.wait()
+        self.assertEqual(start.worktree_done(42), 0)  # the rerun finishes it
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "core/42-vote-tally")  # not merged
 
     def test_a_branch_in_a_worktree_is_never_stashed_for(self) -> None:
         self.assertEqual(start.main(42, worktree=True), 0)
@@ -282,6 +463,19 @@ class SessionsTest(unittest.TestCase):
         (self.tmp / "7.json").write_text("{not json", encoding="utf-8")
         self.assertEqual(sorted(self.active()), ["busy-old", "idle-recent"])
         self.assertEqual(self.active(alive=False), [])
+
+    def test_alive_in_counts_every_live_session_in_the_folder_however_idle(self) -> None:
+        tree = self.checkout / ".claude" / "worktrees" / "7"
+        self.add(1, "me", tree, "busy", 0)  # this session too: its own process holds the folder
+        self.add(2, "idle-for-days", tree, "idle", 3 * 86400)
+        self.add(3, "in-a-subfolder", tree / "core", "idle", 5 * 3600)
+        self.add(4, "main-checkout", self.checkout, "busy", 0)  # the parent folder does not hold the worktree
+        self.add(5, "sibling", self.checkout / ".claude" / "worktrees" / "70", "busy", 0)
+        with mock.patch.object(sessions, "process_alive", return_value=True):
+            found = sorted(s.session_id for s in sessions.alive_in(tree, self.tmp))
+        self.assertEqual(found, ["idle-for-days", "in-a-subfolder", "me"])
+        with mock.patch.object(sessions, "process_alive", return_value=False):
+            self.assertEqual(sessions.alive_in(tree, self.tmp), [])
 
     def test_process_alive_checks_the_creation_time(self) -> None:
         self.assertTrue(sessions.process_alive(os.getpid()))  # no procStart: any live process counts

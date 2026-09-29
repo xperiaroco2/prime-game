@@ -55,6 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("worktree-done", help="remove .claude/worktrees/<n> after its branch was merged")
     p.add_argument("issue", type=int, help="issue number")
+    p.add_argument(
+        "--pushed", action="store_true", help="also when the branch is not merged but origin has all its commits"
+    )
 
     p = sub.add_parser("normalize", help="re-save .tscn/.tres files in headless editor context")
     p.add_argument("files", nargs="+", help="repo-relative or res:// paths")
@@ -156,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "worktree-done":
             from . import start
 
-            return start.worktree_done(args.issue)
+            return start.worktree_done(args.issue, pushed=args.pushed)
         if args.command == "normalize":
             from . import normalize
 

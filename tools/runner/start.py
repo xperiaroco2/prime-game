@@ -5,12 +5,14 @@ assigns the issue to the caller if nobody has it, and moves it to "In progress" 
 work: uncommitted changes stop it unless the caller says `--include` (carry them onto the task branch) or `--stash`.
 It makes a worktree `.claude/worktrees/<n>` instead only for the engineer, and only when another Claude session is
 active on this checkout (docs/decisions/2026-09-28-worktrees-only-for-parallel-sessions.md). `worktree-done <n>`
-removes such a worktree once its branch is merged.
+removes such a worktree once its branch is merged, or with `--pushed` once origin has the branch (a spike that is never
+merged), and finishes a removal that Windows left half done.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import time
@@ -27,10 +29,12 @@ AREAS = ("core", "server", "net", "client", "voice", "content", "level", "toolin
 AREA_LABEL_RE = re.compile(r"^area:([a-z]+)$")
 SLUG_MAX = 40
 TIMEOUT = 120
+# Deleting a worktree's ignored .godot/ import cache can take minutes on Windows.
+REMOVE_TIMEOUT = 600
 
 
-def _git(*args: str, cwd: Path | None = None) -> Result:
-    return run(["git", *args], timeout=TIMEOUT, cwd=cwd or REPO)
+def _git(*args: str, cwd: Path | None = None, timeout: float = TIMEOUT) -> Result:
+    return run(["git", *args], timeout=timeout, cwd=cwd or REPO)
 
 
 def _must(res: Result, what: str) -> str:
@@ -253,45 +257,157 @@ def create_worktree(number: int, branch: str, dry_run: bool) -> Path:
     return path
 
 
-def worktree_done(number: int) -> int:
-    say(f"worktree-done #{number}")
+def _is_ancestor(commit: str, of: str) -> bool:
+    return _git("merge-base", "--is-ancestor", commit, of).rc == 0
+
+
+def _refuse_inside(path: Path) -> None:
+    """Windows cannot delete a folder that is a process's current directory: git would unregister the worktree and
+    then fail to delete it, leaving a half-removed worktree. So refuse before anything changes."""
+    target = path.resolve()
+    here = Path.cwd().resolve()
+    if here == target or target in here.parents:
+        raise Failure(
+            f"run worktree-done from the main checkout: cd {main_checkout()} (the current folder {here} is inside "
+            "the worktree, and Windows cannot delete it). Nothing was removed."
+        )
+    repo = Path(str(REPO)).resolve()
+    if repo == target or target in repo.parents:
+        raise Failure(
+            f"this is the worktree's own runner; run the main checkout's instead: cd {main_checkout()}, then "
+            "tools\\run.cmd worktree-done. Nothing was removed."
+        )
+
+
+def _refuse_sessions_in(path: Path) -> None:
+    """Any live session in the worktree, busy or idle for days: it may still work there, and on Windows it keeps the
+    folder open, so git would unregister the worktree and then fail to delete it."""
+    inside = sessions.alive_in(path)
+    me = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    if me and any(s.session_id == me for s in inside):
+        raise Failure(
+            "this Claude session's own folder is the worktree, and Windows cannot delete it while the session runs. "
+            "Nothing was removed. Archive this session, then run worktree-done from a session in the main checkout."
+        )
+    if inside:
+        raise Failure(
+            f"a Claude session is still open in the worktree: {inside[0].describe(time.time())}"
+            + (f" and {len(inside) - 1} more" if len(inside) > 1 else "")
+            + ". Nothing was removed. Archive or close that session in the Claude app, then run worktree-done again."
+        )
+
+
+def worktree_done(number: int, *, pushed: bool = False) -> int:
+    say(f"worktree-done #{number}" + (" (--pushed)" if pushed else ""))
     path = worktrees_root() / str(number)
+    _refuse_inside(path)
     key = str(path.resolve()).lower()
     known = listed_worktrees()
     if key not in known:
-        raise Failure(f"no worktree for #{number} at {path}")
-    if Path(str(REPO)).resolve() == path.resolve():
-        raise Failure("run worktree-done from the main checkout, not from inside the worktree")
+        return finish_leftovers(number, path, known)
     branch = known[key]
-    inside = sessions.active_on(path)
-    if inside:
-        raise Failure(
-            f"a Claude session is working in the worktree: {inside[0].describe(time.time())}. "
-            "Nothing was removed; close that session (or leave the worktree) first."
-        )
+    _refuse_sessions_in(path)
     dirty = _git("status", "--porcelain", "--untracked-files=all", cwd=path).out.strip()
     if dirty:
         raise Failure(f"the worktree has uncommitted changes; nothing was removed:\n{dirty}")
     _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
     # The commit checked out there, not just the branch name: a detached HEAD can hold commits no branch has.
     head = _must(_git("rev-parse", "HEAD", cwd=path), "reading the worktree's HEAD")
-    if _git("merge-base", "--is-ancestor", head, f"{REMOTE}/{BASE}").rc != 0:
+    merged = _is_ancestor(head, f"{REMOTE}/{BASE}") and (not branch or _is_ancestor(branch, f"{REMOTE}/{BASE}"))
+    if not merged and not pushed:
         raise Failure(
             f"{branch or 'the detached HEAD'} ({head[:10]}) is not merged into {REMOTE}/{BASE} yet; nothing was "
             "removed. worktree-done runs after a human merged the PR with \"Create a merge commit\" (a squash merge "
-            "leaves the branch's own commits unmerged: then ask the human)."
+            "leaves the branch's own commits unmerged: then ask the human). A branch that is never merged (a spike) "
+            "goes with --pushed once origin has it."
         )
-    if branch and _git("merge-base", "--is-ancestor", branch, f"{REMOTE}/{BASE}").rc != 0:
-        raise Failure(f"{branch} is not merged into {REMOTE}/{BASE} yet; nothing was removed.")
-    _must(_git("worktree", "remove", str(path)), "git worktree remove")
+    if not merged:
+        # --pushed: the branch on origin keeps every commit, so removing the worktree loses nothing.
+        if not branch:
+            raise Failure(f"the worktree is on a detached HEAD ({head[:10]}); --pushed needs a branch. Nothing was removed.")
+        # Asked live, not from refs/remotes: a branch deleted on origin keeps its stale tracking ref after a fetch.
+        remote = _git("ls-remote", REMOTE, f"refs/heads/{branch}")
+        if remote.rc != 0 or remote.timed_out:
+            raise Failure(f"could not ask {REMOTE} for {branch}; nothing was removed:\n{remote.out.strip()[-300:]}")
+        tip = remote.out.split()[0] if remote.out.strip() else ""
+        if not tip:
+            raise Failure(f"{REMOTE} has no branch {branch}, so it is not pushed; nothing was removed.")
+        if not _is_ancestor(head, tip) or not _is_ancestor(branch, tip):
+            raise Failure(
+                f"{branch} ({head[:10]}) has commits that {REMOTE}/{branch} does not; nothing was removed. Push them "
+                "first (tools\\run.cmd publish from the worktree), or ask the human."
+            )
+    res = _git("worktree", "remove", str(path), timeout=REMOVE_TIMEOUT)
+    if res.rc != 0 or res.timed_out:
+        half = key not in listed_worktrees()
+        raise Failure(
+            f"git worktree remove failed: {res.out.strip()[-600:]}"
+            + (
+                "\ngit already unregistered the worktree, but some program still has the folder open. Close it, then "
+                f"run worktree-done {number} again: it removes the folder once it is empty (files left in it stop it)."
+                if half
+                else ""
+            )
+        )
     ok(f"removed the worktree {path}")
-    if branch:
-        # -D, not -d: -d compares with the local HEAD, which may not have the merge yet. The branch is proven merged
-        # into origin/main above, so nothing is lost.
-        res = _git("branch", "-D", branch)
-        if res.rc == 0:
-            ok(f"deleted the merged local branch {branch}")
+    if branch and merged:
+        _delete_merged(branch)
+    elif branch:
+        ok(f"kept the local branch {branch}: it is not merged into {REMOTE}/{BASE} ({REMOTE}/{branch} has it too)")
+    say("worktree-done: done")
+    return 0
+
+
+def _delete_merged(branch: str) -> None:
+    # -D, not -d: -d compares with the local HEAD, which may not have the merge yet. The caller proved the branch
+    # merged into origin/main, so nothing is lost.
+    res = _git("branch", "-D", branch)
+    if res.rc == 0:
+        ok(f"deleted the merged local branch {branch}")
+    else:
+        warn(f"kept the local branch {branch}: {res.out.strip()[-300:]}")
+
+
+def finish_leftovers(number: int, path: Path, known: dict[str, str]) -> int:
+    """The worktree is no longer registered (a removal git began but Windows could not finish, or one done by hand).
+    Finish what is left: an empty folder, and the issue's merged local task branch."""
+    cleaned = False
+    listed = _git("branch", "--list", "--format=%(refname:short)", f"*/{number}-*").out.split()
+    ours = [b for b in listed if re.fullmatch(rf"[a-z][a-z0-9]*/{number}-[a-z0-9][a-z0-9._-]*", b)]
+    fetched = False
+    if ours:  # before anything is removed, so a failed fetch changes nothing
+        res = _git("fetch", REMOTE)
+        fetched = res.rc == 0 and not res.timed_out
+        if not fetched:
+            warn(f"git fetch {REMOTE} failed, so the local branches stay: {res.out.strip()[-300:]}")
+    if path.exists():
+        files = [p for p in path.rglob("*") if not p.is_dir()]
+        if files:
+            raise Failure(
+                f"{path} is not a registered git worktree but still holds files (such as {files[0]}); nothing was "
+                "removed. Ask the human what they are."
+            )
+        _refuse_sessions_in(path)
+        try:
+            shutil.rmtree(path)
+        except OSError as exc:
+            raise Failure(
+                f"Windows could not delete the empty leftover folder {path} ({exc.strerror}): some program still has "
+                "it (or a folder in it) open, such as a terminal or an editor. Close it, then run worktree-done again."
+            ) from exc
+        ok(f"removed the empty leftover folder {path}")
+        cleaned = True
+    checked_out = set(known.values())
+    for branch in ours if fetched else []:
+        if branch in checked_out:
+            ok(f"kept the local branch {branch}: it is checked out in another worktree or the main checkout")
+        elif _is_ancestor(branch, f"{REMOTE}/{BASE}"):
+            _delete_merged(branch)
+            cleaned = True
         else:
-            warn(f"kept the local branch {branch}: {res.out.strip()[-300:]}")
+            ok(f"kept the local branch {branch}: it is not merged into {REMOTE}/{BASE}")
+    if not cleaned:
+        left = "; the branches above are kept" if ours else ", and nothing left over from one"
+        raise Failure(f"no worktree for #{number} at {path}{left}")
     say("worktree-done: done")
     return 0

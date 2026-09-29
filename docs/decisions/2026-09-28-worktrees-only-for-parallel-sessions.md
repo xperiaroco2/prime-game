@@ -38,3 +38,17 @@ another branch. Its own next `git status` shows the new branch. Committed work i
 `worktree-done <n>` refuses while a session works in the worktree, with uncommitted changes, or when the worktree's
 HEAD (a detached one included) or branch is not merged into `origin/main`. It then removes the worktree and deletes
 the merged local branch. Ignored files such as `.godot/` do not block the removal (checked with git 2.49).
+
+## Spikes and half-done removals (2026-09-29, #27)
+The M1 spike branches are never merged, so `worktree-done --pushed` removes a worktree whose branch (not a detached
+HEAD) is fully on `origin/<branch>`, and keeps the local branch unless it is merged; it never deletes a remote branch.
+On #19 the caller's shell sat in the worktree: git unregistered it, Windows refused to delete the folder, and a rerun
+said "no worktree". Now `worktree-done` refuses up front when the current folder or the runner's checkout is inside
+the worktree, and when the worktree is unregistered it removes an empty leftover folder (one with files stops it) and
+the issue's merged local task branch. On #27 the same happened with no shell inside: the finished spike sessions,
+never archived and idle for 3 to 7 hours, were still alive with the worktree as their `cwd`, and Windows kept each
+folder. So `worktree-done` refuses while **any** live session has its `cwd` in the worktree, however long idle and
+the calling session included (not the one-hour window `start` uses); the human archives or closes it in the app
+first. When git still fails after unregistering, the message says so, and a rerun removes the folder once it is empty
+(files left in it stop it). `--pushed` asks `origin` live (`ls-remote`), so a stale tracking ref of a branch deleted
+there does not count as pushed.

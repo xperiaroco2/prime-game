@@ -63,4 +63,6 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
 8. **Tell the human** the PR link and that CI runs on it. Only humans merge, with "Create a merge commit". For a
    stacked PR: GitHub retargets the child to `main` when the parent's branch is deleted on merge; if the child
    still shows the parent as base, `gh pr edit <child> --base main` before merging it. If the task ran in
-   a worktree: after the merge, `tools\run.cmd worktree-done <n>` from the main checkout.
+   a worktree: after the merge, the human archives this session in the app (Windows cannot delete a folder a live
+   session sits in), then `tools\run.cmd worktree-done <n>` from the main checkout (`--pushed` for a spike that is
+   never merged).
