@@ -141,6 +141,8 @@ def run(
         timed_out = True
         _kill_tree(proc)
     reader.join(timeout=5)
+    if proc.stdout is not None and not reader.is_alive():
+        proc.stdout.close()
     out = "".join(chunks)
     if log:
         ensure_out()
@@ -193,12 +195,28 @@ def git_bash() -> str | None:
     return None
 
 
-_godot_checked = False
+_godot_checked: set[str] = set()
+
+
+def check_godot_version(path: str, var: str = "GODOT_BIN") -> None:
+    """Fail unless the Godot binary at path is the pinned version; each path is asked once per run."""
+    if path in _godot_checked:
+        return
+    res = run([path, "--version"], timeout=60)
+    version = res.out.strip().splitlines()[-1] if res.out.strip() else ""
+    if not version.startswith(pins.GODOT_VERSION_PREFIX):
+        raise Failure(
+            f"wrong Godot version: {path} ({var}) reports '{version or res.out.strip()}', "
+            f"the project is pinned to {pins.GODOT_VERSION_PREFIX}. "
+            f"Download Godot {pins.GODOT} from "
+            f"https://github.com/godotengine/godot/releases/tag/{pins.GODOT}-stable "
+            f"and point {var} at its " + ("window exe." if var == "GODOT_GUI_BIN" else "console exe.")
+        )
+    _godot_checked.add(path)
 
 
 def require_godot() -> str:
     """Return the Godot binary after checking its exact version once; fail fast otherwise."""
-    global _godot_checked
     path = godot_bin()
     if not path:
         where = os.environ.get("GODOT_BIN")
@@ -207,18 +225,7 @@ def require_godot() -> str:
             + f"Set GODOT_BIN to the Godot {pins.GODOT} console exe (env in ~/.claude/settings.json)"
             + ("." if where else ", or put `godot` on PATH.")
         )
-    if not _godot_checked:
-        res = run([path, "--version"], timeout=60)
-        version = res.out.strip().splitlines()[-1] if res.out.strip() else ""
-        if not version.startswith(pins.GODOT_VERSION_PREFIX):
-            raise Failure(
-                f"wrong Godot version: {path} reports '{version or res.out.strip()}', "
-                f"the project is pinned to {pins.GODOT_VERSION_PREFIX}. "
-                f"Download Godot {pins.GODOT} from "
-                f"https://github.com/godotengine/godot/releases/tag/{pins.GODOT}-stable "
-                "and point GODOT_BIN at its console exe."
-            )
-        _godot_checked = True
+    check_godot_version(path)
     return path
 
 

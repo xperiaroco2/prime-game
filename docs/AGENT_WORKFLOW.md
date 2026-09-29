@@ -343,11 +343,22 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (Godot then never draws), a 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
   one that frames all its geometry, plus a light if it has none. Desktop only: CI never runs it, and the designer
   gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
+- **`run <scene.tscn | script.gd>` [applied]:** runs a scene, or a `-s` script that extends `SceneTree`, with the
+  pinned Godot; arguments after `--` reach `OS.get_cmdline_user_args()`. `--headless` uses `GODOT_BIN`; a window
+  uses `GODOT_GUI_BIN` (else `GODOT_BIN`), and `--offscreen` puts it at `shot`'s off-screen position. `--seconds N`
+  (default 60) kills the process tree; `--instances N` (up to 8) starts N copies at once, each with
+  `PRIME_INSTANCE=<i>` in its environment and its own log `tools/out/logs/run/<name>-<i>.log` (the next run of the
+  same name replaces them). `--audio dummy` (default) or `default`; `--headless --audio default` keeps the real
+  audio driver (`--display-driver headless`). Fails when an instance exits non-zero, times out or prints an
+  `ERROR:` / `SCRIPT ERROR:` line (Godot exits 0 after both), and names the instance and its first error lines. A
+  scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
+  `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
+  project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
-  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`,
+  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`, `run`,
   `agents-check`, `credits`, and `hook` (for Claude Code only); `bots`, `host` and `join` come with the bot harness
   (M3) and the M1 spike. Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
   `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder.
