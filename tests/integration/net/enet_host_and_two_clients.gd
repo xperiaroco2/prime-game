@@ -1,7 +1,7 @@
 extends SceneTree
 ## A host and two clients over ENet on 127.0.0.1, one process each (#40). Headless only:
 ##   tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3
-## `verify` adds `-- --port=<a random free port>`, so worktrees running it at once very rarely share one;
+## `verify` adds `-- --port=<a random free port>`, so parallel worktrees very rarely share one;
 ## without --port it uses DEFAULT_PORT.
 ## PRIME_INSTANCE picks the part: 1 hosts and plays through its own loopback client; 2 and 3 join.
 ## Each process exits 0 when its part held, else prints an ERROR line and exits 1.

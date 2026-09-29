@@ -21,9 +21,11 @@ PORT_TRIES = 50
 
 
 def free_udp_port(pick: Callable[[range], int] = random.choice) -> int:
-    """A random UDP port on 127.0.0.1 that nothing holds right now, so worktrees verifying at once never share one.
+    """A random UDP port on 127.0.0.1 that nothing holds right now, so worktrees verifying at once rarely share one.
 
-    A port that fails to bind (in use, or in a range Windows reserves) is skipped.
+    A port that fails to bind (in use, or in a range Windows reserves) is skipped. The probe socket closes before
+    Godot binds the port, so two worktrees can still pick the same one in that window (about 1 in 12,000); the host
+    then fails with "host on 127.0.0.1:<port> failed", and running `verify` again picks a new port.
     """
     for _ in range(PORT_TRIES):
         port = pick(ENET_PORTS)
