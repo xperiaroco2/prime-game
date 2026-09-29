@@ -1,0 +1,59 @@
+[gd_scene format=3 uid="uid://ccplw6yiy2jqn"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.42, 0.44, 0.46, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wall"]
+albedo_color = Color(0.78, 0.76, 0.7, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_inner"]
+albedo_color = Color(0.72, 0.52, 0.36, 1)
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 1
+background_color = Color(0.55, 0.65, 0.78, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.82, 0.86, 1)
+ambient_light_energy = 0.5
+
+[node name="GreyboxRoom" type="Node3D" unique_id=1129359754]
+
+[node name="Geometry" type="CSGCombiner3D" parent="." unique_id=897741231]
+use_collision = true
+
+[node name="Floor" type="CSGBox3D" parent="Geometry" unique_id=47904092]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+size = Vector3(20.6, 0.4, 12.6)
+material = SubResource("Mat_floor")
+
+[node name="WallNorth" type="CSGBox3D" parent="Geometry" unique_id=1568832261]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -6.15)
+size = Vector3(20.6, 3, 0.3)
+material = SubResource("Mat_wall")
+
+[node name="WallSouth" type="CSGBox3D" parent="Geometry" unique_id=1330200482]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 6.15)
+size = Vector3(20.6, 3, 0.3)
+material = SubResource("Mat_wall")
+
+[node name="WallWest" type="CSGBox3D" parent="Geometry" unique_id=732117148]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.15, 1.5, 0)
+size = Vector3(0.3, 3, 12)
+material = SubResource("Mat_wall")
+
+[node name="WallEast" type="CSGBox3D" parent="Geometry" unique_id=1804653892]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.15, 1.5, 0)
+size = Vector3(0.3, 3, 12)
+material = SubResource("Mat_wall")
+
+[node name="InnerWall" type="CSGBox3D" parent="Geometry" unique_id=1959911294]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1.5, -1)
+size = Vector3(0.3, 3, 6)
+material = SubResource("Mat_inner")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1883290824]
+transform = Transform3D(0.866, -0.383, 0.321, 0, 0.643, 0.766, -0.5, -0.663, 0.557, 0, 8, 0)
+shadow_enabled = true
+
+[node name="Environment" type="WorldEnvironment" parent="." unique_id=1072196868]
+environment = SubResource("Env")
