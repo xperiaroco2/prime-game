@@ -51,27 +51,29 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
 - `core/` has one loop, `Match`, that knows no game mode. It owns the `MatchState`: the roster, the settings, each
   player's life state (alive, ghost, left), position, hand slot, health and stamina, the items, the tasks, the match
   clock and the RNG streams. The match state outlives phases, so Round → Meeting → Round keeps everything.
-- A **game mode** is data (a `Resource`; its kind belongs to the content API, #33). It lists:
+- A **game mode** is data (a `GameMode` `Resource`, §9). It lists:
   - the phases, each an id plus a phase class and its parameters, and the first phase;
-  - per phase: the intents it accepts (an allowlist); its **tick systems** in the order they run, and which of them
-    also run after every command (the base mode's Round: stamina, cooldowns, task types that tick, the match clock,
-    then the win conditions, which also run after every command; the other phases have none); whether the match
-    clock runs; and which voice rule applies (§6);
+  - per phase: the intents it accepts and from whom (an allowlist); its **tick systems** in the order they run (the
+    base mode's Round: task types that tick; the other phases have none); whether it checks the win conditions (the
+    base mode's Round only; §9.2 says when); whether the match clock runs; which voice rule applies (§6); which level
+    is loaded; and whether snapshots are sent. Stamina and cooldowns need no tick system: they are settled when used
+    (§7.1, §9.4);
   - a **transition table** of rows *from phase, outcome → to phase, actions*.
 - An intent the phase's allowlist does not name is rejected. An accepted intent goes to the phase class, or to the
-  content part that handles it (an action such as pick up, a throw #37, or a body report #35): a new action is a part
-  plus an allowlist entry, not an edit of the phase class.
+  content part that handles it (an action such as pick up, a throw #37, or a body report #35; §9.2: the rule of the
+  held item, the role or the mode): a new action is a part plus an allowlist entry, not an edit of the phase class.
 - A **phase class** handles its own commands and timers (the countdown, the loading deadline, a vote timer), emits
   events, and reports **outcomes**: named triggers such as `all_ready`, `cancelled` or `won`. Any content part may
   report an outcome as well, so a new trigger (a meeting button, #35) needs no change to the phase it runs in.
 - After every command, every tick, and every phase entry, `Match` takes the first outcome reported in that step,
   looks it up in the table, runs the row's actions
-  (content parts, such as `deal`), exits the phase and enters the next. Rows are keyed by an outcome, so a transition
-  without a trigger cannot be written; an outcome without a row fails loudly, and a unit test drives every row.
-  Checking on entry means a phase whose condition already holds (every player ready when the Lobby is re-entered)
-  moves on without waiting for another command. A later outcome in the same step is dropped, logged in every build,
-  and the intent that caused it gets `Rejected`: a condition (`all_ready`, `won`) is re-checked at the next step
-  anyway, and a one-off trigger (a meeting button, #35) is refused visibly instead of lost.
+  (effects such as the deal's `DealRoles`, §9.4), exits the phase and enters the next. Rows are keyed by an outcome,
+  so a transition without a trigger cannot be written; an outcome without a row fails loudly, and a unit test drives
+  every row. Checking on entry means a phase whose condition already holds (every player ready when the Lobby is
+  re-entered) moves on without waiting for another command. A later outcome in the same step is dropped and logged in
+  every build: a condition (`all_ready`, `won`) is re-checked at the next step anyway. A one-off trigger (a meeting
+  button, #35) comes from the rule of the intent that starts its step, so it is first unless an earlier effect of the
+  same command already ended the phase; then its intent gets `Rejected`, so the refusal is visible instead of lost.
 - The meetings mode (#35) is then data plus the classes Meeting, Vote and Resolution, with rows such as
   `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`. The deal runs only on
   `Loading, all_loaded → Round`, so returning to Round deals nothing; Meeting stops the clock by its phase flag.
@@ -87,8 +89,8 @@ hello deadline.
 | Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
-| Round | the deal has run (below) | living: `MoveClaim`, `PickUp`, `PutDown`, `Hit`; ghosts: `MoveClaim`; leave | round rule | runs |
-| End | frozen: no movement, no snapshots; `MatchEnded` | `ReturnToLobby` (host); leave | nobody | stopped |
+| Round | the deal has run (below) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`; ghosts: `MoveClaim`; leave | round rule | runs |
+| End | frozen: no movement, no snapshots | `ReturnToLobby` (host); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
 |---|---|---|---|
@@ -96,9 +98,9 @@ hello deadline.
 | Lobby | `all_ready`: every player is ready, and the settings fit the map for the current player count (packages, circles, knives and players within the map's spawn points; 1 to 10 players) | Countdown | |
 | Countdown | `cancelled`: a `SetReady(false)`, a join or a leave | Lobby | none: ready flags and positions stay, so after a leave `all_ready` fires on entry and restarts the 5 s |
 | Countdown | `countdown_done`: the end tick is reached | Loading | |
-| Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Round | `deal`; start the clock |
-| Round | `won(winner)`: a win condition (§3.4) | End | stop the clock |
-| End | `back`: the host's `ReturnToLobby` | Lobby | reset the match state from the roster; everyone un-ready and placed in the lobby |
+| Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Round | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers`; `StartClock` |
+| Round | `won(winner)`: a win condition (§3.4) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run |
+| End | `back`: the host's `ReturnToLobby` | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; `PlacePlayers` in the lobby |
 
 The lobby shows why `all_ready` cannot fire (for example more packages than spawn points). The host leaving ends the
 session in every phase (§3.5); it has no row, because `core/` runs on the host and stops with it.
@@ -117,35 +119,40 @@ countdown changes no scene and places nobody.
   knife's interval 10. Per-tick amounts (sprint cost, regeneration) are rounded toward zero once, at that conversion.
 - **Order inside a tick:** (1) the commands, in the order the host received them, with an outcome check after each.
   `server/` puts the loopback's messages and the network's in one queue by arrival, so the host's own client gets no
-  priority. (2) The phase's own timers. (3) The current phase's tick systems in the mode's order; the base mode's Round
-  ends with the match clock and then the win conditions, so a delivery in the last tick counts.
+  priority. (2) The phase's own timers. (3) The current phase's tick systems in the mode's order, then the match
+  clock if the phase's clock runs. The win conditions are checked after every fact and at the end of every step
+  (§9.2), so a delivery in the last tick counts: its command came before the clock ended.
 - **The match clock** counts only the ticks of phases whose clock runs. Every entry into such a phase announces the
   clock's end as a host tick (`PhaseChanged`), so a clock paused for a meeting (#35) is re-announced on resume.
 - **Seeds.** `server/` takes one 64-bit session seed from the operating system's entropy (never the time) when the
   host starts and gives it to `Match`; match *k* uses a seed derived from the session seed and *k*. Each purpose
-  (`roles`, `circles`, `tasks`, `packages`, `knives`, `spawns`) gets its own `RandomNumberGenerator`, seeded by a fixed mixing
+  (`roles`, `circles`, `tasks`, `packages`, `knives`, `spawns`), named in the data of the part that draws (§9.4),
+  gets its own `RandomNumberGenerator`, seeded by a fixed mixing
   function of the match seed and the purpose's name (for example SplitMix64 over the seed and an FNV-1a hash of the
   name; not `String.hash()`, whose algorithm is no documented contract). In GDScript `>>` on `int` is arithmetic, so
   the implementation masks after each shift, and its unit test pins known outputs. A new purpose never shifts the
   draws of the existing ones. Shuffles are our own Fisher–Yates over the injected RNG (`Array.shuffle()` uses the
   global one), and inputs are iterated in a stable order: players by peer id, spawn points in their level order.
-- **The deal** (the action on `all_loaded`), in this order: roles (dissidents = min(setting, N−1), drawn from the
-  roster); circle positions and colours (one circle per package, over the map's circle spawn points); package
-  positions; tasks (per player in peer-id order, *tasks per player* tasks of *subtasks* packages, each package drawn
-  from the placed ones and bound to a random circle of its own, whose colour it takes); knife positions; player spawn
-  points. Item and circle ids are assigned in spawn-point order and `ItemSpawned` and `CirclePlaced` are emitted in id
-  order, so an id says nothing about its owner or task. Whether packages and knives share spawn points is level data
-  (#33). A package that spawns inside its own circle is delivered at once, by the rule; level data keeps the two
-  kinds of spawn points apart.
+- **The deal** (the actions of the `all_loaded` row, §9.4), in this order: roles (`DealRoles`: dissidents =
+  min(setting, N−1), drawn from the roster); then `DealTasks`, which runs Delivery's deal: circle positions and
+  colours (one circle per package, over the map's circle spawn points), package positions, and tasks (per player in
+  peer-id order, *tasks per player* tasks of *subtasks* packages, each package drawn from the placed ones and bound to
+  a random circle of its own, whose colour it takes); knife positions (`SpawnItems`); player spawn points
+  (`PlacePlayers`). Item and circle ids are assigned in spawn-point order and `ItemSpawned` and `CirclePlaced` are
+  emitted in id order, so an id says nothing about its owner or task. Whether packages and knives share spawn points
+  is level data: a marker carries one or more spawn tags, and a deal puts at most one item on a marker (§9.6). A
+  package that spawns inside its own circle is delivered at once, by the rule; level data keeps the two kinds of
+  spawn points apart.
 - **Exact numbers.** Health and stamina are integers in thousandths, so a replay on another machine matches exactly.
   Positions are the claims as received.
 - **Replay.** The command log holds everything `core/` is given: the session seed, every command with its tick and
-  order (the ones `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, `ItemRested` #37), and
-  every `WorldQuery` answer. A replay reads the answers from the log instead of asking the level; unit tests use a
+  order (the ones `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, `ItemRested` #37), the
+  levels' `LevelLayout`s (§9.1), and every `WorldQuery` answer. A replay reads the answers from the log instead of asking the level; unit tests use a
   fake `WorldQuery`. Seeds and RNG state never leave the host (§5).
 
 ### 3.4 Win conditions (base mode)
-Content parts (#33), run in Round only, as its last tick system and after every command, in the mode's order:
+Content parts (§9.5), checked in Round only, in the mode's order, after every fact and at the end of every step
+(§9.2):
 - **Crew:** every task done, that is every subtask done (in the MVP a subtask is one package delivered) →
   `won(crew)`.
 - **Dissidents:** no crew member alive (dead or left) → `won(dissidents)`; the clock reaches its end with a subtask
@@ -153,7 +160,8 @@ Content parts (#33), run in Round only, as its last tick system and after every 
 
 "The first win condition met ends the round" (MVP rules) also orders the effects inside one command. A hit that
 kills the last crew member, whose package then drops into its circle, meets "no crew alive" before the delivery:
-the dissidents win. The same holds for the last crew member leaving with the last package over its circle.
+the dissidents win. The same holds for the last crew member leaving with the last package over its circle. The
+check after every fact is what makes this so: a death or a leave raises its fact before the held item drops (§9.2).
 
 ### 3.5 Joining, leaving and the host
 | Phase | A client joins (its `Hello` is accepted) | A client leaves |
@@ -269,7 +277,7 @@ is entitled to (§5).
 | `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch (else dropped as stale); speed for the life state and stamina; jumps; no teleport; the client tick rising at a bounded rate (§7, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not held, not delivered); pick-up reach from the host's position of the player; line of sight; a full hand swaps (§7.1) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
-| `Hit(facing)` | a living player with a weapon in hand; Round | the held weapon's minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
+| `Use(facing)` | a living player with an item in hand; Round | the rule of the held item's kind (§9.2). The knife's: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1). An item whose kind has no `Use` rule (a package) is rejected |
 | `ReturnToLobby()` | the host only; End | |
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
@@ -293,7 +301,7 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `PlayerLoaded` | peer | everyone | a valid `LoadAck` |
 | `RoundStarted` | start tick | everyone | the deal |
 | `RoleAssigned` | your role | that player | the deal |
-| `DissidentTeam` | the dissidents' peer ids | each dissident | the deal |
+| `Teammates` | a role and the peer ids of its players | each player of that role, for a role that knows its teammates (the dissidents) | the deal |
 | `TasksAssigned` | your tasks, each with its packages | that player | the deal |
 | `CirclePlaced` | circle, colour, position | everyone | the deal, in circle-id order |
 | `ItemSpawned` | item, kind, position; a package's circle and colour | everyone | the deal, in item-id order |
@@ -302,7 +310,7 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1) |
 | `TaskProgress` | subtasks done, subtasks in total | everyone | a subtask is done |
 | `TaskUpdated` | task, its subtasks done | the task's owner | one of its subtasks is done |
-| `Swung` | peer, facing | everyone | a valid `Hit`, whether or not it touched anyone |
+| `Swung` | peer, facing | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone |
 | `Damaged` | amount, your health | the victim | a hit on them |
 | `SelfStatus` | health, stamina, whether sprint is available | that player | on change, at most once per tick |
 | `Died` | peer, body position | everyone | health reaches 0; no event names a killer or a cause |
@@ -351,7 +359,7 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
   tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The M3 leak test
   compares what each bot actually decoded (voice frames included) with `view_of` of its peer; anything received that
   `view_of` does not hold is a leak.
-- **Invariants that do not trust the declarations.** A wrong audience (say `DissidentTeam` declared *everyone*) would
+- **Invariants that do not trust the declarations.** A wrong audience (say `Teammates` declared *everyone*) would
   pass the comparison above, because both sides read the same declaration. So unit tests and the leak test also
   assert facts written independently of them: for the whole session, a crew member knows one role, its own, and a
   dissident knows the dissidents' roles only; a living peer never gets a ghost's entity or voice frame; nobody gets
@@ -457,12 +465,13 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   Accepted: a modified client can walk through players. Ghosts are outside this by construction: a living client
   never receives a ghost's position, so it cannot bump into one.
 - **Ghosts** fly without gravity, faster than the living (the host bounds their 3D speed and teleports only), and
-  collide with the level's walls client-side, not with the living or with other ghosts. `PickUp`, `PutDown` and `Hit`
+  collide with the level's walls client-side, not with the living or with other ghosts. `PickUp`, `PutDown` and `Use`
   from a ghost are rejected.
 - **Walls.** The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
   walls for hits, pick-ups and placement, because there an honest client would otherwise stab or grab through a thin
   wall.
-- **Hits.** The host picks the targets: every living player other than the attacker whose capsule has a point within
+- **Hits** (the knife's `Use`: `Strike`, §9.4). The host picks the targets: every living player other than the
+  attacker whose capsule has a point within
   the weapon's reach of the attacker's position and within half the weapon's angle of the facing, overlapping
   vertically, and in line of sight from the attacker's eye. Each takes the weapon's damage; the zone lives in the
   weapon's data. The minimum interval between hits is per player, so swapping to a second knife does not skip it.
