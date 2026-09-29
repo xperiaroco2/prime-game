@@ -65,6 +65,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--size", default="1280x720", help="window size WxH (default 1280x720)")
     p.add_argument("--frames", type=int, default=10, help="frames to wait before the capture (default 10)")
 
+    p = sub.add_parser(
+        "run",
+        help="run a scene or script with the pinned Godot; arguments after -- reach the game",
+        usage="run <scene.tscn | script.gd> [options] [-- <user args>]",
+    )
+    p.add_argument("target", help="a .tscn or a .gd that extends SceneTree (repo-relative or res://)")
+    view = p.add_mutually_exclusive_group()
+    view.add_argument("--headless", action="store_true", help="no window (GODOT_BIN); CI and agent checks")
+    view.add_argument("--offscreen", action="store_true", help="a real window at the off-screen position of shot")
+    p.add_argument("--seconds", type=int, default=60, help="hard timeout; kills the process tree (default 60)")
+    p.add_argument("--instances", type=int, default=1, help="copies at once, each with its own log (default 1)")
+    p.add_argument("--audio", choices=["dummy", "default"], default="dummy", help="audio driver (default dummy)")
+
     sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
 
     p = sub.add_parser("agents-check", help="assert each subagent was served by the model family it asked for")
@@ -80,11 +93,20 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def split_user_args(argv: list[str]) -> tuple[list[str], list[str]]:
+    """`run … -- <args>`: everything after the first -- goes to the game untouched, never to argparse."""
+    if argv[:1] == ["run"] and "--" in argv:
+        cut = argv.index("--")
+        return argv[:cut], argv[cut + 1 :]
+    return argv, []
+
+
 def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure:
             reconfigure(encoding="utf-8", errors="replace")
+    argv, user_args = split_user_args(sys.argv[1:] if argv is None else argv)
     args = build_parser().parse_args(argv)
     try:
         if args.command == "doctor":
@@ -143,6 +165,18 @@ def main(argv: list[str] | None = None) -> int:
             from . import shot
 
             return shot.main(args.scene, out=args.out, size=args.size, frames=args.frames)
+        if args.command == "run":
+            from . import launch
+
+            return launch.main(
+                args.target,
+                headless=args.headless,
+                offscreen=args.offscreen,
+                seconds=args.seconds,
+                instances=args.instances,
+                audio=args.audio,
+                user_args=user_args,
+            )
         if args.command == "credits":
             from . import credits
 
