@@ -111,15 +111,14 @@ def process_alive(pid: int, proc_start: str = "") -> bool:
 
 
 def alive_in(path: Path, folder: Path | None = None) -> list[Session]:
-    """Other live sessions whose cwd is path or a folder in it, however long idle. On Windows such a session keeps the
-    folder open, so it cannot be deleted: a worktree removal git began then stops half done (seen on #27 with sessions
-    idle for hours)."""
-    me = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    """Live sessions whose cwd is path or a folder in it, however long idle, the calling session included. On Windows
+    such a session keeps the folder open, so it cannot be deleted: a worktree removal git began then stops half done
+    (seen on #27 with sessions idle for hours)."""
     target = Path(os.path.normcase(os.path.realpath(path)))
     found = []
     for s in read_all(folder):
         cwd = Path(os.path.normcase(os.path.realpath(s.cwd))) if s.cwd else None
-        if s.session_id != me and cwd and (cwd == target or target in cwd.parents) and process_alive(s.pid, s.proc_start):
+        if cwd and (cwd == target or target in cwd.parents) and process_alive(s.pid, s.proc_start):
             found.append(s)
     return found
 

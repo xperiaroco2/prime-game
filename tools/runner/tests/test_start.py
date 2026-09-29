@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import sessions, start
-from runner.common import Failure
+from runner.common import Failure, Result
 from runner.tests.test_githooks import _rmtree
 
 
@@ -232,7 +232,13 @@ class StartTest(unittest.TestCase):
         self.assertIn("--pushed", str(caught.exception))
         with self.assertRaises(Failure) as caught:
             start.worktree_done(42, pushed=True)
-        self.assertIn("does not exist", str(caught.exception))
+        self.assertIn("has no branch", str(caught.exception))
+        # A stale tracking ref (the branch was deleted on origin) does not count as pushed.
+        git(self.work, "update-ref", "refs/remotes/origin/core/42-vote-tally", git(tree, "rev-parse", "HEAD"))
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("has no branch", str(caught.exception))
+        self.assertTrue(tree.is_dir())
         git(tree, "push", "-q", "origin", "core/42-vote-tally")
         self.commit_in(tree, "later.txt")  # a commit origin does not have yet
         with self.assertRaises(Failure) as caught:
@@ -289,7 +295,11 @@ class StartTest(unittest.TestCase):
         os.chdir(self.work)
         with mock.patch.object(start, "REPO", tree), self.assertRaises(Failure) as caught:
             start.worktree_done(42, pushed=True)  # the worktree's own tools\run.cmd
-        self.assertIn("run worktree-done from the main checkout", str(caught.exception))
+        self.assertIn("the worktree's own runner", str(caught.exception))
+        self.inside = [sessions.Session(2, "me", str(tree), "busy", time.time(), "this session")]
+        with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "me"}), self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)  # the calling session itself sits in the worktree
+        self.assertIn("this Claude session's own folder is the worktree", str(caught.exception))
         self.assertIn(str(tree.resolve()).lower(), start.listed_worktrees())  # still registered, nothing touched
 
     def test_worktree_done_finishes_a_removal_windows_left_half_done(self) -> None:
@@ -345,18 +355,40 @@ class StartTest(unittest.TestCase):
         self.assertEqual(start.worktree_done(46), 0)
         self.assertFalse(tree.exists())
 
+    def test_a_half_done_removal_says_a_rerun_finishes_it_on_any_os(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "spike.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        real = start._git
+
+        def windows_like(*args: str, **kwargs: object) -> Result:
+            if args[:2] != ("worktree", "remove"):
+                return real(*args, **kwargs)
+            real(*args, **kwargs)
+            Path(args[2]).mkdir(parents=True)  # git unregistered it, but the folder stayed
+            return Result(255, f"error: failed to delete '{args[2]}': Permission denied", False, 0.0)
+
+        with mock.patch.object(start, "_git", side_effect=windows_like), self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("git already unregistered the worktree", str(caught.exception))
+        self.assertTrue(tree.is_dir())
+        self.assertEqual(start.worktree_done(42), 0)
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "core/42-vote-tally")  # not merged
+
     @unittest.skipUnless(os.name == "nt", "only Windows refuses to delete a folder that is a process's current folder")
     def test_a_process_sitting_in_the_worktree_leaves_a_removal_that_a_rerun_finishes(self) -> None:
         self.assertEqual(start.main(42, worktree=True), 0)
         tree = self.work / ".claude" / "worktrees" / "42"
         self.commit_in(tree, "spike.txt")
         git(tree, "push", "-q", "origin", "core/42-vote-tally")
-        holder =subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], cwd=tree)
+        holder = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"], cwd=tree)
         self.addCleanup(holder.wait)
         self.addCleanup(holder.kill)
         with self.assertRaises(Failure) as caught:
             start.worktree_done(42, pushed=True)
-        self.assertIn("finishes the removal", str(caught.exception))
+        self.assertIn("removes the folder once it is empty", str(caught.exception))
         self.assertNotIn(str(tree.resolve()).lower(), start.listed_worktrees())  # git unregistered it...
         self.assertTrue(tree.is_dir())  # ...but the folder stayed
         holder.kill()
@@ -434,14 +466,14 @@ class SessionsTest(unittest.TestCase):
 
     def test_alive_in_counts_every_live_session_in_the_folder_however_idle(self) -> None:
         tree = self.checkout / ".claude" / "worktrees" / "7"
-        self.add(1, "me", tree, "busy", 0)  # this session
+        self.add(1, "me", tree, "busy", 0)  # this session too: its own process holds the folder
         self.add(2, "idle-for-days", tree, "idle", 3 * 86400)
         self.add(3, "in-a-subfolder", tree / "core", "idle", 5 * 3600)
         self.add(4, "main-checkout", self.checkout, "busy", 0)  # the parent folder does not hold the worktree
         self.add(5, "sibling", self.checkout / ".claude" / "worktrees" / "70", "busy", 0)
         with mock.patch.object(sessions, "process_alive", return_value=True):
             found = sorted(s.session_id for s in sessions.alive_in(tree, self.tmp))
-        self.assertEqual(found, ["idle-for-days", "in-a-subfolder"])
+        self.assertEqual(found, ["idle-for-days", "in-a-subfolder", "me"])
         with mock.patch.object(sessions, "process_alive", return_value=False):
             self.assertEqual(sessions.alive_in(tree, self.tmp), [])
 
