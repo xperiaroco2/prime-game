@@ -38,8 +38,8 @@ The details are in `docs/ARCHITECTURE.md` §3, §4.1, §4.2, §5, §6 and §7.1.
    rests); `server/` implements it over its own `World3D` of the level's static colliders, from the physics step;
    tests use a fake, and replays read the logged answers.
 5. **The host's positions decide every range rule.** Hits pick their targets from the host's latest positions, with
-   no lag compensation in the MVP; a put-down sends only the facing and the host places the item; delivery is checked
-   when a living player puts a package down (a put-down or a swap), as the rule says.
+   no lag compensation in the MVP; a put-down sends only the facing and the host places the item; delivery is one check
+   that runs whenever an item comes to rest, whatever brought it there, as the rule says.
 6. **Players push each other apart on their own clients.** The host tolerates overlap and never corrects it; ghosts
    never reach a living client, so no invisible blocker can exist.
 7. **Time is ticks at 20 Hz** (a placeholder), stamped by the host; stamina is accounted per claim over the client
@@ -75,9 +75,9 @@ client notices that the host is gone is the transport's (#40), not this ADR's.
   hit zone rule would live half in `server/`, half in `core/`. Rejected for choice 4.
 - **Client-reported hit targets or placement positions:** a client could hit anyone or deliver from across the map.
   **Lag compensation (rewinding targets to the attacker's view):** more state and code before a playtest shows a
-  need. **Delivering on any rest, drops at a death or a leave included:** the rule names a put-down; a player who
-  quits on the circle holding the last package would win the round for the crew. Rejected for choice 5; rewinding
-  stays the fallback.
+  need. **Delivering only on a put-down:** the first draft read the rule that way; the engineer corrected it in
+  review (a package counts however it came to rest in its circle). Rejected for choice 5; rewinding stays the
+  fallback.
 - **Host-enforced separation of players:** two clients that see each other late would be corrected back and forth.
   Rejected for choice 6.
 - **Stamina charged per host tick:** a client that sends a claim every other tick regenerates on the empty ones and

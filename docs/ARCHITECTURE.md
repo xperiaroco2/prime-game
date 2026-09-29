@@ -93,7 +93,7 @@ hello deadline.
 | From | Outcome: its trigger | To | Actions |
 |---|---|---|---|
 | (start) | the host creates the session | Lobby | |
-| Lobby | `all_ready`: every player is ready, and the settings fit the map for the current player count (packages, knives and players within the map's spawn points; 1 to 10 players) | Countdown | |
+| Lobby | `all_ready`: every player is ready, and the settings fit the map for the current player count (packages, circles, knives and players within the map's spawn points; 1 to 10 players) | Countdown | |
 | Countdown | `cancelled`: a `SetReady(false)`, a join or a leave | Lobby | none: ready flags and positions stay, so after a leave `all_ready` fires on entry and restarts the 5 s |
 | Countdown | `countdown_done`: the end tick is reached | Loading | |
 | Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Round | `deal`; start the clock |
@@ -123,17 +123,20 @@ countdown changes no scene and places nobody.
   clock's end as a host tick (`PhaseChanged`), so a clock paused for a meeting (#35) is re-announced on resume.
 - **Seeds.** `server/` takes one 64-bit session seed from the operating system's entropy (never the time) when the
   host starts and gives it to `Match`; match *k* uses a seed derived from the session seed and *k*. Each purpose
-  (`roles`, `tasks`, `packages`, `knives`, `spawns`) gets its own `RandomNumberGenerator`, seeded by a fixed mixing
+  (`roles`, `circles`, `tasks`, `packages`, `knives`, `spawns`) gets its own `RandomNumberGenerator`, seeded by a fixed mixing
   function of the match seed and the purpose's name (for example SplitMix64 over the seed and an FNV-1a hash of the
   name; not `String.hash()`, whose algorithm is no documented contract). In GDScript `>>` on `int` is arithmetic, so
   the implementation masks after each shift, and its unit test pins known outputs. A new purpose never shifts the
   draws of the existing ones. Shuffles are our own Fisher–Yates over the injected RNG (`Array.shuffle()` uses the
   global one), and inputs are iterated in a stable order: players by peer id, spawn points in their level order.
 - **The deal** (the action on `all_loaded`), in this order: roles (dissidents = min(setting, N−1), drawn from the
-  roster); package positions; tasks (per player in peer-id order, *tasks per player* tasks of *subtasks* packages,
-  each package drawn from the placed ones and given a random destination circle); knife positions; player spawn
-  points. Item ids are assigned in spawn-point order and `ItemSpawned` is emitted in id order, so an id says nothing
-  about its owner or task. Whether packages and knives share spawn points is level data (#33).
+  roster); circle positions and colours (one circle per package, over the map's circle spawn points); package
+  positions; tasks (per player in peer-id order, *tasks per player* tasks of *subtasks* packages, each package drawn
+  from the placed ones and bound to a random circle of its own, whose colour it takes); knife positions; player spawn
+  points. Item and circle ids are assigned in spawn-point order and `ItemSpawned` and `CirclePlaced` are emitted in id
+  order, so an id says nothing about its owner or task. Whether packages and knives share spawn points is level data
+  (#33). A package that spawns inside its own circle is delivered at once, by the rule; level data keeps the two
+  kinds of spawn points apart.
 - **Exact numbers.** Health and stamina are integers in thousandths, so a replay on another machine matches exactly.
   Positions are the claims as received.
 - **Replay.** The command log holds everything `core/` is given: the session seed, every command with its tick and
@@ -148,7 +151,9 @@ Content parts (#33), run in Round only, as its last tick system and after every 
 - **Dissidents:** no crew member alive (dead or left) → `won(dissidents)`; the clock reaches its end with a subtask
   not done → `won(dissidents)`, with 0 dissidents too.
 
-One command cannot meet both: a delivery kills nobody, and a death or a leave delivers nothing (§7.1).
+"The first win condition met ends the round" (MVP rules) also orders the effects inside one command. A hit that
+kills the last crew member, whose package then drops into its circle, meets "no crew alive" before the delivery:
+the dissidents win. The same holds for the last crew member leaving with the last package over its circle.
 
 ### 3.5 Joining, leaving and the host
 | Phase | A client joins (its `Hello` is accepted) | A client leaves |
@@ -157,7 +162,7 @@ One command cannot meet both: a delivery kills nobody, and a death or a leave de
 | Countdown | as in Lobby, and `cancelled` | as in Lobby, and `cancelled` |
 | Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer` | dropped from the roster; `PlayerLeft` |
 | Round | refused, as in Loading | life state `left`, which counts as dead for the win conditions; the avatar is removed and no body stays; the held item comes to rest on the floor below where the player stood (§7.1); `PlayerLeft` |
-| End | refused, as in Loading | `PlayerLeft`; the end screen still lists the player's role |
+| End | refused, as in Loading | `PlayerLeft` |
 
 - A client's missed loading deadline: `core/` emits `DisconnectPeer(p)` for `server/` and treats p as leaving.
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
@@ -241,10 +246,11 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `RoleAssigned` | your role | that player | the deal |
 | `DissidentTeam` | the dissidents' peer ids | each dissident | the deal |
 | `TasksAssigned` | your tasks, each with its packages | that player | the deal |
-| `ItemSpawned` | item, kind, position; a package's destination | everyone | the deal, in item-id order |
+| `CirclePlaced` | circle, colour, position | everyone | the deal, in circle-id order |
+| `ItemSpawned` | item, kind, position; a package's circle and colour | everyone | the deal, in item-id order |
 | `ItemPickedUp` | peer, item | everyone | `PickUp` |
 | `ItemPlaced` | item, rest position, cause: put down, swap, death or leave | everyone | an item comes to rest |
-| `PackageDelivered` | item | everyone | the delivery check (§7.1) |
+| `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1) |
 | `TaskProgress` | subtasks done, subtasks in total | everyone | a subtask is done |
 | `TaskUpdated` | task, its subtasks done | the task's owner | one of its subtasks is done |
 | `Swung` | peer, facing | everyone | a valid `Hit`, whether or not it touched anyone |
@@ -253,7 +259,7 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `Died` | peer, body position | everyone | health reaches 0; no event names a killer or a cause |
 | `Correction` | epoch, position, velocity | that player | a rejected `MoveClaim` (§7); a placement (§3.2) |
 | `Rejected` | the intent's sequence number, reason | the sender | any rejected intent |
-| `MatchEnded` | winner, reason, every player's role (leavers included) | everyone | `won` |
+| `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
 `DisconnectPeer(peer)`.
@@ -282,12 +288,13 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
   them to each player in turn, never to the transport's broadcast target, which would also reach a peer that is not
   a player (no accepted `Hello` yet, or a straggler about to be disconnected). It never adds a recipient or a field. `core/CLAUDE.md` still says "`core/` never decides who may
   see an event"; stage 2a rewords it.
-- **Never leaves the host:** seeds and RNG state; another player's role (until `MatchEnded`), tasks, health, stamina
-  and damage; ghosts, for the living. No event names a killer; a player who watches the swings and positions (both
+- **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), tasks,
+  health, stamina and damage; ghosts, for the living. No event names a killer; a player who watches the swings and positions (both
   public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. Death: the player's life state becomes ghost, so from
-  the next tick their snapshots include the ghosts and their voice joins the dead (§6); they learn no roles. End:
-  `MatchEnded` carries every role to everyone. A joiner's `Welcome` holds public facts only.
+  the next tick their snapshots include the ghosts and their voice joins the dead (§6); they learn no roles. End
+  widens nothing: `MatchEnded` names only the winning side, and each player knows from its own role whether it won.
+  A later mode that reveals roles would add an event with its own audience. A joiner's `Welcome` holds public facts only.
 - **Knowledge never shrinks.** A peer keeps what it was sent. Resurrection (#34) narrows only what is sent from then
   on: a revived player remembers where the ghosts were, and #34 decides whether that matters.
 - **Projection.** `Match` records the recipients of every event it emits, and per tick each peer's snapshot and the
@@ -297,7 +304,7 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
   `view_of` does not hold is a leak.
 - **Invariants that do not trust the declarations.** A wrong audience (say `DissidentTeam` declared *everyone*) would
   pass the comparison above, because both sides read the same declaration. So unit tests and the leak test also
-  assert facts written independently of them: before `MatchEnded`, a crew member knows one role, its own, and a
+  assert facts written independently of them: for the whole session, a crew member knows one role, its own, and a
   dissident knows the dissidents' roles only; a living peer never gets a ghost's entity or voice frame; nobody gets
   another player's health, stamina, damage or tasks; no message holds a seed.
 
@@ -421,11 +428,11 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   straight onto its circle across the map, or into a wall.
 - **Drops.** An item dropped at a death or a leave, and a body, come to rest on the floor below the player's last
   position (through `WorldQuery`), never in mid-air.
-- **Delivery.** The rule is "put down so that it rests on its destination circle". So the check runs when a living
-  player puts a package down: `PutDown`, or the put-down half of a swap. A package resting within its circle's radius,
-  on the circle's floor, is delivered and locked. A drop at a death or a leave delivers nothing, even onto the circle;
-  holding a package over its circle never counts. Whether a thrown package counts is #37's open question: if it does,
-  `server/` reports the throw's rest from its physics (`ItemRested`), and the same check runs.
+- **Delivery.** The rule is "the package rests inside its circle, however it got there". So one check runs whenever
+  an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
+  `server/` reports from its physics (`ItemRested`, #37). A package resting within its own circle's radius, on the
+  circle's floor, is delivered: it stops being interactive (`PickUp` is rejected) and its circle is shown as done.
+  Holding a package over its circle never counts, because it is not at rest.
 
 ## 8. Debug tooling
 
