@@ -38,6 +38,7 @@ func test_rejects_wrong_shapes() -> void:
 	assert_array(M.decode(var_to_bytes([M.KIND_VOICE_UP, 1, [1, 2, 3]]))).is_empty()
 	assert_array(M.decode(var_to_bytes([M.KIND_VOICE_DOWN, 1, opus]))).is_empty()
 	assert_array(M.decode(var_to_bytes([M.KIND_VOICE_DOWN, "2", 1, opus]))).is_empty()
+	assert_array(M.decode(var_to_bytes([M.KIND_VOICE_DOWN, 2, -1, opus]))).is_empty()
 	assert_array(M.decode(var_to_bytes([99, 1, opus]))).is_empty()
 	assert_array(M.decode(PackedByteArray())).is_empty()
 

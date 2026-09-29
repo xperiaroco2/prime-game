@@ -38,13 +38,38 @@ func test_a_flood_is_cut_to_the_budget_and_refills() -> void:
 	var sent := 0
 	for seq in 200:
 		sent += r.relay(2, seq, PackedByteArray(OPUS), positions).size()
-	assert_int(sent).is_equal(int(Relay.MAX_FRAMES_PER_SECOND))
-	assert_int(r.dropped_flood).is_equal(200 - int(Relay.MAX_FRAMES_PER_SECOND))
+	assert_int(sent).is_equal(int(Relay.MAX_BURST_FRAMES))
+	assert_int(r.dropped_flood).is_equal(200 - int(Relay.MAX_BURST_FRAMES))
 	r.advance(0.1)
 	var more := 0
 	for seq in 20:
 		more += r.relay(2, 200 + seq, PackedByteArray(OPUS), positions).size()
 	assert_int(more).is_equal(7)  # 0.1 s x 75 frames/s, whole frames only
+
+
+func test_a_host_stall_of_two_seconds_drops_no_honest_frames() -> void:
+	var r := Relay.new()
+	var positions := _positions()
+	r.relay(2, 0, PackedByteArray(OPUS), positions)  # the speaker is known before the stall
+	r.advance(2.0)
+	# 2 s of 20 ms frames queued during the stall arrive at once.
+	for seq in range(1, 101):
+		r.relay(2, seq, PackedByteArray(OPUS), positions)
+	assert_int(r.dropped_flood).is_equal(0)
+
+
+func test_relays_to_every_listener_in_range_and_forgets_a_speaker() -> void:
+	var r := Relay.new()
+	var positions: Dictionary[int, Vector3] = {
+		2: Vector3(0, 1, 0), 3: Vector3(3, 1, 0), 5: Vector3(0, 1, 3), 7: Vector3(0, 1, 30)
+	}
+	assert_array(_targets(r.relay(2, 1, PackedByteArray(OPUS), positions))).is_equal([3, 5])
+	for seq in range(2, 200):
+		r.relay(2, seq, PackedByteArray(OPUS), positions)
+	assert_int(r.dropped_flood).is_greater(0)
+	r.forget(2)
+	# A new peer with the same id starts with a full budget.
+	assert_array(r.relay(2, 1, PackedByteArray(OPUS), positions)).is_not_empty()
 
 
 func test_steady_speech_is_never_dropped() -> void:

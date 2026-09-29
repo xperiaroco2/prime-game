@@ -2,13 +2,18 @@ class_name SpikeVoiceRelay
 extends RefCounted
 ## Spike (#15): the host's side of proximity voice, pure (no nodes, no sockets). Voice is relayed
 ## through the host, never sent between clients directly: a client can reach only the host (the
-## #13 transport has server relay off), and a client never receives, nor learns about, voice the
-## routing rule does not entitle it to (ARCHITECTURE invariant 2).
+## #13 transport has server relay off), and a client never receives voice the routing rule does
+## not entitle it to (ARCHITECTURE invariant 2). It can still infer some: VOICE_DOWN carries the
+## speaker's own sequence number, so a gap shows how many frames went elsewhere meanwhile. The
+## real voice code should renumber each speaker-to-listener stream on the host.
 ## relay() checks one VOICE_UP frame and returns what to send to whom; the caller sends it.
-## The host checks the intent crudely: the speaker must be a placed player, and a per-speaker
-## budget of MAX_FRAMES_PER_SECOND drops a flood. The host never decodes the Opus payload.
+## The host checks the intent crudely: the speaker must be a placed player (in the spike every
+## connected peer is placed at once), and a per-speaker frame budget drops a flood: it refills at
+## MAX_FRAMES_PER_SECOND up to MAX_BURST_FRAMES, so the frames queued during a host stall of up to
+## 3 s pass. It counts frames, not bytes. The host never decodes the Opus payload.
 
-const MAX_FRAMES_PER_SECOND := 75.0  # a speaker sends 50; room for a burst after a hitch
+const MAX_FRAMES_PER_SECOND := 75.0  # a speaker sends 50
+const MAX_BURST_FRAMES := 150.0
 
 var routing := SpikeVoiceRouting.new()
 var received: Dictionary[int, int] = {}  # frames that reached the host, per speaker
@@ -26,7 +31,7 @@ var _budget: Dictionary[int, float] = {}
 ## Refills every speaker's frame budget; call once per host frame, before reading packets.
 func advance(delta: float) -> void:
 	for id: int in _budget:
-		_budget[id] = minf(_budget[id] + delta * MAX_FRAMES_PER_SECOND, MAX_FRAMES_PER_SECOND)
+		_budget[id] = minf(_budget[id] + delta * MAX_FRAMES_PER_SECOND, MAX_BURST_FRAMES)
 
 
 func forget(id: int) -> void:
@@ -43,7 +48,7 @@ func relay(
 	if not positions.has(speaker):
 		dropped_unplaced += 1
 		return out
-	var budget: float = _budget.get(speaker, MAX_FRAMES_PER_SECOND)
+	var budget: float = _budget.get(speaker, MAX_BURST_FRAMES)
 	if budget < 1.0:
 		dropped_flood += 1
 		return out
