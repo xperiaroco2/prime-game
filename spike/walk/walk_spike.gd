@@ -125,6 +125,8 @@ var _voice_no_avatar := 0
 var _voice_bus := -1
 var _level_db := SILENT_DB
 var _since_level := 0.0
+var _mic_meter := 0.0  # on screen: the microphone's recent peak, falling back slowly
+var _heard_db := SILENT_DB  # on screen: the Voice bus's recent peak
 var _last_throttle := ""
 
 
@@ -200,7 +202,12 @@ func _process(delta: float) -> void:
 		_log("voice t=%.1f %s" % [_clock, _voice_summary()])
 		var enet := _transport as SpikeEnetTransport
 		if enet != null:
-			_log("enet t=%.1f fps=%.0f %s" % [_clock, Engine.get_frames_per_second(), enet.peers_line()])
+			_log(
+				(
+					"enet t=%.1f fps=%.0f %s"
+					% [_clock, Engine.get_frames_per_second(), enet.peers_line()]
+				)
+			)
 	if _screenshot_at >= 0.0 and _clock >= _screenshot_at:
 		_screenshot_at = -1.0
 		_save_screenshot()
@@ -621,6 +628,7 @@ func _update_voice(delta: float) -> void:
 				var bytes := SpikeVoiceMessages.encode_up(_voice_seq, opus)
 				_transport.send(SpikeTransport.HOST_ID, bytes, false, SpikeTransport.CHANNEL_VOICE)
 				_voice_sent += 1
+		_mic_meter = maxf(_mic_meter - delta * 0.8, _source.last_peak)
 	for speaker: SpikeVoiceSpeaker in _speakers.values():
 		speaker.update()
 	if _voice_bus < 0:
@@ -630,6 +638,7 @@ func _update_voice(delta: float) -> void:
 		AudioServer.get_bus_peak_volume_right_db(_voice_bus, 0)
 	)
 	_level_db = maxf(_level_db, peak)
+	_heard_db = maxf(_heard_db - delta * 40.0, peak)
 	_since_level += delta
 	if _since_level < LEVEL_EVERY:
 		return
@@ -800,9 +809,25 @@ func _refresh_label() -> void:
 					]
 				)
 			),
-			"" if _is_host else "click: mouse look, Esc: release, WASD: walk",
+			"" if _is_host else "click: mouse look, Esc: release, WASD: walk\n" + _meters(),
 		]
 	)
+
+
+## Live meters for a listening test: what this client's microphone picks up, and how loud the
+## voices it plays are (the Voice bus, before the Master mute).
+func _meters() -> String:
+	var mic := ""
+	if _source != null and _source.is_mic():
+		mic = "mic   %s %.2f\n" % [_bar(_mic_meter), _mic_meter]
+	var heard := clampf((_heard_db + 60.0) / 60.0, 0.0, 1.0)  # -60 dB .. 0 dB
+	var level := "silent" if _heard_db <= -60.0 else "%.0f dB" % _heard_db
+	return mic + "heard %s %s" % [_bar(heard), level]
+
+
+static func _bar(fraction: float) -> String:
+	var filled := clampi(roundi(fraction * 20.0), 0, 20)
+	return "[" + "|".repeat(filled) + ".".repeat(20 - filled) + "]"
 
 
 static func _fmt(v: Vector3) -> String:

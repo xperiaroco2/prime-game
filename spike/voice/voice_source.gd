@@ -13,6 +13,7 @@ const TONE_AMPLITUDE := 0.3
 const MAX_TONE_CHUNKS := 5  # after a long frame the tone skips ahead instead of bursting
 
 var peak := 0.0  # the input peak since the caller last reset it
+var last_peak := 0.0  # the input peak of the latest 20 ms chunk
 var _enc := TwovoipOpusEncoder.new()
 var _tone_hz := 0.0
 var _in_size := 0
@@ -57,7 +58,13 @@ func stop() -> void:
 
 
 func describe() -> String:
-	return "mic" if _mic else "tone %.0f Hz" % _tone_hz
+	if not _mic:
+		return "tone %.0f Hz" % _tone_hz
+	return "mic '%s' at %d Hz" % [AudioServer.input_device, int(AudioServer.get_input_mix_rate())]
+
+
+func is_mic() -> bool:
+	return _mic
 
 
 ## The Opus frames encoded since the last call. `delta` is the frame time; the tone runs on it.
@@ -85,7 +92,8 @@ func pull(delta: float) -> Array[PackedByteArray]:
 func _encode(frames: PackedVector2Array, out: Array[PackedByteArray]) -> bool:
 	if _enc.process_chunk(frames) < 0:
 		return false
-	peak = maxf(peak, _enc.get_peak())
+	last_peak = _enc.get_peak()
+	peak = maxf(peak, last_peak)
 	var packet := _enc.encode_chunk(PackedByteArray())
 	if not packet.is_empty():
 		out.append(packet)
