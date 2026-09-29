@@ -9,7 +9,8 @@
 The founding stack ([ADR](2026-09-29-technical-stack-from-the-brief.md)) picked Opus through the `two-voip-godot-4`
 GDExtension (TwoVoIP), with a known Windows risk, and left the go/no-go to an M1 spike. The spike ran on throwaway
 branches that are never merged; the numbers and steps are in the handoff comments of #12 (codec on Windows), #13
-(ENet), #14 (movement), #15 (proximity voice) and #16 (measurements). Open spike issues: #21 (ENet), #22 (Godot 4.8).
+(ENet), #14 (movement), #15 (proximity voice) and #16 (measurements). Still open: #21 (an ENet disconnect found in #13) and #22 (the Godot 4.8 upgrade for
+multi-channel microphones).
 
 | Spike | Branch (on `origin`, not merged) | Head |
 |---|---|---|
@@ -72,7 +73,8 @@ Where the clean one-machine case goes:
   its audio engine (`audiodg`) when Discord started, and the delay went away as soon as Discord quit. The game's own
   path did not change. Players will usually have Discord open.
 - **Over Wi-Fi** the playback queue grew from ~35 ms to 75 ms (p90 93). The per-leg timestamps work on one machine
-  only, so the game's own path between two machines is an estimate: about 155 ms.
+  only, so the game's own path between two machines is an estimate: about 155 ms (the one-machine 108 ms, plus ~40 ms
+  more queue, plus ~10 ms for Wi-Fi legs at an RTT of 20–27 ms). The only two-machine run had Discord on the PC.
 - **Not measured:** two machines without Discord; how the ~265 ms splits between output (the monitor's speakers)
   and input (the USB microphone); a headset.
 
@@ -81,7 +83,7 @@ Where the clean one-machine case goes:
 |---|---|---|
 | Encode with RNNoise (the microphone path) | 671 µs (3.4 %) | 669 µs |
 | Encode without RNNoise | 145 µs (0.7 %) | 145 µs |
-| Decode and mix | 54 µs (0.27 %); 69–84 µs in game | 165 µs in game |
+| Decode and mix (benchmark); decode only, `push_opus_packet` (in game) | 54 µs (0.27 %); 69–84 µs in game | 165 µs in game |
 | Host routing of one frame, GDScript only, 9 listeners | 24 µs | |
 
 - **Ten players all talking** (the worst case, no voice activity detection): one encode and nine decodes per client
@@ -104,19 +106,19 @@ Where the clean one-machine case goes:
 ### Jitter buffer
 - A reorder wait of 2 frames and a 60 ms prebuffer before playback starts; it resets after a 500 ms gap.
 - It waited 0 ms for reordering on loopback and on the LAN.
-- The playback queue is 36–52 % of the game's own path, ~10 % of mouth to ear.
+- The playback queue is 36–52 % of the game's own path: ~8–12 % of mouth to ear on one machine, ~14 % on two.
 
 ## Decision
 **Go.** The voice approach passes every threshold below. The rejected thresholds and the no-go are listed in
 Alternatives.
 
-**Go thresholds.** Later changes to the voice path are checked against them. They judge only what the game controls. The devices and Windows cost the same for any
-voice program on that PC, and the next codec would not change them.
+**Go thresholds.** Later changes to the voice path are checked against them. They judge only what the game controls. The devices and
+Windows cost the same for any voice program on that PC, and the next codec would not change them.
 
 | Measure | Threshold | Measured |
 |---|---|---|
 | The game's own path, mouth to ear minus the devices | ≤ 200 ms on one machine and over a LAN | ~108 ms on one machine, ~155 ms estimated over Wi-Fi |
-| CPU for 10 players all talking, the weaker machine | ≤ 15 % of one core | 10.7 % (laptop) |
+| CPU for 10 players all talking, per client, the weaker machine (host relay excluded: see Open under CPU) | ≤ 15 % of one core | 10.7 % (laptop) |
 | Host upload for 10 players, everyone hears everyone | ≤ 5 Mbit/s | ~4.9 (spike format), ~3.3 (compact header) |
 | The humans' listening test on two machines | "sounds right" | passed in #15 |
 
@@ -137,14 +139,15 @@ conversation. The other half is left for the devices.
   Discord runs (689 ms), which the game cannot fix.
 - **The ear only**: go on the humans' listening test, with the numbers above kept as a baseline and no hard
   threshold. The cheapest option, but a later regression has no number to be checked against.
-- **No-go**: try the next codec option (Steam voice through GodotSteam, then PCM). It would not change the ~70 %
+- **No-go**: try the next codec option in #12's order (`one-voip-godot-4`, Steam voice through GodotSteam, then
+  PCM). It would not change the ~70 %
   spent in devices and Windows, and it adds the Steam dependency before the M6 decision on NAT traversal.
 
 ## Consequences
 **Lowering the device part** (not the game's code; to try in M5, or give as advice to players):
-- A wired headset instead of monitor speakers: sound over HDMI/DP can add a lot of buffering. The spike also
-  had no echo cancellation: the latency test had to mute the listener between clicks to stop howling. Players will
-  need headphones anyway, or the game needs echo cancellation.
+- A wired headset instead of monitor speakers: sound over HDMI/DP can add a lot of buffering. The spike did not
+  test echo cancellation: in the latency test, raising the listener's voice by 12 dB already made the loop howl, so
+  the listener was muted between clicks. Players on loudspeakers need echo cancellation, or headphones.
 - Compare with and without Discord on two machines, and look for the Discord or Windows setting that causes it
   (communications ducking, audio enhancements, exclusive mode).
 - Windows audio enhancements off; the microphone at 48 kHz (44.1 kHz also costs ~400 µs of CPU per frame).

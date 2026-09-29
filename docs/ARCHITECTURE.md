@@ -80,7 +80,8 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
 `server/`) → listener → decode → jitter buffer → `AudioStreamPlayer3D` on the speaker's avatar.
 - Routing inputs from the brief: distance, walls (occlusion), death (dead chat), meetings (everyone), items such as
   radios, role abilities.
-- **Decided by the M1 spike** ([voice ADR](decisions/2026-09-29-voice-approach.md), numbers in #16):
+- **Decided by the M1 spike** ([voice ADR](decisions/2026-09-29-voice-approach.md): **go**; numbers in #15
+  and #16):
   - Codec: TwoVoIP (`two-voip-godot-4`) **v6.5** on Windows with Godot 4.7.2: 48 kHz mono, 20 ms frames,
     24 kbit/s, RNNoise. v6.6 crashes the editor on import (goatchurchprime/two-voip-godot-4#107).
   - Audio is **relayed through the host**, which routes each frame and never decodes it. Clients then receive only
@@ -99,8 +100,9 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
   - Replace the fixed 60 ms prebuffer with an adaptive one: over Wi-Fi the playback queue doubled to 75 ms.
   - After a listener leaves the cutoff, the audio already queued still plays at the last gain: flush or fade it.
   - Check whether TwoVoIP enables Opus in-band FEC; `decode_fec` may only conceal a lost frame.
-  - Measure the host's per-send ENet cost with many listeners (111–167 µs per relayed frame in the spike,
-    unexplained).
+  - Measure the host's per-send ENet cost with many listeners. In the spike, relaying one frame to one listener,
+    ENet send included, cost 111–167 µs against 10 µs without the send, unexplained. At 81 sends per 20 ms that
+    would be ~40 % of one core.
   - Godot 4.7.2 WASAPI reads only mono or stereo microphones; laptop arrays need 4.8 (#22). There is no
     input-latency API in 4.7.
 - *Open (M5):* occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, and
@@ -111,14 +113,14 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
 Client-side movement for the local player; the host checks speed and teleports; remote players are interpolated.
 *Open (M4):* tick rate, snapshot format, correction policy.
 
-Lessons from the M1 spike (#14):
+Lessons from the M1 spike (#13, #14):
 - A starting point: 20 Hz snapshots, remote players drawn 2 ticks (100 ms) behind an estimated host clock. The
   delay must cover one tick interval plus the jitter; 100 ms covers about 30 ms of jitter. With 100 ms of jitter it
   starved 25 % of frames: M4 needs an adaptive delay.
 - Stamp snapshots from the host clock and skip ticks; never count sends, or tick time falls behind for good after a
   host hitch. Estimate the host clock from a sliding window of arrivals, not an all-time maximum.
-- The host's movement check compares distance with the *client's* tick delta and separately bounds the client's
-  tick rate. A budget refilled from host time rejects honest players after a network stall. If a budget is used,
+- The host's movement check should compare distance with the *client's* tick delta and separately bound the
+  client's tick rate. The spike's budget, refilled from host time, rejected an honest player after a network stall. If a budget is used,
   refill it before reading a frame's packets.
 - A correction is a reliable placement with an epoch. Moves in flight from the old epoch are dropped as stale, so
   one correction does not cascade.
@@ -169,5 +171,5 @@ parts, drawn from the designer's GDD.
 | Composition model and first content-API parts | pre-M2 design |
 | Bot-scenario format and location | pre-M2 design |
 | Intent and event protocol | M3 |
-| Voice integration: occlusion, dead chat, meetings, push-to-talk or voice activity, device latency | M5 |
+| Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | NAT traversal: Steam networking vs WebRTC with a signaling server | M6 ADR |
