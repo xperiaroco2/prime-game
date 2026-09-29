@@ -289,6 +289,15 @@ function Voice-Args([int]$N) {
     if (-not $Lan -and -not $Join -and $Listen -ne $N) { $voiceArgs += '--mute-output' }
     return $voiceArgs
 }
+# On two machines each one starts only its own peers: the other peers' logs here would be stale, and -Analyze would
+# read them as this run's.
+$elsewhere = if ($Lan) { @('client2') } elseif ($Join) { @('host', 'client1') } else { @() }
+foreach ($name in $elsewhere) {
+    foreach ($ext in @('log', 'png')) {
+        $stale = Join-Path $Logs "$name.$ext"
+        if (Test-Path $stale) { Remove-Item $stale }
+    }
+}
 $hostArgs = @('--host', '--port', "$Port", '--voice-cutoff', "$Cutoff")
 # -Latency: the players stand still, so the relayed click's loudness stays the same.
 $walk = if ($Latency) { @() } else { @('--auto') }
