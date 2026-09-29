@@ -22,15 +22,24 @@ var _clock := 0.0
 var _generated := 0
 
 
-## Starts the microphone when tone_hz is 0, else a tone of tone_hz. Returns an error message, or
-## "" on success.
-func start(tone_hz: float) -> String:
+## Starts the microphone when tone_hz is 0, else a tone of tone_hz. `mic_device` picks an input
+## device by its name in AudioServer.get_input_device_list() ("" keeps the Windows default).
+## Returns an error message, or "" on success.
+## Godot 4.7.2's WASAPI driver reads only mono or stereo microphones: with a 4-channel laptop
+## microphone array it prints an error for every sample and freezes (#15). Pick a headset
+## microphone with mic_device, or set the device to 2 channels in the Windows sound settings.
+func start(tone_hz: float, mic_device: String = "") -> String:
 	_tone_hz = tone_hz
 	_mic = tone_hz <= 0.0
 	var in_rate := OPUS_RATE
 	# A tone is not speech: RNNoise would treat it as noise and remove it.
 	var denoiser := TwovoipOpusEncoder.DENOISER_DISABLED
 	if _mic:
+		if mic_device != "":
+			if not AudioServer.get_input_device_list().has(mic_device):
+				_mic = false
+				return "no input device '%s'" % mic_device
+			AudioServer.input_device = mic_device
 		var err := AudioServer.set_input_device_active(true)
 		if err != OK:
 			return (

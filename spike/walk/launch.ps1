@@ -30,6 +30,11 @@
 # this machine's addresses; on the second, -Join <address> starts client 2 only. With -Voice mic each machine's
 # client speaks into its own microphone. Neither checks logs. The two machines must reach each other: a router with
 # client (AP) isolation keeps a Wi-Fi laptop from a wired PC (#15: both on Wi-Fi worked).
+# Godot 4.7.2 takes only mono or stereo microphones; a laptop's 4-channel microphone array floods the log with
+# "unsupported channel count" and freezes. -ListMics prints the microphones (starting none); -MicDevice "<name>"
+# picks one, e.g. a headset's.
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -ListMics
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join 192.168.0.138 -Voice mic -MicDevice "Headset (...)"
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Lan -Voice mic
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join 192.168.1.23 -Voice mic
 param(
@@ -50,7 +55,9 @@ param(
     [ValidateSet(-1, 0, 1, 2)][int]$Listen = -1,
     [switch]$Lan,
     [string]$Join = '',
-    [string]$Godot = ''
+    [string]$Godot = '',
+    [string]$MicDevice = '',
+    [switch]$ListMics
 )
 $ErrorActionPreference = 'Stop'
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -81,6 +88,14 @@ if ($KillClientAfter -gt 0 -and ($Seconds -le 0 -or $KillClientAfter -ge $Second
 if ($Cheat -and $Seconds -le ($CheatSpeedAt + 3)) { throw "-Cheat needs -Seconds above $($CheatSpeedAt + 3)" }
 if ($Shots -and $Headless) { throw '-Shots needs windows (no -Headless)' }
 if ($Shots -and $Seconds -le $ShotAt) { throw "-Shots needs -Seconds above $ShotAt" }
+if ($ListMics) {
+    # The console build prints to this terminal; a real audio driver, or the list is empty. Listing starts no microphone.
+    $console = $Godot -replace '(?<!_console)\.exe$', '_console.exe'
+    if (-not (Test-Path $console)) { $console = $Godot }
+    & $console --display-driver headless --rendering-driver dummy --audio-driver WASAPI --path "$Root" -s res://spike/voice/list_mics.gd 2>&1 |
+        ForEach-Object { "$_" } | Where-Object { $_ -match '^MICS? ' }
+    exit 0
+}
 if ($Lan -and $Join) { throw 'pass -Lan on the first machine and -Join on the second, not both' }
 if (($Lan -or $Join) -and ($Seconds -gt 0 -or $Headless -or $Cheat -or $KillClientAfter -gt 0)) {
     throw '-Lan and -Join start windows for people to play; no -Seconds, -Headless, -Cheat or -KillClientAfter'
@@ -113,6 +128,7 @@ function Voice-Args([int]$N) {
     # One machine has one microphone, so client 2 plays a tone; with -Join client 2 is alone on its machine.
     $source = if ($Voice -eq 'mic' -and ($N -eq 1 -or $Join)) { 'mic' } elseif ($Voice -eq 'off') { 'off' } else { 'tone' }
     $voiceArgs = @('--voice', $source, '--tone-hz', $(if ($N -eq 1) { '440' } else { '660' }), '--voice-cutoff', "$Cutoff")
+    if ($source -eq 'mic' -and $MicDevice) { $voiceArgs += @('--mic-device', "`"$MicDevice`"") }
     if (-not $Lan -and -not $Join -and $Listen -ne $N) { $voiceArgs += '--mute-output' }
     return $voiceArgs
 }

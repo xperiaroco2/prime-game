@@ -27,6 +27,8 @@ extends Node3D
 ## whose peak level every client logs with the distance ("WALK client level ...").
 ##   --voice off|mic|tone      what a client speaks (default off; listening is always on)
 ##   --tone-hz N               the tone's pitch (default 440)
+##   --mic-device NAME         the microphone by its name in the logged "voice input devices"
+##                             (default: the Windows default; Godot 4.7.2 takes mono or stereo only)
 ##   --voice-cutoff M          the host's delivery cutoff and the players' max_distance (default 8)
 ##   --mute-output             mute the Master bus; the Voice bus is still mixed and measured
 ## Every process prints "WALK ..." lines; spike/walk/launch.ps1 starts three and checks the logs.
@@ -108,6 +110,7 @@ var _seen_moving: Dictionary[int, bool] = {}
 # Voice.
 var _voice := "off"
 var _tone_hz := 440.0
+var _mic_device := ""
 var _cutoff := 8.0
 var _mute_output := false
 # Voice, host only.
@@ -289,6 +292,8 @@ func _parse_args(args: PackedStringArray) -> void:
 				_voice = next if next in ["off", "mic", "tone"] else "off"
 			"--tone-hz":
 				_tone_hz = clampf(next.to_float(), 50.0, 4000.0)
+			"--mic-device":
+				_mic_device = next
 			"--voice-cutoff":
 				_cutoff = clampf(next.to_float(), 0.5, 100.0)
 			"--mute-output":
@@ -599,7 +604,9 @@ func _setup_voice() -> void:
 		AudioServer.set_bus_mute(0, true)
 	if _voice != "off":
 		_source = SpikeVoiceSource.new()
-		var problem := _source.start(0.0 if _voice == "mic" else _tone_hz)
+		if _voice == "mic":
+			_log("voice input devices: %s" % ", ".join(AudioServer.get_input_device_list()))
+		var problem := _source.start(0.0 if _voice == "mic" else _tone_hz, _mic_device)
 		if problem != "":
 			push_error("WALK voice source failed: " + problem)
 			_source = null
