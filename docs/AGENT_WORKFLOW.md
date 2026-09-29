@@ -68,11 +68,11 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
    unassigned; moves the board item to **In progress**. Uncommitted changes stop it with the list: `--include` carries
    them onto the task branch, `--stash` stashes them; it never discards. `--dry-run` only fetches. A task stacked on an
    open PR starts with `--base <parent>`: the branch comes from `origin/<parent>` (refused when origin lacks it), and
-   `start` records the parent in the machine-local git config key `branch.<task>.primeBase`, where `publish` and
-   `finish-task` find it before the PR exists; resuming an existing branch ignores `--base` and says so. It creates a
-   worktree `.claude/worktrees/<n>` instead **only when another Claude session is active on this checkout**, engineer
-   only (`--worktree` / `--here` override); for the designer it then stops rather than switch the branch under that
-   session. `tools\run.cmd worktree-done <n>` removes the worktree once its branch is merged
+   `start` records the parent in the machine-local git config key `branch.<task>.primeBase` (its tip in `primeBaseTip`),
+   where `publish` and `finish-task` find it before the PR exists (§8.3); resuming an existing branch ignores `--base`
+   and says so. It creates a worktree `.claude/worktrees/<n>` instead **only when another Claude session is active on
+   this checkout**, engineer only (`--worktree` / `--here` override); for the designer it then stops rather than switch
+   the branch under that session. `tools\run.cmd worktree-done <n>` removes the worktree once its branch is merged
    ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose branch is
    never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it from the
    main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is inside the
@@ -241,16 +241,20 @@ marker and is blocked; `--dry-run` pushes run the hook too. The agent never forc
 - The hook lives in the working tree. A checkout of a commit from before M0 stage 4 has no
   `.claude/githooks/pre-push`, and git then runs no pre-push hook at all (not even LFS's): only the deny rules and
   the server ruleset stand. Task branches start from `main`, which has the hook.
-- `publish`: `git fetch --prune origin`, rebase (`--fork-point`) on `--base`, else the open PR's base (a stacked PR's
-  parent), else the parent `start --base` recorded, else `main`; then `verify` and the lease push. The PR's base wins
-  over the record, so a child that GitHub retargeted to `main` after its parent merged rebases on `main`. A recorded
-  parent gone from origin before the PR exists means `main` if its last fetched tip is in `origin/main` (merged, then
-  auto-deleted; the record is dropped), and a stop otherwise (deleted unmerged: its commits would ride into `main`). The
-  record is local to the machine that ran `start`; on the other machine the PR's base serves. It stops before touching
-  anything when the remote branch has a commit this branch never had (a suggestion committed on GitHub, "Update branch",
-  a push from the other machine): the lease alone would not protect it, because the fetch just updated the expected
-  value. A conflict aborts the rebase and leaves the branch as it was; a red `verify` pushes nothing. `--fork-point`
-  lets a stacked child replay only its own commits after its parent was rebased or amended.
+- `publish`: `git fetch --prune origin`, rebase on `--base`, else the open PR's base (a stacked PR's parent), else the
+  parent `start --base` recorded, else `main`; then `verify` and the lease push. It stops before touching anything
+  when the remote branch has a commit this branch never had (a suggestion committed on GitHub, "Update branch", a push
+  from the other machine): the lease alone would not protect it, because the fetch just updated the expected value. A
+  conflict aborts the rebase and leaves the branch as it was; a red `verify` pushes nothing. After its parent was
+  rebased or amended, a stacked child replays only its own commits: those after the parent commit `start` recorded
+  (`branch.<task>.primeBaseTip`, renewed by each publish on the parent; `rebase --onto`), else those after the fork
+  point (`--fork-point`, which needs the reflog of the parent's remote ref).
+- A recorded parent is done when the PR's base is `main` (GitHub retargets the child once the parent merges), its
+  branch is gone from origin, or it is in `origin/main`. `publish` then rebases the child's own commits on `main` and
+  drops the record, but only if the parent's latest known tip is in `origin/main`; otherwise (deleted unmerged,
+  retargeted by hand, or rewritten after this checkout last saw it) it stops and asks for the human. `publish --base
+  main` is the human's word that the parent is merged. The record is local to the machine that ran `start`: on the
+  other machine, before the PR exists, use `publish --base <parent>`.
 - `core.hooksPath` switches off the hooks Git LFS installs in `.git/hooks`, so the hook runs `git lfs pre-push`
   itself. The other three LFS hooks only serve file locking, which the project does not use. With `core.hooksPath`
   set, `git lfs install` and `git lfs update` stop with "Hook already exists" and change nothing; use
