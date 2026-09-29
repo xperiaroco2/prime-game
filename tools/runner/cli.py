@@ -65,6 +65,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--size", default="1280x720", help="window size WxH (default 1280x720)")
     p.add_argument("--frames", type=int, default=10, help="frames to wait before the capture (default 10)")
 
+    sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
+
     p = sub.add_parser("agents-check", help="assert each subagent was served by the model family it asked for")
     scope = p.add_mutually_exclusive_group()
     scope.add_argument("--session", help="session id (default: this Claude Code session, else all)")
@@ -141,6 +143,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import shot
 
             return shot.main(args.scene, out=args.out, size=args.size, frames=args.frames)
+        if args.command == "credits":
+            from . import credits
+
+            return credits.main()
         if args.command == "agents-check":
             from . import agents_check
 

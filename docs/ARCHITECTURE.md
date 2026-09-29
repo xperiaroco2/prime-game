@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | The engineer. The **content API** section is the contract with the designer: changes to it are reviewed by both. |
-| **Status** | Skeleton (M0). The boundaries below are locked (KICKOFF §3). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. |
+| **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. |
 | **Rules for agents** | The invariants are repeated in the root `CLAUDE.md`, so they survive compaction. Area rules: `core/`, `server/`, `net/`, `client/`, `voice/` `CLAUDE.md`. |
 
 ## 1. Layers and boundaries
@@ -48,7 +48,11 @@ Every schema change updates this section in the same PR.
 
 - Each outgoing message is built for one recipient from what that peer is entitled to know.
 - The information-leak test (bot harness, M3) asserts that no client ever receives anything it is not entitled to.
-  It is the most important test in the project.
+  It is the most important test in the project. Once it exists, prove it: inject a leak, see it fail, revert.
+- `tools\run.cmd bots` (M3) starts a headless host and N headless bot clients that play a full scripted match, then
+  asserts: the match ends, the winner is correct, no errors are logged, and no client received information it was
+  not entitled to. It joins `verify` and CI. `host` and `join` launch a local host and clients for the humans'
+  playtests.
 - *Open (pre-M2):* how entitlement is expressed (per event, per field, per content part), and how reveals
   (meetings, deaths, end of match) widen it.
 
@@ -58,7 +62,8 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
 `server/`) → listener → decode → jitter buffer → `AudioStreamPlayer3D` on the speaker's avatar.
 - Routing inputs from the brief: distance, walls (occlusion), death (dead chat), meetings (everyone), items such as
   radios, role abilities.
-- *Open (M1 spike, ADR):* the codec addon (`two-voip-godot-4` first; Windows build risk), fallbacks, measured
+- *Open (M1 spike, ADR):* the codec addon (`two-voip-godot-4` first; Windows build risk), fallbacks
+  (`one-voip-godot-4`, Steam voice through GodotSteam, uncompressed or lightly compressed PCM), measured
   latency and CPU cost. *Open (M1, M5):* whether audio is relayed through the host or sent directly under the
   host's decision (bandwidth for 10 players), push-to-talk and voice activity.
 
@@ -74,8 +79,9 @@ only, so the designer can test a mechanic alone.
 
 ## 9. Content API (the engineer–designer contract)
 
-A mechanic is data: a `Resource` composed from parts the engine provides. The designer's agent uses **only** the
-parts listed here. A missing part becomes an `engine-request` issue; the engineer adds it with tests and lists it
+A mechanic is data: a `Resource` composed from parts the engine provides. Adding a mechanic should usually mean
+adding data plus at most one new effect class, never changing the core loop: that is the test of this API. The
+designer's agent uses **only** the parts listed here. A missing part becomes an `engine-request` issue; the engineer adds it with tests and lists it
 here in the same PR.
 
 | Kind | Answers | Parts available |

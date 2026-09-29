@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Status** | Decided 2026-09-28 (KICKOFF Phase A, step 5). Owned by the engineer, read by both agents. |
-| Reasons | One ADR per significant decision in `docs/decisions/2026-09-28-*.md` |
-| History | The proposal, research, reviews and metrics: `docs/history/2026-09-28-phase-a/` |
+| Reasons | One ADR per significant decision in `docs/decisions/` |
+| History | The founding brief: [`docs/history/KICKOFF.md`](history/KICKOFF.md) ("KICKOFF §n" in these docs). The Phase A proposal, research, reviews and metrics: `docs/history/2026-09-28-phase-a/` |
 
 This file states **what we do**, not why. Markers: **[applied]** is in effect now; **[M0]** is built during M0;
 **👤** is a step only a human can do.
@@ -45,7 +45,8 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
-- Invariants live in root because nested files drop out after compaction.
+- Invariants live in root because nested files drop out after compaction
+  ([ADR](decisions/2026-09-29-instruction-files-and-budgets.md)).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
@@ -73,7 +74,8 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
-1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test.
+1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. Once the bot harness
+   exists (M3), `verify` runs the bot match too.
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/` or `net/` changed; plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
@@ -255,6 +257,12 @@ context ("Read it again before the next Edit"). About 2 s per edit, 8 s when the
 ### 8.5 Server side 👤
 A ruleset on `main` of the public repo: block force pushes, restrict deletions, require a PR. The required status
 check `verify` is added **after the CI PR has merged**. Code-owner review stays off. No bypass for admins.
+- **Live state (read 2026-09-29 with `gh api .../rulesets`):** `main-1` blocks deletions and non-fast-forward
+  pushes, with no bypass. `main-2` requires a PR (0 approvals) and the `verify` check, but lets the **repository
+  admin role bypass it always**, and the agents push as the admin account. The pre-push hook and the deny rules
+  still stop a push to `main` from an agent; removing the bypass is the humans' call (👤).
+- "Automatically delete head branches" is on: a merged PR's branch is deleted, and GitHub retargets its stacked
+  children to `main` itself.
 
 ## 9. Ownership
 
@@ -285,7 +293,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   **[applied]** [Project 1](https://github.com/users/xperiaroco2/projects/1) "prime-game", linked to the repo, with
   a Status field Backlog → Ready → In progress → In review → Done and a "Board" view.
   `tools\run.cmd board move <issue> in-progress|in-review` adds the issue if needed and sets the column; it refuses
-  pull requests and closed issues. 👤 The built-in workflows above can only be set in the web UI.
+  pull requests and closed issues. The built-in workflows can only be set in the web UI; **verified live
+  2026-09-29:** "Item added to project" and "Item closed" and "Pull request merged" on, "Pull request linked to
+  issue" off, plus GitHub's default "Auto-add sub-issues to project" on. `gh issue create --project prime-game`
+  lands in Backlog within about 2 s. A `board move <n> in-progress` right after the add is **not** overwritten:
+  #12, moved within 3 s of its creation, still read In progress 79 s later (then set back to Backlog by hand).
 - **Issue templates [applied]:** `feature`, `mechanic`, `bug`, `engine-request`, `intervention` in
   `.github/ISSUE_TEMPLATE/`, as Markdown with front matter, plus `.github/pull_request_template.md`. Agents build
   bodies from them and pass `--label` explicitly.
@@ -296,22 +308,35 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   roadmap goals.
 - **CODEOWNERS [applied]:** `.github/CODEOWNERS` mirrors §9. 👤 `@REPLACE_WITH_DESIGNER_HANDLE` is a placeholder
   until the designer's handle is known.
+- **ADRs:** `docs/decisions/YYYY-MM-DD-<slug>.md`, never sequential numbers, so two branches cannot collide on
+  the same number. Short: status, date, deciders, context, decision, alternatives, consequences.
 - **Append-style logs are one file per entry** ([ADR](decisions/2026-09-28-one-file-per-entry-logs.md)):
   interventions in `docs/interventions/YYYY-MM-DD-<who>-<slug>.md`, asset credits in `docs/credits/<asset>.md`.
-  `CREDITS.md` is generated by `tools\run.cmd credits`; `check` verifies every LFS asset has a credits file.
   `/log-intervention` writes the entry and promotes the rule in the same PR; each promoted rule carries a
   `<!-- see docs/interventions/… -->` comment.
+- **Credits [applied]:** one file per asset or pack, `docs/credits/<asset-slug>.md`: a `# <name>` title, then
+  `- **Files:**` (repo-relative globs in backticks; `*` stays in one folder, `**` crosses folders), `- **Author:**`,
+  `- **Source:**` and `- **License:**` lines; more fields and free text are copied as they are
+  ([example](credits/gdunit4.md)). `tools\run.cmd credits` writes `CREDITS.md` from them; nobody edits it by hand.
+  `check` fails when a file that `.gitattributes` routes through LFS, outside `addons/`, matches no entry (untracked
+  files count, so it fails before the commit), when an entry's glob matches no file, and when `CREDITS.md` is out of
+  date. `addons/` is exempt from the check (its code keeps its own LICENSE and its images stay out of LFS), but each
+  addon still gets an entry.
 
 ## 11. Godot specifics
 
+- **Stack** ([ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)): Godot 4.7.2 standard build (not .NET),
+  typed GDScript, GdUnit4, gdtoolkit, ENet behind a transport abstraction, Opus voice (M1 spike decides the addon).
+  Native Windows first, never WSL: the agent runs the Godot `*_console.exe`, humans the regular exe. Binary assets go
+  through Git LFS, `addons/` stays outside it ([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)).
 - **Editor convention** ([ADR](decisions/2026-09-28-godot-editor-save-first-convention.md)): nobody edits by hand
   while an agent works. Before asking the agent for anything, Scene → **Save All Scenes** (Ctrl+Shift+Alt+S;
   Ukrainian UI «Зберегти всі сцени»). If Godot asks about files changed on disk, always choose **Reload from disk**
   (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні зміни»). The agent reminds the human; nothing blocks. Headless runs next to an open editor were verified in M0.
-- **`.tscn` / `.tres`:** the agent hand-writes readable text and never copies a uid or a `.uid` sidecar;
-  `tools\run.cmd normalize <files>` **[applied]** re-saves them in headless editor context (`--headless -e -s`,
-  after the first file-system scan), which adds the header uid and node `unique_id`s the editor would. A second run
-  leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
+- **`.tscn` / `.tres`** ([ADR](decisions/2026-09-29-hand-written-scenes-then-normalize.md)): the agent hand-writes
+  readable text and never copies a uid or a `.uid` sidecar; `tools\run.cmd normalize <files>` **[applied]**
+  re-saves them in headless editor context (`--headless -e -s`, after the first file-system scan), which adds the
+  header uid and node `unique_id`s the editor would. A second run leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
   after a parse error, without an error: `normalize` compares property keys before and after, and on a loss restores
   the file and fails. `check` fails on UID problems, on files left modified by `--import`, and on an `ext_resource`
   uid that resolves to a different file than its `path=`.
@@ -321,16 +346,19 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
-- **Runner [applied]:** Python core `tools/run.py` with `tools\run.cmd` (immune to the execution policy) and
-  `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`, `test`, `verify`, `selftest`, `pins`, `board`, `start`,
-  `worktree-done`, `publish`, `normalize`, `shot`, `agents-check`, and `hook` (for Claude Code only). Pins and pass/fail
-  rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
-  Bash; `doctor` finds Git Bash through git's install folder.
+- **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
+  `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
+  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`,
+  `agents-check`, `credits`, and `hook` (for Claude Code only); `bots`, `host` and `join` come with the bot harness
+  (M3) and the M1 spike. Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
+  `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder.
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   and on `main`, with the checksum-checked Godot build from the pins. Test suites are named `<name>_test.gd`
-  (GdUnit4's snake_case convention).
-- **No Godot MCP server** before M4 (§14). API facts come from `check`, the engine API dump that `doctor` generates
-  into `tools/out/godot-api/4.7.2/`, and `docs.godotengine.org/en/4.7/`.
+  (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
+  branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
+- **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
+  from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
+  `docs.godotengine.org/en/4.7/`.
 
 ## 12. The designer's agent
 
@@ -376,11 +404,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 | Auto permission mode | After the M0 guard tests pass |
 | `tools\run.cmd merge` (agent merges after the human says "merge", with CI and approval checks) | If manual merging becomes friction |
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
-| Git LFS in CI (uses LFS bandwidth quota) | Ask the humans before enabling |
+| Git LFS in CI (uses LFS bandwidth quota), or `check` skipping pointer files ([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)) | Before the first LFS asset outside `addons/`; ask the humans |
 
-**Pending human actions 👤:** add the ruleset on `main` of the existing public repo `xperiaroco2/prime-game`;
-`gh auth refresh -s project` and upgrade gh; usage credits off; update or remove the PATH `claude`; invite the
-designer and replace the CODEOWNERS placeholder; set the board workflows (web UI only).
+**Pending human actions 👤** (the ruleset, the board workflows, the engineer's gh scope and version, and the PATH
+`claude` are done, checked live 2026-09-29): usage credits off on both accounts; decide on the admin bypass of
+ruleset `main-2` (§8.5); invite the designer to the repo and to project 1 and replace the CODEOWNERS placeholder;
+decide LFS in CI before the first LFS asset outside `addons/`.
 
 **Verification of the Phase A setup:** done on 2026-09-28. A fresh session confirmed subagent routing for all four
 agents and the user-settings `env`. M0's `agents-check` makes the routing check repeatable.
