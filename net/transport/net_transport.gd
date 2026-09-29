@@ -42,6 +42,8 @@ var _link_host: WeakRef = null
 ## What happened since the last poll(), in order: arrivals, packets, departures.
 var _inbox: Array[Inbound] = []
 var _first_pending_reject_ms := -1
+## Counts closes, so a drain notices a handler that closed and hosted or joined again.
+var _session := 0
 
 
 class Inbound:
@@ -113,7 +115,8 @@ func poll() -> void:
 ## the lane. ERR_DOES_NOT_EXIST: not a connected peer. ERR_INVALID_PARAMETER: this side may not
 ## send the kind, or the payload is over its cap.
 func send(to_peer: int, kind: int, payload: PackedByteArray) -> Error:
-	if not _peers.has(to_peer):
+	# Positive only: a MultiplayerPeer reads 0 as everyone and -n as everyone but n.
+	if to_peer < HOST_ID or not _peers.has(to_peer):
 		return ERR_DOES_NOT_EXIST
 	var from_host := _role == Role.HOST
 	if not _kinds.allows(kind, from_host) or payload.size() > _kinds.payload_cap(kind):
@@ -169,7 +172,6 @@ func peers() -> PackedInt32Array:
 ## Host: refuse new joins, for example during a match (ADR). The host's own client is exempt.
 func set_refuse_new_connections(refuse: bool) -> void:
 	_refusing = refuse
-	_backend_refuse(refuse)
 
 
 func is_refusing_new_connections() -> bool:
@@ -177,7 +179,8 @@ func is_refusing_new_connections() -> bool:
 
 
 ## The one decode path: every backend hands each received packet here, the loopback included, so
-## the host's own client decodes exactly what a remote client would. Tests inject bytes here too.
+## the host's own client decodes exactly what a remote client would. Only backends (from poll())
+## and tests call it; game code never does, because signals fire only from poll().
 func receive_bytes(
 	from_peer: int, bytes: PackedByteArray, channel: int, mode: MultiplayerPeer.TransferMode
 ) -> void:
@@ -213,10 +216,6 @@ func _backend_close() -> void:
 	pass
 
 
-func _backend_refuse(_refuse: bool) -> void:
-	pass
-
-
 ## Host side: links an in-process client as peer_id. Both sides learn it from their next poll().
 func _link(client: NetTransport, peer_id: int) -> void:
 	_links[peer_id] = client
@@ -247,8 +246,11 @@ func _drain_inbox() -> void:
 	# What a handler pushes meanwhile, even to this transport, waits for the next poll.
 	var batch := _inbox
 	_inbox = []
+	var session := _session
 	for item in batch:
-		if _role == Role.IDLE:  # a handler closed this transport
+		# A handler closed this transport, and may have hosted or joined again: the rest of the
+		# batch belongs to the old session.
+		if _session != session:
 			return
 		match item.type:
 			Inbound.Type.PACKET:
@@ -277,10 +279,12 @@ func _drain_inbox() -> void:
 func _end_client(outcome: Signal) -> void:
 	_backend_close()
 	_reset()
+	_log_rejects(true)
 	outcome.emit()
 
 
 func _reset() -> void:
+	_session += 1
 	_role = Role.IDLE
 	_own_id = 0
 	_peers.clear()
