@@ -34,6 +34,10 @@ func _init() -> void:
 func host(bind_ip: String, port: int, max_clients: int) -> Error:
 	_peer = ENetMultiplayerPeer.new()
 	_peer.set_bind_ip(bind_ip)
+	# max_channels stays 0 (ENet's maximum): Godot 4.7.2's create_server passes it on as the host's
+	# *incoming bandwidth* (create_host_bound(ip, port, peers, 0, max_channels, out_bandwidth)), so
+	# 1 announced 4 bytes/s and every client throttled its unreliable packets to 1/32 (#15). The
+	# client asks for the channels it needs in join().
 	var err := _peer.create_server(port, max_clients)
 	if err == OK:
 		_mp.multiplayer_peer = _peer
@@ -43,7 +47,9 @@ func host(bind_ip: String, port: int, max_clients: int) -> Error:
 
 func join(address: String, port: int) -> Error:
 	_peer = ENetMultiplayerPeer.new()
-	var err := _peer.create_client(address, port)
+	# Channels beyond ENet's system ones: SceneMultiplayer channel n > 0 is ENet channel
+	# SYSCH_MAX + n - 1, so CHANNELS - 1 extra channels carry channels 1.. .
+	var err := _peer.create_client(address, port, CHANNELS - 1)
 	if err == OK:
 		_mp.multiplayer_peer = _peer
 	return err
@@ -54,16 +60,29 @@ func poll() -> void:
 		_mp.poll()
 
 
-func send(to_peer: int, bytes: PackedByteArray, reliable: bool) -> Error:
+func send(
+	to_peer: int, bytes: PackedByteArray, reliable: bool, channel: int = CHANNEL_GAME
+) -> Error:
 	if _peer == null or _peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return ERR_UNCONFIGURED
+	# ENet itself never checks the channel number against the channels set up in host/join.
+	if channel < 0 or channel >= CHANNELS:
+		return ERR_INVALID_PARAMETER
 	# Channel 0 keeps each transfer mode apart: lost unreliable packets never stall reliable ones.
-	var mode := (
-		MultiplayerPeer.TRANSFER_MODE_RELIABLE
-		if reliable
-		else MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED
-	)
-	return _mp.send_bytes(bytes, to_peer, mode)
+	var mode := MultiplayerPeer.TRANSFER_MODE_RELIABLE
+	if not reliable:
+		mode = (
+			MultiplayerPeer.TRANSFER_MODE_UNRELIABLE
+			if channel == CHANNEL_VOICE
+			else MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED
+		)
+	return _mp.send_bytes(bytes, to_peer, mode, channel)
+
+
+func pop_sent_bytes() -> int:
+	if _peer == null or _peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
+		return -1
+	return int(_peer.host.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA))
 
 
 func own_id() -> int:
@@ -75,6 +94,48 @@ func close() -> void:
 	if _peer != null:
 		_peer.close()
 		_peer = null
+
+
+## Each ENet peer's round trip, loss and throttle, without resetting any counter.
+func peers_line() -> String:
+	if _peer == null or _peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
+		return "none"
+	var parts := PackedStringArray()
+	for p in _peer.host.get_peers():
+		parts.append(
+			(
+				"rtt=%.0f last_rtt=%.0f last_var=%.0f loss=%.0f throttle=%.0f/%.0f acc=%.0f dec=%.0f"
+				% [
+					p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME),
+					p.get_statistic(ENetPacketPeer.PEER_LAST_ROUND_TRIP_TIME),
+					p.get_statistic(ENetPacketPeer.PEER_LAST_ROUND_TRIP_TIME_VARIANCE),
+					p.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS),
+					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE),
+					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_LIMIT),
+					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_ACCELERATION),
+					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_DECELERATION),
+				]
+			)
+		)
+	return ", ".join(parts)
+
+
+## Each ENet peer's throttle and throttle limit, for logging every change.
+func throttle_line() -> String:
+	if _peer == null or _peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
+		return "none"
+	var parts := PackedStringArray()
+	for p in _peer.host.get_peers():
+		parts.append(
+			(
+				"%.0f/%.0f"
+				% [
+					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE),
+					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_LIMIT),
+				]
+			)
+		)
+	return ",".join(parts)
 
 
 ## Temporary diagnostics: host packet counters since the last call, and each ENet peer's state.

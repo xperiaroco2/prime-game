@@ -15,6 +15,12 @@ signal packet_received(from_peer: int, bytes: PackedByteArray)
 
 const HOST_ID := 1
 const EVERYONE := 0
+## Unreliable game packets are ordered: an older one arriving after a newer one is dropped.
+## Unreliable voice packets are not: a late voice frame still arrives, and the listener's jitter
+## buffer puts it back in place (dropping it would leave a gap to conceal).
+const CHANNEL_GAME := 0
+const CHANNEL_VOICE := 1
+const CHANNELS := 2
 
 
 func host(_bind_ip: String, _port: int, _max_clients: int) -> Error:
@@ -29,9 +35,17 @@ func poll() -> void:
 	_missing("poll")
 
 
-## Sends to one peer, or to every connected peer with EVERYONE. Unreliable packets are ordered.
-func send(_to_peer: int, _bytes: PackedByteArray, _reliable: bool) -> Error:
+## Sends to one peer, or to every connected peer with EVERYONE. Unreliable packets are ordered
+## on CHANNEL_GAME and unordered on CHANNEL_VOICE.
+func send(
+	_to_peer: int, _bytes: PackedByteArray, _reliable: bool, _channel: int = CHANNEL_GAME
+) -> Error:
 	return _missing("send")
+
+
+## Bytes this peer sent since the last call, with every protocol overhead; -1 if not measured.
+func pop_sent_bytes() -> int:
+	return -1
 
 
 func own_id() -> int:
