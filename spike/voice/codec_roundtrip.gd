@@ -40,7 +40,7 @@ func _encode() -> Array[PackedByteArray]:
 			t += 1
 		var packet := PackedByteArray()
 		if enc.process_chunk(frames) >= 0:
-			packet = enc.encode_chunk(PackedByteArray(), 0)
+			packet = enc.encode_chunk(PackedByteArray())
 		if packet.is_empty():
 			print("ROUNDTRIP FAIL encoding chunk ", i)
 			packets.clear()
@@ -61,20 +61,14 @@ func _decode_and_measure(packets: Array[PackedByteArray]) -> bool:
 		print("ROUNDTRIP FAIL instantiate_playback")
 		return false
 	playback.start()
-	var decoded := 0
 	for p in packets:
-		var n: int = playback.push_opus_packet(p, 0, 0)
-		if n < 0:
-			print("ROUNDTRIP FAIL push_opus_packet: ", n)
-			return false
-		decoded += n
+		playback.push_opus_packet(p, 0, 0)
 	playback.mark_end_opus_stream(true)
-	print(
-		(
-			"ROUNDTRIP decoded %d frames, queue %d, decode errors %d"
-			% [decoded, playback.queue_length_frames(), playback.get_decode_errors()]
-		)
-	)
+	var decoded: int = playback.queue_length_frames()
+	print("ROUNDTRIP decoded %d frames (expected %d)" % [decoded, CHUNKS * CHUNK])
+	if decoded != CHUNKS * CHUNK:
+		print("ROUNDTRIP FAIL decoded frame count")
+		return false
 
 	var mix_rate: float = AudioServer.get_mix_rate()
 	var want := int(mix_rate * float(CHUNKS * CHUNK) / RATE)

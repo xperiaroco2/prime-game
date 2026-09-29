@@ -95,7 +95,7 @@ func _process(delta: float) -> void:
 		if frames.size() < in_size or _enc.process_chunk(frames) < 0:
 			break
 		_peak = maxf(_peak, _enc.get_peak())
-		var packet: PackedByteArray = _enc.encode_chunk(PackedByteArray(), 0)
+		var packet: PackedByteArray = _enc.encode_chunk(PackedByteArray())
 		if packet.is_empty():
 			continue
 		_packets += 1
@@ -124,7 +124,7 @@ func _stats() -> void:
 	var line := (
 		(
 			"t=%.1fs packets=%d avg=%dB %.1fkbit/s mic_peak=%.3f queue=%.0fms"
-			+ " underflow=%d overflow=%d decode_errors=%d"
+			+ " skips=%d overflow_skips=%d"
 		)
 		% [
 			_elapsed,
@@ -133,9 +133,8 @@ func _stats() -> void:
 			kbps,
 			_peak,
 			queue_ms,
-			_playback.get_underflow_frames(),
-			_playback.get_overflow_frames(),
-			_playback.get_decode_errors(),
+			_playback.get_skips(false),
+			_playback.get_skips(true),
 		]
 	)
 	print("LOOPBACK ", line)
