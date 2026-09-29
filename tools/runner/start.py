@@ -1,8 +1,9 @@
 """`start <n>` (docs/AGENT_WORKFLOW.md §4.1) and `worktree-done <n>`.
 
 `start` puts the checkout on the task branch `<area>/<n>-<slug>` from `origin/main` (or back on it, when it exists),
-or from `origin/<parent>` with `--base <parent>` for a task stacked on an open PR; it records that parent in the git
-config key `branch.<task>.primeBase`, where `publish` finds it before the PR exists. It also assigns the issue to the caller if nobody has it, and moves it to "In progress" on the board. It never discards
+or from `origin/<parent>` with `--base <parent>` for a task stacked on an open PR; it records that parent and its tip
+in the git config keys `branch.<task>.primeBase` and `primeBaseTip`, where `publish` finds them before the PR exists.
+It assigns the issue to the caller if nobody has it, and moves it to "In progress" on the board. It never discards
 work: uncommitted changes stop it unless the caller says `--include` (carry them onto the task branch) or `--stash`.
 It makes a worktree `.claude/worktrees/<n>` instead only for the engineer, and only when another Claude session is
 active on this checkout (docs/decisions/2026-09-28-worktrees-only-for-parallel-sessions.md). `worktree-done <n>`
@@ -185,7 +186,9 @@ def record_parent(branch: str, parent: str, dry_run: bool) -> None:
     if dry_run:
         say(f"        would record {parent} as the base for publish ({publish.base_key(branch)})")
         return
+    tip = _must(_git("rev-parse", f"{REMOTE}/{parent}^{{commit}}"), "reading the parent's tip")
     _must(_git("config", publish.base_key(branch), parent), "recording the base")
+    _must(_git("config", publish.tip_key(branch), tip), "recording the parent's tip")
     ok(f"recorded {parent} as the base for publish and the PR")
 
 

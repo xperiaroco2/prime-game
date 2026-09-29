@@ -123,16 +123,60 @@ class StackedTest(unittest.TestCase):
         pushed = self.remote(CHILD)
         with self.assertRaises(Failure) as caught:
             publish.main()
-        self.assertIn("was not merged", str(caught.exception))
+        self.assertIn("cannot confirm that the parent", str(caught.exception))
         self.assertEqual(git(self.work, "rev-parse", "HEAD"), head)
         self.assertEqual(self.remote(CHILD), pushed)
         self.assertEqual(publish.recorded_base(CHILD), PARENT)
 
-    def test_an_explicit_base_wins_over_the_record(self) -> None:
+    def amend_parent(self) -> None:
+        """The parent's session rewrites the parent after review and pushes it with a lease."""
+        git(self.github, "switch", "-q", PARENT)
+        (self.github / "p.txt").write_text("parent, rewritten after review\n", encoding="utf-8", newline="\n")
+        git(self.github, "commit", "-q", "--amend", "-a", "-m", "parent, reviewed")
+        git(self.github, "push", "-q", "--force-with-lease", "origin", PARENT)
+
+    def test_parent_amended_before_the_child_pr_exists(self) -> None:
         self.start_child()
-        self.assertEqual(publish.main(base="main"), 0)
-        self.assertEqual(self.own_commits(), ["child", "parent"])  # the parent's commit rides along, as asked
-        self.assertEqual(publish.recorded_base(CHILD), PARENT)
+        self.amend_parent()
+        self.assertEqual(publish.main(), 0)  # a plain rebase would replay the old parent commit and conflict
+        self.assertEqual(git(self.work, "log", "--format=%s", f"origin/{PARENT}..HEAD").splitlines(), ["child"])
+        self.assertEqual(self.remote(f"{CHILD}~1"), self.remote(PARENT))
+
+    def test_parent_amended_merged_and_deleted_unseen_needs_the_human_then_base_main(self) -> None:
+        self.start_child()
+        self.amend_parent()  # this checkout never fetches the rewritten parent
+        self.merge_and_delete_parent()
+        with self.assertRaises(Failure) as caught:
+            publish.main()
+        self.assertIn("run publish --base main", str(caught.exception))
+        self.assertEqual(publish.main(base="main"), 0)  # the human checked: the parent's PR was merged
+        self.assertEqual(self.own_commits(), ["child"])
+        self.assertEqual((self.work / "p.txt").read_text(encoding="utf-8"), "parent, rewritten after review\n")
+        self.assertIsNone(publish.recorded_base(CHILD))
+
+    def test_parent_ref_pruned_by_another_session_before_this_publish(self) -> None:
+        self.start_child()
+        self.merge_and_delete_parent()
+        git(self.work, "update-ref", "-d", f"refs/remotes/origin/{PARENT}")  # a publish in a sibling worktree
+        self.pr_base = "main"
+        self.assertEqual(publish.main(), 0)  # the recorded tip proves the merge
+        self.assertEqual(self.own_commits(), ["child"])
+
+    def test_parent_merged_but_its_branch_kept(self) -> None:
+        self.start_child()
+        git(self.github, "fetch", "-q")
+        git(self.github, "switch", "-q", "main")
+        git(self.github, "merge", "-q", "--no-ff", "-m", "Merge the parent", f"origin/{PARENT}")
+        git(self.github, "push", "-q", "origin", "main")
+        self.assertEqual(publish.main(), 0)
+        self.assertEqual(self.own_commits(), ["child"])
+        self.assertIsNone(publish.recorded_base(CHILD))  # the PR opens on main, not on the dead parent
+
+    def test_base_main_by_hand_replays_only_the_own_commits(self) -> None:
+        self.start_child()
+        self.assertEqual(publish.main(base="main"), 0)  # the human's word that the parent is done
+        self.assertEqual(self.own_commits(), ["child"])
+        self.assertIsNone(publish.recorded_base(CHILD))
 
 
 if __name__ == "__main__":

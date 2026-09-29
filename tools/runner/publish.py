@@ -12,7 +12,7 @@ import re
 import shutil
 
 from . import verify
-from .common import ROOT, Failure, Result, bad, ok, run, say
+from .common import ROOT, Failure, Result, bad, ok, run, say, warn
 
 REMOTE = "origin"
 # The checkout publish works on (tests point it at a temp repo).
@@ -52,21 +52,22 @@ def base_key(branch: str) -> str:
     return f"branch.{branch}.primeBase"
 
 
+def tip_key(branch: str) -> str:
+    """The parent commit this branch's own commits sit on: `rebase --onto` replays exactly those, without the reflog
+    `--fork-point` needs (worktrees share the remote refs, and any prune deletes a gone parent's ref and reflog)."""
+    return f"branch.{branch}.primeBaseTip"
+
+
 def recorded_base(branch: str) -> str | None:
     return _git("config", "--get", base_key(branch)).out.strip() or None
 
 
-def forget_gone_parent(branch: str, parent: str, last_tip: str) -> None:
-    """The recorded parent is gone from origin: fine when it was merged (auto-delete), so the base becomes main. A
-    parent deleted unmerged would put its commits into main through this branch, so publish stops instead."""
-    if not last_tip or _git("merge-base", "--is-ancestor", last_tip, f"{REMOTE}/main").rc != 0:
-        raise Failure(
-            f"the parent {parent} that start --base recorded is gone from {REMOTE}, and its last known tip "
-            f"({last_tip[:10] or 'unknown'}) is not in {REMOTE}/main, so it was not merged. Rebasing on main would "
-            "carry its commits into this PR. Nothing was changed; ask the human."
-        )
-    _must(_git("config", "--unset", base_key(branch)), "forgetting the recorded base")
-    ok(f"the parent {parent} was merged and deleted; the base is main from now on")
+def _sha(ref: str) -> str:
+    return _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").out.strip()
+
+
+def _in(commit: str, ref: str) -> bool:
+    return bool(commit) and _git("merge-base", "--is-ancestor", commit, ref).rc == 0
 
 
 def was_local(branch: str, oid: str) -> bool:
@@ -90,23 +91,41 @@ def main(base: str | None = None) -> int:
     if dirty:
         raise Failure(f"uncommitted changes; commit them first:\n{dirty}")
 
-    parent = None if base else recorded_base(branch)
-    # Read before the prune below deletes it: the tip of the recorded parent this checkout last saw.
-    parent_tip = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{parent}").out.strip() if parent else ""
+    asked = base
+    parent = recorded_base(branch)
+    tip = _git("config", "--get", tip_key(branch)).out.strip() if parent else ""
+    if not _in(tip, "HEAD"):
+        tip = ""  # the branch was rewritten by hand: --fork-point below, as for an unrecorded branch
+    # Read before the prune below deletes it: the parent's tip as this checkout last saw it.
+    stale = _sha(f"refs/remotes/{REMOTE}/{parent}") if parent else ""
     # --prune drops remote-tracking refs of deleted branches, so the lease below never expects a branch that is gone.
     _must(_git("fetch", "--prune", REMOTE), f"git fetch {REMOTE}")
     # An open PR's base wins over the recorded parent: GitHub retargets it to main once the parent is merged.
     base = base or pr_base(branch)
-    source = ""
-    if not base and parent:
-        if _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{parent}").rc == 0:
+    source, unstack = "", False
+    if parent:
+        live = _sha(f"refs/remotes/{REMOTE}/{parent}")
+        merged = _in(live, f"{REMOTE}/main")
+        if not base and live and not merged:
             base, source = parent, " (recorded by start --base)"
-        else:
-            forget_gone_parent(branch, parent, parent_tip)
+        elif (base or "main") == "main":
+            # The parent is done: merged (its branch deleted or not) or, with --base main, the human says so.
+            latest = live or stale or tip
+            if not asked and not _in(latest, f"{REMOTE}/main"):
+                raise Failure(
+                    f"publish cannot confirm that the parent {parent} (recorded by start --base) was merged: its last "
+                    f"known tip {latest[:10] or '(unknown)'} is not in {REMOTE}/main. Rebasing on main now could carry "
+                    "its commits into this PR. Nothing was changed. Ask the human to check the parent's PR; if it was "
+                    "merged, run publish --base main (it replays only this branch's own commits onto main)."
+                )
+            base, unstack = "main", True
+        elif base == parent and merged:
+            warn(f"the parent {parent} is merged but its branch remains: gh pr edit {branch} --base main")
     base = base or "main"
     upstream = f"{REMOTE}/{base}"
     _must(_git("rev-parse", "--verify", "--quiet", f"refs/remotes/{upstream}"), f"finding {upstream}")
     ok(f"fetched {REMOTE}; base {upstream}{source}")
+    onto = bool(tip) and (unstack or base == parent)
 
     before = _must(_git("rev-parse", "HEAD"), "reading HEAD")
     remote_oid = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").out.strip()
@@ -117,8 +136,9 @@ def main(base: str | None = None) -> int:
             f"before changing anything. Ask the human; usually: git merge {REMOTE}/{branch}, then publish again."
         )
 
-    # --fork-point: after a stacked parent was rebased, replay only this branch's own commits onto it.
-    res = _git("rebase", "--fork-point", upstream)
+    # After a stacked parent was rebased or amended, replay only this branch's own commits onto it: the ones after the
+    # recorded parent commit (--onto), else after the fork point that the upstream's reflog shows (--fork-point).
+    res = _git("rebase", "--onto", upstream, tip) if onto else _git("rebase", "--fork-point", upstream)
     if res.rc != 0 or res.timed_out:
         _git("rebase", "--abort")
         raise Failure(
@@ -127,6 +147,12 @@ def main(base: str | None = None) -> int:
         )
     after = _must(_git("rev-parse", "HEAD"), "reading HEAD")
     ok(f"rebased on {upstream}" + (" (already up to date)" if after == before else f": {before[:10]} -> {after[:10]}"))
+    if unstack:
+        _git("config", "--unset", tip_key(branch))
+        _must(_git("config", "--unset", base_key(branch)), "forgetting the recorded parent")
+        ok(f"the parent {parent} is merged: the base is main from now on")
+    elif parent and base == parent:
+        _must(_git("config", tip_key(branch), _sha(upstream)), "recording the parent's tip")
 
     say()
     if verify.main() != 0:

@@ -454,6 +454,7 @@ class StartTest(unittest.TestCase):
         self.assertEqual(self.branch(), "core/42-vote-tally")
         self.assertEqual(git(self.work, "rev-parse", "HEAD"), tip)
         self.assertEqual(self.recorded(), "core/41-parent")
+        self.assertEqual(git(self.work, "config", "--get", "branch.core/42-vote-tally.primeBaseTip"), tip)
         self.assertEqual(subprocess.run(["git", "config", "branch.core/42-vote-tally.merge"], cwd=self.work).returncode, 1)
         self.moves.assert_called_once_with(42, "in-progress")
 
@@ -465,6 +466,8 @@ class StartTest(unittest.TestCase):
         self.assertEqual(self.branch(), "main")
         self.assertEqual(git(tree, "rev-parse", "HEAD"), tip)
         self.assertEqual(self.recorded(), "core/41-parent")
+        with mock.patch.object(start.publish, "REPO", tree):  # publish, run in the worktree, finds the record
+            self.assertEqual(start.publish.recorded_base("core/42-vote-tally"), "core/41-parent")
 
     def test_base_that_origin_lacks_is_refused_and_changes_nothing(self) -> None:
         with self.assertRaises(Failure) as caught:
