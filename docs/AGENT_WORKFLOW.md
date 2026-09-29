@@ -256,6 +256,12 @@ context ("Read it again before the next Edit"). About 2 s per edit, 8 s when the
 ### 8.5 Server side 👤
 A ruleset on `main` of the public repo: block force pushes, restrict deletions, require a PR. The required status
 check `verify` is added **after the CI PR has merged**. Code-owner review stays off. No bypass for admins.
+- **Live state (read 2026-09-29 with `gh api .../rulesets`):** `main-1` blocks deletions and non-fast-forward
+  pushes, with no bypass. `main-2` requires a PR (0 approvals) and the `verify` check, but lets the **repository
+  admin role bypass it always**, and the agents push as the admin account. The pre-push hook and the deny rules
+  still stop a push to `main` from an agent; removing the bypass is the humans' call (👤).
+- "Automatically delete head branches" is on: a merged PR's branch is deleted, and GitHub retargets its stacked
+  children to `main` itself.
 
 ## 9. Ownership
 
@@ -286,7 +292,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   **[applied]** [Project 1](https://github.com/users/xperiaroco2/projects/1) "prime-game", linked to the repo, with
   a Status field Backlog → Ready → In progress → In review → Done and a "Board" view.
   `tools\run.cmd board move <issue> in-progress|in-review` adds the issue if needed and sets the column; it refuses
-  pull requests and closed issues. 👤 The built-in workflows above can only be set in the web UI.
+  pull requests and closed issues. The built-in workflows can only be set in the web UI; **verified live
+  2026-09-29:** "Item added to project" and "Item closed" and "Pull request merged" on, "Pull request linked to
+  issue" off, plus GitHub's default "Auto-add sub-issues to project" on. `gh issue create --project prime-game`
+  lands in Backlog within about 2 s. A `board move <n> in-progress` right after the add is **not** overwritten:
+  #12, moved within 3 s of its creation, still read In progress 79 s later (then set back to Backlog by hand).
 - **Issue templates [applied]:** `feature`, `mechanic`, `bug`, `engine-request`, `intervention` in
   `.github/ISSUE_TEMPLATE/`, as Markdown with front matter, plus `.github/pull_request_template.md`. Agents build
   bodies from them and pass `--label` explicitly.
@@ -392,9 +402,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
 | Git LFS in CI (uses LFS bandwidth quota), or `check` skipping pointer files ([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)) | Before the first LFS asset outside `addons/`; ask the humans |
 
-**Pending human actions 👤:** add the ruleset on `main` of the existing public repo `xperiaroco2/prime-game`;
-`gh auth refresh -s project` and upgrade gh; usage credits off; update or remove the PATH `claude`; invite the
-designer and replace the CODEOWNERS placeholder; set the board workflows (web UI only).
+**Pending human actions 👤** (the ruleset, the board workflows, the engineer's gh scope and version, and the PATH
+`claude` are done, checked live 2026-09-29): usage credits off on both accounts; decide on the admin bypass of
+ruleset `main-2` (§8.5); invite the designer to the repo and to project 1 and replace the CODEOWNERS placeholder;
+decide LFS in CI before the first LFS asset outside `addons/`.
 
 **Verification of the Phase A setup:** done on 2026-09-28. A fresh session confirmed subagent routing for all four
 agents and the user-settings `env`. M0's `agents-check` makes the routing check repeatable.
