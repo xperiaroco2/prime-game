@@ -22,7 +22,7 @@ gdformatrc text eol=lf
 *.cmd text eol=crlf
 *.bat text eol=crlf
 
-# Binary assets go through Git LFS (KICKOFF §2). CI checks out without LFS content.
+# Binary assets go through Git LFS (docs/history/KICKOFF.md §2). CI checks out without LFS content.
 *.png filter=lfs diff=lfs merge=lfs -text
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.jpeg filter=lfs diff=lfs merge=lfs -text

@@ -74,7 +74,8 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
-1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test.
+1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. Once the bot harness
+   exists (M3), `verify` runs the bot match too.
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/` or `net/` changed; plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
@@ -307,6 +308,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   roadmap goals.
 - **CODEOWNERS [applied]:** `.github/CODEOWNERS` mirrors §9. 👤 `@REPLACE_WITH_DESIGNER_HANDLE` is a placeholder
   until the designer's handle is known.
+- **ADRs:** `docs/decisions/YYYY-MM-DD-<slug>.md`, never sequential numbers, so two branches cannot collide on
+  the same number. Short: status, date, deciders, context, decision, alternatives, consequences.
 - **Append-style logs are one file per entry** ([ADR](decisions/2026-09-28-one-file-per-entry-logs.md)):
   interventions in `docs/interventions/YYYY-MM-DD-<who>-<slug>.md`, asset credits in `docs/credits/<asset>.md`.
   `/log-intervention` writes the entry and promotes the rule in the same PR; each promoted rule carries a
@@ -351,7 +354,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder.
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   and on `main`, with the checksum-checked Godot build from the pins. Test suites are named `<name>_test.gd`
-  (GdUnit4's snake_case convention).
+  (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
+  branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
 - **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
   from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
   `docs.godotengine.org/en/4.7/`.

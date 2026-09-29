@@ -26,4 +26,4 @@ after a parse error.
 ## Consequences
 The headless editor re-save is undocumented: `normalize`'s selftest runs it against the real Godot, and it is re-checked
 on every Godot upgrade. Research: `docs/history/2026-09-28-phase-a/AGENT_WORKFLOW-proposal.md` §12.4 and
-`local-tests/uidlab/`.
+`docs/history/2026-09-28-phase-a/local-tests/uidlab/`.
