@@ -36,7 +36,8 @@ func host(bind_ip: String, port: int, max_clients: int) -> Error:
 	_peer.set_bind_ip(bind_ip)
 	# max_channels stays 0 (ENet's maximum): Godot 4.7.2's create_server passes it on as the host's
 	# *incoming bandwidth* (create_host_bound(ip, port, peers, 0, max_channels, out_bandwidth)), so
-	# 1 announced 4 bytes/s and every client throttled its unreliable packets to 1/32 (#15). The
+	# 1 announced 3 bytes/s (1 + SYSCH_MAX 2) and every client throttled its unreliable packets to
+	# as little as 1/32 (#15; godotengine/godot#123963). The
 	# client asks for the channels it needs in join().
 	var err := _peer.create_server(port, max_clients)
 	if err == OK:
