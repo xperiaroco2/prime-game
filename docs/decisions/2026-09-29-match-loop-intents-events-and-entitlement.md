@@ -4,9 +4,10 @@
 - **Date:** 2026-09-29
 - **Deciders:** designed by the agent in #32; the rule gaps it found were answered by the engineer in #32's session
   and recorded in the [MVP rules](2026-09-29-mvp-rules.md)
-- **Refined by:** [content API v0](2026-09-29-content-api-v0.md) (#33): the intent `Hit` is now `Use`, the event
-  `DissidentTeam` is now `Teammates`, and win conditions are checked after every fact and at the end of every step
-  instead of as a tick system
+- **Refined by:** [content API v0](2026-09-29-content-api-v0.md) (#33): the intent `Hit` is now `Use`; the events
+  `DissidentTeam` and `CirclePlaced` are now `Teammates` and `StationPlaced`, and `TasksAssigned` and
+  `SettingsChanged` no longer assume Delivery; win conditions are checked after every fact and at the end of every
+  step instead of as a tick system
 
 ## Context
 Stage 2 of M2 writes the core rules (#30). Before any core code, the base mode's phases, the MVP's intents and
