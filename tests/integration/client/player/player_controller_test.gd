@@ -118,11 +118,11 @@ func test_no_jump_without_its_full_cost() -> void:
 func test_no_jump_in_the_air() -> void:
 	var player := _add_player(Vector3(0.0, 3.0, 0.0))
 	await _frames(3)
-	var before := player.stamina.get_stamina()
+	var stamina_before := player.stamina.get_stamina()
 	player.jump_requested = true
 	await _frames(1)
 	assert_float(player.velocity.y).is_less(0.0)
-	assert_float(player.stamina.get_stamina()).is_greater_equal(before)
+	assert_float(player.stamina.get_stamina()).is_greater_equal(stamina_before)
 
 
 func test_walks_up_a_step_of_step_height() -> void:
