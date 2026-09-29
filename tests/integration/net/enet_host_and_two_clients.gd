@@ -1,6 +1,8 @@
 extends SceneTree
 ## A host and two clients over ENet on 127.0.0.1, one process each (#40). Headless only:
 ##   tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3
+## `verify` adds `-- --port=<a free port>`, so worktrees running it at once never share a port;
+## without --port it uses DEFAULT_PORT.
 ## PRIME_INSTANCE picks the part: 1 hosts and plays through its own loopback client; 2 and 3 join.
 ## Each process exits 0 when its part held, else prints an ERROR line and exits 1.
 ##
@@ -14,7 +16,8 @@ extends SceneTree
 ## rejected anywhere: that also checks the lanes' channels and modes against real ENet.
 
 const ADDRESS := "127.0.0.1"
-const PORT := 24571
+const DEFAULT_PORT := 24571
+const PORT_ARG := "--port="
 const DEADLINE_MS := 60000
 const RESEND_MS := 100
 const RETRY_JOIN_MS := 500
@@ -29,6 +32,7 @@ const LANES: Array[int] = [TALK, LATEST, VOICE]
 
 var _kinds := NetKindTable.new()
 var _instance := 0
+var _port := DEFAULT_PORT
 var _started_ms := 0
 var _done := false
 # Host part.
@@ -104,7 +108,12 @@ func _initialize() -> void:
 	_kinds.add(COMMAND, NetKindTable.Lane.RELIABLE, NetKindTable.Direction.HOST_TO_CLIENT, 64)
 	_instance = int(OS.get_environment("PRIME_INSTANCE"))
 	_started_ms = Time.get_ticks_msec()
-	if _instance == 1:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with(PORT_ARG):
+			_port = int(arg.trim_prefix(PORT_ARG))
+	if _port < 1 or _port > 65535:
+		_fail("%s must be a port between 1 and 65535, got %d" % [PORT_ARG, _port])
+	elif _instance == 1:
 		_start_host()
 	elif _instance in [2, 3]:
 		_client = EchoClient.new(EnetTransport.new(_kinds), _instance)
@@ -128,9 +137,9 @@ func _process(_delta: float) -> bool:
 func _start_host() -> void:
 	_host = EnetTransport.new(_kinds)
 	_host.bind_address = ADDRESS
-	var err := _host.host(PORT, 4)
+	var err := _host.host(_port, 4)
 	if err != OK:
-		_fail("host on %s:%d failed: %s" % [ADDRESS, PORT, error_string(err)])
+		_fail("host on %s:%d failed: %s" % [ADDRESS, _port, error_string(err)])
 		return
 	_host.peer_joined.connect(
 		func(peer_id: int) -> void: print("NET host peer_joined %d" % peer_id)
@@ -139,7 +148,7 @@ func _start_host() -> void:
 	_host.packet_received.connect(_on_host_packet)
 	_own = EchoClient.new(LoopbackTransport.own_client_of(_host), 1)
 	_phase = "join"
-	print("NET host listening on %s:%d" % [ADDRESS, PORT])
+	print("NET host listening on %s:%d" % [ADDRESS, _port])
 
 
 func _host_step() -> void:
@@ -216,7 +225,7 @@ func _start_forged_join() -> void:
 	if err != OK:
 		_fail("raw ENet client failed: " + error_string(err))
 		return
-	_forger.connect_to_host(ADDRESS, PORT, 3, FORGED_ID)
+	_forger.connect_to_host(ADDRESS, _port, 3, FORGED_ID)
 	_forged_started_ms = Time.get_ticks_msec()
 
 
@@ -247,7 +256,7 @@ func _start_kick() -> void:
 			_kickee_got_bye = kind == COMMAND
 	)
 	_kickee.host_lost.connect(_on_kickee_host_lost)
-	var err := _kickee.join(ADDRESS, PORT)
+	var err := _kickee.join(ADDRESS, _port)
 	if err != OK:
 		_fail("kick client failed to start: " + error_string(err))
 
@@ -280,7 +289,7 @@ func _start_probe() -> void:
 	_probe_started_ms = Time.get_ticks_msec()
 	_prober.connected.connect(func(_id: int) -> void: _prober_result = "connected")
 	_prober.connect_failed.connect(func() -> void: _prober_result = "connect_failed")
-	var err := _prober.join(ADDRESS, PORT)
+	var err := _prober.join(ADDRESS, _port)
 	if err != OK:
 		_fail("probe join failed to start: " + error_string(err))
 
@@ -340,7 +349,7 @@ func _client_step() -> void:
 		return
 	if transport.role() == NetTransport.Role.IDLE and not _client.told_to_leave:
 		if Time.get_ticks_msec() >= _next_join_ms:
-			var err := transport.join(ADDRESS, PORT)
+			var err := transport.join(ADDRESS, _port)
 			if err != OK:
 				_fail("join failed to start: " + error_string(err))
 				return
