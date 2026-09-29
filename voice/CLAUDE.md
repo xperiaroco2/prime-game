@@ -11,10 +11,8 @@ Loaded when a file in `voice/` is read. The invariants in the root `CLAUDE.md` a
 - Plumbing only. Whether a listener hears a speaker, and how, is decided by the routing rules in `core/` and applied
   by `server/`. `voice/` never decides routing itself.
 - Spatialization happens on the receiving client through an `AudioStreamPlayer3D` on the speaker's avatar.
-- The codec sits behind an interface: the first candidate is the `two-voip-godot-4` GDExtension. Its README has
-  described the Windows build as incomplete, and Windows is the primary platform. The M1 spike verifies Windows
-  binaries first and compares fallbacks (`one-voip-godot-4`, Steam voice via GodotSteam, lightly compressed PCM).
-  The go/no-go goes into an ADR.
+- The codec sits behind an interface: TwoVoIP (`two-voip-godot-4`) **v6.5**, not v6.6 (it crashes the editor).
+  Settings, measurements and lessons: `docs/decisions/2026-09-29-voice-approach.md`, `docs/ARCHITECTURE.md` §6.
 - Any addon or GDExtension is a stop-and-ask item and lives in `addons/`.
 
 ## Tests
