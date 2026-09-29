@@ -45,6 +45,7 @@ var _kickee: EnetTransport
 var _kicked_id := 0
 var _kicked_left := false
 var _kickee_lost := false
+var _kickee_got_bye := false
 var _forger: ENetConnection
 var _forged_started_ms := 0
 # Frames polled after host_lost, to see that it fires only once.
@@ -241,7 +242,11 @@ func _forged_join_turned_away() -> bool:
 func _start_kick() -> void:
 	_phase = "kick"
 	_kickee = EnetTransport.new(_kinds)
-	_kickee.host_lost.connect(func() -> void: _kickee_lost = true)
+	_kickee.packet_received.connect(
+		func(_from: int, kind: int, _payload: PackedByteArray) -> void:
+			_kickee_got_bye = kind == COMMAND
+	)
+	_kickee.host_lost.connect(_on_kickee_host_lost)
 	var err := _kickee.join(ADDRESS, PORT)
 	if err != OK:
 		_fail("kick client failed to start: " + error_string(err))
@@ -256,9 +261,17 @@ func _kick_step() -> void:
 	var id := _kickee.own_id()
 	if NetTransport.HOST_ID in _kickee.peers() and id in _host.peers():
 		_kicked_id = id
+		# The last word before the kick must still arrive (a reason, say), as on the loopback.
+		_host.send(id, COMMAND, "bye".to_utf8_buffer())
 		var err := _host.disconnect_peer(id)
 		if err != OK or id in _host.peers():
 			_fail("disconnect_peer(%d) gave %s" % [id, error_string(err)])
+
+
+func _on_kickee_host_lost() -> void:
+	if not _kickee_got_bye:
+		_fail("the disconnected client lost the host before the message sent just before the kick")
+	_kickee_lost = true
 
 
 func _start_probe() -> void:

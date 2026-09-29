@@ -190,7 +190,10 @@ the dissidents win. The same holds for the last crew member leaving with the las
   The host's own client is peer 1 too.
 - **`disconnect_peer(p)`** carries out `core/`'s `DisconnectPeer` (§3): p leaves `peers()` and `send` at once,
   `peer_left(p)` follows on the next poll like any leave, and p sees `host_lost` (a client cannot tell a kick from
-  the host leaving). The host's own client cannot be disconnected: the host ends the session instead.
+  the host leaving) after whatever was sent to it before the call, a reason for example: ENet uses
+  `peer_disconnect_later`, because a plain disconnect drops its queue. Until p acknowledges or times out (up to
+  20 s) it keeps its ENet slot and id. The host's own client cannot be disconnected: the host ends the session
+  instead.
   `set_refuse_new_connections` is what `server/` calls on `RefuseJoins` and `AllowJoins`.
 - `EnetTransport` reads `ENetMultiplayerPeer` directly (no `SceneMultiplayer`); `create_server` keeps
   `max_channels` 0 and clients ask for `NetKindTable.CHANNEL_COUNT` channels. `LoopbackTransport` carries the same

@@ -110,9 +110,13 @@ func _backend_close() -> void:
 
 
 func _backend_disconnect(peer_id: int) -> void:
-	# A graceful disconnect: ENet tells the client, which sees host_lost.
+	# disconnect_later: what was already sent to the peer arrives first, as on the loopback (a
+	# plain disconnect drops ENet's queue); then the client sees host_lost. Until the peer
+	# acknowledges, or times out, it keeps its slot and its id.
 	if _live.erase(peer_id):
-		_peer.disconnect_peer(peer_id)
+		var packet_peer := _peer.get_peer(peer_id)
+		if packet_peer != null:
+			packet_peer.peer_disconnect_later()
 
 
 func _use(peer: ENetMultiplayerPeer) -> void:
