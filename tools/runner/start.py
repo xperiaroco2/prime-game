@@ -1,7 +1,9 @@
 """`start <n>` (docs/AGENT_WORKFLOW.md §4.1) and `worktree-done <n>`.
 
 `start` puts the checkout on the task branch `<area>/<n>-<slug>` from `origin/main` (or back on it, when it exists),
-assigns the issue to the caller if nobody has it, and moves it to "In progress" on the board. It never discards
+or from `origin/<parent>` with `--base <parent>` for a task stacked on an open PR; it records that parent and its tip
+in the git config keys `branch.<task>.primeBase` and `primeBaseTip`, where `publish` finds them before the PR exists.
+It assigns the issue to the caller if nobody has it, and moves it to "In progress" on the board. It never discards
 work: uncommitted changes stop it unless the caller says `--include` (carry them onto the task branch) or `--stash`.
 It makes a worktree `.claude/worktrees/<n>` instead only for the engineer, and only when another Claude session is
 active on this checkout (docs/decisions/2026-09-28-worktrees-only-for-parallel-sessions.md). `worktree-done <n>`
@@ -18,7 +20,7 @@ import shutil
 import time
 from pathlib import Path
 
-from . import board, sessions
+from . import board, publish, sessions
 from .common import ROOT, Failure, Result, ok, run, say, warn
 
 REMOTE = "origin"
@@ -101,6 +103,7 @@ def main(
     worktree: bool = False,
     here: bool = False,
     dry_run: bool = False,
+    base: str | None = None,
 ) -> int:
     say(f"start #{number}" + (" (dry run: only fetches)" if dry_run else ""))
     if stash and include:
@@ -119,7 +122,13 @@ def main(
     ok(f"#{number} '{issue['title']}' ({', '.join(labels) or 'no labels'}); you are {login}")
 
     _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
-    branch = existing_branch(number) or f"{area_of(labels, area, number)}/{number}-{slug(issue['title'])}"
+    existing = existing_branch(number)
+    if existing and base:
+        warn(f"--base {base} is ignored: {existing} already exists and is resumed as it is")
+        base = None
+    elif base and _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{base}").rc != 0:
+        raise Failure(f"{REMOTE} has no branch {base} (after a fetch); check the parent's name. Nothing was changed.")
+    branch = existing or f"{area_of(labels, area, number)}/{number}-{slug(issue['title'])}"
     current = _git("symbolic-ref", "--quiet", "--short", "HEAD").out.strip()
 
     others = sessions.active_on(REPO)
@@ -138,8 +147,9 @@ def main(
             "if it is really idle, run start again with --here."
         )
 
+    parent = base or BASE
     if use_worktree:
-        path = create_worktree(number, branch, dry_run)
+        path = create_worktree(number, branch, dry_run, parent)
     else:
         here_key = str(Path(REPO).resolve()).lower()
         elsewhere = [p for p, b in listed_worktrees().items() if b == branch and p != here_key]
@@ -148,7 +158,7 @@ def main(
                 f"{branch} is checked out in the worktree {elsewhere[0]}; work there (EnterWorktree with that path). "
                 "Nothing was changed."
             )
-        switch(branch, current, stash=stash, include=include, dry_run=dry_run, number=number)
+        switch(branch, current, stash=stash, include=include, dry_run=dry_run, number=number, parent=parent)
         path = REPO
 
     if dry_run:
@@ -168,7 +178,23 @@ def main(
     return 0
 
 
-def switch(branch: str, current: str, *, stash: bool, include: bool, dry_run: bool, number: int) -> None:
+def record_parent(branch: str, parent: str, dry_run: bool) -> None:
+    """Remember a stacked task's parent for publish, which rebases on it until the PR exists (then the PR's base
+    wins). Local git config: a clone on the other machine has no record, but by then the PR usually exists."""
+    if parent == BASE:
+        return
+    if dry_run:
+        say(f"        would record {parent} as the base for publish ({publish.base_key(branch)})")
+        return
+    tip = _must(_git("rev-parse", f"{REMOTE}/{parent}^{{commit}}"), "reading the parent's tip")
+    _must(_git("config", publish.base_key(branch), parent), "recording the base")
+    _must(_git("config", publish.tip_key(branch), tip), "recording the parent's tip")
+    ok(f"recorded {parent} as the base for publish and the PR")
+
+
+def switch(
+    branch: str, current: str, *, stash: bool, include: bool, dry_run: bool, number: int, parent: str = BASE
+) -> None:
     dirty = _git("status", "--porcelain", "--untracked-files=all").out.strip()
     if current == branch:
         ok(f"already on {branch}" + (" (with uncommitted changes, kept)" if dirty else ""))
@@ -186,9 +212,11 @@ def switch(branch: str, current: str, *, stash: bool, include: bool, dry_run: bo
     elif _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").rc == 0:
         action = f"check out {branch} from {REMOTE}/{branch}"
     else:
-        action = f"create {branch} from {REMOTE}/{BASE}"
+        action = f"create {branch} from {REMOTE}/{parent}"
     if dry_run:
         say(f"        would {action}" + (" after stashing the changes" if dirty and stash else ""))
+        if action.startswith("create"):
+            record_parent(branch, parent, dry_run)
         return
     if dirty and stash:
         _must(
@@ -202,7 +230,7 @@ def switch(branch: str, current: str, *, stash: bool, include: bool, dry_run: bo
         res = _git("switch", "--track", "-c", branch, f"{REMOTE}/{branch}")
     else:
         # --no-track: the upstream becomes origin/<branch> at the first publish, never origin/main.
-        res = _git("switch", "--no-track", "-c", branch, f"{REMOTE}/{BASE}")
+        res = _git("switch", "--no-track", "-c", branch, f"{REMOTE}/{parent}")
     if res.rc != 0 or res.timed_out:
         raise Failure(
             f"git could not {action}; nothing was discarded"
@@ -210,6 +238,8 @@ def switch(branch: str, current: str, *, stash: bool, include: bool, dry_run: bo
             + f":\n{res.out.strip()[-600:]}"
         )
     ok(action[0].upper() + action[1:] + (", carrying the uncommitted changes" if dirty and include else ""))
+    if action.startswith("create"):
+        record_parent(branch, parent, dry_run)
 
 
 def worktrees_root() -> Path:
@@ -235,7 +265,7 @@ def listed_worktrees() -> dict[str, str]:
     return found
 
 
-def create_worktree(number: int, branch: str, dry_run: bool) -> Path:
+def create_worktree(number: int, branch: str, dry_run: bool, parent: str = BASE) -> Path:
     path = worktrees_root() / str(number)
     known = listed_worktrees()
     if str(path.resolve()).lower() in known:
@@ -248,12 +278,18 @@ def create_worktree(number: int, branch: str, dry_run: bool) -> Path:
     elif _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").rc == 0:
         args, source = ["worktree", "add", "--track", "-b", branch, str(path), f"{REMOTE}/{branch}"], f"{REMOTE}/{branch}"
     else:
-        args, source = ["worktree", "add", "--no-track", "-b", branch, str(path), f"{REMOTE}/{BASE}"], f"{REMOTE}/{BASE}"
+        source = f"{REMOTE}/{parent}"
+        args = ["worktree", "add", "--no-track", "-b", branch, str(path), source]
+    new = "--no-track" in args
     if dry_run:
         say(f"        would create the worktree {path} on {branch} from {source}")
+        if new:
+            record_parent(branch, parent, dry_run)
         return path
     _must(_git(*args), "git worktree add")
     ok(f"created the worktree {path} on {branch} from {source}")
+    if new:
+        record_parent(branch, parent, dry_run)
     return path
 
 

@@ -32,7 +32,9 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
 1. **Verify.** `tools\run.cmd verify`. Paste its summary (the lines from "verify summary" to the end) for the human.
    Red: stop and report the failures. Never weaken, skip or delete a test to make it pass.
 2. **Fresh-context reviews,** chosen from `git diff --name-only origin/<base>...HEAD`, where `<base>` is the open PR's
-   base (`gh pr view --json baseRefName`; a stacked PR's parent) or `main`; launch them in one message:
+   base (`gh pr view --json baseRefName`; a stacked PR's parent), else the parent `start --base` recorded
+   (`git config --get branch.<branch>.primeBase`) while `origin/<parent>` exists, else `main`; launch them in one
+   message:
    - any code (`.gd`, `.py`, scripts, workflows) → agent `code-reviewer`; a docs-only or content-data-only diff →
      the bundled `/code-review` at medium, or none;
    - `core/`, `server/` or `net/` changed → also `netcode-security-reviewer`;
@@ -45,12 +47,14 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    `docs/credits/<asset>.md`, then `tools\run.cmd credits`. Commit these too.
 4. **Ask exactly once:** "Publish now? (push + PR + handoff comment)". Anything but a yes: stop and summarise what is
    done and what is left.
-5. **Publish.** `tools\run.cmd publish`. It rebases on the PR's base (else `main`), runs `verify` again and pushes
-   the task branch with a lease. If it stops (a conflict, red verify, or remote commits the branch never had), report
-   what it said and ask the human. Never push by hand and never force-push.
-6. **Pull request.** If `gh pr view` finds none for the branch, fill `.github/pull_request_template.md` in a
-   scratchpad file and run `gh pr create --base <base> --title "<conventional title>" --body-file <file>`
-   (`<base>`: `main`, or the parent branch of a stacked PR). Otherwise update it with `gh pr edit --body-file`.
+5. **Publish.** `tools\run.cmd publish`. It rebases on the PR's base (else the recorded parent, else `main`), runs
+   `verify` again and pushes the task branch with a lease; its line `base origin/<base>` names the PR's base. If it
+   stops (a conflict, red verify, or remote commits the branch never had), report what it said and ask the human. Never
+   push by hand and never force-push. "cannot confirm that the parent … was merged": ask the human to check the
+   parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`.
+6. **Pull request.** If `gh pr view` finds none for the branch, fill `.github/pull_request_template.md` in a scratchpad
+   file and run `gh pr create --base <base> --title "<conventional title>" --body-file <file>` (`<base>`: the one
+   `publish` just reported, `main` or a stacked PR's parent). Otherwise update it with `gh pr edit --body-file`.
    - `Closes #<n>`; a summary; the verification commands with their output (at least the `verify` tail); docs
      updated yes/no.
    - Screenshots: `tools\run.cmd shot <scene>` PNGs for visual changes, else "none". `gh` cannot upload images:

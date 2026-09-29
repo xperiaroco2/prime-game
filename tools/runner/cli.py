@@ -40,11 +40,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("column", choices=["in-progress", "in-review"])
 
     p = sub.add_parser("publish", help="fetch, rebase the task branch on its base, verify, push with a lease")
-    p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else main)")
+    p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
 
     p = sub.add_parser("start", help="put the checkout on the task branch of an issue; assign it; board In progress")
     p.add_argument("issue", type=int, help="issue number")
     p.add_argument("--area", help="branch prefix when the issue has no single area label")
+    p.add_argument(
+        "--base", help="branch from origin/<base>, a parent with an open PR (default main); publish and the PR use it"
+    )
     dirty = p.add_mutually_exclusive_group()
     dirty.add_argument("--include", action="store_true", help="carry uncommitted changes onto the task branch")
     dirty.add_argument("--stash", action="store_true", help="stash uncommitted changes first (never discarded)")
@@ -155,6 +158,7 @@ def main(argv: list[str] | None = None) -> int:
                 worktree=args.worktree,
                 here=args.here,
                 dry_run=args.dry_run,
+                base=args.base,
             )
         if args.command == "worktree-done":
             from . import start
