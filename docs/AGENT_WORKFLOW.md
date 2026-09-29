@@ -249,12 +249,13 @@ marker and is blocked; `--dry-run` pushes run the hook too. The agent never forc
   rebased or amended, a stacked child replays only its own commits: those after the parent commit `start` recorded
   (`branch.<task>.primeBaseTip`, renewed by each publish on the parent; `rebase --onto`), else those after the fork
   point (`--fork-point`, which needs the reflog of the parent's remote ref).
-- A recorded parent is done when the PR's base is `main` (GitHub retargets the child once the parent merges), its
-  branch is gone from origin, or it is in `origin/main`. `publish` then rebases the child's own commits on `main` and
-  drops the record, but only if the parent's latest known tip is in `origin/main`; otherwise (deleted unmerged,
-  retargeted by hand, or rewritten after this checkout last saw it) it stops and asks for the human. `publish --base
-  main` is the human's word that the parent is merged. The record is local to the machine that ran `start`: on the
-  other machine, before the PR exists, use `publish --base <parent>`.
+- A recorded parent is done when the PR's base is `main` (GitHub retargets the child once the parent merges), its branch
+  is gone from origin, or it is in `origin/main`. `publish` then rebases the child's own commits on `main` and drops the
+  record, but only if the parent's latest known tip is in `origin/main`; otherwise (deleted unmerged, retargeted by
+  hand, or rewritten after this checkout last saw it) it stops and asks for the human. `publish --base main` is the
+  human's word that the parent is merged; it warns and lists the parent commits it leaves out (to keep an abandoned
+  parent's commits in the child instead, unset both keys and publish). The record is local to the machine that ran
+  `start`: on the other machine, before the PR exists, use `publish --base <parent>`.
 - `core.hooksPath` switches off the hooks Git LFS installs in `.git/hooks`, so the hook runs `git lfs pre-push`
   itself. The other three LFS hooks only serve file locking, which the project does not use. With `core.hooksPath`
   set, `git lfs install` and `git lfs update` stop with "Hook already exists" and change nothing; use
