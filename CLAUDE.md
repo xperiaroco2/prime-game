@@ -50,8 +50,11 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths]` | GdUnit4 headless; judged by exit code and `results.xml`; orphan nodes fail |
 | `verify` | Everything CI runs, in the same order: the definition-of-done gate |
+| `start <n> [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>`, assign, board In progress (skill `start-task`) |
 | `publish [--base B]` | Rebases the task branch on its PR base (else main), runs `verify`, pushes with a lease |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
+| `normalize <files>` / `shot <scene>` | Re-save `.tscn`/`.tres` as the editor would / an off-screen PNG of a scene |
+| `agents-check` / `worktree-done <n>` | Subagents ran on their models / remove a merged task's worktree |
 | `selftest` / `pins [--get X]` | The runner's own tests / pinned tool versions |
 
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.
@@ -94,8 +97,6 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 | review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/` changed |
 | `.gd`, `.tscn` or `.tres` changed | agent `godot-api-checker` |
 | run tests and get back only failures | agent `test-runner` |
-
-Until a skill exists in `.claude/skills/`, follow `docs/AGENT_WORKFLOW.md` §4 by hand.
 
 ## Definition of done
 1. `verify` is green; paste its tail. Red → stop and report.
