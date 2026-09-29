@@ -271,6 +271,18 @@ def _refuse_inside(path: Path) -> None:
             )
 
 
+def _refuse_sessions_in(path: Path) -> None:
+    """Any live session in the worktree, busy or idle for days: it may still work there, and on Windows it keeps the
+    folder open, so git would unregister the worktree and then fail to delete it."""
+    inside = sessions.alive_in(path)
+    if inside:
+        raise Failure(
+            f"a Claude session is still open in the worktree: {inside[0].describe(time.time())}"
+            + (f" and {len(inside) - 1} more" if len(inside) > 1 else "")
+            + ". Nothing was removed. Archive or close that session in the Claude app, then run worktree-done again."
+        )
+
+
 def worktree_done(number: int, *, pushed: bool = False) -> int:
     say(f"worktree-done #{number}" + (" (--pushed)" if pushed else ""))
     path = worktrees_root() / str(number)
@@ -280,12 +292,7 @@ def worktree_done(number: int, *, pushed: bool = False) -> int:
     if key not in known:
         return finish_leftovers(number, path, known)
     branch = known[key]
-    inside = sessions.active_on(path)
-    if inside:
-        raise Failure(
-            f"a Claude session is working in the worktree: {inside[0].describe(time.time())}. "
-            "Nothing was removed; close that session (or leave the worktree) first."
-        )
+    _refuse_sessions_in(path)
     dirty = _git("status", "--porcelain", "--untracked-files=all", cwd=path).out.strip()
     if dirty:
         raise Failure(f"the worktree has uncommitted changes; nothing was removed:\n{dirty}")
@@ -312,7 +319,18 @@ def worktree_done(number: int, *, pushed: bool = False) -> int:
                 f"{branch} ({head[:10]}) has commits that {upstream} does not; nothing was removed. Push them first "
                 "(tools\\run.cmd publish from the worktree), or ask the human."
             )
-    _must(_git("worktree", "remove", str(path)), "git worktree remove")
+    res = _git("worktree", "remove", str(path))
+    if res.rc != 0 or res.timed_out:
+        half = key not in listed_worktrees()
+        raise Failure(
+            f"git worktree remove failed: {res.out.strip()[-600:]}"
+            + (
+                "\ngit already unregistered the worktree, but some program still has the folder open. Close it, then "
+                f"run worktree-done {number} again: it finishes the removal."
+                if half
+                else ""
+            )
+        )
     ok(f"removed the worktree {path}")
     if branch and merged:
         _delete_merged(branch)
@@ -343,7 +361,14 @@ def finish_leftovers(number: int, path: Path, known: dict[str, str]) -> int:
                 f"{path} is not a registered git worktree but still holds files (such as {files[0]}); nothing was "
                 "removed. Ask the human what they are."
             )
-        shutil.rmtree(path)
+        _refuse_sessions_in(path)
+        try:
+            shutil.rmtree(path)
+        except OSError as exc:
+            raise Failure(
+                f"Windows could not delete the empty leftover folder {path} ({exc.strerror}): some program still has "
+                "it (or a folder in it) open, such as a terminal or an editor. Close it, then run worktree-done again."
+            ) from exc
         ok(f"removed the empty leftover folder {path}")
         cleaned = True
     listed = _git("branch", "--list", "--format=%(refname:short)", f"*/{number}-*").out.split()
