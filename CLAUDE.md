@@ -132,7 +132,8 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
   and which machine. Options come next, jargon last. Before designing enforcement against a human behaviour, ask
   how the humans actually work.
 - A command for a human starts with `cd` to the absolute folder it runs in (your worktree, if you use one: their
-  terminal is in the main checkout), in their shell (PowerShell). Run it from there yourself first.
+  terminal is in the main checkout), in their shell (PowerShell). Run it from there yourself first, in a shell
+  without the env that `~/.claude/settings.json` gives only your session (`GODOT_BIN`, `GODOT_GUI_BIN`).
 <!-- see docs/interventions/2026-09-29-engineer-commands-say-where.md -->
 
 ## Memory
