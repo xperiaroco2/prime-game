@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("lint", help="gdformat --check + gdlint; CLAUDE.md budgets and rule/agent frontmatter")
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
-    p.add_argument("files", nargs="*", help="repo-relative .gd files (default: all project GDScript)")
+    p.add_argument("files", nargs="*", help="repo-relative .gd files or folders (default: all project GDScript)")
 
     p = sub.add_parser("check", help="import, warnings policy, UID lint, parse and load check")
     p.add_argument("files", nargs="*", help="res:// paths to check (default: the whole project)")

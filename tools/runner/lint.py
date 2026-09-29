@@ -55,10 +55,34 @@ def strip_cr(path: Path) -> bool:
     return True
 
 
+def targets_of(files: list[str], root: Path = ROOT) -> list[Path]:
+    """Repo-relative file and directory arguments -> the .gd files to lint, in order and without duplicates.
+
+    A directory stands for every .gd file below it. addons/ and tools/out/ are never linted.
+    """
+    found: list[Path] = []
+    for name in files:
+        path = root / name
+        if path.is_dir():
+            found += sorted(path.rglob("*.gd"))
+        elif path.is_file():
+            found.append(path)
+        else:
+            raise Failure(f"{name}: no such file or directory")
+    kept: list[Path] = []
+    for path in found:
+        if not path.resolve().is_relative_to(root.resolve()):
+            raise Failure(f"{path}: outside the project")
+        text = path.resolve().relative_to(root.resolve()).as_posix()
+        if text.startswith(("addons/", "tools/out/")) or root / text in kept:
+            continue
+        kept.append(root / text)
+    return kept
+
+
 def main(fix: bool = False, files: list[str] | None = None) -> int:
     say("lint" + (" --fix" if fix else ""))
-    targets = [ROOT / f for f in files] if files else gd_files()
-    targets = [p for p in targets if not rel(p).startswith("addons/")]
+    targets = targets_of(files) if files else gd_files()
     failed = gdscript(targets, fix) if targets else False
     if not targets:
         ok("no GDScript files to lint")
