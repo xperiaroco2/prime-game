@@ -30,6 +30,10 @@ Commands below use the PowerShell form `tools\run.cmd`; in Git Bash use `tools/r
      «Зберегти всі сцени») and no hand edits while you work.
 5. **Branch and board.** Run `tools\run.cmd start <n>`. It creates or resumes `<area>/<n>-<slug>` from `origin/main`,
    assigns the issue if nobody has it, and moves it to In progress.
+   - Stacked on an open PR (the issue or the human names a parent task whose PR is not merged yet): run
+     `start <n> --base <parent branch>`. It branches from `origin/<parent>` and records it, so `publish` and the PR
+     use the parent as base. "origin has no branch": the parent is not pushed yet; ask the human. On a branch that
+     already exists `--base` is ignored (it says so).
    - "uncommitted changes": show the human the list and ask one question: do these changes belong to this task
      (`--include`) or should they be put away (`--stash`)? Never discard them. Run `start` again with the answer.
      After `--stash`, tell the human the changes wait in the stash of the old branch (`git stash list`; switch back

@@ -63,19 +63,22 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 2. `gh issue view 42`; read the linked docs and the area's `CLAUDE.md`.
 3. If the task touches the other owner's area, stop and ask (§9). If another human has an open PR on a scene the task
    edits, stop (KICKOFF §5.3).
-4. `tools\run.cmd start 42` **[applied]**: creates `<area>/<issue>-<slug>` from `origin/main` with no upstream (the
-   area from the issue's single `area:*` label, else `--area`), or resumes the issue's existing branch; assigns the
-   issue if unassigned; moves the board item to **In progress**. Uncommitted changes stop it with the list:
-   `--include` carries them onto the task branch, `--stash` stashes them; it never discards. `--dry-run` only
-   fetches. It creates a worktree `.claude/worktrees/<n>` instead **only when another Claude session is active on
-   this checkout**, engineer only (`--worktree` / `--here` override); for the designer it then stops rather than
-   switch the branch under that session. `tools\run.cmd worktree-done <n>` removes the worktree once its branch is
-   merged ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose
-   branch is never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it
-   from the main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is
-   inside the worktree or any live Claude session (even one idle for days, or the calling one) has it as its folder;
-   archive that session in the app first. A rerun finishes a half-done removal (an empty leftover folder, the issue's
-   merged local branch).
+4. `tools\run.cmd start 42` **[applied]**: creates `<area>/<issue>-<slug>` from `origin/main` with no upstream (the area
+   from the issue's single `area:*` label, else `--area`), or resumes the issue's existing branch; assigns the issue if
+   unassigned; moves the board item to **In progress**. Uncommitted changes stop it with the list: `--include` carries
+   them onto the task branch, `--stash` stashes them; it never discards. `--dry-run` only fetches. A task stacked on an
+   open PR starts with `--base <parent>`: the branch comes from `origin/<parent>` (refused when origin lacks it), and
+   `start` records the parent in the machine-local git config key `branch.<task>.primeBase`, where `publish` and
+   `finish-task` find it before the PR exists; resuming an existing branch ignores `--base` and says so. It creates a
+   worktree `.claude/worktrees/<n>` instead **only when another Claude session is active on this checkout**, engineer
+   only (`--worktree` / `--here` override); for the designer it then stops rather than switch the branch under that
+   session. `tools\run.cmd worktree-done <n>` removes the worktree once its branch is merged
+   ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose branch is
+   never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it from the
+   main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is inside the
+   worktree or any live Claude session (even one idle for days, or the calling one) has it as its folder; archive that
+   session in the app first. A rerun finishes a half-done removal (an empty leftover folder, the issue's merged local
+   branch).
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
@@ -86,8 +89,8 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. One question: **"Publish now? (push + PR + handoff comment)"**.
-5. `tools\run.cmd publish`: rebase on the open PR's base (else `origin/main`), re-run `verify`, push the task branch
-   with a lease (§8.3).
+5. `tools\run.cmd publish`: rebase on the open PR's base (else the `start --base` parent, else `origin/main`), re-run
+   `verify`, push the task branch with a lease (§8.3).
 6. Open the PR from the template: `Closes #42`, summary, verification commands and output, `shot` screenshots for
    visual changes, docs updated yes/no, `--reviewer <other human>` if the other owner's paths are touched.
 7. Handoff comment on the issue (done / left / decisions / gotchas); board item → **In review** via the runner.
@@ -238,12 +241,16 @@ marker and is blocked; `--dry-run` pushes run the hook too. The agent never forc
 - The hook lives in the working tree. A checkout of a commit from before M0 stage 4 has no
   `.claude/githooks/pre-push`, and git then runs no pre-push hook at all (not even LFS's): only the deny rules and
   the server ruleset stand. Task branches start from `main`, which has the hook.
-- `publish`: `git fetch --prune origin`, rebase (`--fork-point`) on the open PR's base (a stacked PR's parent) or
-  `main`, `verify`, then the lease push. It stops before touching anything when the remote branch has a commit this
-  branch never had (a suggestion committed on GitHub, "Update branch", a push from the other machine): the lease
-  alone would not protect it, because the fetch just updated the expected value. A conflict aborts the rebase and
-  leaves the branch as it was; a red `verify` pushes nothing. `--fork-point` lets a stacked child replay only its own
-  commits after its parent was rebased or amended.
+- `publish`: `git fetch --prune origin`, rebase (`--fork-point`) on `--base`, else the open PR's base (a stacked PR's
+  parent), else the parent `start --base` recorded, else `main`; then `verify` and the lease push. The PR's base wins
+  over the record, so a child that GitHub retargeted to `main` after its parent merged rebases on `main`. A recorded
+  parent gone from origin before the PR exists means `main` if its last fetched tip is in `origin/main` (merged, then
+  auto-deleted; the record is dropped), and a stop otherwise (deleted unmerged: its commits would ride into `main`). The
+  record is local to the machine that ran `start`; on the other machine the PR's base serves. It stops before touching
+  anything when the remote branch has a commit this branch never had (a suggestion committed on GitHub, "Update branch",
+  a push from the other machine): the lease alone would not protect it, because the fetch just updated the expected
+  value. A conflict aborts the rebase and leaves the branch as it was; a red `verify` pushes nothing. `--fork-point`
+  lets a stacked child replay only its own commits after its parent was rebased or amended.
 - `core.hooksPath` switches off the hooks Git LFS installs in `.git/hooks`, so the hook runs `git lfs pre-push`
   itself. The other three LFS hooks only serve file locking, which the project does not use. With `core.hooksPath`
   set, `git lfs install` and `git lfs update` stop with "Hook already exists" and change nothing; use
