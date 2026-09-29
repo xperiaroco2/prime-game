@@ -28,14 +28,14 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 - Small, reviewable steps: one logical change per commit, Conventional Commits.
 
 ## Architecture invariants (details: `docs/ARCHITECTURE.md`)
-1. **Host-authoritative.** Clients send intents (`RequestKill(target)`, `CastVote(target)`), never state. The host
+1. **Host-authoritative.** Clients send intents (`Use(facing)`, `CastVote(target)`), never state. The host
    validates every intent against the rules and emits events.
 2. **Per-peer filtering.** Hidden information (roles, private events, votes before reveal, ability results) reaches
    only the peers entitled to it. The host's own client gets the same filtered view and never reads `core/` state.
 3. **Pure core.** `core/` is rules as `RefCounted` classes with no Nodes, scenes, networking or audio. Deterministic:
    commands in, events out. Randomness only through an injected seeded RNG.
-4. **Mechanics are data.** Roles, abilities, items and task types are `Resource`s composed from trigger → condition
-   → effect. The available parts are the **content API**, the contract between engineer and designer.
+4. **Mechanics are data.** Roles, items, modes and win conditions are `Resource`s of rules (trigger → conditions →
+   effects); task types are classes with settings. The parts are the **content API**, the engineer–designer contract.
 5. **Explicit match state machine, phases per game mode.** Base: Lobby → Countdown → Loading → Round → End → Lobby.
 6. **Voice routing is game logic** in `core/` (who hears whom, and how). Spatialization happens on the listener.
 7. **Movement:** client-side for the local player with host sanity checks; remote players are interpolated.

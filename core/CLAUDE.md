@@ -23,8 +23,9 @@ to `core/`. Design: `docs/ARCHITECTURE.md`.
 - Intent validation rules and win conditions.
 - Voice routing rules: for each speaker and listener pair, whether audio is delivered and how (proximity,
   occlusion, dead chat, meeting-wide, radio).
-- The content-API primitives (triggers, conditions, effects) that the designer composes. Adding or changing one
-  updates the content-API section of `docs/ARCHITECTURE.md` in the same PR, because it is the designer's contract.
+- The content-API parts (rules of trigger → conditions → effects; the kinds of ARCHITECTURE §9.3) that the
+  designer composes. Adding or changing one updates the content-API section of `docs/ARCHITECTURE.md` in the same
+  PR, because it is the designer's contract.
 
 ## Tests
 - Most of the project's tests belong here. Put them in `tests/unit/`, mirroring the `core/` path:
