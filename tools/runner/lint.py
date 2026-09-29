@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from . import instructions, pins
-from .common import ROOT, Failure, Result, bad, gd_files, gdtoolkit_exe, ok, rel, run, say
+from .common import GD_DIRS, ROOT, Failure, Result, bad, gd_files, gdtoolkit_exe, ok, rel, run, say
 
 TIMEOUT = 300
 # Keep each command line well under the Windows limit of 32k characters.
@@ -55,28 +55,35 @@ def strip_cr(path: Path) -> bool:
     return True
 
 
-def targets_of(files: list[str], root: Path = ROOT) -> list[Path]:
+def targets_of(files: list[str], root: Path | None = None) -> list[Path]:
     """Repo-relative file and directory arguments -> the .gd files to lint, in order and without duplicates.
 
-    A directory stands for every .gd file below it. addons/ and tools/out/ are never linted.
+    A directory stands for the project GDScript below it: files under `GD_DIRS`, never under a folder whose name
+    starts with "." (`.claude/worktrees/` holds other sessions' checkouts, `.godot/` the import cache). A file named
+    on its own is linted wherever it is. addons/ and tools/out/ are never linted, and nothing outside the project.
     """
-    found: list[Path] = []
+    base = root or ROOT
+    root = base.resolve()
+    found: list[tuple[Path, bool]] = []
     for name in files:
-        path = root / name
+        path = (root / name).resolve()
+        if not path.is_relative_to(root):
+            raise Failure(f"{name}: outside the project")
         if path.is_dir():
-            found += sorted(path.rglob("*.gd"))
+            found += [(p, True) for p in sorted(path.rglob("*.gd"))]
         elif path.is_file():
-            found.append(path)
+            found.append((path, False))
         else:
             raise Failure(f"{name}: no such file or directory")
     kept: list[Path] = []
-    for path in found:
-        if not path.resolve().is_relative_to(root.resolve()):
-            raise Failure(f"{path}: outside the project")
-        text = path.resolve().relative_to(root.resolve()).as_posix()
-        if text.startswith(("addons/", "tools/out/")) or root / text in kept:
+    for path, from_folder in found:
+        parts = path.relative_to(root).parts
+        text = "/".join(parts)
+        if text.startswith(("addons/", "tools/out/")) or base / text in kept:
             continue
-        kept.append(root / text)
+        if from_folder and (parts[0] not in GD_DIRS or any(part.startswith(".") for part in parts)):
+            continue
+        kept.append(base / text)
     return kept
 
 
