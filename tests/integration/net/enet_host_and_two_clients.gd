@@ -163,7 +163,7 @@ func _host_step() -> void:
 				_start_probe()
 		"probe":
 			if _prober_result == "connect_failed":
-				# Refused at once, not by the join timeout: that is what the WELCOME is for.
+				# Refused at once, not by the join timeout: that is what the ADMIT is for.
 				var waited := Time.get_ticks_msec() - _probe_started_ms
 				if waited > EnetTransport.JOIN_TIMEOUT_MS / 2.0:
 					_fail("a refused join failed only after %d ms" % waited)

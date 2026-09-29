@@ -203,11 +203,11 @@ the dissidents win. The same holds for the last crew member leaving with the las
   (channel 0, reliable), `LATEST` (channel 0, unreliable ordered) and `VOICE` (channel 1, unreliable unordered).
   Unreliable payloads are capped at 1024 bytes so ENet never fragments them. The game's table,
   `NetKindTable.game()`, is empty until the schemas add rows.
-- **Joining:** a client counts as connected only when the host's `WELCOME` arrives (a 3-byte frame of kind 0). ENet
+- **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
   client gets `connect_failed` at once; with no answer at all (no host, or a full one) the join gives up after 5 s.
-  Unreliable packets can overtake the `WELCOME` and are then rejected as from an unknown peer: the host sends a
+  Unreliable packets can overtake the `ADMIT` and are then rejected as from an unknown peer: the host sends a
   new peer only reliable messages until that peer has sent its first message.
 - **Peer ids are chosen by the client** (Godot refuses only 0, 1 and ids in use): they are neither secret nor
   unique over time. The host disconnects an arrival with an id of 1 or less (a negative target means "everyone but"
@@ -223,9 +223,9 @@ the dissidents win. The same holds for the last crew member leaving with the las
   `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`. It is not
   part of `verify` yet.
 
-*Open (M3):* intent and event schemas, their payload encoding and their rows in `NetKindTable.game()`, versioning
-(the `WELCOME` can carry a protocol version), rate limits and what the host does with a peer that keeps sending
-rejected packets.
+*Open (M3):* intent and event schemas, their payload encoding and their rows in `NetKindTable.game()`, rate limits,
+and what the host does with a peer that keeps sending rejected packets. The protocol version travels in `Hello`
+(§4.1), not in the transport's `ADMIT`.
 Every schema change updates this section in the same PR.
 
 Lessons from the M1 spike (#13, #15; [voice ADR](decisions/2026-09-29-voice-approach.md)):

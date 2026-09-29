@@ -4,9 +4,9 @@ extends NetTransport
 ## parses RPC, spawn or sync commands, and nothing relays packets between clients (ARCHITECTURE §4).
 ## The host's own client is a LoopbackTransport (LoopbackTransport.own_client_of).
 ##
-## A client counts as connected only when the host's WELCOME arrives. ENet completes its handshake
+## A client counts as connected only when the host's ADMIT arrives. ENet completes its handshake
 ## before the host's code sees the peer, so a refused client would otherwise see "connected" and
-## then wait for a timeout. A refusing host disconnects the peer instead of welcoming it.
+## then wait for a timeout. A refusing host disconnects the peer instead of admitting it.
 
 ## ENet drops a peer that acknowledges nothing for this long; a crashed peer is noticed within
 ## PEER_TIMEOUT_MAX_MS. The M1 spike's 2-4 s dropped any peer whose main thread froze that long
@@ -14,11 +14,11 @@ extends NetTransport
 const PEER_TIMEOUT_LIMIT := 32
 const PEER_TIMEOUT_MIN_MS := 10000
 const PEER_TIMEOUT_MAX_MS := 20000
-## A join without a WELCOME gives up after this long (no host, or a full one, answers nothing).
+## A join without an ADMIT gives up after this long (no host, or a full one, answers nothing).
 const JOIN_TIMEOUT_MS := 5000
 ## The host's first packet to each client: a frame of kind 0, which no kind table allows, so it
 ## can never be mistaken for a game message.
-const WELCOME: Array[int] = [0, 0, 0]
+const ADMIT: Array[int] = [0, 0, 0]
 
 ## The address the host listens on. "*" is every interface; 127.0.0.1 keeps local tests off the
 ## network (and off the firewall prompt).
@@ -27,7 +27,7 @@ var bind_address := "*"
 var _peer: ENetMultiplayerPeer = null
 var _join_started_ms := 0
 var _client_id := 0
-var _welcomed := false
+var _admitted := false
 ## Filled by the ENet signals during _peer.poll(), handled around the packets afterwards.
 var _arrivals: Array[int] = []
 var _departures: Array[int] = []
@@ -72,8 +72,8 @@ func _backend_poll() -> void:
 		var channel := _peer.get_packet_channel()
 		var mode := _peer.get_packet_mode()
 		var bytes := _peer.get_packet()
-		if not is_host() and not _welcomed and _is_welcome(from_peer, bytes, channel, mode):
-			_welcomed = true
+		if not is_host() and not _admitted and _is_admit(from_peer, bytes, channel, mode):
+			_admitted = true
 			_push(Inbound.new(Inbound.Type.CONNECTED, _client_id))
 		else:
 			_push(Inbound.new(Inbound.Type.PACKET, from_peer, bytes, channel, mode))
@@ -104,7 +104,7 @@ func _backend_close() -> void:
 	_departures.clear()
 	_live.clear()
 	_client_id = 0
-	_welcomed = false
+	_admitted = false
 	if peer != null:
 		peer.close()
 
@@ -116,7 +116,7 @@ func _use(peer: ENetMultiplayerPeer) -> void:
 	_peer.peer_disconnected.connect(_on_peer_disconnected)
 
 
-## Host: welcomes each new peer before anything else goes to it, or disconnects it. The WELCOME
+## Host: admits each new peer before anything else goes to it, or disconnects it. The ADMIT
 ## and the game's reliable messages share channel 0, so they arrive in this order.
 ## The client picks its own peer id (Godot only refuses 0, 1 and ids in use), so it is neither
 ## secret nor unique over time. A negative id would turn every send to it into "everyone but"
@@ -134,16 +134,16 @@ func _admit_arrivals() -> void:
 			_peer.disconnect_peer(peer_id)
 			continue
 		_set_timeout(peer_id)
-		_backend_send(peer_id, PackedByteArray(WELCOME), NetKindTable.Lane.RELIABLE)
+		_backend_send(peer_id, PackedByteArray(ADMIT), NetKindTable.Lane.RELIABLE)
 		_push(Inbound.new(Inbound.Type.JOINED, peer_id))
 
 
-func _is_welcome(
+func _is_admit(
 	from_peer: int, bytes: PackedByteArray, channel: int, mode: MultiplayerPeer.TransferMode
 ) -> bool:
 	return (
 		from_peer == HOST_ID
-		and bytes == PackedByteArray(WELCOME)
+		and bytes == PackedByteArray(ADMIT)
 		and channel == NetKindTable.channel_of(NetKindTable.Lane.RELIABLE)
 		and mode == NetKindTable.mode_of(NetKindTable.Lane.RELIABLE)
 	)
@@ -151,12 +151,12 @@ func _is_welcome(
 
 ## The host is gone when ENet reports peer 1 disconnected (_on_peer_disconnected) or the
 ## connection status drops to disconnected, whichever comes first; the base class emits once.
-## Before the WELCOME the same means the join failed.
+## Before the ADMIT the same means the join failed.
 func _check_client() -> void:
 	var status := _peer.get_connection_status()
 	if status == MultiplayerPeer.CONNECTION_DISCONNECTED:
 		_push(Inbound.new(Inbound.Type.HOST_LOST, HOST_ID))
-	elif not _welcomed and Time.get_ticks_msec() - _join_started_ms > JOIN_TIMEOUT_MS:
+	elif not _admitted and Time.get_ticks_msec() - _join_started_ms > JOIN_TIMEOUT_MS:
 		_push(Inbound.new(Inbound.Type.CONNECT_FAILED, HOST_ID))
 
 
