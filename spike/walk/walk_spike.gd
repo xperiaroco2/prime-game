@@ -14,6 +14,11 @@ extends Node3D
 ##   --screenshot-at S --screenshot PATH   save the window as a PNG after S seconds (not headless)
 ##   --cheat-teleport-at S     a client jumps 5 m forward once, at S seconds
 ##   --cheat-speed-at S        a client walks at triple speed for 1.5 s, from S seconds
+##   --sim-latency-ms N --sim-jitter-ms N --sim-loss P
+##                             delay incoming MOVE and SNAPSHOT packets by N + random(0, jitter) ms
+##                             and drop a share P of them, like a real network (seeded; PLACE is
+##                             reliable and passes untouched). Out-of-order ones are then dropped as
+##                             ENet's unreliable ordered mode would.
 ## Every process prints "WALK ..." lines; spike/walk/launch.ps1 starts three and checks the logs.
 
 const ROOM := preload("res://spike/walk/greybox_room.tscn")
@@ -48,6 +53,15 @@ var _screenshot_at := -1.0
 var _screenshot_path := ""
 var _cheat_teleport_at := -1.0
 var _cheat_speed_at := -1.0
+var _sim_latency := 0.0
+var _sim_jitter := 0.0
+var _sim_loss := 0.0
+var _sim_rng := RandomNumberGenerator.new()
+# [release time, from peer, bytes, arrival seq], in arrival order
+var _sim_queue: Array[Array] = []
+var _sim_seq := 0
+var _sim_last_seq: Dictionary[int, int] = {}
+var _sim_dropped := 0  # lost or out of order
 var _status := "starting"
 var _clock := 0.0
 var _since_send := 0.0
@@ -102,12 +116,19 @@ func _ready() -> void:
 	if err != OK:
 		_status = "FAILED: %s" % error_string(err)
 	_log(_status)
-	_log("tick_hz=%.0f interp_delay_ms=%.0f" % [_tick_hz, _buffer.delay * 1000.0])
+	_sim_rng.seed = 14
+	_log(
+		(
+			"tick_hz=%.0f interp_delay_ms=%.0f sim_latency_ms=%.0f sim_jitter_ms=%.0f sim_loss=%.2f"
+			% [_tick_hz, _buffer.delay * 1000.0, _sim_latency * 1000, _sim_jitter * 1000, _sim_loss]
+		)
+	)
 
 
 func _process(delta: float) -> void:
 	_clock += delta
 	_transport.poll()
+	_release_simulated()
 	if _is_host:
 		_check.advance(delta)
 	# A fixed-rate tick, so tick / tick_hz tracks the sender's clock; after a long frame it
@@ -209,6 +230,12 @@ func _parse_args(args: PackedStringArray) -> void:
 				_cheat_teleport_at = next.to_float()
 			"--cheat-speed-at":
 				_cheat_speed_at = next.to_float()
+			"--sim-latency-ms":
+				_sim_latency = maxf(next.to_float(), 0.0) / 1000.0
+			"--sim-jitter-ms":
+				_sim_jitter = maxf(next.to_float(), 0.0) / 1000.0
+			"--sim-loss":
+				_sim_loss = clampf(next.to_float(), 0.0, 1.0)
 
 
 func _spawn_overhead_camera() -> void:
@@ -317,6 +344,10 @@ func _on_peer_joined(id: int) -> void:
 
 func _on_peer_left(id: int) -> void:
 	_log("peer_left id=%d" % id)
+	# Nothing arrives from a peer after it has left, delayed or not.
+	var kept: Array[Array] = []
+	kept.assign(_sim_queue.filter(func(item: Array) -> bool: return item[1] != id))
+	_sim_queue = kept
 	if _is_host:
 		_check.forget(id)
 		_yaws.erase(id)
@@ -340,6 +371,46 @@ func _on_disconnected() -> void:
 
 
 func _on_packet(from_peer: int, bytes: PackedByteArray) -> void:
+	var simulated := _sim_latency > 0.0 or _sim_jitter > 0.0 or _sim_loss > 0.0
+	if simulated and not _is_reliable_kind(bytes):
+		if _sim_rng.randf() < _sim_loss:
+			_sim_dropped += 1
+			return
+		var release := _clock + _sim_latency + _sim_rng.randf() * _sim_jitter
+		_sim_seq += 1
+		_sim_queue.append([release, from_peer, bytes, _sim_seq])
+		return
+	_handle_packet(from_peer, bytes)
+
+
+func _is_reliable_kind(bytes: PackedByteArray) -> bool:
+	var msg := SpikeWalkMessages.decode(bytes)
+	return not msg.is_empty() and msg[0] == SpikeWalkMessages.KIND_PLACE
+
+
+## Delivers the simulated packets that are due, and drops those overtaken by a newer one, as
+## ENet's unreliable ordered mode does.
+func _release_simulated() -> void:
+	var due: Array[Array] = []
+	var waiting: Array[Array] = []
+	for item: Array in _sim_queue:
+		if (item[0] as float) <= _clock:
+			due.append(item)
+		else:
+			waiting.append(item)
+	_sim_queue = waiting
+	due.sort_custom(func(a: Array, b: Array) -> bool: return (a[0] as float) < (b[0] as float))
+	for item: Array in due:
+		var from_peer: int = item[1]
+		var seq: int = item[3]
+		if seq < _sim_last_seq.get(from_peer, 0):
+			_sim_dropped += 1
+			continue
+		_sim_last_seq[from_peer] = seq
+		_handle_packet(from_peer, item[2] as PackedByteArray)
+
+
+func _handle_packet(from_peer: int, bytes: PackedByteArray) -> void:
 	var msg := SpikeWalkMessages.decode(bytes)
 	if _is_host:
 		_host_receive(from_peer, msg, bytes.size())
@@ -436,7 +507,10 @@ func _summary() -> String:
 	for id: int in ids:
 		var pos := _check.position_of(id) if _is_host else _avatars[id].position
 		players.append("%d@%s" % [id, _fmt(pos)])
-	var interp := "interpolated=%d starved=%d" % [_buffer.interpolated, _buffer.starved]
+	var interp := (
+		"interpolated=%d starved=%d sim_dropped=%d"
+		% [_buffer.interpolated, _buffer.starved, _sim_dropped]
+	)
 	if _is_host:
 		return "peers=[%s] moves=%s verdicts=%s %s" % [",".join(players), _moves, _verdicts, interp]
 	var at := _fmt(_body.global_position) if _epoch != 0 else "-"

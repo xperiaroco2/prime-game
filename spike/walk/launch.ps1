@@ -12,7 +12,8 @@
 # ever rejected or corrected. -Cheat makes client 2 teleport and then speed; the host must reject both and correct
 # client 2, and client 1 must stay unrejected. -KillClientAfter N hard-kills client 2 as in spike\net\launch.ps1.
 # -Shots saves each window as a PNG next to its log (windowed only). -TickHz and -InterpTicks set the snapshot rate
-# and the interpolation delay. Exit code 0 means PASS.
+# and the interpolation delay. -LatencyMs, -JitterMs and -Loss make every process delay and drop incoming moves and
+# snapshots like a real network (one way; the round trip is twice that). Exit code 0 means PASS.
 param(
     [switch]$Headless,
     [int]$Seconds = 0,
@@ -21,6 +22,9 @@ param(
     [switch]$Shots,
     [double]$TickHz = 20,
     [double]$InterpTicks = 2,
+    [double]$LatencyMs = 0,
+    [double]$JitterMs = 0,
+    [double]$Loss = 0,
     [int]$Port = 24560
 )
 $ErrorActionPreference = 'Stop'
@@ -50,6 +54,7 @@ function Start-Peer([string]$Name, [int]$X, [string[]]$UserArgs) {
     $godotArgs = @('--path', "`"$Root`"", '--log-file', "`"$log`"")
     if ($Headless) { $godotArgs += '--headless' } else { $godotArgs += @('--resolution', '640x400', '--position', "$X,80") }
     $godotArgs += @($Scene, '--') + $UserArgs + @('--tick-hz', "$TickHz", '--interp-ticks', "$InterpTicks")
+    $godotArgs += @('--sim-latency-ms', "$LatencyMs", '--sim-jitter-ms', "$JitterMs", '--sim-loss', "$Loss")
     # The host outlives the clients by 3 s, so each client's last snapshot is from a live host.
     $quitAfter = if ($Name -eq 'host') { $Seconds + 3 } else { $Seconds }
     if ($Seconds -gt 0) { $godotArgs += @('--quit-after-seconds', "$quitAfter") }
