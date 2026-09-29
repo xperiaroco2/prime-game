@@ -53,8 +53,16 @@ class ParseTest(unittest.TestCase):
         for text in ("must not contain ..", "relative to the repo root", "use / in paths", "Author appears twice"):
             self.assertIn(text, joined)
 
-    def test_crlf_is_accepted(self) -> None:
-        self.assertEqual(credits.parse("x.md", ENTRY.replace("\n", "\r\n"))[1], [])
+    def test_crlf_and_bom_are_accepted(self) -> None:
+        # PowerShell 5.1 writes a BOM with Out-File, > and Set-Content -Encoding utf8.
+        self.assertEqual(credits.parse("x.md", "﻿" + ENTRY.replace("\n", "\r\n"))[1], [])
+
+    def test_a_wrapped_value_continues_on_indented_lines(self) -> None:
+        wrapped = ENTRY.replace(", `levels/crate.glb`", ",\n  `levels/crate.glb`,\n  `levels/ящик/**`")
+        entry, errors = credits.parse("x.md", wrapped)
+        self.assertEqual(errors, [])
+        assert entry is not None
+        self.assertEqual(entry.globs, ["levels/props/crate/**", "levels/crate.glb", "levels/ящик/**"])
 
 
 class GlobTest(unittest.TestCase):
@@ -140,6 +148,33 @@ class RepoTest(unittest.TestCase):
         errors = credits.check(self.root).errors
         self.assertEqual(len(errors), 1, errors)
         self.assertIn("`levels/crate.glb` matches no file", errors[0])
+
+    def test_a_folder_without_double_star_gets_a_hint(self) -> None:
+        self.entry(ENTRY.replace("`levels/crate.glb`", "`levels/props/crate/`"))
+        errors = credits.check(self.root).errors
+        self.assertTrue(any("it is a folder: write `levels/props/crate/**`" in e for e in errors), errors)
+
+    def test_addons_are_exempt_even_inside_lfs(self) -> None:
+        write(self.root, ".gitattributes", "*.png filter=lfs diff=lfs merge=lfs -text\n")  # no !filter for addons
+        files = credits.repo_files(self.root)
+        self.assertEqual(credits.lfs_assets(self.root, files), ["levels/props/crate/wood.png"])
+
+    def test_paths_with_spaces_and_non_ascii(self) -> None:
+        write(self.root, "levels/мій ящик/дерево 1.png", "x")
+        files = credits.repo_files(self.root)
+        self.assertIn("levels/мій ящик/дерево 1.png", credits.lfs_assets(self.root, files))
+        self.entry(ENTRY.replace("`levels/crate.glb`", "`levels/мій ящик/**`, `levels/room.tscn`"))
+        self.assertEqual(self.main(), 0)
+        self.assertEqual(credits.check(self.root).errors, [])
+
+    def test_credits_leaves_a_current_file_alone(self) -> None:
+        self.entry()
+        self.main()
+        before = (self.root / "CREDITS.md").stat().st_mtime_ns
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(credits.main(self.root), 0)
+        self.assertIn("CREDITS.md is up to date (1 entry)", out.getvalue())
+        self.assertEqual((self.root / "CREDITS.md").stat().st_mtime_ns, before)
 
     def test_broken_entry_is_reported_and_not_rendered(self) -> None:
         self.entry("no title\n")

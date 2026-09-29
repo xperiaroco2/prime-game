@@ -90,7 +90,7 @@ def _glob_problem(pattern: str) -> str | None:
 
 def parse(rel: str, text: str) -> tuple[Entry | None, list[str]]:
     """One docs/credits entry. Returns the entry, or None with the reasons."""
-    lines = text.replace("\r\n", "\n").split("\n")
+    lines = text.removeprefix("﻿").replace("\r\n", "\n").split("\n")
     while lines and not lines[0].strip():
         lines.pop(0)
     if not lines or not lines[0].startswith("# "):
@@ -99,14 +99,20 @@ def parse(rel: str, text: str) -> tuple[Entry | None, list[str]]:
     body = lines[1:]
     errors: list[str] = []
     fields: dict[str, str] = {}
+    current = ""  # the field an indented continuation line belongs to
     for number, line in enumerate(body, start=2):
         match = FIELD_RE.match(line)
         if not match:
+            if current and line.startswith((" ", "\t")) and line.strip():
+                fields[current] += " " + line.strip()  # a value wrapped onto the next line
+            else:
+                current = ""
             continue
         name, value = match.group(1).strip(), match.group(2).strip()
         if name in fields:
             errors.append(f"{rel}:{number}: {name} appears twice")
         fields[name] = value
+        current = name
     for name in REQUIRED:
         if not fields.get(name):
             errors.append(f"{rel}: missing '- **{name}:** ...'")
@@ -136,7 +142,7 @@ def load(root: Path) -> tuple[list[Entry], list[str]]:
     if folder.is_dir():
         for path in sorted(folder.glob("*.md")):
             rel = path.relative_to(root).as_posix()
-            entry, problems = parse(rel, path.read_text(encoding="utf-8"))
+            entry, problems = parse(rel, path.read_text(encoding="utf-8-sig"))
             errors += problems
             if entry:
                 entries.append(entry)
@@ -206,9 +212,13 @@ def check(root: Path = ROOT) -> Report:
     patterns = [(entry, glob, glob_regex(glob)) for entry in entries for glob in entry.globs]
     for entry, glob, regex in patterns:
         if not any(regex.fullmatch(name) for name in files):
-            report.errors.append(
-                f"{entry.path}: Files: `{glob}` matches no file in the repo (a typo, or a removed asset)"
+            folder = glob.rstrip("/") + "/"
+            hint = (
+                f"it is a folder: write `{folder}**`"
+                if any(name.startswith(folder) for name in files)
+                else "a typo, or a removed asset"
             )
+            report.errors.append(f"{entry.path}: Files: `{glob}` matches no file in the repo ({hint})")
     for asset in assets:
         if not any(regex.fullmatch(asset) for _, _, regex in patterns):
             report.errors.append(
@@ -217,7 +227,7 @@ def check(root: Path = ROOT) -> Report:
             )
     if not errors:
         current = root / OUTPUT
-        text = current.read_text(encoding="utf-8").replace("\r\n", "\n") if current.is_file() else None
+        text = current.read_text(encoding="utf-8-sig").replace("\r\n", "\n") if current.is_file() else None
         if text != render(entries):
             report.errors.append(f"{OUTPUT} is {'missing' if text is None else 'out of date'}: {FIX}")
     return report

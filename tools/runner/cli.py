@@ -67,7 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
 
-    p = sub.add_parser("agents-check",help="assert each subagent was served by the model family it asked for")
+    p = sub.add_parser("agents-check", help="assert each subagent was served by the model family it asked for")
     scope = p.add_mutually_exclusive_group()
     scope.add_argument("--session", help="session id (default: this Claude Code session, else all)")
     scope.add_argument("--all", action="store_true", help="every session of this checkout")
