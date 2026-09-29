@@ -45,4 +45,8 @@ HEAD) is fully on `origin/<branch>`, and keeps the local branch unless it is mer
 On #19 the caller's shell sat in the worktree: git unregistered it, Windows refused to delete the folder, and a rerun
 said "no worktree". Now `worktree-done` refuses up front when the current folder or the runner's checkout is inside
 the worktree, and when the worktree is unregistered it removes an empty leftover folder (one with files stops it) and
-the issue's merged local task branch.
+the issue's merged local task branch. On #27 the same happened with no shell inside: the finished spike sessions,
+never archived and idle for 3 to 7 hours, were still alive with the worktree as their `cwd`, and Windows kept each
+folder. So `worktree-done` refuses while **any** live session has its `cwd` in the worktree, however long idle (not
+the one-hour window `start` uses); the human archives or closes it in the app first. When git still fails after
+unregistering, the message says so, and a rerun finishes the removal.
