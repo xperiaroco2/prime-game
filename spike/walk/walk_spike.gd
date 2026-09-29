@@ -12,8 +12,8 @@ extends Node3D
 ##   --auto                    a client walks in a circle by itself (WASD and the mouse override it)
 ##   --quit-after-seconds N    exit with code 0 after N seconds
 ##   --screenshot-at S --screenshot PATH   save the window as a PNG after S seconds (not headless)
-##   --cheat-teleport-at S     a client jumps 5 m forward once, at S seconds
-##   --cheat-speed-at S        a client walks at triple speed for 1.5 s, from S seconds
+##   --cheat-teleport-at S     a client jumps 5 m towards the room centre once, at S seconds
+##   --cheat-speed-at S        a client moves at triple speed through walls for 1.5 s from S s
 ##   --sim-latency-ms N --sim-jitter-ms N --sim-loss P
 ##                             delay incoming MOVE and SNAPSHOT packets by N + random(0, jitter) ms
 ##                             and drop a share P of them, like a real network (seeded; PLACE is
@@ -28,15 +28,16 @@ const MAX_CLIENTS := SpikeWalkMessages.MAX_PLAYERS
 const MAX_REJECT_LOGS := 5  # a flooding peer must not fill the log; the stats line keeps the count
 const STATS_EVERY := 1.0
 const WALK_SPEED := 4.5  # m/s; the host allows SpikeMoveCheck.max_speed (6) with slack
-const AUTO_TURN := 1.5  # rad/s to the right while --auto: a 3 m circle, centred 3 m right of spawn
+## rad/s to the right while --auto (to the left from a z < 0 spawn): a 3 m circle whose centre is
+## 3 m to the side, towards +X.
+const AUTO_TURN := 1.5
 const GRAVITY := 9.8
 const MOUSE_SENSITIVITY := 0.0025  # rad per screen pixel
 const CAPSULE_RADIUS := 0.35
 const CAPSULE_HEIGHT := 1.8
 const EYE_OFFSET := 0.7  # camera above the capsule centre
 const SEES_MOVING_AFTER := 1.0  # metres a remote player must move before "sees_moving" is logged
-# Facing -Z; the --auto circles of the first two stay clear of the walls, the others brush the
-# inner wall.
+# The --auto circles of the first two stay clear of the walls, the others brush the inner wall.
 const SPAWNS: Array[Vector3] = [
 	Vector3(-7, 1, 2.5), Vector3(-7, 1, -2.5), Vector3(3.6, 1, 2.5), Vector3(3.6, 1, -2.5)
 ]
@@ -53,6 +54,7 @@ var _screenshot_at := -1.0
 var _screenshot_path := ""
 var _cheat_teleport_at := -1.0
 var _cheat_speed_at := -1.0
+var _cheat_dir := Vector3.ZERO
 var _sim_latency := 0.0
 var _sim_jitter := 0.0
 var _sim_loss := 0.0
@@ -82,6 +84,7 @@ var _joined := 0
 var _body: CharacterBody3D
 var _camera: Camera3D
 var _epoch := 0  # 0 until the host places this client; it does not move before that
+var _auto_turn := AUTO_TURN
 var _snapshots := 0
 var _corrections := 0
 var _first_seen: Dictionary[int, Vector3] = {}
@@ -163,26 +166,32 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	if _is_host or _epoch == 0:
 		return
-	var speed := WALK_SPEED
 	if _cheat_speed_at >= 0.0 and _clock >= _cheat_speed_at and _clock < _cheat_speed_at + 1.5:
-		speed *= 3.0
+		# A speed hack with noclip, so no wall can slow it down: straight towards the room centre
+		# from wherever it starts, at triple speed.
+		if _cheat_dir == Vector3.ZERO:
+			_cheat_dir = Vector3(-_body.position.x, 0, -_body.position.z).normalized()
+			_log("cheat speed towards %s" % _fmt(_cheat_dir))
+		_body.global_position += _cheat_dir * WALK_SPEED * 3.0 * delta
+		return
 	var input := Vector2(
 		float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A)),
 		float(Input.is_physical_key_pressed(KEY_S)) - float(Input.is_physical_key_pressed(KEY_W))
 	)
 	if input == Vector2.ZERO and _auto:
-		_body.rotation.y -= AUTO_TURN * delta
+		_body.rotation.y -= _auto_turn * delta
 		input = Vector2(0, -1)
 	var wish := _body.global_basis * Vector3(input.x, 0, input.y)
 	wish.y = 0.0
-	wish = wish.normalized() * speed
+	wish = wish.normalized() * WALK_SPEED
 	_body.velocity.x = wish.x
 	_body.velocity.z = wish.z
 	_body.velocity.y = 0.0 if _body.is_on_floor() else _body.velocity.y - GRAVITY * delta
 	_body.move_and_slide()
 	if _cheat_teleport_at >= 0.0 and _clock >= _cheat_teleport_at:
 		_cheat_teleport_at = -1.0
-		_body.global_position += -_body.global_basis.z * 5.0
+		# Towards the room centre, so the jump stays inside the room: a teleport, not out of bounds.
+		_body.global_position += Vector3(-_body.position.x, 0, -_body.position.z).normalized() * 5.0
 		_log("cheat teleport to %s" % _fmt(_body.global_position))
 
 
@@ -243,7 +252,8 @@ func _parse_args(args: PackedStringArray) -> void:
 func _spawn_overhead_camera() -> void:
 	var camera := Camera3D.new()
 	add_child(camera)
-	camera.look_at_from_position(Vector3(0, 17, 12), Vector3(0, 0, 0.5))
+	# Steep enough that the near wall hides no one.
+	camera.look_at_from_position(Vector3(0, 12, 4), Vector3(0, 0, 0.4))
 	camera.current = true
 
 
@@ -462,6 +472,11 @@ func _client_receive(from_peer: int, msg: Array, size_bytes: int) -> void:
 			var pos: Vector3 = msg[2]
 			if _epoch == 0:
 				_log("placed epoch=%d pos=%s" % [msg[1] as int, _fmt(pos)])
+				# Spawns at z < 0 mirror those at z > 0, so paired --auto players meet face to
+				# face once per circle.
+				if pos.z < 0.0:
+					_body.rotation.y = PI
+					_auto_turn = -AUTO_TURN
 			else:
 				_corrections += 1
 				_log("corrected epoch=%d pos=%s" % [msg[1] as int, _fmt(pos)])

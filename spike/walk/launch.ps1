@@ -11,7 +11,7 @@
 # host accepts moves from both, each client sees the other one move, nobody logs an error, and no honest client is
 # ever rejected or corrected. -Cheat makes client 2 teleport and then speed; the host must reject both and correct
 # client 2, and client 1 must stay unrejected. -KillClientAfter N hard-kills client 2 as in spike\net\launch.ps1.
-# -Shots saves each window as a PNG next to its log (windowed only). -TickHz and -InterpTicks set the snapshot rate
+# -Shots saves each window as a PNG next to its log (windowed only) after -ShotAt seconds (default 6). -TickHz and -InterpTicks set the snapshot rate
 # and the interpolation delay. -LatencyMs, -JitterMs and -Loss make every process delay and drop incoming moves and
 # snapshots like a real network (one way; the round trip is twice that). Exit code 0 means PASS.
 param(
@@ -25,13 +25,13 @@ param(
     [double]$LatencyMs = 0,
     [double]$JitterMs = 0,
     [double]$Loss = 0,
+    [double]$ShotAt = 6,
     [int]$Port = 24560
 )
 $ErrorActionPreference = 'Stop'
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $Logs = Join-Path $Root 'tools\out\logs\walk-spike'
 $Scene = 'res://spike/walk/walk_spike.tscn'
-$ShotAt = 6
 $CheatTeleportAt = 4
 $CheatSpeedAt = 6
 
