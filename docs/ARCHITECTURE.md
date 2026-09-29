@@ -79,8 +79,9 @@ only, so the designer can test a mechanic alone.
 
 ## 9. Content API (the engineer–designer contract)
 
-A mechanic is data: a `Resource` composed from parts the engine provides. The designer's agent uses **only** the
-parts listed here. A missing part becomes an `engine-request` issue; the engineer adds it with tests and lists it
+A mechanic is data: a `Resource` composed from parts the engine provides. Adding a mechanic should usually mean
+adding data plus at most one new effect class, never changing the core loop: that is the test of this API. The
+designer's agent uses **only** the parts listed here. A missing part becomes an `engine-request` issue; the engineer adds it with tests and lists it
 here in the same PR.
 
 | Kind | Answers | Parts available |

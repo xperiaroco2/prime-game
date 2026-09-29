@@ -61,5 +61,6 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
 7. **Handoff.** `gh issue comment <n> --body-file <file>` with four headings: Done, Left, Decisions, Gotchas, plus
    the PR link. Then `tools\run.cmd board move <n> in-review`.
 8. **Tell the human** the PR link and that CI runs on it. Only humans merge, with "Create a merge commit". For a
-   stacked PR: after the parent merges, `gh pr edit <child> --base main` before merging the child. If the task ran in
+   stacked PR: GitHub retargets the child to `main` when the parent's branch is deleted on merge; if the child
+   still shows the parent as base, `gh pr edit <child> --base main` before merging it. If the task ran in
    a worktree: after the merge, `tools\run.cmd worktree-done <n>` from the main checkout.

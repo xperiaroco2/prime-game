@@ -1,7 +1,7 @@
 # Roadmap
 
-Milestones and their goals only ([KICKOFF §7](history/KICKOFF.md)). Task-level status lives in GitHub: issues, the project board and
-[milestones](https://github.com/xperiaroco2/prime-game/milestones). Owned by the engineer; a change to a
+Milestones and their goals only ([KICKOFF §7](history/KICKOFF.md)). Task-level status lives in GitHub: issues,
+the project board and [milestones](https://github.com/xperiaroco2/prime-game/milestones). Owned by the engineer; a change to a
 milestone's goal is agreed with the designer. Acceptance criteria belong in each milestone's issues.
 
 | Milestone | Goal |

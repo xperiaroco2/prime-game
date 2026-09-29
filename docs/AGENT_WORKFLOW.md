@@ -331,9 +331,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   Ukrainian UI «Зберегти всі сцени»). If Godot asks about files changed on disk, always choose **Reload from disk**
   (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні зміни»). The agent reminds the human; nothing blocks. Headless runs next to an open editor were verified in M0.
 - **`.tscn` / `.tres`** ([ADR](decisions/2026-09-29-hand-written-scenes-then-normalize.md)): the agent hand-writes
-  readable text and never copies a uid or a `.uid` sidecar; `tools\run.cmd normalize <files>` **[applied]** re-saves
-  them in headless editor context (`--headless -e -s`, after the first file-system scan), which adds the header uid and node `unique_id`s the editor would. A second run
-  leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
+  readable text and never copies a uid or a `.uid` sidecar; `tools\run.cmd normalize <files>` **[applied]**
+  re-saves them in headless editor context (`--headless -e -s`, after the first file-system scan), which adds the
+  header uid and node `unique_id`s the editor would. A second run leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
   after a parse error, without an error: `normalize` compares property keys before and after, and on a loss restores
   the file and fails. `check` fails on UID problems, on files left modified by `--import`, and on an `ext_resource`
   uid that resolves to a different file than its `path=`.
