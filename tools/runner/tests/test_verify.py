@@ -62,8 +62,12 @@ class FreePortTest(unittest.TestCase):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as held:
             held.bind(("127.0.0.1", 0))
             taken = held.getsockname()[1]
-            picks = iter([taken, 24001])
-            self.assertEqual(verify.free_udp_port(lambda _ports: next(picks)), 24001)
+            # A second port the OS just handed out and took back: free, and not `taken` while `held` is open.
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+                probe.bind(("127.0.0.1", 0))
+                free = probe.getsockname()[1]
+            picks = iter([taken, free])
+            self.assertEqual(verify.free_udp_port(lambda _ports: next(picks)), free)
 
     def test_the_port_is_outside_the_ephemeral_ranges(self) -> None:
         port = verify.free_udp_port()
