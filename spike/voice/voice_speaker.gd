@@ -5,7 +5,8 @@ extends RefCounted
 ## Spatialization happens here, on the listener (ARCHITECTURE §6): the listener is the client's
 ## current Camera3D. Falloff: ATTENUATION_DISABLED with max_distance is linear attenuation clamped
 ## to a sphere (Godot 4.7 docs), so with max_distance = the host's cutoff the volume reaches zero
-## exactly where the host stops delivering, and delivery switching on or off makes no audible step.
+## about where the host stops delivering (see SpikeVoiceRouting for why not exactly), and delivery
+## switching on or off makes no audible step.
 
 var jitter := SpikeVoiceJitter.new()
 var player := AudioStreamPlayer3D.new()
@@ -66,5 +67,5 @@ func stats() -> String:
 	var j := jitter
 	return (
 		"recv=%d late=%d fec=%d lost=%d resets=%d underruns=%d overflow=%d queue_ms=%.0f"
-		% [j.received, j.late, j.recovered, j.lost, j.resets, j.underruns, overflow, queue_ms()]
+		% [j.received, j.late, j.fec, j.lost, j.resets, j.underruns, overflow, queue_ms()]
 	)
