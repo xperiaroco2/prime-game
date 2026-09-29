@@ -45,7 +45,8 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
 | `docs/*.md` | Only when read | Architecture (with the **content API**), GDD, roadmap, ADRs. Linked, never `@imported` | none |
 
-- Invariants live in root because nested files drop out after compaction.
+- Invariants live in root because nested files drop out after compaction
+  ([ADR](decisions/2026-09-29-instruction-files-and-budgets.md)).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
@@ -311,13 +312,17 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 ## 11. Godot specifics
 
+- **Stack** ([ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)): Godot 4.7.2 standard build (not .NET),
+  typed GDScript, GdUnit4, gdtoolkit, ENet behind a transport abstraction, Opus voice (M1 spike decides the addon).
+  Native Windows first, never WSL: the agent runs the Godot `*_console.exe`, humans the regular exe. Binary assets go
+  through Git LFS, `addons/` stays outside it ([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)).
 - **Editor convention** ([ADR](decisions/2026-09-28-godot-editor-save-first-convention.md)): nobody edits by hand
   while an agent works. Before asking the agent for anything, Scene → **Save All Scenes** (Ctrl+Shift+Alt+S;
   Ukrainian UI «Зберегти всі сцени»). If Godot asks about files changed on disk, always choose **Reload from disk**
   (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні зміни»). The agent reminds the human; nothing blocks. Headless runs next to an open editor were verified in M0.
-- **`.tscn` / `.tres`:** the agent hand-writes readable text and never copies a uid or a `.uid` sidecar;
-  `tools\run.cmd normalize <files>` **[applied]** re-saves them in headless editor context (`--headless -e -s`,
-  after the first file-system scan), which adds the header uid and node `unique_id`s the editor would. A second run
+- **`.tscn` / `.tres`** ([ADR](decisions/2026-09-29-hand-written-scenes-then-normalize.md)): the agent hand-writes
+  readable text and never copies a uid or a `.uid` sidecar; `tools\run.cmd normalize <files>` **[applied]** re-saves
+  them in headless editor context (`--headless -e -s`, after the first file-system scan), which adds the header uid and node `unique_id`s the editor would. A second run
   leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
   after a parse error, without an error: `normalize` compares property keys before and after, and on a loss restores
   the file and fails. `check` fails on UID problems, on files left modified by `--import`, and on an `ext_resource`
@@ -328,16 +333,18 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
-- **Runner [applied]:** Python core `tools/run.py` with `tools\run.cmd` (immune to the execution policy) and
-  `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`, `test`, `verify`, `selftest`, `pins`, `board`, `start`,
-  `worktree-done`, `publish`, `normalize`, `shot`, `agents-check`, `credits`, and `hook` (for Claude Code only).
-  Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
-  Bash; `doctor` finds Git Bash through git's install folder.
+- **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
+  `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
+  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`,
+  `agents-check`, `credits`, and `hook` (for Claude Code only); `bots`, `host` and `join` come with the bot harness
+  (M3) and the M1 spike. Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
+  `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder.
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   and on `main`, with the checksum-checked Godot build from the pins. Test suites are named `<name>_test.gd`
   (GdUnit4's snake_case convention).
-- **No Godot MCP server** before M4 (§14). API facts come from `check`, the engine API dump that `doctor` generates
-  into `tools/out/godot-api/4.7.2/`, and `docs.godotengine.org/en/4.7/`.
+- **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
+  from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
+  `docs.godotengine.org/en/4.7/`.
 
 ## 12. The designer's agent
 
@@ -383,7 +390,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 | Auto permission mode | After the M0 guard tests pass |
 | `tools\run.cmd merge` (agent merges after the human says "merge", with CI and approval checks) | If manual merging becomes friction |
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
-| Git LFS in CI (uses LFS bandwidth quota) | Ask the humans before enabling |
+| Git LFS in CI (uses LFS bandwidth quota), or `check` skipping pointer files ([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)) | Before the first LFS asset outside `addons/`; ask the humans |
 
 **Pending human actions 👤:** add the ruleset on `main` of the existing public repo `xperiaroco2/prime-game`;
 `gh auth refresh -s project` and upgrade gh; usage credits off; update or remove the PATH `claude`; invite the
