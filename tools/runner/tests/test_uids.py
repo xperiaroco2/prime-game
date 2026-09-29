@@ -41,6 +41,13 @@ class UidLintTest(unittest.TestCase):
         self.scene(A_UID, "res://content/a.tres")
         self.assertEqual(uids.lint(self.root).errors, [])
 
+    def test_task_worktrees_are_not_part_of_the_project(self) -> None:
+        # `start` puts whole copies of the project in .claude/worktrees/<n>; Godot skips hidden directories too.
+        self.scene(A_UID, "res://content/a.tres")
+        write(self.root, ".claude/worktrees/12/content/a.tres", f'[gd_resource type="Resource" format=3 uid="{A_UID}"]\n')
+        write(self.root, ".claude/worktrees/12/scripts/item.gd.uid", SCRIPT_UID + "\n")
+        self.assertEqual(uids.lint(self.root).errors, [])
+
     def test_uid_of_another_file_fails(self) -> None:
         self.scene(B_UID, "res://content/a.tres")
         errors = uids.lint(self.root).errors

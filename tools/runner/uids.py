@@ -30,7 +30,8 @@ def _res(root: Path, path: Path) -> str:
 
 
 def project_files(root: Path) -> list[Path]:
-    """Every file Godot sees: skips .git/.godot and any directory holding a .gdignore."""
+    """Every file Godot sees: skips hidden directories (.git, .godot, .claude with its task worktrees, which are
+    whole copies of the project) and any directory holding a .gdignore, like tools/check/check_project.gd."""
     found: list[Path] = []
 
     def walk(folder: Path) -> None:
@@ -38,7 +39,7 @@ def project_files(root: Path) -> list[Path]:
             return
         for entry in sorted(folder.iterdir()):
             if entry.is_dir():
-                if entry.name not in SKIP_DIRS:
+                if entry.name not in SKIP_DIRS and not entry.name.startswith("."):
                     walk(entry)
             else:
                 found.append(entry)
