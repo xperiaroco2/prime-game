@@ -131,7 +131,8 @@ function Show-Latency([string]$Dir) {
         $g = $m.Matches[0].Groups
         $hostSeen["$($g[1].Value):$($g[2].Value)"] = [double]$g[3].Value
     }
-    Write-Host 'latency legs, median ms (timed frames only while the playback runs; one machine: one clock):'
+    Write-Host 'latency legs, median ms (timed frames only while the playback runs; one machine: one clock).'
+    Write-Host '  total starts when the sound reached Godot''s microphone buffer: no input device latency, no air'
     $timed = 0
     foreach ($group in @($plays | Where-Object { $_.Playing } | Group-Object Dir)) {
         $rows = @($group.Group)
@@ -171,6 +172,14 @@ function Show-Latency([string]$Dir) {
         Write-Host ("  median {0} | min {1} | p10 {2} | p90 {3} | max {4}" -f (Fmt (Get-Stat $echoes 0.5)),
             (Fmt (Get-Stat $echoes 0)), (Fmt (Get-Stat $echoes 0.1)), (Fmt (Get-Stat $echoes 0.9)), (Fmt (Get-Stat $echoes 1)))
         Write-Host ("  all: {0}" -f (($echoes | ForEach-Object { $_.ToString('0', [cultureinfo]::InvariantCulture) }) -join ' '))
+        # Only echoes within +-30 ms of the common delay are paired, and the listener plays voice for only 0.7 s after
+        # each click (SpikeVoiceClicks.ECHO_GATE_S): slow echoes go missing rather than show up as slow.
+        $median = Get-Stat $echoes 0.5
+        if ($clicks.Count -gt 0 -and $echoes.Count -lt 0.8 * $clicks.Count) {
+            Write-Host ("  WARNING: {0} of {1} clicks unpaired: their echoes strayed over 30 ms, came after the 0.7 s gate, or were too faint" -f `
+                ($clicks.Count - $echoes.Count), $clicks.Count)
+        }
+        if ($median -gt 600) { Write-Host '  WARNING: the median is near the listener''s 0.7 s gate; slower echoes are cut off' }
         # Only on one machine, where both logs share a clock: from asking for a click to the microphone hearing it.
         $loops = @()
         foreach ($c in $clicks) {
@@ -224,8 +233,15 @@ if (-not (Test-Path $console)) { $console = $Godot }
 # A checkout that just switched branches has an old list of class_name scripts in .godot\, and running a scene does
 # not rescan it: every new class (SpikeVoiceClicks...) is then "not declared" (#16, the second machine). A headless
 # import refreshes it; with nothing to import it takes a few seconds. stdout only, as below.
-& $console --headless --path "$Root" --import | Out-Null
-if ($LASTEXITCODE -ne 0) { throw "the Godot import failed (exit $LASTEXITCODE): run tools\run.cmd check for details" }
+# Only when a script is newer than that list: an import also starts a second headless editor on this checkout.
+$classCache = Join-Path $Root '.godot\global_script_class_cache.cfg'
+$newestScript = Get-ChildItem -Path $Root -Recurse -Filter '*.gd' -File |
+    Where-Object { $_.FullName -notmatch '\\\.godot\\' } | Sort-Object LastWriteTime | Select-Object -Last 1
+if (-not (Test-Path $classCache) -or ($newestScript -and $newestScript.LastWriteTime -gt (Get-Item $classCache).LastWriteTime)) {
+    Write-Host 'importing the project (a script changed since the last import)'
+    & $console --headless --path "$Root" --import | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "the Godot import failed (exit $LASTEXITCODE): run tools\run.cmd check for details" }
+}
 if ($ListMics) {
     # The console build prints to this terminal; a real audio driver, or the list is empty. Listing starts no microphone.
     # stdout only: with $ErrorActionPreference Stop, PowerShell 5.1 turns any stderr line of a native exe into an error.

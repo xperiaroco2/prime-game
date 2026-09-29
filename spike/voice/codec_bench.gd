@@ -4,8 +4,12 @@ extends SceneTree
 ## complexity 5, voice_optimal): process_chunk (resampling to 48 kHz and, for a microphone,
 ## RNNoise) and encode_chunk (Opus). Decode side: push_opus_packet (Opus decode into the playback
 ## queue, as SpikeVoiceSpeaker does; decode_fec 0 and 1) and mix_audio (the playback's resampling
-## to the mix rate, done by the audio thread). Not covered: the AudioStreamPlayer3D's panning and
-## attenuation in the audio thread, and the mixing of buses.
+## to the mix rate, done by the audio thread). Host side: decoding a VOICE_UP message and relaying
+## it to 1 or 9 listeners (SpikeVoiceRelay), without the ENet sends. Not covered: the
+## AudioStreamPlayer3D's panning and attenuation in the audio thread, and the mixing of buses.
+## mix_audio resamples to the headless mix rate (44.1 kHz by default); a 48 kHz device needs no
+## resampling, so it can cost less in game. The fec=1 rows decode every packet as the frame before
+## it (FEC data or concealment), the worst case; in game that happens only for a lost frame.
 ## Every case runs RUNS times over FRAMES frames; the median run is reported. Run from the root:
 ##   <godot console exe> --headless --path . -s res://spike/voice/codec_bench.gd
 ## Prints "BENCH ..." lines and exits 0, or 1 when the codec fails.
@@ -46,7 +50,41 @@ func _init() -> void:
 					packets[sig] = got
 	for sig: String in packets:
 		_bench_decode(sig, packets[sig])
+	for listeners: int in [1, 9]:
+		_bench_relay(packets["voiced"], listeners)
 	quit(0 if _ok else 1)
+
+
+## The host's GDScript work for one VOICE_UP frame, as walk_spike.gd does it: decoding the message
+## and SpikeVoiceRelay.relay() to `listeners` listeners in range. Not the ENet sends themselves.
+func _bench_relay(packets: Array, listeners: int) -> void:
+	var per_frame: Array[float] = []
+	for run in RUNS:
+		var relay := SpikeVoiceRelay.new()
+		var positions: Dictionary[int, Vector3] = {}
+		for id in listeners + 1:
+			positions[id + 2] = Vector3(id * 0.5, 0, 0)
+		var messages: Array[PackedByteArray] = []
+		for seq in packets.size():
+			messages.append(SpikeVoiceMessages.encode_up(seq, packets[seq] as PackedByteArray))
+		var sent := 0
+		var t0 := Time.get_ticks_usec()
+		for bytes in messages:
+			relay.advance(0.02)
+			var msg := SpikeVoiceMessages.decode(bytes)
+			sent += relay.relay(2, msg[1] as int, msg[2] as PackedByteArray, positions).size()
+		per_frame.append(float(Time.get_ticks_usec() - t0) / messages.size())
+		if sent != messages.size() * listeners:
+			print("BENCH FAIL relay sent %d, expected %d" % [sent, messages.size() * listeners])
+			_ok = false
+			return
+	var us := _median(per_frame)
+	print(
+		(
+			"BENCH relay listeners=%d relay_us=%.1f core_pct=%.3f"
+			% [listeners, us, us / FRAME_US * 100.0]
+		)
+	)
 
 
 ## Encodes FRAMES frames of `sig` RUNS times and prints the median run; returns its packets.
@@ -95,11 +133,11 @@ func _bench_encode(sig: String, in_rate: int, denoise: bool) -> Array[PackedByte
 		encode_us.append(float(t_encode) / FRAMES)
 		p99_us.append(float(per_frame[int(FRAMES * 0.99)]))
 	var sizes: Array[int] = []
-	for p in packets:
+	for p: PackedByteArray in packets:
 		sizes.append(p.size())
 	sizes.sort()
 	var total := 0
-	for s in sizes:
+	for s: int in sizes:
 		total += s
 	var process := _median(process_us)
 	var encode := _median(encode_us)
@@ -157,7 +195,11 @@ func _bench_decode(sig: String, packets: Array) -> void:
 			var mixed := 0
 			var t2 := Time.get_ticks_usec()
 			while mixed < want:
-				mixed += playback.mix_audio(1.0, mini(MIX_BLOCK, want - mixed)).size()
+				# mix_audio may return fewer frames than asked, and none once the queue is dry.
+				var got := playback.mix_audio(1.0, mini(MIX_BLOCK, want - mixed)).size()
+				if got == 0:
+					break
+				mixed += got
 			var t3 := Time.get_ticks_usec()
 			decode_us.append(float(t1 - t0) / FRAMES)
 			mix_us.append(float(t3 - t2) / FRAMES)

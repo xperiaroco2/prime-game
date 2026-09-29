@@ -25,7 +25,7 @@ const FLOOR_RISE := 0.01  # per block: the floor follows quieter blocks fast, lo
 const FLOOR_FALL := 0.2
 
 var rate: int
-var floor_level := 0.0  # the running noise floor (mean block peak outside onsets)
+var floor_level := 0.0  # the running noise floor (block peaks, rising slowly, falling fast)
 var _index := 0  # the next sample's index in the stream
 var _block := 0
 var _block_peak := 0.0
@@ -42,7 +42,7 @@ func _init(sample_rate: int) -> void:
 ## [index: int, peak: float]: the sample index in the whole stream and the block's peak.
 func feed(frames: PackedVector2Array) -> Array[Array]:
 	var found: Array[Array] = []
-	for frame in frames:
+	for frame: Vector2 in frames:
 		var v := absf((frame.x + frame.y) * 0.5)
 		if v > _block_peak:
 			_block_peak = v
@@ -83,7 +83,7 @@ static func echo_pairs(indices: Array[int], sample_rate: int) -> Array[Array]:
 	if gaps.is_empty():
 		return pairs
 	gaps.sort()
-	# The delay with the most gaps within +-tol of it: a sliding window over the sorted gaps.
+	# The delay with the most gaps in a MODE_WIDTH_S window around it, sliding over the sorted gaps.
 	var best := 0
 	var best_count := 0
 	var start := 0
@@ -132,7 +132,9 @@ func _end_block() -> Array:
 	if loud and free:
 		onset = [_block_first_loud, _block_peak]
 		_last_found = _block_first_loud
-	elif not loud:
+	else:
+		# Loud blocks count too, only slowly: a lasting sound (a fan, speech) lifts the floor over
+		# it within a few hundred ms instead of firing again after every REFRACTORY_S.
 		var k := FLOOR_FALL if _block_peak < floor_level else FLOOR_RISE
 		floor_level += (_block_peak - floor_level) * k
 	_block_peak = 0.0

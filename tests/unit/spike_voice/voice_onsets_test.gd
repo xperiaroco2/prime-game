@@ -51,6 +51,39 @@ func test_room_noise_alone_finds_nothing() -> void:
 	assert_float(o.floor_level).is_less(0.003)
 
 
+func test_loud_room_noise_raises_the_floor_instead_of_firing_every_block() -> void:
+	# Noise louder than MIN_LEVEL all the time (a fan, a laptop microphone), clicks well above it.
+	var o := O.new(RATE)
+	var frames := PackedVector2Array()
+	frames.resize(roundi(4.0 * RATE))
+	for i in frames.size():
+		var v := _rng.randf_range(-0.02, 0.02)
+		frames[i] = Vector2(v, v)
+	var clicks: Array[int] = [roundi(1.5 * RATE), roundi(3.0 * RATE)]
+	for start in clicks:
+		for k in roundi(0.02 * RATE):
+			var v := 0.4 * sin(TAU * 1000.0 * k / RATE + 0.3)
+			frames[start + k] += Vector2(v, v)
+	var late: Array[int] = []
+	for index in _onsets(o, frames):
+		if index >= roundi(0.5 * RATE):  # the floor may take a moment to settle
+			late.append(index)
+	assert_int(late.size()).is_equal(2)
+	assert_int(late[0]).is_between(clicks[0], clicks[0] + 48)
+	assert_int(late[1]).is_between(clicks[1], clicks[1] + 48)
+
+
+func test_a_long_sound_fires_once_not_every_refractory_period() -> void:
+	# Someone speaks for a second (a steady tone here): one onset at its start, then the floor
+	# follows it.
+	var o := O.new(RATE)
+	var frames := _samples(2.0, {})
+	for i in range(roundi(0.5 * RATE), roundi(1.5 * RATE)):
+		var v := 0.1 * sin(TAU * 300.0 * i / RATE)
+		frames[i] += Vector2(v, v)
+	assert_int(_onsets(o, frames).size()).is_less_equal(2)
+
+
 func test_reverb_right_after_a_click_is_not_an_onset() -> void:
 	var o := O.new(RATE)
 	# A second burst 40 ms after the first is inside the refractory time: the same click.

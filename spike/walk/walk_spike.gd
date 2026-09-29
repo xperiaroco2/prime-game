@@ -295,8 +295,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _exit_tree() -> void:
 	if _source != null:
 		_save_mic_dump()
-		if _source != null and _source.detector != null:
-			_clicks.log_echoes(_source.detector.rate)
+		if _source.detector != null:
+			_clicks.log_echoes(_source.detector.rate)  # after a quit above it has nothing left
 		_source.stop()
 	_transport.close()
 
