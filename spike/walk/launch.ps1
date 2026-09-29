@@ -52,6 +52,8 @@
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Lan -Latency -Seconds 60        # PC: host, mic
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join <PC address> -Latency -Seconds 50  # laptop
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Analyze
+# -Bench runs spike\voice\codec_bench.gd on this machine: the CPU cost of encoding and decoding one voice stream.
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Bench
 param(
     [switch]$Headless,
     [int]$Seconds = 0,
@@ -77,7 +79,8 @@ param(
     [double]$ClickEvery = 2.5,
     [double]$EchoGainDb = 18,
     [switch]$NoDenoise,
-    [switch]$Analyze
+    [switch]$Analyze,
+    [switch]$Bench
 )
 $ErrorActionPreference = 'Stop'
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -224,6 +227,13 @@ if ($ListMics) {
     & $console --display-driver headless --rendering-driver dummy --audio-driver WASAPI --path "$Root" -s res://spike/voice/list_mics.gd |
         Where-Object { $_ -match '^MICS? ' }
     exit 0
+}
+if ($Bench) {
+    # The CPU cost of one voice stream on this machine (#16); headless, starts no audio device.
+    $console = $Godot -replace '(?<!_console)\.exe$', '_console.exe'
+    if (-not (Test-Path $console)) { $console = $Godot }
+    & $console --headless --path "$Root" -s res://spike/voice/codec_bench.gd | Where-Object { $_ -match '^BENCH ' }
+    exit $LASTEXITCODE
 }
 if ($Lan -and $Join) { throw 'pass -Lan on the first machine and -Join on the second, not both' }
 if (($Lan -or $Join) -and (($Seconds -gt 0 -and -not $Latency) -or $Headless -or $Cheat -or $KillClientAfter -gt 0)) {
