@@ -15,7 +15,8 @@ keeps its locked technical choices findable in `docs/decisions/`.
 - **Tests and lint:** GdUnit4, headless from the CLI; gdtoolkit (`gdformat`, `gdlint`).
 - **VCS and CI:** Git, GitHub and GitHub Actions running headless Godot.
 - **Networking:** Godot's high-level multiplayer over ENet first, behind a transport abstraction. Steam networking or
-  WebRTC with a signaling server for NAT traversal is decided by an ADR in M6.
+  WebRTC with a signaling server for NAT traversal is decided by an ADR in M6. Narrowed on 2026-09-29: own messages
+  over `MultiplayerPeer`, no RPCs, spawners or synchronizers ([listen server ADR](2026-09-29-listen-server-and-message-layer.md)).
 - **Voice:** Opus. First candidate the `two-voip-godot-4` GDExtension, whose Windows build was described as
   incomplete; the M1 spike verifies Windows binaries first and compares fallbacks (`one-voip-godot-4`, Steam voice
   through GodotSteam, uncompressed or lightly compressed PCM). Its go/no-go is an M1 ADR.
