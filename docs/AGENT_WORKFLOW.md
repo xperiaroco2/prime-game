@@ -258,9 +258,8 @@ context ("Read it again before the next Edit"). About 2 s per edit, 8 s when the
 A ruleset on `main` of the public repo: block force pushes, restrict deletions, require a PR. The required status
 check `verify` is added **after the CI PR has merged**. Code-owner review stays off. No bypass for admins.
 - **Live state (read 2026-09-29 with `gh api .../rulesets`):** `main-1` blocks deletions and non-fast-forward
-  pushes, with no bypass. `main-2` requires a PR (0 approvals) and the `verify` check, but lets the **repository
-  admin role bypass it always**, and the agents push as the admin account. The pre-push hook and the deny rules
-  still stop a push to `main` from an agent; removing the bypass is the humans' call (👤).
+  pushes; `main-2` requires a PR (0 approvals) and the `verify` check. Neither has a bypass: the engineer removed
+  `main-2`'s admin bypass on 2026-09-29, so the admin account the agents push as cannot skip them either.
 - "Automatically delete head branches" is on: a merged PR's branch is deleted, and GitHub retargets its stacked
   children to `main` itself.
 
@@ -406,9 +405,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
 | Git LFS in CI (uses LFS bandwidth quota), or `check` skipping pointer files ([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)) | Before the first LFS asset outside `addons/`; ask the humans |
 
-**Pending human actions 👤** (the ruleset, the board workflows, the engineer's gh scope and version, and the PATH
-`claude` are done, checked live 2026-09-29): usage credits off on both accounts; decide on the admin bypass of
-ruleset `main-2` (§8.5); invite the designer to the repo and to project 1 and replace the CODEOWNERS placeholder;
+**Pending human actions 👤** (the rulesets without bypass, the board workflows, the engineer's gh scope and
+version, and the PATH `claude` are done, checked live 2026-09-29): usage credits off on both accounts; invite the
+designer to the repo and to project 1 and replace the CODEOWNERS placeholder (when the designer joins, around M2);
 decide LFS in CI before the first LFS asset outside `addons/`.
 
 **Verification of the Phase A setup:** done on 2026-09-28. A fresh session confirmed subagent routing for all four
