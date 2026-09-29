@@ -52,6 +52,22 @@ func test_a_late_packet_does_not_pull_the_clock_back() -> void:
 	assert_float(_buffer.render_time(0.18)).is_equal_approx(0.08, 0.001)
 
 
+func test_recovers_after_host_time_falls_behind() -> void:
+	# Half a second of host time is lost (a host hitch): from tick 10 on every snapshot arrives
+	# 0.5 s later than its tick says. Within the offset window rendering must stop starving.
+	for tick in 10:
+		_push(tick / 20.0, tick, float(tick))
+	var starved_at_end := 0
+	for tick in range(10, 70):
+		var local_time := tick / 20.0 + 0.5
+		_push(local_time, tick, float(tick))
+		var before := _buffer.starved
+		_buffer.sample(ID, local_time + 0.02)
+		if tick >= 60:
+			starved_at_end += _buffer.starved - before
+	assert_int(starved_at_end).is_equal(0)
+
+
 func test_ignores_old_ticks() -> void:
 	_push(0.0, 3, 3.0)
 	_push(0.01, 2, 99.0)

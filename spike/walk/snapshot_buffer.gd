@@ -1,8 +1,9 @@
 class_name SpikeSnapshotBuffer
 extends RefCounted
 ## Spike (#14): interpolation of remote players between host snapshots. Each snapshot carries the
-## host's tick; tick / tick_hz is its host time. The buffer estimates the host clock from arrivals
-## and renders every player at (host clock - delay), between the two samples around that time.
+## host's tick (derived from the host's clock); tick / tick_hz is its host time. The buffer
+## estimates the host clock from arrivals and renders every player at (host clock - delay),
+## between the two samples around that time.
 ## Past the newest sample it holds the last position and counts a starved sample.
 ## Pure logic: the caller passes local times in seconds, so tests need no scene.
 
@@ -16,10 +17,15 @@ var starved := 0
 ## Renders that found a pair of samples to interpolate between.
 var interpolated := 0
 
-# The newest estimate of (host time - local time). Only moves forward by jumps when a snapshot
-# arrives early, and drifts back slowly otherwise, so a late packet does not pull it back.
+## Seconds of arrivals the host clock estimate looks back over.
+var offset_window := 2.0
+
+# The estimate of (host time - local time): the largest offset among the arrivals of the last
+# offset_window seconds, i.e. the least delayed snapshot. A late packet does not pull it back, and
+# a lasting shift (a host hitch, a route change) takes over once the window has passed.
 var _offset := 0.0
-var _has_offset := false
+# [local_time: float, offset: float], oldest first
+var _arrivals: Array[Array] = []
 var _last_tick := -1
 # peer id -> Array of [host_time: float, pos: Vector3, yaw: float], oldest first
 var _samples: Dictionary[int, Array] = {}
@@ -37,10 +43,12 @@ func push(
 		return
 	_last_tick = tick
 	var host_time := tick / tick_hz
-	var offset := host_time - local_time
-	if not _has_offset or offset > _offset:
-		_offset = offset
-		_has_offset = true
+	_arrivals.append([local_time, host_time - local_time])
+	while (_arrivals[0][0] as float) < local_time - offset_window:
+		_arrivals.pop_front()
+	_offset = -INF
+	for arrival: Array in _arrivals:
+		_offset = maxf(_offset, arrival[1] as float)
 	var present: Dictionary[int, bool] = {}
 	for i in peer_ids.size():
 		var id := peer_ids[i]
@@ -56,27 +64,10 @@ func push(
 			_samples.erase(id)
 
 
-## Lets the clock estimate drift back by rate seconds per second, so one early packet does not
-## hold it forward for ever. Call once per frame.
-func relax(delta: float, rate: float = 0.01) -> void:
-	_offset -= delta * rate
-
-
 func ids() -> Array[int]:
 	var out: Array[int] = []
 	out.assign(_samples.keys())
 	return out
-
-
-## Samples buffered for a player that are newer than the current render time.
-func depth(id: int, local_time: float) -> int:
-	var at := render_time(local_time)
-	var n := 0
-	var list: Array = _samples.get(id, [])
-	for entry: Array in list:
-		if (entry[0] as float) > at:
-			n += 1
-	return n
 
 
 func render_time(local_time: float) -> float:
