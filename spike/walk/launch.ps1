@@ -122,7 +122,7 @@ foreach ($pair in @(@($client1, $c1Log, $id2), @($client2, $c2Log, $id1))) {
 foreach ($peer in @($hostPeer, $client1, $client2)) {
     $log = @(Read-Log $peer)
     Need (-not (Has $log 'SCRIPT ERROR|^ERROR:')) "$($peer.Name) logged no errors"
-    Need (-not (Has $log '^WALK client rejected')) "$($peer.Name) rejected no packets"
+    if ($peer -ne $hostPeer) { Need (-not (Has $log '^WALK client rejected')) "$($peer.Name) rejected no packets" }
     if ($Shots) { Need (Has $log '^WALK \w+ screenshot .* OK$') "$($peer.Name) saved a screenshot" }
 }
 Need (-not (Has $hostLog '^WALK host rejected malformed')) 'host got no malformed packets'
@@ -140,6 +140,20 @@ if ($Cheat) {
 $hostQuit = @($hostLog -match '^WALK host quit ') | Select-Object -Last 1
 $c1Quit = @($c1Log -match '^WALK client quit ') | Select-Object -Last 1
 $c2Quit = @($c2Log -match '^WALK client (quit|t=)') | Select-Object -Last 1
+# Without simulated network trouble and with the default delay, interpolation must almost never
+# run out of snapshots (a host hitch that shifts the clock for good would show up here).
+function Starved-Share([string]$Line) {
+    if ($Line -match 'interpolated=(\d+) starved=(\d+)') {
+        return [int]$Matches[2] / [math]::Max(1, [int]$Matches[1] + [int]$Matches[2])
+    }
+    return 1.0
+}
+if ($LatencyMs -eq 0 -and $JitterMs -eq 0 -and $Loss -eq 0 -and $InterpTicks -ge 2) {
+    foreach ($pair in @(@('host', $hostQuit), @('client1', $c1Quit))) {
+        $share = Starved-Share $pair[1]
+        Need ($share -lt 0.02) ("{0} interpolation starved under 2 % (was {1:P1})" -f $pair[0], $share)
+    }
+}
 Need ($hostPeer.Process.ExitCode -eq 0 -and $hostQuit) "host ran to the end (exit $($hostPeer.Process.ExitCode))"
 Need ($client1.Process.ExitCode -eq 0 -and $c1Quit) "client1 ran to the end (exit $($client1.Process.ExitCode))"
 # Every client quits 3 s before the host, so the host must see each one leave and end empty.

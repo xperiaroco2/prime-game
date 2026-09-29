@@ -27,7 +27,7 @@ const DEFAULT_PORT := 24560
 const MAX_CLIENTS := SpikeWalkMessages.MAX_PLAYERS
 const MAX_REJECT_LOGS := 5  # a flooding peer must not fill the log; the stats line keeps the count
 const STATS_EVERY := 1.0
-const WALK_SPEED := 4.5  # m/s; the host allows SpikeMoveCheck.max_speed (6) with slack
+const WALK_SPEED := 4.5  # m/s; also the host's SpikeMoveCheck.max_speed (x slack 1.25)
 ## rad/s to the right while --auto (to the left from a z < 0 spawn): a 3 m circle whose centre is
 ## 3 m to the side, towards +X.
 const AUTO_TURN := 1.5
@@ -65,8 +65,9 @@ var _sim_seq := 0
 var _sim_last_seq: Dictionary[int, int] = {}
 var _sim_dropped := 0  # lost or out of order
 var _status := "starting"
+# Kept after a disconnect, when the transport reports 0, so the own capsule never becomes remote.
+var _own_id := 0
 var _clock := 0.0
-var _since_send := 0.0
 var _since_stats := 0.0
 var _tick := 0
 var _buffer := SpikeSnapshotBuffer.new()
@@ -78,7 +79,7 @@ var _check := SpikeMoveCheck.new()
 var _yaws: Dictionary[int, float] = {}
 var _moves: Dictionary[int, int] = {}
 var _verdicts: Dictionary[String, int] = {}
-var _rejected_logs := 0
+var _rejected_logs: Dictionary[int, int] = {}  # per peer, so one cheater cannot hide another
 var _joined := 0
 # Client only.
 var _body: CharacterBody3D
@@ -110,7 +111,10 @@ func _ready() -> void:
 	get_window().title = "walk spike: %s" % ("host" if _is_host else "client")
 	if _is_host:
 		_spawn_overhead_camera()
+		# The host allows the walking speed; SpikeMoveCheck.slack covers the jitter.
+		_check.max_speed = WALK_SPEED
 		err = _transport.host(BIND_IP, _port, MAX_CLIENTS)
+		_own_id = SpikeTransport.HOST_ID if err == OK else 0
 		_status = "listening on %s:%d" % [BIND_IP, _port]
 	else:
 		_spawn_local_player()
@@ -136,19 +140,16 @@ func _process(delta: float) -> void:
 		_check.advance(delta)
 	_transport.poll()
 	_release_simulated()
-	# A fixed-rate tick, so tick / tick_hz tracks the sender's clock; after a long frame it
-	# restarts instead of sending a burst.
-	var interval := 1.0 / _tick_hz
-	_since_send += delta
-	if _since_send >= interval:
-		_since_send = _since_send - interval if _since_send < 2.0 * interval else 0.0
-		_tick += 1
+	# The tick comes from the clock, so tick / tick_hz stays the sender's time; after a long frame
+	# (or a tick rate above the frame rate) ticks are skipped, never sent in a burst.
+	var tick := floori(_clock * _tick_hz)
+	if tick > _tick:
+		_tick = tick
 		if _is_host:
 			_broadcast_snapshot()
 		else:
 			_send_move()
 	_update_avatars()
-	_buffer.relax(delta)
 	_since_stats += delta
 	if _since_stats >= STATS_EVERY:
 		_since_stats = 0.0
@@ -298,7 +299,7 @@ func _new_avatar(id: int) -> Node3D:
 
 
 func _update_avatars() -> void:
-	var own := _transport.own_id()
+	var own := _own_id
 	var ids := _buffer.ids()
 	for id: int in _avatars.keys():
 		if not ids.has(id):
@@ -367,6 +368,7 @@ func _on_peer_left(id: int) -> void:
 
 
 func _on_connected(own_id: int) -> void:
+	_own_id = own_id
 	_status = "connected"
 	_log("connected id=%d" % own_id)
 	get_window().title = "walk spike: client %d" % own_id
@@ -458,8 +460,8 @@ func _host_receive(from_peer: int, msg: Array, size_bytes: int) -> void:
 func _count_reject(reason: String, from_peer: int, detail: String) -> void:
 	if reason == "malformed":
 		_verdicts[reason] = _verdicts.get(reason, 0) + 1
-	_rejected_logs += 1
-	if _rejected_logs <= MAX_REJECT_LOGS:
+	_rejected_logs[from_peer] = _rejected_logs.get(from_peer, 0) + 1
+	if _rejected_logs[from_peer] <= MAX_REJECT_LOGS:
 		_log("rejected %s id=%d %s" % [reason, from_peer, detail])
 
 
@@ -492,7 +494,7 @@ func _client_receive(from_peer: int, msg: Array, size_bytes: int) -> void:
 func _client_snapshot(msg: Array) -> void:
 	var ids: PackedInt32Array = msg[2]
 	var positions: PackedVector3Array = msg[3]
-	var own := _transport.own_id()
+	var own := _own_id
 	for i in ids.size():
 		if ids[i] != own and not _first_seen.has(ids[i]):
 			_first_seen[ids[i]] = positions[i]
@@ -520,7 +522,7 @@ func _summary() -> String:
 	var ids: Array[int] = []
 	ids.assign(_yaws.keys() if _is_host else _avatars.keys())
 	ids.sort()
-	var own := _transport.own_id()
+	var own := _own_id
 	for id: int in ids:
 		var pos := _check.position_of(id) if _is_host else _avatars[id].position
 		players.append("%d@%s" % [id, _fmt(pos)])
@@ -539,7 +541,7 @@ func _summary() -> String:
 
 func _refresh_label() -> void:
 	var role := "HOST (not a player)" if _is_host else "CLIENT"
-	var id := _transport.own_id()
+	var id := _own_id
 	_label.text = (
 		"%s  peer id %s\n%s\ntick %.0f Hz, interpolation delay %.0f ms\n%s"
 		% [

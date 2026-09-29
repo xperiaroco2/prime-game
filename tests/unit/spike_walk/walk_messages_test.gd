@@ -25,6 +25,8 @@ func test_snapshot_round_trips() -> void:
 func test_rejects_trailing_bytes() -> void:
 	var bytes := M.encode_move(1, Vector3.ZERO, 0.0)
 	bytes.append_array(PackedByteArray([0, 0, 0, 0]))
+	# bytes_to_var alone ignores the tail, so only decode's size check rejects it.
+	assert_int(typeof(bytes_to_var(bytes))).is_equal(TYPE_ARRAY)
 	assert_array(M.decode(bytes)).is_empty()
 
 

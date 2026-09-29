@@ -58,6 +58,17 @@ func test_accepts_the_moves_queued_during_a_host_hitch() -> void:
 	assert_int(accepted).is_equal(24)
 
 
+func test_the_limit_is_max_speed_times_slack() -> void:
+	var limit := _check.max_speed * _check.slack
+	var huge := AABB(Vector3(-1000, -10, -1000), Vector3(2000, 20, 2000))
+	_check.bounds = huge
+	var under := _walk(limit * 0.95, 8.0, 0.05)
+	assert_int(under.count(V.ACCEPTED)).is_equal(under.size())
+	before_test()
+	_check.bounds = huge
+	assert_bool(_walk(limit * 1.1, 8.0, 0.05).has(V.SPEED)).is_true()
+
+
 func test_rejects_sustained_double_speed() -> void:
 	var verdicts := _walk(_check.max_speed * 2.0, 1.2, 0.05)
 	assert_bool(verdicts.has(V.SPEED)).is_true()

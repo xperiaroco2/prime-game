@@ -1,17 +1,20 @@
 class_name SpikeMoveCheck
 extends RefCounted
 ## Spike (#14): the host's crude check of client-side movement (ARCHITECTURE §7). Clients move
-## themselves and report positions; the host accepts a report only if it is reachable from the
-## last accepted position. Per peer it keeps a distance budget that refills at the top speed
-## (with slack for timing jitter) and is capped, so a burst of bunched packets still passes but a
-## sustained speed-up does not. Only horizontal distance counts; falling is bounded by the room.
+## themselves and report positions. Per peer the host keeps a distance budget that refills at
+## max_speed x slack and holds burst_seconds of that, so bunched packets pass. What it stops:
+## a sustained speed above max_speed x slack, any single step over teleport_distance, and
+## positions outside the bounds box. What it lets through, on purpose for a crude check: up to
+## slack (25 %) over max_speed for ever; a blink of up to teleport_distance after standing
+## still; walking through walls (only the outer box is checked); any height inside the box
+## (vertical movement is not checked). Only horizontal distance spends budget.
 ## Pure logic: the caller passes the time, so tests need no scene.
 
 enum Verdict { ACCEPTED, STALE, TELEPORT, SPEED, BOUNDS }
 
 const VERDICT_NAMES: PackedStringArray = ["accepted", "stale", "teleport", "speed", "bounds"]
 
-## Horizontal speed the host allows, m/s. The controller walks slower (see walk_spike.gd).
+## Horizontal speed the host allows, m/s; walk_spike.gd sets its walking speed here.
 var max_speed := 6.0
 ## Budget refill factor over max_speed, for jitter between the client's and the host's clocks.
 var slack := 1.25
