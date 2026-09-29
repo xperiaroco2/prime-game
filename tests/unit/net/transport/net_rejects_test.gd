@@ -35,6 +35,8 @@ func test_summary_is_one_line_and_resets_only_the_pending_counts() -> void:
 		)
 	)
 	assert_int(rejects.pending()).is_equal(0)
+	assert_int(rejects.from_peer(7)).is_equal(0)
+	assert_int(rejects.of_reason(TRAILING)).is_equal(1000)
 	assert_str(rejects.take_summary()).is_empty()
 	assert_int(rejects.total()).is_equal(1001)
 

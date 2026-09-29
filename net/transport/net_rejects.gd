@@ -22,15 +22,15 @@ const SUMMARY_PEERS := 5
 
 var _total := 0
 var _by_reason: Dictionary[int, int] = {}
-var _by_peer: Dictionary[int, int] = {}
 var _pending_by_reason: Dictionary[int, int] = {}
+## Per peer only since the last summary: peer ids are chosen by clients, so a lifetime count per
+## id would grow with every reconnect.
 var _pending_by_peer: Dictionary[int, int] = {}
 
 
 func count(peer_id: int, reason: Reason) -> void:
 	_total += 1
 	_by_reason[reason] = _by_reason.get(reason, 0) + 1
-	_by_peer[peer_id] = _by_peer.get(peer_id, 0) + 1
 	_pending_by_reason[reason] = _pending_by_reason.get(reason, 0) + 1
 	_pending_by_peer[peer_id] = _pending_by_peer.get(peer_id, 0) + 1
 
@@ -43,8 +43,9 @@ func of_reason(reason: Reason) -> int:
 	return _by_reason.get(reason, 0)
 
 
+## Rejections from this peer since the last summary.
 func from_peer(peer_id: int) -> int:
-	return _by_peer.get(peer_id, 0)
+	return _pending_by_peer.get(peer_id, 0)
 
 
 ## Rejections since the last summary.
