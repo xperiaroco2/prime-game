@@ -4,7 +4,10 @@ extends RefCounted
 ## §6): pure, no nodes, no audio. It decides for each speaker and listener pair whether the
 ## speaker's voice is delivered at all. How loud it sounds is the listener's job (the
 ## AudioStreamPlayer3D on the speaker's avatar), with the same cutoff as its max_distance, so the
-## volume reaches zero exactly where delivery stops.
+## volume reaches zero about where delivery stops. Not exactly: the host measures between accepted
+## capsule centres, the audio engine from the listener's camera to the speaker's drawn mouth, one
+## interpolation delay behind; the two differ by up to walking speed x (that delay + half a round
+## trip), a few tenths of a metre. Fading is cosmetic: only the host's cutoff limits who hears.
 ## M1 rule: a plain distance cutoff. Walls, death, meetings and radios come in M5.
 
 var cutoff := 8.0  # metres

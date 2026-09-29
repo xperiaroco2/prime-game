@@ -43,7 +43,8 @@ func send(
 	return _missing("send")
 
 
-## Bytes this peer sent since the last call, with every protocol overhead; -1 if not measured.
+## Bytes this peer sent since the last call, with the transport's own headers but without the
+## 28 bytes of IP and UDP headers per packet; -1 if not measured.
 func pop_sent_bytes() -> int:
 	return -1
 

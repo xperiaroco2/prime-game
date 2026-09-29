@@ -65,7 +65,8 @@ func send(
 ) -> Error:
 	if _peer == null or _peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return ERR_UNCONFIGURED
-	# ENet itself never checks the channel number against the channels set up in host/join.
+	# ENetMultiplayerPeer does not check the channel against the channels set up in join(); a
+	# send on a missing channel would fail or vanish inside ENet instead of here.
 	if channel < 0 or channel >= CHANNELS:
 		return ERR_INVALID_PARAMETER
 	# Channel 0 keeps each transfer mode apart: lost unreliable packets never stall reliable ones.
@@ -102,19 +103,22 @@ func peers_line() -> String:
 		return "none"
 	var parts := PackedStringArray()
 	for p in _peer.host.get_peers():
-		parts.append(
-			(
-				"rtt=%.0f last_rtt=%.0f last_var=%.0f loss=%.0f throttle=%.0f/%.0f acc=%.0f dec=%.0f"
-				% [
-					p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME),
-					p.get_statistic(ENetPacketPeer.PEER_LAST_ROUND_TRIP_TIME),
-					p.get_statistic(ENetPacketPeer.PEER_LAST_ROUND_TRIP_TIME_VARIANCE),
-					p.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS),
-					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE),
-					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_LIMIT),
-					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_ACCELERATION),
-					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_DECELERATION),
-				]
+		(
+			parts
+			. append(
+				(
+					"rtt=%.0f last_rtt=%.0f last_var=%.0f loss=%.0f throttle=%.0f/%.0f acc=%.0f dec=%.0f"
+					% [
+						p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME),
+						p.get_statistic(ENetPacketPeer.PEER_LAST_ROUND_TRIP_TIME),
+						p.get_statistic(ENetPacketPeer.PEER_LAST_ROUND_TRIP_TIME_VARIANCE),
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS),
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE),
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_LIMIT),
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_ACCELERATION),
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_DECELERATION),
+					]
+				)
 			)
 		)
 	return ", ".join(parts)
@@ -126,13 +130,16 @@ func throttle_line() -> String:
 		return "none"
 	var parts := PackedStringArray()
 	for p in _peer.host.get_peers():
-		parts.append(
-			(
-				"%.0f/%.0f"
-				% [
-					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE),
-					p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_LIMIT),
-				]
+		(
+			parts
+			. append(
+				(
+					"%.0f/%.0f"
+					% [
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE),
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_LIMIT),
+					]
+				)
 			)
 		)
 	return ",".join(parts)

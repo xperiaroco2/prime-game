@@ -124,6 +124,7 @@ var _source: SpikeVoiceSource
 var _voice_seq := 0
 var _voice_sent := 0
 var _speakers: Dictionary[int, SpikeVoiceSpeaker] = {}
+var _speakers_failed: Dictionary[int, bool] = {}
 var _voice_no_avatar := 0
 var _voice_bus := -1
 var _level_db := SILENT_DB
@@ -652,7 +653,8 @@ func _update_voice(delta: float) -> void:
 	_since_level = 0.0
 	if _epoch != 0:
 		# The listener is the camera on this body; the distance is measured as the audio engine
-		# sees it, to the voice player on each drawn avatar.
+		# sees it, to the voice player on each drawn avatar. peak_db is the whole Voice bus, so
+		# a line speaks for one speaker only while one remote player talks (the launcher's case).
 		var ear := _camera.global_position
 		for id: int in _avatars:
 			var mouth := _avatars[id].to_global(MOUTH)
@@ -698,8 +700,13 @@ func _client_voice(from_peer: int, msg: Array) -> void:
 		if not _avatars.has(speaker):
 			_voice_no_avatar += 1
 			return
+		if _speakers_failed.has(speaker):
+			return
 		var created := SpikeVoiceSpeaker.new(_cutoff, VOICE_BUS)
 		if not created.attach(_avatars[speaker], MOUTH):
+			# Once: without this every frame (50 a second) would add a player and an error.
+			created.player.queue_free()
+			_speakers_failed[speaker] = true
 			push_error("WALK voice: no AudioStreamPlaybackOpus for id=%d" % speaker)
 			return
 		_speakers[speaker] = created

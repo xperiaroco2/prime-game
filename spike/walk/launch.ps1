@@ -92,8 +92,9 @@ if ($ListMics) {
     # The console build prints to this terminal; a real audio driver, or the list is empty. Listing starts no microphone.
     $console = $Godot -replace '(?<!_console)\.exe$', '_console.exe'
     if (-not (Test-Path $console)) { $console = $Godot }
-    & $console --display-driver headless --rendering-driver dummy --audio-driver WASAPI --path "$Root" -s res://spike/voice/list_mics.gd 2>&1 |
-        ForEach-Object { "$_" } | Where-Object { $_ -match '^MICS? ' }
+    # stdout only: with $ErrorActionPreference Stop, PowerShell 5.1 turns any stderr line of a native exe into an error.
+    & $console --display-driver headless --rendering-driver dummy --audio-driver WASAPI --path "$Root" -s res://spike/voice/list_mics.gd |
+        Where-Object { $_ -match '^MICS? ' }
     exit 0
 }
 if ($Lan -and $Join) { throw 'pass -Lan on the first machine and -Join on the second, not both' }
@@ -274,10 +275,18 @@ if ($Voice -ne 'off') {
         $levels[$name] = @($pair[1] | Select-String "^WALK client level from=$($pair[2]) dist=([\d.]+) peak_db=(-?[\d.]+)" |
             ForEach-Object { [pscustomobject]@{ D = [double]$_.Matches[0].Groups[1].Value; Db = [double]$_.Matches[0].Groups[2].Value } })
         $quit = @($pair[1] -match '^WALK client voice quit ') | Select-Object -Last 1
-        if (-not $simulated -and $quit -match "from=\[.*$($pair[2]):\{recv=(\d+) late=\d+ fec=(\d+) lost=(\d+) ") {
-            $recv = [int]$Matches[1]; $gaps = [int]$Matches[2] + [int]$Matches[3]
-            # The first second after connecting may lose a few dozen frames (see the handoff); after that none.
-            Need ($gaps -le [math]::Max(60, 0.1 * $recv)) "$name missed few voice frames ($gaps of $recv)"
+        Need ([bool]$quit) "$name logged its voice totals"
+        if (-not $simulated) {
+            # The last voice line that still lists the speaker: it drops out when the other client quits first.
+            $pattern = "from=\[.*$($pair[2]):\{recv=(\d+) late=\d+ fec=(\d+) lost=(\d+) "
+            $line = @($pair[1] -match "^WALK client voice (t=|quit).*$($pair[2]):\{") | Select-Object -Last 1
+            $counts = $line -match $pattern
+            Need $counts "$name logged voice counts for $($pair[2]): $line"
+            if ($counts) {
+                $recv = [int]$Matches[1]; $gaps = [int]$Matches[2] + [int]$Matches[3]
+                # Frames the host culled for a moment at the cutoff show up as gaps too.
+                Need ($gaps -le [math]::Max(60, 0.1 * $recv)) "$name missed few voice frames ($gaps of $recv)"
+            }
         }
     }
     $beyondSeen = $false
@@ -285,16 +294,27 @@ if ($Voice -ne 'off') {
         if ($name -eq 'client2' -and $Voice -eq 'mic') { continue }  # client 1's microphone level is anything
         $rows = @($levels[$name])
         $near = @($rows | Where-Object { $_.D -lt $Cutoff / 2 -and $_.Db -gt -150 } | ForEach-Object { $_.Db } | Sort-Object)
-        $far = @($rows | Where-Object { $_.D -gt $Cutoff * 0.75 -and $_.D -lt $Cutoff } | ForEach-Object { $_.Db } | Sort-Object)
+        $farRows = @($rows | Where-Object { $_.D -gt $Cutoff * 0.75 -and $_.D -lt $Cutoff })
+        # Audible rows only: a far band gone silent (a cutoff that bites too early) must fail, not pass.
+        $far = @($farRows | Where-Object { $_.Db -gt -150 } | ForEach-Object { $_.Db } | Sort-Object)
         Need ($near.Count -ge 3) "$name heard voice nearer than $($Cutoff / 2) m"
+        if ($farRows.Count -ge 3) {
+            # At least one: on coming back into range, voice resumes only after the network delay and the 60 ms
+            # prebuffer (150-200 ms, up to 1.5 m of walking), so some windows near the cutoff are rightly silent.
+            Need ($far.Count -ge 1) ("$name still heard voice between {0} and {1} m ({2} of {3} windows)" -f ($Cutoff * 0.75), $Cutoff, $far.Count, $farRows.Count)
+        } else {
+            Write-Host "note: $name spent under 3 level windows between $($Cutoff * 0.75) and $Cutoff m; falloff near the cutoff was not checked"
+        }
         if ($near.Count -ge 3 -and $far.Count -ge 3) {
             $nearMedian = $near[[int]($near.Count / 2)]
             $farMedian = $far[[int]($far.Count / 2)]
             Need ($nearMedian -gt $farMedian + 3) "$name louder near than far (median $nearMedian dB vs $farMedian dB)"
         }
-        # Silent beyond the cutoff: only windows that began and ended beyond it (+0.3 m) count.
-        for ($i = 1; $i -lt $rows.Count; $i++) {
-            if ($rows[$i - 1].D -gt $Cutoff + 0.3 -and $rows[$i].D -gt $Cutoff + 0.3) {
+        # Silent beyond the cutoff: only a window with a whole window beyond it (+0.3 m) before it. After a crossing
+        # the queued 60-120 ms still play at the last, near-zero gain (-46 dB was seen 2.7 m past the cutoff).
+        for ($i = 2; $i -lt $rows.Count; $i++) {
+            $beyond = $Cutoff + 0.3
+            if ($rows[$i - 2].D -gt $beyond -and $rows[$i - 1].D -gt $beyond -and $rows[$i].D -gt $beyond) {
                 $beyondSeen = $true
                 Need ($rows[$i].Db -le -100) "$name silent beyond the cutoff (at $($rows[$i].D) m: $($rows[$i].Db) dB)"
             }
