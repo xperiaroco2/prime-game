@@ -48,7 +48,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | Command | What it does |
 |---|---|
 | `doctor [--quick]` | Checks the environment and prints fixes. Run it first in every session |
-| `lint [--fix] [files]` | gdformat and gdlint; with no files also CLAUDE.md budgets and rule/agent frontmatter |
+| `lint [--fix] [paths]` | gdformat and gdlint on files or folders; with none, all GDScript plus CLAUDE.md budgets and rule/agent frontmatter |
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths]` | GdUnit4 headless; judged by exit code and `results.xml`; orphan nodes fail |
 | `verify` | Everything CI runs, in the same order: the definition-of-done gate |
