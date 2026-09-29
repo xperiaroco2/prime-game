@@ -177,6 +177,17 @@ class StackedTest(unittest.TestCase):
         self.assertEqual(publish.main(base="main"), 0)  # the human's word that the parent is done
         self.assertEqual(self.own_commits(), ["child"])
         self.assertIsNone(publish.recorded_base(CHILD))
+        warned = " ".join(str(c.args[0]) for c in publish.warn.call_args_list)  # type: ignore[attr-defined]
+        self.assertIn("leaves out these commits of the parent", warned)  # the parent was not merged
+        self.assertIn("parent", warned.rsplit("\n", 1)[-1])  # the dropped commit's subject
+
+    def test_without_a_recorded_tip_the_parent_ref_marks_the_own_commits(self) -> None:
+        self.start_child()
+        git(self.work, "config", "--unset", publish.tip_key(CHILD))  # a record from before the tip existed
+        self.merge_and_delete_parent()
+        self.pr_base = "main"
+        self.assertEqual(publish.main(), 0)
+        self.assertEqual(self.own_commits(), ["child"])
 
 
 if __name__ == "__main__":

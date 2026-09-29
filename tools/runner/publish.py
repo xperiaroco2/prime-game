@@ -106,6 +106,8 @@ def main(base: str | None = None) -> int:
     if parent:
         live = _sha(f"refs/remotes/{REMOTE}/{parent}")
         merged = _in(live, f"{REMOTE}/main")
+        # Without a usable recorded tip, a parent tip already in this branch still marks where its own commits begin.
+        tip = tip or next((c for c in (live, stale) if _in(c, "HEAD")), "")
         if not base and live and not merged:
             base, source = parent, " (recorded by start --base)"
         elif (base or "main") == "main":
@@ -117,6 +119,13 @@ def main(base: str | None = None) -> int:
                     f"known tip {latest[:10] or '(unknown)'} is not in {REMOTE}/main. Rebasing on main now could carry "
                     "its commits into this PR. Nothing was changed. Ask the human to check the parent's PR; if it was "
                     "merged, run publish --base main (it replays only this branch's own commits onto main)."
+                )
+            if tip and not _in(latest, f"{REMOTE}/main"):
+                dropped = _git("log", "--oneline", f"{REMOTE}/main..{tip}").out.strip()
+                warn(
+                    f"--base main leaves out these commits of the parent {parent}, which {REMOTE}/main lacks (to keep "
+                    f"them instead: git config --unset {base_key(branch)}, and the same for {tip_key(branch)}):\n"
+                    + dropped
                 )
             base, unstack = "main", True
         elif base == parent and merged:
