@@ -1,5 +1,5 @@
 extends SceneTree
-## Smoke-test script for `tools/run.py run`: behaves as its first user argument says.
+## Smoke test of `tools\run.cmd run` (`tools/run.sh run`): does what its first user argument says.
 ##   godot --headless -s res://tools/run/probe.gd -- <mode> [more args]
 ## Prints its mode, arguments, display server and PRIME_INSTANCE first. Modes:
 ##   ok (default)   prints PROBE ok and the user arguments, exits 0

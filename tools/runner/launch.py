@@ -39,7 +39,7 @@ MAX_INSTANCES = 8
 # Each instance also gets its 1-based number here, so N copies with the same arguments can still differ.
 INSTANCE_ENV = "PRIME_INSTANCE"
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
-ERROR_RE = re.compile(r"^(?:SCRIPT |USER |SHADER )?ERROR: ")
+ERROR_RE = re.compile(r"^(?:USER )?(?:SCRIPT |SHADER )?ERROR: ")
 SHOWN_ERRORS = 3
 
 
@@ -127,19 +127,27 @@ class Instance:
 def launch(cmds: list[list[str]], *, seconds: int, log_dir: Path, name: str, cwd: Path = ROOT) -> list[Instance]:
     """Start every command at once, wait for all of them and write one log each. One instance echoes live."""
     log_dir.mkdir(parents=True, exist_ok=True)
-    for old in log_dir.glob(f"{name}-*.log"):
-        old.unlink()
+    own_log = re.compile(rf"{re.escape(name)}-\d+\.log")  # never another target's logs, such as lobby-test-1.log
+    for old in log_dir.iterdir():
+        if own_log.fullmatch(old.name):
+            old.unlink()
     results: dict[int, Result] = {}
+    failures: list[Failure] = []
 
     def one(number: int, cmd: list[str]) -> None:
         env = {INSTANCE_ENV: str(number)}
-        results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=env)
+        try:
+            results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=env)
+        except Failure as exc:  # the exe could not start: report it once, after the others finished
+            failures.append(exc)
 
     threads = [threading.Thread(target=one, args=(i, cmd)) for i, cmd in enumerate(cmds, start=1)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
+    if failures:
+        raise failures[0]
     instances = []
     for number in range(1, len(cmds) + 1):
         log = log_dir / f"{name}-{number}.log"

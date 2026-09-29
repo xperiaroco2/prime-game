@@ -97,11 +97,13 @@ class ErrorScanAndExitCodeTest(unittest.TestCase):
         "   at: f (res://a.gd:9)\n"
         "USER ERROR: third\n"
         "SHADER ERROR: fourth\n"
+        "USER SCRIPT ERROR: fifth\n"
+        "USER SHADER ERROR: sixth\n"
     )
 
     def test_scan(self) -> None:
         count, shown = launch.error_lines(self.OUTPUT.splitlines())
-        self.assertEqual(count, 4)
+        self.assertEqual(count, 6)
         self.assertEqual(shown, [
             "ERROR: first",
             "   at: push_error (core/variant/variant_utility.cpp:1023)",
@@ -144,13 +146,48 @@ class ErrorScanAndExitCodeTest(unittest.TestCase):
             self.assertEqual(sorted((env or {})[launch.INSTANCE_ENV] for env in seen), ["1", "2"])
             self.assertEqual(sorted(p.name for p in (Path(tmp) / "run").iterdir()), ["probe-1.log", "probe-2.log"])
 
+    def test_replaces_only_its_own_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            logs = Path(tmp)
+            for old in ("lobby-1.log", "lobby-7.log", "lobby-test-1.log", "lobby-x.log"):
+                (logs / old).write_text("old", "utf-8")
+            with mock.patch.object(launch, "run", return_value=Result(0, "new\n", False, 0.1)):
+                launch.launch([["g"]], seconds=5, log_dir=logs, name="lobby")
+            self.assertEqual(sorted(p.name for p in logs.iterdir()), ["lobby-1.log", "lobby-test-1.log", "lobby-x.log"])
+            self.assertEqual((logs / "lobby-1.log").read_text("utf-8"), "new\n")
+
+    def test_an_exe_that_cannot_start_is_one_clean_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(launch, "run", side_effect=Failure("cannot start g: missing")):
+                with self.assertRaises(Failure) as caught:
+                    launch.launch([["g"], ["g"]], seconds=5, log_dir=Path(tmp), name="x")
+        self.assertIn("cannot start", str(caught.exception))
+
+    def test_window_exe(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            gui = Path(tmp) / "godot-gui.exe"
+            gui.write_bytes(b"")
+            with mock.patch.dict("os.environ", {"GODOT_GUI_BIN": str(gui)}), \
+                    mock.patch.object(launch, "check_godot_version") as check:  # fmt: skip
+                self.assertEqual(launch.gui_exe(), str(gui))
+            check.assert_called_once_with(str(gui), "GODOT_GUI_BIN")
+            with mock.patch.dict("os.environ", {"GODOT_GUI_BIN": str(gui) + ".missing"}):
+                with self.assertRaises(Failure) as caught:
+                    launch.gui_exe()
+            self.assertIn("missing file", str(caught.exception))
+        with mock.patch.dict("os.environ", {"GODOT_GUI_BIN": ""}), mock.patch.object(launch, "warn") as warned, \
+                mock.patch.object(launch, "require_godot", return_value="console"):  # fmt: skip
+            self.assertEqual(launch.gui_exe(), "console")
+        warned.assert_called_once()
+
 
 @unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
 class RealRunTest(unittest.TestCase):
     """tools/run/probe.gd under a real headless Godot, in a throwaway project."""
 
     def test_probe_modes(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
+        # A killed engine may still hold files of the temp project for a moment on Windows.
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             project = Path(tmp)
             (project / "project.godot").write_text('config_version=5\n\n[application]\nconfig/name="r"\n', "utf-8")
             (project / "probe.gd").write_bytes((ROOT / PROBE).read_bytes())
