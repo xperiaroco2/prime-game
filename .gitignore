@@ -15,3 +15,6 @@ __pycache__/
 
 # JetBrains Rider: personal files; shared run configurations may be un-ignored deliberately
 .idea/
+
+# Spike #12 only: the TwoVoIP binaries are fetched by spike/voice/fetch-twovoip.ps1, never committed
+/addons/twovoip/
