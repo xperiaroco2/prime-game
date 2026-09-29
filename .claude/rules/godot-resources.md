@@ -40,4 +40,5 @@ paths:
 
 ## Files
 - UTF-8 with LF line endings (`.gitattributes`); binary assets go through Git LFS automatically.
-- Third-party assets need `docs/credits/<asset>.md` in the same PR.
+- Third-party assets need `docs/credits/<asset>.md` in the same PR, then `tools\run.cmd credits` (`check` fails on
+  an LFS asset without an entry and on a stale `CREDITS.md`).

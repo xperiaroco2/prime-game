@@ -54,6 +54,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `publish [--base B]` | Rebases the task branch on its PR base (else main), runs `verify`, pushes with a lease |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
 | `normalize <files>` / `shot <scene>` | Re-save `.tscn`/`.tres` as the editor would / an off-screen PNG of a scene |
+| `credits` | Writes `CREDITS.md` from `docs/credits/`; `check` fails on an LFS asset without an entry |
 | `agents-check` / `worktree-done <n>` | Subagents ran on their models / remove a merged task's worktree |
 | `selftest` / `pins [--get X]` | The runner's own tests / pinned tool versions |
 

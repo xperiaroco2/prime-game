@@ -1,11 +1,11 @@
-"""`check`: headless import, warnings policy, UID lint and the project-wide parse/load check."""
+"""`check`: headless import, warnings policy, UID lint, credits and the project-wide parse/load check."""
 
 from __future__ import annotations
 
 import configparser
 import re
 
-from . import uids
+from . import credits, uids
 from .common import ROOT, Failure, bad, ensure_out, git_status, godot, ok, say, warn
 
 # Warnings that must stay at Error (2). Others keep Godot's defaults: Warn is reported, not failed.
@@ -97,6 +97,14 @@ def main(files: list[str] | None = None) -> int:
             bad(line)
     else:
         ok(f"UID lint ({len(report.uids)} uids)")
+
+    credit_report = credits.check(ROOT)
+    if credit_report.errors:
+        failed = True
+        for line in credit_report.errors:
+            bad(line)
+    else:
+        ok(f"credits ({credits.count(credit_report.entries)}; every LFS asset outside addons/ credited)")
 
     args = ["--headless", "-d", "--ignore-error-breaks", "-s", "res://tools/check/check_project.gd"]
     if files:

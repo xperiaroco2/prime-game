@@ -42,7 +42,7 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    project subagent in this session it has nothing to judge and fails; skip it then).
 3. **Docs.** Durable knowledge changed → update the owning doc (`docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`,
    `docs/GDD.md`, an ADR). A human corrected you during the task → skill `log-intervention`. A third-party asset →
-   `docs/credits/<asset>.md`. Commit these too.
+   `docs/credits/<asset>.md`, then `tools\run.cmd credits`. Commit these too.
 4. **Ask exactly once:** "Publish now? (push + PR + handoff comment)". Anything but a yes: stop and summarise what is
    done and what is left.
 5. **Publish.** `tools\run.cmd publish`. It rebases on the PR's base (else `main`), runs `verify` again and pushes
