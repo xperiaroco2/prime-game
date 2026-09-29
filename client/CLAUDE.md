@@ -18,6 +18,8 @@ Loaded when a file in `client/` is read. The invariants in the root `CLAUDE.md` 
 - Scenes are single-owner. Build reusable pieces as small sub-scenes; level layout itself is the designer's
   (`levels/`). Hand-written `.tscn` follows `.claude/rules/godot-resources.md`.
 - Visual changes come with a `shot` screenshot in the PR once `shot` exists.
+- Dev-only scenes (test rooms) go in `client/dev/`, never `levels/`. Collision layers come from `PhysicsLayers`,
+  movement and stamina numbers from `PlayerTuning` (`docs/ARCHITECTURE.md` §7).
 
 ## Tests
 - Logic that can live outside a scene should, so it can be unit-tested headless.
