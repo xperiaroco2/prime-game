@@ -1,7 +1,7 @@
 extends SceneTree
 ## A host and two clients over ENet on 127.0.0.1, one process each (#40). Headless only:
 ##   tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3
-## `verify` adds `-- --port=<a free port>`, so worktrees running it at once never share a port;
+## `verify` adds `-- --port=<a random free port>`, so worktrees running it at once very rarely share one;
 ## without --port it uses DEFAULT_PORT.
 ## PRIME_INSTANCE picks the part: 1 hosts and plays through its own loopback client; 2 and 3 join.
 ## Each process exits 0 when its part held, else prints an ERROR line and exits 1.
@@ -108,11 +108,13 @@ func _initialize() -> void:
 	_kinds.add(COMMAND, NetKindTable.Lane.RELIABLE, NetKindTable.Direction.HOST_TO_CLIENT, 64)
 	_instance = int(OS.get_environment("PRIME_INSTANCE"))
 	_started_ms = Time.get_ticks_msec()
+	var port_text := str(DEFAULT_PORT)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with(PORT_ARG):
-			_port = int(arg.trim_prefix(PORT_ARG))
+			port_text = arg.trim_prefix(PORT_ARG)
+	_port = port_text.to_int() if port_text.is_valid_int() else 0
 	if _port < 1 or _port > 65535:
-		_fail("%s must be a port between 1 and 65535, got %d" % [PORT_ARG, _port])
+		_fail("%s must be a port between 1 and 65535, got '%s'" % [PORT_ARG, port_text])
 	elif _instance == 1:
 		_start_host()
 	elif _instance in [2, 3]:
