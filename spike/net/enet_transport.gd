@@ -1,14 +1,15 @@
 class_name SpikeEnetTransport
 extends SpikeTransport
 ## Spike (#13): SpikeTransport over Godot's high-level multiplayer (SceneMultiplayer) on ENet.
-## Raw bytes through send_bytes and peer_packet; no RPCs, so no node paths leak into the protocol.
+## Raw bytes through send_bytes and peer_packet; we send no RPCs. SceneMultiplayer still parses
+## incoming RPC, spawn and sync commands: any @rpc method under /root would become callable by
+## clients. The real net/ should read packets from ENetMultiplayerPeer directly instead.
 ## Server relay is off: a client can reach only the host, never another client.
 
 # ENet's default peer timeout is up to 30 s; a killed process should drop within a few seconds.
 const TIMEOUT_LIMIT := 8
 const TIMEOUT_MIN_MS := 2000
 const TIMEOUT_MAX_MS := 4000
-const CHANNELS := 2
 
 var _mp := SceneMultiplayer.new()
 var _peer: ENetMultiplayerPeer
@@ -21,20 +22,19 @@ func _init() -> void:
 	# bytes that never touch a node ("Multiplayer root was not initialized").
 	_mp.root_path = ^"/root"
 	_mp.server_relay = false
+	# Bound methods, not lambdas: a lambda capturing self, held by _mp, which self owns, is a cycle.
 	_mp.peer_connected.connect(_on_peer_connected)
-	_mp.peer_disconnected.connect(func(id: int) -> void: peer_left.emit(id))
+	_mp.peer_disconnected.connect(_on_peer_disconnected)
 	_mp.connected_to_server.connect(_on_connected_to_server)
-	_mp.connection_failed.connect(func() -> void: connect_failed.emit())
+	_mp.connection_failed.connect(_on_connection_failed)
 	_mp.server_disconnected.connect(_on_server_disconnected)
-	_mp.peer_packet.connect(
-		func(id: int, bytes: PackedByteArray) -> void: packet_received.emit(id, bytes)
-	)
+	_mp.peer_packet.connect(_on_peer_packet)
 
 
 func host(bind_ip: String, port: int, max_clients: int) -> Error:
 	_peer = ENetMultiplayerPeer.new()
 	_peer.set_bind_ip(bind_ip)
-	var err := _peer.create_server(port, max_clients, CHANNELS)
+	var err := _peer.create_server(port, max_clients)
 	if err == OK:
 		_mp.multiplayer_peer = _peer
 		_own_id = HOST_ID
@@ -43,7 +43,7 @@ func host(bind_ip: String, port: int, max_clients: int) -> Error:
 
 func join(address: String, port: int) -> Error:
 	_peer = ENetMultiplayerPeer.new()
-	var err := _peer.create_client(address, port, CHANNELS)
+	var err := _peer.create_client(address, port)
 	if err == OK:
 		_mp.multiplayer_peer = _peer
 	return err
@@ -57,13 +57,13 @@ func poll() -> void:
 func send(to_peer: int, bytes: PackedByteArray, reliable: bool) -> Error:
 	if _peer == null or _peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return ERR_UNCONFIGURED
+	# Channel 0 keeps each transfer mode apart: lost unreliable packets never stall reliable ones.
 	var mode := (
 		MultiplayerPeer.TRANSFER_MODE_RELIABLE
 		if reliable
 		else MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED
 	)
-	# Channel 0 reliable, channel 1 unreliable, so a lost unreliable packet never stalls the other.
-	return _mp.send_bytes(bytes, to_peer, mode, 0 if reliable else 1)
+	return _mp.send_bytes(bytes, to_peer, mode)
 
 
 func own_id() -> int:
@@ -77,14 +77,41 @@ func close() -> void:
 		_peer = null
 
 
-func _on_connected_to_server() -> void:
-	_own_id = _mp.get_unique_id()
-	connected.emit(_own_id)
-
-
-func _on_server_disconnected() -> void:
-	_own_id = 0
-	disconnected.emit()
+## Temporary diagnostics: host packet counters since the last call, and each ENet peer's state.
+func debug_line() -> String:
+	# The host getter errors once the peer is closed, so check the status first.
+	if _peer == null or _peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
+		return "no host"
+	var conn := _peer.host
+	var parts := PackedStringArray(
+		[
+			(
+				"sentB=%d sent=%d recv=%d"
+				% [
+					conn.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA),
+					conn.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS),
+					conn.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS),
+				]
+			)
+		]
+	)
+	for p in conn.get_peers():
+		(
+			parts
+			. append(
+				(
+					"[port=%d state=%d rtt=%.0f loss=%.0f throttle=%.0f]"
+					% [
+						p.get_remote_port(),
+						p.get_state(),
+						p.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME),
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_LOSS),
+						p.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE),
+					]
+				)
+			)
+		)
+	return " ".join(parts)
 
 
 func _on_peer_connected(id: int) -> void:
@@ -92,3 +119,25 @@ func _on_peer_connected(id: int) -> void:
 	if packet_peer != null:
 		packet_peer.set_timeout(TIMEOUT_LIMIT, TIMEOUT_MIN_MS, TIMEOUT_MAX_MS)
 	peer_joined.emit(id)
+
+
+func _on_peer_disconnected(id: int) -> void:
+	peer_left.emit(id)
+
+
+func _on_connected_to_server() -> void:
+	_own_id = _mp.get_unique_id()
+	connected.emit(_own_id)
+
+
+func _on_connection_failed() -> void:
+	connect_failed.emit()
+
+
+func _on_server_disconnected() -> void:
+	_own_id = 0
+	disconnected.emit()
+
+
+func _on_peer_packet(id: int, bytes: PackedByteArray) -> void:
+	packet_received.emit(id, bytes)

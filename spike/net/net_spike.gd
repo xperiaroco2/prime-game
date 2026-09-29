@@ -10,7 +10,8 @@ extends Control
 
 const BIND_IP := "127.0.0.1"
 const DEFAULT_PORT := 24560
-const MAX_CLIENTS := 8
+const MAX_CLIENTS := SpikeNetMessages.MAX_PLAYERS  # clients reject bigger position messages
+const MAX_REJECT_LOGS := 5  # a flooding peer must not fill the log; the stats line keeps the count
 const ARENA := Vector2(400, 200)
 const SPEED := 80.0  # arena units per second
 const SEND_EVERY := 0.05  # intents and position broadcasts at 20 Hz
@@ -27,6 +28,12 @@ var _status := "starting"
 var _elapsed := 0.0
 var _since_send := 0.0
 var _since_stats := 0.0
+# Diagnostics, off unless their environment variables are set (see _diagnostics).
+var _debug := OS.has_environment("NET_DEBUG")
+var _since_debug := 0.0
+var _stall_at := OS.get_environment("NET_STALL_AT").to_float()
+var _stall_ms := OS.get_environment("NET_STALL_MS").to_int()
+var _stall_frames := OS.get_environment("NET_STALL_FRAMES").to_int()
 # Host: the authoritative state. Client: the last snapshot received.
 var _positions: Dictionary[int, Vector2] = {}
 # Host only.
@@ -74,6 +81,7 @@ func _process(delta: float) -> void:
 			_broadcast_positions()
 		else:
 			_send_intent()
+	_diagnostics(delta)
 	_since_stats += delta
 	if _since_stats >= STATS_EVERY:
 		_since_stats = 0.0
@@ -83,6 +91,21 @@ func _process(delta: float) -> void:
 		get_tree().quit(0)
 		set_process(false)
 	_refresh()
+
+
+## NET_DEBUG=1: every 0.25 s a "debug" line with fps and ENet counters and peer states.
+## NET_STALL_AT=S NET_STALL_MS=M NET_STALL_FRAMES=N: from S seconds on, the host blocks its main
+## thread for M ms in each of N frames, like a level load or a hitch.
+func _diagnostics(delta: float) -> void:
+	if _is_host and _stall_frames > 0 and _stall_ms > 0 and _elapsed >= _stall_at:
+		_stall_frames -= 1
+		OS.delay_msec(_stall_ms)
+	_since_debug += delta
+	if _debug and _since_debug >= 0.25:
+		_since_debug = 0.0
+		var enet := _transport as SpikeEnetTransport
+		var fps := Engine.get_frames_per_second()
+		_log("debug t=%.2f fps=%.0f %s" % [_elapsed, fps, enet.debug_line()])
 
 
 func _exit_tree() -> void:
@@ -196,7 +219,8 @@ func _host_receive(from_peer: int, msg: Array, size_bytes: int) -> void:
 	# Clients send intents, never state: anything else, or a peer the host does not know, is dropped.
 	if msg.is_empty() or msg[0] != SpikeNetMessages.KIND_MOVE_INTENT or not _dirs.has(from_peer):
 		_rejected += 1
-		_log("rejected %d bytes from id=%d" % [size_bytes, from_peer])
+		if _rejected <= MAX_REJECT_LOGS:
+			_log("rejected %d bytes from id=%d" % [size_bytes, from_peer])
 		return
 	var dir: Vector2 = msg[1]
 	_dirs[from_peer] = dir.limit_length(1.0)
