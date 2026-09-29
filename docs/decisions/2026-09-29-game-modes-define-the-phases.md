@@ -18,7 +18,8 @@ The **game mode** defines its phases, still as an **explicit state machine** (th
   - Loading: everyone loads the game scene; the round starts when every peer confirmed it loaded
     ([listen server](2026-09-29-listen-server-and-message-layer.md)).
   - Round: roles are dealt and packages scattered when Round starts; it ends on a win condition.
-  - End: the end screen shows the winner and every role; the host's button returns everyone to the Lobby.
+  - End: the end screen shows only the winning side, with no names and no roles (corrected by the engineer in #32);
+    the host's button returns everyone to the Lobby.
 - **A later meetings mode** (#35) adds Meeting → Vote → Resolution; its transitions are designed there.
 
 Changed to match: invariant 5 in the root `CLAUDE.md`, "What lives here" in `core/CLAUDE.md`, and §3 of
