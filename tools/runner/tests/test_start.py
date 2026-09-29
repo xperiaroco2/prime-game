@@ -216,6 +216,117 @@ class StartTest(unittest.TestCase):
         self.assertIn("working in the worktree", str(caught.exception))
         self.assertTrue(tree.is_dir())
 
+    def commit_in(self, tree: Path, name: str) -> None:
+        (tree / name).write_text(f"{name}\n", encoding="utf-8", newline="\n")
+        git(tree, "add", name)
+        git(tree, "commit", "-q", "-m", name)
+
+    def test_worktree_done_pushed_removes_a_spike_worktree_once_origin_has_it(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "spike.txt")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42)
+        self.assertIn("--pushed", str(caught.exception))
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("does not exist", str(caught.exception))
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        self.commit_in(tree, "later.txt")  # a commit origin does not have yet
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("has commits", str(caught.exception))
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        (tree / "stray.txt").write_text("untracked\n", encoding="utf-8", newline="\n")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("uncommitted", str(caught.exception))
+        (tree / "stray.txt").unlink()
+        # An ignored folder (like .godot/) does not block the removal.
+        exclude = Path(git(self.work, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "info" / "exclude"
+        exclude.parent.mkdir(exist_ok=True)
+        exclude.write_text("cache/\n", encoding="utf-8")
+        (tree / "cache").mkdir()
+        (tree / "cache" / "import.bin").write_text("ignored\n", encoding="utf-8")
+
+        self.assertEqual(start.worktree_done(42, pushed=True), 0)
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "core/42-vote-tally")  # kept
+        self.assertIn("refs/heads/core/42-vote-tally", git(self.work, "ls-remote", "--heads", "origin"))
+
+    def test_worktree_done_pushed_refuses_a_detached_head(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        git(tree, "switch", "-q", "--detach")
+        self.commit_in(tree, "fix.txt")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)
+        self.assertIn("detached HEAD", str(caught.exception))
+        self.assertTrue(tree.is_dir())
+
+    def test_worktree_done_pushed_still_deletes_a_merged_branch(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")
+        self.assertEqual(start.worktree_done(42, pushed=True), 0)
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "")
+
+    def test_worktree_done_refuses_up_front_from_inside_the_worktree(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        git(tree, "push", "-q", "origin", "core/42-vote-tally")
+        (tree / "sub").mkdir()
+        self.addCleanup(os.chdir, os.getcwd())
+        for where in (tree, tree / "sub"):
+            os.chdir(where)
+            with self.subTest(cwd=where), self.assertRaises(Failure) as caught:
+                start.worktree_done(42, pushed=True)
+            self.assertIn("run worktree-done from the main checkout: cd", str(caught.exception))
+        os.chdir(self.work)
+        with mock.patch.object(start, "REPO", tree), self.assertRaises(Failure) as caught:
+            start.worktree_done(42, pushed=True)  # the worktree's own tools\run.cmd
+        self.assertIn("run worktree-done from the main checkout", str(caught.exception))
+        self.assertIn(str(tree.resolve()).lower(), start.listed_worktrees())  # still registered, nothing touched
+
+    def test_worktree_done_finishes_a_removal_windows_left_half_done(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")  # merged
+        git(self.work, "worktree", "remove", str(tree))  # git unregistered it...
+        (tree / "addons" / "empty").mkdir(parents=True)  # ...but the folder stayed, emptied
+        self.assertEqual(start.worktree_done(42), 0)
+        self.assertFalse(tree.exists())
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-vote-tally"), "")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42)
+        self.assertIn("nothing left over", str(caught.exception))
+
+    def test_worktree_done_leftovers_keep_files_and_unmerged_branches(self) -> None:
+        git(self.work, "branch", "core/43-merged")  # at origin/main: merged
+        self.assertEqual(start.worktree_done(43), 0)  # only the merged branch was left
+        self.assertEqual(git(self.work, "branch", "--list", "core/43-merged"), "")
+
+        git(self.work, "switch", "-q", "-c", "core/44-unmerged")
+        self.write("u.txt", "unmerged\n")
+        git(self.work, "add", "u.txt")
+        git(self.work, "commit", "-q", "-m", "unmerged")
+        git(self.work, "switch", "-q", "main")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(44)
+        self.assertIn("kept", str(caught.exception))
+        self.assertEqual(git(self.work, "branch", "--list", "core/44-unmerged"), "core/44-unmerged")
+
+        stray = self.work / ".claude" / "worktrees" / "45" / "notes.txt"
+        stray.parent.mkdir(parents=True)
+        stray.write_text("someone's notes\n", encoding="utf-8")
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(45)
+        self.assertIn("still holds files", str(caught.exception))
+        self.assertTrue(stray.is_file())
+
     def test_a_branch_in_a_worktree_is_never_stashed_for(self) -> None:
         self.assertEqual(start.main(42, worktree=True), 0)
         self.write("f.txt", "edited\n")

@@ -5,7 +5,8 @@ assigns the issue to the caller if nobody has it, and moves it to "In progress" 
 work: uncommitted changes stop it unless the caller says `--include` (carry them onto the task branch) or `--stash`.
 It makes a worktree `.claude/worktrees/<n>` instead only for the engineer, and only when another Claude session is
 active on this checkout (docs/decisions/2026-09-28-worktrees-only-for-parallel-sessions.md). `worktree-done <n>`
-removes such a worktree once its branch is merged.
+removes such a worktree once its branch is merged, or with `--pushed` once origin has the branch (a spike that is never
+merged), and finishes a removal that Windows left half done.
 """
 
 from __future__ import annotations
@@ -253,15 +254,31 @@ def create_worktree(number: int, branch: str, dry_run: bool) -> Path:
     return path
 
 
-def worktree_done(number: int) -> int:
-    say(f"worktree-done #{number}")
+def _is_ancestor(commit: str, of: str) -> bool:
+    return _git("merge-base", "--is-ancestor", commit, of).rc == 0
+
+
+def _refuse_inside(path: Path) -> None:
+    """Windows cannot delete a folder that is a process's current directory: git would unregister the worktree and
+    then fail to delete it, leaving a half-removed worktree. So refuse before anything changes."""
+    target = path.resolve()
+    for where in (Path.cwd(), Path(str(REPO))):
+        here = where.resolve()
+        if here == target or target in here.parents:
+            raise Failure(
+                f"run worktree-done from the main checkout: cd {main_checkout()} (the current folder {where} is "
+                "inside the worktree, and Windows cannot delete it). Nothing was removed."
+            )
+
+
+def worktree_done(number: int, *, pushed: bool = False) -> int:
+    say(f"worktree-done #{number}" + (" (--pushed)" if pushed else ""))
     path = worktrees_root() / str(number)
+    _refuse_inside(path)
     key = str(path.resolve()).lower()
     known = listed_worktrees()
     if key not in known:
-        raise Failure(f"no worktree for #{number} at {path}")
-    if Path(str(REPO)).resolve() == path.resolve():
-        raise Failure("run worktree-done from the main checkout, not from inside the worktree")
+        return finish_leftovers(number, path, known)
     branch = known[key]
     inside = sessions.active_on(path)
     if inside:
@@ -275,23 +292,75 @@ def worktree_done(number: int) -> int:
     _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
     # The commit checked out there, not just the branch name: a detached HEAD can hold commits no branch has.
     head = _must(_git("rev-parse", "HEAD", cwd=path), "reading the worktree's HEAD")
-    if _git("merge-base", "--is-ancestor", head, f"{REMOTE}/{BASE}").rc != 0:
+    merged = _is_ancestor(head, f"{REMOTE}/{BASE}") and (not branch or _is_ancestor(branch, f"{REMOTE}/{BASE}"))
+    if not merged and not pushed:
         raise Failure(
             f"{branch or 'the detached HEAD'} ({head[:10]}) is not merged into {REMOTE}/{BASE} yet; nothing was "
             "removed. worktree-done runs after a human merged the PR with \"Create a merge commit\" (a squash merge "
-            "leaves the branch's own commits unmerged: then ask the human)."
+            "leaves the branch's own commits unmerged: then ask the human). A branch that is never merged (a spike) "
+            "goes with --pushed once origin has it."
         )
-    if branch and _git("merge-base", "--is-ancestor", branch, f"{REMOTE}/{BASE}").rc != 0:
-        raise Failure(f"{branch} is not merged into {REMOTE}/{BASE} yet; nothing was removed.")
+    if not merged:
+        # --pushed: the branch on origin keeps every commit, so removing the worktree loses nothing.
+        if not branch:
+            raise Failure(f"the worktree is on a detached HEAD ({head[:10]}); --pushed needs a branch. Nothing was removed.")
+        upstream = f"{REMOTE}/{branch}"
+        if _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{upstream}").rc != 0:
+            raise Failure(f"{upstream} does not exist, so {branch} is not pushed; nothing was removed.")
+        if not _is_ancestor(head, upstream) or not _is_ancestor(branch, upstream):
+            raise Failure(
+                f"{branch} ({head[:10]}) has commits that {upstream} does not; nothing was removed. Push them first "
+                "(tools\\run.cmd publish from the worktree), or ask the human."
+            )
     _must(_git("worktree", "remove", str(path)), "git worktree remove")
     ok(f"removed the worktree {path}")
-    if branch:
-        # -D, not -d: -d compares with the local HEAD, which may not have the merge yet. The branch is proven merged
-        # into origin/main above, so nothing is lost.
-        res = _git("branch", "-D", branch)
-        if res.rc == 0:
-            ok(f"deleted the merged local branch {branch}")
+    if branch and merged:
+        _delete_merged(branch)
+    elif branch:
+        ok(f"kept the local branch {branch}: it is not merged into {REMOTE}/{BASE} ({REMOTE}/{branch} has it too)")
+    say("worktree-done: done")
+    return 0
+
+
+def _delete_merged(branch: str) -> None:
+    # -D, not -d: -d compares with the local HEAD, which may not have the merge yet. The caller proved the branch
+    # merged into origin/main, so nothing is lost.
+    res = _git("branch", "-D", branch)
+    if res.rc == 0:
+        ok(f"deleted the merged local branch {branch}")
+    else:
+        warn(f"kept the local branch {branch}: {res.out.strip()[-300:]}")
+
+
+def finish_leftovers(number: int, path: Path, known: dict[str, str]) -> int:
+    """The worktree is no longer registered (a removal git began but Windows could not finish, or one done by hand).
+    Finish what is left: an empty folder, and the issue's merged local task branch."""
+    cleaned = False
+    if path.exists():
+        files = [p for p in path.rglob("*") if not p.is_dir()]
+        if files:
+            raise Failure(
+                f"{path} is not a registered git worktree but still holds files (such as {files[0]}); nothing was "
+                "removed. Ask the human what they are."
+            )
+        shutil.rmtree(path)
+        ok(f"removed the empty leftover folder {path}")
+        cleaned = True
+    listed = _git("branch", "--list", "--format=%(refname:short)", f"*/{number}-*").out.split()
+    ours = [b for b in listed if re.fullmatch(rf"[a-z][a-z0-9]*/{number}-[a-z0-9][a-z0-9._-]*", b)]
+    checked_out = set(known.values())
+    if ours:
+        _must(_git("fetch", REMOTE), f"git fetch {REMOTE}")
+    for branch in ours:
+        if branch in checked_out:
+            ok(f"kept the local branch {branch}: it is checked out in another worktree or the main checkout")
+        elif _is_ancestor(branch, f"{REMOTE}/{BASE}"):
+            _delete_merged(branch)
+            cleaned = True
         else:
-            warn(f"kept the local branch {branch}: {res.out.strip()[-300:]}")
+            ok(f"kept the local branch {branch}: it is not merged into {REMOTE}/{BASE}")
+    if not cleaned:
+        left = "; the branches above are kept" if ours else ", and nothing left over from one"
+        raise Failure(f"no worktree for #{number} at {path}{left}")
     say("worktree-done: done")
     return 0
