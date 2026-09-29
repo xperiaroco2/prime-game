@@ -36,8 +36,14 @@ client (local player)                host                                       
 
 ## 3. Match state machine
 
-Lobby → RoleAssign → Roam → Meeting → Vote → Resolution → (Roam | End).
-*Open (pre-M2):* the exact transitions and their triggers, what each state allows, timers.
+The game mode defines its phases, as an explicit state machine
+([ADR](decisions/2026-09-29-game-modes-define-the-phases.md)).
+- **Base mode** ([MVP rules](decisions/2026-09-29-mvp-rules.md)): Lobby → Countdown → Loading → Round → End → Lobby.
+  Roles are dealt and packages scattered when Round starts.
+- **Meetings mode** (later, #35): adds Meeting → Vote → Resolution.
+
+*Open (M2, #32):* the exact transitions and their triggers, what each state allows, timers, and how a game mode is
+expressed.
 
 ## 4. Protocol
 

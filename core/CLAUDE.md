@@ -17,7 +17,9 @@ to `core/`. Design: `docs/ARCHITECTURE.md`.
 - Commands in, events out. `core/` never decides who may see an event; `server/` filters per peer.
 
 ## What lives here
-- The match state machine: Lobby → RoleAssign → Roam → Meeting → Vote → Resolution → (Roam | End).
+- The game modes, each an explicit match state machine that defines its phases. Base mode: Lobby → Countdown →
+  Loading → Round → End → Lobby; a later meetings mode (#35) adds Meeting → Vote → Resolution
+  ([ADR](../docs/decisions/2026-09-29-game-modes-define-the-phases.md)).
 - Intent validation rules and win conditions.
 - Voice routing rules: for each speaker and listener pair, whether audio is delivered and how (proximity,
   occlusion, dead chat, meeting-wide, radio).
