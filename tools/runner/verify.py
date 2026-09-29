@@ -2,12 +2,46 @@
 
 from __future__ import annotations
 
+import random
+import socket
 import time
 import unittest
 from collections.abc import Callable
 
-from . import check, doctor, gdunit, lint
+from . import check, doctor, gdunit, launch, lint
 from .common import ROOT, Failure, bad, git_status, ok, say
+
+# The headless ENet run (#40): a host with its own client and two clients, one process each, on 127.0.0.1 only.
+ENET_RUN = "tests/integration/net/enet_host_and_two_clients.gd"
+ENET_INSTANCES = 3
+ENET_SECONDS = 90
+# Below the ephemeral ranges of Windows (49152+) and Linux (32768+): an ENet client's own socket never takes it.
+ENET_PORTS = range(20000, 32000)
+PORT_TRIES = 50
+
+
+def free_udp_port(pick: Callable[[range], int] = random.choice) -> int:
+    """A random UDP port on 127.0.0.1 that nothing holds right now, so worktrees verifying at once never share one.
+
+    A port that fails to bind (in use, or in a range Windows reserves) is skipped.
+    """
+    for _ in range(PORT_TRIES):
+        port = pick(ENET_PORTS)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            try:
+                sock.bind(("127.0.0.1", port))
+            except OSError:
+                continue
+        return port
+    raise Failure(f"no free UDP port on 127.0.0.1 in {ENET_PORTS.start}-{ENET_PORTS.stop - 1} after {PORT_TRIES} tries")
+
+
+def enet() -> int:
+    """`run <ENET_RUN> --headless --instances 3 --seconds 90 -- --port=<free>`: any failed instance fails it."""
+    port = free_udp_port()
+    return launch.main(
+        ENET_RUN, headless=True, seconds=ENET_SECONDS, instances=ENET_INSTANCES, user_args=[f"--port={port}"]
+    )
 
 
 def selftest() -> int:
@@ -45,6 +79,7 @@ def main() -> int:
         ("lint", lambda: lint.main()),
         ("check", lambda: check.main()),
         ("test", lambda: gdunit.main(run_import=False)),
+        ("enet", enet),
         ("selftest", selftest),
     ]
     results: list[tuple[str, str, float]] = []

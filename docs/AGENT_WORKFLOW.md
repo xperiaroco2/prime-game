@@ -383,7 +383,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (M3) and the M1 spike. Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
   `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder.
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
-  and on `main`, with the checksum-checked Godot build from the pins. Test suites are named `<name>_test.gd`
+  and on `main`, with the checksum-checked Godot build from the pins. `verify` runs, in this order: `doctor --quick`,
+  `lint`, `check`, `test`, `enet` (the headless ENet run of `net/`, below) and `selftest`; any red step fails it.
+  The `enet` step is `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`
+  with `-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral ranges), so
+  worktrees verifying at once never share a port. Test suites are named `<name>_test.gd`
   (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
   branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
 - **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
