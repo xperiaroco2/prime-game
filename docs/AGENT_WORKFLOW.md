@@ -282,6 +282,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - The designer's agent never edits engine code. A missing primitive becomes an `engine-request` issue with a precise
   spec, and the agent continues with data. This rule is in `content/CLAUDE.md` and `levels/CLAUDE.md`.
 - The engineer's agent does not rebalance or redesign content without the designer's approval in the PR.
+- MVP exception: the engineer's agent builds the MVP's `content/` data and `levels/` scenes, each PR with the
+  engineer's explicit approval and marked provisional; the designer may replace them
+  ([ADR](decisions/2026-09-29-mvp-content-built-by-the-engineer.md)).
 
 ## 10. GitHub coordination
 

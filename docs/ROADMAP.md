@@ -4,6 +4,8 @@ Milestones and their goals only ([KICKOFF §7](history/KICKOFF.md)). Task-level 
 the project board and [milestones](https://github.com/xperiaroco2/prime-game/milestones). Owned by the engineer; a change to a
 milestone's goal is agreed with the designer. Acceptance criteria belong in each milestone's issues.
 
+The **MVP** spans M2 to M5. At its end the base mode ([MVP rules](decisions/2026-09-29-mvp-rules.md): crew and dissidents, Delivery tasks, knives, ghosts, proximity voice and dead chat) is playable over a LAN or a VPN.
+
 | Milestone | Goal |
 |---|---|
 | **M0** Agent setup and foundation | Repo structure, `.gitattributes`, LFS and `.gitignore`, `CLAUDE.md` files, docs skeletons, ADRs, the task runner, GdUnit4, gdtoolkit, CI, CODEOWNERS, issue and PR templates, labels, subagents, skills and hooks. Output: a trivial test passing in CI and the first M1 issues on the board |

@@ -36,10 +36,29 @@ client (local player)                host                                       
 
 ## 3. Match state machine
 
-Lobby → RoleAssign → Roam → Meeting → Vote → Resolution → (Roam | End).
-*Open (pre-M2):* the exact transitions and their triggers, what each state allows, timers.
+The game mode defines its phases, as an explicit state machine
+([ADR](decisions/2026-09-29-game-modes-define-the-phases.md)).
+- **Base mode** ([MVP rules](decisions/2026-09-29-mvp-rules.md)): Lobby → Countdown → Loading → Round → End → Lobby.
+  Roles are dealt and packages scattered when Round starts.
+- **Meetings mode** (later, #35): adds Meeting → Vote → Resolution.
+
+*Open (M2, #32):* the exact transitions and their triggers, what each state allows, timers, and how a game mode is
+expressed.
 
 ## 4. Protocol
+
+**Model** ([ADR](decisions/2026-09-29-listen-server-and-message-layer.md)):
+- Listen server: one player hosts as peer 1 and plays; no dedicated server. The host's own client talks to the host
+  through an in-process loopback transport, with the same codec and per-peer filter as every other client.
+- Own messages over `MultiplayerPeer` (ENet first), not RPCs, `MultiplayerSpawner` or `MultiplayerSynchronizer`:
+  every outgoing message is built per recipient in one place, which the leak test checks (§5).
+- The host leaving or crashing ends the match; clients return to the main menu with a message. No host migration
+  and no reconnection in the MVP. A client leaving mid-match counts as dead for the win conditions, and its held
+  item drops where it stood. Nobody joins during a match (`refuse_new_connections`).
+- The game scene loads with threaded loading and a longer ENet timeout; the round starts when every peer confirmed
+  it loaded.
+- The MVP is played over a LAN or a VPN (Radmin VPN, ZeroTier, Tailscale), plus a UPnP attempt. Internet play
+  without a VPN is the M6 ADR.
 
 *Open (M3):* intent and event schemas, encoding, versioning, reliability per message type, rate limits.
 Every schema change updates this section in the same PR.
@@ -168,8 +187,10 @@ parts, drawn from the designer's GDD.
 
 | Question | When |
 |---|---|
-| Composition model and first content-API parts | pre-M2 design |
-| Bot-scenario format and location | pre-M2 design |
-| Intent and event protocol | M3 |
+| Composition model and first content-API parts | M2 design (#33) |
+| Bot-scenario format and location | M2 design (#33) |
+| Phases in detail, intents, events and entitlement | M2 design (#32) |
+| Wire format of the message layer: schemas, encoding, versioning, reliability | M3 |
+| ENet between two machines (#21); the host's per-send ENet cost and upload for voice | before M3 depends on ENet; M3 or M5 |
 | Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
-| NAT traversal: Steam networking vs WebRTC with a signaling server | M6 ADR |
+| Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
