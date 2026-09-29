@@ -50,12 +50,15 @@ func epoch_of(peer: int) -> int:
 	return _peers[peer]["epoch"]
 
 
-## Refills every peer's budget; call once per host frame.
+## Refills every peer's budget; call once per host frame, before reading that frame's packets.
+## One long frame (a host hitch) may refill past the cap: the moves queued during it arrive
+## together right after it.
 func advance(delta: float) -> void:
-	var cap := max_speed * slack * burst_seconds
+	var gain := max_speed * slack * delta
+	var cap := maxf(max_speed * slack * burst_seconds, gain)
 	for peer: int in _peers:
 		var state: Dictionary = _peers[peer]
-		state["budget"] = minf((state["budget"] as float) + max_speed * slack * delta, cap)
+		state["budget"] = minf((state["budget"] as float) + gain, cap)
 
 
 ## Checks a reported move. Accepted moves become the peer's position and spend budget; anything

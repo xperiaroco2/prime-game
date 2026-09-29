@@ -45,6 +45,19 @@ func test_accepts_a_burst_after_a_pause() -> void:
 	assert_int(_check.check(PEER, 1, ahead)).is_equal(V.ACCEPTED)
 
 
+func test_accepts_the_moves_queued_during_a_host_hitch() -> void:
+	# The host froze for 1.2 s while the client walked on, reporting every 0.05 s; then one long
+	# frame and all 24 queued reports at once.
+	_check.advance(1.2)
+	var pos := _check.position_of(PEER)
+	var accepted := 0
+	for i in 24:
+		pos.x += _check.max_speed * 0.05
+		if _check.check(PEER, 1, pos) == V.ACCEPTED:
+			accepted += 1
+	assert_int(accepted).is_equal(24)
+
+
 func test_rejects_sustained_double_speed() -> void:
 	var verdicts := _walk(_check.max_speed * 2.0, 1.2, 0.05)
 	assert_bool(verdicts.has(V.SPEED)).is_true()

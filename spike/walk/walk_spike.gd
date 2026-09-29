@@ -127,10 +127,12 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta
-	_transport.poll()
-	_release_simulated()
+	# Refill the move budget before reading this frame's packets: after a long frame (a hitch, a
+	# screenshot) the moves queued during it arrive at once and must find the time already paid.
 	if _is_host:
 		_check.advance(delta)
+	_transport.poll()
+	_release_simulated()
 	# A fixed-rate tick, so tick / tick_hz tracks the sender's clock; after a long frame it
 	# restarts instead of sending a burst.
 	var interval := 1.0 / _tick_hz
