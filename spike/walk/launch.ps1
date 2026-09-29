@@ -179,6 +179,12 @@ function Show-Latency([string]$Dir) {
             Write-Host ("  WARNING: {0} of {1} clicks unpaired: their echoes strayed over 30 ms, came after the 0.7 s gate, or were too faint" -f `
                 ($clicks.Count - $echoes.Count), $clicks.Count)
         }
+        # Real echoes of one run agree within a few ms (a jitter-buffer step adds ~20 ms); pairs found in noise alone
+        # (speech, no clicks) spread over tens of ms (#16: 228-288 ms from a run whose clicker had crashed).
+        $spread = (Get-Stat $echoes 0.9) - (Get-Stat $echoes 0.1)
+        if ($spread -gt 25) {
+            Write-Host ("  WARNING: the pairs spread over {0} ms (p10 to p90): likely noise, not clicks; listen to {1}" -f (Fmt $spread), $MicWav)
+        }
         if ($median -gt 600) { Write-Host '  WARNING: the median is near the listener''s 0.7 s gate; slower echoes are cut off' }
         # Only on one machine, where both logs share a clock: from asking for a click to the microphone hearing it.
         $loops = @()
