@@ -219,10 +219,15 @@ if ($KillClientAfter -gt 0 -and ($Seconds -le 0 -or $KillClientAfter -ge $Second
 if ($Cheat -and $Seconds -le ($CheatSpeedAt + 3)) { throw "-Cheat needs -Seconds above $($CheatSpeedAt + 3)" }
 if ($Shots -and $Headless) { throw '-Shots needs windows (no -Headless)' }
 if ($Shots -and $Seconds -le $ShotAt) { throw "-Shots needs -Seconds above $ShotAt" }
+$console = $Godot -replace '(?<!_console)\.exe$', '_console.exe'
+if (-not (Test-Path $console)) { $console = $Godot }
+# A checkout that just switched branches has an old list of class_name scripts in .godot\, and running a scene does
+# not rescan it: every new class (SpikeVoiceClicks...) is then "not declared" (#16, the second machine). A headless
+# import refreshes it; with nothing to import it takes a few seconds. stdout only, as below.
+& $console --headless --path "$Root" --import | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "the Godot import failed (exit $LASTEXITCODE): run tools\run.cmd check for details" }
 if ($ListMics) {
     # The console build prints to this terminal; a real audio driver, or the list is empty. Listing starts no microphone.
-    $console = $Godot -replace '(?<!_console)\.exe$', '_console.exe'
-    if (-not (Test-Path $console)) { $console = $Godot }
     # stdout only: with $ErrorActionPreference Stop, PowerShell 5.1 turns any stderr line of a native exe into an error.
     & $console --display-driver headless --rendering-driver dummy --audio-driver WASAPI --path "$Root" -s res://spike/voice/list_mics.gd |
         Where-Object { $_ -match '^MICS? ' }
@@ -230,8 +235,6 @@ if ($ListMics) {
 }
 if ($Bench) {
     # The CPU cost of one voice stream on this machine (#16); headless, starts no audio device.
-    $console = $Godot -replace '(?<!_console)\.exe$', '_console.exe'
-    if (-not (Test-Path $console)) { $console = $Godot }
     & $console --headless --path "$Root" -s res://spike/voice/codec_bench.gd | Where-Object { $_ -match '^BENCH ' }
     exit $LASTEXITCODE
 }
