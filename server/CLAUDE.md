@@ -9,8 +9,9 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   and range. A client never sends state; anything that looks like state from a client is rejected.
 - Filter per peer. Every outgoing message is built for one recipient from what that peer is entitled to know:
   roles, private events, votes before reveal and ability results never reach the wrong peer.
-- The host's own local client is just another peer. It receives the same filtered messages through the same path
-  and never reads `core/` state directly. This keeps a dedicated-server mode trivial.
+- The host's own local client is just another peer. It receives the same filtered messages through an in-process
+  loopback transport, with the same codec, and never reads `core/` state directly. This keeps a dedicated-server
+  mode trivial, though the MVP has none (listen server: `docs/ARCHITECTURE.md` §4).
 - Host-side movement sanity checks (speed, teleport) live here; the local player's movement stays client-side.
 - Voice: apply the `core/` routing decision to each speaker and listener pair before audio is forwarded.
 

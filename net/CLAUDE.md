@@ -5,7 +5,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 
 ## Job
 - The transport abstraction. ENet first, read from `ENetMultiplayerPeer` directly, not through `SceneMultiplayer`
-  (`docs/ARCHITECTURE.md` §4). Steam networking or WebRTC with a
+  (`docs/ARCHITECTURE.md` §4), plus an in-process loopback for the host's own client. Own messages only: no RPCs,
+  `MultiplayerSpawner` or `MultiplayerSynchronizer`. Steam networking or WebRTC with a
   signaling server may replace it later (NAT traversal ADR in M6), so nothing outside `net/` may depend on ENet.
 - Message schemas for intents (client → host) and events (host → client), and their serialization.
 - State sync and interpolation data for remote players.
