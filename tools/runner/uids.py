@@ -16,7 +16,6 @@ EXT_RE = re.compile(r"^\[ext_resource\b([^\]]*)\]", re.MULTILINE)
 ATTR_RE = re.compile(r'\b(uid|path)="([^"]*)"')
 IMPORT_UID_RE = re.compile(r'^uid="(uid://[a-z0-9]+)"', re.MULTILINE)
 SIDECAR_RE = re.compile(r"^uid://[a-z0-9]+$")
-SKIP_DIRS = {".git", ".godot", ".idea"}
 
 
 @dataclass
@@ -30,8 +29,9 @@ def _res(root: Path, path: Path) -> str:
 
 
 def project_files(root: Path) -> list[Path]:
-    """Every file Godot sees: skips hidden directories (.git, .godot, .claude with its task worktrees, which are
-    whole copies of the project) and any directory holding a .gdignore, like tools/check/check_project.gd."""
+    """Every file Godot sees: skips hidden directories (.git, .godot, and .claude with its task worktrees, which are
+    whole copies of the project) and any directory holding a .gdignore, as the engine check does. Unlike that check,
+    it still covers addons/: a duplicate uid there breaks loading just the same."""
     found: list[Path] = []
 
     def walk(folder: Path) -> None:
@@ -39,7 +39,7 @@ def project_files(root: Path) -> list[Path]:
             return
         for entry in sorted(folder.iterdir()):
             if entry.is_dir():
-                if entry.name not in SKIP_DIRS and not entry.name.startswith("."):
+                if not entry.name.startswith("."):
                     walk(entry)
             else:
                 found.append(entry)
