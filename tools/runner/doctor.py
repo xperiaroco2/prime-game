@@ -74,7 +74,7 @@ class Doctor:
         elif gui and Path(gui).is_file():
             ok(f"GODOT_GUI_BIN ({gui})")
         else:
-            warn(f"GODOT_GUI_BIN not set or missing; `shot`, `host` and `join` will need it ({USER_SETTINGS} env)")
+            warn(f"GODOT_GUI_BIN not set or missing; a windowed `run` uses it ({USER_SETTINGS} env)")
 
     def git(self) -> None:
         res = run(["git", "--version"], timeout=30)
