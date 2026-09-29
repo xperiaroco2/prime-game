@@ -47,6 +47,8 @@ said "no worktree". Now `worktree-done` refuses up front when the current folder
 the worktree, and when the worktree is unregistered it removes an empty leftover folder (one with files stops it) and
 the issue's merged local task branch. On #27 the same happened with no shell inside: the finished spike sessions,
 never archived and idle for 3 to 7 hours, were still alive with the worktree as their `cwd`, and Windows kept each
-folder. So `worktree-done` refuses while **any** live session has its `cwd` in the worktree, however long idle (not
-the one-hour window `start` uses); the human archives or closes it in the app first. When git still fails after
-unregistering, the message says so, and a rerun finishes the removal.
+folder. So `worktree-done` refuses while **any** live session has its `cwd` in the worktree, however long idle and
+the calling session included (not the one-hour window `start` uses); the human archives or closes it in the app
+first. When git still fails after unregistering, the message says so, and a rerun removes the folder once it is empty
+(files left in it stop it). `--pushed` asks `origin` live (`ls-remote`), so a stale tracking ref of a branch deleted
+there does not count as pushed.

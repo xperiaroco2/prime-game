@@ -73,8 +73,9 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
    merged ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose
    branch is never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it
    from the main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is
-   inside the worktree or any live Claude session (even one idle for days) has it as its folder; archive that session
-   in the app first. A rerun finishes a half-done removal (an empty leftover folder, the issue's merged local branch).
+   inside the worktree or any live Claude session (even one idle for days, or the calling one) has it as its folder;
+   archive that session in the app first. A rerun finishes a half-done removal (an empty leftover folder, the issue's
+   merged local branch).
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
