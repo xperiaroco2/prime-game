@@ -48,8 +48,9 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
    per bot from a closed list, the expected end and events that must never arrive. Targets come from the bot's own
    filtered view. One format, two runners: through `Match` directly (stage 2j, part of `verify`) and over the
    network (M3, `tools\run.cmd bots`).
-10. **The MVP's data and scenes** have a provisional layout (§9.6); a spawn point is a `Marker3D` in a
-    `spawn_<tag>` group.
+10. **The MVP's data and scenes** have a provisional layout (§9.6); a spawn point is a `Marker3D` in one
+    `spawn_<tag>` group. Kinds share spawn points by naming the same tag, never by a marker with two tags, so the
+    `all_ready` fit check per tag is exact.
 
 ## Alternatives
 - **One engine class per mechanic, with settings only** (a `KnifeHit` class): every variant (a longer blade that
@@ -79,7 +80,10 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   Godot's JSON parser returns every number as a float, and `check` would not validate it. **Raw command logs:** tied
   to item ids and ticks, and blind to what the bot knows. Rejected for choice 9.
 - **An engine marker scene with a script for spawn points:** needs a new engine-owned folder for level-facing nodes
-  (`server/` may not use `client/`), a boundary change. Groups need no script. Rejected for now for choice 10.
+  (`server/` may not use `client/`), a boundary change. Groups need no script. **Markers with several tags** (a
+  marker that takes a package or a knife): a check per tag counts such a marker twice, so `all_ready` could pass and
+  the random deal still run out of markers; an exact check needs a matching over every set of tags. Rejected for
+  now for choice 10.
 
 ## Consequences
 - **The extensibility test on paper** (§9.8): the zone task (#36) is one task-type class plus data, and
@@ -90,12 +94,12 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   a tally, a meeting voice rule, phase classes) and no change to `Match` or the base mode.
 - **Stage 2 keeps #32's split (2a to 2j) and its dependencies**; each part's "Built in" names its task:
   - 2a adds `core/content/` (the base classes and kinds, `GameMode` validation and a test that loads every mode in
-    `content/`), the rule runner (owners, facts, the depth cap, the win-check points), `ReportOutcome`,
+    `content/`), the rule runner (owners, facts, the depth cap, the win-check points, outcome reporting),
     `PlacePlayers`, and the base mode's skeleton `content/modes/base_mode.tres` under the MVP content exception;
   - 2b: the phase classes Lobby, Countdown, Loading and End with their settings, `ResetMatch`, and the fit check
-    over the placing actions' demands;
-  - 2c: `DealRoles` with `RoleQuota` and `Teammates`, `DealTasks`, `SpawnItems`, `ActorRole`, and the Crew,
-    Dissident and Knife data;
+    over the placing actions' demands per spawn tag;
+  - 2c: `DealRoles` with `RoleQuota` and `Teammates`, `DealTasks`, `SpawnItems`, and the Crew, Dissident and Knife
+    data;
   - 2d: `PlayerRules`, `StaminaCost`, sprint and jump in the movement rule;
   - 2e: `ItemOnGround`, `InReach`, `InSight`, `HoldsItem`, `TakeIntoHand`, `PutDownInFront`, `item_rested`, the
     PickUp and PutDown rules, and the Package data;
@@ -104,10 +108,12 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   - 2h: `WinCondition`, `AllSubtasksDone`, `NoneAlive`, `ClockEnded`, `StartClock`, `EndMatch`, `clock_ended`, and
     the three win-condition files;
   - 2i: the voice rules `Silent`, `Proximity` and `RoundVoice`;
-  - 2j: `tests/harness/` (the scenario classes and the core runner), `tests/scenarios/scenarios_test.gd`, a flat test
-    level in `tests/fixtures/`, and the base mode's scenarios in `content/scenarios/`.
+  - 2j: `tests/harness/` (the scenario classes and the core runner), `tests/scenarios/scenarios_test.gd`, the marker
+    reader in `server/` that builds a `LevelLayout`, a flat test level in `tests/fixtures/`, and the base mode's
+    scenarios in `content/scenarios/`.
   - M3's 3d runs the same scenarios over the network (`tools\run.cmd bots`); 4e settles the marker convention with
-    the designer.
+    the designer. `ActorRole` and `ReportOutcome` have no MVP use and come with the first mechanic that needs them
+    (#34, #35).
 - `docs/ARCHITECTURE.md` §4.1 and §4.2 rename `Hit` to `Use` and `DissidentTeam` to `Teammates`; §3.1 to §3.4 name
   the win-check points and the row actions. The [match loop ADR](2026-09-29-match-loop-intents-events-and-entitlement.md)
   keeps its record and points here.

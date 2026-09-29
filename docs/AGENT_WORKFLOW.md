@@ -403,8 +403,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Reads:** root `CLAUDE.md`, `content/CLAUDE.md`, `levels/CLAUDE.md`, `docs/GDD.md`, and the content API section
   of `docs/ARCHITECTURE.md` (the contract). **Effort:** medium.
 - **By milestone:** M0–M1 GDD open questions, `mechanic` issues, review of the content-API draft · M2 first content
-  `.tres` · M3 bot scenarios (`content/scenarios/`, `docs/ARCHITECTURE.md` §9.7) · M4 level pieces with `shot` screenshots; "запусти хост і двох клієнтів" runs
-  `run host` / `run join`.
+  `.tres` · M3 bot scenarios (`content/scenarios/`, `docs/ARCHITECTURE.md` §9.7) · M4 level pieces with `shot`
+  screenshots; "запусти хост і двох клієнтів" runs `run host` / `run join`.
 
 ## 13. How humans talk to the agent
 
