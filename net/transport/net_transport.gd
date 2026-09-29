@@ -47,7 +47,7 @@ var _session := 0
 
 
 class Inbound:
-	enum Type { PACKET, JOINED, LEFT, CONNECTED, CONNECT_FAILED, HOST_LOST }
+	enum Type { PACKET, JOINED, LEFT, DISCONNECTED, CONNECTED, CONNECT_FAILED, HOST_LOST }
 
 	var type: Type
 	var peer: int
@@ -178,6 +178,28 @@ func is_refusing_new_connections() -> bool:
 	return _refusing
 
 
+## Host: disconnects a client, for example one that missed the loading deadline (ARCHITECTURE
+## §3). It leaves peers() and send() at once; peer_left follows on the next poll(), like any
+## leave, and the client sees host_lost. ERR_UNAVAILABLE when not hosting, ERR_INVALID_PARAMETER
+## for the host's own client (the host ends the session instead), ERR_DOES_NOT_EXIST for a peer
+## that is not connected.
+func disconnect_peer(peer_id: int) -> Error:
+	if _role != Role.HOST:
+		return ERR_UNAVAILABLE
+	if peer_id == HOST_ID:
+		return ERR_INVALID_PARAMETER
+	if not _peers.has(peer_id):
+		return ERR_DOES_NOT_EXIST
+	_peers.erase(peer_id)
+	if _links.has(peer_id):
+		_links[peer_id]._push(Inbound.new(Inbound.Type.HOST_LOST, HOST_ID))
+		_links.erase(peer_id)
+	else:
+		_backend_disconnect(peer_id)
+	_push(Inbound.new(Inbound.Type.DISCONNECTED, peer_id))
+	return OK
+
+
 ## The one decode path: every backend hands each received packet here, the loopback included, so
 ## the host's own client decodes exactly what a remote client would. Only backends (from poll())
 ## and tests call it; game code never does, because signals fire only from poll().
@@ -213,6 +235,10 @@ func _backend_send(_to_peer: int, _bytes: PackedByteArray, _lane: NetKindTable.L
 
 
 func _backend_close() -> void:
+	pass
+
+
+func _backend_disconnect(_peer_id: int) -> void:
 	pass
 
 
@@ -262,6 +288,10 @@ func _drain_inbox() -> void:
 			Inbound.Type.LEFT:
 				_links.erase(item.peer)
 				if _role == Role.HOST and _peers.erase(item.peer):
+					peer_left.emit(item.peer)
+			Inbound.Type.DISCONNECTED:
+				# The host disconnected it: already gone from _peers, so its own LEFT is ignored.
+				if _role == Role.HOST:
 					peer_left.emit(item.peer)
 			Inbound.Type.CONNECTED:
 				if _role == Role.CLIENT and not _peers.has(HOST_ID):

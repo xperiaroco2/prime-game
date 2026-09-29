@@ -185,9 +185,13 @@ the dissidents win. The same holds for the last crew member leaving with the las
 
 **Transport** (`net/transport/`, #40):
 - `NetTransport` is all game code sees: `host`, `join`, `poll`, `send(to_peer, kind, payload)`, `close`, `own_id`,
-  `peers`, `set_refuse_new_connections`; signals `connected`, `connect_failed`, `peer_joined`, `peer_left`,
-  `host_lost` and `packet_received`, fired only from `poll()`. A client sends only to the host (peer 1). The host's
-  own client is peer 1 too.
+  `peers`, `set_refuse_new_connections`, `disconnect_peer`; signals `connected`, `connect_failed`, `peer_joined`,
+  `peer_left`, `host_lost` and `packet_received`, fired only from `poll()`. A client sends only to the host (peer 1).
+  The host's own client is peer 1 too.
+- **`disconnect_peer(p)`** carries out `core/`'s `DisconnectPeer` (§3): p leaves `peers()` and `send` at once,
+  `peer_left(p)` follows on the next poll like any leave, and p sees `host_lost` (a client cannot tell a kick from
+  the host leaving). The host's own client cannot be disconnected: the host ends the session instead.
+  `set_refuse_new_connections` is what `server/` calls on `RefuseJoins` and `AllowJoins`.
 - `EnetTransport` reads `ENetMultiplayerPeer` directly (no `SceneMultiplayer`); `create_server` keeps
   `max_channels` 0 and clients ask for `NetKindTable.CHANNEL_COUNT` channels. `LoopbackTransport` carries the same
   frames in process: `own_client_of(host)` is the host's own client on any hosting transport, and a `LoopbackHub`

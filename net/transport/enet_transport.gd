@@ -109,6 +109,12 @@ func _backend_close() -> void:
 		peer.close()
 
 
+func _backend_disconnect(peer_id: int) -> void:
+	# A graceful disconnect: ENet tells the client, which sees host_lost.
+	if _live.erase(peer_id):
+		_peer.disconnect_peer(peer_id)
+
+
 func _use(peer: ENetMultiplayerPeer) -> void:
 	_peer = peer
 	# Bound methods, not lambdas: a lambda capturing self, held by the peer self owns, is a cycle.

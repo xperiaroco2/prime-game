@@ -6,8 +6,9 @@ extends SceneTree
 ##
 ## The script: both clients join and say hello. A raw ENet client in the host's process joins with
 ## the forged peer id -5 (a negative target means "everyone but 5" to ENet) and must be turned
-## away. The host sends every peer (its own client too) one message per lane carrying that peer's
-## id; each peer checks the id and echoes it. The host starts
+## away. A second in-process client joins and the host disconnects it (disconnect_peer): the host
+## sees peer_left once, the client host_lost. The host sends every peer (its own client too) one
+## message per lane carrying that peer's id; each peer checks the id and echoes it. The host starts
 ## refusing joins and proves it with a third ENet client in its own process. Client 3 leaves when
 ## told to. The host closes; client 2 and the host's own client see host_lost. No packet may be
 ## rejected anywhere: that also checks the lanes' channels and modes against real ENet.
@@ -40,6 +41,10 @@ var _phase := ""
 var _prober: EnetTransport
 var _prober_result := ""
 var _probe_started_ms := 0
+var _kickee: EnetTransport
+var _kicked_id := 0
+var _kicked_left := false
+var _kickee_lost := false
 var _forger: ENetConnection
 var _forged_started_ms := 0
 # Frames polled after host_lost, to see that it fires only once.
@@ -151,6 +156,17 @@ func _host_step() -> void:
 				_start_forged_join()
 		"forged":
 			if _forged_join_turned_away():
+				_start_kick()
+		"kick":
+			_kick_step()
+			if _kicked_left and _kickee_lost:
+				print(
+					(
+						"NET host disconnected peer %d: it saw host_lost, the host peer_left"
+						% _kicked_id
+					)
+				)
+				_kickee = null
 				_host.set_refuse_new_connections(true)
 				print("NET host all joined %s; refusing new joins" % _peer_of_instance)
 				_phase = "ping"
@@ -222,6 +238,29 @@ func _forged_join_turned_away() -> bool:
 	return false
 
 
+func _start_kick() -> void:
+	_phase = "kick"
+	_kickee = EnetTransport.new(_kinds)
+	_kickee.host_lost.connect(func() -> void: _kickee_lost = true)
+	var err := _kickee.join(ADDRESS, PORT)
+	if err != OK:
+		_fail("kick client failed to start: " + error_string(err))
+
+
+## Once the extra client is connected on both sides, the host disconnects it.
+func _kick_step() -> void:
+	if _kickee != null:
+		_kickee.poll()
+	if _kicked_id != 0 or _kickee == null:
+		return
+	var id := _kickee.own_id()
+	if NetTransport.HOST_ID in _kickee.peers() and id in _host.peers():
+		_kicked_id = id
+		var err := _host.disconnect_peer(id)
+		if err != OK or id in _host.peers():
+			_fail("disconnect_peer(%d) gave %s" % [id, error_string(err)])
+
+
 func _start_probe() -> void:
 	_phase = "probe"
 	_prober = EnetTransport.new(_kinds)
@@ -250,6 +289,9 @@ func _on_host_packet(from_peer: int, kind: int, payload: PackedByteArray) -> voi
 
 func _on_host_peer_left(peer_id: int) -> void:
 	print("NET host peer_left %d" % peer_id)
+	if _phase == "kick" and peer_id == _kicked_id and not _kicked_left:
+		_kicked_left = true
+		return
 	if _phase != "leave" or peer_id != _peer_of_instance[3]:
 		_fail("peer %d left unexpectedly in phase '%s'" % [peer_id, _phase])
 		return

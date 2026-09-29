@@ -176,6 +176,40 @@ func test_a_client_leaving() -> void:
 	assert_int(a.role()).is_equal(NetTransport.Role.IDLE)
 
 
+func test_the_host_disconnecting_a_peer() -> void:
+	var host := _host()
+	var own := LoopbackTransport.own_client_of(host)
+	var a := _client()
+	var b := _client()
+	_poll([host, own, a, b])
+	var host_rec := Recorder.new(host)
+	var a_rec := Recorder.new(a)
+	var b_rec := Recorder.new(b)
+	a.send(1, INTENT, PackedByteArray([1]))  # already on its way when the host disconnects a
+	assert_int(host.disconnect_peer(2)).is_equal(OK)
+	# Gone at once for sending, announced like any leave on the next poll.
+	assert_array(Array(host.peers())).is_equal([1, 3])
+	assert_int(host.send(2, EVENT, PackedByteArray())).is_equal(ERR_DOES_NOT_EXIST)
+	assert_int(host.disconnect_peer(2)).is_equal(ERR_DOES_NOT_EXIST)
+	_poll([host, own, a, b])
+	assert_array(host_rec.events).is_equal(["left 2"])
+	assert_array(host_rec.packets).is_empty()
+	assert_array(a_rec.events).is_equal(["host_lost"])
+	assert_array(b_rec.events).is_empty()
+	assert_int(a.role()).is_equal(NetTransport.Role.IDLE)
+
+
+func test_only_the_host_disconnects_and_never_its_own_client() -> void:
+	var host := _host()
+	var own := LoopbackTransport.own_client_of(host)
+	var client := _client()
+	_poll([host, own, client])
+	assert_int(host.disconnect_peer(NetTransport.HOST_ID)).is_equal(ERR_INVALID_PARAMETER)
+	assert_int(host.disconnect_peer(42)).is_equal(ERR_DOES_NOT_EXIST)
+	assert_int(client.disconnect_peer(NetTransport.HOST_ID)).is_equal(ERR_UNAVAILABLE)
+	assert_array(Array(host.peers())).is_equal([1, 2])
+
+
 func test_the_host_closing_ends_the_match_for_every_client() -> void:
 	var host := _host()
 	var own := LoopbackTransport.own_client_of(host)
