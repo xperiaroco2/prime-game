@@ -1,6 +1,8 @@
 # Voice approach after the M1 spike
 
-- **Status:** Accepted: **go**
+- **Status:** Accepted: **go**. Corrected on 2026-09-29 (#45): the addon line under "What follows" said its
+  binaries go through Git LFS, but the [LFS ADR](2026-09-29-git-lfs-for-binary-assets.md) and `.gitattributes`
+  keep `addons/**` out of LFS so that CI, which checks out without LFS content, can load addons.
 - **Date:** 2026-09-29
 - **Deciders:** the engineer (go, with the thresholds below, in chat on 2026-09-29); proposed by the agent from the
   M1 spike (#12 to #16)
@@ -128,7 +130,8 @@ conversation. The other half is left for the devices.
 **What follows:**
 - The codec is TwoVoIP **v6.5**, behind the `voice/` codec interface. v6.6 or later only after goatchurchprime/two-voip-godot-4#107
   is fixed and `check` passes with it.
-- Adding the addon to `main` (`addons/`, binaries through Git LFS) is its own stop-and-ask when M5 starts.
+- Adding the addon to `main` (`addons/`, binaries committed as plain git files like every addon's, outside LFS:
+  [LFS ADR](2026-09-29-git-lfs-for-binary-assets.md)) is its own stop-and-ask when M5 starts.
 - Voice is relayed through the host on its own unreliable unordered channel. The host routes by the `core/` rule and
   never decodes.
 - Windows first. Linux and macOS binaries exist but are untested.
