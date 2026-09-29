@@ -34,4 +34,4 @@ paths:
 - Weaken, skip or delete a test to make it pass without the human's explicit approval. That includes loosening an
   assert, adding a skip, or catching the error the test is meant to see.
 - Claim a test proves something you did not see fail. For the information-leak test: inject a leak, confirm the
-  test fails, revert (KICKOFF §4).
+  test fails, revert (`docs/history/KICKOFF.md` §4).

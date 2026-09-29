@@ -4,12 +4,14 @@ A multiplayer social deduction game (first-person 3D, proximity voice, player-ho
 statically typed GDScript. Two humans, each with their own Claude session: the **engineer** (engine, netcode,
 voice, tooling) and the **designer** (mechanics, content data, levels, GDD). The sessions cannot see each other:
 everything another agent needs goes into the repo or GitHub. How agents work: `docs/AGENT_WORKFLOW.md`.
-Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTURE.md`.
+Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTURE.md`. The founding brief, which
+"KICKOFF §n" refers to: `docs/history/KICKOFF.md` (superseded by these files; history only).
 
 ## Hard rules
-- Humans write zero code. You write everything and verify it from the command line. Never claim something works
-  unless you ran it; show the command and its result. If you cannot verify it, say so and tell the human exactly
-  what to check and how.
+- Humans write zero code; they hand-make only the designer's scene layout in the editor and imported third-party
+  assets. You write everything else and verify it from the command line. Never claim something works unless you
+  ran it; show the command and its result. If you cannot verify it, say so and tell the human exactly what to check
+  and how.
 - Never weaken, skip or delete a test to make it pass without the human's explicit approval.
 <!-- see docs/interventions/2026-09-28-engineer-check-live-state.md -->
 - Before stating a fact about the environment (repo, remote, branches, installed tools, versions, settings), check
@@ -112,7 +114,8 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 ## Stop and ask before
 - Adding a dependency or addon; changing an architecture boundary; touching the other owner's area.
 - Anything destructive to git history or that discards work; anything that costs money.
-- Deciding anything KICKOFF §0 reserves for humans: batch such questions into one, with options and a recommendation.
+- Deciding anything reserved for the humans (the items above, final game content, a milestone's goal, a
+  go/no-go): batch such questions into one, with options and a recommendation.
 <!-- see docs/interventions/2026-09-28-engineer-phase-a-workflow-unbounded.md -->
 - Launching a workflow: state the agent count (fewer than 5) and a rough cost, then wait for a yes. Every workflow
   prompt states its bounds: max agents, max turns or tool calls per agent, a time or token budget, and what to drop

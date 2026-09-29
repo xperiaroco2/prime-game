@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Status** | Decided 2026-09-28 (KICKOFF Phase A, step 5). Owned by the engineer, read by both agents. |
-| Reasons | One ADR per significant decision in `docs/decisions/2026-09-28-*.md` |
-| History | The proposal, research, reviews and metrics: `docs/history/2026-09-28-phase-a/` |
+| Reasons | One ADR per significant decision in `docs/decisions/` |
+| History | The founding brief: [`docs/history/KICKOFF.md`](history/KICKOFF.md) ("KICKOFF §n" in these docs). The Phase A proposal, research, reviews and metrics: `docs/history/2026-09-28-phase-a/` |
 
 This file states **what we do**, not why. Markers: **[applied]** is in effect now; **[M0]** is built during M0;
 **👤** is a step only a human can do.
