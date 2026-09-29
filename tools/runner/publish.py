@@ -47,6 +47,28 @@ def pr_base(branch: str) -> str | None:
     return data.get("baseRefName") if data.get("state") == "OPEN" else None
 
 
+def base_key(branch: str) -> str:
+    """The git config key where `start --base` records a stacked task's parent."""
+    return f"branch.{branch}.primeBase"
+
+
+def recorded_base(branch: str) -> str | None:
+    return _git("config", "--get", base_key(branch)).out.strip() or None
+
+
+def forget_gone_parent(branch: str, parent: str, last_tip: str) -> None:
+    """The recorded parent is gone from origin: fine when it was merged (auto-delete), so the base becomes main. A
+    parent deleted unmerged would put its commits into main through this branch, so publish stops instead."""
+    if not last_tip or _git("merge-base", "--is-ancestor", last_tip, f"{REMOTE}/main").rc != 0:
+        raise Failure(
+            f"the parent {parent} that start --base recorded is gone from {REMOTE}, and its last known tip "
+            f"({last_tip[:10] or 'unknown'}) is not in {REMOTE}/main, so it was not merged. Rebasing on main would "
+            "carry its commits into this PR. Nothing was changed; ask the human."
+        )
+    _must(_git("config", "--unset", base_key(branch)), "forgetting the recorded base")
+    ok(f"the parent {parent} was merged and deleted; the base is main from now on")
+
+
 def was_local(branch: str, oid: str) -> bool:
     """oid is in the branch's history or was once its tip (reflog): the remote holds nothing the branch never had.
     A rebase or an amend keeps the old tips in the reflog, so publishing over them loses nothing."""
@@ -68,12 +90,23 @@ def main(base: str | None = None) -> int:
     if dirty:
         raise Failure(f"uncommitted changes; commit them first:\n{dirty}")
 
+    parent = None if base else recorded_base(branch)
+    # Read before the prune below deletes it: the tip of the recorded parent this checkout last saw.
+    parent_tip = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{parent}").out.strip() if parent else ""
     # --prune drops remote-tracking refs of deleted branches, so the lease below never expects a branch that is gone.
     _must(_git("fetch", "--prune", REMOTE), f"git fetch {REMOTE}")
-    base = base or pr_base(branch) or "main"
+    # An open PR's base wins over the recorded parent: GitHub retargets it to main once the parent is merged.
+    base = base or pr_base(branch)
+    source = ""
+    if not base and parent:
+        if _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{parent}").rc == 0:
+            base, source = parent, " (recorded by start --base)"
+        else:
+            forget_gone_parent(branch, parent, parent_tip)
+    base = base or "main"
     upstream = f"{REMOTE}/{base}"
     _must(_git("rev-parse", "--verify", "--quiet", f"refs/remotes/{upstream}"), f"finding {upstream}")
-    ok(f"fetched {REMOTE}; base {upstream}")
+    ok(f"fetched {REMOTE}; base {upstream}{source}")
 
     before = _must(_git("rev-parse", "HEAD"), "reading HEAD")
     remote_oid = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").out.strip()

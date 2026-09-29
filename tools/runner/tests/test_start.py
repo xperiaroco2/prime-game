@@ -433,6 +433,70 @@ class StartTest(unittest.TestCase):
         self.assertEqual(start.main(42, here=True), 0)
         self.assertEqual(self.branch(), "core/42-vote-tally")
 
+    def push_parent(self) -> str:
+        """An open parent PR's branch on origin, one commit ahead of main; the checkout goes back to main."""
+        git(self.work, "switch", "-q", "-c", "core/41-parent")
+        self.write("p.txt", "parent\n")
+        git(self.work, "add", "p.txt")
+        git(self.work, "commit", "-q", "-m", "parent")
+        git(self.work, "push", "-q", "origin", "core/41-parent")
+        git(self.work, "switch", "-q", "main")
+        git(self.work, "branch", "-q", "-D", "core/41-parent")
+        return git(self.work, "rev-parse", "origin/core/41-parent")
+
+    def recorded(self, branch: str = "core/42-vote-tally") -> str:
+        res = subprocess.run(["git", "config", "--get", f"branch.{branch}.primeBase"], cwd=self.work, capture_output=True)
+        return res.stdout.decode().strip()
+
+    def test_base_branches_from_the_parent_and_records_it(self) -> None:
+        tip = self.push_parent()
+        self.assertEqual(start.main(42, base="core/41-parent"), 0)
+        self.assertEqual(self.branch(), "core/42-vote-tally")
+        self.assertEqual(git(self.work, "rev-parse", "HEAD"), tip)
+        self.assertEqual(self.recorded(), "core/41-parent")
+        self.assertEqual(subprocess.run(["git", "config", "branch.core/42-vote-tally.merge"], cwd=self.work).returncode, 1)
+        self.moves.assert_called_once_with(42, "in-progress")
+
+    def test_base_in_a_worktree(self) -> None:
+        tip = self.push_parent()
+        self.other_session()
+        self.assertEqual(start.main(42, base="core/41-parent"), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.assertEqual(self.branch(), "main")
+        self.assertEqual(git(tree, "rev-parse", "HEAD"), tip)
+        self.assertEqual(self.recorded(), "core/41-parent")
+
+    def test_base_that_origin_lacks_is_refused_and_changes_nothing(self) -> None:
+        with self.assertRaises(Failure) as caught:
+            start.main(42, base="core/41-typo")
+        self.assertIn("origin has no branch core/41-typo", str(caught.exception))
+        self.assertEqual(self.branch(), "main")
+        self.assertEqual(git(self.work, "branch", "--list", "core/42-*"), "")
+        self.moves.assert_not_called()
+
+    def test_base_dry_run_says_it_and_changes_nothing(self) -> None:
+        self.push_parent()
+        said = mock.MagicMock()
+        with mock.patch.object(start, "say", said):
+            self.assertEqual(start.main(42, base="core/41-parent", dry_run=True), 0)
+        lines = " ".join(str(c.args[0]) for c in said.call_args_list if c.args)
+        self.assertIn("would create core/42-vote-tally from origin/core/41-parent", lines)
+        self.assertIn("would record core/41-parent", lines)
+        self.assertEqual(self.branch(), "main")
+        self.assertEqual(self.recorded(), "")
+        self.moves.assert_not_called()
+
+    def test_base_is_ignored_when_resuming_and_says_so(self) -> None:
+        self.push_parent()
+        self.assertEqual(start.main(42), 0)  # created from main earlier
+        git(self.work, "switch", "-q", "main")
+        self.assertEqual(start.main(42, base="core/41-parent"), 0)
+        self.assertEqual(self.branch(), "core/42-vote-tally")
+        self.assertEqual(git(self.work, "rev-parse", "HEAD"), git(self.work, "rev-parse", "origin/main"))
+        self.assertEqual(self.recorded(), "")
+        warned = " ".join(str(c.args[0]) for c in start.warn.call_args_list)  # type: ignore[attr-defined]
+        self.assertIn("--base core/41-parent is ignored", warned)
+
 
 class SessionsTest(unittest.TestCase):
     def setUp(self) -> None:
