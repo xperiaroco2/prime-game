@@ -31,6 +31,17 @@ extends Node3D
 ##                             (default: the Windows default; Godot 4.7.2 takes mono or stereo only)
 ##   --voice-cutoff M          the host's delivery cutoff and the players' max_distance (default 8)
 ##   --mute-output             mute the Master bus; the Voice bus is still mixed and measured
+## Latency and CPU (#16): the speaker's client, the host and each listener log every 25th voice
+## frame on the system clock ("lat_send", "lat_host", "lat_play"), so a one-machine run's logs give
+## the latency of each leg; the voice lines add the mean encode, decode and relay times.
+##   --click-every S           a listener clicks through its loudspeaker every S s (+-20 %) and
+##                             plays voice only just after each (SpikeVoiceClicks)
+##   --detect-clicks           the microphone client finds those clicks and their relayed echoes
+##                             in its raw samples ("click_echo ms=..."): the mouth-to-ear latency
+##                             (SpikeVoiceOnsets)
+##   --no-denoise              RNNoise off for the microphone
+##   --mic-dump PATH           save the raw microphone samples to a WAV file on quit
+##   --voice-gain-db N         the Voice bus volume (default 0): louder relayed clicks, same timing
 ## Every process prints "WALK ..." lines; spike/walk/launch.ps1 starts three and checks the logs.
 
 const ROOM := preload("res://spike/walk/greybox_room.tscn")
@@ -113,8 +124,15 @@ var _tone_hz := 440.0
 var _mic_device := ""
 var _cutoff := 8.0
 var _mute_output := false
+var _click_every := 0.0
+var _detect_clicks := false
+var _denoise := true
+var _mic_dump_path := ""
+var _voice_gain_db := 0.0
 # Voice, host only.
 var _relay := SpikeVoiceRelay.new()
+var _relay_usec := 0
+var _relay_calls := 0
 var _voice_pairs_logged: Dictionary[String, bool] = {}
 var _payload_out_before := 0
 var _voice_kbps := 0.0
@@ -131,6 +149,7 @@ var _level_db := SILENT_DB
 var _since_level := 0.0
 var _mic_meter := 0.0  # on screen: the microphone's recent peak, falling back slowly
 var _heard_db := SILENT_DB  # on screen: the Voice bus's recent peak
+var _clicks := SpikeVoiceClicks.new(_log)
 var _last_throttle := ""
 
 
@@ -216,6 +235,9 @@ func _process(delta: float) -> void:
 		_screenshot_at = -1.0
 		_save_screenshot()
 	if _quit_after > 0.0 and _clock >= _quit_after:
+		_save_mic_dump()
+		if _source != null and _source.detector != null:
+			_clicks.log_echoes(_source.detector.rate)
 		_log("voice quit %s" % _voice_summary())
 		_log("quit %s" % _summary())
 		get_tree().quit(0)
@@ -272,6 +294,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _exit_tree() -> void:
 	if _source != null:
+		_save_mic_dump()
+		if _source != null and _source.detector != null:
+			_clicks.log_echoes(_source.detector.rate)
 		_source.stop()
 	_transport.close()
 
@@ -299,6 +324,16 @@ func _parse_args(args: PackedStringArray) -> void:
 				_cutoff = clampf(next.to_float(), 0.5, 100.0)
 			"--mute-output":
 				_mute_output = true
+			"--voice-gain-db":
+				_voice_gain_db = clampf(next.to_float(), -60.0, 24.0)
+			"--click-every":
+				_click_every = clampf(next.to_float(), 0.0, 60.0)
+			"--detect-clicks":
+				_detect_clicks = true
+			"--no-denoise":
+				_denoise = false
+			"--mic-dump":
+				_mic_dump_path = next
 			"--tick-hz":
 				_tick_hz = clampf(next.to_float(), 1.0, 120.0)
 			"--interp-ticks":
@@ -504,10 +539,18 @@ func _release_simulated() -> void:
 
 
 func _handle_packet(from_peer: int, bytes: PackedByteArray) -> void:
+	var t0 := Time.get_ticks_usec()
 	var voice := SpikeVoiceMessages.decode(bytes)
 	if not voice.is_empty():
 		if _is_host:
 			_host_voice(from_peer, voice)
+			# The host's whole cost of one voice frame: decoding the message, routing, sending.
+			_relay_usec += Time.get_ticks_usec() - t0
+			_relay_calls += 1
+			var seq: int = voice[1]
+			if voice[0] == SpikeVoiceMessages.KIND_VOICE_UP and SpikeVoiceSpeaker.is_timed(seq):
+				var now := Time.get_unix_time_from_system()
+				_log("lat_host from=%d seq=%d unix=%.4f" % [from_peer, seq, now])
 		else:
 			_client_voice(from_peer, voice)
 		return
@@ -603,22 +646,39 @@ func _setup_voice() -> void:
 	AudioServer.set_bus_send(_voice_bus, &"Master")
 	if _mute_output:
 		AudioServer.set_bus_mute(0, true)
+	AudioServer.set_bus_volume_db(_voice_bus, _voice_gain_db)
 	if _voice != "off":
 		_source = SpikeVoiceSource.new()
 		if _voice == "mic":
 			_log("voice input devices: %s" % ", ".join(AudioServer.get_input_device_list()))
-		var problem := _source.start(0.0 if _voice == "mic" else _tone_hz, _mic_device)
+		var problem := _source.start(0.0 if _voice == "mic" else _tone_hz, _mic_device, _denoise)
 		if problem != "":
 			push_error("WALK voice source failed: " + problem)
 			_source = null
+		elif _source.is_mic():
+			if _detect_clicks:
+				_source.detector = SpikeVoiceOnsets.new(_source.input_rate())
+			_source.dump_mic = _mic_dump_path != ""
+	if _click_every > 0.0:
+		_clicks.start_clicking(self, _voice_bus, _click_every)
 	_log(
 		(
-			"voice source=%s cutoff=%.1f audio_driver=%s mute_output=%s"
+			(
+				"voice source=%s cutoff=%.1f audio_driver=%s mute_output=%s mix_rate=%d"
+				+ " output_latency_ms=%.1f output_device='%s' voice_gain_db=%.1f click_every=%.1f"
+				+ " detect_clicks=%s"
+			)
 			% [
 				_source.describe() if _source != null else "off",
 				_cutoff,
 				AudioServer.get_driver_name(),
 				_mute_output,
+				int(AudioServer.get_mix_rate()),
+				AudioServer.get_output_latency() * 1000.0,
+				AudioServer.output_device,
+				_voice_gain_db,
+				_click_every,
+				_source != null and _source.detector != null,
 			]
 		)
 	)
@@ -629,16 +689,37 @@ func _update_voice(delta: float) -> void:
 		# Always drain the source, so the microphone never backs up before the host places us.
 		var frames := _source.pull(delta)
 		if _epoch != 0 and _status == "connected":
-			for opus: PackedByteArray in frames:
+			for k in frames.size():
+				var opus := frames[k]
 				if opus.size() > SpikeVoiceMessages.MAX_OPUS_BYTES:
 					continue
 				_voice_seq += 1
 				var bytes := SpikeVoiceMessages.encode_up(_voice_seq, opus)
 				_transport.send(SpikeTransport.HOST_ID, bytes, false, SpikeTransport.CHANNEL_VOICE)
 				_voice_sent += 1
+				if SpikeVoiceSpeaker.is_timed(_voice_seq):
+					_log(
+						(
+							"lat_send seq=%d unix=%.4f age_ms=%.1f"
+							% [_voice_seq, Time.get_unix_time_from_system(), _source.ages[k]]
+						)
+					)
 		_mic_meter = maxf(_mic_meter - delta * 0.8, _source.last_peak)
-	for speaker: SpikeVoiceSpeaker in _speakers.values():
+		if _source.detector != null:
+			_clicks.add_onsets(_source.onsets, _source.detector.floor_level)
+			_source.onsets.clear()
+	for id: int in _speakers:
+		var speaker := _speakers[id]
 		speaker.update()
+		for t: Array in speaker.timed:
+			_log(
+				(
+					"lat_play from=%d seq=%d recv=%.4f push=%.4f queue_ms=%.1f playing=%s out_ms=%.1f"
+					% [id, t[0], t[1], t[2], t[3], t[4], AudioServer.get_output_latency() * 1000.0]
+				)
+			)
+		speaker.timed.clear()
+	_clicks.update(_clock)
 	if _voice_bus < 0:
 		return
 	var peak := maxf(
@@ -665,6 +746,14 @@ func _update_voice(delta: float) -> void:
 				)
 			)
 	_level_db = SILENT_DB
+
+
+func _save_mic_dump() -> void:
+	if _mic_dump_path == "" or _source == null or not _source.dump_mic:
+		return
+	var err := _source.save_dump(_mic_dump_path)
+	_log("mic_dump %s %s" % [_mic_dump_path, error_string(err)])
+	_mic_dump_path = ""
 
 
 ## Host: a VOICE_UP frame from a client, relayed to the listeners the routing rule allows.
@@ -740,7 +829,7 @@ func _voice_summary() -> String:
 		return (
 			(
 				"cutoff=%.1f received=%s delivered=%s culled=%s max_delivered=%.2f min_culled=%.2f"
-				+ " flood=%d unplaced=%d voice_payload_kbps=%.1f net_out_kbps=%.1f"
+				+ " flood=%d unplaced=%d voice_payload_kbps=%.1f net_out_kbps=%.1f relay_us=%.1f"
 			)
 			% [
 				r.routing.cutoff,
@@ -753,6 +842,7 @@ func _voice_summary() -> String:
 				r.dropped_unplaced,
 				_voice_kbps,
 				_net_kbps,
+				float(_relay_usec) / maxi(1, _relay_calls),
 			]
 		)
 	var parts := PackedStringArray()
@@ -763,9 +853,12 @@ func _voice_summary() -> String:
 	var peak := _source.peak if _source != null else 0.0
 	if _source != null:
 		_source.peak = 0.0
+	var encode_us := 0.0
+	if _source != null:
+		encode_us = float(_source.encode_usec) / maxi(1, _source.encoded)
 	return (
-		"sent=%d src_peak=%.3f no_avatar=%d from=[%s]"
-		% [_voice_sent, peak, _voice_no_avatar, ", ".join(parts)]
+		"sent=%d src_peak=%.3f encode_us=%.1f no_avatar=%d from=[%s]"
+		% [_voice_sent, peak, encode_us, _voice_no_avatar, ", ".join(parts)]
 	)
 
 

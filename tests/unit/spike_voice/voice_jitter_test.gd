@@ -136,3 +136,16 @@ func test_gate_waits_for_the_prebuffer_and_refills_after_running_dry() -> void:
 	assert_int(j.underruns).is_equal(1)
 	assert_int(j.gate(960)).is_equal(SpikeVoiceJitter.Gate.KEEP)
 	assert_int(j.gate(J.PREBUFFER_FRAMES)).is_equal(SpikeVoiceJitter.Gate.START)
+
+
+func test_pop_names_the_frame_each_entry_decodes() -> void:
+	var j := J.new()
+	j.push(1, _frame(1))
+	j.pop()
+	j.push(3, _frame(3))
+	j.push(4, _frame(4))
+	# 2 is decoded from 3's packet but is still frame 2: the latency log follows seq, not the packet.
+	var seqs: Array[int] = []
+	for f: Array in j.pop():
+		seqs.append(f[2] as int)
+	assert_array(seqs).is_equal([2, 3, 4])

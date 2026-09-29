@@ -37,6 +37,21 @@
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join 192.168.0.138 -Voice mic -MicDevice "Headset (...)"
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Lan -Voice mic
 #   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join 192.168.1.23 -Voice mic
+#
+# Latency (#16). Every voice run logs every 25th frame at the speaker, the host and the listener on the system clock
+# (1 ms steps); with -Seconds on one machine the script prints each leg: the frame's age at encoding, up to the host,
+# down to the listener, the jitter buffer's reorder wait, the playback queue ahead of it and the output driver's
+# latency. -Latency measures mouth to ear through the air: client 2 speaks nothing and clicks through its loudspeaker
+# every -ClickEvery seconds; client 1's microphone hears each click, then again after the whole voice path (client 2
+# plays client 1's voice). The gap is the latency with the audio devices included. It needs a loudspeaker the
+# microphone hears (no headphones), and -Cutoff defaults to 30 so the relayed click stays loud; client 2's Voice bus
+# is raised by -EchoGainDb (default 18) and open only for 0.7 s after each click, so the loop cannot howl. -NoDenoise turns
+# RNNoise off. Client 1's raw microphone goes to client1-mic.wav next to its log. -Analyze prints the latency
+# summary of the logs already there, starting nothing (after a -Lan / -Join run, closed by hand or with -Seconds).
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Seconds 40 -Latency
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Lan -Latency -Seconds 60        # PC: host, mic
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join <PC address> -Latency -Seconds 50  # laptop
+#   powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Analyze
 param(
     [switch]$Headless,
     [int]$Seconds = 0,
@@ -57,7 +72,12 @@ param(
     [string]$Join = '',
     [string]$Godot = '',
     [string]$MicDevice = '',
-    [switch]$ListMics
+    [switch]$ListMics,
+    [switch]$Latency,
+    [double]$ClickEvery = 2.5,
+    [double]$EchoGainDb = 18,
+    [switch]$NoDenoise,
+    [switch]$Analyze
 )
 $ErrorActionPreference = 'Stop'
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -65,6 +85,114 @@ $Logs = Join-Path $Root 'tools\out\logs\walk-spike'
 $Scene = 'res://spike/walk/walk_spike.tscn'
 $CheatTeleportAt = 4
 $CheatSpeedAt = 6
+$MicWav = Join-Path $Logs 'client1-mic.wav'
+
+# The q-quantile of some numbers (0.5: the median), NaN for none.
+function Get-Stat([double[]]$Values, [double]$Q) {
+    if (-not $Values -or $Values.Count -eq 0) { return [double]::NaN }
+    $sorted = @($Values | Sort-Object)
+    return $sorted[[math]::Min($sorted.Count - 1, [int][math]::Floor($Q * $sorted.Count))]
+}
+function Fmt([double]$Ms) { if ([double]::IsNaN($Ms)) { '-' } else { $Ms.ToString('0.0', [cultureinfo]::InvariantCulture) } }
+
+# Latency (#16) from the logs in $Dir: prints the legs of every speaker->listener direction, the acoustic
+# mouth-to-ear delays and the CPU times. Returns @{ Clicks; Echoes; Timed } for the checks.
+function Show-Latency([string]$Dir) {
+    $logs = @{}
+    foreach ($n in @('host', 'client1', 'client2')) {
+        $p = Join-Path $Dir "$n.log"
+        $logs[$n] = if (Test-Path $p) { @(Get-Content $p) } else { @() }
+    }
+    $sends = @{}
+    $hostSeen = @{}
+    $plays = New-Object System.Collections.Generic.List[object]
+    foreach ($n in @('client1', 'client2')) {
+        $idLine = $logs[$n] | Select-String 'WALK client connected id=(\d+)' | Select-Object -First 1
+        if (-not $idLine) { continue }
+        $id = $idLine.Matches[0].Groups[1].Value
+        foreach ($m in @($logs[$n] | Select-String '^WALK client lat_send seq=(\d+) unix=([\d.]+) age_ms=([\d.]+)')) {
+            $g = $m.Matches[0].Groups
+            $sends["${id}:$($g[1].Value)"] = @([double]$g[2].Value, [double]$g[3].Value)
+        }
+        $pattern = '^WALK client lat_play from=(\d+) seq=(\d+) recv=([\d.]+) push=([\d.]+) queue_ms=([\d.]+) playing=(\w+) out_ms=([\d.]+)'
+        foreach ($m in @($logs[$n] | Select-String $pattern)) {
+            $g = $m.Matches[0].Groups
+            $plays.Add([pscustomobject]@{
+                    Dir = "$($g[1].Value)>$id ($n listens)"; Key = "$($g[1].Value):$($g[2].Value)"
+                    Recv = [double]$g[3].Value; Push = [double]$g[4].Value; Queue = [double]$g[5].Value
+                    Playing = $g[6].Value -eq 'True'; Out = [double]$g[7].Value
+                })
+        }
+    }
+    foreach ($m in @($logs['host'] | Select-String '^WALK host lat_host from=(\d+) seq=(\d+) unix=([\d.]+)')) {
+        $g = $m.Matches[0].Groups
+        $hostSeen["$($g[1].Value):$($g[2].Value)"] = [double]$g[3].Value
+    }
+    Write-Host 'latency legs, median ms (timed frames only while the playback runs; one machine: one clock):'
+    $timed = 0
+    foreach ($group in @($plays | Where-Object { $_.Playing } | Group-Object Dir)) {
+        $rows = @($group.Group)
+        $hold = @($rows | ForEach-Object { ($_.Push - $_.Recv) * 1000 })
+        $queue = @($rows | ForEach-Object { $_.Queue })
+        $out = @($rows | ForEach-Object { $_.Out })
+        $age = @(); $up = @(); $down = @(); $total = @()
+        foreach ($r in $rows) {
+            if (-not ($sends.ContainsKey($r.Key) -and $hostSeen.ContainsKey($r.Key))) { continue }
+            $s = $sends[$r.Key]; $h = $hostSeen[$r.Key]
+            $age += $s[1]; $up += ($h - $s[0]) * 1000; $down += ($r.Recv - $h) * 1000
+            $total += $s[1] + ($r.Push - $s[0]) * 1000 + $r.Queue + $r.Out
+        }
+        $timed += $rows.Count
+        $jitter = @($rows | ForEach-Object { ($_.Push - $_.Recv) * 1000 + $_.Queue })
+        Write-Host ("  {0}: frames={1} full={2}" -f $group.Name, $rows.Count, $total.Count)
+        Write-Host ("    age {0} | up {1} | down {2} | reorder {3} | queue {4} | output {5} | total {6} (p10 {7}, p90 {8})" -f `
+            (Fmt (Get-Stat $age 0.5)), (Fmt (Get-Stat $up 0.5)), (Fmt (Get-Stat $down 0.5)), (Fmt (Get-Stat $hold 0.5)),
+            (Fmt (Get-Stat $queue 0.5)), (Fmt (Get-Stat $out 0.5)), (Fmt (Get-Stat $total 0.5)),
+            (Fmt (Get-Stat $total 0.1)), (Fmt (Get-Stat $total 0.9)))
+        $jm = Get-Stat $jitter 0.5; $tm = Get-Stat $total 0.5
+        $share = if ([double]::IsNaN($tm) -or $tm -le 0) { '-' } else { '{0:0}%' -f (100 * $jm / $tm) }
+        Write-Host ("    jitter buffer (reorder + queue): median {0} ms (p90 {1}), {2} of the median total" -f `
+            (Fmt $jm), (Fmt (Get-Stat $jitter 0.9)), $share)
+    }
+    $echoes = @($logs['client1'] | Select-String '^WALK client click_echo ms=([\d.]+)' |
+        ForEach-Object { [double]$_.Matches[0].Groups[1].Value })
+    $clicks = @($logs['client2'] | Select-String '^WALK client click n=\d+ unix=([\d.]+)' |
+        ForEach-Object { [double]$_.Matches[0].Groups[1].Value })
+    $onsets = @($logs['client1'] | Select-String '^WALK client click_onset ')
+    # The onsets paired as clicks (not their echoes), on client 1's clock.
+    $heard = @($logs['client1'] | Select-String '^WALK client click_echo .* click_unix=([\d.]+)' |
+        ForEach-Object { [double]$_.Matches[0].Groups[1].Value })
+    if ($clicks.Count -gt 0 -or $echoes.Count -gt 0) {
+        Write-Host ("acoustic mouth to ear, ms: clicks played {0}, onsets heard {1}, echoes paired {2}" -f `
+            $clicks.Count, $onsets.Count, $echoes.Count)
+        Write-Host ("  median {0} | min {1} | p10 {2} | p90 {3} | max {4}" -f (Fmt (Get-Stat $echoes 0.5)),
+            (Fmt (Get-Stat $echoes 0)), (Fmt (Get-Stat $echoes 0.1)), (Fmt (Get-Stat $echoes 0.9)), (Fmt (Get-Stat $echoes 1)))
+        Write-Host ("  all: {0}" -f (($echoes | ForEach-Object { $_.ToString('0', [cultureinfo]::InvariantCulture) }) -join ' '))
+        # Only on one machine, where both logs share a clock: from asking for a click to the microphone hearing it.
+        $loops = @()
+        foreach ($c in $clicks) {
+            $first = @($heard | Where-Object { $_ -ge $c - 0.05 -and $_ -le $c + 0.6 }) | Select-Object -First 1
+            if ($null -ne $first) { $loops += ($first - $c) * 1000 }
+        }
+        if ($loops.Count -gt 0) {
+            Write-Host ("  click to microphone (output + air + input device buffers; one machine only): median {0} ms of {1}" -f `
+                (Fmt (Get-Stat $loops 0.5)), $loops.Count)
+        }
+    }
+    foreach ($n in @('host', 'client1', 'client2')) {
+        $line = @($logs[$n] -match '^WALK \w+ voice (t=|quit)') | Select-Object -Last 1
+        $cpu = @([regex]::Matches("$line", '(encode_us|decode_us|relay_us)=[\d.]+') | ForEach-Object { $_.Value })
+        $rtt = @($logs[$n] -match '^WALK \w+ enet t=') | Select-Object -Last 1
+        $rtts = @([regex]::Matches("$rtt", ' rtt=\d+') | ForEach-Object { $_.Value.Trim() })
+        if ($cpu.Count -gt 0 -or $rtts.Count -gt 0) { Write-Host ("  {0}: {1} {2}" -f $n, ($cpu -join ' '), ($rtts -join ' ')) }
+    }
+    return @{ Clicks = $clicks.Count; Echoes = $echoes.Count; Timed = $timed }
+}
+
+if ($Analyze) {
+    $null = Show-Latency $Logs
+    exit 0
+}
 
 # Claude sessions get GODOT_BIN and GODOT_GUI_BIN from the env block of ~/.claude/settings.json; a human's own
 # terminal usually does not, so fall back to that file.
@@ -98,8 +226,14 @@ if ($ListMics) {
     exit 0
 }
 if ($Lan -and $Join) { throw 'pass -Lan on the first machine and -Join on the second, not both' }
-if (($Lan -or $Join) -and ($Seconds -gt 0 -or $Headless -or $Cheat -or $KillClientAfter -gt 0)) {
-    throw '-Lan and -Join start windows for people to play; no -Seconds, -Headless, -Cheat or -KillClientAfter'
+if (($Lan -or $Join) -and (($Seconds -gt 0 -and -not $Latency) -or $Headless -or $Cheat -or $KillClientAfter -gt 0)) {
+    throw '-Lan and -Join start windows for people to play; no -Headless, -Cheat or -KillClientAfter, and -Seconds only with -Latency'
+}
+if ($Latency) {
+    if ($Headless) { throw '-Latency needs a real audio driver: no -Headless' }
+    $Voice = 'mic'
+    if (-not $PSBoundParameters.ContainsKey('Cutoff')) { $Cutoff = 30 }
+    if (Test-Path $MicWav) { Remove-Item $MicWav }
 }
 if ($Listen -lt 0) { $Listen = if ($Seconds -gt 0) { 0 } else { 1 } }
 New-Item -ItemType Directory -Force $Logs | Out-Null
@@ -126,21 +260,32 @@ function Start-Peer([string]$Name, [int]$X, [string[]]$UserArgs) {
 
 # What each client says and whether its output is muted (the Voice bus is measured either way).
 function Voice-Args([int]$N) {
+    if ($Latency) {
+        # Client 1 captures and listens for clicks, silent itself; client 2 speaks nothing, clicks and plays client 1.
+        if ($N -eq 2) { return @('--voice', 'off', '--click-every', "$ClickEvery", '--voice-cutoff', "$Cutoff", '--voice-gain-db', "$EchoGainDb") }
+        $micArgs = @('--voice', 'mic', '--detect-clicks', '--mute-output', '--voice-cutoff', "$Cutoff", '--mic-dump', "`"$MicWav`"")
+        if ($MicDevice) { $micArgs += @('--mic-device', "`"$MicDevice`"") }
+        if ($NoDenoise) { $micArgs += '--no-denoise' }
+        return $micArgs
+    }
     # One machine has one microphone, so client 2 plays a tone; with -Join client 2 is alone on its machine.
     $source = if ($Voice -eq 'mic' -and ($N -eq 1 -or $Join)) { 'mic' } elseif ($Voice -eq 'off') { 'off' } else { 'tone' }
     $voiceArgs = @('--voice', $source, '--tone-hz', $(if ($N -eq 1) { '440' } else { '660' }), '--voice-cutoff', "$Cutoff")
     if ($source -eq 'mic' -and $MicDevice) { $voiceArgs += @('--mic-device', "`"$MicDevice`"") }
+    if ($source -eq 'mic' -and $NoDenoise) { $voiceArgs += '--no-denoise' }
     if (-not $Lan -and -not $Join -and $Listen -ne $N) { $voiceArgs += '--mute-output' }
     return $voiceArgs
 }
 $hostArgs = @('--host', '--port', "$Port", '--voice-cutoff', "$Cutoff")
+# -Latency: the players stand still, so the relayed click's loudness stays the same.
+$walk = if ($Latency) { @() } else { @('--auto') }
 if ($Join) {
-    $client2 = Start-Peer 'client2' 670 (@('--join', $Join, '--port', "$Port", '--auto') + (Voice-Args 2))
+    $client2 = Start-Peer 'client2' 670 (@('--join', $Join, '--port', "$Port") + $walk + (Voice-Args 2))
     Write-Host "one client joining $Join`:$Port started; close its window to stop. Log as above."
     exit 0
 }
 if ($Lan) { $hostArgs += @('--bind', '0.0.0.0') }
-$joinArgs = @('--join', '127.0.0.1', '--port', "$Port", '--auto')
+$joinArgs = @('--join', '127.0.0.1', '--port', "$Port") + $walk
 $cheatArgs = if ($Cheat) { @('--cheat-teleport-at', "$CheatTeleportAt", '--cheat-speed-at', "$CheatSpeedAt") } else { @() }
 $hostPeer = Start-Peer 'host' 20 $hostArgs
 Start-Sleep -Milliseconds 800
@@ -150,7 +295,8 @@ if ($Lan) {
         Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' -and $_.InterfaceAlias -notmatch '^vEthernet' } |
         ForEach-Object { $_.IPAddress })  # vEthernet: WSL and Hyper-V, unreachable from another machine
     Write-Host "host and client 1 started. On the second machine run, with one of: $($addresses -join ', ')"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join <address> -Voice $Voice -Port $Port"
+    $second = if ($Latency) { "-Latency$(if ($Seconds -gt 0) { " -Seconds $([math]::Max(1, $Seconds - 10))" })" } else { "-Voice $Voice" }
+    Write-Host "  powershell -ExecutionPolicy Bypass -File spike\walk\launch.ps1 -Join <address> $second -Port $Port"
     exit 0
 }
 $client2 = Start-Peer 'client2' 1320 ($joinArgs + $cheatArgs + (Voice-Args 2))
@@ -199,7 +345,7 @@ foreach ($pair in @(@($client1, $c1Log, $id2), @($client2, $c2Log, $id1))) {
     $name = $pair[0].Name
     Need (Has $pair[1] '^WALK client placed epoch=1 ') "$name was placed by the host"
     Need (Has $pair[1] "^WALK client sees id=$($pair[2])$") "$name saw $($pair[2])"
-    Need (Has $pair[1] "^WALK client sees_moving id=$($pair[2])$") "$name saw $($pair[2]) move"
+    if (-not $Latency) { Need (Has $pair[1] "^WALK client sees_moving id=$($pair[2])$") "$name saw $($pair[2]) move" }
 }
 foreach ($peer in @($hostPeer, $client1, $client2)) {
     $log = @(Read-Log $peer)
@@ -256,7 +402,11 @@ if ($KillClientAfter -gt 0) {
     Need ($client2.Process.ExitCode -eq 0) "client2 ran to the end (exit $($client2.Process.ExitCode))"
 }
 
-if ($Voice -ne 'off') {
+if ($Latency) {
+    Need (Has $hostLog "^WALK host voice_first $id1>$id2 ") "host relayed voice $id1>$id2"
+    Need (Has $c2Log "^WALK client voice_first from=$id1$") "client2 played voice from $id1"
+}
+if ($Voice -ne 'off' -and -not $Latency) {
     $simulated = $LatencyMs -gt 0 -or $JitterMs -gt 0 -or $Loss -gt 0
     $hostVoice = @($hostLog -match '^WALK host voice quit ') | Select-Object -Last 1
     Need ([bool]$hostVoice) 'host logged its voice totals'
@@ -327,6 +477,14 @@ if ($Voice -ne 'off') {
     }
 }
 
+if ($Voice -ne 'off') {
+    $lat = Show-Latency $Logs
+    Need ($lat.Timed -ge 10) "listeners logged timed voice frames ($($lat.Timed))"
+    if ($Latency) {
+        Need ($lat.Clicks -ge 3) "client2 clicked ($($lat.Clicks))"
+        Need ($lat.Echoes -ge 3) "client1's microphone heard clicks and their echoes ($($lat.Echoes) echoes; loudspeaker on and near the microphone? see $MicWav)"
+    }
+}
 Write-Host "host:    $hostQuit"
 Write-Host "client1: $c1Quit"
 Write-Host "client2: $c2Quit"

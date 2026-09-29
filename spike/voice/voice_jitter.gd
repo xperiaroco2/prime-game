@@ -45,21 +45,22 @@ func push(seq: int, opus: PackedByteArray) -> void:
 	_newest = maxi(_newest, seq)
 
 
-## The frames ready to decode, in order, each as [opus: PackedByteArray, fec: int]. fec 1 means:
-## decode the frame before this packet (from its FEC data if any, else concealment); the same
-## packet comes again with fec 0 as the next frame.
+## The frames ready to decode, in order, each as [opus: PackedByteArray, fec: int, seq: int].
+## fec 1 means: decode the frame before this packet (from its FEC data if any, else concealment);
+## the same packet comes again with fec 0 as the next frame. seq is the frame the entry decodes
+## (for fec 1 the missing one, not the packet's own).
 func pop() -> Array[Array]:
 	var out: Array[Array] = []
 	while not _pending.is_empty():
 		if _pending.has(_next):
-			out.append([_pending[_next], 0])
+			out.append([_pending[_next], 0, _next])
 			_pending.erase(_next)
 			_next += 1
 			continue
 		if _pending.size() < REORDER_WAIT:
 			break
 		if _pending.has(_next + 1):
-			out.append([_pending[_next + 1], 1])
+			out.append([_pending[_next + 1], 1, _next])
 			fec += 1
 		else:
 			lost += 1

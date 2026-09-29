@@ -8,9 +8,22 @@ extends RefCounted
 ## about where the host stops delivering (see SpikeVoiceRouting for why not exactly), and delivery
 ## switching on or off makes no audible step.
 
+## Latency (#16): every LATENCY_EVERY-th frame by the speaker's seq is timed on the system clock,
+## which all processes on one machine share (1 ms steps on Windows). The speaker's client and the
+## host log the same frames, so a run's logs line up per frame.
+const LATENCY_EVERY := 25
+
 var jitter := SpikeVoiceJitter.new()
 var player := AudioStreamPlayer3D.new()
 var overflow := 0  # frames dropped because the playback queue was full
+var decode_usec := 0  # time in push_opus_packet (the Opus decode)
+var decoded := 0
+## Timed frames handed to the playback since the caller last cleared it, each as
+## [seq, recv_unix, push_unix, queue_ms, playing]: when the frame arrived, when it went to the
+## playback, how much decoded audio was queued ahead of it then, and whether the playback was
+## running (while it waits for the prebuffer, the queue ahead understates the wait).
+var timed: Array[Array] = []
+var _recv_unix: Dictionary[int, float] = {}
 var _playback: AudioStreamPlaybackOpus
 
 
@@ -37,7 +50,13 @@ func attach(avatar: Node3D, mouth: Vector3) -> bool:
 	return true
 
 
+static func is_timed(seq: int) -> bool:
+	return seq % LATENCY_EVERY == 0
+
+
 func push(seq: int, opus: PackedByteArray) -> void:
+	if is_timed(seq) and not _recv_unix.has(seq):
+		_recv_unix[seq] = Time.get_unix_time_from_system()
 	jitter.push(seq, opus)
 
 
@@ -49,7 +68,18 @@ func update() -> void:
 		if _playback.available_space_frames() < SpikeVoiceSource.CHUNK:
 			overflow += 1
 			continue
-		_playback.push_opus_packet(frame[0] as PackedByteArray, 0, frame[1] as int)
+		var seq: int = frame[2]
+		var fec: int = frame[1]
+		if fec == 0 and _recv_unix.has(seq):
+			var now := Time.get_unix_time_from_system()
+			timed.append([seq, _recv_unix[seq], now, queue_ms(), jitter.playing])
+		_recv_unix.erase(seq)
+		var t0 := Time.get_ticks_usec()
+		_playback.push_opus_packet(frame[0] as PackedByteArray, 0, fec)
+		decode_usec += Time.get_ticks_usec() - t0
+		decoded += 1
+	if _recv_unix.size() > 50:
+		_recv_unix.clear()  # timed frames the jitter buffer gave up on
 	match jitter.gate(_playback.queue_length_frames()):
 		SpikeVoiceJitter.Gate.START:
 			_playback.mark_end_opus_stream(true)
@@ -66,6 +96,19 @@ func queue_ms() -> float:
 func stats() -> String:
 	var j := jitter
 	return (
-		"recv=%d late=%d fec=%d lost=%d resets=%d underruns=%d overflow=%d queue_ms=%.0f"
-		% [j.received, j.late, j.fec, j.lost, j.resets, j.underruns, overflow, queue_ms()]
+		(
+			"recv=%d late=%d fec=%d lost=%d resets=%d underruns=%d overflow=%d queue_ms=%.0f"
+			+ " decode_us=%.1f"
+		)
+		% [
+			j.received,
+			j.late,
+			j.fec,
+			j.lost,
+			j.resets,
+			j.underruns,
+			overflow,
+			queue_ms(),
+			float(decode_usec) / maxi(1, decoded)
+		]
 	)
