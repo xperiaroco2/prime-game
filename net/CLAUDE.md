@@ -22,6 +22,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - Received bytes go through `NetTransport.receive_bytes` only, whatever the backend, so the host's own client
   decodes exactly what a remote one does. Signals fire from `poll()` only.
 - ENet timeouts are set in `EnetTransport` and nowhere else.
+- Peer ids are chosen by clients: never treat one as secret or as unique over time (§4).
 - Messages carry only what their schema declares. Never serialize a whole `core/` object or state snapshot:
   filtering happens in `server/`, and a generic serializer would bypass it.
 - Deserialize defensively: a malformed or oversized message from a peer is rejected and counted, never trusted;

@@ -129,7 +129,7 @@ func test_a_message_reaches_only_its_peer() -> void:
 	assert_array(own_rec.packets).is_empty()
 
 
-func test_own_client_receives_exactly_what_a_remote_client_does() -> void:
+func test_own_and_remote_clients_get_the_same_messages_in_the_same_order() -> void:
 	var host := _host()
 	var own := LoopbackTransport.own_client_of(host)
 	var remote := _client()

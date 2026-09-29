@@ -194,11 +194,11 @@ the dissidents win. The same holds for the last crew member leaving with the las
   runs a host and clients in one process for headless tests. Every backend hands received bytes to one decode path
   (`NetTransport.receive_bytes`).
 - **Frame:** `[kind: u8][payload size: u16 LE][payload]`. The payload is opaque to the transport; the schemas
-  decode it, never into objects. `NetFrame.decode` rejects: shorter than the header, over the packet cap, an unknown
-  kind (0 is never valid), the wrong direction, the wrong channel or transfer mode for the kind, a payload over the
-  kind's cap, a truncated packet, trailing bytes, and anything from a peer that is not connected (a client accepts
-  only the host). `NetRejects` counts rejections by reason and peer; the transport logs one summary line per 10 s at
-  most, and one at `close()`.
+  decode it, never into objects. `receive_bytes` rejects anything from a peer that is not connected (a client
+  accepts only the host); `NetFrame.decode` rejects: shorter than the header, over the packet cap, an unknown kind
+  (0 is never valid), the wrong direction, the wrong channel or transfer mode for the kind, a payload over the
+  kind's cap, a truncated packet and trailing bytes. `NetRejects` counts rejections by reason, and by peer between
+  summaries; the transport logs one summary line per 10 s at most, and one when the session ends.
 - **One table** (`NetKindTable`) binds each kind to a lane, a direction and a payload cap. Lanes: `RELIABLE`
   (channel 0, reliable), `LATEST` (channel 0, unreliable ordered) and `VOICE` (channel 1, unreliable unordered).
   Unreliable payloads are capped at 1024 bytes so ENet never fragments them. The game's table,
@@ -207,8 +207,15 @@ the dissidents win. The same holds for the last crew member leaving with the las
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
   client gets `connect_failed` at once; with no answer at all (no host, or a full one) the join gives up after 5 s.
+  Unreliable packets can overtake the `WELCOME` and are then rejected as from an unknown peer: the host sends a
+  new peer only reliable messages until that peer has sent its first message.
+- **Peer ids are chosen by the client** (Godot refuses only 0, 1 and ids in use): they are neither secret nor
+  unique over time. The host disconnects an arrival with an id of 1 or less (a negative target means "everyone but"
+  to `MultiplayerPeer`, so a forged id -5 would receive everyone's messages; the headless run checks it) and one
+  whose id is still leaving in the same poll. `send` accepts positive peer ids only.
 - **The host is gone:** the client's `host_lost` fires once, on `peer_disconnected` for peer 1 or on the connection
-  status dropping to disconnected, whichever comes first. After it the transport is closed.
+  status dropping to disconnected, whichever comes first. After it the transport is closed. The inbox counts
+  sessions, so a handler that closes and joins or hosts again never sees the old session's leftover events.
 - **Timeouts** live in one place, `EnetTransport`: an ENet peer is dropped after 10 to 20 s without an
   acknowledgement (the spike's 2 to 4 s dropped peers during main-thread freezes); a crash is noticed that late.
 - Checked by `tests/unit/net/transport/` and a headless run of a host (with its own client) and two clients, one
@@ -216,8 +223,9 @@ the dissidents win. The same holds for the last crew member leaving with the las
   `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`. It is not
   part of `verify` yet.
 
-*Open (M3):* intent and event schemas, their payload encoding and their rows in `NetKindTable.game()`, versioning (the `WELCOME` can carry
-a protocol version), rate limits and what the host does with a peer that keeps sending rejected packets.
+*Open (M3):* intent and event schemas, their payload encoding and their rows in `NetKindTable.game()`, versioning
+(the `WELCOME` can carry a protocol version), rate limits and what the host does with a peer that keeps sending
+rejected packets.
 Every schema change updates this section in the same PR.
 
 Lessons from the M1 spike (#13, #15; [voice ADR](decisions/2026-09-29-voice-approach.md)):
