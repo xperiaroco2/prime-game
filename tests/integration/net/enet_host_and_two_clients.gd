@@ -4,8 +4,10 @@ extends SceneTree
 ## PRIME_INSTANCE picks the part: 1 hosts and plays through its own loopback client; 2 and 3 join.
 ## Each process exits 0 when its part held, else prints an ERROR line and exits 1.
 ##
-## The script: both clients join and say hello. The host sends every peer (its own client too) one
-## message per lane carrying that peer's id; each peer checks the id and echoes it. The host starts
+## The script: both clients join and say hello. A raw ENet client in the host's process joins with
+## the forged peer id -5 (a negative target means "everyone but 5" to ENet) and must be turned
+## away. The host sends every peer (its own client too) one message per lane carrying that peer's
+## id; each peer checks the id and echoes it. The host starts
 ## refusing joins and proves it with a third ENet client in its own process. Client 3 leaves when
 ## told to. The host closes; client 2 and the host's own client see host_lost. No packet may be
 ## rejected anywhere: that also checks the lanes' channels and modes against real ENet.
@@ -15,6 +17,9 @@ const PORT := 24571
 const DEADLINE_MS := 60000
 const RESEND_MS := 100
 const RETRY_JOIN_MS := 500
+const POLLS_AFTER_LOST := 10
+const FORGED_ID := -5
+const FORGED_WAIT_MS := 3000
 const TALK := 1  # both ways, reliable
 const LATEST := 2  # both ways, unreliable ordered
 const VOICE := 3  # both ways, voice lane
@@ -34,6 +39,11 @@ var _last_resend_ms := 0
 var _phase := ""
 var _prober: EnetTransport
 var _prober_result := ""
+var _probe_started_ms := 0
+var _forger: ENetConnection
+var _forged_started_ms := 0
+# Frames polled after host_lost, to see that it fires only once.
+var _polls_after_lost := 0
 # Client part.
 var _client: EchoClient
 var _next_join_ms := 0
@@ -46,6 +56,7 @@ class EchoClient:
 	var instance: int
 	var failure := ""
 	var host_lost := false
+	var host_lost_count := 0
 	var told_to_leave := false
 	var pinged_lanes: Dictionary[int, bool] = {}
 
@@ -77,6 +88,7 @@ class EchoClient:
 
 	func _on_host_lost() -> void:
 		host_lost = true
+		host_lost_count += 1
 
 
 func _initialize() -> void:
@@ -136,6 +148,9 @@ func _host_step() -> void:
 	match _phase:
 		"join":
 			if _peer_of_instance.size() == 3:
+				_start_forged_join()
+		"forged":
+			if _forged_join_turned_away():
 				_host.set_refuse_new_connections(true)
 				print("NET host all joined %s; refusing new joins" % _peer_of_instance)
 				_phase = "ping"
@@ -148,7 +163,12 @@ func _host_step() -> void:
 				_start_probe()
 		"probe":
 			if _prober_result == "connect_failed":
-				print("NET host a join while refusing failed, as it should")
+				# Refused at once, not by the join timeout: that is what the WELCOME is for.
+				var waited := Time.get_ticks_msec() - _probe_started_ms
+				if waited > EnetTransport.JOIN_TIMEOUT_MS / 2.0:
+					_fail("a refused join failed only after %d ms" % waited)
+					return
+				print("NET host a join while refusing failed after %d ms, as it should" % waited)
 				_prober = null
 				_phase = "leave"
 				_host.send(_peer_of_instance[3], COMMAND, "leave".to_utf8_buffer())
@@ -156,7 +176,9 @@ func _host_step() -> void:
 				_fail("a join while refusing got: " + _prober_result)
 		"close":
 			if _own.host_lost:
-				_finish_host()
+				_polls_after_lost += 1
+				if _polls_after_lost >= POLLS_AFTER_LOST:
+					_finish_host()
 
 
 func _resend_unreliable_pings() -> void:
@@ -170,9 +192,40 @@ func _resend_unreliable_pings() -> void:
 				_host.send(peer_id, kind, ("ping %d" % peer_id).to_utf8_buffer())
 
 
+func _start_forged_join() -> void:
+	_phase = "forged"
+	_forger = ENetConnection.new()
+	var err := _forger.create_host(1)
+	if err != OK:
+		_fail("raw ENet client failed: " + error_string(err))
+		return
+	_forger.connect_to_host(ADDRESS, PORT, 3, FORGED_ID)
+	_forged_started_ms = Time.get_ticks_msec()
+
+
+## True once the host disconnected the forged peer; fails if the host admitted it.
+func _forged_join_turned_away() -> bool:
+	for peer_id in _host.peers():
+		if peer_id < NetTransport.HOST_ID:
+			_fail("the host admitted the forged peer id %d" % peer_id)
+			return false
+	var event: Array = _forger.service()
+	while event[0] != ENetConnection.EVENT_NONE:
+		if event[0] == ENetConnection.EVENT_DISCONNECT:
+			print("NET host turned away the forged peer id %d" % FORGED_ID)
+			_forger.destroy()
+			_forger = null
+			return true
+		event = _forger.service()
+	if Time.get_ticks_msec() - _forged_started_ms > FORGED_WAIT_MS:
+		_fail("the forged peer id %d got no answer in %d ms" % [FORGED_ID, FORGED_WAIT_MS])
+	return false
+
+
 func _start_probe() -> void:
 	_phase = "probe"
 	_prober = EnetTransport.new(_kinds)
+	_probe_started_ms = Time.get_ticks_msec()
 	_prober.connected.connect(func(_id: int) -> void: _prober_result = "connected")
 	_prober.connect_failed.connect(func() -> void: _prober_result = "connect_failed")
 	var err := _prober.join(ADDRESS, PORT)
@@ -215,16 +268,22 @@ func _finish_host() -> void:
 	if rejected != 0:
 		_fail("%d packet(s) rejected on the host" % rejected)
 		return
-	print("NET host own client saw host_lost; rejected=0; PASS")
+	if _own.host_lost_count != 1:
+		_fail("the host's own client saw host_lost %d times" % _own.host_lost_count)
+		return
+	print("NET host own client saw host_lost once; rejected=0; PASS")
 	_pass()
 
 
 func _client_step() -> void:
 	var transport := _client.transport
-	if transport.role() == NetTransport.Role.IDLE and not _client.told_to_leave:
-		if _client.host_lost:
+	if _client.host_lost:
+		transport.poll()  # a second host_lost would show up here
+		_polls_after_lost += 1
+		if _polls_after_lost >= POLLS_AFTER_LOST:
 			_finish_client()
-			return
+		return
+	if transport.role() == NetTransport.Role.IDLE and not _client.told_to_leave:
 		if Time.get_ticks_msec() >= _next_join_ms:
 			var err := transport.join(ADDRESS, PORT)
 			if err != OK:
@@ -240,8 +299,6 @@ func _client_step() -> void:
 		if not _done:
 			print("NET client %d PASS" % _instance)
 			_pass()
-	elif _client.host_lost:
-		_finish_client()
 
 
 func _on_client_connect_failed() -> void:
@@ -255,7 +312,10 @@ func _finish_client() -> void:
 		_fail("client %d lost the host before it was told to leave" % _instance)
 		return
 	if _client.pinged_lanes.size() != LANES.size():
-		_fail("client 2 got pings on lanes %s" % _client.pinged_lanes.keys())
+		_fail("client 2 got pings on lanes " + str(_client.pinged_lanes.keys()))
+		return
+	if _client.host_lost_count != 1:
+		_fail("client 2 saw host_lost %d times" % _client.host_lost_count)
 		return
 	_check_client_rejects()
 	if not _done:

@@ -18,7 +18,7 @@ const PEER_TIMEOUT_MAX_MS := 20000
 const JOIN_TIMEOUT_MS := 5000
 ## The host's first packet to each client: a frame of kind 0, which no kind table allows, so it
 ## can never be mistaken for a game message.
-const WELCOME := [0, 0, 0]
+const WELCOME: Array[int] = [0, 0, 0]
 
 ## The address the host listens on. "*" is every interface; 127.0.0.1 keeps local tests off the
 ## network (and off the firewall prompt).
@@ -31,6 +31,9 @@ var _welcomed := false
 ## Filled by the ENet signals during _peer.poll(), handled around the packets afterwards.
 var _arrivals: Array[int] = []
 var _departures: Array[int] = []
+## The peers ENet still has. It forgets a peer during _peer.poll(), before the LEFT reaches the
+## game, so a send in between must not reach ENet (it would print an engine error).
+var _live: Dictionary[int, bool] = {}
 
 
 func _backend_host(port: int, max_clients: int) -> Error:
@@ -86,8 +89,8 @@ func _backend_poll() -> void:
 
 
 func _backend_send(to_peer: int, bytes: PackedByteArray, lane: NetKindTable.Lane) -> Error:
-	if _peer == null:
-		return ERR_UNCONFIGURED
+	if _peer == null or not _live.has(to_peer):
+		return ERR_DOES_NOT_EXIST
 	_peer.transfer_channel = NetKindTable.channel_of(lane)
 	_peer.transfer_mode = NetKindTable.mode_of(lane)
 	_peer.set_target_peer(to_peer)
@@ -99,6 +102,7 @@ func _backend_close() -> void:
 	_peer = null  # the ENet signal handlers ignore anything from now on
 	_arrivals.clear()
 	_departures.clear()
+	_live.clear()
 	_client_id = 0
 	_welcomed = false
 	if peer != null:
@@ -112,11 +116,21 @@ func _use(peer: ENetMultiplayerPeer) -> void:
 	_peer.peer_disconnected.connect(_on_peer_disconnected)
 
 
-## Host: welcomes each new peer before anything else goes to it, or disconnects it when refusing.
-## The WELCOME and the game's reliable messages share channel 0, so they arrive in this order.
+## Host: welcomes each new peer before anything else goes to it, or disconnects it. The WELCOME
+## and the game's reliable messages share channel 0, so they arrive in this order.
+## The client picks its own peer id (Godot only refuses 0, 1 and ids in use), so it is neither
+## secret nor unique over time. A negative id would turn every send to it into "everyone but"
+## (set_target_peer), and an id still leaving in this poll would be taken for the old peer.
 func _admit_arrivals() -> void:
 	for peer_id in _arrivals:
-		if is_refusing_new_connections():
+		if not _live.has(peer_id):  # joined and left within this poll
+			continue
+		if (
+			is_refusing_new_connections()
+			or peer_id <= HOST_ID
+			or _peers.has(peer_id)
+			or peer_id in _departures
+		):
 			_peer.disconnect_peer(peer_id)
 			continue
 		_set_timeout(peer_id)
@@ -156,11 +170,14 @@ func _on_peer_connected(peer_id: int) -> void:
 	if _peer == null:
 		return
 	if is_host():
+		_live[peer_id] = true
 		_arrivals.append(peer_id)
 	elif peer_id == HOST_ID:
+		_live[peer_id] = true
 		_set_timeout(peer_id)
 
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	if _peer != null:
+		_live.erase(peer_id)
 		_departures.append(peer_id)
