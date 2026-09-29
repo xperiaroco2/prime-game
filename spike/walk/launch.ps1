@@ -35,9 +35,22 @@ $Scene = 'res://spike/walk/walk_spike.tscn'
 $CheatTeleportAt = 4
 $CheatSpeedAt = 6
 
-$Godot = if ($Headless) { $env:GODOT_BIN } else { $env:GODOT_GUI_BIN }
-if (-not $Godot) { $Godot = $env:GODOT_BIN }
-if (-not $Godot -or -not (Test-Path $Godot)) { throw 'Set GODOT_BIN (and GODOT_GUI_BIN for windows); see tools\run.cmd doctor' }
+# Claude sessions get GODOT_BIN and GODOT_GUI_BIN from the env block of ~/.claude/settings.json; a human's own
+# terminal usually does not, so fall back to that file.
+$ClaudeSettings = Join-Path $env:USERPROFILE '.claude\settings.json'
+function Get-GodotVar([string]$Name) {
+    $value = [Environment]::GetEnvironmentVariable($Name)
+    if (-not $value -and (Test-Path $ClaudeSettings)) {
+        $settings = Get-Content $ClaudeSettings -Raw | ConvertFrom-Json
+        if ($settings.env) { $value = $settings.env.$Name }
+    }
+    return $value
+}
+$Godot = if ($Headless) { Get-GodotVar 'GODOT_BIN' } else { Get-GodotVar 'GODOT_GUI_BIN' }
+if (-not $Godot) { $Godot = Get-GodotVar 'GODOT_BIN' }
+if (-not $Godot -or -not (Test-Path $Godot)) {
+    throw "Godot not found: set GODOT_BIN (and GODOT_GUI_BIN for windows) here or in the env block of $ClaudeSettings"
+}
 if ($KillClientAfter -gt 0 -and ($Seconds -le 0 -or $KillClientAfter -ge $Seconds)) {
     throw '-KillClientAfter needs -Seconds larger than it'
 }
