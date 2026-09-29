@@ -403,7 +403,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Reads:** root `CLAUDE.md`, `content/CLAUDE.md`, `levels/CLAUDE.md`, `docs/GDD.md`, and the content API section
   of `docs/ARCHITECTURE.md` (the contract). **Effort:** medium.
 - **By milestone:** M0–M1 GDD open questions, `mechanic` issues, review of the content-API draft · M2 first content
-  `.tres` · M3 bot scenarios · M4 level pieces with `shot` screenshots; "запусти хост і двох клієнтів" runs
+  `.tres` · M3 bot scenarios (`content/scenarios/`, `docs/ARCHITECTURE.md` §9.7) · M4 level pieces with `shot` screenshots; "запусти хост і двох клієнтів" runs
   `run host` / `run join`.
 
 ## 13. How humans talk to the agent
@@ -426,7 +426,6 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Question | When |
 |---|---|
-| Bot-scenario format and location | Pre-M2 content-API design |
 | Godot MCP server; if needed, prefer an in-game debug autoload plus the bot harness | M4 revisit |
 | GDScript LSP bridge; Context7 (off; if ever used, pin `/websites/godotengine_en_4_7`) | After M2 |
 | Trial the Superpowers plugin, engineer-only, on the M1 throwaway spike | M1, optional |
