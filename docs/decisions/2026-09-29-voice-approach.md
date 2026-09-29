@@ -1,8 +1,9 @@
 # Voice approach after the M1 spike
 
-- **Status:** Proposed (the go/no-go is the humans' call)
+- **Status:** Accepted: **go**
 - **Date:** 2026-09-29
-- **Deciders:** the engineer (go/no-go); proposed by the agent from the M1 spike (#12 to #16)
+- **Deciders:** the engineer (go, with the thresholds below, in chat on 2026-09-29); proposed by the agent from the
+  M1 spike (#12 to #16)
 
 ## Context
 The founding stack ([ADR](2026-09-29-technical-stack-from-the-brief.md)) picked Opus through the `two-voip-godot-4`
@@ -106,10 +107,10 @@ Where the clean one-machine case goes:
 - The playback queue is 36–52 % of the game's own path, ~10 % of mouth to ear.
 
 ## Decision
-*Pending the humans' go/no-go.* The agent proposes **go** with the thresholds below. The alternatives are listed in
+**Go.** The voice approach passes every threshold below. The rejected thresholds and the no-go are listed in
 Alternatives.
 
-**Go thresholds (proposed).** They judge only what the game controls. The devices and Windows cost the same for any
+**Go thresholds.** Later changes to the voice path are checked against them. They judge only what the game controls. The devices and Windows cost the same for any
 voice program on that PC, and the next codec would not change them.
 
 | Measure | Threshold | Measured |
@@ -122,7 +123,7 @@ voice program on that PC, and the next codec would not change them.
 The 200 ms is half of the 400 ms that the telephone planning guideline ITU-T G.114 treats as the limit for
 conversation. The other half is left for the devices.
 
-**If go:**
+**What follows:**
 - The codec is TwoVoIP **v6.5**, behind the `voice/` codec interface. v6.6 or later only after goatchurchprime/two-voip-godot-4#107
   is fixed and `check` passes with it.
 - Adding the addon to `main` (`addons/`, binaries through Git LFS) is its own stop-and-ask when M5 starts.
