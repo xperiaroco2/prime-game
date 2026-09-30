@@ -9,7 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import pins
+from . import machine_env, pins
 from .common import (
     IS_CI,
     IS_WINDOWS,
@@ -58,6 +58,23 @@ class Doctor:
                 f"Install Python {_dotted(pins.PYTHON_MIN)}+ and set PYTHON_BIN in {USER_SETTINGS} env.",
             )
 
+    def machine_paths(self) -> None:
+        """Say where each machine path came from: the process environment or a Claude settings file (#55)."""
+        report = machine_env.apply()
+        for problem in report.problems:
+            warn(problem)
+        for var in machine_env.MACHINE_VARS:
+            source = report.sources.get(var)
+            if source:
+                ok(f"{var} from {source}: {os.environ.get(var, '')}")
+            elif IS_CI:
+                skip(f"{var} (not set; CI finds its tools on PATH)")
+            else:
+                warn(
+                    f"{var} is not set: neither " + ", ".join(report.searched[:-1]) + f" nor {report.searched[-1]} "
+                    f"has it; add it to the env of {report.searched[-1]}"
+                )
+
     def godot(self) -> None:
         path = godot_bin()
         try:
@@ -73,8 +90,9 @@ class Doctor:
             skip("GODOT_GUI_BIN (not needed in CI)")
         elif gui and Path(gui).is_file():
             ok(f"GODOT_GUI_BIN ({gui})")
-        else:
-            warn(f"GODOT_GUI_BIN not set or missing; a windowed `run` uses it ({USER_SETTINGS} env)")
+        elif gui:
+            warn(f"GODOT_GUI_BIN points to a missing file: {gui}; a windowed `run` uses it")
+        # Not set at all: machine_paths() has already warned about it.
 
     def git(self) -> None:
         res = run(["git", "--version"], timeout=30)
@@ -233,6 +251,7 @@ def main(quick: bool) -> int:
     say("doctor" + (" --quick" if quick else ""))
     doc = Doctor()
     doc.python()
+    doc.machine_paths()
     doc.disk()
     doc.godot()
     doc.gdtoolkit()

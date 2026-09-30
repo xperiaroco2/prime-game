@@ -18,6 +18,11 @@ if sys.argv[1:2] == ["hook"] and len(sys.argv) == 3:
 
     sys.exit(hook(sys.argv[2]))
 
+# A human's own terminal lacks the machine paths a Claude Code session gets from its settings (#55).
+from runner import machine_env  # noqa: E402
+
+machine_env.apply()
+
 from runner.cli import main  # noqa: E402
 
 sys.exit(main())
