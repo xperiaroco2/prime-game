@@ -17,6 +17,9 @@ const ITEM_TAG := &"item"
 const MAX_PLAYERS := 10
 ## The map's `item` markers: enough for 10 players x 3 tasks and 5 knives.
 const ITEM_MARKERS := 40
+## The spawn tag of a FixtureDealtTaskType's stations, with a marker per token of 10 players x 3.
+const STATION_TAG := &"station"
+const STATION_MARKERS := 30
 
 
 ## The mode, with `task_types` (one FixtureDealtTaskType when empty).
@@ -120,8 +123,8 @@ static func spawn_items(kind: ItemKind) -> SpawnItems:
 	return effect
 
 
-## A lobby with MAX_PLAYERS lobby_player markers; a map with MAX_PLAYERS round_player markers
-## and `item_markers` item markers, all at distinct positions.
+## A lobby with MAX_PLAYERS lobby_player markers; a map with MAX_PLAYERS round_player markers,
+## `item_markers` item markers and STATION_MARKERS station markers, all at distinct positions.
 static func layouts(item_markers: int = ITEM_MARKERS) -> Dictionary[String, LevelLayout]:
 	var lobby := LevelLayout.new(LOBBY)
 	var map := LevelLayout.new(MAP)
@@ -130,6 +133,8 @@ static func layouts(item_markers: int = ITEM_MARKERS) -> Dictionary[String, Leve
 		map.add_marker(&"round_player", Vector3(i, 0, -5))
 	for i in item_markers:
 		map.add_marker(ITEM_TAG, Vector3(i, 0, 5))
+	for i in STATION_MARKERS:
+		map.add_marker(STATION_TAG, Vector3(i, 0, 10))
 	return {LOBBY: lobby, MAP: map}
 
 

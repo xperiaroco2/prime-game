@@ -116,6 +116,52 @@ func test_the_mode_check_refuses_it_without_its_setting() -> void:
 	)
 
 
+func test_stations_reach_everyone_in_id_order_with_their_items_colours() -> void:
+	# The chain Delivery's deal emits (§9.5; the real one is 2f's): StationPlaced to every peer in
+	# station-id order, and each item's ItemSpawned carries its station and that station's colour.
+	var circle := StationKind.new()
+	circle.id = &"circle"
+	circle.spawn_tag = FixtureDealModes.STATION_TAG
+	for i in 6:
+		circle.palette.append(Color.from_hsv(i / 6.0, 1.0, 1.0))
+	var type := FixtureDealtTaskType.new(&"fixture_dealt", FixtureDealModes.item_kind(&"token"))
+	type.station = circle
+	var peers: Array[int] = [1, 2, 3]
+	var game := FixtureDealModes.dealt(FixtureDealModes.deal_mode([type]), peers)
+	var expected: Array[Dictionary] = []
+	for id: int in game.state.stations:
+		var placed := game.state.stations[id]
+		(
+			expected
+			. append(
+				{
+					"station": id,
+					"kind": &"circle",
+					"colour": placed.colour,
+					"position": placed.position,
+				}
+			)
+		)
+	assert_int(expected.size()).is_equal(6)
+	for peer: int in peers:
+		var seen: Array[Dictionary] = []
+		var colour_of := {}
+		for event: MatchEvent in game.view_of(peer).events_named(&"StationPlaced"):
+			var fields := event.to_dict()
+			seen.append(fields)
+			colour_of[fields["station"]] = fields["colour"]
+		assert_array(seen).is_equal(expected)
+		var tokens := 0
+		for event: MatchEvent in game.view_of(peer).events_named(&"ItemSpawned"):
+			var spawned := event as ItemSpawnedEvent
+			if spawned.kind == &"token":
+				tokens += 1
+				assert_bool(colour_of.has(spawned.station)).is_true()
+				assert_that(spawned.colour).is_equal(colour_of[spawned.station])
+				assert_that(game.state.stations[spawned.station].colour).is_equal(spawned.colour)
+		assert_int(tokens).is_equal(6)
+
+
 ## Task type id -> the number of `peer`'s tasks of that type.
 func _tasks_by_type(game: Match, peer: int) -> Dictionary:
 	var found := {}

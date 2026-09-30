@@ -6,6 +6,11 @@ extends TaskType
 ## order with its own RNG purpose, emits ItemSpawned (everyone) in id order and TasksAssigned to
 ## each owner, then raises item_rested (spawn) per token. Its check of a fact emits a note
 ## "<id> rested <item> <cause>" for item_rested, so tests see which facts reached task types.
+##
+## With a `station` kind, each token also belongs to a station, as Delivery's package belongs to
+## its circle (§9.5; the real deal is Delivery's, 2f): one station per token on the station
+## kind's markers in level order, coloured from its palette in order. StationPlaced (everyone) is
+## emitted in station-id order before the ItemSpawned, which then carry the station and colour.
 
 
 ## One task's state: the token it must move (never done here).
@@ -19,6 +24,8 @@ class FixtureDealtState:
 
 
 var token: ItemKind
+## The station kind each token belongs to, or null for tokens without a station.
+var station: StationKind
 var rng_purpose: StringName = &"fixture_tasks"
 
 
@@ -46,6 +53,11 @@ func deal(ctx: MatchContext, per_player: int) -> void:
 	var tokens: Array[ItemState] = []
 	for index: int in chosen:
 		tokens.append(ctx.state.add_item(token, free[index]))
+	var stations: Array[StationState] = []
+	if station != null:
+		var at := ctx.layout.positions(station.spawn_tag)
+		for i in tokens.size():
+			stations.append(ctx.state.add_station(station, at[i], station.palette[i]))
 	var binding := RngStreams.shuffled_indices(tokens.size(), ctx.rng(rng_purpose))
 	var next := 0
 	var assigned: Dictionary[int, Array] = {}
@@ -58,8 +70,18 @@ func deal(ctx: MatchContext, per_player: int) -> void:
 			(task.state as FixtureDealtState).targets.append(target)
 			tasks.append({"task": task.id, "type": id, "targets": [{"item": target}]})
 		assigned[peer] = tasks
-	for item: ItemState in tokens:
-		ctx.emit(ItemSpawnedEvent.new(item.id, token.id, item.position))
+	for placed: StationState in stations:
+		ctx.emit(StationPlacedEvent.new(placed.id, station.id, placed.colour, placed.position))
+	for i in tokens.size():
+		var item := tokens[i]
+		if stations.is_empty():
+			ctx.emit(ItemSpawnedEvent.new(item.id, token.id, item.position))
+		else:
+			ctx.emit(
+				ItemSpawnedEvent.new(
+					item.id, token.id, item.position, stations[i].id, stations[i].colour
+				)
+			)
 	for peer: int in peers:
 		var tasks: Array[Dictionary] = []
 		tasks.assign(assigned[peer])
@@ -81,7 +103,10 @@ func add_demands(
 	_settings: Dictionary[StringName, int], players: int, per_player: int, into: Demands
 ) -> void:
 	into.add_markers(token.spawn_tag, players * per_player)
+	if station != null:
+		into.add_markers(station.spawn_tag, players * per_player)
+		into.add_colours(station, players * per_player)
 
 
 func emits() -> Array[Script]:
-	return [ItemSpawnedEvent, TasksAssignedEvent, FixtureNoteEvent]
+	return [StationPlacedEvent, ItemSpawnedEvent, TasksAssignedEvent, FixtureNoteEvent]
