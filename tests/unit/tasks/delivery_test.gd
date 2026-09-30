@@ -106,6 +106,42 @@ func test_just_inside_the_radius_counts_and_just_outside_does_not() -> void:
 	assert_bool(other.done).is_true()
 
 
+func test_exactly_on_the_radius_counts() -> void:
+	var game := FixtureDeliveryModes.in_round(FixtureDeliveryModes.basic(1, 1), [P1])
+	var task := FixtureDeliveryModes.tasks_of(game, P1)[0]
+	var package := FixtureDeliveryModes.package_of(game, task, 0)
+	var circle := FixtureDeliveryModes.circle_of(game, task, 0)
+	FixtureDeliveryModes.carry_to(game, P1, package, circle.position + Vector3(1.0, 0, 0))
+	assert_float(package.position.x - circle.position.x).is_equal(1.0)
+	assert_int(package.where).is_equal(ItemState.Where.LOCKED)
+
+
+func test_a_package_on_a_floor_below_the_circle_within_the_tolerance_counts() -> void:
+	var game := FixtureDeliveryModes.in_round(
+		FixtureDeliveryModes.basic(1, 1), [P1], {}, FlatWorldQuery.new(-0.25)
+	)
+	var task := FixtureDeliveryModes.tasks_of(game, P1)[0]
+	var package := FixtureDeliveryModes.package_of(game, task, 0)
+	FixtureDeliveryModes.carry_to(
+		game, P1, package, FixtureDeliveryModes.circle_of(game, task, 0).position
+	)
+	assert_float(package.position.y).is_equal_approx(-0.25, 0.0001)
+	assert_int(package.where).is_equal(ItemState.Where.LOCKED)
+
+
+func test_a_package_on_a_floor_below_the_circle_by_more_than_the_tolerance_does_not_count() -> void:
+	var game := FixtureDeliveryModes.in_round(
+		FixtureDeliveryModes.basic(1, 1), [P1], {}, FlatWorldQuery.new(-0.4)
+	)
+	var task := FixtureDeliveryModes.tasks_of(game, P1)[0]
+	var package := FixtureDeliveryModes.package_of(game, task, 0)
+	var circle := FixtureDeliveryModes.circle_of(game, task, 0)
+	FixtureDeliveryModes.carry_to(game, P1, package, circle.position)
+	assert_float(package.position.y).is_equal_approx(-0.4, 0.0001)
+	assert_int(package.where).is_equal(ItemState.Where.GROUND)
+	assert_bool(circle.done).is_false()
+
+
 func test_another_packages_circle_does_not_count() -> void:
 	var game := FixtureDeliveryModes.in_round(FixtureDeliveryModes.basic(1, 2), [P1])
 	var task := FixtureDeliveryModes.tasks_of(game, P1)[0]
