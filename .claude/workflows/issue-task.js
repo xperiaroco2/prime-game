@@ -136,6 +136,7 @@ log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.
 
 let reviews = []
 if (impl.verify_green) {
+  // Only a green implementer is reviewed; a red one stops below.
   phase('Review')
   const paths = impl.changed_paths || []
   const netcode = DESIGN || !paths.length || paths.some(p => /^(core|server|net)\//.test(p))
@@ -158,15 +159,21 @@ if (impl.verify_green) {
   log(`#${N}: ${reviews.length} reviews, ${reviews.reduce((s, r) => s + (r.findings || []).length, 0)} findings`)
 }
 
+// A red implementer stops the run here: no fresh agent has read the final code, so nothing may be published
+// (definition of done, step 2). The manager relaunches a fresh run with the failure in notes (a resume would replay
+// the cached red result); the implementer continues from the worktree's commits.
+if (!impl.verify_green) {
+  log(`#${N}: verify RED after the implementer; nothing reviewed or published`)
+  return { n: N, impl, reviews: [], pub: null, stopped: 'verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes' }
+}
+
 phase('Publish')
 const pub = await agent([
   RULES,
   `Task: publish issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: high. Budget: at most about 150 tool calls.`,
   `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
   `The implementer reported: ${JSON.stringify(impl)}`,
-  impl.verify_green
-    ? `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. \`tools\\run.cmd verify\` until green.`
-    : `verify was not green. Make it green (at most about 60 tool calls; never weaken, skip or delete a test). If it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return.`,
+  `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. \`tools\\run.cmd verify\` until green (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
   [
     'Then follow .claude/skills/finish-task/SKILL.md from its docs step: "Publish now?" is answered yes; the reviews above replace its review step; skip agents-check.',
     `- \`tools\\run.cmd publish\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, verify), then publish again.`,
@@ -180,4 +187,5 @@ const pub = await agent([
 ].join('\n\n'), { label: `publish:#${N}`, phase: 'Publish', effort: 'high', schema: PUB })
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
+if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
 return { n: N, impl, reviews, pub }
