@@ -9,7 +9,6 @@ const ACTIONS: Array[StringName] = [
 	&"move_right",
 	&"sprint",
 	&"jump",
-	&"fly_down",
 	&"interact",
 	&"put_down",
 	&"use",
