@@ -12,6 +12,8 @@ func test_only_the_living_may_send_an_item_intent_in_any_mode() -> void:
 	assert_array(paths).contains(["res://content/modes/base_mode.tres"])
 	for path: String in paths:
 		var mode := load(path) as GameMode
+		# A mode file that does not load must fail here, not pass the ban vacuously.
+		assert_object(mode).override_failure_message("%s is not a GameMode" % path).is_not_null()
 		if mode == null:
 			continue
 		for spec: PhaseSpec in mode.phases:
