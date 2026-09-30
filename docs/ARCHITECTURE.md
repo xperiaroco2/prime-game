@@ -141,21 +141,21 @@ countdown changes no scene and places nobody.
   the implementation masks after each shift, and its unit test pins known outputs. A new purpose never shifts the
   draws of the existing ones. Shuffles are our own Fisher–Yates over the injected RNG (`Array.shuffle()` uses the
   global one), and inputs are iterated in a stable order: players by peer id, spawn points in their level order.
-- **The deal** (the actions of the `all_loaded` row, §9.4), in this order: roles (`DealRoles`: dissidents =
-  max(0, min(setting, N−1)), drawn from the roster in peer-id order with the `roles` stream; each player learns its
-  own role, and each dissident the dissidents); then `DealTasks` (the engineer's decision of 2026-09-30, #79): it
-  draws *tasks* different task types from the mode's task types minus the host's bans (`task_types`), and runs each
-  drawn type's deal once, in the mode's order. Tasks are shared: nobody owns one. Delivery's deal: circle positions
-  and colours (one circle per package, over the map's circle spawn points), package positions, and one task of
-  *packages* packages, each bound to a random circle of its own, whose colour it takes (`tasks`). Then
-  `TaskProgress` (0 of the total) to everyone; knife positions (`SpawnItems`); player spawn points
+- **The deal** (the actions of the `all_loaded` row, §9.4), in this order: roles (`DealRoles`: dissidents = max(0,
+  min(setting, N−1)), drawn from the roster in peer-id order with the `roles` stream; each player learns its own role,
+  and each dissident the dissidents); then `DealTasks` (the engineer's decision of 2026-09-30, #79): it draws *tasks*
+  different task types from the mode's task types minus the host's bans (`task_types`), and runs each drawn type's deal
+  once, in the mode's order. Tasks are shared: nobody owns one. Delivery's deal: circle positions and colours (one
+  circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
+  bound to a random circle of its own, whose colour it takes (`tasks`). Then `TaskProgress` (the subtasks done and in
+  total, 0 done unless a package spawned in its circle) to everyone; knife positions (`SpawnItems`); player spawn points
   (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
-  emitted in id order, so an id follows the level, not the draw. Packages and knives share spawn points when
-  their item kinds name the same spawn tag; a marker carries one tag, and a deal puts at most one item on a marker
-  (§9.6): `SpawnItems` and Delivery's packages skip the markers where an item already rests (`Items.free_markers`,
-  which every placing part uses). Each placing part emits all its `ItemSpawned` first, then raises `item_rested`
-  (spawn) for each item in id order. A package that spawns inside its own circle is delivered at once, by the rule; the
-  `package` and `circle` tags keep the two kinds of spawn points apart.
+  emitted in id order, so an id follows the level, not the draw. Packages and knives share spawn points when their item
+  kinds name the same spawn tag; a marker carries one tag, and a deal puts at most one item on a marker (§9.6):
+  `SpawnItems` and Delivery's packages skip the markers where an item already rests (`Items.free_markers`, which every
+  placing part uses). Each placing part emits all its `ItemSpawned` first, then raises `item_rested` (spawn) for each
+  item in id order. A package that spawns inside its own circle is delivered at once, by the rule; the `package` and
+  `circle` tags keep the two kinds of spawn points apart.
 - **Exact numbers.** Health and stamina are integers in thousandths, so a replay on another machine matches exactly.
   Positions are the claims as received.
 - **Replay.** The command log holds everything `core/` is given: the session seed, the game mode's path and a hash
@@ -318,7 +318,7 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 
 | Event | Payload | Audience | When |
 |---|---|---|---|
-| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's `Player<n>`, §3.5) and ready flags; the settings and the map; the phase; the other players' positions | the joiner | its `Hello` is accepted |
+| `Welcome` | your peer id, spawn point and epoch; the roster with names (the host's `Player<n>`, §3.5) and ready flags; the whole-number settings (the bans of task types follow in the `SettingsChanged` after it) and the map; the phase; the other players' positions | the joiner | its `Hello` is accepted |
 | `PlayerJoined` | peer, name (the host's `Player<n>`, §3.5), spawn point | everyone | its `Hello` is accepted, after its `Welcome` |
 | `PlayerLeft` | peer | everyone | a player leaves in any phase, or misses the loading deadline |
 | `ReadyChanged` | peer, ready | everyone | `SetReady`; everyone un-ready on `End → Lobby` |
@@ -326,7 +326,7 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `PhaseChanged` | phase; the countdown's or the match clock's end as a host tick, if it runs | everyone | every transition |
 | `CountdownCancelled` | reason: un-ready, join or leave | everyone | `cancelled` |
 | `PlayersPlaced` | per player: spawn point | everyone | `End → Lobby`; the deal (§3.2) |
-| `LoadMatch` | match id, map, settings | everyone | entering Loading |
+| `LoadMatch` | match id, map, the whole-number settings | everyone | entering Loading |
 | `PlayerLoaded` | peer | everyone | a valid `LoadAck` |
 | `RoundStarted` | start tick | everyone | the deal |
 | `RoleAssigned` | your role | that player | the deal |
@@ -378,7 +378,7 @@ sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, 
 - **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either),
   health, stamina and damage; ghosts, for the living. Tasks are shared (#79): what a client learns of them is all
   public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskProgress`);
-  no task has an owner, and a subtask's detail stays in `subtask_done`. No event names a killer; a player who
+  no task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event names a killer; a player who
   watches the swings and positions (both public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. Death: the player's life state becomes ghost, so from
   the next tick their snapshots include the ghosts and their voice joins the dead (§6); they learn no roles (2g
@@ -742,9 +742,11 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
 | `subtask_done` | a task type completes a subtask | the task; **its task type's detail** (`detail`; Delivery: the subtask's index and its package; no event carries it). A task has no owner (#79) |
 | `clock_ended` | the match clock reaches its end (§3.3) | nothing more |
 
-A reaction that copies a hidden field into an event whose audience is wider than that field's (a mode reaction
-that copies `subtask_done`'s detail into an event to everyone) is a leak. Its entry must say so, and the reviewer of
-its PR checks it against the §5 invariants.
+A reaction that copies a hidden field into an event whose audience is wider than that field's (a later mode's fact
+that names a role, copied into an event to everyone) is a leak. Its entry must say so, and the reviewer of its PR
+checks it against the §5 invariants. `subtask_done`'s detail is internal to its task type and in no event's schema,
+but since #79 nothing in it is secret: Delivery's package and its index are public through `ItemSpawned` and
+`PackageDelivered`.
 
 **The owner of a rule decides whom it applies to**, so the rule needs no condition for that:
 
@@ -1243,9 +1245,9 @@ told. One format runs in two runners.
 | `Leave` | disconnects | at once |
 
 - **Targets come from the bot's own view**, the events and snapshots its client received: `package(n)` (the n-th
-  package in item-id order; tasks are shared, #79), `circle_of_held`, `nearest(kind)`, `bot(i)` (where it last saw that player), `point(x, y,
-  z)`. A target the bot cannot know fails the scenario, so a scenario also proves that the mechanic is playable with
-  what a player is told.
+  package in item-id order; tasks are shared, #79), `circle_of_held`, `nearest(kind)`, `bot(i)` (where it last saw
+  that player), `point(x, y, z)`. A target the bot cannot know fails the scenario, so a scenario also proves that the
+  mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2) fails, because an honest bot
   is never corrected, so every scenario also checks the host's movement rules against honest movement. A field that
@@ -1273,7 +1275,7 @@ costs outside it.
 
 | Mechanic | Data | New part classes | New event classes | What else changes, and why |
 |---|---|---|---|---|
-| Zone task (#36): stand in a zone for N seconds | a task type `.tres` (N, the zone radius; #36's questions, reset or pause and shared zones, become settings), a zone station kind, `zone` markers in the map, the mode's task types | one task type (one script, §9.3): its deal places the zones and binds each subtask to one; its tick (through `TaskTicks`) advances the time in the zone, kept in its task state, for each subtask whose counted player is alive inside the zone. Who counts (only the owner, or anyone as for Delivery) is #36's question | none for placement and progress: `StationPlaced` and `TaskProgress` are generic. One more if #36 wants the time in the zone shown live, and one if a zone is shown as done to everyone (`PackageDelivered` is Delivery's) | none: `DealTasks` draws among the mode's task types (#79), and the zone task brings its own subtasks setting |
+| Zone task (#36): stand in a zone for N seconds | a task type `.tres` (N, the zone radius; #36's questions, reset or pause and shared zones, become settings), a zone station kind, `zone` markers in the map, the mode's task types | one task type (one script, §9.3): its deal places the zones and binds each subtask to one; its tick (through `TaskTicks`) advances the time in the zone, kept in its task state, for each subtask whose counted player is alive inside the zone. Who counts (any living player, or only those inside the zone) is #36's question | none for placement and progress: `StationPlaced` and `TaskProgress` are generic. One more if #36 wants the time in the zone shown live, and one if a zone is shown as done to everyone (`PackageDelivered` is Delivery's) | none: `DealTasks` draws among the mode's task types (#79), and the zone task brings its own subtasks setting |
 | Resurrection (#34), as an item | an item kind whose `Use` rule has the conditions `BodyInFront` and `ActorRole` (if only some roles may), the costs `Cooldown` and `Uses` (if the count is limited) and the effect `Revive`; `SpawnItems` for it in the deal | two or three: `BodyInFront` (a condition: a body within reach and angle, in line of sight; else `no_body`, which reveals nothing, as bodies are public), because an effect cannot refuse, and without it a `Use` with no body pays its costs and does nothing; `Revive` (the player of that body becomes alive at the body; which body and how much health are #34's questions and become its settings); `Uses` (a cost over the counters table), which every limited ability reuses | `Revived` (everyone: the body and the avatar are public anyway) | `Revive` places the player: a `Correction` with a new epoch, or its next claim from the ghost's position is a teleport. Bodies are already in `MatchState` (§9.1, 2g). Audiences are evaluated at emission, so the revived player's snapshots and voice narrow at once, and it keeps what it saw as a ghost (§5). Which `Use` wins when a medic holds a knife is #38's (§9.2). As an action at a body without an item, it needs `Interact` (below) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
 | Physics throwing (#37) | a `Throw` rule on the mode, for any held item | one: the `Throw` effect, which takes the item out of the hand into a *flying* state | a public `ItemThrown`, and a directive (audience *server*) that tells `server/` to simulate the flight | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; `server/` simulates the flight and reports `ItemRested`, which raises `item_rested`, so delivery works unchanged. How the flight is shown is #37's: `core/` builds the snapshots but does not know an item's position in flight, so either `server/` reports the positions as logged commands, or clients draw the arc from `ItemThrown` until `ItemPlaced`. Damage on impact needs an impact fact: #37 decides |

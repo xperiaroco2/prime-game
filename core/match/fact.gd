@@ -1,7 +1,7 @@
 class_name Fact
 extends RefCounted
-## A fact an effect raised (ARCHITECTURE §9.2), with the fields its table row names. Hidden
-## fields (a subtask's detail) must not be copied into an event with a wider audience.
+## A fact an effect raised (ARCHITECTURE §9.2), with the fields its table row names. A hidden
+## field must not be copied into an event with a wider audience.
 
 ## A name from Facts.
 var name: StringName
@@ -16,7 +16,8 @@ var position := Vector3.ZERO
 ## Why an item came to rest: put_down, swap, death, leave, spawn, thrown.
 var cause: StringName
 ## subtask_done: the task type's detail of the subtask (Delivery: {"subtask": index, "item":
-## package}), or null. Hidden: no event carries it (§9.2).
+## package}), or null. Internal to the task type: no event's schema carries it, though nothing
+## in it is secret since tasks are shared (#79, §9.2).
 var detail: Variant
 
 
