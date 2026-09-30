@@ -93,6 +93,9 @@ func test_a_target_must_overlap_the_attacker_vertically() -> void:
 	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureItemModes.stand(game, P2, Vector3(0, 1.9, 1))
 	FixtureCombatModes.use(game, P1, NORTH)
+	# The Use was accepted and swung: only the vertical overlap spared P2.
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	assert_array(FixtureCombatModes.received(game, P2, &"Swung")).has_size(2)
 	assert_int(game.state.player(P2).health).is_equal(HALF)
 
 

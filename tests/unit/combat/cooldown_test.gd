@@ -26,6 +26,7 @@ func test_a_second_use_within_the_interval_is_too_soon_and_pays_nothing() -> voi
 	assert_array(FixtureCombatModes.received(game, P2, &"Rejected")).is_empty()
 	FixtureModes.run_ticks(game, 1)
 	FixtureCombatModes.use(game, P1, NORTH)
+	# Accepted once the interval has passed: no second refusal, and a second swing.
 	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"too_soon"])
 	assert_array(FixtureCombatModes.received(game, P2, &"Swung")).has_size(2)
 
