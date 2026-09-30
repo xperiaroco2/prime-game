@@ -87,6 +87,15 @@ func problems() -> PackedStringArray:
 			)
 		)
 	for bot in range(1, scripts.size() + 1):
+		var joins := 0
+		for step: ScenarioStep in steps_of(bot):
+			if step is StepJoin:
+				joins += 1
+		if joins > 1:
+			found.append("bot %d has %d Join steps; at most one" % [bot, joins])
+		elif joins == 1 and not steps_of(bot)[0] is StepJoin:
+			# Before its Welcome a bot runs only a Join, so a later Join would never be reached.
+			found.append("bot %d: Join must be its first step" % bot)
 		for step: ScenarioStep in steps_of(bot):
 			if step == null:
 				found.append("bot %d has an empty step" % bot)

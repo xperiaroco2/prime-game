@@ -67,6 +67,18 @@ func test_steps_and_targets_report_their_problems() -> void:
 	)
 
 
+func test_a_join_is_the_first_step_and_only_once() -> void:
+	# Before its Welcome a bot runs only a Join: a Join later in the script would never run.
+	var scenario := _scenario()
+	scenario.settings = {}
+	scenario.scripts[0].steps.append(StepJoin.new())
+	assert_array(Array(scenario.problems())).is_equal(["bot 1: Join must be its first step"])
+	scenario.scripts[0].steps.push_front(StepJoin.new())
+	assert_array(Array(scenario.problems())).is_equal(["bot 1 has 2 Join steps; at most one"])
+	scenario.scripts[0].steps.pop_back()
+	assert_array(Array(scenario.problems())).is_empty()
+
+
 func test_every_step_names_itself_as_in_section_9_7() -> void:
 	var names: Array[StringName] = []
 	for step: ScenarioStep in [
