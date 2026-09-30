@@ -9,7 +9,7 @@ export const meta = {
   ],
 }
 
-// Saved project workflow (docs/AGENT_WORKFLOW.md §7, "The orchestrator session"; skill orchestrate-stage).
+// Saved project workflow (docs/AGENT_WORKFLOW.md §7.1; skill orchestrate-stage).
 // args:
 //   n       the PR's issue (required)            pr      the PR number (required)
 //   wt      its worktree, D:/... (required)       branch  its branch (required)

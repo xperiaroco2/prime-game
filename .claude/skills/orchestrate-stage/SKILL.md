@@ -16,7 +16,7 @@ allowed-tools:
   - PowerShell(gh pr checks *)
 ---
 
-# Orchestrate a stage (docs/AGENT_WORKFLOW.md §7, "The orchestrator session")
+# Orchestrate a stage (docs/AGENT_WORKFLOW.md §7.1)
 
 You are the **manager**: you plan, launch and watch workflows, relay questions and report. Substantive work (code,
 docs, reviews, publishing) runs inside workflows; your own inline work is `start`, trivial rebases, posting answers
