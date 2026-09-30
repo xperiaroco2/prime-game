@@ -33,8 +33,9 @@ errors, `load()` returns a script that does not compile, and the GdUnit4 console
 - `test` trusts only the GdUnit4 exit code and `results.xml`. Exit 101 (**orphan nodes**) fails the build, and so
   does a run with zero tests. `results.xml` does not record orphans, so `test` names the leaking test (or the
   suite's `before()`/`after()`) from the console log.
-- `verify` runs doctor (quick), lint, check, test, the headless ENet run (`enet`, added by #45) and the runner's own
-  tests, and fails if the run left files in the working tree. The current list of steps: `docs/AGENT_WORKFLOW.md` §11.
+- `verify` runs doctor (quick), lint, check, test, the headless ENet run (`enet`, added by #45), the 5.2 s freeze
+  run (`freeze`, #70) and the runner's own tests, and fails if the run left files in the working tree. The current
+  list of steps: `docs/AGENT_WORKFLOW.md` §11.
 - Every Godot call has a hard timeout and kills the whole process tree (the Windows console exe starts the engine as
   a child process).
 
