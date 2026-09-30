@@ -168,7 +168,12 @@ func _connect(bot: ScenarioBot) -> void:
 	_queue(
 		Intents.HELLO,
 		bot.peer,
-		{"name": "bot%d" % bot.number, "version": JoinRules.PROTOCOL_VERSION},
+		# The bot's own copy of the content is the host's: one process, one content/.
+		{
+			"name": "bot%d" % bot.number,
+			"version": JoinRules.PROTOCOL_VERSION,
+			"content": game.content_hash,
+		},
 		bot.sent_seq
 	)
 

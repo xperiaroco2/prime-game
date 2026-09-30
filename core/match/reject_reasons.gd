@@ -15,6 +15,9 @@ const OUTCOME_DROPPED := &"outcome_dropped"
 const WRONG_VERSION := &"wrong_version"
 ## Hello: the roster has the mode's maximum of players; DisconnectPeer follows (2b).
 const FULL := &"full"
+## Hello: another content hash than the host's (its game mode and level files: another build of
+## the content, a designer's branch against main); DisconnectPeer follows (§4.3, E1; 3e).
+const WRONG_CONTENT := &"wrong_content"
 ## SetReady to the flag the player has, or a second LoadAck (2b).
 const UNCHANGED := &"unchanged"
 ## ChangeSettings: a key the mode does not declare, or a value that is not a whole number (2b).

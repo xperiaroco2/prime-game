@@ -30,11 +30,13 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 
 
 ## A Hello (§4.1): true when the peer joined. In order: the sender must be a newcomer; the
-## version must be the host's, else Rejected (`wrong_version`) and DisconnectPeer; the roster
-## must have room for one more, else Rejected (`full`) and DisconnectPeer. The Hello's name is
-## not read. Accepted: the joiner is named Player<n> by the session's join count, placed at a
-## lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and SettingsChanged
-## (everyone).
+## version must be the host's, else Rejected (`wrong_version`) and DisconnectPeer; the content
+## hash must be the host's (Match.content_hash), else Rejected (`wrong_content`) and
+## DisconnectPeer (§4.3, E1); the roster must have room for one more, else Rejected (`full`) and
+## DisconnectPeer. The version comes first: a Hello of another version carries nothing else that
+## this build can read (§4.3). Accepted: the joiner is named Player<n> by the session's join
+## count, placed at a lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and
+## SettingsChanged (everyone).
 static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
@@ -43,6 +45,11 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 	var version: Variant = command.field("version")
 	if not (version is int and version == PROTOCOL_VERSION):
 		ctx.reject(command, RejectReasons.WRONG_VERSION)
+		_drop(ctx, peer)
+		return false
+	var content: Variant = command.field("content")
+	if not (content is int and content == ctx.content_hash()):
+		ctx.reject(command, RejectReasons.WRONG_CONTENT)
 		_drop(ctx, peer)
 		return false
 	if ctx.state.peers().size() >= ctx.mode.max_players:

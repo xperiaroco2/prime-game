@@ -19,6 +19,9 @@ const WON := &"won"
 
 var mode: GameMode
 var state: MatchState
+## The host's content hash (§4.3, E1): its game mode's ContentHash combined with the SHA-256 of
+## every level file the mode names, which server/ computes; each Hello's `content` must equal it.
+var content_hash := 0
 var command_log: CommandLog
 ## Why the mode was refused (ModeCheck, §9.1), each problem once; empty when it runs.
 var refusals := PackedStringArray()
@@ -54,17 +57,21 @@ var _speakers: Dictionary[int, Dictionary] = {}
 
 
 ## A match of `game_mode`, seeded by the session seed, asking `world` its geometry, with the
-## layouts of the mode's levels by path (§9.1). A mode with errors is refused: see `refusals`.
+## layouts of the mode's levels by path (§9.1), and the host's content hash that every joiner's
+## Hello must carry (§4.3, E1). A mode with errors is refused: see `refusals`.
 func _init(
 	game_mode: GameMode,
 	session_seed: int,
 	world: WorldQuery,
-	layouts: Dictionary[String, LevelLayout]
+	layouts: Dictionary[String, LevelLayout],
+	host_content_hash: int = 0
 ) -> void:
 	mode = game_mode
 	state = MatchState.new(session_seed)
+	content_hash = host_content_hash
 	command_log = CommandLog.new()
 	command_log.session_seed = session_seed
+	command_log.content_hash = host_content_hash
 	command_log.layouts = layouts.duplicate()
 	_layouts = layouts.duplicate()
 	_world = RecordingWorldQuery.new(world, command_log)
@@ -91,7 +98,9 @@ func _init(
 ## it says so in `diagnostics`.
 static func replay(recorded: CommandLog, game_mode: GameMode) -> Match:
 	var world := ReplayWorldQuery.new(recorded.world_answers)
-	var replayed := Match.new(game_mode, recorded.session_seed, world, recorded.layouts)
+	var replayed := Match.new(
+		game_mode, recorded.session_seed, world, recorded.layouts, recorded.content_hash
+	)
 	if replayed.command_log.mode_hash != recorded.mode_hash:
 		replayed.refusals.append(
 			(
