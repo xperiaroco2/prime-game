@@ -173,3 +173,12 @@ func test_the_host_flag_counts_for_the_hosts_own_client_only() -> void:
 	assert_int(_harness.claims_from(_harness.peer)).is_equal(0)
 	assert_int(_harness.claims_from(NetTransport.HOST_ID)).is_equal(from_host)
 	own.leave()
+
+
+func test_a_claim_holds_exactly_the_fields_core_declares() -> void:
+	_harness.welcome()
+	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	var declared: Dictionary = Intents.FIELDS[Intents.MOVE_CLAIM]
+	assert_array(claim.keys()).contains_exactly_in_any_order(declared.keys())
+	for field: String in declared:
+		assert_int(typeof(claim[field])).is_equal(declared[field] as int)
