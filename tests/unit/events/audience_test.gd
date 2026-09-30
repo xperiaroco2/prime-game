@@ -57,7 +57,7 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		PlayerJoinedEvent.new(P1, "p1", Vector3.ZERO),
 		PlayerLeftEvent.new(P1),
 		ReadyChangedEvent.new(P1, true),
-		SettingsChangedEvent.new({}, "", 0, Demands.new(), null, PackedStringArray()),
+		SettingsChangedEvent.new({}, "", 0, Demands.new(null), null, PackedStringArray()),
 		CountdownCancelledEvent.new(CountdownCancelledEvent.JOIN),
 		LoadMatchEvent.new(0, "", {}),
 		PlayerLoadedEvent.new(P1),

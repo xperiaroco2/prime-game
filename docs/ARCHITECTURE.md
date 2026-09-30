@@ -142,15 +142,18 @@ countdown changes no scene and places nobody.
   draws of the existing ones. Shuffles are our own Fisher–Yates over the injected RNG (`Array.shuffle()` uses the
   global one), and inputs are iterated in a stable order: players by peer id, spawn points in their level order.
 - **The deal** (the actions of the `all_loaded` row, §9.4), in this order: roles (`DealRoles`: dissidents =
-  min(setting, N−1), drawn from the roster); then `DealTasks`, which runs Delivery's deal: circle positions and
+  max(0, min(setting, N−1)), drawn from the roster in peer-id order with the `roles` stream; each player learns its
+  own role, and each dissident the dissidents); then `DealTasks`, which runs Delivery's deal: circle positions and
   colours (one circle per package, over the map's circle spawn points), package positions, and tasks (per player in
   peer-id order, *tasks per player* tasks of *subtasks* packages, each package drawn from the placed ones and bound to
   a random circle of its own, whose colour it takes); knife positions (`SpawnItems`); player spawn points
   (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
   emitted in id order, so an id says nothing about its owner or task. Packages and knives share spawn points when
   their item kinds name the same spawn tag; a marker carries one tag, and a deal puts at most one item on a marker
-  (§9.6). A package that spawns inside its own circle is delivered at once, by the rule; the `package` and `circle`
-  tags keep the two kinds of spawn points apart.
+  (§9.6): `SpawnItems` and Delivery's packages skip the markers where an item already rests (`Items.free_markers`,
+  which every placing part uses). Each placing part emits all its `ItemSpawned` first, then raises `item_rested`
+  (spawn) for each item in id order. A package that spawns inside its own circle is delivered at once, by the rule; the
+  `package` and `circle` tags keep the two kinds of spawn points apart.
 - **Exact numbers.** Health and stamina are integers in thousandths, so a replay on another machine matches exactly.
   Positions are the claims as received.
 - **Replay.** The command log holds everything `core/` is given: the session seed, the game mode's path and a hash
@@ -750,7 +753,7 @@ checks it against the §5 invariants.
 ### 9.3 Kinds and where they live
 The base classes and the kinds are in `core/content/` (the bot-scenario data classes in `core/content/scenario/`);
 `Match`, `MatchState` and `Phase` in `core/match/`; each part beside the rules it implements (`core/items/`,
-`core/combat/`, `core/tasks/`, … as split in stage 2). 2a creates the base class of every kind in this table but the
+`core/combat/`, `core/tasks/`, … as split in stage 2; the deal's actions in `core/deal/`, 2c). 2a creates the base class of every kind in this table but the
 bot scenario's (2j), so stage-2 tasks that run in parallel share them instead of each inventing one; the parts and
 phase classes come in the task each row names.
 
@@ -858,9 +861,9 @@ phase classes come in the task each row names.
 
 | Part | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|
-| `DealRoles` | each quota draws its players from the roster; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) replace the draws | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; 1): the count is max(0, min(setting, N − leave_at_least))), `default_role`, RNG purpose (`roles`) | `RoleAssigned` (that player); `Teammates` (each player of a role that knows its teammates) | 2c |
-| `DealTasks` | gives each player `tasks_setting` tasks, dealt by the mode's task types through the `TaskType` interface of 2a (§9.5, Delivery); with one task type, it deals them all | `tasks_setting` (`tasks_per_player`) | the task types' events | 2c, tested with a fake task type; Delivery's deal in 2f (#62) |
-| `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, at most one item per marker in a deal (it skips a marker that already holds an item this deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items (2a) | `kind`, `count_setting`, RNG purpose (`knives`) | `ItemSpawned` (everyone), in id order; `item_rested` (spawn) | 2c |
+| `DealRoles` | each quota in order draws its players from the present players not drawn yet, taken in peer-id order and shuffled with its RNG purpose; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) are to replace the draws: not built, `core/` cannot tell a debug build, so 2j hands them in as data (§10) | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; class default 0, the mode writes its number): the count is max(0, min(setting, N − leave_at_least)), and never more than are left), `default_role`, `rng_purpose` (`roles`) | `RoleAssigned` (that player), in peer-id order; then, per role of the mode that knows its teammates and has players, in the mode's order, `Teammates` (every player of that role) | 2c (#59) |
+| `DealTasks` | gives each player `tasks_setting` tasks, dealt by the mode's task types through `TaskType.deal` (§9.5, Delivery), in the mode's order; with one task type, it deals them all. With several, the tasks per player are split evenly in the mode's order, the first types taking one more each while the remainder lasts (not a decision, §10); a type whose share is 0 deals nothing | `tasks_setting` (`tasks_per_player`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`, `TasksAssigned`) | 2c (#59), tested with a fake task type; Delivery's deal in 2f (#62) |
+| `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
 | `StartClock` | sets the match clock's end to now plus the setting | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone) | 2h |
 | `EndMatch` | records the side of the `won` outcome as the winner | none | `MatchEnded` (everyone): the side only | 2h |
@@ -868,10 +871,12 @@ phase classes come in the task each row names.
 
 **Demands.** Every placing action, and every task type through `DealTasks`, answers one question: given the settings
 and the player count, how many markers of which spawn tag does it need (and, for a station kind, how many colours).
-2a defines that interface on `Effect` and `TaskType`, with no demand by default. `all_ready` (2b, `FitCheck`) sums
-the demands per tag over every row into a phase on the map (`LayoutCheck.demands_of`), compares each sum with the
-chosen map's markers of that tag and each colour count with its palette (`Demands.shortfalls`, §3.2, §9.6), checks
-the player count against the mode's bounds, and `SettingsChanged` shows them.
+2a defines that interface on `Effect` and `TaskType`, with no demand by default. `DealTasks` forwards its demand to
+each task type for its share; it reads the mode's task types from `Demands.mode`, because an effect's `add_demands`
+is not given the mode, so a `Demands` is always built for a mode (`Demands.new(mode)`, 2c). `all_ready` (2b,
+`FitCheck`) sums the demands per tag over every row into a phase on the map (`LayoutCheck.demands_of`), compares
+each sum with the chosen map's markers of that tag and each colour count with its palette (`Demands.shortfalls`,
+§3.2, §9.6), checks the player count against the mode's bounds, and `SettingsChanged` shows them.
 
 **Tick systems, phase classes and voice rules:**
 
@@ -941,8 +946,9 @@ Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) 
 Loading and End, the join rules, the fit check, the mode check with layouts and the `End, back → Lobby` row's
 `ResetMatch`. 2e (#61) added the Package, PickUp and PutDown, and Round's `PickUp` and `PutDown` from the living;
 `Use` joins Round's allowlist with the knife's rule in 2g, because the mode check refuses an accepted intent that no
-rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round; DealTasks (2c) joins the deal row.
-Tests: the mode check of 2a and the base mode's numbers and `End → Lobby` order
+rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round. 2c (#59) added Crew, Dissident,
+the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. Tests: the mode check of 2a,
+the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
 scenarios in `content/scenarios/` (2j).
@@ -953,7 +959,8 @@ Settings: id `crew`; display name "Crew"; side `crew`; knows its teammates: no; 
 `DealRoles`.
 Produces: `RoleAssigned(crew)`.
 Visible to: that player only (§5); `MatchEnded` names only the winning side, never a player's role.
-Status: designed in #33; built in 2c. Tests: (2c), a path once built.
+Status: designed in #33; built in 2c (#59): `content/roles/crew.tres`. Tests:
+`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
 
 #### Dissident (role)
 What it does: the side that wins when time is up or no crew member is alive; dissidents know each other.
@@ -961,7 +968,8 @@ Settings: id `dissident`; display name "Dissident"; side `dissidents`; knows its
 Dealt by the quota `dissidents`, leaving at least one other player.
 Produces: `RoleAssigned(dissident)`; `Teammates(dissident, peers)`.
 Visible to: `RoleAssigned` to that player; `Teammates` to each dissident, and to nobody else.
-Status: designed in #33; built in 2c. Tests: (2c), a path once built.
+Status: designed in #33; built in 2c (#59): `content/roles/dissident.tres`. Tests:
+`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
 
 #### Delivery (task type)
 What it does: a task of `subtasks_per_task` packages; a subtask is done when its package rests inside its own
@@ -973,8 +981,8 @@ no default; a placeholder, "not a decision"); RNG purposes `circles_rng`, `packa
 `packages`, `tasks`). One circle per package is fixed in v0, not a setting (MVP rules: each package its own colour
 and circle).
 - Deal: players × tasks per player × subtasks packages. Circles on distinct random `circle` markers with distinct
-  random palette colours (`circles`), packages on distinct random `package` markers (`packages`), then per player in
-  peer-id order its tasks, each package drawn from the placed ones and bound to a random circle of its own whose
+  random palette colours (`circles`), packages on distinct random free `package` markers (`packages`;
+  `Items.free_markers`), then per player in peer-id order its tasks, each package drawn from the placed ones and bound to a random circle of its own whose
   colour it takes (`tasks`; §3.3). Ids follow spawn-point order. Emitted: every `StationPlaced`, then every
   `ItemSpawned` (with its circle and colour), in id order, then each player's `TasksAssigned` in peer-id order. Then
   `item_rested` (spawn) for each package, so one that spawned in its own circle counts at once, during the deal
@@ -996,9 +1004,10 @@ subtask its package, its circle and whether it is done. It has no tick.
 Visible to: everyone, except `TasksAssigned` and `TaskUpdated`, which reach only the task's owner (a ghost owner
 too; a player who left, nobody). `PackageDelivered` names the item and the circle, never the task or its owner.
 Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional).
-DealTasks (2c) calls its deal. Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode
-check), `tests/unit/tasks/delivery_test.gd` (the check), `tests/unit/content/delivery_content_test.gd` (the base
-mode's palette covers a full lobby).
+DealTasks (2c, #59) calls its deal, and its packages take only free markers (`Items.free_markers`). Tests:
+`tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check), `tests/unit/tasks/delivery_test.gd`
+(the check), `tests/unit/content/delivery_content_test.gd` (the base mode's palette covers a full lobby),
+`tests/unit/content/layout_check_test.gd` (its demands reach the fit check).
 
 #### Package (item kind)
 What it does: the item a Delivery subtask moves; any living player may carry any package.
@@ -1020,7 +1029,9 @@ stamina, the victim's health), and on a death `Died` and the dropped item's `Ite
 Visible to: `Swung` and `Died` everyone; `Damaged` only the victim; the attacker gets no confirmation of a hit; a
 refusal (`too_soon`, `tired`) only the attacker. The public `Swung` reveals no role: the rule belongs to the item
 kind, which any living player may hold (§9.2).
-Status: designed in #33; built in 2g. Tests: (2g), a path once built.
+Status: designed in #33; the item kind (id, name, spawn tag; no actions yet) and its `SpawnItems` in 2c (#59):
+`content/items/knife.tres`, tested by `tests/unit/deal/spawn_items_test.gd` and
+`tests/unit/content/content_modes_test.gd`; its `Use` rule in 2g. Tests: (2g), a path once built.
 
 #### Every task done (win condition)
 What it does: the crew's only win.
@@ -1220,6 +1231,8 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | `Interact(target)`: fixed interactables and bodies as targets (§9.8) | with the first mechanic that needs it (#34 or #35) |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
+| Forced roles (a debug command, a scenario): the data `server/` or the scenario runner hands to `DealRoles`, and whether a forced player counts toward its role's quota (§9.4) | 2j |
+| How `DealTasks` splits the tasks per player over several task types; v0: evenly, in the mode's order (§9.4) | with a second task type (#36) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6) | 4e, with the designer |
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |

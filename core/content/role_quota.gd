@@ -6,7 +6,9 @@ extends ContentPart
 @export var role: GameRole
 ## The match setting that holds the count (`dissidents`).
 @export var count_setting: StringName
-@export var leave_at_least := 1
+## Players the quota always leaves to the others (0 to 10). Neutral by default: the mode writes
+## its number (the base mode's 1) in its data (the engineer's answer on #58).
+@export var leave_at_least := 0
 
 
 func check(mode: GameMode) -> PackedStringArray:
