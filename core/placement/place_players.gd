@@ -9,7 +9,8 @@ extends RuleEffect
 ## Emits: PlayersPlaced (everyone: positions are public), then a Correction per player, in
 ## peer-id order (that player only: its new epoch). Demands: one `tag` marker per player.
 
-@export var tag: StringName = &"round_player"
+## The spawn tag of the markers: `round_player` in the deal, `lobby_player` on `End -> Lobby`.
+@export var tag: StringName
 @export var rng_purpose: StringName = &"spawns"
 
 
