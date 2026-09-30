@@ -18,7 +18,7 @@ extends SceneTree
 ##   after a freeze the backlog arrives, and each run of a peer's poses is merged into its newest:
 ##   at least one pose is merged away, and the one applied is not the backlog's 5 s old head.
 ## Until #95 one poll read at most 256 datagrams (one ENet service), so the thawed host's newest
-## pose from each client was about 1 s old on one PC (Windows 11) and 2.4 to 3.1 s on the Linux CI
+## pose from each client was about 1 s old on one PC (Windows 11) and up to 3.1 s on the Linux CI
 ## runner, where it failed the check; the rest came a poll later. EnetTransport now drains the
 ## socket in one poll.
 

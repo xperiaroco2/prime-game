@@ -25,7 +25,7 @@ const PEER_TIMEOUT_MAX_MS := 20000
 ## ENet reads at most this many datagrams from its socket per service, and
 ## ENetMultiplayerPeer.poll() services once (#95 measured both in 4.7.2). After a freeze the
 ## backlog is bigger: one service took only its oldest part, and the newest arrived a poll later,
-## so on the Linux CI runner the freeze check's thawed host got poses 2.4 to 3.1 s old (#95).
+## so on the Linux CI runner the freeze check's thawed host got poses up to 3.1 s old (#95).
 ## poll() therefore services until one reads fewer, the socket drained, and the LATEST merge sees
 ## the whole backlog. tests/integration/net/enet_stall.gd checks it.
 const ENET_RECEIVES_PER_SERVICE := 256
