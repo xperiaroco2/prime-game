@@ -55,6 +55,8 @@ def _emit(event: str, **fields: str) -> None:
 
 
 def pre_tool_use(payload: dict[str, object]) -> int:
+    """Ask before a shell write to an ask-protected path, a recursive delete in the project, or a `git reset` that
+    discards work or moves the branch (guard.py); stay silent otherwise."""
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input")
     if tool not in ("Bash", "PowerShell") or not isinstance(tool_input, dict):
@@ -65,7 +67,8 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     from . import guard
 
     shell = guard.BASH if tool == "Bash" else guard.POWERSHELL
-    findings = guard.check(command, shell, str(payload.get("cwd") or ""), ROOT)
+    home = os.path.expanduser("~")  # so that `~/<project>` stays protected when the checkout is under home
+    findings = guard.check(command, shell, str(payload.get("cwd") or ""), ROOT, home if home != "~" else "")
     if findings:
         _emit("PreToolUse", permissionDecision="ask", permissionDecisionReason=guard.reason(findings))
     return 0
