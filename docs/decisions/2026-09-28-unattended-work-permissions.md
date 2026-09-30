@@ -1,7 +1,8 @@
 # Permissions for unattended work
 
 - **Status:** Accepted (amends `2026-09-28-permissions-and-thin-guard.md`); recursive deletes and `git reset` moved
-  from text ask rules to the guard on 2026-09-30 (see that ADR)
+  from text ask rules to the guard on 2026-09-30 (see that ADR); the other work-discarding git rules followed the
+  same day, judged by the session's own worktree and task branch (issue #51, see that ADR)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase B kickoff)
 
@@ -32,3 +33,7 @@ The engineer wants to leave the agent working alone for about an hour.
   `main-2` (require a PR) currently lets repository admins bypass it, and the engineer's account is an admin, so a
   push to `main` that slips past the deny rules would land. Removing that bypass is a pending human action.
 - Verified 2026-09-28: `gh api repos/xperiaroco2/prime-game` ran without a prompt; a bare `git push` was denied.
+- 2026-09-30 (issue #51): "commands that discard work or rewrite history" and "recursive deletes" are no longer
+  text stop points. They stop the agent only beyond its own worktree and task branch, where the guard asks; inside
+  them the agent works freely and stops only for design and other human-reserved decisions. The `git branch -D`
+  deny rule became a guard judgement too: deleting a helper of the task branch passes, any other branch asks.

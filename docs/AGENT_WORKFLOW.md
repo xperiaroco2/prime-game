@@ -70,9 +70,14 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
    open PR starts with `--base <parent>`: the branch comes from `origin/<parent>` (refused when origin lacks it), and
    `start` records the parent in the machine-local git config key `branch.<task>.primeBase` (its tip in `primeBaseTip`),
    where `publish` and `finish-task` find it before the PR exists (§8.3); resuming an existing branch ignores `--base`
-   and says so. It creates a worktree `.claude/worktrees/<n>` instead **only when another Claude session is active on
-   this checkout**, engineer only (`--worktree` / `--here` override); for the designer it then stops rather than switch
-   the branch under that session. `tools\run.cmd worktree-done <n>` removes the worktree once its branch is merged
+   and says so. **For the engineer it creates a worktree `.claude/worktrees/<n>` for every task** (issue #51): there
+   the agent works freely (§8.2), and the main checkout, where the Godot editor and the humans' files live, stays
+   protected. `--here` is the exception that keeps the task in this checkout, and so do `--stash` and `--include`
+   (they act on this checkout's changes) and a branch already checked out here. The designer never gets a worktree:
+   with another Claude session active on this checkout, `start` stops rather than switch the branch under that
+   session (`--here` when the human says it is idle). Work in the worktree: a session opened in that folder, or,
+   for a task session whose shell starts in the main checkout, `cd <worktree> && ...` at the start of every
+   command. `tools\run.cmd worktree-done <n>` removes the worktree once its branch is merged
    ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose branch is
    never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it from the
    main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is inside the
@@ -169,11 +174,12 @@ Rules for every workflow run:
   size guideline needs the human's explicit approval in that same message; "ultracode" alone does not count.
 - A run never decides a human-reserved item; it records options and a recommendation and continues.
 - Temporary files go only to the session's scratchpad or, when they must be under `res://` (a probe test), to the
-  gitignored `tests/scratch/` of the checkout the agent works in; deleting either never prompts (§8.2). A temporary
-  folder anywhere else in the project, such as `tests/integration/tmp`, asks on delete and stops the run until
-  morning. An unattended run's prompt says so, and tells its agents not to run commands they expect to prompt
-  (deletes outside the scratchpad and `tests/scratch/`, resets that move the branch) but to list them in the handoff
-  for the human instead: a prompt blocks the call, so an agent cannot note it and move on
+  gitignored `tests/scratch/` of the checkout the agent works in; deleting either never prompts (§8.2). Inside its
+  own worktree an agent's deletes and git are free too (#51), but a temporary folder in the main checkout or another
+  worktree asks on delete and stops the run until morning. An unattended run's prompt says so, gives each task its
+  worktree (`cd <worktree> && ...` at the start of every command), and tells its agents not to run commands they
+  expect to prompt (deletes, resets, rebases or branch deletes beyond their own worktree and task branch) but to list
+  them in the handoff for the human instead: a prompt blocks the call, so an agent cannot note it and move on
   ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)).
 - Design runs produce documents first. Output lands as focused PRs, each with its verification, checked by a
   **fresh** agent.
@@ -193,7 +199,10 @@ edit tooling, clean up its scratchpad and `tests/scratch/`) and stops only for t
 ([ADR](decisions/2026-09-28-unattended-work-permissions.md)). **Test for a new ask or deny rule:** "can an agent work
 alone overnight?" Replay the latest unattended run's transcripts against the new rule; a rule that would have stopped
 routine work is judged by its target in the guard (§8.2) instead of by its text
-([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)).
+([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). **Inside its own worktree and
+task branch an agent has full freedom**: every git operation and every delete there runs without a prompt, and it
+stops only for design and other human-reserved decisions and for what reaches beyond them
+([intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)).
 - Deny and ask rules apply in **every** permission mode, including bypass; allow rules matter only in the modes that
   prompt (the designer's `acceptEdits`).
 - **Allow:** the runner; `git fetch origin`, `add`, `commit`, `log`, `switch`, `branch`, `stash` (push/list/pop),
@@ -201,15 +210,16 @@ routine work is judged by its target in the guard (§8.2) instead of by its text
   list/view/watch/rerun, workflow list/view, `label`, `project`, `ruleset`, `repo view`, `api` (GET and POST);
   WebFetch to Godot, Claude Code, GitHub and git docs.
 - **Ask (the agent's stop points):** edits to `.claude/settings*.json` (its own permissions) and `addons/`
-  (dependencies); work-discarding or history-rewriting git (`checkout`, `switch --discard-changes|-f`, `restore`,
-  `clean`, `rebase`, `worktree`, `branch -d`, `stash drop|clear`, `git -c`); `gh` with `-R/--repo`; `gh api`
-  PUT/PATCH/DELETE; deleting issues, labels, projects or the last comment; `gh pr review`;
-  `gh workflow run|enable|disable`; `gh release`, `secret`, `variable`; `gh repo edit|rename|archive|deploy-key`.
-  Recursive deletes and `git reset` have no text rule: the guard asks by their target (§8.2), so an agent deletes
-  its scratch folders and unstages without a prompt.
+  (dependencies); `gh` with `-R/--repo`; `gh api` PUT/PATCH/DELETE; deleting issues, labels, projects or the last
+  comment; `gh pr review`; `gh workflow run|enable|disable`; `gh release`, `secret`, `variable`;
+  `gh repo edit|rename|archive|deploy-key`. Work-discarding or history-rewriting git (`reset`, `checkout`,
+  `switch -f|--discard-changes`, `restore`, `clean`, `rebase`, `stash drop|clear`, `branch -d|-D`, `worktree`,
+  `git -c`) and recursive deletes have no text rule since #51 (and #47 for `rm -r` and `git reset`): the guard asks
+  by where they act (§8.2), so they are free in the agent's own worktree and on its task branch, and ask in the main
+  checkout, in another worktree and on another branch.
 - **Deny:** force pushes; pushes to `main` in any spelling, including a bare `git push`, `git push [-u] origin` with
   no branch and any push naming `HEAD` (always push an explicit branch name); `--no-verify`, remote deletes,
-  `--prune`, `--mirror`, `--all`, `git branch -D`, `git config` on `hooksPath` or `--unset`, `--upload-pack`,
+  `--prune`, `--mirror`, `--all`, `git config` on `hooksPath` or `--unset`, `--upload-pack`,
   `--output`, **`gh pr merge` and `mcp__ccd_pr__set_auto_merge`**, `gh repo delete`, `gh auth token`,
   token-printing `gh auth status`.
 - Godot, Python and gdtoolkit run without a prompt **only through the runner**; their raw forms prompt in modes that
@@ -233,13 +243,22 @@ and `$(...)` bodies, and the inline code of interpreters and .NET calls (`python
 target against Edit allow and deny rules, not ask rules. The file tools need no guard, because `Edit(...)` rules
 cover Edit, Write and NotebookEdit.
 
-It also judges two commands by their target, where a text rule would stop an unattended agent for its own scratch
-folder (issue #47):
+It also judges commands that lose work by where they act, where a text rule would stop an unattended agent for
+its own scratch folder (issue #47) or its own worktree (issue #51):
+- **The session's own worktree and task branch are free** (issue #51,
+  [intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)). The own worktree is the
+  `.claude/worktrees/<n>` that the session's working directory is in; a session whose shell starts in the main
+  checkout (a manager's task session) owns the first worktree its command enters with `cd`, `Set-Location` or
+  `git -C` (`cd D:/prime-game/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same
+  command asks). The main checkout is never owned: the designer's sessions and the engineer's `start --here`
+  sessions keep every prompt. The task branch is the branch checked out in the own worktree; its helpers are branches
+  named `<task branch>-x`, `<task branch>/x`, `<task branch>.x` or `<task branch>_x`. The hook reads branch, ref and
+  stash names from the files in `.git` (`hooks.GitFiles`, no git call).
 - **Recursive deletes** (`rm -r|-R|-rf|--recursive` or `--rec` in bash, `Remove-Item -Recurse` or `-r`, `rmdir /s`,
   `rd /s/q` (`//s` from Git Bash), `del /s`, a plain delete fed by a recursive listing, an unfiltered `find -delete` or `find -exec rm -rf`,
   `shutil.rmtree('x')` and `[IO.Directory]::Delete('x', $true)`; also inside `bash -c`, pipelines, `xargs`,
-  `timeout` and `for` loops) ask when a target is the project (the main checkout or a worktree), inside it, above
-  it, a drive root, `/`, or the home or temp folder itself (`~`, `$HOME`, `$env:TEMP`). A target it cannot resolve
+  `timeout` and `for` loops) ask when a target is the project (the main checkout or a worktree), inside it (but not
+  inside the own worktree; its folder itself, `rm -rf .` there, still asks), above it, a drive root, `/`, or the home or temp folder itself (`~`, `$HOME`, `$env:TEMP`). A target it cannot resolve
   asks when it names the project: its folder name (read from the checkout, so a clone named otherwise is covered),
   `git rev-parse --show-toplevel`, `$PWD` inside it, a command's output that names a path in it (`$(realpath core)`,
   `(Resolve-Path core)`; `$(mktemp -d)` names none), a variable or loop built from such text, or a relative path
@@ -264,12 +283,25 @@ folder (issue #47):
   a link or junction there: the guard judges a delete by its text path, and PowerShell 5.1 `Remove-Item -Recurse`
   on a junction deletes what it points to.
 - **`git reset`** asks with `--hard`, `--merge` or `--keep`, or when it moves the branch to another commit
-  (`git reset HEAD~1`, `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere in the project,
-  `tools/out/` included; `-C`, `--git-dir` and `--work-tree` name that repository. Unstaging passes: `git reset`, `git reset -q`, `git reset -- <paths>`,
+  (`git reset HEAD~1`, `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere in the project
+  but the own worktree, `tools/out/` included; `-C`, `--git-dir` and `--work-tree` name that repository. Unstaging passes: `git reset`, `git reset -q`, `git reset -- <paths>`,
   `git reset HEAD -- <paths>`, `git reset core`. A lone argument without `--` is a commit when it looks like one (a
   SHA, `~`, `^`, `origin/x`, `refs/x`, `v1.2`, a task branch `net/40-x`, `main`) and a path otherwise, so
   `git reset feature-x` passes.
-- In a worktree session the project is still the whole main checkout: `rm -rf D:/prime-game/core` asks there too.
+- **Other git that discards work or rewrites history** passes in the own worktree on the task branch, and in a
+  repository outside the project (a clone in the scratchpad); it asks in the main checkout and in another worktree
+  (`-C`, `cd`, `--git-dir`, `--work-tree`), when a pathspec reaches another checkout (`git checkout -- ../47/core`),
+  and after the same command switched away from the task branch (`git checkout main && git reset --hard`):
+  `checkout` of paths or `-f`, `switch -f|--discard-changes`, `restore` (not `--staged` alone), `clean` (not `-n`),
+  `rebase` (`--continue` and `--abort` too), `worktree remove|move` of another worktree. A plain `git switch x` or
+  `git checkout x` discards nothing and passes anywhere. Branches and the stash are shared by every checkout, so
+  they are judged by name: `branch -d|-D`, `branch -f`, `branch -M|-C`, `checkout -B`, `switch -C`, a rebase that
+  names its branch and a forced switch pass only for the task branch and its helpers; `stash drop|clear` only for
+  entries made on them (a human's `start --stash` entry is made on `main` and asks). Always asks: an interactive
+  rebase (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other branches) and
+  `git -c core.hooksPath=...` (the deny rule on `git config *hooksPath*` cannot see it).
+- In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
+  `git -C D:/prime-game clean -fdx` ask there.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
   `$TEMP`, `$env:TEMP` and `~` are outside the project, so scratch copies never ask. A target it cannot resolve (an
   unknown variable, `$(...)`, a PowerShell `(...)` argument) asks when its text names a protected path. Content is
@@ -291,6 +323,15 @@ folder (issue #47):
   `tests/scratch/`), and over the 2,709 distinct shell commands of this machine's transcripts on that day it changes
   one verdict: a scratch-folder delete after `(cd tools && ...)`, which the old guard read inside `tools/`, now
   passes.
+- The own worktree (#51), replayed on 2026-09-30 in the engineer's bypass mode (deny rules block; ask rules and the
+  guard prompt) over every Bash and PowerShell call in `~/.claude/projects/D--prime-game` (101 transcripts, 2,921
+  calls): 103 prompts before (97 ask rules, 6 guard), 67 after (63 ask rules, 4 guard), 22 denied in both, no crash,
+  and no call that was silent before asks now. The 36 prompts gone: `git worktree list` and other git status reads
+  in the main checkout, git in scratch clones, a `git checkout` and `rm -r tests/integration/tmp` in a task's own
+  worktree. What still asks: 63 `gh ... -R|--repo` reads of other repositories (research), three writes to
+  `addons/` and `.claude/` from the live test of stage 4, and one `Remove-Item -Recurse` of worktree 46's
+  `tests/integration/tmp` by absolute path from a session in the main checkout (without a `cd` it owns no worktree).
+  Over every `D--prime-game*` folder (128 transcripts, 3,847 calls): 125 prompts before, 80 after.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own

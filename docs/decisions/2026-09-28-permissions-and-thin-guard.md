@@ -3,7 +3,8 @@
 - **Status:** Accepted; ask/allow lists and guard scope amended by
   `2026-09-28-unattended-work-permissions.md`; the guard's runtime is in `2026-09-29-claude-code-hooks-in-git-bash.md`;
   guard scope widened to recursive deletes and `git reset`, and the scratch folder `tests/scratch/` added, on
-  2026-09-30 (Consequences)
+  2026-09-30 (Consequences); all git that discards work or rewrites history judged by the session's own worktree
+  and task branch, same day (issue #51, Consequences)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -54,3 +55,24 @@ ADRs).
   call keeps variables from an earlier one, so a bash variable the command never assigns is also judged as empty
   (`rm -rf "$X"/*` asks); a variable from the environment is the case left open.
   Details and the replay: `docs/AGENT_WORKFLOW.md` §8.2.
+- **Amended 2026-09-30 (issue #51, the engineer's design approved in chat):** agents have full freedom in their own
+  worktree and task branch. The ask rules for `git checkout`, `switch -f|--force|--discard-changes`, `restore`,
+  `clean`, `stash drop|clear`, `branch -d`, `worktree`, `rebase` and `git -c` (26 rules) and the deny pair on
+  `git branch -D` leave `.claude/settings.json`; the guard judges those commands, `git reset` and recursive deletes by
+  where they act. They pass in the session's own worktree (the one its working directory is in, or, for a session in
+  the main checkout, the first worktree its command enters with `cd` or `git -C`) on its task branch, and in
+  repositories outside the project; they ask in the main checkout, in another worktree, on another branch (by name,
+  since branches and the stash are shared: only the task branch and its helpers `<task branch>-x` or
+  `<task branch>/x` pass), for stash entries made on another branch, for an interactive rebase, `--update-refs` and
+  `git -c core.hooksPath`. Branch and stash names come from the files in `.git`, read by the hook without a git call.
+  Reason: the only work at risk in the own worktree is the agent's own, committed or reproducible; the risk is in
+  the main checkout (the Godot editor and the humans' files), in other sessions' worktrees and on other branches,
+  which text rules cannot tell apart. `start` gives every engineer task a worktree (see the worktrees ADR), so the
+  freedom always applies.
+  Rejected: keep the text rules and allow them in bypass (they prompt in every mode, so a rebase or a
+  `git checkout -- file` in the own worktree stops a night run); own worktree only by the session's working
+  directory (a manager's task session starts each call in the main checkout, so it would never be free); a
+  session-to-worktree map kept by the hook (state across calls, harder to test). Kept: every deny rule on pushes to
+  `main`, remote deletes, `--mirror`/`--all`/`--prune`, `gh pr merge` and `hooksPath`, and the asks on
+  `.claude/settings*.json` and `addons/`. Left open: a delete by absolute path into a worktree from a session in the
+  main checkout, without a `cd`, asks (it owns no worktree). Replay: `docs/AGENT_WORKFLOW.md` §8.2.

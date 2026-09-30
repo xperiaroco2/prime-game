@@ -1,6 +1,7 @@
 # Worktrees only for parallel sessions
 
-- **Status:** Accepted
+- **Status:** Accepted; the trigger superseded on 2026-09-30 (issue #51): every engineer task gets a worktree
+  (Amendment below)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -38,6 +39,16 @@ another branch. Its own next `git status` shows the new branch. Committed work i
 `worktree-done <n>` refuses while a session works in the worktree, with uncommitted changes, or when the worktree's
 HEAD (a detached one included) or branch is not merged into `origin/main`. It then removes the worktree and deletes
 the merged local branch. Ignored files such as `.godot/` do not block the removal (checked with git 2.49).
+
+## Amendment: a worktree for every engineer task (2026-09-30, #51)
+The engineer gave agents full freedom inside their own worktree and task branch (the guard asks only beyond them,
+see the permissions ADR). For that freedom to apply, and for the main checkout to stay protected, `start` now
+creates `.claude/worktrees/<n>` for **every** engineer task, whether or not another session is active. `--here`
+is the exception that keeps a task in the checkout; `--stash` and `--include`, which act on this checkout's
+uncommitted changes, and a branch already checked out here keep it there too. The designer's behaviour is unchanged:
+no worktrees, and `start` stops rather than switch the branch under another active session. The cost is the cold
+`--import` of each new worktree (the alternative rejected on 2026-09-28), accepted for the freedom. The session
+detection below still decides for the designer and still guards `worktree-done`.
 
 ## Spikes and half-done removals (2026-09-29, #27)
 The M1 spike branches are never merged, so `worktree-done --pushed` removes a worktree whose branch (not a detached
