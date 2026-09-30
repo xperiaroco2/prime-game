@@ -53,6 +53,17 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		PlayersPlacedEvent.new({}),
 		CorrectionEvent.new(P1, 1, Vector3.ZERO, Vector3.ZERO),
 		RejectedEvent.new(P1, 0, &"x"),
+		WelcomeEvent.new(P1, Vector3.ZERO, 1),
+		PlayerJoinedEvent.new(P1, "p1", Vector3.ZERO),
+		PlayerLeftEvent.new(P1),
+		ReadyChangedEvent.new(P1, true),
+		SettingsChangedEvent.new({}, "", 0, Demands.new(), null, PackedStringArray()),
+		CountdownCancelledEvent.new(CountdownCancelledEvent.JOIN),
+		LoadMatchEvent.new(0, "", {}),
+		PlayerLoadedEvent.new(P1),
+		RefuseJoinsEvent.new(),
+		AllowJoinsEvent.new(),
+		DisconnectPeerEvent.new(P1),
 	]
 	for event: MatchEvent in events:
 		var declared: Variant = (event.get_script() as Script).get_script_constant_map().get(
