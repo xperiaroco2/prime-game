@@ -162,7 +162,9 @@ func _read(kind: int, reader: WireReader) -> WireMessage:
 		message.fields["version"] = version
 		if version != VERSION:
 			return message
-		fields = fields.slice(1)
+		var after_version: Array[WireField] = []
+		after_version.assign(fields.slice(1))
+		fields = after_version
 	WireField.read_all(fields, reader, message.fields, message)
 	if not reader.failed and not reader.at_end():
 		reader.fail("%d bytes after the last field" % reader.left())
