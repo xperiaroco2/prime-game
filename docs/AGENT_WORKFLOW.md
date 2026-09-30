@@ -345,9 +345,10 @@ commands, by the repository they name (issue #68, a read of another repository m
   they are judged by name: `branch -d|-D`, `branch -f`, `branch -M|-C`, `checkout -B`, `switch -C`, a rebase that
   names its branch, `update-ref refs/heads/<x>` and a forced switch pass only for the task branch and its helpers;
   `stash drop|clear` only for entries made on them (a human's `start --stash` entry is made on `main` and asks),
-  and never after the same command changed the stash (the indices shift). An interactive rebase whose todo editor
-  is a no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, or `:`/`true` through `-c sequence.editor=`,
-  `GIT_EDITOR` or `-c core.editor=`) opens no editor and is judged like a plain rebase (#104). Always asks: another
+  and never after the same command changed the stash (the indices shift). An interactive rebase whose
+  `GIT_SEQUENCE_EDITOR` the command sets to `:` or `true` (a prefix, `export` or `$env:`; it outranks every other
+  editor setting) opens no todo editor and is judged like a plain rebase: `git commit --fixup=HEAD` then
+  `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` stays editor-free (#104). Always asks: another
   interactive rebase (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other
   branches), `rebase -x|--exec` (runs commands the guard cannot judge), `update-ref --stdin` and
   `git -c core.hooksPath=...` (the deny rule on `git config *hooksPath*` cannot see it).
