@@ -109,6 +109,16 @@ class GitFiles:
         head = self._read(admin, "HEAD").strip()
         return head.removeprefix("ref: refs/heads/") if head.startswith("ref: refs/heads/") else None
 
+    def busy(self, checkout: str) -> bool:
+        """Another live Claude session works in the worktree checkout (a normalized path): a session in the main
+        checkout then does not own it (sessions.active_on)."""
+        from pathlib import Path
+
+        from . import guard, sessions
+
+        suffix = checkout[len(guard.normalize(self.root)) :].lstrip("/")
+        return bool(sessions.active_on(Path(self.root, *suffix.split("/"))))
+
     def refs(self) -> set[str]:
         if self._refs is None:
             names: set[str] = set()

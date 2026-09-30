@@ -64,6 +64,10 @@ from __future__ import annotations
 
 import fnmatch
 import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 BASH, POWERSHELL = "bash", "powershell"
 
@@ -247,6 +251,11 @@ class NoRepo:
     def stash_branches(self) -> list[str] | None:
         """The branch each stash entry was made on, `stash@{0}` first; None when unknown."""
         return None
+
+    def busy(self, checkout: str) -> bool:
+        """Another live Claude session works in checkout (a normalized worktree path)."""
+        return False
+
 # `$(git rev-parse --show-toplevel)`: the checkout that contains the working directory.
 TOPLEVEL_SUB_RE = re.compile(r"\$\(\s*git\s+rev-parse\s+--show-toplevel\s*\)", re.IGNORECASE)
 # One bash brace alternation (`a/{x,y}`), not a `${var}` expansion.
@@ -377,11 +386,15 @@ class Paths:
         self.name_re = re.compile(rf"(?:^|[/\\:\s'\"]){name}(?:[/\\\s'\"]|$)|{TOPLEVEL_TEXT}", re.IGNORECASE)
         # The session's own worktree (issue #51): the one its working directory is in. A session in the main checkout
         # (a manager's task session, whose shell starts there each call) owns the worktree its command first `cd`s
-        # into, or names with `git -C`. The main checkout is never owned.
+        # into, or names with `git -C`, unless another live session works there (busy). The main checkout is never
+        # owned.
         self.own = self.worktree_of(self.cwd)
         self.claim = self.own is None
+        self.busy: Callable[[str], bool] = lambda _: False
         # A checkout or switch in this command left the own task branch: later git commands act on another branch.
         self.off_branch = False
+        # A `git stash` in this command changed the stash: the entries read before it no longer match their indices.
+        self.stash_moved = False
 
     def child(self, shell: str | None = None) -> Paths:
         """The view of a nested shell (`bash -c`) or a `$(...)`: same directory and variables; its `cd` stays
@@ -389,8 +402,15 @@ class Paths:
         inner = Paths(self.root, "", self.home, shell or self.shell)
         inner.cwd, inner.vars, inner.tainted = self.cwd, dict(self.vars), dict(self.tainted)
         inner.project_vars, inner.cwd_text, inner.cwd_base = set(self.project_vars), self.cwd_text, self.cwd_base
-        inner.oldpwd, inner.own, inner.claim, inner.off_branch = self.oldpwd, self.own, self.claim, self.off_branch
+        inner.oldpwd, inner.own, inner.claim, inner.busy = self.oldpwd, self.own, self.claim, self.busy
+        inner.off_branch, inner.stash_moved = self.off_branch, self.stash_moved
         return inner
+
+    def adopt(self, inner: Paths) -> None:
+        """What a nested shell did to the repository and to the claim outlives it (its `cd` does not)."""
+        self.off_branch, self.stash_moved = inner.off_branch, inner.stash_moved
+        if self.claim and not inner.claim:
+            self.own, self.claim = inner.own, False
 
     def worktree_of(self, path: str | None) -> str | None:
         """The worktree `.claude/worktrees/<n>` of this project that holds a resolved path, or None."""
@@ -406,9 +426,10 @@ class Paths:
         return path.startswith(self.own + "/") or (root_too and path == self.own)
 
     def claim_worktree(self, path: str | None) -> None:
-        """A session outside every worktree owns the first worktree its command enters."""
+        """A session outside every worktree owns the first worktree its command enters, unless another live session
+        works there. Either way the claim is spent: a second worktree in the same command is never owned."""
         if self.claim and (worktree := self.worktree_of(path)):
-            self.own, self.claim = worktree, False
+            self.own, self.claim = (None if self.busy(worktree) else worktree), False
 
     def where(self, token: str, cwd: str | None = "") -> str:
         """Where a git repository or pathspec acts: OWN (the own worktree, its folder included), OUTSIDE_PROJECT, or
@@ -966,6 +987,14 @@ def _verb(word: str) -> str:
     return re.sub(r"\.(exe|cmd|bat|com)$", "", name)
 
 
+def _leading_assignments(words: list[str]) -> list[str]:
+    """The `VAR=value` words before a command (its environment for that one command)."""
+    count = 0
+    while count < len(words) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[count]):
+        count += 1
+    return words[:count] if count < len(words) else []
+
+
 def _command_words(words: list[str]) -> tuple[list[str], bool]:
     """Words from the real command on (leading VAR=value assignments and prefixes such as sudo, xargs or `then`
     removed), and whether xargs feeds it."""
@@ -1096,8 +1125,11 @@ class Analysis:
     def __init__(self, paths: Paths, repo: NoRepo | None = None) -> None:
         self.paths = paths
         self.repo = repo or NoRepo()
+        self.paths.busy = self.repo.busy
         self.findings: list[Finding] = []
         self.piped_first: dict[int, list[str]] = {}
+        # The `VAR=value` prefixes of the simple command being judged (`GIT_DIR=x git reset`).
+        self.prefix_env: dict[str, str] = {}
 
     def add(self, path: str, verb: str, cwd: str | None = "") -> None:
         area = self.paths.area(path, cwd)
@@ -1139,6 +1171,9 @@ class Analysis:
             if words:
                 rest = self.paths.assign(words)
                 words = words if rest is None else rest
+            self.prefix_env = {
+                m.group(1).lower(): m.group(2) for m in map(ASSIGN_RE.match, _leading_assignments(words)) if m
+            }
             words, via_xargs = _command_words(words)
             if words:
                 self.piped_first = piped_first  # set here: the `$(...)` analysed above had their own
@@ -1240,6 +1275,7 @@ class Analysis:
         if i >= len(args):
             return
         sub, rest = args[i].lower(), args[i + 1 :]
+        git_dir, work_tree = git_dir or self.git_env("git_dir"), work_tree or self.git_env("git_work_tree")
         place, base = self.git_repo(dirs, git_dir, work_tree)
         judge = GIT_JUDGES.get(sub)
         if judge and place != OUTSIDE_PROJECT:  # a scratch repository (a clone in the scratchpad) is free
@@ -1261,28 +1297,58 @@ class Analysis:
                 return self.paths.where(folder, base), None
             base = resolved
             self.paths.claim_worktree(resolved)
-        if work_tree:
-            return self.paths.where(work_tree, base), base
+        # The repository and the working tree are judged apart and the worse place wins: `--git-dir=<main>/.git
+        # --work-tree=.` from the own worktree moves main. Without --work-tree the working tree is the directory.
+        places = [self.paths.where(work_tree, base) if work_tree else self.paths.where(".", base)]
         if git_dir:
             path = self.paths.resolve(git_dir, base)
             if path is None:
-                return self.paths.where(git_dir, base), base
-            root = self.paths.root
-            admin = re.match(rf"^{re.escape(root)}/\.git/worktrees/([^/]+)$", path)
-            checkout = f"{root}/.claude/worktrees/{admin.group(1)}" if admin else path.removesuffix("/.git")
-            return self.paths.place(checkout), base
-        return self.paths.where(".", base), base
+                places.append(self.paths.where(git_dir, base))
+            else:
+                root = self.paths.root
+                admin = re.match(rf"^{re.escape(root)}/\.git/worktrees/([^/]+)$", path)
+                checkout = f"{root}/.claude/worktrees/{admin.group(1)}" if admin else path.removesuffix("/.git")
+                places.append(self.paths.place(checkout))
+        return next(p for p in (ELSEWHERE, OWN, OUTSIDE_PROJECT) if p in places or p == OUTSIDE_PROJECT), base
+
+    def git_env(self, name: str) -> str:
+        """GIT_DIR or GIT_WORK_TREE as the command sets it: a `VAR=value` prefix, or `export` / `$env:` earlier in
+        the command. A value the guard cannot compute counts as the main checkout's: the worst case."""
+        if name in self.prefix_env:
+            return self.prefix_env[name] or "."
+        if name in self.paths.vars:
+            value = self.paths.vars[name]
+            return value if value is not None else self.paths.root
+        return ""
 
     def git_finding(self, words: list[str], why: str) -> None:
         self.findings.append(Finding(" ".join(words)[:100], GIT, why))
 
-    def own_branch(self, name: str) -> bool:
-        """name is the task branch of the own worktree, or one of its helpers (`<task branch>-backup`)."""
-        current = self.repo.branch(self.paths.own) if self.paths.own else None
-        if not current:
+    def task_branch(self) -> str | None:
+        """The own worktree's task branch: the branch checked out there, when it is `<area>/<n>-<slug>` for the
+        worktree `.claude/worktrees/<n>` (start.py names both). Another branch checked out there (a parent, a spike)
+        is not the task's, whatever a checkout in an earlier call did."""
+        if not self.paths.own:
+            return None
+        current = self.repo.branch(self.paths.own)
+        return current.lower() if current and self.task_name(current) else None
+
+    def task_name(self, name: str) -> bool:
+        """name has the form of the own task's branches: `<area>/<n>-...` for the own worktree `<n>`."""
+        if not self.paths.own:
             return False
-        name, current = name.lower().removeprefix("refs/heads/"), current.lower()
-        return name == current or any(name.startswith(current + s) for s in HELPER_SEPARATORS)
+        number = re.escape(self.paths.own.rsplit("/", 1)[-1])
+        return bool(re.match(rf"^[^/]+/{number}-", name.lower().removeprefix("refs/heads/")))
+
+    def own_branch(self, name: str) -> bool:
+        """name is the task branch of the own worktree, one of its helpers (`<task branch>-backup`), or the task
+        branch a helper checked out there was made from."""
+        task = self.task_branch()
+        if not task or not self.task_name(name):
+            return False
+        name = name.lower().removeprefix("refs/heads/")
+        pairs = ((name, task), (task, name))
+        return name == task or any(a.startswith(b + s) for a, b in pairs for s in HELPER_SEPARATORS)
 
     def is_revision(self, word: str) -> bool:
         """A `git checkout` argument names a commit, not a path."""
@@ -1292,10 +1358,14 @@ class Analysis:
     def git_discards(self, shown: list[str], place: str, base: str | None, pathspecs: list[str] | None = None) -> None:
         """A command that discards work or rewrites history: silent in the own worktree on its task branch, and in a
         repository outside the project."""
+        current = self.repo.branch(self.paths.own) if place == OWN and self.paths.own else None
         if place == ELSEWHERE:
             self.git_finding(shown, "outside this session's own worktree")
         elif place == OWN and self.paths.off_branch:
             self.git_finding(shown, "after this command left the task branch")
+        elif current and not self.own_branch(current):
+            # A detached HEAD (no current branch) stays free: no branch moves.
+            self.git_finding(shown, f"on another branch ({current}) checked out in the own worktree")
         elif place == OWN and base is not None:
             for spec in pathspecs or []:
                 if not spec.startswith((":", "-")) and self.paths.where(spec, base) == ELSEWHERE:
@@ -1395,10 +1465,16 @@ class Analysis:
     def git_stash(self, rest: list[str], place: str, base: str | None) -> None:
         """`git stash drop` and `clear`. The stash is shared by every checkout of the repository, so they pass only
         for entries made on the task branch or a helper (a human's `start --stash` entry is never the agent's)."""
-        action = rest[0].lower() if rest else ""
+        action = rest[0].lower() if rest and not rest[0].startswith("-") else "push"
+        moved, shown = self.paths.stash_moved, ["git", "stash", *rest]
+        if action not in ("list", "show", "apply", "create"):
+            self.paths.stash_moved = True
         if action not in ("drop", "clear"):
             return
-        shown, entries = ["git", "stash", *rest], self.repo.stash_branches()
+        if moved:
+            self.git_finding(shown, "the stash changed earlier in this command, so its entries cannot be told apart")
+            return
+        entries = self.repo.stash_branches()
         if action == "clear":
             chosen = entries
         else:
@@ -1422,6 +1498,9 @@ class Analysis:
         if "--update-refs" in options:
             self.git_finding(shown, "--update-refs moves other branches")
             return
+        if {"-x", "--exec"} & options:
+            self.git_finding(shown, "--exec runs commands the guard cannot judge")
+            return
         positionals = _positionals(rest, REBASE_VALUED)
         if not REBASE_STEPS & options:
             named = positionals[:1] if "--root" in options else positionals[1:2]
@@ -1444,12 +1523,32 @@ class Analysis:
             self.git_other_branches(shown, names[:1], "moves")
 
     def git_worktree(self, rest: list[str], place: str, base: str | None) -> None:
-        """`git worktree remove|move` pass for the own worktree (and one outside the project) only."""
+        """`git worktree remove|move` pass for the own worktree's folder, and an absolute path outside the project,
+        only. git also takes the last parts of a worktree's path (`remove 47`, `worktrees/47`), so any other argument
+        may name another worktree and asks."""
         if not rest or rest[0].lower() not in ("remove", "move"):
             return
         for target in _positionals(rest[1:])[:1]:
-            if self.paths.where(target, base if base is not None else "") == ELSEWHERE:
-                self.git_finding(["git", "worktree", *rest], "another worktree or the main checkout")
+            path = self.paths.resolve(target, base if base is not None else "")
+            absolute = bool(ABSOLUTE_RE.match(target))
+            if path is not None and self.paths.own and path == self.paths.own:
+                continue
+            if path is not None and absolute and self.paths.place(path) == OUTSIDE_PROJECT:
+                continue
+            self.git_finding(["git", "worktree", *rest], "may name another worktree or the main checkout")
+
+    def git_update_ref(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git update-ref` deletes or moves a branch by its ref: judged like `git branch -D|-f`. `HEAD` moves the
+        checked-out branch, like `git reset --soft`."""
+        shown = ["git", "update-ref", *rest]
+        if "--stdin" in rest:
+            self.git_finding(shown, "--stdin changes refs the guard cannot see")
+            return
+        refs = _positionals(rest, {"-m"})[:1]
+        if refs and refs[0].lower().startswith("refs/heads/"):
+            self.git_other_branches(shown, refs, "moves or deletes")
+        elif refs and refs[0].upper() == "HEAD":
+            self.git_discards(shown, place, base)
 
     def targets(self, verb: str, args: list[str], depth: int) -> list[str]:
         """The paths a command writes, as far as its text shows."""
@@ -1493,6 +1592,7 @@ class Analysis:
                 inner = Analysis(self.paths.child(NESTED_SHELLS[verb]), self.repo)
                 inner.command(code, NESTED_SHELLS[verb], depth + 1)
                 self.findings += inner.findings
+                self.paths.adopt(inner.paths)
         return []
 
     @staticmethod
@@ -1523,6 +1623,7 @@ GIT_JUDGES = {
     "rebase": Analysis.git_rebase,
     "branch": Analysis.git_branch,
     "worktree": Analysis.git_worktree,
+    "update-ref": Analysis.git_update_ref,
 }
 
 

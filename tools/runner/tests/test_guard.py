@@ -353,15 +353,22 @@ TASK = "tooling/51-freedom"
 class FakeRepo(guard.NoRepo):
     """Branches of the main checkout and two worktrees, and the branches the stash entries were made on."""
 
-    def __init__(self, stash: list[str] | None = None) -> None:
+    def __init__(
+        self, stash: list[str] | None = None, own: str | None = TASK, busy: tuple[str, ...] = ()
+    ) -> None:
         self.stash = stash if stash is not None else [TASK]
+        self.own = own  # the branch checked out in worktree 51; None is a detached HEAD
+        self.busy_worktrees = busy
 
     def branch(self, checkout: str) -> str | None:
         return {
             "d:/prime-game": "main",
-            "d:/prime-game/.claude/worktrees/51": TASK,
+            "d:/prime-game/.claude/worktrees/51": self.own,
             "d:/prime-game/.claude/worktrees/47": "tooling/47-guard",
         }.get(checkout)
+
+    def busy(self, checkout: str) -> bool:
+        return checkout.rsplit("/", 1)[-1] in self.busy_worktrees
 
     def refs(self) -> set[str]:
         return {"main", "origin/main", TASK, "tooling/47-guard", "origin/tooling/47-guard", "feature-x"}
@@ -420,6 +427,8 @@ OWN_WORK = [
     (P, "Remove-Item -Recurse -Force core\\match"),
     (P, "rm -r tests\\integration\\tmp"),
     (P, "git stash drop; git branch -D tooling/51-freedom-backup"),
+    (B, f"git update-ref -d refs/heads/{TASK}-backup"),
+    (B, "git worktree remove --force D:/prime-game/.claude/worktrees/51"),
 ]
 
 # The same work reached the way a manager's task session does it: its shell starts in the main checkout, and each
@@ -484,6 +493,25 @@ BEYOND_OWN = [
     # A manager's task session that moved into its worktree, then reaches another checkout.
     (B, "cd D:/prime-game/.claude/worktrees/51 && git -C ../47 reset --hard"),
     (B, "cd D:/prime-game/.claude/worktrees/51 && cd D:/prime-game && git clean -fdx"),
+    # Found by the review of #51: git names a worktree by the last parts of its path.
+    (B, "git worktree remove 47"),
+    (B, "git worktree remove --force worktrees/47"),
+    (B, "git worktree move 47 /tmp/x"),
+    (B, "cd D:/prime-game/.claude/worktrees/51 && git worktree remove --force 47"),
+    # The repository and the working tree are judged apart; GIT_DIR and GIT_WORK_TREE count like the options.
+    (B, "git --git-dir=D:/prime-game/.git --work-tree=. reset --hard HEAD~3"),
+    (B, "GIT_DIR=D:/prime-game/.git git reset --hard HEAD~3"),
+    (B, "export GIT_DIR=D:/prime-game/.git; git reset --hard HEAD~3"),
+    (B, "GIT_WORK_TREE=D:/prime-game git checkout -- core"),
+    (B, 'GIT_DIR="$(cat f)" git reset --hard'),
+    (P, "$env:GIT_DIR = 'D:\\prime-game\\.git'; git reset --hard HEAD~3"),
+    # A checkout in a nested shell leaves the task branch for the rest of the command too.
+    (B, "bash -c 'git checkout main'; git reset --hard origin/main"),
+    (B, "git rebase -x 'rm -rf ../../core' origin/main"),
+    (B, "git rebase --exec=true origin/main"),
+    (B, "git update-ref -d refs/heads/tooling/47-guard"),
+    (B, "git update-ref refs/heads/main HEAD"),
+    (B, "git update-ref --stdin"),
 ]
 
 # (shell, command) in the main checkout (the designer, the engineer's `--here`, a manager): each asks.
@@ -525,6 +553,7 @@ ANYWHERE = [
     (B, 'C="$TEMP/clone"; cd "$C" && git switch -q tooling/6-skills && git branch -q -D scratch-base'),
     (B, "cd /tmp/lab && git stash clear && git rebase origin/main other && git switch -C x"),
     (P, "git -C $env:TEMP\\lab clean -fdx"),
+    (B, "git worktree remove --force /tmp/wt"),
 ]
 
 
@@ -563,6 +592,31 @@ class OwnWorktreeTest(unittest.TestCase):
         self.assertTrue(in_own(B, "git stash drop 1", repo=repo))
         self.assertTrue(in_own(B, "git stash clear", repo=repo))
         self.assertTrue(in_own(B, "git stash drop", repo=guard.NoRepo()))  # unknown entries are not its own
+
+    def test_another_branch_checked_out_in_the_own_worktree_is_not_the_task_branch(self) -> None:
+        # Found by the review of #51: `git checkout core/42-vote` in one call, then work that discards in the next.
+        repo = FakeRepo(own="core/42-vote")
+        for command in ("git reset --hard HEAD~1", "git rebase origin/main", "git branch -D core/42-vote-x"):
+            with self.subTest(command=command):
+                self.assertTrue(in_own(B, command, repo=repo), "expected the guard to ask")
+        self.assertTrue(in_own(B, "git clean -fdx", cwd=ROOT, repo=repo))
+        self.assertEqual(in_own(B, "git reset --hard", repo=FakeRepo(own=None)), [])  # a detached HEAD
+        spike = FakeRepo(own=f"{TASK}-spike")  # a helper checked out: back to the task branch passes
+        self.assertEqual(in_own(B, f"git switch -f {TASK} && git reset --hard origin/main", repo=spike), [])
+        self.assertTrue(in_own(B, "git branch -D tooling/51", repo=spike))
+
+    def test_the_stash_changed_earlier_in_the_command_asks(self) -> None:
+        repo = FakeRepo(stash=["main", TASK])
+        self.assertTrue(in_own(B, "git stash; git stash drop stash@{1}", repo=repo))
+        self.assertTrue(in_own(B, "git stash push -m x && git stash clear", repo=repo))
+        self.assertEqual(in_own(B, "git stash drop stash@{1}; git stash list", repo=repo), [])
+
+    def test_a_worktree_another_session_works_in_is_not_claimed(self) -> None:
+        repo = FakeRepo(busy=("12",))
+        self.assertTrue(in_own(B, "cd D:/prime-game/.claude/worktrees/12 && git reset --hard", cwd=ROOT, repo=repo))
+        self.assertTrue(in_own(B, "cd D:/prime-game/.claude/worktrees/12 && rm -rf core", cwd=ROOT, repo=repo))
+        own = "cd D:/prime-game/.claude/worktrees/51 && git reset --hard"
+        self.assertEqual(in_own(B, own, cwd=ROOT, repo=repo), [])
 
     def test_without_the_repository_no_branch_is_the_sessions_own(self) -> None:
         self.assertTrue(in_own(B, f"git branch -D {TASK}-backup", repo=guard.NoRepo()))
@@ -610,8 +664,8 @@ class GuardTest(unittest.TestCase):
         self.assertTrue(guard.check("rm -rf D:/prime-game/core", B, worktree, worktree))
         self.assertEqual(guard.check("rm -rf /tmp/x", B, worktree, worktree), [])
         self.assertEqual(guard.check("rm -r tests/scratch/x", B, worktree, worktree), [])
-        # Issue #51 (approved by the engineer on 2026-09-30): inside its own worktree the agent deletes freely.
-        # Until then these two asked.
+        # Issue #51: inside its own worktree the agent deletes freely (until then these asked). The flipped asserts
+        # await the engineer's approval in the PR.
         self.assertEqual(guard.check("rm -rf core", B, worktree, worktree), [])
         self.assertEqual(guard.check("rm -r tests/integration/tmp", B, worktree, worktree), [])
         top = '"$(git rev-parse --show-toplevel)'

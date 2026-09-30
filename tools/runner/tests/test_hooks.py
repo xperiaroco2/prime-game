@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from runner import guard, hooks
@@ -186,6 +187,21 @@ class GitFilesTest(unittest.TestCase):
             self.assertEqual(files.stash_branches(), ["core/7-x", "main"])
             self.assertTrue({"main", "core/7-x"} <= files.refs())
             self.assertIsNone(files.branch(guard.normalize(str(main / ".claude" / "worktrees" / "9"))))
+
+    def test_a_worktree_is_busy_while_another_live_session_works_there(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:
+            worktree = Path(tmp) / "game" / ".claude" / "worktrees" / "7"
+            worktree.mkdir(parents=True)
+            sessions = Path(tmp) / "config" / "sessions"
+            sessions.mkdir(parents=True)
+            files = hooks.GitFiles(str(worktree))
+            env = {"CLAUDE_CONFIG_DIR": str(sessions.parent), "CLAUDE_CODE_SESSION_ID": "me"}
+            with unittest.mock.patch.dict(os.environ, env):
+                self.assertFalse(files.busy(guard.normalize(str(worktree))))
+                record = {"pid": os.getpid(), "sessionId": "other", "cwd": str(worktree), "status": "busy"}
+                (sessions / "1.json").write_text(json.dumps(record), encoding="utf-8")
+                self.assertTrue(files.busy(guard.normalize(str(worktree))))
+                self.assertFalse(files.busy(guard.normalize(str(worktree.parent / "8"))))
 
 
 if __name__ == "__main__":
