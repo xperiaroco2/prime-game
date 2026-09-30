@@ -19,27 +19,38 @@ ENET_SECONDS = 90
 # About 16 s; three instances on 127.0.0.1 like the ENet run.
 FREEZE_RUN = "tests/integration/net/enet_freeze.gd"
 FREEZE_SECONDS = 60
+# ENet's timeouts on both sides, measured by stalling one side of a pair, and a backlog of more datagrams than one
+# ENet service reads, taken in one poll (#95). About 22 s; one process whose three hosts take the port and the next two.
+STALL_RUN = "tests/integration/net/enet_stall.gd"
+STALL_SECONDS = 60
+STALL_PORTS = 3
 # Below the ephemeral ranges of Windows (49152+) and Linux (32768+): an ENet client's own socket never takes it.
 ENET_PORTS = range(20000, 32000)
 PORT_TRIES = 50
 
 
-def free_udp_port(pick: Callable[[range], int] = random.choice) -> int:
+def free_udp_port(pick: Callable[[range], int] = random.choice, count: int = 1) -> int:
     """A random UDP port on 127.0.0.1 that nothing holds right now, so worktrees verifying at once rarely share one.
 
-    A port that fails to bind (in use, or in a range Windows reserves) is skipped. The probe socket closes before
-    Godot binds the port, so two worktrees can still pick the same one in that window (about 1 in 12,000); the host
-    then fails with "host on 127.0.0.1:<port> failed", and running `verify` again picks a new port.
+    With `count`, the port and the next `count - 1` are all free. A port that fails to bind (in use, or in a range
+    Windows reserves) is skipped. The probe socket closes before Godot binds the port, so two worktrees can still
+    pick the same one in that window (about 1 in 12,000); the host then fails with "host on 127.0.0.1:<port>
+    failed", and running `verify` again picks a new port.
     """
     for _ in range(PORT_TRIES):
-        port = pick(ENET_PORTS)
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-            try:
-                sock.bind(("127.0.0.1", port))
-            except OSError:
-                continue
-        return port
+        port = pick(range(ENET_PORTS.start, ENET_PORTS.stop - count + 1))
+        if all(_binds(each) for each in range(port, port + count)):
+            return port
     raise Failure(f"no free UDP port on 127.0.0.1 in {ENET_PORTS.start}-{ENET_PORTS.stop - 1} after {PORT_TRIES} tries")
+
+
+def _binds(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
 
 
 def enet() -> int:
@@ -50,6 +61,12 @@ def enet() -> int:
 def freeze() -> int:
     """`run <FREEZE_RUN> --headless --instances 3 --seconds 60 -- --port=<free>`: any failed instance fails it."""
     return _headless_on_free_port(FREEZE_RUN, FREEZE_SECONDS)
+
+
+def stall() -> int:
+    """`run <STALL_RUN> --headless --seconds 60 -- --port=<free>`: one process, whose hosts take three ports."""
+    port = free_udp_port(count=STALL_PORTS)
+    return launch.main(STALL_RUN, headless=True, seconds=STALL_SECONDS, instances=1, user_args=[f"--port={port}"])
 
 
 def _headless_on_free_port(target: str, seconds: int) -> int:
@@ -96,6 +113,7 @@ def main() -> int:
         ("test", lambda: gdunit.main(run_import=False)),
         ("enet", enet),
         ("freeze", freeze),
+        ("stall", stall),
         ("selftest", selftest),
     ]
     results: list[tuple[str, str, float]] = []

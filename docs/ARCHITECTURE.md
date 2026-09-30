@@ -293,18 +293,33 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
   acknowledges nothing, and the spike's 2 to 4 s dropped it. #21 found a common freeze: on Windows a windowed D3D12
   Godot process can freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts. Keep the
   minimum at 10 s or more; a servicing thread or an extra keepalive would not help (ENet already pings every
-  500 ms, and a thread would keep a hung game "connected").
-- Checked by `tests/unit/net/transport/` and two headless runs of three processes on 127.0.0.1, which `verify`, and
-  so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11):
+  500 ms, and a thread would keep a hung game "connected"). ENet resends with a doubling delay from the measured
+  round trip and, at a resend check, drops a peer once the oldest unacknowledged send is past the maximum, or
+  past the minimum after the command's 6th attempt (timeout limit 32), so a drop comes between 10 s and about
+  20 s (with ENet's default of 5 s: 5 to 10 s). Right after a connection, before a round trip is measured, it
+  starts from 500 ms (checks at 0.5, 1.5, 3.5, 7.5, 15.5 and 31.5 s) and, with EnetTransport's 10 to 20 s,
+  drops only after about 31.5 s (#95).
+- **The backlog in one poll:** ENet reads at most 256 datagrams per service and `ENetMultiplayerPeer.poll()`
+  services once, so after a freeze one service took only the oldest part of the backlog (on the Linux CI runner
+  the thawed host's newest pose was up to 3.1 s old, #95). `EnetTransport.poll` services until one reads fewer
+  (at most 16 times), so the LATEST merge sees the whole backlog.
+- Checked by `tests/unit/net/transport/` and three headless runs on 127.0.0.1, which `verify`, and so CI, runs on
+  a free port (`-- --port=<p>`; AGENT_WORKFLOW §11):
   - a host (with its own client) and two clients:
     `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`;
   - the freeze (#70): the host blocks its main thread for 5.2 s, then a client does; no drop, every reliable
     message in order, at most one LATEST message per peer per poll between that peer's reliable messages, and
     each thaw's backlog merged:
     `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (the port
-    is required). On one PC the thawed host's newest message from each of two clients was about 1 s old and the
-    freeze's last second of unreliable packets never arrived, probably because its socket buffer filled; the
-    thawed client's, from one sender, was 2 to 40 ms old.
+    is required). Before #95 the thawed host's newest message was about 1 s old on one PC and up to 3.1 s on the
+    CI runner: the rest of the backlog came a poll later (above), not lost;
+  - the stall (#95), one process with three hosts and a client each (`<p>` to `<p> + 2`): a side that is not
+    polled is frozen to the other. Each side must have EnetTransport's timeouts on its peer when it reports the
+    connection (`applied_timeouts`: the proof that both sides set them from the start), the running side must
+    drop a stalled one after 10 to 20 s (the client's timeout on its host, and the host's on its client), and a
+    backlog of 320 datagrams arrives in one poll. A host stalled at the moment of connection is also kept past
+    10 s, which guards only against a too-low maximum: ENet waits about 31.5 s there with any timeout:
+    `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`.
 
 *Designed for M3 (#89; accepted 2026-10-01):* the schemas of every intent, event, the snapshot and the voice frame, and their
 rows in `NetKindTable.game()` (§4.3); the codec (§4.4); rate limits and what the host does with a peer that keeps

@@ -17,10 +17,10 @@ extends SceneTree
 ##   lane's rule, NetTransport: a reliable message separates the runs it merges). In the first poll
 ##   after a freeze the backlog arrives, and each run of a peer's poses is merged into its newest:
 ##   at least one pose is merged away, and the one applied is not the backlog's 5 s old head.
-## On one PC (Windows 11) the thawed host's newest pose from each client was about 1 s old, and the
-## poses of the freeze's last second never arrived, probably because the host's socket buffer
-## filled with two senders; the thawed client's, from one sender, was 2 ms old. Reliable messages
-## are sent again, so they all arrive.
+## Until #95 one poll read at most 256 datagrams (one ENet service), so the thawed host's newest
+## pose from each client was about 1 s old on one PC (Windows 11) and up to 3.1 s on the Linux CI
+## runner, where it failed the check; the rest came a poll later. EnetTransport now drains the
+## socket in one poll.
 
 const ADDRESS := "127.0.0.1"
 const PORT_ARG := "--port="

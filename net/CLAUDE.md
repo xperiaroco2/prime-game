@@ -31,6 +31,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   but not delivered). Signals fire from `poll()` only.
 - ENet timeouts are set in `EnetTransport` and nowhere else. The peer timeout stays at 10 s or more: a windowed
   D3D12 process can freeze 5 s (#21).
+- `EnetTransport.poll` services ENet until the socket is drained: one service reads at most 256 datagrams, and a
+  freeze's backlog is bigger (#95). Never go back to a single `ENetMultiplayerPeer.poll()` per poll.
 - Peer ids are chosen by clients: never treat one as secret or as unique over time (§4).
 - Messages carry only what their schema declares. Never serialize a whole `core/` object or state snapshot:
   filtering happens in `server/`, and a generic serializer would bypass it.
@@ -67,6 +69,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   above `net/` test with a `LoopbackHub`; ENet itself with the headless run
   `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3` (127.0.0.1 only),
   and the 5.2 s freeze of the host and of a client,
-  `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (#70). `verify`
-  and CI run both on a free port.
+  `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (#70), and the
+  timeouts and the backlog in one process (#95),
+  `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`. `verify` and CI run all three on
+  a free port.
 - At finish, `netcode-security-reviewer` reviews every `net/` change.
