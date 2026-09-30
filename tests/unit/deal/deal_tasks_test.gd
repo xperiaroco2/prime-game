@@ -38,7 +38,7 @@ func test_tasks_assigned_reaches_only_its_owner_and_matches_the_state() -> void:
 			var task := game.state.tasks[entry["task"] as int]
 			assert_int(task.owner).is_equal(peer)
 			var state := task.state as FixtureDealtTaskType.FixtureDealtState
-			assert_array(entry["targets"] as Array).is_equal([{"item": state.targets[0]}])
+			assert_array(entry["subtasks"] as Array).is_equal([{"item": state.targets[0]}])
 
 
 func test_nobody_receives_another_players_tasks() -> void:

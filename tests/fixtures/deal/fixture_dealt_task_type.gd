@@ -68,7 +68,8 @@ func deal(ctx: MatchContext, per_player: int) -> void:
 			var target := tokens[binding[next]].id
 			next += 1
 			(task.state as FixtureDealtState).targets.append(target)
-			tasks.append({"task": task.id, "type": id, "targets": [{"item": target}]})
+			var subtasks: Array[Dictionary] = [{"item": target}]
+			tasks.append(TasksAssignedEvent.task_entry(task.id, id, subtasks))
 		assigned[peer] = tasks
 	for placed: StationState in stations:
 		ctx.emit(StationPlacedEvent.new(placed.id, station.id, placed.colour, placed.position))
