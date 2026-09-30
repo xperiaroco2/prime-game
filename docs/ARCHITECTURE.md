@@ -735,15 +735,26 @@ reading back). The log holds the seed: it stays on the host's disk and is never 
   - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
     lacks is a leak (a subset check, because LATEST may drop);
   - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check);
-  - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience: every event for one
-    peer that b decoded (`Welcome`, `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`) names b as its
+  - peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
+    `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
+    `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
+    deadline (a `HostSession` setting) for the lurker, so it stays connected through the lobby's and the countdown's
+    events, snapshots and voice until the entry into Loading disconnects it (E14). Prevents: a `server/` refactor that
+    sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s recipients, which the
+    entitlement ADR rejected because it reaches peers that are not players, passing a test in which every bot is a
+    player within one tick;
+  - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience. Some events carry no
+    peer in their `to_dict()` (`RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), so the invariants
+    read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
+    decoded: every event for one peer that b decoded (`Welcome`, `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`) names b as its
     subject; a crew bot decodes no `Teammates`; a dissident's `Teammates` names that match's dissidents only; an alive
     bot never decodes a ghost's avatar or voice frame; the bots present for a whole round decode the same task events;
-    no decoded message has a field that names a seed. `keep_history` costs memory (§5), so scenarios stay short, or
+    no decoded message has a field that names a seed; a peer that is not a player decodes only `Rejected`. `keep_history` costs memory (§5), so scenarios stay short, or
     3h compares per tick over a window and drops what it compared.
-  - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone)
-    and one that only the invariants catch (`Teammates` declared *everyone* in `core/`), see the test fail on each,
-    revert, and record both in the PR.
+  - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
+    one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
+    catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
+    fail on each, revert, and record all three in the PR.
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they run
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
@@ -753,8 +764,9 @@ reading back). The log holds the seed: it stays on the host's disk and is never 
 ## 5. Per-peer information filtering
 
 - Each outgoing message is built for one recipient from what that peer is entitled to know.
-- The information-leak test (bot harness, M3) asserts that no client ever receives anything it is not entitled to.
-  It is the most important test in the project. Once it exists, prove it: inject a leak, see it fail, revert.
+- The information-leak test (bot harness, M3) asserts that no client ever receives anything it is not entitled to,
+  connected peers that are not players included: they receive only a `Rejected` (§4.6's lurker). It is the most
+  important test in the project. Once it exists, prove it: inject a leak, see it fail, revert.
 - `tools\run.cmd bots` (M3) starts a headless host and N headless bot clients that play a full scripted match, then
   asserts: the match ends, the winner is correct, no errors are logged, and no client received information it was
   not entitled to. It joins `verify` and CI. `host` and `join` launch a local host and clients for the humans'
