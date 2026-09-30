@@ -2,8 +2,9 @@ class_name RemotePlayerBody
 extends AnimatableBody3D
 ## Another living player as the local client sees it: a kinematic capsule on the living layer.
 ## Only its owner's data moves it (interpolation comes in 4b; a dev room places it by hand). The
-## local player collides with it and resolves its own overlap, and never moves it (§7.1). The
-## origin is at the feet, like the local player's.
+## local player never collides with it like a wall and never moves it: it pushes into it, and is
+## pushed out of it when it comes into the local player (§7.1 "Pushing apart"). The origin is at
+## the feet, like the local player's.
 
 @export var tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
 @export var color: Color = Color(0.25, 0.45, 0.85)

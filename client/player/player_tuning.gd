@@ -12,8 +12,10 @@ extends Resource
 @export var sprint_speed: float = 0.0
 ## Metres a jump lifts the feet above the floor it started from, at most.
 @export var jump_height: float = 0.0
-## Metres per second a ghost flies, in any direction.
-@export var ghost_speed: float = 0.0
+## A ghost walks and sprints at the living's `walk_speed` and `sprint_speed` times this factor;
+## it moves like the living otherwise and jumps as high (the engineer's correction and decision
+## of 2026-09-30, #46; the value is in `player_tuning.tres`, the base speeds stay placeholders).
+@export var ghost_speed_factor: float = 0.0
 ## The tallest ledge a player walks up without a jump, in metres.
 @export var step_height: float = 0.0
 
@@ -23,6 +25,18 @@ extends Resource
 @export var capsule_height: float = 0.0
 ## Height of the eyes above the feet: the camera, and later the start of a hit's line of sight.
 @export var eye_height: float = 0.0
+
+@export_group("Pushing")
+## Walking into another living player pushes them: the part of the pusher's motion into them
+## slows to this factor, and they are pushed at that reduced speed (the engineer's decision of
+## 2026-09-30, #46; the value is a placeholder).
+@export var push_speed_factor: float = 0.0
+## A pusher also drifts to its own right at this fraction of its push speed, so two players
+## pushing each other exactly head-on slide apart instead of freezing.
+@export var push_side_bias: float = 0.0
+## How deep, in metres, a pusher may sink into a player who does not give way (head-on, or a
+## client whose motion arrives late) before it stops advancing into them.
+@export var push_max_overlap: float = 0.0
 
 @export_group("Stamina")
 @export var max_stamina: float = 0.0

@@ -282,7 +282,7 @@ is entitled to (§5).
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only) | that it changes the player's state |
 | `ChangeSettings(settings)` | the host (peer 1) only; Lobby only | each value within its bounds; whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id: an ack from an earlier match is dropped |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch (else dropped as stale); speed for the life state and stamina; jumps; no teleport; the client tick rising at a bounded rate (§7, §7.1) |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving (2d), jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch (else dropped as stale); speed for the life state and stamina; jumps; no teleport; the client tick rising at a bounded rate (§7, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not held, not delivered); pick-up reach from the host's position of the player; line of sight; a full hand swaps (§7.1) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the held item's kind, the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
@@ -446,11 +446,16 @@ The local player's controller (#46, `client/player/`):
 - `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its numbers (speeds, jump height, capsule,
   eye and step height, stamina) live in one resource, `client/player/player_tuning.tres` (`PlayerTuning`), whose
   script defaults are 0 so no number is repeated in code. `core/` (stage 2d) and later content take them over.
-- Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step.
+- Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step;
+  a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
   `LocalStamina` is a stand-in for `core/`'s stamina and the only copy of the rule on the client.
+- A ghost (`ghost = true`) takes the living's path: the same capsule, gravity, floor, steps, slopes and jump, at the
+  living's walk and sprint speeds times `ghost_speed_factor`. `StaminaSource` never refuses a ghost and records
+  nothing for it. There is no flight (the engineer's correction of 2026-09-30, #46).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
-  2 `living_players`, 3 `ghosts`. The living collide with the world and the living; a ghost only with the world.
-  Other living players are `RemotePlayerBody` kinematic capsules that only their owner's data moves.
+  2 `living_players`, 3 `ghosts`. The living and ghosts collide with the world only; a living player finds the
+  other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other living players
+  are `RemotePlayerBody` kinematic capsules that only their owner's data moves.
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
   height and glides over the edge until it snaps onto the top. What blocks it must be a ledge: a walkable blocker (a
   ramp, a low edge under the rounded bottom) is left to `move_and_slide`, and a ledge whose top is steeper than
@@ -475,28 +480,58 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 - **Positions.** `core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
   range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
   claiming to stand next to what it wants to grab.
-- **Stamina** belongs to `core/`. The client predicts its own from the published numbers to draw the HUD and gate
-  Shift, and follows `SelfStatus`. `core/` keeps a ledger per player: the host tick up to which stamina is settled.
-  A claim settles the ticks it covers (its client-tick delta, never past the current host tick): a covered tick in
-  the sprint state in which the player moved horizontally costs 1/20 of the per-second cost, and every other covered
-  tick regenerates. Before a jump or a hit is checked, the ticks not yet settled are settled with the last claim's
-  sprint state, so an idle player is not refused on stale stamina; a later claim settles only what is left. The sprint state (Q7) starts when the claim holds the sprint flag and
-  stamina is at least the start threshold, and lasts while the flag is held and stamina is above 0. An accepted jump
-  or hit costs its amount at once. The allowed horizontal speed is the sprint speed in the sprint state, else the
-  walk speed, measured over the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents:
-  a client that never spends stamina, or spaces its claims out to regenerate between them, sprinting forever.
+- **Stamina** belongs to `core/` (ghosts are exempt, see Ghosts below). The client predicts its own from the published
+  numbers to draw the HUD and gate Shift, and follows `SelfStatus`. `core/` keeps a ledger per player: the host tick up
+  to which stamina is settled. A claim settles the ticks it covers (its client-tick delta, never past the current host
+  tick): a covered tick in the sprint state in which the player gave movement input and moved horizontally costs 1/20 of
+  the per-second cost, and every other covered tick regenerates. Only the player's own movement counts (the engineer's
+  decision of 2026-09-30, #46): a pushed player holding sprint without movement input pays nothing for the push.
+  `PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina (#60, stage 2d)
+  counts the same way, so the claim says whether movement input was held (stage 2d adds it to `MoveClaim`). Before a
+  jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint state and movement-input
+  flag, so an idle player is not refused on stale stamina; a later claim settles only what is left. The sprint state
+  (Q7) starts when the claim holds the sprint flag and stamina is at least the start threshold, and lasts while the flag
+  is held and stamina is above 0. An accepted jump or hit costs its amount at once. The allowed horizontal speed is the
+  sprint speed in the sprint state, else the walk speed, plus the push allowance (Pushing apart below), measured over
+  the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents: a client that never spends
+  stamina, or spaces its claims out to regenerate between them, sprinting forever.
 - **Jumps** are accepted only when the host has the player on the floor (the last claim, and the floor found by
-  `WorldQuery` within step height) and stamina covers the cost. Until the next landing the height above the floor is
-  bounded by the jump height; a rise without an accepted jump beyond step height is corrected. Prevents: free or
-  endless jumps, and flying.
-- **Pushing apart.** Each client moves only its own player and collides it with the other living players' capsules
-  at their interpolated positions: pushing apart is each client resolving its own overlap. The host tolerates overlap
-  and never corrects it. Prevents: two clients that see each other 100 ms late snapping each other back and forth.
-  Accepted: a modified client can walk through players. Ghosts are outside this by construction: a living client
-  never receives a ghost's position, so it cannot bump into one.
-- **Ghosts** fly without gravity, faster than the living (the host bounds their 3D speed and teleports only), and
-  collide with the level's walls client-side, not with the living or with other ghosts. `PickUp`, `PutDown` and `Use`
-  from a ghost are rejected.
+  `WorldQuery` within step height) and stamina covers the cost (a ghost's jump needs none). Until the next landing
+  the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
+  corrected. Prevents: free or endless jumps, and flying.
+- **Pushing apart** (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions"). Living
+  players never pass through each other, but a body cannot block a passage. Each client moves only its own player
+  against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
+  corrects it. `PlayerController` does not collide with players: each physics step a contact search on the living
+  layer finds the capsules it touches, and for each one:
+  - Walking into it pushes: the part of the motion into it slows to `push_speed_factor`, and the pusher drifts to its
+    own right at `push_side_bias` of that speed, so a perfectly straight contact slides off instead of freezing. The
+    pusher stops advancing once it is `push_max_overlap` deep in the other capsule (numbers in `PlayerTuning`).
+  - Any other overlap is left at once (at most at sprint speed). That is how the pushed player's client moves its
+    player: from the pusher's interpolated motion, at the pusher's reduced speed.
+  - Head-on both push, and neither goes deeper than the overlap limit, so neither advances; the round capsules and
+    the drift slide them apart. Each drifts to its own right, so they pass each other on opposite sides.
+  - A ghost runs no search, and its layer is not searched: ghosts push nobody and nobody pushes them.
+
+  Speed: a pushed player moves faster than its own walk or sprint without cheating (walking sideways at 4.5 m/s
+  while a sprinter pushes it at 3.5 m/s is about 5.7 m/s, and two pushers add up). `PlayerController._push_apart`
+  caps the push-out at `sprint_speed`, so the host's speed bound for a living player is its state's speed plus
+  `sprint_speed` (proposed for M4, not decided; a test pins the cap). Ghosts get no allowance: they are never pushed.
+
+  Prevents: two clients that see each other late snapping each other back and forth, and a player blocking a doorway.
+  Accepted: a modified client can walk through players. Latency: the pusher sees the pushed player's capsule a round
+  trip late (its own motion reaches the other client, which moves, and that motion comes back: about 0.2 s with
+  100 ms interpolation on each side). Over a network the overlap limit, not the push speed factor, sets how fast a
+  straight push goes: at most `push_max_overlap` per round trip, 1 m/s at 0.2 s instead of 2.25 m/s. The
+  two-client tests (`player_controller_push_test.gd`) run with that delay. *Open (M4):* the playtest over a network
+  decides whether that is enough; the options are a larger limit (deeper visible overlap) or drawing the pushed
+  capsule moved ahead on the pusher's client (display only).
+- **Ghosts** move like the living and get the same movement checks (floor, jumps, step height), with the walk and
+  sprint speeds times the ghost speed factor (1.3), and stamina never limits them: a ghost's claims neither need nor
+  spend it. They collide with the level client-side, not with the living or with other ghosts. `PickUp`, `PutDown`
+  and `Use` from a ghost are rejected. The engineer corrected this on 2026-09-30 (#46): ghosts do not fly, so the
+  host no longer bounds a 3D flight speed. A side effect, not decided yet: with the same jump and 30% more speed, a
+  ghost jumps 30% farther; the recommendation is to accept it and keep gaps only a ghost could cross out of the map.
 - **Walls.** The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
   walls for hits, pick-ups and placement, because there an honest client would otherwise stab or grab through a thin
   wall.
@@ -793,9 +828,12 @@ Settings:
   the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to
-  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts 8 m/s (0.5 to 30); capsule radius 0.4 m (0.1 to
-  1) × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to 1). Health and stamina are whole
-  points here, thousandths inside `core/` (§3.3).
+  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts walk and sprint at those speeds × 1.3 (the
+  engineer's decision of 2026-09-30; the bounds 1 to 3 are proposed, not confirmed); capsule radius 0.4 m (0.1 to 1)
+  × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to 1). Health and stamina are whole points
+  here, thousandths inside `core/` (§3.3). Pushing (§7.1) is not in `PlayerRules`: `push_speed_factor`,
+  `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
+  placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Crew"), `dissidents` ("Dissidents"). Roles: Crew, Dissident. Item kinds: Package, Knife.
 - Actions: PickUp, PutDown. Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
   alive, time up.
@@ -997,8 +1035,7 @@ told. One format runs in two runners.
 | `ReturnToLobby` | (the host's bot) sends `ReturnToLobby` | `PhaseChanged` to the lobby arrives |
 | `WaitFor(event, fields)` | waits | it receives a matching event |
 | `Wait(seconds)` | waits | the time has passed |
-| `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed, straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
-| `FlyTo(target, stop_m)` | as a ghost, sends honest flight claims straight towards the target, in 3D | it is within `stop_m` (0.5) of the target |
+| `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (a ghost's speed as a ghost; ghosts do not fly since the engineer's correction of 2026-09-30), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
 | `PickUp(target)` | faces the item and sends `PickUp` | its `ItemPickedUp` arrives |
 | `PutDown(towards)` | faces the target and sends `PutDown` | its `ItemPlaced` arrives |
 | `Use(towards, until)` | faces the target and sends `Use` | the event `until` names arrives for this bot (default `Swung`, the knife's; an item whose `Use` emits something else names that) |

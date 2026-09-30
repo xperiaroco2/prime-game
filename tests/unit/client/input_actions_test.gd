@@ -9,7 +9,6 @@ const ACTIONS: Array[StringName] = [
 	&"move_right",
 	&"sprint",
 	&"jump",
-	&"fly_down",
 	&"interact",
 	&"put_down",
 	&"use",
@@ -24,3 +23,17 @@ func test_every_action_exists_with_a_binding() -> void:
 			. is_true()
 		)
 		assert_array(InputMap.action_get_events(action)).is_not_empty()
+
+
+func test_put_down_is_q() -> void:
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"put_down"):
+		var key := event as InputEventKey
+		if key != null:
+			keys.append(key.physical_keycode)
+	assert_array(keys).contains([KEY_Q])
+
+
+func test_ghosts_have_no_fly_down_action() -> void:
+	# Ghosts do not fly (the engineer's correction of 2026-09-30, #46).
+	assert_bool(InputMap.has_action(&"fly_down")).is_false()

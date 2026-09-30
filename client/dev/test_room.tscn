@@ -72,6 +72,20 @@ size = Vector3(2, 0.6, 2.5)
 [sub_resource type="BoxShape3D" id="Shape_HighLedge"]
 size = Vector3(2, 0.6, 2.5)
 
+[sub_resource type="BoxMesh" id="Mesh_DoorWallLeft"]
+material = SubResource("Material_wall")
+size = Vector3(3.45, 3, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_DoorWallLeft"]
+size = Vector3(3.45, 3, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_DoorWallRight"]
+material = SubResource("Material_wall")
+size = Vector3(1.95, 3, 0.3)
+
+[sub_resource type="BoxShape3D" id="Shape_DoorWallRight"]
+size = Vector3(1.95, 3, 0.3)
+
 [node name="TestRoom" type="Node3D" unique_id=161776867]
 script = ExtResource("1_room")
 
@@ -144,6 +158,24 @@ mesh = SubResource("Mesh_HighLedge")
 
 [node name="Shape" type="CollisionShape3D" parent="HighLedge" unique_id=2026377275]
 shape = SubResource("Shape_HighLedge")
+
+[node name="DoorWallLeft" type="StaticBody3D" parent="." unique_id=1482203711]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.275, 1.5, -5.5)
+
+[node name="Mesh" type="MeshInstance3D" parent="DoorWallLeft" unique_id=1734405362]
+mesh = SubResource("Mesh_DoorWallLeft")
+
+[node name="Shape" type="CollisionShape3D" parent="DoorWallLeft" unique_id=402915873]
+shape = SubResource("Shape_DoorWallLeft")
+
+[node name="DoorWallRight" type="StaticBody3D" parent="." unique_id=1297703160]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.475, 1.5, -5.5)
+
+[node name="Mesh" type="MeshInstance3D" parent="DoorWallRight" unique_id=889064071]
+mesh = SubResource("Mesh_DoorWallRight")
+
+[node name="Shape" type="CollisionShape3D" parent="DoorWallRight" unique_id=1629733558]
+shape = SubResource("Shape_DoorWallRight")
 
 [node name="DummyBlue" parent="." unique_id=953610924 instance=ExtResource("3_remote")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 0, -2.5)
