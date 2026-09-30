@@ -5,8 +5,9 @@ or from `origin/<parent>` with `--base <parent>` for a task stacked on an open P
 in the git config keys `branch.<task>.primeBase` and `primeBaseTip`, where `publish` finds them before the PR exists.
 It assigns the issue to the caller if nobody has it, and moves it to "In progress" on the board. It never discards
 work: uncommitted changes stop it unless the caller says `--include` (carry them onto the task branch) or `--stash`.
-It makes a worktree `.claude/worktrees/<n>` instead only for the engineer, and only when another Claude session is
-active on this checkout (docs/decisions/2026-09-28-worktrees-only-for-parallel-sessions.md). `worktree-done <n>`
+For the engineer it makes a worktree `.claude/worktrees/<n>` instead, unless `--here` (or `--stash` / `--include`)
+keeps the task in this checkout; the designer never gets one
+(docs/decisions/2026-09-28-worktrees-only-for-parallel-sessions.md). `worktree-done <n>`
 removes such a worktree once its branch is merged, or with `--pushed` once origin has the branch (a spike that is never
 merged), and finishes a removal that Windows left half done.
 """
@@ -139,7 +140,10 @@ def main(
         raise Failure("worktrees are for the engineer only (docs/AGENT_WORKFLOW.md §4.1)")
     if worktree and current == branch:
         raise Failure(f"{branch} is checked out here, so it cannot also have a worktree; work here, or switch away first")
-    use_worktree = worktree or (engineer and bool(others) and not here and current != branch)
+    # The engineer gets a worktree for every task (issue #51): the agent works freely there, and the main checkout,
+    # where the Godot editor and the humans' files live, stays protected. `--here`, `--stash` and `--include`
+    # (which act on this checkout's changes) keep it here, and so does a branch already checked out here.
+    use_worktree = worktree or (engineer and not (here or stash or include) and current != branch)
     if others and not use_worktree and not here and current != branch:
         raise Failure(
             "another Claude session is working on this checkout (above). Switching the branch here would put that "

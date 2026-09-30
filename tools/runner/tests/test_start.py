@@ -104,7 +104,7 @@ class StartTest(unittest.TestCase):
         self.others = [sessions.Session(1, "other", str(self.work), "busy", time.time(), "task 41")]
 
     def test_creates_the_branch_from_origin_main_assigns_and_moves(self) -> None:
-        self.assertEqual(start.main(42), 0)
+        self.assertEqual(start.main(42, here=True), 0)
         self.assertEqual(self.branch(), "core/42-vote-tally")
         self.assertEqual(git(self.work, "rev-parse", "HEAD"), git(self.work, "rev-parse", "origin/main"))
         # No upstream yet: the first publish sets origin/core/42-vote-tally, never origin/main.
@@ -116,7 +116,7 @@ class StartTest(unittest.TestCase):
         self.write("f.txt", "edited\n")
         self.write("new.txt", "untracked\n")
         with self.assertRaises(Failure) as caught:
-            start.main(42)
+            start.main(42, here=True)
         self.assertIn("--include", str(caught.exception))
         self.assertIn("--stash", str(caught.exception))
         self.assertEqual(self.branch(), "main")
@@ -147,7 +147,7 @@ class StartTest(unittest.TestCase):
         git(self.work, "switch", "-q", "main")
         git(self.work, "branch", "-q", "-D", "core/42-first-name")
         self.issue["title"] = "Renamed later"
-        self.assertEqual(start.main(42), 0)
+        self.assertEqual(start.main(42, here=True), 0)
         self.assertEqual(self.branch(), "core/42-first-name")
         self.assertTrue((self.work / "g.txt").is_file())
 
@@ -406,6 +406,29 @@ class StartTest(unittest.TestCase):
         self.assertEqual(git(self.work, "stash", "list"), "")
         self.assertEqual(self.branch(), "main")
 
+    def test_the_engineer_gets_a_worktree_by_default(self) -> None:
+        # Issue #51: every engineer task gets its own worktree, where the agent works without prompts, and the
+        # main checkout (the Godot editor, the humans' files) is left alone even with no other session active.
+        self.write("f.txt", "the human's edit\n")
+        self.assertEqual(start.main(42), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.assertEqual(self.branch(), "main")
+        self.assertEqual((self.work / "f.txt").read_text(encoding="utf-8"), "the human's edit\n")
+        self.assertEqual(self.branch(tree), "core/42-vote-tally")
+        self.moves.assert_called_once_with(42, "in-progress")
+
+    def test_include_keeps_the_engineer_here(self) -> None:
+        self.write("f.txt", "edited\n")
+        self.assertEqual(start.main(42, include=True), 0)  # the changes belong to this task, in this checkout
+        self.assertEqual(self.branch(), "core/42-vote-tally")
+        self.assertFalse((self.work / ".claude" / "worktrees").exists())
+
+    def test_the_designer_still_works_in_the_main_checkout(self) -> None:
+        self.login = "designer"
+        self.assertEqual(start.main(42), 0)
+        self.assertEqual(self.branch(), "core/42-vote-tally")
+        self.assertFalse((self.work / ".claude" / "worktrees").exists())
+
     def test_the_designer_never_gets_a_worktree_nor_switches_under_a_session(self) -> None:
         self.login = "designer"
         self.other_session()
@@ -420,7 +443,7 @@ class StartTest(unittest.TestCase):
         self.assertFalse((self.work / ".claude" / "worktrees").exists())
 
     def test_no_worktree_for_the_branch_checked_out_here(self) -> None:
-        self.assertEqual(start.main(42), 0)
+        self.assertEqual(start.main(42, here=True), 0)
         with self.assertRaises(Failure) as caught:
             start.main(42, worktree=True)
         self.assertIn("checked out here", str(caught.exception))
@@ -450,7 +473,7 @@ class StartTest(unittest.TestCase):
 
     def test_base_branches_from_the_parent_and_records_it(self) -> None:
         tip = self.push_parent()
-        self.assertEqual(start.main(42, base="core/41-parent"), 0)
+        self.assertEqual(start.main(42, base="core/41-parent", here=True), 0)
         self.assertEqual(self.branch(), "core/42-vote-tally")
         self.assertEqual(git(self.work, "rev-parse", "HEAD"), tip)
         self.assertEqual(self.recorded(), "core/41-parent")
@@ -481,7 +504,7 @@ class StartTest(unittest.TestCase):
         self.push_parent()
         said = mock.MagicMock()
         with mock.patch.object(start, "say", said):
-            self.assertEqual(start.main(42, base="core/41-parent", dry_run=True), 0)
+            self.assertEqual(start.main(42, base="core/41-parent", dry_run=True, here=True), 0)
         lines = " ".join(str(c.args[0]) for c in said.call_args_list if c.args)
         self.assertIn("would create core/42-vote-tally from origin/core/41-parent", lines)
         self.assertIn("would record core/41-parent", lines)
@@ -491,9 +514,9 @@ class StartTest(unittest.TestCase):
 
     def test_base_is_ignored_when_resuming_and_says_so(self) -> None:
         self.push_parent()
-        self.assertEqual(start.main(42), 0)  # created from main earlier
+        self.assertEqual(start.main(42, here=True), 0)  # created from main earlier
         git(self.work, "switch", "-q", "main")
-        self.assertEqual(start.main(42, base="core/41-parent"), 0)
+        self.assertEqual(start.main(42, base="core/41-parent", here=True), 0)
         self.assertEqual(self.branch(), "core/42-vote-tally")
         self.assertEqual(git(self.work, "rev-parse", "HEAD"), git(self.work, "rev-parse", "origin/main"))
         self.assertEqual(self.recorded(), "")

@@ -52,8 +52,8 @@ def build_parser() -> argparse.ArgumentParser:
     dirty.add_argument("--include", action="store_true", help="carry uncommitted changes onto the task branch")
     dirty.add_argument("--stash", action="store_true", help="stash uncommitted changes first (never discarded)")
     where = p.add_mutually_exclusive_group()
-    where.add_argument("--worktree", action="store_true", help="use .claude/worktrees/<n> (engineer only)")
-    where.add_argument("--here", action="store_true", help="never a worktree, even with another session active")
+    where.add_argument("--worktree", action="store_true", help="use .claude/worktrees/<n>: the engineer's default")
+    where.add_argument("--here", action="store_true", help="work in this checkout, not a worktree (the exception for the engineer)")
     p.add_argument("--dry-run", action="store_true", help="say what would happen; only a git fetch runs")
 
     p = sub.add_parser("worktree-done", help="remove .claude/worktrees/<n> after its branch was merged")

@@ -40,9 +40,12 @@ Commands below use the PowerShell form `tools\run.cmd`; in Git Bash use `tools/r
      and `git stash pop` to get them).
    - "no area label": ask which area it is and run `start` again with `--area <x>`; add the label to the issue only
      if the human wants it.
-   - Output line `WORKTREE <path>`: another Claude session is working on this checkout. Enter it with the
-     EnterWorktree tool (`path`). If that tool is not available, tell the human to open a new session in that
-     folder, and stop here.
+   - Output line `WORKTREE <path>`: the engineer's task has its own worktree (the default; `--here` keeps a task in
+     this checkout only when the human asks). There git and deletes need no prompt, and the main checkout stays
+     untouched. Enter it with the EnterWorktree tool (`path`). If that tool is not available, work there with
+     `cd <path> && ...` (Git Bash) or `Set-Location <path>; ...` (PowerShell) at the start of every shell command,
+     or tell the human to open a new session in that folder
+     and stop here.
    - "another Claude session is working on this checkout" (the designer, or `--here` not given): tell the human which
      session, and ask them to finish or close it. Only if they say it is idle, run `start` again with `--here`.
    - "checked out in the worktree <path>": enter that worktree (EnterWorktree) instead.

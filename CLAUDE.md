@@ -52,7 +52,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths]` | GdUnit4 headless; judged by exit code and `results.xml`; orphan nodes fail |
 | `verify` | Everything CI runs, in the same order: the definition-of-done gate |
-| `start <n> [--base P] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (a parent's open PR), assign, board In progress (skill `start-task`) |
+| `start <n> [--base P] [--here] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (a parent's open PR), for the engineer in its worktree, assign, board In progress (skill `start-task`) |
 | `publish [--base B]` | Rebases the task branch on its PR base (else `start --base`, else main), runs `verify`, pushes with a lease |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
 | `normalize <files>` / `shot <scene>` | Re-save `.tscn`/`.tres` as the editor would / an off-screen PNG of a scene |
@@ -117,7 +117,9 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 
 ## Stop and ask before
 - Adding a dependency or addon; changing an architecture boundary; touching the other owner's area.
-- Anything destructive to git history or that discards work; anything that costs money.
+- Anything destructive to git history or that discards work outside your own worktree and task branch (inside them
+  git and deletes are free: the guard asks only beyond them); anything that costs money.
+<!-- see docs/interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md -->
 - Deciding anything reserved for the humans (the items above, final game content, a milestone's goal, a
   go/no-go): batch such questions into one, with options and a recommendation.
 <!-- see docs/interventions/2026-09-28-engineer-phase-a-workflow-unbounded.md -->

@@ -75,7 +75,7 @@ class StackedTest(unittest.TestCase):
         return git(self.tmp / "remote.git", "rev-parse", ref)
 
     def start_child(self) -> None:
-        self.assertEqual(start.main(33, base=PARENT), 0)
+        self.assertEqual(start.main(33, base=PARENT, here=True), 0)  # the stack is published from this checkout
         self.commit(self.work, "c.txt", "child")
         self.assertEqual(publish.main(), 0)  # no PR yet: the recorded parent is the base
         self.assertEqual(self.remote(f"{CHILD}~1"), self.remote(PARENT))
