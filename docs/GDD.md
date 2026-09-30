@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | The designer. The engineer's agent never fills in or changes design content here without the designer's approval. |
-| **Status** | Skeleton (M0): sections and open questions only. Nothing below is decided; examples inside a question are prompts for the designer, not proposals. |
+| **Status** | Skeleton (M0): sections and open questions only. Nothing below is decided except §3's base mode; examples inside a question are prompts for the designer, not proposals. |
 | **How it grows** | "нова механіка: …" → skill `new-mechanic` adds a section with its open questions and a `mechanic` issue. When this file gets long, systems move to `docs/design/<system>.md` and this file links to them. |
 | **Constraints** | What the engine can express is the content API in `docs/ARCHITECTURE.md` §9. |
 
@@ -28,10 +28,34 @@ Open questions:
 
 ## 3. Core loop
 
-The engine's phases are Lobby → RoleAssign → Roam → Meeting → Vote → Resolution → (Roam | End).
-- What does each player do in Roam, and what pulls them back to a Meeting?
-- What starts a Meeting: a found body, a button, an ability, a timer?
-- What happens at Resolution: ejection, reveal, nothing?
+The phases come from the game mode, not from the engine: each mode lists its phases and the transitions between
+them ([ADR](decisions/2026-09-29-game-modes-define-the-phases.md), `docs/ARCHITECTURE.md` §3). A new mode can add
+phases without engine changes to the loop.
+
+### Base mode (the MVP)
+Lobby → Countdown → Loading → Round → End → Lobby. Adopted by the designer in #38 from the provisional
+[MVP rules](decisions/2026-09-29-mvp-rules.md), with their numbers as starting values to tune after the first playtest.
+- **Lobby:** players join, walk and talk by proximity; the host changes the match settings; each player presses
+  Ready.
+- **Countdown:** 5 s once everyone is ready; anyone un-readying, joining or leaving cancels it. The settings are
+  locked.
+- **Loading:** everyone loads the map, with no voice. Then roles and the shared tasks are dealt, packages and knives
+  are scattered, players are placed and the match clock starts.
+- **Round:** everyone works on the shared tasks (Delivery); the dissidents try to run out the clock or kill the crew;
+  the dead become ghosts. The first win condition met ends it: every task done (crew), no crew alive (dissidents),
+  time up with a task left (dissidents).
+- **End:** a black screen that names only the winning side; the game is frozen and nobody hears anybody. The host
+  returns everyone to the lobby.
+
+The base mode has no meetings and no votes.
+
+### Later modes
+- Meetings mode (#35): the base mode's roles, items and tasks, plus Meeting, Vote and Resolution phases.
+
+Open questions:
+- Without meetings, what makes the crew suspect someone during a Round, and what can they do about it?
+- For the meetings mode (#35): what starts a meeting (a found body, a button, an ability, a timer), and what happens
+  at Resolution (ejection, reveal, nothing)?
 
 ## 4. Roles
 
