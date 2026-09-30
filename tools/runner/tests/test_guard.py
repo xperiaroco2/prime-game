@@ -759,6 +759,8 @@ class GhOtherRepositoryTest(unittest.TestCase):
     def test_reads_pass_whatever_repository_they_name(self) -> None:
         for command in (
             "gh issue view 1 -R godotengine/godot",
+            "gh issue -R o/r view 1",
+            "gh pr --repo o/r list",
             "gh issue ls --repo=o/r",
             "gh pr checks 5 -Ro/r",
             "gh release verify v1 -R o/r",
@@ -778,6 +780,8 @@ class GhOtherRepositoryTest(unittest.TestCase):
             "gh issue comment 1 -R o/r -b x": ["o/r"],
             "gh issue comment 1 --repo=o/r -b x": ["o/r"],
             "gh issue comment 1 -Ro/r -b x": ["o/r"],
+            "gh issue -R o/r comment 1 -b x": ["o/r"],
+            "gh issue --repo=o/r close 1": ["o/r"],
             "gh issue comment https://github.com/o/r/issues/1 -b x": ["https://github.com/o/r/issues/1"],
             "gh issue transfer 1 o/r": ["o/r"],
             "gh repo sync o/fork": ["o/fork"],

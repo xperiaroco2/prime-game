@@ -1624,7 +1624,17 @@ class Analysis:
         `gh repo <sub> owner/name`, the destination of `gh issue transfer`, or a `gh api repos/owner/name/...`
         endpoint. A command that names no repository acts on this project's and is left to the rules."""
         group = args[0].lower() if args else ""
-        sub = args[1].lower() if len(args) > 1 and not args[1].startswith("-") else ""
+        # The subcommand is the first word after the group that is no option: `-R` is a persistent flag of the
+        # group, so `gh issue -R o/r view 1` is a read too.
+        sub, rest, i = "", args[1:], 1
+        while i < len(args):
+            if args[i] in ("-R", "--repo"):
+                i += 2
+            elif args[i].startswith("-"):
+                i += 1
+            else:
+                sub, rest = args[i].lower(), args[1:i] + args[i + 1 :]
+                break
         if group == "api":
             method, targets = self.gh_api(args[1:])
             if method in GH_READ_METHODS:
@@ -1633,7 +1643,7 @@ class Analysis:
             reads = GH_READS.get(group, set())
             if group in GH_READS and (reads is None or sub in reads):
                 return
-            targets = self.gh_targets(group, sub, args[2:] if sub else args[1:])
+            targets = self.gh_targets(group, sub, rest)
         env = self.gh_env()
         if env is not None:
             targets.append(env)
