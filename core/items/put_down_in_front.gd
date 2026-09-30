@@ -18,7 +18,13 @@ extends RuleEffect
 func run(ctx: MatchContext) -> void:
 	var actor := ctx.actor_state()
 	var item := Items.held_by(ctx.state, ctx.actor)
-	if actor == null or item == null or ctx.state.player_rules == null:
+	if actor == null:
+		ctx.error("PutDownInFront: no player %d" % ctx.actor)
+		return
+	if ctx.state.player_rules == null:
+		ctx.error("PutDownInFront: the mode has no PlayerRules")
+		return
+	if item == null:
 		ctx.error("PutDownInFront: player %d holds no item" % ctx.actor)
 		return
 	var facing := ctx.command.get_vector3("facing") if ctx.command != null else Vector3.ZERO
