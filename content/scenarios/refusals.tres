@@ -1,0 +1,163 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://dota575n07uoi"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_uwg1f"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_glrnt"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="3_71ojc"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="4_xk2kj"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="5_t4n04"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="6_c5q1h"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="7_xinv8"]
+[ext_resource type="Script" uid="uid://dvl107dygojwj" path="res://core/content/scenario/step_put_down.gd" id="8_fvog8"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="9_mydoj"]
+[ext_resource type="Script" uid="uid://bir4sbsppao03" path="res://core/content/scenario/step_use.gd" id="10_cx5lg"]
+[ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="11_npasm"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="12_jtnly"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="13_0g3kc"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="14_08f1b"]
+
+[sub_resource type="Resource" id="Resource_0bphy"]
+script = ExtResource("6_c5q1h")
+
+[sub_resource type="Resource" id="Resource_8jjro"]
+script = ExtResource("7_xinv8")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_av6v5"]
+script = ExtResource("9_mydoj")
+point = Vector3(0, 0, -30)
+
+[sub_resource type="Resource" id="Resource_wg050"]
+script = ExtResource("8_fvog8")
+towards = SubResource("Resource_av6v5")
+expect_rejected = &"empty_hand"
+
+[sub_resource type="Resource" id="Resource_tw5kh"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+expect_rejected = &"nothing_to_do"
+
+[sub_resource type="Resource" id="Resource_pkmmy"]
+script = ExtResource("9_mydoj")
+kind = 0
+index = 10
+
+[sub_resource type="Resource" id="Resource_25ro2"]
+script = ExtResource("11_npasm")
+target = SubResource("Resource_pkmmy")
+expect_rejected = &"out_of_reach"
+
+[sub_resource type="Resource" id="Resource_sx6ms"]
+script = ExtResource("9_mydoj")
+kind = 2
+item_kind = &"knife"
+
+[sub_resource type="Resource" id="Resource_t7go1"]
+script = ExtResource("12_jtnly")
+target = SubResource("Resource_sx6ms")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Resource_gc0yp"]
+script = ExtResource("9_mydoj")
+kind = 2
+item_kind = &"knife"
+
+[sub_resource type="Resource" id="Resource_vwss4"]
+script = ExtResource("11_npasm")
+target = SubResource("Resource_gc0yp")
+
+[sub_resource type="Resource" id="Resource_ypjku"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+
+[sub_resource type="Resource" id="Resource_wfhj0"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+expect_rejected = &"too_soon"
+
+[sub_resource type="Resource" id="Resource_tiqiq"]
+script = ExtResource("13_0g3kc")
+seconds = 0.6
+
+[sub_resource type="Resource" id="Resource_ek2f4"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+
+[sub_resource type="Resource" id="Resource_e3f3e"]
+script = ExtResource("13_0g3kc")
+seconds = 0.6
+
+[sub_resource type="Resource" id="Resource_ds5xl"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+
+[sub_resource type="Resource" id="Resource_e01lq"]
+script = ExtResource("13_0g3kc")
+seconds = 0.6
+
+[sub_resource type="Resource" id="Resource_rawql"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+
+[sub_resource type="Resource" id="Resource_13wd8"]
+script = ExtResource("13_0g3kc")
+seconds = 0.6
+
+[sub_resource type="Resource" id="Resource_16adb"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+
+[sub_resource type="Resource" id="Resource_teo3a"]
+script = ExtResource("13_0g3kc")
+seconds = 0.6
+
+[sub_resource type="Resource" id="Resource_vpijo"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+expect_rejected = &"tired"
+
+[sub_resource type="Resource" id="Resource_h362g"]
+script = ExtResource("9_mydoj")
+kind = 0
+
+[sub_resource type="Resource" id="Resource_iytnx"]
+script = ExtResource("12_jtnly")
+target = SubResource("Resource_h362g")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Resource_4jikt"]
+script = ExtResource("9_mydoj")
+kind = 0
+
+[sub_resource type="Resource" id="Resource_ymmxy"]
+script = ExtResource("11_npasm")
+target = SubResource("Resource_4jikt")
+
+[sub_resource type="Resource" id="Resource_pxw1c"]
+script = ExtResource("14_08f1b")
+event = &"ItemPlaced"
+fields = {
+"cause": "swap"
+}
+
+[sub_resource type="Resource" id="Resource_eqf2n"]
+script = ExtResource("10_cx5lg")
+towards = SubResource("Resource_av6v5")
+expect_rejected = &"nothing_to_do"
+
+[sub_resource type="Resource" id="Resource_ua3fo"]
+script = ExtResource("4_xk2kj")
+steps = Array[ExtResource("5_t4n04")]([SubResource("Resource_0bphy"), SubResource("Resource_8jjro"), SubResource("Resource_wg050"), SubResource("Resource_tw5kh"), SubResource("Resource_25ro2"), SubResource("Resource_t7go1"), SubResource("Resource_vwss4"), SubResource("Resource_ypjku"), SubResource("Resource_wfhj0"), SubResource("Resource_tiqiq"), SubResource("Resource_ek2f4"), SubResource("Resource_e3f3e"), SubResource("Resource_ds5xl"), SubResource("Resource_e01lq"), SubResource("Resource_rawql"), SubResource("Resource_13wd8"), SubResource("Resource_16adb"), SubResource("Resource_teo3a"), SubResource("Resource_vpijo"), SubResource("Resource_iytnx"), SubResource("Resource_ymmxy"), SubResource("Resource_pxw1c"), SubResource("Resource_eqf2n")])
+
+[resource]
+script = ExtResource("3_71ojc")
+mode = ExtResource("1_uwg1f")
+session_seed = 466000000006
+settings = Dictionary[StringName, int]({
+&"packages": 10
+})
+scripts = Array[ExtResource("4_xk2kj")]([SubResource("Resource_ua3fo")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 60.0
