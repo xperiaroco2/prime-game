@@ -3,8 +3,9 @@ repositories pass in every mode, writes there ask (issue #68); and the model of 
 
 import re
 import unittest
+from unittest import mock
 
-from runner import guard, permissions
+from runner import cli, guard, permissions
 from runner.common import ROOT
 
 MAIN = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
@@ -201,6 +202,13 @@ class MatcherTest(unittest.TestCase):
         self.assertEqual(
             permissions.verdict(rules, guard, "Bash", "npm test", str(ROOT), MAIN, OwnRepo(), bypass=False)[0], "prompt"
         )
+
+
+class ReplayCommandTest(unittest.TestCase):
+    def test_the_runner_starts_the_replay(self) -> None:
+        with mock.patch.object(permissions, "main", return_value=0) as replay:
+            self.assertEqual(cli.main(["permissions", "--before", "abc123"]), 0)
+        replay.assert_called_once_with(["--before", "abc123", "--projects", ""])
 
 
 if __name__ == "__main__":

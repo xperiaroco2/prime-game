@@ -200,9 +200,9 @@ Rules for every workflow run:
 edit tooling, clean up its scratchpad and `tests/scratch/`) and stops only for the rare items below
 ([ADR](decisions/2026-09-28-unattended-work-permissions.md)). **Test for a new ask or deny rule:** "can an agent work
 alone overnight?" Replay the latest unattended run's transcripts against the new rule
-(`cd tools; & $env:PYTHON_BIN -m runner.permissions --before origin/main` replays every local transcript through the
-rules and the guard of `origin/main` and of the checkout, in bypass mode); a rule that would have stopped routine work
-is judged by its target in the guard (§8.2) instead of by its text
+(`tools\run.cmd permissions --before origin/main` replays every local transcript through the rules and the guard of
+`origin/main` and of the checkout, in bypass mode); a rule that would have stopped routine work is judged by its
+target in the guard (§8.2) instead of by its text
 ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). `runner.permissions` models
 Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow), and its selftests
 (`tests/test_permissions.py`) check the lists with the guard: reads of other repositories pass in every mode, writes

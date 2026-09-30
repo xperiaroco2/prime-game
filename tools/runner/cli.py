@@ -94,6 +94,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
 
+    p = sub.add_parser("permissions", help="replay local transcripts through the permission rules and the guard")
+    p.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
+    p.add_argument("--projects", default="", help="transcript folders glob under ~/.claude/projects")
+
     p = sub.add_parser("hook", help="Claude Code hooks (run by .claude/hooks/run-hook.sh, input on stdin)")
     p.add_argument("name", choices=["guard", "gd-edit"])
     return parser
@@ -195,6 +199,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0
+        if args.command == "permissions":
+            from . import permissions
+
+            return permissions.main(["--before", args.before, "--projects", args.projects])
         if args.command == "hook":
             from . import hooks
 

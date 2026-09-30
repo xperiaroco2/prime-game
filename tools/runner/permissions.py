@@ -14,7 +14,7 @@ A model of Claude Code's matcher, close enough for selftests and replays, not th
 - In bypass mode (the engineer's) deny rules block, ask rules and the guard prompt, and everything else runs; in the
   modes that prompt, a call that is not allowed prompts as well.
 
-Replay: `cd tools; & $env:PYTHON_BIN -m runner.permissions --before origin/main` (PowerShell) replays every Bash and
+Replay: `tools/run.sh permissions --before origin/main` (`run.cmd` in PowerShell) replays every Bash and
 PowerShell call in `~/.claude/projects/<project>*/**/*.jsonl` in bypass mode, with the settings and the guard of that
 revision against the ones in this checkout, and prints the prompts before and after and every verdict that changed.
 """
@@ -238,7 +238,7 @@ def replay(before: tuple[Rules, types.ModuleType], after: tuple[Rules, types.Mod
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m runner.permissions", description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(prog="run permissions", description=__doc__.split("\n\n")[0])
     parser.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
     parser.add_argument(
         "--projects", default="", help="transcript folders glob under ~/.claude/projects (default: <project>*)"
