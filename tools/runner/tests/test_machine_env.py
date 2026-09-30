@@ -201,6 +201,35 @@ class DoctorTest(unittest.TestCase):
         self.assertEqual(out.count("warn"), 1, out)
 
 
+class RunPyTest(unittest.TestCase):
+    """The real tools/run.py fills the machine paths before its command runs: the wiring that fixes #55."""
+
+    def test_a_command_in_a_terminal_without_the_machine_paths(self) -> None:
+        # `run` reads GODOT_BIN without calling machine_env itself (doctor does), so only run.py's call can fill it.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        home = Path(tmp.name) / "home"
+        godot = str(Path(tmp.name) / "no" / "godot_console.exe")
+        write_settings(home / ".claude" / "settings.json", {"GODOT_BIN": godot})
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if key.upper() not in (*machine_env.MACHINE_VARS, "CLAUDE_CONFIG_DIR", "HOME", "USERPROFILE")
+        }
+        env.update({"HOME": str(home), "USERPROFILE": str(home), "PYTHONIOENCODING": "utf-8"})
+        res = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "run.py"), "run", "tools/run/probe.gd", "--headless"],
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=120,
+            check=False,
+        )
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn(f"GODOT_BIN points to a missing file: {godot}", res.stdout + res.stderr)
+
+
 @unittest.skipUnless(IS_WINDOWS, "tools\\run.cmd is the Windows wrapper")
 class RunCmdTest(unittest.TestCase):
     """tools\\run.cmd finds Python in the Claude settings before Python runs, in a copy of it next to a stub run.py."""
