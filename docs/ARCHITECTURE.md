@@ -512,8 +512,13 @@ The rules of the table:
   decodes a synthetic longer `Hello` of another version to `{version}`.
 - **The version.** `JoinRules.PROTOCOL_VERSION` (`core/`) and the codec's version are one number, which a unit test
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
-- **The content** (E1). `Hello.content` is the game mode's content hash (`ContentHash.of`, §3.3), which `JoinRules`
-  compares with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
+- **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
+  `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
+  and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
+  and meet the same unexplained corrections and refused pick-ups (the host's `WorldQuery` answers from its level, the
+  client walks its own). Any byte of a level counts, a light included: a false alarm costs a rebuild, a miss costs a
+  playtest. An exported build, which may convert scenes, is M6's to check. The host's `server/` and each client compute
+  it when they load the mode, and `Match` gets the host's with the seed. `JoinRules` compares it with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
   hosts a playtest from a branch with edited `PlayerRules`, the engineer joins from `main`, and the engineer's client
   predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s name is not on
   the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.

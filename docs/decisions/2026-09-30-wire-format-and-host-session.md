@@ -135,7 +135,7 @@ The design follows each recommendation, and each can be reverted before its task
 
 | # | Choice | Options | Recommendation |
 |---|---|---|---|
-| E1 | What `Hello` checks | (a) the version and the game mode's content hash, `wrong_content` on a mismatch; (b) the version only; (c) the hash in `Welcome`, the client leaves | (a): a designer's branch and `main` in one playtest fail at the join with a reason, not with endless corrections |
+| E1 | What `Hello` checks | (a) the version and a content hash (the game mode's `ContentHash` and the SHA-256 of each level file it names, since `ContentHash` covers levels only by path), `wrong_content` on a mismatch; (b) the version only; (c) the hash in `Welcome`, the client leaves | (a): a designer's branch and `main` in one playtest fail at the join with a reason, not with endless corrections |
 | E2 | `MoveClaim`'s lane and the jump | (a) LATEST with `jumps`, a count per epoch: one jump allowance per claim, stamina per counted jump; (b) RELIABLE; (c) a reliable `Jump` intent | (a), as §4 sketched and #84 recommended. Accepted: one jump height per merged burst, a sprint during a freeze may go unpaid |
 | E3 | What the snapshot holds | (a) the avatars; (b) the avatars, items and bodies; (c) items and bodies in a second LATEST kind | (a): it stays far under the unreliable cap at 16 players, and items and bodies already travel reliably |
 | E4 | Where the schemas live | (a) one declarative table in `net/messages/` with `core/`'s field names, decoded into plain dictionaries; (b) a class per message; (c) encoder in `server/`, decoder in `client/` | (a): one place, and a decoded event compares with `to_dict()` |
