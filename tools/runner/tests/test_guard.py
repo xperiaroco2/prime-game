@@ -410,6 +410,18 @@ OWN_WORK = [
     (B, f"git branch -d {TASK}/probe"),
     (B, f"git branch -f {TASK}-backup HEAD~1"),
     (B, "git -c core.editor=true rebase origin/main"),
+    # An interactive rebase whose todo editor is a no-op opens no editor (#104).
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -q -i --autosquash origin/release/m3"),
+    (B, "git commit -q --fixup=HEAD && GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=true git rebase --interactive origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; git rebase -i --autosquash origin/main"),
+    # With fixup! commits only: a squash! commit would still open GIT_EDITOR for its message, as a plain
+    # `rebase --autosquash` does.
+    (B, "GIT_SEQUENCE_EDITOR=: GIT_EDITOR=vim git rebase -i --autosquash origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=vim; GIT_SEQUENCE_EDITOR=:; git rebase -i --autosquash origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; bash -c 'git rebase -i --autosquash origin/main'"),
+    (B, "GIT_SEQUENCE_EDITOR=':' git rebase -i --autosquash origin/main"),
+    (P, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
     (B, "git -c user.name=x commit -m y"),
     (B, "git worktree list"),
     (B, "rm -rf core/match"),
@@ -436,6 +448,11 @@ OWN_WORK = [
 MANAGED_WORK = [
     (B, "cd D:/prime-game/.claude/worktrees/51 && git reset --hard"),
     (B, "cd /d/prime-game/.claude/worktrees/51 && git rebase origin/main"),
+    (
+        B,
+        "cd /d/prime-game/.claude/worktrees/51 && git add -A && git commit -q --fixup=HEAD && "
+        "GIT_SEQUENCE_EDITOR=: git rebase -q -i --autosquash origin/release/m3",
+    ),
     (B, "cd D:/prime-game/.claude/worktrees/51 && git clean -fdx"),
     (B, "cd D:/prime-game/.claude/worktrees/51 && git checkout -- core/x.gd"),
     (B, "cd D:/prime-game/.claude/worktrees/51 && rm -rf tests/integration/tmp"),
@@ -479,6 +496,32 @@ BEYOND_OWN = [
     (B, "git switch main; git clean -fdx"),
     (B, "git rebase -i HEAD~3"),
     (B, "git rebase --interactive origin/main"),
+    # An interactive rebase that opens an editor, whichever setting names it, and the other rewrites still ask
+    # with a no-op todo editor (#104).
+    (B, "GIT_SEQUENCE_EDITOR=vim git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR= git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=code GIT_EDITOR=: git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=$E git rebase -i origin/main"),
+    # Only GIT_SEQUENCE_EDITOR outranks every other setting (an inherited one, the git config files), so the lower
+    # tiers still ask.
+    (B, "GIT_EDITOR=: git rebase -i origin/main"),
+    (B, "git -c core.editor=true rebase -i origin/main"),
+    (B, "git -c sequence.editor=: rebase -i --autosquash origin/main"),
+    # A shell variable that is not exported never reaches git; a prefix is the next command's only.
+    (B, "GIT_SEQUENCE_EDITOR=:; git rebase -i --autosquash origin/main"),
+    (P, "$GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git log -1; git rebase -i origin/main"),
+    (B, "(export GIT_SEQUENCE_EDITOR=:); git rebase -i origin/main"),
+    # A later value or `unset` of the exported variable is what git sees; each shell's own syntax only.
+    (B, "export GIT_SEQUENCE_EDITOR=:; GIT_SEQUENCE_EDITOR=vim; git rebase -i origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; unset GIT_SEQUENCE_EDITOR; git rebase -i origin/main"),
+    (P, "$env:GIT_SEQUENCE_EDITOR = ':'; Remove-Item Env:GIT_SEQUENCE_EDITOR; git rebase -i origin/main"),
+    (B, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i origin/main"),
+    (P, "export GIT_SEQUENCE_EDITOR=:; git rebase -i origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=$E; git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --update-refs origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i -x 'tools/run.sh test' origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main main"),
     (B, "git rebase --update-refs origin/main"),
     (B, f"git -c core.hooksPath=/dev/null push origin {TASK}"),
     (B, "git worktree remove D:/prime-game/.claude/worktrees/47"),
@@ -517,6 +560,7 @@ BEYOND_OWN = [
 # (shell, command) in the main checkout (the designer, the engineer's `--here`, a manager): each asks.
 MAIN_CHECKOUT = [
     (B, "git rebase origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main"),
     (B, "git clean -fdx"),
     (B, "git checkout -- core/x.gd"),
     (B, "git checkout ."),

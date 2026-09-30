@@ -45,9 +45,10 @@ checkout, in another worktree, after the command switched to another branch, and
 checkout. Branch changes are judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`,
 `checkout -B`, `switch -C`) or overwriting (`branch -M|-C`) a branch, or rebasing one by name, passes only for the
 task branch and its helpers (`<task branch>-x`, `<task branch>/x`); `stash drop|clear` only for entries made on
-them (the stash is shared by every checkout). An interactive rebase, `rebase --update-refs` and `git -c
-core.hooksPath=...` always ask. Branch, ref and stash names come from a repository reader (hooks.GitFiles); without
-one no branch is the session's own.
+them (the stash is shared by every checkout). An interactive rebase that opens a todo editor, `rebase --update-refs`
+and `git -c core.hooksPath=...` always ask; an interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to a
+no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) is judged like any other rebase. Branch, ref
+and stash names come from a repository reader (hooks.GitFiles); without one no branch is the session's own.
 
 gh reads of other repositories run without a prompt (issue #68), so no text rule asks for `gh -R|--repo`. The guard
 asks instead when a gh command names a repository other than this project's (`origin`, read by hooks.GitFiles) and
@@ -241,6 +242,8 @@ CLEAN_VALUED = {"-e", "--exclude"}
 REBASE_VALUED = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "--empty"}
 # git rebase forms that continue or end a rebase in progress: they name no branch.
 REBASE_STEPS = {"--continue", "--skip", "--abort", "--quit", "--show-current-patch"}
+# Todo editors that open nothing: `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash` runs without one.
+NO_OP_EDITORS = {":", "true"}
 STASH_REF_RE = re.compile(r"^(?:stash@\{(\d+)\}|(\d+))$", re.IGNORECASE)
 
 # gh aimed at another repository (issue #68). The finding area of a gh command that may write there.
@@ -429,6 +432,9 @@ class Paths:
         self.stack: list[tuple[str | None, str, str]] = []
         self.oldpwd: tuple[str | None, str, str] | None = None
         self.vars: dict[str, str | None] = {"claude_project_dir": self.root}
+        # Variables the command puts in the environment of what it runs: bash `export X=v`, PowerShell `$env:X = v`
+        # (a plain `X=v;` or `$X = v` stays in the shell, and git never sees it).
+        self.env: dict[str, str | None] = {}
         self.tainted: dict[str, str] = {}
         # Variables whose value is unknown but whose words name the project (`for d in core/*`).
         self.project_vars: set[str] = set()
@@ -455,7 +461,7 @@ class Paths:
         """The view of a nested shell (`bash -c`) or a `$(...)`: same directory and variables; its `cd` stays
         inside it."""
         inner = Paths(self.root, "", self.home, shell or self.shell)
-        inner.cwd, inner.vars, inner.tainted = self.cwd, dict(self.vars), dict(self.tainted)
+        inner.cwd, inner.vars, inner.tainted, inner.env = self.cwd, dict(self.vars), dict(self.tainted), dict(self.env)
         inner.project_vars, inner.cwd_text, inner.cwd_base = set(self.project_vars), self.cwd_text, self.cwd_base
         inner.oldpwd, inner.own, inner.claim, inner.busy = self.oldpwd, self.own, self.claim, self.busy
         inner.off_branch, inner.stash_moved = self.off_branch, self.stash_moved
@@ -510,10 +516,11 @@ class Paths:
     def save(self) -> tuple:
         """The state a bash subshell (`( ... )`, `$(...)`) cannot change for the rest of the command."""
         where = (self.cwd, self.cwd_text, self.cwd_base)
-        return where, list(self.stack), self.oldpwd, dict(self.vars), dict(self.tainted), set(self.project_vars)
+        variables = dict(self.vars), dict(self.env), dict(self.tainted), set(self.project_vars)
+        return where, list(self.stack), self.oldpwd, variables
 
     def restore(self, state: tuple) -> None:
-        where, stack, self.oldpwd, self.vars, self.tainted, self.project_vars = state
+        where, stack, self.oldpwd, (self.vars, self.env, self.tainted, self.project_vars) = state
         (self.cwd, self.cwd_text, self.cwd_base), self.stack = where, list(stack)
 
     def items(self, token: str) -> list[str]:
@@ -780,15 +787,29 @@ class Paths:
     def assign(self, words: list[str]) -> list[str] | None:
         """Record `S=value`, `export S=value`, PowerShell `$S = value` or a `for S in ...` loop. Returns None when
         words are not one of those, else the words of a command still to check (`$null = New-Item addons\\x`)."""
-        if words[0] == "export" and len(words) == 2:
+        exported = words[0] == "export" and len(words) == 2
+        if exported:
             words = words[1:]
+        bash = self.shell == BASH
+        if bash and words[0] == "unset":
+            # git then falls back to editors the guard cannot see: an unknown value.
+            self.env.update((w.lower(), None) for w in words[1:] if not w.startswith("-"))
+            return []
         if len(words) == 1 and (match := ASSIGN_RE.match(words[0])):
+            name = match.group(1).lower()
             self.remember(match.group(1), match.group(2), words)
+            if bash and (exported or name in self.env):  # a new value of an exported variable is exported too
+                self.env[name] = self.vars.get(name)
             return []
         if len(words) >= 2 and words[1] == "=" and (var := PS_VAR_RE.match(words[0])):
             simple = len(words) == 3 and not words[2].startswith(("$(", "[")) and not CMDLET_RE.match(words[2])
             self.remember(var.group(1), words[2] if simple else None, words[2:], kind="command")
+            if not bash and words[0].lower().startswith("$env:"):
+                self.env[var.group(1).lower()] = self.vars.get(var.group(1).lower())
             return [] if simple else words[2:]
+        if not bash and words[0].lower() in ("remove-item", "ri", "rm", "del", "erase"):
+            # `Remove-Item Env:X`: X leaves the environment. The command is still judged as a delete below.
+            self.env.update((w[4:].lstrip("\\/").lower(), None) for w in words[1:] if w.lower().startswith("env:"))
         loop = words[1:] if words[0].lower() in ("for", "foreach") else words
         if len(loop) >= 3 and loop[1].lower() == "in" and (m := re.match(r"^\$?([A-Za-z_]\w*)$", loop[0])):
             self.remember(m.group(1), None, loop[2:], kind="loop")
@@ -1553,12 +1574,27 @@ class Analysis:
         else:
             self.git_discards(shown, place, base)
 
+    def git_sequence_editor(self) -> str | None:
+        """`GIT_SEQUENCE_EDITOR` as the command puts it in git's environment: a `VAR=value` prefix, bash `export` or
+        PowerShell `$env:` earlier in the command. It outranks every other editor setting, so it alone decides that
+        an interactive rebase opens no todo editor. None when the command sets none; `?` when it cannot be computed."""
+        if "git_sequence_editor" in self.prefix_env:
+            value: str | None = self.prefix_env["git_sequence_editor"]
+        elif "git_sequence_editor" in self.paths.env:
+            value = self.paths.env["git_sequence_editor"]
+            if value is None:
+                return "?"
+        else:
+            return None
+        return (value or "").strip().strip("'\"")
+
     def git_rebase(self, rest: list[str], place: str, base: str | None) -> None:
-        """`git rebase` rewrites the history of the branch it names, or of the current one. Interactive rebases ask:
-        they open an editor, which an agent cannot use."""
+        """`git rebase` rewrites the history of the branch it names, or of the current one. Interactive rebases ask
+        when they open a todo editor, which an agent cannot use; one whose `GIT_SEQUENCE_EDITOR` is a no-op
+        (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) opens none and is judged like any other."""
         shown = ["git", "rebase", *rest]
         options = {a.split("=")[0] for a in rest if a.startswith("-")}
-        if {"-i", "--interactive", "--edit-todo"} & options:
+        if {"-i", "--interactive", "--edit-todo"} & options and self.git_sequence_editor() not in NO_OP_EDITORS:
             self.git_finding(shown, "an interactive rebase opens an editor")
             return
         if "--update-refs" in options:
