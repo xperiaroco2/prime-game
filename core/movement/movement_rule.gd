@@ -326,12 +326,11 @@ static func _correct(ctx: MatchContext, player: PlayerState, motion: Motion) -> 
 
 ## The claim's fields, or null when one is missing, of the wrong type or not finite.
 static func _read(command: MatchCommand) -> Claim:
-	var args := command.args
-	var tick: Variant = args.get("client_tick")
-	var position: Variant = args.get("position")
-	var velocity: Variant = args.get("velocity")
-	var facing: Variant = args.get("facing")
-	var jumps: Variant = args.get("jumps")
+	var tick: Variant = command.field("client_tick")
+	var position: Variant = command.field("position")
+	var velocity: Variant = command.field("velocity")
+	var facing: Variant = command.field("facing")
+	var jumps: Variant = command.field("jumps")
 	if not (tick is int and position is Vector3 and velocity is Vector3 and facing is Vector3):
 		return null
 	if not jumps is int:

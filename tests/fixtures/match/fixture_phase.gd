@@ -71,7 +71,7 @@ func on_peer_connected(ctx: MatchContext, _peer: int) -> void:
 
 func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 	if command.kind == Intents.HELLO:
-		ctx.state.add_player(command.peer, command.get_string("name", "p%d" % command.peer))
+		ctx.state.add_player(command.peer, "p%d" % command.peer)
 	elif command.kind == Intents.SET_READY:
 		ctx.state.player(command.peer).ready = command.get_bool("ready", true)
 		_check_all_ready(ctx)

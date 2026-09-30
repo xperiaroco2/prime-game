@@ -40,7 +40,7 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 	if not ctx.state.newcomers.has(peer):
 		ctx.reject(command, RejectReasons.NOT_ACCEPTED)
 		return false
-	var version: Variant = command.args.get("version")
+	var version: Variant = command.field("version")
 	if not (version is int and version == PROTOCOL_VERSION):
 		ctx.reject(command, RejectReasons.WRONG_VERSION)
 		_drop(ctx, peer)
@@ -83,7 +83,7 @@ static func forget_newcomer(ctx: MatchContext, peer: int) -> bool:
 ## True when a SetReady carries a bool `ready`; else Rejected (`bad_args`), so a malformed intent
 ## is never read as SetReady(false) (which would cancel a countdown).
 static func has_ready_flag(ctx: MatchContext, command: MatchCommand) -> bool:
-	if command.args.get("ready") is bool:
+	if command.field("ready") is bool:
 		return true
 	ctx.reject(command, RejectReasons.BAD_ARGS)
 	return false

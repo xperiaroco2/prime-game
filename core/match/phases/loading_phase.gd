@@ -51,7 +51,7 @@ func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 	if command.kind != Intents.LOAD_ACK:
 		ctx.reject(command, RejectReasons.NOTHING_TO_DO)
 		return
-	var id: Variant = command.args.get("match_id")
+	var id: Variant = command.field("match_id")
 	if not (id is int and id == ctx.state.match_id()):
 		return
 	if _acks.has(command.peer):
