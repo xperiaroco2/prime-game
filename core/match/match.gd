@@ -440,11 +440,16 @@ func _force_role(command: MatchCommand) -> void:
 
 
 ## An intent the phase's allowlist refuses (§3.1, §4.3) gets Rejected (`not_accepted`), except:
+## - a MoveClaim is dropped silently (E15): one in flight at a phase change, which has no seq for
+##   a Rejected to name and which clients ignore, so a looping client cannot fill the command log
+##   and the outbox with Rejected events;
 ## - a Hello from a peer that is not a player gets Rejected (`joins_closed`) and, when it is a
 ##   newcomer, DisconnectPeer (E14): the phase takes no joins, so the joiner is told why at once
 ##   and does not linger. A peer that is neither was disconnected already (its connection was
 ##   refused, or Loading's entry dropped it) and gets no second DisconnectPeer.
 func _refuse(command: MatchCommand, ctx: MatchContext) -> void:
+	if command.kind == Intents.MOVE_CLAIM:
+		return
 	if command.kind == Intents.HELLO and state.player(command.peer) == null:
 		ctx.reject(command, RejectReasons.JOINS_CLOSED)
 		if state.newcomers.erase(command.peer):

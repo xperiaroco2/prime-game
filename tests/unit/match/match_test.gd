@@ -257,13 +257,37 @@ func test_a_hello_the_phase_refuses_from_a_player_is_not_accepted_and_nobody_lea
 	assert_array(game.state.present_peers()).is_equal([P1, P2])
 
 
+func test_a_move_claim_the_phase_refuses_is_dropped_without_a_rejected() -> void:
+	var game := FixtureBaseMode.in_loading([P1, P2])
+	var player := game.state.player(P2)
+	var was_at := player.position
+	var emitted_before := game.emitted().size()
+	var claim := {
+		"epoch": player.epoch,
+		"client_tick": 200,
+		"position": was_at + Vector3(0.1, 0, 0),
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"jumps": 0,
+	}
+	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
+	assert_int(game.emitted().size()).is_equal(emitted_before)
+	assert_vector(player.position).is_equal(was_at)
+	# It is still in the command log, like every command.
+	assert_str(game.command_log.commands.back().kind).is_equal(Intents.MOVE_CLAIM)
+
+
 func test_a_player_who_left_is_heard_by_no_rule_and_told_nothing() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	var left := game.state.player(P2)
 	var was_at := left.position
 	left.life = PlayerState.Life.LEFT
+	var emitted_before := game.emitted().size()
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, {"epoch": left.epoch, "position": Vector3.ONE})
 	assert_vector(left.position).is_equal(was_at)
+	# A refused MoveClaim is dropped without a Rejected (E15).
+	assert_int(game.emitted().size()).is_equal(emitted_before)
+	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 4)
 	var last := game.emitted()[game.emitted().size() - 1]
 	assert_str(last.event.event_name()).is_equal("Rejected")
 	assert_array(Array(last.recipients)).is_empty()
