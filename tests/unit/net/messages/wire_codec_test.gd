@@ -261,7 +261,7 @@ func _assert_refused(message: WireMessage) -> void:
 		. is_equal(0)
 	)
 	assert_int(_errors.count()).is_equal(logged + 1)
-	_errors.lines.clear()
+	_errors.clear()
 
 
 func _assert_rejected(kind: int, payload: PackedByteArray, why: String) -> void:

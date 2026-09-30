@@ -40,7 +40,7 @@ func test_every_truncation_is_rejected() -> void:
 			checked += 1
 	assert_int(checked).is_greater(1500)
 	assert_array(Array(_failures)).is_empty()
-	assert_array(Array(_errors.lines)).is_empty()
+	assert_array(Array(_errors.snapshot())).is_empty()
 
 
 func test_every_single_byte_change_is_rejected_or_canonical() -> void:
@@ -63,7 +63,7 @@ func test_every_single_byte_change_is_rejected_or_canonical() -> void:
 			payload[at] = original
 	assert_int(checked).is_greater(100000)
 	assert_array(Array(_failures)).is_empty()
-	assert_array(Array(_errors.lines)).is_empty()
+	assert_array(Array(_errors.snapshot())).is_empty()
 
 
 func test_random_payloads_are_rejected_or_canonical() -> void:
@@ -81,7 +81,7 @@ func test_random_payloads_are_rejected_or_canonical() -> void:
 				accepted += 1
 	assert_int(accepted).is_greater(0)
 	assert_array(Array(_failures)).is_empty()
-	assert_array(Array(_errors.lines)).is_empty()
+	assert_array(Array(_errors.snapshot())).is_empty()
 
 
 func test_the_error_log_catches_an_engine_error() -> void:
@@ -89,7 +89,7 @@ func test_the_error_log_catches_an_engine_error() -> void:
 	var bytes := PackedByteArray([1, 2])
 	bytes.decode_u32(0)
 	assert_int(_errors.count()).is_greater(0)
-	_errors.lines.clear()
+	_errors.clear()
 
 
 ## True when the payload decoded; then the encoder must write the same bytes back, or the

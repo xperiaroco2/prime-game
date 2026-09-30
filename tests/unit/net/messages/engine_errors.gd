@@ -3,7 +3,7 @@ extends Logger
 ## attached, so a suite can assert that a decoder printed none. Attach with start(), detach with
 ## stop(); OS.add_logger may call it from any thread.
 
-var lines := PackedStringArray()
+var _lines := PackedStringArray()
 var _lock := Mutex.new()
 
 
@@ -17,9 +17,23 @@ func stop() -> void:
 
 func count() -> int:
 	_lock.lock()
-	var found := lines.size()
+	var found := _lines.size()
 	_lock.unlock()
 	return found
+
+
+## A copy of the lines logged so far, taken under the lock.
+func snapshot() -> PackedStringArray:
+	_lock.lock()
+	var copy := _lines.duplicate()
+	_lock.unlock()
+	return copy
+
+
+func clear() -> void:
+	_lock.lock()
+	_lines.clear()
+	_lock.unlock()
 
 
 func _log_error(
@@ -35,7 +49,7 @@ func _log_error(
 	if error_type == ERROR_TYPE_WARNING:
 		return
 	_lock.lock()
-	lines.append("%s:%d %s: %s %s" % [file, line, function, code, rationale])
+	_lines.append("%s:%d %s: %s %s" % [file, line, function, code, rationale])
 	_lock.unlock()
 
 
