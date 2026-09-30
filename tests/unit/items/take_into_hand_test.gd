@@ -89,6 +89,23 @@ func test_the_line_of_sight_ends_just_above_the_item() -> void:
 	assert_int(game.state.player(P1).held_item).is_equal(item.id)
 
 
+func test_a_jump_does_not_raise_the_eye_over_a_wall() -> void:
+	# A 1.2 m partition between the player and the item. Standing, the eye (1.6 m) does not see
+	# over it; from the top of a high jump (feet 3 m up) it would. The eye is taken from the floor
+	# below, so the partition still blocks it. Reach is widened so only the sight decides.
+	var world := FlatWorldQuery.new()
+	world.add_wall(AABB(Vector3(1.0, 0, -1), Vector3(0.1, 1.2, 2)))
+	assert_bool(world.line_of_sight(Vector3(0, 4.6, 0), Vector3(1.5, 0.05, 0))).is_true()
+	var mode := FixtureItemModes.basic()
+	(mode.actions[0].conditions[1] as InReach).reach_m = 10.0
+	var game := FixtureItemModes.in_round(mode, [P1], world)
+	FixtureItemModes.stand(game, P1, Vector3(0, 3, 0))
+	var item := FixtureItemModes.lay(game, &"package", Vector3(1.5, 0, 0))
+	FixtureItemModes.pick_up(game, P1, item)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"blocked"])
+	assert_int(item.where).is_equal(ItemState.Where.GROUND)
+
+
 func test_the_eye_height_comes_from_the_mode() -> void:
 	var world := FlatWorldQuery.new()
 	world.add_wall(AABB(Vector3(1.0, 0, -1), Vector3(0.1, 0.3, 2)))
