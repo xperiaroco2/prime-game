@@ -81,6 +81,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - The information-leak test is the most important test in the project: no client ever receives information it is
   not entitled to; it compares what each bot decoded with `Match.view_of` of its peer (§5, §4.6). When it exists,
   prove it works once by injecting a leak, confirming it fails, and reverting. A connected peer that is not a player
-  (a lurker that never sends `Hello`) receives only its `Rejected`: never an *everyone* event, snapshot or voice.
+  receives at most a `Rejected`, none unless it sent a `Hello` (so a lurker receives nothing): never an *everyone*
+  event, snapshot or voice.
 - Drive the host session with a clock of the test's own: a host freeze is a jump of that clock.
 - At finish, `netcode-security-reviewer` reviews every `server/` change.

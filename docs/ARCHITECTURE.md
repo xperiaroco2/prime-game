@@ -575,8 +575,10 @@ The rules of the table:
   `tests/` checks the table against `core/`: every intent of `Intents.ALL` and every event class with a peer audience
   has a row whose fields are the intent's declared fields or the keys its `to_dict()` returns, each debug row (§4.3)
   matches the fields of the command it names (`ForceRole`'s, declared in `Intents.FIELDS` too), no row has a field that
-  names a seed, and the table as a release build builds it (debug off) has no debug kind. On `main` an intent declares
-  no fields: its rules read `args` where they need them (`MovementRule`, `JoinRules.hello`, the lobby's settings), and
+  names a seed, and the table as a release build builds it (debug off) has no debug kind. The comparison leaves out the
+  wire's own fields: `seq`, the presence flags (`has_map`, `has_station`, `has_role`) and `ForceRole`'s `peer`, which
+  becomes `MatchCommand.peer`, not an arg. On `main` an intent declares no fields: its rules read `args` where they
+  need them (`MovementRule`, `JoinRules.hello`, the lobby's settings), and
   `MatchCommand.get_bool` returns its default for a missing key, so a wire `jumps` against a rule that reads `jumped`
   would silently mean "never jumped". 3e therefore adds `Intents.FIELDS` (intent → field → Variant type), which the
   rules read through, and 3d's test compares the table with it. 3d depends on 3e's commit that adds `FIELDS`, `jumps`
@@ -812,11 +814,12 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience. Some events carry no
     peer in their `to_dict()` (`RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), so the invariants
     read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
-    decoded: every event for one peer that b decoded (`Welcome`, `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`) names b as its
-    subject; a crew bot decodes no `Teammates`; a dissident's `Teammates` names that match's dissidents only; an alive
-    bot never decodes a ghost's avatar or voice frame; the bots present for a whole round decode the same task events;
-    no decoded message has a field that names a seed; a peer that is not a player decodes only `Rejected`. `keep_history` costs memory (§5), so scenarios stay short, or
-    3h compares per tick over a window and drops what it compared.
+    decoded: every event for one peer that b decoded (`Welcome`, `RoleAssigned`, `Damaged`, `SelfStatus`,
+    `Correction`, `Rejected`) names b as its subject; a crew bot decodes no `Teammates`; a dissident's `Teammates` names
+    that match's dissidents only; an alive bot never decodes a ghost's avatar or voice frame; the bots present for a
+    whole round decode the same task events; no decoded message has a field that names a seed; a peer that is not a
+    player decodes at most a `Rejected`, none unless it sent a `Hello`. `keep_history` costs memory (§5), so scenarios
+    stay short, or 3h compares per tick over a window and drops what it compared.
   - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
     one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
     catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
@@ -831,8 +834,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
 
 - Each outgoing message is built for one recipient from what that peer is entitled to know.
 - The information-leak test (bot harness, M3) asserts that no client ever receives anything it is not entitled to,
-  connected peers that are not players included: they receive only a `Rejected` (§4.6's lurker). It is the most
-  important test in the project. Once it exists, prove it: inject a leak, see it fail, revert.
+  connected peers that are not players included: they receive at most a `Rejected`, none unless they sent a `Hello`
+  (§4.6's lurker). It is the most important test in the project. Once it exists, prove it: inject a leak, see it
+  fail, revert.
 - `tools\run.cmd bots` (M3) starts a headless host and N headless bot clients that play a full scripted match, then
   asserts: the match ends, the winner is correct, no errors are logged, and no client received information it was
   not entitled to. It joins `verify` and CI. `host` and `join` launch a local host and clients for the humans'
