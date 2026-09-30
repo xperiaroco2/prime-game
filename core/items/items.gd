@@ -14,6 +14,11 @@ extends RefCounted
 ## Every range rule reads the player's last accepted position in PlayerState, never a position
 ## inside an intent (§7.1). The rest position comes from WorldQuery, never from a client.
 
+## How far the rules lift a WorldQuery point that lies on a surface (an item's rest position, a
+## player's feet) before asking about it: a physics WorldQuery (M3) may count the surface a line
+## ends on as a wall, or miss the floor a ray starts on. A tolerance, not a game rule.
+const SURFACE_CLEARANCE_M := 0.05
+
 ## Why an item came to rest: the `cause` of ItemPlaced and of the fact item_rested.
 const PUT_DOWN := &"put_down"
 const SWAP := &"swap"
@@ -76,16 +81,16 @@ static func place(ctx: MatchContext, item: ItemState, at: Vector3, cause: String
 
 
 ## Drops the item `peer` holds, if any, to the floor below the player's last accepted position
-## (WorldQuery.floor_below), never in mid-air: ItemPlaced (`cause`: death or leave), then
-## item_rested. With no floor below (a level without one there) it rests at that position, and
-## the error is logged. The life rule (2g) calls this after the life state changed and after
+## (WorldQuery.floor_below, asked from just above the feet: Items.lifted), never in mid-air:
+## ItemPlaced (`cause`: death or leave), then item_rested. With no floor below (a level without
+## one there) it rests at that position, and the error is logged. The life rule (2g) calls this after the life state changed and after
 ## player_died or player_left was raised (§3.4, §9.2).
 static func drop_held(ctx: MatchContext, peer: int, cause: StringName) -> void:
 	var item := held_by(ctx.state, peer)
 	if item == null:
 		return
 	var from := ctx.state.player(peer).position
-	var at := ctx.world.floor_below(from)
+	var at := ctx.world.floor_below(lifted(from))
 	if at == WorldQuery.NO_FLOOR:
 		ctx.error("drop: no floor below %s for item %d of player %d" % [from, item.id, peer])
 		at = from
@@ -100,6 +105,11 @@ static func raise_rested(ctx: MatchContext, item: ItemState, cause: StringName) 
 	fact.position = item.position
 	fact.cause = cause
 	ctx.raise_fact(fact)
+
+
+## `point` lifted by SURFACE_CLEARANCE_M, off the surface it lies on.
+static func lifted(point: Vector3) -> Vector3:
+	return point + Vector3.UP * SURFACE_CLEARANCE_M
 
 
 static func _id(item: ItemState) -> String:
