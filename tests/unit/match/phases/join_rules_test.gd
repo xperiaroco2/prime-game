@@ -123,11 +123,28 @@ func test_a_leave_does_not_free_a_number() -> void:
 
 func test_a_rejected_hello_takes_no_number() -> void:
 	var game := FixtureBaseMode.started()
+	# not_accepted: a Hello without a connection.
+	FixtureBaseMode.hello(game, P5, "Eve")
+	assert_array(FixtureModes.rejections(game, P5)).is_equal([&"not_accepted"])
 	FixtureModes.send(game, Intents.PEER_CONNECTED, P2)
 	FixtureBaseMode.hello(game, P2, "Bob", JoinRules.PROTOCOL_VERSION + 1)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"wrong_version"])
 	FixtureBaseMode.join(game, P3)
 	assert_str(game.state.player(P3).name).is_equal("Player1")
+	# not_accepted: a second Hello from a player.
+	FixtureBaseMode.hello(game, P3, "again")
+	assert_array(FixtureModes.rejections(game, P3)).is_equal([&"not_accepted"])
+	for peer: int in range(10, 10 + FixtureBaseMode.MAX_PLAYERS - 1):
+		FixtureBaseMode.join(game, peer)
+	assert_int(game.state.joins).is_equal(FixtureBaseMode.MAX_PLAYERS)
+	# full: the roster has no room.
+	FixtureModes.send(game, Intents.PEER_CONNECTED, 9)
+	FixtureBaseMode.hello(game, 9, "late")
+	assert_array(FixtureModes.rejections(game, 9)).is_equal([&"full"])
+	assert_int(game.state.joins).is_equal(FixtureBaseMode.MAX_PLAYERS)
+	FixtureModes.send(game, Intents.PEER_LEFT, P3)
+	FixtureBaseMode.join(game, 20)
+	assert_str(game.state.player(20).name).is_equal("Player%d" % (FixtureBaseMode.MAX_PLAYERS + 1))
 
 
 func test_the_numbering_survives_end_to_lobby() -> void:
