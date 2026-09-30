@@ -5,7 +5,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 
 ## Job
 - Wrap `core/`: turn client intents into `core/` commands stamped with the host tick (`Match.apply`, then
-  `Match.tick` once per physics step), and turn `core/`'s events into per-peer messages.
+  `Match.tick` once per host tick, driven from the physics step), and turn `core/`'s events into per-peer messages.
 - Check what the transport knows before an intent reaches `core/`: the sender's peer id (never a field of the
   message), decoding, size and rate. A client never sends state; anything that looks like state is rejected.
 - The rules are `core/`'s, not this folder's: the phase's allowlist, life state, hand, reach, range, stamina,
@@ -26,11 +26,34 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - Load the game mode and read each level's `Marker3D`s in `spawn_<tag>` groups into a `LevelLayout` with
   `MarkerReader` (`server/levels/`, 2j): scene-tree order, load errors listed (two tags, not a marker), station
   markers (`circle`) snapped to the floor below through the `WorldQuery`. Refuse a level with load errors. Answer
-  `core/`'s geometric questions through a `WorldQuery` over the host's own `World3D` (M3).
+  `core/`'s geometric questions through a `WorldQuery` over the host's own `World3D` (M3, below).
 - The host's own local client is just another peer. It receives the same filtered messages through an in-process
   loopback transport, with the same codec, and never reads `core/` state directly. This keeps a dedicated-server
   mode trivial, though the MVP has none (listen server: `docs/ARCHITECTURE.md` §4).
 - Voice: forward a frame only along the pairs `core/`'s routing allows.
+
+## The host session (M3 design, proposed: `docs/ARCHITECTURE.md` §4.5)
+- Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
+  behind for good after a freeze. Each physics step, in order: run the ticks a freeze skipped, with no commands; refill
+  the per-peer budgets; poll; apply the queued commands stamped with the due tick, then `Match.tick`; deliver the
+  outbox; send the snapshots; check the hello deadlines. Catching up before applying is what lets the first claim
+  after a host freeze pass (#84).
+- One queue by arrival: the transport's signal order, the loopback's messages and the network's alike. Stamp a
+  command when it is applied, with the tick it is applied on.
+- Encode an event once and send it to each recipient in turn. Carry out a directive where it stands in the outbox.
+- Snapshots: only for a tick run in this step (never for catch-up ticks), to present players, after that tick's
+  events; an empty `snapshot_for` sends nothing. Unreliable messages go only to players: a player has sent its
+  `Hello`, so nothing overtakes the transport's `ADMIT`.
+- Voice: relay a `VoiceUp` at once, along the routing table refreshed after every tick, as a `VoiceDown` with the
+  stream's own seq (per speaker and listener; never the speaker's) and `ticked_through()`. Never decode Opus. Drop
+  frames from a peer that is not a present player; after a freeze relay only the newest few per speaker.
+- Budgets per peer (bytes, reliable intents) are refilled before the poll; a message over one is dropped before
+  decoding and counted, and nobody is disconnected for its rate. A peer that keeps sending malformed messages is
+  disconnected with one log line (the threshold: §4.5). A `Rejected` from `core/` is not malformed.
+- The hello deadline: a peer that has had no `Welcome` 10 s after it connected is disconnected.
+- `WorldQuery`: per level a `World3D.new()` holding the level's static colliders (layer 1) through `PhysicsServer3D`,
+  built when the session starts; the level is the one `Match` names (`use_level`). Never the client's scene.
+- The session seed comes from `Crypto.generate_random_bytes`. The seed and the command log never leave the host.
 
 ## Boundaries
 - `server/` may use `core/` and the `net/` transport abstraction; it never calls a concrete transport (ENet, Steam,
@@ -42,6 +65,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - Integration tests of the transport checks and the per-peer delivery go in `tests/integration/`; the rules
   themselves are unit-tested in `core/`.
 - The information-leak test is the most important test in the project: no client ever receives information it is
-  not entitled to; it compares what each bot decoded with `Match.view_of` of its peer (§5). When it exists, prove
-  it works once by injecting a leak, confirming it fails, and reverting.
+  not entitled to; it compares what each bot decoded with `Match.view_of` of its peer (§5, §4.6). When it exists,
+  prove it works once by injecting a leak, confirming it fails, and reverting.
+- Drive the host session with a clock of the test's own: a host freeze is a jump of that clock.
 - At finish, `netcode-security-reviewer` reviews every `server/` change.
