@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## Delivery's check on item_rested (ARCHITECTURE §7.1, §9.2, §9.5): a package of an undone
 ## subtask that rests within its own circle's radius, on the circle's floor, is delivered, however
 ## it got there; holding it over the circle never counts. Driven by PickUp, PutDown and a stand-in
-## for the life rule (FixtureDropHeld) on a seeded match whose deal ran (FixtureDealTasks).
+## for the life rule (FixtureDropHeld) on a seeded match whose deal ran (DealTasks).
 
 const P1 := 1
 const P2 := 2

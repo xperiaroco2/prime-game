@@ -5,9 +5,9 @@ extends RefCounted
 ##
 ## basic(): the item fixture mode (PickUp 2 m, PutDown 1 m, kinds `package` and `tool`) with the
 ## settings `tasks_per_player` and `subtasks_per_task`, the task type Delivery (circle radius
-## 1 m, floor tolerance 0.3 m, a palette of 12 colours), the deal (FixtureDealTasks) before
-## PlacePlayers on `lobby, all_ready -> round`, and a reaction on subtask_done that notes the
-## fact to the server audience (FixtureSubtaskNote). The item fixture's reaction on item_rested
+## 1 m, floor tolerance 0.3 m, a palette of 12 colours), the deal (DealTasks by
+## `tasks_per_player`) before PlacePlayers on `lobby, all_ready -> round`, and a reaction on
+## subtask_done that notes the fact to the server audience (FixtureSubtaskNote). The item fixture's reaction on item_rested
 ## is dropped.
 ##
 ## layouts(): the fixture lobby and map, plus on the map 10 `circle` markers at (10 i, 0, 20) and
@@ -38,7 +38,9 @@ static func basic(tasks_per_player: int = 1, subtasks: int = 2) -> GameMode:
 	mode.task_types = [delivery(mode.find_item_kind(&"package"))]
 	mode.reactions = [FixtureModes.rule(Facts.SUBTASK_DONE, [], [FixtureSubtaskNote.new()])]
 	var deal := mode.find_transition(&"lobby", &"all_ready")
-	deal.actions.insert(0, FixtureDealTasks.new())
+	var deal_tasks := DealTasks.new()
+	deal_tasks.tasks_setting = &"tasks_per_player"
+	deal.actions.insert(0, deal_tasks)
 	return mode
 
 

@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
-## Delivery's deal, its demands and its mode check (ARCHITECTURE §3.3, §9.4, §9.5). DealTasks is
-## 2c's: FixtureDealTasks calls Delivery.deal from the `lobby, all_ready -> round` row, before
-## PlacePlayers, as the base mode's deal row will.
+## Delivery's deal, its demands and its mode check (ARCHITECTURE §3.3, §9.4, §9.5). DealTasks (2c)
+## calls Delivery.deal from the `lobby, all_ready -> round` row, before PlacePlayers, as the base
+## mode's `loading, all_loaded -> round` row does.
 
 const P1 := 1
 const P2 := 2
