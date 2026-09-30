@@ -348,5 +348,5 @@ forced_roles = Dictionary[int, StringName]({
 4: &"dissident"
 })
 scripts = Array[ExtResource("4_24cto")]([SubResource("Resource_3t1pk"), SubResource("Resource_q1fpi"), SubResource("Resource_4w08m"), SubResource("Resource_y25r7")])
-expected_ends = Array[StringName]([&"none"])
+expected_ends = Array[StringName]([&"crew"])
 never = Array[ExtResource("2_ppst2")]([SubResource("Resource_37kyg"), SubResource("Resource_iuhmx"), SubResource("Resource_sg6mb")])

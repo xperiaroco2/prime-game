@@ -81,5 +81,5 @@ forced_roles = Dictionary[int, StringName]({
 2: &"dissident"
 })
 scripts = Array[ExtResource("4_fh5q5")]([SubResource("Resource_fwxn3"), SubResource("Resource_lde2p")])
-expected_ends = Array[StringName]([&"none"])
+expected_ends = Array[StringName]([&"dissidents"])
 time_limit_s = 90.0

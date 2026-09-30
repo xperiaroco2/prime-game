@@ -1268,8 +1268,8 @@ levels/
   `Node3D` parents; a marker in two `spawn_` groups, a `spawn_` group on a node that is not a `Marker3D` and a
   group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`) are snapped
   down to the floor that the host's `WorldQuery` finds below them (asked from 0.1 m above, so a marker a hair under
-  the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3). This convention is provisional until 4e settles it with the designer
-  (§10).
+  the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
+  This convention is provisional until 4e settles it with the designer (§10).
 - **Tests and content.** A part's unit tests build their data in code or in `tests/fixtures/` and never load
   `content/` or `levels/`. Only the mode check (§9.1) and the scenarios load them, so a change to `content/` can
   break a scenario, which is what scenarios are for, and never a part's unit test.
@@ -1372,8 +1372,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   a knife and kills both crew; `too_soon`; a ghost's `PickUp` is `not_accepted`; the ghost walks),
   `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`empty_hand`,
-  `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`, a swap). Until the win conditions of 2h (#64) are built,
-  the first three expect the end `none`; with them, `crew`, `dissidents` and `dissidents`.
+  `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`, a swap). The first three expect the ends `crew`,
+  `dissidents` and `dissidents` (2h's win conditions); the other three `none`.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
