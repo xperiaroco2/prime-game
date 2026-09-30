@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | The engineer. The **content API** section is the contract with the designer: changes to it are reviewed by both. |
-| **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33. |
+| **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. |
 | **Rules for agents** | The invariants are repeated in the root `CLAUDE.md`, so they survive compaction. Area rules: `core/`, `server/`, `net/`, `client/`, `voice/` `CLAUDE.md`. |
 
 ## 1. Layers and boundaries
@@ -62,7 +62,8 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
     is loaded; and whether snapshots are sent. Stamina and cooldowns need no tick system: they are settled when used
     (§7.1, §9.4);
   - a **transition table** of rows *from phase, outcome → to phase, actions*.
-- An intent the phase's allowlist does not name is rejected. An accepted intent goes to the phase class, or to the
+- An intent the phase's allowlist does not name, or from a sender it does not name, is rejected (`not_accepted`;
+  the senders are a newcomer, any player, the living, ghosts or the host). An accepted intent goes to the phase class, or to the
   content part that handles it (an action such as pick up, a throw #37, or a body report #35; §9.2: the rule of the
   held item, the role or the mode): a new action is a part plus an allowlist entry, not an edit of the phase class.
 - A **phase class** handles its own commands and timers (the countdown, the loading deadline, a vote timer), emits
@@ -350,8 +351,8 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
 - **`core/` says who is entitled; `server/` delivers.** The rule is game logic, like voice routing (§6). `server/`
   asks `core/` for each event's recipients and builds one message per recipient, *everyone* events included: it sends
   them to each player in turn, never to the transport's broadcast target, which would also reach a peer that is not
-  a player (no accepted `Hello` yet, or a straggler about to be disconnected). It never adds a recipient or a field. `core/CLAUDE.md` still says "`core/` never decides who may
-  see an event"; stage 2a rewords it.
+  a player (no accepted `Hello` yet, or a straggler about to be disconnected). It never adds a recipient or a field
+  (`core/CLAUDE.md` and `server/CLAUDE.md` say so since 2a).
 - **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), tasks,
   health, stamina and damage; ghosts, for the living. No event names a killer; a player who watches the swings and positions (both
   public by the rules) may still work it out.
@@ -511,8 +512,8 @@ adding data plus at most one new part class, never changing the core loop: that 
 designer's agent uses **only** the parts listed here. A missing part becomes an `engine-request` issue; the engineer
 adds it with tests and lists it here in the same PR.
 
-**v0** (#33, [ADR](decisions/2026-09-29-content-api-v0.md)) is designed, not built. The engineer reviews v0; the
-designer reviews it before v1 (#38). Every part names the stage-2 task that builds it (#32's handoff, 2a to 2j); a
+**v0** (#33, [ADR](decisions/2026-09-29-content-api-v0.md), accepted by the engineer) is built in stage 2; the
+designer reviews it before v1 (#38). 2a (#49) built the base class of every kind, the loop and `PlacePlayers`. Every part names the stage-2 task that builds it (#32's handoff, 2a to 2j); a
 part is usable in data once its row or entry names the PR that built it. Every number is a placeholder from the
 [MVP rules](decisions/2026-09-29-mvp-rules.md), "not a decision".
 
@@ -545,7 +546,8 @@ part is usable in data once its row or entry names the PR that built it. Every n
   - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does
     not declare; an outcome a phase can report without a row (§3.1); an accepted intent that neither the phase class
     nor any rule handles; two rules on one trigger in one owner; a number outside its part's bounds. A unit test
-    (2a) loads every mode in `content/` and runs this part.
+    (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
+    (`ModeCheck`).
   - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks; a
     marker with two tags; a lobby with fewer `lobby_player` markers than the mode's maximum of players. `Match` runs
     this part on creation. The content test runs it with the layouts of the mode's levels, read by the marker reader
@@ -630,16 +632,34 @@ The base classes and the kinds are in `core/content/` (the bot-scenario data cla
 bot scenario's (2j), so stage-2 tasks that run in parallel share them instead of each inventing one; the parts and
 phase classes come in the task each row names.
 
+**What the later stage-2 tasks build on (2a, #49).** Each adds its own files and never edits `Match`:
+- A part runs with a `MatchContext`: the `MatchState`, the mode, the `WorldQuery`, the tick; the actor and its
+  intent (an action), the `Fact` (a reaction or a task type's check), or the outcome and its argument (a transition
+  action, whose `layout` is the level being entered); and `emit`, `reject`, `raise_fact`, `report_outcome`,
+  `rng(purpose)`, `setting(id)` and `error`. Names: `Intents`, `Facts`, `RejectReasons`.
+- Events are `MatchEvent` subclasses in `core/events/`, each with its `audience()` (`Audience`: everyone, only,
+  role, life, server) and a `const AUDIENCE_KIND`, from which `ModeCheck` warns about role-owned public events.
+- `Phase` (handled intents, outcomes, settings check, end tick, enter, exit, tick, intents, peers connecting and
+  leaving); the base mode's Lobby, Countdown, Loading and End classes are skeletons that 2b fills; `MovementRule`
+  (`core/movement/`) takes `MoveClaim`s and checks only the epoch until 2d.
+- `MatchState`: players (`PlayerState`, life ALIVE, GHOST or LEFT), settings, map, items (`ItemState`: ground,
+  hand or locked), tasks (`MatchTask` with its `TaskState`), stations, bodies, the cooldown and counter tables,
+  `part_state`, the clock, the winner, `RngStreams`, and `reset_match` for `ResetMatch`.
+- server/ and the tests drive `Match`: `start`, then per tick `apply` for each command and `tick`; `take_outbox`
+  (events with recipients), `snapshot_for`, `speakers_for`, `view_of`, `command_log` and `Match.replay`.
+- Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an
+  enum of `NetTransport` or GdUnit4).
+
 | Kind | Answers | Class in `core/` | Data | MVP instances |
 |---|---|---|---|---|
-| Game mode | which phases, rules and settings a match has | `GameMode`, with `PhaseSpec`, `Transition`, `SettingSpec`, `SideSpec`, `PlayerRules` | `content/modes/` | the base mode |
+| Game mode | which phases, rules and settings a match has | `GameMode`, with `PhaseSpec` (its allowlist of `AcceptSpec`s), `Transition`, `SettingSpec`, `SideSpec`, `PlayerRules` | `content/modes/` | the base mode |
 | Phase class | what a phase does itself: its own intents, timers and outcomes | `Phase` subclasses (`RefCounted`; a fresh object per entry, §9.1) | named by a `PhaseSpec`, with its settings | Lobby, Countdown, Loading, Round, End |
 | Rule | trigger → conditions → effects; an **action** is a rule on an intent, a **reaction** a rule on a fact | `Rule` | inside its owner | PickUp, PutDown, the knife's Use |
 | Condition, cost | *only if*; a cost is also paid | `Condition`, `Cost` subclasses | inside a rule or a win condition | §9.4 |
-| Effect, transition action | *what happens*; a transition action is an effect that a transition row runs, with no actor | `Effect` subclasses | inside a rule or a row | §9.4 |
+| Effect, transition action | *what happens*; a transition action is an effect that a transition row runs, with no actor | `RuleEffect` subclasses | inside a rule or a row | §9.4 |
 | Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | TaskTicks |
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
-| Role | a side, what it knows, its abilities; a display name | `Role`, `RoleQuota` | `content/roles/` | Crew, Dissident |
+| Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's held item) and its spawn tag | `ItemKind` | `content/items/` | Package, Knife |
 | Task type | how tasks are dealt and done; what it demands of the map | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, colour palette) | inside its task type | the delivery circle |
@@ -695,7 +715,7 @@ phase classes come in the task each row names.
 | `DealRoles` | each quota draws its players from the roster; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) replace the draws | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; 1): the count is max(0, min(setting, N − leave_at_least))), `default_role`, RNG purpose (`roles`) | `RoleAssigned` (that player); `Teammates` (each player of a role that knows its teammates) | 2c |
 | `DealTasks` | gives each player `tasks_setting` tasks, dealt by the mode's task types through the `TaskType` interface of 2a (§9.5, Delivery); with one task type, it deals them all | `tasks_setting` (`tasks_per_player`) | the task types' events | 2c, tested with a fake task type; Delivery's deal in 2f |
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, at most one item per marker in a deal, into `MatchState`'s items (2a) | `kind`, `count_setting`, RNG purpose (`knives`) | `ItemSpawned` (everyone), in id order; `item_rested` (spawn) | 2c |
-| `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a |
+| `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
 | `StartClock` | sets the match clock's end to now plus the setting | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone) | 2h |
 | `EndMatch` | records the side of the `won` outcome as the winner | none | `MatchEnded` (everyone): the side only | 2h |
 | `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; everyone un-ready | none | `ReadyChanged` (everyone), per player | 2b |
@@ -714,7 +734,7 @@ tag over every row into a phase on the map, compares each sum with the chosen ma
 | `Lobby` | phase class | allows joins; `Hello` (the join), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins` (server) | 2b |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` `seconds` after entry | `seconds` (0 to 60; 5) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s; at the deadline drops who did not confirm; reports `all_loaded` | `deadline_seconds` (5 to 600; 60) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `RefuseJoins`, `DisconnectPeer` (server) | 2b |
-| `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5) | none | none of its own | 2a |
+| `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5) | none | none of its own | 2a (#49) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; leaves (§3.5) | none | `PlayerLeft` (everyone) | 2b |
 | `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i |
 | `Proximity` | voice rule | every pair of players within the radius | `radius_m` (0.5 to 100; 8) | the routing per tick | 2i |
@@ -762,7 +782,8 @@ Settings:
   (`lobby_player`).
 
 Produces: the events of its phases and parts. Visible to: as each of them says.
-Status: designed in #33; the skeleton in 2a, filled by 2b to 2i. Tests: the mode check of 2a (§9.1), the scenarios
+Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. Tests: the mode check of 2a
+(`tests/unit/content/content_modes_test.gd`, §9.1), the scenarios
 in `content/scenarios/` (2j).
 
 #### Crew (role)
