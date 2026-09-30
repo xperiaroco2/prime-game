@@ -53,7 +53,9 @@ client, the bots and the leak test). The main choices:
    before it applies anything, keeps one queue by arrival, delivers each event to exactly its recipients, carries out
    the directives in the outbox's order, sends snapshots after a tick's events, relays voice along the last tick's
    routing with that tick on each frame (E11), enforces the hello deadline, bounds each peer's rate and disconnects a
-   peer that keeps sending malformed packets (E7).
+   peer that keeps sending malformed packets (E7). An error that `core/` logs during the deal ends the session (the
+   engineer's answer on #90, item 2): `core/` has no guard for a deal that cannot place its tasks, and the round would
+   start with no tasks and end at once in a crew win.
 7. **Geometry.** Per level, a `World3D.new()` holding the level's static colliders through `PhysicsServer3D`, built
    when the session starts (E8); `Match` tells the port which level it asks about (E9); a player's floor is the highest
    under the capsule's footprint and an item's is one ray below it (E10); whether a fresh space answers before its

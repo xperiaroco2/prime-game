@@ -60,6 +60,8 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - `WorldQuery`: per level a `World3D.new()` holding the level's static colliders (layer 1) through `PhysicsServer3D`,
   built when the session starts, before `MarkerReader` reads the markers through them (`use_level` per level); then
   the level is the one `Match` names (`use_level`). Never the client's scene.
+- An `error:` line that `Match.diagnostics` gains in the tick that runs the deal ends the session (the engineer's
+  answer on #90): a deal that could not place its tasks would start a round that the crew wins at once.
 - The session seed comes from `Crypto.generate_random_bytes`. The seed and the command log never leave the host.
 
 ## Boundaries

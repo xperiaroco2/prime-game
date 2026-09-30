@@ -728,7 +728,17 @@ or agent, debugging mid-playtest, replay it and read every role of match 2; the 
 log next to its report, so `Match.replay` reproduces the failure with the same build and content (3f adds `CommandLog`'s
 reading back). The log holds the seed: it stays on the host's disk and is never sent (§5).
 
-**Ending.** The host quits, or its own client's load fails: `close()`, and every client sees `host_lost` (#40).
+**A failed deal is fatal** (the engineer's answer on #90, item 2, 2026-09-30). `core/` has no guard for a deal that
+cannot complete: a `Delivery` deal that could not place its packages or circles logs a match error
+(`Match.record_error`, kept in `Match.diagnostics`) and the round starts anyway, with no tasks, which every task done
+turns into an instant crew win (§3.4). So `HostSession` reads `diagnostics` after every `Match.apply` and `Match.tick`
+call, and a new `error:` line in a tick that ran the deal (the `all_loaded` row, §3.2: its outbox holds the
+`PhaseChanged` to `round`) ends the session with that error shown to the host's human, before the tick's events are
+delivered. An error at any other time is logged and the session goes on. The bots runner already fails a scenario on
+any match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
+
+**Ending.** The host quits, its own client's load fails, or the deal fails (above): `close()`, and every client sees
+`host_lost` (#40).
 
 ### 4.6 The client, the bots and the leak test in M3 (#89)
 - **`ClientSession`** (`client/net/`, 3g) is what every client runs: the host's own over the loopback, a remote one
