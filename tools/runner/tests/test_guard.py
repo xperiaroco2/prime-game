@@ -415,7 +415,11 @@ OWN_WORK = [
     (B, "git commit -q --fixup=HEAD && GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=true git rebase --interactive origin/main"),
     (B, "export GIT_SEQUENCE_EDITOR=:; git rebase -i --autosquash origin/main"),
+    # With fixup! commits only: a squash! commit would still open GIT_EDITOR for its message, as a plain
+    # `rebase --autosquash` does.
     (B, "GIT_SEQUENCE_EDITOR=: GIT_EDITOR=vim git rebase -i --autosquash origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=vim; GIT_SEQUENCE_EDITOR=:; git rebase -i --autosquash origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; bash -c 'git rebase -i --autosquash origin/main'"),
     (B, "GIT_SEQUENCE_EDITOR=':' git rebase -i --autosquash origin/main"),
     (P, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
     (B, "git -c user.name=x commit -m y"),
@@ -508,6 +512,13 @@ BEYOND_OWN = [
     (P, "$GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=: git log -1; git rebase -i origin/main"),
     (B, "(export GIT_SEQUENCE_EDITOR=:); git rebase -i origin/main"),
+    # A later value or `unset` of the exported variable is what git sees; each shell's own syntax only.
+    (B, "export GIT_SEQUENCE_EDITOR=:; GIT_SEQUENCE_EDITOR=vim; git rebase -i origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; unset GIT_SEQUENCE_EDITOR; git rebase -i origin/main"),
+    (P, "$env:GIT_SEQUENCE_EDITOR = ':'; Remove-Item Env:GIT_SEQUENCE_EDITOR; git rebase -i origin/main"),
+    (B, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i origin/main"),
+    (P, "export GIT_SEQUENCE_EDITOR=:; git rebase -i origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=$E; git rebase -i origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --update-refs origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i -x 'tools/run.sh test' origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main main"),

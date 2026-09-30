@@ -790,17 +790,26 @@ class Paths:
         exported = words[0] == "export" and len(words) == 2
         if exported:
             words = words[1:]
+        bash = self.shell == BASH
+        if bash and words[0] == "unset":
+            # git then falls back to editors the guard cannot see: an unknown value.
+            self.env.update((w.lower(), None) for w in words[1:] if not w.startswith("-"))
+            return []
         if len(words) == 1 and (match := ASSIGN_RE.match(words[0])):
+            name = match.group(1).lower()
             self.remember(match.group(1), match.group(2), words)
-            if exported:
-                self.env[match.group(1).lower()] = self.vars.get(match.group(1).lower())
+            if bash and (exported or name in self.env):  # a new value of an exported variable is exported too
+                self.env[name] = self.vars.get(name)
             return []
         if len(words) >= 2 and words[1] == "=" and (var := PS_VAR_RE.match(words[0])):
             simple = len(words) == 3 and not words[2].startswith(("$(", "[")) and not CMDLET_RE.match(words[2])
             self.remember(var.group(1), words[2] if simple else None, words[2:], kind="command")
-            if words[0].lower().startswith("$env:"):
+            if not bash and words[0].lower().startswith("$env:"):
                 self.env[var.group(1).lower()] = self.vars.get(var.group(1).lower())
             return [] if simple else words[2:]
+        if not bash and words[0].lower() in ("remove-item", "ri", "rm", "del", "erase"):
+            # `Remove-Item Env:X`: X leaves the environment. The command is still judged as a delete below.
+            self.env.update((w[4:].lstrip("\\/").lower(), None) for w in words[1:] if w.lower().startswith("env:"))
         loop = words[1:] if words[0].lower() in ("for", "foreach") else words
         if len(loop) >= 3 and loop[1].lower() == "in" and (m := re.match(r"^\$?([A-Za-z_]\w*)$", loop[0])):
             self.remember(m.group(1), None, loop[2:], kind="loop")
