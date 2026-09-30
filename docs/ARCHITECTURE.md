@@ -554,6 +554,147 @@ The rules of the table:
   truncation, every single-byte change and random payloads, and asserts a clean reject with no engine error line; the
   table checked against `core/` (above); the version pinned (§4.3).
 
+### 4.5 The host session (M3 design, #89)
+`HostSession` (`server/`, 3f) is a `RefCounted` that owns the `Match`, the hosting transport (the host's own client
+linked through `own_client_of`), the levels' collision worlds (3c, below) and the bookkeeping per peer. A thin `Node`
+calls `step(now_usec)` from `_physics_process` with `Time.get_ticks_usec()`, before the own client's nodes
+(`process_physics_priority`); tests and the bots runner call it with a clock of their own (§4.6). The host's own
+client is a `ClientSession` on the loopback like any other (§4.6) and reads nothing of `HostSession`.
+
+**Starting.** (1) Load the game mode and every level it names (the lobby and the maps): read each level's markers
+into a `LevelLayout` (2j's reader) and build its collision world. (2) The session seed: 8 bytes of
+`Crypto.generate_random_bytes`, the operating system's entropy, never the time (§3.3). (3) `Match.new`; a refused
+mode stops the host with the refusals shown. `keep_history` stays off (the bots runner turns it on). `Match.start(0)`:
+host tick 0 is the session's start. (4) Host on the transport and link the own client.
+
+**Host ticks come from the clock:** tick = ⌊(now − start) × `Ticks.RATE` / 10^6⌋, in microseconds. Not a count of
+physics frames: Godot runs at most `Engine.max_physics_steps_per_frame` physics steps per rendered frame and drops the
+rest, so after a 5 s freeze a frame count falls behind the clients' clocks for good (the M1 lesson "stamp from the
+host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tick falls due about every third step.
+
+**One step**, in this order (each choice names what it prevents):
+
+| # | What | Why |
+|---|---|---|
+| 1 | **Catch up.** t = the tick of now. Every tick from `ticked_through() + 1` to t − 1 runs with no command (`Match.tick`), and its outbox is delivered (5) | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
+| 2 | **Refill** every peer's budgets for the host time since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
+| 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
+| 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
+| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order; a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
+| 6 | **Snapshots**, when a tick ran in this step: for each present player p, `snapshot_for(p)`; empty means the phase sends none; else `{tick: t, avatars}` (§4.3) to p on LATEST, after the tick's events. Then the voice routing table is refreshed (below) | A client sees a tick's events before its snapshot (both on channel 0). Catch-up ticks send none: only the newest state counts |
+| 7 | **Deadlines.** A peer connected longer than the hello deadline (10 s, a placeholder, "not a decision") with no `Welcome` sent to it is disconnected (`disconnect_peer`) | Checked after 4, so a `Hello` that waited out a host freeze is applied first. 10 s outlasts a 5 s freeze of either side. The late `PeerLeft` is a newcomer's, which `core/` forgets (§3.5) |
+
+Accepted in step 1: a command that waited in the socket during a host freeze is stamped when the host reads it, so a
+`SetReady(false)` or a `LoadAck` sent during the freeze can lose to the countdown's end or the loading deadline.
+
+**Voice relay.** The routing table holds `speakers_for(l)` for every present player l, refreshed after every tick
+(catch-up ticks included), so between two ticks it is the routing that `view_of` records for the last one (§5). A
+`VoiceUp` from speaker s goes, as a `VoiceDown` (s, the stream's next seq, `ticked_through()`, the bytes unchanged),
+to each listener l ≠ s whose entry holds s; one from a peer that is not a present player is dropped. The seq is
+renumbered per speaker and listener, so a listener cannot tell how much s sent to others (§6); the speaker's own seq
+only orders one poll's frames. After a freeze of the host or of the speaker, at most the newest 5 frames (100 ms; a
+placeholder) per speaker in one poll are relayed and the older ones dropped and counted: 5 s of backlog played late is
+worse than a gap (M5 tunes it). Unreliable messages go only to players, and a player has sent its `Hello`, so none
+overtakes the `ADMIT` (§4 Joining). The host never decodes Opus. M3 relays the bots' synthetic frames; capture and
+playback are M5.
+
+**Rate limits and malformed packets** (E7; the numbers are placeholders, "not a decision"). The accident they bound:
+a client bug sends an intent every frame; every command, and every `WorldQuery` answer it causes, stays in the command
+log for the whole match (§3.3), so one looping client grows the host's memory and work without end.
+- Per peer, two token buckets refilled from host ticks: bytes of every message received (64 KiB, refilled at
+  16 KiB/s, about three times an honest client with voice) and reliable intents (100, refilled at 20 per second). Both
+  hold a 10 s backlog, so a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). A
+  message over a budget is dropped before decoding and counted (`over_budget`). Nobody is disconnected for its rate:
+  a freeze would trigger it too.
+- Malformed: a peer whose messages the transport or the codec rejected 50 times within 10 s is disconnected, with one
+  log line that names the peer and the reasons. An honest client of the same version sends none, and the margin covers
+  a rare corrupted packet. A `Rejected` from `core/` (a swing `too_soon`) is a rule's answer, not a malformed packet,
+  and is not counted. 3f gives `server/` the transport's rejects per peer (they are counted in `NetRejects` today).
+- The counters join the transport's summary line (at most one per 10 s, §4).
+
+**Loading a level and `LoadAck`.**
+- **Clients**, the host's own included: on `LoadMatch` a client loads the map only if its own copy of the mode lists
+  that path (never a path from the wire alone), with `ResourceLoader.load_threaded_request` and a
+  `load_threaded_get_status` check every frame, so its transport keeps polling while the level loads. It instantiates
+  the scene, replaces the lobby and sends `LoadAck(match_id)`. A failed load leaves the session with a message; the
+  host's own failed load ends the session (§3.2).
+- **The host's collision worlds** are built when the session starts, so loading asks nothing of `server/`: the host's
+  own `LoadAck` means that its client loaded, and `WorldQuery` already answers for every level.
+
+**`WorldQuery` over the host's own worlds** (3c; §7.1).
+- **The world** (E8). Per level, a `World3D.new()` whose `space` gets one static body per `StaticBody3D` of layer 1
+  (`world`) in the level's scene, through `PhysicsServer3D`: `body_create`, `body_set_mode` (static), `body_add_shape`
+  with each `CollisionShape3D`'s shape RID and its transform composed up to the scene's root, `body_set_space`. The
+  scene is instantiated only to be read, never added to a tree, then freed. Queries go through
+  `World3D.direct_space_state` with the mask of layer 1. Prevents: the answers depending on the host's client scene (a
+  headless host has none, and it holds player capsules), and a second live copy of the level's meshes and scripts.
+- **Which level** (E9). `Match` tells the port the level of the phase it enters, before a row's actions run:
+  `WorldQuery.use_level(path)` on start and in each transition (3e; the fakes and the replay ignore it). Prevents: a
+  row action that asks geometry (none does in the MVP) getting the old level's answer, as it would if `server/`
+  switched levels between steps.
+- **The answers.** `line_of_sight(a, b)`: `intersect_ray` from a to b hits nothing. `floor_below(p)` (E10): p's x and
+  z at the height of the highest floor under five downward rays, at p and at four points on a circle of the capsule's
+  radius around it, so a player on a ledge's edge stands on the ledge (§7.1's note); an item dropped there may rest up
+  to a capsule radius past the edge. `rest_position(a, b)`: a ray from a to b, stopped 0.2 m (a placeholder) before
+  the first hit, then `floor_below`. `core/` records every answer in the command log (§3.3).
+- **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
+  gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the
+  first query misses, the host waits one physics step after building the worlds before `Match.start`. Either way the
+  worlds exist before the first claim can arrive. Physics runs on the main thread (`project.godot` sets no physics
+  thread), where the 4.7.2 docs allow `direct_space_state` outside `_physics_process`; stepping from
+  `_physics_process` keeps it legal if that setting changes.
+
+**The command log and replays** (E13). The host keeps the log in memory (§3.3). A debug-build host writes each
+finished match's log to `user://replays/` and keeps the last 10; the bots runner writes a failed scenario's log next
+to its report, so `Match.replay` reproduces the failure with the same build and content (3f adds `CommandLog`'s
+reading back). The log holds the seed: it stays on the host's disk and is never sent (§5).
+
+**Ending.** The host quits, or its own client's load fails: `close()`, and every client sees `host_lost` (#40).
+
+### 4.6 The client, the bots and the leak test in M3 (#89)
+- **`ClientSession`** (`client/net/`, 3g) is what every client runs: the host's own over the loopback, a remote one
+  over ENet, and every bot. It decodes each message (§4.4) into a **decoded view** shaped like `core/`'s `PeerView`
+  (§5): the events in order as (name, fields), the snapshots by tick, the voice frames as (speaker, tick, bytes). From
+  it, it keeps what a player may know: its peer id and epoch, the phase, the roster, the settings; the items, stations
+  and bodies folded from the events (cleared on `LoadMatch` and on entering the lobby); the avatars of the newest
+  snapshot; its own `SelfStatus`. It sends `Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per
+  client tick (20 Hz) with its epoch, client tick and jump count, and `LoadAck` after loading. It never reads `core/`
+  state (invariant 2).
+- **Bots** (`tests/harness/`, 3h): a bot is a `ClientSession`, a scenario script (the §9.7 steps) and an honest mover
+  that moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on the flat levels
+  (2j), claims every client tick, counts its jumps and adopts every `Correction`. Its voice is synthetic: frames of
+  varying length holding its peer id and a counter, so a listener also checks that the relay changed no frame and
+  named the right speaker.
+- **The runners** (§9.7; E12):
+  - `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/`, or those named, in one headless
+    process over `LoopbackHub`: a `HostSession` with `keep_history` on, bot 1 its own client, the others loopback
+    clients, all stepped by a simulated clock (60 steps per simulated second) as fast as the machine runs. A
+    10-minute scenario takes seconds and runs the same every time.
+  - `--instances N` runs one scenario over ENet on 127.0.0.1, on a free port as `verify`'s `enet` step: instance 1
+    hosts with bot 1, instances 2 to N run one bot each, on the real clock. Each bot writes its decoded view and its
+    peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
+    lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares.
+  - The one-process `bots` joins `verify` after `freeze`, and so CI; the ENet run joins it too if it stays under a
+    minute (3h measures).
+- **The information-leak test** (§5) compares what each bot b decoded with `view_of(b)`:
+  - events: b's decoded events are `view_of(b)`'s, in order, as (name, `to_dict()`); for a bot that left, a prefix;
+  - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
+    lacks is a leak (a subset check, because LATEST may drop);
+  - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check);
+  - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience: every only-event b
+    decoded (`Welcome`, `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`) names b as its subject; a
+    crew bot decodes no `Teammates`; a dissident's `Teammates` names that match's dissidents only; an
+    alive bot never decodes a ghost's avatar or voice frame; the bots present for a whole round decode the same task
+    events; no decoded message has a field that names a seed.
+  - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone)
+    and one that only the invariants catch (`Teammates` declared *everyone* in `core/`), see the test fail on each,
+    revert, and record both in the PR.
+- **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
+  with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they run
+  headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
+  #21 ran. M4 gives them windows and the real client. The default port is a placeholder. Several windows on one PC
+  meet the D3D12 freeze of §4.
+
 ## 5. Per-peer information filtering
 
 - Each outgoing message is built for one recipient from what that peer is entitled to know.
@@ -562,7 +703,7 @@ The rules of the table:
 - `tools\run.cmd bots` (M3) starts a headless host and N headless bot clients that play a full scripted match, then
   asserts: the match ends, the winner is correct, no errors are logged, and no client received information it was
   not entitled to. It joins `verify` and CI. `host` and `join` launch a local host and clients for the humans'
-  playtests.
+  playtests. Their design, and the leak test's exact comparisons: §4.6.
 
 **How entitlement is expressed** (#32; [ADR](decisions/2026-09-29-match-loop-intents-events-and-entitlement.md)):
 - **Per event type.** Each event class declares its audience as a rule in `core/`: *everyone*, *only(peer)* (a
@@ -597,7 +738,8 @@ The rules of the table:
   snapshots and speakers are recorded only with `Match.keep_history` on (off by default: about 1 GiB for 10 players
   over 10 minutes); the tests and the leak test turn it on, a real host does not. The M3 leak test
   compares what each bot actually decoded (voice frames included) with `view_of` of its peer; anything received that
-  `view_of` does not hold is a leak.
+  `view_of` does not hold is a leak (§4.6: the events exactly, the snapshots' avatars and the voice frames as
+  subsets).
 - **Invariants that do not trust the declarations.** A wrong audience (say `Teammates` declared *everyone*) would
   pass the comparison above, because both sides read the same declaration. So unit tests and the leak test also
   assert facts written independently of them: for the whole session, a crew member knows one role, its own, and a
@@ -662,8 +804,8 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
 ## 7. Movement
 
 Client-side movement for the local player; the host checks speed and teleports; remote players are interpolated.
-*Open (M4):* snapshot rate and format, tolerances, correction policy. The core tick rate is set in §3.3; what the
-host checks, in §7.1.
+*Open (M4):* snapshot rate, tolerances, correction policy. The core tick rate is set in §3.3; what the host checks, in
+§7.1. The snapshot's wire format (avatars only, every tick in the phases that send snapshots) is §4.3.
 
 Lessons from the M1 spike (#13, #14):
 - A starting point: 20 Hz snapshots, remote players drawn 2 ticks (100 ms) behind an estimated host clock. The
@@ -714,8 +856,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   towards B comes to rest. `server/` implements it over its own `World3D` holding the level's static colliders, never
   the client's scene, so a headless host and bots work the same; tests use a fake. `core/` stays pure, and every rule
   is still in one place. The 4.7.2 API limits `World3D.direct_space_state` to `_physics_process` on the main thread
-  when physics runs on a separate thread, so the host ticks `core/` from its physics step; stage 2 checks that a new
-  space answers queries before its first step.
+  when physics runs on a separate thread, so the host ticks `core/` from its physics step; M3 (3c) checks that a new
+  space answers queries before its first step (§4.5).
 - **Positions.** `core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
   range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
   claiming to stand next to what it wants to grab.
@@ -771,7 +913,7 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     `HEIGHT_SLACK_M` (1 mm) on top. Falling is not bounded.
   - Cost: two `WorldQuery.floor_below` calls per jump and one per claim on the floor, each recorded in the command
     log. `server/`'s `floor_below` (M3) should look below the whole capsule footprint, not one ray at the origin: on a
-    ledge's edge a ray from the feet misses the ledge, and a jump from there would be corrected.
+    ledge's edge a ray from the feet misses the ledge, and a jump from there would be corrected (the design: §4.5, E10).
 - **Pushing apart** (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions"). Living
   players never pass through each other, but a body cannot block a passage. Each client moves only its own player
   against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
@@ -1523,9 +1665,11 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
     failure fail once.
-  - *Bots* (M3, 3d): `tools\run.cmd bots [scenario]` starts a headless host, whose own client is bot 1, and the other
-    bots as headless clients: over `LoopbackHub` in one process by default, or over ENet on 127.0.0.1 with
-    `--instances`. The same files; it joins `verify` with the leak test (§5).
+  - *Bots* (M3, 3h): `tools\run.cmd bots [scenario]` starts a headless host, whose own client is bot 1, and the other
+    bots as headless clients: over `LoopbackHub` in one process by default, stepped by a simulated clock, or over
+    ENet on 127.0.0.1 with `--instances`, on the real clock. It builds on the core runner's `ScenarioBot` steps and
+    `ScenarioInvariants`, with `HostSession` in the place of the runner's stand-in for `server/`. The same files; it
+    joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
@@ -1574,7 +1718,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6) | M3, before `server/` hosts a match |
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
-| Wire format of the message layer: schemas, encoding, versioning, reliability | M3 |
+| Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E13 for the engineer); built in M3 (3c to 3i) |
 | The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
 | Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
