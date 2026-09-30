@@ -82,9 +82,9 @@ static func place(ctx: MatchContext, item: ItemState, at: Vector3, cause: String
 
 ## Drops the item `peer` holds, if any, to the floor below the player's last accepted position
 ## (WorldQuery.floor_below, asked from just above the feet: Items.lifted), never in mid-air:
-## ItemPlaced (`cause`: death or leave), then item_rested. With no floor below (a level without
-## one there) it rests at that position, and the error is logged. The life rule (2g) calls this after the life state changed and after
-## player_died or player_left was raised (§3.4, §9.2).
+## ItemPlaced (`cause`: death or leave), then item_rested. With no floor below (a level without one
+## there) it rests at that position, and the error is logged. The life rule (2g) calls this after
+## the life state changed and after player_died or player_left was raised (§3.4, §9.2).
 static func drop_held(ctx: MatchContext, peer: int, cause: StringName) -> void:
 	var item := held_by(ctx.state, peer)
 	if item == null:
