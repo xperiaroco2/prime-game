@@ -1,8 +1,8 @@
 # Wire format and the host session
 
-- **Status:** Proposed: the engineer reviews it in #89's PR, with the choices E1 to E13 below
+- **Status:** Proposed: the engineer reviews it in #89's PR, with the choices E1 to E16 below
 - **Date:** 2026-09-30
-- **Deciders:** designed by the agent in #89 (M3 design); the engineer decides E1 to E13
+- **Deciders:** designed by the agent in #89 (M3 design); the engineer decides E1 to E16
 - **Builds on:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md),
   [match loop, intents, events and entitlement](2026-09-29-match-loop-intents-events-and-entitlement.md),
   [content API v0](2026-09-29-content-api-v0.md), [voice approach](2026-09-29-voice-approach.md),
@@ -148,3 +148,4 @@ The design follows each recommendation, and each can be reverted before its task
 | E13 | Command logs | (a) the bots runner saves a failed scenario's log; a debug-build host keeps its last 10 matches' logs in `user://replays/`; (b) the bots runner only; (c) none | (a): a failure in an unattended run or a playtest can be replayed |
 | E14 | A `Hello` the phase refuses (Loading, Round, End; on `main`: `not_accepted`, seq 0, no disconnect) | (a) a reason of its own, `joins_closed`, then `DisconnectPeer`, and the entry into Loading disconnects every waiting newcomer; (b) keep `not_accepted`, and the client ends its join on any `Rejected` before `Welcome`; the hello deadline disconnects it | (a), with the client rule of (b) as well: the joiner is told why at once, and no newcomer lingers into the Round |
 | E15 | A `MoveClaim` the phase refuses (in flight at a phase change) | (a) dropped silently by `core/`, no `Rejected`; (b) `Rejected(not_accepted)` with seq 0 as on `main`, `MoveClaim` counted against the intent budget | (a): clients ignore it anyway, and a looping client could otherwise add a reliable `Rejected` to the log and the outbox every poll |
+| E16 | Payloads that legal content can push over a cap (`SettingsChanged`'s `id_sets` can reach about 18 KB at the declared maxima; a shortfall naming a 32-character id or a 255-byte path passes `text`'s 64 bytes) | (a) shortfalls as a `note` (`u16` length, up to 320 bytes), `SettingsChanged`'s cap at 8192, and `WireBudget` (`server/`) computing every content-sized kind's worst case from the mode, refusing a mode over a cap at host start and in a test over `content/`; (b) `core/` emits structured shortfalls (a reason id and numbers) that the client formats, and the maxima shrink until every kind fits its cap at them; (c) test the MVP's worst case only | (a): no change to `core/`'s events, and a designer's edit that would break the wire fails `verify` with the kind named, not a playtest with a silent missing event |

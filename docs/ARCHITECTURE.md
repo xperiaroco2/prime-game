@@ -306,7 +306,7 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
 rows in `NetKindTable.game()` (§4.3); the codec (§4.4); rate limits and what the host does with a peer that keeps
 sending rejected packets (§4.5). `MoveClaim` stays on the LATEST lane and carries a cumulative jump count, so a jump
 survives a merge (§4.3). The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The
-choices marked E1 to E13 wait for the engineer; the
+choices marked E1 to E16 wait for the engineer; the
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options, and the design follows each
 recommendation.
 Every schema change updates §4.3 in the same PR.
@@ -417,6 +417,7 @@ emitted, which the leak test needs (§4.6).
 | `id` | 1 + n | `u8` n, then n bytes of `a-z`, `0-9` and `_`, n from 1 to 32 | another length or byte |
 | `path` | 1 + n | `u8` n, then `res://` and bytes of `A-Z a-z 0-9 _ - . /`, n up to 255 | another prefix, `..`, another byte |
 | `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 | another byte (UTF-8 names come with #73) |
+| `note` | 2 + n | `u16` n, then n bytes of printable ASCII, n up to 320 (a shortfall: `core/`'s longest names a 255-byte map path, E16) | as `text` |
 | `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
 | `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |
 | `opus` | the rest | the rest of the payload, opaque: the host never decodes it | empty, or over the cap |
@@ -424,6 +425,14 @@ emitted, which the leak test needs (§4.6).
 Maxima: 16 players on the wire (the base mode allows 10), so a list or map of players holds at most 16 entries (a
 snapshot's avatars at most 15: never the viewer's own); a map of settings, spawn tags or station kinds at most 32; a
 set of task types at most 16 ids; shortfalls at most 32. The sizes below are the MVP's with 10 players, then the cap.
+These maxima bound the decoder, not the payload: at the maxima some kinds exceed their caps (`SettingsChanged`'s
+`id_sets` alone could reach about 18 KB). How big they get depends on the content, so the content is checked
+(E16): `WireBudget` (`server/`, 3d) computes, from a game mode, the worst case of every kind whose size its content
+sets (`Welcome`, `SettingsChanged`, `LoadMatch`, `ChangeSettings`, `StationPlaced`, `ItemSpawned`, `Teammates`,
+`PlayersPlaced`), with the mode's own ids, settings, map paths, `max_players` and shortfalls (at most one per demanded
+spawn tag and station kind, plus the player count and the layout, each a full `note`). A mode over a cap is refused
+when the host starts, with the kind named; a test runs it over every mode in `content/`, so `verify` catches a
+content edit before a playtest instead of the encoder refusing a reliable event in one.
 
 **Intents** (C→H). Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
 `Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`. A client stops
@@ -461,7 +470,7 @@ directive has no row, because it reaches no peer.
 | 34 | `PlayerJoined` | `peer: peer`, `name: text`, `spot: vec3` | 25; 81 |
 | 35 | `PlayerLeft` | `peer: peer` | 4; 4 |
 | 36 | `ReadyChanged` | `peer: peer`, `ready: bool` | 5; 5 |
-| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<text>` | 250 with no shortfall; 4096 |
+| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<note>` | 250 with no shortfall; 8192 |
 | 38 | `PhaseChanged` | `phase: id`, `end_tick: tick` (optional) | 10; 37 |
 | 39 | `CountdownCancelled` | `reason: id` | 9; 33 |
 | 40 | `PlayersPlaced` | `spots: map<peer, vec3>` | 161; 257 |
@@ -511,7 +520,12 @@ The rules of the table:
 - **Ids** on the wire are the content's own names (`crew`, `knife`, `match_duration`) (E5), so a content difference
   shows up as an unknown id, never as the wrong thing. The mode check (§9.1) refuses an id outside the wire's alphabet
   (3e): a small change to the content API, because the designer's ids must be lowercase snake_case of at most 32
-  characters, which every MVP id already is.
+  characters, which every MVP id already is. The ids that reach an `id` field, and who checks each: from the content,
+  checked by the mode check (3e): role ids, item and station kinds, setting ids, spawn tags, phase ids, and the reject
+  reasons that conditions and costs name (§9.4); from `core/`'s constants, checked by 3d's table-against-core test:
+  `RejectReasons`, `CountdownCancelledEvent`'s reasons, the `Items` causes (`put_down`, `swap`, `death`, `leave`,
+  `spawn`) and whatever 2h names for `MatchEnded`'s side. An id that neither covers is a bug that the encoder
+  refuses and logs.
 - **Lossless** (E6). Every float is an `f32`, as the standard build's `Vector3` and `Color` hold it, so
   decode(encode(x)) == x and the leak test compares exactly.
 - **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
@@ -531,8 +545,10 @@ The rules of the table:
   ticks are settled with the newest claim's sprint and movement flags, so a sprint during a freeze may go unpaid.
 - **Sizes.** The host sends each remote player a snapshot per tick: about 430 bytes on the wire with 10 players, so
   9 × 20 × 430 ≈ 0.6 Mbit/s of upload. A client's claims are about 1.8 KB/s with headers. A payload over its cap is never
-  truncated: the encoder refuses it and logs an error (a bug in `core/`, the content or the table), and 3d's unit test
-  encodes the MVP's worst case of every kind (10 players, every setting, the longest shortfall).
+  truncated: the encoder refuses it and logs an error (a bug in `core/`, the content or the table). 3d's tests: every
+  mode in `content/` passes `WireBudget` (above); a payload built with 32-character ids, a 255-byte map path and the
+  longest shortfall of each kind encodes within its cap or is refused by `WireBudget` first; and a synthetic mode at
+  the declared maxima is refused with the kind named.
 - **Voice batching** (M5). One frame per `VoiceDown`. If M5 confirms the per-send ENet cost (§6), a batch of several
   speakers' frames to one listener is a new row.
 
@@ -1736,7 +1752,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6) | M3, before `server/` hosts a match |
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
-| Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E13 for the engineer); built in M3 (3c to 3i) |
+| Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E16 for the engineer); built in M3 (3c to 3i) |
 | The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
 | Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
