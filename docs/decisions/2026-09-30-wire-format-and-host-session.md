@@ -112,10 +112,10 @@ client, the bots and the leak test). The main choices:
   runner* (E12 b): a 10-minute scenario takes 10 minutes of every `verify`, and its timing varies. *No saved logs*
   (E13 c): a failure in an unattended run cannot be replayed.
 - **For choice 9.** *No wire, the bots runner queuing `ForceRole` on its in-process `HostSession`* (E17 b): both bots
-  runs hold the `HostSession` in their first process and could, but the dev console (ARCHITECTURE §8) is a client's
-  and needs the wire anyway, which would then stay untested until it lands. *Debug kinds in every build, refused by `server/` in a
-  release build* (E17 c): a release host would decode messages it can never act on, and a missed check would let any
-  peer force roles.
+  runs hold the `HostSession` in their first process and could, but the dev console (ARCHITECTURE §8) is a
+  client's and needs the wire anyway, which would then stay untested until it lands. *Debug kinds in every build,
+  refused by `server/` in a release build* (E17 c): a release host would decode messages it can never act on, and a
+  missed check would let any peer force roles.
 
 ## Consequences
 - **Tasks.** #89's handoff proposes the M3 issues 3c to 3i; they replace #30's draft 3c to 3e.
@@ -126,7 +126,8 @@ client, the bots and the leak test). The main choices:
   `MoveClaim` is dropped without `Rejected` (E15); `Intents.FIELDS` declares each intent's fields and types, which
   the rules read through and 3d's test compares with the table (so 3d follows that commit of 3e).
   `WorldQuery` gains `stand_floor_below` for a player's standing, which `MovementRule` and the reach use (E10).
-  `Intents.FIELDS` declares `ForceRole`'s fields too (E17).
+  `Intents.FIELDS` declares `ForceRole`'s fields too, and the doc comment of `Intents.FORCE_ROLE`, which says a
+  client's message never becomes it, changes to "from peer 1's debug-kind message only" (E17).
 - **`tests/harness/`** (3h): `ScenarioRunner`'s steps are split from its stand-in for `server/`, and `ScenarioBot`
   learns from (name, fields) instead of `MatchEvent` objects, so the core runner and the bots runner share them.
 - **`MarkerReader`** (3c): `read_levels` calls `use_level(path)` before reading each level, so the host reads the
