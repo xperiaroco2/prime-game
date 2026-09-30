@@ -97,6 +97,9 @@ func kind_table() -> NetKindTable:
 	var table := NetKindTable.new()
 	for each: WireRow in rows():
 		var added := table.add(each.kind, each.lane, each.direction, each.cap)
+		if added != OK:
+			# Logged too: a release build strips the assert and would drop the row silently.
+			push_error("wire: row %d does not fit NetKindTable" % each.kind)
 		assert(added == OK, "wire: row %d does not fit NetKindTable" % each.kind)
 	return table
 
