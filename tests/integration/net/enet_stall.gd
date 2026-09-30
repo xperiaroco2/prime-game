@@ -23,7 +23,8 @@ extends SceneTree
 ##   round trip measured yet ENet starts from 500 ms (resend checks at 0.5, 1.5, 3.5, 7.5, 15.5 and
 ##   31.5 s) and, with EnetTransport's 10 to 20 s as with ENet's default, drops only at about
 ##   31.5 s. So this pair cannot see a missing set_timeout; it guards only against a maximum below
-##   about 7.5 s.
+##   about 7.5 s. Once it has held, neither side is polled again, so ENet's later drop cannot
+##   fail the run.
 ## - Pair 2, the client's timeout on its host peer: both beat for WARM_MS, so the round trip is
 ##   measured, then the host stops polling. The client must drop it after PEER_TIMEOUT_MIN_MS to
 ##   PEER_TIMEOUT_MAX_MS. Known limit: both builds drop at a resend of the same doubling chain, and
@@ -188,6 +189,9 @@ func _process(_delta: float) -> bool:
 		elif pair.hold_only and not pair.held and pair.stalled_at_ms >= 0:
 			if now - pair.stalled_at_ms >= EnetTransport.PEER_TIMEOUT_MIN_MS:
 				pair.held = true
+				# ENet would drop the host at about 31.5 s: poll neither side again.
+				pair.host_paused = true
+				pair.client_paused = true
 				print(
 					(
 						"NET stall %s: the client kept the host for %d ms"
@@ -231,6 +235,8 @@ func _check_timeouts(pair: Pair, side: String, transport: EnetTransport, peer_id
 
 ## The running side lost the stalled one: expected, and timed, unless this pair only holds.
 func _on_drop(pair: Pair, side: String) -> void:
+	if pair.held:
+		return
 	var running := "client" if pair.stalling == "host" else "host"
 	if side != running or pair.stalled_at_ms < 0 or pair.hold_only:
 		_fail("%s: the %s lost the other side in the run" % [pair.name, side])
