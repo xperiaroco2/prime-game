@@ -19,6 +19,7 @@ func test_the_setup_is_checked_against_the_mode() -> void:
 	scenario.settings = {&"speed": 3}
 	scenario.expected_ends = [&"aliens"]
 	scenario.time_limit_s = 0.0
+	scenario.session_seed = 1
 	var problems := "\n".join(scenario.problems())
 	for expected: String in [
 		"bots is",
@@ -27,7 +28,8 @@ func test_the_setup_is_checked_against_the_mode() -> void:
 		"bot 99",
 		"setting speed",
 		"expected end aliens",
-		"time_limit_s"
+		"time_limit_s",
+		"session_seed 1 is below"
 	]:
 		assert_str(problems).contains(expected)
 	scenario.scripts[0].steps.push_front(StepJoin.new())

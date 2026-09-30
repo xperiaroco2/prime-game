@@ -16,11 +16,14 @@ extends Resource
 ## An expected end that is no winning side: passes when every script finished within the time
 ## limit and no further MatchEnded arrived.
 const NONE := &"none"
+## The smallest session seed: the runner's seed check (§5) looks for the seed's number in every
+## event, so a small seed would be mistaken for a peer id, an item id or a count.
+const MIN_SEED := 1_000_000
 
 @export var mode: GameMode
 ## One of the mode's maps; empty means its first.
 @export var map := ""
-@export var session_seed := 1
+@export var session_seed := 100_000_000_001
 ## How many bots play, 1 to the mode's maximum of players.
 @export var bots := 1
 ## Match settings (whole numbers) that differ from the mode's defaults.
@@ -76,6 +79,13 @@ func problems() -> PackedStringArray:
 			found.append("expected end %s is neither none nor a side of the mode" % end)
 	if time_limit_s <= 0.0:
 		found.append("time_limit_s is not positive")
+	if session_seed < MIN_SEED:
+		found.append(
+			(
+				"session_seed %d is below %d, too small to tell apart from ids and counts"
+				% [session_seed, MIN_SEED]
+			)
+		)
 	for bot in range(1, scripts.size() + 1):
 		for step: ScenarioStep in steps_of(bot):
 			if step == null:
