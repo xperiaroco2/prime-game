@@ -50,9 +50,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   stream's own seq (per speaker and listener; never the speaker's) and `ticked_through()`. Never decode Opus. Drop
   frames from a peer that is not a present player; after a freeze relay only the newest few per speaker. On
   `peer_left(p)` drop p from the relay at once, as speaker and listener: ids are reused.
-- Budgets per peer (bytes, reliable intents) are refilled before the poll; a message over one is dropped before
-  decoding and counted, and nobody is disconnected for its rate. A peer that keeps sending malformed messages is
-  disconnected with one log line (the threshold: §4.5). A `Rejected` from `core/` is not malformed.
+- Budgets per peer (voice frames, reliable intents, bytes of the rest) are refilled for the host time elapsed, before
+  the poll; a message over one is dropped before decoding and counted, and nobody is disconnected for its rate. A
+  peer that keeps sending malformed messages is disconnected with one log line (the threshold: §4.5). A `Rejected`
+  from `core/` is not malformed.
 - The hello deadline: a peer that has had no `Welcome` 10 s after it connected is disconnected.
 - Peer 1 (the host's own client) is exempt from budgets, the malformed disconnect and the hello deadline: never
   `disconnect_peer(1)`; a broken own client ends the session.

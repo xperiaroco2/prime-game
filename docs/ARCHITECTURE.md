@@ -608,7 +608,7 @@ host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tic
 | # | What | Why |
 |---|---|---|
 | 1 | **Catch up.** t = the tick of now. If the queue holds commands read in an earlier step (no tick was due then), they are applied first, stamped with `ticked_through() + 1`, and that tick runs. Then every tick up to t − 1 runs with no command (`Match.tick`). After each tick its outbox is delivered (5) and the voice routing table is refreshed | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
-| 2 | **Refill** every peer's budgets for the host time since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
+| 2 | **Refill** every peer's budgets for the host time elapsed since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
 | 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
 | 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
 | 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
@@ -638,11 +638,19 @@ playback are M5.
 **Rate limits and malformed packets** (E7; the numbers are placeholders, "not a decision"). The accident they bound:
 a client bug sends an intent every frame; every command, and every `WorldQuery` answer it causes, stays in the command
 log for the whole match (§3.3), so one looping client grows the host's memory and work without end.
-- Per peer, two token buckets refilled from host ticks: bytes of every message received (64 KiB, refilled at
-  16 KiB/s, about four times an honest client with voice) and reliable intents (100, refilled at 20 per second). Both
-  hold a 10 s backlog, so a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). A
-  message over a budget is dropped before decoding and counted (`over_budget`). Nobody is disconnected for its rate:
-  a freeze would trigger it too.
+- Per peer, three token buckets, refilled for the host time elapsed in step 2, before the poll:
+  - **voice frames** (`VoiceUp`): 500, refilled at 50 per second (one 20 ms frame each); the relay's newest 5 per
+    speaker per poll bounds a backlog further;
+  - **reliable intents**: 100, refilled at 20 per second;
+  - **bytes** of every other message (the reliable intents and `MoveClaim`): 64 KiB, refilled at 16 KiB/s.
+
+  An honest client sends about 50 frames, a few intents and about 1 KB of claims per second, so each bucket holds
+  more than 10 s of it: a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). Voice has
+  its own bucket so that a player talking at a high Opus bitrate never drains the budget that a `SetReady` or a
+  `LoadAck` needs: a reliable intent dropped on a budget is acknowledged by ENet and never answered, and the client's
+  state would diverge silently, which only a looping client may cause. `MoveClaim` is bounded by the LATEST merge as
+  well (one per poll). A message over a budget is dropped before decoding and counted (`over_budget`). Nobody is
+  disconnected for its rate: a freeze would trigger it too.
 - Malformed: a peer whose messages the transport or the codec rejected 50 times within 10 s is disconnected, with one
   log line that names the peer and the reasons. An honest client of the same version sends none, and the margin covers
   a rare corrupted packet. A `Rejected` from `core/` (a swing `too_soon`) is a rule's answer, not a malformed packet,
