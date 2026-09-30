@@ -10,6 +10,12 @@ extends RefCounted
 ## client included. The owner calls poll() every frame, and signals fire only from poll().
 ## The host is peer HOST_ID and plays: its own client is peer HOST_ID too. Clients reach only the
 ## host, never each other.
+##
+## The LATEST lane delivers at most one message per peer and kind per poll: its newest. After a
+## peer's main thread froze (about 5 s in #21), its backlog arrives in one poll, 50 to 100 packets
+## each about 5 s old; the inbox drops every valid LATEST message that a newer one of the same kind
+## from the same peer follows in the same poll (counted in latest_superseded), so no consumer ever
+## handles the backlog. RELIABLE and VOICE messages are all delivered.
 
 signal connected(own_id: int)
 ## A join failed: no host, refused, full, or no answer within the join timeout.
@@ -28,6 +34,9 @@ const HOST_ID := 1
 const REJECT_SUMMARY_INTERVAL_MS := 10000
 
 var rejects := NetRejects.new()
+## Valid LATEST messages dropped because a newer one of the same kind from the same peer came in
+## the same poll. Not rejects: nothing was wrong with them.
+var latest_superseded := 0
 
 var _kinds: NetKindTable
 var _role := Role.IDLE
@@ -201,19 +210,16 @@ func disconnect_peer(peer_id: int) -> Error:
 
 
 ## The one decode path: every backend hands each received packet here, the loopback included, so
-## the host's own client decodes exactly what a remote client would. Only backends (from poll())
-## and tests call it; game code never does, because signals fire only from poll().
+## the host's own client decodes exactly what a remote client would. Only the inbox (from poll())
+## and tests call it; game code never does, because signals fire only from poll(). Each call
+## delivers its packet: the LATEST lane's newest-only rule belongs to the inbox, which sees a whole
+## poll's packets.
 func receive_bytes(
 	from_peer: int, bytes: PackedByteArray, channel: int, mode: MultiplayerPeer.TransferMode
 ) -> void:
-	if not _peers.has(from_peer):
-		_count_reject(from_peer, NetRejects.Reason.UNKNOWN_PEER)
-		return
-	var frame := NetFrame.decode(bytes, _kinds, _role == Role.CLIENT, channel, mode)
-	if frame.reject != NetRejects.Reason.NONE:
-		_count_reject(from_peer, frame.reject)
-		return
-	packet_received.emit(from_peer, frame.kind, frame.payload)
+	var frame := _decoded(from_peer, bytes, channel, mode)
+	if frame != null:
+		packet_received.emit(from_peer, frame.kind, frame.payload)
 
 
 # Backends override these. Each _backend_* runs only in the matching role.
@@ -272,15 +278,21 @@ func _drain_inbox() -> void:
 	# What a handler pushes meanwhile, even to this transport, waits for the next poll.
 	var batch := _inbox
 	_inbox = []
+	var superseded := _superseded_in(batch)
 	var session := _session
-	for item in batch:
+	for i in batch.size():
 		# A handler closed this transport, and may have hosted or joined again: the rest of the
 		# batch belongs to the old session.
 		if _session != session:
 			return
+		var item := batch[i]
 		match item.type:
 			Inbound.Type.PACKET:
-				receive_bytes(item.peer, item.bytes, item.channel, item.mode)
+				if not superseded.has(i):
+					receive_bytes(item.peer, item.bytes, item.channel, item.mode)
+				elif _decoded(item.peer, item.bytes, item.channel, item.mode) != null:
+					# Still checked like any packet, so what is rejected stays counted.
+					latest_superseded += 1
 			Inbound.Type.JOINED:
 				if _role == Role.HOST and not _peers.has(item.peer):
 					_peers[item.peer] = true
@@ -304,6 +316,60 @@ func _drain_inbox() -> void:
 			Inbound.Type.HOST_LOST:
 				if _role == Role.CLIENT:
 					_end_client(host_lost if _peers.has(HOST_ID) else connect_failed)
+
+
+## The batch indices of the LATEST packets a newer one supersedes: each valid LATEST message that a
+## later valid one of the same kind from the same peer follows. A join or leave of that peer in
+## between separates them (two connections, maybe with the same id), and so does any change of
+## this client's own connection. Invalid packets supersede nothing; the drain rejects them.
+func _superseded_in(batch: Array[Inbound]) -> Dictionary[int, bool]:
+	var superseded: Dictionary[int, bool] = {}
+	# (peer, kind) of the LATEST messages later in the batch, walking it backwards.
+	var newer: Dictionary[Vector2i, bool] = {}
+	for i in range(batch.size() - 1, -1, -1):
+		var item := batch[i]
+		match item.type:
+			Inbound.Type.PACKET:
+				var kind := _latest_kind(item)
+				if kind == 0:
+					continue
+				var key := Vector2i(item.peer, kind)
+				if newer.has(key):
+					superseded[i] = true
+				else:
+					newer[key] = true
+			Inbound.Type.JOINED, Inbound.Type.LEFT, Inbound.Type.DISCONNECTED:
+				for key: Vector2i in newer.keys():
+					if key.x == item.peer:
+						newer.erase(key)
+			_:
+				newer.clear()
+	return superseded
+
+
+## The kind of a packet that decodes as a valid LATEST message, else 0 (never a valid kind).
+func _latest_kind(item: Inbound) -> int:
+	var latest := NetKindTable.Lane.LATEST
+	if item.channel != NetKindTable.channel_of(latest) or item.mode != NetKindTable.mode_of(latest):
+		return 0
+	var frame := NetFrame.decode(item.bytes, _kinds, _role == Role.CLIENT, item.channel, item.mode)
+	if frame.reject != NetRejects.Reason.NONE or _kinds.lane_of(frame.kind) != latest:
+		return 0
+	return frame.kind
+
+
+## The frame of a packet from a connected peer, or null after counting why it is rejected.
+func _decoded(
+	from_peer: int, bytes: PackedByteArray, channel: int, mode: MultiplayerPeer.TransferMode
+) -> NetFrame:
+	if not _peers.has(from_peer):
+		_count_reject(from_peer, NetRejects.Reason.UNKNOWN_PEER)
+		return null
+	var frame := NetFrame.decode(bytes, _kinds, _role == Role.CLIENT, channel, mode)
+	if frame.reject != NetRejects.Reason.NONE:
+		_count_reject(from_peer, frame.reject)
+		return null
+	return frame
 
 
 func _end_client(outcome: Signal) -> void:

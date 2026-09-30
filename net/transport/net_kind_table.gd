@@ -6,7 +6,9 @@ extends RefCounted
 ## tests build their own tables.
 
 ## How a kind travels. RELIABLE: channel 0, reliable and ordered (intents, events). LATEST:
-## channel 0, unreliable ordered, a late copy is dropped (state where only the newest matters).
+## channel 0, unreliable ordered, a late copy is dropped (state where only the newest matters);
+## the receiver gets at most the newest message per peer and kind per poll (NetTransport), so a
+## LATEST message must stand alone: nothing may be lost when a newer one replaces it.
 ## VOICE: its own channel 1, unreliable UNORDERED: an ordered lane would drop reordered frames
 ## before the jitter buffer sees them (ARCHITECTURE §4, voice ADR).
 enum Lane { RELIABLE, LATEST, VOICE }
