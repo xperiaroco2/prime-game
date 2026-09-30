@@ -20,7 +20,7 @@ static func mode() -> GameMode:
 	var made := GameMode.new()
 	made.min_players = 1
 	made.max_players = MAX_PLAYERS
-	made.player_rules = PlayerRules.new()
+	made.player_rules = FixtureModes.player_rules()
 	made.settings = [
 		FixtureModes.setting(&"knives", 2, 0, 10), FixtureModes.setting(&"circles", 1, 0, 10)
 	]
