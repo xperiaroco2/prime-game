@@ -85,9 +85,12 @@ func f32() -> float:
 	return value
 
 
-## `count` raw bytes.
+## `count` raw bytes; a negative count fails the message.
 func raw(count: int) -> PackedByteArray:
-	if count < 0 or not _has(count):
+	if count < 0:
+		fail("a negative length")
+		return PackedByteArray()
+	if not _has(count):
 		return PackedByteArray()
 	var value := _bytes.slice(_at, _at + count)
 	_at += count

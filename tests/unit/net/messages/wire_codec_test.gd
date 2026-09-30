@@ -218,6 +218,14 @@ func test_the_decoder_rejects_broken_payloads() -> void:
 	_assert_rejected(200, PackedByteArray([1]), "no row")
 
 
+func test_the_reader_fails_on_a_negative_length() -> void:
+	var reader := WireReader.new(PackedByteArray([1, 2, 3]))
+	assert_int(reader.raw(-1).size()).is_equal(0)
+	assert_bool(reader.failed).is_true()
+	assert_str(reader.problem).contains("negative length")
+	assert_int(reader.u8()).is_equal(0)
+
+
 func test_the_decoder_rejects_map_keys_out_of_order_or_repeated() -> void:
 	var spots: Dictionary[int, Vector3] = {1: Vector3.ZERO, 2: Vector3.ONE}
 	var payload := _schema.encode(WireMessage.new(&"PlayersPlaced", {"spots": spots}))
