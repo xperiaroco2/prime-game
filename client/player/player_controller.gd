@@ -1,12 +1,13 @@
 class_name PlayerController
 extends CharacterBody3D
 ## The local player's first-person controller (ARCHITECTURE §7 and §7.1), without networking yet:
-## it walks, sprints and jumps as `stamina` allows, walks up steps, collides with the other
-## living players' kinematic capsules and resolves its own overlap with them (it never moves
-## them). A ghost moves the same way with the same capsule, at `tuning.ghost_speed_factor` times
-## the living's speeds, never limited by stamina, and passes through players but not through the
-## level (the engineer's correction of 2026-09-30: ghosts do not fly). The origin is at the feet.
-## Numbers come from `tuning` only.
+## it walks, sprints and jumps as `stamina` allows and walks up steps. It never collides with other
+## players like a wall: walking into a living player pushes them (the engineer's decision of
+## 2026-09-30, #46). This controller moves only its own body: pushing slows it, and a player that
+## pushes into it moves it out of the overlap. A ghost moves the same way with the same capsule,
+## at `tuning.ghost_speed_factor` times the living's speeds, never limited by stamina, and pushes
+## nobody and is pushed by nobody; it collides with the level only (ghosts do not fly). The origin
+## is at the feet. Numbers come from `tuning` only.
 
 ## Largest look-up or look-down angle, just short of straight up or down.
 const MAX_PITCH := deg_to_rad(89.0)
@@ -24,6 +25,8 @@ const SURFACE_PROBE_AHEAD := 0.02
 const SURFACE_PROBE_ABOVE := 0.05
 ## Radians beyond `floor_max_angle` a surface may lean and still count as walkable.
 const WALKABLE_SLACK := 0.01
+## How far beyond touching another living player's capsule the contact search reaches (metres).
+const CONTACT_MARGIN := 0.02
 
 @export var tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
 ## A ghost walks, sprints and jumps like the living, at `tuning.ghost_speed_factor` times their
@@ -51,6 +54,8 @@ var _floor_y: float = 0.0
 var _stepping: bool = false
 ## Horizontal metres the current crossing may still take before gravity returns.
 var _step_left: float = 0.0
+## The contact search for other living players: the capsule, a margin wider.
+var _contacts := PhysicsShapeQueryParameters3D.new()
 
 @onready var _head: Node3D = $Head
 @onready var _camera: Camera3D = $Head/Camera3D
@@ -100,13 +105,13 @@ func look(yaw: float, pitch: float) -> void:
 	_head.rotation.x = clampf(_head.rotation.x + pitch, -MAX_PITCH, MAX_PITCH)
 
 
-## Switches between the living body and a ghost. A ghost is on the ghost layer and collides with
-## the level only (Q6), so the living never bump into it and it never bumps into players; it keeps
-## the capsule, gravity, floor and steps of the living.
+## Switches between the living body and a ghost. Both collide with the level only: the living
+## push each other apart in `_push_apart`, not through collisions. A ghost is on the ghost layer,
+## which no push looks at (Q6); it keeps the capsule, gravity, floor and steps of the living.
 func set_ghost(value: bool) -> void:
 	ghost = value
 	collision_layer = PhysicsLayers.GHOSTS if ghost else PhysicsLayers.LIVING
-	collision_mask = (PhysicsLayers.WORLD if ghost else PhysicsLayers.WORLD | PhysicsLayers.LIVING)
+	collision_mask = PhysicsLayers.WORLD
 	velocity = Vector3.ZERO
 	_sprinting = false
 	_stepping = false
@@ -139,6 +144,12 @@ func _apply_tuning() -> void:
 	_shape.position = Vector3(0.0, tuning.capsule_height * 0.5, 0.0)
 	_head.position = Vector3(0.0, tuning.eye_height, 0.0)
 	floor_snap_length = tuning.step_height
+	var reach := CapsuleShape3D.new()
+	reach.radius = tuning.capsule_radius + CONTACT_MARGIN
+	reach.height = tuning.capsule_height + CONTACT_MARGIN * 2.0
+	_contacts.shape = reach
+	_contacts.collision_mask = PhysicsLayers.LIVING
+	_contacts.exclude = [get_rid()]
 
 
 func _read_device_input() -> void:
@@ -153,6 +164,8 @@ func _walk(delta: float) -> void:
 	_sprinting = sprint_held and stamina.can_sprint(_sprinting, ghost)
 	var speed := _speed()
 	var wish := _horizontal_wish() * speed
+	if not ghost:
+		wish = _push_apart(wish, delta)
 	velocity.x = wish.x
 	velocity.z = wish.z
 	var jumped := false
@@ -183,6 +196,36 @@ func _walk(delta: float) -> void:
 func _speed() -> float:
 	var speed := tuning.sprint_speed if _sprinting else tuning.walk_speed
 	return speed * tuning.ghost_speed_factor if ghost else speed
+
+
+## The horizontal velocity for `wish` among the other living players this body touches. Walking
+## into one pushes: the part of `wish` into them slows to `tuning.push_speed_factor`, stops once
+## this body is `tuning.push_max_overlap` deep in them, and drifts to the right, so a straight
+## head-on push slides off instead of freezing. Every other overlap, one a player pushed into it,
+## is left at once: that is how this body is pushed, at the speed the pusher came in. So two
+## players pushing each other head-on stop where their pushes meet.
+func _push_apart(wish: Vector3, delta: float) -> Vector3:
+	_contacts.transform = _shape.global_transform
+	var found := get_world_3d().direct_space_state.intersect_shape(_contacts)
+	var out := Vector3.ZERO
+	for contact: Dictionary in found:
+		var other := contact["collider"] as Node3D
+		var apart := global_position - other.global_position
+		apart.y = 0.0
+		var normal := apart.normalized() if apart.length() > MOVE_EPSILON else global_basis.z
+		var depth := tuning.capsule_radius * 2.0 - apart.length()
+		var allowed := 0.0
+		var into := -wish.dot(normal)
+		if into > 0.0:
+			allowed = tuning.push_max_overlap
+			var room := maxf(0.0, allowed - depth) / delta
+			var pushed := minf(into * tuning.push_speed_factor, room)
+			var right := (-normal).cross(up_direction)
+			var drift := into * tuning.push_speed_factor * tuning.push_side_bias
+			wish += normal * (into - pushed) + right * drift
+		if depth > allowed:
+			out += normal * (depth - allowed) / delta
+	return wish + out.limit_length(tuning.sprint_speed)
 
 
 ## Starts walking up a ledge that blocks `motion`: lifts the body to just above the ledge's top

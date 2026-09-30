@@ -21,15 +21,16 @@ func after_test() -> void:
 
 
 func test_ghost_is_on_the_ghost_layer_and_collides_with_the_level_only() -> void:
+	# The living collide with the level only too: they push each other instead (the push suite).
 	var player := _world.add_player(Vector3.ZERO)
 	assert_int(player.collision_layer).is_equal(PhysicsLayers.LIVING)
-	assert_int(player.collision_mask).is_equal(PhysicsLayers.WORLD | PhysicsLayers.LIVING)
+	assert_int(player.collision_mask).is_equal(PhysicsLayers.WORLD)
 	player.ghost = true
 	assert_int(player.collision_layer).is_equal(PhysicsLayers.GHOSTS)
 	assert_int(player.collision_mask).is_equal(PhysicsLayers.WORLD)
 	player.ghost = false
 	assert_int(player.collision_layer).is_equal(PhysicsLayers.LIVING)
-	assert_int(player.collision_mask).is_equal(PhysicsLayers.WORLD | PhysicsLayers.LIVING)
+	assert_int(player.collision_mask).is_equal(PhysicsLayers.WORLD)
 
 
 func test_ghost_speed_factor_is_the_engineers_1_3() -> void:

@@ -246,15 +246,27 @@ func test_stops_at_a_round_pipe_above_step_height() -> void:
 	assert_float(player.global_position.z).is_greater(-2.0)
 
 
-func test_walking_into_a_player_stops_without_moving_it() -> void:
+func test_walking_into_a_player_who_never_gives_way_slides_round_them() -> void:
+	# A remote capsule whose client never moves it (a frozen client) is no wall: the player pushes
+	# into it at the push speed, no deeper than the push overlap, and the drift slides it round.
 	var other := _world.add_remote(Vector3(0.0, 0.0, -2.0))
 	var player := _world.add_player(Vector3.ZERO)
 	player.move_input = Vector2(0.0, 1.0)
-	await _world.frames(60)
+	var touching := 2.0 * _tuning.capsule_radius
+	var deepest := -INF
+	var slowest := INF
+	var last := player.global_position
+	for i: int in 90:
+		await _world.frames(1)
+		var apart := _world.horizontal_distance(player.global_position, other.global_position)
+		deepest = maxf(deepest, touching - apart)
+		var step := _world.horizontal_distance(last, player.global_position)
+		slowest = minf(slowest, step * Engine.physics_ticks_per_second)
+		last = player.global_position
 	assert_vector(other.global_position).is_equal(Vector3(0.0, 0.0, -2.0))
-	# It stopped in front of the other capsule instead of passing through or climbing it.
-	var touching := -2.0 + 2.0 * _tuning.capsule_radius
-	assert_float(player.global_position.z).is_between(touching - 0.02, touching + 0.1)
+	assert_float(deepest).is_between(0.0, _tuning.push_max_overlap + 0.001)
+	assert_float(slowest).is_less(_tuning.walk_speed * _tuning.push_speed_factor + 0.01)
+	assert_float(player.global_position.z).is_less(-3.0)
 	assert_float(player.global_position.y).is_less(0.01)
 
 

@@ -6,7 +6,8 @@ extends RefCounted
 
 ## Level geometry: floors, walls, steps, props.
 const WORLD := 1 << 0
-## Living players' capsules: the local player and the kinematic capsules of the others.
+## Living players' capsules: the local player and the kinematic capsules of the others. No body
+## collides with this layer; a living player's push search looks for the others on it.
 const LIVING := 1 << 1
 ## Ghosts' capsules. Nothing living collides with them; they collide with the level only.
 const GHOSTS := 1 << 2
