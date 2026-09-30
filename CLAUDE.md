@@ -52,7 +52,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths]` | GdUnit4 headless; judged by exit code and `results.xml`; orphan nodes fail |
 | `verify` | Everything CI runs, in the same order: the definition-of-done gate |
-| `start <n> [--base P] [--here] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (a parent's open PR), for the engineer in its worktree, assign, board In progress (skill `start-task`) |
+| `start <n> [--base P] [--here] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (the branch of a parent's open PR), for the engineer in its worktree, assign, board In progress (skill `start-task`) |
 | `publish [--base B]` | Rebases the task branch on its PR base (else `start --base`, else main), runs `verify`, pushes with a lease |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
 | `normalize <files>` / `shot <scene>` | Re-save `.tscn`/`.tres` as the editor would / an off-screen PNG of a scene |
@@ -101,6 +101,7 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 | a room, prop or interactable sub-scene | skill `new-level-piece` |
 | "запам'ятай", "remember", a human correction | the question in Memory below; project → skill `log-intervention` |
 | "налаштуй мене" | skill `onboard` |
+| "оркеструй етап", an "ultracode" kickoff for a stage or a list of issues | skill `orchestrate-stage` |
 | review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/` changed |
 | `.gd`, `.tscn` or `.tres` changed | agent `godot-api-checker` |
 | run tests and get back only failures | agent `test-runner` |
@@ -123,9 +124,10 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - Deciding anything reserved for the humans (the items above, final game content, a milestone's goal, a
   go/no-go): batch such questions into one, with options and a recommendation.
 <!-- see docs/interventions/2026-09-28-engineer-phase-a-workflow-unbounded.md -->
-- Launching a workflow: state the agent count (fewer than 5) and a rough cost, then wait for a yes. Every workflow
-  prompt states its bounds: max agents, max turns or tool calls per agent, a time or token budget, and what to drop
-  first. "ultracode" alone never approves exceeding the size guideline.
+- Launching a workflow: state the agent count (fewer than 5) and a rough cost, then wait for a yes; an
+  `orchestrate-stage` kickoff approves its stage's task workflows once, after the manager's restatement (§7.1).
+  Every workflow prompt states its bounds: max agents, max turns or tool calls per agent, a time or token budget,
+  and what to drop first. "ultracode" alone never approves exceeding the size guideline.
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
 - Adding a permission ask or deny rule: first check "can an agent work alone overnight?". Routine work (status reads,
   branches, commits, task-branch pushes, issues, PRs, tooling edits, scratch cleanup) must not prompt.
