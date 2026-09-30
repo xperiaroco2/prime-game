@@ -215,7 +215,10 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 	elif step is StepUse:
 		result = _use(bot, step as StepUse)
 	elif step is StepJump:
-		_claim(bot, bot.position, Vector3.ZERO, false, true)
+		# D3 (a), waiting for the designer on #96: the step says what a player does, and the bot
+		# counts it as one more jump in its epoch, as a client's MoveClaim carries it (§4.3, E2).
+		bot.jumps += 1
+		_claim(bot, bot.position, Vector3.ZERO, false)
 		result = Result.DONE
 	elif step is StepLeave:
 		bot.gone = true
@@ -325,7 +328,7 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 		speed *= rules.ghost_speed_factor
 	var direction := offset / distance
 	var travel := minf(speed / Ticks.RATE, distance - step.stop_m)
-	_claim(bot, bot.position + direction * travel, direction * speed, sprinting, false)
+	_claim(bot, bot.position + direction * travel, direction * speed, sprinting)
 	return Result.WAITING
 
 
@@ -401,8 +404,9 @@ func _facing(bot: ScenarioBot, target: ScenarioTarget) -> Vector3:
 	return Vector3.ZERO if ahead.is_zero_approx() else ahead.normalized()
 
 
-## An honest MoveClaim of the bot to `to`, which it then takes as its position.
-func _claim(bot: ScenarioBot, to: Vector3, velocity: Vector3, sprint: bool, jumped: bool) -> void:
+## An honest MoveClaim of the bot to `to`, which it then takes as its position, with its jump
+## count in the epoch.
+func _claim(bot: ScenarioBot, to: Vector3, velocity: Vector3, sprint: bool) -> void:
 	var facing := velocity.normalized() if not velocity.is_zero_approx() else Vector3.FORWARD
 	var args := {
 		"epoch": bot.epoch,
@@ -412,7 +416,7 @@ func _claim(bot: ScenarioBot, to: Vector3, velocity: Vector3, sprint: bool, jump
 		"facing": facing,
 		"sprint": sprint,
 		"moving": not velocity.is_zero_approx(),
-		"jumped": jumped,
+		"jumps": bot.jumps,
 		"on_floor": true,
 	}
 	_queue(Intents.MOVE_CLAIM, bot.peer, args, bot.next_seq())

@@ -26,7 +26,8 @@ static func in_round(peers: Array[int], world: WorldQuery = null) -> Match:
 
 ## A MoveClaim of `peer` at `position` in its current epoch, applied on the next host tick. On the
 ## floor, standing still and without sprint unless `fields` says otherwise; `fields` may also set
-## the epoch, the client tick, the velocity and the facing.
+## the epoch, the client tick, the velocity, the facing and the jump count, which is by default
+## the count the host last accepted in the epoch (jumps_of): no new jump. jumped() adds one.
 static func claim(game: Match, peer: int, position: Vector3, fields: Dictionary = {}) -> void:
 	var player := game.state.player(peer)
 	var args := {
@@ -37,7 +38,7 @@ static func claim(game: Match, peer: int, position: Vector3, fields: Dictionary 
 		"facing": Vector3.FORWARD,
 		"sprint": false,
 		"moving": false,
-		"jumped": false,
+		"jumps": jumps_of(game, peer),
 		"on_floor": true,
 	}
 	args.merge(fields, true)
@@ -48,6 +49,28 @@ static func claim(game: Match, peer: int, position: Vector3, fields: Dictionary 
 static func step(game: Match, peer: int, offset: Vector3, fields: Dictionary = {}) -> void:
 	claim(game, peer, game.state.player(peer).position + offset, fields)
 	FixtureModes.run_ticks(game, 1)
+
+
+## The fields of a claim that jumps once more than the host last accepted, in the air, plus `more`.
+static func jumped(game: Match, peer: int, more: Dictionary = {}) -> Dictionary:
+	var fields := {"jumps": jumps_of(game, peer) + 1, "on_floor": false}
+	fields.merge(more, true)
+	return fields
+
+
+## The jump count of `peer`'s last accepted claim in its current epoch (0 before any, and after a
+## placement or a Correction): what an honest client in step with the host counts (§4.3, E2).
+static func jumps_of(game: Match, peer: int) -> int:
+	var table := (
+		game.state.part_state(
+			MovementRule.PART_KEY, func() -> RefCounted: return MovementRule.MotionTable.new()
+		)
+		as MovementRule.MotionTable
+	)
+	var motion: MovementRule.Motion = table.by_peer.get(peer)
+	if motion == null or motion.epoch != game.state.player(peer).epoch:
+		return 0
+	return motion.jumps
 
 
 ## `count` steps of `offset`.

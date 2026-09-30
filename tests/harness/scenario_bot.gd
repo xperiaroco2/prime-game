@@ -30,6 +30,8 @@ var events: Array[MatchEvent] = []
 
 ## What its client knows of itself.
 var epoch := 0
+## Its jumps since it adopted `epoch` (MoveClaim's `jumps`, §4.3): 0 again on every new epoch.
+var jumps := 0
 var position := Vector3.ZERO
 var ghost := false
 var role: StringName
@@ -115,6 +117,7 @@ func receive(event: MatchEvent) -> String:
 		var welcome := event as WelcomeEvent
 		joined = true
 		epoch = welcome.epoch
+		jumps = 0
 		position = welcome.spot
 		phase = welcome.phase
 		for other: int in welcome.positions:
@@ -136,6 +139,7 @@ func receive(event: MatchEvent) -> String:
 				% [correction.epoch, correction.position]
 			)
 		epoch = correction.epoch
+		jumps = 0
 		position = correction.position
 	elif event is DiedEvent:
 		var died := event as DiedEvent

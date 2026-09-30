@@ -75,7 +75,7 @@ func test_the_ghosts_honest_claims_pass_and_its_claims_from_life_are_dropped() -
 	# jumps from the floor at the body.
 	FixtureMoves.steps(game, P2, 5, EAST * 0.29, {"moving": true})
 	FixtureMoves.steps(game, P2, 5, EAST * 0.45, FixtureMoves.sprinting())
-	FixtureMoves.step(game, P2, Vector3(0, 0.5, 0), {"jumped": true, "on_floor": false})
+	FixtureMoves.step(game, P2, Vector3(0, 0.5, 0), FixtureMoves.jumped(game, P2))
 	FixtureMoves.step(game, P2, Vector3(0, 0.4, 0), {"on_floor": false})
 	FixtureMoves.step(game, P2, Vector3(0, -0.9, 0))
 	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(seen)

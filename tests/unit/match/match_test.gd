@@ -182,6 +182,7 @@ func test_move_claims_of_the_current_epoch_move_the_player() -> void:
 		"velocity": Vector3.ZERO,
 		"facing": Vector3.FORWARD,
 		"client_tick": 4,
+		"jumps": 0,
 	}
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P1, claim)
 	assert_vector(game.state.player(P1).position).is_equal(Vector3(0.1, 0, 0.2))
@@ -222,6 +223,7 @@ func test_a_ghost_may_move_but_not_use() -> void:
 		"velocity": Vector3.ZERO,
 		"facing": Vector3.FORWARD,
 		"client_tick": 1,
+		"jumps": 0,
 	}
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
 	assert_vector(ghost.position).is_equal(to)
