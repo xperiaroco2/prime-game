@@ -440,11 +440,11 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
   A player who left hears nobody and is heard by nobody.
 - **Built in 2i** (#65, `core/voice/`): `SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
   data names one per phase with the numbers of §9.5. A distance is between the two players' last accepted
-  positions (§7.1), in 3D, and a radius includes its edge. 3D matches the listener's fade, which is by 3D distance to
-  the same cutoff; whether a radius should be horizontal instead (a player on the floor above, 3 m up, heard like
-  one beside) is not settled by any ADR: 3D is the agent's choice, open for the engineer on #65. The living never
-  hear a ghost under any rule: `VoiceRule.speakers_of` drops that pair before asking the rule, as snapshots hide
-  ghosts from the living (§5), so no mode's data can route a ghost's voice to the living.
+  positions (§7.1), in 3D, and a radius includes its edge, as the M1 spike's routing measured them (#15,
+  `distance_to(...) <= cutoff`, which the engineer listened to and accepted); 3D also matches the listener's fade.
+  A horizontal radius (a player on the floor above heard like one beside) stays a possible later change. The
+  living never hear a ghost under any rule: `VoiceRule.speakers_of` drops that pair before asking the rule, as
+  snapshots hide ghosts from the living (§5), so no mode's data can route a ghost's voice to the living.
   Tests: `tests/unit/voice/`.
 - *Open (M5):* occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, and
   lowering the device latency (options in the ADR).

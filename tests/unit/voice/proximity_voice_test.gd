@@ -31,7 +31,7 @@ func test_the_radius_is_inclusive() -> void:
 
 
 func test_the_distance_is_3d() -> void:
-	# 3D, like the listener's fade (§6); horizontal is open for the engineer (#65).
+	# 3D, as the M1 spike measured it (#15) and like the listener's fade (§6).
 	var game := VoiceTestMatch.in_lobby(_proximity(8.0), [P1, P2])
 	VoiceTestMatch.put(game, P1, Vector3(0, 0, 0))
 	VoiceTestMatch.put(game, P2, Vector3(6, 6, 0))

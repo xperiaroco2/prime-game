@@ -5,9 +5,10 @@ extends ContentPart
 ## This base class is silent: nobody hears anybody. The base mode's rules are SilentVoice,
 ## ProximityVoice and RoundVoice (`core/voice/`, 2i).
 ##
-## Distances are between the players' last accepted positions (§7.1), in 3D: the listener's
-## AudioStreamPlayer3D fades by 3D distance to the host's cutoff (§6). Whether the radius should
-## be horizontal instead is open for the engineer (#65).
+## Distances are between the players' last accepted positions (§7.1), in 3D, and a radius
+## includes its edge, as the M1 spike's routing measured them (#15, `distance_to(...) <= cutoff`,
+## accepted by the engineer): the listener's AudioStreamPlayer3D fades by 3D distance to the same
+## cutoff (§6).
 
 ## The bounds of every voice radius, in metres (§9.4).
 const MIN_RADIUS_M := 0.5
