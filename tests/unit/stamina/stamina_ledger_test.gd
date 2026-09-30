@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## StaminaLedger (ARCHITECTURE §7.1, Q7), driven by MoveClaims: a covered tick in the sprint state
 ## with the player's own movement costs 1000 thousandths, every other tick regenerates 750; the
 ## sprint state starts at 20 points and lasts until 0; claims never settle past the host tick;
-## ticks no claim covers are settled with the last claim's flags before a jump; ghosts are exempt.
+## ticks no claim covers are settled with the last claim's flags seen a jump; ghosts are exempt.
 
 const P1 := 1
 const NORTH := Vector3(0, 0, 1)
@@ -62,9 +62,9 @@ func test_at_zero_stamina_walking_works() -> void:
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	player.stamina = 0
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.steps(game, P1, 10, NORTH * 0.2, {"moving": true})
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	assert_int(player.stamina).is_equal(7500)
 
 

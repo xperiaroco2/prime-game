@@ -34,12 +34,12 @@ func test_it_is_sent_at_most_once_per_tick_with_the_final_numbers() -> void:
 	var game := FixtureModes.in_round(mode, [P1])
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
-	var before := FixtureMoves.statuses(game, P1).size()
+	var seen := FixtureMoves.statuses(game, P1).size()
 	FixtureMoves.claim(game, P1, player.position + NORTH * 0.3, FixtureMoves.sprinting())
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
 	FixtureModes.run_ticks(game, 1)
 	var statuses := FixtureMoves.statuses(game, P1)
-	assert_int(statuses.size()).is_equal(before + 1)
+	assert_int(statuses.size()).is_equal(seen + 1)
 	assert_int(statuses.back().stamina).is_equal(74000)
 
 

@@ -84,15 +84,15 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 	var mode := load(MODES_DIR.path_join("base_mode.tres")) as GameMode
 	var expected := FixtureModes.player_rules()
 	for property: Dictionary in expected.get_property_list():
-		var name: String = property["name"]
+		var number: String = property["name"]
 		var usage: int = property["usage"]
 		if usage & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
 			continue
-		var got: float = mode.player_rules.get(name)
-		var want: float = expected.get(name)
+		var got: float = mode.player_rules.get(number)
+		var want: float = expected.get(number)
 		(
 			assert_float(got)
-			. override_failure_message("PlayerRules_base.%s is %s, not %s" % [name, got, want])
+			. override_failure_message("PlayerRules_base.%s is %s, not %s" % [number, got, want])
 			. is_equal_approx(want, 1e-6)
 		)
 

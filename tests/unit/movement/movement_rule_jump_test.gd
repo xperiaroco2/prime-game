@@ -19,15 +19,15 @@ func test_a_jump_from_the_floor_costs_its_stamina_and_rises_to_the_jump_height()
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := player.position
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
 	assert_int(player.stamina).is_equal(90000)
 	for height: float in [0.5, 0.9, PEAK]:
 		FixtureMoves.claim(game, P1, ground + UP * height, _air())
 		FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	FixtureMoves.claim(game, P1, ground + UP * OVER_PEAK, _air())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	assert_float(player.position.y).is_equal_approx(PEAK, 1e-5)
 
 
@@ -43,9 +43,9 @@ func test_a_jump_needs_the_last_claim_on_the_floor() -> void:
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	FixtureMoves.step(game, P1, UP * 0.2, _air())
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	assert_int(player.stamina).is_equal(100000)
 
 
@@ -56,9 +56,9 @@ func test_a_jump_needs_a_world_query_floor_within_step_height() -> void:
 	# The claim says it stands on the floor 0.305 m above the ground, where WorldQuery finds no
 	# floor within the step height (0.3 m).
 	FixtureMoves.step(game, P1, UP * 0.305)
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	assert_int(player.stamina).is_equal(100000)
 
 
@@ -67,9 +67,9 @@ func test_a_second_jump_in_the_air_is_corrected() -> void:
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
 	FixtureMoves.step(game, P1, UP * 0.3, _air())
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, UP * 0.3, _air({"jumped": true}))
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	# 90000 after the first jump, then two ticks of regeneration, and no second cost.
 	assert_int(game.state.player(P1).stamina).is_equal(91500)
 
@@ -79,14 +79,14 @@ func test_a_jump_needs_its_full_cost_settled_up_to_now() -> void:
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	player.stamina = 9000
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	# Settled first: one tick of regeneration gives 9750, short of the jump's 10000.
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	assert_int(player.stamina).is_equal(9750)
 	# One more tick passed: 10500 covers it, and 500 is left.
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	assert_int(player.stamina).is_equal(500)
 	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()
 	assert_int(last.stamina).is_equal(500)
@@ -100,14 +100,14 @@ func test_a_ghost_jumps_without_stamina_and_no_higher() -> void:
 	ghost.stamina = 0
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := ghost.position
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
 	FixtureMoves.claim(game, P1, ground + UP * PEAK, _air())
 	FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	assert_int(ghost.stamina).is_equal(0)
 	FixtureMoves.claim(game, P1, ground + UP * OVER_PEAK, _air())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
 func test_a_rise_without_a_jump_is_bounded_by_the_step_height() -> void:
@@ -115,12 +115,12 @@ func test_a_rise_without_a_jump_is_bounded_by_the_step_height() -> void:
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := player.position
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	# Step height 0.3 m plus the client's 0.01 m clearance over a ledge's edge.
 	FixtureMoves.step(game, P1, UP * 0.305, _air())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	FixtureMoves.claim(game, P1, ground + UP * 0.33, _air())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
 func test_a_rise_may_add_the_horizontal_travel_on_a_slope() -> void:
@@ -128,27 +128,27 @@ func test_a_rise_may_add_the_horizontal_travel_on_a_slope() -> void:
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := player.position
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	# 0.5 m north: up to 0.3 + 0.01 + 0.5 * tan 45° = 0.81 m higher, as up a 45° slope.
 	FixtureMoves.step(game, P1, NORTH * 0.5 + UP * 0.8, {"moving": true})
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	# 0.5 m further north, 0.85 m above the base (the ground): corrected.
 	FixtureMoves.claim(game, P1, ground + NORTH * 1.0 + UP * 0.85, {"moving": true})
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
 func test_walking_up_steps_moves_the_base_to_each_landing() -> void:
 	var game := _round()
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	# Walk north onto the 0.3 m step at z 6; landed there, the next 0.3 m counts from its top.
 	FixtureMoves.steps(game, P1, 5, NORTH * 0.2, {"moving": true})
 	FixtureMoves.step(game, P1, NORTH * 0.2 + UP * 0.3, {"moving": true})
 	FixtureMoves.steps(game, P1, 2, NORTH * 0.2, {"moving": true})
 	assert_float(player.position.y).is_equal_approx(0.3, 1e-5)
 	FixtureMoves.step(game, P1, UP * 0.305, _air())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 
 
 func test_a_jump_onto_a_ledge_lands_there_and_the_next_jump_starts_from_it() -> void:
@@ -156,7 +156,7 @@ func test_a_jump_onto_a_ledge_lands_there_and_the_next_jump_starts_from_it() -> 
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	player.position.z = 9.3
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.claim(game, P1, player.position)
 	FixtureModes.run_ticks(game, 1)
 	var fields := _air({"jumped": true, "moving": true})
@@ -170,7 +170,7 @@ func test_a_jump_onto_a_ledge_lands_there_and_the_next_jump_starts_from_it() -> 
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
 	FixtureMoves.claim(game, P1, ledge + UP * PEAK, _air())
 	FixtureModes.run_ticks(game, 1)
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	assert_int(player.stamina).is_less(85000)
 
 
@@ -184,9 +184,9 @@ func test_the_jump_bound_lasts_only_until_the_next_landing() -> void:
 	FixtureModes.run_ticks(game, 1)
 	FixtureMoves.claim(game, P1, ground)
 	FixtureModes.run_ticks(game, 1)
-	var before := FixtureMoves.corrections(game, P1).size()
+	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.claim(game, P1, ground + UP * 0.5, _air())
-	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(before + 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	assert_vector(player.position).is_equal(ground)
 
 
