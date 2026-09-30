@@ -106,8 +106,57 @@ func test_knife() -> void:
 	var knife := mode.find_item_kind(&"knife")
 	assert_str(knife.display_name).is_equal("Knife")
 	assert_str(knife.spawn_tag).is_equal("knife")
-	# The knife's Use rule is 2g's (#63).
-	assert_array(knife.actions).is_empty()
+	# One rule on Use (2g, #63; §9.5): Cooldown (hit, 0.5 s), StaminaCost (25), then Strike (30°,
+	# 1.5 m, 50). No role condition: the public Swung must not reveal a role (§9.2).
+	assert_int(knife.actions.size()).is_equal(1)
+	var rule := knife.actions[0]
+	assert_str(rule.trigger).is_equal(Intents.USE)
+	assert_int(rule.conditions.size()).is_equal(2)
+	var cooldown := rule.conditions[0] as Cooldown
+	assert_object(cooldown).is_not_null()
+	assert_str(cooldown.key).is_equal("hit")
+	assert_float(cooldown.seconds).is_equal(0.5)
+	var stamina := rule.conditions[1] as StaminaCost
+	assert_object(stamina).is_not_null()
+	assert_int(stamina.amount).is_equal(25)
+	assert_int(rule.effects.size()).is_equal(1)
+	var strike := rule.effects[0] as Strike
+	assert_object(strike).is_not_null()
+	assert_float(strike.angle_deg).is_equal(30.0)
+	assert_float(strike.reach_m).is_equal(1.5)
+	assert_int(strike.damage).is_equal(50)
+	var check := ModeCheck.run(mode)
+	assert_array(Array(check.errors)).is_empty()
+	assert_array(Array(check.warnings)).is_empty()
+
+
+func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
+	var mode := _base_mode()
+	assert_int(mode.find_phase(&"round").senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
+	# The knife from the base mode's own data: a living player strikes, and the dead cannot.
+	var game := _base_round(mode, [1, 2, 3, 4])
+	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
+	FixtureItemModes.stand(game, 2, Vector3(0, 0, 101))
+	var knife := FixtureItemModes.lay(game, &"knife", Vector3(0, 0, 100))
+	FixtureItemModes.pick_up(game, 1, knife)
+	assert_int(knife.holder).is_equal(1)
+	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
+	assert_int(game.state.player(2).health).is_equal(50000)
+	for peer: int in [1, 2, 3, 4]:
+		assert_array(FixtureCombatModes.received(game, peer, &"Swung")).has_size(1)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.GHOST)
+	assert_array(FixtureModes.rejections(game, 1)).is_empty()
+	# The ghost, even holding a knife, is refused before any rule runs.
+	var dropped := FixtureItemModes.lay(game, &"knife", game.state.bodies[2])
+	game.state.player(2).held_item = dropped.id
+	dropped.where = ItemState.Where.HAND
+	dropped.holder = 2
+	FixtureCombatModes.use(game, 2, Vector3(0, 0, -1))
+	assert_array(FixtureModes.rejections(game, 2)).is_equal([&"not_accepted"])
+	assert_int(game.state.player(1).health).is_equal(100000)
+	assert_array(FixtureCombatModes.received(game, 1, &"Swung")).has_size(2)
 
 
 func test_the_deal_demands_knife_markers_at_the_default_settings() -> void:
@@ -276,6 +325,25 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 			. override_failure_message("PlayerRules_base.%s is %s, not %s" % [number, got, want])
 			. is_equal_approx(want, 1e-6)
 		)
+
+
+## A match of `mode` (the base mode's data) with `peers` from the lobby into the round.
+func _base_round(mode: GameMode, peers: Array[int]) -> Match:
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
+	game.keep_history = true
+	game.start(0)
+	for peer: int in peers:
+		FixtureBaseMode.join(game, peer)
+	for peer: int in peers:
+		FixtureBaseMode.ready(game, peer)
+	for i in 1000:
+		if game.phase_id() == &"loading":
+			break
+		FixtureModes.run_ticks(game, 1)
+	for peer: int in peers:
+		FixtureBaseMode.load_ack(game, peer)
+	assert_str(game.phase_id()).is_equal("round")
+	return game
 
 
 func _mode_paths(dir_path: String) -> Array[String]:

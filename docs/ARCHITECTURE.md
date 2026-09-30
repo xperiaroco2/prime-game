@@ -175,6 +175,8 @@ Content parts (§9.5), checked in Round only, in the mode's order, after every f
 kills the last crew member, whose package then drops into its circle, meets "no crew alive" before the delivery:
 the dissidents win. The same holds for the last crew member leaving with the last package over its circle. The
 check after every fact is what makes this so: a death or a leave raises its fact before the held item drops (§9.2).
+2g (#63) tests both cases with fixture win conditions in the base mode's order (2h builds the real ones):
+`tests/unit/life/life_rules_test.gd` and `tests/unit/match/phases/round_phase_test.gd`.
 
 ### 3.5 Joining, leaving and the host
 | Phase | A client joins (its `Hello` is accepted) | A client leaves |
@@ -182,7 +184,7 @@ check after every fact is what makes this so: a death or a leave raises its fact
 | Lobby | `Welcome` to it, then `PlayerJoined` and `SettingsChanged` to everyone (it included) | dropped from the roster; `PlayerLeft`, `SettingsChanged` |
 | Countdown | as in Lobby, and `cancelled` | as in Lobby, and `cancelled` |
 | Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer` | dropped from the roster; `PlayerLeft` |
-| Round | refused, as in Loading | life state `left`, which counts as dead for the win conditions; the avatar is removed and no body stays; the held item comes to rest on the floor below where the player stood (§7.1); `PlayerLeft` |
+| Round | refused, as in Loading | life state `left`, which counts as dead for the win conditions; the avatar is removed and no body stays (a ghost's body stays); in this order `PlayerLeft` (everyone else), the fact `player_left`, then the held item comes to rest on the floor below where the player stood (§7.1). 2g (#63): `RoundPhase` hands it to `LifeRules.leave`, after forgetting a newcomer that never joined (`JoinRules.forget_newcomer`) |
 | End | refused, as in Loading | life state `left`; `PlayerLeft`. `ResetMatch` drops the player from the roster |
 
 - **The join** (2b, `JoinRules`): `server/`'s `PeerConnected` makes a peer a *newcomer*, and only a newcomer's
@@ -334,18 +336,18 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1) |
 | `TaskProgress` | subtasks done, subtasks in total | everyone | a subtask is done |
 | `TaskUpdated` | task, its subtasks done | the task's owner | one of its subtasks is done |
-| `Swung` | peer, facing | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone |
-| `Damaged` | amount, your health | the victim | a hit on them |
+| `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
+| `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available | that player | on change, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`) |
-| `Died` | peer, body position | everyone | health reaches 0; no event names a killer or a cause |
-| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2) |
+| `Died` | peer, body position | everyone, the dead player included | health reaches 0; no event names a killer or a cause |
+| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a death: the ghost at its body (§7.1 Ghosts) |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent; an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
 `DisconnectPeer(peer)`. Built in 2b (#58): the events from `Welcome` to `PlayerLoaded` above, `ReadyChanged`,
 `CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
-sends what came before it (§4, `disconnect_peer`).
+sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`.
 
 ## 5. Per-peer information filtering
 
@@ -376,7 +378,8 @@ sends what came before it (§4, `disconnect_peer`).
   health, stamina and damage; ghosts, for the living. No event names a killer; a player who watches the swings and positions (both
   public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. Death: the player's life state becomes ghost, so from
-  the next tick their snapshots include the ghosts and their voice joins the dead (§6); they learn no roles. End
+  the next tick their snapshots include the ghosts and their voice joins the dead (§6); they learn no roles (2g
+  tests the snapshots and the invariant below in `tests/unit/life/life_rules_test.gd`). End
   widens nothing: `MatchEnded` names only the winning side, and each player knows from its own role whether it won.
   A later mode that reveals roles would add an event with its own audience. A joiner's `Welcome` holds public facts only.
 - **Knowledge never shrinks.** A peer keeps what it was sent. Resurrection (#34) narrows only what is sent from then
@@ -591,7 +594,11 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 - **Ghosts** move like the living and get the same movement checks (floor, jumps, step height), with the walk and
   sprint speeds times the ghost speed factor (1.3), and stamina never limits them: a ghost's claims neither need nor
   spend it. They collide with the level client-side, not with the living or with other ghosts. `PickUp`, `PutDown`
-  and `Use` from a ghost are rejected. The engineer corrected this on 2026-09-30 (#46): ghosts do not fly, so the
+  and `Use` from a ghost are rejected (`not_accepted`: Round accepts them from the living only). A ghost appears at
+  its body (MVP rules): 2g (#63) sets its position to the body's rest position with a new epoch and sends it a
+  `Correction`, always, even when it died on the floor. The movement rule treats that like a placement: claims in
+  flight from the living player are dropped as stale, and its first claim as a ghost starts a new client-tick
+  baseline on the floor at the body. The engineer corrected this on 2026-09-30 (#46): ghosts do not fly, so the
   host no longer bounds a 3D flight speed. A side effect, not decided yet: with the same jump and 30% more speed, a
   ghost jumps 30% farther; the recommendation is to accept it and keep gaps only a ghost could cross out of the map.
 - **Walls.** The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
@@ -606,6 +613,14 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   speed a target is up to ~0.5 m ahead of what the attacker saw (100 ms of interpolation) against a 1.5 m reach. The
   playtest decides; rewinding targets to the attacker's view is the fallback. Prevents: hits on someone far away,
   behind a wall, without a weapon, or without stamina.
+  2g (#63, `Strike` in `core/combat/strike.gd`) measures it so: the zone is a horizontal sector with its apex at the
+  attacker's feet (the last accepted position), `reach_m` long and `angle_deg` wide around the horizontal part of
+  the facing; a target's capsule has a point in it when its circle of `capsule_radius_m` around the target's
+  position touches the sector (so an overlapping capsule touches the apex whatever the facing); it overlaps
+  vertically when the two feet are at most `capsule_height_m` apart; the line of sight runs from the attacker's eye
+  (`Items.eye_of`, the floor below plus the eye height) to the middle of the target's capsule. A facing with no
+  horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The
+  cooldown is a `Cooldown` cost with the key `hit` in the knife's rule, recorded per player in `MatchState`.
 - **Pick up and swap.** The client names the item; the host checks reach and line of sight from its own positions.
   With a full hand, the held item is put down where the picked-up one lay, a spot already known to be valid.
   2e (#61) measures the reach from the feet (the last accepted position) and the sight from the eye to just above
@@ -620,7 +635,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 - **Drops.** An item dropped at a death or a leave, and a body, come to rest on the floor below the player's last
   position (through `WorldQuery`), never in mid-air. `Items.drop_held` (2e, #61) drops the item, asking the floor
   from 5 cm above the feet so a ray that starts on the floor still finds it; a level with no floor there is a
-  level bug: the item rests at that position and the match logs an error.
+  level bug: the item rests at that position and the match logs an error. The body (`LifeRules.die`, 2g #63) is
+  found the same way, with the same fallback, and the item then drops at the body.
 - **Delivery.** The rule is "the package rests inside its circle, however it got there". So one check runs whenever
   an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
   `server/` reports from its physics (`ItemRested`, #37). A package resting within its own circle's radius, on the
@@ -659,7 +675,7 @@ part is usable in data once its row or entry names the PR that built it. Every n
   - **`MatchState`** (§3.1), for what outlives a phase: players; items (kind, where: on the ground, in a hand or
     locked, position); tasks, each with a **task state** object (`RefCounted`) that its task type creates in its deal
     and alone reads and writes (Delivery: which subtasks are done; #36: the time in the zone per subtask); stations;
-    **bodies** (peer → rest position, from `player_died`; 2g); two tables keyed by names from the data,
+    **bodies** (peer → rest position, written by `LifeRules.die` before `player_died`; 2g); two tables keyed by names from the data,
     **cooldowns** (the tick at which a player last paid a key, such as `hit`) and **counters** (an integer per player
     and key, such as uses left, #34); and a **per-part state** table, one `RefCounted` per key that a part class
     declares, for state a new part class needs that fits none of the above. So a new part adds state without a new
@@ -794,9 +810,9 @@ phase classes come in the task each row names.
   (2g's `Strike` for the victim) touches it, and `Match.tick` sends one `SelfStatus` per changed player at the end of
   the tick. That call is the one line 2d added to `Match`: nothing else runs after a tick's commands.
 - **Items** (`core/items/items.gd`, 2e #61) is the one place that moves an item between the ground and a hand:
-  `take` (the pick-up and the swap), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`), `drop_held`
-  (a dying or leaving player's item to the floor below its last accepted position; the life rule, 2g, calls it after
-  the life state changed and `player_died` or `player_left` was raised) and `raise_rested` (`item_rested` for an item
+  `take` (the pick-up and the swap), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`; the life rule, 2g, places a dead player's item
+  at its body after `player_died`), `drop_held` (a leaving player's item to the floor below its last accepted
+  position; the life rule calls it after the life state changed and `player_left` was raised) and `raise_rested` (`item_rested` for an item
   announced by its own event: after `ItemSpawned`, 2c's `SpawnItems` and 2f's Delivery deal call it with
   `Items.SPAWN`). The causes are constants there. Each condition names its own rejection reason as a constant.
 - **Tasks** (`core/tasks/`, 2f #62): a task type marks a subtask done in its own task state, then calls
@@ -804,6 +820,12 @@ phase classes come in the task each row names.
   done and in total over every task) and `TaskUpdated` (the owner), then raises `subtask_done`. Delivery
   (`core/tasks/delivery.gd`, with its task state as the inner class `Delivery.State`) is the example for #36.
   `StationKind.radius_m` has a neutral default of 0, which the mode check refuses: the data sets it.
+- **Life** (`core/life/life_rules.gd`, 2g #63) is the one place that lowers health or changes the life state in a
+  round: `LifeRules.damage` (`Damaged` to the victim, its `SelfStatus` touched; at 0 health `die`), `die` (the body
+  on the floor below into `MatchState.bodies`, life ghost at the body with a new epoch; then `Died` (everyone),
+  `Correction` (the ghost), `player_died`, and only then `Items.place` at the body with `Items.DEATH`) and `leave` (life
+  left; `PlayerLeft`, `player_left`, then the drop with `Items.LEAVE`). A later weapon or a trap calls `damage`; the
+  class is `LifeRules`, not `Life`, which would shadow `PlayerState.Life`.
 - Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an
   enum of `NetTransport` or GdUnit4).
 
@@ -853,7 +875,7 @@ phase classes come in the task each row names.
 | `AllSubtasksDone` | every subtask of every task is done; never holds at 0 subtasks (a deal that dealt nothing) | none | (facts only) | 2h |
 | `NoneAlive` | no player of the side is alive: each is a ghost or has left | `side` | (facts only) | 2h |
 | `ClockEnded` | the match clock has reached its end | none | (facts only) | 2h |
-| `Cooldown` (cost) | this player never paid this key, or at least `seconds` passed since it last did; paying records the tick | `key`, `seconds` (0 to 600) | `too_soon`: its own timing | 2g |
+| `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | 2g (#63, `core/combat/cooldown.gd`) |
 | `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount` (a ghost's always is); paying spends it and emits `SelfStatus` (the actor, at the end of the tick) | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | 2d (#60) |
 
 **Effects in rules:**
@@ -862,7 +884,7 @@ phase classes come in the task each row names.
 |---|---|---|---|---|
 | `TakeIntoHand` | the item goes into the actor's hand; a held item is swapped: it rests where the picked-up one lay (§7.1). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61) |
 | `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor below, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
-| `Strike` | picks the targets as in §7.1 (living, not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each, in peer-id order; at 0 health a target dies (the life rule, 2g) | `angle_deg` (1 to 360; 30), `reach_m` (0.1 to 10; 1.5), `damage` (whole points, 1 to 1000; 50) | `Swung` (everyone), even with no target; per target `Damaged` and `SelfStatus` (the victim). A death: `Died` (everyone), `player_died`, then the drop: `ItemPlaced` (death, everyone), `item_rested` | 2g |
+| `Strike` | picks the targets as in §7.1 (living, not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target dies there | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A death: `Died` (everyone), `Correction` (the dead: its ghost at the body), `player_died`, then the drop: `ItemPlaced` (death, everyone), `item_rested` | 2g (#63, `core/combat/strike.gd`) |
 | `ReportOutcome` | reports an outcome of the current phase (a meeting button, #35; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it (#35); 2a builds the outcome reporting it calls |
 
 **Transition actions** (effects that a transition row runs; the base mode's rows are in §9.5):
@@ -894,7 +916,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change, a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds`, `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
-| `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server) | 2a (#49) |
+| `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
 | `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i (#65, `SilentVoice`) |
 | `Proximity` | voice rule | every pair of present players within the radius (3D, §6); the living never hear a ghost (§5, for every rule) | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`) |
@@ -954,8 +976,8 @@ Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) built the phases Lobby, Countdown,
 Loading and End, the join rules, the fit check, the mode check with layouts and the `End, back → Lobby` row's
 `ResetMatch`. 2e (#61) added the Package, PickUp and PutDown, and Round's `PickUp` and `PutDown` from the living;
-`Use` joins Round's allowlist with the knife's rule in 2g, because the mode check refuses an accepted intent that no
-rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round. 2c (#59) added Crew, Dissident,
+2g (#63) added Round's `Use` from the living together with the knife's rule, because the mode check refuses an
+accepted intent that no rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round. 2c (#59) added Crew, Dissident,
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
@@ -1036,13 +1058,19 @@ Settings: id `knife`; display name "Knife"; spawn tag `knife`; actions: one rule
 (key `hit`, 0.5 s) and `StaminaCost` (25), and the effect `Strike` (30°, 1.5 m, 50 damage). The cooldown key is per
 player, so swapping to a second knife does not skip the interval (§7.1). Placed by `SpawnItems` (`knives`).
 Produces: `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`; on `Use`: `Swung`, `Damaged`, `SelfStatus` (the attacker's
-stamina, the victim's health), and on a death `Died` and the dropped item's `ItemPlaced`.
+stamina, the victim's health), and on a death `Died`, the ghost's `Correction` and the dropped item's `ItemPlaced`.
 Visible to: `Swung` and `Died` everyone; `Damaged` only the victim; the attacker gets no confirmation of a hit; a
 refusal (`too_soon`, `tired`) only the attacker. The public `Swung` reveals no role: the rule belongs to the item
 kind, which any living player may hold (§9.2).
-Status: designed in #33; the item kind (id, name, spawn tag; no actions yet) and its `SpawnItems` in 2c (#59):
+Status: designed in #33; the item kind (id, name, spawn tag) and its `SpawnItems` in 2c (#59):
 `content/items/knife.tres`, tested by `tests/unit/deal/spawn_items_test.gd` and
-`tests/unit/content/content_modes_test.gd`; its `Use` rule in 2g. Tests: (2g), a path once built.
+`tests/unit/content/content_modes_test.gd`; the parts built in 2g (#63): `Cooldown`, `Strike` (`core/combat/`) and
+the life rule (`core/life/`), and the rule in `knife.tres` with `Use` from the living in Round's allowlist
+(provisional under the MVP content ADR, for the engineer's approval).
+Tests: `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
+strike and a ghost's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order, who
+learns what), `tests/unit/combat/cooldown_test.gd`, `tests/unit/life/life_rules_test.gd` (death, the ghost,
+widening, the §3.4 order), `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
 
 #### Every task done (win condition)
 What it does: the crew's only win.
@@ -1087,8 +1115,11 @@ death or a leave: `tests/unit/items/items_test.gd`.
 #### Use (action; the knife's hit)
 What it does: uses the held item, as its kind's rule says; in the MVP only the knife has one (above). It replaces
 #32's `Hit` intent, so that a new held item is data, not a new intent.
-Settings, Produces, Visible to: the knife's.
-Status: designed in #33; built in 2g. Tests: (2g), a path once built.
+Settings, Produces, Visible to: the knife's. A ghost's `Use` is `not_accepted` (Round accepts it from the living
+only); an empty hand, or a package, is `nothing_to_do`.
+Status: designed in #33; built in 2g (#63), as the knife's. Tests: the knife's; a ghost's `Use`:
+`tests/unit/life/life_rules_test.gd`, `tests/unit/content/content_modes_test.gd` (the base mode),
+`tests/unit/content/item_intents_test.gd` (only the living, in every mode); a package's: `tests/unit/items/items_test.gd`.
 
 #### Sprint (not a part in v0)
 What it does: the `sprint` flag of `MoveClaim`, settled by the movement rule for every tick a claim covers (§7.1),

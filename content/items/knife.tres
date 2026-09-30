@@ -2,9 +2,36 @@
 
 [ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="1_kind"]
 [ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="1_nx1in"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="2_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="3_effect"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="4_cooldown"]
+[ext_resource type="Script" uid="uid://lpqbanc0jkhl" path="res://core/stamina/stamina_cost.gd" id="5_stamina_cost"]
+[ext_resource type="Script" uid="uid://cvs2jqedfed7h" path="res://core/combat/strike.gd" id="6_strike"]
+
+[sub_resource type="Resource" id="Use_cooldown"]
+script = ExtResource("4_cooldown")
+key = &"hit"
+seconds = 0.5
+
+[sub_resource type="Resource" id="Use_stamina"]
+script = ExtResource("5_stamina_cost")
+amount = 25
+
+[sub_resource type="Resource" id="Use_strike"]
+script = ExtResource("6_strike")
+angle_deg = 30.0
+reach_m = 1.5
+damage = 50
+
+[sub_resource type="Resource" id="Rule_use"]
+script = ExtResource("1_nx1in")
+trigger = &"Use"
+conditions = Array[ExtResource("2_condition")]([SubResource("Use_cooldown"), SubResource("Use_stamina")])
+effects = Array[ExtResource("3_effect")]([SubResource("Use_strike")])
 
 [resource]
 script = ExtResource("1_kind")
 id = &"knife"
 display_name = "Knife"
 spawn_tag = &"knife"
+actions = Array[ExtResource("1_nx1in")]([SubResource("Rule_use")])
