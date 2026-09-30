@@ -39,7 +39,8 @@ extends Resource
 ## The take-off speed that lifts the feet exactly `jump_height` at the top of the jump, for a
 ## physics step of `delta` seconds under `gravity` (m/s², positive). The body moves by its
 ## velocity after each step's gravity, so the discrete peak is
-## v²/(2g) + v·dt/2 + g·dt²/8; solving that for `jump_height` gives the formula below, and the
-## peak never overshoots the height the host will bound a jump by (§7.1).
+## v²/(2g) + v·dt/2 + g·dt²/8; solving that for `jump_height` gives the formula below, so the
+## ballistic peak is exactly the jump height. A landing on a ledge can still put the feet higher
+## (ARCHITECTURE §7: the host's tolerance must cover it).
 func jump_velocity(gravity: float, delta: float) -> float:
 	return sqrt(2.0 * gravity * jump_height) - gravity * delta * 0.5
