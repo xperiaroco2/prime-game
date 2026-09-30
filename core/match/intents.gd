@@ -33,8 +33,8 @@ const FORCE_ROLE := &"ForceRole"
 ## wire table (net/messages/) against them, so a field renamed on one side fails that test instead
 ## of reading as missing. A field may be absent (ChangeSettings's `map`); its type is the one it has
 ## when present. The wire's own fields are not args: `seq` (MatchCommand.seq), the presence flags
-## and ForceRole's `peer` (MatchCommand.peer). Every change here is a protocol change: it updates
-## §4.3 and bumps JoinRules.PROTOCOL_VERSION in the same PR.
+## and ForceRole's `peer` (MatchCommand.peer). Once the wire carries them (3d), every change here
+## is a protocol change: it updates §4.3 and bumps JoinRules.PROTOCOL_VERSION in the same PR.
 const FIELDS: Dictionary[StringName, Dictionary] = {
 	HELLO: {"version": TYPE_INT, "content": TYPE_INT},
 	SET_READY: {"ready": TYPE_BOOL},
