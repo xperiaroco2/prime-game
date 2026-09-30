@@ -9,8 +9,13 @@ extends NetTransport
 ## then wait for a timeout. A refusing host disconnects the peer instead of admitting it.
 
 ## ENet drops a peer that acknowledges nothing for this long; a crashed peer is noticed within
-## PEER_TIMEOUT_MAX_MS. The M1 spike's 2-4 s dropped any peer whose main thread froze that long
-## (level loads, breakpoints). Every ENet timeout is set here and nowhere else.
+## PEER_TIMEOUT_MAX_MS. ENet runs only on the main thread, so a peer whose main thread freezes
+## acknowledges nothing until it thaws. The M1 spike's 2-4 s dropped such peers (level loads,
+## breakpoints), and #21 found a common freeze: on Windows a windowed D3D12 Godot process can
+## freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts. Keep
+## PEER_TIMEOUT_MIN_MS at 10 s or more: a "snappier drop" brings that bug back.
+## tests/integration/net/enet_freeze.gd checks a 5.2 s freeze on the host and on a client.
+## Every ENet timeout is set here and nowhere else.
 const PEER_TIMEOUT_LIMIT := 32
 const PEER_TIMEOUT_MIN_MS := 10000
 const PEER_TIMEOUT_MAX_MS := 20000
