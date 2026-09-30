@@ -143,6 +143,7 @@ and wait for the designer's review.
 | `new-level-piece` | designer | A room or interactable sub-scene per the level conventions; `normalize`; `shot` screenshot |
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
+| `orchestrate-stage` | engineer | An "ultracode" kickoff for a stage: the manager session runs one `issue-task` workflow per issue (§7.1) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
@@ -189,6 +190,26 @@ Rules for every workflow run:
   `.claude/` paths are protected by Claude Code itself and prompt in every mode except bypass, so unattended runs
   that edit them need bypass.
 - `effortLevel` is never put in shared settings.
+
+### 7.1 The orchestrator session
+([ADR](decisions/2026-09-30-orchestrator-session.md); skill `orchestrate-stage`)
+- **When:** a whole stage or a list of issues that can run in parallel, with the engineer around to merge and
+  answer. One issue alone stays a normal task session (§4).
+- **How:** one session in ultracode, the **manager**, runs the skill. For each task it runs `start` itself, then the
+  saved workflow `issue-task` (`.claude/workflows/issue-task.js`: implementer → fresh reviewers chosen from the
+  changed paths → publisher; `design: true` for a docs-only design task) with `args` (issue, worktree, branch, base,
+  notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
+  (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A session runs a
+  saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
+  session needs `/reload-skills` (code.claude.com/docs/en/workflows).
+- **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about 150;
+  every agent writes temporary files only under its issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to
+  five agents, over the `small` guideline, so the kickoff approves that and the stage's cost once.
+- **The human:** writes the kickoff (template in the skill), merges in the order the manager gives, answers the
+  numbered "Needs the engineer" questions, and runs the housekeeping (`worktree-done`). The manager reports on the
+  plan issue after each wave and stops with a comment when nothing more can run without merges.
+- **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
+  what an earlier attempt already did, so a fresh run with the same args also continues.
 
 ## 8. Permissions, guards and hooks
 
@@ -567,7 +588,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - Existing work: "start task 42". A new idea (designer): "нова механіка: …" → `new-mechanic`.
 - Issues contain: the goal, acceptance criteria as a checklist, what is out of scope, and the expected verification
   (screenshot, bot scenario or playtest).
-- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7); "just do it" → small,
+- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7), or, naming a stage or a list of
+  issues, the orchestrator session (§7.1); "just do it" → small,
   obvious changes only.
 - Dictation: say the issue number and describe the thing; the agent reads the file name back before editing and asks
   one short question only if a misreading would change what gets built. The glossary in root `CLAUDE.md` grows from
