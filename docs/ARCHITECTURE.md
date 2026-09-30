@@ -522,7 +522,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   - The client tick's rate: a player earns one tick of credit per host tick and keeps at most `MAX_TICK_CREDIT`
     (200 ticks, 10 s); a claim may cover no more client ticks than its credit. So a catch-up burst after a stall
     (#70: 50 to 100 claims in one host tick after 5 s) passes, a client that runs its tick ahead gets
-    `TICK_LEAD` (10 ticks) at most, and no claim buys distance by inflating its tick delta. A placement (§3.2)
+    `TICK_LEAD` (10 ticks) at most, and no claim buys distance by inflating its tick delta. A claim past its credit
+    is corrected and the next claim starts a new client-tick baseline (credit not refilled), so a client whose ticks
+    ran ahead of a stalled host's is corrected once, not on every later claim. A placement (§3.2)
     restarts the credit and the client-tick baseline, and settles the ticks since the last claim as standing still.
   - Speed: per covered tick the state's speed (a tick not settled yet takes the state the next tick would have),
     times `ghost_speed_factor` for a ghost; for the living plus `sprint_speed` (Pushing apart below; proposed for M4,

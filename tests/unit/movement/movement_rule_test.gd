@@ -180,6 +180,37 @@ func test_a_burst_without_a_gap_is_corrected() -> void:
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_greater(seen)
 
 
+func test_a_client_whose_ticks_ran_ahead_of_a_stalled_host_is_corrected_once() -> void:
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.steps(game, P1, 5, EAST * 0.2, {"moving": true})
+	var seen := FixtureMoves.corrections(game, P1).size()
+	# The host stalls and loses 50 ticks while the client goes on at 20 Hz: its 50 claims of the
+	# old epoch arrive in one host tick, past the credit.
+	var old_epoch := player.epoch
+	var tick := player.claim_tick
+	var at := player.position
+	for i in 50:
+		tick += 1
+		at += EAST * 0.2
+		FixtureMoves.claim(game, P1, at, {"moving": true, "client_tick": tick, "epoch": old_epoch})
+	FixtureModes.run_ticks(game, 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	# The Correction reaches the client two ticks later; it goes on from the host's position with
+	# its own client tick, still 50 ahead of the host's, one claim per host tick.
+	FixtureModes.run_ticks(game, 2)
+	tick += 2
+	at = player.position
+	for i in 20:
+		tick += 1
+		at += EAST * 0.2
+		FixtureMoves.claim(game, P1, at, {"moving": true, "client_tick": tick})
+		FixtureModes.run_ticks(game, 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_int(player.claim_tick).is_equal(tick)
+	assert_vector(player.position).is_equal_approx(at, Vector3.ONE * 1e-4)
+
+
 func test_the_host_never_corrects_overlapping_players() -> void:
 	var game := FixtureMoves.in_round([P1, P2])
 	var one := game.state.player(P1)

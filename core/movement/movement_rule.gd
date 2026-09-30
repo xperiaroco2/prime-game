@@ -12,7 +12,9 @@ extends RefCounted
 ## - The client tick rises at a bounded rate: a player earns one tick of credit per host tick, keeps
 ##   at most MAX_TICK_CREDIT of it (so a catch-up burst after a stall passes, #70), and a claim
 ##   may cover no more client ticks than its credit. So the speed check below can trust the
-##   client's own tick delta, and no claim teleports by inflating it.
+##   client's own tick delta, and no claim teleports by inflating it. A claim past its credit is
+##   corrected and the next one starts a new client-tick baseline, so a client whose ticks ran
+##   ahead of the host's (the host stalled and lost ticks) is corrected once and goes on.
 ## - A jump (`jumped`): the host has the player on the floor (its last claim said so, and
 ##   WorldQuery finds a floor within step height below its last position) and, for the living,
 ##   stamina covers the jump's cost, settled first (settle_ahead). A ghost's jump costs nothing.
@@ -65,6 +67,9 @@ class Motion:
 	var base_y := 0.0
 	## An accepted jump, until the next landing.
 	var jumping := false
+	## A claim covered more client ticks than its credit: the next claim restarts the client-tick
+	## baseline, so a client whose ticks ran ahead of the host's is corrected once, not forever.
+	var rebase := false
 
 
 ## One MoveClaim's fields, read and checked for type and finiteness.
@@ -111,12 +116,18 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 	if claim == null:
 		_correct(ctx, player, motion)
 		return
-	var covered := 1 if player.claim_tick < 0 else claim.client_tick - player.claim_tick
+	var fresh := player.claim_tick < 0 or motion.rebase
+	var covered := 1 if fresh else claim.client_tick - player.claim_tick
 	if covered <= 0:
 		return
 	motion.credit = mini(MAX_TICK_CREDIT, motion.credit + ctx.tick - motion.credit_tick)
 	motion.credit_tick = ctx.tick
 	if covered > motion.credit:
+		# The ticks it claims past its credit are lost, not owed: the next claim starts a new
+		# baseline (and the credit is not refilled, so this buys no distance). Stamina is settled
+		# up to now meanwhile, as after a placement.
+		motion.rebase = true
+		StaminaLedger.settle_ahead(player, ctx.state.player_rules, ctx.tick)
 		_correct(ctx, player, motion)
 		return
 	var checked := _check(ctx, player, motion, claim, covered)
@@ -177,6 +188,7 @@ static func _accept(
 			motion.jumping = false
 			motion.base_y = landing.y
 	motion.credit -= checked.covered
+	motion.rebase = false
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.facing = claim.facing
@@ -245,6 +257,7 @@ static func _after_placement(
 	motion.credit_tick = now
 	motion.base_y = player.position.y
 	motion.jumping = false
+	motion.rebase = false
 	player.on_floor = true
 	player.claim_tick = -1
 	player.sprint_held = false
