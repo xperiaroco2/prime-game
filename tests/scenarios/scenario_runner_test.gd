@@ -111,6 +111,64 @@ func test_the_invariants_catch_a_leak() -> void:
 	assert_str("\n".join(invariants.check_event(seed_leak))).contains("holds a seed")
 
 
+func test_the_invariants_catch_a_misrouted_task_event_or_rejection() -> void:
+	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], []]))
+	assert_array(Array(runner.failures)).is_empty()
+	var invariants := ScenarioInvariants.new(runner.game, runner.scenario)
+	var partial := EmittedEvent.new(0, TaskProgressEvent.new(0, 6), PackedInt32Array([1]), false)
+	assert_str("\n".join(invariants.check_event(partial))).contains("not every present player")
+	# Every bot numbers its intents alike, so only the sender's peer id tells a misrouted Rejected.
+	invariants.sender = 1
+	var misrouted := EmittedEvent.new(
+		0, RejectedEvent.new(1, 2, &"too_soon"), PackedInt32Array([1002]), false
+	)
+	assert_str("\n".join(invariants.check_event(misrouted))).contains("not the sender 1")
+
+
+func test_the_invariants_catch_a_leak_in_snapshots_and_voice() -> void:
+	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], []]))
+	assert_array(Array(runner.failures)).is_empty()
+	var leaky := LeakyMatch.new(runner.game)
+	leaky.state.players[1002].life = PlayerState.Life.GHOST
+	leaky.avatars = {
+		1002: {"position": Vector3.ZERO, "health": 100, "held_item": runner.scenario.session_seed}
+	}
+	leaky.speakers = PackedInt32Array([1002])
+	var found := "\n".join(ScenarioInvariants.new(leaky, runner.scenario).check_tick())
+	assert_str(found).contains("living peer 1 sees ghost 1002")
+	assert_str(found).contains("living peer 1 hears ghost 1002")
+	assert_str(found).contains("shows health of peer 1002")
+	assert_str(found).contains("peer 1's snapshot holds a seed")
+
+
+func test_a_match_error_or_a_view_that_differs_fails() -> void:
+	var runner := ScenarioRunner.play(_scenario([[StepReady.new()]]))
+	assert_array(Array(runner.failures)).is_empty()
+	runner.game.diagnostics.append("error: a planted match error")
+	runner._check_after()
+	assert_str(_text(runner)).contains("match error: a planted match error")
+	runner.failures.clear()
+	runner.game.diagnostics.clear()
+	runner.bots[0].events.append(ReadyChangedEvent.new(1, false))
+	runner._check_after()
+	assert_str(_text(runner)).contains("but view_of(1) holds")
+
+
+func test_an_expect_that_times_out_or_an_expect_none_that_sees_its_event_fails() -> void:
+	var expect := StepExpect.new()
+	expect.event = &"MatchEnded"
+	expect.within_s = 0.5
+	var runner := ScenarioRunner.play(_scenario([[StepReady.new(), expect]]))
+	assert_str(_text(runner)).contains("step 2 (Expect)")
+	var none := StepExpectNone.new()
+	none.event = &"ReadyChanged"
+	none.for_s = 2.0
+	var later := StepWait.new()
+	later.seconds = 0.5
+	runner = ScenarioRunner.play(_scenario([[none], [later, StepReady.new()]]))
+	assert_str(_text(runner)).contains("step 1 (ExpectNone)")
+
+
 func test_fields_name_players_by_bot_number() -> void:
 	var event := ReadyChangedEvent.new(ScenarioRunner.peer_of(3), true)
 	assert_bool(ScenarioRunner.matches(event, &"ReadyChanged", {"peer": 3})).is_true()
@@ -119,6 +177,23 @@ func test_fields_name_players_by_bot_number() -> void:
 	assert_bool(ScenarioRunner.matches(event, &"PhaseChanged", {})).is_false()
 	var phase := PhaseChangedEvent.new(&"round", -1)
 	assert_bool(ScenarioRunner.matches(phase, &"PhaseChanged", {"phase": "round"})).is_true()
+
+
+## A match whose snapshots and voice routing show what a test plants, over another match's state.
+class LeakyMatch:
+	extends Match
+	var avatars: Dictionary = {}
+	var speakers := PackedInt32Array()
+
+	func _init(played: Match) -> void:
+		super(played.mode, 1, FlatWorldQuery.new(), {})
+		state = played.state
+
+	func snapshot_for(_peer: int) -> Dictionary:
+		return {"avatars": avatars}
+
+	func speakers_for(_listener: int) -> PackedInt32Array:
+		return speakers
 
 
 func _scenario(scripts: Array) -> BotScenario:

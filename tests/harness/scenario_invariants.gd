@@ -4,12 +4,14 @@ extends RefCounted
 ## events' declared audiences: each check reads the match state's truth (roles, life states, who
 ## is present), never an event's audience(), so a wrong declaration (Teammates declared to
 ## everyone, say) fails here even though view_of agrees with it.
-## - For each match, a crew member knows one role, its own, and a player of a role that knows its
-##   teammates knows only that role's players; every role it learns is the truth.
-## - Nobody gets another player's health, stamina or damage (Damaged, SelfStatus).
+## - A crew member learns one role, its own, and a player of a role that knows its teammates
+##   learns only that role's players; every role it learns is the truth when it learns it.
+## - Nobody gets another player's health, stamina or damage (Damaged, SelfStatus), and no avatar in
+##   a snapshot holds a field outside the public ones (AVATAR_FIELDS).
+## - A Rejected reaches exactly the peer whose command was just applied.
 ## - Every present player receives the same task events (StationPlaced, ItemSpawned,
 ##   PackageDelivered, TaskProgress).
-## - No event holds the session seed or a match seed.
+## - No event and no snapshot holds the session seed or a match seed.
 ## - Per tick, a living peer's snapshot holds no ghost, and it hears no ghost.
 ## - The scenario's `never` events reach nobody they name.
 
@@ -17,11 +19,14 @@ const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskProgress"
 ]
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
+## What anyone may see of another player (§4.2); health and stamina are never avatar fields.
+const AVATAR_FIELDS: Array[String] = ["position", "velocity", "facing", "ghost", "held_item"]
+
+## The peer whose command the runner applies now, or 0 outside a command (a tick, the start).
+var sender := 0
 
 var _game: Match
 var _scenario: BotScenario
-## Peer -> {peer: role} learned in the current match.
-var _known_roles: Dictionary[int, Dictionary] = {}
 var _seeds: Array[int] = []
 
 
@@ -38,7 +43,6 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 	var name := event.event_name()
 	var state := _game.state
 	if event is LoadMatchEvent:
-		_known_roles.clear()
 		var seed_now := state.rng.match_seed()
 		if not _seeds.has(seed_now):
 			_seeds.append(seed_now)
@@ -56,6 +60,8 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 		for peer: int in emitted.recipients:
 			if peer != owner:
 				found.append("peer %d received %s of peer %d" % [peer, name, owner])
+	if event is RejectedEvent and emitted.recipients != PackedInt32Array([sender]):
+		found.append("Rejected reached %s, not the sender %d" % [emitted.recipients, sender])
 	if TASK_EVENTS.has(name):
 		var present := PackedInt32Array(state.present_peers())
 		if emitted.recipients != present:
@@ -79,9 +85,18 @@ func check_tick() -> PackedStringArray:
 	var found := PackedStringArray()
 	var state := _game.state
 	for peer: int in state.present_peers():
+		var snapshot := _game.snapshot_for(peer)
+		var avatars: Dictionary = snapshot.get("avatars", {})
+		for seed_value: int in _seeds:
+			if _holds_int(snapshot, seed_value):
+				found.append("peer %d's snapshot holds a seed" % peer)
+		for other: int in avatars:
+			var avatar: Dictionary = avatars[other]
+			for field: Variant in avatar:
+				if not AVATAR_FIELDS.has(str(field)):
+					found.append("peer %d's snapshot shows %s of peer %d" % [peer, field, other])
 		if state.players[peer].life != PlayerState.Life.ALIVE:
 			continue
-		var avatars: Dictionary = _game.snapshot_for(peer).get("avatars", {})
 		for other: int in avatars:
 			if state.is_present(other) and state.players[other].life == PlayerState.Life.GHOST:
 				found.append("living peer %d sees ghost %d in its snapshot" % [peer, other])
@@ -93,9 +108,6 @@ func check_tick() -> PackedStringArray:
 
 func _learn_role(peer: int, about: int, role: StringName, found: PackedStringArray) -> void:
 	var state := _game.state
-	if not _known_roles.has(peer):
-		_known_roles[peer] = {}
-	_known_roles[peer][about] = role
 	var truth: StringName = state.players[about].role if state.players.has(about) else &""
 	if role != truth:
 		found.append("peer %d learned that %d is %s, but it is %s" % [peer, about, role, truth])

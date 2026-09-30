@@ -126,8 +126,11 @@ func _run_tick(at_tick: int) -> void:
 		if not bot.gone and failures.is_empty():
 			_act(bot, at_tick)
 	for command: MatchCommand in _commands:
-		game.apply(command)
+		_invariants.sender = command.peer
+		if not game.apply(command):
+			failures.append("tick %d: %s was not applied" % [at_tick, command.kind])
 		_deliver()
+	_invariants.sender = 0
 	game.tick(at_tick)
 	_deliver()
 	for problem: String in _invariants.check_tick():
