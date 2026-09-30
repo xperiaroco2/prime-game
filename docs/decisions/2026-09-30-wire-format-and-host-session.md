@@ -110,7 +110,8 @@ client, the bots and the leak test). The main choices:
   instead of `jumped`; `JoinRules` compares `Hello.content` (`wrong_content`); `Match` calls `WorldQuery.use_level`
   on start and in each transition; `ModeCheck` refuses an id outside the wire's alphabet.
 - **The designer** is told in the PR: content ids stay lowercase snake_case of at most 32 characters, which every MVP
-  id already is. Nothing else in `content/` changes.
+  id already is. Nothing else in `content/` changes. With E8 (a), a level's collision is `StaticBody3D` nodes, not
+  CSG or `GridMap` (their collision exists only in a tree): a point for 4e's level conventions.
 - **`net/`** gains `net/messages/`; `NetKindTable.game()` stops being empty; the transport gives `server/` its
   rejects per peer (3f). Every new event or intent costs one row and a version bump (§9.8 said so).
 - **Bandwidth.** The host uploads about 0.6 Mbit/s of snapshots at 10 players, plus voice (voice ADR: about
@@ -137,7 +138,7 @@ The design follows each recommendation, and each can be reverted before its task
 | E5 | Ids on the wire | (a) the content's names, `a-z 0-9 _`, at most 32, the mode check enforcing it; (b) indices into the mode's lists | (a): a content mismatch shows as an unknown id, not the wrong one |
 | E6 | Floats | (a) `f32` everywhere, lossless; (b) half floats for a snapshot's velocity and facing | (a): exact comparisons in the leak test, no overflow to infinity |
 | E7 | Rate limits and malformed packets | (a) per-peer budgets of bytes and intents, over-budget messages dropped, a disconnect after 50 malformed messages in 10 s; (b) count and log only; (c) a disconnect on the first malformed packet or any excess | (a), numbers as placeholders: bounds a looping client's growth of the command log without dropping a thawed honest player |
-| E8 | The host's collision world | (a) per level a `World3D.new()` with the static colliders through `PhysicsServer3D`, built at the start; (b) the level in a `SubViewport` with its own world; (c) the host client's scene | (a): only the colliders, the same on a headless host |
+| E8 | The host's collision world | (a) per level a `World3D.new()` with the static colliders through `PhysicsServer3D`, built at the start; (b) the level in a `SubViewport` with its own world; (c) the host client's scene | (a): only the colliders, the same on a headless host. Its cost: CSG and `GridMap` collision exist only in a tree, so levels give collision as `StaticBody3D` nodes (4e's conventions, with the designer), or (b) is taken |
 | E9 | Which level the port answers for | (a) `Match` calls `WorldQuery.use_level(path)` on start and before each row's actions; (b) `server/` switches between steps; (c) every port method takes the level | (a): two lines in the loop, and a row action can never get the old level |
 | E10 | `floor_below` | (a) the highest floor under the capsule's footprint (five rays), for every caller; (b) two methods, the capsule's and a point's; (c) one ray | (a) for M3; (b) if a playtest shows items resting past ledges |
 | E11 | Voice frames carry the host tick | (a) yes, 4 bytes; (b) no | (a): the leak test checks each frame against `view_of`'s routing for that tick |

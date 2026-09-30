@@ -427,8 +427,9 @@ set of task types at most 16 ids; shortfalls at most 32. The sizes below are the
 
 **Intents** (C→H). Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
 `Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`, and a claim the
-phase does not accept (one in flight when the phase changes) gets `Rejected` with seq 0, which clients ignore; a
-client stops claiming when its own copy of the mode says the new phase does not accept `MoveClaim` (§3.1).
+phase does not accept (one in flight when the phase changes) gets `Rejected(not_accepted)` with seq 0, which clients
+ignore (a `Hello`'s refusals have reasons of their own); a client stops claiming when its own copy of the mode says the
+new phase does not accept `MoveClaim` (§3.1).
 
 | Kind | Intent | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|
@@ -602,7 +603,7 @@ playback are M5.
 a client bug sends an intent every frame; every command, and every `WorldQuery` answer it causes, stays in the command
 log for the whole match (§3.3), so one looping client grows the host's memory and work without end.
 - Per peer, two token buckets refilled from host ticks: bytes of every message received (64 KiB, refilled at
-  16 KiB/s, about three times an honest client with voice) and reliable intents (100, refilled at 20 per second). Both
+  16 KiB/s, about four times an honest client with voice) and reliable intents (100, refilled at 20 per second). Both
   hold a 10 s backlog, so a thawed peer's burst passes (the 5 s freeze of #21, and `MAX_TICK_CREDIT`'s 10 s). A
   message over a budget is dropped before decoding and counted (`over_budget`). Nobody is disconnected for its rate:
   a freeze would trigger it too.
@@ -617,7 +618,8 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   that path (never a path from the wire alone), with `ResourceLoader.load_threaded_request` and a
   `load_threaded_get_status` check every frame, so its transport keeps polling while the level loads. It instantiates
   the scene, replaces the lobby and sends `LoadAck(match_id)`. A failed load leaves the session with a message; the
-  host's own failed load ends the session (§3.2).
+  host's own failed load ends the session (§3.2). On the host, instantiating the scene blocks the main thread it shares
+  with `HostSession`; the next step's catch-up covers the pause like any host freeze.
 - **The host's collision worlds** are built when the session starts, so loading asks nothing of `server/`: the host's
   own `LoadAck` means that its client loaded, and `WorldQuery` already answers for every level.
 
@@ -628,6 +630,10 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   scene is instantiated only to be read, never added to a tree, then freed. Queries go through
   `World3D.direct_space_state` with the mask of layer 1. Prevents: the answers depending on the host's client scene (a
   headless host has none, and it holds player capsules), and a second live copy of the level's meshes and scripts.
+  The cost: CSG and `GridMap` build their collision only inside a tree, so the builder logs an error for such a node
+  with collision, and a level that relies on one fails 3c's check instead of letting players walk where the host sees
+  nothing. The level conventions (4e, with the designer) then give collision as `StaticBody3D` nodes, or E8 (b) is
+  taken.
 - **Which level** (E9). `Match` tells the port the level of the phase it enters, before a row's actions run:
   `WorldQuery.use_level(path)` on start and in each transition (3e; the fakes and the replay ignore it). Prevents: a
   row action that asks geometry (none does in the MVP) getting the old level's answer, as it would if `server/`
@@ -662,7 +668,8 @@ reading back). The log holds the seed: it stays on the host's disk and is never 
   state (invariant 2).
 - **Bots** (`tests/harness/`, 3h): a bot is a `ClientSession`, a scenario script (the §9.7 steps) and an honest mover
   that moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on the flat levels
-  (2j), claims every client tick, counts its jumps and adopts every `Correction`. Its voice is synthetic: frames of
+  (2j), claims every client tick, counts its jumps and adopts every `Correction`. It acknowledges `LoadMatch` as §9.7
+  says, without loading the scene: a bot needs no geometry of its own. Its voice is synthetic: frames of
   varying length holding its peer id and a counter, so a listener also checks that the relay changed no frame and
   named the right speaker.
 - **The runners** (§9.7; E12):
@@ -681,11 +688,12 @@ reading back). The log holds the seed: it stays on the host's disk and is never 
   - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
     lacks is a leak (a subset check, because LATEST may drop);
   - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check);
-  - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience: every only-event b
-    decoded (`Welcome`, `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`) names b as its subject; a
-    crew bot decodes no `Teammates`; a dissident's `Teammates` names that match's dissidents only; an
-    alive bot never decodes a ghost's avatar or voice frame; the bots present for a whole round decode the same task
-    events; no decoded message has a field that names a seed.
+  - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience: every event for one
+    peer that b decoded (`Welcome`, `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`) names b as its
+    subject; a crew bot decodes no `Teammates`; a dissident's `Teammates` names that match's dissidents only; an alive
+    bot never decodes a ghost's avatar or voice frame; the bots present for a whole round decode the same task events;
+    no decoded message has a field that names a seed. `keep_history` costs memory (§5), so scenarios stay short, or
+    3h compares per tick over a window and drops what it compared.
   - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone)
     and one that only the invariants catch (`Teammates` declared *everyone* in `core/`), see the test fail on each,
     revert, and record both in the PR.
@@ -1714,7 +1722,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | `Interact(target)`: fixed interactables and bodies as targets (§9.8) | with the first mechanic that needs it (#34 or #35) |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
-| How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6) | 4e, with the designer |
+| How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
 | How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6) | M3, before `server/` hosts a match |
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
