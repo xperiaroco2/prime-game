@@ -336,7 +336,7 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1) |
 | `TaskProgress` | subtasks done, subtasks in total | everyone | a subtask is done |
 | `TaskUpdated` | task, its subtasks done | the task's owner | one of its subtasks is done |
-| `Swung` | peer, facing (the `Use`'s, or the last accepted claim's when the `Use` had no finite one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
+| `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available | that player | on change, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`) |
 | `Died` | peer, body position | everyone, the dead player included | health reaches 0; no event names a killer or a cause |

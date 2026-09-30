@@ -156,6 +156,30 @@ func test_a_facing_straight_down_touches_only_an_overlapping_capsule() -> void:
 	FixtureCombatModes.use(game, P1, Vector3.DOWN)
 	assert_int(game.state.player(P2).health).is_equal(HALF)
 	assert_int(game.state.player(P3).health).is_equal(HEALTH)
+	# The zone had no direction, and Swung says so rather than relaying the claim.
+	var swung := FixtureCombatModes.received(game, P3, &"Swung")
+	assert_vector((swung[0] as SwungEvent).facing).is_equal(Vector3.ZERO)
+
+
+func test_swung_carries_the_zones_horizontal_unit_direction_not_the_raw_claim() -> void:
+	var game := _armed([P1, P2])
+	FixtureItemModes.stand(game, P2, Vector3(1, 0, 0))
+	game.state.player(P1).facing = Vector3(1, 0, 0)
+	# A zero facing counts as none: the last claim's facing strikes P2.
+	FixtureCombatModes.use(game, P1, Vector3.ZERO)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	# A huge finite facing, tilted down, still gives a horizontal unit vector.
+	FixtureCombatModes.use(game, P1, Vector3(3e38, -3e38, 3e38))
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureCombatModes.use(game, P1, Vector3(0, 0.5, 2))
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	var swung := FixtureCombatModes.received(game, P2, &"Swung")
+	assert_array(swung).has_size(3)
+	var diagonal := Vector3(1, 0, 1).normalized()
+	assert_vector((swung[0] as SwungEvent).facing).is_equal(Vector3(1, 0, 0))
+	assert_vector((swung[1] as SwungEvent).facing).is_equal_approx(diagonal, Vector3.ONE * 1e-6)
+	assert_vector((swung[2] as SwungEvent).facing).is_equal(NORTH)
 
 
 func test_a_tired_attacker_is_refused_and_pays_nothing() -> void:

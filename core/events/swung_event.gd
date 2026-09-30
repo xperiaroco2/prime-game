@@ -8,7 +8,9 @@ extends MatchEvent
 const AUDIENCE_KIND := Audience.Kind.EVERYONE
 
 var peer: int
-## The facing the strike used: the Use's, or the last accepted claim's when the Use had none.
+## The horizontal direction the strike's zone used, a unit vector (y 0), or zero when the facing
+## had no horizontal part: of the Use's facing, or the last accepted claim's when the Use had no
+## finite, non-zero one.
 var facing: Vector3
 
 

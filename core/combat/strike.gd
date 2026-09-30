@@ -14,11 +14,12 @@ extends RuleEffect
 ## health it dies there (Died, Correction, player_died, the drop).
 ##
 ## The facing is the Use's `facing`, a claim: harmless, because the positions are the host's. A
-## Use without a finite facing uses the last accepted claim's. A facing with no horizontal part
-## (straight up or down) leaves only the sector's apex: it touches only a capsule that overlaps
-## the attacker's. No lag compensation (§7.1).
+## Use without a finite, non-zero facing uses the last accepted claim's. A facing with no
+## horizontal part (straight up or down) leaves only the sector's apex: it touches only a capsule
+## that overlaps the attacker's. No lag compensation (§7.1).
 ##
-## Emits: Swung (everyone), even with no target, before any damage; per target Damaged and
+## Emits: Swung (everyone, with the zone's horizontal direction as a unit vector, or zero when
+## the facing has none), even with no target, before any damage; per target Damaged and
 ## SelfStatus (the victim); a death Died (everyone), Correction (the dead), then player_died and
 ## the dropped item's ItemPlaced (everyone) and item_rested. The attacker learns nothing of a hit.
 
@@ -41,10 +42,11 @@ func run(ctx: MatchContext) -> void:
 	var facing := attacker.facing
 	if ctx.command != null:
 		var claimed := ctx.command.get_vector3("facing", Vector3.INF)
-		if claimed.is_finite():
+		if claimed.is_finite() and not claimed.is_zero_approx():
 			facing = claimed
 	var hit := targets(ctx, attacker, facing)
-	ctx.emit(SwungEvent.new(attacker.peer, facing))
+	var ahead := horizontal(facing)
+	ctx.emit(SwungEvent.new(attacker.peer, Vector3(ahead.x, 0.0, ahead.y)))
 	for peer: int in hit:
 		LifeRules.damage(ctx, peer, Ticks.thousandths(damage))
 
@@ -52,8 +54,7 @@ func run(ctx: MatchContext) -> void:
 ## The living players other than `attacker` in this weapon's zone along `facing`, in peer-id order.
 func targets(ctx: MatchContext, attacker: PlayerState, facing: Vector3) -> Array[int]:
 	var rules := ctx.state.player_rules
-	var ahead := Vector2(facing.x, facing.z)
-	ahead = ahead.normalized() if ahead.is_finite() else Vector2.ZERO
+	var ahead := horizontal(facing)
 	var apex := Vector2(attacker.position.x, attacker.position.z)
 	var half := deg_to_rad(clampf(angle_deg, 0.0, 360.0) / 2.0)
 	var found: Array[int] = []
@@ -74,6 +75,18 @@ func targets(ctx: MatchContext, attacker: PlayerState, facing: Vector3) -> Array
 			continue
 		found.append(peer)
 	return found
+
+
+## The horizontal direction of `facing` as a unit vector, or zero when it has none (straight up
+## or down, or not finite). Scaled before normalising, so a huge finite claim still gives a unit.
+static func horizontal(facing: Vector3) -> Vector2:
+	var flat := Vector2(facing.x, facing.z)
+	if not flat.is_finite():
+		return Vector2.ZERO
+	var largest := maxf(absf(flat.x), absf(flat.y))
+	if largest == 0.0:
+		return Vector2.ZERO
+	return (flat / largest).normalized()
 
 
 func emits() -> Array[Script]:
