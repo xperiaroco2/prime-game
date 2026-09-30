@@ -13,6 +13,12 @@ func _init(recorded: Array) -> void:
 	_answers = recorded.duplicate()
 
 
+## How many recorded answers no question has taken yet; more than 0 after a replay means it
+## diverged.
+func unread() -> int:
+	return _answers.size() - _next
+
+
 func line_of_sight(from: Vector3, to: Vector3) -> bool:
 	var answer: Variant = _take(TYPE_BOOL)
 	return answer if answer is bool else super.line_of_sight(from, to)

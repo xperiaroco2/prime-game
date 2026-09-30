@@ -184,6 +184,98 @@ func test_move_claims_of_the_current_epoch_move_the_player() -> void:
 	assert_vector(game.state.player(P1).position).is_equal(Vector3(1, 0, 2))
 
 
+func test_only_the_host_may_send_a_host_intent() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	game.state.set_counter(0, &"crew_win", 0)
+	for peer: int in [P1, P2]:
+		game.state.player(peer).ready = false
+	assert_str(game.phase_id()).is_equal("end")
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P2, {}, 4)
+	assert_str(game.phase_id()).is_equal("end")
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	assert_str(game.phase_id()).is_equal("lobby")
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+
+
+func test_a_ghost_may_move_but_not_use() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	var ghost := game.state.player(P2)
+	ghost.life = PlayerState.Life.GHOST
+	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 5)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	assert_array(FixtureModes.notes(game)).not_contains(["used"])
+	var claim := {"epoch": ghost.epoch, "position": Vector3(4, 0, 4)}
+	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
+	assert_vector(ghost.position).is_equal(Vector3(4, 0, 4))
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
+	assert_array(FixtureModes.notes(game)).contains(["used"])
+
+
+func test_a_player_who_left_is_heard_by_no_rule_and_told_nothing() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	var left := game.state.player(P2)
+	var was_at := left.position
+	left.life = PlayerState.Life.LEFT
+	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, {"epoch": left.epoch, "position": Vector3.ONE})
+	assert_vector(left.position).is_equal(was_at)
+	var last := game.emitted()[game.emitted().size() - 1]
+	assert_str(last.event.event_name()).is_equal("Rejected")
+	assert_array(Array(last.recipients)).is_empty()
+
+
+func test_a_newcomer_intent_that_only_a_rule_handles_is_rejected() -> void:
+	var mode := FixtureModes.basic()
+	var game := FixtureModes.started(mode, [P1])
+	# A mode ModeCheck refuses (see mode_check_test); changed after the check to reach the guard.
+	mode.phases[0].accepts.append(AcceptSpec.of(Intents.USE, AcceptSpec.From.NEWCOMER))
+	FixtureModes.send(game, Intents.USE, 9, {}, 3)
+	assert_array(FixtureModes.rejections(game, 9)).is_equal([&"not_accepted"])
+	assert_array(FixtureModes.notes(game)).is_empty()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_row_whose_action_raises_a_fact_ends_in_its_target() -> void:
+	var mode := FixtureModes.basic()
+	mode.transitions[1].actions.append(FixtureRaise.of(Facts.ITEM_RESTED))
+	var game := FixtureModes.in_round(mode, [P1])
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	assert_str(game.phase_id()).is_equal("end")
+	assert_array(Array(game.diagnostics)).is_empty()
+	assert_array(FixtureModes.notes(game)).contains(["won crew", "task item_rested"])
+
+
+func test_a_dropped_outcome_of_a_server_command_rejects_nothing() -> void:
+	var mode := FixtureModes.basic()
+	mode.phases[2].settings = {&"reports_back": 1.0, &"reports_twice_on_connect": 1.0}
+	var game := FixtureModes.in_round(mode, [P1])
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	game.state.set_counter(0, &"crew_win", 0)
+	game.state.player(P1).ready = false
+	FixtureModes.send(game, Intents.PEER_CONNECTED, 5)
+	assert_str(game.phase_id()).is_equal("lobby")
+	assert_str(game.diagnostics[0]).contains("dropped: outcome back")
+	assert_array(game.view_of(5).events).is_empty()
+	assert_array(FixtureModes.names(game)).not_contains([&"Rejected"])
+
+
+func test_a_cycle_of_rows_on_entry_stops_after_the_limit() -> void:
+	var mode := FixtureModes.basic()
+	mode.transitions[0].to = &"lobby"
+	mode.transitions[0].actions.clear()
+	var game := FixtureModes.started(mode, [P1])
+	FixtureModes.send(game, Intents.SET_READY, P1, {"ready": true})
+	assert_str(game.phase_id()).is_equal("lobby")
+	assert_str(game.diagnostics[0]).contains(
+		"more than %d transitions in one step" % Match.MAX_TRANSITIONS_PER_STEP
+	)
+	assert_bool(game.tick(game.ticked_through() + 1)).is_true()
+
+
 func test_the_command_log_holds_what_the_match_was_given() -> void:
 	var mode := FixtureModes.basic()
 	var game := FixtureModes.in_round(mode, [P1, P2])
@@ -218,8 +310,16 @@ func test_a_replay_gives_the_same_events() -> void:
 	assert_array(FixtureModes.notes(original)).contains(["won dissidents"])
 	var replayed := Match.replay(original.command_log, _scripted_mode())
 	assert_array(Array(replayed.refusals)).is_empty()
+	assert_array(Array(replayed.diagnostics)).is_empty()
 	assert_array(FixtureModes.describe(replayed)).is_equal(FixtureModes.describe(original))
 	assert_dict(replayed.command_log.to_dict()).is_equal(original.command_log.to_dict())
+
+
+func test_a_replay_that_diverges_says_so() -> void:
+	var original := _scripted_match(_scripted_mode(), 1234)
+	original.command_log.world_answers.append(true)
+	var replayed := Match.replay(original.command_log, _scripted_mode())
+	assert_str("; ".join(replayed.diagnostics)).contains("replay: diverged")
 
 
 func test_a_replay_refuses_a_changed_mode() -> void:

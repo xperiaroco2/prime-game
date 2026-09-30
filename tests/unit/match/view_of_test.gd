@@ -144,3 +144,15 @@ func _notes_of(game: Match, peer: int) -> Array[String]:
 	for event: MatchEvent in game.view_of(peer).events_named(&"FixtureNote"):
 		found.append((event as FixtureNoteEvent).text)
 	return found
+
+
+func test_the_history_is_kept_only_when_asked() -> void:
+	var game := Match.new(FixtureModes.basic(), 7, FlatWorldQuery.new(), FixtureModes.layouts())
+	assert_bool(game.keep_history).is_false()
+	game.start(0)
+	FixtureModes.send(game, Intents.HELLO, 1, {"name": "p1"})
+	FixtureModes.run_ticks(game, 2)
+	var view := game.view_of(1)
+	assert_dict(view.snapshots).is_empty()
+	assert_dict(view.speakers).is_empty()
+	assert_dict(game.snapshot_for(1)).is_not_empty()

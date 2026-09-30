@@ -5,7 +5,8 @@ extends Phase
 ##   every player is ready, after a SetReady and on entry;
 ## - `reports_back`: ReturnToLobby reports `back`;
 ## - `go_after_ticks` n: reports `go` on its n-th tick;
-## - `countdown_ticks` n: announces an end tick n ticks after the entry.
+## - `countdown_ticks` n: announces an end tick n ticks after the entry;
+## - `reports_twice_on_connect`: PeerConnected reports `back` twice (the second is dropped).
 ## It counts its entries, exits and ticks, so a test can see that every entry gets a fresh object.
 
 var entries := 0
@@ -36,6 +37,7 @@ func check_settings(settings: Dictionary[StringName, float]) -> PackedStringArra
 			&"reports_back": Vector2(0, 1),
 			&"go_after_ticks": Vector2(0, 1000),
 			&"countdown_ticks": Vector2(0, 1000),
+			&"reports_twice_on_connect": Vector2(0, 1),
 		}
 	)
 
@@ -59,6 +61,12 @@ func on_tick(ctx: MatchContext) -> void:
 	var go_after := int(setting(&"go_after_ticks", 0))
 	if go_after > 0 and ticks_seen == go_after:
 		ctx.report_outcome(&"go")
+
+
+func on_peer_connected(ctx: MatchContext, _peer: int) -> void:
+	if setting(&"reports_twice_on_connect", 0) > 0:
+		ctx.report_outcome(&"back")
+		ctx.report_outcome(&"back")
 
 
 func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:

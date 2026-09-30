@@ -26,8 +26,9 @@ var refusals := PackedStringArray()
 var warnings := PackedStringArray()
 ## Errors and dropped outcomes while running, in order; each is also logged, in every build.
 var diagnostics := PackedStringArray()
-## Records each peer's snapshot and speakers per tick for view_of(). server/ may turn it off.
-var keep_history := true
+## Records each peer's snapshot and speakers per tick for view_of() (tests, the leak test). Off
+## by default: on, a 10-player, 10-minute match at 20 Hz keeps about 1 GiB.
+var keep_history := false
 
 var _world: WorldQuery
 var _layouts: Dictionary[String, LevelLayout] = {}
@@ -38,6 +39,8 @@ var _started := false
 var _now := 0
 var _ticked_through := -1
 var _in_tick := false
+## True while a row's actions and the old phase's exit run: no outcome may be reported then.
+var _in_transition := false
 var _step_has_outcome := false
 var _step_outcome: StringName
 var _step_argument: Variant
@@ -82,6 +85,8 @@ func _init(
 
 ## Replays a recorded match (§3.3): the same mode, seed, layouts, commands and ticks, with the
 ## recorded WorldQuery answers. Refused, with nothing run, when the mode's content hash differs.
+## A replay that asked other questions than the recorded ones, or left answers unread, diverged:
+## it says so in `diagnostics`.
 static func replay(recorded: CommandLog, game_mode: GameMode) -> Match:
 	var world := ReplayWorldQuery.new(recorded.world_answers)
 	var replayed := Match.new(game_mode, recorded.session_seed, world, recorded.layouts)
@@ -106,6 +111,13 @@ static func replay(recorded: CommandLog, game_mode: GameMode) -> Match:
 		replayed.apply(MatchCommand.from_dict(command.to_dict()))
 	while replayed.ticked_through() < recorded.ticked_through:
 		replayed.tick(replayed.ticked_through() + 1)
+	if world.diverged or world.unread() > 0:
+		replayed.record_error(
+			(
+				"replay: diverged from the recorded WorldQuery answers (%d left unread)"
+				% world.unread()
+			)
+		)
 	return replayed
 
 
@@ -130,6 +142,7 @@ func start(at_tick: int) -> bool:
 
 ## One command, stamped with the next tick to run: an intent or a server command. False when it
 ## cannot be applied (not started, or the wrong tick); a rejected intent still returns true.
+## The command log keeps `command` itself: never change it after this call.
 func apply(command: MatchCommand) -> bool:
 	if not _started:
 		record_error("apply: the match has not started")
@@ -143,7 +156,7 @@ func apply(command: MatchCommand) -> bool:
 		)
 		return false
 	_now = command.tick
-	command_log.commands.append(MatchCommand.from_dict(command.to_dict()))
+	command_log.commands.append(command)
 	_begin_step()
 	_dispatch(command)
 	_finish_step()
@@ -272,6 +285,11 @@ func raise_fact(fact: Fact) -> void:
 ## and logged, and when `sender`'s intent reported it, the sender gets `outcome_dropped`. Parts
 ## call MatchContext.report_outcome().
 func report_outcome(outcome: StringName, argument: Variant, sender: MatchCommand) -> void:
+	if _in_transition:
+		# The row is already moving the match on; an outcome now would be taken as the next
+		# phase's (a row action raising a fact that re-reports `won`, say).
+		record_error("outcome %s reported during the row actions of %s" % [outcome, phase_id()])
+		return
 	if _step_has_outcome:
 		var message := (
 			"dropped: outcome %s of phase %s, because %s was reported first in this step"
@@ -279,7 +297,8 @@ func report_outcome(outcome: StringName, argument: Variant, sender: MatchCommand
 		)
 		diagnostics.append(message)
 		push_warning("match: %s" % message)
-		if sender != null:
+		# Rejected answers intents only (§4.2): a dropped outcome of PeerConnected is only logged.
+		if sender != null and Intents.ALL.has(sender.kind):
 			emit_event(RejectedEvent.new(sender.peer, sender.seq, RejectReasons.OUTCOME_DROPPED))
 		return
 	_step_has_outcome = true
@@ -320,7 +339,7 @@ func _finish_step() -> void:
 
 
 func _check_wins() -> void:
-	if _step_has_outcome or _phase_spec == null or not _phase_spec.checks_wins:
+	if _in_transition or _step_has_outcome or _phase_spec == null or not _phase_spec.checks_wins:
 		return
 	for condition: WinCondition in mode.win_conditions:
 		if condition.holds(_context("win condition %s" % condition.id)):
@@ -340,9 +359,11 @@ func _transition(outcome: StringName, argument: Variant) -> bool:
 	ctx.outcome = outcome
 	ctx.outcome_argument = argument
 	ctx.layout = _layout_of(mode.find_phase(row.to))
+	_in_transition = true
 	for action: RuleEffect in row.actions:
 		action.run(ctx)
 	_phase.exit(_context("phase %s" % from))
+	_in_transition = false
 	_enter_phase(row.to)
 	return true
 
@@ -385,6 +406,10 @@ func _dispatch(command: MatchCommand) -> void:
 
 ## An accepted intent that no phase class handles goes to the first rule for it (§9.2).
 func _run_action(command: MatchCommand, ctx: MatchContext) -> void:
+	# Only a phase class can take an intent from a newcomer (ModeCheck refuses the rest).
+	if state.player(command.peer) == null:
+		ctx.reject(command, RejectReasons.NOT_ACCEPTED)
+		return
 	var rule := _find_action(command, ctx)
 	if rule == null:
 		ctx.reject(command, RejectReasons.NOTHING_TO_DO)

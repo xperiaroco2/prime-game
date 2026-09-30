@@ -82,8 +82,11 @@ static func layouts(count: int = 4) -> Dictionary[String, LevelLayout]:
 	return {LOBBY: lobby, MAP: map}
 
 
+## A match of `mode` that keeps its history for view_of().
 static func create(mode: GameMode, seed_value: int = 7) -> Match:
-	return Match.new(mode, seed_value, FlatWorldQuery.new(), layouts())
+	var game := Match.new(mode, seed_value, FlatWorldQuery.new(), layouts())
+	game.keep_history = true
+	return game
 
 
 ## A started match of `mode` whose players `peers` joined in the lobby.
