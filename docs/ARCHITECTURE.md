@@ -1366,6 +1366,14 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     `--instances`. The same files; it joins `verify` with the leak test (§5).
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
+- **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
+  `content/scenarios/`: `crew_delivers_every_package` (3 crew deliver the 6 packages; a delivered package's
+  `PickUp` is `unavailable`; the crew never get `Teammates`), `dissident_kills_the_crew` (a forced dissident takes
+  a knife and kills both crew; `too_soon`; a ghost's `PickUp` is `not_accepted`; the ghost walks),
+  `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina),
+  `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`empty_hand`,
+  `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`, a swap). Until the win conditions of 2h (#64) are built,
+  the first three expect the end `none`; with them, `crew`, `dissidents` and `dissidents`.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
