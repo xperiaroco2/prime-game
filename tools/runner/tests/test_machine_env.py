@@ -155,6 +155,38 @@ class DoctorTest(unittest.TestCase):
         )
         self.assertEqual(out.count("warn"), 4, out)
 
+    def godot_output(self, gui: str | None) -> str:
+        """machine_paths() and godot() together, as doctor runs them, with GODOT_GUI_BIN unset or set to `gui`."""
+        environ = {k: v for k, v in os.environ.items() if k != "GODOT_GUI_BIN"}
+        if gui is not None:
+            environ["GODOT_GUI_BIN"] = gui
+        report = self.report()
+        report.sources["GODOT_GUI_BIN"] = PROCESS if gui is not None else None
+        buffer = io.StringIO()
+        with (
+            mock.patch.object(machine_env, "apply", return_value=report),
+            mock.patch.object(doctor, "IS_CI", False),
+            mock.patch.object(doctor, "require_godot", return_value=GODOT),
+            mock.patch.object(doctor, "godot_bin", return_value=GODOT),
+            mock.patch.dict(os.environ, environ, clear=True),
+            contextlib.redirect_stdout(buffer),
+        ):
+            doc = doctor.Doctor()
+            doc.machine_paths()
+            doc.godot()
+        return buffer.getvalue()
+
+    def test_a_missing_godot_gui_bin_is_warned_about_once(self) -> None:
+        out = self.godot_output(None)
+        lines = [line for line in out.splitlines() if line.strip().startswith("warn") and "GODOT_GUI_BIN" in line]
+        self.assertEqual(len(lines), 1, out)
+        self.assertIn("GODOT_GUI_BIN is not set", lines[0])
+
+    def test_a_godot_gui_bin_pointing_to_a_missing_file(self) -> None:
+        missing = r"C:\no\Godot_v4.7.2-stable_win64.exe"
+        out = self.godot_output(missing)
+        self.assertIn(f"warn  GODOT_GUI_BIN points to a missing file: {missing}", out)
+
     def test_ci_skips_the_missing_ones(self) -> None:
         out = self.output(self.report(), ci=True)
         self.assertIn("skip  PYTHON_BIN (not set; CI finds its tools on PATH)", out)

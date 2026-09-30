@@ -90,8 +90,9 @@ class Doctor:
             skip("GODOT_GUI_BIN (not needed in CI)")
         elif gui and Path(gui).is_file():
             ok(f"GODOT_GUI_BIN ({gui})")
-        else:
-            warn(f"GODOT_GUI_BIN not set or missing; a windowed `run` uses it ({USER_SETTINGS} env)")
+        elif gui:
+            warn(f"GODOT_GUI_BIN points to a missing file: {gui}; a windowed `run` uses it")
+        # Not set at all: machine_paths() has already warned about it.
 
     def git(self) -> None:
         res = run(["git", "--version"], timeout=30)
