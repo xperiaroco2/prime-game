@@ -786,6 +786,8 @@ class GhOtherRepositoryTest(unittest.TestCase):
                 "https://api.github.com/repos/o/r/issues"
             ],
             "GH_REPO=o/r gh issue close 1": ["o/r"],
+            "env GH_REPO=o/r gh issue close 1": ["o/r"],
+            "sudo GH_REPO=o/r gh issue close 1": ["o/r"],
             "export GH_REPO=o/r && gh issue close 1": ["o/r"],
             "gh issue comment 1 -R ghe.example.com/xperiaroco2/prime-game -b x": [
                 "ghe.example.com/xperiaroco2/prime-game"

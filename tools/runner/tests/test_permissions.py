@@ -108,6 +108,7 @@ class OtherRepositoriesTest(unittest.TestCase):
 
     def test_gh_repo_names_the_repository_in_both_shells(self) -> None:
         self.assertEqual(verdict("Bash", "GH_REPO=o/r gh issue close 5")[0], permissions.PROMPT)
+        self.assertEqual(verdict("Bash", "env GH_REPO=o/r gh issue close 5")[0], permissions.PROMPT)
         self.assertEqual(verdict("Bash", "export GH_REPO=o/r; gh pr comment 5 -b x")[0], permissions.PROMPT)
         self.assertEqual(verdict("PowerShell", "$env:GH_REPO = 'o/r'; gh issue close 5")[0], permissions.PROMPT)
         self.assertEqual(verdict("Bash", "GH_REPO=o/r gh issue view 5")[0], permissions.PASS)

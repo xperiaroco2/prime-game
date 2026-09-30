@@ -1042,20 +1042,15 @@ def _verb(word: str) -> str:
     return re.sub(r"\.(exe|cmd|bat|com)$", "", name)
 
 
-def _leading_assignments(words: list[str]) -> list[str]:
-    """The `VAR=value` words before a command (its environment for that one command)."""
-    count = 0
-    while count < len(words) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[count]):
-        count += 1
-    return words[:count] if count < len(words) else []
-
-
-def _command_words(words: list[str]) -> tuple[list[str], bool]:
+def _command_words(words: list[str], assignments: list[str] | None = None) -> tuple[list[str], bool]:
     """Words from the real command on (leading VAR=value assignments and prefixes such as sudo, xargs or `then`
-    removed), and whether xargs feeds it."""
+    removed), and whether xargs feeds it. The skipped `VAR=value` words, including those after a prefix
+    (`env GH_REPO=o/r gh ...`), are the command's own environment: they go to `assignments` when it is given."""
     i, via_xargs = 0, False
     while i < len(words):
         if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[i]):
+            if assignments is not None:
+                assignments.append(words[i])
             i += 1
         elif _verb(words[i]) in PREFIXES:
             prefix = _verb(words[i])
@@ -1239,10 +1234,11 @@ class Analysis:
             if words:
                 rest = self.paths.assign(words)
                 words = words if rest is None else rest
-            self.prefix_env = {
-                m.group(1).lower(): m.group(2) for m in map(ASSIGN_RE.match, _leading_assignments(words)) if m
-            }
-            words, via_xargs = _command_words(words)
+            assignments: list[str] = []
+            words, via_xargs = _command_words(words, assignments)
+            self.prefix_env = (
+                {m.group(1).lower(): m.group(2) for m in map(ASSIGN_RE.match, assignments) if m} if words else {}
+            )
             if words:
                 self.piped_first = piped_first  # set here: the `$(...)` analysed above had their own
                 self.simple(segment, words, via_xargs, mentioned, piped_words, depth)
