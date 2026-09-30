@@ -4,7 +4,8 @@
   `2026-09-28-unattended-work-permissions.md`; the guard's runtime is in `2026-09-29-claude-code-hooks-in-git-bash.md`;
   guard scope widened to recursive deletes and `git reset`, and the scratch folder `tests/scratch/` added, on
   2026-09-30 (Consequences); all git that discards work or rewrites history judged by the session's own worktree
-  and task branch, same day (issue #51, Consequences)
+  and task branch, same day (issue #51, Consequences); `gh` reads of other repositories freed and `gh` writes there
+  judged by the guard, same day (issue #68, Consequences)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -79,3 +80,18 @@ ADRs).
   `main`, remote deletes, `--mirror`/`--all`/`--prune`, `gh pr merge` and `hooksPath`, and the asks on
   `.claude/settings*.json` and `addons/`. Left open: a delete by absolute path into a worktree from a session in the
   main checkout, without a `cd`, asks (it owns no worktree). Replay: `docs/AGENT_WORKFLOW.md` §8.2.
+- **Amended 2026-09-30 (issue #68):** reading another repository with `gh` never prompts. The ask rules
+  `gh * -R *` and `gh * --repo*` (and their PowerShell twins) leave `.claude/settings.json`; `gh release` asks only
+  for `create|edit|delete|upload|download`, and `gh release view|list` and `gh search` join the allow list. The guard
+  asks instead for a `gh` command that names a repository other than this project's `origin` (`-R|--repo`,
+  `GH_REPO`, a github.com URL, `gh repo <sub> x/y`, `gh issue transfer`, a `gh api repos/x/y/...` endpoint) and does
+  not only read (views, lists, `pr diff|checks`, `gh search`, `gh api` GET). Writes to this repository are unchanged
+  (allowed). Reason: ask beats allow, so a text rule on `-R` could not let reads through; after #51 about 63 of the
+  67 remaining prompts in this project's transcripts were such reads (upstream research: Godot, GdUnit4, TwoVoIP,
+  Claude Code), and the replay in `docs/AGENT_WORKFLOW.md` §8.2 shows 94 prompts before and 18 after, with both
+  real writes to other repositories (upstream `gh issue create`) still asking. Rejected: one text ask rule per write
+  subcommand and spelling (`gh issue comment * -R *`, `--repo=`, `-Rx/y`, URLs...): dozens of rules that still miss
+  `GH_REPO`, URLs and `gh api` fields, and would also ask for this repository's writes named with `-R`; an allow
+  rule per read (ask would still win). Left open: GraphQL mutations and a `gh` command run inside a clone of another
+  repository. `runner.permissions` models Claude Code's matcher, so selftests check the lists with the guard, and
+  replays local transcripts through the rules and the guard of two revisions.

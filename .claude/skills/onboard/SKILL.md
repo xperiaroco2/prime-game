@@ -42,7 +42,8 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
      (Ctrl+Shift+Alt+S, «Зберегти всі сцени»). When Godot says files changed on disk («Файли були змінені за межами
      Godot»), choose «Джерело отримання» (Reload from disk), never «Ігнорувати зовнішні зміни»: the editor would later
      save its old copy over the agent's work. No hand edits while the agent works.
-   - **Permission prompts from the guard** (a shell command that writes to `addons/` or `.claude/settings*.json`):
+   - **Permission prompts from the guard** (a shell command that writes to `addons/` or `.claude/settings*.json`,
+     discards work beyond the agent's own worktree and task branch, or may write to another GitHub repository):
      answer with a one-time Yes or No, never "don't ask again", which silences the guard for the rest of the session.
 8. **The human-only checklist.** Show only what is not done yet, as clicks:
    - Git for Windows (required: Claude Code hooks run in Git Bash; without it they do nothing);

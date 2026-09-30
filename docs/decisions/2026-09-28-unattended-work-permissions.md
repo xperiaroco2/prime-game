@@ -2,7 +2,8 @@
 
 - **Status:** Accepted (amends `2026-09-28-permissions-and-thin-guard.md`); recursive deletes and `git reset` moved
   from text ask rules to the guard on 2026-09-30 (see that ADR); the other work-discarding git rules followed the
-  same day, judged by the session's own worktree and task branch (issue #51, see that ADR)
+  same day, judged by the session's own worktree and task branch (issue #51, see that ADR); `gh` reads of other
+  repositories allowed and writes there judged by the guard (issue #68, see that ADR)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase B kickoff)
 
@@ -37,3 +38,6 @@ The engineer wants to leave the agent working alone for about an hour.
   text stop points. They stop the agent only beyond its own worktree and task branch, where the guard asks; inside
   them the agent works freely and stops only for design and other human-reserved decisions. The `git branch -D`
   deny rule became a guard judgement too: deleting a helper of the task branch passes, any other branch asks.
+- 2026-09-30 (issue #68): "`gh` with `-R/--repo`" is no longer a stop point. Reads of other repositories (research
+  on upstream issues and releases) run without a prompt in every mode; a `gh` command that may write to another
+  repository asks through the guard, and `gh release` asks only for its writes.
