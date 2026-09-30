@@ -168,20 +168,26 @@ class RunCmdTest(unittest.TestCase):
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        base = Path(tmp.name)
-        self.home = base / "home"
-        self.root = base / "project"
-        (self.root / "tools").mkdir(parents=True)
+        self.base = Path(tmp.name)
+        self.home = self.base / "home"
         self.home.mkdir()
-        shutil.copyfile(ROOT / "tools" / "run.cmd", self.root / "tools" / "run.cmd")
-        (self.root / "tools" / "run.py").write_text(
-            "import os, sys\nprint('STUB', sys.executable, sys.argv[1:])\n", encoding="utf-8"
-        )
+        self.root = self.project("project")
         self.user = self.home / ".claude" / "settings.json"
         self.local = self.root / ".claude" / "settings.local.json"
-        self.missing = str(base / "no" / "python.exe")
+        self.missing = str(self.base / "no" / "python.exe")
 
-    def run_cmd(self, extra: dict[str, str] | None = None, python_on_path: bool = False) -> subprocess.CompletedProcess[str]:
+    def project(self, name: str) -> Path:
+        root = self.base / name
+        (root / "tools").mkdir(parents=True)
+        shutil.copyfile(ROOT / "tools" / "run.cmd", root / "tools" / "run.cmd")
+        (root / "tools" / "run.py").write_text(
+            "import os, sys\nprint('STUB', sys.executable, sys.argv[1:])\n", encoding="utf-8"
+        )
+        return root
+
+    def run_cmd(
+        self, extra: dict[str, str] | None = None, python_on_path: bool = False, root: Path | None = None
+    ) -> subprocess.CompletedProcess[str]:
         system = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
         env = {
             key: value
@@ -194,7 +200,7 @@ class RunCmdTest(unittest.TestCase):
         env["USERPROFILE"] = str(self.home)
         env.update(extra or {})
         return subprocess.run(
-            ["cmd", "/c", str(self.root / "tools" / "run.cmd"), "pins"],
+            ["cmd", "/c", str((root or self.root) / "tools" / "run.cmd"), "pins"],
             env=env,
             capture_output=True,
             text=True,
@@ -220,6 +226,14 @@ class RunCmdTest(unittest.TestCase):
         res = self.run_cmd(python_on_path=True)
         self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
         self.assertIn(f"points to a missing file: {self.missing}", res.stderr)
+
+    def test_a_quote_in_the_checkout_path(self) -> None:
+        # The local settings path reaches PowerShell through the environment, not inside a quoted literal.
+        root = self.project("it's a project")
+        write_settings(root / ".claude" / "settings.local.json", {"PYTHON_BIN": sys.executable})
+        res = self.run_cmd(root=root)
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn(f"STUB {sys.executable} ['pins']", res.stdout)
 
     def test_the_process_environment_wins(self) -> None:
         write_settings(self.user, {"PYTHON_BIN": self.missing})
