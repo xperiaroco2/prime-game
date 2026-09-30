@@ -88,11 +88,7 @@ func deal(ctx: MatchContext, per_player: int) -> void:
 		tasks.assign(assigned[peer])
 		ctx.emit(TasksAssignedEvent.new(peer, tasks))
 	for item: ItemState in tokens:
-		var fact := Fact.new(Facts.ITEM_RESTED)
-		fact.item = item.id
-		fact.position = item.position
-		fact.cause = SpawnItems.SPAWN
-		ctx.raise_fact(fact)
+		Items.raise_rested(ctx, item, Items.SPAWN)
 
 
 func on_fact(ctx: MatchContext) -> void:

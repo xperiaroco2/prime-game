@@ -11,9 +11,6 @@ extends RuleEffect
 ## `spawn`) for each, in id order, so a task type's check sees every spawned item (§7.1).
 ## Demands: `count_setting` markers of the kind's spawn tag.
 
-## The cause of item_rested for an item a deal placed: the same name as Items.SPAWN (2e, #61).
-const SPAWN := &"spawn"
-
 ## The item kind to place (Knife).
 @export var kind: ItemKind
 ## The match setting that holds the count (`knives`).
@@ -49,7 +46,7 @@ func run(ctx: MatchContext) -> void:
 	for item: ItemState in spawned:
 		ctx.emit(ItemSpawnedEvent.new(item.id, kind.id, item.position))
 	for item: ItemState in spawned:
-		_raise_rested(ctx, item)
+		Items.raise_rested(ctx, item, Items.SPAWN)
 
 
 ## The markers of `tag` in the level being entered, in level order, on which no item rests: a
@@ -65,16 +62,6 @@ static func free_markers(ctx: MatchContext, tag: StringName) -> PackedVector3Arr
 		if not taken:
 			free.append(at)
 	return free
-
-
-## item_rested for a spawned item, with the fields and cause of Items.raise_rested (2e, #61);
-## this becomes Items.raise_rested(ctx, item, Items.SPAWN) once #61 is merged.
-static func _raise_rested(ctx: MatchContext, item: ItemState) -> void:
-	var fact := Fact.new(Facts.ITEM_RESTED)
-	fact.item = item.id
-	fact.position = item.position
-	fact.cause = SPAWN
-	ctx.raise_fact(fact)
 
 
 func emits() -> Array[Script]:
