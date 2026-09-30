@@ -10,7 +10,7 @@ const P3 := 3
 const P4 := 4
 const NORTH := Vector3(0, 0, 1)
 const EAST := Vector3(1, 0, 0)
-const HEALTH := 100000
+const HALF := 50000
 
 
 func test_a_player_at_zero_health_becomes_a_ghost_and_its_body_rests_on_the_floor_below() -> void:
@@ -18,7 +18,7 @@ func test_a_player_at_zero_health_becomes_a_ghost_and_its_body_rests_on_the_floo
 	# The victim is in mid-air, at the top of a jump: its body falls to the floor.
 	FixtureItemModes.stand(game, P2, Vector3(0, 0.5, 1))
 	FixtureCombatModes.use(game, P1, NORTH)
-	assert_int(game.state.player(P2).health).is_equal(HEALTH / 2)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
 	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.ALIVE)
 	_kill_again(game, P1)
 	var victim := game.state.player(P2)
