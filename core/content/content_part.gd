@@ -28,6 +28,13 @@ static func number(value: float) -> String:
 	return str(int(value)) if value == floorf(value) and absf(value) < 1e15 else str(value)
 
 
+## The names of this part's `_setting` properties that hold a set of ids (SettingSpec.Kind
+## TASK_TYPES, #79); ModeCheck requires every other `_setting` property to name a whole number,
+## so a part that reads a number never reads a set as 0. Empty by default.
+func set_settings() -> PackedStringArray:
+	return PackedStringArray()
+
+
 ## Appends the non-empty messages of `found` to `into`.
 static func append_found(into: PackedStringArray, found: Array[String]) -> void:
 	for message: String in found:

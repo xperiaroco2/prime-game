@@ -19,6 +19,19 @@ func test_an_undeclared_setting() -> void:
 	_expect_none(mode)
 
 
+func test_a_number_read_from_a_set_setting() -> void:
+	var mode := FixtureDeliveryModes.basic()
+	_expect_none(mode)
+	var delivery := FixtureDeliveryModes.delivery_of(mode)
+	delivery.subtasks_setting = &"banned_task_types"
+	_expect(
+		mode,
+		"subtasks_setting names setting banned_task_types, which is a set of ids, not a whole number"
+	)
+	delivery.subtasks_setting = &"packages"
+	_expect_none(mode)
+
+
 func test_an_undeclared_side() -> void:
 	var mode := FixtureModes.basic()
 	mode.roles[0].side = &"pirates"

@@ -101,6 +101,10 @@ func emits() -> Array[Script]:
 	return [TaskProgressEvent]
 
 
+func set_settings() -> PackedStringArray:
+	return PackedStringArray(["banned_setting"])
+
+
 func check(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if tasks_setting.is_empty():

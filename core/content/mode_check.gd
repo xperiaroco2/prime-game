@@ -5,9 +5,10 @@ extends RefCounted
 ## The check with the levels' layouts (spawn tags, markers) is LayoutCheck (2b).
 ##
 ## Errors: a phase, outcome, intent, setting, role, side or item kind that a part names but the
-## mode does not declare; an outcome a phase can report without a row; an accepted intent that
-## neither the phase class, the movement rule nor any rule handles; two rules on one trigger in
-## one owner; a number outside its part's bounds. Warnings: a role-owned or role-gated rule with
+## mode does not declare; a `_setting` property that reads a number but names a set of ids; an
+## outcome a phase can report without a row; an accepted intent that neither the phase class, the
+## movement rule nor any rule handles; two rules on one trigger in one owner; a number outside its
+## part's bounds. Warnings: a role-owned or role-gated rule with
 ## an effect whose event goes to everyone, which reveals the actor's role (§9.2).
 
 var errors := PackedStringArray()
@@ -57,16 +58,30 @@ func _walk(mode: GameMode, path: String, value: Variant, seen: Dictionary) -> vo
 		var child: Variant = resource.get(name)
 		if name.ends_with("_setting") and (child is StringName or child is String):
 			var setting := StringName(str(child))
-			if not setting.is_empty() and mode.find_setting(setting) == null:
+			var spec := mode.find_setting(setting) if not setting.is_empty() else null
+			if not setting.is_empty() and spec == null:
 				errors.append(
 					(
 						"%s.%s names setting %s, which the mode does not declare"
 						% [path, name, setting]
 					)
 				)
+			elif spec != null and not spec.is_number() and not _holds_set(resource, name):
+				errors.append(
+					(
+						"%s.%s names setting %s, which is a set of ids, not a whole number"
+						% [path, name, setting]
+					)
+				)
 		else:
 			_walk(mode, "%s.%s" % [path, name], child, seen)
 	_check_nulls(path, resource)
+
+
+## Whether `resource`'s `_setting` property `property` holds a set of ids
+## (ContentPart.set_settings).
+static func _holds_set(resource: Resource, property: String) -> bool:
+	return resource is ContentPart and (resource as ContentPart).set_settings().has(property)
 
 
 ## Every owner's rules: known triggers, one rule per trigger, costs not negated, and the

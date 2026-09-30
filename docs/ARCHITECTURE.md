@@ -711,7 +711,9 @@ part is usable in data once its row or entry names the PR that built it. Every n
   setting**: the mode declares it (`SettingSpec`: id, kind, default, bounds), and a part names it in a property
   ending in `_setting` (`count_setting = knives`). A part never reads another part's settings. Two kinds: a whole
   number (`MatchState.settings`), or a set of the mode's task type ids (`MatchState.id_sets`, empty by default, no
-  numbers; the host's bans, `banned_task_types`, #79). A transition action checks the settings together through
+  numbers; the host's bans, `banned_task_types`, #79). A part lists its properties that hold a set
+  (`ContentPart.set_settings`); the mode check refuses any other `_setting` property that names a set, so a part that
+  reads a number never reads a set as 0. A transition action checks the settings together through
   `RuleEffect.settings_problem`, which `ChangeSettings` asks before applying any (§4.1). So the knife's numbers sit in
   the knife's own rule (§9.5), and a second weapon is a second item kind with its own numbers.
 
