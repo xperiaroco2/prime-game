@@ -61,6 +61,28 @@ func test_more_players_than_the_wire_carries_is_refused() -> void:
 	assert_str(problems).contains("entries, at most 16")
 
 
+func test_demanded_tags_and_station_kinds_size_the_settings_and_the_stations() -> void:
+	var mode := _demanding(_mode(10, 3, 1, 4), 3, 2)
+	assert_array(Array(WireBudget.check(mode))).is_empty()
+	var found := {}
+	for message: WireMessage in WireBudget.worst_cases(mode):
+		found[message.name] = message
+	assert_bool(found.has(&"StationPlaced")).is_true()
+	var placed: WireMessage = found[&"StationPlaced"]
+	assert_str(str(placed.fields["kind"])).is_equal(_id(100))
+	var changed: WireMessage = found[&"SettingsChanged"]
+	assert_int((changed.fields["shortfalls"] as PackedStringArray).size()).is_equal(3 + 2 + 2)
+	assert_int((changed.fields["needed_markers"] as Dictionary).size()).is_equal(3)
+	assert_int((changed.fields["needed_colours"] as Dictionary).size()).is_equal(2)
+
+
+func test_the_most_demanded_tags_refuse_the_settings_but_not_the_stations() -> void:
+	var problems := "\n".join(WireBudget.check(_demanding(_mode(10, 3, 1, 4), 16, 16)))
+	assert_str(problems).contains("SettingsChanged (kind 37): ")
+	assert_str(problems).not_contains("StationPlaced")
+	assert_str(problems).not_contains("ItemSpawned")
+
+
 func test_an_id_outside_the_wire_alphabet_is_refused() -> void:
 	var mode := _mode(4, 1, 0, 1)
 	mode.roles[0].id = &"Crew"
@@ -135,3 +157,21 @@ func _setting(id: String, kind: SettingSpec.Kind) -> SettingSpec:
 func _id(number: int) -> String:
 	var suffix := str(number)
 	return ID_32.substr(0, 32 - suffix.length()) + suffix
+
+
+## `mode` with one row into a map phase whose actions demand `tags` spawn tags and `stations`
+## station kinds (each on the first tag), every id 32 characters (station kinds from _id(100)).
+func _demanding(mode: GameMode, tags: int, stations: int) -> GameMode:
+	var phase: PhaseSpec = mode.phases[0]
+	phase.level = PhaseSpec.Level.MAP
+	var row := Transition.new()
+	row.to = phase.id
+	var setting: StringName = mode.settings[0].id
+	for i: int in tags:
+		row.actions.append(FixtureDemand.of(StringName(_id(i)), setting))
+	for i: int in stations:
+		var kind := StationKind.new()
+		kind.id = StringName(_id(100 + i))
+		row.actions.append(FixtureDemand.of(StringName(_id(0)), setting, kind))
+	mode.transitions.append(row)
+	return mode
