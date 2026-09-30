@@ -89,6 +89,7 @@ static func mode() -> GameMode:
 	circle.id = &"circle"
 	circle.spawn_tag = &"circle"
 	circle.radius_m = 1.0
+	circle.height_m = 2.0
 	circle.palette = PackedColorArray([Color.RED, Color.BLUE])
 	made.transitions = [
 		FixtureModes.row(&"lobby", LobbyPhase.ALL_READY, &"countdown", []),

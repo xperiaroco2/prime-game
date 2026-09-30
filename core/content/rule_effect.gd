@@ -27,3 +27,16 @@ func reported_outcomes() -> Array[StringName]:
 ## every row into a phase on the map. No demand by default.
 func add_demands(_settings: Dictionary[StringName, int], _players: int, _into: Demands) -> void:
 	pass
+
+
+## Whether the match settings together break this transition action's rule: the rejection
+## reason, or empty when they are fine. The lobby's ChangeSettings asks every row's actions with
+## the settings as they would be, before applying any (§4.1), so a combination this action cannot
+## deal is refused whole. DealTasks: `tasks` above the task types left after the bans, or every
+## task type banned (`out_of_bounds`, #79). Fine by default.
+func settings_problem(
+	_settings: Dictionary[StringName, int],
+	_id_sets: Dictionary[StringName, PackedStringArray],
+	_mode: GameMode
+) -> StringName:
+	return &""

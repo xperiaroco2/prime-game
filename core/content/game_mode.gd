@@ -74,12 +74,28 @@ func find_item_kind(id: StringName) -> ItemKind:
 	return null
 
 
-## Every declared setting at its default.
+func find_task_type(id: StringName) -> TaskType:
+	for type: TaskType in task_types:
+		if type != null and type.id == id:
+			return type
+	return null
+
+
+## Every declared whole-number setting at its default.
 func default_settings() -> Dictionary[StringName, int]:
 	var values: Dictionary[StringName, int] = {}
 	for setting: SettingSpec in settings:
-		if setting != null:
+		if setting != null and setting.is_number():
 			values[setting.id] = setting.default_value
+	return values
+
+
+## Every declared set setting (SettingSpec.Kind.TASK_TYPES) at its default, the empty set.
+func default_id_sets() -> Dictionary[StringName, PackedStringArray]:
+	var values: Dictionary[StringName, PackedStringArray] = {}
+	for setting: SettingSpec in settings:
+		if setting != null and not setting.is_number():
+			values[setting.id] = PackedStringArray()
 	return values
 
 

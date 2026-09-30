@@ -1,26 +1,33 @@
 class_name Delivery
 extends TaskType
-## The MVP's task type (ARCHITECTURE §3.3, §7.1, §9.5): a task of `subtasks_setting` packages; a
-## subtask is done when its package rests inside its own circle, however it got there (put down,
-## swapped, dropped at a death or a leave, spawned there, later thrown).
+## The MVP's task type (ARCHITECTURE §3.3, §7.1, §9.5): one shared task of `subtasks_setting`
+## packages (the engineer's decision of 2026-09-30, #79); a subtask is done when its package
+## rests inside its own circle, however it got there (put down, swapped, dropped at a death or a
+## leave, spawned there, later thrown). Nobody owns the task: any living player delivers any
+## package.
 ##
-## The deal (DealTasks, 2c, calls deal()): players x tasks per player x subtasks packages. Circles
-## on distinct random `circle.spawn_tag` markers, with distinct random colours of the palette;
-## packages on distinct random free `package.spawn_tag` markers (Items.free_markers: a deal puts
-## at most one item on a marker, whichever part places first); then per player in peer-id order its
-## tasks, each package drawn from the placed ones and bound to a random circle of its own, whose
-## colour it takes. Station and item ids follow spawn-point order, and StationPlaced and
-## ItemSpawned go out in id order, so an id says nothing about its owner. Then item_rested
-## (spawn) for each package, so one that spawned inside its own circle is delivered at once.
+## The deal (DealTasks calls deal() when the draw picks Delivery): N packages and N circles, N the
+## `packages` setting. Circles on distinct random `circle.spawn_tag` markers, each with its own
+## random colour of the palette (colours never repeat); packages on distinct random free
+## `package.spawn_tag` markers (Items.free_markers: a deal puts at most one item on a marker,
+## whichever part places first); each package bound to a random circle of its own, whose colour
+## it takes. Station and item ids follow spawn-point order; StationPlaced and ItemSpawned (with the
+## circle and its colour) go out in id order. Then item_rested (spawn) for each package, so one
+## that spawned inside its own circle is delivered at once. With N = 0 the task has no subtasks,
+## and so is done.
 ##
-## The check (on_fact, on item_rested): a package of an undone subtask that rests on the ground
-## within its circle's radius (horizontally) and within `floor_tolerance_m` of the circle's height
-## (the circle's floor) is delivered: locked (PickUp gets `unavailable`), its circle done, its
-## subtask done. A held package never counts: holding raises no item_rested.
+## The check (on_fact, on item_rested): a package of an undone subtask resting on the ground inside
+## its circle's cylinder (rests_in) is delivered: locked (PickUp gets `unavailable`), its circle
+## done, its subtask done. A held package never counts: holding raises no item_rested.
 ##
-## Emits: StationPlaced, ItemSpawned (everyone), TasksAssigned (the owner) in the deal;
-## PackageDelivered, TaskProgress (everyone) and TaskUpdated (the owner) on a delivery. Raises
-## item_rested (spawn) in the deal and subtask_done on a delivery.
+## Emits: StationPlaced, ItemSpawned (everyone) in the deal; PackageDelivered and TaskProgress
+## (everyone) on a delivery. Raises item_rested (spawn) in the deal and subtask_done on a
+## delivery.
+
+## How far below its circle's floor a rest position still counts: float noise between a floor the
+## host's physics finds and a hand-placed marker, not a tolerance for a raised marker (§9.6).
+## A placeholder, not a decision.
+const FLOOR_SLACK_M := 0.001
 
 
 ## Delivery's task state (§9.1): per subtask, in order, its package, its circle and whether it is
@@ -43,16 +50,13 @@ class State:
 
 ## The item kind of the packages (the base mode's Package).
 @export var package: ItemKind
-## The station kind of the circles: spawn tag, radius and colour palette. One circle per package
-## is fixed in v0, not a setting (MVP rules).
+## The station kind of the circles: spawn tag, radius, height and colour palette. One circle per
+## package, fixed (#79), not a setting.
 @export var circle: StationKind
-## The match setting of the subtasks per task (`subtasks_per_task`).
+## Delivery's own subtasks setting: the packages of its task (`packages`).
 @export var subtasks_setting: StringName
-## How far above or below the circle's position a resting package may be and still be on the
-## circle's floor, in metres (0.01 to 2). The neutral default is out of bounds on purpose: the
-## data sets it. A placeholder, "not a decision" (no ADR gives it).
-@export var floor_tolerance_m := 0.0
-## The RNG purposes it draws from (§3.3).
+## The RNG purposes it draws from (§3.3): the circles' markers and colours, the packages'
+## markers, and which circle each package goes to.
 @export var circles_rng: StringName = &"circles"
 @export var packages_rng: StringName = &"packages"
 @export var tasks_rng: StringName = &"tasks"
@@ -62,48 +66,31 @@ func new_state() -> TaskState:
 	return State.new()
 
 
-func deal(ctx: MatchContext, per_player: int) -> void:
-	var peers := ctx.state.present_peers()
-	var subtasks := ctx.setting(subtasks_setting)
-	var count := peers.size() * per_player * subtasks
+func deal(ctx: MatchContext) -> void:
+	var count := ctx.setting(subtasks_setting)
 	if count <= 0:
+		ctx.state.add_task(self)
 		return
 	if not _fits(ctx, count):
 		return
 	var stations := _place_circles(ctx, count)
 	var items := _place_packages(ctx, count)
-	# Each package is bound to a circle of its own: two independent permutations, walked together.
-	var package_order := RngStreams.shuffled_indices(count, ctx.rng(tasks_rng))
+	# Each package, in id order, goes to a circle of its own: a random permutation of the circles.
 	var circle_order := RngStreams.shuffled_indices(count, ctx.rng(tasks_rng))
+	var task := ctx.state.add_task(self)
+	var task_state := task.state as State
 	var circle_of: Dictionary[int, StationState] = {}
-	var dealt: Dictionary[int, Array] = {}
-	var next := 0
-	for peer: int in peers:
-		var entries: Array[Dictionary] = []
-		for t in per_player:
-			var task := ctx.state.add_task(peer, self)
-			var task_state := task.state as State
-			var targets: Array[Dictionary] = []
-			for s in subtasks:
-				var item := items[package_order[next]]
-				var station := stations[circle_order[next]]
-				next += 1
-				task_state.packages.append(item.id)
-				task_state.circles.append(station.id)
-				task_state.done.append(false)
-				circle_of[item.id] = station
-				targets.append({"item": item.id})
-			entries.append(TasksAssignedEvent.task_entry(task.id, id, targets))
-		dealt[peer] = entries
+	for i in count:
+		var station := stations[circle_order[i]]
+		task_state.packages.append(items[i].id)
+		task_state.circles.append(station.id)
+		task_state.done.append(false)
+		circle_of[items[i].id] = station
 	for station: StationState in stations:
 		ctx.emit(StationPlacedEvent.new(station.id, circle.id, station.colour, station.position))
 	for item: ItemState in items:
 		var bound := circle_of[item.id]
 		ctx.emit(ItemSpawnedEvent.new(item.id, package.id, item.position, bound.id, bound.colour))
-	for peer: int in peers:
-		var entries: Array[Dictionary] = []
-		entries.assign(dealt[peer])
-		ctx.emit(TasksAssignedEvent.new(peer, entries))
 	for item: ItemState in items:
 		Items.raise_rested(ctx, item, Items.SPAWN)
 
@@ -133,25 +120,29 @@ func on_fact(ctx: MatchContext) -> void:
 		return
 
 
-## Whether a package resting at `at` is inside `station`: within its radius horizontally, and on
-## its floor, within floor_tolerance_m of its height.
+## Whether a package resting at `at` is inside `station`'s cylinder (#79): the circle stands on
+## the floor at its marker, `radius_m` wide and `height_m` tall. `at` is the item's rest position,
+## the one point core/ knows of an item: the centre of its base on the surface it rests on, as
+## WorldQuery placed it (§7.1), not the centre of its mesh. Inside means within the radius
+## horizontally, edge included, and from the circle's floor (the marker's height) up to floor +
+## height, both included, the floor with FLOOR_SLACK_M of float noise below it: a package on a
+## crate inside the circle counts, one on a floor below the marker or above the cylinder does not.
 func rests_in(at: Vector3, station: StationState) -> bool:
 	var flat := Vector2(at.x - station.position.x, at.z - station.position.z)
+	var rise := at.y - station.position.y
 	return (
 		flat.length() <= station.kind.radius_m
-		and absf(at.y - station.position.y) <= floor_tolerance_m
+		and rise >= -FLOOR_SLACK_M
+		and rise <= station.kind.height_m
 	)
 
 
 ## As many `circle` and `package` markers as packages, and as many palette colours as circles:
-## colours never repeat (§9.4).
-func add_demands(
-	settings: Dictionary[StringName, int], players: int, per_player: int, into: Demands
-) -> void:
+## colours never repeat (§9.4). The player count does not matter: the task is shared.
+func add_demands(settings: Dictionary[StringName, int], _players: int, into: Demands) -> void:
 	if circle == null or package == null:
 		return  # ModeCheck refuses such a mode.
-	var subtasks: int = settings.get(subtasks_setting, 0)
-	var count := players * per_player * subtasks
+	var count: int = maxi(settings.get(subtasks_setting, 0) as int, 0)
 	into.add_markers(circle.spawn_tag, count)
 	into.add_markers(package.spawn_tag, count)
 	into.add_colours(circle, count)
@@ -161,10 +152,8 @@ func emits() -> Array[Script]:
 	return [
 		StationPlacedEvent,
 		ItemSpawnedEvent,
-		TasksAssignedEvent,
 		PackageDeliveredEvent,
 		TaskProgressEvent,
-		TaskUpdatedEvent,
 	]
 
 
@@ -185,9 +174,6 @@ func check(mode: GameMode) -> PackedStringArray:
 		found.append("Delivery %s has no subtasks_setting" % id)
 	if circles_rng.is_empty() or packages_rng.is_empty() or tasks_rng.is_empty():
 		found.append("Delivery %s has an empty RNG purpose" % id)
-	append_found(
-		found, [out_of_bounds("Delivery %s floor_tolerance_m" % id, floor_tolerance_m, 0.01, 2)]
-	)
 	return found
 
 

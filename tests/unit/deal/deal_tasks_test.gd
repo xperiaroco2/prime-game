@@ -1,132 +1,205 @@
 extends GdUnitTestSuite
-## DealTasks (ARCHITECTURE §3.3, §9.4), with a fake task type: each present player gets
-## `tasks_per_player` tasks through TaskType.deal(), split over several task types in the mode's
-## order; TasksAssigned reaches only the owner, and nobody receives another player's tasks (§5).
+## DealTasks (ARCHITECTURE §3.3, §9.4; the engineer's decision of 2026-09-30, #79), with fake task
+## types: `tasks` different task types drawn at random (purpose `task_types`) from the mode's
+## task types minus the banned ones, each dealing one shared task in the mode's order; then
+## TaskProgress to everyone. Its demands hold for any draw, and its settings_problem refuses
+## more tasks than types left.
+
+const P1 := 1
+const P2 := 2
+const P3 := 3
 
 
-func test_each_player_gets_the_tasks_per_player() -> void:
-	var peers: Array[int] = [3, 1, 2]
-	var game := FixtureDealModes.dealt(
-		FixtureDealModes.deal_mode(), peers, {&"tasks_per_player": 3}
-	)
-	var per_owner := {}
-	var owners: Array[int] = []
+## A task type that only demands `items` item markers and `stations` station markers and colours.
+class Demanding:
+	extends TaskType
+
+	var items := 0
+	var stations := 0
+	var station: StationKind
+
+	static func of(
+		type_id: StringName, item_count: int, station_count: int, kind: StationKind
+	) -> Demanding:
+		var made := Demanding.new()
+		made.id = type_id
+		made.items = item_count
+		made.stations = station_count
+		made.station = kind
+		return made
+
+	func add_demands(_settings: Dictionary[StringName, int], _players: int, into: Demands) -> void:
+		into.add_markers(FixtureDealModes.ITEM_TAG, items)
+		into.add_markers(station.spawn_tag, stations)
+		into.add_colours(station, stations)
+
+
+func test_it_draws_different_task_types_and_deals_one_shared_task_of_each() -> void:
+	var mode := FixtureDealModes.deal_mode(_three_types())
+	var game := FixtureDealModes.dealt(mode, [P1, P2], {&"tasks": 2})
+	var types := _dealt_types(game)
+	assert_int(types.size()).is_equal(2)
+	assert_bool(types[0] != types[1]).is_true()
+	# Dealt in the mode's order, whatever the draw.
+	assert_bool(_mode_index(mode, types[0]) < _mode_index(mode, types[1])).is_true()
 	for id: int in game.state.tasks:
-		var task := game.state.tasks[id]
-		assert_str(task.type.id).is_equal("fixture_dealt")
-		per_owner[task.owner] = per_owner.get(task.owner, 0) + 1
-		owners.append(task.owner)
-	assert_dict(per_owner).is_equal({1: 3, 2: 3, 3: 3})
-	# Dealt in peer-id order, so task ids follow the owners.
-	assert_array(owners).is_equal([1, 1, 1, 2, 2, 2, 3, 3, 3])
+		assert_int(game.state.tasks[id].state.total()).is_equal(2)
+	assert_array(Array(game.diagnostics)).is_empty()
 
 
-func test_tasks_assigned_reaches_only_its_owner_and_matches_the_state() -> void:
-	var peers: Array[int] = [1, 2, 3, 4]
-	var game := FixtureDealModes.dealt(FixtureDealModes.deal_mode(), peers)
-	for emitted: EmittedEvent in game.emitted():
-		if emitted.event is TasksAssignedEvent:
-			assert_array(Array(emitted.recipients)).is_equal(
-				[(emitted.event as TasksAssignedEvent).peer]
-			)
-	for peer: int in peers:
-		var assigned := game.view_of(peer).events_named(&"TasksAssigned")
-		assert_int(assigned.size()).is_equal(1)
-		var tasks := (assigned[0] as TasksAssignedEvent).tasks
-		assert_int(tasks.size()).is_equal(2)
-		for entry: Dictionary in tasks:
-			var task := game.state.tasks[entry["task"] as int]
-			assert_int(task.owner).is_equal(peer)
-			var state := task.state as FixtureDealtTaskType.FixtureDealtState
-			assert_array(entry["subtasks"] as Array).is_equal([{"item": state.targets[0]}])
+func test_all_the_types_of_the_pool_are_each_dealt_once() -> void:
+	var mode := FixtureDealModes.deal_mode(_three_types())
+	var game := FixtureDealModes.dealt(mode, [P1], {&"tasks": 3})
+	assert_array(_dealt_types(game)).is_equal([&"first", &"second", &"third"])
 
 
-func test_nobody_receives_another_players_tasks() -> void:
-	# §5's invariant, from the state: every task id and target a peer was told belongs to it.
-	var peers: Array[int] = [1, 2, 3, 4, 5]
-	var game := FixtureDealModes.dealt(FixtureDealModes.deal_mode(), peers, {&"dissidents": 2})
-	for peer: int in peers:
-		var told: Array[int] = []
-		for event: MatchEvent in game.view_of(peer).events:
-			var fields := event.to_dict()
-			if fields.has("tasks"):
-				for entry: Dictionary in fields["tasks"] as Array:
-					told.append(entry["task"] as int)
-		var own: Array[int] = []
-		for id: int in game.state.tasks:
-			if game.state.tasks[id].owner == peer:
-				own.append(id)
-		assert_array(told).is_equal(own)
+func test_a_banned_type_is_never_drawn() -> void:
+	for seed_value in range(1, 21):
+		var game := FixtureDealModes.dealt(
+			FixtureDealModes.deal_mode(_three_types()),
+			[P1],
+			{&"tasks": 2},
+			seed_value,
+			FixtureDealModes.ITEM_MARKERS,
+			PackedStringArray(["second"])
+		)
+		assert_array(_dealt_types(game)).is_equal([&"first", &"third"])
 
 
-func test_several_task_types_split_the_tasks_in_the_modes_order() -> void:
-	var first := FixtureDealtTaskType.new(&"first", FixtureDealModes.item_kind(&"token"))
-	var second := FixtureDealtTaskType.new(&"second", FixtureDealModes.item_kind(&"token"))
-	var mode := FixtureDealModes.deal_mode([first, second])
-	var game := FixtureDealModes.dealt(mode, [1, 2], {&"tasks_per_player": 3})
-	assert_dict(_tasks_by_type(game, 1)).is_equal({&"first": 2, &"second": 1})
-	assert_dict(_tasks_by_type(game, 2)).is_equal({&"first": 2, &"second": 1})
-	var one := FixtureDealModes.dealt(
-		FixtureDealModes.deal_mode([first, second]), [1, 2], {&"tasks_per_player": 1}
-	)
-	assert_dict(_tasks_by_type(one, 1)).is_equal({&"first": 1})
-	# The second type's share is 0: it deals nothing, so it tells nobody anything.
-	assert_int(game.view_of(1).events_named(&"TasksAssigned").size()).is_equal(2)
-	assert_int(one.view_of(1).events_named(&"TasksAssigned").size()).is_equal(1)
+func test_the_same_seed_draws_the_same_and_the_draw_is_random() -> void:
+	var drawn := {}
+	for seed_value in range(1, 21):
+		var game := _one_of_three(seed_value)
+		var again := _one_of_three(seed_value)
+		assert_array(_dealt_types(again)).is_equal(_dealt_types(game))
+		assert_array(FixtureModes.describe(again)).is_equal(FixtureModes.describe(game))
+		drawn[_dealt_types(game)[0]] = true
+	# One type of three over 20 seeds: each seed's draw is its own.
+	assert_int(drawn.size()).is_greater(1)
 
 
-func test_shares() -> void:
-	assert_int(DealTasks.share_of(2, 1, 0)).is_equal(2)
-	assert_int(DealTasks.share_of(3, 2, 0)).is_equal(2)
-	assert_int(DealTasks.share_of(3, 2, 1)).is_equal(1)
-	assert_int(DealTasks.share_of(1, 3, 2)).is_equal(0)
-	assert_int(DealTasks.share_of(0, 1, 0)).is_equal(0)
-	assert_int(DealTasks.share_of(4, 0, 0)).is_equal(0)
+func test_the_draw_has_its_own_rng_purpose() -> void:
+	var moved := false
+	for seed_value in range(1, 21):
+		var game := _one_of_three(seed_value)
+		var mode := FixtureDealModes.deal_mode(_three_types())
+		(mode.transitions[0].actions[1] as DealTasks).rng_purpose = &"other_purpose"
+		var other := FixtureDealModes.dealt(mode, [P1, P2, P3], {&"tasks": 1}, seed_value)
+		moved = moved or _dealt_types(other) != _dealt_types(game)
+		# Another purpose for the draw leaves the roles' draw where it was.
+		for peer: int in [P1, P2, P3]:
+			assert_str(other.state.player(peer).role).is_equal(game.state.player(peer).role)
+	assert_bool(moved).is_true()
 
 
-func test_zero_tasks_per_player_deals_nothing() -> void:
+func test_nobody_owns_a_task_and_everyone_learns_the_same_progress() -> void:
 	var game := FixtureDealModes.dealt(
-		FixtureDealModes.deal_mode(), [1, 2], {&"tasks_per_player": 0}
+		FixtureDealModes.deal_mode(_three_types()), [P1, P2, P3], {&"tasks": 2}
 	)
+	var progress := _emitted_named(game, &"TaskProgress")
+	assert_int(progress.size()).is_equal(1)
+	assert_array(Array(progress[0].recipients)).is_equal([P1, P2, P3])
+	assert_dict(progress[0].event.to_dict()).is_equal({"done": 0, "total": 4})
+	# TaskProgress comes after the task types' events and before the knives.
+	var names := FixtureModes.names(game)
+	assert_int(names.find(&"TaskProgress")).is_greater(names.find(&"ItemSpawned"))
+	assert_int(names.find(&"TaskProgress")).is_less(names.find(&"PlayersPlaced"))
+
+
+func test_zero_tasks_deals_nothing_and_every_task_is_done() -> void:
+	var game := FixtureDealModes.dealt(FixtureDealModes.deal_mode(), [P1, P2], {&"tasks": 0})
 	assert_dict(game.state.tasks).is_empty()
-	assert_array(FixtureModes.names(game)).not_contains([&"TasksAssigned"])
+	assert_array(FixtureDealModes.items_of(game, &"token")).is_empty()
+	assert_dict(game.view_of(P1).events_named(&"TaskProgress")[0].to_dict()).is_equal(
+		{"done": 0, "total": 0}
+	)
+	assert_bool(Tasks.all_done(game.state)).is_true()
 
 
-func test_it_forwards_its_demand_to_the_modes_task_types() -> void:
-	var first := FixtureDealtTaskType.new(&"first", FixtureDealModes.item_kind(&"token"))
-	var mode := FixtureDealModes.deal_mode([first])
+func test_its_demand_is_the_largest_demands_of_the_types_left_per_tag() -> void:
+	# Per tag the sum of the `tasks` largest demands among the types not banned: any draw fits.
+	var mode := FixtureDealModes.deal_mode(_demanding_types())
+	var deal := mode.transitions[0].actions[1] as DealTasks
+	assert_dict(_markers(deal, mode, 1)).is_equal({&"item": 5, FixtureDealModes.STATION_TAG: 4})
+	assert_dict(_colours(deal, mode, 1)).is_equal({&"circle": 4})
+	assert_dict(_markers(deal, mode, 2)).is_equal({&"item": 7, FixtureDealModes.STATION_TAG: 5})
+	assert_dict(_colours(deal, mode, 2)).is_equal({&"circle": 5})
+	# Banned, `big` no longer counts.
+	var banned := PackedStringArray(["big"])
+	assert_dict(_markers(deal, mode, 1, banned)).is_equal(
+		{&"item": 2, FixtureDealModes.STATION_TAG: 4}
+	)
+	# Every draw of one type fits the demand for one: neither alone needs 5 items and 4 stations.
+	for type: TaskType in mode.task_types:
+		var own := Demands.new(mode)
+		type.add_demands({}, 2, own)
+		for tag: StringName in own.markers:
+			assert_int(own.markers[tag]).is_less_equal(_markers(deal, mode, 1)[tag])
+
+
+func test_without_a_mode_it_demands_nothing() -> void:
 	var deal := FixtureDealModes.deal_tasks()
-	var settings: Dictionary[StringName, int] = {&"tasks_per_player": 3}
 	var none := Demands.new(null)
-	deal.add_demands(settings, 4, none)
-	# No mode: nothing to forward to.
+	deal.add_demands({&"tasks": 1}, 4, none)
 	assert_dict(none.markers).is_empty()
-	var demands := Demands.new(mode)
-	deal.add_demands(settings, 4, demands)
-	assert_dict(demands.markers).is_equal({FixtureDealModes.ITEM_TAG: 12})
 
 
-func test_the_mode_check_refuses_it_without_its_setting() -> void:
+func test_its_settings_problem_refuses_more_tasks_than_types_left() -> void:
+	var mode := FixtureDealModes.deal_mode(_three_types())
+	var deal := mode.transitions[0].actions[1] as DealTasks
+	var none: Dictionary[StringName, PackedStringArray] = {}
+	var one: Dictionary[StringName, PackedStringArray] = {
+		&"banned_task_types": PackedStringArray(["first"])
+	}
+	var all: Dictionary[StringName, PackedStringArray] = {
+		&"banned_task_types": PackedStringArray(["first", "second", "third"])
+	}
+	assert_str(deal.settings_problem({&"tasks": 3}, none, mode)).is_empty()
+	assert_str(deal.settings_problem({&"tasks": 2}, one, mode)).is_empty()
+	assert_str(deal.settings_problem({&"tasks": 3}, one, mode)).is_equal("out_of_bounds")
+	# Every type banned is refused even with 0 tasks.
+	assert_str(deal.settings_problem({&"tasks": 0}, all, mode)).is_equal("out_of_bounds")
+
+
+func test_the_mode_check_refuses_it_without_its_settings_or_purpose() -> void:
 	var mode := FixtureDealModes.deal_mode()
-	(mode.transitions[0].actions[1] as DealTasks).tasks_setting = &""
-	assert_str("\n".join(ModeCheck.run(mode).errors)).contains("DealTasks has no tasks_setting")
-	(mode.transitions[0].actions[1] as DealTasks).tasks_setting = &"tasks"
+	var deal := mode.transitions[0].actions[1] as DealTasks
+	deal.tasks_setting = &""
+	deal.rng_purpose = &""
+	var errors := "\n".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("DealTasks has no tasks_setting")
+	assert_str(errors).contains("DealTasks has an empty rng_purpose")
+	deal.tasks_setting = &"tasks_left"
 	assert_str("\n".join(ModeCheck.run(mode).errors)).contains(
-		"tasks_setting names setting tasks, which the mode does not declare"
+		"tasks_setting names setting tasks_left, which the mode does not declare"
+	)
+
+
+func test_the_mode_check_refuses_more_tasks_than_task_types_and_wrong_kinds() -> void:
+	var mode := FixtureDealModes.deal_mode()
+	var deal := mode.transitions[0].actions[1] as DealTasks
+	mode.find_setting(&"tasks").max_value = 2
+	deal.banned_setting = &"knives"
+	var errors := "\n".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("DealTasks: setting tasks goes up to 2, the mode has 1 task types")
+	assert_str(errors).contains("DealTasks: setting knives is not a set of task types")
+	deal.tasks_setting = &"banned_task_types"
+	assert_str("\n".join(ModeCheck.run(mode).errors)).contains(
+		"DealTasks: setting banned_task_types is not a whole number"
 	)
 
 
 func test_stations_reach_everyone_in_id_order_with_their_items_colours() -> void:
-	# The chain Delivery's deal emits (§9.5; the real one is 2f's): StationPlaced to every peer in
-	# station-id order, and each item's ItemSpawned carries its station and that station's colour.
+	# The chain Delivery's deal emits (§9.5): StationPlaced to every peer in station-id order, and
+	# each item's ItemSpawned carries its station and that station's colour.
 	var circle := StationKind.new()
 	circle.id = &"circle"
 	circle.spawn_tag = FixtureDealModes.STATION_TAG
 	for i in 6:
 		circle.palette.append(Color.from_hsv(i / 6.0, 1.0, 1.0))
-	var type := FixtureDealtTaskType.new(&"fixture_dealt", FixtureDealModes.item_kind(&"token"))
+	var type := FixtureDealtTaskType.new(&"fixture_dealt", FixtureDealModes.item_kind(&"token"), 6)
 	type.station = circle
-	var peers: Array[int] = [1, 2, 3]
+	var peers: Array[int] = [P1, P2, P3]
 	var game := FixtureDealModes.dealt(FixtureDealModes.deal_mode([type]), peers)
 	var expected: Array[Dictionary] = []
 	for id: int in game.state.stations:
@@ -162,11 +235,67 @@ func test_stations_reach_everyone_in_id_order_with_their_items_colours() -> void
 		assert_int(tokens).is_equal(6)
 
 
-## Task type id -> the number of `peer`'s tasks of that type.
-func _tasks_by_type(game: Match, peer: int) -> Dictionary:
-	var found := {}
+## Three fake task types, `first`, `second` and `third`, of two tokens each.
+func _three_types() -> Array[TaskType]:
+	var token := FixtureDealModes.item_kind(&"token")
+	return [
+		FixtureDealtTaskType.new(&"first", token, 2),
+		FixtureDealtTaskType.new(&"second", token, 2),
+		FixtureDealtTaskType.new(&"third", token, 2),
+	]
+
+
+## `big`: 5 item markers and 1 station marker; `wide`: 2 item markers and 4 station markers;
+## as many `circle` colours as station markers.
+func _demanding_types() -> Array[TaskType]:
+	var circle := StationKind.new()
+	circle.id = &"circle"
+	circle.spawn_tag = FixtureDealModes.STATION_TAG
+	circle.palette = PackedColorArray([Color.RED, Color.BLUE])
+	return [Demanding.of(&"big", 5, 1, circle), Demanding.of(&"wide", 2, 4, circle)]
+
+
+func _one_of_three(seed_value: int) -> Match:
+	return FixtureDealModes.dealt(
+		FixtureDealModes.deal_mode(_three_types()), [P1, P2, P3], {&"tasks": 1}, seed_value
+	)
+
+
+func _markers(
+	deal: DealTasks, mode: GameMode, tasks: int, banned: PackedStringArray = PackedStringArray()
+) -> Dictionary[StringName, int]:
+	return _demands(deal, mode, tasks, banned).markers
+
+
+func _colours(deal: DealTasks, mode: GameMode, tasks: int) -> Dictionary[StringName, int]:
+	return _demands(deal, mode, tasks, PackedStringArray()).colours
+
+
+func _demands(deal: DealTasks, mode: GameMode, tasks: int, banned: PackedStringArray) -> Demands:
+	var demands := Demands.new(mode)
+	demands.id_sets[&"banned_task_types"] = banned
+	deal.add_demands({&"tasks": tasks}, 2, demands)
+	return demands
+
+
+## The ids of the task types of the match's tasks, in task-id order.
+func _dealt_types(game: Match) -> Array[StringName]:
+	var found: Array[StringName] = []
 	for id: int in game.state.tasks:
-		var task := game.state.tasks[id]
-		if task.owner == peer:
-			found[task.type.id] = found.get(task.type.id, 0) + 1
+		found.append(game.state.tasks[id].type.id)
+	return found
+
+
+func _mode_index(mode: GameMode, type_id: StringName) -> int:
+	for i in mode.task_types.size():
+		if mode.task_types[i].id == type_id:
+			return i
+	return -1
+
+
+func _emitted_named(game: Match, event_name: StringName) -> Array[EmittedEvent]:
+	var found: Array[EmittedEvent] = []
+	for emitted: EmittedEvent in game.emitted():
+		if emitted.event.event_name() == event_name:
+			found.append(emitted)
 	return found

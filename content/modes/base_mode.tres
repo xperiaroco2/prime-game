@@ -239,19 +239,25 @@ default_value = 10
 min_value = 1
 max_value = 60
 
-[sub_resource type="Resource" id="Setting_tasks_per_player"]
+[sub_resource type="Resource" id="Setting_tasks"]
 script = ExtResource("2_setting")
-id = &"tasks_per_player"
-display_name = "Tasks per player"
-default_value = 2
+id = &"tasks"
+display_name = "Tasks"
+default_value = 1
 min_value = 1
-max_value = 10
+max_value = 1
 
-[sub_resource type="Resource" id="Setting_subtasks_per_task"]
+[sub_resource type="Resource" id="Setting_banned_task_types"]
 script = ExtResource("2_setting")
-id = &"subtasks_per_task"
-display_name = "Subtasks per task"
-default_value = 2
+id = &"banned_task_types"
+display_name = "Banned task types"
+kind = 1
+
+[sub_resource type="Resource" id="Setting_packages"]
+script = ExtResource("2_setting")
+id = &"packages"
+display_name = "Packages (Delivery)"
+default_value = 6
 min_value = 1
 max_value = 10
 
@@ -311,7 +317,9 @@ rng_purpose = &"roles"
 
 [sub_resource type="Resource" id="Deal_tasks"]
 script = ExtResource("59_deal_tasks")
-tasks_setting = &"tasks_per_player"
+tasks_setting = &"tasks"
+banned_setting = &"banned_task_types"
+rng_purpose = &"task_types"
 
 [sub_resource type="Resource" id="Spawn_knives"]
 script = ExtResource("59_spawn_items")
@@ -354,7 +362,7 @@ actions = Array[ExtResource("14_effect")]([SubResource("Reset_match"), SubResour
 script = ExtResource("1_mode")
 min_players = 1
 max_players = 10
-settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks_per_player"), SubResource("Setting_subtasks_per_task"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
+settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks"), SubResource("Setting_banned_task_types"), SubResource("Setting_packages"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
 roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_dissident")])

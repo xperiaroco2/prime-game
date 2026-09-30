@@ -4,17 +4,17 @@ extends RefCounted
 ## FixtureItemModes.basic() (a part's unit tests never load `content/`, ARCHITECTURE §9.6).
 ##
 ## basic(): the item fixture mode (PickUp 2 m, PutDown 1 m, kinds `package` and `tool`) with the
-## settings `tasks_per_player` and `subtasks_per_task`, the task type Delivery (circle radius
-## 1 m, floor tolerance 0.3 m, a palette of 12 colours), the deal (DealTasks by
-## `tasks_per_player`) before PlacePlayers on `lobby, all_ready -> round`, and a reaction on
-## subtask_done that notes the fact to the server audience (FixtureSubtaskNote). The item
-## fixture's reaction on item_rested is dropped.
+## settings `tasks` (1), `banned_task_types` and `packages`, the task type Delivery (circle radius
+## 1 m, height 2 m, a palette of 12 colours), the deal (DealTasks, purpose `task_types`) before
+## PlacePlayers on `lobby, all_ready -> round`, and a reaction on subtask_done that notes the
+## fact to the server audience (FixtureSubtaskNote). The item fixture's reaction on item_rested
+## is dropped.
 ##
 ## layouts(): the fixture lobby and map, plus on the map 10 `circle` markers at (10 i, 0, 20) and
 ## 10 `package` markers at (10 i, 0, -20), far apart, so no package spawns in a circle.
 
 const RADIUS_M := 1.0
-const FLOOR_TOLERANCE_M := 0.3
+const HEIGHT_M := 2.0
 const PALETTE: Array[Color] = [
 	Color(0.9, 0.1, 0.1),
 	Color(0.1, 0.6, 0.1),
@@ -31,16 +31,16 @@ const PALETTE: Array[Color] = [
 ]
 
 
-static func basic(tasks_per_player: int = 1, subtasks: int = 2) -> GameMode:
+## The mode with Delivery's `packages` at `packages` (0 to 12).
+static func basic(packages: int = 2) -> GameMode:
 	var mode := FixtureItemModes.basic()
-	mode.settings.append(FixtureModes.setting(&"tasks_per_player", tasks_per_player, 1, 10))
-	mode.settings.append(FixtureModes.setting(&"subtasks_per_task", subtasks, 1, 10))
+	mode.settings.append(FixtureModes.setting(&"tasks", 1, 1, 1))
+	mode.settings.append(FixtureDealModes.banned_setting())
+	mode.settings.append(FixtureModes.setting(&"packages", packages, 0, 12))
 	mode.task_types = [delivery(mode.find_item_kind(&"package"))]
 	mode.reactions = [FixtureModes.rule(Facts.SUBTASK_DONE, [], [FixtureSubtaskNote.new()])]
 	var deal := mode.find_transition(&"lobby", &"all_ready")
-	var deal_tasks := DealTasks.new()
-	deal_tasks.tasks_setting = &"tasks_per_player"
-	deal.actions.insert(0, deal_tasks)
+	deal.actions.insert(0, FixtureDealModes.deal_tasks())
 	return mode
 
 
@@ -49,8 +49,7 @@ static func delivery(package: ItemKind) -> Delivery:
 	made.id = &"delivery"
 	made.package = package
 	made.circle = circle()
-	made.subtasks_setting = &"subtasks_per_task"
-	made.floor_tolerance_m = FLOOR_TOLERANCE_M
+	made.subtasks_setting = &"packages"
 	return made
 
 
@@ -59,6 +58,7 @@ static func circle() -> StationKind:
 	kind.id = &"circle"
 	kind.spawn_tag = &"circle"
 	kind.radius_m = RADIUS_M
+	kind.height_m = HEIGHT_M
 	kind.palette = PackedColorArray(PALETTE)
 	return kind
 
@@ -104,13 +104,11 @@ static func in_round(
 	return game
 
 
-## The tasks `peer` owns, in id order.
-static func tasks_of(game: Match, peer: int) -> Array[MatchTask]:
-	var found: Array[MatchTask] = []
+## The match's one task, Delivery's shared task (null before the deal or when it dealt none).
+static func task_of(game: Match) -> MatchTask:
 	for id: int in game.state.tasks:
-		if game.state.tasks[id].owner == peer:
-			found.append(game.state.tasks[id])
-	return found
+		return game.state.tasks[id]
+	return null
 
 
 ## The package of subtask `index` of `task`.

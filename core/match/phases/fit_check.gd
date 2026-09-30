@@ -10,7 +10,11 @@ extends RefCounted
 ## What the rows into the map demand with the current settings and players.
 static func demands(ctx: MatchContext) -> Demands:
 	return LayoutCheck.demands_of(
-		ctx.mode, PhaseSpec.Level.MAP, ctx.state.settings, ctx.state.present_peers().size()
+		ctx.mode,
+		PhaseSpec.Level.MAP,
+		ctx.state.settings,
+		ctx.state.present_peers().size(),
+		ctx.state.id_sets
 	)
 
 
@@ -46,8 +50,17 @@ static func settings_changed(ctx: MatchContext) -> SettingsChangedEvent:
 		ctx.state.present_peers().size(),
 		needed,
 		ctx.map_layout(),
-		shortfalls(ctx, needed)
+		shortfalls(ctx, needed),
+		id_sets(ctx)
 	)
+
+
+## Every set setting of the mode with its value: the host's, or its default, the empty set.
+static func id_sets(ctx: MatchContext) -> Dictionary[StringName, PackedStringArray]:
+	var values := ctx.mode.default_id_sets()
+	for id: StringName in values:
+		values[id] = ctx.id_set(id)
+	return values
 
 
 ## `all_ready` (§3.2): every player ready, and the settings fit the map for them.

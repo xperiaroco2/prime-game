@@ -13,6 +13,9 @@ var palettes: Dictionary[StringName, int] = {}
 ## The mode whose rows add their demands, given by whoever sums them (LayoutCheck): DealTasks
 ## forwards its demand to this mode's task types (§9.4). Null only where no row deals tasks.
 var mode: GameMode
+## The set settings the demands are for (MatchState.id_sets: the host's bans of task types, which
+## DealTasks leaves out of its demand). Empty: every set at its default, the empty set.
+var id_sets: Dictionary[StringName, PackedStringArray] = {}
 
 
 ## `for_mode` is required so that no caller summing demands can forget it; null only in tests
@@ -28,6 +31,11 @@ func add_markers(tag: StringName, count: int) -> void:
 func add_colours(station: StationKind, count: int) -> void:
 	colours[station.id] = colours.get(station.id, 0) + count
 	palettes[station.id] = station.palette.size()
+
+
+## The value of a set setting, empty when absent.
+func id_set(id: StringName) -> PackedStringArray:
+	return id_sets.get(id, PackedStringArray())
 
 
 ## Every shortfall against `layout`, in a stable order; empty when the map fits.

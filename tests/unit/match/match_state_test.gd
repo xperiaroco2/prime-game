@@ -44,7 +44,7 @@ func test_reset_match_clears_the_match_and_drops_who_left() -> void:
 		assert_bool(player.moving).is_false()
 	assert_int(state.player(P1).epoch).is_equal(epoch)
 	assert_int(state.add_item(ItemKind.new(), Vector3.ZERO).id).is_equal(1)
-	assert_int(state.add_task(P1, FixtureTaskType.new()).id).is_equal(1)
+	assert_int(state.add_task(FixtureTaskType.new()).id).is_equal(1)
 	assert_int(state.add_station(StationKind.new(), Vector3.ZERO, Color.RED).id).is_equal(1)
 
 
@@ -88,7 +88,7 @@ func _played_state() -> MatchState:
 	var p3 := state.player(P3)
 	p3.life = PlayerState.Life.GHOST
 	p3.held_item = state.add_item(ItemKind.new(), Vector3.ONE).id
-	state.add_task(P1, FixtureTaskType.new())
+	state.add_task(FixtureTaskType.new())
 	state.add_station(StationKind.new(), Vector3.ONE, Color.BLUE)
 	state.bodies[P3] = Vector3.ONE
 	state.set_cooldown_paid(P1, &"strike", 40)

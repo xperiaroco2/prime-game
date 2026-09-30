@@ -79,8 +79,8 @@ func test_demands_sum_the_rows_into_the_level() -> void:
 func test_a_task_types_demand_reaches_the_fit_check() -> void:
 	var mode := _mode_with_a_token_task()
 	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, mode.default_settings(), 3)
-	# 3 players x 2 tasks per player, one coin each.
-	assert_int(demands.markers.get(&"coin", 0)).is_equal(6)
+	# One shared task of 3 coins, whatever the players.
+	assert_int(demands.markers.get(&"coin", 0)).is_equal(3)
 	assert_array(Array(LayoutCheck.run(mode, FixtureDealModes.layouts()))).is_equal(
 		["fixture://deal_map has no coin marker, which the row lobby, all_ready places on"]
 	)
@@ -89,12 +89,12 @@ func test_a_task_types_demand_reaches_the_fit_check() -> void:
 func test_deliverys_circles_and_packages_reach_the_fit_check() -> void:
 	# The real task type through DealTasks: Delivery's demand arrives only if the Demands carry
 	# the mode (LayoutCheck builds them with it).
-	var mode := FixtureDeliveryModes.basic(2, 2)
+	var mode := FixtureDeliveryModes.basic(4)
 	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, mode.default_settings(), 3)
-	# 3 players x 2 tasks x 2 subtasks: a circle, a package and a colour per subtask.
-	assert_int(demands.markers.get(&"circle", 0)).is_equal(12)
-	assert_int(demands.markers.get(&"package", 0)).is_equal(12)
-	assert_dict(demands.colours).is_equal({&"circle": 12})
+	# One shared task of 4 packages: a circle, a package and a colour per package.
+	assert_int(demands.markers.get(&"circle", 0)).is_equal(4)
+	assert_int(demands.markers.get(&"package", 0)).is_equal(4)
+	assert_dict(demands.colours).is_equal({&"circle": 4})
 	var map := FixtureModes.MAP
 	(
 		assert_array(Array(LayoutCheck.run(mode, FixtureModes.layouts())))
@@ -113,6 +113,6 @@ func _mode_with_a_token_task() -> GameMode:
 	token.id = &"coin"
 	token.display_name = "Coin"
 	token.spawn_tag = &"coin"
-	var mode := FixtureDealModes.deal_mode([FixtureDealtTaskType.new(&"fixture_dealt", token)])
+	var mode := FixtureDealModes.deal_mode([FixtureDealtTaskType.new(&"fixture_dealt", token, 3)])
 	mode.item_kinds.append(token)
 	return mode

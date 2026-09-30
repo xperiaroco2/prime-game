@@ -53,6 +53,11 @@ func setting(id: StringName) -> int:
 	return state.settings.get(id, 0)
 
 
+## The value of a set setting (SettingSpec.Kind.TASK_TYPES), empty when never changed.
+func id_set(id: StringName) -> PackedStringArray:
+	return state.id_sets.get(id, PackedStringArray())
+
+
 ## The generator of one RNG purpose of this match (§3.3).
 func rng(purpose: StringName) -> RandomNumberGenerator:
 	return state.rng.stream(purpose)

@@ -50,30 +50,38 @@ func on_peer_left(ctx: MatchContext, peer: int) -> void:
 		_check_all_ready(ctx)
 
 
-## ChangeSettings(settings, map) from the host (§4.1): `settings` maps setting ids to whole
-## numbers and names only the settings that change; `map` is optional. Every value is checked
-## before any is applied: a key the mode does not declare or a value that is not an int
-## (`unknown_setting`), a value outside its bounds (`out_of_bounds`), a map the mode does not
-## list (`unknown_map`). Whether they fit the map is checked at `all_ready`.
+## ChangeSettings(settings, map) from the host (§4.1): `settings` maps setting ids to values and
+## names only the settings that change; `map` is optional. A whole-number setting takes an int; a
+## set of task types (the bans, #79) takes an Array of task type ids, which replaces the set.
+## Every value is checked before any is applied: a key the mode does not declare, or a value of
+## the wrong type (`unknown_setting`); a number outside its bounds, or an id that is not one of
+## the mode's task types (`out_of_bounds`); a map the mode does not list (`unknown_map`); then
+## the settings as they would be, by every row's actions (RuleEffect.settings_problem: DealTasks
+## refuses more `tasks` than task types left, or every type banned). Whether they fit the map is
+## checked at `all_ready`.
 static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 	var raw: Variant = command.args.get("settings", {})
 	if not raw is Dictionary:
 		ctx.reject(command, RejectReasons.UNKNOWN_SETTING)
 		return false
-	var changes: Dictionary[StringName, int] = {}
+	var numbers: Dictionary[StringName, int] = ctx.state.settings.duplicate()
+	var sets: Dictionary[StringName, PackedStringArray] = ctx.state.id_sets.duplicate(true)
 	var given: Dictionary = raw
 	for key: Variant in given:
 		var spec_of: SettingSpec = null
 		if key is String or key is StringName:
 			spec_of = ctx.mode.find_setting(StringName(str(key)))
-		var value: Variant = given[key]
-		if spec_of == null or not value is int:
+		if spec_of == null:
 			ctx.reject(command, RejectReasons.UNKNOWN_SETTING)
 			return false
-		if not spec_of.accepts(value as int):
-			ctx.reject(command, RejectReasons.OUT_OF_BOUNDS)
+		var reason := (
+			_take_number(spec_of, given[key], numbers)
+			if spec_of.is_number()
+			else _take_task_types(ctx.mode, spec_of, given[key], sets)
+		)
+		if not reason.is_empty():
+			ctx.reject(command, reason)
 			return false
-		changes[spec_of.id] = value as int
 	var map := ctx.state.map
 	if command.args.has("map"):
 		var asked: Variant = command.args["map"]
@@ -81,11 +89,59 @@ static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 			ctx.reject(command, RejectReasons.UNKNOWN_MAP)
 			return false
 		map = asked as String
-	for id: StringName in changes:
-		ctx.state.settings[id] = changes[id]
+	for row: Transition in ctx.mode.transitions:
+		if row == null:
+			continue
+		for action: RuleEffect in row.actions:
+			if action == null:
+				continue
+			var problem := action.settings_problem(numbers, sets, ctx.mode)
+			if not problem.is_empty():
+				ctx.reject(command, problem)
+				return false
+	ctx.state.settings = numbers
+	ctx.state.id_sets = sets
 	ctx.state.map = map
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
+
+
+## A whole number for `declared` into `numbers`; the rejection reason, or empty.
+static func _take_number(
+	declared: SettingSpec, value: Variant, numbers: Dictionary[StringName, int]
+) -> StringName:
+	if not value is int:
+		return RejectReasons.UNKNOWN_SETTING
+	if not declared.accepts(value as int):
+		return RejectReasons.OUT_OF_BOUNDS
+	numbers[declared.id] = value as int
+	return &""
+
+
+## A set of task type ids for `declared` into `sets`, in the mode's order with duplicates collapsed;
+## the rejection reason, or empty.
+static func _take_task_types(
+	mode: GameMode,
+	declared: SettingSpec,
+	value: Variant,
+	sets: Dictionary[StringName, PackedStringArray]
+) -> StringName:
+	if not value is Array and not value is PackedStringArray:
+		return RejectReasons.UNKNOWN_SETTING
+	var asked: Dictionary[StringName, bool] = {}
+	for entry: Variant in value:
+		if not entry is String and not entry is StringName:
+			return RejectReasons.UNKNOWN_SETTING
+		var id := StringName(str(entry))
+		if mode.find_task_type(id) == null:
+			return RejectReasons.OUT_OF_BOUNDS
+		asked[id] = true
+	var ids := PackedStringArray()
+	for type: TaskType in mode.task_types:
+		if type != null and asked.has(type.id):
+			ids.append(String(type.id))
+	sets[declared.id] = ids
+	return &""
 
 
 static func _check_all_ready(ctx: MatchContext) -> void:

@@ -11,7 +11,6 @@ func test_each_deal_event_class_declares_its_audience_kind() -> void:
 	var events: Array[MatchEvent] = [
 		RoleAssignedEvent.new(P1, &"crew"),
 		TeammatesEvent.new(&"dissident", PackedInt32Array([P2])),
-		TasksAssignedEvent.new(P1, []),
 		StationPlacedEvent.new(1, &"circle", Color.RED, Vector3.ZERO),
 		ItemSpawnedEvent.new(1, &"knife", Vector3.ZERO),
 		RoundStartedEvent.new(0),
@@ -35,7 +34,6 @@ func test_recipients() -> void:
 	)
 	var teammates := TeammatesEvent.new(&"dissident", PackedInt32Array([P2, P3]))
 	assert_array(Array(teammates.audience().recipients(state))).is_equal([P2, P3])
-	assert_array(Array(TasksAssignedEvent.new(P3, []).audience().recipients(state))).is_equal([P3])
 	var everyone: Array[MatchEvent] = [
 		StationPlacedEvent.new(1, &"circle", Color.RED, Vector3.ZERO),
 		ItemSpawnedEvent.new(1, &"knife", Vector3.ZERO),
@@ -53,8 +51,6 @@ func test_payloads() -> void:
 	assert_dict(TeammatesEvent.new(&"dissident", PackedInt32Array([P2, P3])).to_dict()).is_equal(
 		{"role": &"dissident", "peers": PackedInt32Array([P2, P3])}
 	)
-	var tasks: Array[Dictionary] = [{"task": 4, "type": &"delivery", "subtasks": [{"item": 7}]}]
-	assert_dict(TasksAssignedEvent.new(P1, tasks).to_dict()).is_equal({"tasks": tasks})
 	assert_dict(StationPlacedEvent.new(2, &"circle", Color.RED, Vector3.ONE).to_dict()).is_equal(
 		{"station": 2, "kind": &"circle", "colour": Color.RED, "position": Vector3.ONE}
 	)
@@ -72,10 +68,6 @@ func test_an_event_keeps_its_own_copy_of_what_it_was_given() -> void:
 	var teammates := TeammatesEvent.new(&"dissident", peers)
 	peers.append(P3)
 	assert_array(Array(teammates.peers)).is_equal([P2])
-	var tasks: Array[Dictionary] = [{"task": 1, "type": &"delivery", "subtasks": []}]
-	var assigned := TasksAssignedEvent.new(P1, tasks)
-	(tasks[0]["subtasks"] as Array).append({"item": 9})
-	assert_array(assigned.tasks[0]["subtasks"] as Array).is_empty()
 
 
 func _state() -> MatchState:

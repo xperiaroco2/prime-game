@@ -1,13 +1,18 @@
 class_name StationKind
 extends ContentPart
 ## A place where a task is done, placed by its task type (ARCHITECTURE §9.3): the MVP's delivery
-## circle. Colours never repeat within a station kind, so the palette's size is a demand (§9.4).
+## circle, an invisible cylinder standing on the floor at its marker (#79). Colours never repeat
+## within a station kind, so the palette's size is a demand (§9.4).
 
 @export var id: StringName
 @export var spawn_tag: StringName
 ## Metres, 0.2 to 10. The neutral default is out of bounds on purpose: the data sets it (the
 ## delivery circle: 1), so the mode check refuses a station kind that forgot it.
 @export var radius_m := 0.0
+## Metres, 0.1 to 10: how far above its floor (the marker's height) the station reaches. The
+## neutral default is out of bounds on purpose: the data sets it (the delivery circle: 2, a
+## placeholder, "not a decision").
+@export var height_m := 0.0
 ## Distinct colours, one per placed station.
 @export var palette: PackedColorArray = PackedColorArray()
 
@@ -18,7 +23,13 @@ func check(_mode: GameMode) -> PackedStringArray:
 		found.append("a station kind has no id")
 	if spawn_tag.is_empty():
 		found.append("station kind %s has no spawn_tag" % id)
-	append_found(found, [out_of_bounds("station kind %s radius_m" % id, radius_m, 0.2, 10)])
+	append_found(
+		found,
+		[
+			out_of_bounds("station kind %s radius_m" % id, radius_m, 0.2, 10),
+			out_of_bounds("station kind %s height_m" % id, height_m, 0.1, 10),
+		]
+	)
 	for i in palette.size():
 		for j in range(i + 1, palette.size()):
 			if palette[i] == palette[j]:
