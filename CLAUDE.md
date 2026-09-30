@@ -70,6 +70,9 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - Multi-line commit messages and PR bodies go in a scratchpad file: `git commit -F <file>`,
   `gh pr create --body-file <file>`. Structured arguments go in files, not inline JSON.
 - Keep file writes and `Remove-Item` in separate commands (the delete guard misreads combined ones).
+<!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
+- Temporary files go only to your scratchpad or, if they must be under `res://` (a probe test), to the gitignored
+  `tests/scratch/`; deleting those never prompts. No other temporary folder in the project.
 - `bash` on PATH is the WSL launcher, not Git Bash. In Git Bash `python` is a Store stub: use `$PYTHON_BIN`.
 - In the Bash tool `\\` arrives as `\`, even inside single quotes and quoted heredocs (`"\\r"` became a CR).
   Write code that contains backslashes to a file with the Write tool, then run the file.
@@ -121,9 +124,9 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - Launching a workflow: state the agent count (fewer than 5) and a rough cost, then wait for a yes. Every workflow
   prompt states its bounds: max agents, max turns or tool calls per agent, a time or token budget, and what to drop
   first. "ultracode" alone never approves exceeding the size guideline.
-<!-- see docs/interventions/2026-09-28-engineer-unattended-hour.md -->
-- Adding a permission ask or deny rule: first check "can the agent still work alone for an hour?". Routine work
-  (status reads, branches, commits, task-branch pushes, issues, PRs, tooling edits) must not prompt.
+<!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
+- Adding a permission ask or deny rule: first check "can an agent work alone overnight?". Routine work (status reads,
+  branches, commits, task-branch pushes, issues, PRs, tooling edits, scratch cleanup) must not prompt.
 
 ## Talking to the humans
 - Humans often dictate by voice. Infer the meaning; read the file name back before editing; ask one short question

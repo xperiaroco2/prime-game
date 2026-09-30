@@ -24,3 +24,5 @@
 - `.claude/settings.json` and `docs/AGENT_WORKFLOW.md` §8.1.
 - `docs/decisions/2026-09-28-unattended-work-permissions.md`.
 - Root `CLAUDE.md`, "Stop and ask before" (rules 1 and 2, promoted in M0 stage 3).
+- Rule 2 recurred and was tightened to "can an agent work alone overnight?" in
+  `2026-09-30-engineer-night-run-blocked-by-prompts.md`.

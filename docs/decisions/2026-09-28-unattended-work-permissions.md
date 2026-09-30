@@ -1,6 +1,7 @@
 # Permissions for unattended work
 
-- **Status:** Accepted (amends `2026-09-28-permissions-and-thin-guard.md`)
+- **Status:** Accepted (amends `2026-09-28-permissions-and-thin-guard.md`); recursive deletes and `git reset` moved
+  from text ask rules to the guard on 2026-09-30 (see that ADR)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase B kickoff)
 
