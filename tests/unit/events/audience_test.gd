@@ -41,6 +41,12 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		PlayersPlacedEvent.new({}),
 		CorrectionEvent.new(P1, 1, Vector3.ZERO, Vector3.ZERO),
 		RejectedEvent.new(P1, 0, &"x"),
+		ItemSpawnedEvent.new(1, &"package", Vector3.ZERO),
+		StationPlacedEvent.new(1, &"circle", Color.RED, Vector3.ZERO),
+		TasksAssignedEvent.new(P1, []),
+		PackageDeliveredEvent.new(1, 1),
+		TaskProgressEvent.new(0, 1),
+		TaskUpdatedEvent.new(P1, 1, 0),
 	]
 	for event: MatchEvent in events:
 		var declared: Variant = (event.get_script() as Script).get_script_constant_map().get(
