@@ -155,6 +155,47 @@ func test_ghost_cannot_jump_onto_a_ledge_the_living_cannot() -> void:
 	assert_float(player.global_position.z).is_greater(-2.0 + _tuning.capsule_radius - 0.02)
 
 
+func test_ghost_sprints_up_a_ramp_at_the_steepest_walkable_angle_smoothly() -> void:
+	# The slope, not a ledge's lift, carries the body at the ghost's faster sprint too: on the
+	# floor every step, no rise beyond the slope's, and the view at eye height.
+	var angle := deg_to_rad(44.0)
+	_world.add_ramp(angle, -1.0)
+	var player := _world.add_ghost(Vector3.ZERO)
+	assert_float(angle).is_less(player.floor_max_angle)
+	player.move_input = Vector2(0.0, 1.0)
+	player.sprint_held = true
+	await _world.frames(15)
+	var off_floor := 0
+	var largest_rise := 0.0
+	var eye_off := 0.0
+	var last_y := player.global_position.y
+	for i: int in 25:
+		await _world.frames(1)
+		if not player.is_on_floor():
+			off_floor += 1
+		largest_rise = maxf(largest_rise, player.global_position.y - last_y)
+		last_y = player.global_position.y
+		# A false step-up lowers the view; the slope never does.
+		var eye := player.get_camera().global_position.y - last_y
+		eye_off = maxf(eye_off, absf(eye - _tuning.eye_height))
+	assert_int(off_floor).is_equal(0)
+	assert_float(eye_off).is_less(0.001)
+	var speed := _tuning.sprint_speed * _tuning.ghost_speed_factor
+	var slope_rise := speed * tan(angle) / Engine.physics_ticks_per_second
+	assert_float(largest_rise).is_less(slope_rise * 1.05)
+	assert_float(last_y).is_greater(0.5)
+
+
+func test_ghost_steps_over_a_low_round_pipe() -> void:
+	_world.add_pipe(0.1, -2.0)
+	var player := _world.add_ghost(Vector3.ZERO)
+	player.move_input = Vector2(0.0, 1.0)
+	player.sprint_held = true
+	await _world.frames(40)
+	assert_float(player.global_position.z).is_less(-3.0)
+	assert_float(player.global_position.y).is_equal_approx(0.0, 0.01)
+
+
 func test_ghost_does_not_climb_a_slope_too_steep_to_walk() -> void:
 	_world.add_ramp(deg_to_rad(50.0), -1.0)
 	var player := _world.add_ghost(Vector3.ZERO)
