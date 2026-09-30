@@ -179,9 +179,7 @@ func check(mode: GameMode) -> PackedStringArray:
 		found.append("Delivery %s has no circle station kind" % id)
 	elif package != null and circle.spawn_tag == package.spawn_tag:
 		# One tag would let packages spawn on circle markers, delivered before anyone moves.
-		found.append(
-			"Delivery %s: circle and package share spawn tag %s" % [id, circle.spawn_tag]
-		)
+		found.append("Delivery %s: circle and package share spawn tag %s" % [id, circle.spawn_tag])
 	if subtasks_setting.is_empty():
 		found.append("Delivery %s has no subtasks_setting" % id)
 	if circles_rng.is_empty() or packages_rng.is_empty() or tasks_rng.is_empty():
@@ -200,28 +198,15 @@ func _fits(ctx: MatchContext, count: int) -> bool:
 		return false
 	var circles := ctx.layout.count(circle.spawn_tag)
 	var packages := ctx.layout.count(package.spawn_tag)
-	if circles < count or packages < count or circle.palette.size() < count:
-		(
-			ctx
-			. error(
-				(
-					(
-						"Delivery: %d packages need as many %s and %s markers and colours; the map has %d"
-						+ " and %d, the palette %d"
-					)
-					% [
-						count,
-						circle.spawn_tag,
-						package.spawn_tag,
-						circles,
-						packages,
-						circle.palette.size()
-					]
-				)
-			)
-		)
-		return false
-	return true
+	var colours := circle.palette.size()
+	if circles >= count and packages >= count and colours >= count:
+		return true
+	var needs := (
+		"Delivery: %d packages need as many %s and %s markers and colours"
+		% [count, circle.spawn_tag, package.spawn_tag]
+	)
+	ctx.error("%s; the map has %d and %d, the palette %d" % [needs, circles, packages, colours])
+	return false
 
 
 ## `count` circles on distinct random markers, in spawn-point order, with distinct random colours.
