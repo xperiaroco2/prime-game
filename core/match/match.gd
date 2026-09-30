@@ -186,9 +186,9 @@ func tick(at_tick: int) -> bool:
 		if state.clock_ticks_left == 0 and not state.clock_ended:
 			state.clock_ended = true
 			raise_fact(Fact.new(Facts.CLOCK_ENDED))
-	# SelfStatus goes out on change, at most once per tick, after the tick's commands (§4.2).
-	SelfStatusFeed.flush(_context("self status"))
 	_finish_step()
+	# SelfStatus goes out on change, at most once per tick, with the tick's final numbers (§4.2).
+	SelfStatusFeed.flush(_context("self status"))
 	_ticked_through = at_tick
 	command_log.ticked_through = at_tick
 	_in_tick = false

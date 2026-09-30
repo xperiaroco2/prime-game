@@ -43,6 +43,24 @@ func test_it_is_sent_at_most_once_per_tick_with_the_final_numbers() -> void:
 	assert_int(statuses.back().stamina).is_equal(74000)
 
 
+func test_a_change_by_a_transition_in_a_tick_goes_out_in_that_tick() -> void:
+	var mode := FixtureModes.basic()
+	# The clock ends in a tick, the crew wins, and the row to End tires P1 on the way.
+	mode.reactions = [FixtureModes.rule(Facts.CLOCK_ENDED, [], [FixtureBump.of(&"crew_win")])]
+	mode.transitions[1].actions.append(FixtureTire.of(P1, 30))
+	var game := FixtureModes.in_round(mode, [P1])
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	game.state.clock_ticks_left = 2
+	FixtureModes.run_ticks(game, 2)
+	assert_str(String(game.phase_id())).is_equal("end")
+	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()
+	assert_int(last.stamina).is_equal(70000)
+	var sent := game.emitted().filter(
+		func(e: EmittedEvent) -> bool: return e.event is SelfStatusEvent
+	)
+	assert_int((sent.back() as EmittedEvent).tick).is_equal(game.ticked_through())
+
+
 func test_it_is_sent_again_after_reset_match() -> void:
 	var game := FixtureMoves.in_round([P1])
 	FixtureMoves.steps(game, P1, 2, Vector3.ZERO)
