@@ -448,12 +448,13 @@ content edit before a playtest instead of the encoder refusing a reliable event 
 `Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`. A client stops
 claiming when its own copy of the mode says the new phase does not accept `MoveClaim` (§3.1).
 - **Before its `Welcome`** a client treats any `Rejected` as the end of its join, with a message naming the reason.
-  On `main` a `Hello` that the phase refuses (Loading, Round, End) gets `not_accepted` with seq 0 and nothing
-  disconnects the newcomer, so it would linger until the hello deadline and read `host_lost`. 3e (E14 (a)) gives it a
-  reason of its own, `joins_closed`, followed by `DisconnectPeer`, and the entry into Loading disconnects every
-  newcomer still waiting (their `Hello` can no longer be accepted this match).
+  Before 3e a `Hello` that the phase refuses (Loading, Round, End) got `not_accepted` with seq 0 and nothing
+  disconnected the newcomer, so it would linger until the hello deadline and read `host_lost`. Since 3e (#97, E14 (a))
+  it gets a reason of its own, `joins_closed`, followed by `DisconnectPeer` while the sender is a newcomer (a peer
+  already disconnected gets none), and the entry into Loading disconnects every newcomer still waiting (their `Hello`
+  can no longer be accepted this match).
 - **After its `Welcome`** a `Rejected(not_accepted)` with seq 0 can only answer a `MoveClaim` in flight when the phase
-  changed, and a client ignores it. 3e (E15 (a)) stops emitting it: a refused `MoveClaim` is dropped silently by
+  changed, and a client ignores it. Since 3e (#97, E15 (a)) it is not emitted: a refused `MoveClaim` is dropped by
   `core/` (a claim has no seq to name), so a looping client's claims do not fill the command log and the outbox with
   `Rejected` events that every client ignores.
 
@@ -585,12 +586,12 @@ The rules of the table:
   matches the fields of the command it names (`ForceRole`'s, declared in `Intents.FIELDS` too), no row has a field that
   names a seed, and the table as a release build builds it (debug off) has no debug kind. The comparison leaves out the
   wire's own fields: `seq`, the presence flags (`has_map`, `has_station`, `has_role`) and `ForceRole`'s `peer`, which
-  becomes `MatchCommand.peer`, not an arg. On `main` an intent declares no fields: its rules read `args` where they
-  need them (`MovementRule`, `JoinRules.hello`, the lobby's settings), and
+  becomes `MatchCommand.peer`, not an arg. Before 3e an intent declared no fields: its rules read `args` where they
+  needed them (`MovementRule`, `JoinRules.hello`, the lobby's settings), and
   `MatchCommand.get_bool` returns its default for a missing key, so a wire `jumps` against a rule that reads `jumped`
-  would silently mean "never jumped". 3e therefore adds `Intents.FIELDS` (intent → field → Variant type), which the
-  rules read through, and 3d's test compares the table with it. 3d depends on 3e's commit that adds `FIELDS`, `jumps`
-  and `content`.
+  would silently mean "never jumped". 3e (#97) therefore added `Intents.FIELDS` (intent → field → Variant type), which
+  the rules read through (a read of an undeclared field is a match error, §4.1), and 3d's test compares the table with
+  it.
 - **Encoding** writes each field with `PackedByteArray.encode_*` into a buffer sized from the fields (or
   `StreamPeerBuffer.put_*`, little-endian unless `big_endian` is set). Never `var_to_bytes` or `bytes_to_var`, even
   without objects: their framing is as large as an Opus frame, they take any Variant type where a field expects one,
