@@ -50,11 +50,15 @@ static func held_by(state: MatchState, peer: int) -> ItemState:
 ## `item`, lying on the ground, goes into `peer`'s hand. A held item is swapped: it comes to rest
 ## where the picked-up one lay, a spot already known to be valid (§7.1). Emits ItemPickedUp, then
 ## for a swap ItemPlaced (swap) and item_rested. The rule's conditions checked the ground, the
-## reach and the sight; an item that is not on the ground here is a rule error.
+## reach and the sight; an item that is not on the ground here is a rule error, and the sender
+## of the intent gets `unavailable`.
 static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 	var player := ctx.state.player(peer)
 	if player == null or item == null or item.where != ItemState.Where.GROUND:
 		ctx.error("take: item %s is not on the ground for player %d" % [_id(item), peer])
+		# The sender still gets an answer to its PickUp, as if ItemOnGround had rejected it.
+		if ctx.command != null:
+			ctx.reject(ctx.command, ItemOnGround.UNAVAILABLE)
 		return
 	var swapped := held_by(ctx.state, peer)
 	var spot := item.position
