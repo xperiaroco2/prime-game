@@ -177,6 +177,11 @@ func check(mode: GameMode) -> PackedStringArray:
 		)
 	if circle == null:
 		found.append("Delivery %s has no circle station kind" % id)
+	elif package != null and circle.spawn_tag == package.spawn_tag:
+		# One tag would let packages spawn on circle markers, delivered before anyone moves.
+		found.append(
+			"Delivery %s: circle and package share spawn tag %s" % [id, circle.spawn_tag]
+		)
 	if subtasks_setting.is_empty():
 		found.append("Delivery %s has no subtasks_setting" % id)
 	if circles_rng.is_empty() or packages_rng.is_empty() or tasks_rng.is_empty():
