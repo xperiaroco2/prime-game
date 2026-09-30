@@ -1,5 +1,6 @@
 extends GdUnitTestSuite
-## MatchState: reset_match (ResetMatch, 2b) and part_state (ARCHITECTURE §3.1, §3.5, §9.1).
+## MatchState: reset_match (ResetMatch, 2b), the join count and part_state (ARCHITECTURE §3.1,
+## §3.5, §9.1).
 
 const P1 := 1
 const P2 := 2
@@ -45,6 +46,15 @@ func test_reset_match_clears_the_match_and_drops_who_left() -> void:
 	assert_int(state.add_item(ItemKind.new(), Vector3.ZERO).id).is_equal(1)
 	assert_int(state.add_task(P1, FixtureTaskType.new()).id).is_equal(1)
 	assert_int(state.add_station(StationKind.new(), Vector3.ZERO, Color.RED).id).is_equal(1)
+
+
+func test_the_join_count_names_joiners_and_survives_reset_match() -> void:
+	var state := _played_state()
+	assert_str(state.name_next_joiner()).is_equal("Player1")
+	assert_str(state.name_next_joiner()).is_equal("Player2")
+	state.reset_match()
+	assert_int(state.joins).is_equal(2)
+	assert_str(state.name_next_joiner()).is_equal("Player3")
 
 
 func test_part_state_is_made_once_per_key() -> void:
