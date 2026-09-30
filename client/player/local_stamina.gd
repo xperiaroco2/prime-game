@@ -1,7 +1,8 @@
 class_name LocalStamina
 extends StaminaSource
-## STAND-IN, to be replaced by `core/`'s stamina (stage 2d in #30); keep no other copy of these
-## rules. It follows ARCHITECTURE §7.1 and Q7 of the MVP rules ADR:
+## STAND-IN until the client follows `core/`'s `SelfStatus` (M3); keep no other copy of these
+## rules. It predicts with the rule of `core/`'s `StaminaLedger` (stage 2d, #60), ARCHITECTURE
+## §7.1 and Q7 of the MVP rules ADR:
 ## - Walking always works.
 ## - The sprint state starts when sprint is held and stamina is at least
 ##   `sprint_start_stamina`, and lasts while it is held and stamina is above 0.
