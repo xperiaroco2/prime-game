@@ -341,7 +341,7 @@ is entitled to (§5).
 
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
-| `Hello(name, version)` | a connected peer that is not yet a player, once; Lobby or Countdown | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; room in the roster, or `full` and `DisconnectPeer`. The name is ignored in the MVP: the host names the joiner `Player<n>` (§3.5; own names: #73). Accepted, it is the join (§3.5) |
+| `Hello(name, version)` | a connected peer that is not yet a player, once; Lobby or Countdown | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; room in the roster, or `full` and `DisconnectPeer`. The name is ignored in the MVP: the host names the joiner `Player<n>` (§3.5; own names: #73). Accepted, it is the join (§3.5). On the wire (M3, 3e) `Hello` carries `content`, the content hash, and another one gets `wrong_content` and `DisconnectPeer` (§4.3, E1); no name until #73 |
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
@@ -433,7 +433,7 @@ new phase does not accept `MoveClaim` (§3.1).
 
 | Kind | Intent | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|
-| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the game mode's content hash, E1) | 10; 64 |
+| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the content hash, E1) | 10; 8192 |
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
 | 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then) | 20 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
@@ -486,11 +486,14 @@ directive has no row, because it reaches no peer.
 
 The rules of the table:
 - **Kinds.** 0 is the transport's `ADMIT`; 1 to 31 are intents, 32 to 95 events, 96 to 111 state, 112 to 127 voice.
-- **Frozen:** kind 1 with `version: u16` as its first two bytes, and kind 32 (`Rejected`) with its fields, never
-  change. A client of any version can then send its version and read `Rejected(wrong_version)` (§3.5), instead of
-  timing out on a host that drops its packets as malformed. The host decodes `Hello` in two steps: the version, and the
-  rest only when the version is its own; another version reaches `core/` as `{version}` alone, and the cap of 64
-  leaves room for another version's longer `Hello`.
+- **Frozen:** two whole rows never change. Kind 1 (`Hello`): C→H, RELIABLE, `version: u16` as its first two bytes,
+  and its cap at `NetKindTable.MAX_PAYLOAD` (8192), which never shrinks. Kind 32 (`Rejected`): H→C, RELIABLE,
+  `seq: u32` then `reason: id`, cap 37. A client of any version can then send its version and read
+  `Rejected(wrong_version)` (§3.5), instead of timing out at the hello deadline on a host that drops its packets as
+  malformed or over the cap. The host decodes `Hello` in two steps: the version, and the rest only when the version is
+  its own; another version reaches `core/` as `{version}` alone and the rest of its payload is ignored, whatever its
+  length (#73's name makes a later `Hello` longer than this one). 3d's version test pins both rows byte for byte and
+  decodes a synthetic longer `Hello` of another version to `{version}`.
 - **The version.** `JoinRules.PROTOCOL_VERSION` (`core/`) and the codec's version are one number, which a unit test
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
 - **The content** (E1). `Hello.content` is the game mode's content hash (`ContentHash.of`, §3.3), which `JoinRules`

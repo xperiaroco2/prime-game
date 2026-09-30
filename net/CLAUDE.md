@@ -47,8 +47,10 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   message at the first problem (a type rule, a count, a key order, unknown flag bits, trailing bytes), and count it.
 - The encoder checks its input by the same rules and refuses, with an error, what the decoder would reject or what
   exceeds the cap; it never truncates.
-- Kind 1 (`Hello`, its version first) and kind 32 (`Rejected`) never change. Any other change to a row bumps the
-  protocol version, which equals `core/`'s `JoinRules.PROTOCOL_VERSION` (a test pins them).
+- Rows 1 (`Hello`: C→H, RELIABLE, its version first, cap 8192) and 32 (`Rejected`: H→C, RELIABLE, cap 37) never
+  change, cap and lane included. A `Hello` of another version decodes to its version alone, whatever its length. Any
+  other change to a row bumps the protocol version, which equals `core/`'s `JoinRules.PROTOCOL_VERSION` (a test pins
+  them).
 - A kind sent only on change (`SelfStatus`) is RELIABLE: on LATEST a lost last change stays stale for good.
 
 ## Tests
