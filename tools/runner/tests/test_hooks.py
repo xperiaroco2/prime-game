@@ -188,6 +188,26 @@ class GitFilesTest(unittest.TestCase):
             self.assertTrue({"main", "core/7-x"} <= files.refs())
             self.assertIsNone(files.branch(guard.normalize(str(main / ".claude" / "worktrees" / "9"))))
 
+    def test_the_github_repository_comes_from_the_origin_remote(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:
+            main = Path(tmp) / "game"
+            main.mkdir()
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=main, check=True, capture_output=True)
+            worktree = main / ".claude" / "worktrees" / "7"
+            self.assertIsNone(hooks.GitFiles(str(worktree)).github_repo())
+            for url, expected in (
+                ("git@github.com:Owner/Game.git", "owner/game"),
+                ("https://github.com/owner/game.git", "owner/game"),
+                ("ssh://git@github.com/owner/game", "owner/game"),
+                ("https://gitlab.com/owner/game.git", None),
+            ):
+                with self.subTest(url=url):
+                    subprocess.run(["git", "remote", "remove", "origin"], cwd=main, capture_output=True)
+                    upstream = ["git", "remote", "add", "upstream", "https://github.com/u/x"]
+                    subprocess.run(upstream, cwd=main, capture_output=True)
+                    subprocess.run(["git", "remote", "add", "origin", url], cwd=main, check=True, capture_output=True)
+                    self.assertEqual(hooks.GitFiles(str(worktree)).github_repo(), expected)
+
     def test_a_worktree_is_busy_while_another_live_session_works_there(self) -> None:
         with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:
             worktree = Path(tmp) / "game" / ".claude" / "worktrees" / "7"

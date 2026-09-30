@@ -49,6 +49,14 @@ them (the stash is shared by every checkout). An interactive rebase, `rebase --u
 core.hooksPath=...` always ask. Branch, ref and stash names come from a repository reader (hooks.GitFiles); without
 one no branch is the session's own.
 
+gh reads of other repositories run without a prompt (issue #68), so no text rule asks for `gh -R|--repo`. The guard
+asks instead when a gh command names a repository other than this project's (`origin`, read by hooks.GitFiles) and
+is not a read (GH_READS, `gh api` GET): through `-R|--repo`, `GH_REPO`, a github.com URL argument,
+`gh repo <sub> owner/name`, `gh issue transfer`'s destination or a `gh api repos/owner/name/...` endpoint with a
+write method (`-X`, or fields that make it a POST). The values of text options (`--body`, `--title`, `-f`) never
+name the repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a gh command run in
+a clone of another repository without naming it.
+
 Like those Edit rules, it protects the project's own paths: `addons/` and `.claude/settings*.json` at the top of the
 main checkout or of a worktree. It resolves each target against the session's working directory, `cd`, and the
 variables the same command assigns; `$TEMP`, `$env:TEMP`, `~` and similar are outside the project. A target it
@@ -235,6 +243,48 @@ REBASE_VALUED = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", 
 REBASE_STEPS = {"--continue", "--skip", "--abort", "--quit", "--show-current-patch"}
 STASH_REF_RE = re.compile(r"^(?:stash@\{(\d+)\}|(\d+))$", re.IGNORECASE)
 
+# gh aimed at another repository (issue #68). The finding area of a gh command that may write there.
+GH = "gh"
+# gh commands that only read: they pass whatever repository they name. Any other gh command that names a repository
+# other than this project's asks. None: every subcommand of the group reads.
+GH_READS: dict[str, set[str] | None] = {
+    "issue": {"view", "list", "ls", "status"},
+    "pr": {"view", "list", "ls", "diff", "checks", "status"},
+    "release": {"view", "list", "ls", "verify", "verify-asset"},
+    "repo": {"view", "list", "ls", "clone"},
+    "run": {"view", "list", "ls", "watch"},
+    "workflow": {"view", "list", "ls"},
+    "label": {"list", "ls"},
+    "cache": {"list", "ls"},
+    "ruleset": {"view", "list", "ls", "check"},
+    "rs": {"view", "list", "ls", "check"},
+    "search": None,
+}
+# gh api methods that only read.
+GH_READ_METHODS = {"GET", "HEAD"}
+# gh options whose value is text, never a repository the command acts on (`--body "see https://github.com/x/y"`).
+GH_TEXT_OPTIONS = {
+    "-b", "--body", "-t", "--title", "-n", "--notes", "-m", "--message", "-d", "--description", "-h", "--homepage",
+    "-q", "--jq", "-T", "--template", "--json", "-S", "--search", "-f", "--raw-field", "-F", "--field",
+    "--body-file", "--notes-file", "-H", "--header", "--input", "-p", "--preview",
+}  # fmt: skip
+# gh api options that take a separate value (the endpoint is the first other argument).
+GH_API_VALUED = GH_TEXT_OPTIONS | {"-X", "--method", "--hostname", "--cache", "-R", "--repo"}
+# gh api options that add fields: without -X the request is then a POST.
+GH_API_FIELDS = {"-f", "--raw-field", "-F", "--field", "--input"}
+# A github.com web URL of a repository (`https://github.com/godotengine/godot/issues/1`) or an API URL of one.
+GH_URL_RE = re.compile(
+    r"^(?:https?://)?(?:www\.)?github\.com/([^/\s]+)/([^/\s#?]+)"
+    r"|^(?:https?://)?api\.github\.com/repos/([^/\s]+)/([^/\s#?]+)",
+    re.IGNORECASE,
+)
+# A repository argument: `owner/name`, `github.com/owner/name` or `HOST/owner/name` (another host is another repo).
+GH_REPO_RE = re.compile(r"^(?:([\w.-]+\.[a-z]+)/)?([\w.-]+)/([\w.-]+?)(?:\.git)?/?$", re.IGNORECASE)
+# A gh api endpoint of one repository: `repos/owner/name/...`; `{owner}/{repo}` is the current repository.
+GH_API_REPO_RE = re.compile(r"^/?repos/([^/\s]+)/([^/\s?]+)", re.IGNORECASE)
+# The variable that names the repository gh acts on when a command names none (else the working directory's).
+GH_REPO_ENV = "gh_repo"
+
 
 class NoRepo:
     """What the guard knows about the repository when the hook cannot read it (and in most tests): nothing. A branch
@@ -255,6 +305,11 @@ class NoRepo:
     def busy(self, checkout: str) -> bool:
         """Another live Claude session works in checkout (a normalized worktree path)."""
         return False
+
+    def github_repo(self) -> str | None:
+        """This project's GitHub repository as `owner/name` (lower-case), from the `origin` remote; None when
+        unknown, and then every repository a `gh` command names counts as another one."""
+        return None
 
 # `$(git rev-parse --show-toplevel)`: the checkout that contains the working directory.
 TOPLEVEL_SUB_RE = re.compile(r"\$\(\s*git\s+rev-parse\s+--show-toplevel\s*\)", re.IGNORECASE)
@@ -987,20 +1042,15 @@ def _verb(word: str) -> str:
     return re.sub(r"\.(exe|cmd|bat|com)$", "", name)
 
 
-def _leading_assignments(words: list[str]) -> list[str]:
-    """The `VAR=value` words before a command (its environment for that one command)."""
-    count = 0
-    while count < len(words) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[count]):
-        count += 1
-    return words[:count] if count < len(words) else []
-
-
-def _command_words(words: list[str]) -> tuple[list[str], bool]:
+def _command_words(words: list[str], assignments: list[str] | None = None) -> tuple[list[str], bool]:
     """Words from the real command on (leading VAR=value assignments and prefixes such as sudo, xargs or `then`
-    removed), and whether xargs feeds it."""
+    removed), and whether xargs feeds it. The skipped `VAR=value` words, including those after a prefix
+    (`env GH_REPO=o/r gh ...`), are the command's own environment: they go to `assignments` when it is given."""
     i, via_xargs = 0, False
     while i < len(words):
         if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", words[i]):
+            if assignments is not None:
+                assignments.append(words[i])
             i += 1
         elif _verb(words[i]) in PREFIXES:
             prefix = _verb(words[i])
@@ -1014,6 +1064,19 @@ def _command_words(words: list[str]) -> tuple[list[str], bool]:
         else:
             break
     return words[i:], via_xargs
+
+
+def gh_repo_name(spec: str) -> str | None:
+    """`owner/name` (lower-case) of a github.com repository as gh takes it: `owner/name`, `github.com/owner/name`,
+    or a URL of the repository or of something in it; None for another host or text that names no repository."""
+    url = GH_URL_RE.match(spec)
+    if url:
+        owner, name = url.group(1) or url.group(3), url.group(2) or url.group(4)
+        return f"{owner}/{name.removesuffix('.git')}".lower()
+    match = GH_REPO_RE.match(spec)
+    if match and (match.group(1) or "github.com").lower() in ("github.com", "www.github.com"):
+        return f"{match.group(2)}/{match.group(3)}".lower()
+    return None
 
 
 def _option_values(args: list[str], names: set[str]) -> list[str]:
@@ -1171,10 +1234,11 @@ class Analysis:
             if words:
                 rest = self.paths.assign(words)
                 words = words if rest is None else rest
-            self.prefix_env = {
-                m.group(1).lower(): m.group(2) for m in map(ASSIGN_RE.match, _leading_assignments(words)) if m
-            }
-            words, via_xargs = _command_words(words)
+            assignments: list[str] = []
+            words, via_xargs = _command_words(words, assignments)
+            self.prefix_env = (
+                {m.group(1).lower(): m.group(2) for m in map(ASSIGN_RE.match, assignments) if m} if words else {}
+            )
             if words:
                 self.piped_first = piped_first  # set here: the `$(...)` analysed above had their own
                 self.simple(segment, words, via_xargs, mentioned, piped_words, depth)
@@ -1200,6 +1264,8 @@ class Analysis:
         else:
             for path in self.targets(verb, args, depth):
                 self.add(path, words[0])
+        if verb == "gh":
+            self.gh(args)
         if verb in DELETE_VERBS:
             first = self.piped_first.get(segment.pipeline) if segment.after_pipe else None
             recursive = _recursive(verb, args, self.paths.shell) or _recursive_listing(first, self.paths.shell)
@@ -1550,6 +1616,110 @@ class Analysis:
         elif refs and refs[0].upper() == "HEAD":
             self.git_discards(shown, place, base)
 
+    # --- gh: reads of other repositories pass, anything else there asks (issue #68) -----------------------------------
+
+    def gh(self, args: list[str]) -> None:
+        """A gh command that names a repository other than this project's asks, unless it only reads (GH_READS,
+        `gh api` GET or HEAD). The repository comes from `-R|--repo`, `GH_REPO`, a github.com URL argument,
+        `gh repo <sub> owner/name`, the destination of `gh issue transfer`, or a `gh api repos/owner/name/...`
+        endpoint. A command that names no repository acts on this project's and is left to the rules."""
+        group = args[0].lower() if args else ""
+        # The subcommand is the first word after the group that is no option: `-R` is a persistent flag of the
+        # group, so `gh issue -R o/r view 1` is a read too.
+        sub, rest, i = "", args[1:], 1
+        while i < len(args):
+            if args[i] in ("-R", "--repo"):
+                i += 2
+            elif args[i].startswith("-"):
+                i += 1
+            else:
+                sub, rest = args[i].lower(), args[1:i] + args[i + 1 :]
+                break
+        if group == "api":
+            method, targets = self.gh_api(args[1:])
+            if method in GH_READ_METHODS:
+                return
+        else:
+            reads = GH_READS.get(group, set())
+            if group in GH_READS and (reads is None or sub in reads):
+                return
+            targets = self.gh_targets(group, sub, rest)
+        env = self.gh_env()
+        if env is not None:
+            targets.append(env)
+        own = self.repo.github_repo()
+        others = [t for t in targets if own is None or gh_repo_name(t) != own]
+        if others:
+            self.findings.append(Finding(" ".join(["gh", *args])[:100], GH, others[0]))
+
+    def gh_targets(self, group: str, sub: str, rest: list[str]) -> list[str]:
+        """The repositories a gh command other than `gh api` names."""
+        targets, positionals, i = [], [], 0
+        while i < len(rest):
+            arg = rest[i]
+            name, eq, value = arg.partition("=") if arg.startswith("--") else (arg, "", "")
+            if name in ("-R", "--repo"):
+                if eq:
+                    targets.append(value)
+                elif i + 1 < len(rest):
+                    targets.append(rest[i + 1])
+                    i += 1
+            elif arg.startswith("-R") and not arg.startswith("--"):
+                targets.append(arg[2:])  # `-Rowner/name`
+            elif name in GH_TEXT_OPTIONS:
+                # An option is never the value of another one: `gh pr create -d -R x/y` (-d is --draft there).
+                if not eq and i + 1 < len(rest) and not rest[i + 1].startswith("-"):
+                    i += 1
+            elif not arg.startswith("-"):
+                positionals.append(arg)
+            i += 1
+        targets += [p for p in positionals if GH_URL_RE.match(p)]
+        if group == "repo":
+            targets += [p for p in positionals if not GH_URL_RE.match(p) and GH_REPO_RE.match(p)]
+        if (group, sub) == ("issue", "transfer") and len(positionals) > 1:
+            targets.append(positionals[1])
+        return targets
+
+    def gh_api(self, rest: list[str]) -> tuple[str, list[str]]:
+        """The method of a `gh api` request (GET unless -X names another, POST when fields are added) and the
+        repositories it names."""
+        method, fields, endpoint, targets, i = "", False, None, [], 0
+        while i < len(rest):
+            arg = rest[i]
+            name, eq, value = arg.partition("=") if arg.startswith("--") else (arg, "", "")
+            if name in GH_API_VALUED:
+                given = value if eq else (rest[i + 1] if i + 1 < len(rest) else "")
+                i += 0 if eq else 1
+                if name in ("-X", "--method"):
+                    method = given
+                elif name in ("-R", "--repo"):
+                    targets.append(given)
+                fields = fields or name in GH_API_FIELDS
+            elif re.match(r"^-X=?\w", arg):
+                method = arg[2:].removeprefix("=")  # `-XPOST`, `-X=POST`
+            elif re.match(r"^-[fF].", arg):
+                fields = True  # `-fbody=x`, `-F=title=x`
+            elif not arg.startswith("-") and endpoint is None:
+                endpoint = arg
+            i += 1
+        if endpoint and "{owner}" not in endpoint and ":owner" not in endpoint:
+            api = GH_API_REPO_RE.match(endpoint)
+            if api:
+                targets.append(f"{api.group(1)}/{api.group(2)}")
+            elif GH_URL_RE.match(endpoint):
+                targets.append(endpoint)
+        return (method or ("POST" if fields else "GET")).upper(), targets
+
+    def gh_env(self) -> str | None:
+        """GH_REPO as the command sets it (a `VAR=value` prefix, or `export` / `$env:` earlier in the command); a
+        value the guard cannot compute is kept as text that names no repository, so it counts as another one."""
+        if GH_REPO_ENV in self.prefix_env:
+            return self.prefix_env[GH_REPO_ENV]
+        if GH_REPO_ENV in self.paths.vars:
+            value = self.paths.vars[GH_REPO_ENV]
+            return value if value is not None else "(computed)"
+        return None
+
     def targets(self, verb: str, args: list[str], depth: int) -> list[str]:
         """The paths a command writes, as far as its text shows."""
         if verb in COPY_VERBS:
@@ -1639,9 +1809,10 @@ def check(command: str, shell: str, cwd: str, root: str, home: str = "", repo: N
 
 def reason(findings: list[Finding]) -> str:
     """The text shown in the permission prompt."""
-    writes = [f for f in findings if f.area not in (DELETE, GIT)]
+    writes = [f for f in findings if f.area not in (DELETE, GIT, GH)]
     deletes = sorted({f"{f.verb} -> {f.path}" for f in findings if f.area == DELETE})
     gits = sorted({f"{f.path} ({f.verb})" for f in findings if f.area == GIT})
+    ghs = sorted({f"{f.path} (repository {f.verb})" for f in findings if f.area == GH})
     parts = []
     if writes:
         shown = sorted({f"{f.verb} -> {f.path}" for f in writes})
@@ -1654,4 +1825,8 @@ def reason(findings: list[Finding]) -> str:
         parts.append(f"Recursive delete in the project: {'; '.join(deletes[:5])} (outside this session's own worktree).")
     if gits:
         parts.append(f"git that discards work or rewrites history: {'; '.join(gits[:3])}.")
+    if ghs:
+        parts.append(
+            f"gh that may write to another repository: {'; '.join(ghs[:3])}. Reads of other repositories pass."
+        )
     return " ".join(parts) + " (docs/AGENT_WORKFLOW.md §8.2)"

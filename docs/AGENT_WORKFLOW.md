@@ -199,9 +199,14 @@ Rules for every workflow run:
 **Goal: an agent can work alone overnight** (read status, branch, commit, push its task branch, open PRs and issues,
 edit tooling, clean up its scratchpad and `tests/scratch/`) and stops only for the rare items below
 ([ADR](decisions/2026-09-28-unattended-work-permissions.md)). **Test for a new ask or deny rule:** "can an agent work
-alone overnight?" Replay the latest unattended run's transcripts against the new rule; a rule that would have stopped
-routine work is judged by its target in the guard (§8.2) instead of by its text
-([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). **Inside its own worktree and
+alone overnight?" Replay the latest unattended run's transcripts against the new rule
+(`tools\run.cmd permissions --before origin/main` replays every local transcript through the rules and the guard of
+`origin/main` and of the checkout, in bypass mode); a rule that would have stopped routine work is judged by its
+target in the guard (§8.2) instead of by its text
+([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). `runner.permissions` models
+Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow), and its selftests
+(`tests/test_permissions.py`) check the lists with the guard: reads of other repositories pass in every mode, writes
+there ask, and every `Bash(...)` rule has its `PowerShell(...)` twin. **Inside its own worktree and
 task branch an agent has full freedom**: every git operation and every delete there runs without a prompt, and it
 stops only for design and other human-reserved decisions and for what reaches beyond them
 ([intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)).
@@ -209,16 +214,20 @@ stops only for design and other human-reserved decisions and for what reaches be
   prompt (the designer's `acceptEdits`).
 - **Allow:** the runner; `git fetch origin`, `add`, `commit`, `log`, `switch`, `branch`, `stash` (push/list/pop),
   `git push [-u] origin <branch>`; `gh` issue and PR create/view/list/comment/edit/close/ready, run
-  list/view/watch/rerun, workflow list/view, `label`, `project`, `ruleset`, `repo view`, `api` (GET and POST);
-  WebFetch to Godot, Claude Code, GitHub and git docs.
+  list/view/watch/rerun, workflow list/view, `label`, `project`, `ruleset`, `release view|list`, `search`, `repo view`,
+  `api` (GET and POST); WebFetch to Godot, Claude Code, GitHub and git docs. These rules also cover **reads of other
+  repositories** (`gh issue view 1 -R godotengine/godot`, `gh release list --repo x/y`, `gh search issues --repo x/y`,
+  `gh api repos/x/y/...` GET): no text rule asks for `-R|--repo` since #68.
 - **Ask (the agent's stop points):** edits to `.claude/settings*.json` (its own permissions) and `addons/`
-  (dependencies); `gh` with `-R/--repo`; `gh api` PUT/PATCH/DELETE; deleting issues, labels, projects or the last
-  comment; `gh pr review`; `gh workflow run|enable|disable`; `gh release`, `secret`, `variable`;
-  `gh repo edit|rename|archive|deploy-key`. Work-discarding or history-rewriting git (`reset`, `checkout`,
-  `switch -f|--discard-changes`, `restore`, `clean`, `rebase`, `stash drop|clear`, `branch -d|-D`, `worktree`,
-  `git -c`) and recursive deletes have no text rule since #51 (and #47 for `rm -r` and `git reset`): the guard asks
-  by where they act (§8.2), so they are free in the agent's own worktree and on its task branch, and ask in the main
-  checkout, in another worktree and on another branch.
+  (dependencies); `gh api` PUT/PATCH/DELETE; deleting issues, labels, projects or the last comment; `gh pr review`;
+  `gh workflow run|enable|disable`; `gh release create|edit|delete|upload|download`, `secret`, `variable`;
+  `gh repo edit|rename|archive|deploy-key`. A `gh` command that may write to **another repository** (comment, create,
+  edit, close, `api` with a write method or fields) has no text rule since #68: ask beats allow, so a rule on `-R` also
+  stopped every read. The guard asks for it (§8.2). Work-discarding or history-rewriting git (`reset`, `checkout`,
+  `switch -f|--discard-changes`, `restore`, `clean`, `rebase`, `stash drop|clear`, `branch -d|-D`, `worktree`, `git -c`)
+  and recursive deletes have no text rule since #51 (and #47 for `rm -r` and `git reset`): the guard asks by where they
+  act (§8.2), so they are free in the agent's own worktree and on its task branch, and ask in the main checkout, in
+  another worktree and on another branch.
 - **Deny:** force pushes; pushes to `main` in any spelling, including a bare `git push`, `git push [-u] origin` with
   no branch and any push naming `HEAD` (always push an explicit branch name); `--no-verify`, remote deletes,
   `--prune`, `--mirror`, `--all`, `git config` on `hooksPath` or `--unset`, `--upload-pack`,
@@ -235,18 +244,20 @@ Hooks live in `.claude/settings.json` and run in Git Bash through `.claude/hooks
 a crash, or any exit code other than 0 and 2 becomes exit 2, which blocks the call. A hook that cannot start, or
 that times out, fails open: `doctor` is red when Git Bash is missing.
 
-The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It only asks before **shell commands
-that write to the ask-protected paths** of this project (top-level `.claude/settings*.json` and `addons/`, of the
-main checkout or a worktree): `Copy-Item`, `Move-Item`, `Set-Content`, `Out-File`, `>`, `tee`, `cp`, `mv`, `rm`,
-`sed -i`, archive extraction, downloads, `git checkout|restore|rm|mv|clean|stash` naming those paths, paths fed by a
+The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It asks before three kinds of shell
+command: those that lose work outside the session's own worktree and task branch, `gh` commands that may write to
+another repository (both below), and **shell commands that write to the ask-protected paths** of this project
+(top-level `.claude/settings*.json` and `addons/`, of the main checkout or a worktree): `Copy-Item`, `Move-Item`,
+`Set-Content`, `Out-File`, `>`, `tee`, `cp`, `mv`, `rm`, `sed -i`, archive extraction, downloads, `git checkout|restore|rm|mv|clean|stash` naming those paths, paths fed by a
 pipeline (`Get-ChildItem addons | Remove-Item`, `| xargs rm`), `for` loops over them, `bash -c`, `powershell -Command`
 and `$(...)` bodies, and the inline code of interpreters and .NET calls (`python -c`, a heredoc fed to Python,
 `node -e`, `[IO.File]::WriteAllText`). Text rules cannot see these writes: Claude Code checks a redirect or `tee`
 target against Edit allow and deny rules, not ask rules. The file tools need no guard, because `Edit(...)` rules
 cover Edit, Write and NotebookEdit.
 
-It also judges commands that lose work by where they act, where a text rule would stop an unattended agent for
-its own scratch folder (issue #47) or its own worktree (issue #51):
+It also judges two kinds of command by what they act on, where a text rule would stop an unattended agent: commands
+that lose work, by where they act (its own scratch folder, issue #47, or its own worktree, issue #51), and `gh`
+commands, by the repository they name (issue #68, a read of another repository must not stop it):
 - **The session's own worktree and task branch are free** (issue #51,
   [intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)). The own worktree is the
   `.claude/worktrees/<n>` that the session's working directory is in; a session whose shell starts in the main
@@ -312,6 +323,19 @@ its own scratch folder (issue #47) or its own worktree (issue #51):
   (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other branches),
   `rebase -x|--exec` (runs commands the guard cannot judge), `update-ref --stdin` and
   `git -c core.hooksPath=...` (the deny rule on `git config *hooksPath*` cannot see it).
+- **`gh` aimed at another repository** (issue #68) asks unless it only reads. The repository is the value of `-R|--repo`
+  (`-Rx/y`, `--repo=x/y`), `GH_REPO` (a prefix, `export` or `$env:`), a github.com URL argument
+  (`gh issue comment https://github.com/x/y/issues/1`), `gh repo <sub> x/y`, the destination of `gh issue transfer`, or
+  a `gh api repos/x/y/...` endpoint; `{owner}/{repo}` and this project's own `origin` (read from `.git/config` by
+  `hooks.GitFiles`, any spelling) are not another repository. Reads: `issue view|list|status`,
+  `pr view|list|diff|checks|status`, `release view|list|verify|verify-asset`, `repo view|list|clone`,
+  `run view|list|watch`, `workflow view|list`, `label list`, `cache list`, `ruleset view|list|check`, every `gh search`,
+  and `gh api` GET or HEAD (`-X GET|HEAD`, or no `-X` and no `-f`, `-F` or `--input` field: fields without `-X`
+  make it a POST). Everything else there asks, `gh issue create --repo godotengine/godot` included. The values of text options (`--body`, `--title`, `-f`,
+  `--jq`) never name the repository, and an option is never taken as the value of another one
+  (`gh pr create -d -R x/y`). A value it cannot compute (`$env:GH_REPO = (Get-Content f)`, `-R "$R"`) counts as another
+  repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a `gh` command run in a clone
+  of another repository without naming it.
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
   `git -C D:/prime-game clean -fdx` ask there.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
@@ -344,6 +368,15 @@ its own scratch folder (issue #47) or its own worktree (issue #51):
   `addons/` and `.claude/` from the live test of stage 4, and one `Remove-Item -Recurse` of worktree 46's
   `tests/integration/tmp` by absolute path from a session in the main checkout (without a `cd` it owns no worktree).
   Over every `D--prime-game*` folder (128 transcripts, 3,847 calls): 125 prompts before, 80 after.
+- Reads of other repositories (#68), replayed on 2026-09-30 with `tools\run.cmd permissions` (bypass mode,
+  `origin/main` against the branch) over every Bash and PowerShell call in `~/.claude/projects/D--prime-game*`
+  (224 transcripts, 6,591 calls): 95 prompts before (79 ask rules, 16 guard), 18 after (0 ask rules, 18 guard), 22
+  denied in both, no crash, and no call that was silent before asks now. The 77 prompts gone are `gh ... -R|--repo`
+  reads (issues, PRs, releases, search, `api` GET of Godot, GdUnit4, gdtoolkit, TwoVoIP, Claude Code and other
+  upstreams), four reads of this repository with `-R|--repo`, and calls where a text rule matched other text (an
+  issue comment on this repository whose body held `-R`, `gh release --help`). Two calls still ask, now through the
+  guard: `gh issue create --repo godotengine/godot` (an upstream bug report) and a `gh issue create -R` probe of a
+  missing repository. The other 16 guard prompts are unchanged (§8.2 above).
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
