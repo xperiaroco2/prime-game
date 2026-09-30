@@ -12,9 +12,9 @@ extends Node3D
 
 
 func _physics_process(_delta: float) -> void:
-	var state := (
-		"ghost" if _player.ghost else ("sprinting" if _player.is_sprinting() else "walking")
-	)
+	var state := "sprinting" if _player.is_sprinting() else "walking"
+	if _player.ghost:
+		state = "ghost " + state
 	_overlay.text = (
 		"stamina %.0f  |  %s  |  %s\nF1 ghost  F2 respawn  click: capture mouse  Esc: release"
 		% [_player.stamina.get_stamina(), state, _position_text()]
