@@ -18,7 +18,8 @@ export const meta = {
 //   coord    what runs in parallel and which shared files to touch minimally
 //   decisions the engineer's standing decisions that apply, each with where it is recorded
 //   reading  what to read first (default: the issue's links, handoffs, ADRs and area CLAUDE.md files)
-//   testing  the test expectations (default: unit tests through a seeded Match; code tasks only)
+//   testing  the test expectations (default by the branch's area: core/ a seeded Match; net/ and server/ the
+//            loopback transport plus the ENet runs; tooling the runner selftest; code tasks only)
 //   design   true: a docs-only design task (options for the engineer, a proposed issue split, the netcode reviewer)
 //   effort   the implementer's effort: default 'high', 'xhigh' for a design task
 //   plan     the plan issue whose body no agent edits (default 30)
@@ -109,12 +110,23 @@ const PUB = {
   required: ['published', 'handoff_posted'],
 }
 
+// The default test expectations follow the task branch's area (`<area>/<n>-<slug>`, from `start`); args.testing
+// overrides them.
+const AREA = String(A.branch).split('/')[0]
+const TESTING = {
+  core: 'Unit tests in tests/unit/ mirroring core/, each rule driven by commands through a seeded Match and asserted on the events and on view_of; a part\'s unit test never loads content/ or levels/ (ARCHITECTURE §9.6).',
+  net: 'GdUnit4 tests under tests/unit/net/ (and tests/unit/server/ for the host session) over the loopback transport (net/transport/loopback_hub.gd), asserting what each peer receives; the ENet runs in verify (tests/integration/net/) still pass, and a new ENet scenario joins them when the issue asks for one.',
+  tooling: 'Runner tests in tools/runner/tests/ (run by `selftest`, part of verify) for every new command, rule or behaviour change.',
+}
+TESTING.server = TESTING.net
+const TESTS = A.testing || `${TESTING[AREA] || 'Tests under tests/unit/ or tests/integration/ mirroring the folders you change.'} Where you fix a guard, see its test fail without the code first.`
+
 const WORK = DESIGN
   ? [
     'This is a DESIGN task: documents only (docs/ARCHITECTURE.md, a new ADR in docs/decisions/, area CLAUDE.md files, as the issue asks). No code in core/, server/, net/, client/ or voice/. Tables where they fit; each choice names the failure it prevents; rejected alternatives go in the ADR. Verify each Godot API you name against tools/out/godot-api/4.7.2/extension_api.json. Decide nothing reserved for the engineer: each such choice is options with a recommendation, marked "Needs the engineer", and the design proceeds with the recommendation where it can be reverted.',
     'If the issue asks for a split into later issues, return it in proposed_issues (each: title, goal, acceptance criteria, depends on, files); do not open issues.',
   ].join('\n\n')
-  : `Plan, then implement every acceptance criterion. ${A.testing || 'Unit tests in tests/unit/ mirroring core/, each rule driven by commands through a seeded Match and asserted on the events and on view_of; a part\'s unit test never loads content/ or levels/ (ARCHITECTURE §9.6). Where you fix a guard, see its test fail without the code first.'} If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish \`git fetch\` and check whether it reached origin/${BASE}; if it did, rebase on it inside your worktree and use it.`
+  : `Plan, then implement every acceptance criterion. ${TESTS} If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish \`git fetch\` and check whether it reached origin/${BASE}; if it did, rebase on it inside your worktree and use it.`
 
 phase('Implement')
 const impl = await agent([
