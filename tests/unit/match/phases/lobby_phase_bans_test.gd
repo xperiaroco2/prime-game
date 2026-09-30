@@ -149,6 +149,26 @@ func test_the_bans_outlive_the_match() -> void:
 	var game := FixtureBanModes.started()
 	FixtureBaseMode.join(game, P1)
 	FixtureBanModes.change(game, {"banned_task_types": ["first"]})
-	# ResetMatch on End -> Lobby keeps the settings, the bans among them.
-	game.state.reset_match()
+	_play_to_the_round(game)
+	# The crew wins, and the host goes back: ResetMatch keeps the settings, the bans among them.
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	game.state.set_counter(0, &"crew_win", 0)
+	assert_str(game.phase_id()).is_equal("end")
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	assert_str(game.phase_id()).is_equal("lobby")
 	assert_array(Array(game.state.id_sets[BANNED])).is_equal(["first"])
+	# The next match's deal still leaves `first` out.
+	_play_to_the_round(game)
+	assert_int(game.state.tasks.size()).is_equal(1)
+	for id: int in game.state.tasks:
+		assert_str(game.state.tasks[id].type.id).is_equal("second")
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## P1 readies, the countdown runs out and P1 loads: the round.
+func _play_to_the_round(game: Match) -> void:
+	FixtureBaseMode.ready(game, P1)
+	FixtureModes.run_ticks(game, 101)
+	FixtureBaseMode.load_ack(game, P1)
+	assert_str(game.phase_id()).is_equal("round")
