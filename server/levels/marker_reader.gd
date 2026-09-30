@@ -140,7 +140,7 @@ static func _read_marker(
 	if tag.is_empty():
 		into.errors.append("%s is in the group %s, which names no tag" % [where, GROUP_PREFIX])
 		return
-	var position := _position_of(node as Node3D)
+	var position := _position_of(node as Node3D, root)
 	if floor_tags.has(tag):
 		var found := world.floor_below(position + Vector3.UP * FLOOR_PROBE_M)
 		if found == WorldQuery.NO_FLOOR:
@@ -152,12 +152,13 @@ static func _read_marker(
 	into.layout.add_marker(tag, position)
 
 
-## Where the scene puts `node`: its transform through its Node3D parents. Read outside the scene
-## tree, where Node3D.global_position is not available.
-static func _position_of(node: Node3D) -> Vector3:
+## Where the scene puts `node`: its transform through its Node3D parents up to `root`, the scene's
+## root (whose own transform counts), and never past a top_level node, whose transform is global.
+## Read outside the scene tree, where Node3D.global_position is not available.
+static func _position_of(node: Node3D, root: Node) -> Vector3:
 	var at := node.transform
-	var parent := node.get_parent()
-	while parent is Node3D:
-		at = (parent as Node3D).transform * at
-		parent = parent.get_parent()
+	var current := node
+	while not current.top_level and current != root and current.get_parent() is Node3D:
+		current = current.get_parent() as Node3D
+		at = current.transform * at
 	return at.origin

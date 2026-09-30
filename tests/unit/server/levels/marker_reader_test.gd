@@ -42,6 +42,25 @@ func test_a_rotated_parent_moves_its_markers() -> void:
 	assert_vector(at).is_equal_approx(Vector3(10, 0, -1), Vector3(1e-5, 1e-5, 1e-5))
 
 
+func test_a_top_level_node_and_the_nodes_above_the_root_do_not_move_markers() -> void:
+	var holder: Node3D = auto_free(Node3D.new())
+	holder.position = Vector3(50, 0, 0)
+	var root := Node3D.new()
+	root.position = Vector3(0, 0, 7)
+	holder.add_child(root)
+	var room := Node3D.new()
+	room.position = Vector3(100, 0, 0)
+	root.add_child(room)
+	var free_room := Node3D.new()
+	free_room.top_level = true
+	free_room.position = Vector3(3, 0, 3)
+	room.add_child(free_room)
+	_marker(free_room, "Free", &"spawn_knife", Vector3(1, 0, 0))
+	_marker(room, "Held", &"spawn_knife", Vector3(1, 0, 0))
+	var at := MarkerReader.read(root, LEVEL, FlatWorldQuery.new()).layout.positions(&"knife")
+	assert_array(Array(at)).is_equal([Vector3(4, 0, 3), Vector3(101, 0, 7)])
+
+
 func test_a_marker_in_two_spawn_groups_is_a_load_error() -> void:
 	var root := _root()
 	var both := _marker(root, "Both", &"spawn_package", Vector3(1, 0, 0))
