@@ -976,8 +976,8 @@ Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) built the phases Lobby, Countdown,
 Loading and End, the join rules, the fit check, the mode check with layouts and the `End, back → Lobby` row's
 `ResetMatch`. 2e (#61) added the Package, PickUp and PutDown, and Round's `PickUp` and `PutDown` from the living;
-`Use` joins Round's allowlist with the knife's rule in 2g, because the mode check refuses an accepted intent that no
-rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round. 2c (#59) added Crew, Dissident,
+2g (#63) added Round's `Use` from the living together with the knife's rule, because the mode check refuses an
+accepted intent that no rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round. 2c (#59) added Crew, Dissident,
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
@@ -1065,11 +1065,12 @@ kind, which any living player may hold (§9.2).
 Status: designed in #33; the item kind (id, name, spawn tag) and its `SpawnItems` in 2c (#59):
 `content/items/knife.tres`, tested by `tests/unit/deal/spawn_items_test.gd` and
 `tests/unit/content/content_modes_test.gd`; the parts built in 2g (#63): `Cooldown`, `Strike` (`core/combat/`) and
-the life rule (`core/life/`), with the knife's rule written out in a fixture. The rule in `knife.tres` and `Use` in
-Round's allowlist follow in 2g (provisional, for the engineer's approval).
-Tests: `tests/unit/combat/strike_test.gd` (the zone, sight, order, who learns what),
-`tests/unit/combat/cooldown_test.gd`, `tests/unit/life/life_rules_test.gd` (death, the ghost, widening, the §3.4
-order), `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
+the life rule (`core/life/`), and the rule in `knife.tres` with `Use` from the living in Round's allowlist
+(provisional under the MVP content ADR, for the engineer's approval).
+Tests: `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
+strike and a ghost's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order, who
+learns what), `tests/unit/combat/cooldown_test.gd`, `tests/unit/life/life_rules_test.gd` (death, the ghost,
+widening, the §3.4 order), `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
 
 #### Every task done (win condition)
 What it does: the crew's only win.
@@ -1117,7 +1118,8 @@ What it does: uses the held item, as its kind's rule says; in the MVP only the k
 Settings, Produces, Visible to: the knife's. A ghost's `Use` is `not_accepted` (Round accepts it from the living
 only); an empty hand, or a package, is `nothing_to_do`.
 Status: designed in #33; built in 2g (#63), as the knife's. Tests: the knife's; a ghost's `Use`:
-`tests/unit/life/life_rules_test.gd`; a package's: `tests/unit/items/items_test.gd`.
+`tests/unit/life/life_rules_test.gd`, `tests/unit/content/content_modes_test.gd` (the base mode),
+`tests/unit/content/item_intents_test.gd` (only the living, in every mode); a package's: `tests/unit/items/items_test.gd`.
 
 #### Sprint (not a part in v0)
 What it does: the `sprint` flag of `MoveClaim`, settled by the movement rule for every tick a claim covers (§7.1),
