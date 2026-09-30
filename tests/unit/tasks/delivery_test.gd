@@ -163,6 +163,7 @@ func test_the_cylinder_includes_its_edges_and_nothing_beyond() -> void:
 	var circle := StationState.new(1, delivery.circle, Vector3(4, 1, -3), Color.RED)
 	var inside: Array[Vector3] = [
 		Vector3(4, 1, -3),
+		Vector3(4, 0.9995, -3),
 		Vector3(5, 1, -3),
 		Vector3(4, 1, -2),
 		Vector3(4.6, 2, -2.3),

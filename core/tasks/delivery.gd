@@ -24,6 +24,11 @@ extends TaskType
 ## (everyone) on a delivery. Raises item_rested (spawn) in the deal and subtask_done on a
 ## delivery.
 
+## How far below its circle's floor a rest position still counts: float noise between a floor the
+## host's physics finds and a hand-placed marker, not a tolerance for a raised marker (§9.6).
+## A placeholder, not a decision.
+const FLOOR_SLACK_M := 0.001
+
 
 ## Delivery's task state (§9.1): per subtask, in order, its package, its circle and whether it is
 ## done. Only Delivery reads and writes it.
@@ -120,12 +125,16 @@ func on_fact(ctx: MatchContext) -> void:
 ## the one point core/ knows of an item: the centre of its base on the surface it rests on, as
 ## WorldQuery placed it (§7.1), not the centre of its mesh. Inside means within the radius
 ## horizontally, edge included, and from the circle's floor (the marker's height) up to floor +
-## height, both included: a package on a crate inside the circle counts, one on a floor below the
-## marker or above the cylinder does not.
+## height, both included, the floor with FLOOR_SLACK_M of float noise below it: a package on a
+## crate inside the circle counts, one on a floor below the marker or above the cylinder does not.
 func rests_in(at: Vector3, station: StationState) -> bool:
 	var flat := Vector2(at.x - station.position.x, at.z - station.position.z)
 	var rise := at.y - station.position.y
-	return flat.length() <= station.kind.radius_m and rise >= 0.0 and rise <= station.kind.height_m
+	return (
+		flat.length() <= station.kind.radius_m
+		and rise >= -FLOOR_SLACK_M
+		and rise <= station.kind.height_m
+	)
 
 
 ## As many `circle` and `package` markers as packages, and as many palette colours as circles:

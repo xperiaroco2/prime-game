@@ -647,7 +647,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   never counts, because it is not at rest. A circle is an invisible cylinder standing on the floor at its marker
   (the engineer's decision of 2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a
   placeholder). The package counts when its rest position is inside: within the radius horizontally, edge
-  included, and from the marker's height up to that plus the height, both included. The rest position is the one
+  included, and from the marker's height up to that plus the height, both included (1 mm below the marker
+  still counts: float noise between a physics floor and a hand-placed marker). The rest position is the one
   point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (or
   `server/` reports it, #37), not the centre of its mesh. So a package on a crate inside the circle counts, one on
   a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
