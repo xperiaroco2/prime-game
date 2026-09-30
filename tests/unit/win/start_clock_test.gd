@@ -65,6 +65,16 @@ func test_the_mode_check_needs_a_setting_of_at_least_one_minute() -> void:
 	mode.find_setting(&"match_duration").min_value = 0
 	var errors := "\n".join(ModeCheck.run(mode).errors)
 	assert_str(errors).contains("StartClock: setting match_duration goes down to 0 minutes")
+	# A set of ids would read as 0 minutes: a clock that never ends.
+	var a_set := FixtureWinModes.basic(2)
+	var set_clock := a_set.find_transition(&"lobby", &"all_ready").actions.back() as StartClock
+	set_clock.minutes_setting = &"banned_task_types"
+	assert_array(Array(set_clock.check(a_set))).is_equal(
+		["StartClock: setting banned_task_types is not a whole number"]
+	)
+	assert_str("\n".join(ModeCheck.run(a_set).errors)).contains(
+		"StartClock: setting banned_task_types is not a whole number"
+	)
 	var unknown := FixtureWinModes.basic(2)
 	var clock := unknown.find_transition(&"lobby", &"all_ready").actions.back() as StartClock
 	clock.minutes_setting = &"length"

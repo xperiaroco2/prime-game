@@ -23,14 +23,17 @@ func emits() -> Array[Script]:
 	return [RoundStartedEvent]
 
 
-## A clock of 0 minutes would never run and so never end: the setting must start at 1.
+## A clock of 0 minutes would never run and so never end: the setting must be a whole number
+## that starts at 1 (a set of ids reads as 0).
 func check(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if minutes_setting.is_empty():
 		found.append("StartClock has no minutes_setting")
 		return found
 	var spec := mode.find_setting(minutes_setting)
-	if spec != null and spec.is_number() and spec.min_value < 1:
+	if spec != null and not spec.is_number():
+		found.append("StartClock: setting %s is not a whole number" % minutes_setting)
+	elif spec != null and spec.min_value < 1:
 		found.append(
 			(
 				"StartClock: setting %s goes down to %d minutes; a clock needs at least 1"
