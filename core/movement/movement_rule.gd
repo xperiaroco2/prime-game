@@ -9,6 +9,8 @@ extends RefCounted
 ##
 ## The checks, in order:
 ## - Well formed: an int client tick and finite position, velocity and facing (NaN or inf fail).
+##   A negative client tick is dropped when below the baseline, like any tick that does not rise,
+##   and corrected when there is none: a negative claim_tick means "no baseline yet".
 ## - The client tick rises at a bounded rate: a player earns one tick of credit per host tick, keeps
 ##   at most MAX_TICK_CREDIT of it (so a catch-up burst after a stall passes, #70), and a claim
 ##   may cover no more client ticks than its credit. So the speed check below can trust the
@@ -124,6 +126,9 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 	var fresh := player.claim_tick < 0 or motion.rebase
 	var covered := 1 if fresh else claim.client_tick - player.claim_tick
 	if covered <= 0:
+		return
+	if claim.client_tick < 0:
+		_correct(ctx, player, motion)
 		return
 	motion.credit = mini(MAX_TICK_CREDIT, motion.credit + ctx.tick - motion.credit_tick)
 	motion.credit_tick = ctx.tick

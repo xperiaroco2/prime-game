@@ -69,6 +69,20 @@ func test_a_claim_missing_a_field_is_corrected() -> void:
 	assert_int(player.epoch).is_equal(epoch + 2)
 
 
+func test_a_first_claim_with_a_negative_client_tick_is_corrected() -> void:
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	var epoch := player.epoch
+	# The first claim after a placement has no client-tick baseline to be measured against.
+	FixtureMoves.claim(game, P1, player.position, {"client_tick": -5})
+	assert_int(player.epoch).is_equal(epoch + 1)
+	# So the stale-claim drop still works for the claims after it.
+	FixtureMoves.claim(game, P1, player.position, {"client_tick": 3})
+	FixtureMoves.claim(game, P1, player.position, {"client_tick": 2})
+	assert_int(player.claim_tick).is_equal(3)
+	assert_int(player.epoch).is_equal(epoch + 1)
+
+
 func test_a_living_player_walks_at_walk_speed_plus_the_push_allowance() -> void:
 	var game := FixtureMoves.in_round([P1])
 	var player := game.state.player(P1)
