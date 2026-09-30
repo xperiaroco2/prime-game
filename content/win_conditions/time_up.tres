@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WinCondition" format=3 uid="uid://cl8ks3hlpyn1c"]
+
+[ext_resource type="Script" uid="uid://b35oygc6v8aam" path="res://core/content/win_condition.gd" id="1_win"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="2_condition"]
+[ext_resource type="Script" uid="uid://c2nkl6x0xn7j4" path="res://core/win/clock_ended.gd" id="3_clock_ended"]
+[ext_resource type="Script" uid="uid://du3ynwqqfglw8" path="res://core/win/all_subtasks_done.gd" id="4_all_done"]
+
+[sub_resource type="Resource" id="Clock_ended"]
+script = ExtResource("3_clock_ended")
+
+[sub_resource type="Resource" id="Not_all_subtasks_done"]
+script = ExtResource("4_all_done")
+negate = true
+
+[resource]
+script = ExtResource("1_win")
+id = &"time_up"
+side = &"dissidents"
+conditions = Array[ExtResource("2_condition")]([SubResource("Clock_ended"), SubResource("Not_all_subtasks_done")])

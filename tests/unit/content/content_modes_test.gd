@@ -6,7 +6,9 @@ extends GdUnitTestSuite
 ## before PlacePlayers on `End -> Lobby`; the deal that 2c adds: the actions of the
 ## `Loading, all_loaded -> Round` row in order, the Crew, Dissident and Knife entries, and that
 ## row run by a match entering the round (roles, Delivery, knives, placement); and its voice
-## rules (2i). One of the two tests that load `content/` (§9.6).
+## rules (2i); its win conditions in order, StartClock ending the deal's row, EndMatch on
+## `Round, won -> End`, and a whole match from the lobby to the end and back, twice (2h). One of
+## the two tests that load `content/` (§9.6).
 
 const MODES_DIR := "res://content/modes/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -65,7 +67,7 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 	var row := mode.find_transition(&"loading", &"all_loaded")
 	assert_str(row.to).is_equal("round")
 	# StartClock (2h) comes last, after PlacePlayers.
-	assert_int(row.actions.size()).is_greater_equal(4)
+	assert_int(row.actions.size()).is_equal(5)
 	var roles := row.actions[0] as DealRoles
 	assert_object(roles).is_not_null()
 	assert_int(roles.quotas.size()).is_equal(1)
@@ -87,6 +89,9 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 	var place := row.actions[3] as PlacePlayers
 	assert_object(place).is_not_null()
 	assert_str(place.tag).is_equal("round_player")
+	var clock := row.actions[4] as StartClock
+	assert_object(clock).is_not_null()
+	assert_str(clock.minutes_setting).is_equal("match_duration")
 
 
 func test_crew_and_dissident() -> void:
@@ -325,6 +330,111 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 		)
 
 
+func test_the_win_conditions_in_the_base_modes_order() -> void:
+	# §3.4 and §9.5 (2h, #64): every task done (crew), no crew alive and time up (dissidents).
+	var mode := _base_mode()
+	var ids: Array[StringName] = []
+	for condition: WinCondition in mode.win_conditions:
+		ids.append(condition.id)
+	assert_array(ids).is_equal([&"every_task_done", &"no_crew_alive", &"time_up"])
+	var every_task_done := mode.win_conditions[0]
+	assert_str(every_task_done.resource_path).is_equal(
+		"res://content/win_conditions/every_task_done.tres"
+	)
+	assert_str(every_task_done.side).is_equal("crew")
+	assert_int(every_task_done.conditions.size()).is_equal(1)
+	assert_object(every_task_done.conditions[0]).is_instanceof(AllSubtasksDone)
+	assert_bool(every_task_done.conditions[0].negate).is_false()
+	var no_crew_alive := mode.win_conditions[1]
+	assert_str(no_crew_alive.side).is_equal("dissidents")
+	assert_int(no_crew_alive.conditions.size()).is_equal(1)
+	var none_alive := no_crew_alive.conditions[0] as NoneAlive
+	assert_object(none_alive).is_not_null()
+	assert_str(none_alive.side).is_equal("crew")
+	assert_bool(none_alive.negate).is_false()
+	var time_up := mode.win_conditions[2]
+	assert_str(time_up.side).is_equal("dissidents")
+	assert_int(time_up.conditions.size()).is_equal(2)
+	assert_object(time_up.conditions[0]).is_instanceof(ClockEnded)
+	assert_bool(time_up.conditions[0].negate).is_false()
+	assert_object(time_up.conditions[1]).is_instanceof(AllSubtasksDone)
+	assert_bool(time_up.conditions[1].negate).is_true()
+	# `Round, won -> End` runs EndMatch alone.
+	var won := mode.find_transition(&"round", Match.WON)
+	assert_int(won.actions.size()).is_equal(1)
+	assert_object(won.actions[0]).is_instanceof(EndMatch)
+
+
+func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> void:
+	# The base mode's own data, 4 players at the default settings: the crew delivers the 6
+	# packages and wins; the host returns to the lobby, shortens the round to 1 minute, and the
+	# second match runs out of time with every package where it spawned: the dissidents win.
+	var mode := _base_mode()
+	var peers: Array[int] = [1, 2, 3, 4]
+	var game := _base_round(mode, peers)
+	var start := game.ticked_through() + 1
+	assert_int(game.state.clock_ticks_left).is_equal(10 * 60 * Ticks.RATE)
+	var crew := FixtureDealModes.players_of(game, &"crew")
+	assert_int(crew.size()).is_equal(3)
+	var task := FixtureDeliveryModes.task_of(game)
+	for index in 6:
+		var package := FixtureDeliveryModes.package_of(game, task, index)
+		var circle := FixtureDeliveryModes.circle_of(game, task, index)
+		FixtureDeliveryModes.carry_to(game, crew[index % crew.size()], package, circle.position)
+	assert_str(game.phase_id()).is_equal("end")
+	assert_str(game.state.winner).is_equal("crew")
+	for peer: int in peers:
+		var view := game.view_of(peer)
+		assert_dict(view.events_named(&"RoundStarted")[0].to_dict()).is_equal({"start_tick": start})
+		assert_int(view.events_named(&"PackageDelivered").size()).is_equal(6)
+		var ended := view.events_named(&"MatchEnded")
+		assert_int(ended.size()).is_equal(1)
+		assert_dict(ended[0].to_dict()).is_equal({"side": &"crew"})
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, 1)
+	assert_str(game.phase_id()).is_equal("lobby")
+	assert_str(game.state.winner).is_empty()
+	FixtureModes.send(game, Intents.CHANGE_SETTINGS, 1, {"settings": {"match_duration": 1}})
+	assert_int(game.state.settings[&"match_duration"]).is_equal(1)
+	_ready_and_load(game, peers)
+	assert_int(game.state.clock_ticks_left).is_equal(60 * Ticks.RATE)
+	FixtureWinModes.run_through(game, game.ticked_through() + 60 * Ticks.RATE)
+	assert_str(game.phase_id()).is_equal("end")
+	assert_str(game.state.winner).is_equal("dissidents")
+	for peer: int in peers:
+		var ended := game.view_of(peer).events_named(&"MatchEnded")
+		assert_int(ended.size()).is_equal(2)
+		assert_dict(ended[1].to_dict()).is_equal({"side": &"dissidents"})
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, 1)
+	assert_str(game.phase_id()).is_equal("lobby")
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_the_base_lobby_takes_no_dissidents_and_time_up_is_still_their_win() -> void:
+	# The engineer's decision (MVP rules), through the real lobby: the host sets 0 dissidents and
+	# a 1-minute round; nobody is a dissident, nothing is delivered, and time up is their win.
+	var mode := _base_mode()
+	var peers: Array[int] = [1, 2, 3, 4]
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
+	game.keep_history = true
+	game.start(0)
+	for peer: int in peers:
+		FixtureBaseMode.join(game, peer)
+	var settings := {"dissidents": 0, "match_duration": 1}
+	FixtureModes.send(game, Intents.CHANGE_SETTINGS, 1, {"settings": settings})
+	assert_array(FixtureModes.rejections(game, 1)).is_empty()
+	assert_int(game.state.settings[&"dissidents"]).is_equal(0)
+	_ready_and_load(game, peers)
+	assert_array(FixtureDealModes.players_of(game, &"dissident")).is_empty()
+	FixtureWinModes.run_through(game, game.ticked_through() + 60 * Ticks.RATE)
+	assert_str(game.phase_id()).is_equal("end")
+	assert_str(game.state.winner).is_equal("dissidents")
+	for peer: int in peers:
+		var ended := game.view_of(peer).events_named(&"MatchEnded")
+		assert_int(ended.size()).is_equal(1)
+		assert_dict(ended[0].to_dict()).is_equal({"side": &"dissidents"})
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## A match of `mode` (the base mode's data) with `peers` from the lobby into the round.
 func _base_round(mode: GameMode, peers: Array[int]) -> Match:
 	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
@@ -332,6 +442,12 @@ func _base_round(mode: GameMode, peers: Array[int]) -> Match:
 	game.start(0)
 	for peer: int in peers:
 		FixtureBaseMode.join(game, peer)
+	_ready_and_load(game, peers)
+	return game
+
+
+## `peers` in the lobby get ready, the countdown runs out, and they load: the round.
+func _ready_and_load(game: Match, peers: Array[int]) -> void:
 	for peer: int in peers:
 		FixtureBaseMode.ready(game, peer)
 	for i in 1000:
@@ -341,7 +457,6 @@ func _base_round(mode: GameMode, peers: Array[int]) -> Match:
 	for peer: int in peers:
 		FixtureBaseMode.load_ack(game, peer)
 	assert_str(game.phase_id()).is_equal("round")
-	return game
 
 
 func _mode_paths(dir_path: String) -> Array[String]:
