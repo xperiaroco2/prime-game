@@ -562,12 +562,15 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   Claude Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   and on `main`, with the checksum-checked Godot build from the pins. `verify` runs, in this order: `doctor --quick`,
-  `lint`, `check`, `test`, `enet` and `freeze` (the headless ENet runs of `net/`, below) and `selftest`; any red
-  step fails it. The `enet` step is
-  `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
+  `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below) and `selftest`;
+  any red step fails it. The `enet` step is
+  `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, `freeze` (a
   5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
-  `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`. Each gets
-  `-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral ranges), so
+  `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`, and `stall` (ENet's timeouts
+  on both sides and a backlog taken in one poll, #95; about 22 s) is
+  `run tests/integration/net/enet_stall.gd --headless --seconds 60`, one process whose hosts take `<p>` to
+  `<p> + 2`. Each gets `-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral
+  ranges), so
   worktrees verifying at once very rarely share a port (if they do, the host fails with
   `host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
   (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
