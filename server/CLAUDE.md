@@ -15,6 +15,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   exactly its recorded recipients, one message per recipient, *everyone* events included (never the transport's
   broadcast target, which also reaches peers that are not players). Never add a recipient or a field. Snapshots
   and voice routing come from `core/` too (`Match.snapshot_for`, `Match.speakers_for`).
+- Only `server/` makes `PeerConnected` and `PeerLeft`, from what the transport reports; never build a command of
+  those kinds (or any kind that is not in `Intents.ALL`) from a client's message. `Match` does not check who made
+  a command. It keeps every command in its log (about 20 MiB per player per 10 minutes at 20 Hz) and records
+  per-tick views only with `keep_history`, which a host leaves off.
 - Carry out the directives whose audience is *server* (`RefuseJoins`, `AllowJoins`, `DisconnectPeer`).
 - Load the game mode and read each level's `Marker3D`s in `spawn_<tag>` groups into a `LevelLayout` (2j); answer
   `core/`'s geometric questions through a `WorldQuery` over the host's own `World3D` (M3).

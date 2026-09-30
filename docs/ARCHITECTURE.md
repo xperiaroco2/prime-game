@@ -364,7 +364,9 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
   on: a revived player remembers where the ghosts were, and #34 decides whether that matters.
 - **Projection.** `Match` records the recipients of every event it emits, and per tick each peer's snapshot and the
   voice routing (who hears whom). `Match.view_of(peer)` returns that peer's events in order, its snapshot for every
-  tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The M3 leak test
+  tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The per-tick
+  snapshots and speakers are recorded only with `Match.keep_history` on (off by default: about 1 GiB for 10 players
+  over 10 minutes); the tests and the leak test turn it on, a real host does not. The M3 leak test
   compares what each bot actually decoded (voice frames included) with `view_of` of its peer; anything received that
   `view_of` does not hold is a leak.
 - **Invariants that do not trust the declarations.** A wrong audience (say `Teammates` declared *everyone*) would
@@ -646,7 +648,13 @@ phase classes come in the task each row names.
   hand or locked), tasks (`MatchTask` with its `TaskState`), stations, bodies, the cooldown and counter tables,
   `part_state`, the clock, the winner, `RngStreams`, and `reset_match` for `ResetMatch`.
 - server/ and the tests drive `Match`: `start`, then per tick `apply` for each command and `tick`; `take_outbox`
-  (events with recipients), `snapshot_for`, `speakers_for`, `view_of`, `command_log` and `Match.replay`.
+  (events with recipients), `snapshot_for`, `speakers_for`, `view_of`, `command_log` and `Match.replay` (a replay
+  that diverged from the recorded `WorldQuery` answers says so in `diagnostics`).
+- The loop's own guards: only a phase class takes an intent from a newcomer (ModeCheck); an outcome reported while
+  a row's actions or the old phase's exit run is an error, not the next phase's outcome; a step stops after 16
+  transitions. `TickSystem` and `TaskType` declare `reported_outcomes()`, so ModeCheck requires their rows.
+- No range rule (InReach 2e, Strike 2g) and no `server/` wiring (M3) lands before 2d: until then `MovementRule`
+  stores a claimed position unchecked.
 - Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an
   enum of `NetTransport` or GdUnit4).
 
