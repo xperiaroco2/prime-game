@@ -287,7 +287,7 @@ is entitled to (§5).
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
 | `Hello(name, version)` | a connected peer that is not yet a player, once; Lobby or Countdown | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; room in the roster, or `full` and `DisconnectPeer`; the name, trimmed, is 1 to 24 characters without a control character (placeholders, "not a decision"), or `bad_name`. Accepted, it is the join (§3.5) |
-| `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | that it changes the player's state, or `unchanged` |
+| `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting with an int value (`unknown_setting`) within its bounds (`out_of_bounds`); the optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
 | `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving (2d), jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch (else dropped as stale); speed for the life state and stamina; jumps; no teleport; the client tick rising at a bounded rate (§7, §7.1) |
@@ -331,7 +331,7 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `SelfStatus` | health, stamina, whether sprint is available | that player | on change, at most once per tick |
 | `Died` | peer, body position | everyone | health reaches 0; no event names a killer or a cause |
 | `Correction` | epoch, position, velocity | that player | a rejected `MoveClaim` (§7); a placement (§3.2) |
-| `Rejected` | the intent's sequence number, reason | the sender (*sender*: a player, or a newcomer whose `Hello` was not accepted yet) | any rejected intent; an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
+| `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent; an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
@@ -811,9 +811,9 @@ the player count against the mode's bounds, and `SettingsChanged` shows them.
 | Part | Kind | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|---|
 | `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order (none in the MVP; #36) | none | the task types' events | 2f |
-| `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change, a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_name`, `unchanged`, `unknown_setting`, `out_of_bounds`, `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
+| `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change, a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_name`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds`, `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
-| `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; the class default 0) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
+| `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server) | 2a (#49) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
 | `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i |
