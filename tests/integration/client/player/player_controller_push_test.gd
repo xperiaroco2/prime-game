@@ -50,6 +50,14 @@ func test_a_pushed_player_holding_sprint_without_moving_keeps_its_stamina() -> v
 	assert_float(_world.stand_in(standing).get_stamina()).is_equal(_tuning.max_stamina)
 
 
+func test_a_pushed_player_sprinting_sideways_spends_stamina() -> void:
+	await _assert_pushed_sprinter_pays(Vector2(1.0, 0.0))
+
+
+func test_a_pushed_player_sprinting_away_spends_stamina() -> void:
+	await _assert_pushed_sprinter_pays(Vector2(0.0, 1.0))
+
+
 func test_a_player_standing_in_a_doorway_is_pushed_out_and_the_pusher_passes() -> void:
 	# A wall across the way at z = -3 with a doorway 1.1 m wide: room for one capsule only.
 	var half_door := 0.55
@@ -267,3 +275,34 @@ func _run_two_clients(pair: Array[Node3D], count: int) -> Array[float]:
 		deepest[0] = maxf(deepest[0], touching - first_view)
 		deepest[1] = maxf(deepest[1], touching - second_view)
 	return deepest
+
+
+## The other half of the stamina rule: a pushed player that holds Shift and steers by `steer`
+## gives movement input, so its sprint costs stamina as usual.
+func _assert_pushed_sprinter_pays(steer: Vector2) -> void:
+	var standing := _world.add_player(Vector3(0.0, 0.0, -2.0))
+	var pusher := _world.add_player(Vector3.ZERO)
+	standing.sprint_held = true
+	# The pusher sprints as well, so it keeps up with a player sprinting away from it.
+	pusher.sprint_held = true
+	pusher.move_input = Vector2(0.0, 1.0)
+	var touching := _tuning.capsule_radius * 2.0
+	var met := false
+	for i: int in 120:
+		if _world.horizontal_distance(standing.global_position, pusher.global_position) <= touching:
+			met = true
+			break
+		await _world.frames(1)
+	assert_bool(met).is_true()
+	assert_float(_world.stand_in(standing).get_stamina()).is_equal(_tuning.max_stamina)
+	# Only the steps that start in contact count: out of it, it is an ordinary sprint.
+	standing.move_input = steer
+	var pushed_steps := 0
+	while pushed_steps < 30:
+		if _world.horizontal_distance(standing.global_position, pusher.global_position) > touching:
+			break
+		await _world.frames(1)
+		pushed_steps += 1
+	assert_int(pushed_steps).is_greater(0)
+	assert_bool(standing.is_sprinting()).is_true()
+	assert_float(_world.stand_in(standing).get_stamina()).is_less(_tuning.max_stamina)
