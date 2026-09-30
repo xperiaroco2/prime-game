@@ -14,11 +14,21 @@ extends NetTransport
 ## breakpoints), and #21 found a common freeze: on Windows a windowed D3D12 Godot process can
 ## freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts. Keep
 ## PEER_TIMEOUT_MIN_MS at 10 s or more: a "snappier drop" brings that bug back.
-## tests/integration/net/enet_freeze.gd checks a 5.2 s freeze on the host and on a client.
+## tests/integration/net/enet_freeze.gd checks a 5.2 s freeze on the host and on a client, and
+## enet_stall.gd that each side keeps the other through 7 s, past ENet's default of 5 s.
 ## Every ENet timeout is set here and nowhere else.
 const PEER_TIMEOUT_LIMIT := 32
 const PEER_TIMEOUT_MIN_MS := 10000
 const PEER_TIMEOUT_MAX_MS := 20000
+## ENet reads at most this many datagrams from its socket per service, and
+## ENetMultiplayerPeer.poll() services once (#95 measured both in 4.7.2). After a freeze the
+## backlog is bigger: one service took only its oldest part, and the newest arrived a poll later,
+## so on the Linux CI runner the freeze check's thawed host got poses 2.4 to 3.1 s old (#95).
+## poll() therefore services until one reads fewer, the socket drained, and the LATEST merge sees
+## the whole backlog. tests/integration/net/enet_stall.gd checks it.
+const ENET_RECEIVES_PER_SERVICE := 256
+## At most this many services per poll(), so an endless stream of datagrams cannot hold a frame.
+const MAX_SERVICES_PER_POLL := 16
 ## A join without an ADMIT gives up after this long (no host, or a full one, answers nothing).
 const JOIN_TIMEOUT_MS := 5000
 ## The host's first packet to each client: a frame of kind 0, which no kind table allows, so it
@@ -66,7 +76,7 @@ func _backend_join(address: String, port: int) -> Error:
 func _backend_poll() -> void:
 	if _peer == null:
 		return
-	_peer.poll()
+	_service()
 	# Arrivals, then packets, then departures: the order a peer's own events happen in, so packets
 	# from a peer that joined or left during this poll are not taken for strangers.
 	if is_host():
@@ -122,6 +132,21 @@ func _backend_disconnect(peer_id: int) -> void:
 		var packet_peer := _peer.get_peer(peer_id)
 		if packet_peer != null:
 			packet_peer.peer_disconnect_later()
+
+
+## Services ENet until its socket is drained (ENET_RECEIVES_PER_SERVICE). Several services before
+## any packet is taken change nothing else: ENetMultiplayerPeer queues every packet, and the ENet
+## signals only fill _arrivals and _departures. A service that stops short of the limit for
+## another reason leaves the rest of the socket to the next poll, as before.
+func _service() -> void:
+	for _i in MAX_SERVICES_PER_POLL:
+		_peer.poll()
+		# A client whose connection ended stops here; _check_client reports it.
+		if _peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
+			return
+		var read := _peer.get_host().pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_PACKETS)
+		if read < ENET_RECEIVES_PER_SERVICE:
+			return
 
 
 func _use(peer: ENetMultiplayerPeer) -> void:
