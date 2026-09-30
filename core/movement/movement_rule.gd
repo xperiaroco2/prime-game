@@ -15,9 +15,11 @@ extends RefCounted
 ##   client's own tick delta, and no claim teleports by inflating it. A claim past its credit is
 ##   corrected and the next one starts a new client-tick baseline, so a client whose ticks ran
 ##   ahead of the host's (the host stalled and lost ticks) is corrected once and goes on.
-## - A jump (`jumped`): the host has the player on the floor (its last claim said so, and
-##   WorldQuery finds a floor within step height below its last position) and, for the living,
-##   stamina covers the jump's cost, settled first (settle_ahead). A ghost's jump costs nothing.
+## - A jump (`jumped`): WorldQuery finds a floor within step height below the player's last
+##   accepted position and, for the living, stamina covers the jump's cost, settled first
+##   (settle_ahead). A ghost's jump costs nothing. The last claim need not say it was on the floor:
+##   claims go at 20 Hz and the client's physics at 60 Hz, so a landing and a jump can fall in one
+##   claim. The take-off is the higher of that floor and the last feet, so the peak stays bounded.
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (sprint in
 ##   the sprint state, else walk; times ghost_speed_factor for a ghost), plus, for the living
 ##   only, sprint speed for being pushed (§7.1 "Pushing apart", proposed for M4), plus
@@ -147,8 +149,6 @@ static func _check(
 	checked.covered = covered
 	if claim.jumped:
 		StaminaLedger.settle_ahead(player, rules, ctx.tick)
-		if not player.on_floor:
-			return null
 		var take_off := _floor_under(ctx.world, player.position, rules)
 		if take_off == WorldQuery.NO_FLOOR:
 			return null

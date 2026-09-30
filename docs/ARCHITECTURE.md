@@ -508,8 +508,10 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   sprint speed in the sprint state, else the walk speed, plus the push allowance (Pushing apart below), measured over
   the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents: a client that never spends
   stamina, or spaces its claims out to regenerate between them, sprinting forever.
-- **Jumps** are accepted only when the host has the player on the floor (the last claim, and the floor found by
-  `WorldQuery` within step height) and stamina covers the cost (a ghost's jump needs none). Until the next landing
+- **Jumps** are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within
+  step height below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
+  the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost (a
+  ghost's jump needs none). Until the next landing
   the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
   corrected. Prevents: free or endless jumps, and flying.
 - **The movement checks** (`MovementRule` in `core/movement/`, the ledger in `core/stamina/`; 2d, #60). Every

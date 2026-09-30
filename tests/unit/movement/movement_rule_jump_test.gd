@@ -1,10 +1,10 @@
 extends GdUnitTestSuite
-## MovementRule's jumps and heights (ARCHITECTURE §7, §7.1): a jump needs the floor by the last
-## claim and by WorldQuery, and stamina for the living; the feet stay within the jump height (plus
-## MovementRule.jump_slack) of the take-off until the next landing; a rise without a jump stays
-## within the step height (plus STEP_CLEARANCE and the slope allowance). Players are placed at
-## z = 5 on the ground (y = 0); the world has a 0.3 m step at z 6 to 8 and a 0.9 m ledge at z 10
-## to 14.
+## MovementRule's jumps and heights (ARCHITECTURE §7, §7.1): a jump needs a WorldQuery floor
+## within step height below the last accepted feet, and stamina for the living; the feet stay
+## within the jump height (plus MovementRule.jump_slack) of the take-off until the next landing; a
+## rise without a jump stays within the step height (plus STEP_CLEARANCE and the slope allowance).
+## Players are placed at z = 5 on the ground (y = 0); the world has a 0.3 m step at z 6 to 8 and a
+## 0.9 m ledge at z 10 to 14.
 
 const P1 := 1
 const UP := Vector3(0, 1, 0)
@@ -38,15 +38,20 @@ func test_the_jump_slack_covers_a_rolled_landing_and_a_step_crossing() -> void:
 	assert_float(MovementRule.jump_slack(rules)).is_between(PEAK - 1.0, OVER_PEAK - 1.0)
 
 
-func test_a_jump_needs_the_last_claim_on_the_floor() -> void:
+func test_a_jump_right_after_a_landing_within_one_claim_passes() -> void:
 	var game := _round()
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	FixtureMoves.step(game, P1, UP * 0.2, _air())
 	var seen := FixtureMoves.corrections(game, P1).size()
+	# The last claim was in the air 0.2 m above the ground; within the next 50 ms the client
+	# landed and jumped (its physics runs at 60 Hz), so this claim is the jump. WorldQuery finds
+	# the floor within step height below the last feet, and the peak counts from those feet.
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_int(player.stamina).is_equal(90000)
+	FixtureMoves.claim(game, P1, Vector3(player.position.x, 0.2 + OVER_PEAK, 5), _air())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	assert_int(player.stamina).is_equal(100000)
 
 
 func test_a_jump_needs_a_world_query_floor_within_step_height() -> void:
