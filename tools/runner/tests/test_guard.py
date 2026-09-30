@@ -766,6 +766,7 @@ class GhOtherRepositoryTest(unittest.TestCase):
             "gh search issues x --repo o/r",
             "gh api repos/o/r/pulls/5/files --paginate",
             "gh api -X HEAD repos/o/r",
+            "gh api -X=GET repos/o/r/issues -fstate=open",
             "gh repo clone o/r /tmp/r",
         ):
             with self.subTest(command=command):
@@ -782,6 +783,8 @@ class GhOtherRepositoryTest(unittest.TestCase):
             "gh repo sync o/fork": ["o/fork"],
             "gh api repos/o/r/issues -f title=x": ["o/r"],
             "gh api /repos/o/r/issues -F title=x": ["o/r"],
+            "gh api -X=POST repos/o/r/forks": ["o/r"],
+            "gh api repos/o/r/issues/1/comments -fbody=hi": ["o/r"],
             "gh api https://api.github.com/repos/o/r/issues --input b.json": [
                 "https://api.github.com/repos/o/r/issues"
             ],

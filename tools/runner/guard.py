@@ -1685,8 +1685,10 @@ class Analysis:
                 elif name in ("-R", "--repo"):
                     targets.append(given)
                 fields = fields or name in GH_API_FIELDS
-            elif re.match(r"^-X\w", arg):
-                method = arg[2:]  # `-XPOST`
+            elif re.match(r"^-X=?\w", arg):
+                method = arg[2:].removeprefix("=")  # `-XPOST`, `-X=POST`
+            elif re.match(r"^-[fF].", arg):
+                fields = True  # `-fbody=x`, `-F=title=x`
             elif not arg.startswith("-") and endpoint is None:
                 endpoint = arg
             i += 1

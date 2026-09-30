@@ -71,6 +71,9 @@ OTHER_WRITES = [
     "gh api repos/o/r/issues/1/comments --input body.json",
     "gh api --method PATCH repos/o/r/issues/1 -f state=closed",
     "gh api -XPOST repos/o/r/forks",
+    "gh api -X=POST repos/o/r/forks",
+    "gh api repos/o/r/issues/1/comments -fbody=hi",
+    "gh api repos/o/r/issues/1/comments -Fbody=@b.md",
     "gh issue view 1 -R o/r && gh issue comment 1 -R o/r --body x",
 ]
 
