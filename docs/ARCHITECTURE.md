@@ -839,7 +839,7 @@ phase classes come in the task each row names.
 | `InSight` | the line from the actor's eye (the floor below its last accepted position raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
 | `HoldsItem` | the actor has an item in hand | none | `empty_hand` | 2e (#61) |
 | `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | with the first mechanic that needs it (#34) |
-| `AllSubtasksDone` | every subtask of every task is done | none | (facts only) | 2h |
+| `AllSubtasksDone` | every subtask of every task is done; never holds at 0 subtasks (a deal that dealt nothing) | none | (facts only) | 2h |
 | `NoneAlive` | no player of the side is alive: each is a ghost or has left | `side` | (facts only) | 2h |
 | `ClockEnded` | the match clock has reached its end | none | (facts only) | 2h |
 | `Cooldown` (cost) | this player never paid this key, or at least `seconds` passed since it last did; paying records the tick | `key`, `seconds` (0 to 600) | `too_soon`: its own timing | 2g |
@@ -860,7 +860,7 @@ phase classes come in the task each row names.
 |---|---|---|---|---|
 | `DealRoles` | each quota draws its players from the roster; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) replace the draws | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; 1): the count is max(0, min(setting, N − leave_at_least))), `default_role`, RNG purpose (`roles`) | `RoleAssigned` (that player); `Teammates` (each player of a role that knows its teammates) | 2c |
 | `DealTasks` | gives each player `tasks_setting` tasks, dealt by the mode's task types through the `TaskType` interface of 2a (§9.5, Delivery); with one task type, it deals them all | `tasks_setting` (`tasks_per_player`) | the task types' events | 2c, tested with a fake task type; Delivery's deal in 2f (#62) |
-| `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, at most one item per marker in a deal, into `MatchState`'s items (2a) | `kind`, `count_setting`, RNG purpose (`knives`) | `ItemSpawned` (everyone), in id order; `item_rested` (spawn) | 2c |
+| `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, at most one item per marker in a deal (it skips a marker that already holds an item this deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items (2a) | `kind`, `count_setting`, RNG purpose (`knives`) | `ItemSpawned` (everyone), in id order; `item_rested` (spawn) | 2c |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
 | `StartClock` | sets the match clock's end to now plus the setting | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone) | 2h |
 | `EndMatch` | records the side of the `won` outcome as the winner | none | `MatchEnded` (everyone): the side only | 2h |
@@ -982,7 +982,8 @@ and circle).
   (the fit check at `all_ready` keeps a match from getting there).
 - Demands (§9.4): as many `circle` and `package` markers as packages, and as many palette colours as circles, since
   colours never repeat. More circles than colours fails the fit check at `all_ready` like a missing marker; the
-  lobby shows it. The binding itself is the circle id in `ItemSpawned`; the colour is what players see.
+  lobby shows it. The binding itself is the circle id in `ItemSpawned`; the colour is what players see. The mode
+  check refuses a circle station kind and a package item kind with the same spawn tag.
 - Check, on `item_rested`: a package of an undone subtask that rests on the ground within its circle's radius, on
   the circle's floor (§7.1), is delivered: locked (no longer interactive), its circle done, its subtask done; then
   `PackageDelivered`, `TaskProgress`, `TaskUpdated` and `subtask_done` (detail: the subtask's index and its
@@ -1111,7 +1112,9 @@ levels/
 - **Markers.** A spawn point is a `Marker3D` in the level scene, in the persistent group `spawn_<tag>` of its one tag
   (the editor's Groups dock: `spawn_package`); a marker in two such groups is a load error. Packages and knives share
   spawn points when their item kinds name the same tag (say `item`), which is content data; a deal puts at most one
-  item on a marker. One tag per marker keeps the `all_ready` fit check exact: the demands per tag are summed and
+  item on a marker. A `circle` marker sits on the floor a package rests on (within Delivery's `floor_tolerance_m`), or
+  its circle cannot be delivered; a `package` marker also sits on the floor.
+  One tag per marker keeps the `all_ready` fit check exact: the demands per tag are summed and
   compared with that tag's markers, and a deal that passed it always finds its markers. `server/` reads the markers in
   scene-tree order, the level order of §3.3. This convention is provisional until 4e settles it with the designer
   (§10).
