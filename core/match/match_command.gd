@@ -13,6 +13,10 @@ var seq: int
 ## The intent's fields, plain data (§4.1), named and typed by Intents.FIELDS; rules read them
 ## through field() and the typed getters.
 var args: Dictionary
+## The fields a rule read that Intents.FIELDS does not declare for this kind, in order, each once.
+## Match records each as a match error after the command ran, so it reaches `diagnostics` (and
+## the bots runner) rather than only the log. Not part of the command log.
+var undeclared_reads := PackedStringArray()
 
 
 func _init(
@@ -27,11 +31,12 @@ func _init(
 
 ## The value of field `key`, as the client sent it (any type), or null when it is absent. The
 ## field must be one that Intents.FIELDS declares for this command's kind: reading another is a
-## bug in the rule (a name the wire does not carry would always read as absent), so it is logged
-## as an error and read as absent (§4.4).
+## bug in the rule (a name the wire does not carry would always read as absent), so it is kept in
+## `undeclared_reads`, which Match records as a match error, and read as absent (§4.4).
 func field(key: String) -> Variant:
 	if not declares(key):
-		push_error("MatchCommand: %s declares no field %s (Intents.FIELDS)" % [kind, key])
+		if not undeclared_reads.has(key):
+			undeclared_reads.append(key)
 		return null
 	return args.get(key)
 

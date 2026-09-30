@@ -329,6 +329,21 @@ func test_errors_in_a_rows_actions_are_counted_and_others_are_not() -> void:
 	assert_str(game.diagnostics[-1]).contains("row lobby, all_ready")
 
 
+func test_a_rule_reading_a_field_its_intent_does_not_declare_is_a_match_error() -> void:
+	# §4.4: the read gives the default, and Match records it in diagnostics (once per field and
+	# command), so the bots runner and a test see it; it is not a row error.
+	var mode := FixtureModes.basic()
+	mode.find_phase(&"lobby").settings[&"reads_undeclared"] = 1.0
+	var game := FixtureModes.started(mode, [P1, P2])
+	assert_array(Array(game.diagnostics)).is_empty()
+	FixtureModes.send(game, Intents.SET_READY, P1, {"ready": true, "target": 2})
+	assert_bool(game.state.player(P1).ready).is_true()
+	assert_int((game.current_phase() as FixturePhase).target_read).is_equal(0)
+	assert_int(game.diagnostics.size()).is_equal(1)
+	assert_str(game.diagnostics[0]).contains("SetReady from peer 1: a rule read field target")
+	assert_int(game.row_error_count()).is_equal(0)
+
+
 func test_a_player_who_left_is_heard_by_no_rule_and_told_nothing() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	var left := game.state.player(P2)
