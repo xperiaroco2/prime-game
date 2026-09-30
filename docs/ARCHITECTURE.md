@@ -632,13 +632,26 @@ host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tic
 | 2 | **Refill** every peer's budgets for the host time elapsed since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
 | 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a debug command (§4.3, E17), queued as the command it names when p is 1, else counted as malformed; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
 | 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
-| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
+| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error) and a peer whose leave is pending (a reused id, "One outbox slice per call" below); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
 | 6 | **Snapshots**, when a tick ran in this step: for each present player p, `snapshot_for(p)`; empty means the phase sends none; else `{tick: t, avatars}` (§4.3) to p on LATEST, after the tick's events. The voice routing table is refreshed after every `Match.tick` call, in step 1 as here (below) | A client sees a tick's events before its snapshot (both on channel 0). Catch-up ticks send none: only the newest state counts |
 | 7 | **Deadlines.** A peer connected longer than the hello deadline (10 s, a placeholder, "not a decision") with no `Welcome` sent to it is disconnected (`disconnect_peer`) | Checked after 4, so a `Hello` that waited out a host freeze is applied first. 10 s outlasts a 5 s freeze of either side. The late `PeerLeft` is a newcomer's, which `core/` forgets (§3.5) |
 
 So a command is stamped with the tick that was due when the host read it, and the replay's order is the queue's.
 Accepted in step 1: a command that waited in the socket during a host freeze is stamped when the host reads it, so a
 `SetReady(false)` or a `LoadAck` sent during the freeze can lose to the countdown's end or the loading deadline.
+
+**One outbox slice per call.** `HostSession` takes `take_outbox()` after every `Match.apply` and every `Match.tick`
+call (steps 1 and 4), keeping each slice with the call that emitted it, and delivers the slices in order (5). Three
+rules need the slices. (1) A reused peer id: from `peer_left(p)` until the call that applies `PeerLeft(p)`, p is left
+out as a recipient of every slice taken before that call, as the voice relay does (below). Otherwise an event `core/`
+addressed to the departed player, emitted by a command applied before its `PeerLeft`, would reach a new connection
+that took p's id in the same poll and has not sent `Hello`. Slices taken after that call address the new p, which
+`core/` knows as a newcomer. 3f's test of a leave and a join with one id between two ticks covers events too. (2) The
+bots runner's invariants: in a debug build `HostSession` calls an observer, which only the bots runner sets, with
+each slice and its command (none for a tick), before anything is delivered or applied next. So `ScenarioInvariants`
+runs as in the core runner: `sender` is the command's peer, `check_event` sees the state right after the call that
+emitted the event, and `check_tick` runs after every `Match.tick` call, catch-up ticks included (§4.6). (3) A failed
+deal (below) is found before the slice is delivered.
 
 **Voice relay.** The routing table holds `speakers_for(l)` for every present player l, refreshed after every
 `Match.tick` call (catch-up ticks included: a catch-up that crosses Round → End must not relay under Round's routing),
@@ -754,9 +767,9 @@ any match error (§9.7). 3f tests it with a fixture mode whose deal logs an erro
   stand-in for `server/` (`_queue`, `_deliver`, `_carry_out`), and `ScenarioBot.receive` takes `MatchEvent` objects. 3h
   splits the steps from the stand-in and has `ScenarioBot` learn from (name, fields), which the core runner takes from
   `to_dict()` and a network bot from its decoded view, so both runners play the same steps the same way, and
-  `ScenarioInvariants` checks §5 in both. The mover moves its position toward the target at the walk or sprint speed of
-  the mode's `PlayerRules` on the flat levels (2j), claims every client tick, counts its jumps and adopts every
-  `Correction`. It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
+  `ScenarioInvariants` checks §5 in both (in the bots runner per `Match` call, through `HostSession`'s observer,
+  §4.5). The mover moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on
+  the flat levels (2j), claims every client tick, counts its jumps and adopts every `Correction`. It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
   A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
   wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
   run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
@@ -1791,8 +1804,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   - *Bots* (M3, 3h): `tools\run.cmd bots [scenario]` starts a headless host, whose own client is bot 1, and the other
     bots as headless clients: over `LoopbackHub` in one process by default, stepped by a simulated clock, or over ENet
     on 127.0.0.1 with `--instances`, on the real clock. It plays the core runner's steps and checks its
-    `ScenarioInvariants`, with `HostSession` in the place of the runner's stand-in for `server/` (§4.6). The same files;
-    it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
+    `ScenarioInvariants` (per `Match` call, through `HostSession`'s observer, §4.5), with `HostSession` in the place
+    of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in

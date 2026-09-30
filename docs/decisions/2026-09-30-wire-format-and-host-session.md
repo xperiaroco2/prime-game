@@ -132,7 +132,9 @@ client, the bots and the leak test). The main choices:
   learns from (name, fields) instead of `MatchEvent` objects, so the core runner and the bots runner share them.
   Each runner passes its own map from bot number to peer id to the steps and `ScenarioInvariants` instead of the
   static `ScenarioRunner.peer_of`; over ENet the instances report their ids through files before bot 1 sends
-  `ForceRole` (ARCHITECTURE §4.6).
+  `ForceRole` (ARCHITECTURE §4.6). The bots runner feeds `ScenarioInvariants` through an observer that
+  `HostSession` calls in debug builds with each outbox slice and its command, right after each `Match.apply` and
+  `Match.tick` call, so `sender` and the live state are those of the call that emitted the event (§4.5).
 - **`MarkerReader`** (3c): `read_levels` calls `use_level(path)` before reading each level, so the host reads the
   markers through its own worlds (ARCHITECTURE §10's reader question, the option recommended on #66).
 - **The designer decides** D1 to D3 below, in the PR, before 3c and 3e land: they change the content API and the

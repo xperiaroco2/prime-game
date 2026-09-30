@@ -42,8 +42,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   included. Catching up before applying is what lets the first claim after a host freeze pass (#84).
 - One queue by arrival: the transport's signal order, the loopback's messages and the network's alike. Stamp a
   command when it is applied, with the tick it is applied on.
-- Encode an event once and send it to each recipient in turn, skipping peers this session already disconnected. Carry
-  out a directive where it stands in the outbox.
+- Take the outbox after every `Match.apply` and `Match.tick` call, one slice per call. Encode an event once and send it
+  to each recipient in turn, skipping peers this session already disconnected, and skipping p in slices taken after
+  `peer_left(p)` but before the call that applied `PeerLeft(p)` (ids are reused). Carry out a directive where it
+  stands in the outbox.
 - Snapshots: only for a tick run in this step (never for catch-up ticks), to present players, after that tick's
   events; an empty `snapshot_for` sends nothing. Unreliable messages go only to players: a player has sent its
   `Hello`, so nothing overtakes the transport's `ADMIT`.
