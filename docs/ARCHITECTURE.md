@@ -254,7 +254,7 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
 - **One table** (`NetKindTable`) binds each kind to a lane, a direction and a payload cap. Lanes: `RELIABLE`
   (channel 0, reliable), `LATEST` (channel 0, unreliable ordered) and `VOICE` (channel 1, unreliable unordered).
   Unreliable payloads are capped at 1024 bytes so ENet never fragments them. The game's table,
-  `NetKindTable.game()`, is empty until the schemas add rows.
+  `NetKindTable.game()`, is built from the message schemas' rows (`WireSchema`, §4.3, 3d).
 - **The LATEST lane delivers only the newest** message per sender and kind per `poll()`, between two of that
   sender's reliable messages (#70). After a peer's main thread froze, its backlog arrives in one poll: 50 to 100
   packets, each up to 5 s old (#21). The inbox drops every valid LATEST message that a newer one of the same kind
@@ -397,7 +397,8 @@ sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, 
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events).
 
 ### 4.3 Wire schemas (M3 design, #89)
-Proposed ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in 3d. Each message is one row: its kind
+[ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
+`WireSchema` (`net/messages/`), and `WireBudget` is `server/wire_budget.gd`. Each message is one row: its kind
 byte (the frame header, §4 Transport), its direction (C→H: a client to the host; H→C: the host to a client), its lane,
 its fields in order and its payload cap. **The field names are `core/`'s**: an intent's are the `args` its rules read
 (`MatchCommand`), an event's are the keys of its `to_dict()`. So a decoded message compares equal with what `core/`
@@ -468,7 +469,7 @@ among the commands `server/` originates), and the seq only orders them in the cl
 
 | Kind | Command | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|
-| 24 | `ForceRole` (§9.4 `DealRoles`, 2j) | RELIABLE | `seq: u32`, `peer: peer` (the player whose role is forced, which becomes the command's peer), `has_role: bool`, then `role: id` when true; false clears the forced role (the command's `role` is then `""`, as `Match` reads it) | 19 for `dissident`; 42 |
+| 24 | `ForceRole` (§9.4 `DealRoles`, 2j) | RELIABLE | `seq: u32`, `peer: peer` (the player whose role is forced, which becomes the command's peer), `has_role: bool`, then `role: id` when true; false clears the forced role (the command's `role` is then `""`, as `Match` reads it). `role` decodes as a `String`, not a `StringName`: `Match` reads it with `get_string`, which returns its default for a `StringName` | 19 for `dissident`; 42 |
 
 **Events** (H→C), all RELIABLE: one-off facts, and state sent only on change. `SelfStatus` is such state: on LATEST,
 losing the last change (stamina back to full) would leave a stale number on the HUD for good. Audiences: §4.2; a
@@ -604,6 +605,21 @@ The rules of the table:
 - **Tests** (3d): a round trip of every row, decode(encode(x)) == x; a fuzz test that feeds each decoder every
   truncation, every single-byte change and random payloads, and asserts a clean reject with no engine error line; the
   table checked against `core/` (above); the version pinned (§4.3).
+  Built as `tests/unit/net/messages/` and `tests/unit/server/wire_budget_test.gd` (3d, #98). What the build pinned:
+  - A single-byte change can make another valid message (a float, a letter of an id), so the fuzz accepts either a
+    reject or a message the encoder writes back byte for byte; a truncated row that ends in `opus` is still a valid,
+    shorter frame. The bytes of an Opus frame, which the codec never reads, get one change each, not all 255.
+  - `decode_*` past the end does print an engine error (`ERROR: Condition "p_offset < 0 || ..."`): with the reader's
+    bounds check removed the fuzz fails on those lines, which a `Logger` collects.
+  - `==` holds between typed and untyped Dictionaries and Arrays and ignores key order; a `String` key equals a
+    `StringName` key, but a `String` value does not equal a `StringName` value; a `PackedStringArray` inside a
+    Dictionary never equals an `Array`, and `==` between the two at the top level is a script error. So the decoder
+    builds exactly `to_dict()`'s Variant types (typed Dictionaries where `core/` types them, `PackedStringArray`,
+    `PackedInt32Array`, `Array[Dictionary]`), and the codec's tests compare types as well as values.
+  - Decoded shapes that `to_dict()` does not set: `ChangeSettings.settings` is an untyped Dictionary of `StringName`
+    ids to an `int` or a `PackedStringArray`; a snapshot's `avatars` are untyped, as `Snapshots.for_peer` builds them.
+  - At the declared maxima `ChangeSettings`, `Welcome` and `SettingsChanged` exceed their caps; `LoadMatch` (1445
+    bytes) does not, and the snapshot's 15 avatars take 650 bytes of its 1024.
 
 ### 4.5 The host session (M3 design, #89)
 `HostSession` (`server/`, 3f) is a `RefCounted` that owns the `Match`, the hosting transport (the host's own client
