@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## TaskTicks (ARCHITECTURE §3.3, §9.4): every tick of a phase that lists it, the tick of each of
-## the mode's task types that has one, in the mode's order, after the phase's own timers and
-## before the match clock. None ticks in the MVP; FixtureTickingTaskType stands in for #36.
+## the mode's task types that has one, in the mode's order. None ticks in the MVP;
+## FixtureTickingTaskType stands in for #36.
 
 const P1 := 1
 
