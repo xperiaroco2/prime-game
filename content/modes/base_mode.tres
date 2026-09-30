@@ -172,6 +172,11 @@ script = ExtResource("6_accept")
 intent = &"PutDown"
 from = 4
 
+[sub_resource type="Resource" id="Accept_round_use"]
+script = ExtResource("6_accept")
+intent = &"Use"
+from = 4
+
 [sub_resource type="Resource" id="TaskTicks_round"]
 script = ExtResource("29_task_ticks")
 
@@ -185,7 +190,7 @@ ghost_hears_ghost_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
