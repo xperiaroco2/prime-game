@@ -125,7 +125,8 @@ client, the bots and the leak test). The main choices:
 - **`core/` changes** (3e, with the engineer's approval, because one touches the loop): `MovementRule` reads `jumps`
   instead of `jumped`; `JoinRules` compares `Hello.content` (`wrong_content`); `Match` calls `WorldQuery.use_level`
   on start and in each transition; `ModeCheck` refuses an id outside the wire's alphabet; a `Hello` the phase refuses
-  gets `joins_closed` and `DisconnectPeer`, and Loading's entry disconnects waiting newcomers (E14); a refused
+  gets `joins_closed`, plus `DisconnectPeer` when the sender is still a newcomer (a peer already disconnected, on
+  connect or at Loading's entry, gets no second one), and Loading's entry disconnects waiting newcomers (E14); a refused
   `MoveClaim` is dropped without `Rejected` (E15); `Intents.FIELDS` declares each intent's fields and types, which
   the rules read through and 3d's test compares with the table (so 3d follows that commit of 3e).
   `WorldQuery` gains `stand_floor_below` for a player's standing, which `MovementRule` and the reach use (E10).

@@ -2,8 +2,8 @@ class_name CommandLog
 extends RefCounted
 ## Everything core/ is given, so a match can be replayed (ARCHITECTURE §3.3): the session seed, the
 ## game mode's path and content hash, the host's content hash that joiners must match, the levels'
-## layouts, the start tick, every command in
-## order with its tick (server/'s own included), the last tick run, and every WorldQuery answer.
+## layouts, the start tick, every command in order with its tick (server/'s own included), the last
+## tick run, and every WorldQuery answer.
 ## A replay refuses to run when the mode's hash differs. It never leaves the host (§5).
 
 var session_seed := 0

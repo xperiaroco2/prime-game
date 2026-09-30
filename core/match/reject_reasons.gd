@@ -19,7 +19,8 @@ const FULL := &"full"
 ## the content, a designer's branch against main); DisconnectPeer follows (§4.3, E1; 3e).
 const WRONG_CONTENT := &"wrong_content"
 ## Hello in a phase that refuses joins (the base mode's Loading, Round and End), from a peer that
-## is not a player; DisconnectPeer follows (§4.3, E14; 3e).
+## is not a player; DisconnectPeer follows when it was still a newcomer (a peer already
+## disconnected gets none; §4.1, §4.3, E14; 3e).
 const JOINS_CLOSED := &"joins_closed"
 ## SetReady to the flag the player has, or a second LoadAck (2b).
 const UNCHANGED := &"unchanged"

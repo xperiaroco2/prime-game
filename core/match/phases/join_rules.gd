@@ -4,6 +4,9 @@ extends RefCounted
 ## §3.2, §3.5, §4.1). A connected peer (PeerConnected) is a newcomer until its Hello is accepted;
 ## only a newcomer may join, once, in a phase that allows joins (Lobby, Countdown). Loading, Round
 ## and End refuse joins: a connection that completed anyway gets DisconnectPeer.
+## A Hello must also carry the host's content hash (`wrong_content`, E1). A Hello in a phase that
+## refuses joins gets `joins_closed` (Match._refuse, E14), and drop_newcomers disconnects the
+## waiting newcomers when a phase freezes the roster (Loading's entry).
 ##
 ## The host names every joiner Player<n>, n counting the session's joins (MatchState.joins); the
 ## name a Hello carries is ignored in the MVP (#73). The joiner's spot is a placeholder, "not a
