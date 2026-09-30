@@ -84,8 +84,10 @@ func test_unreliable_payloads_fit_one_enet_packet() -> void:
 	assert_int(table.add(4, VOICE, BOTH, cap + 1)).is_equal(ERR_INVALID_PARAMETER)
 
 
-func test_the_game_table_is_empty_until_the_schemas_land() -> void:
-	# The message schemas (#32, M3) add their rows; this test changes with the first of them.
+func test_the_game_table_holds_the_message_schemas_rows() -> void:
+	# Built from WireSchema (3d); tests/unit/net/messages/ checks it row by row.
 	var table := NetKindTable.game()
-	for kind: int in range(NetKindTable.MIN_KIND, NetKindTable.MAX_KIND + 1):
-		assert_bool(table.has(kind)).is_false()
+	assert_bool(table.has(WireSchema.HELLO)).is_true()
+	assert_int(table.payload_cap(WireSchema.HELLO)).is_equal(NetKindTable.MAX_PAYLOAD)
+	assert_bool(table.has(WireSchema.REJECTED)).is_true()
+	assert_bool(table.has(0)).is_false()
