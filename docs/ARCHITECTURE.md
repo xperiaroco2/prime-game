@@ -236,7 +236,8 @@ check after every fact is what makes this so: a death or a leave raises its fact
   `max_channels` 0 and clients ask for `NetKindTable.CHANNEL_COUNT` channels. `LoopbackTransport` carries the same
   frames in process: `own_client_of(host)` is the host's own client on any hosting transport, and a `LoopbackHub`
   runs a host and clients in one process for headless tests. Every backend hands received bytes to one decode path
-  (`NetTransport.receive_bytes`).
+  (`NetTransport.receive_bytes` and its helper `_decoded`; a superseded LATEST packet is checked the same way but
+  not delivered).
 - **Frame:** `[kind: u8][payload size: u16 LE][payload]`. The payload is opaque to the transport; the schemas
   decode it, never into objects. `receive_bytes` rejects anything from a peer that is not connected (a client
   accepts only the host); `NetFrame.decode` rejects: shorter than the header, over the packet cap, an unknown kind
@@ -247,6 +248,22 @@ check after every fact is what makes this so: a death or a leave raises its fact
   (channel 0, reliable), `LATEST` (channel 0, unreliable ordered) and `VOICE` (channel 1, unreliable unordered).
   Unreliable payloads are capped at 1024 bytes so ENet never fragments them. The game's table,
   `NetKindTable.game()`, is empty until the schemas add rows.
+- **The LATEST lane delivers only the newest** message per sender and kind per `poll()`, between two of that
+  sender's reliable messages (#70). After a peer's main thread froze, its backlog arrives in one poll: 50 to 100
+  packets, each up to 5 s old (#21). The inbox drops every valid LATEST message that a newer one of the same kind
+  from the same peer follows in the same poll, so no consumer ever handles the backlog, and each consumer gets the
+  rule without code of its own. The newest keeps its place among the poll's other messages. A valid RELIABLE
+  message from that peer in between separates the two, so each intent or event is still handled after the state
+  sent just before it: a client that walked to a package during the host's freeze and sent `PickUp` has it checked
+  against the claim it sent before the `PickUp`, not the one from before the freeze. A join or leave of that peer
+  in between separates them too (two connections, maybe with the same id). VOICE, on its own unordered channel,
+  separates nothing, and neither does a malformed packet. A dropped message is still checked like any packet (what
+  is malformed stays a reject) and counted in `latest_superseded`, not as a reject. RELIABLE and VOICE messages are
+  never merged. So a LATEST message must stand alone: nothing may be lost when a newer one replaces it (a one-off
+  event goes RELIABLE, or the state carries it, a counter say). The merge is by sender and kind, not by subject:
+  a host-to-client LATEST kind holds what it describes for every player that recipient may see (filtered by
+  `server/`) in one message, never one message per player, or only the last player's would arrive in a poll that
+  holds several.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
@@ -261,14 +278,30 @@ check after every fact is what makes this so: a death or a leave raises its fact
   status dropping to disconnected, whichever comes first. After it the transport is closed. The inbox counts
   sessions, so a handler that closes and joins or hosts again never sees the old session's leftover events.
 - **Timeouts** live in one place, `EnetTransport`: an ENet peer is dropped after 10 to 20 s without an
-  acknowledgement (the spike's 2 to 4 s dropped peers during main-thread freezes); a crash is noticed that late.
-- Checked by `tests/unit/net/transport/` and a headless run of a host (with its own client) and two clients, one
-  process each, on 127.0.0.1:
-  `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`. `verify`, and
-  so CI, runs it on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11).
+  acknowledgement; a crash is noticed that late. ENet runs only on the main thread, so a frozen process sends and
+  acknowledges nothing, and the spike's 2 to 4 s dropped it. #21 found a common freeze: on Windows a windowed D3D12
+  Godot process can freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts. Keep the
+  minimum at 10 s or more; a servicing thread or an extra keepalive would not help (ENet already pings every
+  500 ms, and a thread would keep a hung game "connected").
+- Checked by `tests/unit/net/transport/` and two headless runs of three processes on 127.0.0.1, which `verify`, and
+  so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11):
+  - a host (with its own client) and two clients:
+    `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`;
+  - the freeze (#70): the host blocks its main thread for 5.2 s, then a client does; no drop, every reliable
+    message in order, at most one LATEST message per peer per poll between that peer's reliable messages, and
+    each thaw's backlog merged:
+    `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (the port
+    is required). On one PC the thawed host's newest message from each of two clients was about 1 s old and the
+    freeze's last second of unreliable packets never arrived, probably because its socket buffer filled; the
+    thawed client's, from one sender, was 2 to 40 ms old.
 
 *Open (M3):* intent and event schemas, their payload encoding and their rows in `NetKindTable.game()`, rate limits,
-and what the host does with a peer that keeps sending rejected packets. The protocol version travels in `Hello`
+and what the host does with a peer that keeps sending rejected packets. A `MoveClaim` on the LATEST lane would lose
+a merged claim's `jumped` (and its sprint and movement-input flags for the ticks it covered), so its lane and how a
+jump survives a merge are part of its schema. If a claim carries a cumulative jump count instead, the host honours a
+rise in it as one jump allowance per claim, checked against the last landing floor it knows, with stamina charged
+per counted jump: the take-off positions of merged claims are lost, so the count alone never grants several jump
+heights. The intents are not affected: a peer's reliable message separates the claims merged around it. The protocol version travels in `Hello`
 (§4.1), not in the transport's `ADMIT`.
 Every schema change updates this section in the same PR.
 
@@ -284,11 +317,14 @@ Lessons from the M1 spike (#13, #15; [voice ADR](decisions/2026-09-29-voice-appr
   the re-encoded size, because `bytes_to_var` ignores trailing bytes.
 - Count rejected and malformed packets and log a summary: one client can flood per-packet log lines.
 - Budget floods by bytes, not messages. `var_to_bytes` framing is as large as an Opus frame: use a compact header.
-- A 2–4 s ENet timeout drops any peer whose main thread freezes that long (level loads, breakpoints): use a longer
-  timeout or reconnection. Cache `get_unique_id()`: it errors after the connection closes.
+- A 2–4 s ENet timeout drops any peer whose main thread freezes that long (level loads, breakpoints, the #21 D3D12
+  freeze): use a longer timeout or reconnection. Cache `get_unique_id()`: it errors after the connection closes.
 - Broadcast only public message types; everything else is built per peer by `server/` (§5).
-- #21 (open): on one machine, a hard-killed windowed client can make the host lose the other client too. Test
-  between machines before M3 depends on ENet.
+- #21: on one machine, a hard-killed windowed client made the host lose the other client too. The cause was a 5 s
+  freeze of another windowed D3D12 process on the same PC, not the network: between two machines 12 hard kills
+  were all clean. `EnetTransport`'s 10 to 20 s timeout rides the freeze out (Timeouts above), and #70 merges the
+  backlog. Kill tests with several windows on one PC run headless, off-screen or with `--rendering-driver vulkan`,
+  or expect a 5 s hitch; whether Windows keeps `d3d12` as its default is the humans' decision.
 
 ### 4.1 Intents (MVP, #32)
 What each intent means and who may send it; the schemas are M3. The sender is always the peer id the transport
@@ -548,7 +584,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     (60 Hz), so the M3 client derives it from a 20 Hz counter (or its physics frame divided by 3). A player earns
     one tick of credit per host tick and keeps at most `MAX_TICK_CREDIT`
     (200 ticks, 10 s); a claim may cover no more client ticks than its credit. So a catch-up burst after a stall
-    (#70: 50 to 100 claims in one host tick after 5 s) passes, a client that runs its tick ahead gets
+    (#70: 50 to 100 claims in one host tick after 5 s, or, merged by the LATEST lane (§4), one claim covering
+    them all) passes, a client that runs its tick ahead gets
     `TICK_LEAD` (10 ticks) at most, and no claim buys distance by inflating its tick delta. A claim past its credit
     is corrected and the next claim starts a new client-tick baseline (credit not refilled), so a client whose ticks
     ran ahead of a stalled host's is corrected once, not on every later claim. A placement (§3.2)
@@ -1307,6 +1344,6 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | M3 |
-| ENet between two machines (#21); the host's per-send ENet cost and upload for voice | before M3 depends on ENet; M3 or M5 |
+| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
 | Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
