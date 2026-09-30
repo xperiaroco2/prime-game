@@ -1,8 +1,8 @@
 # Wire format and the host session
 
-- **Status:** Proposed: the engineer reviews it in #89's PR, with the choices E1 to E16 below
+- **Status:** Proposed: the engineer reviews it in #89's PR, with the choices E1 to E16 below and the designer D1 to D3
 - **Date:** 2026-09-30
-- **Deciders:** designed by the agent in #89 (M3 design); the engineer decides E1 to E16
+- **Deciders:** designed by the agent in #89 (M3 design); the engineer decides E1 to E16, the designer D1 to D3
 - **Builds on:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md),
   [match loop, intents, events and entitlement](2026-09-29-match-loop-intents-events-and-entitlement.md),
   [content API v0](2026-09-29-content-api-v0.md), [voice approach](2026-09-29-voice-approach.md),
@@ -115,9 +115,8 @@ client, the bots and the leak test). The main choices:
   `MoveClaim` is dropped without `Rejected` (E15); `Intents.FIELDS` declares each intent's fields and types, which
   the rules read through and 3d's test compares with the table (so 3d follows that commit of 3e).
   `WorldQuery` gains `stand_floor_below` for a player's standing, which `MovementRule` and the reach use (E10).
-- **The designer** is told in the PR: content ids stay lowercase snake_case of at most 32 characters, which every MVP
-  id already is. Nothing else in `content/` changes. With E8 (a), a level's collision is `StaticBody3D` nodes, not
-  CSG or `GridMap` (their collision exists only in a tree): a point for 4e's level conventions.
+- **The designer decides** D1 to D3 below, in the PR, before 3c and 3e land: they change the content API and the
+  level conventions, the designer's side of the contract (ARCHITECTURE §9), so a notice is not enough.
 - **`net/`** gains `net/messages/`; `NetKindTable.game()` stops being empty; the transport gives `server/` its
   rejects per peer (3f). Every new event or intent costs one row and a version bump (§9.8 said so).
 - **Bandwidth.** The host uploads about 0.6 Mbit/s of snapshots at 10 players, plus voice (voice ADR: about
@@ -153,3 +152,13 @@ The design follows each recommendation, and each can be reverted before its task
 | E14 | A `Hello` the phase refuses (Loading, Round, End; on `main`: `not_accepted`, seq 0, no disconnect) | (a) a reason of its own, `joins_closed`, then `DisconnectPeer`, and the entry into Loading disconnects every waiting newcomer; (b) keep `not_accepted`, and the client ends its join on any `Rejected` before `Welcome`; the hello deadline disconnects it | (a), with the client rule of (b) as well: the joiner is told why at once, and no newcomer lingers into the Round |
 | E15 | A `MoveClaim` the phase refuses (in flight at a phase change) | (a) dropped silently by `core/`, no `Rejected`; (b) `Rejected(not_accepted)` with seq 0 as on `main`, `MoveClaim` counted against the intent budget | (a): clients ignore it anyway, and a looping client could otherwise add a reliable `Rejected` to the log and the outbox every poll |
 | E16 | Payloads that legal content can push over a cap (`SettingsChanged`'s `id_sets` can reach about 18 KB at the declared maxima; a shortfall naming a 32-character id or a 255-byte path passes `text`'s 64 bytes) | (a) shortfalls as a `note` (`u16` length, up to 320 bytes), `SettingsChanged`'s cap at 8192, and `WireBudget` (`server/`) computing every content-sized kind's worst case from the mode, refusing a mode over a cap at host start and in a test over `content/`; (b) `core/` emits structured shortfalls (a reason id and numbers) that the client formats, and the maxima shrink until every kind fits its cap at them; (c) test the MVP's worst case only | (a): no change to `core/`'s events, and a designer's edit that would break the wire fails `verify` with the kind named, not a playtest with a silent missing event |
+
+## Needs the designer
+Content API and level conventions (ARCHITECTURE §9.1, §9.6, §9.7). The design follows each recommendation; each is
+reverted with the engineer's matching choice if the designer says no.
+
+| # | Choice | Options | Recommendation |
+|---|---|---|---|
+| D1 | The id alphabet (E5) | (a) every content id is `a-z 0-9 _`, 1 to 32 characters, refused by the mode check otherwise; (b) any id, with E5 (b) (indices on the wire) | (a): every MVP id already fits, and a content mismatch then shows as an unknown id |
+| D2 | Level collision (E8) | (a) collision as `StaticBody3D` nodes with `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only; (b) any collision, with E8 (b) (the level in a `SubViewport` on the host) | (a): the host's world then holds only colliders; 3c's builder names a CSG or `GridMap` node that has collision |
+| D3 | The scenarios' jump step (2j's `content/scenarios/`) | (a) the step stays `Jump`, and the bot harness turns it into a counted jump (`jumps` + 1), so no scenario file changes; (b) scenarios name the count | (a): the scenario says what a player does, not what the wire carries |

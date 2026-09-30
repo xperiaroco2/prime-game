@@ -524,7 +524,7 @@ The rules of the table:
   the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.
 - **Ids** on the wire are the content's own names (`crew`, `knife`, `match_duration`) (E5), so a content difference
   shows up as an unknown id, never as the wrong thing. The mode check (§9.1) refuses an id outside the wire's alphabet
-  (3e): a small change to the content API, because the designer's ids must be lowercase snake_case of at most 32
+  (3e): a change to the content API that the designer decides (D1 in the ADR): ids lowercase snake_case of at most 32
   characters, which every MVP id already is. The ids that reach an `id` field, and who checks each: from the content,
   checked by the mode check (3e): role ids, item and station kinds, setting ids, spawn tags, phase ids, and the reject
   reasons that conditions and costs name (§9.4); from `core/`'s constants, checked by 3d's table-against-core test:
@@ -684,7 +684,7 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   headless host has none, and it holds player capsules), and a second live copy of the level's meshes and scripts.
   The cost: CSG and `GridMap` build their collision only inside a tree, so the builder logs an error for such a node
   with collision, and a level that relies on one fails 3c's check instead of letting players walk where the host sees
-  nothing. The level conventions (4e, with the designer) then give collision as `StaticBody3D` nodes, or E8 (b) is
+  nothing. The level conventions (4e) then give collision as `StaticBody3D` nodes (the designer decides: D2), or E8 (b) is
   taken.
 - **Which level** (E9). `Match` tells the port the level of the phase it enters, before a row's actions run:
   `WorldQuery.use_level(path)` on start and in each transition (3e; the fakes and the replay ignore it). Prevents: a
