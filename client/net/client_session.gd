@@ -1,0 +1,312 @@
+class_name ClientSession
+extends RefCounted
+## What every client runs (ARCHITECTURE §4.6): the host's own over the loopback, a remote one over
+## ENet, and every bot. It decodes each message through the codec (§4.4) into a DecodedView (the
+## record, when keep_history is on) and a ClientModel (what the client knows now), and sends the
+## intents: Hello on connected, the rest with a rising seq, one MoveClaim per client tick, LoadAck
+## after loading, and VoiceUp. It never reads core/ state (invariant 2): only what the host sent it
+## and its own copy of the game mode.
+##
+## The owner calls step(now_usec) every frame with a clock in microseconds, like HostSession: the
+## transport is polled there, and signals fire from it.
+
+## The session is over for this client, for `reason`: the reason of a Rejected before Welcome
+## (wrong_version, wrong_content, full, joins_closed...), or one of the constants below.
+signal ended(reason: StringName)
+signal welcomed(own_peer: int)
+## Every decoded event, after the model folded it (a bot's script learns from these).
+signal event_received(event_name: StringName, fields: Dictionary)
+## The host placed this client (Correction): the mover adopts the position and velocity.
+signal corrected(position: Vector3, velocity: Vector3)
+## A map the host asked for was loaded: its owner instantiates it now, before LoadAck goes out.
+signal map_loaded(path: String, scene: PackedScene)
+signal voice_received(speaker: int, tick: int, opus: PackedByteArray)
+
+const HOST_LOST := &"host_lost"
+const CONNECT_FAILED := &"connect_failed"
+## LoadMatch named a map that the client's own mode does not list: it never loads a path from the
+## wire alone (§4.5).
+const UNKNOWN_MAP := &"unknown_map"
+const LOAD_FAILED := &"load_failed"
+## The owner left (leave()).
+const LEFT := &"left"
+## MoveClaim's jumps is a u16 (§4.3); a count that high never happens in one epoch.
+const MAX_JUMPS := 0xFFFF
+
+## The record of every decoded message, for the bots and the leak test; off by default (a real
+## client does not need it, and a 10-minute match holds 12000 snapshots), like Match.keep_history.
+var keep_history := false
+## False for a bot: it acknowledges LoadMatch without loading the scene (§4.6).
+var load_levels := true
+var view := DecodedView.new()
+var model: ClientModel
+## Why the session ended; empty while it runs.
+var end_reason: StringName = &""
+## Payloads the codec rejected (the transport has counted what NetFrame rejected).
+var bad_payloads := 0
+
+var _transport: NetTransport
+var _schema: WireSchema
+var _mode: GameMode
+var _content := 0
+## The seq of the last intent sent; Hello's is 0.
+var _seq := 0
+var _voice_seq := 0
+var _welcomed := false
+var _clock_start := -1
+var _last_claim_tick := -1
+var _jumps := 0
+var _position := Vector3.ZERO
+var _velocity := Vector3.ZERO
+var _facing := Vector3.FORWARD
+var _sprint := false
+var _moving := false
+var _on_floor := true
+## The map being loaded and the match it is for; empty when nothing loads.
+var _loading := ""
+var _loading_match := -1
+
+
+## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
+## the client's own copy of the game mode, whose ContentFingerprint Hello carries.
+func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -> void:
+	_transport = transport
+	_mode = mode
+	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
+	_content = ContentFingerprint.of(mode)
+	model = ClientModel.new(mode)
+	_transport.connected.connect(_on_connected)
+	_transport.connect_failed.connect(_end.bind(CONNECT_FAILED))
+	_transport.host_lost.connect(_end.bind(HOST_LOST))
+	_transport.packet_received.connect(_on_packet)
+
+
+## Polls the transport, then advances a threaded load and sends the MoveClaim due by `now_usec`.
+func step(now_usec: int) -> void:
+	if _clock_start < 0:
+		_clock_start = now_usec
+	if is_ended():
+		return
+	_transport.poll()
+	if is_ended():
+		return
+	_advance_load()
+	_claim(now_usec)
+
+
+func is_welcomed() -> bool:
+	return _welcomed
+
+
+func is_ended() -> bool:
+	return not end_reason.is_empty()
+
+
+## The client tick at `now_usec`: 20 Hz core ticks of this client's own clock (Ticks.RATE),
+## counted from its first step.
+func client_tick(now_usec: int) -> int:
+	if _clock_start < 0:
+		return 0
+	@warning_ignore("integer_division")
+	return (now_usec - _clock_start) * Ticks.RATE / 1000000
+
+
+## What the next MoveClaims say, from the mover (the player controller or a bot's).
+func set_motion(
+	position: Vector3,
+	velocity: Vector3,
+	facing: Vector3,
+	sprint: bool,
+	moving: bool,
+	on_floor: bool
+) -> void:
+	_position = position
+	_velocity = velocity
+	_facing = facing
+	_sprint = sprint
+	_moving = moving
+	_on_floor = on_floor
+
+
+## The mover jumped: the claims' count of jumps in this epoch rises (E2).
+func count_jump() -> void:
+	_jumps = mini(_jumps + 1, MAX_JUMPS)
+
+
+## The jumps counted since the client adopted its epoch.
+func jumps() -> int:
+	return _jumps
+
+
+## Sends an intent with the next seq, its fields as the MatchCommand's args; returns the seq, or -1
+## when it could not be sent (not connected, or the codec refused it and logged why).
+func send_intent(intent: StringName, args: Dictionary = {}) -> int:
+	var seq := _seq + 1
+	if _send(WireMessage.new(intent, args, seq)) != OK:
+		return -1
+	_seq = seq
+	return seq
+
+
+## Debug builds only (E17): forces `role` on `peer` for the deals that follow; "" clears it. Only
+## the host's own client may send it; the host drops it from anyone else.
+func force_role(peer: int, role: String) -> int:
+	var seq := _seq + 1
+	if _send(WireMessage.new(&"ForceRole", {"role": role}, seq, peer)) != OK:
+		return -1
+	_seq = seq
+	return seq
+
+
+## Sends one 20 ms Opus frame; the host relays it to whoever may hear this client.
+func send_voice(opus: PackedByteArray) -> Error:
+	var sent := _send(WireMessage.new(&"VoiceUp", {"seq": _voice_seq, "opus": opus}))
+	if sent == OK:
+		_voice_seq = (_voice_seq + 1) & 0xFFFF
+	return sent
+
+
+## Leaves the session (the owner's choice, not a failure).
+func leave() -> void:
+	_end(LEFT)
+
+
+func _on_connected(_own_id: int) -> void:
+	var hello := {"version": WireSchema.VERSION, "content": _content}
+	_send(WireMessage.new(&"Hello", hello))
+
+
+func _on_packet(_from_peer: int, kind: int, payload: PackedByteArray) -> void:
+	if is_ended():
+		return
+	var message := _schema.decode(kind, payload)
+	if message == null:
+		bad_payloads += 1
+		if bad_payloads == 1:
+			push_warning("client: a message of kind %d from the host did not decode" % kind)
+		return
+	if keep_history:
+		view.record(message)
+	if message.name == DecodedView.SNAPSHOT:
+		model.fold_snapshot(message.fields)
+	elif message.name == DecodedView.VOICE_DOWN:
+		voice_received.emit(
+			message.fields["speaker"] as int,
+			message.fields["tick"] as int,
+			message.fields["opus"] as PackedByteArray
+		)
+	else:
+		_on_event(message.name, message.fields)
+
+
+func _on_event(event_name: StringName, fields: Dictionary) -> void:
+	if not _welcomed and event_name == &"Rejected":
+		# E14's client rule: before Welcome, any Rejected ends the join with its reason.
+		event_received.emit(event_name, fields)
+		_end(fields["reason"] as StringName)
+		return
+	model.fold(event_name, fields)
+	match event_name:
+		&"Welcome":
+			_welcomed = true
+			view.peer = model.own_peer
+			_adopt(fields["spot"] as Vector3, Vector3.ZERO)
+			welcomed.emit(model.own_peer)
+		&"Correction":
+			_adopt(fields["position"] as Vector3, fields["velocity"] as Vector3)
+			corrected.emit(_position, _velocity)
+		&"LoadMatch":
+			_start_load(fields["match_id"] as int, fields["map"] as String)
+	event_received.emit(event_name, fields)
+
+
+## A new epoch (Welcome, Correction): its claims count jumps from 0 and start where the host put it.
+func _adopt(position: Vector3, velocity: Vector3) -> void:
+	_jumps = 0
+	_position = position
+	_velocity = velocity
+
+
+## One MoveClaim per client tick, and only while the phase accepts one from this client.
+func _claim(now_usec: int) -> void:
+	if not _welcomed or not _claims_accepted():
+		return
+	var tick := client_tick(now_usec)
+	if tick <= _last_claim_tick:
+		return
+	var claim := {
+		"epoch": model.epoch,
+		"client_tick": tick,
+		"position": _position,
+		"velocity": _velocity,
+		"facing": _facing,
+		"sprint": _sprint,
+		"moving": _moving,
+		"on_floor": _on_floor,
+		"jumps": _jumps,
+	}
+	if _send(WireMessage.new(Intents.MOVE_CLAIM, claim)) == OK:
+		_last_claim_tick = tick
+
+
+## Whether the client's own copy of the current phase accepts MoveClaim from it (§4.3): as a
+## player, living or dead, and the host's own player as peer 1.
+func _claims_accepted() -> bool:
+	var spec := model.phase_spec()
+	if spec == null:
+		return false
+	var mine: int = AcceptSpec.From.PLAYER
+	mine |= AcceptSpec.From.LIVING if model.is_alive(model.own_peer) else AcceptSpec.From.GHOST
+	if model.own_peer == NetTransport.HOST_ID:
+		mine |= AcceptSpec.From.HOST
+	return (spec.senders_of(Intents.MOVE_CLAIM) & mine) != 0
+
+
+func _start_load(match_id: int, map: String) -> void:
+	if not _mode.maps.has(map):
+		_end(UNKNOWN_MAP)
+		return
+	_loading_match = match_id
+	if not load_levels:
+		send_intent(Intents.LOAD_ACK, {"match_id": match_id})
+		return
+	_loading = map
+	if ResourceLoader.load_threaded_request(map, "PackedScene") != OK:
+		_end(LOAD_FAILED)
+
+
+func _advance_load() -> void:
+	if _loading.is_empty():
+		return
+	var status := ResourceLoader.load_threaded_get_status(_loading)
+	if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		return
+	var path := _loading
+	_loading = ""
+	var scene: PackedScene = null
+	if status == ResourceLoader.THREAD_LOAD_LOADED:
+		scene = ResourceLoader.load_threaded_get(path) as PackedScene
+	if scene == null:
+		_end(LOAD_FAILED)
+		return
+	map_loaded.emit(path, scene)
+	if not is_ended():
+		send_intent(Intents.LOAD_ACK, {"match_id": _loading_match})
+
+
+func _send(message: WireMessage) -> Error:
+	if is_ended():
+		return ERR_UNAVAILABLE
+	var payload := _schema.encode(message)
+	if payload.is_empty():
+		return ERR_INVALID_DATA
+	return _transport.send(NetTransport.HOST_ID, _schema.kind_of(message.name), payload)
+
+
+func _end(reason: StringName) -> void:
+	if is_ended():
+		return
+	end_reason = reason
+	_loading = ""
+	_transport.close()
+	ended.emit(reason)
