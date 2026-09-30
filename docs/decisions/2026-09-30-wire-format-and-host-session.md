@@ -130,6 +130,9 @@ client, the bots and the leak test). The main choices:
   client's message never becomes it, changes to "from peer 1's debug-kind message only" (E17).
 - **`tests/harness/`** (3h): `ScenarioRunner`'s steps are split from its stand-in for `server/`, and `ScenarioBot`
   learns from (name, fields) instead of `MatchEvent` objects, so the core runner and the bots runner share them.
+  Each runner passes its own map from bot number to peer id to the steps and `ScenarioInvariants` instead of the
+  static `ScenarioRunner.peer_of`; over ENet the instances report their ids through files before bot 1 sends
+  `ForceRole` (ARCHITECTURE §4.6).
 - **`MarkerReader`** (3c): `read_levels` calls `use_level(path)` before reading each level, so the host reads the
   markers through its own worlds (ARCHITECTURE §10's reader question, the option recommended on #66).
 - **The designer decides** D1 to D3 below, in the PR, before 3c and 3e land: they change the content API and the

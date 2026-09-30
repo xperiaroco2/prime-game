@@ -759,7 +759,16 @@ any match error (§9.7). 3f tests it with a fixture mode whose deal logs an erro
   `Correction`. It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
   A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
   wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
-  run in debug builds only. Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
+  run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
+  the wire tells bot 1 which peer is bot i: the host names every joiner `Player<n>`, and over ENet the clients choose
+  their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
+  `ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
+  runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
+  (`LoopbackHub` hands out the ids). Over ENet each instance writes its peer id to `tools/out/bots/<scenario>/peer-<i>`
+  on `connected`; bot 1 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there,
+  and only then sends the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band
+  is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
+  after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
   listener also checks that the relay changed no frame and named the right speaker.
 - **The runners** (§9.7; E12):
   - `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/`, or those named, in one headless
@@ -1757,7 +1766,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2) fails, because an honest bot
   is never corrected, so every scenario also checks the host's movement rules against honest movement. A field that
   names a player is written as the bot's number; the runner maps it to the peer id (the core runner: bot 1 is
-  peer 1, bot i is peer 1000 + i, so a scenario that confuses the two fails).
+  peer 1, bot i is peer 1000 + i, so a scenario that confuses the two fails; the bots runner: the ids its clients
+  got, §4.6).
 - **Always asserted:** the expected ends within the time limit; no `ERROR:` line in the log; the §5 invariants on
   every bot's stream; over the network, the leak test (§5): the reliable events a bot decoded are exactly its peer's
   events in `Match.view_of`, in order, and every snapshot and voice frame it decoded is in `view_of`, which is a
