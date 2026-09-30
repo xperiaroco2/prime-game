@@ -6,8 +6,9 @@ extends RefCounted
 ## headless tests. Nothing outside net/ touches ENet.
 ##
 ## A message is a kind from the NetKindTable plus an opaque payload. Every backend hands received
-## packets to receive_bytes(): one framing and one defensive decode for every peer, the host's own
-## client included. The owner calls poll() every frame, and signals fire only from poll().
+## packets to the inbox, which decodes each one through receive_bytes() and its helper _decoded():
+## one framing and one defensive decode for every peer, the host's own client included. The owner
+## calls poll() every frame, and signals fire only from poll().
 ## The host is peer HOST_ID and plays: its own client is peer HOST_ID too. Clients reach only the
 ## host, never each other.
 ##
@@ -217,7 +218,7 @@ func disconnect_peer(peer_id: int) -> Error:
 ## the host's own client decodes exactly what a remote client would. Only the inbox (from poll())
 ## and tests call it; game code never does, because signals fire only from poll(). Each call
 ## delivers its packet: the LATEST lane's newest-only rule belongs to the inbox, which sees a whole
-## poll's packets.
+## poll's packets and checks a superseded one through the same _decoded() without delivering it.
 func receive_bytes(
 	from_peer: int, bytes: PackedByteArray, channel: int, mode: MultiplayerPeer.TransferMode
 ) -> void:

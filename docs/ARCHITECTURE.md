@@ -231,7 +231,8 @@ check after every fact is what makes this so: a death or a leave raises its fact
   `max_channels` 0 and clients ask for `NetKindTable.CHANNEL_COUNT` channels. `LoopbackTransport` carries the same
   frames in process: `own_client_of(host)` is the host's own client on any hosting transport, and a `LoopbackHub`
   runs a host and clients in one process for headless tests. Every backend hands received bytes to one decode path
-  (`NetTransport.receive_bytes`).
+  (`NetTransport.receive_bytes` and its helper `_decoded`; a superseded LATEST packet is checked the same way but
+  not delivered).
 - **Frame:** `[kind: u8][payload size: u16 LE][payload]`. The payload is opaque to the transport; the schemas
   decode it, never into objects. `receive_bytes` rejects anything from a peer that is not connected (a client
   accepts only the host); `NetFrame.decode` rejects: shorter than the header, over the packet cap, an unknown kind
@@ -292,7 +293,10 @@ check after every fact is what makes this so: a death or a leave raises its fact
 *Open (M3):* intent and event schemas, their payload encoding and their rows in `NetKindTable.game()`, rate limits,
 and what the host does with a peer that keeps sending rejected packets. A `MoveClaim` on the LATEST lane would lose
 a merged claim's `jumped` (and its sprint and movement-input flags for the ticks it covered), so its lane and how a
-jump survives a merge are part of its schema. The protocol version travels in `Hello`
+jump survives a merge are part of its schema. If a claim carries a cumulative jump count instead, the host honours a
+rise in it as one jump allowance per claim, checked against the last landing floor it knows, with stamina charged
+per counted jump: the take-off positions of merged claims are lost, so the count alone never grants several jump
+heights. The intents are not affected: a peer's reliable message separates the claims merged around it. The protocol version travels in `Hello`
 (§4.1), not in the transport's `ADMIT`.
 Every schema change updates this section in the same PR.
 
