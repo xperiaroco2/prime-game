@@ -224,3 +224,6 @@ func test_taking_an_item_that_is_not_on_the_ground_is_a_rule_error() -> void:
 	assert_int(game.state.player(P2).held_item).is_equal(item.id)
 	assert_array(game.view_of(P1).events_named(&"ItemPickedUp")).has_size(1)
 	assert_str(game.diagnostics[0]).contains("is not on the ground for player 1")
+	# The sender still gets an answer, and only the sender.
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"unavailable"])
+	assert_array(game.view_of(P2).events_named(&"Rejected")).is_empty()
