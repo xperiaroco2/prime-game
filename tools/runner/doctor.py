@@ -72,7 +72,7 @@ class Doctor:
             else:
                 warn(
                     f"{var} is not set: neither " + ", ".join(report.searched[:-1]) + f" nor {report.searched[-1]} "
-                    f"has it; add it to the env of {USER_SETTINGS}"
+                    f"has it; add it to the env of {report.searched[-1]}"
                 )
 
     def godot(self) -> None:

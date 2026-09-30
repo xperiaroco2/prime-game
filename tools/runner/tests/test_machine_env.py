@@ -155,6 +155,14 @@ class DoctorTest(unittest.TestCase):
         )
         self.assertEqual(out.count("warn"), 4, out)
 
+    def test_names_the_claude_config_dir_settings_when_they_are_searched(self) -> None:
+        report = self.report()
+        report.searched[-1] = "$CLAUDE_CONFIG_DIR/settings.json"
+        out = self.output(report)
+        self.assertIn("PYTHON_BIN is not set", out)
+        self.assertIn("add it to the env of $CLAUDE_CONFIG_DIR/settings.json", out)
+        self.assertNotIn(USER_SETTINGS, out.replace(f"GODOT_BIN from {USER_SETTINGS}", ""))
+
     def godot_output(self, gui: str | None) -> str:
         """machine_paths() and godot() together, as doctor runs them, with GODOT_GUI_BIN unset or set to `gui`."""
         environ = {k: v for k, v in os.environ.items() if k != "GODOT_GUI_BIN"}
