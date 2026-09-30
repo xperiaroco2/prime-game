@@ -127,11 +127,12 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 
 ## Talking to the humans
 - Humans often dictate by voice. Infer the meaning; read the file name back before editing; ask one short question
-  only if a misreading would change what gets built.
+  only if a misreading would change what gets built. A design answer with two readings that build different things
+  (the look or the mechanics) is read back in one sentence before an issue, an ADR or a design doc records it.
+<!-- see docs/interventions/2026-09-30-engineer-ghosts-look-not-flight.md -->
+- Explain a decision from a concrete scenario of what goes wrong (which person, agent and machine) in plain words;
+  options next, jargon last. Before designing enforcement against a human behaviour, ask how the humans work.
 <!-- see docs/interventions/2026-09-28-engineer-plain-explanations.md -->
-- Explain a decision from a concrete scenario of what goes wrong, in plain words, naming which person, which agent
-  and which machine. Options come next, jargon last. Before designing enforcement against a human behaviour, ask
-  how the humans actually work.
 - A command for a human starts with `cd` to the absolute folder it runs in (your worktree, if you use one: their
   terminal is in the main checkout), in their shell (PowerShell). Run it from there yourself first.
 <!-- see docs/interventions/2026-09-29-engineer-commands-say-where.md -->

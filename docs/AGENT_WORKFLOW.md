@@ -421,6 +421,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - Dictation: say the issue number and describe the thing; the agent reads the file name back before editing and asks
   one short question only if a misreading would change what gets built. The glossary in root `CLAUDE.md` grows from
   real misrecognitions.
+- **Two readings are read back:** when a human's answer to a design question could describe different things to build
+  (the look or the mechanics), the agent says its reading back in one sentence and records it in an issue, an ADR or
+  a design doc only after the human confirms. A wrong guess is otherwise copied into every task built on it.
+<!-- see docs/interventions/2026-09-30-engineer-ghosts-look-not-flight.md -->
 - Phrases: "запам'ятай" → the question in §3; "стоп" → stop and summarise; "поясни" → explain the pending prompt or
   step.
 - **The agent explains choices plainly:** start from a concrete scenario of what goes wrong, then the options; jargon
