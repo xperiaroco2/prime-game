@@ -125,6 +125,38 @@ func test_floor_tags_are_the_spawn_tags_of_the_mode_s_stations() -> void:
 	assert_array(MarkerReader.floor_tags_of(GameMode.new())).is_empty()
 
 
+func test_read_levels_points_the_world_at_each_level_before_reading_it() -> void:
+	# The host's worlds answer for the level they are pointed at (§4.5 Starting): the lobby, then
+	# each map once, each named before its circle markers ask for their floor.
+	var room := "res://tests/fixtures/levels/platform_room.tscn"
+	var level := "res://tests/fixtures/levels/wall_ledge_crate.tscn"
+	var mode := GameMode.new()
+	var delivery := Delivery.new()
+	delivery.circle = StationKind.new()
+	delivery.circle.spawn_tag = &"circle"
+	mode.task_types = [delivery]
+	mode.lobby_level = room
+	mode.maps = PackedStringArray([level, room])
+	assert_array(MarkerReader.level_paths_of(mode)).is_equal([room, level])
+	var world := FixtureLevelWorld.new()
+	var levels := MarkerReader.read_levels(mode, world)
+	assert_array(Array(levels.errors)).is_empty()
+	assert_array(levels.layouts.keys()).is_equal([room, level])
+	(
+		assert_array(Array(world.calls))
+		. is_equal(
+			[
+				"use_level %s" % room,
+				"floor_below",
+				"use_level %s" % level,
+				"floor_below",
+				"floor_below",
+				"floor_below",
+			]
+		)
+	)
+
+
 func test_a_missing_scene_is_a_load_error() -> void:
 	var result := MarkerReader.read_scene(
 		"res://tests/scratch/no_such_level.tscn", FlatWorldQuery.new()
