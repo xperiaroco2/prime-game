@@ -448,6 +448,9 @@ The local player's controller (#46, `client/player/`):
   script defaults are 0 so no number is repeated in code. `core/` (stage 2d) and later content take them over.
 - Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step.
   `LocalStamina` is a stand-in for `core/`'s stamina and the only copy of the rule on the client.
+- A ghost (`ghost = true`) takes the living's path: the same capsule, gravity, floor, steps, slopes and jump, at the
+  living's walk and sprint speeds times `ghost_speed_factor`. `StaminaSource` never refuses a ghost and records
+  nothing for it. There is no flight (the engineer's correction of 2026-09-30, #46).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `ghosts`. The living collide with the world and the living; a ghost only with the world.
   Other living players are `RemotePlayerBody` kinematic capsules that only their owner's data moves.
@@ -494,9 +497,12 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   and never corrects it. Prevents: two clients that see each other 100 ms late snapping each other back and forth.
   Accepted: a modified client can walk through players. Ghosts are outside this by construction: a living client
   never receives a ghost's position, so it cannot bump into one.
-- **Ghosts** fly without gravity, faster than the living (the host bounds their 3D speed and teleports only), and
-  collide with the level's walls client-side, not with the living or with other ghosts. `PickUp`, `PutDown` and `Use`
-  from a ghost are rejected.
+- **Ghosts** move like the living and get the same movement checks (floor, jumps, step height), with the walk and
+  sprint speeds times the ghost speed factor (1.3), and stamina never limits them: a ghost's claims neither need nor
+  spend it. They collide with the level client-side, not with the living or with other ghosts. `PickUp`, `PutDown`
+  and `Use` from a ghost are rejected. The engineer corrected this on 2026-09-30 (#46): ghosts do not fly, so the
+  host no longer bounds a 3D flight speed. A side effect, not decided yet: with the same jump and 30% more speed, a
+  ghost jumps 30% farther; the recommendation is to accept it and keep gaps only a ghost could cross out of the map.
 - **Walls.** The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
   walls for hits, pick-ups and placement, because there an honest client would otherwise stab or grab through a thin
   wall.
@@ -793,9 +799,9 @@ Settings:
   the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to
-  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts 8 m/s (0.5 to 30); capsule radius 0.4 m (0.1 to
-  1) × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to 1). Health and stamina are whole
-  points here, thousandths inside `core/` (§3.3).
+  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts walk and sprint at those speeds × 1.3 (1 to 3; the
+  engineer's decision of 2026-09-30); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below
+  the height); step 0.3 m (0 to 1). Health and stamina are whole points here, thousandths inside `core/` (§3.3).
 - Sides: `crew` ("Crew"), `dissidents` ("Dissidents"). Roles: Crew, Dissident. Item kinds: Package, Knife.
 - Actions: PickUp, PutDown. Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
   alive, time up.
@@ -997,8 +1003,7 @@ told. One format runs in two runners.
 | `ReturnToLobby` | (the host's bot) sends `ReturnToLobby` | `PhaseChanged` to the lobby arrives |
 | `WaitFor(event, fields)` | waits | it receives a matching event |
 | `Wait(seconds)` | waits | the time has passed |
-| `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed, straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
-| `FlyTo(target, stop_m)` | as a ghost, sends honest flight claims straight towards the target, in 3D | it is within `stop_m` (0.5) of the target |
+| `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (a ghost's speed as a ghost; ghosts do not fly since the engineer's correction of 2026-09-30), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
 | `PickUp(target)` | faces the item and sends `PickUp` | its `ItemPickedUp` arrives |
 | `PutDown(towards)` | faces the target and sends `PutDown` | its `ItemPlaced` arrives |
 | `Use(towards, until)` | faces the target and sends `Use` | the event `until` names arrives for this bot (default `Swung`, the knife's; an item whose `Use` emits something else names that) |

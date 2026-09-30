@@ -10,6 +10,8 @@ paths:
   `tests/unit/match/vote_test.gd`). `tests/integration/`: `server/` and `net/` together, and scene or physics
   suites that need real engine steps, mirroring the source path (`client/player/player_controller.gd` →
   `tests/integration/client/player/player_controller_test.gd`). Bot matches come with the bot harness (M3).
+- A suite that outgrows gdlint's 40 public methods splits by topic (`player_controller_ghost_test.gd`); builders it
+  shares go in a plain script next to it, preloaded by each suite (`player_test_world.gd`).
 - A suite is `<name>_test.gd` (GdUnit4's snake_case convention) and `extends GdUnitTestSuite`. Test functions start
   with `test_`, are typed like all GDScript, and return `void`.
 - Hooks: `before()` and `after()` once per suite; `before_test()` and `after_test()` around each test.
