@@ -177,8 +177,10 @@ func apply(command: MatchCommand) -> bool:
 	# A rule that read a field its intent does not declare is a bug a test must see (§4.4).
 	for key: String in command.undeclared_reads:
 		record_error(
-			"%s from peer %d: a rule read field %s, which Intents.FIELDS does not declare"
-			% [command.kind, command.peer, key]
+			(
+				"%s from peer %d: a rule read field %s, which Intents.FIELDS does not declare"
+				% [command.kind, command.peer, key]
+			)
 		)
 	command.undeclared_reads.clear()
 	return true
