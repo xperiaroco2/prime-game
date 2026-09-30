@@ -44,6 +44,8 @@ var _ticked_through := -1
 var _in_tick := false
 ## True while a row's actions and the old phase's exit run: no outcome may be reported then.
 var _in_transition := false
+## Errors recorded while a row's actions and the old phase's exit ran (row_error_count()).
+var _row_errors := 0
 var _step_has_outcome := false
 var _step_outcome: StringName
 var _step_argument: Variant
@@ -331,6 +333,17 @@ func report_outcome(outcome: StringName, argument: Variant, sender: MatchCommand
 func record_error(message: String) -> void:
 	diagnostics.append("error: %s" % message)
 	push_error("match: %s" % message)
+	if _in_transition:
+		_row_errors += 1
+
+
+## How many errors were recorded while a transition row ran (its actions, the deal's included,
+## and the old phase's exit) since the match was created. server/ reads it after every apply()
+## and tick(): a new one ends the session, so a round never starts from a failed deal, and server/
+## names no phase or outcome of the mode (§4.5 "A failed deal is fatal"). Errors outside a row (a
+## ForceRole naming a role the mode lacks, a phase's own timers) are only logged.
+func row_error_count() -> int:
+	return _row_errors
 
 
 func _begin_step() -> void:

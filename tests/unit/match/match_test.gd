@@ -311,6 +311,24 @@ func test_the_world_is_told_the_level_on_start_and_before_each_rows_actions() ->
 	assert_array(Array(world.calls).slice(into_round.size())).is_equal(after)
 
 
+func test_errors_in_a_rows_actions_are_counted_and_others_are_not() -> void:
+	var mode := FixtureModes.basic()
+	var error := FixtureError.new()
+	error.text = "the deal could not place its tasks"
+	mode.transitions[0].actions.push_front(error)
+	var game := FixtureModes.started(mode, [P1])
+	assert_int(game.row_error_count()).is_equal(0)
+	# An error outside a row: logged, not counted.
+	game.apply(MatchCommand.new(Intents.FORCE_ROLE, P1, game.ticked_through() + 1, {"role": "x"}))
+	assert_int(game.diagnostics.size()).is_equal(1)
+	assert_int(game.row_error_count()).is_equal(0)
+	FixtureModes.send(game, Intents.SET_READY, P1, {"ready": true})
+	assert_str(game.phase_id()).is_equal("round")
+	assert_int(game.row_error_count()).is_equal(1)
+	assert_str(game.diagnostics[-1]).contains("the deal could not place its tasks")
+	assert_str(game.diagnostics[-1]).contains("row lobby, all_ready")
+
+
 func test_a_player_who_left_is_heard_by_no_rule_and_told_nothing() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	var left := game.state.player(P2)

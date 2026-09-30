@@ -208,6 +208,9 @@ func test_a_map_without_enough_markers_deals_nothing_and_says_so() -> void:
 	# The row that dealt stays in the source, before the task type.
 	assert_str(game.diagnostics[0]).contains("row lobby, all_ready, deal of task type delivery: ")
 	assert_array(game.view_of(P1).events_named(&"StationPlaced")).is_empty()
+	# The failed deal is counted as a row's error, which ends a host session (§4.5).
+	assert_int(game.row_error_count()).is_equal(game.diagnostics.size())
+	assert_int(game.row_error_count()).is_greater(0)
 
 
 func test_packages_skip_a_package_marker_where_an_item_already_rests() -> void:
