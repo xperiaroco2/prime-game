@@ -15,10 +15,13 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - `transport/`: `NetTransport` (the interface game code uses), `EnetTransport`, `LoopbackTransport` and
   `LoopbackHub`, `NetFrame` (the 3-byte header and the defensive decode), `NetKindTable` (kind → lane, direction,
   payload cap), `NetRejects` (counts and the summary line). Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
+- `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
+  it), `WireRow`, `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the
+  fields, `seq` and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
 
 ## Rules
-- A new message kind is one row in `NetKindTable.game()`: pick its lane (voice takes `VOICE`, unordered), its
-  direction and a payload cap. Never pick a channel or transfer mode anywhere else.
+- A new message kind is one row in `WireSchema` (`NetKindTable.game()` is built from it): pick its lane (voice takes
+  `VOICE`, unordered), its direction and a payload cap. Never pick a channel or transfer mode anywhere else.
 - The LATEST lane delivers only the newest message per sender and kind per poll between two of that sender's
   reliable messages (the backlog after a freeze, #70): a LATEST message must stand alone. Anything that must not be
   lost when a newer one replaces it goes RELIABLE. The merge ignores the subject: a host-to-client LATEST kind holds
@@ -36,7 +39,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - Every schema change updates the protocol section of `docs/ARCHITECTURE.md` in the same PR.
 - No game rules here. If a message handler starts deciding outcomes, the decision belongs in `core/`.
 
-## Messages (M3 design, proposed: `docs/ARCHITECTURE.md` §4.3, §4.4)
+## Messages (`docs/ARCHITECTURE.md` §4.3, §4.4; built in 3d, #98)
 - One declarative table in `messages/` holds every row (kind, name, direction, lane, cap, fields with wire types);
   `NetKindTable.game()` is built from it. Field names are `core/`'s (`MatchCommand.args`, each event's `to_dict()`),
   written as strings: `net/` references no `core/` class.

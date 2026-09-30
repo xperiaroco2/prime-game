@@ -1,0 +1,823 @@
+class_name WireField
+extends RefCounted
+## One field of a wire row (ARCHITECTURE §4.3): its name, which is core/'s (a MatchCommand arg or
+## a key of an event's to_dict(), written as a string: net/ references no core/ class), its wire
+## type, and the Variant it decodes to. write() checks a value by the decoder's rules before it
+## writes it, so the encoder refuses whatever the decoder would reject; read() rejects at the
+## first problem through its WireReader.
+
+enum Type {
+	U8,
+	U16,
+	U32,
+	S32,
+	S64,
+	BOOL,
+	F32,
+	VEC3,
+	COLOUR,
+	PEER,
+	ITEM,
+	STATION,
+	TICK,
+	ID,
+	PATH,
+	TEXT,
+	NOTE,
+	LIST,
+	MAP,
+	OPUS,
+	## A u8 of named bools, the first name in bit 1; any other bit set is rejected.
+	FLAGS,
+	## Parts in order, as one Dictionary (a roster entry, an avatar).
+	RECORD,
+	## A bool flag (`has_map`), then the parts when it is true.
+	OPTIONAL,
+	## A setting of ChangeSettings: u8 0 then s32 (a whole number), or u8 1 then list<id>.
+	SETTING,
+}
+
+## Where a decoded field goes: the payload's Dictionary, or a WireMessage slot outside it (the
+## intent's `seq`, ForceRole's `peer`: wire-only fields, §4.4).
+enum Slot { FIELD, SEQ, PEER }
+
+const ID_MAX := 32
+const PATH_MAX := 255
+const TEXT_MAX := 64
+const NOTE_MAX := 320
+const PATH_PREFIX := "res://"
+const PEER_MAX := 0x7FFFFFFF
+const U16_MAX := 0xFFFF
+const U32_MAX := 0xFFFFFFFF
+const S32_MIN := -0x80000000
+const S32_MAX := 0x7FFFFFFF
+## How much of a refused value a refusal line shows.
+const WRONG_VALUE_MAX := 64
+## The integer types and their bounds; one above the top is none (-1) where a field is optional.
+const INT_BOUNDS := {
+	Type.U8: [0, 0xFF],
+	Type.U16: [0, U16_MAX],
+	Type.U32: [0, U32_MAX],
+	Type.S32: [S32_MIN, S32_MAX],
+	Type.S64: [-0x7FFFFFFFFFFFFFFF - 1, 0x7FFFFFFFFFFFFFFF],
+	Type.PEER: [1, PEER_MAX],
+	Type.ITEM: [0, U16_MAX - 1],
+	Type.STATION: [0, U16_MAX - 1],
+	Type.TICK: [0, U32_MAX - 1],
+}
+const NUMBERS := [
+	Type.U8, Type.U16, Type.U32, Type.S32, Type.S64, Type.PEER, Type.ITEM, Type.STATION, Type.TICK
+]
+const TEXTS := [Type.ID, Type.PATH, Type.TEXT, Type.NOTE]
+const CONTAINERS := [Type.LIST, Type.MAP, Type.SETTING, Type.RECORD]
+const FIXED_SIZES := {
+	Type.U8: 1,
+	Type.BOOL: 1,
+	Type.FLAGS: 1,
+	Type.U16: 2,
+	Type.ITEM: 2,
+	Type.STATION: 2,
+	Type.U32: 4,
+	Type.S32: 4,
+	Type.F32: 4,
+	Type.PEER: 4,
+	Type.TICK: 4,
+	Type.S64: 8,
+	Type.VEC3: 12,
+	Type.COLOUR: 16,
+	Type.ID: 1 + ID_MAX,
+	Type.PATH: 1 + PATH_MAX,
+	Type.TEXT: 1 + TEXT_MAX,
+	Type.NOTE: 2 + NOTE_MAX,
+}
+const DECODED_TYPES := {
+	Type.BOOL: TYPE_BOOL,
+	Type.F32: TYPE_FLOAT,
+	Type.VEC3: TYPE_VECTOR3,
+	Type.COLOUR: TYPE_COLOR,
+	Type.PATH: TYPE_STRING,
+	Type.TEXT: TYPE_STRING,
+	Type.NOTE: TYPE_STRING,
+	Type.MAP: TYPE_DICTIONARY,
+	Type.RECORD: TYPE_DICTIONARY,
+	Type.OPUS: TYPE_PACKED_BYTE_ARRAY,
+	Type.SETTING: TYPE_NIL,
+	Type.FLAGS: TYPE_NIL,
+	Type.OPTIONAL: TYPE_NIL,
+}
+
+var name: String
+var type: Type
+var slot := Slot.FIELD
+## ITEM, STATION, TICK: -1 (none) is allowed, as all ones on the wire.
+var optional := false
+## LIST, MAP: the most entries; SETTING: the most ids in a set; OPUS: the most bytes.
+var max_count := 0
+## LIST: each entry; MAP: each value.
+var element: WireField
+## MAP: each key (ID, by bytes, or PEER, by number: strictly ascending).
+var key: WireField
+## RECORD, OPTIONAL: the fields inside, in order.
+var parts: Array[WireField] = []
+## FLAGS: the bools' names, bit 1 first.
+var flags := PackedStringArray()
+## OPTIONAL: what the payload holds when the flag is false; empty: the parts' keys are absent.
+var absent: Dictionary = {}
+## ID: decodes as a String instead of a StringName, where core/ reads a String.
+var as_string := false
+## LIST: TYPE_ARRAY (typed by its entries when they are Dictionaries), TYPE_PACKED_INT32_ARRAY
+## or TYPE_PACKED_STRING_ARRAY.
+var list_type: Variant.Type = TYPE_ARRAY
+## MAP: a typed Dictionary of the decoded key and value types, or an untyped one.
+var typed := true
+
+
+static func of(field_name: String, field_type: Type) -> WireField:
+	var field := WireField.new()
+	field.name = field_name
+	field.type = field_type
+	return field
+
+
+## An ITEM, STATION or TICK that may be none (-1).
+static func maybe(field_name: String, field_type: Type) -> WireField:
+	var field := of(field_name, field_type)
+	field.optional = true
+	return field
+
+
+## A RELIABLE intent's sequence number, which a Rejected names: MatchCommand.seq, not an arg.
+static func seq_number() -> WireField:
+	var field := of("seq", Type.U32)
+	field.slot = Slot.SEQ
+	return field
+
+
+## ForceRole's player, which becomes the command's peer, not an arg.
+static func target_peer() -> WireField:
+	var field := of("peer", Type.PEER)
+	field.slot = Slot.PEER
+	return field
+
+
+static func id(field_name: String, decodes_as_string := false) -> WireField:
+	var field := of(field_name, Type.ID)
+	field.as_string = decodes_as_string
+	return field
+
+
+static func list(
+	field_name: String, entry: WireField, most: int, decoded: Variant.Type = TYPE_ARRAY
+) -> WireField:
+	var field := of(field_name, Type.LIST)
+	field.element = entry
+	field.max_count = most
+	field.list_type = decoded
+	return field
+
+
+static func map(
+	field_name: String, keys_of: WireField, values: WireField, most: int, is_typed := true
+) -> WireField:
+	var field := of(field_name, Type.MAP)
+	field.key = keys_of
+	field.element = values
+	field.max_count = most
+	field.typed = is_typed
+	return field
+
+
+static func record(field_name: String, record_parts: Array[WireField]) -> WireField:
+	var field := of(field_name, Type.RECORD)
+	field.parts = record_parts
+	return field
+
+
+static func bits(names: PackedStringArray) -> WireField:
+	var field := of("flags", Type.FLAGS)
+	field.flags = names
+	return field
+
+
+## A presence flag named `flag_name` and the parts it guards. `when_absent`: the payload's values
+## when the flag is false (ForceRole's empty role); empty, the parts' keys are left out.
+static func when(
+	flag_name: String, guarded: Array[WireField], when_absent: Dictionary = {}
+) -> WireField:
+	var field := of(flag_name, Type.OPTIONAL)
+	field.parts = guarded
+	field.absent = when_absent
+	return field
+
+
+static func setting(field_name: String, most_ids: int) -> WireField:
+	var field := of(field_name, Type.SETTING)
+	field.max_count = most_ids
+	return field
+
+
+static func opus(field_name: String, most: int) -> WireField:
+	var field := of(field_name, Type.OPUS)
+	field.max_count = most
+	return field
+
+
+## Whether `text` is a wire id: 1 to 32 bytes of `a-z`, `0-9` and `_`.
+static func is_id(text: String) -> bool:
+	if text.length() < 1 or text.length() > ID_MAX:
+		return false
+	for i: int in text.length():
+		if not _is_id_char(text.unicode_at(i)):
+			return false
+	return true
+
+
+## Whether `text` is a wire path: `res://` and bytes of `A-Z a-z 0-9 _ - . /`, no `..`, at most
+## 255 bytes.
+static func is_path(text: String) -> bool:
+	if text.length() > PATH_MAX or not text.begins_with(PATH_PREFIX) or text.contains(".."):
+		return false
+	for i: int in range(PATH_PREFIX.length(), text.length()):
+		if not _is_path_char(text.unicode_at(i)):
+			return false
+	return true
+
+
+## Whether `text` is printable ASCII (0x20 to 0x7E) of at most `most` bytes.
+static func is_printable(text: String, most: int) -> bool:
+	if text.length() > most:
+		return false
+	for i: int in text.length():
+		if not _is_printable_char(text.unicode_at(i)):
+			return false
+	return true
+
+
+## Writes `fields` from `source`; the problem, or empty. Every key of `source` must be one the
+## fields fill. `message` gives the SEQ and PEER slots (null inside a record).
+static func write_all(
+	fields: Array[WireField], source: Dictionary, writer: WireWriter, message: WireMessage
+) -> String:
+	var known := {}
+	for field: WireField in fields:
+		for filled: String in field.keys():
+			known[filled] = true
+		var problem := field._write_part(source, writer, message)
+		if not problem.is_empty():
+			return problem
+	for given: Variant in source:
+		if not (given is String or given is StringName) or not known.has(str(given)):
+			return "an undeclared field %s" % str(given)
+	return ""
+
+
+## Reads `fields` into `into` (and the SEQ and PEER slots into `message`); stops at the first
+## problem, which the reader then holds.
+static func read_all(
+	fields: Array[WireField], reader: WireReader, into: Dictionary, message: WireMessage
+) -> void:
+	for field: WireField in fields:
+		field._read_part(reader, into, message)
+		if reader.failed:
+			return
+
+
+## The payload keys this field fills, the flags and guarded parts included; none for a slot.
+func keys() -> PackedStringArray:
+	if slot != Slot.FIELD:
+		return PackedStringArray()
+	match type:
+		Type.FLAGS:
+			return flags
+		Type.OPTIONAL:
+			var found := PackedStringArray()
+			for part: WireField in parts:
+				found.append_array(part.keys())
+			return found
+	return PackedStringArray([name])
+
+
+## The most bytes this field can take at the wire's maxima.
+func max_size() -> int:
+	if FIXED_SIZES.has(type):
+		return FIXED_SIZES[type]
+	match type:
+		Type.LIST:
+			return 1 + max_count * element.max_size()
+		Type.MAP:
+			return 1 + max_count * (key.max_size() + element.max_size())
+		Type.SETTING:
+			return 1 + maxi(4, 1 + max_count * (1 + ID_MAX))
+		Type.OPUS:
+			return max_count
+	var total := 1 if type == Type.OPTIONAL else 0
+	for part: WireField in parts:
+		total += part.max_size()
+	return total
+
+
+## The Variant type this field decodes to; TYPE_NIL where it varies (a SETTING).
+func decoded_type() -> Variant.Type:
+	if type == Type.ID:
+		return TYPE_STRING if as_string else TYPE_STRING_NAME
+	if type == Type.LIST:
+		return list_type
+	var found: Variant.Type = DECODED_TYPES.get(type, TYPE_INT)
+	return found
+
+
+func _write_part(source: Dictionary, writer: WireWriter, message: WireMessage) -> String:
+	if slot == Slot.SEQ:
+		return _write_value(message.seq, writer)
+	if slot == Slot.PEER:
+		return _write_value(message.peer, writer)
+	if type == Type.FLAGS:
+		return _write_flags(source, writer)
+	if type == Type.OPTIONAL:
+		return _write_optional(source, writer, message)
+	if not source.has(name):
+		return "a missing field %s" % name
+	return _write_value(source[name], writer)
+
+
+func _write_flags(source: Dictionary, writer: WireWriter) -> String:
+	var value := 0
+	for bit: int in flags.size():
+		var flag: Variant = source.get(flags[bit])
+		if not flag is bool:
+			return "flag %s is not a bool" % flags[bit]
+		if flag:
+			value |= 1 << bit
+	writer.u8(value)
+	return ""
+
+
+func _write_optional(source: Dictionary, writer: WireWriter, message: WireMessage) -> String:
+	var guarded := keys()
+	var present := false
+	if absent.is_empty():
+		var found := 0
+		for guarded_key: String in guarded:
+			if source.has(guarded_key):
+				found += 1
+		if found != 0 and found != guarded.size():
+			return "%s: only some of its fields are given" % name
+		present = found > 0
+	else:
+		for guarded_key: String in guarded:
+			if not source.has(guarded_key):
+				return "a missing field %s" % guarded_key
+			if not _same(source[guarded_key], absent.get(guarded_key)):
+				present = true
+	writer.u8(1 if present else 0)
+	if not present:
+		return ""
+	for part: WireField in parts:
+		var problem := part._write_part(source, writer, message)
+		if not problem.is_empty():
+			return problem
+	return ""
+
+
+func _write_value(value: Variant, writer: WireWriter) -> String:
+	if type in NUMBERS:
+		return _write_number(value, writer)
+	if type in TEXTS:
+		return _write_string(value, writer)
+	if type in CONTAINERS:
+		return _write_container(value, writer)
+	if not _is_plain(value):
+		return _wrong(value)
+	match type:
+		Type.BOOL:
+			writer.u8(1 if value else 0)
+		Type.F32:
+			writer.f32(value as float)
+		Type.OPUS:
+			writer.raw(value as PackedByteArray)
+		Type.VEC3:
+			var vector: Vector3 = value
+			for axis: int in 3:
+				writer.f32(vector[axis])
+		Type.COLOUR:
+			var colour: Color = value
+			for channel: float in [colour.r, colour.g, colour.b, colour.a]:
+				writer.f32(channel)
+	return ""
+
+
+## BOOL, F32, VEC3, COLOUR and OPUS: whether the decoder would take the value.
+func _is_plain(value: Variant) -> bool:
+	match type:
+		Type.BOOL:
+			return value is bool
+		Type.F32:
+			return value is float and is_finite(value as float) and _as_f32(value as float) == value
+		Type.VEC3:
+			return value is Vector3 and (value as Vector3).is_finite()
+		Type.COLOUR:
+			return value is Color and _is_finite_colour(value as Color)
+	return value is PackedByteArray and _is_opus_size((value as PackedByteArray).size())
+
+
+## Every integer type; -1 is none (all ones on the wire) where the field is optional.
+func _write_number(value: Variant, writer: WireWriter) -> String:
+	if not value is int:
+		return _wrong(value)
+	var number: int = value
+	var bounds: Array = INT_BOUNDS[type]
+	if number == -1 and optional:
+		number = bounds[1] + 1
+	elif number < bounds[0] or number > bounds[1]:
+		return _wrong(value)
+	match type:
+		Type.U8:
+			writer.u8(number)
+		Type.U16, Type.ITEM, Type.STATION:
+			writer.u16(number)
+		Type.U32, Type.PEER, Type.TICK:
+			writer.u32(number)
+		Type.S32:
+			writer.s32(number)
+		_:
+			writer.s64(number)
+	return ""
+
+
+func _write_container(value: Variant, writer: WireWriter) -> String:
+	match type:
+		Type.LIST:
+			return _write_list(value, writer)
+		Type.MAP:
+			return _write_map(value, writer)
+		Type.SETTING:
+			return _write_setting(value, writer)
+	if not value is Dictionary:
+		return _wrong(value)
+	var fields: Dictionary = value
+	return write_all(parts, fields, writer, null)
+
+
+func _write_string(value: Variant, writer: WireWriter) -> String:
+	if not (value is String or value is StringName):
+		return _wrong(value)
+	var text := str(value)
+	var valid := false
+	match type:
+		Type.ID:
+			valid = is_id(text)
+		Type.PATH:
+			valid = is_path(text)
+		Type.TEXT:
+			valid = is_printable(text, TEXT_MAX)
+		Type.NOTE:
+			valid = is_printable(text, NOTE_MAX)
+	if not valid:
+		return _wrong(value)
+	if type == Type.NOTE:
+		writer.u16(text.length())
+	else:
+		writer.u8(text.length())
+	writer.raw(text.to_ascii_buffer())
+	return ""
+
+
+func _write_list(value: Variant, writer: WireWriter) -> String:
+	if not _is_list(value):
+		return _wrong(value)
+	var entries := _entries_of(value)
+	if entries.size() > max_count:
+		return "%s: %d entries, at most %d" % [name, entries.size(), max_count]
+	writer.u8(entries.size())
+	for entry: Variant in entries:
+		var problem := element._write_value(entry, writer)
+		if not problem.is_empty():
+			return "%s: %s" % [name, problem]
+	return ""
+
+
+func _write_map(value: Variant, writer: WireWriter) -> String:
+	if not value is Dictionary:
+		return _wrong(value)
+	var entries: Dictionary = value
+	if entries.size() > max_count:
+		return "%s: %d entries, at most %d" % [name, entries.size(), max_count]
+	var ordered: Array = []
+	for entry_key: Variant in entries:
+		var problem := key._write_value(entry_key, WireWriter.new())
+		if not problem.is_empty():
+			return "%s: key %s" % [name, problem]
+		ordered.append(entry_key)
+	if key.type == Type.ID:
+		ordered.sort_custom(func(a: Variant, b: Variant) -> bool: return str(a) < str(b))
+	else:
+		ordered.sort()
+	writer.u8(ordered.size())
+	for entry_key: Variant in ordered:
+		key._write_value(entry_key, writer)
+		var problem := element._write_value(entries[entry_key], writer)
+		if not problem.is_empty():
+			return "%s: %s" % [name, problem]
+	return ""
+
+
+func _write_setting(value: Variant, writer: WireWriter) -> String:
+	if value is int:
+		writer.u8(0)
+		return _as_s32()._write_value(value, writer)
+	if not _is_list(value):
+		return _wrong(value)
+	var entries := _entries_of(value)
+	if entries.size() > max_count:
+		return "%s: %d ids, at most %d" % [name, entries.size(), max_count]
+	writer.u8(1)
+	writer.u8(entries.size())
+	for entry: Variant in entries:
+		var problem := WireField.id(name)._write_value(entry, writer)
+		if not problem.is_empty():
+			return problem
+	return ""
+
+
+func _read_part(reader: WireReader, into: Dictionary, message: WireMessage) -> void:
+	if slot == Slot.SEQ:
+		message.seq = reader.u32()
+	elif slot == Slot.PEER:
+		message.peer = _read_value(reader)
+	elif type == Type.FLAGS:
+		var value := reader.u8()
+		if value >> flags.size() != 0:
+			reader.fail("%s: unknown flag bits" % name)
+			return
+		for bit: int in flags.size():
+			into[flags[bit]] = (value & (1 << bit)) != 0
+	elif type == Type.OPTIONAL:
+		var present := reader.u8()
+		if present > 1:
+			reader.fail("%s: not a bool" % name)
+		elif present == 1:
+			read_all(parts, reader, into, message)
+		else:
+			into.merge(absent.duplicate(true))
+	else:
+		var value: Variant = _read_value(reader)
+		if not reader.failed:
+			into[name] = value
+
+
+func _read_value(reader: WireReader) -> Variant:
+	if type in NUMBERS:
+		return _read_number(reader)
+	if type in TEXTS:
+		return _read_string(reader)
+	if type in CONTAINERS:
+		return _read_container(reader)
+	return _read_plain(reader)
+
+
+func _read_number(reader: WireReader) -> int:
+	var value := 0
+	match type:
+		Type.U8:
+			value = reader.u8()
+		Type.U16, Type.ITEM, Type.STATION:
+			value = reader.u16()
+		Type.U32, Type.PEER, Type.TICK:
+			value = reader.u32()
+		Type.S32:
+			value = reader.s32()
+		_:
+			value = reader.s64()
+	var bounds: Array = INT_BOUNDS[type]
+	if optional and value == bounds[1] + 1:
+		return -1
+	if value < bounds[0] or value > bounds[1]:
+		reader.fail("%s: %d is not %s" % [name, value, _a_type_name()])
+	return value
+
+
+func _read_plain(reader: WireReader) -> Variant:
+	match type:
+		Type.BOOL:
+			var value := reader.u8()
+			if value > 1:
+				reader.fail("%s: not a bool" % name)
+			return value == 1
+		Type.F32:
+			return reader.f32()
+		Type.VEC3:
+			return Vector3(reader.f32(), reader.f32(), reader.f32())
+		Type.COLOUR:
+			return Color(reader.f32(), reader.f32(), reader.f32(), reader.f32())
+	if not _is_opus_size(reader.left()):
+		reader.fail("%s: an Opus frame of %d bytes" % [name, reader.left()])
+		return PackedByteArray()
+	return reader.rest()
+
+
+func _read_container(reader: WireReader) -> Variant:
+	match type:
+		Type.LIST:
+			return _read_list(reader)
+		Type.MAP:
+			return _read_map(reader)
+		Type.SETTING:
+			return _read_setting(reader)
+	var fields := {}
+	read_all(parts, reader, fields, null)
+	return fields
+
+
+func _read_string(reader: WireReader) -> Variant:
+	var length := reader.u16() if type == Type.NOTE else reader.u8()
+	var most: int = {Type.ID: ID_MAX, Type.PATH: PATH_MAX, Type.TEXT: TEXT_MAX}.get(type, NOTE_MAX)
+	if length > most or (type == Type.ID and length < 1):
+		reader.fail("%s: a length of %d" % [name, length])
+	var raw := reader.raw(length)
+	if reader.failed:
+		return ""
+	for byte: int in raw:
+		if not _is_printable_char(byte):
+			reader.fail("%s: a byte %d" % [name, byte])
+			return ""
+	var text := raw.get_string_from_ascii()
+	match type:
+		Type.ID:
+			if not is_id(text):
+				reader.fail("%s: not an id" % name)
+			elif not as_string:
+				return StringName(text)
+		Type.PATH:
+			if not is_path(text):
+				reader.fail("%s: not a path" % name)
+	return text
+
+
+func _read_list(reader: WireReader) -> Variant:
+	var count := reader.u8()
+	if count > max_count:
+		reader.fail("%s: %d entries, at most %d" % [name, count, max_count])
+		return null
+	var ints := PackedInt32Array()
+	var texts := PackedStringArray()
+	var entries: Array = []
+	if element.decoded_type() == TYPE_DICTIONARY:
+		entries = Array([], TYPE_DICTIONARY, &"", null)
+	for _entry: int in count:
+		var value: Variant = element._read_value(reader)
+		if reader.failed:
+			return null
+		match list_type:
+			TYPE_PACKED_INT32_ARRAY:
+				ints.append(value as int)
+			TYPE_PACKED_STRING_ARRAY:
+				texts.append(str(value))
+			_:
+				entries.append(value)
+	match list_type:
+		TYPE_PACKED_INT32_ARRAY:
+			return ints
+		TYPE_PACKED_STRING_ARRAY:
+			return texts
+	return entries
+
+
+func _read_map(reader: WireReader) -> Variant:
+	var count := reader.u8()
+	if count > max_count:
+		reader.fail("%s: %d entries, at most %d" % [name, count, max_count])
+		return null
+	var entries := {}
+	if typed:
+		entries = Dictionary({}, key.decoded_type(), &"", null, element.decoded_type(), &"", null)
+	var previous: Variant = null
+	for _entry: int in count:
+		var entry_key: Variant = key._read_value(reader)
+		if reader.failed:
+			return null
+		if previous != null and not _ascending(previous, entry_key):
+			reader.fail("%s: keys out of order" % name)
+			return null
+		previous = entry_key
+		var value: Variant = element._read_value(reader)
+		if reader.failed:
+			return null
+		entries[entry_key] = value
+	return entries
+
+
+func _read_setting(reader: WireReader) -> Variant:
+	var tag := reader.u8()
+	if tag == 0:
+		return reader.s32()
+	if tag != 1:
+		reader.fail("%s: a setting tagged %d" % [name, tag])
+		return null
+	var count := reader.u8()
+	if count > max_count:
+		reader.fail("%s: %d ids, at most %d" % [name, count, max_count])
+		return null
+	var ids := PackedStringArray()
+	var entry := WireField.id(name)
+	for _id: int in count:
+		var value: Variant = entry._read_value(reader)
+		if reader.failed:
+			return null
+		ids.append(str(value))
+	return ids
+
+
+func _ascending(previous: Variant, next: Variant) -> bool:
+	if key.type == Type.ID:
+		return str(previous) < str(next)
+	return (previous as int) < (next as int)
+
+
+func _as_s32() -> WireField:
+	return WireField.of(name, Type.S32)
+
+
+## Why `value` was refused, in one short line: a voice bug at 50 frames a second must not flood the
+## log with byte dumps, so a byte array is its size and anything else is cut.
+func _wrong(value: Variant) -> String:
+	var shown: String
+	if value is PackedByteArray:
+		shown = "%d bytes" % (value as PackedByteArray).size()
+	else:
+		shown = var_to_str(value)
+		if shown.length() > WRONG_VALUE_MAX:
+			shown = shown.left(WRONG_VALUE_MAX) + "..."
+	return "%s: %s is not %s" % [name, shown, _a_type_name()]
+
+
+func _type_name() -> String:
+	return str(Type.keys()[type]).to_lower()
+
+
+## The type name with its article, as it is read aloud ("an s32", "a u16").
+func _a_type_name() -> String:
+	var type_name := _type_name()
+	var spoken_vowel := type_name[0] in ["a", "e", "i", "o"] or type_name in ["s32", "s64", "f32"]
+	var article := "an" if spoken_vowel else "a"
+	return "%s %s" % [article, type_name]
+
+
+func _is_opus_size(size: int) -> bool:
+	return size >= 1 and size <= max_count
+
+
+static func _is_list(value: Variant) -> bool:
+	return (
+		typeof(value)
+		in [TYPE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY, TYPE_PACKED_STRING_ARRAY]
+	)
+
+
+## An Array or a packed array (_is_list) as one Array.
+static func _entries_of(value: Variant) -> Array:
+	match typeof(value):
+		TYPE_PACKED_INT32_ARRAY:
+			var ints: PackedInt32Array = value
+			return Array(ints)
+		TYPE_PACKED_INT64_ARRAY:
+			var longs: PackedInt64Array = value
+			return Array(longs)
+		TYPE_PACKED_STRING_ARRAY:
+			var texts: PackedStringArray = value
+			return Array(texts)
+	return value
+
+
+static func _is_finite_colour(colour: Color) -> bool:
+	return (
+		is_finite(colour.r) and is_finite(colour.g) and is_finite(colour.b) and is_finite(colour.a)
+	)
+
+
+static func _as_f32(value: float) -> float:
+	var bytes := PackedByteArray()
+	bytes.resize(4)
+	bytes.encode_float(0, value)
+	return bytes.decode_float(0)
+
+
+## Equal values of the same kind, a String and a StringName counting as one kind.
+static func _same(a: Variant, b: Variant) -> bool:
+	var a_text := a is String or a is StringName
+	var b_text := b is String or b is StringName
+	if a_text or b_text:
+		return a_text and b_text and str(a) == str(b)
+	return typeof(a) == typeof(b) and a == b
+
+
+static func _is_id_char(c: int) -> bool:
+	return (c >= 0x61 and c <= 0x7A) or (c >= 0x30 and c <= 0x39) or c == 0x5F
+
+
+static func _is_path_char(c: int) -> bool:
+	# A-Z, then "-", "." and "/".
+	return _is_id_char(c) or (c >= 0x41 and c <= 0x5A) or c in [0x2D, 0x2E, 0x2F]
+
+
+static func _is_printable_char(c: int) -> bool:
+	return c >= 0x20 and c <= 0x7E

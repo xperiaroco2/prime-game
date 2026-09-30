@@ -44,10 +44,10 @@ class Row:
 		max_payload = row_max_payload
 
 
-## The game's table. Empty until the message schemas land (#32, M3): each schema adds its row here
-## and to ARCHITECTURE §4 in the same PR.
+## The game's table, built from the message schemas' rows (WireSchema, ARCHITECTURE §4.3): a new
+## kind is a row there. A debug build's table has the debug commands too (E17).
 static func game() -> NetKindTable:
-	return NetKindTable.new()
+	return WireSchema.game(OS.is_debug_build()).kind_table()
 
 
 static func channel_of(lane: Lane) -> int:
