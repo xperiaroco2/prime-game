@@ -69,6 +69,8 @@ func test_the_placement_starts_at_the_eye() -> void:
 
 
 func test_a_facing_without_a_horizontal_direction_puts_it_at_the_feet() -> void:
+	# Not finite: on 4.7.2 Vector3.normalized() already returns zero for these, so the effect's
+	# own is_finite() check does not change this result; the test pins the outcome either way.
 	for facing: Vector3 in [Vector3.DOWN, Vector3.ZERO, Vector3(NAN, 0, 1), Vector3(INF, 0, 0)]:
 		var game := _holding(FlatWorldQuery.new(), Vector3(2, 0, 2))
 		FixtureItemModes.put_down(game, P1, facing)
