@@ -555,7 +555,7 @@ The rules of the table:
   and meet the same unexplained corrections and refused pick-ups (the host's `WorldQuery` answers from its level, the
   client walks its own). Any byte of a level counts, a light included: a false alarm costs a rebuild, a miss costs a
   playtest. An exported build, which may convert scenes, is M6's to check. The host's `server/` and each client compute
-  it when they load the mode, and `Match` gets the host's with the seed. `JoinRules` compares it with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
+  it with `ContentFingerprint.of(mode)` (`net/messages/`, 3g) when they load the mode, and `Match` gets the host's with the seed. `JoinRules` compares it with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
   hosts a playtest from a branch with edited `PlayerRules`, the engineer joins from `main`, and the engineer's client
   predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s name is not on
   the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.
@@ -808,6 +808,27 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   snapshot; its own `SelfStatus`. It sends `Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per
   client tick (20 Hz) with its epoch, client tick and jump count, and `LoadAck` after loading. It never reads `core/`
   state (invariant 2).
+  Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
+  `ClientModel` (the fold). What the build pinned:
+  - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
+    and sends the claim that is due. The client tick counts `Ticks.RATE` ticks from the first step; a step sends at
+    most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
+    (`set_motion`, `count_jump`) and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
+    reset the jump count and put the claims at the host's position.
+  - A client claims when its own copy of the current phase accepts `MoveClaim` from it: a player, living or a ghost
+    (a body of its own in the model), and the host's own player as peer 1 (`AcceptSpec.From`). Before `Welcome` it
+    claims nothing.
+  - It ends (`ended(reason)`, the transport closed) on a `Rejected` before `Welcome` (its reason), `host_lost`,
+    `connect_failed`, `unknown_map` (a `LoadMatch` map its own mode does not list), `load_failed` and `left`.
+    `map_loaded(path, scene)` fires before `LoadAck` goes out, so its owner instantiates the scene in the handler; a
+    bot (`load_levels` off) checks the map and acknowledges without loading.
+  - "Entering the lobby" is entering a phase whose level is the lobby from one whose level is not (End to Lobby): the
+    model then clears a match's facts (items, stations, bodies, loads, role, teammates, tasks, the winner and the
+    avatars), as on `LoadMatch`, and keeps the roster and the settings.
+  - The decoded view is recorded only with `keep_history` on (off by default, like `Match`'s: 12000 snapshots in a
+    10-minute match); the bots and the leak test turn it on. The model is always kept.
+  - Tested in `tests/unit/client/net/` against host messages encoded with the codec from `core/`'s own events over a
+    `LoopbackHub`; the end-to-end tests against `HostSession` come with 3f (#100) and 3h.
 - **Bots** (`tests/harness/`, 3h): a bot is a `ClientSession`, a scenario script and an honest mover. The script is the
   core runner's (2j): on `main` `ScenarioRunner` holds both the §9.7 steps (`_run_step` and a method per step) and its
   stand-in for `server/` (`_queue`, `_deliver`, `_carry_out`), and `ScenarioBot.receive` takes `MatchEvent` objects. 3h

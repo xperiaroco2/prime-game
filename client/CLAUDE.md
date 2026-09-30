@@ -10,6 +10,11 @@ Loaded when a file in `client/` is read. The invariants in the root `CLAUDE.md` 
 - Audio playback: each remote speaker's voice plays through an `AudioStreamPlayer3D` on that speaker's avatar.
 - The dev console and debug commands (spawn bots, force role, skip phase, show hidden info) for solo testing.
 
+## Map
+- `net/` (3g, `docs/ARCHITECTURE.md` §4.6): `ClientSession`, which every client and bot runs over a `NetTransport`
+  (Hello, intents, claims, loading, voice), `DecodedView` (what it decoded, in `PeerView`'s shape) and `ClientModel`
+  (what it knows now). Game code talks to the host only through a `ClientSession`.
+
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state, not even on the host's own machine, and
   never infer hidden information from anything else (node names, resource paths, timing).
