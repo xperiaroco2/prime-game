@@ -29,6 +29,10 @@ var stamina := 0
 ## The host tick up to which stamina is settled (§7.1), or -1.
 var stamina_settled_tick := -1
 var sprinting := false
+## The last accepted claim's sprint flag, and whether it gave movement input and moved
+## horizontally: settle_ahead() settles the ticks no claim covers yet with them (§7.1).
+var sprint_held := false
+var moving := false
 
 
 func _init(peer_id: int, player_name: String) -> void:

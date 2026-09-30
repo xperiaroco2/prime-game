@@ -166,7 +166,8 @@ func apply(command: MatchCommand) -> bool:
 
 
 ## Runs tick `at_tick`, which must be the next one (§3.3): the phase's own timers, its tick
-## systems in order, then the match clock if the phase's clock runs.
+## systems in order, then the match clock if the phase's clock runs, then the SelfStatus of each
+## player whose own numbers changed in the tick.
 func tick(at_tick: int) -> bool:
 	if not _started:
 		record_error("tick: the match has not started")
@@ -185,6 +186,8 @@ func tick(at_tick: int) -> bool:
 		if state.clock_ticks_left == 0 and not state.clock_ended:
 			state.clock_ended = true
 			raise_fact(Fact.new(Facts.CLOCK_ENDED))
+	# SelfStatus goes out on change, at most once per tick, after the tick's commands (§4.2).
+	SelfStatusFeed.flush(_context("self status"))
 	_finish_step()
 	_ticked_through = at_tick
 	command_log.ticked_through = at_tick

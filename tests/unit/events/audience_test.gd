@@ -64,6 +64,7 @@ func test_each_event_class_declares_its_audience_kind() -> void:
 		RefuseJoinsEvent.new(),
 		AllowJoinsEvent.new(),
 		DisconnectPeerEvent.new(P1),
+		SelfStatusEvent.new(P1, 0, 0, false),
 	]
 	for event: MatchEvent in events:
 		var declared: Variant = (event.get_script() as Script).get_script_constant_map().get(

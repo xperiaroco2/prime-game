@@ -187,6 +187,8 @@ static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.held_item = -1
 	someone.velocity = Vector3.ZERO
 	someone.sprinting = false
+	someone.sprint_held = false
+	someone.moving = false
 	someone.stamina_settled_tick = -1
 	if rules != null:
 		someone.health = Ticks.thousandths(rules.health)
