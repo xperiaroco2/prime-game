@@ -258,3 +258,17 @@ func _emitted_named(game: Match, event_name: StringName) -> Array[EmittedEvent]:
 		if emitted.event.event_name() == event_name:
 			found.append(emitted)
 	return found
+
+
+func test_a_replay_deals_and_delivers_the_same() -> void:
+	# One package spawns inside its own circle: the replay must deal it there and deliver it.
+	var found := FixtureModes.layouts()
+	found[FixtureModes.MAP].add_marker(&"circle", Vector3(3, 0, 3))
+	found[FixtureModes.MAP].add_marker(&"package", Vector3(3.5, 0, 3))
+	var game := FixtureDeliveryModes.in_round(FixtureDeliveryModes.basic(1, 1), [P1], found)
+	FixtureModes.run_ticks(game, 2)
+	var replayed := Match.replay(game.command_log, FixtureDeliveryModes.basic(1, 1))
+	assert_array(Array(replayed.refusals)).is_empty()
+	assert_array(Array(replayed.diagnostics)).is_empty()
+	assert_array(FixtureModes.describe(replayed)).is_equal(FixtureModes.describe(game))
+	assert_int(replayed.state.items[1].where).is_equal(ItemState.Where.LOCKED)
