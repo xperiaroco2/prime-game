@@ -20,14 +20,46 @@
 [ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="14_effect"]
 [ext_resource type="Script" uid="uid://bdus0i8liigi1" path="res://core/content/task_type.gd" id="16_5hq6p"]
 [ext_resource type="Script" uid="uid://b35oygc6v8aam" path="res://core/content/win_condition.gd" id="20_44x55"]
-[ext_resource type="Script" path="res://core/content/condition.gd" id="21_condition"]
-[ext_resource type="Script" path="res://core/items/item_on_ground.gd" id="22_on_ground"]
-[ext_resource type="Script" path="res://core/items/in_reach.gd" id="23_in_reach"]
-[ext_resource type="Script" path="res://core/items/in_sight.gd" id="24_in_sight"]
-[ext_resource type="Script" path="res://core/items/take_into_hand.gd" id="25_take"]
-[ext_resource type="Script" path="res://core/items/holds_item.gd" id="26_holds"]
-[ext_resource type="Script" path="res://core/items/put_down_in_front.gd" id="27_put_down"]
-[ext_resource type="Resource" path="res://content/items/package.tres" id="28_package"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="21_condition"]
+[ext_resource type="Script" uid="uid://bndxirpvuq8fg" path="res://core/items/item_on_ground.gd" id="22_on_ground"]
+[ext_resource type="Script" uid="uid://c0rl135tmeci1" path="res://core/items/in_reach.gd" id="23_in_reach"]
+[ext_resource type="Script" uid="uid://wcwuqbtwovq5" path="res://core/items/in_sight.gd" id="24_in_sight"]
+[ext_resource type="Script" uid="uid://bjc7gttmkvyoq" path="res://core/items/take_into_hand.gd" id="25_take"]
+[ext_resource type="Script" uid="uid://55dcaoxkc0rh" path="res://core/items/holds_item.gd" id="26_holds"]
+[ext_resource type="Script" uid="uid://uvy56h4lwu52" path="res://core/items/put_down_in_front.gd" id="27_put_down"]
+[ext_resource type="Resource" uid="uid://c8rs0bewtust4" path="res://content/items/package.tres" id="28_package"]
+
+[sub_resource type="Resource" id="PickUp_on_ground"]
+script = ExtResource("22_on_ground")
+
+[sub_resource type="Resource" id="PickUp_in_reach"]
+script = ExtResource("23_in_reach")
+reach_m = 2.0
+
+[sub_resource type="Resource" id="PickUp_in_sight"]
+script = ExtResource("24_in_sight")
+
+[sub_resource type="Resource" id="PickUp_take"]
+script = ExtResource("25_take")
+
+[sub_resource type="Resource" id="Rule_pick_up"]
+script = ExtResource("1_o02jd")
+trigger = &"PickUp"
+conditions = Array[ExtResource("21_condition")]([SubResource("PickUp_on_ground"), SubResource("PickUp_in_reach"), SubResource("PickUp_in_sight")])
+effects = Array[ExtResource("14_effect")]([SubResource("PickUp_take")])
+
+[sub_resource type="Resource" id="PutDown_holds"]
+script = ExtResource("26_holds")
+
+[sub_resource type="Resource" id="PutDown_in_front"]
+script = ExtResource("27_put_down")
+distance_m = 1.0
+
+[sub_resource type="Resource" id="Rule_put_down"]
+script = ExtResource("1_o02jd")
+trigger = &"PutDown"
+conditions = Array[ExtResource("21_condition")]([SubResource("PutDown_holds")])
+effects = Array[ExtResource("14_effect")]([SubResource("PutDown_in_front")])
 
 [sub_resource type="Resource" id="Accept_lobby_hello"]
 script = ExtResource("6_accept")
@@ -231,38 +263,6 @@ from = &"end"
 outcome = &"back"
 to = &"lobby"
 actions = Array[ExtResource("14_effect")]([SubResource("Place_lobby_player")])
-
-[sub_resource type="Resource" id="PickUp_on_ground"]
-script = ExtResource("22_on_ground")
-
-[sub_resource type="Resource" id="PickUp_in_reach"]
-script = ExtResource("23_in_reach")
-reach_m = 2.0
-
-[sub_resource type="Resource" id="PickUp_in_sight"]
-script = ExtResource("24_in_sight")
-
-[sub_resource type="Resource" id="PickUp_take"]
-script = ExtResource("25_take")
-
-[sub_resource type="Resource" id="Rule_pick_up"]
-script = ExtResource("1_o02jd")
-trigger = &"PickUp"
-conditions = Array[ExtResource("21_condition")]([SubResource("PickUp_on_ground"), SubResource("PickUp_in_reach"), SubResource("PickUp_in_sight")])
-effects = Array[ExtResource("14_effect")]([SubResource("PickUp_take")])
-
-[sub_resource type="Resource" id="PutDown_holds"]
-script = ExtResource("26_holds")
-
-[sub_resource type="Resource" id="PutDown_in_front"]
-script = ExtResource("27_put_down")
-distance_m = 1.0
-
-[sub_resource type="Resource" id="Rule_put_down"]
-script = ExtResource("1_o02jd")
-trigger = &"PutDown"
-conditions = Array[ExtResource("21_condition")]([SubResource("PutDown_holds")])
-effects = Array[ExtResource("14_effect")]([SubResource("PutDown_in_front")])
 
 [resource]
 script = ExtResource("1_mode")
