@@ -5,7 +5,9 @@ extends ContentPart
 
 @export var id: StringName
 @export var spawn_tag: StringName
-@export var radius_m := 1.0
+## Metres, 0.2 to 10. The neutral default is out of bounds on purpose: the data sets it (the
+## delivery circle: 1), so the mode check refuses a station kind that forgot it.
+@export var radius_m := 0.0
 ## Distinct colours, one per placed station.
 @export var palette: PackedColorArray = PackedColorArray()
 
