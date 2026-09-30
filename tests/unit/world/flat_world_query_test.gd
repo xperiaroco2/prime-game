@@ -60,11 +60,11 @@ func test_a_replay_that_asks_something_else_diverges() -> void:
 
 func test_the_recording_forwards_use_level_without_an_answer_and_the_replay_ignores_it() -> void:
 	var inner := FixtureLevelWorld.new()
-	var log := CommandLog.new()
-	var recording := RecordingWorldQuery.new(inner, log)
+	var command_log := CommandLog.new()
+	var recording := RecordingWorldQuery.new(inner, command_log)
 	recording.use_level("res://a.tscn")
 	assert_array(Array(inner.calls)).is_equal(["use_level res://a.tscn"])
-	assert_array(log.world_answers).is_empty()
+	assert_array(command_log.world_answers).is_empty()
 	var replay := ReplayWorldQuery.new([])
 	replay.use_level("res://a.tscn")
 	assert_bool(replay.diverged).is_false()

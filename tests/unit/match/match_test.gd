@@ -302,13 +302,13 @@ func test_the_world_is_told_the_level_on_start_and_before_each_rows_actions() ->
 	FixtureModes.run_ticks(game, 1)
 	game.state.set_counter(0, &"crew_win", 0)
 	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
-	var after: Array[String] = [
+	var calls_after_round: Array[String] = [
 		"use_level %s" % FixtureModes.MAP,
 		"use_level %s" % FixtureModes.LOBBY,
 		"use_level %s" % FixtureModes.MAP,
 		"floor_below",
 	]
-	assert_array(Array(world.calls).slice(into_round.size())).is_equal(after)
+	assert_array(Array(world.calls).slice(into_round.size())).is_equal(calls_after_round)
 
 
 func test_errors_in_a_rows_actions_are_counted_and_others_are_not() -> void:
