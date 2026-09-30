@@ -438,6 +438,14 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
   | End | nobody: the game is frozen |
 
   A player who left hears nobody and is heard by nobody.
+- **Built in 2i** (#65, `core/voice/`): `SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
+  data names one per phase with the numbers of §9.5. A distance is between the two players' last accepted
+  positions (§7.1), in 3D, and a radius includes its edge. 3D matches the listener's fade, which is by 3D distance to
+  the same cutoff; whether a radius should be horizontal instead (a player on the floor above, 3 m up, heard like
+  one beside) is not settled by any ADR: 3D is the agent's choice, open for the engineer on #65. `ProximityVoice`
+  ignores life, so it belongs in phases without ghosts (the base mode's lobby, after `ResetMatch`): the living never
+  hearing a ghost (§5) holds only where a phase with ghosts uses a rule like `RoundVoice`.
+  Tests: `tests/unit/voice/`.
 - *Open (M5):* occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, and
   lowering the device latency (options in the ADR).
 
@@ -888,9 +896,9 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server) | 2a (#49) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
-| `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i |
-| `Proximity` | voice rule | every pair of players within the radius | `radius_m` (0.5 to 100; 8) | the routing per tick | 2i |
-| `RoundVoice` | voice rule | the living hear the living within `living_m`; a ghost hears the living within `ghost_hears_living_m` and ghosts within `ghost_hears_ghost_m`, measured from the ghost; the living never hear the dead; a player who left hears and is heard by nobody (§6) | the three radii (each 0.5 to 100; 8, 8, 8) | the routing per tick | 2i |
+| `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i (#65, `SilentVoice`) |
+| `Proximity` | voice rule | every pair of present players within the radius (3D, §6), whatever their life | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`) |
+| `RoundVoice` | voice rule | the living hear the living within `living_m`; a ghost hears the living within `ghost_hears_living_m` and ghosts within `ghost_hears_ghost_m`, measured from the ghost; the living never hear the dead; a player who left hears and is heard by nobody (§6) | the three radii (each 0.5 to 100; the class defaults 0, which the mode check refuses) | the routing per tick | 2i (#65) |
 
 The match clock itself is not a part: `Match` counts it in phases whose clock runs, after their tick systems
 (§3.3), and raises `clock_ended`.
@@ -935,7 +943,7 @@ Settings:
   8 m; lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no;
   stopped; Silent; map), Round (`MoveClaim` from the living and ghosts, `PickUp`, `PutDown` and `Use` from the living;
   TaskTicks; yes; runs; RoundVoice; map), End (`ReturnToLobby` from the host; none; no; stopped; Silent; map).
-  Snapshots in Lobby, Countdown and Round.
+  Snapshots in Lobby, Countdown and Round. RoundVoice's three radii: 8 m each.
 - Transitions: §3.2. Their actions: `Loading, all_loaded → Round`: `DealRoles` (Dissident by `dissidents`, leaving
   at least 1; default Crew), `DealTasks`, `SpawnItems` (Knife by `knives`), `PlacePlayers` (`round_player`),
   `StartClock`. `Round, won → End`: `EndMatch`. `End, back → Lobby`: `ResetMatch`, `PlacePlayers`
@@ -952,6 +960,8 @@ the base mode's numbers and `End → Lobby` order, and the whole deal run by a m
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
 scenarios in `content/scenarios/` (2j).
+2i (#65) gave every phase its voice rule.
+Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd`.
 
 #### Crew (role)
 What it does: the side that wins only when every task is done (§3.4).
