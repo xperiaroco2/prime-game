@@ -15,7 +15,8 @@ extends RefCounted
 ##   client's own tick delta, and no claim teleports by inflating it. A claim past its credit is
 ##   corrected and the next one starts a new client-tick baseline, so a client whose ticks ran
 ##   ahead of the host's (the host stalled and lost ticks) is corrected once and goes on.
-## - A jump (`jumped`): WorldQuery finds a floor within step height below the player's last
+## - A jump (`jumped`): WorldQuery finds a floor within step height (+ STEP_CLEARANCE, a ledge
+##   crossing) below the player's last
 ##   accepted position and, for the living, stamina covers the jump's cost, settled first
 ##   (settle_ahead). A ghost's jump costs nothing. The last claim need not say it was on the floor:
 ##   claims go at 20 Hz and the client's physics at 60 Hz, so a landing and a jump can fall in one
@@ -237,10 +238,12 @@ static func jump_slack(rules: PlayerRules) -> float:
 
 
 ## The floor WorldQuery finds under feet at `feet`, if it is within step height below them; else
-## NO_FLOOR.
+## NO_FLOOR. Crossing a ledge's edge, the client's feet are up to step height + STEP_CLEARANCE above
+## the lower floor while it counts as grounded (and may jump), so that is the bound.
 static func _floor_under(world: WorldQuery, feet: Vector3, rules: PlayerRules) -> Vector3:
 	var found := world.floor_below(feet + Vector3.UP * FLOOR_PROBE_M)
-	if found == WorldQuery.NO_FLOOR or feet.y - found.y > rules.step_height_m:
+	var most := rules.step_height_m + STEP_CLEARANCE + HEIGHT_SLACK_M
+	if found == WorldQuery.NO_FLOOR or feet.y - found.y > most:
 		return WorldQuery.NO_FLOOR
 	return found
 

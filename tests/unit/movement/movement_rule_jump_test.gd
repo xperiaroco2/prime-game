@@ -58,13 +58,26 @@ func test_a_jump_needs_a_world_query_floor_within_step_height() -> void:
 	var game := _round()
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
-	# The claim says it stands on the floor 0.305 m above the ground, where WorldQuery finds no
-	# floor within the step height (0.3 m).
-	FixtureMoves.step(game, P1, UP * 0.305)
+	# Up a slope WorldQuery does not know, the claim says it stands on the floor 0.4 m above the
+	# ground, where WorldQuery finds no floor within the step height plus STEP_CLEARANCE (0.31 m).
+	FixtureMoves.step(game, P1, Vector3(0, 0.4, 0.1), {"moving": true})
 	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	assert_int(player.stamina).is_equal(100000)
+
+
+func test_a_jump_while_crossing_a_ledge_at_step_height_passes() -> void:
+	var game := _round()
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, NORTH * 0.5, {"moving": true})
+	# Crossing onto the 0.3 m step at z = 6, the client's feet are STEP_CLEARANCE above its top
+	# while the ray at the origin still finds the ground below: it counts as on the floor.
+	FixtureMoves.step(game, P1, Vector3(0, 0.31, 0.4), {"moving": true})
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumped": true}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_int(player.stamina).is_equal(90000)
 
 
 func test_a_second_jump_in_the_air_is_corrected() -> void:

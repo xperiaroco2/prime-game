@@ -509,7 +509,7 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents: a client that never spends
   stamina, or spaces its claims out to regenerate between them, sprinting forever.
 - **Jumps** are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within
-  step height below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
+  step height plus `STEP_CLEARANCE` below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
   the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost (a
   ghost's jump needs none). Until the next landing
   the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
@@ -531,8 +531,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   - Speed: per covered tick the state's speed (a tick not settled yet takes the state the next tick would have),
     times `ghost_speed_factor` for a ghost; for the living plus `sprint_speed` (Pushing apart below; proposed for M4,
     used provisionally); plus `DISTANCE_SLACK_M` (0.05 m) per claim.
-  - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height below
-    its feet; `FLOOR_PROBE_M` above the feet is where the query starts): after an accepted jump, the jump height
+  - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus
+    `STEP_CLEARANCE` below its feet, which a ledge crossing needs; `FLOOR_PROBE_M` above the feet is where the query
+    starts): after an accepted jump, the jump height
     plus `capsule_radius * (1 - cos 45°) + STEP_CLEARANCE` (about 0.127 m, §7) from the take-off, the higher of its
     floor and its feet; without one, the step height plus `STEP_CLEARANCE` (0.01 m) plus the claim's horizontal
     travel times tan 45° (slopes and stairs up to the client's `floor_max_angle`). Positions are 32-bit floats:
