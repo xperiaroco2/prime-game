@@ -88,7 +88,7 @@ ADRs).
   not only read (views, lists, `pr diff|checks`, `gh search`, `gh api` GET). Writes to this repository are unchanged
   (allowed). Reason: ask beats allow, so a text rule on `-R` could not let reads through; after #51 about 63 of the
   67 remaining prompts in this project's transcripts were such reads (upstream research: Godot, GdUnit4, TwoVoIP,
-  Claude Code), and the replay in `docs/AGENT_WORKFLOW.md` §8.2 shows 94 prompts before and 18 after, with both
+  Claude Code), and the replay in `docs/AGENT_WORKFLOW.md` §8.2 shows 95 prompts before and 18 after, with both
   real writes to other repositories (upstream `gh issue create`) still asking. Rejected: one text ask rule per write
   subcommand and spelling (`gh issue comment * -R *`, `--repo=`, `-Rx/y`, URLs...): dozens of rules that still miss
   `GH_REPO`, URLs and `gh api` fields, and would also ask for this repository's writes named with `-R`; an allow

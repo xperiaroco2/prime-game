@@ -368,15 +368,15 @@ commands, by the repository they name (issue #68, a read of another repository m
   `addons/` and `.claude/` from the live test of stage 4, and one `Remove-Item -Recurse` of worktree 46's
   `tests/integration/tmp` by absolute path from a session in the main checkout (without a `cd` it owns no worktree).
   Over every `D--prime-game*` folder (128 transcripts, 3,847 calls): 125 prompts before, 80 after.
-- Reads of other repositories (#68), replayed on 2026-09-30 with `runner.permissions` in bypass mode, `origin/main`
-  against the branch, over every Bash and PowerShell call in `~/.claude/projects/D--prime-game*` (222 transcripts, 6,537
-  calls): 94 prompts before (78 ask rules, 16 guard), 18 after (0 ask rules, 18 guard), 22 denied in both, no crash, and
-  no call that was silent before asks now. The 76 prompts gone are `gh ... -R|--repo` reads (issues, PRs, releases,
-  search, `api` GET of Godot, GdUnit4, gdtoolkit, TwoVoIP, Claude Code and other upstreams), three reads of this
-  repository with `-R`, and calls where a text rule matched other text (an issue comment on this repository whose body
-  held `-R`, `gh release --help`). Two calls still ask, now through the guard:
-  `gh issue create --repo godotengine/godot` (an upstream bug report) and a `gh issue create -R` probe of a missing
-  repository. The other 16 guard prompts are unchanged (§8.2 above).
+- Reads of other repositories (#68), replayed on 2026-09-30 with `tools\run.cmd permissions` (bypass mode,
+  `origin/main` against the branch) over every Bash and PowerShell call in `~/.claude/projects/D--prime-game*`
+  (224 transcripts, 6,591 calls): 95 prompts before (79 ask rules, 16 guard), 18 after (0 ask rules, 18 guard), 22
+  denied in both, no crash, and no call that was silent before asks now. The 77 prompts gone are `gh ... -R|--repo`
+  reads (issues, PRs, releases, search, `api` GET of Godot, GdUnit4, gdtoolkit, TwoVoIP, Claude Code and other
+  upstreams), four reads of this repository with `-R|--repo`, and calls where a text rule matched other text (an
+  issue comment on this repository whose body held `-R`, `gh release --help`). Two calls still ask, now through the
+  guard: `gh issue create --repo godotengine/godot` (an upstream bug report) and a `gh issue create -R` probe of a
+  missing repository. The other 16 guard prompts are unchanged (§8.2 above).
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
