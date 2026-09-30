@@ -7,8 +7,9 @@ paths:
 
 ## Layout and names
 - `tests/unit/`: pure logic, mostly `core/`, mirroring its path (`core/match/vote.gd` →
-  `tests/unit/match/vote_test.gd`). `tests/integration/`: `server/` and `net/` together. Bot matches come with
-  the bot harness (M3).
+  `tests/unit/match/vote_test.gd`). `tests/integration/`: `server/` and `net/` together, and scene or physics
+  suites that need real engine steps, mirroring the source path (`client/player/player_controller.gd` →
+  `tests/integration/client/player/player_controller_test.gd`). Bot matches come with the bot harness (M3).
 - A suite is `<name>_test.gd` (GdUnit4's snake_case convention) and `extends GdUnitTestSuite`. Test functions start
   with `test_`, are typed like all GDScript, and return `void`.
 - Hooks: `before()` and `after()` once per suite; `before_test()` and `after_test()` around each test.

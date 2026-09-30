@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="PlayerTuning" format=3 uid="uid://ceyl0qt0whhti"]
+
+[ext_resource type="Script" uid="uid://ce71a5g2kmyjp" path="res://client/player/player_tuning.gd" id="1_tuning"]
+
+[resource]
+script = ExtResource("1_tuning")
+walk_speed = 4.5
+sprint_speed = 7.0
+jump_height = 1.0
+ghost_speed = 8.0
+step_height = 0.3
+capsule_radius = 0.4
+capsule_height = 1.8
+eye_height = 1.6
+max_stamina = 100.0
+sprint_cost_per_second = 20.0
+sprint_start_stamina = 20.0
+jump_cost = 10.0
+regen_per_second = 15.0

@@ -439,6 +439,26 @@ Lessons from the M1 spike (#13, #14):
 - Client-side movement is a claim: walls and height need their own host checks (a ray or navmesh test) if they
   matter. Inputs expire or are bound to a tick, so a killed client's last intent does not keep it moving.
 
+The local player's controller (#46, `client/player/`):
+- `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its numbers (speeds, jump height, capsule,
+  eye and step height, stamina) live in one resource, `client/player/player_tuning.tres` (`PlayerTuning`), whose
+  script defaults are 0 so no number is repeated in code. `core/` (stage 2d) and later content take them over.
+- Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step.
+  `LocalStamina` is a stand-in for `core/`'s stamina and the only copy of the rule on the client.
+- Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
+  2 `living_players`, 3 `ghosts`. The living collide with the world and the living; a ghost only with the world.
+  Other living players are `RemotePlayerBody` kinematic capsules that only their owner's data moves.
+- Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
+  height and glides over the edge until it snaps onto the top. What blocks it must be a ledge: a walkable blocker (a
+  ramp, a low edge under the rounded bottom) is left to `move_and_slide`, and a ledge whose top is steeper than
+  `floor_max_angle` (a steep slope, a round prop) is no step. Only the body jumps up; the view eases after it and
+  lags at most one step height. A jump's take-off speed is solved for the physics step so the ballistic peak is the
+  jump height.
+- For the host's movement checks (M4 tolerances): the controller crosses a ledge's edge `STEP_CLEARANCE` (0.01 m)
+  above its top, so a rise without a jump can reach step height + 0.01 m, and a jump from mid-crossing peaks as much
+  over the jump height. A capsule's rounded bottom also rolls onto a ledge corner, so a jump can land the feet up to
+  `capsule_radius * (1 - cos(floor_max_angle))` (about 0.12 m) above the jump height. The tolerances must cover both.
+
 ### 7.1 Authority for the MVP's mechanics (#32)
 Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/2026-09-29-mvp-rules.md) (placeholders,
 "not a decision"), including the player's capsule, eye height and step height; tolerances: M4.

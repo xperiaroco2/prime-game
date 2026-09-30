@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://bad5nvl80w4gr"]
+
+[ext_resource type="Script" uid="uid://tqux6ip5au3e" path="res://client/player/player_controller.gd" id="1_controller"]
+
+[node name="Player" type="CharacterBody3D" unique_id=1290534110]
+script = ExtResource("1_controller")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=643114312]
+
+[node name="Head" type="Node3D" parent="." unique_id=1429583791]
+
+[node name="Camera3D" type="Camera3D" parent="Head" unique_id=1130320871]
+current = true

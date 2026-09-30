@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import configparser
 import re
 
 from . import credits, uids
@@ -25,16 +24,30 @@ CHECK_TIMEOUT = 180
 NORMAL_EXIT = (0, 1)
 
 
+def section_values(text: str, section: str) -> dict[str, str]:
+    """The one-line `key=value` entries of one section of a Godot config file such as project.godot.
+
+    Not configparser: Godot writes some values over several lines (input actions end with lines
+    that are just "]" and "}"), which configparser rejects. Continuation lines have no "=" before
+    any quote or bracket, so they are skipped; a section header is a line of the form [name].
+    """
+    values: dict[str, str] = {}
+    inside = False
+    for line in text.splitlines():
+        if re.fullmatch(r"\[[A-Za-z0-9_./-]+\]", line.strip()):
+            inside = line.strip() == f"[{section}]"
+        elif inside and re.match(r"[A-Za-z0-9_./-]+=", line):
+            key, _, value = line.partition("=")
+            values[key] = value.strip()
+    return values
+
+
 def warnings_policy() -> list[str]:
     """Problems with the [debug] warning levels in project.godot."""
-    parser = configparser.ConfigParser(interpolation=None, strict=False)
-    parser.optionxform = str  # type: ignore[assignment,method-assign]
-    text = (ROOT / "project.godot").read_text(encoding="utf-8")
-    # project.godot starts with keys outside any section; give them one so configparser accepts it.
-    parser.read_string("[_top]\n" + text)
+    debug = section_values((ROOT / "project.godot").read_text(encoding="utf-8"), "debug")
     problems = []
     for name in REQUIRED_WARNINGS:
-        value = parser.get("debug", f"gdscript/warnings/{name}", fallback=None)
+        value = debug.get(f"gdscript/warnings/{name}")
         if value != "2":
             problems.append(
                 f"project.godot [debug] gdscript/warnings/{name} is {value or 'unset'}; it must be 2 (Error)"

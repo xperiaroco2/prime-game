@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://b0vnu4563blfy"]
+
+[ext_resource type="Script" uid="uid://bhn0yrtgghme2" path="res://client/player/remote_player_body.gd" id="1_body"]
+
+[node name="RemotePlayerBody" type="AnimatableBody3D" unique_id=531477011]
+script = ExtResource("1_body")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1954067324]
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=1344223499]

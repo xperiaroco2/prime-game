@@ -139,6 +139,18 @@ class WarningsPolicyTest(unittest.TestCase):
         self.assertEqual(len(problems), 1)
         self.assertIn("untyped_declaration is 1", problems[0])
 
+    def test_multiline_input_actions_do_not_break_parsing(self) -> None:
+        # The editor writes input actions as values spread over several lines, some starting with
+        # "]" or "}" at column 0 (#46); configparser rejected those lines.
+        lines = "\n".join(f"gdscript/warnings/{name}=2" for name in check.REQUIRED_WARNINGS)
+        action = 'jump={\n"deadzone": 0.2,\n"events": [Object(InputEventKey,"physical_keycode":32)\n]\n}\n'
+        debug_first = f"config_version=5\n\n[debug]\n\n{lines}\n\n[input]\n\n{action}\n[physics]\n\nx=1\n"
+        self.assertEqual(self.policy_for(debug_first), [])
+        input_first = f"config_version=5\n\n[input]\n\n{action}\n[debug]\n\n{lines}\n"
+        self.assertEqual(self.policy_for(input_first), [])
+        lowered = input_first.replace("untyped_declaration=2", "untyped_declaration=0")
+        self.assertEqual(len(self.policy_for(lowered)), 1)
+
 
 class ProcessTest(unittest.TestCase):
     def test_timeout_kills_and_reports(self) -> None:
