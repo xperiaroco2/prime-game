@@ -7,16 +7,31 @@ extends SceneTree
 ## A transport that is not polled services no ENet: to the other side it is a frozen process, so
 ## one process can stall one side of a pair while the other runs on and sends it a reliable beat
 ## every BEAT_EVERY_MS. ENet resends an unacknowledged message with a doubling delay (from the
-## round-trip time) and drops the peer at the first resend past the timeout's minimum, or past its
-## maximum, so a drop comes between the minimum and about twice it. On one PC ENet's default
-## (5 to 30 s) dropped a stalled host after 9.8 s and a stalled client after 5.9 s; with
-## EnetTransport's 10 to 20 s after 19.5 s and 14.3 s.
-## - Pair 1, from the moment a connection exists: the host stops polling as soon as its client is
-##   connected. The client must still have the host after PEER_TIMEOUT_MIN_MS. With no round trip
-##   measured yet ENet starts from 500 ms and would wait about 31 s, whatever the timeout.
+## round-trip time) and, at a resend check, drops the peer once the oldest unacknowledged send is
+## PEER_TIMEOUT_MAX_MS old, or once it is PEER_TIMEOUT_MIN_MS old and the command's attempts have
+## reached the timeout limit (the 6th attempt at PEER_TIMEOUT_LIMIT 32). So a drop comes between
+## the minimum and about twice it. On one PC ENet's default (5 to 30 s) dropped a stalled host
+## after 9.8 s and a stalled client after 5.9 s; with EnetTransport's 10 to 20 s after 10.3 to
+## 19.5 s and 12.0 to 14.3 s.
+## - Every pair, the timeouts from the moment a connection exists: when the client reports
+##   `connected` its host peer must already have EnetTransport's timeouts (applied_timeouts, set
+##   in the poll ENet reports the connection in), and so must the host's peer when it reports
+##   `peer_joined`. This is the deterministic check that each side calls set_timeout; the drops
+##   below check that ENet honours it.
+## - Pair 1, a host stalled at the moment of connection: the host stops polling as soon as its
+##   client is connected, and the client must still have it after PEER_TIMEOUT_MIN_MS. With no
+##   round trip measured yet ENet starts from 500 ms (resend checks at 0.5, 1.5, 3.5, 7.5, 15.5 and
+##   31.5 s) and, with EnetTransport's 10 to 20 s as with ENet's default, drops only at about
+##   31.5 s. So this pair cannot see a missing set_timeout; it guards only against a maximum below
+##   about 7.5 s.
 ## - Pair 2, the client's timeout on its host peer: both beat for WARM_MS, so the round trip is
 ##   measured, then the host stops polling. The client must drop it after PEER_TIMEOUT_MIN_MS to
-##   PEER_TIMEOUT_MAX_MS.
+##   PEER_TIMEOUT_MAX_MS. Known limit: both builds drop at a resend of the same doubling chain, and
+##   when the resend before ENet's default drop lands just under 5 s, the default drops just past
+##   10 s too (measured once at 9.77 s, 180 ms under the bound). So a removed client set_timeout
+##   can pass here in a narrow band of round-trip times; the applied_timeouts check above cannot
+##   miss it. A correct build cannot fail this bound, save a frame hitch of over EARLY_MS on the
+##   stalled side just before it stops (measured drops: 10.3 s and up).
 ## - Pair 3, the host's timeout on its client: first the backlog below; then both beat for
 ##   WARM_MS, the client stops polling, and the host must drop it within the same window.
 ## - Backlog: pair 3's host is not polled while its client sends more LATEST poses than ENet reads
@@ -148,6 +163,7 @@ func _start(pair: Pair, port: int) -> bool:
 	pair.client.connected.connect(_on_connected.bind(pair).unbind(1))
 	pair.client.packet_received.connect(_on_client_packet.bind(pair))
 	pair.host.packet_received.connect(_on_host_packet.bind(pair))
+	pair.host.peer_joined.connect(_on_joined.bind(pair))
 	pair.client.host_lost.connect(_on_drop.bind(pair, "client"))
 	pair.host.peer_left.connect(_on_drop.bind(pair, "host").unbind(1))
 	return true
@@ -185,10 +201,32 @@ func _process(_delta: float) -> bool:
 
 func _on_connected(pair: Pair) -> void:
 	pair.connected_ms = Time.get_ticks_msec()
+	_check_timeouts(pair, "client", pair.client, NetTransport.HOST_ID)
 	if pair.hold_only:
 		pair.stall()
 	elif pair.backlog:
 		_send_backlog(pair)
+
+
+func _on_joined(peer_id: int, pair: Pair) -> void:
+	_check_timeouts(pair, "host", pair.host, peer_id)
+
+
+## The side reporting a connection must already have EnetTransport's timeouts on that peer.
+func _check_timeouts(pair: Pair, side: String, transport: EnetTransport, peer_id: int) -> void:
+	var want := Vector3i(
+		EnetTransport.PEER_TIMEOUT_LIMIT,
+		EnetTransport.PEER_TIMEOUT_MIN_MS,
+		EnetTransport.PEER_TIMEOUT_MAX_MS
+	)
+	var have: Vector3i = transport.applied_timeouts.get(peer_id, Vector3i.ZERO)
+	if have != want:
+		_fail(
+			(
+				"%s: the %s reported the connection with timeouts %s on peer %d, not %s"
+				% [pair.name, side, have, peer_id, want]
+			)
+		)
 
 
 ## The running side lost the stalled one: expected, and timed, unless this pair only holds.

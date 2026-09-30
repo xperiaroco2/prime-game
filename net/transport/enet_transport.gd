@@ -15,7 +15,9 @@ extends NetTransport
 ## freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts. Keep
 ## PEER_TIMEOUT_MIN_MS at 10 s or more: a "snappier drop" brings that bug back.
 ## tests/integration/net/enet_freeze.gd checks a 5.2 s freeze on the host and on a client, and
-## enet_stall.gd that each side keeps the other through 7 s, past ENet's default of 5 s.
+## enet_stall.gd that each side has these timeouts on its peer by the time the connection is
+## reported (applied_timeouts) and drops a stalled other side only after 10 to 20 s, where ENet's
+## default minimum of 5 s drops it after 5 to 10 s.
 ## Every ENet timeout is set here and nowhere else.
 const PEER_TIMEOUT_LIMIT := 32
 const PEER_TIMEOUT_MIN_MS := 10000
@@ -38,6 +40,8 @@ const ADMIT: Array[int] = [0, 0, 0]
 ## The address the host listens on. "*" is every interface; 127.0.0.1 keeps local tests off the
 ## network (and off the firewall prompt).
 var bind_address := "*"
+## Read by tests (ENet has no getter): the timeouts (limit, min ms, max ms) set on each live peer.
+var applied_timeouts: Dictionary[int, Vector3i] = {}
 
 var _peer: ENetMultiplayerPeer = null
 var _join_started_ms := 0
@@ -118,6 +122,7 @@ func _backend_close() -> void:
 	_arrivals.clear()
 	_departures.clear()
 	_live.clear()
+	applied_timeouts.clear()
 	_client_id = 0
 	_admitted = false
 	if peer != null:
@@ -204,6 +209,9 @@ func _set_timeout(peer_id: int) -> void:
 	var packet_peer := _peer.get_peer(peer_id)
 	if packet_peer != null:
 		packet_peer.set_timeout(PEER_TIMEOUT_LIMIT, PEER_TIMEOUT_MIN_MS, PEER_TIMEOUT_MAX_MS)
+		applied_timeouts[peer_id] = Vector3i(
+			PEER_TIMEOUT_LIMIT, PEER_TIMEOUT_MIN_MS, PEER_TIMEOUT_MAX_MS
+		)
 
 
 func _on_peer_connected(peer_id: int) -> void:
@@ -220,4 +228,5 @@ func _on_peer_connected(peer_id: int) -> void:
 func _on_peer_disconnected(peer_id: int) -> void:
 	if _peer != null:
 		_live.erase(peer_id)
+		applied_timeouts.erase(peer_id)
 		_departures.append(peer_id)
