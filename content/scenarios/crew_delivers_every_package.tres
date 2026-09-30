@@ -173,6 +173,16 @@ towards = SubResource("Resource_nxapu")
 script = ExtResource("12_yyfw7")
 event = &"PackageDelivered"
 
+[sub_resource type="Resource" id="Resource_gjxoq"]
+script = ExtResource("9_xg2km")
+kind = 0
+index = 3
+
+[sub_resource type="Resource" id="Resource_y58ct"]
+script = ExtResource("10_mwclm")
+target = SubResource("Resource_gjxoq")
+expect_rejected = &"unavailable"
+
 [sub_resource type="Resource" id="Resource_gtwir"]
 script = ExtResource("9_xg2km")
 kind = 0
@@ -214,19 +224,9 @@ towards = SubResource("Resource_6gkn8")
 script = ExtResource("12_yyfw7")
 event = &"PackageDelivered"
 
-[sub_resource type="Resource" id="Resource_gjxoq"]
-script = ExtResource("9_xg2km")
-kind = 0
-index = 4
-
-[sub_resource type="Resource" id="Resource_y58ct"]
-script = ExtResource("10_mwclm")
-target = SubResource("Resource_gjxoq")
-expect_rejected = &"unavailable"
-
 [sub_resource type="Resource" id="Resource_q1fpi"]
 script = ExtResource("4_24cto")
-steps = Array[ExtResource("5_gfqih")]([SubResource("Resource_elvf5"), SubResource("Resource_3ilgk"), SubResource("Resource_iw2r7"), SubResource("Resource_8ghj6"), SubResource("Resource_0ubff"), SubResource("Resource_n24iv"), SubResource("Resource_qu0bh"), SubResource("Resource_tjpbk"), SubResource("Resource_6rxsl"), SubResource("Resource_22521"), SubResource("Resource_sklrf"), SubResource("Resource_nmjaj"), SubResource("Resource_y58ct")])
+steps = Array[ExtResource("5_gfqih")]([SubResource("Resource_elvf5"), SubResource("Resource_3ilgk"), SubResource("Resource_iw2r7"), SubResource("Resource_8ghj6"), SubResource("Resource_0ubff"), SubResource("Resource_n24iv"), SubResource("Resource_qu0bh"), SubResource("Resource_y58ct"), SubResource("Resource_tjpbk"), SubResource("Resource_6rxsl"), SubResource("Resource_22521"), SubResource("Resource_sklrf"), SubResource("Resource_nmjaj")])
 
 [sub_resource type="Resource" id="Resource_8crua"]
 script = ExtResource("6_51ypl")
