@@ -44,4 +44,7 @@ which prescribed one workflow per stage with human review between stages and a y
   (inline for docs and test lists, `pr-rebase` for semantic conflicts).
 - The human stays the merge gate and the source of design decisions; the manager's value depends on them merging
   and answering promptly.
-- Tasks that edit `.claude/settings*.json` still prompt in every mode and run only while a human is present.
+- Tasks that edit `.claude/` or `addons/` still prompt (`.claude/settings*.json` and `addons/` in every mode, other
+  `.claude/` paths outside bypass) and run only while a human is present.
+- The scratchpad is per session, so the handover to a new manager session goes through GitHub: each wave comment
+  lists the running runs with their args.

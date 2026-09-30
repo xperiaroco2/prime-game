@@ -205,12 +205,16 @@ Rules for every workflow run:
   session needs `/reload-skills` (code.claude.com/docs/en/workflows).
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about 150;
   every agent writes temporary files only under its issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to
-  five agents, over the `small` guideline, so the kickoff approves that and the stage's cost once.
+  five agents, over the `small` guideline, so the kickoff approves that and the stage's budget once, confirmed by
+  the human's yes to the manager's restatement (§7). Code tasks wait for the engineer's review of the stage's
+  design PR; before launching anything, the manager lists the runs another session may still own (issues In
+  progress with no PR, fresh worktree commits, a rebase in progress) and asks.
 - **The human:** writes the kickoff (template in the skill), merges in the order the manager gives, answers the
   numbered "Needs the engineer" questions, and runs the housekeeping (`worktree-done`). The manager reports on the
   plan issue after each wave and stops with a comment when nothing more can run without merges.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
-  what an earlier attempt already did, so a fresh run with the same args also continues.
+  what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
+  plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
 
 ## 8. Permissions, guards and hooks
 
