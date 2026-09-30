@@ -7,12 +7,16 @@ import contextlib
 import io
 import json
 import os
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from runner import doctor, machine_env
+from runner.common import IS_WINDOWS, ROOT
 from runner.machine_env import LOCAL_SETTINGS, PROCESS, USER_SETTINGS
 
 GODOT = r"C:\Godot\Godot_v4.7.2-stable_win64_console.exe"
@@ -156,3 +160,79 @@ class DoctorTest(unittest.TestCase):
         self.assertIn("skip  PYTHON_BIN (not set; CI finds its tools on PATH)", out)
         self.assertEqual(out.count("warn"), 1, out)
 
+
+@unittest.skipUnless(IS_WINDOWS, "tools\\run.cmd is the Windows wrapper")
+class RunCmdTest(unittest.TestCase):
+    """tools\\run.cmd finds Python in the Claude settings before Python runs, in a copy of it next to a stub run.py."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        base = Path(tmp.name)
+        self.home = base / "home"
+        self.root = base / "project"
+        (self.root / "tools").mkdir(parents=True)
+        self.home.mkdir()
+        shutil.copyfile(ROOT / "tools" / "run.cmd", self.root / "tools" / "run.cmd")
+        (self.root / "tools" / "run.py").write_text(
+            "import os, sys\nprint('STUB', sys.executable, sys.argv[1:])\n", encoding="utf-8"
+        )
+        self.user = self.home / ".claude" / "settings.json"
+        self.local = self.root / ".claude" / "settings.local.json"
+        self.missing = str(base / "no" / "python.exe")
+
+    def run_cmd(self, extra: dict[str, str] | None = None, python_on_path: bool = False) -> subprocess.CompletedProcess[str]:
+        system = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32"
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if key.upper() not in (*machine_env.MACHINE_VARS, "CLAUDE_CONFIG_DIR", "PATH", "USERPROFILE")
+        }
+        # Never the py launcher (it lives in its own folder or in C:\Windows): the system, and Python only when asked.
+        path = [str(system), str(system / "WindowsPowerShell" / "v1.0")]
+        env["PATH"] = os.pathsep.join(([str(Path(sys.executable).parent)] if python_on_path else []) + path)
+        env["USERPROFILE"] = str(self.home)
+        env.update(extra or {})
+        return subprocess.run(
+            ["cmd", "/c", str(self.root / "tools" / "run.cmd"), "pins"],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+
+    def test_python_bin_from_user_settings(self) -> None:
+        write_settings(self.user, {"PYTHON_BIN": sys.executable})
+        res = self.run_cmd()
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn(f"STUB {sys.executable} ['pins']", res.stdout)
+
+    def test_a_missing_file_is_named(self) -> None:
+        write_settings(self.user, {"PYTHON_BIN": self.missing})
+        res = self.run_cmd(python_on_path=True)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn(f"PYTHON_BIN in the env of the Claude settings points to a missing file: {self.missing}", res.stderr)
+
+    def test_local_settings_win(self) -> None:
+        write_settings(self.user, {"PYTHON_BIN": sys.executable})
+        write_settings(self.local, {"PYTHON_BIN": self.missing})
+        res = self.run_cmd(python_on_path=True)
+        self.assertEqual(res.returncode, 1, res.stdout + res.stderr)
+        self.assertIn(f"points to a missing file: {self.missing}", res.stderr)
+
+    def test_the_process_environment_wins(self) -> None:
+        write_settings(self.user, {"PYTHON_BIN": self.missing})
+        res = self.run_cmd({"PYTHON_BIN": sys.executable})
+        self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+        self.assertIn(f"STUB {sys.executable}", res.stdout)
+
+    def test_missing_or_invalid_settings_fall_back_to_python_on_path(self) -> None:
+        for text in (None, '{"env": {"PYTHON_BIN": '):
+            with self.subTest(text=text):
+                if text is not None:
+                    write_settings(self.user, text=text)
+                res = self.run_cmd(python_on_path=True)
+                self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+                self.assertIn("STUB", res.stdout)
+                self.assertEqual(res.stderr, "")
