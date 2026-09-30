@@ -51,6 +51,8 @@ const U16_MAX := 0xFFFF
 const U32_MAX := 0xFFFFFFFF
 const S32_MIN := -0x80000000
 const S32_MAX := 0x7FFFFFFF
+## How much of a refused value a refusal line shows.
+const WRONG_VALUE_MAX := 64
 ## The integer types and their bounds; one above the top is none (-1) where a field is optional.
 const INT_BOUNDS := {
 	Type.U8: [0, 0xFF],
@@ -590,7 +592,7 @@ func _read_number(reader: WireReader) -> int:
 	if optional and value == bounds[1] + 1:
 		return -1
 	if value < bounds[0] or value > bounds[1]:
-		reader.fail("%s: %d is not a %s" % [name, value, _type_name()])
+		reader.fail("%s: %d is not %s" % [name, value, _a_type_name()])
 	return value
 
 
@@ -735,12 +737,29 @@ func _as_s32() -> WireField:
 	return WireField.of(name, Type.S32)
 
 
+## Why `value` was refused, in one short line: a voice bug at 50 frames a second must not flood the
+## log with byte dumps, so a byte array is its size and anything else is cut.
 func _wrong(value: Variant) -> String:
-	return "%s: %s is not a %s" % [name, var_to_str(value), _type_name()]
+	var shown: String
+	if value is PackedByteArray:
+		shown = "%d bytes" % (value as PackedByteArray).size()
+	else:
+		shown = var_to_str(value)
+		if shown.length() > WRONG_VALUE_MAX:
+			shown = shown.left(WRONG_VALUE_MAX) + "..."
+	return "%s: %s is not %s" % [name, shown, _a_type_name()]
 
 
 func _type_name() -> String:
 	return str(Type.keys()[type]).to_lower()
+
+
+## The type name with its article, as it is read aloud ("an s32", "a u16").
+func _a_type_name() -> String:
+	var type_name := _type_name()
+	var spoken_vowel := type_name[0] in ["a", "e", "i", "o"] or type_name in ["s32", "s64", "f32"]
+	var article := "an" if spoken_vowel else "a"
+	return "%s %s" % [article, type_name]
 
 
 func _is_opus_size(size: int) -> bool:

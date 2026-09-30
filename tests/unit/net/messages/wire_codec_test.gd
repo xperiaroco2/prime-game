@@ -139,6 +139,21 @@ func test_the_encoder_refuses_what_the_decoder_would_reject() -> void:
 	_assert_refused(WireMessage.new(&"VoiceUp", {"seq": 1, "opus": frame}))
 
 
+func test_a_refusal_names_a_byte_array_by_its_size_and_cuts_a_long_value() -> void:
+	var frame := PackedByteArray()
+	frame.resize(WireSchema.MAX_OPUS + 1)
+	var voice := _schema.write(WireMessage.new(&"VoiceUp", {"seq": 1, "opus": frame}))
+	assert_str(voice.problem).is_equal("opus: %d bytes is not an opus" % frame.size())
+	var role := _schema.write(WireMessage.new(&"RoleAssigned", {"role": &"Crew"}))
+	assert_str(role.problem).is_equal('role: &"Crew" is not an id')
+	var long_name := "x".repeat(WireField.TEXT_MAX + 1)
+	var joined := _schema.write(
+		WireMessage.new(&"PlayerJoined", {"peer": 2, "name": long_name, "spot": Vector3.ZERO})
+	)
+	assert_int(joined.problem.length()).is_less(100)
+	assert_str(joined.problem).ends_with("... is not a text")
+
+
 func test_the_encoder_refuses_bad_paths() -> void:
 	for path: String in [
 		"", "levels/a.tscn", "user://a.tscn", "res://../a.tscn", "res://a b.tscn", "res://a:b"
