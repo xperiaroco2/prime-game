@@ -60,6 +60,11 @@ const reb = await agent([
   schema: { type: 'object', properties: { up_to_date: { type: 'boolean' }, verify_green: { type: 'boolean' }, ci_green: { type: 'boolean' }, published: { type: 'boolean' }, old_tip: { type: 'string' }, new_tip: { type: 'string' }, changed_paths: { type: 'array', items: { type: 'string' } }, conflicts: { type: 'array', items: { type: 'string' } }, fixes: { type: 'array', items: { type: 'string' } }, problems: { type: 'array', items: { type: 'string' } } }, required: ['up_to_date', 'verify_green', 'published'] },
 })
 if (!reb) throw new Error(`#${PR}: the rebase agent returned nothing; resume this run with the same args`)
+// A red or unpublished rebase is not reviewed: the reviewer would read a local state that is not the PR.
+if (!reb.verify_green || !reb.published) {
+  log(`#${PR}: rebase ${reb.verify_green ? 'green' : 'RED'}, ${reb.published ? 'published' : 'NOT published'}; stopped before review`)
+  return { pr: PR, reb, reviews: [], fix: null, stopped: 'rebase red or unpublished: nothing reviewed; read reb.problems, then relaunch (not a resume) with them in steps' }
+}
 
 phase('Review')
 const paths = reb.changed_paths || []
