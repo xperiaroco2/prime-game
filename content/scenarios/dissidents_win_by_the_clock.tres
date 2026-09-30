@@ -1,0 +1,85 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://cqmnrqgaf505f"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_wvcle"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_awuyd"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="3_qaad2"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="4_fh5q5"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="5_47cvo"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="6_ucuxw"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="7_q3nhc"]
+[ext_resource type="Script" uid="uid://bwjq8u1clvgug" path="res://core/content/scenario/step_jump.gd" id="8_0d5vp"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="9_aejt4"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="10_lh2q5"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="11_o36u4"]
+
+[sub_resource type="Resource" id="Resource_lo3st"]
+script = ExtResource("6_ucuxw")
+
+[sub_resource type="Resource" id="Resource_say0k"]
+script = ExtResource("7_q3nhc")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_sdnsd"]
+script = ExtResource("8_0d5vp")
+
+[sub_resource type="Resource" id="Resource_migwu"]
+script = ExtResource("9_aejt4")
+seconds = 1.0
+
+[sub_resource type="Resource" id="Resource_r00f1"]
+script = ExtResource("11_o36u4")
+point = Vector3(-20, 0, -20)
+
+[sub_resource type="Resource" id="Resource_u36g8"]
+script = ExtResource("10_lh2q5")
+target = SubResource("Resource_r00f1")
+sprint = true
+
+[sub_resource type="Resource" id="Resource_m8ryl"]
+script = ExtResource("11_o36u4")
+point = Vector3(20, 0, 20)
+
+[sub_resource type="Resource" id="Resource_vtue4"]
+script = ExtResource("10_lh2q5")
+target = SubResource("Resource_m8ryl")
+sprint = true
+
+[sub_resource type="Resource" id="Resource_fwxn3"]
+script = ExtResource("4_fh5q5")
+steps = Array[ExtResource("5_47cvo")]([SubResource("Resource_lo3st"), SubResource("Resource_say0k"), SubResource("Resource_sdnsd"), SubResource("Resource_migwu"), SubResource("Resource_u36g8"), SubResource("Resource_vtue4")])
+
+[sub_resource type="Resource" id="Resource_oc0hb"]
+script = ExtResource("6_ucuxw")
+
+[sub_resource type="Resource" id="Resource_7spcq"]
+script = ExtResource("7_q3nhc")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Resource_es8ho"]
+script = ExtResource("9_aejt4")
+seconds = 62.0
+
+[sub_resource type="Resource" id="Resource_lde2p"]
+script = ExtResource("4_fh5q5")
+steps = Array[ExtResource("5_47cvo")]([SubResource("Resource_oc0hb"), SubResource("Resource_7spcq"), SubResource("Resource_es8ho")])
+
+[resource]
+script = ExtResource("3_qaad2")
+mode = ExtResource("1_wvcle")
+session_seed = 433000000003
+bots = 2
+settings = Dictionary[StringName, int]({
+&"match_duration": 1
+})
+forced_roles = Dictionary[int, StringName]({
+2: &"dissident"
+})
+scripts = Array[ExtResource("4_fh5q5")]([SubResource("Resource_fwxn3"), SubResource("Resource_lde2p")])
+expected_ends = Array[StringName]([&"dissidents"])
+time_limit_s = 90.0

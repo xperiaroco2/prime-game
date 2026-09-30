@@ -160,8 +160,8 @@ countdown changes no scene and places nobody.
   Positions are the claims as received.
 - **Replay.** The command log holds everything `core/` is given: the session seed, the game mode's path and a hash
   of its content (every resource it loads, sub-resources included), every command with its tick and order (the ones
-  `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, `ItemRested` #37), the levels'
-  `LevelLayout`s (§9.1), and every `WorldQuery` answer. A replay reads the answers from the log instead of asking the
+  `server/` originates too: `PeerConnected`, `PeerLeft` with their peer ids, `ItemRested` #37, and in debug builds
+  `ForceRole`, §9.4 `DealRoles`), the levels' `LevelLayout`s (§9.1), and every `WorldQuery` answer. A replay reads the answers from the log instead of asking the
   level, and refuses to run when the mode's hash differs (after an edit in `content/`, say the knife's damage, it
   would silently diverge); unit tests use a fake `WorldQuery`. Seeds and RNG state never leave the host (§5).
 
@@ -750,8 +750,9 @@ part is usable in data once its row or entry names the PR that built it. Every n
     marker with two tags; a lobby with fewer `lobby_player` markers than the mode's maximum of players; a level
     without a layout. `Match` runs this part (`LayoutCheck`, 2b) on creation, with the tags each row's actions
     demand at the default settings and the maximum of players (§9.4). The content test runs it with the layouts of
-    the mode's levels, read by the marker reader (2j); until 2j it creates a match of each mode with layouts built
-    in code.
+    the mode's levels, read by the marker reader (2j, `server/levels/marker_reader.gd`), and checks that the
+    greybox fits 10 players at the default settings and at the most packages
+    (`tests/unit/content/content_modes_test.gd`).
 - **Where a value comes from.** A part reads its own settings. A value the host changes in the lobby is a **match
   setting**: the mode declares it (`SettingSpec`: id, kind, default, bounds), and a part names it in a property
   ending in `_setting` (`count_setting = knives`). A part never reads another part's settings. Two kinds: a whole
@@ -908,7 +909,7 @@ phase classes come in the task each row names.
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8) | | packages and knives on the ground |
-| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader fills it (2j) | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
+| Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 
 - **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a
@@ -957,7 +958,7 @@ phase classes come in the task each row names.
 
 | Part | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|
-| `DealRoles` | each quota in order draws its players from the present players not drawn yet, taken in peer-id order and shuffled with its RNG purpose; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) are to replace the draws: not built, `core/` cannot tell a debug build, so 2j hands them in as data (§10) | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; class default 0, the mode writes its number): the count is max(0, min(setting, N − leave_at_least)), and never more than are left), `default_role`, `rng_purpose` (`roles`) | `RoleAssigned` (that player), in peer-id order; then, per role of the mode that knows its teammates and has players, in the mode's order, `Teammates` (every player of that role) | 2c (#59) |
+| `DealRoles` | each quota in order draws its players from the present players not drawn yet, taken in peer-id order and shuffled with its RNG purpose; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) come as data, because `core/` cannot tell a debug build: the command `ForceRole` (peer, role id; an empty id clears it), which only `server/`'s debug path or the scenario runner sends, in any phase and after the peer connected, since ENet names a peer only then; it sets `MatchState.forced_roles`, which `ResetMatch` keeps, for the deals that follow, and is in the command log like every command; a role the mode lacks is a match error and ignored. Each present peer with a forced role gets it before the draws, and a forced role counts toward its quota (the engineer's answer A on #30: `dissidents` 1 with bot 2 forced to dissident makes bot 2 the only dissident), so a quota draws its count minus the players forced to its role, never below 0; a forced role the mode lacks is a match error and ignored (2j) | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; class default 0, the mode writes its number): the count is max(0, min(setting, N − leave_at_least)), and never more than are left), `default_role`, `rng_purpose` (`roles`) | `RoleAssigned` (that player), in peer-id order; then, per role of the mode that knows its teammates and has players, in the mode's order, `Teammates` (every player of that role); a forced role is told like a drawn one | 2c (#59); forced roles 2j (#66, `tests/unit/deal/deal_roles_test.gd`) |
 | `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then `TaskProgress`. More tasks than types left (a check that did not run) is an error, and it deals the types left. Refuses in `ChangeSettings` (`settings_problem`): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62) |
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
@@ -1056,7 +1057,8 @@ shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. Test
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
-scenarios in `content/scenarios/` (2j).
+scenarios in `content/scenarios/` (2j, #66: `tests/scenarios/scenarios_test.gd`, §9.7), on the flat lobby and
+greybox of §9.6.
 2i (#65) gave every phase its voice rule. 2h (#64) added the win conditions, `StartClock` (last in the
 `Loading, all_loaded → Round` row) and `EndMatch` (`Round, won → End`); `content_modes_test.gd` plays a whole
 match from this data to the end and back to the lobby, twice, and a round
@@ -1244,7 +1246,13 @@ levels/
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
   floor collider and the markers, enough for every tag at 10 players with the default settings, and no rooms. 4e
   dresses the same files, so the mode's paths never change and `content/` never points into `tests/`. Both come
-  under the MVP content ADR, with the engineer's approval in 2j's PR.
+  under the MVP content ADR, with the engineer's approval in 2j's PR. As built (#66; the sizes and spacings are
+  placeholders, "not a decision"): each is one `StaticBody3D` floor (a box collider whose top is at y = 0, with a
+  matching mesh so `shot` shows it) and markers at y = 0. The lobby is 30 × 30 m with 10 `lobby_player` markers
+  2 m apart; the greybox is 60 × 60 m with 10 `round_player` markers 2 m apart around the centre, 10 `package`
+  markers along z = −12 and 10 `circle` markers along z = 12 (4 m apart, so no package spawns in a circle), and
+  4 `knife` markers along z = −5: every tag for 10 players at the default settings and at the most packages. The
+  content test checks that fit and that both levels are flat, which the scenarios' fake world assumes.
 - A kind that other modes can reuse (a role, an item kind, a task type, a win condition) gets its own file; a rule,
   a phase spec, a row or a station is a sub-resource of its owner.
 - **Markers.** A spawn point is a `Marker3D` in the level scene, in the persistent group `spawn_<tag>` of its one tag
@@ -1255,8 +1263,12 @@ levels/
   `package` marker also sits on the floor.
   One tag per marker keeps the `all_ready` fit check exact: the demands per tag are summed and
   compared with that tag's markers, and a deal that passed it always finds its markers. `server/` reads the markers in
-  scene-tree order, the level order of §3.3. This convention is provisional until 4e settles it with the designer
-  (§10).
+  scene-tree order, the level order of §3.3 (`MarkerReader`, 2j): each where the scene puts it, through its
+  `Node3D` parents; a marker in two `spawn_` groups, a `spawn_` group on a node that is not a `Marker3D` and a
+  group named `spawn_` alone are load errors. The markers of the station kinds' spawn tags (`circle`) are snapped
+  down to the floor that the host's `WorldQuery` finds below them (asked from 0.1 m above, so a marker a hair under
+  the floor still finds it), and one with no floor below is a load error (the engineer's answer on #82, item 3).
+  This convention is provisional until 4e settles it with the designer (§10).
 - **Tests and content.** A part's unit tests build their data in code or in `tests/fixtures/` and never load
   `content/` or `levels/`. Only the mode check (§9.1) and the scenarios load them, so a change to `content/` can
   break a scenario, which is what scenarios are for, and never a part's unit test.
@@ -1301,30 +1313,69 @@ told. One format runs in two runners.
 | `ExpectNone(event, fields, for_s)` | checks | no matching event arrived for `for_s` seconds; the first one fails the step |
 | `Leave` | disconnects | at once |
 
+As built in 2j (#66; `core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and
+one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable setup before a run):
+- `Join` also takes `expect_rejected` (it sends `Hello`). `Ready`, `Setting`, `ReturnToLobby`, `PickUp`, `PutDown`
+  and `Use` are done by their own answer: the bot's `ReadyChanged`, a `SettingsChanged` holding the value, the
+  `PhaseChanged` to `lobby`, its `ItemPickedUp` of that item, `ItemPlaced` (put down) of the item it held, and
+  `until` naming this bot when the event has a `peer`.
+- `WaitFor` and `ExpectNone` look at the events from their own start; `Expect` also at those since the previous
+  step started, so it sees what arrived with the previous step's answer (a `PackageDelivered` after a
+  `PutDown`). `Expect` with `within` 0 checks only what already arrived. A bot runs its steps in one tick until
+  one waits or sends; before its `Welcome` only `Join` runs, so a `Join` is a script's first step, at most once.
+- `LoadAck` answers the `LoadMatch` that arrives while it is the bot's current step; one that arrived during an
+  earlier step was acknowledged at once, and the `LoadAck` step then fails, saying so. A `Join` refused in Loading
+  cannot be scripted in the core runner: `server/` refuses it at the transport, so the step fails.
+- `WalkTo` claims one host tick of travel per tick (client ticks rising by one), at sprint speed only while the
+  last `SelfStatus` says sprint is available (a ghost always, at 1.3 times), and stops exactly `stop_m` short.
+  `Jump` claims a jump where the bot stands, on the floor. The setup's forced roles go in one `ForceRole` per bot
+  right after the joins at the start, and its settings in one `ChangeSettings` from bot 1 after them.
+- `fields` match a subset of the event's payload (then its properties, so `peer` works on `SelfStatus`): text as
+  text, numbers and vectors approximately, and `peer` holds a bot's number. `never` names an event, fields and a
+  bot (0: every bot).
+
 - **Targets come from the bot's own view**, the events and snapshots its client received: `package(n)` (the n-th
-  package in item-id order; tasks are shared, #79), `circle_of_held`, `nearest(kind)`, `bot(i)` (where it last saw
+  package in item-id order, from 1; tasks are shared, #79), `circle_of_held`, `nearest(kind)`, `bot(i)` (where it last saw
   that player), `point(x, y, z)`. A target the bot cannot know fails the scenario, so a scenario also proves that the
   mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2) fails, because an honest bot
   is never corrected, so every scenario also checks the host's movement rules against honest movement. A field that
-  names a player is written as the bot's number; the runner maps it to the peer id.
+  names a player is written as the bot's number; the runner maps it to the peer id (the core runner: bot 1 is
+  peer 1, bot i is peer 1000 + i, so a scenario that confuses the two fails).
 - **Always asserted:** the expected ends within the time limit; no `ERROR:` line in the log; the §5 invariants on
   every bot's stream; over the network, the leak test (§5): the reliable events a bot decoded are exactly its peer's
   events in `Match.view_of`, in order, and every snapshot and voice frame it decoded is in `view_of`, which is a
   subset check, because the unreliable lanes (`LATEST`, `VOICE`) may lose some.
 - **Runners:**
-  - *Core* (stage 2j): `tests/harness/` drives `Match` directly. Steps become commands stamped with host ticks, each
-    bot's view is `view_of(peer)`, and until `server/`'s `WorldQuery` exists (M3) a flat fake answers the geometry:
-    the levels give their markers only, read into `LevelLayout`s by the reader that `server/` will use (2j builds it
-    in `server/`, which tests may use). The MVP's scenarios play on the flat, marker-only lobby and map that 2j adds
-    in `levels/` (§9.6). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
-    `content/scenarios/`, so `test` and `verify` run them from stage 2 on.
+  - *Core* (stage 2j, #66): `tests/harness/` (`ScenarioRunner`, `ScenarioBot`, `ScenarioInvariants`) drives `Match`
+    directly, as `server/` would. Each host tick every bot acts on what it received so far, its commands are
+    applied in bot order with the tick's stamp, the tick runs, and each event goes to exactly its recorded
+    recipients (`take_outbox`), so a bot holds its peer's `view_of`, which the runner asserts at the end. It
+    stands in for `server/`: joins (`PeerConnected`, then `Hello`), `RefuseJoins` and `AllowJoins`, and
+    `DisconnectPeer`, after which the bot is gone and its `PeerLeft` follows on the next tick. Until `server/`'s
+    `WorldQuery` exists (M3) a flat fake answers the geometry (`FlatWorldQuery`, one floor at y = 0): the levels
+    give their markers only, read into `LevelLayout`s by `server/`'s `MarkerReader`. The §5 invariants are
+    checked from the match state's truth after every step and tick, never from an event's `audience()`: proven by
+    declaring `Teammates` to everyone, which fails the suite. No `error:` line in `Match.diagnostics` (every match
+    error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat, marker-only
+    lobby and map (§9.6). One GdUnit4 suite, `tests/scenarios/scenarios_test.gd`, runs every scenario in
+    `content/scenarios/` and replays each match from its command log (the same events to the same peers), so
+    `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
+    failure fail once.
   - *Bots* (M3, 3d): `tools\run.cmd bots [scenario]` starts a headless host, whose own client is bot 1, and the other
     bots as headless clients: over `LoopbackHub` in one process by default, or over ENet on 127.0.0.1 with
     `--instances`. The same files; it joins `verify` with the leak test (§5).
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
+- **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
+  `content/scenarios/`: `crew_delivers_every_package` (3 crew deliver the 6 packages; a delivered package's
+  `PickUp` is `unavailable`; the crew never get `Teammates`), `dissident_kills_the_crew` (a forced dissident takes
+  a knife and kills both crew; `too_soon`; a ghost's `PickUp` is `not_accepted`; the ghost walks),
+  `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina),
+  `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`empty_hand`,
+  `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`, a swap). The first three expect the ends `crew`,
+  `dissidents` and `dissidents` (2h's win conditions); the other three `none`.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
@@ -1359,8 +1410,8 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | `Interact(target)`: fixed interactables and bodies as targets (§9.8) | with the first mechanic that needs it (#34 or #35) |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
-| Forced roles (a debug command, a scenario): the data `server/` or the scenario runner hands to `DealRoles`, and whether a forced player counts toward its role's quota (§9.4) | 2j |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6) | 4e, with the designer |
+| How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6) | M3, before `server/` hosts a match |
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | M3 |

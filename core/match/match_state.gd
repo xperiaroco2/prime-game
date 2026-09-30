@@ -39,6 +39,11 @@ var newcomers: Dictionary[int, bool] = {}
 ## The joins accepted in the session (2b): the next joiner is Player<joins + 1>. Session state:
 ## reset_match() keeps it, and a leave never lowers it, so a number is never reused (§3.5).
 var joins := 0
+## Roles forced per peer (debug builds only, §8, §9.7: a debug command or a scenario), which
+## DealRoles applies before its draws; a forced role counts toward its quota (the engineer's
+## answer A on #30). Session state: reset_match() keeps it. core/ cannot tell a debug build, so
+## only server/'s debug path or the scenario runner sets it, with the ForceRole command.
+var forced_roles: Dictionary[int, StringName] = {}
 
 var _next_item_id := 1
 var _next_task_id := 1

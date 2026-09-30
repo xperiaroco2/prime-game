@@ -23,7 +23,9 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   outbox's order: a `DisconnectPeer` comes after the `Rejected` that explains it, which must be sent first.
   Pass `PeerConnected` as soon as the transport admits a peer: `core/` takes a `Hello` only from a peer it knows is
   connected. A `Rejected` may go to such a peer before its `Hello` is accepted (audience *sender*).
-- Load the game mode and read each level's `Marker3D`s in `spawn_<tag>` groups into a `LevelLayout` (2j); answer
+- Load the game mode and read each level's `Marker3D`s in `spawn_<tag>` groups into a `LevelLayout` with
+  `MarkerReader` (`server/levels/`, 2j): scene-tree order, load errors listed (two tags, not a marker), station
+  markers (`circle`) snapped to the floor below through the `WorldQuery`. Refuse a level with load errors. Answer
   `core/`'s geometric questions through a `WorldQuery` over the host's own `World3D` (M3).
 - The host's own local client is just another peer. It receives the same filtered messages through an in-process
   loopback transport, with the same codec, and never reads `core/` state directly. This keeps a dedicated-server

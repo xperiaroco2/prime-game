@@ -21,3 +21,7 @@ const ALL: Array[StringName] = [
 ## Commands server/ originates from what the transport reports; not intents, never rejected.
 const PEER_CONNECTED := &"PeerConnected"
 const PEER_LEFT := &"PeerLeft"
+## Forces a role on `peer` for the deals that follow, {"role": id}; an empty id clears it. Only
+## server/'s debug path (a dev console command, the bots runner) or the scenario runner sends it,
+## never for a client's message: debug builds only (§8, §9.4 DealRoles).
+const FORCE_ROLE := &"ForceRole"

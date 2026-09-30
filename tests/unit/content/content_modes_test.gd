@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## The mode check over `content/` (ARCHITECTURE §9.1): every game mode in `content/modes/` loads as
-## a GameMode and passes ModeCheck. The check with the levels' layouts runs on the real levels
-## from 2j, when the marker reader exists; until then a match of the base mode is created with
-## layouts built in code. Also the base mode's data that 2b settles: its numbers, and ResetMatch
+## a GameMode and passes ModeCheck, and its levels, read by the marker reader (2j), pass the check
+## with layouts and fit 10 players at the default settings and at every setting's maximum that the
+## map can hold. Also the base mode's data that 2b settles: its numbers, and ResetMatch
 ## before PlacePlayers on `End -> Lobby`; the deal that 2c adds: the actions of the
 ## `Loading, all_loaded -> Round` row in order, the Crew, Dissident and Knife entries, and that
 ## row run by a match entering the round (roles, Delivery, knives, placement); and its voice
@@ -28,6 +28,72 @@ func test_every_mode_in_content_passes_the_mode_check() -> void:
 			. override_failure_message("%s: %s" % [path, "\n".join(check.errors)])
 			. is_empty()
 		)
+
+
+func test_every_mode_s_levels_pass_the_check_with_layouts() -> void:
+	# §9.1, second part, with the real levels read by the marker reader (2j).
+	for path: String in _mode_paths(MODES_DIR):
+		var mode := load(path) as GameMode
+		if mode == null:
+			continue
+		var levels := MarkerReader.read_levels(mode, FlatWorldQuery.new())
+		(
+			assert_array(Array(levels.errors))
+			. override_failure_message("%s: %s" % [path, "\n".join(levels.errors)])
+			. is_empty()
+		)
+		var found := LayoutCheck.run(mode, levels.layouts)
+		(
+			assert_array(Array(found))
+			. override_failure_message("%s: %s" % [path, "\n".join(found)])
+			. is_empty()
+		)
+
+
+func test_the_greybox_fits_ten_players_at_the_default_settings_and_the_most_packages() -> void:
+	# The fit check of all_ready (§9.4) on the real map: 10 players at the defaults, and at the
+	# most packages the setting allows (each needs a package and a circle marker and a colour).
+	var mode := _base_mode()
+	var map := _layouts_for(mode)[mode.maps[0]]
+	var settings := mode.default_settings()
+	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
+	assert_array(Array(demands.shortfalls(map))).is_empty()
+	settings[&"packages"] = mode.find_setting(&"packages").max_value
+	demands = LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
+	assert_array(Array(demands.shortfalls(map))).is_empty()
+	assert_int(map.count(&"knife")).is_greater_equal(settings[&"knives"])
+
+
+func test_the_levels_are_flat() -> void:
+	# The scenarios' fake world (§9.7) is one floor at y = 0: each stage-2 level is a floor
+	# collider whose top is at y = 0 and covers every marker, and every marker stands on it.
+	var mode := _base_mode()
+	var levels := _layouts_for(mode)
+	for path: String in levels:
+		var root: Node = auto_free((load(path) as PackedScene).instantiate())
+		var shapes := root.find_children("*", "CollisionShape3D", true, false)
+		assert_int(shapes.size()).override_failure_message(path).is_equal(1)
+		if shapes.size() != 1:
+			continue
+		var shape := shapes[0] as CollisionShape3D
+		var box := shape.shape as BoxShape3D
+		assert_object(box).override_failure_message(path).is_not_null()
+		var centre := (shape.get_parent() as Node3D).transform * shape.transform
+		var top := centre.origin.y + box.size.y / 2.0
+		assert_float(top).override_failure_message(path).is_equal_approx(0.0, 1e-6)
+		var layout := levels[path]
+		for tag: StringName in layout.tags():
+			for at: Vector3 in layout.positions(tag):
+				assert_float(at.y).is_equal_approx(0.0, 1e-6)
+				var inside := (
+					absf(at.x - centre.origin.x) <= box.size.x / 2.0
+					and absf(at.z - centre.origin.z) <= box.size.z / 2.0
+				)
+				(
+					assert_bool(inside)
+					. override_failure_message("%s: %s at %s" % [path, tag, at])
+					. is_true()
+				)
 
 
 func test_a_match_of_the_base_mode_starts_in_the_lobby() -> void:
@@ -290,26 +356,12 @@ func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
 	assert_float(round_voice.ghost_hears_ghost_m).is_equal(8.0)
 
 
-## Layouts built in code for the mode's levels until the marker reader exists (2j): every tag the
-## rows place on, with a marker for each of the mode's players, 10 m apart.
+## The layouts of the mode's levels, read from the real scenes by the marker reader (2j) with the
+## flat world of the stage-2 levels (one floor at y = 0), which test_the_levels_are_flat checks.
 func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:
-	var layouts: Dictionary[String, LevelLayout] = {}
-	var lobby := LevelLayout.new(mode.lobby_level)
-	for i in mode.max_players:
-		lobby.add_marker(LayoutCheck.LOBBY_PLAYER, Vector3(i, 0, 0))
-	layouts[mode.lobby_level] = lobby
-	var needed := LayoutCheck.demands_of(
-		mode, PhaseSpec.Level.MAP, mode.default_settings(), mode.max_players
-	)
-	for map: String in mode.maps:
-		var layout := LevelLayout.new(map)
-		var x := 0
-		for tag: StringName in needed.markers:
-			for i in needed.markers[tag]:
-				layout.add_marker(tag, Vector3(10 * x, 0, 0))
-				x += 1
-		layouts[map] = layout
-	return layouts
+	var levels := MarkerReader.read_levels(mode, FlatWorldQuery.new())
+	assert_array(Array(levels.errors)).is_empty()
+	return levels.layouts
 
 
 func test_the_base_mode_writes_the_mvp_player_rules() -> void:
