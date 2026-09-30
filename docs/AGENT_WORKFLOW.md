@@ -76,8 +76,9 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
    (they act on this checkout's changes) and a branch already checked out here. The designer never gets a worktree:
    with another Claude session active on this checkout, `start` stops rather than switch the branch under that
    session (`--here` when the human says it is idle). Work in the worktree: a session opened in that folder, or,
-   for a task session whose shell starts in the main checkout, `cd <worktree> && ...` at the start of every
-   command. `tools\run.cmd worktree-done <n>` removes the worktree once its branch is merged
+   for a task session whose shell starts in the main checkout, `cd <worktree> && ...` (Git Bash) or
+   `Set-Location <worktree>; ...` (PowerShell) at the start of every command. `tools\run.cmd worktree-done <n>`
+   removes the worktree once its branch is merged
    ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose branch is
    never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it from the
    main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is inside the
@@ -177,7 +178,8 @@ Rules for every workflow run:
   gitignored `tests/scratch/` of the checkout the agent works in; deleting either never prompts (§8.2). Inside its
   own worktree an agent's deletes and git are free too (#51), but a temporary folder in the main checkout or another
   worktree asks on delete and stops the run until morning. An unattended run's prompt says so, gives each task its
-  worktree (`cd <worktree> && ...` at the start of every command), and tells its agents not to run commands they
+  worktree (`cd <worktree> && ...` in Git Bash, `Set-Location <worktree>; ...` in PowerShell, at the start of
+  every command), and tells its agents not to run commands they
   expect to prompt (deletes, resets, rebases or branch deletes beyond their own worktree and task branch) but to list
   them in the handoff for the human instead: a prompt blocks the call, so an agent cannot note it and move on
   ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)).
@@ -250,10 +252,14 @@ its own scratch folder (issue #47) or its own worktree (issue #51):
   `.claude/worktrees/<n>` that the session's working directory is in; a session whose shell starts in the main
   checkout (a manager's task session) owns the first worktree its command enters with `cd`, `Set-Location` or
   `git -C` (`cd D:/prime-game/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same
-  command asks). The main checkout is never owned: the designer's sessions and the engineer's `start --here`
-  sessions keep every prompt. The task branch is the branch checked out in the own worktree; its helpers are branches
-  named `<task branch>-x`, `<task branch>/x`, `<task branch>.x` or `<task branch>_x`. The hook reads branch, ref and
-  stash names from the files in `.git` (`hooks.GitFiles`, no git call).
+  command asks), unless another live Claude session works in that worktree (`sessions.active_on`): then it owns
+  none. The main checkout is never owned: the designer's sessions and the engineer's `start --here` sessions keep
+  every prompt. The task branch is known by the worktree's identity: the branch checked out in
+  `.claude/worktrees/<n>` when its name is `<area>/<n>-<slug>`, as `start` makes it. Another branch checked out
+  there (a parent, a spike) is not the task's, so work that discards on it asks, whatever an earlier call did; a
+  detached HEAD moves no branch and stays free. Its helpers are branches named `<task branch>-x`,
+  `<task branch>/x`, `<task branch>.x` or `<task branch>_x`. The hook reads branch, ref and stash names from the
+  files in `.git` (`hooks.GitFiles`, no git call).
 - **Recursive deletes** (`rm -r|-R|-rf|--recursive` or `--rec` in bash, `Remove-Item -Recurse` or `-r`, `rmdir /s`,
   `rd /s/q` (`//s` from Git Bash), `del /s`, a plain delete fed by a recursive listing, an unfiltered `find -delete` or `find -exec rm -rf`,
   `shutil.rmtree('x')` and `[IO.Directory]::Delete('x', $true)`; also inside `bash -c`, pipelines, `xargs`,
@@ -290,15 +296,21 @@ its own scratch folder (issue #47) or its own worktree (issue #51):
   `git reset feature-x` passes.
 - **Other git that discards work or rewrites history** passes in the own worktree on the task branch, and in a
   repository outside the project (a clone in the scratchpad); it asks in the main checkout and in another worktree
-  (`-C`, `cd`, `--git-dir`, `--work-tree`), when a pathspec reaches another checkout (`git checkout -- ../47/core`),
-  and after the same command switched away from the task branch (`git checkout main && git reset --hard`):
+  (`-C`, `cd`, `--git-dir`, `--work-tree`, `GIT_DIR`, `GIT_WORK_TREE`; the repository and the working tree are
+  judged apart and the worse wins), when a pathspec reaches another checkout (`git checkout -- ../47/core`), and
+  after the same command switched away from the task branch (`git checkout main && git reset --hard`, also inside
+  `bash -c`):
   `checkout` of paths or `-f`, `switch -f|--discard-changes`, `restore` (not `--staged` alone), `clean` (not `-n`),
-  `rebase` (`--continue` and `--abort` too), `worktree remove|move` of another worktree. A plain `git switch x` or
+  `rebase` (`--continue` and `--abort` too), `worktree remove|move` of anything but the own worktree's folder or an
+  absolute path outside the project (git also takes a worktree's last path parts: `git worktree remove 47`),
+  `update-ref HEAD`. A plain `git switch x` or
   `git checkout x` discards nothing and passes anywhere. Branches and the stash are shared by every checkout, so
   they are judged by name: `branch -d|-D`, `branch -f`, `branch -M|-C`, `checkout -B`, `switch -C`, a rebase that
-  names its branch and a forced switch pass only for the task branch and its helpers; `stash drop|clear` only for
-  entries made on them (a human's `start --stash` entry is made on `main` and asks). Always asks: an interactive
-  rebase (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other branches) and
+  names its branch, `update-ref refs/heads/<x>` and a forced switch pass only for the task branch and its helpers;
+  `stash drop|clear` only for entries made on them (a human's `start --stash` entry is made on `main` and asks),
+  and never after the same command changed the stash (the indices shift). Always asks: an interactive rebase
+  (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other branches),
+  `rebase -x|--exec` (runs commands the guard cannot judge), `update-ref --stdin` and
   `git -c core.hooksPath=...` (the deny rule on `git config *hooksPath*` cannot see it).
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
   `git -C D:/prime-game clean -fdx` ask there.

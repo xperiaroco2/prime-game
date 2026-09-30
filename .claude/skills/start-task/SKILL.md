@@ -43,7 +43,8 @@ Commands below use the PowerShell form `tools\run.cmd`; in Git Bash use `tools/r
    - Output line `WORKTREE <path>`: the engineer's task has its own worktree (the default; `--here` keeps a task in
      this checkout only when the human asks). There git and deletes need no prompt, and the main checkout stays
      untouched. Enter it with the EnterWorktree tool (`path`). If that tool is not available, work there with
-     `cd <path> && ...` at the start of every shell command, or tell the human to open a new session in that folder
+     `cd <path> && ...` (Git Bash) or `Set-Location <path>; ...` (PowerShell) at the start of every shell command,
+     or tell the human to open a new session in that folder
      and stop here.
    - "another Claude session is working on this checkout" (the designer, or `--here` not given): tell the human which
      session, and ask them to finish or close it. Only if they say it is idle, run `start` again with `--here`.

@@ -60,10 +60,13 @@ ADRs).
   `clean`, `stash drop|clear`, `branch -d`, `worktree`, `rebase` and `git -c` (26 rules) and the deny pair on
   `git branch -D` leave `.claude/settings.json`; the guard judges those commands, `git reset` and recursive deletes by
   where they act. They pass in the session's own worktree (the one its working directory is in, or, for a session in
-  the main checkout, the first worktree its command enters with `cd` or `git -C`) on its task branch, and in
+  the main checkout, the first worktree its command enters with `cd`, `Set-Location` or `git -C`, unless another
+  live session works there) on its task branch (known by the worktree's identity: `<area>/<n>-<slug>` checked out
+  in `.claude/worktrees/<n>`, so a parent or spike checked out there is another branch), and in
   repositories outside the project; they ask in the main checkout, in another worktree, on another branch (by name,
   since branches and the stash are shared: only the task branch and its helpers `<task branch>-x` or
-  `<task branch>/x` pass), for stash entries made on another branch, for an interactive rebase, `--update-refs` and
+  `<task branch>/x` pass), for stash entries made on another branch, for an interactive rebase, `--update-refs`,
+  `rebase --exec`, `update-ref --stdin`, `worktree remove|move` of anything but the own worktree's folder, and
   `git -c core.hooksPath`. Branch and stash names come from the files in `.git`, read by the hook without a git call.
   Reason: the only work at risk in the own worktree is the agent's own, committed or reproducible; the risk is in
   the main checkout (the Godot editor and the humans' files), in other sessions' worktrees and on other branches,

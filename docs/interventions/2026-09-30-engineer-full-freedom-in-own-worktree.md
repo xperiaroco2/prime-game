@@ -34,8 +34,8 @@
    deny rules (pushes to `main`, remote deletes, `--mirror`/`--all`/`--prune`, `gh pr merge`, `hooksPath`) and the
    asks on `.claude/settings*.json` and `addons/` stay.
 3. Every engineer task gets its own worktree: `start` makes `.claude/worktrees/<n>` by default, and `--here` is the
-   exception. A task session whose shell starts in the main checkout moves into its worktree with `cd` at the start
-   of every command.
+   exception. A task session whose shell starts in the main checkout moves into its worktree with `cd` (Git Bash)
+   or `Set-Location` (PowerShell) at the start of every command.
 
 **Where the rule lives now.**
 - This entry.
