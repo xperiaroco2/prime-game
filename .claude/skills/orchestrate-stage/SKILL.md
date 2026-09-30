@@ -145,30 +145,33 @@ again for that issue with the answers in `notes` (its agents find the branch and
 - Numbers: about 20 workflows in one day; 25 to 60 minutes and 450k to 900k subagent tokens per task workflow.
 
 ## 10. Kickoff template
-The human copies it, edits the lists and sends it. Example filled in for M3:
+The human copies it, fills the placeholders and sends it, in English or in their own language. Moving state (which
+issues, which PRs) goes only in the message, never in this file.
 
 ```text
-ultracode: оркеструй етап 3 (M3, мережа) за скілом orchestrate-stage. Ти менеджер: одна задача = один
-workflow issue-task, не більше трьох одночасно.
+ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
+task = one issue-task workflow, at most three at once.
 
-Звідки починаємо: моє рев'ю дизайну #89 (PR і handoff на #89) — прочитай мої відповіді там. Спочатку відкрий
-M3-задачі з handoff #89 (3c host session, 3d бот-харнес і тест на витік інформації, 3e команди host і join,
-і решту з handoff) з моїми правками з рев'ю, покажи мені список і порядок, і чекай мого "так".
+Start from: <my review of the design PR #<pr> and its handoff on #<design issue> | the issues below>.
+<If from a design: open the stage's issues from that handoff with my review's changes, show me the list and the
+order, and wait for my "yes".>
 
-Обсяг: задачі з handoff #89; філери: #64 (PR #90, якщо ще не змерджений), #66 2j повний матч — після #64.
-План і звіти: коментар на #30 після кожної хвилі; тіло #30 не чіпай.
-Порядок: як у handoff #89; стек через start --base лише там, де handoff каже "depends on" на незмерджений PR.
-Межі: implementer ≤ 250 викликів, рев'юери ≤ 60, publisher ≤ 150. Дозволяю перевищити size guideline
-(до 5 агентів на workflow) і витрати на весь етап — не питай перед кожним workflow.
-Правила: мерджу тільки я; issues не закривати; кожен агент лише у своєму worktree; тимчасові файли —
-scratchpad/a<n>/ або tests/scratch/; вікна Godot лише через shot; правило гри, якого нема в ADR, —
-варіанти з рекомендацією в "Needs the engineer"; файли content/ і levels/ — попередні, я затверджую їх у PR.
-Мої рішення: ті, що в ADR, і мої відповіді в коментарях #89, #30, #58, #60, #79 (новіші важать більше).
-Пастки: publish після rebase, що змінив tools/runner, — ще раз; задачі, що правлять .claude/settings*.json, —
-лише коли я поруч; рендерер Windows (d3d12 чи vulkan) — моє рішення, не вирішуй.
-Що відкинути першим, якщо скінчиться бюджет: філери, потім 3e.
-Коли без моїх мерджів далі нічого не піде — коментар на #30 і стоп. "продовжуй" — перевір живий стан і далі.
+Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
+Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
+Order: <order, or "as in the handoff">; stack with start --base only where a task depends on an unmerged PR.
+Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150. I approve exceeding the size guideline
+(up to 5 agents per workflow) and a budget of about <N> tasks × 900k subagent tokens for the stage; do not ask
+before each workflow once I have said yes to your restatement.
+Rules: only I merge; no issue is closed by an agent; each agent only in its worktree; temporary files in
+scratchpad/a<n>/ or tests/scratch/; Godot windows only through shot; a game rule no ADR settles becomes options
+with a recommendation under "Needs the engineer"; content/ and levels/ files are provisional, I approve them in
+the PR.
+My decisions: the ADRs and my answers in the comments of <issues> (newer ones win).
+Traps: <known traps>; tasks that edit .claude/ run only while I am around; <decisions reserved for me>.
+Drop first if the budget runs out: <fillers>, then <lowest-priority task>.
+When nothing more can run without my merges: a comment on #<plan issue> and stop. "продовжуй": check the live
+state and continue.
 ```
 
 Before launching the first workflow, restate in the human's language: the waves, the ownership splits, the merge
-order, the agent count per workflow and the rough cost (§9 numbers), and wait for their yes if the kickoff says so.
+order, the agent count per workflow and the rough cost (§9 numbers), and always wait for their yes.
