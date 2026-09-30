@@ -39,6 +39,8 @@ var phase: StringName
 var match_id := 0
 ## A LoadMatch arrived that no LoadAck step answers: the default is to acknowledge at once.
 var load_ack_due := false
+## The match id of the last LoadMatch acknowledged at once (no LoadAck step was current), or -1.
+var auto_acked_match := -1
 ## The LoadMatch that the bot's LoadAck step is to answer, or null.
 var unanswered_load: LoadMatchEvent
 ## Item id -> {kind, position, where, station}, from ItemSpawned, ItemPickedUp, ItemPlaced and

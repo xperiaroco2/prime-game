@@ -1322,7 +1322,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
 - `WaitFor` and `ExpectNone` look at the events from their own start; `Expect` also at those since the previous
   step started, so it sees what arrived with the previous step's answer (a `PackageDelivered` after a
   `PutDown`). `Expect` with `within` 0 checks only what already arrived. A bot runs its steps in one tick until
-  one waits or sends; before its `Welcome` only `Join` runs.
+  one waits or sends; before its `Welcome` only `Join` runs, so a `Join` is a script's first step, at most once.
+- `LoadAck` answers the `LoadMatch` that arrives while it is the bot's current step; one that arrived during an
+  earlier step was acknowledged at once, and the `LoadAck` step then fails, saying so. A `Join` refused in Loading
+  cannot be scripted in the core runner: `server/` refuses it at the transport, so the step fails.
 - `WalkTo` claims one host tick of travel per tick (client ticks rising by one), at sprint speed only while the
   last `SelfStatus` says sprint is available (a ghost always, at 1.3 times), and stops exactly `stop_m` short.
   `Jump` claims a jump where the bot stands, on the floor. The setup's forced roles go in one `ForceRole` per bot

@@ -174,6 +174,7 @@ func _connect(bot: ScenarioBot) -> void:
 func _act(bot: ScenarioBot, at_tick: int) -> void:
 	if bot.load_ack_due and bot.joined:
 		bot.load_ack_due = false
+		bot.auto_acked_match = bot.match_id
 		_queue(Intents.LOAD_ACK, bot.peer, {"match_id": bot.match_id}, bot.next_seq())
 	for i in MAX_STEPS_PER_TICK:
 		var step := bot.current_step()
@@ -292,6 +293,12 @@ func _join(bot: ScenarioBot, step: StepJoin, at_tick: int) -> Result:
 
 func _load_ack(bot: ScenarioBot, step: StepLoadAck) -> Result:
 	var load := bot.unanswered_load
+	if load == null and bot.phase == &"loading" and bot.auto_acked_match == bot.match_id:
+		# A LoadAck answers the LoadMatch that arrives while it is the current step (§9.7).
+		return _fail_step(
+			bot,
+			"this loading's LoadMatch arrived before the LoadAck step and was acknowledged at once"
+		)
 	if load == null:
 		return Result.WAITING
 	bot.unanswered_load = null

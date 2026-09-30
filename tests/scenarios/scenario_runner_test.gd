@@ -45,6 +45,18 @@ func test_a_step_not_done_within_the_time_limit_fails() -> void:
 	assert_int(runner.ticks_run).is_equal(21)
 
 
+func test_a_load_ack_after_its_load_match_fails_by_name() -> void:
+	# The LoadMatch arrives while the bot waits for the loading phase, so it is acknowledged at
+	# once; the LoadAck step after it names that instead of running into the time limit.
+	var loading := StepWaitFor.new()
+	loading.event = &"PhaseChanged"
+	loading.fields = {"phase": "loading"}
+	var skip := StepLoadAck.new()
+	skip.skip = true
+	var runner := ScenarioRunner.play(_scenario([[StepReady.new(), loading, skip]]))
+	assert_str(_text(runner)).contains("step 3 (LoadAck)").contains("acknowledged at once")
+
+
 func test_expected_ends_that_do_not_arrive_fail() -> void:
 	var scenario := _scenario([[StepReady.new()]])
 	scenario.expected_ends = [&"crew"]
