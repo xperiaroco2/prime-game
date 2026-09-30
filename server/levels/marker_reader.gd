@@ -67,21 +67,26 @@ static func read_scene(
 	return result
 
 
-## The lobby and every map of `mode`, read with `world` for the floor.
+## The lobby and every map of `mode` (level_paths_of), read with `world` for the floor.
 static func read_levels(mode: GameMode, world: WorldQuery) -> Levels:
 	var levels := Levels.new()
+	var tags := floor_tags_of(mode)
+	for path: String in level_paths_of(mode):
+		var result := read_scene(path, world, tags)
+		levels.layouts[path] = result.layout
+		levels.errors.append_array(result.errors)
+	return levels
+
+
+## The paths of the levels `mode` names: its lobby, then its maps, each once, in that order.
+static func level_paths_of(mode: GameMode) -> Array[String]:
 	var paths: Array[String] = []
 	if not mode.lobby_level.is_empty():
 		paths.append(mode.lobby_level)
 	for map: String in mode.maps:
 		if not paths.has(map):
 			paths.append(map)
-	var tags := floor_tags_of(mode)
-	for path: String in paths:
-		var result := read_scene(path, world, tags)
-		levels.layouts[path] = result.layout
-		levels.errors.append_array(result.errors)
-	return levels
+	return paths
 
 
 ## The spawn tags whose markers stand on the floor: those of the station kinds that the mode's
