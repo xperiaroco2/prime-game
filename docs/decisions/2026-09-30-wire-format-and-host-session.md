@@ -108,7 +108,9 @@ client, the bots and the leak test). The main choices:
 - **Tasks.** #89's handoff proposes the M3 issues 3c to 3i; they replace #30's draft 3c to 3e.
 - **`core/` changes** (3e, with the engineer's approval, because one touches the loop): `MovementRule` reads `jumps`
   instead of `jumped`; `JoinRules` compares `Hello.content` (`wrong_content`); `Match` calls `WorldQuery.use_level`
-  on start and in each transition; `ModeCheck` refuses an id outside the wire's alphabet.
+  on start and in each transition; `ModeCheck` refuses an id outside the wire's alphabet; a `Hello` the phase refuses
+  gets `joins_closed` and `DisconnectPeer`, and Loading's entry disconnects waiting newcomers (E14); a refused
+  `MoveClaim` is dropped without `Rejected` (E15).
 - **The designer** is told in the PR: content ids stay lowercase snake_case of at most 32 characters, which every MVP
   id already is. Nothing else in `content/` changes. With E8 (a), a level's collision is `StaticBody3D` nodes, not
   CSG or `GridMap` (their collision exists only in a tree): a point for 4e's level conventions.
@@ -144,3 +146,5 @@ The design follows each recommendation, and each can be reverted before its task
 | E11 | Voice frames carry the host tick | (a) yes, 4 bytes; (b) no | (a): the leak test checks each frame against `view_of`'s routing for that tick |
 | E12 | The bots runner's clock | (a) simulated in one process over `LoopbackHub`, real over ENet; (b) real everywhere | (a): fast and repeatable in `verify`, with ENet still covered |
 | E13 | Command logs | (a) the bots runner saves a failed scenario's log; a debug-build host keeps its last 10 matches' logs in `user://replays/`; (b) the bots runner only; (c) none | (a): a failure in an unattended run or a playtest can be replayed |
+| E14 | A `Hello` the phase refuses (Loading, Round, End; on `main`: `not_accepted`, seq 0, no disconnect) | (a) a reason of its own, `joins_closed`, then `DisconnectPeer`, and the entry into Loading disconnects every waiting newcomer; (b) keep `not_accepted`, and the client ends its join on any `Rejected` before `Welcome`; the hello deadline disconnects it | (a), with the client rule of (b) as well: the joiner is told why at once, and no newcomer lingers into the Round |
+| E15 | A `MoveClaim` the phase refuses (in flight at a phase change) | (a) dropped silently by `core/`, no `Rejected`; (b) `Rejected(not_accepted)` with seq 0 as on `main`, `MoveClaim` counted against the intent budget | (a): clients ignore it anyway, and a looping client could otherwise add a reliable `Rejected` to the log and the outbox every poll |

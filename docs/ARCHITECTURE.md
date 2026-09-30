@@ -426,10 +426,17 @@ snapshot's avatars at most 15: never the viewer's own); a map of settings, spawn
 set of task types at most 16 ids; shortfalls at most 32. The sizes below are the MVP's with 10 players, then the cap.
 
 **Intents** (C→H). Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
-`Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`, and a claim the
-phase does not accept (one in flight when the phase changes) gets `Rejected(not_accepted)` with seq 0, which clients
-ignore (a `Hello`'s refusals have reasons of their own); a client stops claiming when its own copy of the mode says the
-new phase does not accept `MoveClaim` (§3.1).
+`Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`. A client stops
+claiming when its own copy of the mode says the new phase does not accept `MoveClaim` (§3.1).
+- **Before its `Welcome`** a client treats any `Rejected` as the end of its join, with a message naming the reason.
+  On `main` a `Hello` that the phase refuses (Loading, Round, End) gets `not_accepted` with seq 0 and nothing
+  disconnects the newcomer, so it would linger until the hello deadline and read `host_lost`. 3e (E14 (a)) gives it a
+  reason of its own, `joins_closed`, followed by `DisconnectPeer`, and the entry into Loading disconnects every
+  newcomer still waiting (their `Hello` can no longer be accepted this match).
+- **After its `Welcome`** a `Rejected(not_accepted)` with seq 0 can only answer a `MoveClaim` in flight when the phase
+  changed, and a client ignores it. 3e (E15 (a)) stops emitting it: a refused `MoveClaim` is dropped silently by
+  `core/` (a claim has no seq to name), so a looping client's claims do not fill the command log and the outbox with
+  `Rejected` events that every client ignores.
 
 | Kind | Intent | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|
