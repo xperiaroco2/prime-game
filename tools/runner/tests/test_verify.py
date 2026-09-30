@@ -1,4 +1,4 @@
-"""`verify` runs the headless ENet run (#45): its place in the steps, its arguments and its port."""
+"""`verify` runs the headless ENet run (#45) and freeze run (#70): their place in the steps, arguments and port."""
 
 import socket
 import unittest
@@ -9,7 +9,7 @@ from runner.common import ROOT, Failure
 
 
 class EnetStepTest(unittest.TestCase):
-    def test_the_enet_run_is_a_step_after_the_tests(self) -> None:
+    def test_the_enet_and_freeze_runs_are_steps_after_the_tests(self) -> None:
         names: list[str] = []
 
         def step(name: str) -> mock.MagicMock:
@@ -25,25 +25,29 @@ class EnetStepTest(unittest.TestCase):
             mock.patch.object(verify.check, "main", step("check")),
             mock.patch.object(verify.gdunit, "main", step("test")),
             mock.patch.object(verify, "enet", step("enet")),
+            mock.patch.object(verify, "freeze", step("freeze")),
             mock.patch.object(verify, "selftest", step("selftest")),
             mock.patch.object(verify, "git_status", return_value=set()),
             mock.patch.object(verify, "say"),
         ):
             self.assertEqual(verify.main(), 0)
-        self.assertEqual(names, ["doctor", "lint", "check", "test", "enet", "selftest"])
+        self.assertEqual(names, ["doctor", "lint", "check", "test", "enet", "freeze", "selftest"])
 
-    def test_a_failed_enet_run_fails_verify(self) -> None:
-        with (
-            mock.patch.object(verify.doctor, "main", return_value=0),
-            mock.patch.object(verify.lint, "main", return_value=0),
-            mock.patch.object(verify.check, "main", return_value=0),
-            mock.patch.object(verify.gdunit, "main", return_value=0),
-            mock.patch.object(verify, "enet", return_value=1),
-            mock.patch.object(verify, "selftest", return_value=0),
-            mock.patch.object(verify, "git_status", return_value=set()),
-            mock.patch.object(verify, "say"),
-        ):
-            self.assertEqual(verify.main(), 1)
+    def test_a_failed_enet_or_freeze_run_fails_verify(self) -> None:
+        for failing in ("enet", "freeze"):
+            with (
+                self.subTest(failing=failing),
+                mock.patch.object(verify.doctor, "main", return_value=0),
+                mock.patch.object(verify.lint, "main", return_value=0),
+                mock.patch.object(verify.check, "main", return_value=0),
+                mock.patch.object(verify.gdunit, "main", return_value=0),
+                mock.patch.object(verify, "enet", return_value=int(failing == "enet")),
+                mock.patch.object(verify, "freeze", return_value=int(failing == "freeze")),
+                mock.patch.object(verify, "selftest", return_value=0),
+                mock.patch.object(verify, "git_status", return_value=set()),
+                mock.patch.object(verify, "say"),
+            ):
+                self.assertEqual(verify.main(), 1)
 
     def test_the_run_is_headless_three_instances_on_its_own_port(self) -> None:
         with (
@@ -55,6 +59,17 @@ class EnetStepTest(unittest.TestCase):
             verify.ENET_RUN, headless=True, seconds=90, instances=3, user_args=["--port=23456"]
         )
         self.assertTrue((ROOT / verify.ENET_RUN).is_file())
+
+    def test_the_freeze_run_is_headless_three_instances_on_its_own_port(self) -> None:
+        with (
+            mock.patch.object(verify, "free_udp_port", return_value=23457),
+            mock.patch.object(verify.launch, "main", return_value=0) as run,
+        ):
+            self.assertEqual(verify.freeze(), 0)
+        run.assert_called_once_with(
+            verify.FREEZE_RUN, headless=True, seconds=60, instances=3, user_args=["--port=23457"]
+        )
+        self.assertTrue((ROOT / verify.FREEZE_RUN).is_file())
 
 
 class FreePortTest(unittest.TestCase):

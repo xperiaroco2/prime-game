@@ -15,6 +15,10 @@ from .common import ROOT, Failure, bad, git_status, ok, say
 ENET_RUN = "tests/integration/net/enet_host_and_two_clients.gd"
 ENET_INSTANCES = 3
 ENET_SECONDS = 90
+# A 5.2 s main-thread freeze of the host, then of a client, over ENet (#70): no drop, and the LATEST backlog merged.
+# About 16 s; three instances on 127.0.0.1 like the ENet run.
+FREEZE_RUN = "tests/integration/net/enet_freeze.gd"
+FREEZE_SECONDS = 60
 # Below the ephemeral ranges of Windows (49152+) and Linux (32768+): an ENet client's own socket never takes it.
 ENET_PORTS = range(20000, 32000)
 PORT_TRIES = 50
@@ -40,9 +44,18 @@ def free_udp_port(pick: Callable[[range], int] = random.choice) -> int:
 
 def enet() -> int:
     """`run <ENET_RUN> --headless --instances 3 --seconds 90 -- --port=<free>`: any failed instance fails it."""
+    return _headless_on_free_port(ENET_RUN, ENET_SECONDS)
+
+
+def freeze() -> int:
+    """`run <FREEZE_RUN> --headless --instances 3 --seconds 60 -- --port=<free>`: any failed instance fails it."""
+    return _headless_on_free_port(FREEZE_RUN, FREEZE_SECONDS)
+
+
+def _headless_on_free_port(target: str, seconds: int) -> int:
     port = free_udp_port()
     return launch.main(
-        ENET_RUN, headless=True, seconds=ENET_SECONDS, instances=ENET_INSTANCES, user_args=[f"--port={port}"]
+        target, headless=True, seconds=seconds, instances=ENET_INSTANCES, user_args=[f"--port={port}"]
     )
 
 
@@ -82,6 +95,7 @@ def main() -> int:
         ("check", lambda: check.main()),
         ("test", lambda: gdunit.main(run_import=False)),
         ("enet", enet),
+        ("freeze", freeze),
         ("selftest", selftest),
     ]
     results: list[tuple[str, str, float]] = []
