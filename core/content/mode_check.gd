@@ -134,6 +134,16 @@ func _check_phases(mode: GameMode) -> void:
 						% [spec.id, entry.intent]
 					)
 				)
+			elif entry.from & AcceptSpec.From.NEWCOMER != 0 and not phase.handles(entry.intent):
+				errors.append(
+					(
+						(
+							"phase %s accepts %s from a newcomer, which its class does not handle:"
+							+ " only a phase class can take an intent from a newcomer"
+						)
+						% [spec.id, entry.intent]
+					)
+				)
 		for outcome: StringName in reportable_outcomes(mode, spec):
 			if mode.find_transition(spec.id, outcome) == null:
 				errors.append(
@@ -166,9 +176,9 @@ func _check_transitions(mode: GameMode) -> void:
 		keys.append(key)
 
 
-## The outcomes a phase can report: its class's; `won` when it checks the win conditions; and
-## those of ReportOutcome-like effects in the rules that can run in it (its accepted intents'
-## actions, and every reaction).
+## The outcomes a phase can report: its class's; `won` when it checks the win conditions; its
+## tick systems'; every task type's; and those of ReportOutcome-like effects in the rules that
+## can run in it (its accepted intents' actions, and every reaction).
 static func reportable_outcomes(mode: GameMode, spec: PhaseSpec) -> Array[StringName]:
 	var found: Array[StringName] = []
 	var phase := spec.create_phase()
@@ -176,6 +186,16 @@ static func reportable_outcomes(mode: GameMode, spec: PhaseSpec) -> Array[String
 		found.append_array(phase.outcomes())
 	if spec.checks_wins:
 		found.append(Match.WON)
+	var parts: Array[StringName] = []
+	for system: TickSystem in spec.tick_systems:
+		if system != null:
+			parts.append_array(system.reported_outcomes())
+	for type: TaskType in mode.task_types:
+		if type != null:
+			parts.append_array(type.reported_outcomes())
+	for outcome: StringName in parts:
+		if not found.has(outcome):
+			found.append(outcome)
 	var rules: Array[Rule] = []
 	for entry: AcceptSpec in spec.accepts:
 		if entry != null:

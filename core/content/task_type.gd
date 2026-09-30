@@ -47,6 +47,12 @@ func emits() -> Array[Script]:
 	return []
 
 
+## The outcomes on_fact() or tick() can report through MatchContext.report_outcome: ModeCheck
+## requires a row for each from every phase (on_fact runs in all of them, §9.1).
+func reported_outcomes() -> Array[StringName]:
+	return []
+
+
 func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if id.is_empty():

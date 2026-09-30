@@ -12,3 +12,9 @@ func run(_ctx: MatchContext) -> void:
 ## The event classes this system can emit (§9.2).
 func emits() -> Array[Script]:
 	return []
+
+
+## The outcomes run() can report through MatchContext.report_outcome: ModeCheck requires a row
+## for each from the phases that list this system (§9.1).
+func reported_outcomes() -> Array[StringName]:
+	return []

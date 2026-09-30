@@ -90,4 +90,11 @@ func check(_mode: GameMode) -> PackedStringArray:
 		found.append("the mode has no phases")
 	elif find_phase(first_phase) == null:
 		found.append("first_phase %s is not a phase of the mode" % first_phase)
+	for spec: PhaseSpec in phases:
+		if spec == null:
+			continue
+		if spec.level == PhaseSpec.Level.LOBBY and lobby_level.is_empty():
+			found.append("phase %s plays in the lobby, but lobby_level is empty" % spec.id)
+		elif spec.level == PhaseSpec.Level.MAP and maps.is_empty():
+			found.append("phase %s plays on the map, but the mode has no maps" % spec.id)
 	return found

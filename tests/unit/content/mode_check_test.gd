@@ -73,6 +73,35 @@ func test_an_accepted_intent_nobody_handles() -> void:
 	_expect_none(mode)
 
 
+func test_only_a_phase_class_takes_an_intent_from_a_newcomer() -> void:
+	var mode := FixtureModes.basic()
+	mode.phases[1].accepts.append(AcceptSpec.of(Intents.USE, AcceptSpec.From.NEWCOMER))
+	_expect(mode, "phase round accepts Use from a newcomer, which its class does not handle")
+
+
+func test_a_tick_system_or_task_type_outcome_needs_a_row() -> void:
+	var mode := FixtureModes.basic()
+	var type := mode.task_types[0] as FixtureTaskType
+	type.reports = [&"sabotaged"]
+	_expect(mode, "phase lobby can report sabotaged, which has no transition row")
+	_expect(mode, "phase round can report sabotaged, which has no transition row")
+	type.reports = []
+	var system := TickSystemReporting.new()
+	mode.phases[1].tick_systems = [system]
+	_expect(mode, "phase round can report overtime, which has no transition row")
+	mode.transitions.append(FixtureModes.row(&"round", &"overtime", &"end", []))
+	_expect_none(mode)
+
+
+func test_a_phase_needs_the_level_it_plays_on() -> void:
+	var mode := FixtureModes.basic()
+	mode.lobby_level = ""
+	_expect(mode, "phase lobby plays in the lobby, but lobby_level is empty")
+	mode = FixtureModes.basic()
+	mode.maps = PackedStringArray()
+	_expect(mode, "phase round plays on the map, but the mode has no maps")
+
+
 func test_an_unknown_intent_or_a_sender_nobody_matches() -> void:
 	var mode := FixtureModes.basic()
 	mode.phases[1].accepts.append(AcceptSpec.of(&"Hit", AcceptSpec.From.LIVING))
@@ -169,3 +198,11 @@ func _expect(mode: GameMode, fragment: String) -> void:
 
 func _expect_none(mode: GameMode) -> void:
 	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+
+
+## A tick system that declares the outcome `overtime`.
+class TickSystemReporting:
+	extends TickSystem
+
+	func reported_outcomes() -> Array[StringName]:
+		return [&"overtime"]

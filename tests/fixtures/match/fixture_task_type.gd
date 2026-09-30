@@ -1,7 +1,9 @@
 class_name FixtureTaskType
 extends TaskType
 ## A task type whose check of a fact only emits a note "task <fact>", so tests see when task
-## types run relative to the mode's reactions.
+## types run relative to the mode's reactions. It declares the outcomes in `reports`.
+
+var reports: Array[StringName] = []
 
 
 func _init() -> void:
@@ -14,3 +16,7 @@ func on_fact(ctx: MatchContext) -> void:
 
 func emits() -> Array[Script]:
 	return [FixtureNoteEvent]
+
+
+func reported_outcomes() -> Array[StringName]:
+	return reports
