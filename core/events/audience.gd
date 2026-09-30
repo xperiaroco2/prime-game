@@ -52,7 +52,8 @@ static func server() -> Audience:
 
 
 ## The peers entitled to the event now, in peer-id order. ONLY may name a connected peer that is
-## not a player yet (a Rejected before its Hello was accepted).
+## not a player yet (a Rejected before its Hello was accepted), never a peer id of 0 or less (no
+## actor; to MultiplayerPeer those ids mean a broadcast).
 func recipients(state: MatchState) -> PackedInt32Array:
 	var found := PackedInt32Array()
 	match kind:
@@ -61,7 +62,7 @@ func recipients(state: MatchState) -> PackedInt32Array:
 				found.append(p)
 		Kind.ONLY:
 			var player := state.player(peer)
-			if player == null or player.is_present():
+			if peer > 0 and (player == null or player.is_present()):
 				found.append(peer)
 		Kind.ROLE:
 			for p: int in state.present_peers():

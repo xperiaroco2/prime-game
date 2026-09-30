@@ -25,6 +25,16 @@ func test_recipients_follow_the_state() -> void:
 	assert_array(Array(Audience.only(P2).recipients(state))).is_empty()
 
 
+func test_only_never_names_a_peer_id_of_zero_or_less() -> void:
+	var state := MatchState.new(1)
+	state.add_player(P1, "p1")
+	assert_array(Array(Audience.only(0).recipients(state))).is_empty()
+	assert_array(Array(Audience.only(-1).recipients(state))).is_empty()
+	state.remove_player(P1)
+	# A peer removed from the roster is a connected non-player again: only its Rejected reaches it.
+	assert_array(Array(Audience.only(P1).recipients(state))).is_equal([P1])
+
+
 func test_each_event_class_declares_its_audience_kind() -> void:
 	var events: Array[MatchEvent] = [
 		PhaseChangedEvent.new(&"lobby", -1),
