@@ -3,10 +3,10 @@ extends GdUnitTestSuite
 ## a GameMode and passes ModeCheck. The check with the levels' layouts runs on the real levels
 ## from 2j, when the marker reader exists; until then a match of the base mode is created with
 ## layouts built in code. Also the base mode's data that 2b settles: its numbers, and ResetMatch
-## before PlacePlayers on `End -> Lobby`; and the deal that 2c adds: the actions of the
+## before PlacePlayers on `End -> Lobby`; the deal that 2c adds: the actions of the
 ## `Loading, all_loaded -> Round` row in order, the Crew, Dissident and Knife entries, and that
-## row run by a match entering the round (roles, Delivery, knives, placement). One of
-## the two tests that load `content/` (§9.6).
+## row run by a match entering the round (roles, Delivery, knives, placement); and its voice
+## rules (2i). One of the two tests that load `content/` (§9.6).
 
 const MODES_DIR := "res://content/modes/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -214,6 +214,28 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 			]
 		)
 	)
+
+
+func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
+	# §6 and §9.5: proximity 8 m in the lobby and the countdown, silence while loading and on the
+	# end screen, the round's three radii 8 m. The classes' defaults stay 0 (#58), which the voice
+	# rules' own bounds tests show.
+	var mode := _base_mode()
+	for id: StringName in [&"lobby", &"countdown"]:
+		var rule := mode.find_phase(id).voice_rule
+		assert_object(rule).override_failure_message("phase %s" % id).is_instanceof(ProximityVoice)
+		if rule is ProximityVoice:
+			assert_float((rule as ProximityVoice).radius_m).is_equal(8.0)
+	for id: StringName in [&"loading", &"end"]:
+		assert_object(mode.find_phase(id).voice_rule).is_instanceof(SilentVoice)
+	var in_round := mode.find_phase(&"round").voice_rule
+	assert_object(in_round).is_instanceof(RoundVoice)
+	if not in_round is RoundVoice:
+		return
+	var round_voice := in_round as RoundVoice
+	assert_float(round_voice.living_m).is_equal(8.0)
+	assert_float(round_voice.ghost_hears_living_m).is_equal(8.0)
+	assert_float(round_voice.ghost_hears_ghost_m).is_equal(8.0)
 
 
 ## Layouts built in code for the mode's levels until the marker reader exists (2j): every tag the
