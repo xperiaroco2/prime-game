@@ -6,8 +6,11 @@ extends GdUnitTestSuite
 
 
 func test_knives_rest_on_distinct_free_markers_of_their_tag() -> void:
+	var tokens_of_nine := FixtureDealtTaskType.new(
+		&"fixture_dealt", FixtureDealModes.item_kind(&"token"), 9
+	)
 	var game := FixtureDealModes.dealt(
-		FixtureDealModes.deal_mode(), [1, 2, 3], {&"knives": 4, &"tasks_per_player": 3}
+		FixtureDealModes.deal_mode([tokens_of_nine]), [1, 2, 3], {&"knives": 4}
 	)
 	var markers := Array(FixtureDealModes.layouts()[FixtureDealModes.MAP].positions(&"item"))
 	var knives := FixtureDealModes.items_of(game, &"knife")
@@ -82,8 +85,8 @@ func test_the_deal_runs_in_the_rows_order() -> void:
 				&"RoleAssigned",
 				&"Teammates",
 				&"ItemSpawned",
-				&"TasksAssigned",
 				&"FixtureNote",
+				&"TaskProgress",
 				&"ItemSpawned",
 				&"FixtureNote",
 				&"PlayersPlaced",
@@ -101,8 +104,8 @@ func test_no_knives_spawns_none() -> void:
 
 
 func test_too_few_free_markers_is_an_error_and_spawns_nothing() -> void:
-	# 2 players x 2 tokens take 4 of 5 item markers: 1 is left for 2 knives.
-	var game := FixtureDealModes.dealt(FixtureDealModes.deal_mode(), [1, 2], {&"knives": 2}, 7, 5)
+	# The shared task's 2 tokens take 2 of 3 item markers: 1 is left for 2 knives.
+	var game := FixtureDealModes.dealt(FixtureDealModes.deal_mode(), [1, 2], {&"knives": 2}, 7, 3)
 	assert_array(FixtureDealModes.items_of(game, &"knife")).is_empty()
 	assert_str("\n".join(game.diagnostics)).contains("1 free item marker(s) for 2 knife item(s)")
 

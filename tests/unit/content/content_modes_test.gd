@@ -76,7 +76,9 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 	assert_str(roles.rng_purpose).is_equal("roles")
 	var tasks := row.actions[1] as DealTasks
 	assert_object(tasks).is_not_null()
-	assert_str(tasks.tasks_setting).is_equal("tasks_per_player")
+	assert_str(tasks.tasks_setting).is_equal("tasks")
+	assert_str(tasks.banned_setting).is_equal("banned_task_types")
+	assert_str(tasks.rng_purpose).is_equal("task_types")
 	var knives := row.actions[2] as SpawnItems
 	assert_object(knives).is_not_null()
 	assert_str(knives.kind.id).is_equal("knife")
@@ -170,7 +172,7 @@ func test_the_deal_demands_knife_markers_at_the_default_settings() -> void:
 
 func test_entering_the_round_runs_the_whole_deal() -> void:
 	# The base mode's own data from the lobby into the round, 4 players at the default settings
-	# (1 dissident, 2 tasks per player, 2 subtasks per task, 2 knives).
+	# (1 dissident, 1 task, 6 packages, 2 knives).
 	var mode := _base_mode()
 	var layouts := _layouts_for(mode)
 	var map := layouts[mode.maps[0]]
@@ -204,9 +206,9 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		var teammates := game.view_of(peer).events_named(&"Teammates").size()
 		assert_int(teammates).is_equal(1 if role == &"dissident" else 0)
 	assert_int(dissidents.size()).is_equal(1)
-	# Delivery through DealTasks: 4 x 2 tasks, 16 circles and 16 packages; then 2 knives.
-	assert_int(game.state.tasks.size()).is_equal(8)
-	assert_int(game.state.stations.size()).is_equal(16)
+	# Delivery drawn by DealTasks: one shared task, 6 circles and 6 packages; then 2 knives.
+	assert_int(game.state.tasks.size()).is_equal(1)
+	assert_int(game.state.stations.size()).is_equal(6)
 	var kinds: Dictionary[StringName, int] = {}
 	var taken: Dictionary[Vector3, int] = {}
 	for id: int in game.state.items:
@@ -215,18 +217,14 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		assert_bool(Array(map.positions(item.kind.spawn_tag)).has(item.position)).is_true()
 		assert_bool(taken.has(item.position)).is_false()
 		taken[item.position] = id
-	assert_dict(kinds).is_equal({&"package": 16, &"knife": 2})
+	assert_dict(kinds).is_equal({&"package": 6, &"knife": 2})
 	for peer: int in peers:
 		var view := game.view_of(peer)
-		assert_int(view.events_named(&"StationPlaced").size()).is_equal(16)
-		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(18)
-		var assigned := view.events_named(&"TasksAssigned")
-		assert_int(assigned.size()).is_equal(1)
-		var tasks := (assigned[0] as TasksAssignedEvent).tasks
-		assert_int(tasks.size()).is_equal(2)
-		for entry: Dictionary in tasks:
-			assert_int(game.state.tasks[entry["task"] as int].owner).is_equal(peer)
-			assert_int((entry["subtasks"] as Array).size()).is_equal(2)
+		assert_int(view.events_named(&"StationPlaced").size()).is_equal(6)
+		assert_int(view.events_named(&"ItemSpawned").size()).is_equal(8)
+		assert_dict(view.events_named(&"TaskProgress")[0].to_dict()).is_equal(
+			{"done": 0, "total": 6}
+		)
 		# No package spawned inside its own circle: markers lie 10 m apart.
 		assert_array(view.events_named(&"PackageDelivered")).is_empty()
 	# Placement last: every player on a distinct round_player marker.
@@ -238,7 +236,7 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 		spots.append(at)
 	# The row's order: roles, Delivery's deal, the knives, then placement.
 	var deal_events: Array[StringName] = [
-		&"RoleAssigned", &"StationPlaced", &"ItemSpawned", &"TasksAssigned", &"PlayersPlaced"
+		&"RoleAssigned", &"StationPlaced", &"ItemSpawned", &"TaskProgress", &"PlayersPlaced"
 	]
 	var order: Array[String] = []
 	for emitted: EmittedEvent in game.emitted():
@@ -257,7 +255,7 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 				"RoleAssigned",
 				"StationPlaced",
 				"ItemSpawned(package)",
-				"TasksAssigned",
+				"TaskProgress",
 				"ItemSpawned(knife)",
 				"PlayersPlaced",
 			]

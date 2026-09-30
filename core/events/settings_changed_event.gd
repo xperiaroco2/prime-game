@@ -2,7 +2,8 @@ class_name SettingsChangedEvent
 extends MatchEvent
 ## The settings and what they demand of the map (ARCHITECTURE §3.2, §4.2, §9.4): an accepted
 ## ChangeSettings, and a join or a leave in Lobby or Countdown (the player count changes the
-## demands). It carries the demands per spawn tag against the map's markers (the package count
+## demands). It carries the whole-number settings, the set settings (the task types the host
+## banned, #79), the demands per spawn tag against the map's markers (the package count
 ## among them), the colours per station kind against its palette, and every reason the settings
 ## do not fit, so the lobby can show why `all_ready` cannot fire. Audience: everyone.
 
@@ -10,6 +11,8 @@ extends MatchEvent
 const AUDIENCE_KIND := Audience.Kind.EVERYONE
 
 var settings: Dictionary[StringName, int] = {}
+## Every set setting of the mode (SettingSpec.Kind.TASK_TYPES) -> its ids, in the mode's order.
+var id_sets: Dictionary[StringName, PackedStringArray] = {}
 var map: String
 var players: int
 ## Spawn tag -> markers needed.
@@ -30,9 +33,11 @@ func _init(
 	player_count: int,
 	demands: Demands,
 	layout: LevelLayout,
-	problems: PackedStringArray
+	problems: PackedStringArray,
+	sets: Dictionary[StringName, PackedStringArray] = {}
 ) -> void:
 	settings = values.duplicate()
+	id_sets = sets.duplicate(true)
 	map = map_path
 	players = player_count
 	needed_markers = demands.markers.duplicate()
@@ -54,6 +59,7 @@ func audience() -> Audience:
 func to_dict() -> Dictionary:
 	return {
 		"settings": settings.duplicate(),
+		"id_sets": id_sets.duplicate(true),
 		"map": map,
 		"players": players,
 		"needed_markers": needed_markers.duplicate(),

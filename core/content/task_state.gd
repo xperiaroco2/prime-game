@@ -15,5 +15,6 @@ func total() -> int:
 	return 0
 
 
+## Done when every subtask is: a task with no subtasks is done (the engineer's rule, #79).
 func is_done() -> bool:
 	return done_count() >= total()

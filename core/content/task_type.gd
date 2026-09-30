@@ -4,8 +4,11 @@ extends ContentPart
 ## because a task type's deal and its check depend on each other. A new task type is one script:
 ## this class with its TaskState as an inner class. The MVP's is Delivery (2f).
 ##
-## The interface of 2a: DealTasks (2c) calls deal(); Match calls on_fact() for every fact, after
-## the mode's reactions and in the mode's order; TaskTicks (2f) calls tick() when has_tick().
+## Tasks are shared (the engineer's decision of 2026-09-30, #79): nobody owns a task, and any
+## living player does any subtask. A match deals at most one task of each type: DealTasks draws
+## the types and calls deal() once per drawn type, in the mode's order; Match calls on_fact() for
+## every fact, after the mode's reactions and in the mode's order; TaskTicks (2f) calls tick()
+## when has_tick(). Each type reads its own subtasks setting (Delivery: `packages`).
 
 @export var id: StringName
 @export var display_name: String
@@ -16,9 +19,9 @@ func new_state() -> TaskState:
 	return TaskState.new()
 
 
-## Deals `per_player` tasks to each present player, in peer-id order, into ctx.state.tasks, with
-## a state from new_state(). Draws only from the RNG purposes this type names.
-func deal(_ctx: MatchContext, _per_player: int) -> void:
+## Deals one shared task of this type into ctx.state.tasks (MatchState.add_task), with a state
+## from new_state(), and places what it needs. Draws only from the RNG purposes this type names.
+func deal(_ctx: MatchContext) -> void:
 	pass
 
 
@@ -35,10 +38,9 @@ func tick(_ctx: MatchContext) -> void:
 	pass
 
 
-## What dealing `per_player` tasks to `players` players needs of the map (§9.4).
-func add_demands(
-	_settings: Dictionary[StringName, int], _players: int, _per_player: int, _into: Demands
-) -> void:
+## What dealing one task of this type with these settings and `players` players needs of the map
+## (§9.4); DealTasks sums these over the types a draw could pick.
+func add_demands(_settings: Dictionary[StringName, int], _players: int, _into: Demands) -> void:
 	pass
 
 

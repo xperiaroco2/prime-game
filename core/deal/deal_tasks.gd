@@ -1,49 +1,135 @@
 class_name DealTasks
 extends RuleEffect
-## Gives each present player `tasks_setting` tasks (ARCHITECTURE §3.3, §9.4), dealt by the mode's
-## task types through TaskType.deal(), in the mode's order. With one task type it deals them all;
-## with several, the tasks per player are split evenly in the mode's order, the first types
-## taking one more each while the remainder lasts (share_of; not a decision, see §9.4). A type
-## whose share is 0 deals nothing.
+## Deals the match's shared tasks (ARCHITECTURE §3.3, §9.4; the engineer's decision of 2026-09-30,
+## #79): draws `tasks_setting` different task types at random (`rng_purpose`) from the pool, the
+## mode's task types minus the ones in `banned_setting` (the host's bans in the lobby), and runs
+## each drawn type's TaskType.deal() once, in the mode's order. Nobody owns a task. Then
+## TaskProgress (everyone) with the subtasks done and in total, so every client knows the shared
+## progress from the start (the HUD shows only that); with no task drawn it is 0 of 0.
 ##
-## Emits: the task types' events (Delivery: StationPlaced, ItemSpawned, TasksAssigned; §9.5).
-## Demands: each task type's, for its share (TaskType.add_demands), forwarded to the task types
-## of Demands.mode (LayoutCheck builds every Demands for its mode).
+## Emits: the task types' events (Delivery: StationPlaced, ItemSpawned; §9.5), then TaskProgress.
+## Demands: for any draw, per spawn tag the sum of the `tasks` largest demands among the types
+## not banned, and per station kind the same over colours (see add_demands).
+## Refuses in ChangeSettings (settings_problem): `tasks` above the types not banned, or every
+## type banned (`out_of_bounds`).
 
-## The match setting that holds the tasks per player (`tasks_per_player`).
+## The match setting that holds how many tasks a match has (`tasks`), a whole number.
 @export var tasks_setting: StringName
+## The match setting that holds the task types the host banned (`banned_task_types`), a set of
+## task type ids (SettingSpec.Kind.TASK_TYPES); empty: nothing can be banned.
+@export var banned_setting: StringName
+## The RNG purpose of the draw (§3.3). The neutral default is empty: the data names it.
+@export var rng_purpose: StringName
 
 
 func run(ctx: MatchContext) -> void:
-	var per_player := ctx.setting(tasks_setting)
-	var types := ctx.mode.task_types
-	for i in types.size():
-		var share := share_of(per_player, types.size(), i)
-		if share > 0:
-			types[i].deal(ctx, share)
+	var pool := pool_of(ctx.mode, ctx.id_set(banned_setting))
+	var wanted := ctx.setting(tasks_setting)
+	if wanted > pool.size():
+		# settings_problem keeps the lobby from getting here.
+		ctx.error("DealTasks: %d tasks, %d task types left after the bans" % [wanted, pool.size()])
+		wanted = pool.size()
+	var drawn := RngStreams.shuffled_indices(pool.size(), ctx.rng(rng_purpose)).slice(0, wanted)
+	drawn.sort()
+	for index: int in drawn:
+		var own := ctx.copy()
+		own.source = "deal of task type %s" % pool[index].id
+		pool[index].deal(own)
+	var counted := Tasks.progress(ctx.state)
+	ctx.emit(TaskProgressEvent.new(counted.x, counted.y))
 
 
-## The tasks per player that the `index`-th of `type_count` task types deals.
-static func share_of(per_player: int, type_count: int, index: int) -> int:
-	if type_count <= 0 or per_player <= 0:
-		return 0
-	var even := floori(float(per_player) / float(type_count))
-	return even + (1 if index < per_player % type_count else 0)
+## The mode's task types minus `banned` (ids), in the mode's order.
+static func pool_of(mode: GameMode, banned: PackedStringArray) -> Array[TaskType]:
+	var found: Array[TaskType] = []
+	for type: TaskType in mode.task_types:
+		if type != null and not banned.has(String(type.id)):
+			found.append(type)
+	return found
 
 
+## Whatever `tasks` of the pool's types are drawn, the map must fit them: so per spawn tag the
+## demand is the sum of the `tasks` largest demands of that tag among the pool's types, and per
+## station kind the same over colours. For any draw of `tasks` types, the sum over the drawn
+## types is at most that, per tag and per kind, so a map that passes the fit check fits every
+## draw. With one type in the pool it is exactly that type's demand.
 func add_demands(settings: Dictionary[StringName, int], players: int, into: Demands) -> void:
 	if into.mode == null:
 		return
-	var per_player: int = settings.get(tasks_setting, 0)
-	var types := into.mode.task_types
-	for i in types.size():
-		var share := share_of(per_player, types.size(), i)
-		if share > 0:
-			types[i].add_demands(settings, players, share, into)
+	var pool := pool_of(into.mode, into.id_set(banned_setting))
+	var wanted := mini(settings.get(tasks_setting, 0) as int, pool.size())
+	if wanted <= 0:
+		return
+	var markers: Dictionary[StringName, Array] = {}
+	var colours: Dictionary[StringName, Array] = {}
+	for type: TaskType in pool:
+		var own := Demands.new(into.mode)
+		own.id_sets = into.id_sets
+		type.add_demands(settings, players, own)
+		for tag: StringName in own.markers:
+			if not markers.has(tag):
+				markers[tag] = []
+			markers[tag].append(own.markers[tag])
+		for station: StringName in own.colours:
+			if not colours.has(station):
+				colours[station] = []
+			colours[station].append(own.colours[station])
+			into.palettes[station] = own.palettes[station]
+	for tag: StringName in markers:
+		into.add_markers(tag, _largest_sum(markers[tag], wanted))
+	for station: StringName in colours:
+		into.colours[station] = (
+			into.colours.get(station, 0) + _largest_sum(colours[station], wanted)
+		)
 
 
-func check(_mode: GameMode) -> PackedStringArray:
+func settings_problem(
+	settings: Dictionary[StringName, int],
+	id_sets: Dictionary[StringName, PackedStringArray],
+	mode: GameMode
+) -> StringName:
+	var banned: PackedStringArray = id_sets.get(banned_setting, PackedStringArray())
+	var left := pool_of(mode, banned).size()
+	if not banned.is_empty() and left == 0:
+		return RejectReasons.OUT_OF_BOUNDS
+	if settings.get(tasks_setting, 0) > left:
+		return RejectReasons.OUT_OF_BOUNDS
+	return &""
+
+
+func emits() -> Array[Script]:
+	return [TaskProgressEvent]
+
+
+func check(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if tasks_setting.is_empty():
 		found.append("DealTasks has no tasks_setting")
+	if rng_purpose.is_empty():
+		found.append("DealTasks has an empty rng_purpose")
+	var tasks := mode.find_setting(tasks_setting) if mode != null else null
+	if tasks != null:
+		if not tasks.is_number():
+			found.append("DealTasks: setting %s is not a whole number" % tasks_setting)
+		elif tasks.max_value > mode.task_types.size():
+			found.append(
+				(
+					"DealTasks: setting %s goes up to %d, the mode has %d task types"
+					% [tasks_setting, tasks.max_value, mode.task_types.size()]
+				)
+			)
+	var banned := mode.find_setting(banned_setting) if mode != null else null
+	if banned != null and banned.is_number():
+		found.append("DealTasks: setting %s is not a set of task types" % banned_setting)
 	return found
+
+
+## The sum of the `count` largest of `values` (ints).
+static func _largest_sum(values: Array, count: int) -> int:
+	var sorted := values.duplicate()
+	sorted.sort()
+	sorted.reverse()
+	var total := 0
+	for i in mini(count, sorted.size()):
+		total += sorted[i] as int
+	return total

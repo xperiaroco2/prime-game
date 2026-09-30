@@ -47,11 +47,17 @@ static func run(mode: GameMode, layouts: Dictionary[String, LevelLayout]) -> Pac
 
 
 ## What the actions of every row into a phase played on `level` demand, summed (§9.4): the fit
-## check of `all_ready` compares this for the map with the chosen map's markers.
+## check of `all_ready` compares this for the map with the chosen map's markers. `id_sets` are
+## the set settings (the host's bans of task types); empty means every set is empty.
 static func demands_of(
-	mode: GameMode, level: PhaseSpec.Level, settings: Dictionary[StringName, int], players: int
+	mode: GameMode,
+	level: PhaseSpec.Level,
+	settings: Dictionary[StringName, int],
+	players: int,
+	id_sets: Dictionary[StringName, PackedStringArray] = {}
 ) -> Demands:
 	var demands := Demands.new(mode)
+	demands.id_sets = id_sets.duplicate()
 	for row: Transition in _rows_into(mode, level):
 		for action: RuleEffect in row.actions:
 			if action != null:

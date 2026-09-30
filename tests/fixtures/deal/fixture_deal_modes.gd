@@ -6,18 +6,20 @@ extends RefCounted
 ## deal_mode(): lobby (FixturePhase: Hello, SetReady, `all_ready`) -> round (RoundPhase). The
 ## `lobby, all_ready -> round` row runs the deal as the base mode's `Loading, all_loaded -> Round`
 ## does: DealRoles (Dissident by `dissidents`, leaving at least 1; default Crew; purpose `roles`),
-## DealTasks (`tasks_per_player`), SpawnItems (Knife by `knives`; purpose `knives`), PlacePlayers
-## (`round_player`). Its task types are FixtureDealtTaskTypes whose tokens share the knives'
-## spawn tag `item`, so SpawnItems must skip the markers the tokens took.
+## DealTasks (`tasks` drawn from the task types minus `banned_task_types`; purpose `task_types`),
+## SpawnItems (Knife by `knives`; purpose `knives`), PlacePlayers (`round_player`). Its task
+## types are FixtureDealtTaskTypes (two tokens each by default) whose tokens share the knives'
+## spawn tag `item`, so SpawnItems must skip the markers the tokens took. `tasks` goes from 0 to
+## the number of task types, default 1.
 
 const LOBBY := "fixture://deal_lobby"
 const MAP := "fixture://deal_map"
 ## The spawn tag of the knives and the tokens.
 const ITEM_TAG := &"item"
 const MAX_PLAYERS := 10
-## The map's `item` markers: enough for 10 players x 3 tasks and 5 knives.
+## The map's `item` markers: enough for 30 tokens and 5 knives.
 const ITEM_MARKERS := 40
-## The spawn tag of a FixtureDealtTaskType's stations, with a marker per token of 10 players x 3.
+## The spawn tag of a FixtureDealtTaskType's stations, with 30 markers.
 const STATION_TAG := &"station"
 const STATION_MARKERS := 30
 
@@ -30,8 +32,8 @@ static func deal_mode(task_types: Array[TaskType] = []) -> GameMode:
 	mode.player_rules = FixtureModes.player_rules()
 	mode.settings = [
 		FixtureModes.setting(&"dissidents", 1, 0, 9),
-		FixtureModes.setting(&"tasks_per_player", 2, 0, 3),
 		FixtureModes.setting(&"knives", 2, 0, 5),
+		banned_setting(),
 	]
 	mode.sides = [FixtureModes.side(&"crew"), FixtureModes.side(&"dissidents")]
 	var crew := FixtureModes.role(&"crew", &"crew", false)
@@ -41,9 +43,10 @@ static func deal_mode(task_types: Array[TaskType] = []) -> GameMode:
 	var token := item_kind(&"token")
 	mode.item_kinds = [knife, token]
 	if task_types.is_empty():
-		mode.task_types = [FixtureDealtTaskType.new(&"fixture_dealt", token)]
+		mode.task_types = [FixtureDealtTaskType.new(&"fixture_dealt", token, 2)]
 	else:
 		mode.task_types = task_types
+	mode.settings.append(FixtureModes.setting(&"tasks", 1, 0, mode.task_types.size()))
 	mode.lobby_level = LOBBY
 	mode.maps = PackedStringArray([MAP])
 	var lobby := (
@@ -111,8 +114,18 @@ static func deal_roles(quota_role: GameRole, default_role: GameRole) -> DealRole
 
 static func deal_tasks() -> DealTasks:
 	var effect := DealTasks.new()
-	effect.tasks_setting = &"tasks_per_player"
+	effect.tasks_setting = &"tasks"
+	effect.banned_setting = &"banned_task_types"
+	effect.rng_purpose = &"task_types"
 	return effect
+
+
+## The set setting of the task types the host banned (`banned_task_types`).
+static func banned_setting() -> SettingSpec:
+	var spec := SettingSpec.new()
+	spec.id = &"banned_task_types"
+	spec.kind = SettingSpec.Kind.TASK_TYPES
+	return spec
 
 
 static func spawn_items(kind: ItemKind) -> SpawnItems:
@@ -138,14 +151,15 @@ static func layouts(item_markers: int = ITEM_MARKERS) -> Dictionary[String, Leve
 	return {LOBBY: lobby, MAP: map}
 
 
-## A match of `mode` whose players `peers` joined, with `settings` over the defaults, all ready:
-## the deal has run and the match is in the round.
+## A match of `mode` whose players `peers` joined, with `settings` over the defaults and the task
+## types `banned`, all ready: the deal has run and the match is in the round.
 static func dealt(
 	mode: GameMode,
 	peers: Array[int],
 	settings: Dictionary[StringName, int] = {},
 	seed_value: int = 7,
-	item_markers: int = ITEM_MARKERS
+	item_markers: int = ITEM_MARKERS,
+	banned: PackedStringArray = PackedStringArray()
 ) -> Match:
 	var game := Match.new(mode, seed_value, FlatWorldQuery.new(), layouts(item_markers))
 	game.keep_history = true
@@ -154,6 +168,7 @@ static func dealt(
 		FixtureModes.send(game, Intents.HELLO, peer, {"name": "p%d" % peer})
 	for id: StringName in settings:
 		game.state.settings[id] = settings[id]
+	game.state.id_sets[&"banned_task_types"] = banned
 	for peer: int in peers:
 		FixtureModes.send(game, Intents.SET_READY, peer, {"ready": true})
 	return game

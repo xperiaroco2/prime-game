@@ -12,6 +12,10 @@ extends RefCounted
 var players: Dictionary[int, PlayerState] = {}
 ## The match settings' values (§9.1), from the mode's defaults.
 var settings: Dictionary[StringName, int] = {}
+## The set settings' values (SettingSpec.Kind.TASK_TYPES: the host's bans of task types, #79):
+## setting id -> ids in the mode's order. A setting the host never changed is absent: the empty
+## set, its default.
+var id_sets: Dictionary[StringName, PackedStringArray] = {}
 ## The map this match plays on: one of the mode's maps.
 var map: String
 ## Id -> item, in id order.
@@ -109,8 +113,8 @@ func add_item(kind: ItemKind, at: Vector3) -> ItemState:
 	return item
 
 
-func add_task(owner: int, type: TaskType) -> MatchTask:
-	var task := MatchTask.new(_next_task_id, owner, type, type.new_state())
+func add_task(type: TaskType) -> MatchTask:
+	var task := MatchTask.new(_next_task_id, type, type.new_state())
 	tasks[task.id] = task
 	_next_task_id += 1
 	return task
