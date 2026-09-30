@@ -150,9 +150,9 @@ countdown changes no scene and places nobody.
   (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
   emitted in id order, so an id says nothing about its owner or task. Packages and knives share spawn points when
   their item kinds name the same spawn tag; a marker carries one tag, and a deal puts at most one item on a marker
-  (§9.6): `SpawnItems` skips the markers where an item already rests (`SpawnItems.free_markers`, which a task
-  type's deal uses too). Each placing part emits all its `ItemSpawned` first, then raises `item_rested` (spawn)
-  for each item in id order. A package that spawns inside its own circle is delivered at once, by the rule; the
+  (§9.6): `SpawnItems` and Delivery's packages skip the markers where an item already rests (`Items.free_markers`,
+  which every placing part uses). Each placing part emits all its `ItemSpawned` first, then raises `item_rested`
+  (spawn) for each item in id order. A package that spawns inside its own circle is delivered at once, by the rule; the
   `package` and `circle` tags keep the two kinds of spawn points apart.
 - **Exact numbers.** Health and stamina are integers in thousandths, so a replay on another machine matches exactly.
   Positions are the claims as received.
@@ -980,8 +980,8 @@ no default; a placeholder, "not a decision"); RNG purposes `circles_rng`, `packa
 `packages`, `tasks`). One circle per package is fixed in v0, not a setting (MVP rules: each package its own colour
 and circle).
 - Deal: players × tasks per player × subtasks packages. Circles on distinct random `circle` markers with distinct
-  random palette colours (`circles`), packages on distinct random `package` markers (`packages`), then per player in
-  peer-id order its tasks, each package drawn from the placed ones and bound to a random circle of its own whose
+  random palette colours (`circles`), packages on distinct random free `package` markers (`packages`;
+  `Items.free_markers`), then per player in peer-id order its tasks, each package drawn from the placed ones and bound to a random circle of its own whose
   colour it takes (`tasks`; §3.3). Ids follow spawn-point order. Emitted: every `StationPlaced`, then every
   `ItemSpawned` (with its circle and colour), in id order, then each player's `TasksAssigned` in peer-id order. Then
   `item_rested` (spawn) for each package, so one that spawned in its own circle counts at once, during the deal

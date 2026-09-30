@@ -174,6 +174,31 @@ func test_a_map_without_enough_markers_deals_nothing_and_says_so() -> void:
 	assert_array(game.view_of(P1).events_named(&"StationPlaced")).is_empty()
 
 
+func test_packages_skip_a_package_marker_where_an_item_already_rests() -> void:
+	# A deal puts at most one item on a marker (§3.3): an item placed earlier in the row keeps
+	# its marker, and the packages take the free ones.
+	var mode := _with_a_tool_on_the_first_package_marker(FixtureDeliveryModes.basic(1, 2))
+	var game := FixtureDeliveryModes.in_round(mode, [P1, P2], FixtureDeliveryModes.layouts(10, 5))
+	assert_array(Array(game.diagnostics)).is_empty()
+	var packages: Array[Vector3] = []
+	for id: int in game.state.items:
+		var item := game.state.items[id]
+		if item.kind.id == &"package":
+			packages.append(item.position)
+	assert_array(packages).is_equal(
+		[Vector3(10, 0, -20), Vector3(20, 0, -20), Vector3(30, 0, -20), Vector3(40, 0, -20)]
+	)
+
+
+func test_too_few_free_package_markers_deals_nothing_and_says_so() -> void:
+	var mode := _with_a_tool_on_the_first_package_marker(FixtureDeliveryModes.basic(1, 2))
+	var game := FixtureDeliveryModes.in_round(mode, [P1, P2], FixtureDeliveryModes.layouts(10, 4))
+	assert_int(game.state.tasks.size()).is_equal(0)
+	assert_int(game.state.items.size()).is_equal(1)
+	assert_str(game.diagnostics[0]).contains("4 packages need")
+	assert_str(game.diagnostics[0]).contains("the map has 10 and 3")
+
+
 func test_a_palette_too_small_deals_nothing_and_says_so() -> void:
 	var mode := FixtureDeliveryModes.basic(1, 2)
 	FixtureDeliveryModes.delivery_of(mode).circle.palette = PackedColorArray(
@@ -285,3 +310,13 @@ func test_a_circle_that_forgot_its_radius_is_refused() -> void:
 	FixtureDeliveryModes.delivery_of(mode).circle = circle
 	var errors := "\n".join(ModeCheck.run(mode).errors)
 	assert_str(errors).contains("station kind circle radius_m is 0, outside 0.2 to 10")
+
+
+## `mode` with a `tool` placed on the first package marker, (0, 0, -20), at the start of the deal
+## row, before Delivery deals.
+func _with_a_tool_on_the_first_package_marker(mode: GameMode) -> GameMode:
+	var tool := FixtureSpawnItem.new()
+	tool.kind = mode.find_item_kind(&"tool")
+	tool.at = Vector3(0, 0, -20)
+	mode.find_transition(&"lobby", &"all_ready").actions.insert(0, tool)
+	return mode

@@ -26,7 +26,7 @@ func run(ctx: MatchContext) -> void:
 	var count := maxi(0, ctx.setting(count_setting))
 	if count == 0:
 		return
-	var free := free_markers(ctx, kind.spawn_tag)
+	var free := Items.free_markers(ctx, kind.spawn_tag)
 	if free.size() < count:
 		ctx.error(
 			(
@@ -47,21 +47,6 @@ func run(ctx: MatchContext) -> void:
 		ctx.emit(ItemSpawnedEvent.new(item.id, kind.id, item.position))
 	for item: ItemState in spawned:
 		Items.raise_rested(ctx, item, Items.SPAWN)
-
-
-## The markers of `tag` in the level being entered, in level order, on which no item rests: a
-## deal puts at most one item on a marker (§3.3, §9.6).
-static func free_markers(ctx: MatchContext, tag: StringName) -> PackedVector3Array:
-	var free := PackedVector3Array()
-	for at: Vector3 in ctx.layout.positions(tag):
-		var taken := false
-		for item: ItemState in ctx.state.items.values():
-			if item.where != ItemState.Where.HAND and item.position == at:
-				taken = true
-				break
-		if not taken:
-			free.append(at)
-	return free
 
 
 func emits() -> Array[Script]:

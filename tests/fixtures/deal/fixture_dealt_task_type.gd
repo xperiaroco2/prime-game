@@ -41,7 +41,7 @@ func new_state() -> TaskState:
 func deal(ctx: MatchContext, per_player: int) -> void:
 	var peers := ctx.state.present_peers()
 	var total := peers.size() * per_player
-	var free := SpawnItems.free_markers(ctx, token.spawn_tag)
+	var free := Items.free_markers(ctx, token.spawn_tag)
 	if free.size() < total:
 		ctx.error("%s: %d free markers for %d tokens" % [id, free.size(), total])
 		return

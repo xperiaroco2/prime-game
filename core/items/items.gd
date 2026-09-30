@@ -10,6 +10,8 @@ extends RefCounted
 ##   from player_died and player_left, after the life state changed and the fact was raised.
 ## - raise_rested(): item_rested for an item that is already at rest and announced by its own
 ##   event (the spawn: SpawnItems 2c and Delivery's deal 2f emit ItemSpawned, then call this).
+## - free_markers(): the markers of a tag where no item rests, which every part that places items
+##   in a deal draws from, so a deal puts at most one item on a marker.
 ##
 ## Every range rule reads the player's last accepted position in PlayerState, never a position
 ## inside an intent (§7.1). The rest position comes from WorldQuery, never from a client.
@@ -109,6 +111,22 @@ static func raise_rested(ctx: MatchContext, item: ItemState, cause: StringName) 
 	fact.position = item.position
 	fact.cause = cause
 	ctx.raise_fact(fact)
+
+
+## The markers of `tag` in the level being entered, in level order, on which no item rests: a
+## deal puts at most one item on a marker (§3.3, §9.6), so every part that places items in a deal
+## (SpawnItems, Delivery's packages) draws from these. Needs ctx.layout.
+static func free_markers(ctx: MatchContext, tag: StringName) -> PackedVector3Array:
+	var free := PackedVector3Array()
+	for at: Vector3 in ctx.layout.positions(tag):
+		var taken := false
+		for item: ItemState in ctx.state.items.values():
+			if item.where != ItemState.Where.HAND and item.position == at:
+				taken = true
+				break
+		if not taken:
+			free.append(at)
+	return free
 
 
 ## `player`'s eye for the item rules (InSight, PutDownInFront): the floor below its last accepted

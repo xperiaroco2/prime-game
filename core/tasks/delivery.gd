@@ -6,7 +6,8 @@ extends TaskType
 ##
 ## The deal (DealTasks, 2c, calls deal()): players x tasks per player x subtasks packages. Circles
 ## on distinct random `circle.spawn_tag` markers, with distinct random colours of the palette;
-## packages on distinct random `package.spawn_tag` markers; then per player in peer-id order its
+## packages on distinct random free `package.spawn_tag` markers (Items.free_markers: a deal puts
+## at most one item on a marker, whichever part places first); then per player in peer-id order its
 ## tasks, each package drawn from the placed ones and bound to a random circle of its own, whose
 ## colour it takes. Station and item ids follow spawn-point order, and StationPlaced and
 ## ItemSpawned go out in id order, so an id says nothing about its owner. Then item_rested
@@ -197,12 +198,12 @@ func _fits(ctx: MatchContext, count: int) -> bool:
 		ctx.error("Delivery: no layout for the level being entered")
 		return false
 	var circles := ctx.layout.count(circle.spawn_tag)
-	var packages := ctx.layout.count(package.spawn_tag)
+	var packages := Items.free_markers(ctx, package.spawn_tag).size()
 	var colours := circle.palette.size()
 	if circles >= count and packages >= count and colours >= count:
 		return true
 	var needs := (
-		"Delivery: %d packages need as many %s and %s markers and colours"
+		"Delivery: %d packages need as many %s and free %s markers and colours"
 		% [count, circle.spawn_tag, package.spawn_tag]
 	)
 	ctx.error("%s; the map has %d and %d, the palette %d" % [needs, circles, packages, colours])
@@ -220,9 +221,9 @@ func _place_circles(ctx: MatchContext, count: int) -> Array[StationState]:
 	return placed
 
 
-## `count` packages on distinct random markers, in spawn-point order.
+## `count` packages on distinct random free markers, in spawn-point order.
 func _place_packages(ctx: MatchContext, count: int) -> Array[ItemState]:
-	var spots := ctx.layout.positions(package.spawn_tag)
+	var spots := Items.free_markers(ctx, package.spawn_tag)
 	var markers := _pick(spots.size(), count, ctx.rng(packages_rng))
 	var placed: Array[ItemState] = []
 	for i in count:
