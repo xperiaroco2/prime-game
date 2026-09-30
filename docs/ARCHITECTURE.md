@@ -946,8 +946,9 @@ Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) 
 Loading and End, the join rules, the fit check, the mode check with layouts and the `End, back → Lobby` row's
 `ResetMatch`. 2e (#61) added the Package, PickUp and PutDown, and Round's `PickUp` and `PutDown` from the living;
 `Use` joins Round's allowlist with the knife's rule in 2g, because the mode check refuses an accepted intent that no
-rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round; DealTasks (2c) joins the deal row.
-Tests: the mode check of 2a and the base mode's numbers and `End → Lobby` order
+rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round. 2c (#59) added Crew, Dissident,
+the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. Tests: the mode check of 2a,
+the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
 scenarios in `content/scenarios/` (2j).
@@ -1003,9 +1004,10 @@ subtask its package, its circle and whether it is done. It has no tick.
 Visible to: everyone, except `TasksAssigned` and `TaskUpdated`, which reach only the task's owner (a ghost owner
 too; a player who left, nobody). `PackageDelivered` names the item and the circle, never the task or its owner.
 Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional).
-DealTasks (2c) calls its deal. Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode
-check), `tests/unit/tasks/delivery_test.gd` (the check), `tests/unit/content/delivery_content_test.gd` (the base
-mode's palette covers a full lobby).
+DealTasks (2c, #59) calls its deal, and its packages take only free markers (`Items.free_markers`). Tests:
+`tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check), `tests/unit/tasks/delivery_test.gd`
+(the check), `tests/unit/content/delivery_content_test.gd` (the base mode's palette covers a full lobby),
+`tests/unit/content/layout_check_test.gd` (its demands reach the fit check).
 
 #### Package (item kind)
 What it does: the item a Delivery subtask moves; any living player may carry any package.
