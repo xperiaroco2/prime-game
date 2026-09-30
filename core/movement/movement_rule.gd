@@ -12,7 +12,8 @@ extends RefCounted
 ## client tick, so a client sending its physics frame count would run out of credit at once.
 ##
 ## The checks, in order:
-## - Well formed: an int client tick and finite position, velocity and facing (NaN or inf fail).
+## - Well formed: an int client tick, finite position, velocity and facing (NaN or inf fail), and
+##   an int jump count within the wire's u16 (0 to MAX_JUMPS).
 ##   A negative client tick is dropped when below the baseline, like any tick that does not rise,
 ##   and corrected when there is none: a negative claim_tick means "no baseline yet".
 ## - The client tick rises at a bounded rate: a player earns one tick of credit per host tick, keeps
@@ -67,6 +68,9 @@ const TICK_LEAD := 10
 const MAX_TICK_CREDIT := 200
 ## Its key in MatchState's per-part state (§9.1): the per-player records below.
 const PART_KEY := &"movement"
+## The highest jump count a claim may carry: the wire's `jumps: u16` (§4.3). Core checks it itself
+## (invariant 1), so a count that skipped the codec cannot overflow the stamina cost.
+const MAX_JUMPS := 0xFFFF
 
 
 ## What the checks remember of one player between claims.
@@ -335,7 +339,7 @@ static func _read(command: MatchCommand) -> Claim:
 	var jumps: Variant = command.field("jumps")
 	if not (tick is int and position is Vector3 and velocity is Vector3 and facing is Vector3):
 		return null
-	if not jumps is int:
+	if not jumps is int or jumps < 0 or jumps > MAX_JUMPS:
 		return null
 	var claim := Claim.new()
 	claim.client_tick = tick

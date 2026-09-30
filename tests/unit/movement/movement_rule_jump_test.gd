@@ -341,6 +341,24 @@ func test_a_claim_without_an_int_jump_count_is_corrected() -> void:
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 2)
 
 
+func test_a_jump_count_outside_the_wires_u16_is_corrected() -> void:
+	# A huge count would overflow count * jump cost: 2^60 jumps of 10000 wrap to a cost of 0.
+	var game := _round()
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	player.stamina = 0
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": MovementRule.MAX_JUMPS + 1}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 1 << 60}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 2)
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"jumps": -1})
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 3)
+	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(0)
+	# Only regeneration: short of one jump's 10000.
+	assert_int(player.stamina).is_less(10000)
+
+
 func test_a_jump_from_a_ledges_edge_stands_on_the_ledge() -> void:
 	# E10: the take-off's floor is the highest under the capsule's footprint. On the ledge's edge
 	# the feet's own ray misses the ledge (the ground is 0.9 m below), a ray 0.4 m ahead hits it.
