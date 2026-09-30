@@ -86,7 +86,7 @@ client, the bots and the leak test). The main choices:
   everyone saw it join, when it leaves. *A version in the transport's `ADMIT`*: the transport knows no game (§4).
 - **For choice 6.** *Physics frames counted as ticks*: after a freeze the count falls behind the clients' clocks for
   good (the M1 lesson). *The waiting claims applied before the catch-up*: the first claim after a host freeze covers
-  about 100 client ticks against the credit of one and is corrected (#84's note). *Polling only on core ticks*: voice
+  about 100 client ticks against a credit of about ten and is corrected (#84's note). *Polling only on core ticks*: voice
   would wait up to 50 ms more. *Snapshots for the catch-up ticks*: a hundred stale snapshots per peer, of which the
   client's merge keeps one. *No rate limits, counting only* (E7 b): a looping client grows the command log without
   end. *Disconnecting on the first malformed packet, or on any excess* (E7 c): a corrupted packet or a thawed backlog
