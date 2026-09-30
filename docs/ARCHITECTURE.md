@@ -63,7 +63,9 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
     (§7.1, §9.4);
   - a **transition table** of rows *from phase, outcome → to phase, actions*.
 - An intent the phase's allowlist does not name, or from a sender it does not name, is rejected (`not_accepted`;
-  the senders are a newcomer, any player, the living, ghosts or the host). An accepted intent goes to the phase class, or to the
+  the senders are a newcomer, any player, the living, ghosts or the host). Two exceptions (3e, #97; §4.3): a refused
+  `MoveClaim` is dropped without `Rejected` (E15), and a refused `Hello` from a peer that is not a player gets
+  `joins_closed`, with `DisconnectPeer` when it is a newcomer (E14). An accepted intent goes to the phase class, or to the
   content part that handles it (an action such as pick up, a throw #37, or a body report #35; §9.2: the rule of the
   held item, the role or the mode): a new action is a part plus an allowlist entry, not an edit of the phase class.
 - A **phase class** handles its own commands and timers (the countdown, the loading deadline, a vote timer), emits
@@ -193,13 +195,15 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
 |---|---|---|
 | Lobby | `Welcome` to it, then `PlayerJoined` and `SettingsChanged` to everyone (it included) | dropped from the roster; `PlayerLeft`, `SettingsChanged` |
 | Countdown | as in Lobby, and `cancelled` | as in Lobby, and `cancelled` |
-| Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer` | dropped from the roster; `PlayerLeft` |
+| Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer`. Entering Loading also disconnects every newcomer still waiting (`DisconnectPeer`, no `Rejected`), and a `Hello` that arrives now gets `Rejected` (`joins_closed`) (E14, 3e) | dropped from the roster; `PlayerLeft` |
 | Round | refused, as in Loading | life state `left`, which counts as dead for the win conditions; the avatar is removed and no body stays (a ghost's body stays); in this order `PlayerLeft` (everyone else), the fact `player_left`, then the held item comes to rest on the floor below where the player stood (§7.1). 2g (#63): `RoundPhase` hands it to `LifeRules.leave`, after forgetting a newcomer that never joined (`JoinRules.forget_newcomer`) |
 | End | refused, as in Loading | life state `left`; `PlayerLeft`. `ResetMatch` drops the player from the roster |
 
 - **The join** (2b, `JoinRules`): `server/`'s `PeerConnected` makes a peer a *newcomer*, and only a newcomer's
   `Hello` is taken, once. Checked in order: the version equals the host's (`JoinRules.PROTOCOL_VERSION`), else
-  `Rejected` (`wrong_version`) and `DisconnectPeer`; the roster has fewer than the mode's maximum of players, else
+  `Rejected` (`wrong_version`) and `DisconnectPeer`; the content hash equals the host's (`Match.content_hash`, which
+  `server/` passes to `Match.new` with the seed; §4.3, E1, 3e), else `Rejected` (`wrong_content`) and
+  `DisconnectPeer`; the roster has fewer than the mode's maximum of players, else
   `Rejected` (`full`) and `DisconnectPeer`. A newcomer's leave is forgotten silently, and so is the late `PeerLeft`
   of a peer that a directive disconnected.
 - **Names** (the engineer's decision of 2026-09-30, #58): the host names every joiner `Player<n>`, with n counted
@@ -302,13 +306,12 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
     freeze's last second of unreliable packets never arrived, probably because its socket buffer filled; the
     thawed client's, from one sender, was 2 to 40 ms old.
 
-*Designed for M3 (#89, proposed):* the schemas of every intent, event, the snapshot and the voice frame, and their
+*Designed for M3 (#89; accepted 2026-10-01):* the schemas of every intent, event, the snapshot and the voice frame, and their
 rows in `NetKindTable.game()` (§4.3); the codec (§4.4); rate limits and what the host does with a peer that keeps
 sending rejected packets (§4.5). `MoveClaim` stays on the LATEST lane and carries a cumulative jump count, so a jump
 survives a merge (§4.3). The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The
-choices marked E1 to E17 wait for the engineer; the
-[ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options, and the design follows each
-recommendation.
+engineer took the recommendation of every choice E1 to E17 (E10 (b), E14 (a) with the client rule of (b)); the
+[ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options. The designer's D1 to D3 wait on #96.
 Every schema change updates §4.3 in the same PR.
 
 Lessons from the M1 spike (#13, #15; [voice ADR](decisions/2026-09-29-voice-approach.md)):
@@ -337,15 +340,17 @@ What each intent means and who may send it; the wire schemas are §4.3. The send
 reports, never a field of the message. `server/` checks what the transport knows (sender, decoding, size, rate) and
 passes the intent to `core/` as a command stamped with the host tick; `core/` checks the phase's allowlist (§3.1)
 and the rules below. A rejected intent gets `Rejected` to the sender, whose reason depends only on facts the sender
-is entitled to (§5).
+is entitled to (§5). The fields each intent carries, with their Variant types, are `Intents.FIELDS` (3e, #97), the
+list below in code: the rules read `MatchCommand.args` only through it (`MatchCommand.field` and its typed getters,
+which log an error for a field the intent does not declare), and 3d checks the wire table against it (§4.4).
 
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
-| `Hello(name, version)` | a connected peer that is not yet a player, once; Lobby or Countdown | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; room in the roster, or `full` and `DisconnectPeer`. The name is ignored in the MVP: the host names the joiner `Player<n>` (§3.5; own names: #73). Accepted, it is the join (§3.5). On the wire (M3, 3e) `Hello` carries `content`, the content hash, and another one gets `wrong_content` and `DisconnectPeer` (§4.3, E1); no name until #73 |
+| `Hello(version, content)` | a connected peer that is not yet a player, once; Lobby or Countdown. In another phase a newcomer's `Hello` gets `joins_closed` and `DisconnectPeer`, another non-player's `joins_closed` (E14, 3e) | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; `content` (an int, the content hash, §4.3) equals the host's (`Match.content_hash`), or `wrong_content` and `DisconnectPeer` (E1, 3e); room in the roster, or `full` and `DisconnectPeer`. No name: the host names the joiner `Player<n>` (§3.5; own names: #73), and a `name` a client sends is ignored. Accepted, it is the join (§3.5) |
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected`. On the wire (M3, 3e) `jumped` becomes `jumps`, a count that survives the LATEST merge (§4.3, E2) |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not held, not delivered); pick-up reach from the host's position of the player; line of sight; a full hand swaps (§7.1) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the held item's kind, the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
@@ -387,14 +392,15 @@ wire schemas of the events and the snapshot are §4.3.
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available | that player | on change, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`) |
 | `Died` | peer, body position | everyone, the dead player included | health reaches 0; no event names a killer or a cause |
 | `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a death: the ghost at its body (§7.1 Ghosts) |
-| `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent; an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
+| `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
 `DisconnectPeer(peer)`. Built in 2b (#58): the events from `Welcome` to `PlayerLoaded` above, `ReadyChanged`,
 `CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`. Built in 2h
-(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events).
+(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
+reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers.
 
 ### 4.3 Wire schemas (M3 design, #89)
 Proposed ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in 3d. Each message is one row: its kind
@@ -718,11 +724,13 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   nothing. The level conventions (4e) then give collision as `StaticBody3D` nodes (the designer decides: D2), or E8 (b) is
   taken.
 - **Which level** (E9). `Match` tells the port the level of the phase it enters, before a row's actions run:
-  `WorldQuery.use_level(path)` on start and in each transition (3e; the fakes and the replay ignore it). Prevents: a
+  `WorldQuery.use_level(path)` on start and in each transition (built in 3e, #97: the path of the lobby or the map,
+  empty for a phase with no level; `RecordingWorldQuery` forwards it without recording an answer, the flat fake and
+  the replay ignore it). Prevents: a
   row action that asks geometry (none does in the MVP) getting the old level's answer, as it would if `server/`
   switched levels between steps.
 - **The answers.** `line_of_sight(a, b)`: `intersect_ray` from a to b hits nothing. Two floor answers (E10 (b)): `floor_below(p)`, one downward ray at p, for items and bodies (`Items`'s drop and
-  put-down, the body in `LifeRules`); and `stand_floor_below(p)` (3e adds it to the port), p's x and z at the height
+  put-down, the body in `LifeRules`); and `stand_floor_below(p)` (in the port since 3e, #97), p's x and z at the height
   of the highest floor under five downward rays, at p and at four points on a circle of the capsule's radius around
   it, for a player's standing (`MovementRule`'s take-off and landing, the reach's eye height), so a player on a
   ledge's edge stands on the ledge (§7.1's note). Prevents: a package put down within a capsule radius of a low ledge
@@ -747,8 +755,8 @@ reading back). The log holds the seed: it stays on the host's disk and is never 
 cannot complete: a `Delivery` deal that could not place its packages or circles logs a match error
 (`Match.record_error`, kept in `Match.diagnostics`) and the round starts anyway, with no tasks, which every task done
 turns into an instant crew win (§3.4). Which row deals, and which phase it enters, is the game mode's data (invariant
-5), so `server/` keys on neither: 3e has `Match` count the errors recorded while a transition row runs (its actions and
-the exit, `Match.row_error_count()`), and `HostSession` reads the count after every `Match.apply` and `Match.tick` call.
+5), so `server/` keys on neither: `Match` counts the errors recorded while a transition row runs (its actions and
+the exit, `Match.row_error_count()`, built in 3e, #97), and `HostSession` reads the count after every `Match.apply` and `Match.tick` call.
 A new one ends the session with that error shown to the host's human, before that call's slice is delivered (above).
 So any row whose actions fail is fatal, a deal or not; an error outside a row, such as a `ForceRole` naming a role the
 mode lacks in the same host tick, is logged and the session goes on. The bots runner already fails a scenario on any
@@ -1020,7 +1028,10 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost (a
   ghost's jump needs none). Until the next landing
   the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
-  corrected. Prevents: free or endless jumps, and flying.
+  corrected. Prevents: free or endless jumps, and flying. A claim carries `jumps`, the client's count of jumps since
+  it adopted the epoch (3e, E2; §4.3): a rise d ≥ 1 over the last accepted claim's count in the epoch is one jump,
+  which stamina must cover d times; a count that falls within an epoch is corrected; the count restarts at 0 with
+  every new epoch. So a jump in a claim that the LATEST lane merged away or lost still counts in the next one.
 - **The movement checks** (`MovementRule` in `core/movement/`, the ledger in `core/stamina/`; 2d, #60). Every
   tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client:
   - A claim of another epoch, or whose client tick does not rise, is dropped: no `Correction`, so one correction
@@ -1049,10 +1060,11 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     floor and its feet; without one, the step height plus `STEP_CLEARANCE` (0.01 m) plus the claim's horizontal
     travel times tan 45° (slopes and stairs up to the client's `floor_max_angle`). Positions are 32-bit floats:
     `HEIGHT_SLACK_M` (1 mm) on top. Falling is not bounded.
-  - Cost: two `WorldQuery.floor_below` calls per jump and one per claim on the floor, each recorded in the command
-    log. The movement rule's floor (M3: `stand_floor_below`) looks below the whole capsule footprint, not one ray at the
-    origin: on a ledge's edge a ray from the feet misses the ledge, and a jump from there would be corrected (the
-    design: §4.5, E10).
+  - Cost: two `WorldQuery.stand_floor_below` calls per jump and one per claim on the floor, each recorded in the
+    command log. The movement rule's floor (`stand_floor_below`, 3e) looks below the whole capsule footprint, not one
+    ray at the origin: on a ledge's edge a ray from the feet misses the ledge, and a jump from there would be
+    corrected (§4.5, E10). The item rules' eye (`Items.eye_of`) stands on the same floor; an item's or a body's
+    floor is one ray (`floor_below`).
 - **Pushing apart** (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions"). Living
   players never pass through each other, but a body cannot block a passage. Each client moves only its own player
   against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
@@ -1186,7 +1198,10 @@ part is usable in data once its row or entry names the PR that built it. Every n
 - **Checked on load**, in two parts. `Match` refuses a mode with errors, listing them all.
   - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does
     not declare; an outcome a phase can report without a row (§3.1); an accepted intent that neither the phase class
-    nor any rule handles; two rules on one trigger in one owner; a number outside its part's bounds. A unit test
+    nor any rule handles; two rules on one trigger in one owner; a number outside its part's bounds; an id outside the
+    wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
+    condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), waiting for the designer on
+    #96; reverted with E5 if the designer says no). A unit test
     (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
     (`ModeCheck`).
   - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks; a
@@ -1287,7 +1302,8 @@ phase classes come in the task each row names.
 - A part runs with a `MatchContext`: the `MatchState`, the mode, the `WorldQuery`, the tick; the actor and its
   intent (an action), the `Fact` (a reaction or a task type's check), or the outcome and its argument (a transition
   action, whose `layout` is the level being entered); and `emit`, `reject`, `raise_fact`, `report_outcome`,
-  `rng(purpose)`, `setting(id)` and `error`. Names: `Intents`, `Facts`, `RejectReasons`.
+  `rng(purpose)`, `setting(id)` and `error`. Names: `Intents` (with `Intents.FIELDS`, each intent's fields, 3e),
+  `Facts`, `RejectReasons`.
 - Events are `MatchEvent` subclasses in `core/events/`, each with its `audience()` (`Audience`: everyone, only,
   role, life, server, and sender for `Rejected`, 2b) and a `const AUDIENCE_KIND`, from which `ModeCheck` warns
   about role-owned public events.
@@ -1300,9 +1316,10 @@ phase classes come in the task each row names.
   (`ItemState`: ground, hand or locked), tasks (`MatchTask`: its task type and `TaskState`, no owner), stations,
   bodies, the cooldown and counter tables, `part_state`, the clock, the winner, `RngStreams`, and `reset_match` for
   `ResetMatch`.
-- server/ and the tests drive `Match`: `start`, then per tick `apply` for each command and `tick`; `take_outbox`
-  (events with recipients), `snapshot_for`, `speakers_for`, `view_of`, `command_log` and `Match.replay` (a replay
-  that diverged from the recorded `WorldQuery` answers says so in `diagnostics`).
+- server/ and the tests drive `Match`: `Match.new(mode, seed, world, layouts, content_hash)` (the host's content
+  hash, 3e), `start`, then per tick `apply` for each command and `tick`; `take_outbox` (events with recipients),
+  `snapshot_for`, `speakers_for`, `view_of`, `row_error_count` (3e, §4.5), `command_log` and `Match.replay` (a
+  replay that diverged from the recorded `WorldQuery` answers says so in `diagnostics`).
 - The loop's own guards: only a phase class takes an intent from a newcomer (ModeCheck); an outcome reported while
   a row's actions or the old phase's exit run is an error, not the next phase's outcome; a step stops after 16
   transitions. `TickSystem` and `TaskType` declare `reported_outcomes()`, so ModeCheck requires their rows.
@@ -1379,7 +1396,7 @@ phase classes come in the task each row names.
 |---|---|---|---|---|
 | `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not held) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | 2e (#61) |
 | `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | 2e (#61) |
-| `InSight` | the line from the actor's eye (the floor below its last accepted position raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
+| `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
 | `HoldsItem` | the actor has an item in hand | none | `empty_hand` | 2e (#61) |
 | `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | with the first mechanic that needs it (#34) |
 | `AllSubtasksDone` | every task is done (`Tasks.all_done`): a task with no subtasks is done, and with no tasks it holds (the engineer's rule of 2026-09-30, #79) | none | (facts only) | 2h (#64, `core/win/all_subtasks_done.gd`) |
@@ -1393,7 +1410,7 @@ phase classes come in the task each row names.
 | Part | What it does | Settings | Emits (audience); raises | Built in |
 |---|---|---|---|---|
 | `TakeIntoHand` | the item goes into the actor's hand; a held item is swapped: it rests where the picked-up one lay (§7.1). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61) |
-| `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor below, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
+| `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `Strike` | picks the targets as in §7.1 (living, not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target dies there | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A death: `Died` (everyone), `Correction` (the dead: its ghost at the body), `player_died`, then the drop: `ItemPlaced` (death, everyone), `item_rested` | 2g (#63, `core/combat/strike.gd`) |
 | `ReportOutcome` | reports an outcome of the current phase (a meeting button, #35; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it (#35); 2a builds the outcome reporting it calls |
 
@@ -1663,7 +1680,8 @@ Status: designed in #33; built in 2d (#60): `MovementRule` and `StaminaLedger`. 
 `tests/unit/movement/movement_rule_test.gd`, `tests/unit/stamina/stamina_ledger_test.gd`.
 
 #### Jump (not a part in v0)
-What it does: the `jumped` flag of `MoveClaim`, accepted as in §7.1 with the numbers in `PlayerRules`: 1 m for 10.
+What it does: the `jumps` count of `MoveClaim` (3e; `jumped` until then), accepted as in §7.1 with the numbers in
+`PlayerRules`: 1 m for 10 per jump.
 A ghost jumps as high, for free.
 Why not a part: as for sprint.
 Visible to: as for sprint.
@@ -1771,7 +1789,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   cannot be scripted in the core runner: `server/` refuses it at the transport, so the step fails.
 - `WalkTo` claims one host tick of travel per tick (client ticks rising by one), at sprint speed only while the
   last `SelfStatus` says sprint is available (a ghost always, at 1.3 times), and stops exactly `stop_m` short.
-  `Jump` claims a jump where the bot stands, on the floor. The setup's forced roles go in one `ForceRole` per bot
+  `Jump` claims a jump where the bot stands, on the floor: the bot's jump count in its epoch plus one (3e; D3 (a),
+  waiting for the designer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
   right after the joins at the start, and its settings in one `ChangeSettings` from bot 1 after them.
 - `fields` match a subset of the event's payload (then its properties, so `peer` works on `SelfStatus`): text as
   text, numbers and vectors approximately, and `peer` holds a bot's number. `never` names an event, fields and a
