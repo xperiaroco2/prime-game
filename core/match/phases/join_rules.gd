@@ -85,14 +85,18 @@ static func valid_name(value: Variant) -> String:
 ## else). A newcomer is forgotten silently; a peer that is gone already (disconnected by a
 ## directive, whose PeerLeft comes later) changes nothing.
 static func leave(ctx: MatchContext, peer: int) -> bool:
-	if ctx.state.newcomers.has(peer):
-		ctx.state.newcomers.erase(peer)
+	if forget_newcomer(ctx, peer):
 		return false
 	if not ctx.state.is_present(peer):
 		return false
 	ctx.state.remove_player(peer)
 	ctx.emit(PlayerLeftEvent.new(peer))
 	return true
+
+
+## A newcomer's PeerLeft, in any phase: the peer is forgotten silently. True when it was one.
+static func forget_newcomer(ctx: MatchContext, peer: int) -> bool:
+	return ctx.state.newcomers.erase(peer)
 
 
 ## True when a SetReady carries a bool `ready`; else Rejected (`bad_args`), so a malformed intent

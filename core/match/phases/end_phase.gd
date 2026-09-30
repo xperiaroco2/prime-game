@@ -28,8 +28,7 @@ func on_peer_connected(ctx: MatchContext, peer: int) -> void:
 
 
 func on_peer_left(ctx: MatchContext, peer: int) -> void:
-	if ctx.state.newcomers.has(peer):
-		ctx.state.newcomers.erase(peer)
+	if JoinRules.forget_newcomer(ctx, peer):
 		return
 	if not ctx.state.is_present(peer):
 		return
