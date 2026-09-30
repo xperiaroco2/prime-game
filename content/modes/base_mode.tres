@@ -29,6 +29,8 @@
 [ext_resource type="Script" uid="uid://55dcaoxkc0rh" path="res://core/items/holds_item.gd" id="26_holds"]
 [ext_resource type="Script" uid="uid://uvy56h4lwu52" path="res://core/items/put_down_in_front.gd" id="27_put_down"]
 [ext_resource type="Resource" uid="uid://c8rs0bewtust4" path="res://content/items/package.tres" id="28_package"]
+[ext_resource type="Script" uid="uid://bmxheu4k3re0j" path="res://core/tasks/task_ticks.gd" id="29_task_ticks"]
+[ext_resource type="Resource" uid="uid://b5eyuq0do4t6h" path="res://content/tasks/delivery.tres" id="30_delivery"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -146,11 +148,15 @@ script = ExtResource("6_accept")
 intent = &"PutDown"
 from = 4
 
+[sub_resource type="Resource" id="TaskTicks_round"]
+script = ExtResource("29_task_ticks")
+
 [sub_resource type="Resource" id="Phase_round"]
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
 level = 2
@@ -293,6 +299,7 @@ item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down")])
+task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_round"), SubResource("Phase_end")])
 first_phase = &"lobby"
 transitions = Array[ExtResource("7_row")]([SubResource("Row_lobby_all_ready"), SubResource("Row_countdown_cancelled"), SubResource("Row_countdown_done"), SubResource("Row_loading_all_loaded"), SubResource("Row_round_won"), SubResource("Row_end_back")])

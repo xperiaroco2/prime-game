@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Delivery" format=3 uid="uid://b5eyuq0do4t6h"]
+
+[ext_resource type="Script" uid="uid://cbdj2emlwcf75" path="res://core/tasks/delivery.gd" id="1_delivery"]
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="2_station"]
+[ext_resource type="Resource" uid="uid://c8rs0bewtust4" path="res://content/items/package.tres" id="3_package"]
+
+[sub_resource type="Resource" id="StationKind_circle"]
+script = ExtResource("2_station")
+id = &"circle"
+spawn_tag = &"circle"
+radius_m = 1.0
+palette = PackedColorArray(0.95, 0.143, 0.143, 1, 0.95, 0.385, 0.143, 1, 0.95, 0.627, 0.143, 1, 0.95, 0.869, 0.143, 1, 0.788, 0.95, 0.143, 1, 0.546, 0.95, 0.143, 1, 0.304, 0.95, 0.143, 1, 0.143, 0.95, 0.223, 1, 0.143, 0.95, 0.466, 1, 0.143, 0.95, 0.708, 1, 0.143, 0.95, 0.95, 1, 0.143, 0.708, 0.95, 1, 0.143, 0.466, 0.95, 1, 0.143, 0.223, 0.95, 1, 0.304, 0.143, 0.95, 1, 0.546, 0.143, 0.95, 1, 0.789, 0.143, 0.95, 1, 0.95, 0.143, 0.869, 1, 0.95, 0.143, 0.627, 1, 0.95, 0.143, 0.385, 1, 0.55, 0.129, 0.055, 1, 0.55, 0.278, 0.055, 1, 0.55, 0.426, 0.055, 1, 0.525, 0.55, 0.055, 1, 0.377, 0.55, 0.055, 1, 0.228, 0.55, 0.055, 1, 0.08, 0.55, 0.055, 1, 0.055, 0.55, 0.179, 1, 0.055, 0.55, 0.327, 1, 0.055, 0.55, 0.476, 1, 0.055, 0.476, 0.55, 1, 0.055, 0.327, 0.55, 1, 0.055, 0.179, 0.55, 1, 0.08, 0.055, 0.55, 1, 0.228, 0.055, 0.55, 1, 0.377, 0.055, 0.55, 1, 0.525, 0.055, 0.55, 1, 0.55, 0.055, 0.426, 1, 0.55, 0.055, 0.278, 1, 0.55, 0.055, 0.129, 1)
+
+[resource]
+script = ExtResource("1_delivery")
+package = ExtResource("3_package")
+circle = SubResource("StationKind_circle")
+subtasks_setting = &"subtasks_per_task"
+floor_tolerance_m = 0.3
+id = &"delivery"
+display_name = "Delivery"
