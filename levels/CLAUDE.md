@@ -14,9 +14,11 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - Greybox with CSG and CC0 low-poly packs. Stylized low-poly, no texture-heavy art.
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
-  `spawn_circle`). A marker in two such groups is a load error. The host reads them in scene-tree order.
+  `spawn_circle`). A marker in two such groups is a load error. The host reads them in scene-tree order. A
+  `circle` marker is snapped down to the floor below it when read (its cylinder starts there); one with no floor
+  below is a load error.
 - The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
-  flat, marker-only scenes from M2 (built by the engineer's agent), dressed in M4.
+  flat, marker-only scenes from M2 (built by the engineer's agent in #66), dressed in M4.
 
 ## Never edit engine code
 - Interactables and task stations come from the engine. If a level needs one that does not exist, open an
