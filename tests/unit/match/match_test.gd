@@ -231,6 +231,32 @@ func test_a_ghost_may_move_but_not_use() -> void:
 	assert_array(FixtureModes.notes(game)).contains(["used"])
 
 
+func test_a_hello_the_phase_refuses_from_a_newcomer_is_told_joins_closed_and_disconnected() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1])
+	FixtureModes.send(game, Intents.PEER_CONNECTED, P3)
+	# A newcomer still waiting in a phase that takes no Hello (a mode whose phases do not drop
+	# newcomers the way the base mode's Loading does).
+	game.state.newcomers[P3] = true
+	var hello := {"version": JoinRules.PROTOCOL_VERSION, "content": 0}
+	FixtureModes.send(game, Intents.HELLO, P3, hello, 1)
+	assert_array(FixtureModes.rejections(game, P3)).is_equal([&"joins_closed"])
+	var last := game.emitted()[game.emitted().size() - 1]
+	assert_str(last.event.event_name()).is_equal("DisconnectPeer")
+	assert_bool(last.is_directive).is_true()
+	assert_bool(game.state.newcomers.has(P3)).is_false()
+	assert_array(game.view_of(P3).event_names()).is_equal([&"Rejected"])
+
+
+func test_a_hello_the_phase_refuses_from_a_player_is_not_accepted_and_nobody_leaves() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	var emitted_before := game.emitted().size()
+	var hello := {"version": JoinRules.PROTOCOL_VERSION, "content": 0}
+	FixtureModes.send(game, Intents.HELLO, P2, hello, 6)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	assert_int(game.emitted().size()).is_equal(emitted_before + 1)
+	assert_array(game.state.present_peers()).is_equal([P1, P2])
+
+
 func test_a_player_who_left_is_heard_by_no_rule_and_told_nothing() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	var left := game.state.player(P2)

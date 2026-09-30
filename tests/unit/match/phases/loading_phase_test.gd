@@ -1,11 +1,13 @@
 extends GdUnitTestSuite
-## Loading (ARCHITECTURE §3.2, §3.5, §9.4): RefuseJoins and LoadMatch on entry; LoadAck with the
+## Loading (ARCHITECTURE §3.2, §3.5, §9.4): RefuseJoins, the waiting newcomers disconnected (E14)
+## and LoadMatch on entry; a Hello refused with `joins_closed`; LoadAck with the
 ## current match id, once; the deadline drops who did not confirm, never the host; a leave drops
 ## too; `all_loaded` when every remaining player confirmed.
 
 const P1 := 1
 const P2 := 2
 const P3 := 3
+const P5 := 5
 ## 60 s at 20 Hz.
 const DEADLINE_TICKS := 1200
 
@@ -96,8 +98,36 @@ func test_a_connection_while_loading_is_disconnected() -> void:
 	FixtureModes.send(game, Intents.PEER_CONNECTED, P3)
 	FixtureBaseMode.hello(game, P3, "late")
 	assert_array(FixtureBaseMode.directives(game).slice(-1)).is_equal(["DisconnectPeer 3"])
-	assert_array(FixtureModes.rejections(game, P3)).is_equal([&"not_accepted"])
+	# Its Hello was in flight: it is told why (E14), and not disconnected a second time.
+	assert_array(FixtureModes.rejections(game, P3)).is_equal([&"joins_closed"])
+	assert_int(FixtureBaseMode.directives(game).count("DisconnectPeer 3")).is_equal(1)
 	assert_object(game.state.player(P3)).is_null()
+
+
+func test_the_entry_disconnects_every_waiting_newcomer_and_tells_it_nothing() -> void:
+	var game := FixtureBaseMode.in_countdown([P1, P2])
+	# Two connections that never sent Hello (lurkers), in the countdown.
+	for peer: int in [P5, P3]:
+		FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
+	FixtureModes.run_ticks(game, 101)
+	assert_str(game.phase_id()).is_equal("loading")
+	assert_array(FixtureBaseMode.directives(game)).is_equal(
+		["AllowJoins", "RefuseJoins", "DisconnectPeer 3", "DisconnectPeer 5"]
+	)
+	assert_bool(game.state.newcomers.is_empty()).is_true()
+	for peer: int in [P3, P5]:
+		assert_array(game.view_of(peer).event_names()).is_empty()
+	# The disconnect comes before LoadMatch, which only the players receive.
+	var names := FixtureModes.names(game)
+	assert_int(names.rfind(&"DisconnectPeer")).is_less(names.find(&"LoadMatch"))
+	# A Hello of P5's that was in flight is told why, with no second DisconnectPeer; its late
+	# PeerLeft changes nothing.
+	FixtureBaseMode.hello(game, P5, "late", JoinRules.PROTOCOL_VERSION, 1)
+	assert_array(FixtureModes.rejections(game, P5)).is_equal([&"joins_closed"])
+	assert_int(FixtureBaseMode.directives(game).count("DisconnectPeer 5")).is_equal(1)
+	FixtureModes.send(game, Intents.PEER_LEFT, P5)
+	assert_array(game.state.peers()).is_equal([P1, P2])
+	assert_array(game.diagnostics).is_empty()
 
 
 func test_a_mode_without_a_loading_deadline_is_refused() -> void:

@@ -1,7 +1,8 @@
 class_name LoadingPhase
 extends Phase
 ## The base mode's Loading (ARCHITECTURE §3.2, §3.5, §9.4). On entry the roster is frozen:
-## RefuseJoins (server) and LoadMatch(match id, map, settings) (everyone). Each player confirms
+## RefuseJoins (server), a DisconnectPeer (server) for every newcomer still waiting for its Hello
+## to be accepted (E14), and LoadMatch(match id, map, settings) (everyone). Each player confirms
 ## once with LoadAck(match id): an ack naming another match (an earlier one of the session) is
 ## dropped, a second one is rejected (`unchanged`); a valid one emits PlayerLoaded (everyone). At
 ## the deadline, `deadline_seconds` after the entry, each player without an ack gets DisconnectPeer
@@ -44,6 +45,7 @@ func deadline_tick() -> int:
 
 func enter(ctx: MatchContext) -> void:
 	ctx.emit(RefuseJoinsEvent.new())
+	JoinRules.drop_newcomers(ctx)
 	ctx.emit(LoadMatchEvent.new(ctx.state.match_id(), ctx.state.map, ctx.state.settings))
 
 

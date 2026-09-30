@@ -69,6 +69,18 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 	return true
 
 
+## Disconnects every newcomer still waiting (DisconnectPeer each, in peer-id order, no Rejected:
+## none sent a Hello that could be answered) and forgets them: a phase that freezes the roster
+## (Loading's entry, E14) can accept none of their Hellos this match, so none lingers until the
+## hello deadline.
+static func drop_newcomers(ctx: MatchContext) -> void:
+	var waiting: Array[int] = []
+	waiting.assign(ctx.state.newcomers.keys())
+	waiting.sort()
+	for peer: int in waiting:
+		_drop(ctx, peer)
+
+
 ## A PeerLeft outside Round (§3.5): true when a player left the roster (PlayerLeft to everyone
 ## else). A newcomer is forgotten silently; a peer that is gone already (disconnected by a
 ## directive, whose PeerLeft comes later) changes nothing.

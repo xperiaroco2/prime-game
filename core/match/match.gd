@@ -417,7 +417,7 @@ func _dispatch(command: MatchCommand) -> void:
 	elif not Intents.ALL.has(command.kind):
 		record_error("unknown command %s from peer %d" % [command.kind, command.peer])
 	elif not _accepts(command):
-		ctx.reject(command, RejectReasons.NOT_ACCEPTED)
+		_refuse(command, ctx)
 	elif _phase.handles(command.kind):
 		_phase.handle_intent(ctx, command)
 	elif command.kind == Intents.MOVE_CLAIM:
@@ -437,6 +437,20 @@ func _force_role(command: MatchCommand) -> void:
 		record_error("ForceRole: peer %d, role %s, which the mode lacks" % [command.peer, role_id])
 	else:
 		state.forced_roles[command.peer] = role_id
+
+
+## An intent the phase's allowlist refuses (§3.1, §4.3) gets Rejected (`not_accepted`), except:
+## - a Hello from a peer that is not a player gets Rejected (`joins_closed`) and, when it is a
+##   newcomer, DisconnectPeer (E14): the phase takes no joins, so the joiner is told why at once
+##   and does not linger. A peer that is neither was disconnected already (its connection was
+##   refused, or Loading's entry dropped it) and gets no second DisconnectPeer.
+func _refuse(command: MatchCommand, ctx: MatchContext) -> void:
+	if command.kind == Intents.HELLO and state.player(command.peer) == null:
+		ctx.reject(command, RejectReasons.JOINS_CLOSED)
+		if state.newcomers.erase(command.peer):
+			emit_event(DisconnectPeerEvent.new(command.peer))
+		return
+	ctx.reject(command, RejectReasons.NOT_ACCEPTED)
 
 
 ## An accepted intent that no phase class handles goes to the first rule for it (§9.2).
