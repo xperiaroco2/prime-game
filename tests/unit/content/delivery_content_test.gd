@@ -10,7 +10,7 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 func test_the_palette_covers_a_full_lobby_with_the_default_settings() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var settings := mode.default_settings()
-	var demands := Demands.new()
+	var demands := Demands.new(mode)
 	var delivery := _delivery(mode)
 	assert_object(delivery).is_not_null()
 	delivery.add_demands(settings, mode.max_players, settings[&"tasks_per_player"], demands)

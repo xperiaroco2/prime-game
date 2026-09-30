@@ -185,8 +185,9 @@ func test_a_palette_too_small_deals_nothing_and_says_so() -> void:
 
 
 func test_demands_are_packages_per_tag_and_colours_per_circle() -> void:
-	var delivery := FixtureDeliveryModes.delivery(FixtureItemModes.item_kind(&"package", []))
-	var demands := Demands.new()
+	var mode := FixtureDeliveryModes.basic()
+	var delivery := FixtureDeliveryModes.delivery_of(mode)
+	var demands := Demands.new(mode)
 	var settings: Dictionary[StringName, int] = {&"subtasks_per_task": 2}
 	delivery.add_demands(settings, 10, 2, demands)
 	assert_dict(demands.markers).is_equal({&"circle": 40, &"package": 40})
