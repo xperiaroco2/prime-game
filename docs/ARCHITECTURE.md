@@ -188,8 +188,8 @@ check after every fact is what makes this so: a death or a leave raises its fact
   `Rejected` (`full`) and `DisconnectPeer`. A newcomer's leave is forgotten silently, and so is the late `PeerLeft`
   of a peer that a directive disconnected.
 - **Names** (the engineer's decision of 2026-09-30, #58): the host names every joiner `Player<n>`, with n counted
-  by accepted joins over the whole session (`MatchState.joins`): Player1, Player2, and so on. The host itself
-  (peer 1, whose `Hello` comes first) is normally Player1, but the rule is only the join order. A number is never
+  by accepted joins over the whole session (`MatchState.joins`): Player1, Player2, and so on. The host's own
+  client normally joins first and so is Player1, but the rule is only the join order. A number is never
   reused: Player1 to Player3 join, Player2 leaves, and the next joiner becomes Player4. `ResetMatch` keeps the
   count, so it runs on through End → Lobby. The name in `Hello` is ignored in the MVP. After the MVP a player sets
   their own name and body colour, and a reconnecting player gets their old number back (#73).
