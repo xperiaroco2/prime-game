@@ -597,14 +597,19 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   behind a wall, without a weapon, or without stamina.
 - **Pick up and swap.** The client names the item; the host checks reach and line of sight from its own positions.
   With a full hand, the held item is put down where the picked-up one lay, a spot already known to be valid.
+  2e (#61) measures the reach from the feet (the last accepted position) and the sight from the eye to just above
+  the item (`Items.lifted`, 5 cm), so the floor or crate it lies on does not block the line.
 - **Put down.** The client sends only its facing. The host places the item at the put-down distance along the
   horizontal facing, through `WorldQuery`: stopped before a wall and dropped to the floor. Prevents: a package put
-  straight onto its circle across the map, or into a wall. 2e (#61) asks `rest_position` from the eye (the last
-  accepted position plus the eye height) towards the point at that distance, so an item goes over what the player
-  sees over (a low crate) and is stopped by a wall; a facing straight up or down puts it at the feet.
+  straight onto its circle across the map, or into a wall. 2e (#61) asks `rest_position` from the eye towards the
+  point at that distance, so an item goes over what the player sees over (a low crate) and is stopped by a wall; a
+  facing straight up or down puts it at the feet. The eye of the item rules (`Items.eye_of`) is the floor below
+  the last accepted position plus the eye height, so a jump does not raise it: nobody puts a package, or sees one,
+  over a partition from the top of a jump.
 - **Drops.** An item dropped at a death or a leave, and a body, come to rest on the floor below the player's last
-  position (through `WorldQuery`), never in mid-air. `Items.drop_held` (2e, #61) drops the item; a level with no
-  floor there is a level bug: the item rests at that position and the match logs an error.
+  position (through `WorldQuery`), never in mid-air. `Items.drop_held` (2e, #61) drops the item, asking the floor
+  from 5 cm above the feet so a ray that starts on the floor still finds it; a level with no floor there is a
+  level bug: the item rests at that position and the match logs an error.
 - **Delivery.** The rule is "the package rests inside its circle, however it got there". So one check runs whenever
   an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
   `server/` reports from its physics (`ItemRested`, #37). A package resting within its own circle's radius, on the
@@ -822,7 +827,7 @@ phase classes come in the task each row names.
 |---|---|---|---|---|
 | `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not held) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | 2e (#61) |
 | `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | 2e (#61) |
-| `InSight` | the line from the actor's eye (its last accepted position raised by `PlayerRules.eye_height_m`) to the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
+| `InSight` | the line from the actor's eye (the floor below its last accepted position raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
 | `HoldsItem` | the actor has an item in hand | none | `empty_hand` | 2e (#61) |
 | `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | with the first mechanic that needs it (#34) |
 | `AllSubtasksDone` | every subtask of every task is done | none | (facts only) | 2h |
@@ -836,7 +841,7 @@ phase classes come in the task each row names.
 | Part | What it does | Settings | Emits (audience); raises | Built in |
 |---|---|---|---|---|
 | `TakeIntoHand` | the item goes into the actor's hand; a held item is swapped: it rests where the picked-up one lay (§7.1). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61) |
-| `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
+| `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor below, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `Strike` | picks the targets as in §7.1 (living, not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each, in peer-id order; at 0 health a target dies (the life rule, 2g) | `angle_deg` (1 to 360; 30), `reach_m` (0.1 to 10; 1.5), `damage` (whole points, 1 to 1000; 50) | `Swung` (everyone), even with no target; per target `Damaged` and `SelfStatus` (the victim). A death: `Died` (everyone), `player_died`, then the drop: `ItemPlaced` (death, everyone), `item_rested` | 2g |
 | `ReportOutcome` | reports an outcome of the current phase (a meeting button, #35; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it (#35); 2a builds the outcome reporting it calls |
 
