@@ -265,3 +265,14 @@ func _station_spots(game: Match) -> Array[Vector3]:
 	for id: int in game.state.stations:
 		found.append(game.state.stations[id].position)
 	return found
+
+
+func test_a_circle_that_forgot_its_radius_is_refused() -> void:
+	var mode := FixtureDeliveryModes.basic()
+	var circle := StationKind.new()
+	circle.id = &"circle"
+	circle.spawn_tag = &"circle"
+	circle.palette = PackedColorArray(FixtureDeliveryModes.PALETTE)
+	FixtureDeliveryModes.delivery_of(mode).circle = circle
+	var errors := "\n".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("station kind circle radius_m is 0, outside 0.2 to 10")
