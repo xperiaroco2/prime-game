@@ -61,7 +61,14 @@ func test_back_in_the_lobby_players_stand_on_lobby_markers() -> void:
 
 
 func test_too_few_markers_is_an_error_and_places_nobody() -> void:
-	var game := Match.new(FixtureModes.basic(), 7, FlatWorldQuery.new(), FixtureModes.layouts(2))
+	# The lobby keeps a marker for each of the mode's players (the mode check with layouts); the
+	# map has 2 round_player markers.
+	var layouts := FixtureModes.layouts()
+	var map := LevelLayout.new(FixtureModes.MAP)
+	for i in 2:
+		map.add_marker(&"round_player", Vector3(10 + i, 0, 5))
+	layouts[FixtureModes.MAP] = map
+	var game := Match.new(FixtureModes.basic(), 7, FlatWorldQuery.new(), layouts)
 	game.start(0)
 	for peer: int in [P1, P2, P3]:
 		FixtureModes.send(game, Intents.HELLO, peer)

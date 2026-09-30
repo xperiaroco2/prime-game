@@ -58,6 +58,11 @@ func rng(purpose: StringName) -> RandomNumberGenerator:
 	return state.rng.stream(purpose)
 
 
+## The layout of the match's chosen map (state.map), or null: the lobby's fit check (§9.4).
+func map_layout() -> LevelLayout:
+	return _match.layout(state.map)
+
+
 ## The actor's player state, or null.
 func actor_state() -> PlayerState:
 	return state.player(actor)

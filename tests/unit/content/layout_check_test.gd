@@ -1,0 +1,74 @@
+extends GdUnitTestSuite
+## LayoutCheck (ARCHITECTURE §9.1, the mode check with layouts), which Match runs on creation: a
+## level without a layout, a spawn tag a row places on and a level lacks, a marker with two tags,
+## and a lobby with fewer lobby_player markers than the mode's maximum of players.
+
+
+func test_the_fixture_layouts_fit() -> void:
+	var found := LayoutCheck.run(FixtureBaseMode.mode(), FixtureBaseMode.layouts())
+	assert_array(Array(found)).is_empty()
+
+
+func test_a_level_without_a_layout() -> void:
+	var layouts := FixtureBaseMode.layouts()
+	layouts.erase(FixtureBaseMode.LOBBY)
+	layouts.erase(FixtureBaseMode.SMALL_MAP)
+	(
+		assert_array(Array(LayoutCheck.run(FixtureBaseMode.mode(), layouts)))
+		. is_equal(
+			[
+				"no layout for the lobby fixture://lobby",
+				"no layout for the map fixture://small_map",
+			]
+		)
+	)
+
+
+func test_a_tag_a_row_places_on_that_a_map_lacks() -> void:
+	var layouts := FixtureBaseMode.layouts()
+	var small := LevelLayout.new(FixtureBaseMode.SMALL_MAP)
+	small.add_marker(&"round_player", Vector3.ZERO)
+	small.add_marker(&"circle", Vector3.ONE)
+	layouts[FixtureBaseMode.SMALL_MAP] = small
+	assert_array(Array(LayoutCheck.run(FixtureBaseMode.mode(), layouts))).is_equal(
+		["fixture://small_map has no knife marker, which the row loading, all_loaded places on"]
+	)
+
+
+func test_a_marker_with_two_tags() -> void:
+	var layouts := FixtureBaseMode.layouts()
+	var map := layouts[FixtureBaseMode.MAP]
+	map.add_marker(&"knife", map.positions(&"circle")[0])
+	assert_array(Array(LayoutCheck.run(FixtureBaseMode.mode(), layouts))).is_equal(
+		["fixture://map has a marker at (30.0, 0.0, 0.0) with two tags, circle and knife"]
+	)
+
+
+func test_a_lobby_with_fewer_player_markers_than_the_maximum() -> void:
+	var layouts := FixtureBaseMode.layouts()
+	var lobby := LevelLayout.new(FixtureBaseMode.LOBBY)
+	for i in FixtureBaseMode.MAX_PLAYERS - 1:
+		lobby.add_marker(LayoutCheck.LOBBY_PLAYER, Vector3(i, 0, 0))
+	layouts[FixtureBaseMode.LOBBY] = lobby
+	assert_array(Array(LayoutCheck.run(FixtureBaseMode.mode(), layouts))).is_equal(
+		["the lobby fixture://lobby has 3 lobby_player marker(s), fewer than the mode's 4 players"]
+	)
+
+
+func test_match_refuses_a_mode_whose_layouts_do_not_fit() -> void:
+	var layouts := FixtureBaseMode.layouts()
+	layouts.erase(FixtureBaseMode.MAP)
+	var game := Match.new(FixtureBaseMode.mode(), 7, FlatWorldQuery.new(), layouts)
+	assert_array(Array(game.refusals)).is_equal(["no layout for the map fixture://map"])
+	assert_bool(game.start(0)).is_false()
+
+
+func test_demands_sum_the_rows_into_the_level() -> void:
+	var mode := FixtureBaseMode.mode()
+	var demands := LayoutCheck.demands_of(
+		mode, PhaseSpec.Level.MAP, {&"knives": 3, &"circles": 2}, 3
+	)
+	assert_dict(demands.markers).is_equal({&"round_player": 3, &"knife": 3, &"circle": 2})
+	assert_dict(demands.colours).is_equal({&"circle": 2})
+	var lobby := LayoutCheck.demands_of(mode, PhaseSpec.Level.LOBBY, {}, 3)
+	assert_dict(lobby.markers).is_equal({&"lobby_player": 3})

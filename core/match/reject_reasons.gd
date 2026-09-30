@@ -11,3 +11,17 @@ const NOTHING_TO_DO := &"nothing_to_do"
 const NOT_ALLOWED := &"not_allowed"
 ## Applied, but the outcome it reported was dropped: an earlier one of the same step won.
 const OUTCOME_DROPPED := &"outcome_dropped"
+## Hello: the name is empty, too long or has a control character (2b).
+const BAD_NAME := &"bad_name"
+## Hello: another protocol version than the host's; DisconnectPeer follows (2b).
+const WRONG_VERSION := &"wrong_version"
+## Hello: the roster has the mode's maximum of players; DisconnectPeer follows (2b).
+const FULL := &"full"
+## SetReady to the flag the player has, or a second LoadAck (2b).
+const UNCHANGED := &"unchanged"
+## ChangeSettings: a key the mode does not declare, or a value that is not a whole number (2b).
+const UNKNOWN_SETTING := &"unknown_setting"
+## ChangeSettings: a value outside its SettingSpec's bounds (2b).
+const OUT_OF_BOUNDS := &"out_of_bounds"
+## ChangeSettings: a map the mode does not list (2b).
+const UNKNOWN_MAP := &"unknown_map"
