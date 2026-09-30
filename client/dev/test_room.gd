@@ -3,7 +3,8 @@ extends Node3D
 ## height, a ledge above it, and two dummy player capsules. Run it (it opens a window):
 ##   tools\run.cmd run client/dev/test_room.tscn
 ## Click to capture the mouse, Esc to release it. WASD, Shift to sprint, Space to jump.
-## F1 toggles ghost mode (Space rises, Ctrl descends), F2 puts the player back at the spawn.
+## F1 toggles ghost mode (it moves like the living, without spending stamina), F2 puts the player
+## back at the spawn.
 
 @onready var _player: PlayerController = $Player
 @onready var _overlay: Label = $Overlay

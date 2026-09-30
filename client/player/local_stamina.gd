@@ -8,6 +8,8 @@ extends StaminaSource
 ## - A step in the sprint state in which the player moved horizontally costs
 ##   `sprint_cost_per_second` per second; every other step regenerates `regen_per_second`.
 ## - A jump needs at least `jump_cost` and spends it at once.
+## - A ghost's stamina never limits it (the engineer's correction of 2026-09-30): a ghost may
+##   always sprint and jump, and its steps change nothing.
 
 var stamina: float
 
@@ -19,17 +21,21 @@ func _init(tuning: PlayerTuning) -> void:
 	stamina = tuning.max_stamina
 
 
-func can_sprint(was_sprinting: bool) -> bool:
+func can_sprint(was_sprinting: bool, ghost: bool) -> bool:
+	if ghost:
+		return true
 	if was_sprinting:
 		return stamina > 0.0
 	return stamina >= _tuning.sprint_start_stamina
 
 
-func can_jump() -> bool:
-	return stamina >= _tuning.jump_cost
+func can_jump(ghost: bool) -> bool:
+	return ghost or stamina >= _tuning.jump_cost
 
 
-func report(delta: float, sprinted_moving: bool, jumped: bool) -> void:
+func report(delta: float, sprinted_moving: bool, jumped: bool, ghost: bool) -> void:
+	if ghost:
+		return
 	if jumped:
 		stamina -= _tuning.jump_cost
 	if sprinted_moving:

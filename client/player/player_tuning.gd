@@ -12,8 +12,10 @@ extends Resource
 @export var sprint_speed: float = 0.0
 ## Metres a jump lifts the feet above the floor it started from, at most.
 @export var jump_height: float = 0.0
-## Metres per second a ghost flies, in any direction.
-@export var ghost_speed: float = 0.0
+## A ghost walks and sprints at the living's `walk_speed` and `sprint_speed` times this factor;
+## it moves like the living otherwise and jumps as high (the engineer's correction and decision
+## of 2026-09-30: 1.3, while the base speeds stay placeholders).
+@export var ghost_speed_factor: float = 0.0
 ## The tallest ledge a player walks up without a jump, in metres.
 @export var step_height: float = 0.0
 
