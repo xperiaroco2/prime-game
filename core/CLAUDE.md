@@ -26,7 +26,8 @@ to `core/`. Design: `docs/ARCHITECTURE.md` (§3 the loop, §5 entitlement, §7.1
 - `Match`, `MatchState` and `Phase` (`core/match/`). `Match` knows no game mode: a **game mode is `core/` classes
   plus content data**, a `GameMode` `.tres` in `content/modes/` that names its phases (phase classes in
   `core/match/phases/`), rows, rules and settings ([ADR](../docs/decisions/2026-09-29-game-modes-define-the-phases.md)).
-  A stage-2 task adds its own files; it never edits the loop.
+  A stage-2 task adds its own files; it never edits the loop (2d's end-of-tick `SelfStatus` flush is the one
+  exception, §9.3).
 - The base class of every content-API kind (`core/content/`, §9.3). A global class name must not shadow an enum or
   class elsewhere in the project: hence `GameRole` and `RuleEffect`, not `Role` and `Effect`.
 - The validation of every intent against the rules: the phase's allowlist, life state, hand, reach, stamina,
