@@ -32,7 +32,8 @@ paths:
 - A throwaway probe test goes in the gitignored `tests/scratch/`, never beside real tests: run it with
   `tools\run.cmd test tests/scratch/probe_test.gd`, delete it with `rm -r tests/scratch/...` (no prompt). Full
   `check`, `test` and `lint` runs leave the folder out. No `class_name` there, and no copy of a `.tscn` or `.tres`
-  with its uid: Godot still imports the folder, so both clash with the real file.
+  with its uid: Godot still imports the folder, so both clash with the real file. No link or junction there: a
+  recursive delete through one removes its target.
 
 ## Never
 - Weaken, skip or delete a test to make it pass without the human's explicit approval. That includes loosening an

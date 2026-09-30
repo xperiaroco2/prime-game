@@ -50,5 +50,7 @@ ADRs).
   delete and lets agents scatter temporary folders across the tree.
   Rejected: B, keep the text rules and tell agents to avoid the commands (an agent that forgets still stops the
   night); C, drop the rules (no stop before a real `rm -rf` of the repo or a `git reset --hard`). The guard stays
-  best-effort like every text rule: a target it cannot resolve and that does not name the project passes.
+  best-effort like every text rule: a target it cannot resolve and that does not name the project passes. No shell
+  call keeps variables from an earlier one, so a bash variable the command never assigns is also judged as empty
+  (`rm -rf "$X"/*` asks); a variable from the environment is the case left open.
   Details and the replay: `docs/AGENT_WORKFLOW.md` §8.2.

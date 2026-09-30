@@ -171,8 +171,10 @@ Rules for every workflow run:
 - Temporary files go only to the session's scratchpad or, when they must be under `res://` (a probe test), to the
   gitignored `tests/scratch/` of the checkout the agent works in; deleting either never prompts (§8.2). A temporary
   folder anywhere else in the project, such as `tests/integration/tmp`, asks on delete and stops the run until
-  morning. An unattended run's prompt says so, and tells its agents to write down anything that prompts instead of
-  waiting for an answer ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)).
+  morning. An unattended run's prompt says so, and tells its agents not to run commands they expect to prompt
+  (deletes outside the scratchpad and `tests/scratch/`, resets that move the branch) but to list them in the handoff
+  for the human instead: a prompt blocks the call, so an agent cannot note it and move on
+  ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)).
 - Design runs produce documents first. Output lands as focused PRs, each with its verification, checked by a
   **fresh** agent.
 - Changes to `.claude/settings*.json` and `addons/` wait for the human (ask rules prompt in every mode). Other
@@ -233,8 +235,8 @@ cover Edit, Write and NotebookEdit.
 
 It also judges two commands by their target, where a text rule would stop an unattended agent for its own scratch
 folder (issue #47):
-- **Recursive deletes** (`rm -r|-R|-rf|--recursive` in bash, `Remove-Item -Recurse` or `-r`, `rmdir /s`, `rd /s/q`,
-  `del /s`, a plain delete fed by a recursive listing, an unfiltered `find -delete` or `find -exec rm -rf`,
+- **Recursive deletes** (`rm -r|-R|-rf|--recursive` or `--rec` in bash, `Remove-Item -Recurse` or `-r`, `rmdir /s`,
+  `rd /s/q` (`//s` from Git Bash), `del /s`, a plain delete fed by a recursive listing, an unfiltered `find -delete` or `find -exec rm -rf`,
   `shutil.rmtree('x')` and `[IO.Directory]::Delete('x', $true)`; also inside `bash -c`, pipelines, `xargs`,
   `timeout` and `for` loops) ask when a target is the project (the main checkout or a worktree), inside it, above
   it, a drive root, `/`, or the home or temp folder itself (`~`, `$HOME`, `$env:TEMP`). A target it cannot resolve
@@ -242,20 +244,28 @@ folder (issue #47):
   `git rev-parse --show-toplevel`, `$PWD` inside it, a command's output that names a path in it (`$(realpath core)`,
   `(Resolve-Path core)`; `$(mktemp -d)` names none), a variable or loop built from such text, or a relative path
   after an unresolvable `cd` made from inside the project. The targets of a pipeline (`$_`, `{}`, none) are the
-  paths its first command names, or the working directory. Regenerated output (`tools/out/`, `.godot/`) and the
-  gitignored scratch folder `tests/scratch/` pass, in the main checkout and in every worktree; so do the
-  scratchpad, `$TEMP/x`, `/tmp/x` and `~/x` (the hook passes the real home folder, so a checkout under home stays
-  protected). A target that cannot be resolved and does not name the project (`rm -rf "$S"` with `S` set in an
-  earlier call) passes, and so do filtered deletes (`find . -name '*.orig' -delete`,
-  `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`). A scratch path the guard cannot resolve still asks when
-  it names the project (`rm -rf "$(git rev-parse --show-toplevel)/tests/scratch"`): use the relative path.
+  paths its first command names, or the working directory. A PowerShell array (`Remove-Item -Recurse a,b`,
+  `'a','b'`, `@('a','b')`) and a bash brace expansion (`x/{a,b}`) are judged item by item. Regenerated output
+  (`tools/out/`, `.godot/`, any `__pycache__/`) and the gitignored scratch folder `tests/scratch/` pass, in the main
+  checkout and in every worktree; so do the scratchpad, `$TEMP/x`, `/tmp/x` and `~/x` (the hook passes the real
+  home folder, so a checkout under home stays protected). `$(git rev-parse --show-toplevel)` is the checkout that
+  holds the working directory, so `rm -rf "$(git rev-parse --show-toplevel)/tests/scratch"` passes too.
+- Neither the Bash tool nor the PowerShell tool keeps variables between calls. In bash a variable the command never
+  assigns is therefore also judged as empty: `rm -rf "$X"/*` is `rm -rf /*` and asks, and `cd "$X" && rm -rf y`
+  stays in the project and asks. A bash subshell (`( ... )`, `$(...)`) keeps its `cd` and variables to itself, and
+  `cd -` and `popd` go back to where the command was (or stay, when it never moved). What still passes: a variable
+  from the environment or a PowerShell variable the command never assigns, when its text does not name the project;
+  filtered deletes, even project-wide ones (`find . -name '*.orig' -delete`, `find . -name '*.gd' -delete`,
+  `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*`, or one before `-prune -o`, is none).
 - **`tests/scratch/`** is for temporary files that must be under `res://` (a probe test). It is gitignored but not
   gdignored, so `tools\run.cmd test tests/scratch/<file>` and `check res://tests/scratch/<file>` run what is there;
   full `check`, `test` and `lint` runs leave it out, so a half-written probe never turns `verify` red. Godot still
-  imports it: no `class_name` and no copied `.tscn`/`.tres` uid there (the UID lint fails on a copy).
+  imports it: no `class_name` and no copied `.tscn`/`.tres` uid there (the UID lint fails on a copy). Never create
+  a link or junction there: the guard judges a delete by its text path, and PowerShell 5.1 `Remove-Item -Recurse`
+  on a junction deletes what it points to.
 - **`git reset`** asks with `--hard`, `--merge` or `--keep`, or when it moves the branch to another commit
   (`git reset HEAD~1`, `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere in the project,
-  `tools/out/` included. Unstaging passes: `git reset`, `git reset -q`, `git reset -- <paths>`,
+  `tools/out/` included; `-C`, `--git-dir` and `--work-tree` name that repository. Unstaging passes: `git reset`, `git reset -q`, `git reset -- <paths>`,
   `git reset HEAD -- <paths>`, `git reset core`. A lone argument without `--` is a commit when it looks like one (a
   SHA, `~`, `^`, `origin/x`, `refs/x`, `v1.2`, a task branch `net/40-x`, `main`) and a path otherwise, so
   `git reset feature-x` passes.
@@ -276,7 +286,11 @@ folder (issue #47):
   `tests/scratch/`, as §7 now asks, the same replay has 0 prompts. Over all 3,421 distinct
   shell commands of this machine's transcripts, no crash; against the guard before #47 it asks 5 more times: four
   real changes to the project (two installs into `addons/`, a `git reset --hard origin/...`, that `rm -r`) and one
-  false ask, a heredoc whose test data holds the text `shutil.rmtree('core')`.
+  false ask, a heredoc whose test data holds the text `shutil.rmtree('core')`. After the second fresh review
+  (arrays, subshells, variables no call assigned), the overnight replay is unchanged (1 prompt, 0 with
+  `tests/scratch/`), and over the 2,709 distinct shell commands of this machine's transcripts on that day it changes
+  one verdict: a scratch-folder delete after `(cd tools && ...)`, which the old guard read inside `tools/`, now
+  passes.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
