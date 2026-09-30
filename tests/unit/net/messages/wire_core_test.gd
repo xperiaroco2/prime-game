@@ -1,11 +1,18 @@
 extends GdUnitTestSuite
 ## The table checked against core/ (ARCHITECTURE §4.4): net/ names core/'s fields as strings, so
 ## this suite is what notices a drift. Every event class with a peer audience has a row whose
-## fields are its to_dict() keys, every intent has a row, and core/'s constant ids fit the wire's
-## id alphabet. The comparison of intents with Intents.FIELDS comes with #97.
+## fields are its to_dict() keys; every intent's row, and ForceRole's debug row, carries the fields
+## Intents.FIELDS declares with their Variant types; core/'s constant ids fit the wire's id
+## alphabet; and a decoded ForceRole and Hello, turned into MatchCommands, do in a Match what
+## core/ means them to.
 
 const Samples := preload("res://tests/unit/net/messages/wire_samples.gd")
 const EVENTS_FOLDER := "res://core/events/"
+## The wire's own fields (§4.4): the payload never holds them, so no intent declares them.
+## ForceRole's `peer` becomes MatchCommand.peer and is allowed on its row only.
+const WIRE_ONLY := ["seq", "has_map", "has_station", "has_role"]
+## A host's content hash (§4.3): any 64-bit number; this one needs all 8 bytes.
+const CONTENT := -0x123456789ABCDEF
 
 
 func test_every_event_class_with_a_peer_audience_has_samples() -> void:
@@ -73,6 +80,147 @@ func test_every_intent_has_a_row_and_force_role_a_debug_row() -> void:
 		assert_object(schema.row_named(command)).is_null()
 
 
+## §4.4: a field renamed on one side (a wire `jumps` against a rule reading `jumped`) would read as
+## absent, so each row's fields, flags and guarded parts must be the declared names and types.
+func test_every_intent_row_carries_the_fields_intents_declares_with_their_types() -> void:
+	var expected: Array[StringName] = Intents.ALL.duplicate()
+	expected.append(Intents.FORCE_ROLE)
+	assert_array(Intents.FIELDS.keys()).contains_exactly_in_any_order(expected)
+	var schema := WireSchema.game(true)
+	for intent: StringName in Intents.FIELDS:
+		var row := schema.row_named(intent)
+		assert_object(row).override_failure_message(str(intent)).is_not_null()
+		if row == null:
+			continue
+		var declared: Dictionary = Intents.FIELDS[intent]
+		var carried := _arg_types(row.fields)
+		(
+			assert_str(_type_drift(carried, declared))
+			. override_failure_message("%s: %s" % [intent, _type_drift(carried, declared)])
+			. is_empty()
+		)
+		var allowed := WIRE_ONLY.duplicate()
+		if intent == Intents.FORCE_ROLE:
+			allowed.append("peer")
+		for wire_only: String in _wire_only(row.fields):
+			(
+				assert_array(allowed)
+				. override_failure_message("%s: wire-only field %s" % [intent, wire_only])
+				. contains([wire_only])
+			)
+
+
+## The decoder's output, not only the table's declaration, has the declared Variant types: a
+## String role, an int content hash, bools for MoveClaim's flags.
+func test_decoded_intents_hold_the_declared_variant_types() -> void:
+	var schema := WireSchema.game(true)
+	var messages := Samples.intents()
+	messages.append_array(Samples.debug_commands())
+	for message: WireMessage in messages:
+		var decoded := schema.decode(schema.kind_of(message.name), schema.encode(message))
+		assert_object(decoded).override_failure_message(str(message.name)).is_not_null()
+		if decoded == null:
+			continue
+		var declared: Dictionary = Intents.FIELDS[message.name]
+		for key: Variant in decoded.fields:
+			var where := "%s.%s" % [message.name, key]
+			assert_bool(declared.has(key)).override_failure_message(where).is_true()
+			var type: Variant.Type = declared.get(key, TYPE_NIL)
+			(
+				assert_str(type_string(typeof(decoded.fields[key])))
+				. override_failure_message(where)
+				. is_equal(type_string(type))
+			)
+
+
+func test_the_join_refusals_of_3e_are_reject_reasons_that_fit_the_wire() -> void:
+	var reasons: Script = RejectReasons
+	var constants := reasons.get_script_constant_map()
+	assert_str(str(constants.get("WRONG_CONTENT", &""))).is_equal("wrong_content")
+	assert_str(str(constants.get("JOINS_CLOSED", &""))).is_equal("joins_closed")
+	var schema := WireSchema.game(false)
+	for reason: StringName in [RejectReasons.WRONG_CONTENT, RejectReasons.JOINS_CLOSED]:
+		assert_bool(WireField.is_id(str(reason))).override_failure_message(reason).is_true()
+		var sent := RejectedEvent.new(2, 0xFFFFFFFF, reason).to_dict()
+		var payload := schema.encode(WireMessage.new(&"Rejected", sent))
+		var decoded := schema.decode(WireSchema.REJECTED, payload)
+		assert_object(decoded).override_failure_message(reason).is_not_null()
+		if decoded != null:
+			(
+				assert_bool(Samples.same(decoded.fields, sent))
+				. override_failure_message(reason)
+				. is_true()
+			)
+
+
+## ForceRole's role decodes as a String because Match._force_role reads it with get_string, which
+## gives "" (clear the role) for a StringName: this decodes the debug row, turns it into the
+## MatchCommand server/ will make (the player as the command's peer), and deals.
+func test_a_decoded_force_role_forces_the_role_in_a_match() -> void:
+	var schema := WireSchema.game(true)
+	var sent := Samples.debug_commands()
+	var peers: Array[int] = [1, 2, 3]
+	for seed_value: int in [1, 2, 3, 7]:
+		var game := _deal_lobby(peers, seed_value)
+		var forced := _decoded(schema, sent[0])
+		if forced == null:
+			return
+		assert_int(forced.peer).is_equal(3)
+		game.apply(_command_of(forced, forced.peer, game))
+		assert_dict(game.state.forced_roles).is_equal({3: &"dissident"})
+		for peer: int in peers:
+			FixtureModes.send(game, Intents.SET_READY, peer, {"ready": true})
+		assert_str(game.phase_id()).is_equal("round")
+		assert_array(FixtureDealModes.players_of(game, &"dissident")).is_equal([3])
+		assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_decoded_force_role_without_a_role_clears_the_forced_one() -> void:
+	var schema := WireSchema.game(true)
+	var sent := Samples.debug_commands()
+	var game := _deal_lobby([1, 2, 3], 7)
+	FixtureModes.send(game, Intents.FORCE_ROLE, 3, {"role": "dissident"})
+	assert_dict(game.state.forced_roles).is_equal({3: &"dissident"})
+	var cleared := _decoded(schema, sent[1])
+	if cleared == null:
+		return
+	assert_int(cleared.peer).is_equal(3)
+	game.apply(_command_of(cleared, cleared.peer, game))
+	assert_dict(game.state.forced_roles).is_empty()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## Hello.content is an s64 on the wire and an int in Intents.FIELDS (#97): a decoded Hello with
+## the host's hash joins; one with another hash gets Rejected(wrong_content), which encodes.
+func test_a_decoded_hello_joins_only_with_the_hosts_content_hash() -> void:
+	var schema := WireSchema.game(false)
+	var game := Match.new(
+		FixtureBaseMode.mode(), 7, FlatWorldQuery.new(), FixtureBaseMode.layouts(), CONTENT
+	)
+	game.keep_history = true
+	game.start(0)
+	for peer: int in [1, 2]:
+		FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
+	var host_hash := _decoded(
+		schema, WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT})
+	)
+	var other_hash := _decoded(
+		schema, WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT + 1})
+	)
+	if host_hash == null or other_hash == null:
+		return
+	game.apply(_command_of(host_hash, 1, game))
+	game.apply(_command_of(other_hash, 2, game))
+	assert_object(game.state.player(1)).is_not_null()
+	assert_array(FixtureModes.rejections(game, 1)).is_empty()
+	assert_object(game.state.player(2)).is_null()
+	assert_array(FixtureModes.rejections(game, 2)).is_equal([&"wrong_content"])
+	var rejected := game.view_of(2).events_named(&"Rejected")[0] as RejectedEvent
+	var payload := schema.encode(WireMessage.new(&"Rejected", rejected.to_dict()))
+	assert_object(schema.decode(WireSchema.REJECTED, payload)).is_not_null()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_cores_constant_ids_fit_the_wire() -> void:
 	var ids: Array[String] = []
 	for script: Script in [RejectReasons, CountdownCancelledEvent]:
@@ -105,3 +253,78 @@ func _event_classes() -> Dictionary[String, String]:
 		if path.begins_with(EVENTS_FOLDER) and entry["base"] == &"MatchEvent":
 			found[str(entry["class"])] = path
 	return found
+
+
+## Field name -> the Variant type the row decodes it to, for the fields that become args: the
+## flags as bools, an optional group's parts; the slots (`seq`, ForceRole's `peer`) and the
+## presence flags left out.
+func _arg_types(fields: Array[WireField]) -> Dictionary:
+	var found := {}
+	for field: WireField in fields:
+		if field.slot != WireField.Slot.FIELD:
+			continue
+		match field.type:
+			WireField.Type.FLAGS:
+				for flag: String in field.flags:
+					found[flag] = TYPE_BOOL
+			WireField.Type.OPTIONAL:
+				found.merge(_arg_types(field.parts))
+			_:
+				found[field.name] = field.decoded_type()
+	return found
+
+
+## The names of a row's wire-only fields: its slots and the presence flags of its optional groups.
+func _wire_only(fields: Array[WireField]) -> PackedStringArray:
+	var found := PackedStringArray()
+	for field: WireField in fields:
+		if field.slot != WireField.Slot.FIELD or field.type == WireField.Type.OPTIONAL:
+			found.append(field.name)
+		if field.type == WireField.Type.OPTIONAL:
+			found.append_array(_wire_only(field.parts))
+	return found
+
+
+## What differs between the wire's arg types and the declared ones; empty when they agree.
+func _type_drift(carried: Dictionary, declared: Dictionary) -> String:
+	var problems := PackedStringArray()
+	for key: Variant in declared:
+		if not carried.has(key):
+			problems.append("%s declared, not on the wire" % key)
+		elif carried[key] != declared[key]:
+			var carried_type: int = carried[key]
+			var declared_type: int = declared[key]
+			var types := [key, type_string(carried_type), type_string(declared_type)]
+			problems.append("%s decodes as %s, declared %s" % types)
+	for key: Variant in carried:
+		if not declared.has(key):
+			problems.append("%s on the wire, not declared" % key)
+	return ", ".join(problems)
+
+
+## The deal fixture's lobby with `peers` joined and nobody ready yet.
+func _deal_lobby(peers: Array[int], seed_value: int) -> Match:
+	var game := Match.new(
+		FixtureDealModes.deal_mode(), seed_value, FlatWorldQuery.new(), FixtureDealModes.layouts()
+	)
+	game.keep_history = true
+	game.start(0)
+	for peer: int in peers:
+		FixtureModes.send(game, Intents.HELLO, peer, {"name": "p%d" % peer})
+	return game
+
+
+## `message` through the encoder and the decoder, as the host receives it.
+func _decoded(schema: WireSchema, message: WireMessage) -> WireMessage:
+	var kind := schema.kind_of(message.name)
+	var payload := schema.encode(message)
+	var decoded := schema.decode(kind, payload)
+	assert_object(decoded).override_failure_message(schema.explain(kind, payload)).is_not_null()
+	return decoded
+
+
+## The MatchCommand a decoded intent becomes (§4.4): its fields are the args and its seq the
+## command's; `peer` is the sender the transport reports, or ForceRole's player.
+func _command_of(decoded: WireMessage, peer: int, game: Match) -> MatchCommand:
+	var kind := StringName(decoded.name)
+	return MatchCommand.new(kind, peer, game.ticked_through() + 1, decoded.fields, decoded.seq)
