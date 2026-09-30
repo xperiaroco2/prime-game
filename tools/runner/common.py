@@ -18,6 +18,9 @@ from . import pins
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "tools" / "out"
 LOGS = OUT / "logs"
+# The gitignored folder for temporary files that must live under res:// (a probe test). The guard lets its deletes
+# pass; full lint, check and test runs skip it, a run that names a path in it covers that path.
+SCRATCH = "tests/scratch"
 IS_WINDOWS = os.name == "nt"
 IS_CI = os.environ.get("CI", "").lower() in ("1", "true", "yes")
 
@@ -246,7 +249,7 @@ def git_status() -> set[str]:
 
 
 def gd_files() -> list[Path]:
-    """All project .gd files outside addons/ and tools/out/."""
+    """All project .gd files outside addons/, tools/out/ and the scratch folder."""
     files: list[Path] = []
     for name in GD_DIRS:
         base = ROOT / name
@@ -254,7 +257,7 @@ def gd_files() -> list[Path]:
             continue
         for path in sorted(base.rglob("*.gd")):
             rel = path.relative_to(ROOT).as_posix()
-            if rel.startswith("tools/out/"):
+            if rel.startswith(("tools/out/", SCRATCH + "/")):
                 continue
             files.append(path)
     return files

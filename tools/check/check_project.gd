@@ -13,6 +13,8 @@ const SKIP_DIRS: PackedStringArray = [
 	"res://tools/out",
 	"res://tools/check",
 	"res://.godot",
+	# The gitignored scratch folder (SCRATCH in tools/runner/common.py): checked only when a path in it is given.
+	"res://tests/scratch",
 ]
 const EXTENSIONS: PackedStringArray = ["gd", "tscn", "tres"]
 
