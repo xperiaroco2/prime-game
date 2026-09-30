@@ -11,11 +11,13 @@ extends RefCounted
 ## The host is peer HOST_ID and plays: its own client is peer HOST_ID too. Clients reach only the
 ## host, never each other.
 ##
-## The LATEST lane delivers at most one message per peer and kind per poll: its newest. After a
-## peer's main thread froze (about 5 s in #21), its backlog arrives in one poll, 50 to 100 packets
-## each about 5 s old; the inbox drops every valid LATEST message that a newer one of the same kind
-## from the same peer follows in the same poll (counted in latest_superseded), so no consumer ever
-## handles the backlog. RELIABLE and VOICE messages are all delivered.
+## The LATEST lane delivers at most one message per sender and kind per poll between two of that
+## sender's reliable messages: its newest. After a peer's main thread froze (about 5 s in #21), its
+## backlog arrives in one poll, 50 to 100 packets each about 5 s old; the inbox drops every valid
+## LATEST message that a newer one of the same kind from the same peer follows in the same poll with
+## no valid reliable message from that peer between them (counted in latest_superseded), so no
+## consumer handles the backlog, and each reliable message still follows the state sent before it.
+## RELIABLE and VOICE messages are all delivered.
 
 signal connected(own_id: int)
 ## A join failed: no host, refused, full, or no answer within the join timeout.
@@ -35,7 +37,8 @@ const REJECT_SUMMARY_INTERVAL_MS := 10000
 
 var rejects := NetRejects.new()
 ## Valid LATEST messages dropped because a newer one of the same kind from the same peer came in
-## the same poll. Not rejects: nothing was wrong with them.
+## the same poll, with no reliable message from that peer between. Not rejects: nothing was wrong
+## with them.
 var latest_superseded := 0
 
 var _kinds: NetKindTable
@@ -319,9 +322,13 @@ func _drain_inbox() -> void:
 
 
 ## The batch indices of the LATEST packets a newer one supersedes: each valid LATEST message that a
-## later valid one of the same kind from the same peer follows. A join or leave of that peer in
-## between separates them (two connections, maybe with the same id), and so does any change of
-## this client's own connection. Invalid packets supersede nothing; the drain rejects them.
+## later valid one of the same kind from the same peer follows. Between them, a valid RELIABLE
+## message from that peer separates the two, so each of its intents or events is still handled
+## after the LATEST state it sent just before it (a Use is checked against the claim sent before
+## it, not against the one from before a freeze); so does a join or leave of that peer (two
+## connections, maybe with the same id), and so does any change of this client's own connection.
+## Voice has its own unordered channel and separates nothing. Invalid packets separate and
+## supersede nothing; the drain rejects them.
 func _superseded_in(batch: Array[Inbound]) -> Dictionary[int, bool]:
 	var superseded: Dictionary[int, bool] = {}
 	# (peer, kind) of the LATEST messages later in the batch, walking it backwards.
@@ -330,32 +337,35 @@ func _superseded_in(batch: Array[Inbound]) -> Dictionary[int, bool]:
 		var item := batch[i]
 		match item.type:
 			Inbound.Type.PACKET:
-				var kind := _latest_kind(item)
-				if kind == 0:
-					continue
-				var key := Vector2i(item.peer, kind)
-				if newer.has(key):
-					superseded[i] = true
-				else:
-					newer[key] = true
+				var lane_kind := _peeked(item)
+				if lane_kind.x == NetKindTable.Lane.RELIABLE:
+					_forget_newer_of(newer, item.peer)
+				elif lane_kind.x == NetKindTable.Lane.LATEST:
+					var key := Vector2i(item.peer, lane_kind.y)
+					if newer.has(key):
+						superseded[i] = true
+					else:
+						newer[key] = true
 			Inbound.Type.JOINED, Inbound.Type.LEFT, Inbound.Type.DISCONNECTED:
-				for key: Vector2i in newer.keys():
-					if key.x == item.peer:
-						newer.erase(key)
+				_forget_newer_of(newer, item.peer)
 			_:
 				newer.clear()
 	return superseded
 
 
-## The kind of a packet that decodes as a valid LATEST message, else 0 (never a valid kind).
-func _latest_kind(item: Inbound) -> int:
-	var latest := NetKindTable.Lane.LATEST
-	if item.channel != NetKindTable.channel_of(latest) or item.mode != NetKindTable.mode_of(latest):
-		return 0
+static func _forget_newer_of(newer: Dictionary[Vector2i, bool], peer_id: int) -> void:
+	for key: Vector2i in newer.keys():
+		if key.x == peer_id:
+			newer.erase(key)
+
+
+## (lane, kind) of a packet that decodes as a valid message, else (-1, 0). Counts nothing: the
+## drain decodes every packet again and counts its rejects.
+func _peeked(item: Inbound) -> Vector2i:
 	var frame := NetFrame.decode(item.bytes, _kinds, _role == Role.CLIENT, item.channel, item.mode)
-	if frame.reject != NetRejects.Reason.NONE or _kinds.lane_of(frame.kind) != latest:
-		return 0
-	return frame.kind
+	if frame.reject != NetRejects.Reason.NONE:
+		return Vector2i(-1, 0)
+	return Vector2i(_kinds.lane_of(frame.kind), frame.kind)
 
 
 ## The frame of a packet from a connected peer, or null after counting why it is rejected.

@@ -13,9 +13,10 @@ extends SceneTree
 ## then it tells client 2 to freeze for 5.2 s; then it ends the run. What must hold:
 ## - No drop: the host sees no peer_left and no client sees host_lost before the end.
 ## - Reliable beats arrive complete and in order through both freezes.
-## - At most one pose per peer per poll, ever (the LATEST lane's rule, NetTransport). In the first
-##   poll after a freeze the backlog arrives, and each peer's is merged into its newest pose: at
-##   least one pose is merged away, and the one applied is not the backlog's 5 s old head.
+## - At most one pose per peer per poll between that peer's reliable messages, ever (the LATEST
+##   lane's rule, NetTransport: a reliable message separates the runs it merges). In the first poll
+##   after a freeze the backlog arrives, and each run of a peer's poses is merged into its newest:
+##   at least one pose is merged away, and the one applied is not the backlog's 5 s old head.
 ## On one PC (Windows 11) the thawed host's newest pose from each client was about 1 s old, and the
 ## poses of the freeze's last second never arrived, probably because the host's socket buffer
 ## filled with two senders; the thawed client's, from one sender, was 2 ms old. Reliable messages
@@ -78,21 +79,27 @@ class Heard:
 	## The last pose's sequence number and how old it was when it arrived.
 	var pose := 0
 	var pose_age_ms := 0.0
-	var poses_this_poll := 0
+	## Poses in this poll since this peer's last reliable message.
+	var poses_in_run := 0
 
 	## "" when the packet fits, else what went wrong.
 	func take(kind: int, payload: PackedByteArray) -> String:
+		if kind != POSE:
+			poses_in_run = 0
 		if kind == BEAT:
 			var seq := payload.decode_u32(0)
 			if beat >= 0 and seq != beat + 1:
 				return "beat %d after beat %d: a reliable message was lost" % [seq, beat]
 			beat = seq
 		elif kind == POSE:
-			poses_this_poll += 1
-			if poses_this_poll > 1:
+			poses_in_run += 1
+			if poses_in_run > 1:
 				return (
-					"%d poses in one poll: the LATEST lane delivered more than the newest"
-					% [poses_this_poll]
+					(
+						"%d poses in one poll with no reliable message between them: the"
+						+ " LATEST lane delivered more than the newest"
+					)
+					% [poses_in_run]
 				)
 			var seq := payload.decode_u32(0)
 			if seq <= pose:
@@ -145,7 +152,7 @@ func _process(_delta: float) -> bool:
 ## Polls, checks the per-poll rule and, after a freeze, what the thaw brought.
 func _poll() -> void:
 	for heard: Heard in _heard.values():
-		heard.poses_this_poll = 0
+		heard.poses_in_run = 0
 	_transport.poll()
 	if _thawing and not _done:
 		_thawing = false
@@ -211,12 +218,12 @@ func _send_traffic(to_peers: Array[int]) -> void:
 
 func _on_packet(from_peer: int, kind: int, payload: PackedByteArray) -> void:
 	_last_packet_ms = Time.get_ticks_msec()
-	if kind in [BEAT, POSE]:
-		if not _heard.has(from_peer):
-			_heard[from_peer] = Heard.new()
-		var problem := _heard[from_peer].take(kind, payload)
-		if problem != "":
-			_fail("from peer %d: %s" % [from_peer, problem])
+	if not _heard.has(from_peer):
+		_heard[from_peer] = Heard.new()
+	# Every message goes through take(): any reliable one ends a run of poses.
+	var problem := _heard[from_peer].take(kind, payload)
+	if problem != "":
+		_fail("from peer %d: %s" % [from_peer, problem])
 	elif kind == HELLO:
 		_peer_of_instance[payload.decode_u32(0)] = from_peer
 		print("NET host client %d is peer %d" % [payload.decode_u32(0), from_peer])

@@ -351,7 +351,8 @@ func test_a_client_accepts_only_the_host() -> void:
 
 func test_a_backlog_on_the_latest_lane_arrives_as_its_newest_message() -> void:
 	# A receiver that froze polls once and finds everything sent meanwhile (#70): on the LATEST
-	# lane only the newest message per peer and kind, every reliable and voice message in order.
+	# lane only the newest message per peer and kind between that peer's reliable messages, every
+	# reliable and voice message in order.
 	var host := _host()
 	var own := LoopbackTransport.own_client_of(host)
 	var client := _client()
@@ -368,14 +369,24 @@ func test_a_backlog_on_the_latest_lane_arrives_as_its_newest_message() -> void:
 			host.send(2, EVENT, PackedByteArray([i]))
 			client.send(1, VOICE, PackedByteArray([i]))
 	_poll([host, own, client])
-	assert_array(client_rec.packets).is_equal(
-		["1:%d:00" % EVENT, "1:%d:32" % EVENT, "1:%d:63" % STATE]
+	# The host's events split the client's runs: each event follows the state sent before it.
+	(
+		assert_array(client_rec.packets)
+		. is_equal(
+			[
+				"1:%d:00" % STATE,
+				"1:%d:00" % EVENT,
+				"1:%d:32" % STATE,
+				"1:%d:32" % EVENT,
+				"1:%d:63" % STATE,
+			]
+		)
 	)
 	assert_array(own_rec.packets).is_equal(["1:%d:63" % STATE])
 	assert_array(host_rec.packets).is_equal(
 		["2:%d:00" % VOICE, "2:%d:32" % VOICE, "2:%d:63" % POSE, "1:%d:c7" % POSE]
 	)
-	assert_int(client.latest_superseded).is_equal(99)
+	assert_int(client.latest_superseded).is_equal(97)
 	assert_int(own.latest_superseded).is_equal(99)
 	assert_int(host.latest_superseded).is_equal(198)
 

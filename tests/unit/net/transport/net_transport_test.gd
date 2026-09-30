@@ -153,14 +153,22 @@ func test_a_backlog_on_the_latest_lane_delivers_only_the_newest_per_peer_and_kin
 			host.queue_message(5, INTENT, PackedByteArray([i]))
 			host.queue_message(5, AIM, PackedByteArray([i]))
 	host.poll()
-	# Each newest message arrives where it was in the backlog: after every intent before it.
+	# Peer 5's intents split its backlog into runs, each merged into its newest message, so each
+	# intent follows the claim sent just before it. Peer 6's intents-free backlog is one run.
 	(
 		assert_array(counter.events)
 		. is_equal(
 			[
+				"packet 5:%d:0" % POSE,
 				"packet 5:%d:0" % INTENT,
+				"packet 5:%d:0" % AIM,
+				"packet 5:%d:25" % POSE,
 				"packet 5:%d:25" % INTENT,
+				"packet 5:%d:25" % AIM,
+				"packet 5:%d:50" % POSE,
 				"packet 5:%d:50" % INTENT,
+				"packet 5:%d:50" % AIM,
+				"packet 5:%d:75" % POSE,
 				"packet 5:%d:75" % INTENT,
 				"packet 5:%d:75" % AIM,
 				"packet 5:%d:99" % POSE,
@@ -168,8 +176,27 @@ func test_a_backlog_on_the_latest_lane_delivers_only_the_newest_per_peer_and_kin
 			]
 		)
 	)
-	assert_int(host.latest_superseded).is_equal(99 + 99 + 3)
+	assert_int(host.latest_superseded).is_equal(95 + 99)
 	assert_int(host.rejects.total()).is_equal(0)
+
+
+func test_only_a_reliable_message_from_the_same_peer_separates_its_runs() -> void:
+	var host := _host_with([5, 6])
+	var counter := Counter.new(host)
+	# Peer 6's intent, peer 5's voice and a malformed reliable packet from peer 5 separate nothing.
+	var trailing := NetFrame.encode(INTENT, PackedByteArray([9]))
+	trailing.append(0)
+	host.queue_message(5, POSE, PackedByteArray([1]))
+	host.queue_message(6, INTENT, PackedByteArray([1]))
+	host.queue_message(5, TALK, PackedByteArray([1]))
+	host.queue_on(5, trailing, NetKindTable.Lane.RELIABLE)
+	host.queue_message(5, POSE, PackedByteArray([2]))
+	host.poll()
+	assert_array(counter.events).is_equal(
+		["packet 6:%d:1" % INTENT, "packet 5:%d:1" % TALK, "packet 5:%d:2" % POSE]
+	)
+	assert_int(host.latest_superseded).is_equal(1)
+	assert_int(host.rejects.of_reason(NetRejects.Reason.TRAILING_BYTES)).is_equal(1)
 
 
 func test_the_hosts_backlog_reaches_a_client_as_its_newest_message() -> void:
@@ -180,10 +207,19 @@ func test_the_hosts_backlog_reaches_a_client_as_its_newest_message() -> void:
 		if i % 50 == 0:
 			client.queue_message(1, EVENT, PackedByteArray([i]))
 	client.poll()
-	assert_array(counter.events).is_equal(
-		["packet 1:%d:0" % EVENT, "packet 1:%d:50" % EVENT, "packet 1:%d:99" % STATE]
+	(
+		assert_array(counter.events)
+		. is_equal(
+			[
+				"packet 1:%d:0" % STATE,
+				"packet 1:%d:0" % EVENT,
+				"packet 1:%d:50" % STATE,
+				"packet 1:%d:50" % EVENT,
+				"packet 1:%d:99" % STATE,
+			]
+		)
 	)
-	assert_int(client.latest_superseded).is_equal(99)
+	assert_int(client.latest_superseded).is_equal(97)
 
 
 func test_voice_and_reliable_messages_are_never_merged() -> void:
