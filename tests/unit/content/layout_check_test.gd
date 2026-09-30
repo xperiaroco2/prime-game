@@ -86,6 +86,25 @@ func test_a_task_types_demand_reaches_the_fit_check() -> void:
 	)
 
 
+func test_deliverys_circles_and_packages_reach_the_fit_check() -> void:
+	# The real task type through DealTasks: Delivery's demand arrives only if the Demands carry
+	# the mode (LayoutCheck builds them with it).
+	var mode := FixtureDeliveryModes.basic(2, 2)
+	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, mode.default_settings(), 3)
+	# 3 players x 2 tasks x 2 subtasks: a circle, a package and a colour per subtask.
+	assert_int(demands.markers.get(&"circle", 0)).is_equal(12)
+	assert_int(demands.markers.get(&"package", 0)).is_equal(12)
+	assert_dict(demands.colours).is_equal({&"circle": 12})
+	var map := FixtureModes.MAP
+	assert_array(Array(LayoutCheck.run(mode, FixtureModes.layouts()))).is_equal(
+		[
+			"%s has no circle marker, which the row lobby, all_ready places on" % map,
+			"%s has no package marker, which the row lobby, all_ready places on" % map,
+		]
+	)
+	assert_array(Array(LayoutCheck.run(mode, FixtureDeliveryModes.layouts()))).is_empty()
+
+
 func _mode_with_a_token_task() -> GameMode:
 	var token := ItemKind.new()
 	token.id = &"coin"
