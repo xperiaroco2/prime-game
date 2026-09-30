@@ -140,6 +140,24 @@ func test_the_mode_check_refuses_a_reach_or_distance_the_data_did_not_set() -> v
 	assert_str(";".join(errors)).contains("PutDownInFront distance_m is 3.5, outside 0.3 to 3")
 
 
+func test_the_eye_stands_on_the_footprint_and_a_drop_asks_one_ray() -> void:
+	# E10 (b): the player's standing (the eye of InSight) asks the capsule's footprint; the drop of
+	# its item asks one ray below it, as for any item or body.
+	var world := FixtureLevelWorld.new()
+	var mode := FixtureItemModes.basic()
+	mode.actions.append(FixtureModes.rule(Intents.USE, [], [FixtureDropHeld.of(Items.LEAVE)]))
+	var game := FixtureItemModes.in_round(mode, [P1, P2], world)
+	FixtureItemModes.stand(game, P1, Vector3.ZERO)
+	var package := FixtureItemModes.lay(game, &"package", Vector3.ZERO)
+	world.calls.clear()
+	FixtureItemModes.pick_up(game, P1, package)
+	assert_int(game.state.player(P1).held_item).is_equal(package.id)
+	assert_array(Array(world.calls)).is_equal(["stand_floor_below"])
+	world.calls.clear()
+	FixtureModes.send(game, Intents.USE, P1)
+	assert_array(Array(world.calls)).is_equal(["floor_below"])
+
+
 ## A round of P1 and P2 in `world` whose mode's `Use` drops the actor's held item for `cause`,
 ## with P1 holding item 1, a package.
 func _holding_with_drop(cause: StringName, world: WorldQuery) -> Match:

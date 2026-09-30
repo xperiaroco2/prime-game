@@ -1,13 +1,15 @@
 extends GdUnitTestSuite
-## Joining (ARCHITECTURE §3.2, §3.5, §4.1): Hello from a connected newcomer, once; the version and
-## the room; the host's Player<n> names by join order, never reused; Welcome with public facts
-## only, PlayerJoined and SettingsChanged; the joiner's lobby spot and epoch; leaves of newcomers
-## and players.
+## Joining (ARCHITECTURE §3.2, §3.5, §4.1): Hello from a connected newcomer, once; the version, the
+## content hash (§4.3, E1) and the room; the host's Player<n> names by join order, never reused;
+## Welcome with public facts only, PlayerJoined and SettingsChanged; the joiner's lobby spot and
+## epoch; leaves of newcomers and players.
 
 const P1 := 1
 const P2 := 2
 const P3 := 3
 const P5 := 5
+## A host's content hash (§4.3): any 64-bit number.
+const CONTENT := -4_611_686_018_427_387_901
 
 
 func test_a_hello_joins_with_welcome_player_joined_and_settings_changed() -> void:
@@ -99,6 +101,47 @@ func test_another_version_is_rejected_and_disconnected() -> void:
 	assert_array(game.diagnostics).is_empty()
 
 
+func test_another_content_hash_is_rejected_and_disconnected() -> void:
+	var game := _started_with_content(CONTENT)
+	FixtureModes.send(game, Intents.PEER_CONNECTED, P2)
+	FixtureBaseMode.hello(game, P2, "Bob", JoinRules.PROTOCOL_VERSION, 3, CONTENT + 1)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"wrong_content"])
+	assert_array(game.view_of(P2).event_names()).is_equal([&"Rejected"])
+	assert_array(FixtureBaseMode.directives(game)).is_equal(["AllowJoins", "DisconnectPeer 2"])
+	assert_object(game.state.player(P2)).is_null()
+	assert_bool(game.state.newcomers.has(P2)).is_false()
+	# No content at all is another content too.
+	FixtureModes.send(game, Intents.PEER_CONNECTED, P3)
+	var no_content := {"version": JoinRules.PROTOCOL_VERSION}
+	FixtureModes.send(game, Intents.HELLO, P3, no_content)
+	assert_array(FixtureModes.rejections(game, P3)).is_equal([&"wrong_content"])
+	# The host's hash joins.
+	FixtureModes.send(game, Intents.PEER_CONNECTED, P5)
+	FixtureBaseMode.hello(game, P5, "Eve", JoinRules.PROTOCOL_VERSION, 1, CONTENT)
+	assert_str(game.state.player(P5).name).is_equal("Player1")
+	assert_array(FixtureModes.rejections(game, P5)).is_empty()
+
+
+func test_the_version_is_checked_before_the_content() -> void:
+	var game := _started_with_content(CONTENT)
+	FixtureModes.send(game, Intents.PEER_CONNECTED, P2)
+	FixtureBaseMode.hello(game, P2, "Bob", JoinRules.PROTOCOL_VERSION + 1, 3, CONTENT + 1)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"wrong_version"])
+
+
+func test_a_replay_answers_hellos_with_the_recorded_content_hash() -> void:
+	var game := _started_with_content(CONTENT)
+	for peer: int in [P1, P2]:
+		FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
+	FixtureBaseMode.hello(game, P1, "Ann", JoinRules.PROTOCOL_VERSION, 1, CONTENT)
+	FixtureBaseMode.hello(game, P2, "Bob", JoinRules.PROTOCOL_VERSION, 1, CONTENT + 1)
+	assert_int(game.command_log.content_hash).is_equal(CONTENT)
+	var replayed := Match.replay(game.command_log, FixtureBaseMode.mode())
+	assert_array(Array(replayed.diagnostics)).is_empty()
+	assert_int(replayed.content_hash).is_equal(CONTENT)
+	assert_array(FixtureModes.describe(replayed)).is_equal(FixtureModes.describe(game))
+
+
 func test_the_host_names_players_by_join_order() -> void:
 	var game := FixtureBaseMode.started()
 	FixtureBaseMode.join(game, P3)
@@ -185,9 +228,8 @@ func test_a_clients_odd_name_is_ignored() -> void:
 	var peer := 10
 	for odd_name: Variant in odd:
 		FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
-		FixtureModes.send(
-			game, Intents.HELLO, peer, {"name": odd_name, "version": JoinRules.PROTOCOL_VERSION}
-		)
+		var hello := {"name": odd_name, "version": JoinRules.PROTOCOL_VERSION, "content": 0}
+		FixtureModes.send(game, Intents.HELLO, peer, hello)
 		assert_array(FixtureModes.rejections(game, peer)).is_empty()
 		assert_str(game.state.player(peer).name).is_equal("Player%d" % (peer - 9))
 		# Leave again: the mode's roster holds at most 4 players.
@@ -195,7 +237,9 @@ func test_a_clients_odd_name_is_ignored() -> void:
 		peer += 1
 	# A Hello without a name joins too.
 	FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
-	FixtureModes.send(game, Intents.HELLO, peer, {"version": JoinRules.PROTOCOL_VERSION})
+	FixtureModes.send(
+		game, Intents.HELLO, peer, {"version": JoinRules.PROTOCOL_VERSION, "content": 0}
+	)
 	assert_str(game.state.player(peer).name).is_equal("Player%d" % (odd.size() + 1))
 
 
@@ -253,3 +297,13 @@ func test_a_peer_connected_twice_as_a_player_is_an_error() -> void:
 	FixtureBaseMode.join(game, P1)
 	FixtureModes.send(game, Intents.PEER_CONNECTED, P1)
 	assert_str(game.diagnostics[0]).contains("PeerConnected for peer 1, which is a player")
+
+
+## The base mode's lobby, on a host whose content hash is `content`.
+func _started_with_content(content: int) -> Match:
+	var game := Match.new(
+		FixtureBaseMode.mode(), 7, FlatWorldQuery.new(), FixtureBaseMode.layouts(), content
+	)
+	game.keep_history = true
+	game.start(0)
+	return game

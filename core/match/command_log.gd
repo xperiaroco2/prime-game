@@ -1,13 +1,16 @@
 class_name CommandLog
 extends RefCounted
 ## Everything core/ is given, so a match can be replayed (ARCHITECTURE §3.3): the session seed, the
-## game mode's path and content hash, the levels' layouts, the start tick, every command in
-## order with its tick (server/'s own included), the last tick run, and every WorldQuery answer.
+## game mode's path and content hash, the host's content hash that joiners must match, the levels'
+## layouts, the start tick, every command in order with its tick (server/'s own included), the last
+## tick run, and every WorldQuery answer.
 ## A replay refuses to run when the mode's hash differs. It never leaves the host (§5).
 
 var session_seed := 0
 var mode_path := ""
 var mode_hash := 0
+## The host's content hash (§4.3, E1), which JoinRules compares with each Hello's `content`.
+var content_hash := 0
 ## Level path -> layout.
 var layouts: Dictionary[String, LevelLayout] = {}
 var start_tick := -1
@@ -32,6 +35,7 @@ func to_dict() -> Dictionary:
 		"session_seed": session_seed,
 		"mode_path": mode_path,
 		"mode_hash": mode_hash,
+		"content_hash": content_hash,
 		"layouts": layout_data,
 		"start_tick": start_tick,
 		"ticked_through": ticked_through,

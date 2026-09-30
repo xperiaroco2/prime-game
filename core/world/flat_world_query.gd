@@ -27,9 +27,12 @@ func line_of_sight(from: Vector3, to: Vector3) -> bool:
 
 
 func floor_below(point: Vector3) -> Vector3:
-	if point.y < floor_y:
-		return NO_FLOOR
-	return Vector3(point.x, floor_y, point.z)
+	return _floor_at(point)
+
+
+## The same floor as floor_below(): the flat floor lies under the whole footprint.
+func stand_floor_below(point: Vector3) -> Vector3:
+	return _floor_at(point)
 
 
 func rest_position(from: Vector3, towards: Vector3) -> Vector3:
@@ -45,3 +48,9 @@ func rest_position(from: Vector3, towards: Vector3) -> Vector3:
 				stop = from + (towards - from).normalized() * maxf(0.0, distance - WALL_MARGIN)
 	var floor_point := floor_below(stop)
 	return floor_point if floor_point != NO_FLOOR else stop
+
+
+func _floor_at(point: Vector3) -> Vector3:
+	if point.y < floor_y:
+		return NO_FLOOR
+	return Vector3(point.x, floor_y, point.z)

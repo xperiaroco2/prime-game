@@ -10,8 +10,13 @@ var peer: int
 var tick: int
 ## The intent's sequence number, which a Rejected names.
 var seq: int
-## The intent's fields, plain data (§4.1).
+## The intent's fields, plain data (§4.1), named and typed by Intents.FIELDS; rules read them
+## through field() and the typed getters.
 var args: Dictionary
+## The fields a rule read that Intents.FIELDS does not declare for this kind, in order, each once.
+## Match records each as a match error after the command ran, so it reaches `diagnostics` (and
+## the bots runner) rather than only the log. Not part of the command log.
+var undeclared_reads := PackedStringArray()
 
 
 func _init(
@@ -24,23 +29,46 @@ func _init(
 	seq = number
 
 
+## The value of field `key`, as the client sent it (any type), or null when it is absent. The
+## field must be one that Intents.FIELDS declares for this command's kind: reading another is a
+## bug in the rule (a name the wire does not carry would always read as absent), so it is kept in
+## `undeclared_reads`, which Match records as a match error, and read as absent (§4.4).
+func field(key: String) -> Variant:
+	if not declares(key):
+		if not undeclared_reads.has(key):
+			undeclared_reads.append(key)
+		return null
+	return args.get(key)
+
+
+## Whether the command carries field `key` (declared, as field() requires).
+func has_field(key: String) -> bool:
+	return field(key) != null
+
+
+## Whether Intents.FIELDS declares `key` for this command's kind.
+func declares(key: String) -> bool:
+	var declared: Dictionary = Intents.FIELDS.get(kind, {})
+	return declared.has(key)
+
+
 func get_bool(key: String, default := false) -> bool:
-	var value: Variant = args.get(key, default)
+	var value: Variant = field(key)
 	return value if value is bool else default
 
 
 func get_int(key: String, default := 0) -> int:
-	var value: Variant = args.get(key, default)
+	var value: Variant = field(key)
 	return value if value is int else default
 
 
 func get_vector3(key: String, default := Vector3.ZERO) -> Vector3:
-	var value: Variant = args.get(key, default)
+	var value: Variant = field(key)
 	return value if value is Vector3 else default
 
 
 func get_string(key: String, default := "") -> String:
-	var value: Variant = args.get(key, default)
+	var value: Variant = field(key)
 	return value if value is String else default
 
 

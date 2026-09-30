@@ -60,7 +60,7 @@ func on_peer_left(ctx: MatchContext, peer: int) -> void:
 ## refuses more `tasks` than task types left, or every type banned). Whether they fit the map is
 ## checked at `all_ready`.
 static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
-	var raw: Variant = command.args.get("settings", {})
+	var raw: Variant = command.field("settings") if command.has_field("settings") else {}
 	if not raw is Dictionary:
 		ctx.reject(command, RejectReasons.UNKNOWN_SETTING)
 		return false
@@ -83,8 +83,8 @@ static func _change_settings(ctx: MatchContext, command: MatchCommand) -> bool:
 			ctx.reject(command, reason)
 			return false
 	var map := ctx.state.map
-	if command.args.has("map"):
-		var asked: Variant = command.args["map"]
+	if command.has_field("map"):
+		var asked: Variant = command.field("map")
 		if not asked is String or not ctx.mode.maps.has(asked as String):
 			ctx.reject(command, RejectReasons.UNKNOWN_MAP)
 			return false

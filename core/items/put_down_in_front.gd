@@ -2,10 +2,11 @@ class_name PutDownInFront
 extends RuleEffect
 ## The actor's held item comes to rest `distance_m` in front of it (ARCHITECTURE §7.1, §9.4). The
 ## client sends only its facing; the host takes the facing's horizontal direction and asks
-## WorldQuery.rest_position from the actor's eye (Items.eye_of: the floor below its last accepted
-## position raised by the mode's PlayerRules.eye_height_m) towards the point `distance_m` along it:
-## the item is stopped before a wall and dropped to the floor. A facing with no horizontal direction
-## (straight up or down, zero or not finite) puts the item down below the eye, at the actor's feet.
+## WorldQuery.rest_position from the actor's eye (Items.eye_of: the floor it stands on at its last
+## accepted position raised by the mode's PlayerRules.eye_height_m) towards the point `distance_m`
+## along it: the item is stopped before a wall and dropped to the floor. A facing with no
+## horizontal direction (straight up or down, zero or not finite) puts the item down below the
+## eye, at the actor's feet.
 ## Run it after HoldsItem.
 ##
 ## Emits: ItemPlaced (put down, everyone), then the fact item_rested.

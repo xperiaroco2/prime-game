@@ -6,12 +6,16 @@ extends Phase
 ## - `reports_back`: ReturnToLobby reports `back`;
 ## - `go_after_ticks` n: reports `go` on its n-th tick;
 ## - `countdown_ticks` n: announces an end tick n ticks after the entry;
-## - `reports_twice_on_connect`: PeerConnected reports `back` twice (the second is dropped).
+## - `reports_twice_on_connect`: PeerConnected reports `back` twice (the second is dropped);
+## - `reads_undeclared`: SetReady also reads `target`, a field SetReady does not declare (a rule's
+##   bug that Match must record).
 ## It counts its entries, exits and ticks, so a test can see that every entry gets a fresh object.
 
 var entries := 0
 var exits := 0
 var ticks_seen := 0
+## What `reads_undeclared` read: the default, since SetReady declares no `target`.
+var target_read := -1
 
 
 func handled_intents() -> Array[StringName]:
@@ -38,6 +42,7 @@ func check_settings(settings: Dictionary[StringName, float]) -> PackedStringArra
 			&"go_after_ticks": Vector2(0, 1000),
 			&"countdown_ticks": Vector2(0, 1000),
 			&"reports_twice_on_connect": Vector2(0, 1),
+			&"reads_undeclared": Vector2(0, 1),
 		}
 	)
 
@@ -71,8 +76,10 @@ func on_peer_connected(ctx: MatchContext, _peer: int) -> void:
 
 func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 	if command.kind == Intents.HELLO:
-		ctx.state.add_player(command.peer, command.get_string("name", "p%d" % command.peer))
+		ctx.state.add_player(command.peer, "p%d" % command.peer)
 	elif command.kind == Intents.SET_READY:
+		if setting(&"reads_undeclared", 0) > 0:
+			target_read = command.get_int("target")
 		ctx.state.player(command.peer).ready = command.get_bool("ready", true)
 		_check_all_ready(ctx)
 	elif command.kind == Intents.RETURN_TO_LOBBY:

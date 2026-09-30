@@ -12,7 +12,8 @@ extends RefCounted
 ## client tick, so a client sending its physics frame count would run out of credit at once.
 ##
 ## The checks, in order:
-## - Well formed: an int client tick and finite position, velocity and facing (NaN or inf fail).
+## - Well formed: an int client tick, finite position, velocity and facing (NaN or inf fail), and
+##   an int jump count within the wire's u16 (0 to MAX_JUMPS).
 ##   A negative client tick is dropped when below the baseline, like any tick that does not rise,
 ##   and corrected when there is none: a negative claim_tick means "no baseline yet".
 ## - The client tick rises at a bounded rate: a player earns one tick of credit per host tick, keeps
@@ -21,13 +22,17 @@ extends RefCounted
 ##   client's own tick delta, and no claim teleports by inflating it. A claim past its credit is
 ##   corrected and the next one starts a new client-tick baseline, so a client whose ticks ran
 ##   ahead of the host's (the host stalled and lost ticks) is corrected once and goes on.
-## - A jump (`jumped`): WorldQuery finds a floor within step height (+ STEP_CLEARANCE, a ledge
-##   crossing) below the player's last accepted position and, for the living, stamina covers the
-##   jump's cost, settled first: the claim's own ticks with its own flags, then any later ones
-##   (settle_ahead). A ghost's jump costs nothing. The last claim need not say it was on the
-##   floor: claims go at 20 Hz and the client's physics at 60 Hz, so a landing and a jump can
-##   fall in one claim. The take-off is the higher of that floor and the last feet, so the peak
-##   stays bounded.
+## - Jumps (`jumps`, E2): the client's count of jumps since it adopted the epoch (0 after Welcome,
+##   a placement or a Correction), which survives the LATEST lane's merge of claims (§4.3). A count
+##   below the last accepted claim's in the epoch is corrected. A rise d >= 1 is one jump:
+##   WorldQuery finds a floor within step height (+ STEP_CLEARANCE, a ledge crossing) below the
+##   player's last accepted position and, for the living, stamina covers d times the jump's cost,
+##   settled first: the claim's own ticks with its own flags, then any later ones (settle_ahead).
+##   A merged burst of d jumps pays for each but grants one jump height, because the merged
+##   claims' take-offs are lost (accepted in the ADR). A ghost's jumps cost nothing. The last claim
+##   need not say it was on the floor: claims go at 20 Hz and the client's physics at 60 Hz, so a
+##   landing and a jump can fall in one claim. The take-off is the higher of that floor and the
+##   last feet, so the peak stays bounded.
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (sprint in
 ##   the sprint state, for the living only with movement input; else walk; times
 ##   ghost_speed_factor for a ghost), plus, for the living
@@ -63,6 +68,9 @@ const TICK_LEAD := 10
 const MAX_TICK_CREDIT := 200
 ## Its key in MatchState's per-part state (§9.1): the per-player records below.
 const PART_KEY := &"movement"
+## The highest jump count a claim may carry: the wire's `jumps: u16` (§4.3). Core checks it itself
+## (invariant 1), so a count that skipped the codec cannot overflow the stamina cost.
+const MAX_JUMPS := 0xFFFF
 
 
 ## What the checks remember of one player between claims.
@@ -81,6 +89,8 @@ class Motion:
 	## A claim covered more client ticks than its credit: the next claim restarts the client-tick
 	## baseline, so a client whose ticks ran ahead of the host's is corrected once, not forever.
 	var rebase := false
+	## The jump count of the last accepted claim in this epoch.
+	var jumps := 0
 
 
 ## One MoveClaim's fields, read and checked for type and finiteness.
@@ -93,7 +103,8 @@ class Claim:
 	var sprint := false
 	## The player gave movement input.
 	var moving := false
-	var jumped := false
+	## The client's jump count in the epoch (E2).
+	var jumps := 0
 	var on_floor := false
 
 
@@ -101,6 +112,8 @@ class Claim:
 class Checked:
 	extends RefCounted
 	var covered := 0
+	## Jumps the claim adds to the last accepted count: 0, or d >= 1 for one jump allowance.
+	var new_jumps := 0
 	var take_off_y := 0.0
 	## Horizontal metres from the last accepted position.
 	var travel := 0.0
@@ -166,7 +179,12 @@ static func _check(
 	checked.settled = StaminaLedger.simulate(
 		player, rules, ctx.tick, claim.sprint, checked.moved_itself, covered
 	)
-	if claim.jumped:
+	checked.new_jumps = claim.jumps - motion.jumps
+	if checked.new_jumps < 0:
+		# A count that falls within an epoch is no honest client's.
+		return null
+	var jumped := checked.new_jumps > 0
+	if jumped:
 		# The claim's own ticks are settled with its own flags, so a sprint before the jump is paid;
 		# then any ticks up to now with the last claim's (settle_ahead), before the cost is checked.
 		StaminaLedger.commit(player, checked.settled)
@@ -174,13 +192,13 @@ static func _check(
 		var take_off := _floor_under(ctx.world, player.position, rules)
 		if take_off == WorldQuery.NO_FLOOR:
 			return null
-		if not StaminaLedger.covers(player, Ticks.thousandths(rules.jump_cost)):
+		if not StaminaLedger.covers(player, _jumps_cost(rules, checked.new_jumps)):
 			return null
 		checked.take_off_y = maxf(take_off.y, player.position.y)
 	if checked.travel > _allowed_travel(player, rules, covered, checked.settled, claim.moving):
 		return null
-	var jumping := claim.jumped or motion.jumping
-	var base_y := checked.take_off_y if claim.jumped else motion.base_y
+	var jumping := jumped or motion.jumping
+	var base_y := checked.take_off_y if jumped else motion.base_y
 	if claim.position.y - base_y > _allowed_rise(rules, jumping, checked.travel):
 		return null
 	return checked
@@ -192,13 +210,14 @@ static func _accept(
 	ctx: MatchContext, player: PlayerState, motion: Motion, claim: Claim, checked: Checked
 ) -> void:
 	var rules := ctx.state.player_rules
-	if not claim.jumped:
+	if checked.new_jumps == 0:
 		# A jump claim settled its ticks in _check already.
 		StaminaLedger.commit(player, checked.settled)
-	if claim.jumped:
-		StaminaLedger.spend(player, Ticks.thousandths(rules.jump_cost))
+	else:
+		StaminaLedger.spend(player, _jumps_cost(rules, checked.new_jumps))
 		motion.jumping = true
 		motion.base_y = checked.take_off_y
+	motion.jumps = claim.jumps
 	if claim.on_floor:
 		var landing := _floor_under(ctx.world, claim.position, rules)
 		if landing != WorldQuery.NO_FLOOR:
@@ -249,6 +268,11 @@ static func _allowed_travel(
 	return travel + DISTANCE_SLACK_M
 
 
+## The stamina `count` jumps cost, in thousandths.
+static func _jumps_cost(rules: PlayerRules, count: int) -> int:
+	return count * Ticks.thousandths(rules.jump_cost)
+
+
 ## How far above its base the feet of a claim may be.
 static func _allowed_rise(rules: PlayerRules, jumping: bool, travel: float) -> float:
 	if jumping:
@@ -263,11 +287,13 @@ static func jump_slack(rules: PlayerRules) -> float:
 	return rules.capsule_radius_m * (1.0 - cos(FLOOR_MAX_ANGLE)) + STEP_CLEARANCE
 
 
-## The floor WorldQuery finds under feet at `feet`, if it is within step height below them; else
-## NO_FLOOR. Crossing a ledge's edge, the client's feet are up to step height + STEP_CLEARANCE above
-## the lower floor while it counts as grounded (and may jump), so that is the bound.
+## The floor WorldQuery finds under feet at `feet` (the capsule's footprint: stand_floor_below,
+## so a player on a ledge's edge stands on the ledge; E10), if it is within step height below
+## them; else NO_FLOOR. Crossing a ledge's edge, the client's feet are up to step height +
+## STEP_CLEARANCE above the lower floor while it counts as grounded (and may jump), so that is the
+## bound.
 static func _floor_under(world: WorldQuery, feet: Vector3, rules: PlayerRules) -> Vector3:
-	var found := world.floor_below(feet + Vector3.UP * FLOOR_PROBE_M)
+	var found := world.stand_floor_below(feet + Vector3.UP * FLOOR_PROBE_M)
 	var most := rules.step_height_m + STEP_CLEARANCE + HEIGHT_SLACK_M
 	if found == WorldQuery.NO_FLOOR or feet.y - found.y > most:
 		return WorldQuery.NO_FLOOR
@@ -287,6 +313,7 @@ static func _after_placement(
 	motion.base_y = player.position.y
 	motion.jumping = false
 	motion.rebase = false
+	motion.jumps = 0
 	player.on_floor = true
 	player.claim_tick = -1
 	player.sprint_held = false
@@ -298,17 +325,21 @@ static func _after_placement(
 static func _correct(ctx: MatchContext, player: PlayerState, motion: Motion) -> void:
 	player.epoch += 1
 	motion.epoch = player.epoch
+	# The client counts its jumps from 0 again once it adopts the new epoch (§4.3).
+	motion.jumps = 0
 	ctx.emit(CorrectionEvent.new(player.peer, player.epoch, player.position, player.velocity))
 
 
 ## The claim's fields, or null when one is missing, of the wrong type or not finite.
 static func _read(command: MatchCommand) -> Claim:
-	var args := command.args
-	var tick: Variant = args.get("client_tick")
-	var position: Variant = args.get("position")
-	var velocity: Variant = args.get("velocity")
-	var facing: Variant = args.get("facing")
+	var tick: Variant = command.field("client_tick")
+	var position: Variant = command.field("position")
+	var velocity: Variant = command.field("velocity")
+	var facing: Variant = command.field("facing")
+	var jumps: Variant = command.field("jumps")
 	if not (tick is int and position is Vector3 and velocity is Vector3 and facing is Vector3):
+		return null
+	if not jumps is int or jumps < 0 or jumps > MAX_JUMPS:
 		return null
 	var claim := Claim.new()
 	claim.client_tick = tick
@@ -319,7 +350,7 @@ static func _read(command: MatchCommand) -> Claim:
 		return null
 	claim.sprint = command.get_bool("sprint")
 	claim.moving = command.get_bool("moving")
-	claim.jumped = command.get_bool("jumped")
+	claim.jumps = jumps
 	claim.on_floor = command.get_bool("on_floor")
 	return claim
 

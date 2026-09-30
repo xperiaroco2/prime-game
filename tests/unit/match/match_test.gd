@@ -182,6 +182,7 @@ func test_move_claims_of_the_current_epoch_move_the_player() -> void:
 		"velocity": Vector3.ZERO,
 		"facing": Vector3.FORWARD,
 		"client_tick": 4,
+		"jumps": 0,
 	}
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P1, claim)
 	assert_vector(game.state.player(P1).position).is_equal(Vector3(0.1, 0, 0.2))
@@ -222,6 +223,7 @@ func test_a_ghost_may_move_but_not_use() -> void:
 		"velocity": Vector3.ZERO,
 		"facing": Vector3.FORWARD,
 		"client_tick": 1,
+		"jumps": 0,
 	}
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
 	assert_vector(ghost.position).is_equal(to)
@@ -229,13 +231,130 @@ func test_a_ghost_may_move_but_not_use() -> void:
 	assert_array(FixtureModes.notes(game)).contains(["used"])
 
 
+func test_a_hello_the_phase_refuses_from_a_newcomer_is_told_joins_closed_and_disconnected() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1])
+	FixtureModes.send(game, Intents.PEER_CONNECTED, P3)
+	# A newcomer still waiting in a phase that takes no Hello (a mode whose phases do not drop
+	# newcomers the way the base mode's Loading does).
+	game.state.newcomers[P3] = true
+	var hello := {"version": JoinRules.PROTOCOL_VERSION, "content": 0}
+	FixtureModes.send(game, Intents.HELLO, P3, hello, 1)
+	assert_array(FixtureModes.rejections(game, P3)).is_equal([&"joins_closed"])
+	var last := game.emitted()[game.emitted().size() - 1]
+	assert_str(last.event.event_name()).is_equal("DisconnectPeer")
+	assert_bool(last.is_directive).is_true()
+	assert_bool(game.state.newcomers.has(P3)).is_false()
+	assert_array(game.view_of(P3).event_names()).is_equal([&"Rejected"])
+
+
+func test_a_hello_the_phase_refuses_from_a_player_is_not_accepted_and_nobody_leaves() -> void:
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	var emitted_before := game.emitted().size()
+	var hello := {"version": JoinRules.PROTOCOL_VERSION, "content": 0}
+	FixtureModes.send(game, Intents.HELLO, P2, hello, 6)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	assert_int(game.emitted().size()).is_equal(emitted_before + 1)
+	assert_array(game.state.present_peers()).is_equal([P1, P2])
+
+
+func test_a_move_claim_the_phase_refuses_is_dropped_without_a_rejected() -> void:
+	var game := FixtureBaseMode.in_loading([P1, P2])
+	var player := game.state.player(P2)
+	var was_at := player.position
+	var emitted_before := game.emitted().size()
+	var claim := {
+		"epoch": player.epoch,
+		"client_tick": 200,
+		"position": was_at + Vector3(0.1, 0, 0),
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"jumps": 0,
+	}
+	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
+	assert_int(game.emitted().size()).is_equal(emitted_before)
+	assert_vector(player.position).is_equal(was_at)
+	# It is still in the command log, like every command.
+	assert_str(game.command_log.commands.back().kind).is_equal(Intents.MOVE_CLAIM)
+
+
+func test_the_world_is_told_the_level_on_start_and_before_each_rows_actions() -> void:
+	var mode := FixtureModes.basic()
+	mode.transitions[0].actions.push_front(FixtureAskFloor.new())
+	var world := FixtureLevelWorld.new()
+	var game := Match.new(mode, 7, world, FixtureModes.layouts())
+	game.start(0)
+	assert_array(Array(world.calls)).is_equal(["use_level %s" % FixtureModes.LOBBY])
+	FixtureModes.send(game, Intents.HELLO, P1, {"version": JoinRules.PROTOCOL_VERSION})
+	FixtureModes.send(game, Intents.SET_READY, P1, {"ready": true})
+	assert_str(game.phase_id()).is_equal("round")
+	var into_round: Array[String] = [
+		"use_level %s" % FixtureModes.LOBBY, "use_level %s" % FixtureModes.MAP, "floor_below"
+	]
+	assert_array(Array(world.calls)).is_equal(into_round)
+	# Not an answer: the command log holds only the floor, and a replay asks the same.
+	assert_int(game.command_log.world_answers.size()).is_equal(1)
+	var replayed := Match.replay(game.command_log, mode)
+	assert_array(Array(replayed.diagnostics)).is_empty()
+	assert_array(FixtureModes.describe(replayed)).is_equal(FixtureModes.describe(game))
+	# The crew wins: the round's row enters End (the map); the host goes back to the lobby, where
+	# the ready player goes on to a new round.
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	game.state.set_counter(0, &"crew_win", 0)
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	var calls_after_round: Array[String] = [
+		"use_level %s" % FixtureModes.MAP,
+		"use_level %s" % FixtureModes.LOBBY,
+		"use_level %s" % FixtureModes.MAP,
+		"floor_below",
+	]
+	assert_array(Array(world.calls).slice(into_round.size())).is_equal(calls_after_round)
+
+
+func test_errors_in_a_rows_actions_are_counted_and_others_are_not() -> void:
+	var mode := FixtureModes.basic()
+	var error := FixtureError.new()
+	error.text = "the deal could not place its tasks"
+	mode.transitions[0].actions.push_front(error)
+	var game := FixtureModes.started(mode, [P1])
+	assert_int(game.row_error_count()).is_equal(0)
+	# An error outside a row: logged, not counted.
+	game.apply(MatchCommand.new(Intents.FORCE_ROLE, P1, game.ticked_through() + 1, {"role": "x"}))
+	assert_int(game.diagnostics.size()).is_equal(1)
+	assert_int(game.row_error_count()).is_equal(0)
+	FixtureModes.send(game, Intents.SET_READY, P1, {"ready": true})
+	assert_str(game.phase_id()).is_equal("round")
+	assert_int(game.row_error_count()).is_equal(1)
+	assert_str(game.diagnostics[-1]).contains("the deal could not place its tasks")
+	assert_str(game.diagnostics[-1]).contains("row lobby, all_ready")
+
+
+func test_a_rule_reading_a_field_its_intent_does_not_declare_is_a_match_error() -> void:
+	# §4.4: the read gives the default, and Match records it in diagnostics (once per field and
+	# command), so the bots runner and a test see it; it is not a row error.
+	var mode := FixtureModes.basic()
+	mode.find_phase(&"lobby").settings[&"reads_undeclared"] = 1.0
+	var game := FixtureModes.started(mode, [P1, P2])
+	assert_array(Array(game.diagnostics)).is_empty()
+	FixtureModes.send(game, Intents.SET_READY, P1, {"ready": true, "target": 2})
+	assert_bool(game.state.player(P1).ready).is_true()
+	assert_int((game.current_phase() as FixturePhase).target_read).is_equal(0)
+	assert_int(game.diagnostics.size()).is_equal(1)
+	assert_str(game.diagnostics[0]).contains("SetReady from peer 1: a rule read field target")
+	assert_int(game.row_error_count()).is_equal(0)
+
+
 func test_a_player_who_left_is_heard_by_no_rule_and_told_nothing() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	var left := game.state.player(P2)
 	var was_at := left.position
 	left.life = PlayerState.Life.LEFT
+	var emitted_before := game.emitted().size()
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, {"epoch": left.epoch, "position": Vector3.ONE})
 	assert_vector(left.position).is_equal(was_at)
+	# A refused MoveClaim is dropped without a Rejected (E15).
+	assert_int(game.emitted().size()).is_equal(emitted_before)
+	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 4)
 	var last := game.emitted()[game.emitted().size() - 1]
 	assert_str(last.event.event_name()).is_equal("Rejected")
 	assert_array(Array(last.recipients)).is_empty()
