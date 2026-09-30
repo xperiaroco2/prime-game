@@ -593,9 +593,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - Existing work: "start task 42". A new idea (designer): "нова механіка: …" → `new-mechanic`.
 - Issues contain: the goal, acceptance criteria as a checklist, what is out of scope, and the expected verification
   (screenshot, bot scenario or playtest).
-- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7), or, naming a stage or a list of
-  issues, the orchestrator session (§7.1); "just do it" → small,
-  obvious changes only.
+- Size words: "plan first" → plan mode, then wait; "ultracode: …" → a bounded workflow (§7), or, naming a stage or
+  a list of issues, the orchestrator session (§7.1); "just do it" → small, obvious changes only.
 - Dictation: say the issue number and describe the thing; the agent reads the file name back before editing and asks
   one short question only if a misreading would change what gets built. The glossary in root `CLAUDE.md` grows from
   real misrecognitions.
