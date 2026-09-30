@@ -34,8 +34,9 @@ language; the repo and the issues are English.
 3. **Map it to engine parts** from §9: a rule (trigger → conditions and costs → effects) and its owner (an item
    kind, a role or the game mode), a task type with its station kind, or a win condition. Note for each part the
    events it emits, who sees them, and what a refusal tells the sender. For each part that does not exist, draft
-   an `engine-request` from `.github/ISSUE_TEMPLATE/engine-request.md` with the spec `content/CLAUDE.md` asks for. If the idea would change how the engine works rather than add a part, say so in
-   the request: the engineer decides.
+   an `engine-request` from `.github/ISSUE_TEMPLATE/engine-request.md` with the spec `content/CLAUDE.md` asks
+   for. If the idea would change how the engine works rather than add a part, say so in the request: the engineer
+   decides.
 4. **Stop for OK.** Show the designer the exact texts: the `mechanic` issue and each `engine-request`. Change them
    until the designer says yes. Only then create them, in this order, with bodies from scratchpad files:
    - `gh issue create --title "<mechanic>" --label area:content --body-file <file>`;
