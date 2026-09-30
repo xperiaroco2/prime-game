@@ -244,18 +244,20 @@ Hooks live in `.claude/settings.json` and run in Git Bash through `.claude/hooks
 a crash, or any exit code other than 0 and 2 becomes exit 2, which blocks the call. A hook that cannot start, or
 that times out, fails open: `doctor` is red when Git Bash is missing.
 
-The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It only asks before **shell commands
-that write to the ask-protected paths** of this project (top-level `.claude/settings*.json` and `addons/`, of the
-main checkout or a worktree): `Copy-Item`, `Move-Item`, `Set-Content`, `Out-File`, `>`, `tee`, `cp`, `mv`, `rm`,
-`sed -i`, archive extraction, downloads, `git checkout|restore|rm|mv|clean|stash` naming those paths, paths fed by a
+The guard is a PreToolUse hook on `Bash|PowerShell`, with no network calls. It asks before three kinds of shell
+command: those that lose work outside the session's own worktree and task branch, `gh` commands that may write to
+another repository (both below), and **shell commands that write to the ask-protected paths** of this project
+(top-level `.claude/settings*.json` and `addons/`, of the main checkout or a worktree): `Copy-Item`, `Move-Item`,
+`Set-Content`, `Out-File`, `>`, `tee`, `cp`, `mv`, `rm`, `sed -i`, archive extraction, downloads, `git checkout|restore|rm|mv|clean|stash` naming those paths, paths fed by a
 pipeline (`Get-ChildItem addons | Remove-Item`, `| xargs rm`), `for` loops over them, `bash -c`, `powershell -Command`
 and `$(...)` bodies, and the inline code of interpreters and .NET calls (`python -c`, a heredoc fed to Python,
 `node -e`, `[IO.File]::WriteAllText`). Text rules cannot see these writes: Claude Code checks a redirect or `tee`
 target against Edit allow and deny rules, not ask rules. The file tools need no guard, because `Edit(...)` rules
 cover Edit, Write and NotebookEdit.
 
-It also judges commands that lose work by where they act, where a text rule would stop an unattended agent for
-its own scratch folder (issue #47) or its own worktree (issue #51):
+It also judges two kinds of command by what they act on, where a text rule would stop an unattended agent: commands
+that lose work, by where they act (its own scratch folder, issue #47, or its own worktree, issue #51), and `gh`
+commands, by the repository they name (issue #68, a read of another repository must not stop it):
 - **The session's own worktree and task branch are free** (issue #51,
   [intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)). The own worktree is the
   `.claude/worktrees/<n>` that the session's working directory is in; a session whose shell starts in the main
@@ -328,8 +330,8 @@ its own scratch folder (issue #47) or its own worktree (issue #51):
   `hooks.GitFiles`, any spelling) are not another repository. Reads: `issue view|list|status`,
   `pr view|list|diff|checks|status`, `release view|list|verify|verify-asset`, `repo view|list|clone`,
   `run view|list|watch`, `workflow view|list`, `label list`, `cache list`, `ruleset view|list|check`, every `gh search`,
-  and `gh api` GET or HEAD (no `-X` and no `-f`, `-F` or `--input` field, which make it a POST). Everything else there
-  asks, `gh issue create --repo godotengine/godot` included. The values of text options (`--body`, `--title`, `-f`,
+  and `gh api` GET or HEAD (`-X GET|HEAD`, or no `-X` and no `-f`, `-F` or `--input` field: fields without `-X`
+  make it a POST). Everything else there asks, `gh issue create --repo godotengine/godot` included. The values of text options (`--body`, `--title`, `-f`,
   `--jq`) never name the repository, and an option is never taken as the value of another one
   (`gh pr create -d -R x/y`). A value it cannot compute (`$env:GH_REPO = (Get-Content f)`, `-R "$R"`) counts as another
   repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a `gh` command run in a clone
