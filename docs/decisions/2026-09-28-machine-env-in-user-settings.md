@@ -22,3 +22,7 @@ approvals only and is gitignored.
   removed from the index and ignored.
 - The `language` setting took effect in the running session. A fresh session confirmed that it sees `env` from user
   settings (checked by the engineer, 2026-09-28).
+- Only Claude Code sees this `env`: on 2026-09-30 the engineer's own PowerShell found no Godot for a playtest command.
+  Since #55 the task runner fills each machine path the process environment lacks from the `env` of the project's
+  `.claude/settings.local.json`, then of the user settings (Claude Code's order of precedence), and `doctor` says
+  where each path came from. The process environment still wins; the Windows user environment stays unneeded.

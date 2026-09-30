@@ -27,3 +27,8 @@ runner needs Godot to start before it can report that Godot is missing or the wr
 Deviates from KICKOFF §4's `.ps1` example. Root `CLAUDE.md` names the exact spellings: `tools\run.cmd <command>` in
 PowerShell, `tools/run.sh <command>` in Bash. Research: `docs/history/2026-09-28-phase-a/AGENT_WORKFLOW-proposal.md`
 §8.2.
+
+Since #55, `tools\run.cmd` without `PYTHON_BIN` in its environment first asks PowerShell for the `PYTHON_BIN` in the
+`env` of the Claude settings (an inline `-Command`, which no execution policy blocks; it starts only in a terminal that
+lacks the variable), then falls back to the `py` launcher. `tools/run.sh` is unchanged: sessions and CI have
+`PYTHON_BIN` or a working `python3`.

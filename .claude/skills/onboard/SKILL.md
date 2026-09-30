@@ -30,7 +30,8 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
      `--version`.
    - `"language"`: the language they want Claude to answer in (ask). `"permissions": {"defaultMode": "acceptEdits"}`.
    - Show the whole resulting file and ask for approval. Write it only after a clear yes (Claude Code asks again for
-     settings files: that prompt is expected). `env` takes effect in the next session.
+     settings files: that prompt is expected). `env` takes effect in the next session; `tools\run.cmd` reads it
+     in their own PowerShell too, so they set no Windows environment variables.
 5. **Tools.** gdtoolkit missing or wrong: with their OK, `"<PYTHON_BIN>" -m pip install gdtoolkit==<version>`, the
    version from `tools\run.cmd pins --get gdtoolkit`. Git LFS: `git lfs install --skip-repo` only. With
    `core.hooksPath` set, a plain `git lfs install` or `git lfs update` stops with "Hook already exists" (exit 2) and
