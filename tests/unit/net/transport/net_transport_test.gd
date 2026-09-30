@@ -303,6 +303,20 @@ func test_a_leave_and_a_join_in_between_keep_both_connections_messages() -> void
 	)
 
 
+func test_a_leave_keeps_the_last_pose_of_the_connection_that_left() -> void:
+	var host := _host_with([5])
+	var counter := Counter.new(host)
+	# The pose after the leave comes from no connected peer: it is rejected, so it must not merge
+	# away the one before, the last this connection sent.
+	host.queue_message(5, POSE, PackedByteArray([1]))
+	host.queue(NetTransport.Inbound.Type.LEFT, 5)
+	host.queue_message(5, POSE, PackedByteArray([2]))
+	host.poll()
+	assert_array(counter.events).is_equal(["packet 5:%d:1" % POSE, "left 5"])
+	assert_int(host.rejects.of_reason(NetRejects.Reason.UNKNOWN_PEER)).is_equal(1)
+	assert_int(host.latest_superseded).is_equal(0)
+
+
 func test_a_state_that_overtook_the_admit_is_rejected_not_counted_as_merged() -> void:
 	var client := ScriptedTransport.new(_kinds)
 	client.join("somewhere", 1)
