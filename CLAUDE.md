@@ -124,9 +124,10 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - Deciding anything reserved for the humans (the items above, final game content, a milestone's goal, a
   go/no-go): batch such questions into one, with options and a recommendation.
 <!-- see docs/interventions/2026-09-28-engineer-phase-a-workflow-unbounded.md -->
-- Launching a workflow: state the agent count (fewer than 5) and a rough cost, then wait for a yes. Every workflow
-  prompt states its bounds: max agents, max turns or tool calls per agent, a time or token budget, and what to drop
-  first. "ultracode" alone never approves exceeding the size guideline.
+- Launching a workflow: state the agent count (fewer than 5) and a rough cost, then wait for a yes; an
+  `orchestrate-stage` kickoff approves its stage's task workflows once, after the manager's restatement (§7.1).
+  Every workflow prompt states its bounds: max agents, max turns or tool calls per agent, a time or token budget,
+  and what to drop first. "ultracode" alone never approves exceeding the size guideline.
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
 - Adding a permission ask or deny rule: first check "can an agent work alone overnight?". Routine work (status reads,
   branches, commits, task-branch pushes, issues, PRs, tooling edits, scratch cleanup) must not prompt.

@@ -10,8 +10,8 @@ started each task's worktree, launched one workflow per issue (implementer, fres
 three at a time, relayed "Needs the engineer" questions, rebased open PRs after each merge and reported on #30. The
 engineer only merged and answered. About 20 workflows ran that day (stage 2's ten issues, fillers and follow-ups),
 25 to 60 minutes and 450k to 900k subagent tokens each. The engineer asked to keep the method and to run M3 the same
-way in a new session. The effort ADR ([2026-09-28](2026-09-28-effort-and-workflow-bounds.md)) had assumed one
-workflow per stage with human review between stages.
+way in a new session. This ADR amends the effort ADR ([2026-09-28](2026-09-28-effort-and-workflow-bounds.md)),
+which prescribed one workflow per stage with human review between stages and a yes before each launch.
 
 ## Decision
 - A stage (or a list of issues) is run by one **manager session** in ultracode, following the project skill
@@ -24,7 +24,10 @@ workflow per stage with human review between stages.
   [no-framework ADR](2026-09-28-no-workflow-framework.md) holds: moving state stays in GitHub.
 - The humans keep the gates: they merge, answer the batched questions and write the kickoff. The manager never
   merges, never closes issues and never edits the plan issue's body.
-- The size guideline stays `small` in shared settings; a kickoff approves the larger task workflows explicitly.
+- The size guideline stays `small` in shared settings. The kickoff approves the larger task workflows and the
+  stage's cost once: the manager restates the waves, the agent count per workflow and the rough cost, waits for the
+  human's yes, and then does not ask before each `issue-task` or `pr-rebase` run. This amends the effort ADR's "a
+  yes before each launch" for these workflows only (root `CLAUDE.md`, `docs/AGENT_WORKFLOW.md` §7).
 
 ## Alternatives
 - **One big workflow per stage** (the 2026-09-28 ADR's model): no mid-run human input, so the engineer's answers

@@ -173,7 +173,8 @@ Rules for every workflow run:
 - Every workflow prompt states its bounds: max agents, max turns or tool calls per agent, a wall-clock or token
   budget, and what to drop first when the budget runs out.
 - Before launching, the agent states the planned agent count and a rough cost, and waits for a yes. Exceeding the
-  size guideline needs the human's explicit approval in that same message; "ultracode" alone does not count.
+  size guideline needs the human's explicit approval in that same message, or in a §7.1 stage kickoff, which
+  approves the stage's task workflows once; "ultracode" alone does not count.
 - A run never decides a human-reserved item; it records options and a recommendation and continues.
 - Temporary files go only to the session's scratchpad or, when they must be under `res://` (a probe test), to the
   gitignored `tests/scratch/` of the checkout the agent works in; deleting either never prompts (§8.2). Inside its
