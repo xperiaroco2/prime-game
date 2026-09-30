@@ -16,11 +16,12 @@ extends RefCounted
 ##   corrected and the next one starts a new client-tick baseline, so a client whose ticks ran
 ##   ahead of the host's (the host stalled and lost ticks) is corrected once and goes on.
 ## - A jump (`jumped`): WorldQuery finds a floor within step height (+ STEP_CLEARANCE, a ledge
-##   crossing) below the player's last
-##   accepted position and, for the living, stamina covers the jump's cost, settled first
-##   (settle_ahead). A ghost's jump costs nothing. The last claim need not say it was on the floor:
-##   claims go at 20 Hz and the client's physics at 60 Hz, so a landing and a jump can fall in one
-##   claim. The take-off is the higher of that floor and the last feet, so the peak stays bounded.
+##   crossing) below the player's last accepted position and, for the living, stamina covers the
+##   jump's cost, settled first: the claim's own ticks with its own flags, then any later ones
+##   (settle_ahead). A ghost's jump costs nothing. The last claim need not say it was on the
+##   floor: claims go at 20 Hz and the client's physics at 60 Hz, so a landing and a jump can
+##   fall in one claim. The take-off is the higher of that floor and the last feet, so the peak
+##   stays bounded.
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (sprint in
 ##   the sprint state, else walk; times ghost_speed_factor for a ghost), plus, for the living
 ##   only, sprint speed for being pushed (§7.1 "Pushing apart", proposed for M4), plus
@@ -148,14 +149,6 @@ static func _check(
 	var rules := ctx.state.player_rules
 	var checked := Checked.new()
 	checked.covered = covered
-	if claim.jumped:
-		StaminaLedger.settle_ahead(player, rules, ctx.tick)
-		var take_off := _floor_under(ctx.world, player.position, rules)
-		if take_off == WorldQuery.NO_FLOOR:
-			return null
-		if not StaminaLedger.covers(player, Ticks.thousandths(rules.jump_cost)):
-			return null
-		checked.take_off_y = maxf(take_off.y, player.position.y)
 	checked.travel = (
 		Vector2(claim.position.x - player.position.x, claim.position.z - player.position.z).length()
 	)
@@ -163,6 +156,17 @@ static func _check(
 	checked.settled = StaminaLedger.simulate(
 		player, rules, ctx.tick, claim.sprint, checked.moved_itself, covered
 	)
+	if claim.jumped:
+		# The claim's own ticks are settled with its own flags, so a sprint before the jump is paid;
+		# then any ticks up to now with the last claim's (settle_ahead), before the cost is checked.
+		StaminaLedger.commit(player, checked.settled)
+		StaminaLedger.settle_ahead(player, rules, ctx.tick)
+		var take_off := _floor_under(ctx.world, player.position, rules)
+		if take_off == WorldQuery.NO_FLOOR:
+			return null
+		if not StaminaLedger.covers(player, Ticks.thousandths(rules.jump_cost)):
+			return null
+		checked.take_off_y = maxf(take_off.y, player.position.y)
 	if checked.travel > _allowed_travel(player, rules, covered, checked.settled):
 		return null
 	var jumping := claim.jumped or motion.jumping
@@ -178,7 +182,9 @@ static func _accept(
 	ctx: MatchContext, player: PlayerState, motion: Motion, claim: Claim, checked: Checked
 ) -> void:
 	var rules := ctx.state.player_rules
-	StaminaLedger.commit(player, checked.settled)
+	if not claim.jumped:
+		# A jump claim settled its ticks in _check already.
+		StaminaLedger.commit(player, checked.settled)
 	if claim.jumped:
 		StaminaLedger.spend(player, Ticks.thousandths(rules.jump_cost))
 		motion.jumping = true

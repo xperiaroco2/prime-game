@@ -502,7 +502,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   `PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina
   (`StaminaLedger`, 2d) counts the same way: a claim says whether movement input was held (`moving`). Before a
   jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint state and movement-input
-  flag, so an idle player is not refused on stale stamina; a later claim settles only what is left. The sprint state
+  flag, so an idle player is not refused on stale stamina; a later claim settles only what is left. A jump claim
+  first settles its own covered ticks with its own flags, so a sprint that ends in a jump is paid. The sprint state
   (Q7) starts when the claim holds the sprint flag and stamina is at least the start threshold, and lasts while the flag
   is held and stamina is above 0. An accepted jump or hit costs its amount at once. The allowed horizontal speed is the
   sprint speed in the sprint state, else the walk speed, plus the push allowance (Pushing apart below), measured over

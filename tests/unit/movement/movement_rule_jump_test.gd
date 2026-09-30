@@ -111,6 +111,22 @@ func test_a_jump_needs_its_full_cost_settled_up_to_now() -> void:
 	assert_bool(last.sprint_available).is_false()
 
 
+func test_a_jump_claim_pays_for_the_sprint_it_covers() -> void:
+	var game := _round()
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	# The last claim stood still without sprint; nine host ticks later one jump claim covers ten
+	# client ticks of sprinting 0.35 m each. Its own ticks are settled with its own flags: ten
+	# sprint ticks (10 * 1000), then the jump (10000).
+	FixtureModes.run_ticks(game, 9)
+	var fields := _air({"jumped": true})
+	fields.merge(FixtureMoves.sprinting())
+	FixtureMoves.step(game, P1, Vector3(3.5, 0.1, 0), fields)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_int(player.stamina).is_equal(80000)
+
+
 func test_a_ghost_jumps_without_stamina_and_no_higher() -> void:
 	var game := _round()
 	var ghost := game.state.player(P1)
