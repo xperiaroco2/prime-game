@@ -37,8 +37,10 @@ func test_reset_match_clears_the_match_and_drops_who_left() -> void:
 		assert_str(player.role).is_empty()
 		assert_int(player.life).is_equal(PlayerState.Life.ALIVE)
 		assert_int(player.held_item).is_equal(-1)
-		assert_int(player.health).is_equal(Ticks.thousandths(state.player_rules.health))
-		assert_int(player.stamina).is_equal(Ticks.thousandths(state.player_rules.stamina))
+		assert_int(player.health).is_equal(100000)
+		assert_int(player.stamina).is_equal(100000)
+		assert_bool(player.sprint_held).is_false()
+		assert_bool(player.moving).is_false()
 	assert_int(state.player(P1).epoch).is_equal(epoch)
 	assert_int(state.add_item(ItemKind.new(), Vector3.ZERO).id).is_equal(1)
 	assert_int(state.add_task(P1, FixtureTaskType.new()).id).is_equal(1)
@@ -61,7 +63,7 @@ func test_part_state_is_made_once_per_key() -> void:
 ## cooldown and a counter; items, tasks, stations, a body, the clock and a winner set.
 func _played_state() -> MatchState:
 	var state := MatchState.new(5)
-	state.player_rules = PlayerRules.new()
+	state.player_rules = FixtureModes.player_rules()
 	for peer: int in [P1, P2, P3]:
 		state.add_player(peer, "p%d" % peer)
 	var p1 := state.player(P1)
@@ -69,6 +71,8 @@ func _played_state() -> MatchState:
 	p1.role = &"dissident"
 	p1.health = 1
 	p1.stamina = 2
+	p1.sprint_held = true
+	p1.moving = true
 	p1.epoch = 4
 	state.player(P2).life = PlayerState.Life.LEFT
 	var p3 := state.player(P3)
