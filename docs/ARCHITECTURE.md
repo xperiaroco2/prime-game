@@ -607,22 +607,28 @@ host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tic
 
 | # | What | Why |
 |---|---|---|
-| 1 | **Catch up.** t = the tick of now. Every tick from `ticked_through() + 1` to t − 1 runs with no command (`Match.tick`), and its outbox is delivered (5) | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
+| 1 | **Catch up.** t = the tick of now. If the queue holds commands read in an earlier step (no tick was due then), they are applied first, stamped with `ticked_through() + 1`, and that tick runs. Then every tick up to t − 1 runs with no command (`Match.tick`). After each tick its outbox is delivered (5) and the voice routing table is refreshed | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
 | 2 | **Refill** every peer's budgets for the host time since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
 | 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
 | 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
-| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order; a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
-| 6 | **Snapshots**, when a tick ran in this step: for each present player p, `snapshot_for(p)`; empty means the phase sends none; else `{tick: t, avatars}` (§4.3) to p on LATEST, after the tick's events. Then the voice routing table is refreshed (below) | A client sees a tick's events before its snapshot (both on channel 0). Catch-up ticks send none: only the newest state counts |
+| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
+| 6 | **Snapshots**, when a tick ran in this step: for each present player p, `snapshot_for(p)`; empty means the phase sends none; else `{tick: t, avatars}` (§4.3) to p on LATEST, after the tick's events. The voice routing table is refreshed after every `Match.tick` call, in step 1 as here (below) | A client sees a tick's events before its snapshot (both on channel 0). Catch-up ticks send none: only the newest state counts |
 | 7 | **Deadlines.** A peer connected longer than the hello deadline (10 s, a placeholder, "not a decision") with no `Welcome` sent to it is disconnected (`disconnect_peer`) | Checked after 4, so a `Hello` that waited out a host freeze is applied first. 10 s outlasts a 5 s freeze of either side. The late `PeerLeft` is a newcomer's, which `core/` forgets (§3.5) |
 
+So a command is stamped with the tick that was due when the host read it, and the replay's order is the queue's.
 Accepted in step 1: a command that waited in the socket during a host freeze is stamped when the host reads it, so a
 `SetReady(false)` or a `LoadAck` sent during the freeze can lose to the countdown's end or the loading deadline.
 
-**Voice relay.** The routing table holds `speakers_for(l)` for every present player l, refreshed after every tick
-(catch-up ticks included), so between two ticks it is the routing that `view_of` records for the last one (§5). A
-`VoiceUp` from speaker s goes, as a `VoiceDown` (s, the stream's next seq, `ticked_through()`, the bytes unchanged),
-to each listener l ≠ s whose entry holds s; one from a peer that is not a present player is dropped. The seq is
-renumbered per speaker and listener, so a listener cannot tell how much s sent to others (§6); the speaker's own seq
+**Voice relay.** The routing table holds `speakers_for(l)` for every present player l, refreshed after every
+`Match.tick` call (catch-up ticks included: a catch-up that crosses Round → End must not relay under Round's routing),
+so between two ticks it is the routing that `view_of` records for the last one (§5). A `VoiceUp` from speaker s goes, as
+a `VoiceDown` (s, the stream's next seq, `ticked_through()`, the bytes unchanged), to each listener l ≠ s whose entry
+holds s; one from a peer that is not a present player is dropped. Between two ticks the transport's word on a leave
+wins: on `peer_left(p)`, p leaves the table at once as speaker and listener until the refresh after the tick that
+applied its `PeerLeft`. Peer ids are chosen by clients and can be reused (§4), so a new connection with a departing
+player's id must not speak or hear as that player before `core/` has seen the leave; the new peer is a newcomer, absent
+from `speakers_for`, until its `Hello` is accepted. 3f tests a leave and a join with one id between two ticks. The seq
+is renumbered per speaker and listener, so a listener cannot tell how much s sent to others (§6); the speaker's own seq
 only orders one poll's frames. After a freeze of the host or of the speaker, at most the newest 5 frames (100 ms; a
 placeholder) per speaker in one poll are relayed and the older ones dropped and counted: 5 s of backlog played late is
 worse than a gap (M5 tunes it). Unreliable messages go only to players, and a player has sent its `Hello`, so none
@@ -641,6 +647,9 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   log line that names the peer and the reasons. An honest client of the same version sends none, and the margin covers
   a rare corrupted packet. A `Rejected` from `core/` (a swing `too_soon`) is a rule's answer, not a malformed packet,
   and is not counted. 3f gives `server/` the transport's rejects per peer (they are counted in `NetRejects` today).
+- The host's own client (peer 1) is exempt from the budgets, the malformed-packet disconnect and the hello deadline:
+  the transport refuses `disconnect_peer(1)` (§4). A codec bug that makes peer 1's messages malformed logs an error
+  at the threshold and ends the session (3f tests it).
 - The counters join the transport's summary line (at most one per 10 s, §4).
 
 **Loading a level and `LoadAck`.**

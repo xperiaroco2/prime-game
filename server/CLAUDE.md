@@ -34,23 +34,28 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 
 ## The host session (M3 design, proposed: `docs/ARCHITECTURE.md` §4.5)
 - Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
-  behind for good after a freeze. Each physics step, in order: run the ticks a freeze skipped, with no commands; refill
-  the per-peer budgets; poll; apply the queued commands stamped with the due tick, then `Match.tick`; deliver the
-  outbox; send the snapshots; check the hello deadlines. Catching up before applying is what lets the first claim
-  after a host freeze pass (#84).
+  behind for good after a freeze. Each physics step, in order: apply commands left from an earlier step at the next
+  tick, then run the ticks a freeze skipped with no commands; refill the per-peer budgets; poll; apply the queued
+  commands stamped with the due tick, then `Match.tick`; deliver the outbox; send the snapshots; check the hello
+  deadlines. Deliver the outbox and refresh the voice routing after every `Match.tick` call, catch-up ticks
+  included. Catching up before applying is what lets the first claim after a host freeze pass (#84).
 - One queue by arrival: the transport's signal order, the loopback's messages and the network's alike. Stamp a
   command when it is applied, with the tick it is applied on.
-- Encode an event once and send it to each recipient in turn. Carry out a directive where it stands in the outbox.
+- Encode an event once and send it to each recipient in turn, skipping peers this session already disconnected. Carry
+  out a directive where it stands in the outbox.
 - Snapshots: only for a tick run in this step (never for catch-up ticks), to present players, after that tick's
   events; an empty `snapshot_for` sends nothing. Unreliable messages go only to players: a player has sent its
   `Hello`, so nothing overtakes the transport's `ADMIT`.
 - Voice: relay a `VoiceUp` at once, along the routing table refreshed after every tick, as a `VoiceDown` with the
   stream's own seq (per speaker and listener; never the speaker's) and `ticked_through()`. Never decode Opus. Drop
-  frames from a peer that is not a present player; after a freeze relay only the newest few per speaker.
+  frames from a peer that is not a present player; after a freeze relay only the newest few per speaker. On
+  `peer_left(p)` drop p from the relay at once, as speaker and listener: ids are reused.
 - Budgets per peer (bytes, reliable intents) are refilled before the poll; a message over one is dropped before
   decoding and counted, and nobody is disconnected for its rate. A peer that keeps sending malformed messages is
   disconnected with one log line (the threshold: §4.5). A `Rejected` from `core/` is not malformed.
 - The hello deadline: a peer that has had no `Welcome` 10 s after it connected is disconnected.
+- Peer 1 (the host's own client) is exempt from budgets, the malformed disconnect and the hello deadline: never
+  `disconnect_peer(1)`; a broken own client ends the session.
 - `WorldQuery`: per level a `World3D.new()` holding the level's static colliders (layer 1) through `PhysicsServer3D`,
   built when the session starts; the level is the one `Match` names (`use_level`). Never the client's scene.
 - The session seed comes from `Crypto.generate_random_bytes`. The seed and the command log never leave the host.
