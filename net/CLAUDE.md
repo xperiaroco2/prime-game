@@ -36,8 +36,30 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - Every schema change updates the protocol section of `docs/ARCHITECTURE.md` in the same PR.
 - No game rules here. If a message handler starts deciding outcomes, the decision belongs in `core/`.
 
+## Messages (M3 design, proposed: `docs/ARCHITECTURE.md` §4.3, §4.4)
+- One declarative table in `messages/` holds every row (kind, name, direction, lane, cap, fields with wire types);
+  `NetKindTable.game()` is built from it. Field names are `core/`'s (`MatchCommand.args`, each event's `to_dict()`),
+  written as strings: `net/` references no `core/` class.
+- Wire types only (§4.3): little-endian integers, `f32` for every float (lossless for `Vector3` and `Color`), ids of
+  `a-z 0-9 _`, `res://` paths, printable-ASCII text and notes (shortfalls), counted lists and maps with ascending
+  keys. Never `var_to_bytes` or `bytes_to_var` on the wire, even without objects. Content sets how big some kinds
+  get: `WireBudget` (`server/`) refuses a mode that could exceed a cap (§4.3, E16).
+- Decode through the bounds-checked reader only: check the bytes left before every `decode_*`, reject the whole
+  message at the first problem (a type rule, a count, a key order, unknown flag bits, trailing bytes), and count it.
+- The encoder checks its input by the same rules and refuses, with an error, what the decoder would reject or what
+  exceeds the cap; it never truncates.
+- Rows 1 (`Hello`: C→H, RELIABLE, its version first, cap 8192) and 32 (`Rejected`: H→C, RELIABLE, cap 37) never
+  change, cap and lane included. A `Hello` of another version decodes to its version alone, whatever its length. Any
+  other change to a row bumps the protocol version, which equals `core/`'s `JoinRules.PROTOCOL_VERSION` (a test pins
+  them).
+- A kind sent only on change (`SelfStatus`) is RELIABLE: on LATEST a lost last change stays stale for good.
+- Debug commands (kinds 24 to 31, `ForceRole`) are rows of a debug build's table only: a release build neither sends
+  nor decodes them (§4.3, E17).
+
 ## Tests
-- Round-trip tests for every schema (serialize, deserialize, compare) in `tests/unit/`.
+- Round-trip tests for every schema (serialize, deserialize, compare) in `tests/unit/`, a fuzz test of every decoder
+  (truncations, single-byte changes, random payloads: a clean reject and no engine error line), and the table
+  checked against `core/`'s intents and events (§4.4).
 - Host plus clients on one machine in `tests/integration/` and the bot harness (`bots`, once it exists). Layers
   above `net/` test with a `LoopbackHub`; ENet itself with the headless run
   `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3` (127.0.0.1 only),
