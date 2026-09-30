@@ -439,8 +439,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `client`, the engineer's choice on 2026-09-29), and `blocked`, `needs-design`, `needs-engine`; milestones `M0` to
   `M7` with the
   roadmap goals.
-- **CODEOWNERS [applied]:** `.github/CODEOWNERS` mirrors §9. 👤 `@REPLACE_WITH_DESIGNER_HANDLE` is a placeholder
-  until the designer's handle is known.
+- **CODEOWNERS [applied]:** `.github/CODEOWNERS` mirrors §9. The designer is `@SwiftySinister` (since 2026-09-30,
+  #85); GitHub accepts an owner only once they have write access, so the entries count from the accepted invitation.
 - **ADRs:** `docs/decisions/YYYY-MM-DD-<slug>.md`, never sequential numbers, so two branches cannot collide on
   the same number. Short: status, date, deciders, context, decision, alternatives, consequences.
 - **Append-style logs are one file per entry** ([ADR](decisions/2026-09-28-one-file-per-entry-logs.md)):
@@ -561,7 +561,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 **Pending human actions 👤** (the rulesets without bypass, the board workflows, the engineer's gh scope and
 version, and the PATH `claude` are done, checked live 2026-09-29): usage credits off on both accounts; invite the
-designer to the repo and to project 1 and replace the CODEOWNERS placeholder (when the designer joins, around M2);
+designer to the repo and to project 1 (the designer's handle is in CODEOWNERS since #85);
 decide LFS in CI before the first LFS asset outside `addons/`.
 
 **Verification of the Phase A setup:** done on 2026-09-28. A fresh session confirmed subagent routing for all four
