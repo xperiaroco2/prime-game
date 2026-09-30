@@ -83,6 +83,7 @@ class Pair:
 	var dropped_after_ms := -1
 	var held := false
 	var last_beat_ms := 0
+	var backlog_due := false
 	var backlog_sent_ms := -1
 	var newest_pose := 0
 	var poses_in_poll := 0
@@ -94,7 +95,13 @@ class Pair:
 			client.poll()
 
 	func warming() -> bool:
-		return connected_ms >= 0 and stalled_at_ms < 0 and backlog_sent_ms < 0 and not hold_only
+		return (
+			connected_ms >= 0
+			and stalled_at_ms < 0
+			and not backlog_due
+			and backlog_sent_ms < 0
+			and not hold_only
+		)
 
 	func stall() -> void:
 		stalled_at_ms = Time.get_ticks_msec()
@@ -182,7 +189,9 @@ func _process(_delta: float) -> bool:
 		if _done:
 			return false
 		pair.beat()
-		if pair.warming() and now - pair.connected_ms >= WARM_MS:
+		if pair.backlog_due:
+			_send_backlog(pair)
+		elif pair.warming() and now - pair.connected_ms >= WARM_MS:
 			pair.stall()
 		elif pair.backlog_sent_ms >= 0 and now - pair.backlog_sent_ms >= BACKLOG_SETTLE_MS:
 			_take_backlog(pair)
@@ -209,7 +218,8 @@ func _on_connected(pair: Pair) -> void:
 	if pair.hold_only:
 		pair.stall()
 	elif pair.backlog:
-		_send_backlog(pair)
+		# Sent from _process: this handler runs inside the client's poll.
+		pair.backlog_due = true
 
 
 func _on_joined(peer_id: int, pair: Pair) -> void:
@@ -247,6 +257,7 @@ func _on_drop(pair: Pair, side: String) -> void:
 ## One pose per client poll: each poll flushes what was sent since the last one as one datagram.
 ## The host is not polled until _take_backlog.
 func _send_backlog(pair: Pair) -> void:
+	pair.backlog_due = false
 	pair.host_paused = true
 	for seq in range(1, BACKLOG_POSES + 1):
 		var pose := PackedByteArray()
