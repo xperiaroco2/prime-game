@@ -11,6 +11,8 @@
 
 # Task runner output (screenshots, API dumps, logs) and Python caches
 tools/out/
+# Agents' temporary files that must live under res:// (a probe test); full check and test runs skip it
+/tests/scratch/
 __pycache__/
 
 # JetBrains Rider: personal files; shared run configurations may be un-ignored deliberately

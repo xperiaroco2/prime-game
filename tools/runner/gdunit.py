@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .common import OUT, ROOT, Failure, bad, ensure_out, godot, ok, say
+from .common import OUT, ROOT, SCRATCH, Failure, bad, ensure_out, godot, ok, say
 
 TIMEOUT = 600
 REPORT_DIR = OUT / "gdunit"
@@ -72,6 +72,22 @@ def parse_orphans(log: str) -> list[str]:
     return found
 
 
+def default_suites(tests_dir: Path) -> list[str]:
+    """What a run with no paths covers: every folder and script under tests/ except the scratch folder.
+
+    GdUnit4 loads every script it scans before `-i` can skip one, so a broken probe in tests/scratch/ would fail the
+    whole run (exit 105): the scratch folder is left out of the scan instead of ignored.
+    """
+    scratch = SCRATCH.removeprefix("tests/")
+    return [
+        "res://tests/" + entry.name
+        for entry in sorted(tests_dir.iterdir())
+        if not entry.name.startswith(".")
+        and entry.name != scratch
+        and (entry.is_dir() or entry.suffix == ".gd")
+    ]
+
+
 def main(paths: list[str] | None = None, run_import: bool = True) -> int:
     say("test")
     ensure_out()
@@ -86,7 +102,7 @@ def main(paths: list[str] | None = None, run_import: bool = True) -> int:
             bad(f"import: {line} (run `check` for details)")
     shutil.rmtree(REPORT_DIR, ignore_errors=True)
     selectors: list[str] = []
-    for item in paths or ["res://tests"]:
+    for item in paths or default_suites(tests_dir):
         selectors += ["-a", item if item.startswith("res://") else "res://" + item.replace("\\", "/")]
     args = [
         "--headless",

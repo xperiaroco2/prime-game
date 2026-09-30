@@ -74,6 +74,32 @@ class OrphanTest(unittest.TestCase):
         self.assertEqual(gdunit.parse_orphans(clean), [])
 
 
+class ScratchTest(unittest.TestCase):
+    """The gitignored scratch folder stays out of full test and lint runs (issue #47)."""
+
+    def test_a_full_test_run_leaves_out_the_scratch_folder(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tests = Path(tmp) / "tests"
+            for folder in ("unit", "integration", "scratch", ".hidden"):
+                (tests / folder).mkdir(parents=True)
+            (tests / "top_test.gd").write_text("", encoding="utf-8")
+            (tests / "notes.md").write_text("", encoding="utf-8")
+            self.assertEqual(
+                gdunit.default_suites(tests),
+                ["res://tests/integration", "res://tests/top_test.gd", "res://tests/unit"],
+            )
+
+    def test_lint_leaves_out_the_scratch_folder(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("tests/scratch/probe_test.gd", "tests/unit/x_test.gd", "tools/out/y.gd"):
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / name).write_text("", encoding="utf-8")
+            with mock.patch.object(common, "ROOT", root):
+                found = [path.relative_to(root).as_posix() for path in common.gd_files()]
+        self.assertEqual(found, ["tests/unit/x_test.gd"])
+
+
 class PinsTest(unittest.TestCase):
     def test_linux_checksum_is_a_sha512(self) -> None:
         self.assertRegex(pins.GODOT_LINUX_SHA512, r"^[0-9a-f]{128}$")

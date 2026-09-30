@@ -52,6 +52,25 @@ class WrapperTest(unittest.TestCase):
         self.assertEqual(output["permissionDecision"], "ask")
         self.assertIn(".claude\\settings.json", output["permissionDecisionReason"])
 
+    def test_recursive_delete_asks_in_the_project_only(self) -> None:
+        res = self.run_hook("guard", self.shell_call("Remove-Item -Recurse core"))
+        self.assertEqual(res.returncode, 0, res.stderr)
+        output = json.loads(res.stdout)["hookSpecificOutput"]
+        self.assertEqual(output["permissionDecision"], "ask")
+        self.assertIn("Recursive delete in the project", output["permissionDecisionReason"])
+        res = self.run_hook("guard", self.shell_call('rm -rf "$TEMP/x" && git reset -q', "Bash"))
+        self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+        # The hook knows the real home folder: home itself asks, a folder in it passes.
+        res = self.run_hook("guard", self.shell_call("rm -rf ~", "Bash"))
+        self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+        res = self.run_hook("guard", self.shell_call("rm -rf ~/scratch-x", "Bash"))
+        self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+        # Inside the project, only the gitignored scratch folder is disposable.
+        res = self.run_hook("guard", self.shell_call("rm -r tests/scratch/x", "Bash"))
+        self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+        res = self.run_hook("guard", self.shell_call("rm -r tests/integration/tmp", "Bash"))
+        self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+
     def test_crash_fails_closed(self) -> None:
         res = self.run_hook("guard", "this is not JSON")
         self.assertEqual(res.returncode, 2)

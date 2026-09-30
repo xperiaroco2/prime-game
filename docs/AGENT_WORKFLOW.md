@@ -168,6 +168,13 @@ Rules for every workflow run:
 - Before launching, the agent states the planned agent count and a rough cost, and waits for a yes. Exceeding the
   size guideline needs the human's explicit approval in that same message; "ultracode" alone does not count.
 - A run never decides a human-reserved item; it records options and a recommendation and continues.
+- Temporary files go only to the session's scratchpad or, when they must be under `res://` (a probe test), to the
+  gitignored `tests/scratch/` of the checkout the agent works in; deleting either never prompts (§8.2). A temporary
+  folder anywhere else in the project, such as `tests/integration/tmp`, asks on delete and stops the run until
+  morning. An unattended run's prompt says so, and tells its agents not to run commands they expect to prompt
+  (deletes outside the scratchpad and `tests/scratch/`, resets that move the branch) but to list them in the handoff
+  for the human instead: a prompt blocks the call, so an agent cannot note it and move on
+  ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)).
 - Design runs produce documents first. Output lands as focused PRs, each with its verification, checked by a
   **fresh** agent.
 - Changes to `.claude/settings*.json` and `addons/` wait for the human (ask rules prompt in every mode). Other
@@ -181,9 +188,12 @@ Rules for every workflow run:
 
 ### 8.1 Permission rules [applied]
 `.claude/settings.json`, strict JSON. Every `Bash(...)` rule has a `PowerShell(...)` twin. Deny beats ask beats allow.
-**Goal: an agent can work unattended for an hour** (read status, branch, commit, push its task branch, open PRs and
-issues, edit tooling) and stops only for the rare items below
-([ADR](decisions/2026-09-28-unattended-work-permissions.md)).
+**Goal: an agent can work alone overnight** (read status, branch, commit, push its task branch, open PRs and issues,
+edit tooling, clean up its scratchpad and `tests/scratch/`) and stops only for the rare items below
+([ADR](decisions/2026-09-28-unattended-work-permissions.md)). **Test for a new ask or deny rule:** "can an agent work
+alone overnight?" Replay the latest unattended run's transcripts against the new rule; a rule that would have stopped
+routine work is judged by its target in the guard (§8.2) instead of by its text
+([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)).
 - Deny and ask rules apply in **every** permission mode, including bypass; allow rules matter only in the modes that
   prompt (the designer's `acceptEdits`).
 - **Allow:** the runner; `git fetch origin`, `add`, `commit`, `log`, `switch`, `branch`, `stash` (push/list/pop),
@@ -192,9 +202,11 @@ issues, edit tooling) and stops only for the rare items below
   WebFetch to Godot, Claude Code, GitHub and git docs.
 - **Ask (the agent's stop points):** edits to `.claude/settings*.json` (its own permissions) and `addons/`
   (dependencies); work-discarding or history-rewriting git (`checkout`, `switch --discard-changes|-f`, `restore`,
-  `reset`, `clean`, `rebase`, `worktree`, `branch -d`, `stash drop|clear`, `git -c`); recursive deletes; `gh` with
-  `-R/--repo`; `gh api` PUT/PATCH/DELETE; deleting issues, labels, projects or the last comment; `gh pr review`;
+  `clean`, `rebase`, `worktree`, `branch -d`, `stash drop|clear`, `git -c`); `gh` with `-R/--repo`; `gh api`
+  PUT/PATCH/DELETE; deleting issues, labels, projects or the last comment; `gh pr review`;
   `gh workflow run|enable|disable`; `gh release`, `secret`, `variable`; `gh repo edit|rename|archive|deploy-key`.
+  Recursive deletes and `git reset` have no text rule: the guard asks by their target (§8.2), so an agent deletes
+  its scratch folders and unstages without a prompt.
 - **Deny:** force pushes; pushes to `main` in any spelling, including a bare `git push`, `git push [-u] origin` with
   no branch and any push naming `HEAD` (always push an explicit branch name); `--no-verify`, remote deletes,
   `--prune`, `--mirror`, `--all`, `git branch -D`, `git config` on `hooksPath` or `--unset`, `--upload-pack`,
@@ -220,6 +232,44 @@ and `$(...)` bodies, and the inline code of interpreters and .NET calls (`python
 `node -e`, `[IO.File]::WriteAllText`). Text rules cannot see these writes: Claude Code checks a redirect or `tee`
 target against Edit allow and deny rules, not ask rules. The file tools need no guard, because `Edit(...)` rules
 cover Edit, Write and NotebookEdit.
+
+It also judges two commands by their target, where a text rule would stop an unattended agent for its own scratch
+folder (issue #47):
+- **Recursive deletes** (`rm -r|-R|-rf|--recursive` or `--rec` in bash, `Remove-Item -Recurse` or `-r`, `rmdir /s`,
+  `rd /s/q` (`//s` from Git Bash), `del /s`, a plain delete fed by a recursive listing, an unfiltered `find -delete` or `find -exec rm -rf`,
+  `shutil.rmtree('x')` and `[IO.Directory]::Delete('x', $true)`; also inside `bash -c`, pipelines, `xargs`,
+  `timeout` and `for` loops) ask when a target is the project (the main checkout or a worktree), inside it, above
+  it, a drive root, `/`, or the home or temp folder itself (`~`, `$HOME`, `$env:TEMP`). A target it cannot resolve
+  asks when it names the project: its folder name (read from the checkout, so a clone named otherwise is covered),
+  `git rev-parse --show-toplevel`, `$PWD` inside it, a command's output that names a path in it (`$(realpath core)`,
+  `(Resolve-Path core)`; `$(mktemp -d)` names none), a variable or loop built from such text, or a relative path
+  after an unresolvable `cd` made from inside the project. The targets of a pipeline (`$_`, `{}`, none) are the
+  paths its first command names, or the working directory. A PowerShell array (`Remove-Item -Recurse a,b`,
+  `'a','b'`, `@('a','b')`) and a bash brace expansion (`x/{a,b}`) are judged item by item. Regenerated output
+  (`tools/out/`, `.godot/`, any `__pycache__/`) and the gitignored scratch folder `tests/scratch/` pass, in the main
+  checkout and in every worktree; so do the scratchpad, `$TEMP/x`, `/tmp/x` and `~/x` (the hook passes the real
+  home folder, so a checkout under home stays protected). `$(git rev-parse --show-toplevel)` is the checkout that
+  holds the working directory, so `rm -rf "$(git rev-parse --show-toplevel)/tests/scratch"` passes too.
+- Neither the Bash tool nor the PowerShell tool keeps variables between calls. In bash a variable the command never
+  assigns is therefore also judged as empty: `rm -rf "$X"/*` is `rm -rf /*` and asks, and `cd "$X" && rm -rf y`
+  stays in the project and asks. A bash subshell (`( ... )`, `$(...)`) keeps its `cd` and variables to itself, and
+  `cd -` and `popd` go back to where the command was (or stay, when it never moved). What still passes: a variable
+  from the environment or a PowerShell variable the command never assigns, when its text does not name the project;
+  filtered deletes, even project-wide ones (`find . -name '*.orig' -delete`, `find . -name '*.gd' -delete`,
+  `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*`, or one before `-prune -o`, is none).
+- **`tests/scratch/`** is for temporary files that must be under `res://` (a probe test). It is gitignored but not
+  gdignored, so `tools\run.cmd test tests/scratch/<file>` and `check res://tests/scratch/<file>` run what is there;
+  full `check`, `test` and `lint` runs leave it out, so a half-written probe never turns `verify` red. Godot still
+  imports it: no `class_name` and no copied `.tscn`/`.tres` uid there (the UID lint fails on a copy). Never create
+  a link or junction there: the guard judges a delete by its text path, and PowerShell 5.1 `Remove-Item -Recurse`
+  on a junction deletes what it points to.
+- **`git reset`** asks with `--hard`, `--merge` or `--keep`, or when it moves the branch to another commit
+  (`git reset HEAD~1`, `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere in the project,
+  `tools/out/` included; `-C`, `--git-dir` and `--work-tree` name that repository. Unstaging passes: `git reset`, `git reset -q`, `git reset -- <paths>`,
+  `git reset HEAD -- <paths>`, `git reset core`. A lone argument without `--` is a commit when it looks like one (a
+  SHA, `~`, `^`, `origin/x`, `refs/x`, `v1.2`, a task branch `net/40-x`, `main`) and a path otherwise, so
+  `git reset feature-x` passes.
+- In a worktree session the project is still the whole main checkout: `rm -rf D:/prime-game/core` asks there too.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
   `$TEMP`, `$env:TEMP` and `~` are outside the project, so scratch copies never ask. A target it cannot resolve (an
   unknown variable, `$(...)`, a PowerShell `(...)` argument) asks when its text names a protected path. Content is
@@ -230,6 +280,17 @@ cover Edit, Write and NotebookEdit.
 - Replayed over the 1,683 distinct shell commands of the Phase A and B transcripts (stage 4 included): no crash; it
   asks for the real install of GdUnit4 into `addons/` and the three commands of the live test, nothing else. It adds
   about 0.2 s to each shell command.
+- Target-judged deletes and resets, replayed on 2026-09-30: the overnight run `wf_65292cf4-8b4` (309 shell commands)
+  went from 4 prompts (two scratch `rm -rf`, one `git reset -q`, one `rm -r tests/integration/tmp` in a worktree) to
+  1 with the guard and without the text rules: the delete inside the project still asks. With that probe folder in
+  `tests/scratch/`, as §7 now asks, the same replay has 0 prompts. Over all 3,421 distinct
+  shell commands of this machine's transcripts, no crash; against the guard before #47 it asks 5 more times: four
+  real changes to the project (two installs into `addons/`, a `git reset --hard origin/...`, that `rm -r`) and one
+  false ask, a heredoc whose test data holds the text `shutil.rmtree('core')`. After the second fresh review
+  (arrays, subshells, variables no call assigned), the overnight replay is unchanged (1 prompt, 0 with
+  `tests/scratch/`), and over the 2,709 distinct shell commands of this machine's transcripts on that day it changes
+  one verdict: a scratch-folder delete after `(cd tools && ...)`, which the old guard read inside `tools/`, now
+  passes.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
