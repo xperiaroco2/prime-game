@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | The engineer. The **content API** section is the contract with the designer: changes to it are reviewed by both. |
-| **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. |
+| **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. The wire schemas, the codec, the host session and the M3 client and bots (§4.3 to §4.6): M3 design, #89, proposed. |
 | **Rules for agents** | The invariants are repeated in the root `CLAUDE.md`, so they survive compaction. Area rules: `core/`, `server/`, `net/`, `client/`, `voice/` `CLAUDE.md`. |
 
 ## 1. Layers and boundaries
@@ -302,15 +302,14 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
     freeze's last second of unreliable packets never arrived, probably because its socket buffer filled; the
     thawed client's, from one sender, was 2 to 40 ms old.
 
-*Open (M3):* intent and event schemas, their payload encoding and their rows in `NetKindTable.game()`, rate limits,
-and what the host does with a peer that keeps sending rejected packets. A `MoveClaim` on the LATEST lane would lose
-a merged claim's `jumped` (and its sprint and movement-input flags for the ticks it covered), so its lane and how a
-jump survives a merge are part of its schema. If a claim carries a cumulative jump count instead, the host honours a
-rise in it as one jump allowance per claim, checked against the last landing floor it knows, with stamina charged
-per counted jump: the take-off positions of merged claims are lost, so the count alone never grants several jump
-heights. The intents are not affected: a peer's reliable message separates the claims merged around it. The protocol version travels in `Hello`
-(§4.1), not in the transport's `ADMIT`.
-Every schema change updates this section in the same PR.
+*Designed for M3 (#89, proposed):* the schemas of every intent, event, the snapshot and the voice frame, and their
+rows in `NetKindTable.game()` (§4.3); the codec (§4.4); rate limits and what the host does with a peer that keeps
+sending rejected packets (§4.5). `MoveClaim` stays on the LATEST lane and carries a cumulative jump count, so a jump
+survives a merge (§4.3). The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The
+choices marked E1 to E13 wait for the engineer; the
+[ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options, and the design follows each
+recommendation.
+Every schema change updates §4.3 in the same PR.
 
 Lessons from the M1 spike (#13, #15; [voice ADR](decisions/2026-09-29-voice-approach.md)):
 - Read packets from `ENetMultiplayerPeer` directly. `SceneMultiplayer` parses RPC, spawn and sync commands even if we
@@ -334,7 +333,7 @@ Lessons from the M1 spike (#13, #15; [voice ADR](decisions/2026-09-29-voice-appr
   or expect a 5 s hitch; whether Windows keeps `d3d12` as its default is the humans' decision.
 
 ### 4.1 Intents (MVP, #32)
-What each intent means and who may send it; the schemas are M3. The sender is always the peer id the transport
+What each intent means and who may send it; the wire schemas are §4.3. The sender is always the peer id the transport
 reports, never a field of the message. `server/` checks what the transport knows (sender, decoding, size, rate) and
 passes the intent to `core/` as a command stamped with the host tick; `core/` checks the phase's allowlist (§3.1)
 and the rules below. A rejected intent gets `Rejected` to the sender, whose reason depends only on facts the sender
@@ -346,7 +345,7 @@ is entitled to (§5).
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected` |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected`. On the wire (M3, 3e) `jumped` becomes `jumps`, a count that survives the LATEST merge (§4.3, E2) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not held, not delivered); pick-up reach from the host's position of the player; line of sight; a full hand swaps (§7.1) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the held item's kind, the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
@@ -357,7 +356,8 @@ A connection and a leave are not intents: the transport reports them, and `serve
 the hello deadline. Debug commands (§8) are outside this table and exist in debug builds only.
 
 ### 4.2 Events (MVP, #32)
-Who receives each event is its audience (§5). A snapshot is not an event: §5 says what it holds for each peer.
+Who receives each event is its audience (§5). A snapshot is not an event: §5 says what it holds for each peer. The
+wire schemas of the events and the snapshot are §4.3.
 
 | Event | Payload | Audience | When |
 |---|---|---|---|
@@ -393,6 +393,166 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
 `CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`. Built in 2h
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events).
+
+### 4.3 Wire schemas (M3 design, #89)
+Proposed ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in 3d. Each message is one row: its kind
+byte (the frame header, §4 Transport), its direction (C→H: a client to the host; H→C: the host to a client), its lane,
+its fields in order and its payload cap. **The field names are `core/`'s**: an intent's are the `args` its rules read
+(`MatchCommand`), an event's are the keys of its `to_dict()`. So a decoded message compares equal with what `core/`
+emitted, which the leak test needs (§4.6).
+
+**Wire types.** Little-endian; sizes in bytes.
+
+| Type | Bytes | Encoding | The decoder rejects |
+|---|---|---|---|
+| `u8`, `u16`, `u32` | 1, 2, 4 | unsigned | fewer bytes left than the type needs, checked before reading |
+| `s32`, `s64` | 4, 8 | two's complement | as above |
+| `bool` | 1 | 0 or 1 | any other byte |
+| `f32` | 4 | IEEE 754 single precision | NaN and ±infinity |
+| `vec3` | 12 | 3 × `f32`: x, y, z | a component that is not finite |
+| `colour` | 16 | 4 × `f32`: r, g, b, a | as `vec3` |
+| `peer` | 4 | `u32` | 0, and anything above 2^31 − 1 |
+| `item`, `station` | 2 | `u16`; where optional, 0xFFFF is none (-1) | 0xFFFF where not optional |
+| `tick` | 4 | `u32`; where optional, 0xFFFFFFFF is none (-1) | 0xFFFFFFFF where not optional |
+| `id` | 1 + n | `u8` n, then n bytes of `a-z`, `0-9` and `_`, n from 1 to 32 | another length or byte |
+| `path` | 1 + n | `u8` n, then `res://` and bytes of `A-Z a-z 0-9 _ - . /`, n up to 255 | another prefix, `..`, another byte |
+| `text` | 1 + n | `u8` n, then n bytes of printable ASCII (0x20 to 0x7E), n up to 64 | another byte (UTF-8 names come with #73) |
+| `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
+| `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |
+| `opus` | the rest | the rest of the payload, opaque: the host never decodes it | empty, or over the cap |
+
+Maxima: 16 players on the wire (the base mode allows 10), so a list or map of players holds at most 16 entries (a
+snapshot's avatars at most 15: never the viewer's own); a map of settings, spawn tags or station kinds at most 32; a
+set of task types at most 16 ids; shortfalls at most 32. The sizes below are the MVP's with 10 players, then the cap.
+
+**Intents** (C→H). Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
+`Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`, and a claim the
+phase does not accept (one in flight when the phase changes) gets `Rejected` with seq 0, which clients ignore; a
+client stops claiming when its own copy of the mode says the new phase does not accept `MoveClaim` (§3.1).
+
+| Kind | Intent | Lane | Fields | Bytes; cap |
+|---|---|---|---|---|
+| 1 | `Hello` | RELIABLE | `version: u16`, `content: s64` (the game mode's content hash, E1) | 10; 64 |
+| 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
+| 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then) | 20 for one number; 2048 |
+| 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
+| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`; other bits 0), `jumps: u16` (below) | 47; 47 |
+| 6 | `PickUp` | RELIABLE | `seq: u32`, `item: item` | 6; 6 |
+| 7 | `PutDown` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
+| 8 | `Use` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
+| 9 | `ReturnToLobby` | RELIABLE | `seq: u32` | 4; 4 |
+
+**Events** (H→C), all RELIABLE: one-off facts, and state sent only on change. `SelfStatus` is such state: on LATEST,
+losing the last change (stamina back to full) would leave a stale number on the HUD for good. Audiences: §4.2; a
+directive has no row, because it reaches no peer.
+
+| Kind | Event | Fields | Bytes; cap |
+|---|---|---|---|
+| 32 | `Rejected` | `seq: u32`, `reason: id` | 17; 37 |
+| 33 | `Welcome` | `peer: peer`, `spot: vec3`, `epoch: u32`, `roster: list<peer: peer, name: text, ready: bool>`, `settings: map<id, s32>`, `map: path`, `phase: id`, `positions: map<peer, vec3>` | 410; 2048 |
+| 34 | `PlayerJoined` | `peer: peer`, `name: text`, `spot: vec3` | 25; 81 |
+| 35 | `PlayerLeft` | `peer: peer` | 4; 4 |
+| 36 | `ReadyChanged` | `peer: peer`, `ready: bool` | 5; 5 |
+| 37 | `SettingsChanged` | `settings: map<id, s32>`, `id_sets: map<id, list<id>>`, `map: path`, `players: u8`, `needed_markers: map<id, s32>`, `map_markers: map<id, s32>`, `needed_colours: map<id, s32>`, `palettes: map<id, s32>`, `shortfalls: list<text>` | 250 with no shortfall; 4096 |
+| 38 | `PhaseChanged` | `phase: id`, `end_tick: tick` (optional) | 10; 37 |
+| 39 | `CountdownCancelled` | `reason: id` | 9; 33 |
+| 40 | `PlayersPlaced` | `spots: map<peer, vec3>` | 161; 257 |
+| 41 | `LoadMatch` | `match_id: u32`, `map: path`, `settings: map<id, s32>` | 107; 2048 |
+| 42 | `PlayerLoaded` | `peer: peer` | 4; 4 |
+| 43 | `RoundStarted` | `start_tick: tick` | 4; 4 |
+| 44 | `RoleAssigned` | `role: id` | 10; 33 |
+| 45 | `Teammates` | `role: id`, `peers: list<peer>` | 19 for two; 98 |
+| 46 | `StationPlaced` | `station: station`, `kind: id`, `colour: colour`, `position: vec3` | 37; 63 |
+| 47 | `ItemSpawned` | `item: item`, `kind: id`, `position: vec3`, `has_station: bool`, then `station: station` and `colour: colour` when true (a package; the fields exist only then, as in `to_dict()`) | 41; 66 |
+| 48 | `ItemPickedUp` | `peer: peer`, `item: item` | 6; 6 |
+| 49 | `ItemPlaced` | `item: item`, `position: vec3`, `cause: id` | 23; 47 |
+| 50 | `PackageDelivered` | `item: item`, `station: station` | 4; 4 |
+| 51 | `TaskProgress` | `done: u16`, `total: u16` | 4; 4 |
+| 52 | `Swung` | `peer: peer`, `facing: vec3` | 16; 16 |
+| 53 | `Damaged` | `amount: s32`, `health: s32` (thousandths, §3.3) | 8; 8 |
+| 54 | `SelfStatus` | `health: s32`, `stamina: s32`, `sprint_available: bool` | 9; 9 |
+| 55 | `Died` | `peer: peer`, `position: vec3` | 16; 16 |
+| 56 | `Correction` | `epoch: u32`, `position: vec3`, `velocity: vec3` | 28; 28 |
+| 57 | `MatchEnded` | the winning side, `id` (2h, #64, builds the event and names the field) | 11; 33 |
+
+**State and voice.**
+
+| Kind | Message | Dir | Lane | Fields | Bytes; cap |
+|---|---|---|---|---|---|
+| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `ghost`; other bits 0), `held_item: item` (optional) | 392; 1024 (15 avatars: 650) |
+| 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
+| 113 | `VoiceDown` | H→C | VOICE | `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5), `tick: tick` (the host tick whose routing let it through, E11), `opus` | 55; 510 |
+
+The rules of the table:
+- **Kinds.** 0 is the transport's `ADMIT`; 1 to 31 are intents, 32 to 95 events, 96 to 111 state, 112 to 127 voice.
+- **Frozen:** kind 1 with `version: u16` as its first two bytes, and kind 32 (`Rejected`) with its fields, never
+  change. A client of any version can then send its version and read `Rejected(wrong_version)` (§3.5), instead of
+  timing out on a host that drops its packets as malformed. The host decodes `Hello` in two steps: the version, and the
+  rest only when the version is its own; another version reaches `core/` as `{version}` alone, and the cap of 64
+  leaves room for another version's longer `Hello`.
+- **The version.** `JoinRules.PROTOCOL_VERSION` (`core/`) and the codec's version are one number, which a unit test
+  pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
+- **The content** (E1). `Hello.content` is the game mode's content hash (`ContentHash.of`, §3.3), which `JoinRules`
+  compares with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
+  hosts a playtest from a branch with edited `PlayerRules`, the engineer joins from `main`, and the engineer's client
+  predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s name is not on
+  the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.
+- **Ids** on the wire are the content's own names (`crew`, `knife`, `match_duration`) (E5), so a content difference
+  shows up as an unknown id, never as the wrong thing. The mode check (§9.1) refuses an id outside the wire's alphabet
+  (3e): a small change to the content API, because the designer's ids must be lowercase snake_case of at most 32
+  characters, which every MVP id already is.
+- **Lossless** (E6). Every float is an `f32`, as the standard build's `Vector3` and `Color` hold it, so
+  decode(encode(x)) == x and the leak test compares exactly.
+- **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
+  `ItemPickedUp`, `ItemPlaced`, `PackageDelivered`, `Died`), which the client folds into its view (§4.6); a held item
+  follows its holder's avatar. `core/`'s snapshot keeps items and bodies for `view_of` and the unit tests; the leak
+  test compares the avatars. Prevents: a snapshot of every item and body (about 920 bytes with 10 players and 20 items)
+  outgrowing the 1024-byte unreliable cap as a map gets more knives, with no way to split it, because the LATEST merge
+  keeps only the last part.
+- **`MoveClaim` and the jump** (E2). `MoveClaim` stays on LATEST and carries `jumps`: the number of jumps the client
+  made since it adopted the claim's epoch (0 after `Welcome`, after every `Correction` and after every placement). The
+  movement rule compares it with the last accepted claim's count in that epoch: a rise d ≥ 1 is one jump allowance,
+  from the floor under the last accepted position (§7.1), and costs d times the jump cost (stamina settled first; not
+  covered: `Correction`); a fall within an epoch is `Correction`. `jumps` replaces `jumped` (3e). Prevents: the LATEST
+  merge keeps the newest claim of a burst, a jump in an older one is lost, and the player is corrected to the ground
+  for a jump the host never saw. Accepted: a merged burst grants one jump height, because the take-off points of the
+  merged claims are lost, so a player who climbed and jumped during a host freeze may be corrected once; and the covered
+  ticks are settled with the newest claim's sprint and movement flags, so a sprint during a freeze may go unpaid.
+- **Sizes.** The host sends each remote player a snapshot per tick: about 430 bytes on the wire with 10 players, so
+  9 × 20 × 430 ≈ 0.6 Mbit/s of upload. A client's claims are about 1.8 KB/s with headers. A payload over its cap is never
+  truncated: the encoder refuses it and logs an error (a bug in `core/`, the content or the table), and 3d's unit test
+  encodes the MVP's worst case of every kind (10 players, every setting, the longest shortfall).
+- **Voice batching** (M5). One frame per `VoiceDown`. If M5 confirms the per-send ENet cost (§6), a batch of several
+  speakers' frames to one listener is a new row.
+
+### 4.4 The codec (M3 design, #89)
+- **One table** in `net/messages/` declares each row of §4.3: kind, name, direction, lane, cap and the fields with
+  their wire types (E4). `NetKindTable.game()` is built from it, so a kind's lane is still declared once. A generic
+  encoder and decoder walk the fields. `net/` references no `core/` class (§1): the names are strings, and a unit
+  test in `tests/` checks the table against `core/`: every intent of `Intents.ALL` and every event class with a peer
+  audience has a row whose fields are the keys its rules read or its `to_dict()` returns, and no row has a field that
+  names a seed.
+- **Encoding** writes each field with `PackedByteArray.encode_*` into a buffer sized from the fields (or
+  `StreamPeerBuffer.put_*`, little-endian unless `big_endian` is set). Never `var_to_bytes` or `bytes_to_var`, even
+  without objects: their framing is as large as an Opus frame, they take any Variant type where a field expects one,
+  and `bytes_to_var` ignores trailing bytes (§4 lessons). The encoder checks its input by the decoder's rules (an id
+  with a capital letter, a vector that is not finite, a count over its maximum, a payload over its cap) and refuses
+  to send, with an error in the log.
+- **Decoding trusts nothing.** A reader over the payload checks that enough bytes are left before every `decode_*`
+  (the 4.7.2 docs say `decode_u32` and its siblings "fail" when too few are left, so reading first could print engine
+  errors that one peer can repeat at will), and fails the whole message at the first problem: a type rule of §4.3, a
+  count over its maximum, map keys out of order, unknown flag bits, or bytes left after the last field (`NetFrame` has
+  checked the frame's own size). A failed message is dropped and counted per peer (`bad_payload`, §4.5), and nothing
+  of it reaches `core/`.
+- **Decoded shapes.** An intent becomes the `args` of a `MatchCommand` (the flags as the bools `sprint`, `moving` and
+  `on_floor`). An event becomes its name and a Dictionary equal to its `to_dict()`, with the same Variant types
+  (`StringName` ids, `String` paths and text, `int`, `Vector3`, `Color`, typed collections); 3d pins with a test that
+  `==` holds between them, or compares through one canonical form if typed and untyped collections differ. A snapshot
+  becomes `{tick, avatars}`, its avatars in the shape of `Snapshots.for_peer`'s. A voice frame becomes its fields and
+  the opaque bytes.
+- **Tests** (3d): a round trip of every row, decode(encode(x)) == x; a fuzz test that feeds each decoder every
+  truncation, every single-byte change and random payloads, and asserts a clean reject with no engine error line; the
+  table checked against `core/` (above); the version pinned (§4.3).
 
 ## 5. Per-peer information filtering
 
