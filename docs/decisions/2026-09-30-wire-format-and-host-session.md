@@ -36,7 +36,8 @@ client, the bots and the leak test). The main choices:
 
 1. **One declarative schema table** in `net/messages/`, with `core/`'s field names (`MatchCommand.args`, each event's
    `to_dict()`), from which `NetKindTable.game()` is built (E4). A decoded message equals what `core/` emitted, so the
-   leak test compares exactly, and a test in `tests/` checks the table against `core/`'s intents and events.
+   leak test compares exactly, and a test in `tests/` checks the table against `core/`'s intents
+   (`Intents.FIELDS`, which 3e adds: on `main` an intent declares no fields) and events.
 2. **Compact, lossless, defensive binary.** Little-endian fixed-width fields through `PackedByteArray.encode_*`; `f32`
    for every float (E6); ids as the content's own names in the alphabet `a-z 0-9 _` (E5); a reader that checks the
    bytes left before every read and rejects the whole message at the first problem; never `var_to_bytes`. The
@@ -110,7 +111,8 @@ client, the bots and the leak test). The main choices:
   instead of `jumped`; `JoinRules` compares `Hello.content` (`wrong_content`); `Match` calls `WorldQuery.use_level`
   on start and in each transition; `ModeCheck` refuses an id outside the wire's alphabet; a `Hello` the phase refuses
   gets `joins_closed` and `DisconnectPeer`, and Loading's entry disconnects waiting newcomers (E14); a refused
-  `MoveClaim` is dropped without `Rejected` (E15).
+  `MoveClaim` is dropped without `Rejected` (E15); `Intents.FIELDS` declares each intent's fields and types, which
+  the rules read through and 3d's test compares with the table (so 3d follows that commit of 3e).
 - **The designer** is told in the PR: content ids stay lowercase snake_case of at most 32 characters, which every MVP
   id already is. Nothing else in `content/` changes. With E8 (a), a level's collision is `StaticBody3D` nodes, not
   CSG or `GridMap` (their collision exists only in a tree): a point for 4e's level conventions.

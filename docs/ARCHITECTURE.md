@@ -557,8 +557,12 @@ The rules of the table:
   their wire types (E4). `NetKindTable.game()` is built from it, so a kind's lane is still declared once. A generic
   encoder and decoder walk the fields. `net/` references no `core/` class (§1): the names are strings, and a unit
   test in `tests/` checks the table against `core/`: every intent of `Intents.ALL` and every event class with a peer
-  audience has a row whose fields are the keys its rules read or its `to_dict()` returns, and no row has a field that
-  names a seed.
+  audience has a row whose fields are the intent's declared fields or the keys its `to_dict()` returns, and no row
+  has a field that names a seed. On `main` an intent declares no fields: its rules read `args` where they need them
+  (`MovementRule`, `JoinRules.hello`, the lobby's settings), and `MatchCommand.get_bool` returns its default for a
+  missing key, so a wire `jumps` against a rule that reads `jumped` would silently mean "never jumped". 3e therefore
+  adds `Intents.FIELDS` (intent → field → Variant type), which the rules read through, and 3d's test compares the
+  table with it. 3d depends on 3e's commit that adds `FIELDS`, `jumps` and `content`.
 - **Encoding** writes each field with `PackedByteArray.encode_*` into a buffer sized from the fields (or
   `StreamPeerBuffer.put_*`, little-endian unless `big_endian` is set). Never `var_to_bytes` or `bytes_to_var`, even
   without objects: their framing is as large as an Opus frame, they take any Variant type where a field expects one,
