@@ -17,22 +17,34 @@ func test_recipients_follow_the_state() -> void:
 	assert_array(Array(Audience.of_role(&"dissident").recipients(state))).is_equal([P2])
 	assert_array(Array(Audience.of_life(PlayerState.Life.GHOST).recipients(state))).is_equal([P3])
 	assert_array(Array(Audience.only(P2).recipients(state))).is_equal([P2])
-	assert_array(Array(Audience.only(9).recipients(state))).is_equal([9])
+	assert_array(Array(Audience.sender(P2).recipients(state))).is_equal([P2])
 	assert_array(Array(Audience.server().recipients(state))).is_empty()
 	state.player(P2).life = PlayerState.Life.LEFT
 	assert_array(Array(Audience.everyone().recipients(state))).is_equal([P1, P3])
 	assert_array(Array(Audience.of_role(&"dissident").recipients(state))).is_empty()
 	assert_array(Array(Audience.only(P2).recipients(state))).is_empty()
+	assert_array(Array(Audience.sender(P2).recipients(state))).is_empty()
 
 
-func test_only_never_names_a_peer_id_of_zero_or_less() -> void:
+func test_only_and_sender_never_name_a_peer_id_of_zero_or_less() -> void:
 	var state := MatchState.new(1)
 	state.add_player(P1, "p1")
 	assert_array(Array(Audience.only(0).recipients(state))).is_empty()
 	assert_array(Array(Audience.only(-1).recipients(state))).is_empty()
+	assert_array(Array(Audience.sender(0).recipients(state))).is_empty()
+	assert_array(Array(Audience.sender(-1).recipients(state))).is_empty()
+
+
+func test_only_a_sender_reaches_a_peer_that_is_not_a_player() -> void:
+	# The engineer's answer on #49: a connected non-player (no accepted Hello yet, or removed from
+	# the roster) gets its Rejected through SENDER, and nothing through ONLY.
+	var state := MatchState.new(1)
+	assert_array(Array(Audience.only(9).recipients(state))).is_empty()
+	assert_array(Array(Audience.sender(9).recipients(state))).is_equal([9])
+	state.add_player(P1, "p1")
 	state.remove_player(P1)
-	# A peer removed from the roster is a connected non-player again: only its Rejected reaches it.
-	assert_array(Array(Audience.only(P1).recipients(state))).is_equal([P1])
+	assert_array(Array(Audience.only(P1).recipients(state))).is_empty()
+	assert_array(Array(Audience.sender(P1).recipients(state))).is_equal([P1])
 
 
 func test_each_event_class_declares_its_audience_kind() -> void:
