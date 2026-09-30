@@ -3,7 +3,9 @@ extends GdUnitTestSuite
 ## a GameMode and passes ModeCheck. The check with the levels' layouts runs on the real levels
 ## from 2j, when the marker reader exists; until then a match of the base mode is created with
 ## layouts built in code. Also the base mode's data that 2b settles: its numbers, and ResetMatch
-## before PlacePlayers on `End -> Lobby`. One of the two tests that load `content/` (§9.6).
+## before PlacePlayers on `End -> Lobby`; and the deal that 2c adds: the actions of the
+## `Loading, all_loaded -> Round` row in order, and the Crew, Dissident and Knife entries. One of
+## the two tests that load `content/` (§9.6).
 
 const MODES_DIR := "res://content/modes/"
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -55,6 +57,65 @@ func test_end_to_lobby_resets_the_match_before_placing_players() -> void:
 	assert_object(row.actions[0]).is_instanceof(ResetMatch)
 	assert_object(row.actions[1]).is_instanceof(PlacePlayers)
 	assert_str((row.actions[1] as PlacePlayers).tag).is_equal("lobby_player")
+
+
+func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
+	var mode := _base_mode()
+	var row := mode.find_transition(&"loading", &"all_loaded")
+	assert_str(row.to).is_equal("round")
+	# StartClock (2h) comes last, after PlacePlayers.
+	assert_int(row.actions.size()).is_greater_equal(4)
+	var roles := row.actions[0] as DealRoles
+	assert_object(roles).is_not_null()
+	assert_int(roles.quotas.size()).is_equal(1)
+	assert_str(roles.quotas[0].role.id).is_equal("dissident")
+	assert_str(roles.quotas[0].count_setting).is_equal("dissidents")
+	assert_int(roles.quotas[0].leave_at_least).is_equal(1)
+	assert_str(roles.default_role.id).is_equal("crew")
+	assert_str(roles.rng_purpose).is_equal("roles")
+	var tasks := row.actions[1] as DealTasks
+	assert_object(tasks).is_not_null()
+	assert_str(tasks.tasks_setting).is_equal("tasks_per_player")
+	var knives := row.actions[2] as SpawnItems
+	assert_object(knives).is_not_null()
+	assert_str(knives.kind.id).is_equal("knife")
+	assert_str(knives.count_setting).is_equal("knives")
+	assert_str(knives.rng_purpose).is_equal("knives")
+	var place := row.actions[3] as PlacePlayers
+	assert_object(place).is_not_null()
+	assert_str(place.tag).is_equal("round_player")
+
+
+func test_crew_and_dissident() -> void:
+	var mode := _base_mode()
+	var crew := mode.find_role(&"crew")
+	assert_str(crew.display_name).is_equal("Crew")
+	assert_str(crew.side).is_equal("crew")
+	assert_bool(crew.knows_teammates).is_false()
+	assert_array(crew.actions).is_empty()
+	var dissident := mode.find_role(&"dissident")
+	assert_str(dissident.display_name).is_equal("Dissident")
+	assert_str(dissident.side).is_equal("dissidents")
+	assert_bool(dissident.knows_teammates).is_true()
+	assert_array(dissident.actions).is_empty()
+
+
+func test_knife() -> void:
+	var mode := _base_mode()
+	var knife := mode.find_item_kind(&"knife")
+	assert_str(knife.display_name).is_equal("Knife")
+	assert_str(knife.spawn_tag).is_equal("knife")
+	# The knife's Use rule is 2g's (#63).
+	assert_array(knife.actions).is_empty()
+
+
+func test_the_deal_demands_knife_markers_at_the_default_settings() -> void:
+	var mode := _base_mode()
+	var demands := Demands.new(mode)
+	for action: RuleEffect in mode.find_transition(&"loading", &"all_loaded").actions:
+		action.add_demands(mode.default_settings(), 10, demands)
+	assert_int(demands.markers.get(&"knife", 0)).is_equal(2)
+	assert_int(demands.markers.get(&"round_player", 0)).is_equal(10)
 
 
 ## Layouts built in code for the mode's levels until the marker reader exists (2j): every tag the

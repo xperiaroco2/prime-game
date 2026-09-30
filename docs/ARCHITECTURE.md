@@ -959,7 +959,7 @@ Settings: id `crew`; display name "Crew"; side `crew`; knows its teammates: no; 
 Produces: `RoleAssigned(crew)`.
 Visible to: that player only (§5); `MatchEnded` names only the winning side, never a player's role.
 Status: designed in #33; built in 2c (#59): `content/roles/crew.tres`. Tests:
-`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_deal_test.gd`.
+`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
 
 #### Dissident (role)
 What it does: the side that wins when time is up or no crew member is alive; dissidents know each other.
@@ -968,7 +968,7 @@ Dealt by the quota `dissidents`, leaving at least one other player.
 Produces: `RoleAssigned(dissident)`; `Teammates(dissident, peers)`.
 Visible to: `RoleAssigned` to that player; `Teammates` to each dissident, and to nobody else.
 Status: designed in #33; built in 2c (#59): `content/roles/dissident.tres`. Tests:
-`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_deal_test.gd`.
+`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
 
 #### Delivery (task type)
 What it does: a task of `subtasks_per_task` packages; a subtask is done when its package rests inside its own
@@ -1029,7 +1029,7 @@ refusal (`too_soon`, `tired`) only the attacker. The public `Swung` reveals no r
 kind, which any living player may hold (§9.2).
 Status: designed in #33; the item kind (id, name, spawn tag; no actions yet) and its `SpawnItems` in 2c (#59):
 `content/items/knife.tres`, tested by `tests/unit/deal/spawn_items_test.gd` and
-`tests/unit/content/content_deal_test.gd`; its `Use` rule in 2g. Tests: (2g), a path once built.
+`tests/unit/content/content_modes_test.gd`; its `Use` rule in 2g. Tests: (2g), a path once built.
 
 #### Every task done (win condition)
 What it does: the crew's only win.
