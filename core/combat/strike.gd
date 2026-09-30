@@ -90,7 +90,7 @@ static func horizontal(facing: Vector3) -> Vector2:
 
 
 func emits() -> Array[Script]:
-	return [SwungEvent, DamagedEvent, DiedEvent, CorrectionEvent, ItemPlacedEvent]
+	return [SwungEvent, DamagedEvent, SelfStatusEvent, DiedEvent, CorrectionEvent, ItemPlacedEvent]
 
 
 func check(_mode: GameMode) -> PackedStringArray:
