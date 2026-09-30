@@ -175,13 +175,21 @@ func test_commands_and_ticks_must_come_in_order() -> void:
 
 func test_move_claims_of_the_current_epoch_move_the_player() -> void:
 	var game := FixtureModes.started(FixtureModes.basic(), [P1])
-	var claim := {"epoch": 0, "position": Vector3(1, 0, 2), "client_tick": 4}
+	# A claim within walking reach of the join position (2d checks the speed).
+	var claim := {
+		"epoch": 0,
+		"position": Vector3(0.1, 0, 0.2),
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"client_tick": 4,
+	}
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P1, claim)
-	assert_vector(game.state.player(P1).position).is_equal(Vector3(1, 0, 2))
-	claim["position"] = Vector3(9, 0, 9)
+	assert_vector(game.state.player(P1).position).is_equal(Vector3(0.1, 0, 0.2))
+	claim["position"] = Vector3(0.2, 0, 0.2)
+	claim["client_tick"] = 5
 	claim["epoch"] = 3
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P1, claim)
-	assert_vector(game.state.player(P1).position).is_equal(Vector3(1, 0, 2))
+	assert_vector(game.state.player(P1).position).is_equal(Vector3(0.1, 0, 0.2))
 
 
 func test_only_the_host_may_send_a_host_intent() -> void:
@@ -207,9 +215,16 @@ func test_a_ghost_may_move_but_not_use() -> void:
 	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 5)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
 	assert_array(FixtureModes.notes(game)).not_contains(["used"])
-	var claim := {"epoch": ghost.epoch, "position": Vector3(4, 0, 4)}
+	var to := ghost.position + Vector3(0.2, 0, 0)
+	var claim := {
+		"epoch": ghost.epoch,
+		"position": to,
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"client_tick": 1,
+	}
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
-	assert_vector(ghost.position).is_equal(Vector3(4, 0, 4))
+	assert_vector(ghost.position).is_equal(to)
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
 	assert_array(FixtureModes.notes(game)).contains(["used"])
 

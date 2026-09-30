@@ -290,7 +290,7 @@ is entitled to (§5).
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting with an int value (`unknown_setting`) within its bounds (`out_of_bounds`); the optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving (2d), jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch (else dropped as stale); speed for the life state and stamina; jumps; no teleport; the client tick rising at a bounded rate (§7, §7.1) |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected` |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not held, not delivered); pick-up reach from the host's position of the player; line of sight; a full hand swaps (§7.1) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the held item's kind, the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
@@ -328,9 +328,9 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `TaskUpdated` | task, its subtasks done | the task's owner | one of its subtasks is done |
 | `Swung` | peer, facing | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone |
 | `Damaged` | amount, your health | the victim | a hit on them |
-| `SelfStatus` | health, stamina, whether sprint is available | that player | on change, at most once per tick |
+| `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available | that player | on change, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`) |
 | `Died` | peer, body position | everyone | health reaches 0; no event names a killer or a cause |
-| `Correction` | epoch, position, velocity | that player | a rejected `MoveClaim` (§7); a placement (§3.2) |
+| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2) |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent; an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
 
@@ -456,10 +456,12 @@ Lessons from the M1 spike (#13, #14):
 The local player's controller (#46, `client/player/`):
 - `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its numbers (speeds, jump height, capsule,
   eye and step height, stamina) live in one resource, `client/player/player_tuning.tres` (`PlayerTuning`), whose
-  script defaults are 0 so no number is repeated in code. `core/` (stage 2d) and later content take them over.
+  script defaults are 0 so no number is repeated in code. `core/` has the same numbers in the mode's `PlayerRules`
+  (§9.5, 2d); the client takes them from the mode when it joins a host (M3), and later content from the designer.
 - Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step;
   a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
-  `LocalStamina` is a stand-in for `core/`'s stamina and the only copy of the rule on the client.
+  `LocalStamina` predicts with `core/`'s rule (`StaminaLedger`, 2d) and is the only copy of it on the client, until
+  the client follows `SelfStatus` (M3).
 - A ghost (`ghost = true`) takes the living's path: the same capsule, gravity, floor, steps, slopes and jump, at the
   living's walk and sprint speeds times `ghost_speed_factor`. `StaminaSource` never refuses a ghost and records
   nothing for it. There is no flight (the engineer's correction of 2026-09-30, #46).
@@ -473,7 +475,7 @@ The local player's controller (#46, `client/player/`):
   `floor_max_angle` (a steep slope, a round prop) is no step. Only the body jumps up; the view eases after it and
   lags at most one step height. A jump's take-off speed is solved for the physics step so the ballistic peak is the
   jump height.
-- For the host's movement checks (M4 tolerances): the controller crosses a ledge's edge `STEP_CLEARANCE` (0.01 m)
+- For the host's movement checks (`MovementRule`, 2d, covers both): the controller crosses a ledge's edge `STEP_CLEARANCE` (0.01 m)
   above its top, so a rise without a jump can reach step height + 0.01 m, and a jump from mid-crossing peaks as much
   over the jump height. A capsule's rounded bottom also rolls onto a ledge corner, so a jump can land the feet up to
   `capsule_radius * (1 - cos(floor_max_angle))` (about 0.12 m) above the jump height. The tolerances must cover both.
@@ -497,19 +499,52 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   tick): a covered tick in the sprint state in which the player gave movement input and moved horizontally costs 1/20 of
   the per-second cost, and every other covered tick regenerates. Only the player's own movement counts (the engineer's
   decision of 2026-09-30, #46): a pushed player holding sprint without movement input pays nothing for the push.
-  `PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina (#60, stage 2d)
-  counts the same way, so the claim says whether movement input was held (stage 2d adds it to `MoveClaim`). Before a
+  `PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina
+  (`StaminaLedger`, 2d) counts the same way: a claim says whether movement input was held (`moving`). Before a
   jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint state and movement-input
-  flag, so an idle player is not refused on stale stamina; a later claim settles only what is left. The sprint state
+  flag, so an idle player is not refused on stale stamina; a later claim settles only what is left. A jump claim
+  first settles its own covered ticks with its own flags, so a sprint that ends in a jump is paid. The sprint state
   (Q7) starts when the claim holds the sprint flag and stamina is at least the start threshold, and lasts while the flag
   is held and stamina is above 0. An accepted jump or hit costs its amount at once. The allowed horizontal speed is the
   sprint speed in the sprint state, else the walk speed, plus the push allowance (Pushing apart below), measured over
   the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents: a client that never spends
   stamina, or spaces its claims out to regenerate between them, sprinting forever.
-- **Jumps** are accepted only when the host has the player on the floor (the last claim, and the floor found by
-  `WorldQuery` within step height) and stamina covers the cost (a ghost's jump needs none). Until the next landing
+- **Jumps** are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within
+  step height plus `STEP_CLEARANCE` below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
+  the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost (a
+  ghost's jump needs none). Until the next landing
   the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
   corrected. Prevents: free or endless jumps, and flying.
+- **The movement checks** (`MovementRule` in `core/movement/`, the ledger in `core/stamina/`; 2d, #60). Every
+  tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client:
+  - A claim of another epoch, or whose client tick does not rise, is dropped: no `Correction`, so one correction
+    does not cascade. Every other failed check sends `Correction` with a new epoch and the host's position to that
+    player only, and changes nothing else (stamina settled up to now aside, §9.2).
+  - Well formed: an int client tick and finite position, velocity and facing. The velocity is not bounded: it only
+    feeds the other clients' interpolation.
+  - The client tick's rate: `client_tick` counts 20 Hz core ticks of the client's own clock, not its physics frames
+    (60 Hz), so the M3 client derives it from a 20 Hz counter (or its physics frame divided by 3). A player earns
+    one tick of credit per host tick and keeps at most `MAX_TICK_CREDIT`
+    (200 ticks, 10 s); a claim may cover no more client ticks than its credit. So a catch-up burst after a stall
+    (#70: 50 to 100 claims in one host tick after 5 s) passes, a client that runs its tick ahead gets
+    `TICK_LEAD` (10 ticks) at most, and no claim buys distance by inflating its tick delta. A claim past its credit
+    is corrected and the next claim starts a new client-tick baseline (credit not refilled), so a client whose ticks
+    ran ahead of a stalled host's is corrected once, not on every later claim. A placement (§3.2)
+    restarts the credit and the client-tick baseline, and settles the ticks since the last claim as standing still.
+  - Speed: per covered tick the state's speed (a tick not settled yet takes the state the next tick would have;
+    a living player's claim without movement input gets the walk speed, since only input pays for sprint),
+    times `ghost_speed_factor` for a ghost; for the living plus `sprint_speed` (Pushing apart below; proposed for M4,
+    used provisionally); plus `DISTANCE_SLACK_M` (0.05 m) per claim.
+  - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus
+    `STEP_CLEARANCE` below its feet, which a ledge crossing needs; `FLOOR_PROBE_M` above the feet is where the query
+    starts): after an accepted jump, the jump height
+    plus `capsule_radius * (1 - cos 45°) + STEP_CLEARANCE` (about 0.127 m, §7) from the take-off, the higher of its
+    floor and its feet; without one, the step height plus `STEP_CLEARANCE` (0.01 m) plus the claim's horizontal
+    travel times tan 45° (slopes and stairs up to the client's `floor_max_angle`). Positions are 32-bit floats:
+    `HEIGHT_SLACK_M` (1 mm) on top. Falling is not bounded.
+  - Cost: two `WorldQuery.floor_below` calls per jump and one per claim on the floor, each recorded in the command
+    log. `server/`'s `floor_below` (M3) should look below the whole capsule footprint, not one ray at the origin: on a
+    ledge's edge a ray from the feet misses the ledge, and a jump from there would be corrected.
 - **Pushing apart** (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions"). Living
   players never pass through each other, but a body cannot block a passage. Each client moves only its own player
   against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
@@ -714,7 +749,7 @@ phase classes come in the task each row names.
   leaving); 2b (#58) filled the base mode's Lobby, Countdown, Loading and End classes, with `JoinRules` (joins,
   leaves, the ready flag) and `FitCheck` (the fit check) beside them in `core/match/phases/`, and
   `MatchState.newcomers` for the connected peers not yet players; `MovementRule`
-  (`core/movement/`) takes `MoveClaim`s and checks only the epoch until 2d.
+  (`core/movement/`) takes `MoveClaim`s, with the checks of §7.1 since 2d.
 - `MatchState`: players (`PlayerState`, life ALIVE, GHOST or LEFT), settings, map, items (`ItemState`: ground,
   hand or locked), tasks (`MatchTask` with its `TaskState`), stations, bodies, the cooldown and counter tables,
   `part_state`, the clock, the winner, `RngStreams`, and `reset_match` for `ResetMatch`.
@@ -724,8 +759,12 @@ phase classes come in the task each row names.
 - The loop's own guards: only a phase class takes an intent from a newcomer (ModeCheck); an outcome reported while
   a row's actions or the old phase's exit run is an error, not the next phase's outcome; a step stops after 16
   transitions. `TickSystem` and `TaskType` declare `reported_outcomes()`, so ModeCheck requires their rows.
-- No range rule (InReach 2e, Strike 2g) and no `server/` wiring (M3) lands before 2d: until then `MovementRule`
-  stores a claimed position unchecked.
+- No range rule (InReach 2e, Strike 2g) and no `server/` wiring (M3) lands before 2d (#60), which checks every
+  claimed position (§7.1).
+- What 2d adds for the others: `StaminaLedger` (`core/stamina/`: settle, `settle_ahead` before a check, `covers`,
+  `spend`), `StaminaCost`, and `SelfStatusFeed.touch(state, peer)`: a rule that changes a player's health or stamina
+  (2g's `Strike` for the victim) touches it, and `Match.tick` sends one `SelfStatus` per changed player at the end of
+  the tick. That call is the one line 2d added to `Match`: nothing else runs after a tick's commands.
 - Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an
   enum of `NetTransport` or GdUnit4).
 
@@ -776,7 +815,7 @@ phase classes come in the task each row names.
 | `NoneAlive` | no player of the side is alive: each is a ghost or has left | `side` | (facts only) | 2h |
 | `ClockEnded` | the match clock has reached its end | none | (facts only) | 2h |
 | `Cooldown` (cost) | this player never paid this key, or at least `seconds` passed since it last did; paying records the tick | `key`, `seconds` (0 to 600) | `too_soon`: its own timing | 2g |
-| `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor) | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | 2d |
+| `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount` (a ghost's always is); paying spends it and emits `SelfStatus` (the actor, at the end of the tick) | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | 2d (#60) |
 
 **Effects in rules:**
 
@@ -848,10 +887,12 @@ Settings:
   the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to
-  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts walk and sprint at those speeds × 1.3 (the
-  engineer's decision of 2026-09-30; the bounds 1 to 3 are proposed, not confirmed); capsule radius 0.4 m (0.1 to 1)
-  × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to 1). Health and stamina are whole points
-  here, thousandths inside `core/` (§3.3). Pushing (§7.1) is not in `PlayerRules`: `push_speed_factor`,
+  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts walk and sprint at those speeds × 1.3
+  (`ghost_speed_factor`: the engineer's decision of 2026-09-30; the bounds 1 to 3 are proposed, not confirmed);
+  capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to 1).
+  Health and stamina are whole points here, thousandths inside `core/` (§3.3). `PlayerRules`' class defaults are 0,
+  so each number is written in `base_mode.tres` (`PlayerRules_base`), and a mode that leaves one out fails the mode
+  check (2d, #60; the engineer's answer (1) on #58). Pushing (§7.1) is not in `PlayerRules`: `push_speed_factor`,
   `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Crew"), `dissidents` ("Dissidents"). Roles: Crew, Dissident. Item kinds: Package, Knife.
@@ -980,18 +1021,21 @@ Status: designed in #33; built in 2g. Tests: (2g), a path once built.
 
 #### Sprint (not a part in v0)
 What it does: the `sprint` flag of `MoveClaim`, settled by the movement rule for every tick a claim covers (§7.1),
-with the numbers in `PlayerRules`: 7 m/s, 20 per second, from 20.
+with the numbers in `PlayerRules`: 7 m/s, 20 per second, from 20. A tick costs only when the claim's `moving` flag
+says the player gave movement input and it moved horizontally. A ghost sprints at 7 × 1.3 m/s for free.
 Why not a part: a rule fires once per trigger, while sprint cost and speed apply to every covered tick of a
 continuous claim. A mechanic that changes movement (a faster role, a slowing item) needs a movement modifier that the
 movement rule reads: a new kind, v1 (§10).
 Visible to: the player's own stamina in `SelfStatus`; speed is public through positions.
-Status: designed in #33; built in 2d. Tests: (2d), a path once built.
+Status: designed in #33; built in 2d (#60): `MovementRule` and `StaminaLedger`. Tests:
+`tests/unit/movement/movement_rule_test.gd`, `tests/unit/stamina/stamina_ledger_test.gd`.
 
 #### Jump (not a part in v0)
 What it does: the `jumped` flag of `MoveClaim`, accepted as in §7.1 with the numbers in `PlayerRules`: 1 m for 10.
+A ghost jumps as high, for free.
 Why not a part: as for sprint.
 Visible to: as for sprint.
-Status: designed in #33; built in 2d. Tests: (2d), a path once built.
+Status: designed in #33; built in 2d (#60): `MovementRule`. Tests: `tests/unit/movement/movement_rule_jump_test.gd`.
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 ```

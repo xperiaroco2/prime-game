@@ -19,7 +19,7 @@ static func basic() -> GameMode:
 	var mode := GameMode.new()
 	mode.min_players = 1
 	mode.max_players = 4
-	mode.player_rules = PlayerRules.new()
+	mode.player_rules = player_rules()
 	mode.settings = [setting(&"knives", 2, 0, 10)]
 	mode.sides = [side(&"crew"), side(&"dissidents")]
 	mode.roles = [role(&"crew", &"crew", false), role(&"dissident", &"dissidents", true)]
@@ -72,6 +72,26 @@ static func basic() -> GameMode:
 		row(&"end", &"back", &"lobby", [place(&"lobby_player")]),
 	]
 	return mode
+
+
+## The MVP's numbers of ARCHITECTURE §9.5, written out: PlayerRules' class defaults are 0.
+static func player_rules() -> PlayerRules:
+	var rules := PlayerRules.new()
+	rules.health = 100
+	rules.stamina = 100
+	rules.stamina_regen_per_s = 15
+	rules.walk_speed_mps = 4.5
+	rules.sprint_speed_mps = 7.0
+	rules.sprint_cost_per_s = 20
+	rules.sprint_start = 20
+	rules.jump_height_m = 1.0
+	rules.jump_cost = 10
+	rules.ghost_speed_factor = 1.3
+	rules.capsule_radius_m = 0.4
+	rules.capsule_height_m = 1.8
+	rules.eye_height_m = 1.6
+	rules.step_height_m = 0.3
+	return rules
 
 
 ## A lobby with `count` lobby_player markers and a map with `count` round_player markers.

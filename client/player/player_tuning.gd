@@ -2,8 +2,9 @@ class_name PlayerTuning
 extends Resource
 ## The player's movement and stamina numbers in one data place: `player_tuning.tres`. They are
 ## the placeholders of `docs/decisions/2026-09-29-mvp-rules.md` ("not a decision"). The defaults
-## here are 0 on purpose, so the numbers live only in the `.tres`. `core/`'s stamina and movement
-## rules (stage 2d in #30) and later the designer's content take them over from here.
+## here are 0 on purpose, so the numbers live only in the `.tres`. `core/` reads the same numbers
+## from the mode's `PlayerRules` (stage 2d, #60); the client takes them from there when it joins a
+## host (M3), and later the designer's content owns them.
 
 @export_group("Movement")
 ## Metres per second on the ground, not sprinting.
