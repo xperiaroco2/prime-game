@@ -490,7 +490,7 @@ directive has no row, because it reaches no peer.
 | 54 | `SelfStatus` | `health: s32`, `stamina: s32`, `sprint_available: bool` | 9; 9 |
 | 55 | `Died` | `peer: peer`, `position: vec3` | 16; 16 |
 | 56 | `Correction` | `epoch: u32`, `position: vec3`, `velocity: vec3` | 28; 28 |
-| 57 | `MatchEnded` | TBD by 2h (#64), which builds the event: its fields, audience and cap are added by whichever of 2h and 3d lands second | TBD |
+| 57 | `MatchEnded` | `side: id` (the winning `SideSpec`'s id; audience *everyone*, 2h) | 11; 33 |
 
 **State and voice.**
 
@@ -526,11 +526,10 @@ The rules of the table:
   shows up as an unknown id, never as the wrong thing. The mode check (§9.1) refuses an id outside the wire's alphabet
   (3e): a change to the content API that the designer decides (D1 in the ADR): ids lowercase snake_case of at most 32
   characters, which every MVP id already is. The ids that reach an `id` field, and who checks each: from the content,
-  checked by the mode check (3e): role ids, item and station kinds, setting ids, spawn tags, phase ids, and the reject
+  checked by the mode check (3e): role ids, side ids, item and station kinds, setting ids, spawn tags, phase ids, and the reject
   reasons that conditions and costs name (§9.4); from `core/`'s constants, checked by 3d's table-against-core test:
   `RejectReasons`, `CountdownCancelledEvent`'s reasons, the `Items` causes (`put_down`, `swap`, `death`, `leave`,
-  `spawn`) and whatever 2h names for `MatchEnded`'s side. An id that neither covers is a bug that the encoder
-  refuses and logs.
+  `spawn`). An id that neither covers is a bug that the encoder refuses and logs.
 - **Lossless** (E6). Every float is an `f32`, as the standard build's `Vector3` and `Color` hold it, so
   decode(encode(x)) == x and the leak test compares exactly.
 - **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
