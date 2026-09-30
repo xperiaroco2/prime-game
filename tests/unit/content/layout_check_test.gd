@@ -96,11 +96,14 @@ func test_deliverys_circles_and_packages_reach_the_fit_check() -> void:
 	assert_int(demands.markers.get(&"package", 0)).is_equal(12)
 	assert_dict(demands.colours).is_equal({&"circle": 12})
 	var map := FixtureModes.MAP
-	assert_array(Array(LayoutCheck.run(mode, FixtureModes.layouts()))).is_equal(
-		[
-			"%s has no circle marker, which the row lobby, all_ready places on" % map,
-			"%s has no package marker, which the row lobby, all_ready places on" % map,
-		]
+	(
+		assert_array(Array(LayoutCheck.run(mode, FixtureModes.layouts())))
+		. is_equal(
+			[
+				"%s has no circle marker, which the row lobby, all_ready places on" % map,
+				"%s has no package marker, which the row lobby, all_ready places on" % map,
+			]
+		)
 	)
 	assert_array(Array(LayoutCheck.run(mode, FixtureDeliveryModes.layouts()))).is_empty()
 

@@ -7,8 +7,8 @@ extends RefCounted
 ## settings `tasks_per_player` and `subtasks_per_task`, the task type Delivery (circle radius
 ## 1 m, floor tolerance 0.3 m, a palette of 12 colours), the deal (DealTasks by
 ## `tasks_per_player`) before PlacePlayers on `lobby, all_ready -> round`, and a reaction on
-## subtask_done that notes the fact to the server audience (FixtureSubtaskNote). The item fixture's reaction on item_rested
-## is dropped.
+## subtask_done that notes the fact to the server audience (FixtureSubtaskNote). The item
+## fixture's reaction on item_rested is dropped.
 ##
 ## layouts(): the fixture lobby and map, plus on the map 10 `circle` markers at (10 i, 0, 20) and
 ## 10 `package` markers at (10 i, 0, -20), far apart, so no package spawns in a circle.
