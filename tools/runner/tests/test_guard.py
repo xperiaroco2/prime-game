@@ -410,6 +410,16 @@ OWN_WORK = [
     (B, f"git branch -d {TASK}/probe"),
     (B, f"git branch -f {TASK}-backup HEAD~1"),
     (B, "git -c core.editor=true rebase origin/main"),
+    # An interactive rebase whose todo editor is a no-op opens no editor (#104).
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -q -i --autosquash origin/release/m3"),
+    (B, "git commit -q --fixup=HEAD && GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=true git rebase --interactive origin/main"),
+    (B, "git -c sequence.editor=: rebase -i --autosquash origin/main"),
+    (B, "GIT_EDITOR=: git rebase -i origin/main"),
+    (B, "git -c core.editor=true rebase -i origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; git rebase -i --autosquash origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=':' git rebase -i --autosquash origin/main"),
+    (P, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
     (B, "git -c user.name=x commit -m y"),
     (B, "git worktree list"),
     (B, "rm -rf core/match"),
@@ -436,6 +446,11 @@ OWN_WORK = [
 MANAGED_WORK = [
     (B, "cd D:/prime-game/.claude/worktrees/51 && git reset --hard"),
     (B, "cd /d/prime-game/.claude/worktrees/51 && git rebase origin/main"),
+    (
+        B,
+        "cd /d/prime-game/.claude/worktrees/51 && git add -A && git commit -q --fixup=HEAD && "
+        "GIT_SEQUENCE_EDITOR=: git rebase -q -i --autosquash origin/release/m3",
+    ),
     (B, "cd D:/prime-game/.claude/worktrees/51 && git clean -fdx"),
     (B, "cd D:/prime-game/.claude/worktrees/51 && git checkout -- core/x.gd"),
     (B, "cd D:/prime-game/.claude/worktrees/51 && rm -rf tests/integration/tmp"),
@@ -479,6 +494,17 @@ BEYOND_OWN = [
     (B, "git switch main; git clean -fdx"),
     (B, "git rebase -i HEAD~3"),
     (B, "git rebase --interactive origin/main"),
+    # An interactive rebase that opens an editor, whichever setting names it, and the other rewrites still ask
+    # with a no-op todo editor (#104).
+    (B, "GIT_SEQUENCE_EDITOR=vim git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR= git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=code GIT_EDITOR=: git rebase -i origin/main"),
+    (B, "git -c sequence.editor=vim -c core.editor=: rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=$E git rebase -i origin/main"),
+    (B, "git -c core.editor=true rebase --edit-todo && GIT_EDITOR=vim git rebase -i origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --update-refs origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i -x 'tools/run.sh test' origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main main"),
     (B, "git rebase --update-refs origin/main"),
     (B, f"git -c core.hooksPath=/dev/null push origin {TASK}"),
     (B, "git worktree remove D:/prime-game/.claude/worktrees/47"),
@@ -517,6 +543,7 @@ BEYOND_OWN = [
 # (shell, command) in the main checkout (the designer, the engineer's `--here`, a manager): each asks.
 MAIN_CHECKOUT = [
     (B, "git rebase origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main"),
     (B, "git clean -fdx"),
     (B, "git checkout -- core/x.gd"),
     (B, "git checkout ."),

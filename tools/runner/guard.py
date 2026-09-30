@@ -45,9 +45,10 @@ checkout, in another worktree, after the command switched to another branch, and
 checkout. Branch changes are judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`,
 `checkout -B`, `switch -C`) or overwriting (`branch -M|-C`) a branch, or rebasing one by name, passes only for the
 task branch and its helpers (`<task branch>-x`, `<task branch>/x`); `stash drop|clear` only for entries made on
-them (the stash is shared by every checkout). An interactive rebase, `rebase --update-refs` and `git -c
-core.hooksPath=...` always ask. Branch, ref and stash names come from a repository reader (hooks.GitFiles); without
-one no branch is the session's own.
+them (the stash is shared by every checkout). An interactive rebase that opens an editor, `rebase --update-refs` and
+`git -c core.hooksPath=...` always ask; an interactive rebase whose todo editor is a no-op (`GIT_SEQUENCE_EDITOR=:`
+for `--autosquash`, issue #104) is judged like any other rebase. Branch, ref and stash names come from a repository
+reader (hooks.GitFiles); without one no branch is the session's own.
 
 gh reads of other repositories run without a prompt (issue #68), so no text rule asks for `gh -R|--repo`. The guard
 asks instead when a gh command names a repository other than this project's (`origin`, read by hooks.GitFiles) and
@@ -241,6 +242,8 @@ CLEAN_VALUED = {"-e", "--exclude"}
 REBASE_VALUED = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "--empty"}
 # git rebase forms that continue or end a rebase in progress: they name no branch.
 REBASE_STEPS = {"--continue", "--skip", "--abort", "--quit", "--show-current-patch"}
+# Todo editors that open nothing: `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash` runs without an editor.
+NO_OP_EDITORS = {":", "true"}
 STASH_REF_RE = re.compile(r"^(?:stash@\{(\d+)\}|(\d+))$", re.IGNORECASE)
 
 # gh aimed at another repository (issue #68). The finding area of a gh command that may write there.
@@ -1193,6 +1196,8 @@ class Analysis:
         self.piped_first: dict[int, list[str]] = {}
         # The `VAR=value` prefixes of the simple command being judged (`GIT_DIR=x git reset`).
         self.prefix_env: dict[str, str] = {}
+        # The `-c name=value` options of the git command being judged (`git -c sequence.editor=: rebase -i`).
+        self.git_configs: dict[str, str] = {}
 
     def add(self, path: str, verb: str, cwd: str | None = "") -> None:
         area = self.paths.area(path, cwd)
@@ -1343,6 +1348,7 @@ class Analysis:
         sub, rest = args[i].lower(), args[i + 1 :]
         git_dir, work_tree = git_dir or self.git_env("git_dir"), work_tree or self.git_env("git_work_tree")
         place, base = self.git_repo(dirs, git_dir, work_tree)
+        self.git_configs = {k.strip().lower(): v for k, eq, v in (c.partition("=") for c in configs) if eq}
         judge = GIT_JUDGES.get(sub)
         if judge and place != OUTSIDE_PROJECT:  # a scratch repository (a clone in the scratchpad) is free
             judge(self, rest, place, base)
@@ -1553,12 +1559,31 @@ class Analysis:
         else:
             self.git_discards(shown, place, base)
 
+    def git_sequence_editor(self) -> str | None:
+        """The editor an interactive rebase opens for its todo list, as the command sets it, in git's order:
+        `GIT_SEQUENCE_EDITOR`, `-c sequence.editor=`, `GIT_EDITOR`, `-c core.editor=`. None when the command sets
+        none of them (the user's configured editor opens); a value the guard cannot compute is returned as `?`."""
+        for name in ("git_sequence_editor", "sequence.editor", "git_editor", "core.editor"):
+            if name in self.prefix_env:
+                value: str | None = self.prefix_env[name]
+            elif name in self.git_configs:
+                value = self.git_configs[name]
+            elif name in self.paths.vars:
+                value = self.paths.vars[name]
+                if value is None:
+                    return "?"
+            else:
+                continue
+            return (value or "").strip().strip("'\"")
+        return None
+
     def git_rebase(self, rest: list[str], place: str, base: str | None) -> None:
-        """`git rebase` rewrites the history of the branch it names, or of the current one. Interactive rebases ask:
-        they open an editor, which an agent cannot use."""
+        """`git rebase` rewrites the history of the branch it names, or of the current one. Interactive rebases ask
+        when they open an editor, which an agent cannot use; one whose todo editor is a no-op (`GIT_SEQUENCE_EDITOR=:`
+        for `--autosquash`, issue #104) opens none and is judged like any other rebase."""
         shown = ["git", "rebase", *rest]
         options = {a.split("=")[0] for a in rest if a.startswith("-")}
-        if {"-i", "--interactive", "--edit-todo"} & options:
+        if {"-i", "--interactive", "--edit-todo"} & options and self.git_sequence_editor() not in NO_OP_EDITORS:
             self.git_finding(shown, "an interactive rebase opens an editor")
             return
         if "--update-refs" in options:
