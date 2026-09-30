@@ -1,0 +1,79 @@
+class_name FixtureMoves
+extends RefCounted
+## Drives the movement rule and the stamina ledger (ARCHITECTURE §7.1) in unit tests: a round of
+## FixtureModes.basic() on a given world, and MoveClaims. A claim's client tick is the host tick it
+## is applied on, as an honest client in step with the host sends it, unless a test gives one.
+##
+## The numbers are FixtureModes.player_rules(), the MVP's (§9.5): per 20 Hz tick a living player
+## walks 0.225 m and sprints 0.35 m, may be pushed 0.35 m more, and the check adds 0.05 m; sprint
+## costs 1000 thousandths per tick, regeneration gives 750; a ghost walks 0.2925 m and sprints
+## 0.455 m.
+
+
+## A match of the fixture mode on `world` (FixtureTerrainWorld when null) whose `peers` joined,
+## readied and were placed in the round (epoch 1, on the ground at y = 0).
+static func in_round(peers: Array[int], world: WorldQuery = null) -> Match:
+	var used := world if world != null else FixtureTerrainWorld.new()
+	var game := Match.new(FixtureModes.basic(), 7, used, FixtureModes.layouts())
+	game.keep_history = true
+	game.start(0)
+	for peer: int in peers:
+		FixtureModes.send(game, Intents.HELLO, peer, {"name": "p%d" % peer})
+	for peer: int in peers:
+		FixtureModes.send(game, Intents.SET_READY, peer, {"ready": true})
+	return game
+
+
+## A MoveClaim of `peer` at `position` in its current epoch, applied on the next host tick. On the
+## floor, standing still and without sprint unless `fields` says otherwise; `fields` may also set
+## the epoch, the client tick, the velocity and the facing.
+static func claim(game: Match, peer: int, position: Vector3, fields: Dictionary = {}) -> void:
+	var player := game.state.player(peer)
+	var args := {
+		"epoch": player.epoch,
+		"client_tick": game.ticked_through() + 1,
+		"position": position,
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"sprint": false,
+		"moving": false,
+		"jumped": false,
+		"on_floor": true,
+	}
+	args.merge(fields, true)
+	FixtureModes.send(game, Intents.MOVE_CLAIM, peer, args)
+
+
+## Claims `peer` moved by `offset` from where the host has it, then runs the tick.
+static func step(game: Match, peer: int, offset: Vector3, fields: Dictionary = {}) -> void:
+	claim(game, peer, game.state.player(peer).position + offset, fields)
+	FixtureModes.run_ticks(game, 1)
+
+
+## `count` steps of `offset`.
+static func steps(
+	game: Match, peer: int, count: int, offset: Vector3, fields: Dictionary = {}
+) -> void:
+	for i in count:
+		step(game, peer, offset, fields)
+
+
+## The sprint flags of a player sprinting by its own input.
+static func sprinting() -> Dictionary:
+	return {"sprint": true, "moving": true}
+
+
+## The Corrections `peer` received, in order.
+static func corrections(game: Match, peer: int) -> Array[CorrectionEvent]:
+	var found: Array[CorrectionEvent] = []
+	for event: MatchEvent in game.view_of(peer).events_named(&"Correction"):
+		found.append(event as CorrectionEvent)
+	return found
+
+
+## The SelfStatus events `peer` received, in order.
+static func statuses(game: Match, peer: int) -> Array[SelfStatusEvent]:
+	var found: Array[SelfStatusEvent] = []
+	for event: MatchEvent in game.view_of(peer).events_named(&"SelfStatus"):
+		found.append(event as SelfStatusEvent)
+	return found
