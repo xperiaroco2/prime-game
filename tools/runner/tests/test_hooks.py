@@ -2,16 +2,19 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from runner import hooks
+from runner import guard, hooks
 from runner.common import ROOT, Result, git_bash
 
 WRAPPER = str(ROOT / ".claude" / "hooks" / "run-hook.sh")
+# The main checkout, also when the selftest runs in a worktree: there the session's own worktree is free (issue #51).
+MAIN = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
 
 
 class WrapperTest(unittest.TestCase):
@@ -37,8 +40,8 @@ class WrapperTest(unittest.TestCase):
         )
 
     @staticmethod
-    def shell_call(command: str, tool: str = "PowerShell") -> str:
-        return json.dumps({"tool_name": tool, "tool_input": {"command": command}, "cwd": str(ROOT)})
+    def shell_call(command: str, tool: str = "PowerShell", cwd: str = MAIN) -> str:
+        return json.dumps({"tool_name": tool, "tool_input": {"command": command}, "cwd": cwd})
 
     def test_normal_command_passes_silently(self) -> None:
         res = self.run_hook("guard", self.shell_call("git status; tools\\run.cmd lint"))
@@ -70,6 +73,13 @@ class WrapperTest(unittest.TestCase):
         self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
         res = self.run_hook("guard", self.shell_call("rm -r tests/integration/tmp", "Bash"))
         self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+        # In a worktree session its own worktree is free, and the main checkout still asks.
+        worktree = str(Path(MAIN) / ".claude" / "worktrees" / "99")
+        res = self.run_hook("guard", self.shell_call("rm -r tests/integration/tmp && git reset --hard", "Bash", worktree))
+        self.assertEqual((res.returncode, res.stdout, res.stderr), (0, "", ""))
+        res = self.run_hook("guard", self.shell_call(f'git -C "{MAIN}" clean -fdx', "Bash", worktree))
+        self.assertEqual(json.loads(res.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+
 
     def test_crash_fails_closed(self) -> None:
         res = self.run_hook("guard", "this is not JSON")
@@ -144,6 +154,38 @@ class PostEditTest(unittest.TestCase):
         errors, warnings = hooks.engine_lines(Result(1, out, False, 0.0))
         self.assertEqual(errors, ['core/x.gd:4: Parse Error: Expected expression after "=".'])
         self.assertEqual(warnings, ["core/y.gd:9: The local variable is unused (UNUSED_VARIABLE)"])
+
+
+class GitFilesTest(unittest.TestCase):
+    """The guard's view of the repository: branches, refs and stash entries, read from `.git` without git."""
+
+    def test_branches_refs_and_stash_of_a_real_repository(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:
+            main = Path(tmp) / "game"
+
+            def git(*args: str, where: Path = main) -> None:
+                subprocess.run(["git", *args], cwd=where, check=True, capture_output=True)
+
+            main.mkdir()
+            git("init", "-q", "-b", "main")
+            for key, value in (("user.name", "t"), ("user.email", "t@example.com"), ("commit.gpgsign", "false")):
+                git("config", key, value)
+            (main / "f.txt").write_text("one\n", encoding="utf-8")
+            git("add", "f.txt")
+            git("commit", "-q", "-m", "c1")
+            worktree = main / ".claude" / "worktrees" / "7"
+            git("worktree", "add", "-q", "-b", "core/7-x", str(worktree))
+            (main / "f.txt").write_text("human\n", encoding="utf-8")
+            git("stash", "push", "-q", "-m", "start #8: left on main")
+            (worktree / "f.txt").write_text("agent\n", encoding="utf-8")
+            git("stash", "push", "-q", where=worktree)
+            files = hooks.GitFiles(str(worktree))
+
+            self.assertEqual(files.branch(guard.normalize(str(main))), "main")
+            self.assertEqual(files.branch(guard.normalize(str(worktree))), "core/7-x")
+            self.assertEqual(files.stash_branches(), ["core/7-x", "main"])
+            self.assertTrue({"main", "core/7-x"} <= files.refs())
+            self.assertIsNone(files.branch(guard.normalize(str(main / ".claude" / "worktrees" / "9"))))
 
 
 if __name__ == "__main__":

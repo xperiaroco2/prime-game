@@ -345,6 +345,245 @@ HARMLESS = [
 ]
 
 
+# Issue #51: the session's own worktree and task branch, and the other checkouts and branches of the repository.
+OWN = ROOT + "\\.claude\\worktrees\\51"
+TASK = "tooling/51-freedom"
+
+
+class FakeRepo(guard.NoRepo):
+    """Branches of the main checkout and two worktrees, and the branches the stash entries were made on."""
+
+    def __init__(self, stash: list[str] | None = None) -> None:
+        self.stash = stash if stash is not None else [TASK]
+
+    def branch(self, checkout: str) -> str | None:
+        return {
+            "d:/prime-game": "main",
+            "d:/prime-game/.claude/worktrees/51": TASK,
+            "d:/prime-game/.claude/worktrees/47": "tooling/47-guard",
+        }.get(checkout)
+
+    def refs(self) -> set[str]:
+        return {"main", "origin/main", TASK, "tooling/47-guard", "origin/tooling/47-guard", "feature-x"}
+
+    def stash_branches(self) -> list[str] | None:
+        return self.stash
+
+
+def in_own(shell: str, command: str, cwd: str = OWN, repo: guard.NoRepo | None = None) -> list[guard.Finding]:
+    return guard.check(command, shell, cwd, ROOT, "", repo or FakeRepo())
+
+
+# (shell, command) run by a session in its own worktree 51 on its task branch: work there never asks.
+OWN_WORK = [
+    (B, "git reset --hard"),
+    (B, "git reset --hard origin/main"),
+    (B, "git reset HEAD~2"),
+    (B, "git rebase origin/main"),
+    (B, "git rebase --onto origin/main origin/tooling/47-guard"),
+    (B, f"git rebase origin/main {TASK}"),
+    (B, "git rebase --continue"),
+    (B, "git rebase --abort"),
+    (B, "git clean -fdx"),
+    (B, "git clean -fd core tests"),
+    (B, "git checkout -- core/x.gd"),
+    (B, "git checkout ."),
+    (B, "git checkout -f"),
+    (B, "git checkout origin/main -- core/x.gd"),
+    (B, "git checkout main"),  # a plain switch discards nothing
+    (B, "git restore core/x.gd"),
+    (B, "git restore --source origin/main -- core"),
+    (B, f"git switch -f {TASK}"),
+    (B, f"git switch --discard-changes {TASK}"),
+    (B, f"git switch -c {TASK}-spike && git reset --hard origin/main"),
+    (B, "git stash drop"),
+    (B, "git stash drop stash@{0}"),
+    (B, "git stash clear"),
+    (B, f"git branch -D {TASK}-backup"),
+    (B, f"git branch -d {TASK}/probe"),
+    (B, f"git branch -f {TASK}-backup HEAD~1"),
+    (B, "git -c core.editor=true rebase origin/main"),
+    (B, "git -c user.name=x commit -m y"),
+    (B, "git worktree list"),
+    (B, "rm -rf core/match"),
+    (B, "rm -rf tests/integration/tmp && tools/run.sh test tests/integration"),
+    (B, "rm -rf *"),
+    (B, 'rm -rf "$(git rev-parse --show-toplevel)/core"'),
+    (B, "rm -rf D:/prime-game/.claude/worktrees/51/core"),
+    (B, "find core -delete"),
+    (B, "cd core && git reset --hard && rm -rf match"),
+    (P, "git reset --hard"),
+    (P, "git rebase origin/main"),
+    (P, "git clean -fdx"),
+    (P, "git checkout -- core\\x.gd"),
+    (P, "git restore core\\x.gd"),
+    (P, "Remove-Item -Recurse -Force core\\match"),
+    (P, "rm -r tests\\integration\\tmp"),
+    (P, "git stash drop; git branch -D tooling/51-freedom-backup"),
+]
+
+# The same work reached the way a manager's task session does it: its shell starts in the main checkout, and each
+# command first moves into its worktree.
+MANAGED_WORK = [
+    (B, "cd D:/prime-game/.claude/worktrees/51 && git reset --hard"),
+    (B, "cd /d/prime-game/.claude/worktrees/51 && git rebase origin/main"),
+    (B, "cd D:/prime-game/.claude/worktrees/51 && git clean -fdx"),
+    (B, "cd D:/prime-game/.claude/worktrees/51 && git checkout -- core/x.gd"),
+    (B, "cd D:/prime-game/.claude/worktrees/51 && rm -rf tests/integration/tmp"),
+    (B, "git -C D:/prime-game/.claude/worktrees/51 reset --hard origin/main"),
+    (P, "Set-Location D:\\prime-game\\.claude\\worktrees\\51; git reset --hard"),
+    (P, "cd D:\\prime-game\\.claude\\worktrees\\51; git rebase origin/main"),
+    (P, "Set-Location D:\\prime-game\\.claude\\worktrees\\51; Remove-Item -Recurse -Force core\\match"),
+]
+
+# (shell, command) from the own worktree that reach the main checkout, another worktree or another branch: each asks.
+BEYOND_OWN = [
+    (B, "git -C D:/prime-game reset --hard"),
+    (B, "cd D:/prime-game && git reset --hard"),
+    (B, "cd ../47 && git reset --hard"),
+    (B, "git -C ../47 rebase origin/main"),
+    (B, "git -C D:/prime-game/.claude/worktrees/47 clean -fdx"),
+    (B, "cd D:/prime-game && git clean -fdx"),
+    (B, "git --work-tree=D:/prime-game checkout -- core"),
+    (B, "git --git-dir=D:/prime-game/.git reset --hard"),
+    (B, "git --git-dir D:/prime-game/.git/worktrees/47 reset --hard"),
+    (B, "git -C D:/prime-game restore core"),
+    (B, "git checkout -- ../47/core"),
+    (B, "git restore D:/prime-game/core/x.gd"),
+    (B, "rm -rf D:/prime-game/core"),
+    (B, "rm -rf ../47/core"),
+    (B, "rm -rf D:/prime-game/.claude/worktrees/47"),
+    (B, "rm -rf ."),
+    (B, "rm -rf ../51"),
+    (B, "git rebase origin/main tooling/47-guard"),
+    (B, "git rebase --root main"),
+    (B, "git branch -D tooling/47-guard"),
+    (B, "git branch -d main"),
+    (B, "git branch -f main HEAD"),
+    (B, "git branch -M main"),
+    (B, "git switch -f main"),
+    (B, "git switch --discard-changes main"),
+    (B, "git checkout -f main"),
+    (B, "git checkout -B main origin/main"),
+    (B, "git switch -C tooling/47-guard"),
+    (B, "git checkout main && git reset --hard origin/main"),
+    (B, "git switch main; git clean -fdx"),
+    (B, "git rebase -i HEAD~3"),
+    (B, "git rebase --interactive origin/main"),
+    (B, "git rebase --update-refs origin/main"),
+    (B, f"git -c core.hooksPath=/dev/null push origin {TASK}"),
+    (B, "git worktree remove D:/prime-game/.claude/worktrees/47"),
+    (B, "git worktree remove --force ../47"),
+    (P, "git -C D:\\prime-game reset --hard"),
+    (P, "Set-Location D:\\prime-game; git clean -fdx"),
+    (P, "Remove-Item -Recurse -Force D:\\prime-game\\core"),
+    (P, "Set-Location ..\\47; git checkout -- core"),
+    (P, "git rebase origin/main tooling/47-guard"),
+    (P, "git branch -D tooling/47-guard"),
+    (P, "git checkout -f main"),
+    # A manager's task session that moved into its worktree, then reaches another checkout.
+    (B, "cd D:/prime-game/.claude/worktrees/51 && git -C ../47 reset --hard"),
+    (B, "cd D:/prime-game/.claude/worktrees/51 && cd D:/prime-game && git clean -fdx"),
+]
+
+# (shell, command) in the main checkout (the designer, the engineer's `--here`, a manager): each asks.
+MAIN_CHECKOUT = [
+    (B, "git rebase origin/main"),
+    (B, "git clean -fdx"),
+    (B, "git checkout -- core/x.gd"),
+    (B, "git checkout ."),
+    (B, "git restore core"),
+    (B, "git stash drop"),
+    (B, "git stash clear"),
+    (B, "git branch -d core/42-vote-tally"),
+    (B, "git branch -D core/42-vote-tally"),
+    (B, "git switch -f main"),
+    (B, "git worktree remove .claude/worktrees/47"),
+    (B, "rm -rf core/match"),
+    (P, "git rebase origin/main"),
+    (P, "git clean -fdx"),
+    (P, "git restore core"),
+    (P, "Remove-Item -Recurse core\\match"),
+]
+
+# (shell, command) that discard nothing, or act outside the project: silent in every checkout.
+ANYWHERE = [
+    (B, "git worktree list"),
+    (B, "git worktree add ../x -b x"),
+    (B, "git clean -n"),
+    (B, "git clean -ndx"),
+    (B, "git restore --staged core/x.gd"),
+    (B, "git switch main"),
+    (B, "git checkout main"),
+    (B, "git branch -a"),
+    (B, "git branch --list 'tooling/*'"),
+    (B, "git stash list"),
+    (B, "git stash push -m wip"),
+    (B, "cd /tmp/lab && git rebase main && git reset --hard HEAD~1 && git clean -fdx"),
+    (B, "git -C /tmp/lab checkout -f other"),
+    # Found by the replay of #51: a scratch clone's own branches and stash.
+    (B, 'C="$TEMP/clone"; cd "$C" && git switch -q tooling/6-skills && git branch -q -D scratch-base'),
+    (B, "cd /tmp/lab && git stash clear && git rebase origin/main other && git switch -C x"),
+    (P, "git -C $env:TEMP\\lab clean -fdx"),
+]
+
+
+class OwnWorktreeTest(unittest.TestCase):
+    def test_work_in_the_own_worktree_passes(self) -> None:
+        for shell, command in OWN_WORK:
+            with self.subTest(shell=shell, command=command):
+                self.assertEqual(in_own(shell, command), [])
+
+    def test_a_task_session_started_in_the_main_checkout_owns_the_worktree_it_enters(self) -> None:
+        for shell, command in MANAGED_WORK:
+            with self.subTest(shell=shell, command=command):
+                self.assertEqual(in_own(shell, command, cwd=ROOT), [])
+
+    def test_reaching_beyond_the_own_worktree_or_branch_asks(self) -> None:
+        for shell, command in BEYOND_OWN:
+            with self.subTest(shell=shell, command=command):
+                self.assertTrue(in_own(shell, command), "expected the guard to ask")
+
+    def test_the_main_checkout_is_never_owned(self) -> None:
+        for shell, command in MAIN_CHECKOUT:
+            with self.subTest(shell=shell, command=command):
+                self.assertTrue(in_own(shell, command, cwd=ROOT), "expected the guard to ask")
+
+    def test_what_discards_nothing_passes_everywhere(self) -> None:
+        for shell, command in ANYWHERE:
+            for cwd in (ROOT, OWN):
+                with self.subTest(shell=shell, command=command, cwd=cwd):
+                    self.assertEqual(in_own(shell, command, cwd=cwd), [])
+
+    def test_stash_entries_of_other_branches_ask(self) -> None:
+        # A human's `start --stash` entry is made on main; the stash is shared by every checkout.
+        repo = FakeRepo(stash=[TASK, "main"])
+        self.assertEqual(in_own(B, "git stash drop", repo=repo), [])
+        self.assertTrue(in_own(B, "git stash drop stash@{1}", repo=repo))
+        self.assertTrue(in_own(B, "git stash drop 1", repo=repo))
+        self.assertTrue(in_own(B, "git stash clear", repo=repo))
+        self.assertTrue(in_own(B, "git stash drop", repo=guard.NoRepo()))  # unknown entries are not its own
+
+    def test_without_the_repository_no_branch_is_the_sessions_own(self) -> None:
+        self.assertTrue(in_own(B, f"git branch -D {TASK}-backup", repo=guard.NoRepo()))
+        self.assertEqual(in_own(B, "git reset --hard", repo=guard.NoRepo()), [])
+
+    def test_only_the_first_worktree_a_command_enters_is_owned(self) -> None:
+        command = "cd D:/prime-game/.claude/worktrees/51 && cd ../47 && git reset --hard"
+        self.assertTrue(in_own(B, command, cwd=ROOT))
+
+    def test_protected_paths_still_ask_in_the_own_worktree(self) -> None:
+        self.assertTrue(in_own(B, "rm -rf addons/gdUnit4"))
+        self.assertTrue(in_own(B, "git checkout -- addons"))
+        self.assertTrue(in_own(P, "Remove-Item -Recurse .claude"))
+
+    def test_reason_says_why_git_asks(self) -> None:
+        text = guard.reason(in_own(B, "git rebase origin/main tooling/47-guard; git -C D:/prime-game clean -fdx"))
+        self.assertIn("rewrites another branch (tooling/47-guard)", text)
+        self.assertIn("outside this session's own worktree", text)
+        self.assertIn("§8.2", text)
+
+
 class GuardTest(unittest.TestCase):
     def test_asks_before_writes_to_protected_paths(self) -> None:
         for shell, command in ASKS:
@@ -369,13 +608,15 @@ class GuardTest(unittest.TestCase):
     def test_a_worktree_session_still_protects_the_main_checkout(self) -> None:
         worktree = ROOT + "\\.claude\\worktrees\\47"
         self.assertTrue(guard.check("rm -rf D:/prime-game/core", B, worktree, worktree))
-        self.assertTrue(guard.check("rm -rf core", B, worktree, worktree))
         self.assertEqual(guard.check("rm -rf /tmp/x", B, worktree, worktree), [])
         self.assertEqual(guard.check("rm -r tests/scratch/x", B, worktree, worktree), [])
-        self.assertTrue(guard.check("rm -r tests/integration/tmp", B, worktree, worktree))
+        # Issue #51 (approved by the engineer on 2026-09-30): inside its own worktree the agent deletes freely.
+        # Until then these two asked.
+        self.assertEqual(guard.check("rm -rf core", B, worktree, worktree), [])
+        self.assertEqual(guard.check("rm -r tests/integration/tmp", B, worktree, worktree), [])
         top = '"$(git rev-parse --show-toplevel)'
         self.assertEqual(guard.check(f'rm -rf {top}/tests/scratch/x"', B, worktree, worktree), [])
-        self.assertTrue(guard.check(f'rm -rf {top}/core"', B, worktree, worktree))
+        self.assertEqual(guard.check(f'rm -rf {top}/core"', B, worktree, worktree), [])
         self.assertTrue(guard.check(f'rm -rf {top}/core"', B, "/tmp", worktree))
 
     def test_a_folder_named_addons_elsewhere_is_no_protected_area(self) -> None:

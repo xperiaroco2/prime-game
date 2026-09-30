@@ -1,5 +1,5 @@
-"""The thin guard: which shell commands write to the ask-protected paths, delete the project recursively, or
-discard work with `git reset` (docs/AGENT_WORKFLOW.md §8.2).
+"""The thin guard: which shell commands write to the ask-protected paths, or delete recursively or discard git work
+beyond the session's own worktree and task branch (docs/AGENT_WORKFLOW.md §8.2).
 
 `Edit(**/.claude/settings.json)` and `Edit(**/addons/**)` ask rules stop the file tools, but not a shell write:
 Claude Code checks a redirect or `tee` target only against Edit allow and deny rules, and cannot see where
@@ -9,7 +9,8 @@ can work alone.
 
 Text ask rules cannot tell a delete of the agent's scratch folder from a delete of the repo, so the guard also judges
 two commands by their target (issue #47):
-- a recursive delete asks when a target is the project (the main checkout or a worktree), inside it, above it, a
+- a recursive delete asks when a target is the project (the main checkout or a worktree), inside it (but not inside
+  the session's own worktree, below), above it, a
   drive root, `/`, or the home or temp folder itself (`~`, `$HOME`, `$env:TEMP`), or cannot be resolved and names the
   project: its folder name, `git rev-parse --show-toplevel`, `$PWD` inside it, a command's output that names a path
   in it (`$(realpath core)`, `(Resolve-Path core)`), a variable assigned from such text, or a relative path after an
@@ -26,14 +27,27 @@ two commands by their target (issue #47):
   keeps its `cd` and variables to itself; `cd -` and `popd` go back where the command was.
 - `git reset` asks with `--hard`, `--merge` or `--keep`, or when it moves the branch (`git reset HEAD~1`,
   `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere inside the project (`tools/out/`
-  too). Unstaging (`git reset`, `git reset -q`, `git reset -- <paths>`, `git reset HEAD -- <paths>`,
+  too) but the session's own worktree (below). Unstaging (`git reset`, `git reset -q`, `git reset -- <paths>`, `git reset HEAD -- <paths>`,
   `git reset core`) passes. A lone argument is a revision when it looks like one (a SHA, `~`, `^`, `origin/x`,
   `refs/x`, `v1.2`, a task branch `net/40-x`, `main`); another bare name (`git reset feature-x`) counts as a path.
 - Out of scope: deletes whose target only a run could show (a variable from the environment, a PowerShell variable
   the command never assigns, a path read from a file, a computed `rmtree(p)`), filtered deletes, even project-wide
   ones (`find . -name '*.orig' -delete`, `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*` or
-  before `-prune -o` is none), links (a delete through a junction in `tests/scratch/` reaches its target), and
-  `git checkout`/`restore`/`clean`/`stash drop`, which keep their own text ask rules.
+  before `-prune -o` is none), and links (a delete through a junction in `tests/scratch/` reaches its target).
+
+The session's own worktree is free (issue #51): the worktree `.claude/worktrees/<n>` its working directory is in, or,
+for a session in the main checkout (a manager's task session, whose shell starts there on every call), the first
+worktree its command enters with `cd` or `git -C`. The main checkout is never owned. Inside the own worktree (not its
+folder itself) recursive deletes pass. Git commands that discard work or rewrite history (`reset` that discards or
+moves, `checkout`/`restore` of paths, `clean`, forced `checkout`/`switch`, `rebase`, `stash drop|clear`,
+`worktree remove|move`) pass there on the task branch, and in a repository outside the project; they ask in the main
+checkout, in another worktree, after the command switched to another branch, and when their pathspec reaches another
+checkout. Branch changes are judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`,
+`checkout -B`, `switch -C`) or overwriting (`branch -M|-C`) a branch, or rebasing one by name, passes only for the
+task branch and its helpers (`<task branch>-x`, `<task branch>/x`); `stash drop|clear` only for entries made on
+them (the stash is shared by every checkout). An interactive rebase, `rebase --update-refs` and `git -c
+core.hooksPath=...` always ask. Branch, ref and stash names come from a repository reader (hooks.GitFiles); without
+one no branch is the session's own.
 
 Like those Edit rules, it protects the project's own paths: `addons/` and `.claude/settings*.json` at the top of the
 main checkout or of a worktree. It resolves each target against the session's working directory, `cd`, and the
@@ -151,7 +165,7 @@ PROTECTED_TEXT_RE = re.compile(
 SETTINGS_NAMES = ("settings.json", "settings.local.json")
 
 # Finding areas of the target-judged commands (the others are the protected paths above, or "piped").
-DELETE, RESET = "recursive delete", "git reset"
+DELETE, GIT = "recursive delete", "git"
 # Commands that delete; each is recursive only with its recursive option.
 DELETE_VERBS = {"rm", "del", "erase", "rd", "rmdir", "ri", "remove-item"}
 # cmd.exe delete commands, and their switches (`rmdir /s /q x`, `rd /s/q x`): options, not paths.
@@ -199,7 +213,40 @@ CODE_DELETE_RE = re.compile(
 
 
 # Global git options whose value may be a separate word (`git --git-dir .git reset --hard`).
-GIT_VALUED = {"-c", "-C", "--git-dir", "--work-tree", "--namespace"}
+GIT_VALUED = {"-c", "-C", "--git-dir", "--work-tree", "--namespace", "--config-env"}
+# Where a git command or a delete acts, relative to the session (issue #51): its own worktree, outside the project
+# (a scratch repository), or somewhere else in the project (the main checkout, another worktree, a drive root above
+# it, or text that names the project but cannot be resolved).
+OWN, OUTSIDE_PROJECT, ELSEWHERE = "own", "outside", "elsewhere"
+# A branch whose name continues the task branch's after one of these is one of its helpers
+# (`tooling/51-x-backup`, `tooling/51-x/probe`).
+HELPER_SEPARATORS = ("-", "/", ".", "_")
+# Options of git subcommands that take a separate value (`git switch -c name`, `git rebase --onto x y`).
+CHECKOUT_VALUED = {"-b", "-B", "--orphan", "--conflict", "--pathspec-from-file"}
+SWITCH_VALUED = {"-c", "-C", "--create", "--force-create", "--orphan", "--conflict"}
+RESTORE_VALUED = {"-s", "--source", "--conflict", "--pathspec-from-file"}
+CLEAN_VALUED = {"-e", "--exclude"}
+REBASE_VALUED = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "--empty"}
+# git rebase forms that continue or end a rebase in progress: they name no branch.
+REBASE_STEPS = {"--continue", "--skip", "--abort", "--quit", "--show-current-patch"}
+STASH_REF_RE = re.compile(r"^(?:stash@\{(\d+)\}|(\d+))$", re.IGNORECASE)
+
+
+class NoRepo:
+    """What the guard knows about the repository when the hook cannot read it (and in most tests): nothing. A branch
+    it cannot name is never the session's own, so branch deletes and stash drops ask."""
+
+    def branch(self, checkout: str) -> str | None:
+        """The branch checked out in checkout (a normalized path), or None."""
+        return None
+
+    def refs(self) -> set[str]:
+        """Local branch, remote branch (`origin/x` and `x`) and tag names, lower-case."""
+        return set()
+
+    def stash_branches(self) -> list[str] | None:
+        """The branch each stash entry was made on, `stash@{0}` first; None when unknown."""
+        return None
 # `$(git rev-parse --show-toplevel)`: the checkout that contains the working directory.
 TOPLEVEL_SUB_RE = re.compile(r"\$\(\s*git\s+rev-parse\s+--show-toplevel\s*\)", re.IGNORECASE)
 # One bash brace alternation (`a/{x,y}`), not a `${var}` expansion.
@@ -328,6 +375,13 @@ class Paths:
         # Text that names the project: its folder name (not `D--prime-game`, the scratchpad's), or the git top level.
         name = re.escape(self.root.rsplit("/", 1)[-1])
         self.name_re = re.compile(rf"(?:^|[/\\:\s'\"]){name}(?:[/\\\s'\"]|$)|{TOPLEVEL_TEXT}", re.IGNORECASE)
+        # The session's own worktree (issue #51): the one its working directory is in. A session in the main checkout
+        # (a manager's task session, whose shell starts there each call) owns the worktree its command first `cd`s
+        # into, or names with `git -C`. The main checkout is never owned.
+        self.own = self.worktree_of(self.cwd)
+        self.claim = self.own is None
+        # A checkout or switch in this command left the own task branch: later git commands act on another branch.
+        self.off_branch = False
 
     def child(self, shell: str | None = None) -> Paths:
         """The view of a nested shell (`bash -c`) or a `$(...)`: same directory and variables; its `cd` stays
@@ -335,8 +389,47 @@ class Paths:
         inner = Paths(self.root, "", self.home, shell or self.shell)
         inner.cwd, inner.vars, inner.tainted = self.cwd, dict(self.vars), dict(self.tainted)
         inner.project_vars, inner.cwd_text, inner.cwd_base = set(self.project_vars), self.cwd_text, self.cwd_base
-        inner.oldpwd = self.oldpwd
+        inner.oldpwd, inner.own, inner.claim, inner.off_branch = self.oldpwd, self.own, self.claim, self.off_branch
         return inner
+
+    def worktree_of(self, path: str | None) -> str | None:
+        """The worktree `.claude/worktrees/<n>` of this project that holds a resolved path, or None."""
+        if path is None or path == OUTSIDE:
+            return None
+        match = re.match(rf"^({re.escape(self.root)}/\.claude/worktrees/[^/]+)(/|$)", path)
+        return match.group(1) if match else None
+
+    def owned(self, path: str, root_too: bool = False) -> bool:
+        """A resolved path is inside the session's own worktree (or is its folder, with root_too)."""
+        if not self.own:
+            return False
+        return path.startswith(self.own + "/") or (root_too and path == self.own)
+
+    def claim_worktree(self, path: str | None) -> None:
+        """A session outside every worktree owns the first worktree its command enters."""
+        if self.claim and (worktree := self.worktree_of(path)):
+            self.own, self.claim = worktree, False
+
+    def where(self, token: str, cwd: str | None = "") -> str:
+        """Where a git repository or pathspec acts: OWN (the own worktree, its folder included), OUTSIDE_PROJECT, or
+        ELSEWHERE. A PowerShell array or a bash brace expansion is judged item by item; the worst item wins."""
+        places = {self._where(item, cwd) for item in self.items(token)}
+        return next(p for p in (ELSEWHERE, OWN, OUTSIDE_PROJECT) if p in places or p == OUTSIDE_PROJECT)
+
+    def _where(self, token: str, cwd: str | None) -> str:
+        path = self.resolve(token, cwd)
+        named = path is None and (self.names_project(token) or self.computed(token))
+        if path is None and not named and self.shell == BASH:
+            path = self.resolve(token, cwd, empty=True)  # no call keeps variables: an unassigned one is empty
+        if path is None:
+            return ELSEWHERE if named else OUTSIDE_PROJECT
+        return self.place(path)
+
+    def place(self, path: str) -> str:
+        """Where a resolved path is: OWN, OUTSIDE_PROJECT or ELSEWHERE."""
+        if not self.in_project(path, disposable=False):
+            return OUTSIDE_PROJECT
+        return OWN if self.owned(path, root_too=True) else ELSEWHERE
 
     def save(self) -> tuple:
         """The state a bash subshell (`( ... )`, `$(...)`) cannot change for the rest of the command."""
@@ -411,18 +504,19 @@ class Paths:
             return self.in_project(self.cwd_base)
         return self.names_project(self.cwd_text, follow_cd=False)
 
-    def project_target(self, token: str, cwd: str | None = "", disposable: bool = True) -> bool:
-        """token, a delete target or a repository, is in the project: resolved, or by its text. A home or temp
-        folder itself counts too. A PowerShell array or a bash brace expansion is judged item by item."""
-        return any(self._project_target(item, cwd, disposable) for item in self.items(token))
+    def project_target(self, token: str, cwd: str | None = "", disposable: bool = True, own_ok: bool = False) -> bool:
+        """token, a delete target, is in the project: resolved, or by its text. A home or temp folder itself counts
+        too. With own_ok, a path inside the session's own worktree (not its folder itself) does not count. A
+        PowerShell array or a bash brace expansion is judged item by item."""
+        return any(self._project_target(item, cwd, disposable, own_ok) for item in self.items(token))
 
-    def _project_target(self, token: str, cwd: str | None, disposable: bool) -> bool:
+    def _project_target(self, token: str, cwd: str | None, disposable: bool, own_ok: bool) -> bool:
         text = self.expand(token)
         if text is not None and OUTSIDE_ROOT_RE.match(text):
             return True
         path = self.resolve(token, cwd)
         if path is not None:
-            return self.in_project(path, disposable)
+            return self.in_project(path, disposable) and not (own_ok and self.owned(path))
         if self.names_project(token) or self.computed(token):
             return True
         if self.shell != BASH:
@@ -430,7 +524,7 @@ class Paths:
         # No shell call keeps variables from an earlier one: a variable this command never assigns is empty, or comes
         # from the environment. Judge the empty value too: `rm -rf "$X"/*` is `rm -rf /*`.
         empty = self.resolve(token, cwd, empty=True)
-        return empty is not None and self.in_project(empty, disposable)
+        return empty is not None and self.in_project(empty, disposable) and not (own_ok and self.owned(empty))
 
     def computed(self, token: str) -> bool:
         """An unresolvable token built from a command's output (`$(realpath core)`, PowerShell `(Resolve-Path x)`)
@@ -574,6 +668,7 @@ class Paths:
                 self.cwd_base, self.cwd_text = "", dest[0]
         if self.cwd is not None:
             self.cwd_text, self.cwd_base = "", ""
+        self.claim_worktree(self.cwd)
 
     def remember(self, name: str, value: str | None, words: list[str], kind: str = "value") -> None:
         """Record a variable. A value this cannot compute still counts as protected when its words name a protected
@@ -998,8 +1093,9 @@ class Finding:
 
 
 class Analysis:
-    def __init__(self, paths: Paths) -> None:
+    def __init__(self, paths: Paths, repo: NoRepo | None = None) -> None:
         self.paths = paths
+        self.repo = repo or NoRepo()
         self.findings: list[Finding] = []
         self.piped_first: dict[int, list[str]] = {}
 
@@ -1077,12 +1173,12 @@ class Analysis:
                 self.recursive_delete(words[0], args, (first or []) if fed else None)
         if verb == "find" and _find_deletes_all(args):
             for start in _find_starts(args) or ["."]:
-                if self.paths.project_target(start):
+                if self.paths.project_target(start, own_ok=True):
                     self.findings.append(Finding(start, DELETE, words[0]))
         if INTERPRETER_RE.search(verb) or DOTNET_WRITE_RE.search(words[0]):
             for match in CODE_DELETE_RE.finditer("\n".join(words + segment.heredocs)):
                 target = match.group(1) or match.group(2)
-                if self.paths.project_target(target):
+                if self.paths.project_target(target, own_ok=True):
                     self.findings.append(Finding(target, DELETE, words[0]))
         joined = " ".join(words)
         if DOTNET_WRITE_RE.search(words[0]) or (verb == "new-object" and DOTNET_WRITE_RE.search(joined)):
@@ -1113,12 +1209,120 @@ class Analysis:
         if fed is not None and all(PIPE_ITEM_RE.match(t) for t in targets):
             targets = self.paths.output_paths(fed) if fed else ["."]
         for target in targets:
-            if self.paths.project_target(target):
+            if self.paths.project_target(target, own_ok=True):
                 self.findings.append(Finding(target, DELETE, verb))
 
-    def git_reset(self, rest: list[str], work_dir: str) -> None:
-        """`git reset` asks when it discards work (--hard, --merge, --keep) or moves the branch to another commit,
-        in a repository in the project. With paths it changes only the index."""
+    # --- git: free in the own worktree and task branch, asks elsewhere (issue #51) ------------------------------------
+
+    def git(self, args: list[str]) -> None:
+        """Judge a git command by where it acts (docs/AGENT_WORKFLOW.md §8.2). Commands that discard work or rewrite
+        history pass in the session's own worktree on its task branch and in scratch repositories outside the
+        project; they ask in the main checkout, in another worktree, and on another branch. Writes to the protected
+        paths ask everywhere."""
+        i, dirs, git_dir, work_tree, configs = 0, [], "", "", []
+        while i < len(args) and args[i].startswith("-"):
+            name, eq, value = args[i].partition("=")
+            step = 1
+            if not eq and args[i] in GIT_VALUED and i + 1 < len(args):
+                value, step = args[i + 1], 2
+            if name == "-C" and value:
+                dirs.append(value)
+            elif name == "--git-dir":
+                git_dir = value
+            elif name == "--work-tree":
+                work_tree = value
+            elif name in ("-c", "--config-env"):
+                configs.append(value)
+            i += step
+        if any("hookspath" in c.lower() for c in configs):
+            # The deny rule on `git config *hooksPath*` cannot see `git -c core.hooksPath=... push`.
+            self.git_finding(["git", *args], "sets core.hooksPath, which skips the pre-push hook")
+        if i >= len(args):
+            return
+        sub, rest = args[i].lower(), args[i + 1 :]
+        place, base = self.git_repo(dirs, git_dir, work_tree)
+        judge = GIT_JUDGES.get(sub)
+        if judge and place != OUTSIDE_PROJECT:  # a scratch repository (a clone in the scratchpad) is free
+            judge(self, rest, place, base)
+        if sub not in GIT_WRITES or (GIT_INDEX_ONLY & {a.lower() for a in rest} and "--worktree" not in rest):
+            return
+        for path in rest:
+            if not path.startswith("-"):
+                self.add(path, f"git {sub}", base)
+
+    def git_repo(self, dirs: list[str], git_dir: str, work_tree: str) -> tuple[str, str | None]:
+        """Where the repository of a git command is (OWN, OUTSIDE_PROJECT or ELSEWHERE), and the directory its
+        pathspecs start from ("" for the working directory, None when unknown). `-C` moves (and, from the main
+        checkout, claims a worktree like `cd`); `--work-tree` and `--git-dir` name the checkout."""
+        base: str | None = ""
+        for folder in dirs:
+            resolved = self.paths.resolve(folder, base)
+            if resolved is None:
+                return self.paths.where(folder, base), None
+            base = resolved
+            self.paths.claim_worktree(resolved)
+        if work_tree:
+            return self.paths.where(work_tree, base), base
+        if git_dir:
+            path = self.paths.resolve(git_dir, base)
+            if path is None:
+                return self.paths.where(git_dir, base), base
+            root = self.paths.root
+            admin = re.match(rf"^{re.escape(root)}/\.git/worktrees/([^/]+)$", path)
+            checkout = f"{root}/.claude/worktrees/{admin.group(1)}" if admin else path.removesuffix("/.git")
+            return self.paths.place(checkout), base
+        return self.paths.where(".", base), base
+
+    def git_finding(self, words: list[str], why: str) -> None:
+        self.findings.append(Finding(" ".join(words)[:100], GIT, why))
+
+    def own_branch(self, name: str) -> bool:
+        """name is the task branch of the own worktree, or one of its helpers (`<task branch>-backup`)."""
+        current = self.repo.branch(self.paths.own) if self.paths.own else None
+        if not current:
+            return False
+        name, current = name.lower().removeprefix("refs/heads/"), current.lower()
+        return name == current or any(name.startswith(current + s) for s in HELPER_SEPARATORS)
+
+    def is_revision(self, word: str) -> bool:
+        """A `git checkout` argument names a commit, not a path."""
+        low = word.lower()
+        return word == "-" or low == "head" or bool(REVISION_RE.search(word)) or low in self.repo.refs()
+
+    def git_discards(self, shown: list[str], place: str, base: str | None, pathspecs: list[str] | None = None) -> None:
+        """A command that discards work or rewrites history: silent in the own worktree on its task branch, and in a
+        repository outside the project."""
+        if place == ELSEWHERE:
+            self.git_finding(shown, "outside this session's own worktree")
+        elif place == OWN and self.paths.off_branch:
+            self.git_finding(shown, "after this command left the task branch")
+        elif place == OWN and base is not None:
+            for spec in pathspecs or []:
+                if not spec.startswith((":", "-")) and self.paths.where(spec, base) == ELSEWHERE:
+                    self.git_finding(shown, f"its path {spec} is outside this session's own worktree")
+                    return
+
+    def git_move(self, shown: list[str], target: str, force: bool, place: str, base: str | None) -> None:
+        """A checkout or switch to target. Without force it discards nothing and passes; with force it discards the
+        changes of that checkout, and asks when target is not the task branch or a helper."""
+        own = self.own_branch(target)
+        if force and not own and place != OUTSIDE_PROJECT:
+            self.git_finding(shown, f"discards changes to switch to another branch ({target})")
+        elif force:
+            self.git_discards(shown, place, base)
+        if place == OWN:
+            self.paths.off_branch = not own
+
+    def git_other_branches(self, shown: list[str], names: list[str], what: str) -> bool:
+        """Ask when a command changes a branch other than the task branch and its helpers."""
+        others = [n for n in names if not self.own_branch(n)]
+        if others:
+            self.git_finding(shown, f"{what} another branch ({', '.join(others[:3])})")
+        return bool(others)
+
+    def git_reset(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git reset` discards work (--hard, --merge, --keep) or moves the branch to another commit. With paths it
+        changes only the index, which passes everywhere."""
         split_at = rest.index("--") if "--" in rest else len(rest)
         before, paths = rest[:split_at], rest[split_at + 1 :]
         options = {a.lower().split("=")[0] for a in before if a.startswith("-")}
@@ -1130,33 +1334,122 @@ class Analysis:
             # Without `--`, git takes a lone argument that is no revision as a path (`git reset core/x.gd`). With
             # `--` after it, or `--soft`, which takes no paths, it is a commit.
             moves = "--" in rest or "--soft" in options or bool(REVISION_RE.search(positionals[0]))
-        # No disposable-folder exemption: `git -C tools/out reset --hard` resets the project's own repository.
-        if (options & RESET_MODES or moves) and self.paths.project_target(work_dir or ".", disposable=False):
-            shown = " ".join(["git reset", *rest])
-            self.findings.append(Finding(shown[:80], RESET, "git reset"))
+        # No disposable-folder exemption: `git -C tools/out reset --hard` resets the checkout's own repository.
+        if options & RESET_MODES or moves:
+            self.git_discards(["git", "reset", *rest], place, base)
 
-    def git(self, args: list[str]) -> None:
-        i, work_dir = 0, ""
-        while i < len(args) and args[i].startswith("-"):
-            name, eq, value = args[i].partition("=")
-            step = 1
-            if not eq and args[i] in GIT_VALUED and i + 1 < len(args):
-                value, step = args[i + 1], 2
-            if name in ("-C", "--work-tree", "--git-dir") and value:
-                work_dir = value  # the repository git works on
-            i += step
-        if i < len(args) and args[i].lower() == "reset":
-            self.git_reset(args[i + 1 :], work_dir)
+    def git_checkout(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git checkout` of paths discards their changes; of a branch it switches (see git_move); `-B` resets a
+        branch."""
+        shown = ["git", "checkout", *rest]
+        split_at = rest.index("--") if "--" in rest else None
+        before = rest if split_at is None else rest[:split_at]
+        positionals = _positionals(before, CHECKOUT_VALUED)
+        force = bool({"-f", "--force"} & set(before))
+        new = _option_values(before, {"-b", "--orphan"})
+        if new:
+            if "-B" in before and self.git_other_branches(shown, new[:1], "resets"):
+                return
+            self.git_move(shown, new[0], force, place, base)
             return
-        if i >= len(args) or args[i].lower() not in GIT_WRITES:
+        target, paths = None, positionals
+        if split_at is not None:
+            paths = rest[split_at + 1 :]  # before `--` only the commit the paths come from
+        elif positionals and self.is_revision(positionals[0]):
+            target, paths = positionals[0], positionals[1:]
+        if paths or any(a.startswith("--pathspec-from-file") for a in before):
+            self.git_discards(shown, place, base, paths)
+        elif target is not None:
+            self.git_move(shown, target, force, place, base)
+        elif force:
+            self.git_discards(shown, place, base)
+
+    def git_switch(self, rest: list[str], place: str, base: str | None) -> None:
+        shown = ["git", "switch", *rest]
+        force = bool({"-f", "--force", "--discard-changes"} & set(rest))
+        new = _option_values(rest, {"-c", "--create", "--force-create", "--orphan"})
+        positionals = _positionals(rest, SWITCH_VALUED)
+        target = new[0] if new else (positionals[0] if positionals else "")
+        forced_new = "-C" in rest or any(a.startswith("--force-create") for a in rest)
+        if new and forced_new and self.git_other_branches(shown, new[:1], "resets"):
             return
-        sub, rest = args[i].lower(), args[i + 1 :]
-        if GIT_INDEX_ONLY & {a.lower() for a in rest} and "--worktree" not in rest:
+        if target:
+            self.git_move(shown, target, force, place, base)
+        elif force:
+            self.git_discards(shown, place, base)
+
+    def git_restore(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git restore` discards changes in the working tree; `--staged` alone only unstages, which passes."""
+        staged = "--staged" in rest or "-S" in rest
+        if staged and not ("--worktree" in rest or "-W" in rest):
             return
-        cwd = self.paths.resolve(work_dir) if work_dir else ""
-        for path in rest:
-            if not path.startswith("-"):
-                self.add(path, f"git {sub}", cwd)
+        args = [a for a in rest if a not in ("-S", "-W")]  # `-S` is not `-s <source>`
+        self.git_discards(["git", "restore", *rest], place, base, _positionals(args, RESTORE_VALUED))
+
+    def git_clean(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git clean` deletes untracked files; `-n` / `--dry-run` only lists them."""
+        if "--dry-run" in rest or any(re.fullmatch(r"-[a-zA-Z]*n[a-zA-Z]*", a) for a in rest):
+            return
+        self.git_discards(["git", "clean", *rest], place, base, _positionals(rest, CLEAN_VALUED))
+
+    def git_stash(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git stash drop` and `clear`. The stash is shared by every checkout of the repository, so they pass only
+        for entries made on the task branch or a helper (a human's `start --stash` entry is never the agent's)."""
+        action = rest[0].lower() if rest else ""
+        if action not in ("drop", "clear"):
+            return
+        shown, entries = ["git", "stash", *rest], self.repo.stash_branches()
+        if action == "clear":
+            chosen = entries
+        else:
+            refs = _positionals(rest[1:])
+            match = STASH_REF_RE.match(refs[0]) if refs else None
+            index = int(match.group(1) or match.group(2)) if match else (-1 if refs else 0)
+            chosen = [entries[index]] if entries is not None and 0 <= index < len(entries) else None
+        if chosen is None or any(not self.own_branch(b) for b in chosen):
+            self.git_finding(shown, "drops stash entries this session cannot show are its own (the stash is shared)")
+        else:
+            self.git_discards(shown, place, base)
+
+    def git_rebase(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git rebase` rewrites the history of the branch it names, or of the current one. Interactive rebases ask:
+        they open an editor, which an agent cannot use."""
+        shown = ["git", "rebase", *rest]
+        options = {a.split("=")[0] for a in rest if a.startswith("-")}
+        if {"-i", "--interactive", "--edit-todo"} & options:
+            self.git_finding(shown, "an interactive rebase opens an editor")
+            return
+        if "--update-refs" in options:
+            self.git_finding(shown, "--update-refs moves other branches")
+            return
+        positionals = _positionals(rest, REBASE_VALUED)
+        if not REBASE_STEPS & options:
+            named = positionals[:1] if "--root" in options else positionals[1:2]
+            if named and self.git_other_branches(shown, named, "rewrites"):
+                return
+        self.git_discards(shown, place, base)
+
+    def git_branch(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git branch -d|-D|--delete` deletes, `-f` moves, `-M` / `-C` overwrite: only the task branch's helpers
+        pass. Branches are shared by every checkout, so where the command runs does not matter."""
+        shown = ["git", "branch", *rest]
+        short = "".join(a[1:] for a in rest if a.startswith("-") and not a.startswith("--"))
+        long = {a.split("=")[0] for a in rest if a.startswith("--")}
+        names = _positionals(rest, {"-u", "--set-upstream-to", "--contains", "--no-contains", "--points-at"})
+        if "d" in short.lower() or "--delete" in long:
+            self.git_other_branches(shown, names, "deletes")
+        elif "M" in short or "C" in short:
+            self.git_other_branches(shown, names[:2], "overwrites")
+        elif "f" in short or "--force" in long:
+            self.git_other_branches(shown, names[:1], "moves")
+
+    def git_worktree(self, rest: list[str], place: str, base: str | None) -> None:
+        """`git worktree remove|move` pass for the own worktree (and one outside the project) only."""
+        if not rest or rest[0].lower() not in ("remove", "move"):
+            return
+        for target in _positionals(rest[1:])[:1]:
+            if self.paths.where(target, base if base is not None else "") == ELSEWHERE:
+                self.git_finding(["git", "worktree", *rest], "another worktree or the main checkout")
 
     def targets(self, verb: str, args: list[str], depth: int) -> list[str]:
         """The paths a command writes, as far as its text shows."""
@@ -1197,7 +1490,7 @@ class Analysis:
         if verb in NESTED_SHELLS and depth < 3:
             code = self.nested_code(verb, args)
             if code:
-                inner = Analysis(self.paths.child(NESTED_SHELLS[verb]))
+                inner = Analysis(self.paths.child(NESTED_SHELLS[verb]), self.repo)
                 inner.command(code, NESTED_SHELLS[verb], depth + 1)
                 self.findings += inner.findings
         return []
@@ -1219,20 +1512,35 @@ class Analysis:
         return ""
 
 
-def check(command: str, shell: str, cwd: str, root: str, home: str = "") -> list[Finding]:
+# git subcommands judged by where they act; the others (status, log, add, commit, push, ...) are left to the rules.
+GIT_JUDGES = {
+    "reset": Analysis.git_reset,
+    "checkout": Analysis.git_checkout,
+    "switch": Analysis.git_switch,
+    "restore": Analysis.git_restore,
+    "clean": Analysis.git_clean,
+    "stash": Analysis.git_stash,
+    "rebase": Analysis.git_rebase,
+    "branch": Analysis.git_branch,
+    "worktree": Analysis.git_worktree,
+}
+
+
+def check(command: str, shell: str, cwd: str, root: str, home: str = "", repo: NoRepo | None = None) -> list[Finding]:
     """Findings for one Bash or PowerShell command run in cwd; empty when it writes to no ask-protected path of the
-    project at root, deletes none of it recursively and resets none of it. home is the user's home folder, when
-    known: `~` and `$HOME` resolve to it."""
-    analysis = Analysis(Paths(root, cwd, home, shell))
+    project at root, and deletes recursively or discards git work only in the session's own worktree, on its task
+    branch, or outside the project. home is the user's home folder, when known: `~` and `$HOME` resolve to it. repo
+    tells branch and stash names (hooks.GitFiles); without it no branch is the session's own."""
+    analysis = Analysis(Paths(root, cwd, home, shell), repo)
     analysis.command(command, shell)
     return analysis.findings
 
 
 def reason(findings: list[Finding]) -> str:
     """The text shown in the permission prompt."""
-    writes = [f for f in findings if f.area not in (DELETE, RESET)]
+    writes = [f for f in findings if f.area not in (DELETE, GIT)]
     deletes = sorted({f"{f.verb} -> {f.path}" for f in findings if f.area == DELETE})
-    resets = sorted({f.path for f in findings if f.area == RESET})
+    gits = sorted({f"{f.path} ({f.verb})" for f in findings if f.area == GIT})
     parts = []
     if writes:
         shown = sorted({f"{f.verb} -> {f.path}" for f in writes})
@@ -1242,7 +1550,7 @@ def reason(findings: list[Finding]) -> str:
             "Agent permissions and dependencies change only with your OK."
         )
     if deletes:
-        parts.append(f"Recursive delete in the project: {'; '.join(deletes[:5])}.")
-    if resets:
-        parts.append(f"git reset that discards work or moves the branch: {'; '.join(resets[:3])}.")
+        parts.append(f"Recursive delete in the project: {'; '.join(deletes[:5])} (outside this session's own worktree).")
+    if gits:
+        parts.append(f"git that discards work or rewrites history: {'; '.join(gits[:3])}.")
     return " ".join(parts) + " (docs/AGENT_WORKFLOW.md §8.2)"

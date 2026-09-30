@@ -68,10 +68,85 @@ def pre_tool_use(payload: dict[str, object]) -> int:
 
     shell = guard.BASH if tool == "Bash" else guard.POWERSHELL
     home = os.path.expanduser("~")  # so that `~/<project>` stays protected when the checkout is under home
-    findings = guard.check(command, shell, str(payload.get("cwd") or ""), ROOT, home if home != "~" else "")
+    cwd = str(payload.get("cwd") or "")
+    findings = guard.check(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT))
     if findings:
         _emit("PreToolUse", permissionDecision="ask", permissionDecisionReason=guard.reason(findings))
     return 0
+
+
+class GitFiles:
+    """Branch, ref and stash names for the guard, read from the files in `.git` (no git process: the guard runs
+    before every shell command). Reads what it is asked for, once; anything it cannot read is unknown."""
+
+    STASH_LINE_RE = re.compile(r"\t(?:WIP on|On) (.+?): ")
+
+    def __init__(self, root: str) -> None:
+        # The main checkout, also when the hook runs from a worktree's copy of the runner.
+        self.root = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+[\\/]?$", "", root)
+        self.common = os.path.join(self.root, ".git")
+        self._refs: set[str] | None = None
+
+    def _read(self, *parts: str) -> str:
+        try:
+            with open(os.path.join(*parts), encoding="utf-8", errors="replace") as handle:
+                return handle.read()
+        except OSError:
+            return ""
+
+    def branch(self, checkout: str) -> str | None:
+        """The branch of a checkout, given as the guard's normalized path (lower-case, forward slashes)."""
+        from . import guard
+
+        suffix = checkout[len(guard.normalize(self.root)) :].lstrip("/")
+        git = os.path.join(self.root, *suffix.split("/"), ".git") if suffix else self.common
+        admin = git
+        if os.path.isfile(git):
+            match = re.match(r"gitdir:\s*(.+)", self._read(git).strip())
+            if not match:
+                return None
+            admin = match.group(1).strip()
+        head = self._read(admin, "HEAD").strip()
+        return head.removeprefix("ref: refs/heads/") if head.startswith("ref: refs/heads/") else None
+
+    def refs(self) -> set[str]:
+        if self._refs is None:
+            names: set[str] = set()
+            for line in self._read(self.common, "packed-refs").splitlines():
+                parts = line.split(" ", 1)
+                if len(parts) == 2 and not line.startswith(("#", "^")):
+                    names |= self._names(parts[1].strip())
+            base = os.path.join(self.common, "refs")
+            for folder, _, files in os.walk(base):
+                for name in files:
+                    relative = os.path.relpath(os.path.join(folder, name), base).replace("\\", "/")
+                    names |= self._names("refs/" + relative)
+            self._refs = names
+        return self._refs
+
+    @staticmethod
+    def _names(ref: str) -> set[str]:
+        """`refs/heads/x` is x; `refs/remotes/origin/x` is origin/x and x (git checkout x creates it); tags."""
+        low = ref.lower()
+        for prefix in ("refs/heads/", "refs/tags/"):
+            if low.startswith(prefix):
+                return {low[len(prefix) :]}
+        if low.startswith("refs/remotes/"):
+            remote = low[len("refs/remotes/") :]
+            return {remote, remote.split("/", 1)[-1]}
+        return set()
+
+    def stash_branches(self) -> list[str] | None:
+        """The branch each stash entry was made on, newest (`stash@{0}`) first, from the stash's reflog."""
+        log = os.path.join(self.common, "logs", "refs", "stash")
+        if not os.path.isfile(log):
+            return []
+        lines = [line for line in self._read(log).splitlines() if line.strip()]
+        branches = []
+        for line in reversed(lines):
+            match = self.STASH_LINE_RE.search(line)
+            branches.append(match.group(1) if match else "")
+        return branches
 
 
 # --- the .gd post-edit hook (PostToolUse on Edit|Write) -------------------------------------------------------------
