@@ -31,8 +31,9 @@ language; the repo and the issues are English.
    - edge cases: dead players, meetings, two players at once, the host's own player, a disconnect;
    - numbers to tune (cooldowns, ranges, counts): only values the designer gives.
    When asked for ideas, offer two or three options with their trade-offs and let the designer pick.
-3. **Map it to engine parts** (trigger → conditions → effects, interactables, task stations) from §9. For each part
-   that does not exist, draft an `engine-request` from `.github/ISSUE_TEMPLATE/engine-request.md` with the spec
+3. **Map it to engine parts** from §9: a rule (trigger → conditions and costs → effects) and its owner (an item
+   kind, a role or the game mode), a task type with its station kind, or a win condition. Note for each part the
+   events it emits, who sees them, and what a refusal tells the sender. For each part that does not exist, draft an `engine-request` from `.github/ISSUE_TEMPLATE/engine-request.md` with the spec
    `content/CLAUDE.md` asks for. If the idea would change how the engine works rather than add a part, say so in
    the request: the engineer decides.
 4. **Stop for OK.** Show the designer the exact texts: the `mechanic` issue and each `engine-request`. Change them
@@ -46,5 +47,5 @@ language; the repo and the issues are English.
    numbers, engine parts (with issue links) and **open questions**. Only what the designer said, in their meaning.
 7. **Content data** (`.tres` in `content/`) only when §9 lists every part the mechanic needs (from M2). Then follow
    `.claude/rules/godot-resources.md`, run `tools\run.cmd normalize <files>` and `tools\run.cmd check`. Each mechanic
-   gets a bot scenario once the bot harness exists (M3).
+   gets a bot scenario in `content/scenarios/` (§9.7) once the bot harness exists (M3).
 8. **Finish** with `finish-task`. In the PR, say what the designer should check in a playtest.
