@@ -479,20 +479,22 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 - **Positions.** `core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
   range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
   claiming to stand next to what it wants to grab.
-- **Stamina** belongs to `core/` (ghosts are exempt, see Ghosts below). The client predicts its own from the published numbers to draw the HUD and gate
-  Shift, and follows `SelfStatus`. `core/` keeps a ledger per player: the host tick up to which stamina is settled.
-  A claim settles the ticks it covers (its client-tick delta, never past the current host tick): a covered tick in
-  the sprint state in which the player moved horizontally costs 1/20 of the per-second cost, and every other covered
-  tick regenerates. Before a jump or a hit is checked, the ticks not yet settled are settled with the last claim's
-  sprint state, so an idle player is not refused on stale stamina; a later claim settles only what is left. The sprint state (Q7) starts when the claim holds the sprint flag and
-  stamina is at least the start threshold, and lasts while the flag is held and stamina is above 0. An accepted jump
-  or hit costs its amount at once. The allowed horizontal speed is the sprint speed in the sprint state, else the
-  walk speed, measured over the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents:
-  a client that never spends stamina, or spaces its claims out to regenerate between them, sprinting forever.
+- **Stamina** belongs to `core/` (ghosts are exempt, see Ghosts below). The client predicts its own from the
+  published numbers to draw the HUD and gate Shift, and follows `SelfStatus`. `core/` keeps a ledger per player: the
+  host tick up to which stamina is settled. A claim settles the ticks it covers (its client-tick delta, never past
+  the current host tick): a covered tick in the sprint state in which the player moved horizontally costs 1/20 of the
+  per-second cost, and every other covered tick regenerates. Before a jump or a hit is checked, the ticks not yet
+  settled are settled with the last claim's sprint state, so an idle player is not refused on stale stamina; a later
+  claim settles only what is left. The sprint state (Q7) starts when the claim holds the sprint flag and stamina is
+  at least the start threshold, and lasts while the flag is held and stamina is above 0. An accepted jump or hit
+  costs its amount at once. The allowed horizontal speed is the sprint speed in the sprint state, else the walk
+  speed, plus the push allowance (Pushing apart below), measured over the client's tick delta (lesson above).
+  Faster: `Correction` with a new epoch. Prevents: a client that never spends stamina, or spaces its claims out to
+  regenerate between them, sprinting forever.
 - **Jumps** are accepted only when the host has the player on the floor (the last claim, and the floor found by
-  `WorldQuery` within step height) and stamina covers the cost (a ghost's jump needs none). Until the next landing the height above the floor is
-  bounded by the jump height; a rise without an accepted jump beyond step height is corrected. Prevents: free or
-  endless jumps, and flying.
+  `WorldQuery` within step height) and stamina covers the cost (a ghost's jump needs none). Until the next landing
+  the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
+  corrected. Prevents: free or endless jumps, and flying.
 - **Pushing apart** (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions"). Living
   players never pass through each other, but a body cannot block a passage. Each client moves only its own player
   against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
@@ -506,6 +508,11 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   - Head-on both push, and neither goes deeper than the overlap limit, so neither advances; the round capsules and
     the drift slide them apart. Each drifts to its own right, so they pass each other on opposite sides.
   - A ghost runs no search, and its layer is not searched: ghosts push nobody and nobody pushes them.
+
+  Speed: a pushed player moves faster than its own walk or sprint without cheating (walking sideways at 4.5 m/s
+  while a sprinter pushes it at 3.5 m/s is about 5.7 m/s, and two pushers add up). `PlayerController._push_apart`
+  caps the push-out at `sprint_speed`, so the host's speed bound for a living player is its state's speed plus
+  `sprint_speed` (proposed for M4, not decided; a test pins the cap). Ghosts get no allowance: they are never pushed.
 
   Prevents: two clients that see each other late snapping each other back and forth, and a player blocking a doorway.
   Accepted: a modified client can walk through players. Latency: the pusher sees the pushed player's capsule a round
@@ -818,8 +825,11 @@ Settings:
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to
   the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts walk and sprint at those speeds × 1.3 (the
-  engineer's decision of 2026-09-30; the bounds 1 to 3 are proposed, not confirmed); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below
-  the height); step 0.3 m (0 to 1). Health and stamina are whole points here, thousandths inside `core/` (§3.3).
+  engineer's decision of 2026-09-30; the bounds 1 to 3 are proposed, not confirmed); capsule radius 0.4 m (0.1 to 1)
+  × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to 1). Health and stamina are whole points
+  here, thousandths inside `core/` (§3.3). Pushing (§7.1) is not in `PlayerRules`: `push_speed_factor`,
+  `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
+  placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Crew"), `dissidents` ("Dissidents"). Roles: Crew, Dissident. Item kinds: Package, Knife.
 - Actions: PickUp, PutDown. Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
   alive, time up.
