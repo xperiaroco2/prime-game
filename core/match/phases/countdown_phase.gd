@@ -40,6 +40,8 @@ func handle_intent(ctx: MatchContext, command: MatchCommand) -> void:
 				_cancel(ctx, CountdownCancelledEvent.JOIN)
 		Intents.SET_READY:
 			# Countdown accepts SetReady(false) only (§4.1).
+			if not JoinRules.has_ready_flag(ctx, command):
+				return
 			if command.get_bool("ready"):
 				ctx.reject(command, RejectReasons.NOT_ACCEPTED)
 			elif JoinRules.set_ready(ctx, command, false):

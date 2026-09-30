@@ -41,6 +41,16 @@ func test_set_ready_true_is_not_accepted_in_the_countdown() -> void:
 	assert_str(game.phase_id()).is_equal("countdown")
 
 
+func test_a_malformed_set_ready_is_rejected_and_does_not_cancel() -> void:
+	# A missing or non-bool `ready` is never read as SetReady(false).
+	var game := FixtureBaseMode.in_countdown([P1, P2])
+	FixtureModes.send(game, Intents.SET_READY, P2, {}, 1)
+	FixtureModes.send(game, Intents.SET_READY, P2, {"ready": 0}, 2)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"bad_args", &"bad_args"])
+	assert_str(game.phase_id()).is_equal("countdown")
+	assert_bool(game.state.player(P2).ready).is_true()
+
+
 func test_settings_are_locked_in_the_countdown() -> void:
 	var game := FixtureBaseMode.in_countdown([P1])
 	FixtureModes.send(game, Intents.CHANGE_SETTINGS, P1, {"settings": {"knives": 1}})

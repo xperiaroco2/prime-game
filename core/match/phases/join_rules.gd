@@ -95,6 +95,15 @@ static func leave(ctx: MatchContext, peer: int) -> bool:
 	return true
 
 
+## True when a SetReady carries a bool `ready`; else Rejected (`bad_args`), so a malformed intent
+## is never read as SetReady(false) (which would cancel a countdown).
+static func has_ready_flag(ctx: MatchContext, command: MatchCommand) -> bool:
+	if command.args.get("ready") is bool:
+		return true
+	ctx.reject(command, RejectReasons.BAD_ARGS)
+	return false
+
+
 ## Sets the sender's ready flag to `ready` (§4.1): only a change is accepted, else Rejected
 ## (`unchanged`). ReadyChanged (everyone). True when it changed.
 static func set_ready(ctx: MatchContext, command: MatchCommand, ready: bool) -> bool:

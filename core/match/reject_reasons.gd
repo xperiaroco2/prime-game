@@ -25,3 +25,5 @@ const UNKNOWN_SETTING := &"unknown_setting"
 const OUT_OF_BOUNDS := &"out_of_bounds"
 ## ChangeSettings: a map the mode does not list (2b).
 const UNKNOWN_MAP := &"unknown_map"
+## An argument is missing or has the wrong type, such as SetReady without a bool `ready` (2b).
+const BAD_ARGS := &"bad_args"
