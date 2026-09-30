@@ -303,11 +303,12 @@ func test_a_leave_and_a_join_in_between_keep_both_connections_messages() -> void
 	)
 
 
-func test_a_client_merges_nothing_across_its_own_connection() -> void:
+func test_a_state_that_overtook_the_admit_is_rejected_not_counted_as_merged() -> void:
 	var client := ScriptedTransport.new(_kinds)
 	client.join("somewhere", 1)
 	var counter := Counter.new(client)
-	# Unreliable packets can overtake the ADMIT: those before CONNECTED are rejected, not merged.
+	# Unreliable packets can overtake the ADMIT: the one before CONNECTED is superseded by the one
+	# after it, and is still rejected as from an unknown peer, not counted as merged.
 	client.queue_message(1, STATE, PackedByteArray([1]))
 	client.queue(NetTransport.Inbound.Type.CONNECTED, 7)
 	client.queue_message(1, STATE, PackedByteArray([2]))

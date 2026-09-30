@@ -326,9 +326,10 @@ func _drain_inbox() -> void:
 ## message from that peer separates the two, so each of its intents or events is still handled
 ## after the LATEST state it sent just before it (a Use is checked against the claim sent before
 ## it, not against the one from before a freeze); so does a join or leave of that peer (two
-## connections, maybe with the same id), and so does any change of this client's own connection.
-## Voice has its own unordered channel and separates nothing. Invalid packets separate and
-## supersede nothing; the drain rejects them.
+## connections, maybe with the same id). Voice has its own unordered channel and separates
+## nothing. Invalid packets separate and supersede nothing; the drain rejects them. A change of a
+## client's own connection needs no separator: packets before CONNECTED are rejected as from an
+## unknown peer, and CONNECT_FAILED and HOST_LOST end the drain.
 func _superseded_in(batch: Array[Inbound]) -> Dictionary[int, bool]:
 	var superseded: Dictionary[int, bool] = {}
 	# (peer, kind) of the LATEST messages later in the batch, walking it backwards.
@@ -348,8 +349,6 @@ func _superseded_in(batch: Array[Inbound]) -> Dictionary[int, bool]:
 						newer[key] = true
 			Inbound.Type.JOINED, Inbound.Type.LEFT, Inbound.Type.DISCONNECTED:
 				_forget_newer_of(newer, item.peer)
-			_:
-				newer.clear()
 	return superseded
 
 
