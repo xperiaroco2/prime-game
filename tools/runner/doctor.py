@@ -9,7 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from . import pins
+from . import machine_env, pins
 from .common import (
     IS_CI,
     IS_WINDOWS,
@@ -57,6 +57,23 @@ class Doctor:
                 f"Python {_dotted(current)} is older than {_dotted(pins.PYTHON_MIN)}",
                 f"Install Python {_dotted(pins.PYTHON_MIN)}+ and set PYTHON_BIN in {USER_SETTINGS} env.",
             )
+
+    def machine_paths(self) -> None:
+        """Say where each machine path came from: the process environment or a Claude settings file (#55)."""
+        report = machine_env.apply()
+        for problem in report.problems:
+            warn(problem)
+        for var in machine_env.MACHINE_VARS:
+            source = report.sources.get(var)
+            if source:
+                ok(f"{var} from {source}: {os.environ.get(var, '')}")
+            elif IS_CI:
+                skip(f"{var} (not set; CI finds its tools on PATH)")
+            else:
+                warn(
+                    f"{var} is not set: neither " + ", ".join(report.searched[:-1]) + f" nor {report.searched[-1]} "
+                    f"has it; add it to the env of {USER_SETTINGS}"
+                )
 
     def godot(self) -> None:
         path = godot_bin()
@@ -233,6 +250,7 @@ def main(quick: bool) -> int:
     say("doctor" + (" --quick" if quick else ""))
     doc = Doctor()
     doc.python()
+    doc.machine_paths()
     doc.disk()
     doc.godot()
     doc.gdtoolkit()
