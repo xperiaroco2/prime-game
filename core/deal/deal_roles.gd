@@ -10,9 +10,10 @@ extends RuleEffect
 ## of the mode that knows its teammates and has players, in the mode's order, Teammates (every
 ## player of that role, and nobody else, §5).
 ##
-## Forced roles (§8, §9.7: a debug command or a scenario, debug builds only) are not built: core/
-## cannot tell a debug build. The hook for 2j is data that server/ or the scenario runner hands
-## in before the deal (MatchState), which this action applies before its draws.
+## Forced roles (§8, §9.7: a debug command or a scenario, debug builds only) are not built here:
+## core/ cannot tell a debug build, so 2j hands them in as data (peer -> role, set by server/ or
+## the scenario runner before the deal) for this action to apply before its draws. Whether a
+## forced player counts toward its role's quota is open (ARCHITECTURE §10).
 
 ## The quotas, in order: each draws its players from those the earlier ones left.
 @export var quotas: Array[RoleQuota] = []
