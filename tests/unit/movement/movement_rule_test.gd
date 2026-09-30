@@ -181,6 +181,23 @@ func test_a_catch_up_burst_after_a_five_second_gap_passes() -> void:
 	assert_int(player.claim_tick).is_equal(tick)
 
 
+func test_a_catch_up_burst_merged_into_its_newest_claim_passes() -> void:
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.steps(game, P1, 5, EAST * 0.2, {"moving": true})
+	var seen := FixtureMoves.corrections(game, P1).size()
+	# As above, but the transport merges a LATEST backlog into its newest message (ARCHITECTURE
+	# §4): after 5 s the host gets one claim that covers all 100 client ticks (#70).
+	FixtureModes.run_ticks(game, 100)
+	var tick := player.claim_tick + 100
+	var at := player.position + EAST * 20.0
+	FixtureMoves.claim(game, P1, at, {"moving": true, "client_tick": tick})
+	FixtureModes.run_ticks(game, 1)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_vector(player.position).is_equal_approx(at, Vector3.ONE * 1e-4)
+	assert_int(player.claim_tick).is_equal(tick)
+
+
 func test_a_burst_without_a_gap_is_corrected() -> void:
 	var game := FixtureMoves.in_round([P1])
 	var player := game.state.player(P1)
