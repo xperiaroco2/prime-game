@@ -147,9 +147,13 @@ func part_state(key: StringName, create: Callable) -> RefCounted:
 
 ## Clears everything a match changed and keeps the roster (ResetMatch, 2b): items, stations,
 ## tasks and their states, bodies, cooldowns, counters, per-part state, the clock and the winner;
-## each player's role, life, hand, health and stamina start again from player_rules; everyone
-## un-ready. The RNG moves to the next match of the session (§3.3).
+## the players who left during the match (§3.5) leave the roster; each other player's role,
+## life, hand, health and stamina start again from player_rules; everyone un-ready. The RNG moves
+## to the next match of the session (§3.3).
 func reset_match() -> void:
+	for peer: int in peers():
+		if not players[peer].is_present():
+			remove_player(peer)
 	items.clear()
 	tasks.clear()
 	stations.clear()
