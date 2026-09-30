@@ -1,0 +1,226 @@
+[gd_resource type="Resource" script_class="GameMode" format=3 uid="uid://dryjm86grpgfq"]
+
+[ext_resource type="Script" uid="uid://cxkk433vkvdyp" path="res://core/content/game_mode.gd" id="1_mode"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="1_o02jd"]
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="2_hh6c0"]
+[ext_resource type="Script" uid="uid://bqqg615y2omx2" path="res://core/content/setting_spec.gd" id="2_setting"]
+[ext_resource type="Script" uid="uid://fhxetbfsog34" path="res://core/content/player_rules.gd" id="3_rules"]
+[ext_resource type="Script" uid="uid://c1nka73kltwll" path="res://core/content/side_spec.gd" id="4_side"]
+[ext_resource type="Script" uid="uid://dfml7envorvsb" path="res://core/content/phase_spec.gd" id="5_phase"]
+[ext_resource type="Script" uid="uid://baaajbxrrhdg3" path="res://core/content/accept_spec.gd" id="6_accept"]
+[ext_resource type="Script" uid="uid://bi17rpcbricmx" path="res://core/content/tick_system.gd" id="6_df0dk"]
+[ext_resource type="Script" uid="uid://dl25j631urs68" path="res://core/content/transition.gd" id="7_row"]
+[ext_resource type="Script" uid="uid://dap4wowtrpwpp" path="res://core/placement/place_players.gd" id="8_place"]
+[ext_resource type="Script" uid="uid://bkscucyrcyy0n" path="res://core/match/phases/lobby_phase.gd" id="9_lobby"]
+[ext_resource type="Script" uid="uid://cuxn2ib3gkpd7" path="res://core/match/phases/countdown_phase.gd" id="10_countdown"]
+[ext_resource type="Script" uid="uid://dwlt1b308yr55" path="res://core/match/phases/loading_phase.gd" id="11_loading"]
+[ext_resource type="Script" uid="uid://bwquhbiy31ncw" path="res://core/match/phases/round_phase.gd" id="12_round"]
+[ext_resource type="Script" uid="uid://bii2odc87uvkr" path="res://core/content/game_role.gd" id="12_smei4"]
+[ext_resource type="Script" uid="uid://dpfbf0s4de6ss" path="res://core/match/phases/end_phase.gd" id="13_end"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="14_effect"]
+[ext_resource type="Script" uid="uid://bdus0i8liigi1" path="res://core/content/task_type.gd" id="16_5hq6p"]
+[ext_resource type="Script" uid="uid://b35oygc6v8aam" path="res://core/content/win_condition.gd" id="20_44x55"]
+
+[sub_resource type="Resource" id="Accept_lobby_hello"]
+script = ExtResource("6_accept")
+intent = &"Hello"
+from = 1
+
+[sub_resource type="Resource" id="Accept_lobby_move"]
+script = ExtResource("6_accept")
+intent = &"MoveClaim"
+from = 4
+
+[sub_resource type="Resource" id="Accept_lobby_ready"]
+script = ExtResource("6_accept")
+intent = &"SetReady"
+from = 2
+
+[sub_resource type="Resource" id="Accept_lobby_settings"]
+script = ExtResource("6_accept")
+intent = &"ChangeSettings"
+from = 16
+
+[sub_resource type="Resource" id="Phase_lobby"]
+script = ExtResource("5_phase")
+id = &"lobby"
+phase_class = ExtResource("9_lobby")
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings")])
+level = 1
+snapshots = true
+
+[sub_resource type="Resource" id="Accept_countdown_hello"]
+script = ExtResource("6_accept")
+intent = &"Hello"
+from = 1
+
+[sub_resource type="Resource" id="Accept_countdown_move"]
+script = ExtResource("6_accept")
+intent = &"MoveClaim"
+from = 4
+
+[sub_resource type="Resource" id="Accept_countdown_ready"]
+script = ExtResource("6_accept")
+intent = &"SetReady"
+from = 2
+
+[sub_resource type="Resource" id="Phase_countdown"]
+script = ExtResource("5_phase")
+id = &"countdown"
+phase_class = ExtResource("10_countdown")
+settings = Dictionary[StringName, float]({
+&"seconds": 5.0
+})
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready")])
+level = 1
+snapshots = true
+
+[sub_resource type="Resource" id="Accept_loading_ack"]
+script = ExtResource("6_accept")
+intent = &"LoadAck"
+from = 2
+
+[sub_resource type="Resource" id="Phase_loading"]
+script = ExtResource("5_phase")
+id = &"loading"
+phase_class = ExtResource("11_loading")
+settings = Dictionary[StringName, float]({
+&"deadline_seconds": 60.0
+})
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_loading_ack")])
+level = 2
+
+[sub_resource type="Resource" id="Accept_round_move"]
+script = ExtResource("6_accept")
+intent = &"MoveClaim"
+from = 12
+
+[sub_resource type="Resource" id="Phase_round"]
+script = ExtResource("5_phase")
+id = &"round"
+phase_class = ExtResource("12_round")
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move")])
+checks_wins = true
+clock_runs = true
+level = 2
+snapshots = true
+
+[sub_resource type="Resource" id="Accept_end_return"]
+script = ExtResource("6_accept")
+intent = &"ReturnToLobby"
+from = 16
+
+[sub_resource type="Resource" id="Phase_end"]
+script = ExtResource("5_phase")
+id = &"end"
+phase_class = ExtResource("13_end")
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_end_return")])
+level = 2
+
+[sub_resource type="Resource" id="PlayerRules_base"]
+script = ExtResource("3_rules")
+
+[sub_resource type="Resource" id="Setting_match_duration"]
+script = ExtResource("2_setting")
+id = &"match_duration"
+display_name = "Match duration (minutes)"
+default_value = 10
+min_value = 1
+max_value = 60
+
+[sub_resource type="Resource" id="Setting_tasks_per_player"]
+script = ExtResource("2_setting")
+id = &"tasks_per_player"
+display_name = "Tasks per player"
+default_value = 2
+min_value = 1
+max_value = 10
+
+[sub_resource type="Resource" id="Setting_subtasks_per_task"]
+script = ExtResource("2_setting")
+id = &"subtasks_per_task"
+display_name = "Subtasks per task"
+default_value = 2
+min_value = 1
+max_value = 10
+
+[sub_resource type="Resource" id="Setting_dissidents"]
+script = ExtResource("2_setting")
+id = &"dissidents"
+display_name = "Dissidents"
+default_value = 1
+max_value = 9
+
+[sub_resource type="Resource" id="Setting_knives"]
+script = ExtResource("2_setting")
+id = &"knives"
+display_name = "Knives"
+default_value = 2
+max_value = 100
+
+[sub_resource type="Resource" id="Side_crew"]
+script = ExtResource("4_side")
+id = &"crew"
+display_name = "Crew"
+
+[sub_resource type="Resource" id="Side_dissidents"]
+script = ExtResource("4_side")
+id = &"dissidents"
+display_name = "Dissidents"
+
+[sub_resource type="Resource" id="Row_lobby_all_ready"]
+script = ExtResource("7_row")
+from = &"lobby"
+outcome = &"all_ready"
+to = &"countdown"
+
+[sub_resource type="Resource" id="Row_countdown_cancelled"]
+script = ExtResource("7_row")
+from = &"countdown"
+outcome = &"cancelled"
+to = &"lobby"
+
+[sub_resource type="Resource" id="Row_countdown_done"]
+script = ExtResource("7_row")
+from = &"countdown"
+outcome = &"countdown_done"
+to = &"loading"
+
+[sub_resource type="Resource" id="Place_round_player"]
+script = ExtResource("8_place")
+tag = &"round_player"
+
+[sub_resource type="Resource" id="Row_loading_all_loaded"]
+script = ExtResource("7_row")
+from = &"loading"
+outcome = &"all_loaded"
+to = &"round"
+actions = Array[ExtResource("14_effect")]([SubResource("Place_round_player")])
+
+[sub_resource type="Resource" id="Row_round_won"]
+script = ExtResource("7_row")
+from = &"round"
+outcome = &"won"
+to = &"end"
+
+[sub_resource type="Resource" id="Place_lobby_player"]
+script = ExtResource("8_place")
+tag = &"lobby_player"
+
+[sub_resource type="Resource" id="Row_end_back"]
+script = ExtResource("7_row")
+from = &"end"
+outcome = &"back"
+to = &"lobby"
+actions = Array[ExtResource("14_effect")]([SubResource("Place_lobby_player")])
+
+[resource]
+script = ExtResource("1_mode")
+settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks_per_player"), SubResource("Setting_subtasks_per_task"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
+player_rules = SubResource("PlayerRules_base")
+sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
+lobby_level = "res://levels/lobby/lobby.tscn"
+maps = PackedStringArray("res://levels/greybox/greybox.tscn")
+phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_round"), SubResource("Phase_end")])
+first_phase = &"lobby"
+transitions = Array[ExtResource("7_row")]([SubResource("Row_lobby_all_ready"), SubResource("Row_countdown_cancelled"), SubResource("Row_countdown_done"), SubResource("Row_loading_all_loaded"), SubResource("Row_round_won"), SubResource("Row_end_back")])

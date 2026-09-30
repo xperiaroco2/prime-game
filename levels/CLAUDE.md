@@ -12,6 +12,11 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - The folder layout inside `levels/` and the piece conventions are agreed with the designer when level work starts
   (M4); skill `new-level-piece` then encodes them.
 - Greybox with CSG and CC0 low-poly packs. Stylized low-poly, no texture-heavy art.
+- **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
+  group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
+  `spawn_circle`). A marker in two such groups is a load error. The host reads them in scene-tree order.
+- The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
+  flat, marker-only scenes from M2 (built by the engineer's agent), dressed in M4.
 
 ## Never edit engine code
 - Interactables and task stations come from the engine. If a level needs one that does not exist, open an

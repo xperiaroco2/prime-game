@@ -1,9 +1,10 @@
 # Content API v0: rules, kinds and bot scenarios
 
-- **Status:** Proposed: the engineer reviews it in #33's PR; the designer reviews it before v1 (#38)
-- **Date:** 2026-09-29
+- **Status:** Accepted (2026-09-30): the engineer answered A to all five choices below (#33, recorded in #49); the
+  designer reviews v0 before v1 (#38)
+- **Date:** 2026-09-29; accepted 2026-09-30
 - **Deciders:** designed by the agent in #33, unattended overnight, and revised after a fresh adversarial review; the
-  choices under "Open for the engineer" are provisional until the engineer's review
+  five choices under "The engineer's answers" decided by the engineer
 
 ## Context
 Invariant 4 says that roles, abilities, items and task types are `Resource`s composed from trigger → condition →
@@ -153,15 +154,18 @@ The details are in `docs/ARCHITECTURE.md` §9.1 to §9.8; §3, §4.1, §4.2, §5
   the row actions, `outcome_dropped` and the mode's hash in the log. The
   [match loop ADR](2026-09-29-match-loop-intents-events-and-entitlement.md) keeps its record and points here. The
   root `CLAUDE.md` and `core/CLAUDE.md` name the rule model.
-- The designer's files teach what v0 no longer matches; see "Open for the engineer" 3.
+- The designer's files taught what v0 no longer matches; 2a (#49) updated them minimally (answer 3 below).
+- Two class names differ from the kind names (2a): `GameRole` and `RuleEffect`, because a global `Role` shadows
+  `NetTransport.Role` and a global `Effect` shadows GdUnit4's `GdUnitMessageWriter.Effect` inside those classes.
 - Risks: behaviour spread over data is harder to trace than a function, so the rule runner names the rule, owner
   and fact chain in every error and rejection log; a designer can build a rule whose refusal or public event reveals
   hidden state (§9.2 asks each condition and rule to say so, and validation warns on role-gated public events; v0
   has none); scenario steps that walk in straight lines need waypoints on levels with walls until M4 brings
   navigation.
 
-## Open for the engineer
-Adopted provisionally, each reversible until the stage-2 task named:
+## The engineer's answers
+The engineer answered **A on all five** (2026-09-30, in the chat with the manager session; comment on #33). Each was
+adopted provisionally in #33 and is now decided:
 1. **`Hit` → `Use`** (2g). A: rename now (adopted). B: keep `Hit` and add an intent per held-item verb. A, because a
    new item is then data only.
 2. **Where bot scenarios live and in what form** (2j). A: `.tres` data in `content/scenarios/`, written by the
@@ -184,3 +188,9 @@ Adopted provisionally, each reversible until the stage-2 task named:
    under the MVP content exception, and 4e dresses them (adopted). B: the base mode names no levels until 4e; the
    mode check and the scenarios take fixture layouts from `tests/fixtures/`, and a scenario overrides the lobby and
    the map. A, because the mode's paths never change and `content/` never points into `tests/`.
+
+Recorded answers, in the order above: 1. `Hit` becomes `Use`. 2. Bot scenarios are `.tres` files in
+`content/scenarios/`, with their classes in `core/content/scenario/`. 3. 2a edits `content/CLAUDE.md`,
+`levels/CLAUDE.md` and the `new-mechanic` skill minimally under the MVP content exception; the engineer approves them in
+2a's PR, and the designer reviews them in #38. 4. Spawn points are `Marker3D` nodes in one `spawn_<tag>` group, one
+tag per marker. 5. Stage 2 uses flat, marker-only lobby and map scenes at their final paths in `levels/`, dressed in 4e.
