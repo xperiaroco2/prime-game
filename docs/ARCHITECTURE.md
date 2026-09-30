@@ -690,10 +690,13 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   `WorldQuery.use_level(path)` on start and in each transition (3e; the fakes and the replay ignore it). Prevents: a
   row action that asks geometry (none does in the MVP) getting the old level's answer, as it would if `server/`
   switched levels between steps.
-- **The answers.** `line_of_sight(a, b)`: `intersect_ray` from a to b hits nothing. `floor_below(p)` (E10): p's x and
-  z at the height of the highest floor under five downward rays, at p and at four points on a circle of the capsule's
-  radius around it, so a player on a ledge's edge stands on the ledge (§7.1's note); an item dropped there may rest up
-  to a capsule radius past the edge. `rest_position(a, b)`: a ray from a to b, stopped 0.2 m (a placeholder) before
+- **The answers.** `line_of_sight(a, b)`: `intersect_ray` from a to b hits nothing. Two floor answers (E10 (b)): `floor_below(p)`, one downward ray at p, for items and bodies (`Items`'s drop and
+  put-down, the body in `LifeRules`); and `stand_floor_below(p)` (3e adds it to the port), p's x and z at the height
+  of the highest floor under five downward rays, at p and at four points on a circle of the capsule's radius around
+  it, for a player's standing (`MovementRule`'s take-off and landing, the reach's eye height), so a player on a
+  ledge's edge stands on the ledge (§7.1's note). Prevents: a package put down within a capsule radius of a low ledge
+  resting at the ledge's height beside it, which the delivery check reads (§7.1), so the same drop counts or not by the
+  ledge. `rest_position(a, b)`: a ray from a to b, stopped 0.2 m (a placeholder) before
   the first hit, then `floor_below`. `core/` records every answer in the command log (§3.3).
 - **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
   gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the
@@ -986,8 +989,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     travel times tan 45° (slopes and stairs up to the client's `floor_max_angle`). Positions are 32-bit floats:
     `HEIGHT_SLACK_M` (1 mm) on top. Falling is not bounded.
   - Cost: two `WorldQuery.floor_below` calls per jump and one per claim on the floor, each recorded in the command
-    log. `server/`'s `floor_below` (M3) should look below the whole capsule footprint, not one ray at the origin: on a
-    ledge's edge a ray from the feet misses the ledge, and a jump from there would be corrected (the design: §4.5, E10).
+    log. The movement rule's floor (M3: `stand_floor_below`) looks below the whole capsule footprint, not one ray at the
+    origin: on a ledge's edge a ray from the feet misses the ledge, and a jump from there would be corrected (the
+    design: §4.5, E10).
 - **Pushing apart** (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions"). Living
   players never pass through each other, but a body cannot block a passage. Each client moves only its own player
   against the other living players' capsules at their interpolated positions; the host tolerates overlap and never

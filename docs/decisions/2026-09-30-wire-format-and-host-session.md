@@ -55,8 +55,9 @@ client, the bots and the leak test). The main choices:
    routing with that tick on each frame (E11), enforces the hello deadline, bounds each peer's rate and disconnects a
    peer that keeps sending malformed packets (E7).
 7. **Geometry.** Per level, a `World3D.new()` holding the level's static colliders through `PhysicsServer3D`, built
-   when the session starts (E8); `Match` tells the port which level it asks about (E9); `floor_below` looks under the
-   capsule's footprint (E10); whether a fresh space answers before its first step is probed first (3c).
+   when the session starts (E8); `Match` tells the port which level it asks about (E9); a player's floor is the highest
+   under the capsule's footprint and an item's is one ray below it (E10); whether a fresh space answers before its
+   first step is probed first (3c).
 8. **Clients and bots.** A `ClientSession` decodes into a view shaped like `PeerView`; a bot is a `ClientSession` and
    a script. The leak test compares each bot's decoded view with `view_of` (the events exactly, the snapshots' avatars
    and the voice frames as subsets) and checks invariants that read the events' own fields. One process with a
@@ -97,9 +98,9 @@ client, the bots and the leak test). The main choices:
   would live twice on the host (a scripted door, later, would run twice). *The host client's scene* (E8 c): a headless
   host has none, and it holds player capsules (§7.1). *`server/` switching the port's level between steps* (E9 b): a
   row action that asks geometry would get the old level. *The level as an argument of every port method* (E9 c): every
-  call site changes, for what one call per transition does. *Two floor methods*, a capsule's and a point's (E10 b):
-  more port, only to keep an item dropped at a ledge's edge from resting past it. *One ray at the feet* (E10 c): a jump
-  from a ledge's edge is corrected (§7.1's note).
+  call site changes, for what one call per transition does. *One footprint answer for every caller* (E10 a): a
+  package put down within a capsule radius of a low ledge rests at its height, which decides a delivery. *One ray at
+  the feet for every caller* (E10 c): a jump from a ledge's edge is corrected (§7.1's note).
 - **For choice 8.** *Bots that read `core/` state or `view_of`*: they would not show that a mechanic is playable with
   what a player is told (§9.7), and the leak test would compare a thing with itself. *A real clock in the one-process
   runner* (E12 b): a 10-minute scenario takes 10 minutes of every `verify`, and its timing varies. *No saved logs*
@@ -113,6 +114,7 @@ client, the bots and the leak test). The main choices:
   gets `joins_closed` and `DisconnectPeer`, and Loading's entry disconnects waiting newcomers (E14); a refused
   `MoveClaim` is dropped without `Rejected` (E15); `Intents.FIELDS` declares each intent's fields and types, which
   the rules read through and 3d's test compares with the table (so 3d follows that commit of 3e).
+  `WorldQuery` gains `stand_floor_below` for a player's standing, which `MovementRule` and the reach use (E10).
 - **The designer** is told in the PR: content ids stay lowercase snake_case of at most 32 characters, which every MVP
   id already is. Nothing else in `content/` changes. With E8 (a), a level's collision is `StaticBody3D` nodes, not
   CSG or `GridMap` (their collision exists only in a tree): a point for 4e's level conventions.
@@ -144,7 +146,7 @@ The design follows each recommendation, and each can be reverted before its task
 | E7 | Rate limits and malformed packets | (a) per-peer budgets of voice frames, reliable intents and bytes of the rest (voice apart, so talking never starves a `SetReady`), over-budget messages dropped, a disconnect after 50 malformed messages in 10 s; (b) count and log only; (c) a disconnect on the first malformed packet or any excess | (a), numbers as placeholders: bounds a looping client's growth of the command log without dropping a thawed honest player |
 | E8 | The host's collision world | (a) per level a `World3D.new()` with the static colliders through `PhysicsServer3D`, built at the start; (b) the level in a `SubViewport` with its own world; (c) the host client's scene | (a): only the colliders, the same on a headless host. Its cost: CSG and `GridMap` collision exist only in a tree, so levels give collision as `StaticBody3D` nodes (4e's conventions, with the designer), or (b) is taken |
 | E9 | Which level the port answers for | (a) `Match` calls `WorldQuery.use_level(path)` on start and before each row's actions; (b) `server/` switches between steps; (c) every port method takes the level | (a): two lines in the loop, and a row action can never get the old level |
-| E10 | `floor_below` | (a) the highest floor under the capsule's footprint (five rays), for every caller; (b) two methods, the capsule's and a point's; (c) one ray | (a) for M3; (b) if a playtest shows items resting past ledges |
+| E10 | `floor_below` | (a) the highest floor under the capsule's footprint (five rays), for every caller; (b) two methods: the footprint for a player's standing (`stand_floor_below`, new), one ray for items and bodies (`floor_below`); (c) one ray | (b): with (a) a package put down next to a low ledge rests at the ledge's height, and the delivery check reads that height; one port method more |
 | E11 | Voice frames carry the host tick | (a) yes, 4 bytes; (b) no | (a): the leak test checks each frame against `view_of`'s routing for that tick |
 | E12 | The bots runner's clock | (a) simulated in one process over `LoopbackHub`, real over ENet; (b) real everywhere | (a): fast and repeatable in `verify`, with ENet still covered |
 | E13 | Command logs | (a) the bots runner saves a failed scenario's log; a debug-build host writes the session's log to `user://replays/` when the session ends (not per match: the log holds the seed of the matches still to come) and keeps the last 10; (b) the bots runner only; (c) none | (a): a failure in an unattended run or a playtest can be replayed |
