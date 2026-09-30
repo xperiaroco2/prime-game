@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="GameRole" format=3 uid="uid://btlnkq13phq6m"]
+
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="1_c1lox"]
+[ext_resource type="Script" uid="uid://bii2odc87uvkr" path="res://core/content/game_role.gd" id="1_role"]
+
+[resource]
+script = ExtResource("1_role")
+id = &"dissident"
+display_name = "Dissident"
+side = &"dissidents"
+knows_teammates = true

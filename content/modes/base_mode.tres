@@ -31,6 +31,13 @@
 [ext_resource type="Resource" uid="uid://c8rs0bewtust4" path="res://content/items/package.tres" id="28_package"]
 [ext_resource type="Script" uid="uid://bmxheu4k3re0j" path="res://core/tasks/task_ticks.gd" id="29_task_ticks"]
 [ext_resource type="Resource" uid="uid://b5eyuq0do4t6h" path="res://content/tasks/delivery.tres" id="30_delivery"]
+[ext_resource type="Resource" uid="uid://4re2bkoe3b28" path="res://content/roles/crew.tres" id="59_crew"]
+[ext_resource type="Script" uid="uid://14lruqtf4bev" path="res://core/deal/deal_roles.gd" id="59_deal_roles"]
+[ext_resource type="Script" uid="uid://pvbullsryqos" path="res://core/deal/deal_tasks.gd" id="59_deal_tasks"]
+[ext_resource type="Resource" uid="uid://btlnkq13phq6m" path="res://content/roles/dissident.tres" id="59_dissident"]
+[ext_resource type="Resource" uid="uid://5wj7w4i0l5o2" path="res://content/items/knife.tres" id="59_knife"]
+[ext_resource type="Script" uid="uid://court8wt13yrh" path="res://core/content/role_quota.gd" id="59_quota"]
+[ext_resource type="Script" uid="uid://dfhwf7ayo4do4" path="res://core/deal/spawn_items.gd" id="59_spawn_items"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -257,6 +264,28 @@ from = &"countdown"
 outcome = &"countdown_done"
 to = &"loading"
 
+[sub_resource type="Resource" id="Quota_dissidents"]
+script = ExtResource("59_quota")
+role = ExtResource("59_dissident")
+count_setting = &"dissidents"
+leave_at_least = 1
+
+[sub_resource type="Resource" id="Deal_roles"]
+script = ExtResource("59_deal_roles")
+quotas = Array[ExtResource("59_quota")]([SubResource("Quota_dissidents")])
+default_role = ExtResource("59_crew")
+rng_purpose = &"roles"
+
+[sub_resource type="Resource" id="Deal_tasks"]
+script = ExtResource("59_deal_tasks")
+tasks_setting = &"tasks_per_player"
+
+[sub_resource type="Resource" id="Spawn_knives"]
+script = ExtResource("59_spawn_items")
+kind = ExtResource("59_knife")
+count_setting = &"knives"
+rng_purpose = &"knives"
+
 [sub_resource type="Resource" id="Place_round_player"]
 script = ExtResource("8_place")
 tag = &"round_player"
@@ -266,7 +295,7 @@ script = ExtResource("7_row")
 from = &"loading"
 outcome = &"all_loaded"
 to = &"round"
-actions = Array[ExtResource("14_effect")]([SubResource("Place_round_player")])
+actions = Array[ExtResource("14_effect")]([SubResource("Deal_roles"), SubResource("Deal_tasks"), SubResource("Spawn_knives"), SubResource("Place_round_player")])
 
 [sub_resource type="Resource" id="Row_round_won"]
 script = ExtResource("7_row")
@@ -295,7 +324,8 @@ max_players = 10
 settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks_per_player"), SubResource("Setting_subtasks_per_task"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])
-item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package")])
+roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_dissident")])
+item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down")])

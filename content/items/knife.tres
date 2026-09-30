@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemKind" format=3 uid="uid://5wj7w4i0l5o2"]
+
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="1_kind"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="1_nx1in"]
+
+[resource]
+script = ExtResource("1_kind")
+id = &"knife"
+display_name = "Knife"
+spawn_tag = &"knife"
