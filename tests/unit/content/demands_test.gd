@@ -31,7 +31,7 @@ func test_demands_add_up_and_name_every_shortfall() -> void:
 	var circle := StationKind.new()
 	circle.id = &"circle"
 	circle.palette = PackedColorArray([Color.RED, Color.BLUE])
-	var demands := Demands.new()
+	var demands := Demands.new(null)
 	demands.add_markers(&"package", 3)
 	demands.add_markers(&"package", 1)
 	demands.add_markers(&"knife", 1)

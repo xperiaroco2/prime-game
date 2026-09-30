@@ -127,10 +127,10 @@ func test_the_draw_depends_only_on_the_seed_and_its_own_purpose() -> void:
 
 func test_it_demands_its_count_of_markers_of_the_kinds_tag() -> void:
 	var spawn := FixtureDealModes.spawn_items(FixtureDealModes.item_kind(&"knife"))
-	var demands := Demands.new()
+	var demands := Demands.new(null)
 	spawn.add_demands({&"knives": 3}, 6, demands)
 	assert_dict(demands.markers).is_equal({FixtureDealModes.ITEM_TAG: 3})
-	var none := Demands.new()
+	var none := Demands.new(null)
 	spawn.add_demands({&"knives": 0}, 6, none)
 	assert_dict(none.markers).is_empty()
 

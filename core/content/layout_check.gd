@@ -51,7 +51,7 @@ static func run(mode: GameMode, layouts: Dictionary[String, LevelLayout]) -> Pac
 static func demands_of(
 	mode: GameMode, level: PhaseSpec.Level, settings: Dictionary[StringName, int], players: int
 ) -> Demands:
-	var demands := Demands.new()
+	var demands := Demands.new(mode)
 	for row: Transition in _rows_into(mode, level):
 		for action: RuleEffect in row.actions:
 			if action != null:
@@ -68,7 +68,7 @@ static func _check_level(
 ) -> void:
 	var defaults := mode.default_settings()
 	for row: Transition in _rows_into(mode, level):
-		var demands := Demands.new()
+		var demands := Demands.new(mode)
 		for action: RuleEffect in row.actions:
 			if action != null:
 				action.add_demands(defaults, mode.max_players, demands)

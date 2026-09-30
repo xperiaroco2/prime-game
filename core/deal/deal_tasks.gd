@@ -7,8 +7,8 @@ extends RuleEffect
 ## whose share is 0 deals nothing.
 ##
 ## Emits: the task types' events (Delivery: StationPlaced, ItemSpawned, TasksAssigned; §9.5).
-## Demands: each task type's, for its share (TaskType.add_demands), forwarded when the caller
-## names the mode in Demands.mode.
+## Demands: each task type's, for its share (TaskType.add_demands), forwarded to the task types
+## of Demands.mode (LayoutCheck builds every Demands for its mode).
 
 ## The match setting that holds the tasks per player (`tasks_per_player`).
 @export var tasks_setting: StringName

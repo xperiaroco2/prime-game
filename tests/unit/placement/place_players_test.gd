@@ -79,6 +79,6 @@ func test_too_few_markers_is_an_error_and_places_nobody() -> void:
 
 
 func test_it_demands_one_marker_per_player() -> void:
-	var demands := Demands.new()
+	var demands := Demands.new(null)
 	FixtureModes.place(&"round_player").add_demands({}, 6, demands)
 	assert_dict(demands.markers).is_equal({&"round_player": 6})

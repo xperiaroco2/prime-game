@@ -72,3 +72,25 @@ func test_demands_sum_the_rows_into_the_level() -> void:
 	assert_dict(demands.colours).is_equal({&"circle": 2})
 	var lobby := LayoutCheck.demands_of(mode, PhaseSpec.Level.LOBBY, {}, 3)
 	assert_dict(lobby.markers).is_equal({&"lobby_player": 3})
+
+
+# DealTasks forwards its demand to the mode's task types (§9.4, 2c): the fit check sees their
+# markers, and a map without them is refused.
+func test_a_task_types_demand_reaches_the_fit_check() -> void:
+	var mode := _mode_with_a_token_task()
+	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, mode.default_settings(), 3)
+	# 3 players x 2 tasks per player, one coin each.
+	assert_int(demands.markers.get(&"coin", 0)).is_equal(6)
+	assert_array(Array(LayoutCheck.run(mode, FixtureDealModes.layouts()))).is_equal(
+		["fixture://deal_map has no coin marker, which the row lobby, all_ready places on"]
+	)
+
+
+func _mode_with_a_token_task() -> GameMode:
+	var token := ItemKind.new()
+	token.id = &"coin"
+	token.display_name = "Coin"
+	token.spawn_tag = &"coin"
+	var mode := FixtureDealModes.deal_mode([FixtureDealtTaskType.new(&"fixture_dealt", token)])
+	mode.item_kinds.append(token)
+	return mode

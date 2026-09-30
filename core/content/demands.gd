@@ -10,9 +10,15 @@ var markers: Dictionary[StringName, int] = {}
 var colours: Dictionary[StringName, int] = {}
 ## Station kind id -> colours its palette has.
 var palettes: Dictionary[StringName, int] = {}
-## The mode whose rows add their demands, set by whoever sums them (the fit check): DealTasks
-## forwards its demand to this mode's task types (§9.4). Without it DealTasks adds nothing.
+## The mode whose rows add their demands, given by whoever sums them (LayoutCheck): DealTasks
+## forwards its demand to this mode's task types (§9.4). Null only where no row deals tasks.
 var mode: GameMode
+
+
+## `for_mode` is required so that no caller summing demands can forget it; null only in tests
+## whose rows deal no tasks.
+func _init(for_mode: GameMode) -> void:
+	mode = for_mode
 
 
 func add_markers(tag: StringName, count: int) -> void:

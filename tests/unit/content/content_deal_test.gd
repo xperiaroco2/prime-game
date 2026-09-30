@@ -59,8 +59,7 @@ func test_knife() -> void:
 
 func test_the_deal_demands_knife_markers_at_the_default_settings() -> void:
 	var mode := load(BASE_MODE) as GameMode
-	var demands := Demands.new()
-	demands.mode = mode
+	var demands := Demands.new(mode)
 	for action: RuleEffect in mode.find_transition(&"loading", &"all_loaded").actions:
 		action.add_demands(mode.default_settings(), 10, demands)
 	assert_int(demands.markers.get(&"knife", 0)).is_equal(2)

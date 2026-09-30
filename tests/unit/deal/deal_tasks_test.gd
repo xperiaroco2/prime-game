@@ -97,11 +97,11 @@ func test_it_forwards_its_demand_to_the_modes_task_types() -> void:
 	var mode := FixtureDealModes.deal_mode([first])
 	var deal := FixtureDealModes.deal_tasks()
 	var settings: Dictionary[StringName, int] = {&"tasks_per_player": 3}
-	var demands := Demands.new()
-	deal.add_demands(settings, 4, demands)
-	# No mode named: nothing to forward to.
-	assert_dict(demands.markers).is_empty()
-	demands.mode = mode
+	var none := Demands.new(null)
+	deal.add_demands(settings, 4, none)
+	# No mode: nothing to forward to.
+	assert_dict(none.markers).is_empty()
+	var demands := Demands.new(mode)
 	deal.add_demands(settings, 4, demands)
 	assert_dict(demands.markers).is_equal({FixtureDealModes.ITEM_TAG: 12})
 
