@@ -21,7 +21,20 @@ const FORBIDDEN_NAMES := [
 	"MultiplayerAPI",
 	"MultiplayerPeer",
 	"ENetMultiplayerPeer",
-	"AudioServer",
+	"PacketPeer\\w*",
+	"StreamPeer\\w*",
+	"TCPServer",
+	"UDPServer",
+	"HTTPClient",
+	"HTTPRequest",
+	"WebSocket\\w*",
+	"IP",
+	"Thread",
+	"WorkerThreadPool",
+	"Mutex",
+	"Semaphore",
+	"ProjectSettings",
+	"Audio\\w*",
 	"Input",
 ]
 ## Global functions that use the global RNG or load files; allowed only as methods of an object.
@@ -35,9 +48,11 @@ const FORBIDDEN_CALLS := [
 	"seed",
 	"load",
 	"preload",
+	"hash",
 ]
-## Array methods that use the global RNG.
-const FORBIDDEN_METHODS := ["shuffle", "pick_random"]
+## Array methods that use the global RNG; hash() (no documented algorithm, §3.3) and
+## get_instance_id() (differs between runs), which would break a replay.
+const FORBIDDEN_METHODS := ["shuffle", "pick_random", "hash", "get_instance_id"]
 
 
 func test_core_names_no_engine_class_it_must_not_use() -> void:
@@ -63,6 +78,18 @@ func test_the_check_sees_a_forbidden_call() -> void:
 	assert_object(calls.search(_code_of("\tvar x := randi() # a comment"))).is_not_null()
 	assert_object(calls.search(_code_of("\tvar x := rng.randi_range(0, 3)"))).is_null()
 	assert_object(calls.search(_code_of("\t## randi() in a doc comment"))).is_null()
+
+
+func test_the_check_sees_a_forbidden_name_and_method() -> void:
+	var names := RegEx.create_from_string("\\b(%s)\\b" % "|".join(FORBIDDEN_NAMES))
+	var methods := RegEx.create_from_string("\\.(%s)\\s*\\(" % "|".join(FORBIDDEN_METHODS))
+	assert_object(names.search("\tvar peer := PacketPeerUDP.new()")).is_not_null()
+	assert_object(names.search("\tvar player := AudioStreamPlayer.new()")).is_not_null()
+	assert_object(names.search("\tvar t := Thread.new()")).is_not_null()
+	assert_object(names.search("\tvar kind := ItemKind.new()")).is_null()
+	assert_object(methods.search("\tvar s := String(purpose).hash()")).is_not_null()
+	assert_object(methods.search("\tvar i := item.get_instance_id()")).is_not_null()
+	assert_object(methods.search("\tvar h := ContentHash.of(mode)")).is_null()
 
 
 ## The line without its comment; a `#` inside a string ends nothing.

@@ -8,8 +8,12 @@ extends RefCounted
 ## - A purpose's seed is SplitMix64 of (match seed XOR FNV-1a-64 of the purpose's UTF-8 name).
 ##   Not String.hash(): its algorithm is no documented contract.
 ## GDScript ints are signed 64-bit and wrap on overflow; `>>` is arithmetic, so every shift is
-## masked to make it logical. The unit test pins outputs computed by an independent
-## implementation. Seeds and RNG state never leave the host (§5).
+## masked to make it logical. The docs promise neither the wrap nor the arithmetic shift (and a
+## negative constant operand of `>>` is a parse error): it is engine behaviour verified on 4.7.2
+## at runtime and pinned by tests/unit/match/rng_streams_test.gd, which must pass after every
+## Godot pin bump. Never call mix64 or _shift_right with constant operands. The unit test pins
+## outputs computed by an independent implementation. Seeds and RNG state never leave the host
+## (§5).
 
 const _GAMMA := -7046029254386353131  # 0x9E3779B97F4A7C15
 const _MIX_1 := -4658895280553007687  # 0xBF58476D1CE4E5B9
