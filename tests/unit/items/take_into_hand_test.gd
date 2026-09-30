@@ -75,6 +75,20 @@ func test_the_line_of_sight_starts_at_the_eye() -> void:
 	assert_int(game.state.player(P1).held_item).is_equal(item.id)
 
 
+func test_the_line_of_sight_ends_just_above_the_item() -> void:
+	# The floor as a solid slab: a line that ends on the item's rest position touches it, so the
+	# line ends just above it (Items.lifted), and the surface the item lies on does not block it.
+	var world := FlatWorldQuery.new()
+	world.add_wall(AABB(Vector3(-5, -1, -5), Vector3(10, 1, 10)))
+	assert_bool(world.line_of_sight(Vector3(0, 1.6, 0), Vector3(1.5, 0, 0))).is_false()
+	var game := FixtureItemModes.in_round(FixtureItemModes.basic(), [P1], world)
+	FixtureItemModes.stand(game, P1, HERE)
+	var item := FixtureItemModes.lay(game, &"package", Vector3(1.5, 0, 0))
+	FixtureItemModes.pick_up(game, P1, item)
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	assert_int(game.state.player(P1).held_item).is_equal(item.id)
+
+
 func test_the_eye_height_comes_from_the_mode() -> void:
 	var world := FlatWorldQuery.new()
 	world.add_wall(AABB(Vector3(1.0, 0, -1), Vector3(0.1, 0.3, 2)))

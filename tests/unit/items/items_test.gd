@@ -57,6 +57,16 @@ func test_a_drop_lands_on_the_floor_found_below() -> void:
 	assert_vector(game.state.items[1].position).is_equal(Vector3(1, 1.5, 1))
 
 
+func test_a_drop_from_feet_a_hair_below_the_floor_still_finds_it() -> void:
+	# The floor is asked from just above the feet (Items.lifted): feet that a float error put
+	# under the floor, or a physics ray that starts on the floor, still find it.
+	var game := _holding_with_drop(Items.DEATH, FlatWorldQuery.new())
+	FixtureItemModes.stand(game, P1, Vector3(1, -0.001, 1))
+	FixtureModes.send(game, Intents.USE, P1)
+	assert_vector(game.state.items[1].position).is_equal(Vector3(1, 0, 1))
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_with_no_floor_below_the_item_rests_where_the_player_was_and_it_is_logged() -> void:
 	var game := _holding_with_drop(Items.DEATH, FlatWorldQuery.new(5.0))
 	FixtureItemModes.stand(game, P1, Vector3(1, 0, 1))
