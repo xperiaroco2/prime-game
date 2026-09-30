@@ -13,8 +13,8 @@ extends RefCounted
 ## Whether a jump may start now.
 @abstract func can_jump(ghost: bool) -> bool
 
-## Reports one physics step of `delta` seconds: whether the player was in the sprint state and
-## moved horizontally by its own input (a push alone does not count), and whether it jumped.
+## Reports one physics step of `delta` seconds: whether the player was in the sprint state, gave
+## movement input and moved horizontally (a push alone does not count), and whether it jumped.
 @abstract func report(delta: float, sprinted_moving: bool, jumped: bool, ghost: bool) -> void
 
 ## The current stamina, for the HUD (4c) and tests.

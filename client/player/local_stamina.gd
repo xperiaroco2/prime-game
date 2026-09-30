@@ -5,8 +5,8 @@ extends StaminaSource
 ## - Walking always works.
 ## - The sprint state starts when sprint is held and stamina is at least
 ##   `sprint_start_stamina`, and lasts while it is held and stamina is above 0.
-## - A step in the sprint state in which the player moved horizontally by its own input costs
-##   `sprint_cost_per_second` per second; every other step regenerates `regen_per_second`. A
+## - A step in the sprint state in which the player gave movement input and moved horizontally
+##   costs `sprint_cost_per_second` per second; every other step regenerates `regen_per_second`. A
 ##   pushed player pays nothing for the push, even while it holds sprint (the engineer's decision
 ##   of 2026-09-30); the controller reports only its own movement.
 ## - A jump needs at least `jump_cost` and spends it at once.
