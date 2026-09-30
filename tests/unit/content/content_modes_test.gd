@@ -70,9 +70,11 @@ func test_the_levels_are_flat() -> void:
 	var mode := _base_mode()
 	var levels := _layouts_for(mode)
 	for path: String in levels:
-		var root := (load(path) as PackedScene).instantiate()
+		var root: Node = auto_free((load(path) as PackedScene).instantiate())
 		var shapes := root.find_children("*", "CollisionShape3D", true, false)
 		assert_int(shapes.size()).override_failure_message(path).is_equal(1)
+		if shapes.size() != 1:
+			continue
 		var shape := shapes[0] as CollisionShape3D
 		var box := shape.shape as BoxShape3D
 		assert_object(box).override_failure_message(path).is_not_null()
@@ -92,7 +94,6 @@ func test_the_levels_are_flat() -> void:
 					. override_failure_message("%s: %s at %s" % [path, tag, at])
 					. is_true()
 				)
-		root.free()
 
 
 func test_a_match_of_the_base_mode_starts_in_the_lobby() -> void:
