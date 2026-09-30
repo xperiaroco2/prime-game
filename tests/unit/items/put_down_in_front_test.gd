@@ -82,11 +82,17 @@ func test_a_jump_does_not_raise_the_eye_over_a_wall() -> void:
 
 
 func test_a_facing_without_a_horizontal_direction_puts_it_at_the_feet() -> void:
-	# Not finite: on 4.7.2 Vector3.normalized() already returns zero for these, so the effect's
-	# own is_finite() check does not change this result; the test pins the outcome either way.
+	# Not finite: a probe on 4.7.2 showed Vector3.normalized() returns (0, 0, 0) for (NAN, 0, 1)
+	# and (INF, 0, 0) too, so the effect's own is_finite() check does not change this result; the
+	# test pins the outcome either way.
 	for facing: Vector3 in [Vector3.DOWN, Vector3.ZERO, Vector3(NAN, 0, 1), Vector3(INF, 0, 0)]:
 		var game := _holding(FlatWorldQuery.new(), Vector3(2, 0, 2))
 		FixtureItemModes.put_down(game, P1, facing)
+		# The put-down happened: a no-op would also leave the item's position at the feet.
+		assert_int(game.state.items[1].where).is_equal(ItemState.Where.GROUND)
+		assert_int(game.state.player(P1).held_item).is_equal(-1)
+		assert_array(game.view_of(P2).events_named(&"ItemPlaced")).has_size(1)
+		assert_array(game.view_of(P1).events_named(&"Rejected")).is_empty()
 		assert_vector(game.state.items[1].position).is_equal(Vector3(2, 0, 2))
 		assert_array(Array(game.diagnostics)).is_empty()
 
