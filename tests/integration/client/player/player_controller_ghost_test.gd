@@ -196,10 +196,15 @@ func test_ghost_steps_over_a_low_round_pipe() -> void:
 	assert_float(player.global_position.y).is_equal_approx(0.0, 0.01)
 
 
-func test_ghost_does_not_climb_a_slope_too_steep_to_walk() -> void:
+func test_ghost_climbs_only_the_slopes_the_living_climb() -> void:
+	# No steeper limit for a ghost (the engineer, 2026-09-30, #46): the same floor angle, and at
+	# its faster sprint it still does not get up a slope too steep to walk.
+	var living := _world.add_player(Vector3(20.0, 0.0, 0.0))
 	_world.add_ramp(deg_to_rad(50.0), -1.0)
 	var player := _world.add_ghost(Vector3.ZERO)
+	assert_float(player.floor_max_angle).is_equal(living.floor_max_angle)
 	player.move_input = Vector2(0.0, 1.0)
+	player.sprint_held = true
 	var highest := 0.0
 	for i: int in 120:
 		await _world.frames(1)
