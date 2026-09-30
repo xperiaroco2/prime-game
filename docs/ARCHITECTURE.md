@@ -697,9 +697,11 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   thread), where the 4.7.2 docs allow `direct_space_state` outside `_physics_process`; stepping from
   `_physics_process` keeps it legal if that setting changes.
 
-**The command log and replays** (E13). The host keeps the log in memory (§3.3). A debug-build host writes each
-finished match's log to `user://replays/` and keeps the last 10; the bots runner writes a failed scenario's log next
-to its report, so `Match.replay` reproduces the failure with the same build and content (3f adds `CommandLog`'s
+**The command log and replays** (E13). The host keeps the log in memory (§3.3). A debug-build host writes the session's
+log to `user://replays/` when the session ends (never after each match) and keeps the last 10: the log holds the session
+seed, from which every later match's seed is derived (§3.3), so a log written after match 1 would let the host's human
+or agent, debugging mid-playtest, replay it and read every role of match 2; the bots runner writes a failed scenario's
+log next to its report, so `Match.replay` reproduces the failure with the same build and content (3f adds `CommandLog`'s
 reading back). The log holds the seed: it stays on the host's disk and is never sent (§5).
 
 **Ending.** The host quits, or its own client's load fails: `close()`, and every client sees `host_lost` (#40).
