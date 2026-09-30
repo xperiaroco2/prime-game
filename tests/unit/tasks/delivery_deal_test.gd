@@ -235,6 +235,14 @@ func test_the_mode_check_refuses_undeclared_names_and_numbers_out_of_bounds() ->
 	assert_str(errors).contains("repeats palette colour 1")
 
 
+func test_the_mode_check_refuses_circles_and_packages_sharing_a_spawn_tag() -> void:
+	var mode := FixtureDeliveryModes.basic()
+	var delivery := FixtureDeliveryModes.delivery_of(mode)
+	delivery.circle.spawn_tag = delivery.package.spawn_tag
+	var errors := "\n".join(ModeCheck.run(mode).errors)
+	assert_str(errors).contains("Delivery delivery: circle and package share spawn tag package")
+
+
 ## Item id -> the id of its circle, from the task states.
 func _circle_by_package(game: Match) -> Dictionary[int, int]:
 	var found: Dictionary[int, int] = {}
