@@ -27,7 +27,7 @@ static func deal_mode(task_types: Array[TaskType] = []) -> GameMode:
 	var mode := GameMode.new()
 	mode.min_players = 1
 	mode.max_players = MAX_PLAYERS
-	mode.player_rules = PlayerRules.new()
+	mode.player_rules = FixtureModes.player_rules()
 	mode.settings = [
 		FixtureModes.setting(&"dissidents", 1, 0, 9),
 		FixtureModes.setting(&"tasks_per_player", 2, 0, 3),
