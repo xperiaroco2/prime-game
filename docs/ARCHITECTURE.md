@@ -943,7 +943,8 @@ Settings:
   8 m; lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no;
   stopped; Silent; map), Round (`MoveClaim` from the living and ghosts, `PickUp`, `PutDown` and `Use` from the living;
   TaskTicks; yes; runs; RoundVoice; map), End (`ReturnToLobby` from the host; none; no; stopped; Silent; map).
-  Snapshots in Lobby, Countdown and Round. RoundVoice's three radii: 8 m each.
+  Snapshots in Lobby, Countdown and Round.
+  RoundVoice's three radii: 8 m each.
 - Transitions: §3.2. Their actions: `Loading, all_loaded → Round`: `DealRoles` (Dissident by `dissidents`, leaving
   at least 1; default Crew), `DealTasks`, `SpawnItems` (Knife by `knives`), `PlacePlayers` (`round_player`),
   `StartClock`. `Round, won → End`: `EndMatch`. `End, back → Lobby`: `ResetMatch`, `PlacePlayers`
