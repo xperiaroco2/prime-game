@@ -11,7 +11,8 @@ extends CharacterBody3D
 
 ## Largest look-up or look-down angle, just short of straight up or down.
 const MAX_PITCH := deg_to_rad(89.0)
-## Smallest horizontal travel in a step that counts as moving, for stamina (metres).
+## Smallest horizontal travel in a step that counts as moving, for stamina (metres). A step counts
+## only while the player gives movement input: being pushed is not moving by itself.
 const MOVE_EPSILON := 0.0001
 ## Smallest rise that counts as walking up a step rather than along a flat floor (metres).
 const STEP_EPSILON := 0.001
@@ -163,7 +164,8 @@ func _walk(delta: float) -> void:
 	var grounded := is_on_floor() or _stepping
 	_sprinting = sprint_held and stamina.can_sprint(_sprinting, ghost)
 	var speed := _speed()
-	var wish := _horizontal_wish() * speed
+	var steering := _horizontal_wish()
+	var wish := steering * speed
 	if not ghost:
 		wish = _push_apart(wish, delta)
 	velocity.x = wish.x
@@ -189,7 +191,10 @@ func _walk(delta: float) -> void:
 		_cross_step(moved)
 	if is_on_floor():
 		_floor_y = _floor_contact_y()
-	stamina.report(delta, _sprinting and moved > MOVE_EPSILON, jumped, ghost)
+	# Only the player's own movement costs stamina: a push moves a player that gives no input for
+	# free, even while it holds sprint (the engineer's decision of 2026-09-30, #46).
+	var moved_itself := moved > MOVE_EPSILON and not steering.is_zero_approx()
+	stamina.report(delta, _sprinting and moved_itself, jumped, ghost)
 
 
 ## Metres per second on the ground this step: walk or sprint, of the living or of a ghost.

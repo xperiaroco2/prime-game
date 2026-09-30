@@ -446,7 +446,8 @@ The local player's controller (#46, `client/player/`):
 - `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its numbers (speeds, jump height, capsule,
   eye and step height, stamina) live in one resource, `client/player/player_tuning.tres` (`PlayerTuning`), whose
   script defaults are 0 so no number is repeated in code. `core/` (stage 2d) and later content take them over.
-- Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step.
+- Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step;
+  a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
   `LocalStamina` is a stand-in for `core/`'s stamina and the only copy of the rule on the client.
 - A ghost (`ghost = true`) takes the living's path: the same capsule, gravity, floor, steps, slopes and jump, at the
   living's walk and sprint speeds times `ghost_speed_factor`. `StaminaSource` never refuses a ghost and records
@@ -479,18 +480,21 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 - **Positions.** `core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
   range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
   claiming to stand next to what it wants to grab.
-- **Stamina** belongs to `core/` (ghosts are exempt, see Ghosts below). The client predicts its own from the
-  published numbers to draw the HUD and gate Shift, and follows `SelfStatus`. `core/` keeps a ledger per player: the
-  host tick up to which stamina is settled. A claim settles the ticks it covers (its client-tick delta, never past
-  the current host tick): a covered tick in the sprint state in which the player moved horizontally costs 1/20 of the
-  per-second cost, and every other covered tick regenerates. Before a jump or a hit is checked, the ticks not yet
-  settled are settled with the last claim's sprint state, so an idle player is not refused on stale stamina; a later
-  claim settles only what is left. The sprint state (Q7) starts when the claim holds the sprint flag and stamina is
-  at least the start threshold, and lasts while the flag is held and stamina is above 0. An accepted jump or hit
-  costs its amount at once. The allowed horizontal speed is the sprint speed in the sprint state, else the walk
-  speed, plus the push allowance (Pushing apart below), measured over the client's tick delta (lesson above).
-  Faster: `Correction` with a new epoch. Prevents: a client that never spends stamina, or spaces its claims out to
-  regenerate between them, sprinting forever.
+- **Stamina** belongs to `core/` (ghosts are exempt, see Ghosts below). The client predicts its own from the published
+  numbers to draw the HUD and gate Shift, and follows `SelfStatus`. `core/` keeps a ledger per player: the host tick up
+  to which stamina is settled. A claim settles the ticks it covers (its client-tick delta, never past the current host
+  tick): a covered tick in the sprint state in which the player moved horizontally by its own input costs 1/20 of the
+  per-second cost, and every other covered tick regenerates. Only the player's own movement counts (the engineer's
+  decision of 2026-09-30, #46): a pushed player holding sprint without movement input pays nothing for the push.
+  `PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina (#60, stage 2d)
+  counts the same way, so the claim says whether movement input was held (stage 2d adds it to `MoveClaim`). Before a
+  jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint state, so an idle player
+  is not refused on stale stamina; a later claim settles only what is left. The sprint state (Q7) starts when the claim
+  holds the sprint flag and stamina is at least the start threshold, and lasts while the flag is held and stamina is
+  above 0. An accepted jump or hit costs its amount at once. The allowed horizontal speed is the sprint speed in the
+  sprint state, else the walk speed, plus the push allowance (Pushing apart below), measured over the client's tick
+  delta (lesson above). Faster: `Correction` with a new epoch. Prevents: a client that never spends stamina, or spaces
+  its claims out to regenerate between them, sprinting forever.
 - **Jumps** are accepted only when the host has the player on the floor (the last claim, and the floor found by
   `WorldQuery` within step height) and stamina covers the cost (a ghost's jump needs none). Until the next landing
   the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is

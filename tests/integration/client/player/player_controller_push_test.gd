@@ -35,6 +35,21 @@ func test_sprinting_into_a_standing_player_pushes_both_at_the_push_speed() -> vo
 	await _assert_pushes_at_the_push_speed(true)
 
 
+func test_a_pushed_player_holding_sprint_without_moving_keeps_its_stamina() -> void:
+	# Only the player's own movement costs stamina (the engineer's decision of 2026-09-30): a
+	# player that holds Shift and gives no movement input pays nothing while a push moves it.
+	var standing := _world.add_player(Vector3(0.0, 0.0, -2.0))
+	var pusher := _world.add_player(Vector3.ZERO)
+	standing.sprint_held = true
+	await _world.frames(5)
+	var from := standing.global_position
+	pusher.move_input = Vector2(0.0, 1.0)
+	await _world.frames(90)
+	assert_float(_world.horizontal_distance(from, standing.global_position)).is_greater(0.5)
+	assert_bool(standing.is_sprinting()).is_true()
+	assert_float(_world.stand_in(standing).get_stamina()).is_equal(_tuning.max_stamina)
+
+
 func test_a_player_standing_in_a_doorway_is_pushed_out_and_the_pusher_passes() -> void:
 	# A wall across the way at z = -3 with a doorway 1.1 m wide: room for one capsule only.
 	var half_door := 0.55
