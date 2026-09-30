@@ -17,18 +17,23 @@ two commands by their target (issue #47):
   (or `-r`, `-rec`), `rmdir /s`, `rd /s/q`, `del /s`, a plain delete fed by a recursive listing
   (`Get-ChildItem core -Recurse | Remove-Item`), an unfiltered `find -delete` or `find -exec rm -rf`, and
   `shutil.rmtree('x')` or `[IO.Directory]::Delete('x', $true)` with a literal path. The targets of a pipeline
-  (`$_`, `{}`, `%`, none) are the paths its first command names, or the working directory. Regenerated output
-  (`tools/out/`, `.godot/`) and the gitignored scratch folder `tests/scratch/` pass, in the main checkout and in
+  (`$_`, `{}`, `%`, none) are the paths its first command names, or the working directory. A PowerShell array
+  (`a,b`) and a bash brace expansion (`x/{a,b}`) are judged item by item. Regenerated output (`tools/out/`,
+  `.godot/`, any `__pycache__/`) and the gitignored scratch folder `tests/scratch/` pass, in the main checkout and in
   every worktree; so do the scratchpad, `$TEMP/x`, `/tmp/x` and `~/x`.
+- No shell call keeps variables from an earlier one, so in bash a variable the command never assigns is also judged
+  as empty (`rm -rf "$X"/*` is `rm -rf /*`; `cd "$X"` stays where it is). A bash subshell (`( ... )`, `$(...)`)
+  keeps its `cd` and variables to itself; `cd -` and `popd` go back where the command was.
 - `git reset` asks with `--hard`, `--merge` or `--keep`, or when it moves the branch (`git reset HEAD~1`,
   `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere inside the project (`tools/out/`
   too). Unstaging (`git reset`, `git reset -q`, `git reset -- <paths>`, `git reset HEAD -- <paths>`,
   `git reset core`) passes. A lone argument is a revision when it looks like one (a SHA, `~`, `^`, `origin/x`,
   `refs/x`, `v1.2`, a task branch `net/40-x`, `main`); another bare name (`git reset feature-x`) counts as a path.
-- Out of scope: deletes whose target only a run could show (a variable set in an earlier call, a path read from a
-  file, a computed `rmtree(p)`), filtered deletes (`find . -name '*.orig' -delete`, `Get-ChildItem -Recurse -Filter
-  *.tmp | Remove-Item`, `del /s *.tmp` outside the project), and `git checkout`/`restore`/`clean`/`stash drop`, which
-  keep their own text ask rules.
+- Out of scope: deletes whose target only a run could show (a variable from the environment, a PowerShell variable
+  the command never assigns, a path read from a file, a computed `rmtree(p)`), filtered deletes, even project-wide
+  ones (`find . -name '*.orig' -delete`, `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*` or
+  before `-prune -o` is none), links (a delete through a junction in `tests/scratch/` reaches its target), and
+  `git checkout`/`restore`/`clean`/`stash drop`, which keep their own text ask rules.
 
 Like those Edit rules, it protects the project's own paths: `addons/` and `.claude/settings*.json` at the top of the
 main checkout or of a worktree. It resolves each target against the session's working directory, `cd`, and the
@@ -151,7 +156,8 @@ DELETE, RESET = "recursive delete", "git reset"
 DELETE_VERBS = {"rm", "del", "erase", "rd", "rmdir", "ri", "remove-item"}
 # cmd.exe delete commands, and their switches (`rmdir /s /q x`, `rd /s/q x`): options, not paths.
 CMD_DELETE_VERBS = {"rd", "rmdir", "del", "erase"}
-CMD_SWITCH_RE = re.compile(r"^(/[a-z?])+$", re.IGNORECASE)
+# Git Bash rewrites `/s` to a path, so there it is spelled `//s`.
+CMD_SWITCH_RE = re.compile(r"^(//?[a-z?])+$", re.IGNORECASE)
 # Inside the project, but deleting it loses no work: output that the next run writes again (the runner's, Godot's
 # import cache) and the gitignored scratch folder for temporary files that must live under res:// (a probe test).
 # `git reset` does not get this exemption: git finds the project's repository from there.
@@ -190,6 +196,47 @@ CODE_DELETE_RE = re.compile(
     r"|\[(?:system\.)?io\.directory\]::delete\$?\(\s*['\"]?([^'\",)]+?)['\"]?\s*,\s*\$true",
     re.IGNORECASE,
 )
+
+
+# Global git options whose value may be a separate word (`git --git-dir .git reset --hard`).
+GIT_VALUED = {"-c", "-C", "--git-dir", "--work-tree", "--namespace"}
+# `$(git rev-parse --show-toplevel)`: the checkout that contains the working directory.
+TOPLEVEL_SUB_RE = re.compile(r"\$\(\s*git\s+rev-parse\s+--show-toplevel\s*\)", re.IGNORECASE)
+# One bash brace alternation (`a/{x,y}`), not a `${var}` expansion.
+BRACE_RE = re.compile(r"(?<!\$)\{([^{}]*,[^{}]*)\}")
+# A PowerShell array item that is a plain value: a quoted string or a word without spaces or code.
+PS_ITEM_RE = re.compile(r"^'[^']*'$|^\"[^\"]*\"$|^[^\s$()'\"]+$")
+
+
+def _split_commas(text: str) -> list[str]:
+    """text split at its commas outside parentheses and quotes (a PowerShell array: `a,b`, `'a','b'`)."""
+    parts, depth, quote, start = [], 0, "", 0
+    for index, c in enumerate(text):
+        if quote:
+            quote = "" if c == quote else quote
+        elif c in "'\"":
+            quote = c
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+        elif c == "," and depth == 0:
+            parts.append(text[start:index])
+            start = index + 1
+    return parts + [text[start:]]
+
+
+def _braces(word: str, limit: int = 16) -> list[str]:
+    """The words a bash brace expansion makes (`tests/scratch/{x,../../core}`), at most limit of them."""
+    match = BRACE_RE.search(word)
+    if not match:
+        return [word]
+    result: list[str] = []
+    for alternative in match.group(1).split(","):
+        result += _braces(word[: match.start()] + alternative + word[match.end() :], limit)
+        if len(result) >= limit:
+            break
+    return result[:limit]
 
 
 def project_root(root: str) -> str:
@@ -267,7 +314,9 @@ class Paths:
         # protected. Without it they are OUTSIDE.
         self.home = normalize(home) if home else ""
         self.shell = shell
-        self.stack: list[str | None] = []
+        # Where `popd` and `cd -` go back to, as (cwd, cwd_text, cwd_base).
+        self.stack: list[tuple[str | None, str, str]] = []
+        self.oldpwd: tuple[str | None, str, str] | None = None
         self.vars: dict[str, str | None] = {"claude_project_dir": self.root}
         self.tainted: dict[str, str] = {}
         # Variables whose value is unknown but whose words name the project (`for d in core/*`).
@@ -286,7 +335,39 @@ class Paths:
         inner = Paths(self.root, "", self.home, shell or self.shell)
         inner.cwd, inner.vars, inner.tainted = self.cwd, dict(self.vars), dict(self.tainted)
         inner.project_vars, inner.cwd_text, inner.cwd_base = set(self.project_vars), self.cwd_text, self.cwd_base
+        inner.oldpwd = self.oldpwd
         return inner
+
+    def save(self) -> tuple:
+        """The state a bash subshell (`( ... )`, `$(...)`) cannot change for the rest of the command."""
+        where = (self.cwd, self.cwd_text, self.cwd_base)
+        return where, list(self.stack), self.oldpwd, dict(self.vars), dict(self.tainted), set(self.project_vars)
+
+    def restore(self, state: tuple) -> None:
+        where, stack, self.oldpwd, self.vars, self.tainted, self.project_vars = state
+        (self.cwd, self.cwd_text, self.cwd_base), self.stack = where, list(stack)
+
+    def items(self, token: str) -> list[str]:
+        """The paths one word names: a PowerShell array (`a,b`, `'a','b'`, `@('a','b')`) is one path per item, and a
+        bash brace expansion (`x/{a,b}`) one per alternative."""
+        if self.shell == BASH:
+            return _braces(token)
+        text = token
+        wrapped = re.fullmatch(r"@?\$\((.*)\)", token, re.DOTALL)
+        if wrapped and all(PS_ITEM_RE.match(p.strip()) for p in _split_commas(wrapped.group(1))):
+            text = wrapped.group(1)
+        parts = [p.strip().strip("'\"") for p in _split_commas(text)]
+        return [p for p in parts if p] or [token]
+
+    def toplevel(self) -> str | None:
+        """The checkout that contains the working directory (a worktree or the main checkout), if it is known."""
+        cwd = self.cwd
+        if cwd is None or cwd == OUTSIDE:
+            return None
+        worktree = re.match(rf"^({re.escape(self.root)}/\.claude/worktrees/[^/]+)(/|$)", cwd)
+        if worktree:
+            return worktree.group(1)
+        return self.root if cwd == self.root or cwd.startswith(self.root + "/") else None
 
     def root_like(self, path: str) -> bool:
         """A resolved path is a drive root, `/`, the home folder, or everything in one of them (`/*`)."""
@@ -309,6 +390,8 @@ class Paths:
         relative = parts[len(root) :]
         if relative[:2] == [".claude", "worktrees"] and len(relative) > 3:
             relative = relative[3:]
+        if "__pycache__" in relative:
+            return False  # Python's bytecode cache, rebuilt on the next run
         return not any("/".join(relative + [""]).startswith(r + "/") for r in DISPOSABLE)
 
     def names_project(self, token: str, follow_cd: bool = True) -> bool:
@@ -330,14 +413,24 @@ class Paths:
 
     def project_target(self, token: str, cwd: str | None = "", disposable: bool = True) -> bool:
         """token, a delete target or a repository, is in the project: resolved, or by its text. A home or temp
-        folder itself counts too."""
+        folder itself counts too. A PowerShell array or a bash brace expansion is judged item by item."""
+        return any(self._project_target(item, cwd, disposable) for item in self.items(token))
+
+    def _project_target(self, token: str, cwd: str | None, disposable: bool) -> bool:
         text = self.expand(token)
         if text is not None and OUTSIDE_ROOT_RE.match(text):
             return True
         path = self.resolve(token, cwd)
         if path is not None:
             return self.in_project(path, disposable)
-        return self.names_project(token) or self.computed(token)
+        if self.names_project(token) or self.computed(token):
+            return True
+        if self.shell != BASH:
+            return False
+        # No shell call keeps variables from an earlier one: a variable this command never assigns is empty, or comes
+        # from the environment. Judge the empty value too: `rm -rf "$X"/*` is `rm -rf /*`.
+        empty = self.resolve(token, cwd, empty=True)
+        return empty is not None and self.in_project(empty, disposable)
 
     def computed(self, token: str) -> bool:
         """An unresolvable token built from a command's output (`$(realpath core)`, PowerShell `(Resolve-Path x)`)
@@ -387,9 +480,13 @@ class Paths:
         paths = [p for p in paths if not PIPE_ITEM_RE.match(p)]
         return paths or (["."] if listing or verb in LISTING_VERBS else [])
 
-    def expand(self, token: str) -> str | None:
-        """token with its variables replaced; None when one of them is unknown."""
+    def expand(self, token: str, empty: bool = False) -> str | None:
+        """token with its variables replaced; None when one of them is unknown. With empty, a variable this command
+        never assigned is the empty string (one it assigned from something unknown, like a loop, stays unknown).
+        `$(git rev-parse --show-toplevel)` is the checkout that contains the working directory, when that is known."""
         unknown = False
+        if (top := self.toplevel()) is not None:
+            token = TOPLEVEL_SUB_RE.sub(lambda _: top, token)
 
         def value(match: re.Match[str]) -> str:
             nonlocal unknown
@@ -402,15 +499,15 @@ class Paths:
                 return self.home
             if name in OUTSIDE_VARS:
                 return OUTSIDE
-            unknown = True
+            unknown = unknown or not (empty and name not in self.vars)
             return ""
 
         text = VAR_RE.sub(value, token)
         return None if unknown or "$" in text else text
 
-    def resolve(self, token: str, cwd: str | None = "") -> str | None:
-        """An absolute normalized path, OUTSIDE, or None when it cannot be known."""
-        text = self.expand(token)
+    def resolve(self, token: str, cwd: str | None = "", empty: bool = False) -> str | None:
+        """An absolute normalized path, OUTSIDE, or None when it cannot be known (see expand for empty)."""
+        text = self.expand(token, empty)
         base = self.cwd if cwd == "" else cwd
         if text is None:
             return None
@@ -427,7 +524,11 @@ class Paths:
         return normalize(f"{base}/{text}")
 
     def area(self, token: str, cwd: str | None = "") -> str | None:
-        """The protected area token writes to: inside this project only; by its text when it cannot be resolved."""
+        """The protected area token writes to: inside this project only; by its text when it cannot be resolved. A
+        PowerShell array or a bash brace expansion is judged item by item."""
+        return next((a for a in (self._area(item, cwd) for item in self.items(token)) if a), None)
+
+    def _area(self, token: str, cwd: str | None) -> str | None:
         path = self.resolve(token, cwd)
         if path is None:
             names = {next(g for g in m.groups() if g).lower() for m in VAR_RE.finditer(token)}
@@ -438,19 +539,32 @@ class Paths:
         return project_area(path[len(self.root) + 1 :])
 
     def cd(self, verb: str, args: list[str]) -> None:
+        """Move the working directory. `popd` with an empty stack, `cd -` with no earlier `cd` in this command, and
+        a `cd` to a variable this command never assigned (empty at run time: `cd ""` stays) keep it."""
+        where = (self.cwd, self.cwd_text, self.cwd_base)
         if verb in ("popd", "pop-location"):
-            self.cwd = self.stack.pop() if self.stack else None
+            if self.stack:
+                self.oldpwd = where
+                self.cwd, self.cwd_text, self.cwd_base = self.stack.pop()
+            return
+        dest = _positionals(args, {"-path", "-literalpath"}) or _option_values(args, {"-path", "-literalpath"})
+        if dest and dest[0] == "-":
+            if self.oldpwd is not None:
+                (self.cwd, self.cwd_text, self.cwd_base), self.oldpwd = self.oldpwd, where
+            return
+        if dest and self.shell == BASH and self.expand(dest[0]) is None and self.expand(dest[0], empty=True) == "":
             return
         if verb in ("pushd", "push-location"):
-            self.stack.append(self.cwd)
-        dest = _positionals(args, {"-path", "-literalpath"}) or _option_values(args, {"-path", "-literalpath"})
+            self.stack.append(where)
+        self.oldpwd = where
         if not dest:
             self.cwd = OUTSIDE if verb in ("cd", "chdir") else self.cwd  # bash `cd` alone goes home
-        elif dest[0] == "-":
-            self.cwd = None
         else:
             before = self.cwd
-            self.cwd = self.resolve(dest[0])
+            text = self.expand(dest[0])
+            if text is None and self.shell == BASH:
+                text = self.expand(dest[0], empty=True)  # `cd "lab$S"` is `cd lab`
+            self.cwd = self.resolve(text if text is not None else dest[0])
             if self.cwd is None and not re.match(ABSOLUTE_RE, dest[0]):
                 # An unresolvable relative `cd` stays under the directory it started from: `cd "lab$S"` in the
                 # project is in the project.
@@ -526,6 +640,8 @@ class Segment:
         self.heredocs: list[str] = []
         self.pipeline = pipeline
         self.after_pipe = after_pipe
+        # "(" or ")" for a bash subshell boundary, which has no words: a `cd` inside does not leave it.
+        self.scope = ""
 
 
 HEREDOC_RE = re.compile(r"""\s*(['"]?)([A-Za-z0-9_.-]+)\1""")
@@ -724,12 +840,16 @@ def split(command: str, shell: str = BASH) -> list[Segment]:
                 piped = True
             elif text not in ("(", ")", "{", "}", "`"):
                 pipeline, piped = pipeline + 1, False
+            if text in ("(", ")") and shell == BASH:
+                segments.append(Segment(pipeline=pipeline))
+                segments[-1].scope = text
             current = Segment(pipeline=pipeline, after_pipe=piped)
             pending = ""
         elif kind == "sub":
             current.subs.append(text)
         elif kind == "heredoc":
-            (segments[-1] if not (current.words or current.redirects) and segments else current).heredocs.append(text)
+            last = next((s for s in reversed(segments) if not s.scope), None)
+            (last if not (current.words or current.redirects) and last else current).heredocs.append(text)
         elif kind in ("redir", "skip"):
             pending = kind
         elif pending == "redir":
@@ -800,20 +920,34 @@ def _positionals(args: list[str], valued: set[str] | None = None) -> list[str]:
 
 
 def _recursive(verb: str, args: list[str], shell: str = BASH) -> bool:
-    """A delete is recursive: bash `rm -r|-R|-rf|--recursive`, PowerShell `-Recurse` or any prefix of it (`-r`,
-    `-rec`; in PowerShell `rm` is Remove-Item, so `rm -Force` is not), cmd.exe `rmdir /s`, `rd /s/q`, `del /s`."""
+    """A delete is recursive: bash `rm -r|-R|-rf|--recursive` (or `--rec`), PowerShell `-Recurse` or any prefix of it (`-r`,
+    `-rec`; in PowerShell `rm` is Remove-Item, so `rm -Force` is not), cmd.exe `rmdir /s`, `rd /s/q`, `del /s` (`//s` from Git Bash)."""
     for arg in args:
         low = arg.lower()
         if low == "--":
             return False
         name, _, value = low.partition(":")
-        if low == "--recursive" or (verb == "rm" and shell == BASH and re.fullmatch(r"-[a-z]*r[a-z]*", low)):
+        if (low.startswith("--r") and "--recursive".startswith(low)) or (
+            verb == "rm" and shell == BASH and re.fullmatch(r"-[a-z]*r[a-z]*", low)
+        ):
             return True
         if len(name) >= 2 and "-recurse".startswith(name) and value not in ("$false", "0"):
             return True
         if verb in CMD_DELETE_VERBS and CMD_SWITCH_RE.match(low) and "/s" in re.findall(r"/[a-z?]", low):
             return True
     return False
+
+
+def _find_filtered(args: list[str]) -> bool:
+    """`find` has a filter that narrows what it matches. `-name '*'` narrows nothing, and neither does a filter
+    before `-prune -o` (`find . -path ./x -prune -o -delete` deletes everything else)."""
+    lows = [a.lower() for a in args]
+    start = max((i for i, a in enumerate(lows) if a == "-prune"), default=-1) + 1
+    return any(
+        low in FIND_FILTERS and not (index + 1 < len(args) and args[index + 1] == "*")
+        for index, low in enumerate(lows)
+        if index >= start
+    )
 
 
 def _find_starts(args: list[str]) -> list[str]:
@@ -829,10 +963,10 @@ def _recursive_listing(words: list[str] | None, shell: str) -> bool:
         return False
     verb, args = _verb(words[0]), words[1:]
     if verb == "find":
-        return not FIND_FILTERS & {a.lower() for a in args}
+        return not _find_filtered(args)
     if verb not in ("ls", "dir", "get-childitem", "gci"):
         return False
-    if _option_values(args, {"-filter", "-include"}):
+    if any(v != "*" for v in _option_values(args, {"-filter", "-include"})):
         return False  # `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item` is a targeted cleanup
     if shell == BASH:
         return any(a == "--recursive" or re.fullmatch(r"-[a-zA-Z]*R[a-zA-Z]*", a) for a in args)
@@ -843,7 +977,7 @@ def _find_deletes_all(args: list[str]) -> bool:
     """`find` deletes everything under its start paths: `-delete`, or `-exec rm -rf {}`, with no name or path
     filter (`find . -name '*.orig' -delete` is a targeted cleanup)."""
     lows = [a.lower() for a in args]
-    if FIND_FILTERS & set(lows):
+    if _find_filtered(args):
         return False
     if "-delete" in lows:
         return True
@@ -886,12 +1020,25 @@ class Analysis:
         piped_words: dict[int, list[str]] = {}
         # The command that starts each pipeline: where the paths a later `Remove-Item` or `xargs rm` gets come from.
         piped_first: dict[int, list[str]] = {}
+        # The state before each open bash subshell `( ... )`, restored at its `)`.
+        scopes: list[tuple] = []
         for segment in split(command, shell):
+            if segment.scope == "(":
+                scopes.append(self.paths.save())
+                continue
+            if segment.scope == ")":
+                if scopes:
+                    self.paths.restore(scopes.pop())
+                continue
             for target in segment.redirects:
                 self.add(target, ">")
             for sub in segment.subs:
                 if depth < 3:
+                    # A bash `$(...)` is a subshell; a PowerShell `$(...)` or `(...)` runs in the same session.
+                    saved = self.paths.save() if shell == BASH else None
                     self.command(sub, shell, depth + 1)
+                    if saved is not None:
+                        self.paths.restore(saved)
             words = segment.words
             if words:
                 rest = self.paths.assign(words)
@@ -991,11 +1138,13 @@ class Analysis:
     def git(self, args: list[str]) -> None:
         i, work_dir = 0, ""
         while i < len(args) and args[i].startswith("-"):
-            if args[i] in ("-C", "-c") and i + 1 < len(args):
-                work_dir = args[i + 1] if args[i] == "-C" else work_dir
-                i += 2
-            else:
-                i += 1
+            name, eq, value = args[i].partition("=")
+            step = 1
+            if not eq and args[i] in GIT_VALUED and i + 1 < len(args):
+                value, step = args[i + 1], 2
+            if name in ("-C", "--work-tree", "--git-dir") and value:
+                work_dir = value  # the repository git works on
+            i += step
         if i < len(args) and args[i].lower() == "reset":
             self.git_reset(args[i + 1 :], work_dir)
             return
@@ -1062,7 +1211,7 @@ class Analysis:
             if NESTED_SHELLS[verb] == BASH:
                 code_option = bool(re.fullmatch(r"-[a-z]*c", low))  # -c, -lc, -ec, -xc
             elif verb == "cmd":
-                code_option = low in ("/c", "/k")
+                code_option = low in ("/c", "/k", "//c", "//k")  # `//c` from Git Bash
             else:
                 code_option = len(low) >= 2 and "-command".startswith(low)  # -c, -Com, -Command
             if code_option:

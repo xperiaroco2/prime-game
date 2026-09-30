@@ -91,6 +91,8 @@ ASKS = [
     (P, "@'\nopen('.claude/settings.json', 'w').write('{}')\n'@ | python -"),
     (B, "\"$PYTHON_BIN\" - <<'EOF'\nimport shutil\nshutil.rmtree('addons/gdUnit4')\nEOF"),
     (B, "7z x gdUnit4.7z -oaddons"),
+    # Found by the second fresh review of #47: a PowerShell array names two paths.
+    (P, "Remove-Item $env:TEMP\\x,addons"),
 ]
 
 # (shell, command): normal work, including reads of the protected paths; none may ask.
@@ -237,6 +239,26 @@ DANGEROUS = [
     (B, "rm -rf tests/scratchpad"),
     (B, "rm -rf tests/scratch/../integration"),
     (B, "git -C tests/scratch reset --hard"),
+    # Found by the second fresh review of #47: arrays, subshells, variables no call assigned, rare spellings.
+    (P, "Remove-Item -Recurse -Force tests\\scratch\\probe,tests\\integration\\tmp"),
+    (P, "Remove-Item -Recurse $env:TEMP\\x,core"),
+    (P, "foreach ($d in 'tests\\scratch\\a','core') { Remove-Item -Recurse $d }"),
+    (P, "Remove-Item -Recurse @('tests\\scratch\\a', 'core')"),
+    (B, "(cd /tmp && ls); rm -rf core"),
+    (B, "X=$(cd /tmp && pwd); rm -rf core"),
+    (B, "(cd tools/out && ls); rm -rf net"),
+    (B, 'cd "$S" && rm -rf sandbox'),
+    (B, 'rm -rf "$X"/*'),
+    (B, "cd /tmp && cd - && rm -rf build"),
+    (B, "pushd /tmp && popd && rm -rf build"),
+    (B, "rm -rf tests/scratch/{x,../../core}"),
+    (B, "git --git-dir .git reset --hard"),
+    (B, "git --work-tree=. reset --hard"),
+    (B, "rm --rec core"),
+    (B, 'cmd //c "rd //s //q core"'),
+    (B, "find core -name '*' -delete"),
+    (B, "find . -path ./tests/scratch -prune -o -delete"),
+    (P, "Get-ChildItem -Recurse -Filter * | Remove-Item"),
 ]
 
 # (shell, command): deletes outside the project and git resets that only unstage; none may ask.
@@ -258,7 +280,6 @@ HARMLESS = [
     (B, "find /tmp/x -type d | xargs rm -rf"),
     (P, "Get-ChildItem $env:TEMP\\x | Remove-Item -Recurse"),
     (B, "cd /tmp && rm -rf lab"),
-    (B, 'cd "$S" && rm -rf sandbox'),
     (B, 'cd /tmp && cd "lab$S" && rm -rf sandbox && cd sub$X && rm -rf y'),
     (B, "rm -rf tools/out/hookprobe"),
     (B, "rm -rf .claude/worktrees/5/tools/out/gdunit"),
@@ -313,6 +334,14 @@ HARMLESS = [
     (B, "cd /d/prime-game/.claude/worktrees/46 && rm -r tests/scratch/probe && tools/run.sh test tests/scratch"),
     (P, "Remove-Item -Recurse -Force tests\\scratch\\probe"),
     (P, "Get-ChildItem tests\\scratch | Remove-Item -Recurse"),
+    # Found by the second fresh review of #47.
+    (B, 'rm -rf "$(git rev-parse --show-toplevel)/tests/scratch"'),
+    (B, "rm -rf tools/runner/__pycache__"),
+    (B, "(cd /tmp && rm -rf lab); rm -rf tests/scratch/x"),
+    (B, "find . -path ./tests/scratch -prune -o -name '*.orig' -delete"),
+    (B, "cd /tmp && pushd lab && popd && rm -rf x"),
+    (B, "rm -rf tests/scratch/{a,b}"),
+    (P, "Remove-Item -Recurse $env:TEMP\\a,$env:TEMP\\b"),
 ]
 
 
@@ -344,6 +373,14 @@ class GuardTest(unittest.TestCase):
         self.assertEqual(guard.check("rm -rf /tmp/x", B, worktree, worktree), [])
         self.assertEqual(guard.check("rm -r tests/scratch/x", B, worktree, worktree), [])
         self.assertTrue(guard.check("rm -r tests/integration/tmp", B, worktree, worktree))
+        top = '"$(git rev-parse --show-toplevel)'
+        self.assertEqual(guard.check(f'rm -rf {top}/tests/scratch/x"', B, worktree, worktree), [])
+        self.assertTrue(guard.check(f'rm -rf {top}/core"', B, worktree, worktree))
+        self.assertTrue(guard.check(f'rm -rf {top}/core"', B, "/tmp", worktree))
+
+    def test_a_folder_named_addons_elsewhere_is_no_protected_area(self) -> None:
+        # rm -rf docs/addons asks as a recursive delete in the project, never as a change to addons/.
+        self.assertEqual({f.area for f in check(B, "rm -rf docs/addons")}, {guard.DELETE})
 
     def test_pipeline_targets_are_the_paths_the_pipeline_starts_from(self) -> None:
         cases = {
