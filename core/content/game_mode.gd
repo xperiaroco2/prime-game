@@ -3,9 +3,12 @@ extends ContentPart
 ## Which phases, rules and settings a match has (ARCHITECTURE §3.1, §9.3). A game mode is data:
 ## core/ classes composed in a `.tres` in `content/modes/`. Match knows no mode; it runs this one.
 ## ModeCheck refuses a mode that names something it does not declare (§9.1).
+##
+## The class defaults are neutral (0): a mode's numbers are written in its data, where the
+## designer sees them (the engineer's answer on #49), and a mode that omits them is refused.
 
-@export var min_players := 1
-@export var max_players := 10
+@export var min_players := 0
+@export var max_players := 0
 @export var settings: Array[SettingSpec] = []
 @export var player_rules: PlayerRules
 @export var sides: Array[SideSpec] = []

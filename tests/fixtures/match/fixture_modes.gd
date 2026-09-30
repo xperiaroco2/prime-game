@@ -17,6 +17,8 @@ const GHOST := AcceptSpec.From.GHOST
 
 static func basic() -> GameMode:
 	var mode := GameMode.new()
+	mode.min_players = 1
+	mode.max_players = 4
 	mode.player_rules = PlayerRules.new()
 	mode.settings = [setting(&"knives", 2, 0, 10)]
 	mode.sides = [side(&"crew"), side(&"dissidents")]

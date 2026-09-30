@@ -75,6 +75,8 @@ func _init(
 	command_log.mode_hash = ContentHash.of(mode)
 	var check := ModeCheck.run(mode)
 	refusals = check.errors
+	# The second part of the check (§9.1): the mode against the layouts handed in (2b).
+	refusals.append_array(LayoutCheck.run(mode, _layouts))
 	warnings = check.warnings
 	for warning: String in warnings:
 		push_warning("match: %s" % warning)
@@ -204,6 +206,12 @@ func phase_id() -> StringName:
 ## The current phase object (for tests and server/'s inspection; parts get a MatchContext).
 func current_phase() -> Phase:
 	return _phase
+
+
+## The layout of the level at `path`, as handed in on creation, or null. The lobby's fit check
+## reads the chosen map's (2b); parts get theirs through MatchContext.
+func layout(path: String) -> LevelLayout:
+	return _layouts.get(path)
 
 
 ## Every event emitted so far, in order, with its recipients.

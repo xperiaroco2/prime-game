@@ -2,10 +2,10 @@ class_name RejectedEvent
 extends MatchEvent
 ## A rejected intent, or an applied intent whose outcome was dropped (`outcome_dropped`;
 ## ARCHITECTURE §3.1, §4.2). The reason depends only on facts the sender is entitled to (§4.1).
-## Audience: only the sender.
+## Audience: the sender (SENDER), which may be a connected peer that is not a player yet.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
-const AUDIENCE_KIND := Audience.Kind.ONLY
+const AUDIENCE_KIND := Audience.Kind.SENDER
 
 var peer: int
 ## The intent's sequence number.
@@ -24,7 +24,7 @@ func event_name() -> StringName:
 
 
 func audience() -> Audience:
-	return Audience.only(peer)
+	return Audience.sender(peer)
 
 
 func to_dict() -> Dictionary:

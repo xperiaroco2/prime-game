@@ -19,7 +19,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   those kinds (or any kind that is not in `Intents.ALL`) from a client's message. `Match` does not check who made
   a command. It keeps every command in its log (about 20 MiB per player per 10 minutes at 20 Hz) and records
   per-tick views only with `keep_history`, which a host leaves off.
-- Carry out the directives whose audience is *server* (`RefuseJoins`, `AllowJoins`, `DisconnectPeer`).
+- Carry out the directives whose audience is *server* (`RefuseJoins`, `AllowJoins`, `DisconnectPeer`), in the
+  outbox's order: a `DisconnectPeer` comes after the `Rejected` that explains it, which must be sent first.
+  Pass `PeerConnected` as soon as the transport admits a peer: `core/` takes a `Hello` only from a peer it knows is
+  connected. A `Rejected` may go to such a peer before its `Hello` is accepted (audience *sender*).
 - Load the game mode and read each level's `Marker3D`s in `spawn_<tag>` groups into a `LevelLayout` (2j); answer
   `core/`'s geometric questions through a `WorldQuery` over the host's own `World3D` (M3).
 - The host's own local client is just another peer. It receives the same filtered messages through an in-process

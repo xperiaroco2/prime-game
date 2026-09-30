@@ -20,6 +20,7 @@
 [ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="14_effect"]
 [ext_resource type="Script" uid="uid://bdus0i8liigi1" path="res://core/content/task_type.gd" id="16_5hq6p"]
 [ext_resource type="Script" uid="uid://b35oygc6v8aam" path="res://core/content/win_condition.gd" id="20_44x55"]
+[ext_resource type="Script" uid="uid://dgbpprrsullj4" path="res://core/match/reset_match.gd" id="21_reset"]
 
 [sub_resource type="Resource" id="Accept_lobby_hello"]
 script = ExtResource("6_accept")
@@ -203,6 +204,9 @@ from = &"round"
 outcome = &"won"
 to = &"end"
 
+[sub_resource type="Resource" id="Reset_match"]
+script = ExtResource("21_reset")
+
 [sub_resource type="Resource" id="Place_lobby_player"]
 script = ExtResource("8_place")
 tag = &"lobby_player"
@@ -212,10 +216,12 @@ script = ExtResource("7_row")
 from = &"end"
 outcome = &"back"
 to = &"lobby"
-actions = Array[ExtResource("14_effect")]([SubResource("Place_lobby_player")])
+actions = Array[ExtResource("14_effect")]([SubResource("Reset_match"), SubResource("Place_lobby_player")])
 
 [resource]
 script = ExtResource("1_mode")
+min_players = 1
+max_players = 10
 settings = Array[ExtResource("2_setting")]([SubResource("Setting_match_duration"), SubResource("Setting_tasks_per_player"), SubResource("Setting_subtasks_per_task"), SubResource("Setting_dissidents"), SubResource("Setting_knives")])
 player_rules = SubResource("PlayerRules_base")
 sides = Array[ExtResource("4_side")]([SubResource("Side_crew"), SubResource("Side_dissidents")])

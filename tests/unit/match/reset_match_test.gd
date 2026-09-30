@@ -1,0 +1,102 @@
+extends GdUnitTestSuite
+## ResetMatch (ARCHITECTURE §3.2, §9.1, §9.4): on `End -> Lobby` it resets the match state from the
+## roster and un-readies everyone (ReadyChanged per player), and it runs before PlacePlayers, so
+## nobody is placed, and announced to everyone, while still a ghost.
+
+const P1 := 1
+const P2 := 2
+const P3 := 3
+
+
+func test_back_resets_the_match_before_placing_players() -> void:
+	var game := FixtureBaseMode.in_end([P1, P2, P3])
+	game.state.player(P2).life = PlayerState.Life.GHOST
+	game.state.bodies[P2] = Vector3(1, 0, 1)
+	game.state.player(P3).role = &"crew"
+	var from := game.view_of(P1).events.size()
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	(
+		assert_array(FixtureBaseMode.names_since(game, P1, from))
+		. is_equal(
+			[
+				&"ReadyChanged",
+				&"ReadyChanged",
+				&"ReadyChanged",
+				&"PlayersPlaced",
+				&"Correction",
+				&"PhaseChanged",
+			]
+		)
+	)
+	var peers: Array[int] = []
+	for event: MatchEvent in game.view_of(P1).events.slice(from, from + 3):
+		var changed := event as ReadyChangedEvent
+		assert_bool(changed.ready).is_false()
+		peers.append(changed.peer)
+	assert_array(peers).is_equal([P1, P2, P3])
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.ALIVE)
+	assert_dict(game.state.bodies).is_empty()
+	assert_str(game.state.player(P3).role).is_equal("")
+	var lobby := Array(FixtureBaseMode.layouts()[FixtureBaseMode.LOBBY].positions(&"lobby_player"))
+	var placed := game.view_of(P2).events_named(&"PlayersPlaced")[-1] as PlayersPlacedEvent
+	for peer: int in [P1, P2, P3]:
+		assert_array(lobby).contains([placed.spots[peer]])
+
+
+func test_placing_before_the_reset_would_place_a_ghost() -> void:
+	# Why the order matters: with the actions swapped, PlacePlayers places and announces P2 while
+	# it is still a ghost, and the reset's ReadyChanged only follows the placement.
+	var mode := FixtureBaseMode.mode()
+	var probe := FixtureLifeProbe.new()
+	var row := mode.find_transition(&"end", EndPhase.BACK)
+	row.actions = [FixtureModes.place(&"lobby_player"), probe, ResetMatch.new()]
+	var game := _in_end(mode)
+	game.state.player(P2).life = PlayerState.Life.GHOST
+	var from := game.view_of(P1).events.size()
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	assert_array(probe.ghosts_seen).is_equal([P2])
+	var placed := game.view_of(P1).events_named(&"PlayersPlaced")[-1] as PlayersPlacedEvent
+	assert_bool(placed.spots.has(P2)).is_true()
+	var names := FixtureBaseMode.names_since(game, P1, from)
+	assert_int(names.find(&"PlayersPlaced")).is_less(names.find(&"ReadyChanged"))
+	# In the base mode's order, nobody is a ghost any more when the players are placed.
+	var in_order := FixtureBaseMode.mode()
+	var after_reset := FixtureLifeProbe.new()
+	var ordered := in_order.find_transition(&"end", EndPhase.BACK)
+	ordered.actions = [ResetMatch.new(), after_reset, FixtureModes.place(&"lobby_player")]
+	var second := _in_end(in_order)
+	second.state.player(P2).life = PlayerState.Life.GHOST
+	FixtureModes.send(second, Intents.RETURN_TO_LOBBY, P1)
+	assert_array(after_reset.ghosts_seen).is_empty()
+
+
+func test_the_next_match_has_the_next_id() -> void:
+	var game := FixtureBaseMode.in_end([P1, P2])
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	FixtureBaseMode.ready(game, P1)
+	FixtureBaseMode.ready(game, P2)
+	FixtureModes.run_ticks(game, 101)
+	assert_str(game.phase_id()).is_equal("loading")
+	var load_event := game.view_of(P1).events_named(&"LoadMatch")[-1] as LoadMatchEvent
+	assert_int(load_event.match_id).is_equal(1)
+	# A late ack of the first match is dropped.
+	FixtureBaseMode.load_ack(game, P2, 0)
+	assert_int(game.view_of(P1).events_named(&"PlayerLoaded").size()).is_equal(2)
+	FixtureBaseMode.load_ack(game, P2)
+	assert_int(game.view_of(P1).events_named(&"PlayerLoaded").size()).is_equal(3)
+
+
+func _in_end(mode: GameMode) -> Match:
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), FixtureBaseMode.layouts())
+	game.keep_history = true
+	game.start(0)
+	for peer: int in [P1, P2]:
+		FixtureBaseMode.join(game, peer)
+	for peer: int in [P1, P2]:
+		FixtureBaseMode.ready(game, peer)
+	FixtureModes.run_ticks(game, 101)
+	for peer: int in [P1, P2]:
+		FixtureBaseMode.load_ack(game, peer)
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	return game

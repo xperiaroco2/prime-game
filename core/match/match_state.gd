@@ -30,6 +30,8 @@ var winner: StringName
 var rng: RngStreams
 ## The mode's numbers for a player's body: a new or reset player starts from them.
 var player_rules: PlayerRules
+## Connected peers whose Hello was not accepted yet (2b), peer -> true: only they may join.
+var newcomers: Dictionary[int, bool] = {}
 
 var _next_item_id := 1
 var _next_task_id := 1
@@ -53,6 +55,11 @@ func add_player(peer: int, player_name: String) -> PlayerState:
 	reset_player(joined, player_rules)
 	players[peer] = joined
 	return joined
+
+
+## The index of the current match in the session, 0 for the first (LoadMatch, LoadAck; 2b).
+func match_id() -> int:
+	return rng.match_index
 
 
 ## Removes a player from the roster (a leave outside Round, or a missed load; 2b).
