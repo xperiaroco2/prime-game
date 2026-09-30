@@ -341,6 +341,49 @@ func test_a_claim_without_an_int_jump_count_is_corrected() -> void:
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 2)
 
 
+func test_a_jump_from_a_ledges_edge_stands_on_the_ledge() -> void:
+	# E10: the take-off's floor is the highest under the capsule's footprint. On the ledge's edge
+	# the feet's own ray misses the ledge (the ground is 0.9 m below), a ray 0.4 m ahead hits it.
+	var game := _on_ledge_edge(0.4)
+	var player := game.state.player(P1)
+	var stamina := player.stamina
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, FixtureMoves.jumped(game, P1))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_int(player.stamina).is_less(stamina)
+
+
+func test_with_one_ray_a_jump_from_a_ledges_edge_would_be_corrected() -> void:
+	var game := _on_ledge_edge(0.0)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, FixtureMoves.jumped(game, P1))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+
+
+## P1 jumped onto the 0.9 m ledge at z 10 and walked back to its edge (z 9.7, feet at 0.9), on a
+## world whose footprint radius is `radius`.
+func _on_ledge_edge(radius: float) -> Match:
+	var world := FixtureTerrainWorld.new()
+	world.add_platform(0, 6, 30, 8, 0.3).add_platform(0, 10, 30, 14, 0.9)
+	world.footprint_radius = radius
+	var game := FixtureMoves.in_round([P1], world)
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	player.position.z = 9.3
+	FixtureMoves.claim(game, P1, player.position)
+	FixtureModes.run_ticks(game, 1)
+	FixtureMoves.step(game, P1, NORTH * 0.2 + UP * 0.2, FixtureMoves.jumped(game, P1))
+	FixtureMoves.step(game, P1, NORTH * 0.2 + UP * 0.6, _air({"moving": true}))
+	FixtureMoves.step(game, P1, NORTH * 0.2 + UP * 0.2, _air({"moving": true}))
+	FixtureMoves.step(game, P1, NORTH * 0.2 + UP * -0.1, {"moving": true})
+	FixtureMoves.steps(game, P1, 2, NORTH * -0.2, {"moving": true})
+	FixtureModes.run_ticks(game, 5)
+	assert_float(player.position.z).is_equal_approx(9.7, 1e-5)
+	assert_float(player.position.y).is_equal_approx(0.9, 1e-5)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(1)
+	return game
+
+
 ## A round of P1 on the stepped world.
 func _round() -> Match:
 	var world := FixtureTerrainWorld.new()

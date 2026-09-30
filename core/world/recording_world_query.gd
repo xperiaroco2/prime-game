@@ -29,6 +29,12 @@ func floor_below(point: Vector3) -> Vector3:
 	return answer
 
 
+func stand_floor_below(point: Vector3) -> Vector3:
+	var answer := _inner.stand_floor_below(point)
+	_log.world_answers.append(answer)
+	return answer
+
+
 func rest_position(from: Vector3, towards: Vector3) -> Vector3:
 	var answer := _inner.rest_position(from, towards)
 	_log.world_answers.append(answer)

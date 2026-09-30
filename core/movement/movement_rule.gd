@@ -283,11 +283,13 @@ static func jump_slack(rules: PlayerRules) -> float:
 	return rules.capsule_radius_m * (1.0 - cos(FLOOR_MAX_ANGLE)) + STEP_CLEARANCE
 
 
-## The floor WorldQuery finds under feet at `feet`, if it is within step height below them; else
-## NO_FLOOR. Crossing a ledge's edge, the client's feet are up to step height + STEP_CLEARANCE above
-## the lower floor while it counts as grounded (and may jump), so that is the bound.
+## The floor WorldQuery finds under feet at `feet` (the capsule's footprint: stand_floor_below,
+## so a player on a ledge's edge stands on the ledge; E10), if it is within step height below
+## them; else NO_FLOOR. Crossing a ledge's edge, the client's feet are up to step height +
+## STEP_CLEARANCE above the lower floor while it counts as grounded (and may jump), so that is the
+## bound.
 static func _floor_under(world: WorldQuery, feet: Vector3, rules: PlayerRules) -> Vector3:
-	var found := world.floor_below(feet + Vector3.UP * FLOOR_PROBE_M)
+	var found := world.stand_floor_below(feet + Vector3.UP * FLOOR_PROBE_M)
 	var most := rules.step_height_m + STEP_CLEARANCE + HEIGHT_SLACK_M
 	if found == WorldQuery.NO_FLOOR or feet.y - found.y > most:
 		return WorldQuery.NO_FLOOR

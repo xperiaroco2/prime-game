@@ -30,6 +30,11 @@ func floor_below(point: Vector3) -> Vector3:
 	return answer if answer is Vector3 else super.floor_below(point)
 
 
+func stand_floor_below(point: Vector3) -> Vector3:
+	var answer: Variant = _take(TYPE_VECTOR3)
+	return answer if answer is Vector3 else super.stand_floor_below(point)
+
+
 func rest_position(from: Vector3, towards: Vector3) -> Vector3:
 	var answer: Variant = _take(TYPE_VECTOR3)
 	return answer if answer is Vector3 else super.rest_position(from, towards)

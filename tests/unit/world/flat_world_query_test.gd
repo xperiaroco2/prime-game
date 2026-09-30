@@ -41,11 +41,14 @@ func test_answers_are_recorded_and_replayed_in_order() -> void:
 	var a := recording.line_of_sight(Vector3(0, 1, 0), Vector3(4, 1, 0))
 	var b := recording.floor_below(Vector3(1, 3, 1))
 	var c := recording.rest_position(Vector3(0, 1, 0), Vector3(4, 1, 0))
-	assert_array(recorded.world_answers).is_equal([a, b, c])
+	var d := recording.stand_floor_below(Vector3(2, 5, 2))
+	assert_vector(d).is_equal(Vector3(2, 0, 2))
+	assert_array(recorded.world_answers).is_equal([a, b, c, d])
 	var replay := ReplayWorldQuery.new(recorded.world_answers)
 	assert_bool(replay.line_of_sight(Vector3.ZERO, Vector3.ZERO)).is_equal(a)
 	assert_vector(replay.floor_below(Vector3.ZERO)).is_equal(b)
 	assert_vector(replay.rest_position(Vector3.ZERO, Vector3.ZERO)).is_equal(c)
+	assert_vector(replay.stand_floor_below(Vector3.ZERO)).is_equal(d)
 	assert_bool(replay.diverged).is_false()
 
 
