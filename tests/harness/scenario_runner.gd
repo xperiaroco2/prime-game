@@ -96,10 +96,6 @@ func run() -> void:
 		failures.append("mode: %s" % refusal)
 	if not game.refusals.is_empty():
 		return
-	var forced: Dictionary[int, StringName] = {}
-	for bot: int in scenario.forced_roles:
-		forced[peer_of(bot)] = scenario.forced_roles[bot]
-	game.force_roles(forced)
 	_invariants = ScenarioInvariants.new(game, scenario)
 	for number in range(1, scenario.bots + 1):
 		bots.append(ScenarioBot.new(number, peer_of(number), scenario.steps_of(number)))
@@ -147,6 +143,9 @@ func _join_at_start() -> void:
 	for bot: ScenarioBot in bots:
 		if not bot.joins_late():
 			_connect(bot)
+	# As server/'s debug path would: a ForceRole per forced bot, by its peer id, in the lobby.
+	for bot: int in scenario.forced_roles:
+		_queue(Intents.FORCE_ROLE, peer_of(bot), {"role": String(scenario.forced_roles[bot])})
 	if scenario.settings.is_empty() and scenario.map.is_empty():
 		return
 	var host := bots[0]

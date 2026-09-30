@@ -165,10 +165,11 @@ static func dealt(
 ) -> Match:
 	var game := Match.new(mode, seed_value, FlatWorldQuery.new(), layouts(item_markers))
 	game.keep_history = true
-	game.force_roles(forced)
 	game.start(0)
 	for peer: int in peers:
 		FixtureModes.send(game, Intents.HELLO, peer, {"name": "p%d" % peer})
+	for peer: int in forced:
+		FixtureModes.send(game, Intents.FORCE_ROLE, peer, {"role": String(forced[peer])})
 	for id: StringName in settings:
 		game.state.settings[id] = settings[id]
 	game.state.id_sets[&"banned_task_types"] = banned

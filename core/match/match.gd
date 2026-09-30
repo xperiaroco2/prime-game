@@ -92,7 +92,6 @@ func _init(
 static func replay(recorded: CommandLog, game_mode: GameMode) -> Match:
 	var world := ReplayWorldQuery.new(recorded.world_answers)
 	var replayed := Match.new(game_mode, recorded.session_seed, world, recorded.layouts)
-	replayed.force_roles(recorded.forced_roles)
 	if replayed.command_log.mode_hash != recorded.mode_hash:
 		replayed.refusals.append(
 			(
@@ -122,17 +121,6 @@ static func replay(recorded: CommandLog, game_mode: GameMode) -> Match:
 			)
 		)
 	return replayed
-
-
-## Forces roles per peer (debug builds only, §8, §9.7): DealRoles gives each present peer its
-## forced role before its draws, and a forced role counts toward its quota. Only before start(),
-## so the command log holds them from the start and a replay deals the same.
-func force_roles(roles: Dictionary[int, StringName]) -> void:
-	if _started:
-		record_error("force_roles: the match has started already")
-		return
-	state.forced_roles = roles.duplicate()
-	command_log.forced_roles = roles.duplicate()
 
 
 ## Enters the mode's first phase on `at_tick`: the "(start)" row. False when refused.
@@ -415,6 +403,8 @@ func _dispatch(command: MatchCommand) -> void:
 		_phase.on_peer_connected(ctx, command.peer)
 	elif command.kind == Intents.PEER_LEFT:
 		_phase.on_peer_left(ctx, command.peer)
+	elif command.kind == Intents.FORCE_ROLE:
+		_force_role(command)
 	elif not Intents.ALL.has(command.kind):
 		record_error("unknown command %s from peer %d" % [command.kind, command.peer])
 	elif not _accepts(command):
@@ -425,6 +415,19 @@ func _dispatch(command: MatchCommand) -> void:
 		_movement.apply(ctx, command)
 	else:
 		_run_action(command, ctx)
+
+
+## ForceRole (debug builds only, §8): in any phase, for the deals that follow; DealRoles gives the
+## peer its role when it is present. An empty role clears it; a role the mode lacks is a match
+## error and ignored. Kept in the command log like every command, so a replay deals the same.
+func _force_role(command: MatchCommand) -> void:
+	var role_id := StringName(command.get_string("role"))
+	if role_id.is_empty():
+		state.forced_roles.erase(command.peer)
+	elif mode.find_role(role_id) == null:
+		record_error("ForceRole: peer %d, role %s, which the mode lacks" % [command.peer, role_id])
+	else:
+		state.forced_roles[command.peer] = role_id
 
 
 ## An accepted intent that no phase class handles goes to the first rule for it (§9.2).

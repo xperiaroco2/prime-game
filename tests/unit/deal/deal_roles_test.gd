@@ -255,14 +255,34 @@ func test_a_forced_role_the_mode_lacks_is_an_error_and_ignored() -> void:
 func test_forced_roles_are_logged_and_replayed() -> void:
 	var peers: Array[int] = [1, 2, 3, 4]
 	var game := _forced_deal(peers, {&"dissidents": 1}, {4: DISSIDENT})
-	assert_dict(game.command_log.forced_roles).is_equal({4: DISSIDENT})
+	var forcing: Array[MatchCommand] = []
+	for command: MatchCommand in game.command_log.commands:
+		if command.kind == Intents.FORCE_ROLE:
+			forcing.append(command)
+	assert_int(forcing.size()).is_equal(1)
+	assert_int(forcing[0].peer).is_equal(4)
 	var replayed := Match.replay(game.command_log, game.mode)
 	assert_array(FixtureDealModes.players_of(replayed, DISSIDENT)).is_equal([4])
 	assert_int(replayed.emitted().size()).is_equal(game.emitted().size())
-	# Only before the start: a later call would be missing from the replay.
-	game.force_roles({1: DISSIDENT})
-	assert_str(game.diagnostics[game.diagnostics.size() - 1]).contains("force_roles")
-	assert_dict(game.state.forced_roles).is_equal({4: DISSIDENT})
+
+
+func test_a_role_forced_after_the_players_joined_applies_to_the_deal() -> void:
+	# server/'s debug path knows a joining player's peer id only after it connected (ENet): the
+	# ForceRole comes in the lobby, after the Hello, and the deal still honours it.
+	var peers: Array[int] = [1, 1002, 1003]
+	for seed_value: int in [1, 2, 3]:
+		var game := _forced_deal(peers, {&"dissidents": 1}, {1003: DISSIDENT}, seed_value)
+		assert_array(FixtureDealModes.players_of(game, DISSIDENT)).is_equal([1003])
+		assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_reset_match_keeps_forced_roles_and_an_empty_role_clears_one() -> void:
+	var game := _forced_deal([1, 2, 3], {&"dissidents": 1}, {2: DISSIDENT, 3: CREW})
+	game.state.reset_match()
+	assert_dict(game.state.forced_roles).is_equal({2: DISSIDENT, 3: CREW})
+	FixtureModes.send(game, Intents.FORCE_ROLE, 3, {"role": ""})
+	assert_dict(game.state.forced_roles).is_equal({2: DISSIDENT})
+	assert_array(Array(game.diagnostics)).is_empty()
 
 
 func _forced_deal(

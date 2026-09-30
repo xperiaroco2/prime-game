@@ -10,8 +10,6 @@ var mode_path := ""
 var mode_hash := 0
 ## Level path -> layout.
 var layouts: Dictionary[String, LevelLayout] = {}
-## The roles forced per peer before the start (Match.force_roles; debug builds only, §8).
-var forced_roles: Dictionary[int, StringName] = {}
 var start_tick := -1
 var ticked_through := -1
 var commands: Array[MatchCommand] = []
@@ -35,7 +33,6 @@ func to_dict() -> Dictionary:
 		"mode_path": mode_path,
 		"mode_hash": mode_hash,
 		"layouts": layout_data,
-		"forced_roles": forced_roles.duplicate(),
 		"start_tick": start_tick,
 		"ticked_through": ticked_through,
 		"commands": command_data,

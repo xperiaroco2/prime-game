@@ -12,7 +12,7 @@ extends RuleEffect
 ##
 ## Forced roles (§8, §9.7: a debug command or a scenario, debug builds only) come as data:
 ## MatchState.forced_roles (peer -> role id), which server/'s debug path or the scenario runner
-## sets through Match.force_roles() before the start, since core/ cannot tell a debug build (2j).
+## sets with the ForceRole command, since core/ cannot tell a debug build (2j).
 ## Before its draws, each present peer with a forced role the mode declares gets it and is drawn by
 ## no quota; a forced role counts toward its quota (the engineer's answer A on #30: "dissidents 1"
 ## with bot 2 forced to dissident makes bot 2 the only dissident), so a quota draws its count minus
