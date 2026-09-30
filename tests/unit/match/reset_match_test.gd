@@ -44,23 +44,30 @@ func test_back_resets_the_match_before_placing_players() -> void:
 
 
 func test_placing_before_the_reset_would_place_a_ghost() -> void:
-	# Why the order matters: with the rows swapped, PlacePlayers sees the ghost still a ghost.
+	# Why the order matters: with the actions swapped, PlacePlayers places and announces P2 while
+	# it is still a ghost, and the reset's ReadyChanged only follows the placement.
 	var mode := FixtureBaseMode.mode()
 	var probe := FixtureLifeProbe.new()
 	var row := mode.find_transition(&"end", EndPhase.BACK)
-	row.actions = [probe, ResetMatch.new(), FixtureModes.place(&"lobby_player")]
+	row.actions = [FixtureModes.place(&"lobby_player"), probe, ResetMatch.new()]
 	var game := _in_end(mode)
 	game.state.player(P2).life = PlayerState.Life.GHOST
+	var from := game.view_of(P1).events.size()
 	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
 	assert_array(probe.ghosts_seen).is_equal([P2])
+	var placed := game.view_of(P1).events_named(&"PlayersPlaced")[-1] as PlayersPlacedEvent
+	assert_bool(placed.spots.has(P2)).is_true()
+	var names := FixtureBaseMode.names_since(game, P1, from)
+	assert_int(names.find(&"PlayersPlaced")).is_less(names.find(&"ReadyChanged"))
+	# In the base mode's order, nobody is a ghost any more when the players are placed.
 	var in_order := FixtureBaseMode.mode()
-	var after := FixtureLifeProbe.new()
+	var after_reset := FixtureLifeProbe.new()
 	var ordered := in_order.find_transition(&"end", EndPhase.BACK)
-	ordered.actions = [ResetMatch.new(), after, FixtureModes.place(&"lobby_player")]
+	ordered.actions = [ResetMatch.new(), after_reset, FixtureModes.place(&"lobby_player")]
 	var second := _in_end(in_order)
 	second.state.player(P2).life = PlayerState.Life.GHOST
 	FixtureModes.send(second, Intents.RETURN_TO_LOBBY, P1)
-	assert_array(after.ghosts_seen).is_empty()
+	assert_array(after_reset.ghosts_seen).is_empty()
 
 
 func test_the_next_match_has_the_next_id() -> void:
@@ -70,8 +77,8 @@ func test_the_next_match_has_the_next_id() -> void:
 	FixtureBaseMode.ready(game, P2)
 	FixtureModes.run_ticks(game, 101)
 	assert_str(game.phase_id()).is_equal("loading")
-	var load := game.view_of(P1).events_named(&"LoadMatch")[-1] as LoadMatchEvent
-	assert_int(load.match_id).is_equal(1)
+	var load_event := game.view_of(P1).events_named(&"LoadMatch")[-1] as LoadMatchEvent
+	assert_int(load_event.match_id).is_equal(1)
 	# A late ack of the first match is dropped.
 	FixtureBaseMode.load_ack(game, P2, 0)
 	assert_int(game.view_of(P1).events_named(&"PlayerLoaded").size()).is_equal(2)
