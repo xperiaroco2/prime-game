@@ -741,5 +741,99 @@ class GuardTest(unittest.TestCase):
         self.assertIn("§8.2", text)
 
 
+class GhRepo(guard.NoRepo):
+    def github_repo(self) -> str | None:
+        return "xperiaroco2/prime-game"
+
+
+def gh(shell: str, command: str, repo: guard.NoRepo | None = None) -> list[str]:
+    """The repositories the guard asks about for one gh command."""
+    findings = guard.check(command, shell, ROOT, ROOT, "", repo or GhRepo())
+    return [f.verb for f in findings if f.area == guard.GH]
+
+
+class GhOtherRepositoryTest(unittest.TestCase):
+    """gh reads of other repositories pass; anything else aimed at another repository asks (issue #68). The lists in
+    test_permissions check the same commands through the settings rules as well."""
+
+    def test_reads_pass_whatever_repository_they_name(self) -> None:
+        for command in (
+            "gh issue view 1 -R godotengine/godot",
+            "gh issue ls --repo=o/r",
+            "gh pr checks 5 -Ro/r",
+            "gh release verify v1 -R o/r",
+            "gh run view 12 -R o/r --log",
+            "gh search issues x --repo o/r",
+            "gh api repos/o/r/pulls/5/files --paginate",
+            "gh api -X HEAD repos/o/r",
+            "gh repo clone o/r /tmp/r",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(gh(B, command), [])
+                self.assertEqual(gh(P, command), [])
+
+    def test_the_repository_comes_from_every_place_gh_takes_it(self) -> None:
+        cases = {
+            "gh issue comment 1 -R o/r -b x": ["o/r"],
+            "gh issue comment 1 --repo=o/r -b x": ["o/r"],
+            "gh issue comment 1 -Ro/r -b x": ["o/r"],
+            "gh issue comment https://github.com/o/r/issues/1 -b x": ["https://github.com/o/r/issues/1"],
+            "gh issue transfer 1 o/r": ["o/r"],
+            "gh repo sync o/fork": ["o/fork"],
+            "gh api repos/o/r/issues -f title=x": ["o/r"],
+            "gh api /repos/o/r/issues -F title=x": ["o/r"],
+            "gh api https://api.github.com/repos/o/r/issues --input b.json": [
+                "https://api.github.com/repos/o/r/issues"
+            ],
+            "GH_REPO=o/r gh issue close 1": ["o/r"],
+            "export GH_REPO=o/r && gh issue close 1": ["o/r"],
+            "gh issue comment 1 -R ghe.example.com/xperiaroco2/prime-game -b x": [
+                "ghe.example.com/xperiaroco2/prime-game"
+            ],
+        }
+        for command, expected in cases.items():
+            with self.subTest(command=command):
+                self.assertEqual(gh(B, command), expected)
+
+    def test_text_is_no_repository(self) -> None:
+        for command in (
+            'gh issue comment 1 --body "see https://github.com/o/r/issues/2 and -R o/r"',
+            "gh issue comment 1 -b https://github.com/o/r/issues/2",
+            "gh api repos/{owner}/{repo}/issues/1/comments -f body=https://github.com/o/r",
+            "gh pr create --title x --head core/79-shared-tasks",
+            "gh issue create --title o/r --label area/x",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(gh(B, command), [])
+
+    def test_an_option_is_never_the_value_of_a_text_option(self) -> None:
+        self.assertEqual(gh(B, "gh pr create -d -R o/r --title t"), ["o/r"])
+
+    def test_this_repository_in_any_spelling_passes(self) -> None:
+        for spec in ("xperiaroco2/prime-game", "XperiaRoco2/Prime-Game", "github.com/xperiaroco2/prime-game",
+                     "https://github.com/xperiaroco2/prime-game.git"):  # fmt: skip
+            with self.subTest(spec=spec):
+                self.assertEqual(gh(B, f"gh issue comment 1 -R {spec} -b x"), [])
+
+    def test_without_the_origin_remote_every_named_repository_is_another(self) -> None:
+        own = "gh issue comment 1 -R xperiaroco2/prime-game -b x"
+        self.assertEqual(gh(B, own, guard.NoRepo()), ["xperiaroco2/prime-game"])
+        self.assertEqual(gh(B, "gh issue comment 1 -b x", guard.NoRepo()), [])
+
+    def test_a_computed_repository_counts_as_another(self) -> None:
+        self.assertEqual(gh(P, "$env:GH_REPO = (Get-Content repo.txt); gh issue close 1"), ["(computed)"])
+        self.assertEqual(gh(B, 'gh issue close 1 -R "$R"'), ["$R"])
+
+    def test_nested_shells_and_substitutions_are_judged(self) -> None:
+        self.assertEqual(gh(B, "bash -c 'gh issue close 1 -R o/r'"), ["o/r"])
+        self.assertEqual(gh(B, "echo $(gh api -X POST repos/o/r/forks)"), ["o/r"])
+
+    def test_reason_says_reads_pass(self) -> None:
+        text = guard.reason(guard.check("gh issue comment 1 -R o/r -b x", B, ROOT, ROOT, "", GhRepo()))
+        self.assertIn("another repository", text)
+        self.assertIn("o/r", text)
+        self.assertIn("Reads of other repositories pass", text)
+
+
 if __name__ == "__main__":
     unittest.main()

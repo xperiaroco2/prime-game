@@ -55,8 +55,9 @@ def _emit(event: str, **fields: str) -> None:
 
 
 def pre_tool_use(payload: dict[str, object]) -> int:
-    """Ask before a shell write to an ask-protected path, a recursive delete in the project, or a `git reset` that
-    discards work or moves the branch (guard.py); stay silent otherwise."""
+    """Ask before a shell write to an ask-protected path, a recursive delete or git that discards work beyond the
+    session's own worktree and task branch, or a gh command that may write to another repository (guard.py); stay
+    silent otherwise."""
     tool = payload.get("tool_name")
     tool_input = payload.get("tool_input")
     if tool not in ("Bash", "PowerShell") or not isinstance(tool_input, dict):
@@ -145,6 +146,21 @@ class GitFiles:
             remote = low[len("refs/remotes/") :]
             return {remote, remote.split("/", 1)[-1]}
         return set()
+
+    def github_repo(self) -> str | None:
+        """`owner/name` of the `origin` remote in `.git/config`, when it is on github.com (lower-case)."""
+        from . import guard
+
+        section = ""
+        for line in self._read(self.common, "config").splitlines():
+            text = line.strip()
+            if text.startswith("["):
+                section = text.lower().replace(" ", "")
+            elif section == '[remote"origin"]' and re.match(r"url\s*=", text, re.IGNORECASE):
+                url = text.split("=", 1)[1].strip()
+                ssh = re.match(r"^(?:ssh://)?git@github\.com[:/](.+)$", url, re.IGNORECASE)
+                return guard.gh_repo_name(ssh.group(1) if ssh else url)
+        return None
 
     def stash_branches(self) -> list[str] | None:
         """The branch each stash entry was made on, newest (`stash@{0}`) first, from the stash's reflog."""
