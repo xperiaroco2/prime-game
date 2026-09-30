@@ -6,7 +6,6 @@ extends GdUnitTestSuite
 ## view_of(peer).speakers is compared with the pairs the phase's rule allows, and with the §5
 ## invariant written independently of the rules: a living peer never hears a ghost.
 
-const VoiceTestMatch := preload("res://tests/unit/voice/voice_test_match.gd")
 const P1 := 1
 const P2 := 2
 const P3 := 3
@@ -20,7 +19,7 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 	var seen: Dictionary[StringName, int] = {}
 	for peer: int in PEERS:
 		FixtureBaseMode.join(game, peer)
-	VoiceTestMatch.put(game, P3, FAR)
+	FixtureVoiceMatch.put(game, P3, FAR)
 	_check_ticks(game, 3, seen)
 	for peer: int in PEERS:
 		FixtureBaseMode.ready(game, peer)
@@ -34,9 +33,9 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 	_check_ticks(game, 2, seen)
 	# P2 dies beside P1; P3 walks off, out of every radius.
 	game.state.player(P2).life = PlayerState.Life.GHOST
-	VoiceTestMatch.put(game, P2, game.state.player(P1).position + Vector3(0, 0, 1))
+	FixtureVoiceMatch.put(game, P2, game.state.player(P1).position + Vector3(0, 0, 1))
 	_check_ticks(game, 2, seen)
-	VoiceTestMatch.put(game, P3, FAR)
+	FixtureVoiceMatch.put(game, P3, FAR)
 	_check_ticks(game, 2, seen)
 	game.state.add_to_counter(0, &"crew_win", 1)
 	_check_ticks(game, 1, seen)
@@ -60,7 +59,7 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 func test_in_the_round_a_ghost_hears_a_living_player_who_cannot_hear_it() -> void:
 	var game := _in_round()
 	game.state.player(P2).life = PlayerState.Life.GHOST
-	VoiceTestMatch.put(game, P3, FAR)
+	FixtureVoiceMatch.put(game, P3, FAR)
 	FixtureModes.run_ticks(game, 1)
 	var at := game.ticked_through()
 	assert_array(Array(game.view_of(P1).speakers[at])).is_empty()

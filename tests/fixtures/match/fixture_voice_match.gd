@@ -1,3 +1,4 @@
+class_name FixtureVoiceMatch
 extends RefCounted
 ## Builders shared by the voice rules' suites (ARCHITECTURE §6): FixtureModes.basic() with a given
 ## voice rule in its lobby and its round, positions, and what a peer heard on the last tick
