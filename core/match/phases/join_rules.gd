@@ -5,13 +5,12 @@ extends RefCounted
 ## only a newcomer may join, once, in a phase that allows joins (Lobby, Countdown). Loading, Round
 ## and End refuse joins: a connection that completed anyway gets DisconnectPeer.
 ##
-## The name's bounds and the joiner's spot are placeholders, "not a decision" (listed on #58).
+## The host names every joiner Player<n>, n counting the session's joins (MatchState.joins); the
+## name a Hello carries is ignored in the MVP (#73). The joiner's spot is a placeholder, "not a
+## decision".
 
 ## The protocol version this build speaks; a Hello with another gets DisconnectPeer (§4.1).
 const PROTOCOL_VERSION := 1
-## A name's length in characters after trimming the edges: placeholder, "not a decision".
-const MIN_NAME_LENGTH := 1
-const MAX_NAME_LENGTH := 24
 ## A joiner takes the first lobby marker, in level order, with no other player within this many
 ## metres; when every marker is taken, the first one: placeholder, "not a decision".
 const SPOT_CLEARANCE_M := 1.0
@@ -32,9 +31,9 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 
 ## A Hello (§4.1): true when the peer joined. In order: the sender must be a newcomer; the
 ## version must be the host's, else Rejected (`wrong_version`) and DisconnectPeer; the roster
-## must have room for one more, else Rejected (`full`) and DisconnectPeer; the name must be
-## valid, else Rejected (`bad_name`), and the peer may try again. Accepted: the joiner is placed at
-## a lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and SettingsChanged
+## must have room for one more, else Rejected (`full`) and DisconnectPeer. The Hello's name is
+## not read. Accepted: the joiner is named Player<n> by the session's join count, placed at a
+## lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and SettingsChanged
 ## (everyone).
 static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName) -> bool:
 	var peer := command.peer
@@ -50,12 +49,9 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 		ctx.reject(command, RejectReasons.FULL)
 		_drop(ctx, peer)
 		return false
-	var player_name := valid_name(command.args.get("name"))
-	if player_name.is_empty():
-		ctx.reject(command, RejectReasons.BAD_NAME)
-		return false
 	ctx.state.newcomers.erase(peer)
 	var spot := _free_spot(ctx)
+	var player_name := ctx.state.name_next_joiner()
 	var joined := ctx.state.add_player(peer, player_name)
 	joined.position = spot
 	joined.velocity = Vector3.ZERO
@@ -64,21 +60,6 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot))
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
-
-
-## The name trimmed at its edges, or "" when it is not a String, is too short or too long, or
-## has a control character (C0, DEL or C1).
-static func valid_name(value: Variant) -> String:
-	if not value is String:
-		return ""
-	var trimmed := (value as String).strip_edges()
-	if trimmed.length() < MIN_NAME_LENGTH or trimmed.length() > MAX_NAME_LENGTH:
-		return ""
-	for i in trimmed.length():
-		var code := trimmed.unicode_at(i)
-		if code < 32 or (code >= 127 and code < 160):
-			return ""
-	return trimmed
 
 
 ## A PeerLeft outside Round (§3.5): true when a player left the roster (PlayerLeft to everyone

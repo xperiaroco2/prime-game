@@ -32,6 +32,9 @@ var rng: RngStreams
 var player_rules: PlayerRules
 ## Connected peers whose Hello was not accepted yet (2b), peer -> true: only they may join.
 var newcomers: Dictionary[int, bool] = {}
+## The joins accepted in the session (2b): the next joiner is Player<joins + 1>. Session state:
+## reset_match() keeps it, and a leave never lowers it, so a number is never reused (§3.5).
+var joins := 0
 
 var _next_item_id := 1
 var _next_task_id := 1
@@ -55,6 +58,13 @@ func add_player(peer: int, player_name: String) -> PlayerState:
 	reset_player(joined, player_rules)
 	players[peer] = joined
 	return joined
+
+
+## Counts an accepted join and returns the joiner's name, Player<n> with n the join's number in
+## the session (§3.5, the engineer's decision of 2026-09-30 on #58; own names come with #73).
+func name_next_joiner() -> String:
+	joins += 1
+	return "Player%d" % joins
 
 
 ## The index of the current match in the session, 0 for the first (LoadMatch, LoadAck; 2b).
@@ -156,7 +166,7 @@ func part_state(key: StringName, create: Callable) -> RefCounted:
 ## tasks and their states, bodies, cooldowns, counters, per-part state, the clock and the winner;
 ## the players who left during the match (§3.5) leave the roster; each other player's role,
 ## life, hand, health and stamina start again from player_rules; everyone un-ready. The RNG moves
-## to the next match of the session (§3.3).
+## to the next match of the session (§3.3); the join count stays (§3.5).
 func reset_match() -> void:
 	for peer: int in peers():
 		if not players[peer].is_present():

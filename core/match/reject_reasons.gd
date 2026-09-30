@@ -11,8 +11,6 @@ const NOTHING_TO_DO := &"nothing_to_do"
 const NOT_ALLOWED := &"not_allowed"
 ## Applied, but the outcome it reported was dropped: an earlier one of the same step won.
 const OUTCOME_DROPPED := &"outcome_dropped"
-## Hello: the name is empty, too long or has a control character (2b).
-const BAD_NAME := &"bad_name"
 ## Hello: another protocol version than the host's; DisconnectPeer follows (2b).
 const WRONG_VERSION := &"wrong_version"
 ## Hello: the roster has the mode's maximum of players; DisconnectPeer follows (2b).
