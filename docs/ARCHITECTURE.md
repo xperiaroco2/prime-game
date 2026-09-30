@@ -490,7 +490,7 @@ directive has no row, because it reaches no peer.
 | 54 | `SelfStatus` | `health: s32`, `stamina: s32`, `sprint_available: bool` | 9; 9 |
 | 55 | `Died` | `peer: peer`, `position: vec3` | 16; 16 |
 | 56 | `Correction` | `epoch: u32`, `position: vec3`, `velocity: vec3` | 28; 28 |
-| 57 | `MatchEnded` | the winning side, `id` (2h, #64, builds the event and names the field) | 11; 33 |
+| 57 | `MatchEnded` | TBD by 2h (#64), which builds the event: its fields, audience and cap are added by whichever of 2h and 3d lands second | TBD |
 
 **State and voice.**
 
@@ -882,7 +882,8 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
 
 Client-side movement for the local player; the host checks speed and teleports; remote players are interpolated.
 *Open (M4):* snapshot rate, tolerances, correction policy. The core tick rate is set in §3.3; what the host checks, in
-§7.1. The snapshot's wire format (avatars only, every tick in the phases that send snapshots) is §4.3.
+§7.1. The snapshot's wire format (avatars only) is §4.3; M3 sends one every tick in the phases that send snapshots,
+a placeholder rate that M4 may reduce.
 
 Lessons from the M1 spike (#13, #14):
 - A starting point: 20 Hz snapshots, remote players drawn 2 ticks (100 ms) behind an estimated host clock. The
