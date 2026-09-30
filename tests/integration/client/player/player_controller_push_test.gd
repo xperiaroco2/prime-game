@@ -9,8 +9,9 @@ const SPEED_TOLERANCE := 0.1
 ## head-on.
 const NEARLY_STRAIGHT := 0.1
 ## Physics steps a remote capsule lags its player in the two-client tests: 0.1 s at 60 Hz, the
-## interpolation delay of ARCHITECTURE §7.
+## interpolation delay of ARCHITECTURE §7. `_run_two_clients` checks the tick rate it assumes.
 const DELAY := 6
+const DELAY_TICKS_PER_SECOND := 60
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
 
 var _tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
@@ -81,6 +82,10 @@ func test_head_on_nobody_advances_and_the_drift_parts_them() -> void:
 	# slid them apart and past each other.
 	assert_float(deepest).is_less(_tuning.push_max_overlap + 0.01)
 	assert_bool(passed).is_true()
+	# Each drifted to its own right, so they passed on opposite sides: `one` faces -Z (right is
+	# +X), `other` faces +Z (right is -X).
+	assert_float(one.global_position.x).is_greater(0.0)
+	assert_float(other.global_position.x).is_less(0.0)
 
 
 func test_at_an_angle_the_two_slide_apart_and_walk_on() -> void:
@@ -132,8 +137,13 @@ func _assert_pushes_at_the_push_speed(sprint: bool) -> void:
 	# Into contact (1.2 m to go), a step to settle, then a short look before the drift turns the
 	# straight push into a slide off the other's round side.
 	var touching := _tuning.capsule_radius * 2.0
-	while _world.horizontal_distance(standing.global_position, pusher.global_position) > touching:
+	var met := false
+	for i: int in 120:
+		if _world.horizontal_distance(standing.global_position, pusher.global_position) <= touching:
+			met = true
+			break
 		await _world.frames(1)
+	assert_bool(met).is_true()
 	await _world.frames(1)
 	var standing_from := standing.global_position
 	var pusher_from := pusher.global_position
@@ -148,6 +158,20 @@ func _assert_pushes_at_the_push_speed(sprint: bool) -> void:
 	assert_float(pusher_speed * per_second).is_equal_approx(push, SPEED_TOLERANCE)
 	var apart := _world.horizontal_distance(standing.global_position, pusher.global_position)
 	assert_float(apart).is_between(touching - _tuning.push_max_overlap, touching)
+
+
+func test_leaving_an_overlap_is_no_faster_than_sprinting() -> void:
+	# A player standing almost inside a remote capsule leaves it, at most at sprint speed: the
+	# host's speed bound for a pushed player counts on that cap (ARCHITECTURE §7.1).
+	var standing := _world.add_player(Vector3.ZERO)
+	await _world.frames(10)
+	_world.add_remote(Vector3(0.0, 0.0, -0.1))
+	var from := standing.global_position
+	await _world.frames(1)
+	var step := _world.horizontal_distance(from, standing.global_position)
+	var speed := step * Engine.physics_ticks_per_second
+	assert_float(speed).is_greater(_tuning.walk_speed)
+	assert_float(speed).is_less(_tuning.sprint_speed + SPEED_TOLERANCE)
 
 
 func test_over_a_delay_the_pushed_client_moves_its_player_from_the_pushers_motion() -> void:
@@ -208,6 +232,7 @@ func _client_world() -> PlayerTestWorld:
 ## Runs `pair` from `_two_clients` for `count` physics steps, each remote capsule DELAY steps
 ## behind its player. Returns the deepest overlap each client saw: [first's view, second's view].
 func _run_two_clients(pair: Array[Node3D], count: int) -> Array[float]:
+	assert_int(Engine.physics_ticks_per_second).is_equal(DELAY_TICKS_PER_SECOND)
 	var first_trail: Array[Vector3] = []
 	var second_trail: Array[Vector3] = []
 	var deepest: Array[float] = [-INF, -INF]
