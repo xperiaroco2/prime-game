@@ -4,10 +4,11 @@ extends RefCounted
 ## moves an item between the ground and a hand, emits ItemPickedUp and ItemPlaced, and raises the
 ## fact `item_rested`. The parts of core/items/ call it, and so do the parts of later stages:
 ##
-## - place(): an item comes to rest at a spot (a put-down, a swap): ItemPlaced, then item_rested.
-## - drop_held(): a dying or leaving player's held item falls to the floor below the player's last
-##   accepted position: ItemPlaced (death or leave), then item_rested. The life rule (2g) calls it
-##   from player_died and player_left, after the life state changed and the fact was raised.
+## - place(): an item comes to rest at a spot (a put-down, a swap, a dead player's item at its
+##   body: the life rule, 2g, after player_died): ItemPlaced, then item_rested.
+## - drop_held(): a leaving player's held item falls to the floor below the player's last
+##   accepted position: ItemPlaced (leave), then item_rested. The life rule (2g) calls it after
+##   the life state changed and player_left was raised.
 ## - raise_rested(): item_rested for an item that is already at rest and announced by its own
 ##   event (the spawn: SpawnItems 2c and Delivery's deal 2f emit ItemSpawned, then call this).
 ## - free_markers(): the markers of a tag where no item rests, which every part that places items
@@ -88,9 +89,10 @@ static func place(ctx: MatchContext, item: ItemState, at: Vector3, cause: String
 
 ## Drops the item `peer` holds, if any, to the floor below the player's last accepted position
 ## (WorldQuery.floor_below, asked from just above the feet: Items.lifted), never in mid-air:
-## ItemPlaced (`cause`: death or leave), then item_rested. With no floor below (a level without one
-## there) it rests at that position, and the error is logged. The life rule (2g) calls this after
-## the life state changed and after player_died or player_left was raised (§3.4, §9.2).
+## ItemPlaced (`cause`: leave), then item_rested. With no floor below (a level without one there)
+## it rests at that position, and the error is logged. The life rule (2g) calls this after the life
+## state changed and after player_left was raised (§3.4, §9.2); a death places the item at the
+## body instead, which was found the same way.
 static func drop_held(ctx: MatchContext, peer: int, cause: StringName) -> void:
 	var item := held_by(ctx.state, peer)
 	if item == null:

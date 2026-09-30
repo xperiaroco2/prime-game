@@ -675,7 +675,7 @@ part is usable in data once its row or entry names the PR that built it. Every n
   - **`MatchState`** (§3.1), for what outlives a phase: players; items (kind, where: on the ground, in a hand or
     locked, position); tasks, each with a **task state** object (`RefCounted`) that its task type creates in its deal
     and alone reads and writes (Delivery: which subtasks are done; #36: the time in the zone per subtask); stations;
-    **bodies** (peer → rest position, from `player_died`; 2g); two tables keyed by names from the data,
+    **bodies** (peer → rest position, written by `LifeRules.die` before `player_died`; 2g); two tables keyed by names from the data,
     **cooldowns** (the tick at which a player last paid a key, such as `hit`) and **counters** (an integer per player
     and key, such as uses left, #34); and a **per-part state** table, one `RefCounted` per key that a part class
     declares, for state a new part class needs that fits none of the above. So a new part adds state without a new
@@ -810,9 +810,9 @@ phase classes come in the task each row names.
   (2g's `Strike` for the victim) touches it, and `Match.tick` sends one `SelfStatus` per changed player at the end of
   the tick. That call is the one line 2d added to `Match`: nothing else runs after a tick's commands.
 - **Items** (`core/items/items.gd`, 2e #61) is the one place that moves an item between the ground and a hand:
-  `take` (the pick-up and the swap), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`), `drop_held`
-  (a dying or leaving player's item to the floor below its last accepted position; the life rule, 2g, calls it after
-  the life state changed and `player_died` or `player_left` was raised) and `raise_rested` (`item_rested` for an item
+  `take` (the pick-up and the swap), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`; the life rule, 2g, places a dead player's item
+  at its body after `player_died`), `drop_held` (a leaving player's item to the floor below its last accepted
+  position; the life rule calls it after the life state changed and `player_left` was raised) and `raise_rested` (`item_rested` for an item
   announced by its own event: after `ItemSpawned`, 2c's `SpawnItems` and 2f's Delivery deal call it with
   `Items.SPAWN`). The causes are constants there. Each condition names its own rejection reason as a constant.
 - **Tasks** (`core/tasks/`, 2f #62): a task type marks a subtask done in its own task state, then calls
@@ -823,7 +823,7 @@ phase classes come in the task each row names.
 - **Life** (`core/life/life_rules.gd`, 2g #63) is the one place that lowers health or changes the life state in a
   round: `LifeRules.damage` (`Damaged` to the victim, its `SelfStatus` touched; at 0 health `die`), `die` (the body
   on the floor below into `MatchState.bodies`, life ghost at the body with a new epoch; then `Died` (everyone),
-  `Correction` (the ghost), `player_died`, and only then `Items.drop_held` with `Items.DEATH`) and `leave` (life
+  `Correction` (the ghost), `player_died`, and only then `Items.place` at the body with `Items.DEATH`) and `leave` (life
   left; `PlayerLeft`, `player_left`, then the drop with `Items.LEAVE`). A later weapon or a trap calls `damage`; the
   class is `LifeRules`, not `Life`, which would shadow `PlayerState.Life`.
 - Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an

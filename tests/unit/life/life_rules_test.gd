@@ -215,6 +215,16 @@ func test_a_death_with_no_floor_below_leaves_the_body_where_the_player_was_and_l
 	assert_str(";".join(game.diagnostics)).contains("no floor below")
 
 
+func test_the_held_item_drops_at_the_body_and_a_missing_floor_is_logged_once() -> void:
+	var game := _duel(FlatWorldQuery.new(5.0))
+	var carried := FixtureCombatModes.arm(game, P2, Vector3(0, 0, 1))
+	FixtureCombatModes.use(game, P1, NORTH)
+	_kill_again(game, P1)
+	assert_int(carried.where).is_equal(ItemState.Where.GROUND)
+	assert_vector(carried.position).is_equal(game.state.bodies[P2])
+	assert_int(";".join(game.diagnostics).count("no floor below")).is_equal(1)
+
+
 ## A round of P1, P2 and P3 in `world`: P1 at the origin with a knife, P2 1 m north, P3 away.
 func _duel(world: WorldQuery = null) -> Match:
 	var game := FixtureCombatModes.in_round(FixtureCombatModes.basic(), [P1, P2, P3], world)

@@ -12,9 +12,10 @@ extends RefCounted
 ##   claims it sent while alive are dropped as stale and its first claim as a ghost starts a new
 ##   baseline there (MovementRule treats it like a placement). Then, in this order: Died
 ##   (everyone), Correction (the ghost only: its new epoch and position), the fact player_died,
-##   and only then the held item drops (Items.drop_held, `death`). The fact comes before the drop
-##   so a win condition that the death meets is checked before one that the dropped item meets
-##   (§3.4: the last crew member killed with its package over its circle is a dissident win).
+##   and only then the held item drops at the body (Items.place, `death`). The fact comes before
+##   the drop so a win condition that the death meets is checked before one that the dropped item
+##   meets (§3.4: the last crew member killed with its package over its circle is a dissident
+##   win).
 ## - leave(): the life state becomes left (which counts as dead for the win conditions), no body
 ##   stays; PlayerLeft (everyone else), then the fact player_left, then the held item drops on the
 ##   floor below where the player stood (Items.drop_held, `leave`).
@@ -59,7 +60,10 @@ static func die(ctx: MatchContext, peer: int) -> void:
 	fact.player = peer
 	fact.position = body
 	ctx.raise_fact(fact)
-	Items.drop_held(ctx, peer, Items.DEATH)
+	# The item rests at the body itself, not at a second floor query from the same point.
+	var held := Items.held_by(ctx.state, peer)
+	if held != null:
+		Items.place(ctx, held, body, Items.DEATH)
 
 
 ## `peer` leaves while its life state counts (Round, §3.5): left, PlayerLeft, player_left, then the
