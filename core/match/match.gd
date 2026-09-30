@@ -146,6 +146,7 @@ func start(at_tick: int) -> bool:
 	command_log.start_tick = at_tick
 	command_log.ticked_through = _ticked_through
 	_begin_step()
+	_world.use_level(_level_path(mode.find_phase(mode.first_phase)))
 	_enter_phase(mode.first_phase)
 	_finish_step()
 	return true
@@ -378,7 +379,10 @@ func _transition(outcome: StringName, argument: Variant) -> bool:
 	var ctx := _context("row %s, %s" % [from, outcome])
 	ctx.outcome = outcome
 	ctx.outcome_argument = argument
-	ctx.layout = _layout_of(mode.find_phase(row.to))
+	var to_spec := mode.find_phase(row.to)
+	ctx.layout = _layout_of(to_spec)
+	# The row's actions ask about the level of the phase it enters (§4.5, E9).
+	_world.use_level(_level_path(to_spec))
 	_in_transition = true
 	for action: RuleEffect in row.actions:
 		action.run(ctx)
@@ -531,14 +535,20 @@ func _context(source: String) -> MatchContext:
 
 
 func _layout_of(spec: PhaseSpec) -> LevelLayout:
+	var path := _level_path(spec)
+	return _layouts.get(path) if not path.is_empty() else null
+
+
+## The path of the level `spec` plays in: the mode's lobby, the match's map, or empty.
+func _level_path(spec: PhaseSpec) -> String:
 	if spec == null:
-		return null
+		return ""
 	match spec.level:
 		PhaseSpec.Level.LOBBY:
-			return _layouts.get(mode.lobby_level)
+			return mode.lobby_level
 		PhaseSpec.Level.MAP:
-			return _layouts.get(state.map)
-	return null
+			return state.map
+	return ""
 
 
 func _record_views(at_tick: int) -> void:

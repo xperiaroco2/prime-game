@@ -277,6 +277,40 @@ func test_a_move_claim_the_phase_refuses_is_dropped_without_a_rejected() -> void
 	assert_str(game.command_log.commands.back().kind).is_equal(Intents.MOVE_CLAIM)
 
 
+func test_the_world_is_told_the_level_on_start_and_before_each_rows_actions() -> void:
+	var mode := FixtureModes.basic()
+	mode.transitions[0].actions.push_front(FixtureAskFloor.new())
+	var world := FixtureLevelWorld.new()
+	var game := Match.new(mode, 7, world, FixtureModes.layouts())
+	game.start(0)
+	assert_array(Array(world.calls)).is_equal(["use_level %s" % FixtureModes.LOBBY])
+	FixtureModes.send(game, Intents.HELLO, P1, {"version": JoinRules.PROTOCOL_VERSION})
+	FixtureModes.send(game, Intents.SET_READY, P1, {"ready": true})
+	assert_str(game.phase_id()).is_equal("round")
+	var into_round: Array[String] = [
+		"use_level %s" % FixtureModes.LOBBY, "use_level %s" % FixtureModes.MAP, "floor_below"
+	]
+	assert_array(Array(world.calls)).is_equal(into_round)
+	# Not an answer: the command log holds only the floor, and a replay asks the same.
+	assert_int(game.command_log.world_answers.size()).is_equal(1)
+	var replayed := Match.replay(game.command_log, mode)
+	assert_array(Array(replayed.diagnostics)).is_empty()
+	assert_array(FixtureModes.describe(replayed)).is_equal(FixtureModes.describe(game))
+	# The crew wins: the round's row enters End (the map); the host goes back to the lobby, where
+	# the ready player goes on to a new round.
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	game.state.set_counter(0, &"crew_win", 0)
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
+	var after: Array[String] = [
+		"use_level %s" % FixtureModes.MAP,
+		"use_level %s" % FixtureModes.LOBBY,
+		"use_level %s" % FixtureModes.MAP,
+		"floor_below",
+	]
+	assert_array(Array(world.calls).slice(into_round.size())).is_equal(after)
+
+
 func test_a_player_who_left_is_heard_by_no_rule_and_told_nothing() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	var left := game.state.player(P2)

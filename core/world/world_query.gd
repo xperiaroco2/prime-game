@@ -11,6 +11,15 @@ extends RefCounted
 const NO_FLOOR := Vector3.INF
 
 
+## Which level the questions that follow are about (§4.5, E9): the path of the level of the phase
+## Match enters (its lobby or its map; empty for a phase with no level), told on start and before
+## each transition row's actions, so a row action never gets the old level's answer. server/'s
+## implementation switches its collision world; a fake with one world and the replay ignore it.
+## It is not an answer: nothing is recorded in the command log.
+func use_level(_path: String) -> void:
+	pass
+
+
 ## Whether the segment from `from` to `to` is clear of walls.
 func line_of_sight(_from: Vector3, _to: Vector3) -> bool:
 	return true

@@ -12,6 +12,11 @@ func _init(inner: WorldQuery, command_log: CommandLog) -> void:
 	_log = command_log
 
 
+## Forwarded; not an answer, so nothing is recorded (§4.5, E9).
+func use_level(path: String) -> void:
+	_inner.use_level(path)
+
+
 func line_of_sight(from: Vector3, to: Vector3) -> bool:
 	var answer := _inner.line_of_sight(from, to)
 	_log.world_answers.append(answer)

@@ -1,6 +1,7 @@
 class_name ReplayWorldQuery
 extends WorldQuery
-## Answers from a recorded command log, in order, instead of asking a level (ARCHITECTURE §3.3).
+## Answers from a recorded command log, in order, instead of asking a level (ARCHITECTURE §3.3);
+## use_level() is ignored, as the answers already are the right level's (E9).
 ## A question of another kind than the recorded answer, or past its end, means the replay
 ## diverged: it is reported in `diverged` and answered with the base class's defaults.
 
