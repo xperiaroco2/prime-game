@@ -237,11 +237,16 @@ func test_a_pushed_player_holding_sprint_moves_at_the_push_allowance_for_free() 
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	player.stamina = 50000
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# Holding sprint without movement input: sprint 0.35 + push 0.35 + slack 0.05 = 0.75 m per
+	# Holding sprint without movement input: walk 0.225 + push 0.35 + slack 0.05 = 0.625 m per
 	# tick, and sprint costs nothing: each tick regenerates.
 	FixtureMoves.steps(game, P1, 4, EAST * 0.6, {"sprint": true, "moving": false})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	assert_int(player.stamina).is_equal(53000)
+	# Sprint speed of its own needs the movement input that pays for it.
+	FixtureMoves.step(game, P1, EAST * 0.7, {"sprint": true, "moving": false})
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	FixtureMoves.step(game, P1, EAST * 0.7, FixtureMoves.sprinting())
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
 func test_a_ghost_moves_at_its_factor_without_a_push_allowance() -> void:

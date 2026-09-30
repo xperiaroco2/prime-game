@@ -529,7 +529,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     is corrected and the next claim starts a new client-tick baseline (credit not refilled), so a client whose ticks
     ran ahead of a stalled host's is corrected once, not on every later claim. A placement (§3.2)
     restarts the credit and the client-tick baseline, and settles the ticks since the last claim as standing still.
-  - Speed: per covered tick the state's speed (a tick not settled yet takes the state the next tick would have),
+  - Speed: per covered tick the state's speed (a tick not settled yet takes the state the next tick would have;
+    a living player's claim without movement input gets the walk speed, since only input pays for sprint),
     times `ghost_speed_factor` for a ghost; for the living plus `sprint_speed` (Pushing apart below; proposed for M4,
     used provisionally); plus `DISTANCE_SLACK_M` (0.05 m) per claim.
   - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus

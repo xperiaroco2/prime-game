@@ -23,7 +23,8 @@ extends RefCounted
 ##   fall in one claim. The take-off is the higher of that floor and the last feet, so the peak
 ##   stays bounded.
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (sprint in
-##   the sprint state, else walk; times ghost_speed_factor for a ghost), plus, for the living
+##   the sprint state, for the living only with movement input; else walk; times
+##   ghost_speed_factor for a ghost), plus, for the living
 ##   only, sprint speed for being pushed (§7.1 "Pushing apart", proposed for M4), plus
 ##   DISTANCE_SLACK_M. The host never checks or corrects overlap between players.
 ## - Height: until the next landing (a claim on the floor with a WorldQuery floor within step
@@ -167,7 +168,7 @@ static func _check(
 		if not StaminaLedger.covers(player, Ticks.thousandths(rules.jump_cost)):
 			return null
 		checked.take_off_y = maxf(take_off.y, player.position.y)
-	if checked.travel > _allowed_travel(player, rules, covered, checked.settled):
+	if checked.travel > _allowed_travel(player, rules, covered, checked.settled, claim.moving):
 		return null
 	var jumping := claim.jumped or motion.jumping
 	var base_y := checked.take_off_y if claim.jumped else motion.base_y
@@ -205,15 +206,25 @@ static func _accept(
 	player.moving = checked.moved_itself
 
 
-## The horizontal metres a claim covering `covered` client ticks may travel.
+## The horizontal metres a claim covering `covered` client ticks may travel. `moving`: the claim
+## gave movement input.
 static func _allowed_travel(
-	player: PlayerState, rules: PlayerRules, covered: int, settled: StaminaLedger.Settlement
+	player: PlayerState,
+	rules: PlayerRules,
+	covered: int,
+	settled: StaminaLedger.Settlement,
+	moving: bool
 ) -> float:
 	var ghost := player.life == PlayerState.Life.GHOST
 	# Ticks the claim covers beyond what could be settled now take the state a next tick has.
 	var sprint_ticks := settled.sprint_ticks
 	if settled.next_sprinting:
 		sprint_ticks += covered - settled.ticks
+	if not ghost and not moving:
+		# Sprint speed of its own only with the movement input that pays for it: without input a
+		# living player coasts (walk speed covers the client's deceleration) or is pushed, and
+		# holding sprint then would buy speed for free.
+		sprint_ticks = 0
 	var walk_ticks := covered - sprint_ticks
 	var metres_per_tick := 1.0 / Ticks.RATE
 	var travel := (
