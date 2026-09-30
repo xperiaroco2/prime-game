@@ -15,9 +15,10 @@ extends RefCounted
 ## (ScenarioInvariants); and that each bot received exactly its peer's `view_of` events.
 ##
 ## Server-side behaviour it stands in for: joins at tick 0 (PeerConnected, then Hello) unless a
-## Join step says later; the setup's settings in one ChangeSettings from the host's bot right after
-## its join; a LoadAck at once for every LoadMatch that no LoadAck step answers; RefuseJoins and
-## AllowJoins; DisconnectPeer ends that bot, and its PeerLeft follows on the next tick.
+## Join step says later; the setup's settings and map in one ChangeSettings from the host's bot
+## right after its join (bot 1 joins at the start then); a LoadAck at once for every LoadMatch
+## that no LoadAck step answers; RefuseJoins and AllowJoins; DisconnectPeer ends that bot, and its
+## PeerLeft follows on the next tick.
 
 enum Result { DONE, WAITING, FAILED }
 
@@ -99,8 +100,6 @@ func run() -> void:
 	for bot: int in scenario.forced_roles:
 		forced[peer_of(bot)] = scenario.forced_roles[bot]
 	game.force_roles(forced)
-	if not scenario.map.is_empty():
-		game.state.map = scenario.map
 	_invariants = ScenarioInvariants.new(game, scenario)
 	for number in range(1, scenario.bots + 1):
 		bots.append(ScenarioBot.new(number, peer_of(number), scenario.steps_of(number)))
@@ -143,18 +142,21 @@ func _run_tick(at_tick: int) -> void:
 
 
 ## Every bot without a Join step connects and says Hello; then the host's bot sends the setup's
-## settings.
+## settings and map.
 func _join_at_start() -> void:
 	for bot: ScenarioBot in bots:
 		if not bot.joins_late():
 			_connect(bot)
-	if scenario.settings.is_empty():
+	if scenario.settings.is_empty() and scenario.map.is_empty():
 		return
 	var host := bots[0]
 	var values := {}
 	for id: StringName in scenario.settings:
 		values[String(id)] = scenario.settings[id]
-	_queue(Intents.CHANGE_SETTINGS, host.peer, {"settings": values}, host.next_seq())
+	var args := {"settings": values}
+	if not scenario.map.is_empty():
+		args["map"] = scenario.map
+	_queue(Intents.CHANGE_SETTINGS, host.peer, args, host.next_seq())
 
 
 func _connect(bot: ScenarioBot) -> void:

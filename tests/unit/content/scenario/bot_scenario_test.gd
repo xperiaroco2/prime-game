@@ -30,6 +30,8 @@ func test_the_setup_is_checked_against_the_mode() -> void:
 		"time_limit_s"
 	]:
 		assert_str(problems).contains(expected)
+	scenario.scripts[0].steps.push_front(StepJoin.new())
+	assert_str("\n".join(scenario.problems())).contains("bot 1 sends the setup's settings")
 	scenario.expected_ends = []
 	assert_str("\n".join(scenario.problems())).contains("no expected end")
 	scenario.mode = null

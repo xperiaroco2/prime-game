@@ -5,12 +5,13 @@ extends Resource
 ## tests/harness/ (the core runner, 2j) and M3's bots play it. Files: content/scenarios/*.tres.
 ##
 ## The setup: the mode, the map, the session seed, the bots (bot 1 is the host's own client), the
-## match settings that differ from the defaults (the host's bot sends them in one ChangeSettings
-## right after its join) and the roles forced per bot (debug builds only, invariant 8; a forced role
-## counts toward its quota). By default every bot joins at the start and acknowledges every
-## LoadMatch at once; the steps StepJoin and StepLoadAck change that for one bot. Then one script
-## per bot, run at the same time; the expected ends, one per match played, in order; a time limit
-## for the whole run; and the events some bot must never receive.
+## match settings that differ from the defaults (the host's bot sends them and the map in one
+## ChangeSettings right after its join, so it joins at the start) and the roles forced per bot
+## (debug builds only, invariant 8; a forced role counts toward its quota). By default every bot
+## joins at the start and acknowledges every LoadMatch at once; the steps StepJoin and StepLoadAck
+## change that for one bot. Then one script per bot, run at the same time; the expected ends, one
+## per match played, in order; a time limit for the whole run; and the events some bot must never
+## receive.
 
 ## An expected end that is no winning side: passes when every script finished within the time
 ## limit and no further MatchEnded arrived.
@@ -52,6 +53,10 @@ func problems() -> PackedStringArray:
 		found.append("bots is %d, outside 1 to %d" % [bots, mode.max_players])
 	if not map.is_empty() and not mode.maps.has(map):
 		found.append("map %s is not one of the mode's maps" % map)
+	if (not settings.is_empty() or not map.is_empty()) and not steps_of(1).is_empty():
+		for step: ScenarioStep in steps_of(1):
+			if step is StepJoin:
+				found.append("bot 1 sends the setup's settings and map, so it joins at the start")
 	if scripts.size() > bots:
 		found.append("%d scripts for %d bots" % [scripts.size(), bots])
 	for bot: int in forced_roles:
