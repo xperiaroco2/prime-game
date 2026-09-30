@@ -41,7 +41,7 @@ to `core/`. Design: `docs/ARCHITECTURE.md` (§3 the loop, §5 entitlement, §7.1
 ## Tests
 - Most of the project's tests belong here. Put them in `tests/unit/`, mirroring the `core/` path:
   `core/match/vote.gd` → `tests/unit/match/vote_test.gd`. Fixtures (modes built in code, test parts) live in
-  `tests/fixtures/match/`; a part's unit test never loads `content/` or `levels/` (§9.6).
+  `tests/fixtures/<area>/` (`match/`, `items/`); a part's unit test never loads `content/` or `levels/` (§9.6).
 - Drive a rule with commands and assert the events it emits and who received them (`view_of`). Seed the match.
 - Test voice routing with synthetic audio frames, never real capture.
 - At finish, `netcode-security-reviewer` reviews every `core/` change (root Routing).

@@ -599,9 +599,12 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   With a full hand, the held item is put down where the picked-up one lay, a spot already known to be valid.
 - **Put down.** The client sends only its facing. The host places the item at the put-down distance along the
   horizontal facing, through `WorldQuery`: stopped before a wall and dropped to the floor. Prevents: a package put
-  straight onto its circle across the map, or into a wall.
+  straight onto its circle across the map, or into a wall. 2e (#61) asks `rest_position` from the eye (the last
+  accepted position plus the eye height) towards the point at that distance, so an item goes over what the player
+  sees over (a low crate) and is stopped by a wall; a facing straight up or down puts it at the feet.
 - **Drops.** An item dropped at a death or a leave, and a body, come to rest on the floor below the player's last
-  position (through `WorldQuery`), never in mid-air.
+  position (through `WorldQuery`), never in mid-air. `Items.drop_held` (2e, #61) drops the item; a level with no
+  floor there is a level bug: the item rests at that position and the match logs an error.
 - **Delivery.** The rule is "the package rests inside its circle, however it got there". So one check runs whenever
   an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
   `server/` reports from its physics (`ItemRested`, #37). A package resting within its own circle's radius, on the
@@ -686,7 +689,7 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
 
 | Fact | Raised when | The rule sees (**hidden** fields in bold) |
 |---|---|---|
-| `item_rested` | an item comes to rest: put down, swapped, dropped at a death or a leave, spawned; later thrown (`ItemRested`, #37) | the item, the cause, the rest position |
+| `item_rested` | an item comes to rest: put down, swapped, dropped at a death or a leave, spawned; later thrown (`ItemRested`, #37) | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`), the rest position |
 | `player_died` | a player's health reaches 0, before the held item drops | the player, the body position; no killer, as no event names one (§4.2) |
 | `player_left` | a player leaves while the life state counts (Round, §3.5), before the held item drops | the player |
 | `subtask_done` | a task type completes a subtask | the task; **its owner** and **its task type's detail** (private: `TaskUpdated` only) |
@@ -770,6 +773,12 @@ phase classes come in the task each row names.
   `spend`), `StaminaCost`, and `SelfStatusFeed.touch(state, peer)`: a rule that changes a player's health or stamina
   (2g's `Strike` for the victim) touches it, and `Match.tick` sends one `SelfStatus` per changed player at the end of
   the tick. That call is the one line 2d added to `Match`: nothing else runs after a tick's commands.
+- **Items** (`core/items/items.gd`, 2e #61) is the one place that moves an item between the ground and a hand:
+  `take` (the pick-up and the swap), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`), `drop_held`
+  (a dying or leaving player's item to the floor below its last accepted position; the life rule, 2g, calls it after
+  the life state changed and `player_died` or `player_left` was raised) and `raise_rested` (`item_rested` for an item
+  announced by its own event: after `ItemSpawned`, 2c's `SpawnItems` and 2f's Delivery deal call it with
+  `Items.SPAWN`). The causes are constants there. Each condition names its own rejection reason as a constant.
 - Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an
   enum of `NetTransport` or GdUnit4).
 
@@ -811,10 +820,10 @@ phase classes come in the task each row names.
 
 | Part | Passes when | Settings | Rejects with | Built in |
 |---|---|---|---|---|
-| `ItemOnGround` | the rule's item exists, lies on the ground (not held) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | 2e |
-| `InReach` | the item is within reach of the actor's last accepted position (§7.1) | `reach_m` (0.1 to 10; 2) | `out_of_reach` | 2e |
-| `InSight` | the line from the actor's eye to the item is clear (`WorldQuery`) | none | `blocked` | 2e |
-| `HoldsItem` | the actor has an item in hand | none | `empty_hand` | 2e |
+| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not held) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | 2e (#61) |
+| `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | 2e (#61) |
+| `InSight` | the line from the actor's eye (its last accepted position raised by `PlayerRules.eye_height_m`) to the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
+| `HoldsItem` | the actor has an item in hand | none | `empty_hand` | 2e (#61) |
 | `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | with the first mechanic that needs it (#34) |
 | `AllSubtasksDone` | every subtask of every task is done | none | (facts only) | 2h |
 | `NoneAlive` | no player of the side is alive: each is a ghost or has left | `side` | (facts only) | 2h |
@@ -826,8 +835,8 @@ phase classes come in the task each row names.
 
 | Part | What it does | Settings | Emits (audience); raises | Built in |
 |---|---|---|---|---|
-| `TakeIntoHand` | the item goes into the actor's hand; a held item is swapped: it rests where the picked-up one lay (§7.1) | none | `ItemPickedUp` (everyone); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e |
-| `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery`, §7.1) | `distance_m` (0.3 to 3; 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e |
+| `TakeIntoHand` | the item goes into the actor's hand; a held item is swapped: it rests where the picked-up one lay (§7.1). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves | none | `ItemPickedUp` (everyone); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61) |
+| `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `Strike` | picks the targets as in §7.1 (living, not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each, in peer-id order; at 0 health a target dies (the life rule, 2g) | `angle_deg` (1 to 360; 30), `reach_m` (0.1 to 10; 1.5), `damage` (whole points, 1 to 1000; 50) | `Swung` (everyone), even with no target; per target `Damaged` and `SelfStatus` (the victim). A death: `Died` (everyone), `player_died`, then the drop: `ItemPlaced` (death, everyone), `item_rested` | 2g |
 | `ReportOutcome` | reports an outcome of the current phase (a meeting button, #35; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it (#35); 2a builds the outcome reporting it calls |
 
@@ -916,7 +925,9 @@ Settings:
 Produces: the events of its phases and parts. Visible to: as each of them says.
 Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) built the phases Lobby, Countdown,
 Loading and End, the join rules, the fit check, the mode check with layouts and the `End, back → Lobby` row's
-`ResetMatch`. Tests: the mode check of 2a and the base mode's numbers and `End → Lobby` order
+`ResetMatch`. 2e (#61) added the Package, PickUp and PutDown, and Round's `PickUp` and `PutDown` from the living;
+`Use` joins Round's allowlist with the knife's rule in 2g, because the mode check refuses an accepted intent that no
+rule handles. Tests: the mode check of 2a and the base mode's numbers and `End → Lobby` order
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
 scenarios in `content/scenarios/` (2j).
@@ -966,7 +977,8 @@ hand is rejected (`nothing_to_do`). Placed by Delivery.
 Produces: `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`; once delivered, `PackageDelivered`, and `PickUp` gets
 `unavailable`.
 Visible to: everyone.
-Status: designed in #33; built in 2e and 2f. Tests: (2e and 2f), a path once built.
+Status: designed in #33; built in 2e (#61, `content/items/package.tres`) and 2f. Tests: the parts' in
+`tests/unit/items/` (a package built in code); (2f), a path once built.
 
 #### Knife (item kind)
 What it does: the MVP's weapon: `Use` strikes in front of the holder.
@@ -1009,14 +1021,16 @@ Produces: `ItemPickedUp`; with a full hand, `ItemPlaced` (swap) and `item_rested
 swapped onto its circle is delivered.
 Visible to: everyone; a refusal (`unavailable`, `out_of_reach`, `blocked`) only the sender. A mode rule: its public
 events reveal no role.
-Status: designed in #33; built in 2e. Tests: (2e), a path once built.
+Status: designed in #33; built in 2e (#61). Tests: `tests/unit/items/take_into_hand_test.gd`,
+`tests/unit/content/item_intents_test.gd` (only the living may send it).
 
 #### PutDown (action)
 What it does: puts the held item down in front of the player (§7.1).
 Settings: a rule on the base mode: trigger `PutDown`; conditions `HoldsItem`; effects `PutDownInFront` (1 m).
 Produces: `ItemPlaced` (put down); `item_rested`.
 Visible to: everyone; a refusal (`empty_hand`) only the sender. A mode rule: its public events reveal no role.
-Status: designed in #33; built in 2e. Tests: (2e), a path once built.
+Status: designed in #33; built in 2e (#61). Tests: `tests/unit/items/put_down_in_front_test.gd`; the drops at a
+death or a leave: `tests/unit/items/items_test.gd`.
 
 #### Use (action; the knife's hit)
 What it does: uses the held item, as its kind's rule says; in the MVP only the knife has one (above). It replaces
