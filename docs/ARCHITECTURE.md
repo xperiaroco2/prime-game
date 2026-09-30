@@ -442,9 +442,9 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
   data names one per phase with the numbers of §9.5. A distance is between the two players' last accepted
   positions (§7.1), in 3D, and a radius includes its edge. 3D matches the listener's fade, which is by 3D distance to
   the same cutoff; whether a radius should be horizontal instead (a player on the floor above, 3 m up, heard like
-  one beside) is not settled by any ADR: 3D is the agent's choice, open for the engineer on #65. `ProximityVoice`
-  ignores life, so it belongs in phases without ghosts (the base mode's lobby, after `ResetMatch`): the living never
-  hearing a ghost (§5) holds only where a phase with ghosts uses a rule like `RoundVoice`.
+  one beside) is not settled by any ADR: 3D is the agent's choice, open for the engineer on #65. The living never
+  hear a ghost under any rule: `VoiceRule.speakers_of` drops that pair before asking the rule, as snapshots hide
+  ghosts from the living (§5), so no mode's data can route a ghost's voice to the living.
   Tests: `tests/unit/voice/`.
 - *Open (M5):* occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, and
   lowering the device latency (options in the ADR).
@@ -897,7 +897,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server) | 2a (#49) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
 | `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i (#65, `SilentVoice`) |
-| `Proximity` | voice rule | every pair of present players within the radius (3D, §6), whatever their life | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`) |
+| `Proximity` | voice rule | every pair of present players within the radius (3D, §6); the living never hear a ghost (§5, for every rule) | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`) |
 | `RoundVoice` | voice rule | the living hear the living within `living_m`; a ghost hears the living within `ghost_hears_living_m` and ghosts within `ghost_hears_ghost_m`, measured from the ghost; the living never hear the dead; a player who left hears and is heard by nobody (§6) | the three radii (each 0.5 to 100; the class defaults 0, which the mode check refuses) | the routing per tick | 2i (#65) |
 
 The match clock itself is not a part: `Match` counts it in phases whose clock runs, after their tick systems

@@ -56,11 +56,18 @@ func test_hearing_follows_honest_moves_tick_by_tick() -> void:
 	assert_bool(heard_on.back()).is_false()
 
 
-func test_life_does_not_matter_to_proximity() -> void:
-	var game := VoiceTestMatch.in_round(_proximity(8.0), [P1, P2])
+func test_the_living_never_hear_a_ghost_even_under_proximity() -> void:
+	# §5, enforced by core for every rule (VoiceRule.speakers_of): a mode that puts Proximity in a
+	# phase with ghosts must not let the living hear who is dead. The ghost still hears them.
+	var game := VoiceTestMatch.in_round(_proximity(8.0), [P1, P2, P3])
 	game.state.player(P2).life = PlayerState.Life.GHOST
-	assert_array(VoiceTestMatch.tick_and_hear(game, P1)).is_equal([P2])
-	assert_array(VoiceTestMatch.heard(game, P2)).is_equal([P1])
+	assert_array(VoiceTestMatch.tick_and_hear(game, P1)).is_equal([P3])
+	assert_array(VoiceTestMatch.heard(game, P3)).is_equal([P1])
+	assert_array(VoiceTestMatch.heard(game, P2)).is_equal([P1, P3])
+	game.state.player(P3).life = PlayerState.Life.GHOST
+	assert_array(VoiceTestMatch.tick_and_hear(game, P1)).is_empty()
+	assert_array(VoiceTestMatch.heard(game, P2)).is_equal([P1, P3])
+	assert_array(VoiceTestMatch.heard(game, P3)).is_equal([P1, P2])
 
 
 func test_a_player_who_left_hears_and_is_heard_by_nobody() -> void:

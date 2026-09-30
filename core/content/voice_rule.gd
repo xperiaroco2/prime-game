@@ -20,13 +20,20 @@ func hears(_state: MatchState, _listener: int, _speaker: int) -> bool:
 
 
 ## The speakers `listener` hears now, in peer-id order. A player who left hears and is heard by
-## nobody.
+## nobody, and a living player never hears a ghost (§5) whatever the rule's `hears` says: core
+## enforces it here, as snapshots hide ghosts from the living, so no mode's data can route a
+## ghost's voice to the living.
 func speakers_of(state: MatchState, listener: int) -> PackedInt32Array:
 	var heard := PackedInt32Array()
 	if not state.is_present(listener):
 		return heard
+	var living_ear := state.player(listener).life == PlayerState.Life.ALIVE
 	for speaker: int in state.present_peers():
-		if speaker != listener and hears(state, listener, speaker):
+		if speaker == listener:
+			continue
+		if living_ear and state.player(speaker).life == PlayerState.Life.GHOST:
+			continue
+		if hears(state, listener, speaker):
 			heard.append(speaker)
 	return heard
 
