@@ -27,8 +27,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key.physical_keycode == KEY_F1:
 		_player.ghost = not _player.ghost
 	elif key.physical_keycode == KEY_F2:
-		_player.global_transform = _spawn
-		_player.velocity = Vector3.ZERO
+		_player.teleport(_spawn)
 
 
 func _position_text() -> String:

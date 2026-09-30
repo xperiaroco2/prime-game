@@ -14,6 +14,14 @@ const MOVE_EPSILON := 0.0001
 const STEP_EPSILON := 0.001
 ## How far above a ledge's top the body crosses its edge, so the capsule's bottom clears it.
 const STEP_CLEARANCE := 0.01
+## Seconds the view takes to catch up with the body after a step-up lifts it at once.
+const VIEW_CATCH_UP_TIME := 0.1
+## How far ahead of a ledge's contact point, and from how high above it, the surface under it is
+## probed for whether it is walkable (metres).
+const SURFACE_PROBE_AHEAD := 0.02
+const SURFACE_PROBE_ABOVE := 0.05
+## Radians beyond `floor_max_angle` a surface may lean and still count as walkable.
+const WALKABLE_SLACK := 0.01
 
 @export var tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
 ## A ghost flies at `tuning.ghost_speed` without gravity and collides with the level only.
@@ -36,7 +44,8 @@ var fly_down_held: bool = false
 var stamina: StaminaSource
 
 var _sprinting: bool = false
-## Feet height when the body last stood on a floor: what a step's height is measured from.
+## Height of the floor surface the body last stood on: what a step's height is measured from.
+## Resting on a stair's edge, the rounded bottom puts the feet below that surface.
 var _floor_y: float = 0.0
 ## True while crossing a ledge's edge after `_step_up`: no gravity, and it counts as grounded.
 var _stepping: bool = false
@@ -59,6 +68,9 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if reads_device_input:
 		_read_device_input()
+	_head.position.y = move_toward(
+		_head.position.y, tuning.eye_height, tuning.step_height / VIEW_CATCH_UP_TIME * delta
+	)
 	if ghost:
 		_fly(delta)
 	else:
@@ -76,6 +88,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			-motion.screen_relative.y * mouse_sensitivity
 		)
 	elif event is InputEventMouseButton and event.is_pressed() and not captured:
+		# The `Input` singleton still sees this click, so `use` (left mouse) reads it as pressed
+		# this frame: whoever wires `use` must ignore the click that captured the mouse.
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_cancel") and captured:
@@ -99,6 +113,16 @@ func set_ghost(value: bool) -> void:
 	velocity = Vector3.ZERO
 	_sprinting = false
 	_stepping = false
+
+
+## Puts the body at `to` at rest, as a respawn or the host's correction does: no velocity, no
+## step in progress, and the new place is the floor a step's height is measured from.
+func teleport(to: Transform3D) -> void:
+	global_transform = to
+	velocity = Vector3.ZERO
+	_stepping = false
+	_floor_y = to.origin.y
+	_head.position.y = tuning.eye_height
 
 
 ## Whether the player is in the sprint state (for the HUD and tests).
@@ -156,31 +180,40 @@ func _walk(delta: float) -> void:
 	if _stepping:
 		_cross_step(moved)
 	if is_on_floor():
-		_floor_y = global_position.y
+		_floor_y = _floor_contact_y()
 	stamina.report(delta, _sprinting and moved > MOVE_EPSILON, jumped)
 
 
 ## Starts walking up a ledge that blocks `motion`: lifts the body to just above the ledge's top
 ## and returns true, or returns false when there is no such ledge. `move_and_slide` then carries
-## the body across.
+## the body across. Only the body jumps up; the head is lowered by the same amount and eases back
+## in `_physics_process`, so the view does not pop on every stair.
 func _step_up(motion: Vector3) -> bool:
 	var top := _ledge_top(motion)
 	if is_nan(top):
 		return false
-	global_position.y = top + STEP_CLEARANCE
+	var lift := top + STEP_CLEARANCE - global_position.y
+	global_position.y += lift
+	# Sprinting up stairs lifts again before the view has caught up: it lags one step at most.
+	_head.position.y = maxf(_head.position.y - lift, tuning.eye_height - tuning.step_height)
 	return true
 
 
 ## The top of a ledge no higher than `tuning.step_height` above the last floor that blocks
 ## `motion`, or NAN when there is none. It tries the same motion from just above step height and
-## comes down on whatever is below.
+## comes down on whatever is below. What it comes down on must be walkable: the capsule touches a
+## steep slope or a round prop below its real top, which is no ledge.
 func _ledge_top(motion: Vector3) -> float:
 	var from := global_transform
-	if motion.length_squared() < MOVE_EPSILON * MOVE_EPSILON or not test_move(from, motion):
-		return NAN
 	var hit := KinematicCollision3D.new()
+	if motion.length_squared() < MOVE_EPSILON * MOVE_EPSILON or not test_move(from, motion, hit):
+		return NAN
+	# What blocks the motion is itself walkable, a ramp or a low edge under the rounded bottom:
+	# `move_and_slide` walks up it without a lift.
+	if _is_walkable(hit.get_normal()):
+		return NAN
 	var raised := from
-	var lift := Vector3(0.0, tuning.step_height + STEP_CLEARANCE, 0.0)
+	var lift := Vector3(0.0, _floor_y + tuning.step_height + STEP_CLEARANCE - from.origin.y, 0.0)
 	raised.origin += hit.get_travel() if test_move(raised, lift, hit) else lift
 	var ahead := raised
 	ahead.origin += hit.get_travel() if test_move(ahead, motion, hit) else motion
@@ -189,6 +222,8 @@ func _ledge_top(motion: Vector3) -> float:
 	if forward.length() < MOVE_EPSILON or not test_move(ahead, down, hit):
 		return NAN
 	var top := hit.get_position().y
+	if not _is_walkable_at(hit.get_position(), motion):
+		return NAN
 	var climbable := (
 		top - from.origin.y >= STEP_EPSILON
 		and top - _floor_y <= tuning.step_height + STEP_EPSILON
@@ -196,6 +231,37 @@ func _ledge_top(motion: Vector3) -> float:
 		and top + STEP_CLEARANCE <= raised.origin.y + STEP_EPSILON
 	)
 	return top if climbable else NAN
+
+
+## Whether the surface just past `point` in the direction of `motion` is flat enough to stand on
+## (`floor_max_angle`). A ray finds that surface; the capsule's own contact normal at a ledge's
+## edge says nothing about the ledge's top.
+func _is_walkable_at(point: Vector3, motion: Vector3) -> bool:
+	var ahead := Vector3(motion.x, 0.0, motion.z).normalized() * SURFACE_PROBE_AHEAD
+	var from := point + ahead + Vector3.UP * SURFACE_PROBE_ABOVE
+	var to := from + Vector3.DOWN * SURFACE_PROBE_ABOVE * 4.0
+	var query := PhysicsRayQueryParameters3D.create(from, to, collision_mask, [get_rid()])
+	var found := get_world_3d().direct_space_state.intersect_ray(query)
+	if found.is_empty():
+		return true
+	return _is_walkable(found["normal"] as Vector3)
+
+
+## Whether a surface with this normal is flat enough to stand on (`floor_max_angle`, with a
+## little slack for a ramp built at exactly that angle).
+func _is_walkable(normal: Vector3) -> bool:
+	return normal.angle_to(up_direction) <= floor_max_angle + WALKABLE_SLACK
+
+
+## The highest floor contact of the last `move_and_slide`, or the feet when it reported none.
+func _floor_contact_y() -> float:
+	var highest := global_position.y
+	for i: int in get_slide_collision_count():
+		var collision := get_slide_collision(i)
+		for j: int in collision.get_collision_count():
+			if _is_walkable(collision.get_normal(j)):
+				highest = maxf(highest, collision.get_position(j).y)
+	return highest
 
 
 ## One step of crossing a ledge's edge. The rounded bottom of the capsule would rest on the edge
