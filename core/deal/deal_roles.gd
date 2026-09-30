@@ -10,10 +10,14 @@ extends RuleEffect
 ## of the mode that knows its teammates and has players, in the mode's order, Teammates (every
 ## player of that role, and nobody else, §5).
 ##
-## Forced roles (§8, §9.7: a debug command or a scenario, debug builds only) are not built here:
-## core/ cannot tell a debug build, so 2j hands them in as data (peer -> role, set by server/ or
-## the scenario runner before the deal) for this action to apply before its draws. Whether a
-## forced player counts toward its role's quota is open (ARCHITECTURE §10).
+## Forced roles (§8, §9.7: a debug command or a scenario, debug builds only) come as data:
+## MatchState.forced_roles (peer -> role id), which server/'s debug path or the scenario runner
+## sets through Match.force_roles() before the start, since core/ cannot tell a debug build (2j).
+## Before its draws, each present peer with a forced role the mode declares gets it and is drawn by
+## no quota; a forced role counts toward its quota (the engineer's answer A on #30: "dissidents 1"
+## with bot 2 forced to dissident makes bot 2 the only dissident), so a quota draws its count minus
+## the players forced to its role, never below 0. A forced role the mode does not declare is a
+## match error and is ignored.
 
 ## The quotas, in order: each draws its players from those the earlier ones left.
 @export var quotas: Array[RoleQuota] = []
@@ -29,9 +33,12 @@ func run(ctx: MatchContext) -> void:
 		return
 	var peers := ctx.state.present_peers()
 	var left: Array[int] = peers.duplicate()
+	var forced := _apply_forced(ctx, peers, left)
 	var rng := ctx.rng(rng_purpose)
 	for quota: RoleQuota in quotas:
-		var count := mini(quota.count_for(ctx.state.settings, peers.size()), left.size())
+		var wanted := quota.count_for(ctx.state.settings, peers.size())
+		wanted -= forced.get(quota.role.id, 0)
+		var count := clampi(wanted, 0, left.size())
 		var order := RngStreams.shuffled_indices(left.size(), rng)
 		var drawn: Array[int] = []
 		for i in count:
@@ -52,6 +59,27 @@ func run(ctx: MatchContext) -> void:
 				of_role.append(peer)
 		if not of_role.is_empty():
 			ctx.emit(TeammatesEvent.new(role.id, of_role))
+
+
+## Gives each present peer its forced role and takes it out of `left`; returns how many players
+## were forced to each role.
+static func _apply_forced(
+	ctx: MatchContext, peers: Array[int], left: Array[int]
+) -> Dictionary[StringName, int]:
+	var counts: Dictionary[StringName, int] = {}
+	for peer: int in peers:
+		if not ctx.state.forced_roles.has(peer):
+			continue
+		var role_id: StringName = ctx.state.forced_roles[peer]
+		if ctx.mode.find_role(role_id) == null:
+			ctx.error(
+				"DealRoles: peer %d is forced to role %s, which the mode lacks" % [peer, role_id]
+			)
+			continue
+		ctx.state.players[peer].role = role_id
+		left.erase(peer)
+		counts[role_id] = counts.get(role_id, 0) + 1
+	return counts
 
 
 func emits() -> Array[Script]:

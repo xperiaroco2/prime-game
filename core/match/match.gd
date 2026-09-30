@@ -92,6 +92,7 @@ func _init(
 static func replay(recorded: CommandLog, game_mode: GameMode) -> Match:
 	var world := ReplayWorldQuery.new(recorded.world_answers)
 	var replayed := Match.new(game_mode, recorded.session_seed, world, recorded.layouts)
+	replayed.force_roles(recorded.forced_roles)
 	if replayed.command_log.mode_hash != recorded.mode_hash:
 		replayed.refusals.append(
 			(
@@ -121,6 +122,17 @@ static func replay(recorded: CommandLog, game_mode: GameMode) -> Match:
 			)
 		)
 	return replayed
+
+
+## Forces roles per peer (debug builds only, §8, §9.7): DealRoles gives each present peer its
+## forced role before its draws, and a forced role counts toward its quota. Only before start(),
+## so the command log holds them from the start and a replay deals the same.
+func force_roles(roles: Dictionary[int, StringName]) -> void:
+	if _started:
+		record_error("force_roles: the match has started already")
+		return
+	state.forced_roles = roles.duplicate()
+	command_log.forced_roles = roles.duplicate()
 
 
 ## Enters the mode's first phase on `at_tick`: the "(start)" row. False when refused.

@@ -201,3 +201,82 @@ func _holds(value: Variant, word: StringName) -> bool:
 	elif value is StringName or value is String:
 		return str(value) == String(word)
 	return false
+
+
+func test_a_forced_role_counts_toward_its_quota() -> void:
+	# The engineer's answer A on #30: "dissidents 1" with peer 2 forced to dissident makes peer 2
+	# the only dissident, whatever the seed.
+	var peers: Array[int] = [1, 2, 3, 4]
+	for seed_value: int in [1, 2, 3, 7, 11]:
+		var game := _forced_deal(peers, {&"dissidents": 1}, {2: DISSIDENT}, seed_value)
+		assert_array(FixtureDealModes.players_of(game, DISSIDENT)).is_equal([2])
+		assert_array(FixtureDealModes.players_of(game, CREW)).is_equal([1, 3, 4])
+		assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_the_quota_draws_what_the_forced_roles_leave() -> void:
+	var peers: Array[int] = [1, 2, 3, 4, 5, 6]
+	var game := _forced_deal(peers, {&"dissidents": 2}, {5: DISSIDENT})
+	var dissidents := FixtureDealModes.players_of(game, DISSIDENT)
+	assert_int(dissidents.size()).is_equal(2)
+	assert_bool(dissidents.has(5)).is_true()
+	# More players forced than the quota: every forced one keeps its role, and the quota draws none.
+	game = _forced_deal(peers, {&"dissidents": 1}, {2: DISSIDENT, 3: DISSIDENT})
+	assert_array(FixtureDealModes.players_of(game, DISSIDENT)).is_equal([2, 3])
+
+
+func test_a_player_forced_to_the_default_role_is_never_drawn() -> void:
+	# Two players, one dissident: forcing peer 1 to crew leaves only peer 2 to draw.
+	for seed_value: int in [1, 2, 3, 7, 11]:
+		var game := _forced_deal([1, 2], {&"dissidents": 1}, {1: CREW}, seed_value)
+		assert_array(FixtureDealModes.players_of(game, DISSIDENT)).is_equal([2])
+
+
+func test_forced_roles_are_told_like_drawn_ones() -> void:
+	# The same events and audiences as a draw: RoleAssigned to each player only, Teammates to the
+	# dissidents only; nothing says a role was forced.
+	var peers: Array[int] = [1, 2, 3]
+	var game := _forced_deal(peers, {&"dissidents": 1}, {3: DISSIDENT})
+	for peer: int in peers:
+		var own := game.view_of(peer).events_named(&"RoleAssigned")
+		assert_int(own.size()).is_equal(1)
+		assert_str((own[0] as RoleAssignedEvent).role).is_equal(CREW if peer != 3 else DISSIDENT)
+		var teammates := game.view_of(peer).events_named(&"Teammates")
+		assert_int(teammates.size()).is_equal(1 if peer == 3 else 0)
+
+
+func test_a_forced_role_the_mode_lacks_is_an_error_and_ignored() -> void:
+	var game := _forced_deal([1, 2], {&"dissidents": 0}, {2: &"medic"})
+	assert_array(FixtureDealModes.players_of(game, CREW)).is_equal([1, 2])
+	assert_int(game.diagnostics.size()).is_equal(1)
+	assert_str(game.diagnostics[0]).contains("medic")
+
+
+func test_forced_roles_are_logged_and_replayed() -> void:
+	var peers: Array[int] = [1, 2, 3, 4]
+	var game := _forced_deal(peers, {&"dissidents": 1}, {4: DISSIDENT})
+	assert_dict(game.command_log.forced_roles).is_equal({4: DISSIDENT})
+	var replayed := Match.replay(game.command_log, game.mode)
+	assert_array(FixtureDealModes.players_of(replayed, DISSIDENT)).is_equal([4])
+	assert_int(replayed.emitted().size()).is_equal(game.emitted().size())
+	# Only before the start: a later call would be missing from the replay.
+	game.force_roles({1: DISSIDENT})
+	assert_str(game.diagnostics[game.diagnostics.size() - 1]).contains("force_roles")
+	assert_dict(game.state.forced_roles).is_equal({4: DISSIDENT})
+
+
+func _forced_deal(
+	peers: Array[int],
+	settings: Dictionary[StringName, int],
+	forced: Dictionary[int, StringName],
+	seed_value: int = 7
+) -> Match:
+	return FixtureDealModes.dealt(
+		FixtureDealModes.deal_mode(),
+		peers,
+		settings,
+		seed_value,
+		FixtureDealModes.ITEM_MARKERS,
+		PackedStringArray(),
+		forced
+	)

@@ -152,17 +152,20 @@ static func layouts(item_markers: int = ITEM_MARKERS) -> Dictionary[String, Leve
 
 
 ## A match of `mode` whose players `peers` joined, with `settings` over the defaults and the task
-## types `banned`, all ready: the deal has run and the match is in the round.
+## types `banned` and the roles `forced` (peer -> role), all ready: the deal has run and the match
+## is in the round.
 static func dealt(
 	mode: GameMode,
 	peers: Array[int],
 	settings: Dictionary[StringName, int] = {},
 	seed_value: int = 7,
 	item_markers: int = ITEM_MARKERS,
-	banned: PackedStringArray = PackedStringArray()
+	banned: PackedStringArray = PackedStringArray(),
+	forced: Dictionary[int, StringName] = {}
 ) -> Match:
 	var game := Match.new(mode, seed_value, FlatWorldQuery.new(), layouts(item_markers))
 	game.keep_history = true
+	game.force_roles(forced)
 	game.start(0)
 	for peer: int in peers:
 		FixtureModes.send(game, Intents.HELLO, peer, {"name": "p%d" % peer})
