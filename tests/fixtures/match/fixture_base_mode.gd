@@ -88,6 +88,7 @@ static func mode() -> GameMode:
 	var circle := StationKind.new()
 	circle.id = &"circle"
 	circle.spawn_tag = &"circle"
+	circle.radius_m = 1.0
 	circle.palette = PackedColorArray([Color.RED, Color.BLUE])
 	made.transitions = [
 		FixtureModes.row(&"lobby", LobbyPhase.ALL_READY, &"countdown", []),

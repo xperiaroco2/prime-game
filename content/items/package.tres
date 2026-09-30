@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="ItemKind" format=3 uid="uid://c8rs0bewtust4"]
+
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="1_av3ad"]
+[ext_resource type="Script" uid="uid://botp1mgm7855d" path="res://core/content/item_kind.gd" id="1_kind"]
+
+[resource]
+script = ExtResource("1_kind")
+id = &"package"
+display_name = "Package"
+spawn_tag = &"package"
