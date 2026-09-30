@@ -178,8 +178,15 @@ Content parts (§9.5), checked in Round only, in the mode's order, after every f
 kills the last crew member, whose package then drops into its circle, meets "no crew alive" before the delivery:
 the dissidents win. The same holds for the last crew member leaving with the last package over its circle. The
 check after every fact is what makes this so: a death or a leave raises its fact before the held item drops (§9.2).
-2g (#63) tests both cases with fixture win conditions in the base mode's order (2h builds the real ones):
-`tests/unit/life/life_rules_test.gd` and `tests/unit/match/phases/round_phase_test.gd`.
+2g (#63) tests both cases with fixture win conditions in the base mode's order:
+`tests/unit/life/life_rules_test.gd` and `tests/unit/match/phases/round_phase_test.gd`. 2h (#64) tests them again
+with the real win conditions and Delivery (`tests/unit/win/none_alive_test.gd`), with the control that the same
+package put down wins for the crew.
+
+Each win condition's side and conditions are data (`content/win_conditions/`, §9.5); `EndMatch` then tells
+everyone the side, and nothing else (§5). Built in 2h (#64): `core/win/`, tested through seeded matches in
+`tests/unit/win/` (the crew wins on the last delivery only, a delivery on the end tick counts, time up with 0
+dissidents, no crew alive by a death or a leave, End widens nothing).
 
 ### 3.5 Joining, leaving and the host
 | Phase | A client joins (its `Hello` is accepted) | A client leaves |
@@ -384,7 +391,8 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
 `DisconnectPeer(peer)`. Built in 2b (#58): the events from `Welcome` to `PlayerLoaded` above, `ReadyChanged`,
 `CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
-sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`.
+sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`. Built in 2h
+(#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events).
 
 ## 5. Per-peer information filtering
 
@@ -869,9 +877,13 @@ phase classes come in the task each row names.
 - **Tasks** (`core/tasks/`, 2f #62; shared since #79): a task type marks a subtask done in its own task state, then
   calls `Tasks.subtask_done(ctx, task, detail)`, which emits `TaskProgress` (everyone; `Tasks.progress` counts the
   subtasks done and in total over every task), then raises `subtask_done`. `Tasks.all_done` is "every task done"
-  for 2h's `AllSubtasksDone`. Delivery (`core/tasks/delivery.gd`, with its task state as the inner class
+  for `AllSubtasksDone`. Delivery (`core/tasks/delivery.gd`, with its task state as the inner class
   `Delivery.State`) is the example for #36. `StationKind.radius_m` and `height_m` have a neutral default of 0,
   which the mode check refuses: the data sets them.
+- **Win** (`core/win/`, 2h #64): the win conditions' parts `AllSubtasksDone`, `NoneAlive` and `ClockEnded`, and the
+  transition actions `StartClock` and `EndMatch`. `Match` itself counts the clock and raises `clock_ended` (2a);
+  `StartClock` only sets `MatchState.clock_ticks_left`, and `EndMatch` sets `MatchState.winner`, which
+  `ResetMatch` clears.
 - **Life** (`core/life/life_rules.gd`, 2g #63) is the one place that lowers health or changes the life state in a
   round: `LifeRules.damage` (`Damaged` to the victim, its `SelfStatus` touched; at 0 health `die`), `die` (the body
   on the floor below into `MatchState.bodies`, life ghost at the body with a new epoch; then `Died` (everyone),
@@ -926,9 +938,9 @@ phase classes come in the task each row names.
 | `InSight` | the line from the actor's eye (the floor below its last accepted position raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
 | `HoldsItem` | the actor has an item in hand | none | `empty_hand` | 2e (#61) |
 | `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | with the first mechanic that needs it (#34) |
-| `AllSubtasksDone` | every task is done (`Tasks.all_done`): a task with no subtasks is done, and with no tasks it holds (the engineer's rule of 2026-09-30, #79) | none | (facts only) | 2h (#64) |
-| `NoneAlive` | no player of the side is alive: each is a ghost or has left | `side` | (facts only) | 2h |
-| `ClockEnded` | the match clock has reached its end | none | (facts only) | 2h |
+| `AllSubtasksDone` | every task is done (`Tasks.all_done`): a task with no subtasks is done, and with no tasks it holds (the engineer's rule of 2026-09-30, #79) | none | (facts only) | 2h (#64, `core/win/all_subtasks_done.gd`) |
+| `NoneAlive` | no player of the side is alive: each is a ghost or has left. A player's side is its role's; a player without a role of the mode is on no side, and with no player of the side it holds (the base mode's deal always leaves at least one crew member). It reads every player's role, which is hidden, but only as a win condition, whose `won` reaches no peer (§9.2) | `side` (a side of the mode) | (facts only) | 2h (#64, `core/win/none_alive.gd`) |
+| `ClockEnded` | the match clock has reached its end (`MatchState.clock_ended`, set when `Match` raises `clock_ended`); before `StartClock` there is no end | none | (facts only) | 2h (#64, `core/win/clock_ended.gd`) |
 | `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | 2g (#63, `core/combat/cooldown.gd`) |
 | `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount` (a ghost's always is); paying spends it and emits `SelfStatus` (the actor, at the end of the tick) | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | 2d (#60) |
 
@@ -949,8 +961,8 @@ phase classes come in the task each row names.
 | `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then `TaskProgress`. More tasks than types left (a check that did not run) is an error, and it deals the types left. Refuses in `ChangeSettings` (`settings_problem`): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62) |
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
-| `StartClock` | sets the match clock's end to now plus the setting | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone) | 2h |
-| `EndMatch` | records the side of the `won` outcome as the winner | none | `MatchEnded` (everyone): the side only | 2h |
+| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); the last action of the deal's row, so the round's `PhaseChanged` announces the end tick. Mode check: the setting's minimum at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
+| `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side only | 2h (#64, `core/win/end_match.gd`) |
 | `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count (§3.5); everyone un-ready. Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player | 2b (#58, `core/match/reset_match.gd`) |
 
 **Demands.** Every placing action, and every task type through `DealTasks`, answers one question: given the settings
@@ -1045,7 +1057,9 @@ the base mode's numbers and `End → Lobby` order, and the whole deal run by a m
 (`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
 (`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
 scenarios in `content/scenarios/` (2j).
-2i (#65) gave every phase its voice rule.
+2i (#65) gave every phase its voice rule. 2h (#64) added the win conditions, `StartClock` (last in the
+`Loading, all_loaded → Round` row) and `EndMatch` (`Round, won → End`); `content_modes_test.gd` plays a whole
+match from this data to the end and back to the lobby, twice.
 Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd`.
 
 #### Crew (role)
@@ -1142,21 +1156,26 @@ What it does: the crew's only win.
 Settings: side `crew`; conditions: `AllSubtasksDone`.
 Produces: `won(crew)`, then `EndMatch`: `MatchEnded(crew)`.
 Visible to: everyone, the side only.
-Status: designed in #33; built in 2h. Tests: (2h), a path once built.
+Status: designed in #33; built in 2h (#64): `content/win_conditions/every_task_done.tres`. Tests:
+`tests/unit/win/all_subtasks_done_test.gd`, `tests/unit/win/clock_ended_test.gd` (a delivery on the end tick),
+`tests/unit/content/content_modes_test.gd` (the base mode's data).
 
 #### No crew alive (win condition)
 What it does: the dissidents win when every crew member is dead or has left.
 Settings: side `dissidents`; conditions: `NoneAlive` (side `crew`).
 Produces: `won(dissidents)`, then `MatchEnded(dissidents)`.
 Visible to: everyone, the side only.
-Status: designed in #33; built in 2h. Tests: (2h), a path once built.
+Status: designed in #33; built in 2h (#64): `content/win_conditions/no_crew_alive.tres`. Tests:
+`tests/unit/win/none_alive_test.gd` (a death, a leave, the §3.4 order), `tests/unit/content/content_modes_test.gd`.
 
 #### Time up (win condition)
 What it does: the dissidents win when the clock ends with a subtask not done, with 0 dissidents too.
 Settings: side `dissidents`; conditions: `ClockEnded`, `AllSubtasksDone` negated.
 Produces: `won(dissidents)`, then `MatchEnded(dissidents)`.
 Visible to: everyone, the side only.
-Status: designed in #33; built in 2h. Tests: (2h), a path once built.
+Status: designed in #33; built in 2h (#64): `content/win_conditions/time_up.tres`. Tests:
+`tests/unit/win/clock_ended_test.gd` (0 dissidents too), `tests/unit/win/end_match_test.gd`,
+`tests/unit/content/content_modes_test.gd`.
 
 #### PickUp (action)
 What it does: takes an item from the ground into the hand, swapping a held one (§7.1).
