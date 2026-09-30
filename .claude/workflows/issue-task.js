@@ -151,11 +151,22 @@ if (impl.verify_green) {
   const codeFocus = DESIGN
     ? '\n\nFocus: consistency with the code on main (real payloads, public APIs, tables), with the accepted ADRs and with ARCHITECTURE elsewhere; Godot 4.7.2 APIs named exist (tools/out/godot-api/4.7.2/extension_api.json); a proposed issue split is complete and ordered; every engineer decision is marked as such.'
     : ''
+  const labels = ['code-reviewer']
   const thunks = [() => agent(base + codeFocus, { label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW })]
-  if (netcode) thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay.', { label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }))
-  if (godot) thunks.push(() => agent(base, { label: `review:godot-api:#${N}`, phase: 'Review', agentType: 'godot-api-checker', schema: REVIEW }))
-  reviews = (await parallel(thunks)).filter(Boolean)
-  if (!reviews.length) throw new Error(`#${N}: every reviewer returned nothing; resume this run with the same args`)
+  if (netcode) {
+    labels.push('netcode-security-reviewer')
+    thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay.', { label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }))
+  }
+  if (godot) {
+    labels.push('godot-api-checker')
+    thunks.push(() => agent(base, { label: `review:godot-api:#${N}`, phase: 'Review', agentType: 'godot-api-checker', schema: REVIEW }))
+  }
+  const results = await parallel(thunks)
+  // Every routed reviewer must answer: a dropped netcode review on a core/ change is not a clean review. A resume
+  // replays the reviewers that did answer, so throwing costs nothing.
+  const missing = labels.filter((l, i) => !results[i])
+  if (missing.length) throw new Error(`#${N}: reviewer(s) ${missing.join(', ')} returned nothing; resume this run with the same args`)
+  reviews = results
   log(`#${N}: ${reviews.length} reviews, ${reviews.reduce((s, r) => s + (r.findings || []).length, 0)} findings`)
 }
 

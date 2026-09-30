@@ -69,11 +69,17 @@ const base = [
   `Check that each conflict resolution keeps both sides' intent and that the fixes for the new base are correct: \`git -C ${WTB} range-diff <old_tip>...<new_tip>\` where the tips are known, and \`git -C ${WTB} diff origin/${BASE}...HEAD\`. One copy of each shared class, used consistently; no lost or duplicate lines in data files; no weakened test.${A.focus ? '\n' + A.focus : ''}`,
   'Report findings with severity (blocker, major, minor, nit), file, line, problem and fix. No findings is a valid answer.',
 ].join('\n\n')
+const labels = ['code-reviewer']
 const thunks = [() => agent(base, { label: `review:code:#${PR}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW })]
 if (!paths.length || paths.some(p => /^(core|server|net)\//.test(p))) {
+  labels.push('netcode-security-reviewer')
   thunks.push(() => agent(base + '\n\nFocus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides.', { label: `review:netcode:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }))
 }
-const reviews = (await parallel(thunks)).filter(Boolean)
+const results = await parallel(thunks)
+// Every routed reviewer must answer: an empty review list is not a clean review. A resume replays the ones that did.
+const missing = labels.filter((l, i) => !results[i])
+if (missing.length) throw new Error(`#${PR}: reviewer(s) ${missing.join(', ')} returned nothing; resume this run with the same args`)
+const reviews = results
 
 let fix = null
 const serious = reviews.flatMap(r => r.findings || []).filter(f => /blocker|major/i.test(f.severity))
@@ -86,7 +92,8 @@ if (serious.length) {
     'Return the structured result.',
   ].join('\n\n'), {
     label: `fix:#${PR}`, phase: 'Fix', effort: 'high',
-    schema: { type: 'object', properties: { fixed: { type: 'array', items: { type: 'string' } }, not_fixed: { type: 'array', items: { type: 'string' } }, ci_green: { type: 'boolean' } }, required: ['fixed', 'ci_green'] },
+    schema: { type: 'object', properties: { fixed: { type: 'array', items: { type: 'string' } }, not_fixed: { type: 'array', items: { type: 'string' } }, verify_green: { type: 'boolean' }, published: { type: 'boolean' }, ci_green: { type: 'boolean' } }, required: ['fixed', 'verify_green', 'published', 'ci_green'] },
   })
+  if (!fix) throw new Error(`#${PR}: the fix agent returned nothing, so ${serious.length} blocker/major finding(s) may be unfixed; resume this run with the same args`)
 }
 return { pr: PR, reb, reviews, fix }
