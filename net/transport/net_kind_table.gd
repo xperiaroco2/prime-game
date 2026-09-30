@@ -7,8 +7,11 @@ extends RefCounted
 
 ## How a kind travels. RELIABLE: channel 0, reliable and ordered (intents, events). LATEST:
 ## channel 0, unreliable ordered, a late copy is dropped (state where only the newest matters);
-## the receiver gets at most the newest message per peer and kind per poll (NetTransport), so a
-## LATEST message must stand alone: nothing may be lost when a newer one replaces it.
+## per poll the receiver gets only the newest message per sender and kind between two of that
+## sender's RELIABLE messages (NetTransport), so a LATEST message must stand alone: nothing may be
+## lost when a newer one replaces it. The merge ignores the subject: a host-to-client LATEST kind
+## holds what it describes for every player that recipient may see in one message, never one
+## message per player, or only the last player's would arrive.
 ## VOICE: its own channel 1, unreliable UNORDERED: an ordered lane would drop reordered frames
 ## before the jitter buffer sees them (ARCHITECTURE §4, voice ADR).
 enum Lane { RELIABLE, LATEST, VOICE }

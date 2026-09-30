@@ -17,7 +17,8 @@ extends RefCounted
 ## LATEST message that a newer one of the same kind from the same peer follows in the same poll with
 ## no valid reliable message from that peer between them (counted in latest_superseded), so no
 ## consumer handles the backlog, and each reliable message still follows the state sent before it.
-## RELIABLE and VOICE messages are all delivered.
+## The merge is by sender and kind, not by subject: a newer message replaces one about another
+## player too. RELIABLE and VOICE messages are all delivered.
 
 signal connected(own_id: int)
 ## A join failed: no host, refused, full, or no answer within the join timeout.

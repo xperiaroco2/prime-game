@@ -242,15 +242,22 @@ check after every fact is what makes this so: a death or a leave raises its fact
   (channel 0, reliable), `LATEST` (channel 0, unreliable ordered) and `VOICE` (channel 1, unreliable unordered).
   Unreliable payloads are capped at 1024 bytes so ENet never fragments them. The game's table,
   `NetKindTable.game()`, is empty until the schemas add rows.
-- **The LATEST lane delivers only the newest** message per peer and kind per `poll()` (#70). After a peer's main
-  thread froze, its backlog arrives in one poll: 50 to 100 packets, each up to 5 s old (#21). The inbox drops every
-  valid LATEST message that a newer one of the same kind from the same peer follows in the same poll, so no
-  consumer ever handles the backlog, and each consumer gets the rule without code of its own. The newest keeps its
-  place among the poll's other messages. A dropped message is still checked like any packet (what is malformed
-  stays a reject) and counted in `latest_superseded`, not as a reject. A join or leave of that peer in between,
-  or a change of the client's own connection, separates the two. RELIABLE and VOICE messages are never merged.
-  So a LATEST message must stand alone: nothing may be lost when a newer one replaces it (a one-off event goes
-  RELIABLE, or the state carries it, a counter say).
+- **The LATEST lane delivers only the newest** message per sender and kind per `poll()`, between two of that
+  sender's reliable messages (#70). After a peer's main thread froze, its backlog arrives in one poll: 50 to 100
+  packets, each up to 5 s old (#21). The inbox drops every valid LATEST message that a newer one of the same kind
+  from the same peer follows in the same poll, so no consumer ever handles the backlog, and each consumer gets the
+  rule without code of its own. The newest keeps its place among the poll's other messages. A valid RELIABLE
+  message from that peer in between separates the two, so each intent or event is still handled after the state
+  sent just before it: a client that walked to a package during the host's freeze and sent `PickUp` has it checked
+  against the claim it sent before the `PickUp`, not the one from before the freeze. A join or leave of that peer
+  in between separates them too (two connections, maybe with the same id). VOICE, on its own unordered channel,
+  separates nothing, and neither does a malformed packet. A dropped message is still checked like any packet (what
+  is malformed stays a reject) and counted in `latest_superseded`, not as a reject. RELIABLE and VOICE messages are
+  never merged. So a LATEST message must stand alone: nothing may be lost when a newer one replaces it (a one-off
+  event goes RELIABLE, or the state carries it, a counter say). The merge is by sender and kind, not by subject:
+  a host-to-client LATEST kind holds what it describes for every player that recipient may see (filtered by
+  `server/`) in one message, never one message per player, or only the last player's would arrive in a poll that
+  holds several.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
@@ -275,7 +282,8 @@ check after every fact is what makes this so: a death or a leave raises its fact
   - a host (with its own client) and two clients:
     `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`;
   - the freeze (#70): the host blocks its main thread for 5.2 s, then a client does; no drop, every reliable
-    message in order, at most one LATEST message per peer per poll, and each thaw's backlog merged:
+    message in order, at most one LATEST message per peer per poll between that peer's reliable messages, and
+    each thaw's backlog merged:
     `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (the port
     is required). On one PC the thawed host's newest message from each of two clients was about 1 s old and the
     freeze's last second of unreliable packets never arrived, probably because its socket buffer filled; the
