@@ -1,9 +1,9 @@
 class_name InSight
 extends Condition
-## Passes when the line from the actor's eye to the rule's item (Items.target_of) is clear of
-## walls (WorldQuery.line_of_sight; ARCHITECTURE §7.1, §9.4). The eye (Items.eye_of) is the floor
-## below the actor's last accepted position raised by PlayerRules.eye_height_m. The line ends just above the
-## item's rest position (Items.lifted), so the floor or crate it lies on does not block it.
+## Passes when the line from the actor's eye to the rule's item (Items.target_of) is clear of walls
+## (WorldQuery.line_of_sight; ARCHITECTURE §7.1, §9.4). The eye (Items.eye_of) is the floor below
+## the actor's last accepted position raised by PlayerRules.eye_height_m. The line ends just above
+## the item's rest position (Items.lifted), so the floor or crate it lies on does not block it.
 ## Rejects with `blocked`: the sender sees the wall too.
 
 const BLOCKED := &"blocked"
