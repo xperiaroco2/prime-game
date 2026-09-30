@@ -2,7 +2,7 @@ class_name ModeCheck
 extends RefCounted
 ## The mode check without layouts (ARCHITECTURE §9.1): what a game mode alone gets wrong. Match
 ## refuses a mode with errors, listing them all; a unit test runs it on every mode in `content/`.
-## The check with the levels' layouts (spawn tags, markers) is 2b's.
+## The check with the levels' layouts (spawn tags, markers) is LayoutCheck (2b).
 ##
 ## Errors: a phase, outcome, intent, setting, role, side or item kind that a part names but the
 ## mode does not declare; an outcome a phase can report without a row; an accepted intent that

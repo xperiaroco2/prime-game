@@ -106,16 +106,18 @@ hello deadline.
 | Countdown | `countdown_done`: the end tick is reached | Loading | |
 | Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Round | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers`; `StartClock` |
 | Round | `won(winner)`: a win condition (§3.4) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run |
-| End | `back`: the host's `ReturnToLobby` | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; `PlacePlayers` in the lobby |
+| End | `back`: the host's `ReturnToLobby` | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; then `PlacePlayers` in the lobby. In this order: placed first, the ghosts would still be ghosts when `PlayersPlaced` goes to everyone |
 
-The lobby shows why `all_ready` cannot fire (for example more packages than spawn points). The host leaving ends the
+The lobby shows why `all_ready` cannot fire (for example more packages than spawn points): every `SettingsChanged`
+carries the demands against the map's markers and each shortfall (`FitCheck`, 2b). The host leaving ends the
 session in every phase (§3.5); it has no row, because `core/` runs on the host and stops with it.
 
 **Placement on a scene change.** The `End → Lobby` row and the deal place every player at a spawn point of the new
 scene and set the host's position for them: `PlayersPlaced` tells everyone where (positions are public), and each
 player gets a private `Correction` with its own new epoch, because a public epoch would count a player's corrections,
-which mostly come from hidden stamina. A joiner is placed at a lobby spawn point and gets its spot and epoch in
-`Welcome`. Claims still in flight from the old scene carry the old epoch and are dropped as stale (§7). A cancelled
+which mostly come from hidden stamina. A joiner is placed at a lobby spawn point, the first `lobby_player` marker in
+level order with no player within 1 m (the first marker when all are taken; a placeholder, "not a decision"), and
+gets its spot and epoch in `Welcome`. Claims still in flight from the old scene carry the old epoch and are dropped as stale (§7). A cancelled
 countdown changes no scene and places nobody.
 
 ### 3.3 Time and randomness
@@ -174,12 +176,18 @@ check after every fact is what makes this so: a death or a leave raises its fact
 ### 3.5 Joining, leaving and the host
 | Phase | A client joins (its `Hello` is accepted) | A client leaves |
 |---|---|---|
-| Lobby | `PlayerJoined` to everyone, `Welcome` to it | `PlayerLeft` |
+| Lobby | `Welcome` to it, then `PlayerJoined` and `SettingsChanged` to everyone (it included) | dropped from the roster; `PlayerLeft`, `SettingsChanged` |
 | Countdown | as in Lobby, and `cancelled` | as in Lobby, and `cancelled` |
 | Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer` | dropped from the roster; `PlayerLeft` |
 | Round | refused, as in Loading | life state `left`, which counts as dead for the win conditions; the avatar is removed and no body stays; the held item comes to rest on the floor below where the player stood (§7.1); `PlayerLeft` |
-| End | refused, as in Loading | `PlayerLeft` |
+| End | refused, as in Loading | life state `left`; `PlayerLeft`. `ResetMatch` drops the player from the roster |
 
+- **The join** (2b, `JoinRules`): `server/`'s `PeerConnected` makes a peer a *newcomer*, and only a newcomer's
+  `Hello` is taken, once. Checked in order: the version equals the host's (`JoinRules.PROTOCOL_VERSION`), else
+  `Rejected` (`wrong_version`) and `DisconnectPeer`; the roster has fewer than the mode's maximum of players, else
+  `Rejected` (`full`) and `DisconnectPeer`; the name is valid, else `Rejected` (`bad_name`) and the newcomer may try
+  again. A newcomer's leave is forgotten silently, and so is the late `PeerLeft` of a peer that a directive
+  disconnected.
 - A client's missed loading deadline: `core/` emits `DisconnectPeer(p)` for `server/` and treats p as leaving.
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
   signal (#40); the client returns to the main menu with a message.
@@ -278,10 +286,10 @@ is entitled to (§5).
 
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
-| `Hello(name, version)` | a connected peer that is not yet a player, once; Lobby or Countdown | the name's length and characters; the version equals the host's, or the peer gets `DisconnectPeer`. Accepted, it is the join (§3.5) |
-| `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only) | that it changes the player's state |
-| `ChangeSettings(settings)` | the host (peer 1) only; Lobby only | each value within its bounds; whether they fit the map is checked at `all_ready` |
-| `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id: an ack from an earlier match is dropped |
+| `Hello(name, version)` | a connected peer that is not yet a player, once; Lobby or Countdown | the version (an int) equals the host's, or `wrong_version` and `DisconnectPeer`; room in the roster, or `full` and `DisconnectPeer`; the name, trimmed, is 1 to 24 characters without a control character (placeholders, "not a decision"), or `bad_name`. Accepted, it is the join (§3.5) |
+| `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | that it changes the player's state, or `unchanged` |
+| `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting with an int value (`unknown_setting`) within its bounds (`out_of_bounds`); the optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
+| `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
 | `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving (2d), jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch (else dropped as stale); speed for the life state and stamina; jumps; no teleport; the client tick rising at a bounded rate (§7, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not held, not delivered); pick-up reach from the host's position of the player; line of sight; a full hand swaps (§7.1) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
@@ -297,11 +305,11 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 
 | Event | Payload | Audience | When |
 |---|---|---|---|
-| `Welcome` | your peer id, spawn point and epoch; the roster with names and ready flags; the settings; the phase; the players' positions | the joiner | its `Hello` is accepted |
-| `PlayerJoined` | peer, name, spawn point | everyone | its `Hello` is accepted |
+| `Welcome` | your peer id, spawn point and epoch; the roster with names and ready flags; the settings and the map; the phase; the other players' positions | the joiner | its `Hello` is accepted |
+| `PlayerJoined` | peer, name, spawn point | everyone | its `Hello` is accepted, after its `Welcome` |
 | `PlayerLeft` | peer | everyone | a player leaves in any phase, or misses the loading deadline |
 | `ReadyChanged` | peer, ready | everyone | `SetReady`; everyone un-ready on `End → Lobby` |
-| `SettingsChanged` | settings; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns) against the map's markers, the package count among them | everyone | `ChangeSettings`, and a join or leave in Lobby or Countdown (the demands change) |
+| `SettingsChanged` | settings and map; the player count; the derived demands per spawn tag (§9.4: in the MVP packages, circles, knives, player spawns) against the map's markers, the package count among them; colours per station kind against its palette; every shortfall that holds `all_ready` back | everyone | `ChangeSettings`, and a join or leave in Lobby or Countdown (the demands change) |
 | `PhaseChanged` | phase; the countdown's or the match clock's end as a host tick, if it runs | everyone | every transition |
 | `CountdownCancelled` | reason: un-ready, join or leave | everyone | `cancelled` |
 | `PlayersPlaced` | per player: spawn point | everyone | `End → Lobby`; the deal (§3.2) |
@@ -323,11 +331,13 @@ Who receives each event is its audience (§5). A snapshot is not an event: §5 s
 | `SelfStatus` | health, stamina, whether sprint is available | that player | on change, at most once per tick |
 | `Died` | peer, body position | everyone | health reaches 0; no event names a killer or a cause |
 | `Correction` | epoch, position, velocity | that player | a rejected `MoveClaim` (§7); a placement (§3.2) |
-| `Rejected` | the intent's sequence number, reason | the sender | any rejected intent; an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
+| `Rejected` | the intent's sequence number, reason | the sender (*sender*: a player, or a newcomer whose `Hello` was not accepted yet) | any rejected intent; an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
-`DisconnectPeer(peer)`.
+`DisconnectPeer(peer)`. Built in 2b (#58): the events from `Welcome` to `PlayerLoaded` above, `ReadyChanged`,
+`CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
+sends what came before it (§4, `disconnect_peer`).
 
 ## 5. Per-peer information filtering
 
@@ -340,8 +350,9 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
   playtests.
 
 **How entitlement is expressed** (#32; [ADR](decisions/2026-09-29-match-loop-intents-events-and-entitlement.md)):
-- **Per event type.** Each event class declares its audience as a rule in `core/`: *everyone*, *only(peer)*,
-  *role(r)*, *life(ghost)*, or *server* (a directive, §4.2). The rule is evaluated when the event is emitted, against
+- **Per event type.** Each event class declares its audience as a rule in `core/`: *everyone*, *only(peer)* (a
+  present player), *role(r)*, *life(ghost)*, *server* (a directive, §4.2), or *sender(peer)*, which only `Rejected`
+  uses, because only it may reach a connected peer that is not a player yet (the engineer's answer on #49). The rule is evaluated when the event is emitted, against
   the state after the command. An event has one audience: when parts of a fact have different audiences, `core/`
   emits separate events (a hit: public `Swung`, private `Damaged`).
 - **Per entity for snapshots.** Every tick `core/` builds each peer's snapshot from visibility rules per entity: a
@@ -606,9 +617,11 @@ part is usable in data once its row or entry names the PR that built it. Every n
     (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
     (`ModeCheck`).
   - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks; a
-    marker with two tags; a lobby with fewer `lobby_player` markers than the mode's maximum of players. `Match` runs
-    this part on creation. The content test runs it with the layouts of the mode's levels, read by the marker reader
-    (2j); until 2j it runs the first part only.
+    marker with two tags; a lobby with fewer `lobby_player` markers than the mode's maximum of players; a level
+    without a layout. `Match` runs this part (`LayoutCheck`, 2b) on creation, with the tags each row's actions
+    demand at the default settings and the maximum of players (§9.4). The content test runs it with the layouts of
+    the mode's levels, read by the marker reader (2j); until 2j it creates a match of each mode with layouts built
+    in code.
 - **Where a value comes from.** A part reads its own settings. A value the host changes in the lobby is a **match
   setting**: the mode declares it (`SettingSpec`: id, default, bounds), and a part names it in a property ending in
   `_setting` (`count_setting = knives`). A part never reads another part's settings. So the knife's numbers sit in
@@ -695,9 +708,12 @@ phase classes come in the task each row names.
   action, whose `layout` is the level being entered); and `emit`, `reject`, `raise_fact`, `report_outcome`,
   `rng(purpose)`, `setting(id)` and `error`. Names: `Intents`, `Facts`, `RejectReasons`.
 - Events are `MatchEvent` subclasses in `core/events/`, each with its `audience()` (`Audience`: everyone, only,
-  role, life, server) and a `const AUDIENCE_KIND`, from which `ModeCheck` warns about role-owned public events.
+  role, life, server, and sender for `Rejected`, 2b) and a `const AUDIENCE_KIND`, from which `ModeCheck` warns
+  about role-owned public events.
 - `Phase` (handled intents, outcomes, settings check, end tick, enter, exit, tick, intents, peers connecting and
-  leaving); the base mode's Lobby, Countdown, Loading and End classes are skeletons that 2b fills; `MovementRule`
+  leaving); 2b (#58) filled the base mode's Lobby, Countdown, Loading and End classes, with `JoinRules` (joins,
+  leaves, the ready flag) and `FitCheck` (the fit check) beside them in `core/match/phases/`, and
+  `MatchState.newcomers` for the connected peers not yet players; `MovementRule`
   (`core/movement/`) takes `MoveClaim`s and checks only the epoch until 2d.
 - `MatchState`: players (`PlayerState`, life ALIVE, GHOST or LEFT), settings, map, items (`ItemState`: ground,
   hand or locked), tasks (`MatchTask` with its `TaskState`), stations, bodies, the cooldown and counter tables,
@@ -781,24 +797,25 @@ phase classes come in the task each row names.
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
 | `StartClock` | sets the match clock's end to now plus the setting | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone) | 2h |
 | `EndMatch` | records the side of the `won` outcome as the winner | none | `MatchEnded` (everyone): the side only | 2h |
-| `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; everyone un-ready | none | `ReadyChanged` (everyone), per player | 2b |
+| `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; everyone un-ready. Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player | 2b (#58, `core/match/reset_match.gd`) |
 
 **Demands.** Every placing action, and every task type through `DealTasks`, answers one question: given the settings
 and the player count, how many markers of which spawn tag does it need (and, for a station kind, how many colours).
-2a defines that interface on `Effect` and `TaskType`, with no demand by default. `all_ready` (2b) sums the demands per
-tag over every row into a phase on the map, compares each sum with the chosen map's markers of that tag (§3.2,
-§9.6), and `SettingsChanged` shows them.
+2a defines that interface on `Effect` and `TaskType`, with no demand by default. `all_ready` (2b, `FitCheck`) sums
+the demands per tag over every row into a phase on the map (`LayoutCheck.demands_of`), compares each sum with the
+chosen map's markers of that tag and each colour count with its palette (`Demands.shortfalls`, §3.2, §9.6), checks
+the player count against the mode's bounds, and `SettingsChanged` shows them.
 
 **Tick systems, phase classes and voice rules:**
 
 | Part | Kind | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|---|
 | `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order (none in the MVP; #36) | none | the task types' events | 2f |
-| `Lobby` | phase class | allows joins; `Hello` (the join), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins` (server) | 2b |
-| `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` `seconds` after entry | `seconds` (0 to 60; 5) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b |
-| `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s; at the deadline drops who did not confirm; reports `all_loaded` | `deadline_seconds` (5 to 600; 60) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `RefuseJoins`, `DisconnectPeer` (server) | 2b |
-| `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5) | none | none of its own | 2a (#49) |
-| `End` | phase class | `ReturnToLobby` from the host reports `back`; leaves (§3.5) | none | `PlayerLeft` (everyone) | 2b |
+| `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change, a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_name`, `unchanged`, `unknown_setting`, `out_of_bounds`, `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
+| `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
+| `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; the class default 0) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
+| `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server) | 2a (#49) |
+| `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
 | `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i |
 | `Proximity` | voice rule | every pair of players within the radius | `radius_m` (0.5 to 100; 8) | the routing per tick | 2i |
 | `RoundVoice` | voice rule | the living hear the living within `living_m`; a ghost hears the living within `ghost_hears_living_m` and ghosts within `ghost_hears_ghost_m`, measured from the ghost; the living never hear the dead; a player who left hears and is heard by nobody (§6) | the three radii (each 0.5 to 100; 8, 8, 8) | the routing per tick | 2i |
@@ -823,6 +840,9 @@ Status: designed in #33 · built in <PR>. Tests: path.
 #### Base mode (game mode)
 What it does: the MVP match, Lobby → Countdown → Loading → Round → End → Lobby (§3.2).
 Settings:
+- Written in `content/modes/base_mode.tres`, over neutral class defaults (0), so the designer sees every number
+  there (the engineer's answer on #49): players, the match settings and the phase settings. The Godot saver drops
+  a value equal to its class default, so a bound of 0 (`dissidents` and `knives` from 0) is the default itself.
 - players 1 to 10. Match settings, default (bounds): `match_duration` 10 min (1 to 60); `tasks_per_player` 2 (1 to
   10); `subtasks_per_task` 2 (1 to 10); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal); `knives` 2 (0 or more;
   the map's `knife` markers bound it at `all_ready`).
@@ -848,9 +868,12 @@ Settings:
   (`lobby_player`).
 
 Produces: the events of its phases and parts. Visible to: as each of them says.
-Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. Tests: the mode check of 2a
-(`tests/unit/content/content_modes_test.gd`, §9.1), the scenarios
-in `content/scenarios/` (2j).
+Status: designed in #33; the skeleton in 2a (#49), filled by 2b to 2i. 2b (#58) built the phases Lobby, Countdown,
+Loading and End, the join rules, the fit check, the mode check with layouts and the `End, back → Lobby` row's
+`ResetMatch`. Tests: the mode check of 2a and the base mode's numbers and `End → Lobby` order
+(`tests/unit/content/content_modes_test.gd`, §9.1); the phases with a mode built in code
+(`tests/unit/match/phases/`, `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the
+scenarios in `content/scenarios/` (2j).
 
 #### Crew (role)
 What it does: the side that wins only when every task is done (§3.4).
