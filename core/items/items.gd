@@ -107,6 +107,18 @@ static func raise_rested(ctx: MatchContext, item: ItemState, cause: StringName) 
 	ctx.raise_fact(fact)
 
 
+## `player`'s eye for the item rules (InSight, PutDownInFront): the floor below its last accepted
+## position (WorldQuery.floor_below) raised by the mode's PlayerRules.eye_height_m. A jump does
+## not raise it, so a player cannot see or put an item over a wall from the top of a jump. With
+## no floor below, the eye is raised from the position itself.
+static func eye_of(ctx: MatchContext, player: PlayerState) -> Vector3:
+	var base := player.position
+	var ground := ctx.world.floor_below(lifted(base))
+	if ground != WorldQuery.NO_FLOOR:
+		base.y = ground.y
+	return base + Vector3.UP * ctx.state.player_rules.eye_height_m
+
+
 ## `point` lifted by SURFACE_CLEARANCE_M, off the surface it lies on.
 static func lifted(point: Vector3) -> Vector3:
 	return point + Vector3.UP * SURFACE_CLEARANCE_M

@@ -68,6 +68,19 @@ func test_the_placement_starts_at_the_eye() -> void:
 	)
 
 
+func test_a_jump_does_not_raise_the_eye_over_a_wall() -> void:
+	# A 2.2 m partition in front: from the top of a jump (feet 1 m up) the eye would be 2.6 m and
+	# the item would go over it. The eye is taken from the floor below, so the partition stops it.
+	var world := FlatWorldQuery.new()
+	world.add_wall(AABB(Vector3(-1, 0, -0.6), Vector3(2, 2.2, 0.2)))
+	var game := _holding(world, HERE)
+	FixtureItemModes.stand(game, P1, Vector3(0, 1, 0))
+	FixtureItemModes.put_down(game, P1, NORTH)
+	var at := game.state.items[1].position
+	assert_float(at.z).is_equal_approx(-0.4 + FlatWorldQuery.WALL_MARGIN, 1e-5)
+	assert_float(at.y).is_equal(0.0)
+
+
 func test_a_facing_without_a_horizontal_direction_puts_it_at_the_feet() -> void:
 	# Not finite: on 4.7.2 Vector3.normalized() already returns zero for these, so the effect's
 	# own is_finite() check does not change this result; the test pins the outcome either way.
