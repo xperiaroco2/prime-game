@@ -452,8 +452,9 @@ The local player's controller (#46, `client/player/`):
   living's walk and sprint speeds times `ghost_speed_factor`. `StaminaSource` never refuses a ghost and records
   nothing for it. There is no flight (the engineer's correction of 2026-09-30, #46).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
-  2 `living_players`, 3 `ghosts`. The living collide with the world and the living; a ghost only with the world.
-  Other living players are `RemotePlayerBody` kinematic capsules that only their owner's data moves.
+  2 `living_players`, 3 `ghosts`. The living and ghosts collide with the world only; a living player finds the
+  other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other living players
+  are `RemotePlayerBody` kinematic capsules that only their owner's data moves.
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
   height and glides over the edge until it snaps onto the top. What blocks it must be a ledge: a walkable blocker (a
   ramp, a low edge under the rounded bottom) is left to `move_and_slide`, and a ledge whose top is steeper than
@@ -492,11 +493,28 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   `WorldQuery` within step height) and stamina covers the cost (a ghost's jump needs none). Until the next landing the height above the floor is
   bounded by the jump height; a rise without an accepted jump beyond step height is corrected. Prevents: free or
   endless jumps, and flying.
-- **Pushing apart.** Each client moves only its own player and collides it with the other living players' capsules
-  at their interpolated positions: pushing apart is each client resolving its own overlap. The host tolerates overlap
-  and never corrects it. Prevents: two clients that see each other 100 ms late snapping each other back and forth.
-  Accepted: a modified client can walk through players. Ghosts are outside this by construction: a living client
-  never receives a ghost's position, so it cannot bump into one.
+- **Pushing apart** (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions"). Living
+  players never pass through each other, but a body cannot block a passage. Each client moves only its own player
+  against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
+  corrects it. `PlayerController` does not collide with players: each physics step a contact search on the living
+  layer finds the capsules it touches, and for each one:
+  - Walking into it pushes: the part of the motion into it slows to `push_speed_factor`, and the pusher drifts to its
+    own right at `push_side_bias` of that speed, so a perfectly straight contact slides off instead of freezing. The
+    pusher stops advancing once it is `push_max_overlap` deep in the other capsule (numbers in `PlayerTuning`).
+  - Any other overlap is left at once (at most at sprint speed). That is how the pushed player's client moves its
+    player: from the pusher's interpolated motion, at the pusher's reduced speed.
+  - Head-on both push, and neither goes deeper than the overlap limit, so neither advances; the round capsules and
+    the drift slide them apart. Each drifts to its own right, so they pass each other on opposite sides.
+  - A ghost runs no search, and its layer is not searched: ghosts push nobody and nobody pushes them.
+
+  Prevents: two clients that see each other late snapping each other back and forth, and a player blocking a doorway.
+  Accepted: a modified client can walk through players. Latency: the pusher sees the pushed player's capsule a round
+  trip late (its own motion reaches the other client, which moves, and that motion comes back: about 0.2 s with
+  100 ms interpolation on each side). Over a network the overlap limit, not the push speed factor, sets how fast a
+  straight push goes: at most `push_max_overlap` per round trip, 1 m/s at 0.2 s instead of 2.25 m/s. The
+  two-client tests (`player_controller_push_test.gd`) run with that delay. *Open (M4):* the playtest over a network
+  decides whether that is enough; the options are a larger limit (deeper visible overlap) or drawing the pushed
+  capsule moved ahead on the pusher's client (display only).
 - **Ghosts** move like the living and get the same movement checks (floor, jumps, step height), with the walk and
   sprint speeds times the ghost speed factor (1.3), and stamina never limits them: a ghost's claims neither need nor
   spend it. They collide with the level client-side, not with the living or with other ghosts. `PickUp`, `PutDown`
