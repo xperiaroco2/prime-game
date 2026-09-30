@@ -79,6 +79,24 @@ func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:
 	return layouts
 
 
+func test_the_base_mode_writes_the_mvp_player_rules() -> void:
+	# PlayerRules' class defaults are 0, so each number below is written in the file (§9.5).
+	var mode := load(MODES_DIR.path_join("base_mode.tres")) as GameMode
+	var expected := FixtureModes.player_rules()
+	for property: Dictionary in expected.get_property_list():
+		var name: String = property["name"]
+		var usage: int = property["usage"]
+		if usage & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
+			continue
+		var got: float = mode.player_rules.get(name)
+		var want: float = expected.get(name)
+		(
+			assert_float(got)
+			. override_failure_message("PlayerRules_base.%s is %s, not %s" % [name, got, want])
+			. is_equal_approx(want, 1e-6)
+		)
+
+
 func _mode_paths(dir_path: String) -> Array[String]:
 	var found: Array[String] = []
 	var dir := DirAccess.open(dir_path)
