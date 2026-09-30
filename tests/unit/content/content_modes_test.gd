@@ -409,6 +409,32 @@ func test_a_whole_base_mode_match_to_the_end_and_back_to_the_lobby_twice() -> vo
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_the_base_lobby_takes_no_dissidents_and_time_up_is_still_their_win() -> void:
+	# The engineer's decision (MVP rules), through the real lobby: the host sets 0 dissidents and
+	# a 1-minute round; nobody is a dissident, nothing is delivered, and time up is their win.
+	var mode := _base_mode()
+	var peers: Array[int] = [1, 2, 3, 4]
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
+	game.keep_history = true
+	game.start(0)
+	for peer: int in peers:
+		FixtureBaseMode.join(game, peer)
+	var settings := {"dissidents": 0, "match_duration": 1}
+	FixtureModes.send(game, Intents.CHANGE_SETTINGS, 1, {"settings": settings})
+	assert_array(FixtureModes.rejections(game, 1)).is_empty()
+	assert_int(game.state.settings[&"dissidents"]).is_equal(0)
+	_ready_and_load(game, peers)
+	assert_array(FixtureDealModes.players_of(game, &"dissident")).is_empty()
+	FixtureWinModes.run_through(game, game.ticked_through() + 60 * Ticks.RATE)
+	assert_str(game.phase_id()).is_equal("end")
+	assert_str(game.state.winner).is_equal("dissidents")
+	for peer: int in peers:
+		var ended := game.view_of(peer).events_named(&"MatchEnded")
+		assert_int(ended.size()).is_equal(1)
+		assert_dict(ended[0].to_dict()).is_equal({"side": &"dissidents"})
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## A match of `mode` (the base mode's data) with `peers` from the lobby into the round.
 func _base_round(mode: GameMode, peers: Array[int]) -> Match:
 	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))

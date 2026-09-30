@@ -1059,7 +1059,8 @@ the base mode's numbers and `End → Lobby` order, and the whole deal run by a m
 scenarios in `content/scenarios/` (2j).
 2i (#65) gave every phase its voice rule. 2h (#64) added the win conditions, `StartClock` (last in the
 `Loading, all_loaded → Round` row) and `EndMatch` (`Round, won → End`); `content_modes_test.gd` plays a whole
-match from this data to the end and back to the lobby, twice.
+match from this data to the end and back to the lobby, twice, and a round
+with 0 dissidents set in its lobby.
 Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd`.
 
 #### Crew (role)
@@ -1175,7 +1176,7 @@ Produces: `won(dissidents)`, then `MatchEnded(dissidents)`.
 Visible to: everyone, the side only.
 Status: designed in #33; built in 2h (#64): `content/win_conditions/time_up.tres`. Tests:
 `tests/unit/win/clock_ended_test.gd` (0 dissidents too), `tests/unit/win/end_match_test.gd`,
-`tests/unit/content/content_modes_test.gd`.
+`tests/unit/content/content_modes_test.gd` (0 dissidents set through the base lobby).
 
 #### PickUp (action)
 What it does: takes an item from the ground into the hand, swapping a held one (§7.1).
