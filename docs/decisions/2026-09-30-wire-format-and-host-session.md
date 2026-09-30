@@ -1,8 +1,8 @@
 # Wire format and the host session
 
-- **Status:** Proposed: the engineer reviews it in #89's PR, with the choices E1 to E16 below and the designer D1 to D3
+- **Status:** Proposed: the engineer reviews it in #89's PR, with the choices E1 to E17 below and the designer D1 to D3
 - **Date:** 2026-09-30
-- **Deciders:** designed by the agent in #89 (M3 design); the engineer decides E1 to E16, the designer D1 to D3
+- **Deciders:** designed by the agent in #89 (M3 design); the engineer decides E1 to E17, the designer D1 to D3
 - **Builds on:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md),
   [match loop, intents, events and entitlement](2026-09-29-match-loop-intents-events-and-entitlement.md),
   [content API v0](2026-09-29-content-api-v0.md), [voice approach](2026-09-29-voice-approach.md),
@@ -61,7 +61,11 @@ client, the bots and the leak test). The main choices:
 8. **Clients and bots.** A `ClientSession` decodes into a view shaped like `PeerView`; a bot is a `ClientSession` and
    a script. The leak test compares each bot's decoded view with `view_of` (the events exactly, the snapshots' avatars
    and the voice frames as subsets) and checks invariants that read the events' own fields. One process with a
-   simulated clock, and ENet with the real clock (E12); a failed match leaves a log that replays it (E13).
+   simulated clock, and ENet with the real clock (E12); a failed match leaves a log that replays it (E13). The bots
+   play the steps of 2j's core runner (`tests/harness/`), which 3h splits from its stand-in for `server/`.
+9. **Debug commands on the wire** (E17). 2j made forced roles the `ForceRole` command that `server/` originates in
+   debug builds. On the wire it is a kind in 24 to 31 that only a debug build's table has, taken from the host's own
+   client (peer 1) only; the bots runner's bot 1 sends it for a scenario's forced roles.
 
 ## Alternatives
 - **For choice 1.** *A hand-written class per message* (E4 b): about 30 classes whose encoder and decoder can drift
@@ -105,6 +109,11 @@ client, the bots and the leak test). The main choices:
   what a player is told (§9.7), and the leak test would compare a thing with itself. *A real clock in the one-process
   runner* (E12 b): a 10-minute scenario takes 10 minutes of every `verify`, and its timing varies. *No saved logs*
   (E13 c): a failure in an unattended run cannot be replayed.
+- **For choice 9.** *No wire, the bots runner queuing `ForceRole` on its in-process `HostSession`* (E17 b): both bots
+  runs hold the `HostSession` in their first process and could, but the dev console (ARCHITECTURE §8) is a client's
+  and needs the wire anyway, which would then stay untested until it lands. *Debug kinds in every build, refused by `server/` in a
+  release build* (E17 c): a release host would decode messages it can never act on, and a missed check would let any
+  peer force roles.
 
 ## Consequences
 - **Tasks.** #89's handoff proposes the M3 issues 3c to 3i; they replace #30's draft 3c to 3e.
@@ -115,6 +124,11 @@ client, the bots and the leak test). The main choices:
   `MoveClaim` is dropped without `Rejected` (E15); `Intents.FIELDS` declares each intent's fields and types, which
   the rules read through and 3d's test compares with the table (so 3d follows that commit of 3e).
   `WorldQuery` gains `stand_floor_below` for a player's standing, which `MovementRule` and the reach use (E10).
+  `Intents.FIELDS` declares `ForceRole`'s fields too (E17).
+- **`tests/harness/`** (3h): `ScenarioRunner`'s steps are split from its stand-in for `server/`, and `ScenarioBot`
+  learns from (name, fields) instead of `MatchEvent` objects, so the core runner and the bots runner share them.
+- **`MarkerReader`** (3c): `read_levels` calls `use_level(path)` before reading each level, so the host reads the
+  markers through its own worlds (ARCHITECTURE §10's reader question, the option recommended on #66).
 - **The designer decides** D1 to D3 below, in the PR, before 3c and 3e land: they change the content API and the
   level conventions, the designer's side of the contract (ARCHITECTURE §9), so a notice is not enough.
 - **`net/`** gains `net/messages/`; `NetKindTable.game()` stops being empty; the transport gives `server/` its
@@ -123,7 +137,7 @@ client, the bots and the leak test). The main choices:
   3.3 Mbit/s with everyone talking and a compact header, far less with voice activity).
 - **Risks, each with where it is settled.**
   - A fresh space under Jolt may not answer before its first step: 3c probes it first; the fallback is one physics
-    step before `Match.start`.
+    step before the marker reader asks the worlds for floors and before `Match.start`.
   - Whether `decode_*` past the end prints an engine error, and whether typed and untyped Dictionaries compare equal:
     3d's tests pin both; the design does not depend on either.
   - The host's own client's messages lead the network's by at most one frame (§4.5).
@@ -152,6 +166,7 @@ The design follows each recommendation, and each can be reverted before its task
 | E14 | A `Hello` the phase refuses (Loading, Round, End; on `main`: `not_accepted`, seq 0, no disconnect) | (a) a reason of its own, `joins_closed`, then `DisconnectPeer`, and the entry into Loading disconnects every waiting newcomer; (b) keep `not_accepted`, and the client ends its join on any `Rejected` before `Welcome`; the hello deadline disconnects it | (a), with the client rule of (b) as well: the joiner is told why at once, and no newcomer lingers into the Round |
 | E15 | A `MoveClaim` the phase refuses (in flight at a phase change) | (a) dropped silently by `core/`, no `Rejected`; (b) `Rejected(not_accepted)` with seq 0 as on `main`, `MoveClaim` counted against the intent budget | (a): clients ignore it anyway, and a looping client could otherwise add a reliable `Rejected` to the log and the outbox every poll |
 | E16 | Payloads that legal content can push over a cap (`SettingsChanged`'s `id_sets` can reach about 18 KB at the declared maxima; a shortfall naming a 32-character id or a 255-byte path passes `text`'s 64 bytes) | (a) shortfalls as a `note` (`u16` length, up to 320 bytes), `SettingsChanged`'s cap at 8192, and `WireBudget` (`server/`) computing every content-sized kind's worst case from the mode, refusing a mode over a cap at host start and in a test over `content/`; (b) `core/` emits structured shortfalls (a reason id and numbers) that the client formats, and the maxima shrink until every kind fits its cap at them; (c) test the MVP's worst case only | (a): no change to `core/`'s events, and a designer's edit that would break the wire fails `verify` with the kind named, not a playtest with a silent missing event |
+| E17 | Debug commands on the wire (`ForceRole`, 2j: a command `server/` originates in debug builds) | (a) kinds 24 to 31 only in a debug build's table, taken from peer 1 only (another sender, or a release host: malformed), turned by `server/` into the command; the bots runner's bot 1 sends a scenario's forced roles on it; (b) no wire: the bots runner queues `ForceRole` on its `HostSession`; (c) the kinds in every build, refused by `server/` in a release build | (a): one path for the bots, the ENet run and a later dev console, tested by every scenario with a forced role, and a release host cannot even decode it |
 
 ## Needs the designer
 Content API and level conventions (ARCHITECTURE §9.1, §9.6, §9.7). The design follows each recommendation; each is

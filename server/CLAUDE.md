@@ -58,14 +58,16 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - Peer 1 (the host's own client) is exempt from budgets, the malformed disconnect and the hello deadline: never
   `disconnect_peer(1)`; a broken own client ends the session.
 - `WorldQuery`: per level a `World3D.new()` holding the level's static colliders (layer 1) through `PhysicsServer3D`,
-  built when the session starts; the level is the one `Match` names (`use_level`). Never the client's scene.
+  built when the session starts, before `MarkerReader` reads the markers through them (`use_level` per level); then
+  the level is the one `Match` names (`use_level`). Never the client's scene.
 - The session seed comes from `Crypto.generate_random_bytes`. The seed and the command log never leave the host.
 
 ## Boundaries
 - `server/` may use `core/` and the `net/` transport abstraction; it never calls a concrete transport (ENet, Steam,
   WebRTC) directly, and never touches `client/` scenes or UI.
 - Debug-only commands (spawn bots, force role, skip phase) are gated to debug builds and never widen what a
-  release peer can see.
+  release peer can see. On the wire they are kinds only a debug build's table has, taken from peer 1 only and turned
+  into the command they name (`ForceRole`); from another peer they are malformed (§4.3, E17).
 
 ## Tests
 - Integration tests of the transport checks and the per-peer delivery go in `tests/integration/`; the rules

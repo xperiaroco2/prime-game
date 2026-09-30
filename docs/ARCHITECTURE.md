@@ -306,7 +306,7 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
 rows in `NetKindTable.game()` (§4.3); the codec (§4.4); rate limits and what the host does with a peer that keeps
 sending rejected packets (§4.5). `MoveClaim` stays on the LATEST lane and carries a cumulative jump count, so a jump
 survives a merge (§4.3). The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The
-choices marked E1 to E16 wait for the engineer; the
+choices marked E1 to E17 wait for the engineer; the
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options, and the design follows each
 recommendation.
 Every schema change updates §4.3 in the same PR.
@@ -353,7 +353,9 @@ is entitled to (§5).
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
-the hello deadline. Debug commands (§8) are outside this table and exist in debug builds only.
+the hello deadline. Debug commands (§8) are outside this table and exist in debug builds only: `ForceRole` (§9.4
+`DealRoles`, 2j) is a command that `server/` originates, and on the wire (M3) it is a debug-only kind that only the
+host's own client may send (§4.3, E17).
 
 ### 4.2 Events (MVP, #32)
 Who receives each event is its audience (§5). A snapshot is not an event: §5 says what it holds for each peer. The
@@ -459,6 +461,15 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 8 | `Use` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
 | 9 | `ReturnToLobby` | RELIABLE | `seq: u32` | 4; 4 |
 
+**Debug commands** (C→H, E17): only in a debug build's table. `server/` takes them from the host's own client (peer 1)
+only and turns each into the command it names; from another peer, or on a release host, whose table lacks the kind,
+the message is malformed (§4.5). They are not intents: `core/` does not answer them with `Rejected` (§3.3 lists them
+among the commands `server/` originates), and the seq only orders them in the client's log.
+
+| Kind | Command | Lane | Fields | Bytes; cap |
+|---|---|---|---|---|
+| 24 | `ForceRole` (§9.4 `DealRoles`, 2j) | RELIABLE | `seq: u32`, `peer: peer` (the player whose role is forced, which becomes the command's peer), `has_role: bool`, then `role: id` when true; false clears the forced role (the command's `role` is then `""`, as `Match` reads it) | 19 for `dissident`; 42 |
+
 **Events** (H→C), all RELIABLE: one-off facts, and state sent only on change. `SelfStatus` is such state: on LATEST,
 losing the last change (stamina back to full) would leave a stale number on the HUD for good. Audiences: §4.2; a
 directive has no row, because it reaches no peer.
@@ -501,7 +512,8 @@ directive has no row, because it reaches no peer.
 | 113 | `VoiceDown` | H→C | VOICE | `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5), `tick: tick` (the host tick whose routing let it through, E11), `opus` | 55; 510 |
 
 The rules of the table:
-- **Kinds.** 0 is the transport's `ADMIT`; 1 to 31 are intents, 32 to 95 events, 96 to 111 state, 112 to 127 voice.
+- **Kinds.** 0 is the transport's `ADMIT`; 1 to 23 are intents, 24 to 31 debug commands (a debug build's table only,
+  E17), 32 to 95 events, 96 to 111 state, 112 to 127 voice.
 - **Frozen:** two whole rows never change. Kind 1 (`Hello`): C→H, RELIABLE, `version: u16` as its first two bytes,
   and its cap at `NetKindTable.MAX_PAYLOAD` (8192), which never shrinks. Kind 32 (`Rejected`): H→C, RELIABLE,
   `seq: u32` then `reason: id`, cap 37. A client of any version can then send its version and read
@@ -557,16 +569,18 @@ The rules of the table:
   speakers' frames to one listener is a new row.
 
 ### 4.4 The codec (M3 design, #89)
-- **One table** in `net/messages/` declares each row of §4.3: kind, name, direction, lane, cap and the fields with
-  their wire types (E4). `NetKindTable.game()` is built from it, so a kind's lane is still declared once. A generic
-  encoder and decoder walk the fields. `net/` references no `core/` class (§1): the names are strings, and a unit
-  test in `tests/` checks the table against `core/`: every intent of `Intents.ALL` and every event class with a peer
-  audience has a row whose fields are the intent's declared fields or the keys its `to_dict()` returns, and no row
-  has a field that names a seed. On `main` an intent declares no fields: its rules read `args` where they need them
-  (`MovementRule`, `JoinRules.hello`, the lobby's settings), and `MatchCommand.get_bool` returns its default for a
-  missing key, so a wire `jumps` against a rule that reads `jumped` would silently mean "never jumped". 3e therefore
-  adds `Intents.FIELDS` (intent → field → Variant type), which the rules read through, and 3d's test compares the
-  table with it. 3d depends on 3e's commit that adds `FIELDS`, `jumps` and `content`.
+- **One table** in `net/messages/` declares each row of §4.3: kind, name, direction, lane, cap and the fields with their
+  wire types (E4). `NetKindTable.game()` is built from it, so a kind's lane is still declared once. A generic encoder
+  and decoder walk the fields. `net/` references no `core/` class (§1): the names are strings, and a unit test in
+  `tests/` checks the table against `core/`: every intent of `Intents.ALL` and every event class with a peer audience
+  has a row whose fields are the intent's declared fields or the keys its `to_dict()` returns, each debug row (§4.3)
+  matches the fields of the command it names (`ForceRole`'s, declared in `Intents.FIELDS` too), no row has a field that
+  names a seed, and the table as a release build builds it (debug off) has no debug kind. On `main` an intent declares
+  no fields: its rules read `args` where they need them (`MovementRule`, `JoinRules.hello`, the lobby's settings), and
+  `MatchCommand.get_bool` returns its default for a missing key, so a wire `jumps` against a rule that reads `jumped`
+  would silently mean "never jumped". 3e therefore adds `Intents.FIELDS` (intent → field → Variant type), which the
+  rules read through, and 3d's test compares the table with it. 3d depends on 3e's commit that adds `FIELDS`, `jumps`
+  and `content`.
 - **Encoding** writes each field with `PackedByteArray.encode_*` into a buffer sized from the fields (or
   `StreamPeerBuffer.put_*`, little-endian unless `big_endian` is set). Never `var_to_bytes` or `bytes_to_var`, even
   without objects: their framing is as large as an Opus frame, they take any Variant type where a field expects one,
@@ -596,8 +610,11 @@ calls `step(now_usec)` from `_physics_process` with `Time.get_ticks_usec()`, bef
 (`process_physics_priority`); tests and the bots runner call it with a clock of their own (§4.6). The host's own
 client is a `ClientSession` on the loopback like any other (§4.6) and reads nothing of `HostSession`.
 
-**Starting.** (1) Load the game mode and every level it names (the lobby and the maps): read each level's markers
-into a `LevelLayout` (2j's reader) and build its collision world. (2) The session seed: 8 bytes of
+**Starting.** (1) Load the game mode and every level it names (the lobby and the maps), build each level's collision
+world (3c, below), then read the markers with `MarkerReader.read_levels` (2j) through the host's `WorldQuery`, which
+`read_levels` points at each level with `use_level(path)` before reading it (3c; the flat fake ignores it). So the
+`circle` markers snap to the floor the host plays on: option (b) of §10's reader question, recommended on #66. A
+level with load errors stops the host with the errors shown. (2) The session seed: 8 bytes of
 `Crypto.generate_random_bytes`, the operating system's entropy, never the time (§3.3). (3) `Match.new`; a refused
 mode stops the host with the refusals shown. `keep_history` stays off (the bots runner turns it on). `Match.start(0)`:
 host tick 0 is the session's start. (4) Host on the transport and link the own client.
@@ -613,7 +630,7 @@ host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tic
 |---|---|---|
 | 1 | **Catch up.** t = the tick of now. If the queue holds commands read in an earlier step (no tick was due then), they are applied first, stamped with `ticked_through() + 1`, and that tick runs. Then every tick up to t − 1 runs with no command (`Match.tick`). After each tick its outbox is delivered (5) and the voice routing table is refreshed | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
 | 2 | **Refill** every peer's budgets for the host time elapsed since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
-| 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
+| 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a debug command (§4.3, E17), queued as the command it names when p is 1, else counted as malformed; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
 | 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
 | 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
 | 6 | **Snapshots**, when a tick ran in this step: for each present player p, `snapshot_for(p)`; empty means the phase sends none; else `{tick: t, avatars}` (§4.3) to p on LATEST, after the tick's events. The voice routing table is refreshed after every `Match.tick` call, in step 1 as here (below) | A client sees a tick's events before its snapshot (both on channel 0). Catch-up ticks send none: only the newest state counts |
@@ -698,11 +715,11 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   ledge. `rest_position(a, b)`: a ray from a to b, stopped 0.2 m (a placeholder) before
   the first hit, then `floor_below`. `core/` records every answer in the command log (§3.3).
 - **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
-  gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the
-  first query misses, the host waits one physics step after building the worlds before `Match.start`. Either way the
-  worlds exist before the first claim can arrive. Physics runs on the main thread (`project.godot` sets no physics
-  thread), where the 4.7.2 docs allow `direct_space_state` outside `_physics_process`; stepping from
-  `_physics_process` keeps it legal if that setting changes.
+  gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the first
+  query misses, the host waits one physics step after building the worlds, before `MarkerReader` asks them for the
+  markers' floor and before `Match.start`. Either way the worlds exist before the first claim can arrive. Physics runs
+  on the main thread (`project.godot` sets no physics thread), where the 4.7.2 docs allow `direct_space_state` outside
+  `_physics_process`; stepping from `_physics_process` keeps it legal if that setting changes.
 
 **The command log and replays** (E13). The host keeps the log in memory (§3.3). A debug-build host writes the session's
 log to `user://replays/` when the session ends (never after each match) and keeps the last 10: the log holds the session
@@ -722,12 +739,18 @@ reading back). The log holds the seed: it stays on the host's disk and is never 
   snapshot; its own `SelfStatus`. It sends `Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per
   client tick (20 Hz) with its epoch, client tick and jump count, and `LoadAck` after loading. It never reads `core/`
   state (invariant 2).
-- **Bots** (`tests/harness/`, 3h): a bot is a `ClientSession`, a scenario script (the §9.7 steps) and an honest mover
-  that moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on the flat levels
-  (2j), claims every client tick, counts its jumps and adopts every `Correction`. It acknowledges `LoadMatch` as §9.7
-  says, without loading the scene: a bot needs no geometry of its own. Its voice is synthetic: frames of
-  varying length holding its peer id and a counter, so a listener also checks that the relay changed no frame and
-  named the right speaker.
+- **Bots** (`tests/harness/`, 3h): a bot is a `ClientSession`, a scenario script and an honest mover. The script is the
+  core runner's (2j): on `main` `ScenarioRunner` holds both the §9.7 steps (`_run_step` and a method per step) and its
+  stand-in for `server/` (`_queue`, `_deliver`, `_carry_out`), and `ScenarioBot.receive` takes `MatchEvent` objects. 3h
+  splits the steps from the stand-in and has `ScenarioBot` learn from (name, fields), which the core runner takes from
+  `to_dict()` and a network bot from its decoded view, so both runners play the same steps the same way, and
+  `ScenarioInvariants` checks §5 in both. The mover moves its position toward the target at the walk or sprint speed of
+  the mode's `PlayerRules` on the flat levels (2j), claims every client tick, counts its jumps and adopts every
+  `Correction`. It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
+  A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
+  wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
+  run in debug builds only. Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
+  listener also checks that the relay changed no frame and named the right speaker.
 - **The runners** (§9.7; E12):
   - `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/`, or those named, in one headless
     process over `LoopbackHub`: a `HostSession` with `keep_history` on, bot 1 its own client, the others loopback
@@ -1081,7 +1104,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 ## 8. Debug tooling
 
 A dev console and debug commands (spawn bots, force role, skip phase, show hidden info locally) in debug builds
-only, so the designer can test a mechanic alone.
+only, so the designer can test a mechanic alone. A debug command reaches `core/` as a command that `server/`
+originates (`ForceRole`, 2j); on the wire (M3 design) it is a kind that only a debug build's table has and only the
+host's own client may send (§4.3, E17).
 
 ## 9. Content API (the engineer–designer contract)
 
@@ -1744,10 +1769,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     `test` and `verify` run them from stage 2 on; `tests/scenarios/scenario_runner_test.gd` sees each kind of
     failure fail once.
   - *Bots* (M3, 3h): `tools\run.cmd bots [scenario]` starts a headless host, whose own client is bot 1, and the other
-    bots as headless clients: over `LoopbackHub` in one process by default, stepped by a simulated clock, or over
-    ENet on 127.0.0.1 with `--instances`, on the real clock. It builds on the core runner's `ScenarioBot` steps and
-    `ScenarioInvariants`, with `HostSession` in the place of the runner's stand-in for `server/`. The same files; it
-    joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
+    bots as headless clients: over `LoopbackHub` in one process by default, stepped by a simulated clock, or over ENet
+    on 127.0.0.1 with `--instances`, on the real clock. It plays the core runner's steps and checks its
+    `ScenarioInvariants`, with `HostSession` in the place of the runner's stand-in for `server/` (§4.6). The same files;
+    it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
@@ -1793,10 +1818,10 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
-| How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6) | M3, before `server/` hosts a match |
+| How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | M3, before `server/` hosts a match (3c) |
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
-| Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E16 for the engineer); built in M3 (3c to 3i) |
+| Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
 | The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
 | Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
