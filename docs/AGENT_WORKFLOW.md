@@ -567,7 +567,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
   5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
   `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
-  both sides and a backlog taken in one poll, #95; about 15 to 25 s, since the drops depend on the round trip) is
+  both sides and a backlog taken in one poll, #95; about 13 to 25 s, since the drops depend on the round trip) is
   `run tests/integration/net/enet_stall.gd --headless --seconds 60`, one process whose hosts take `<p>` to
   `<p> + 2`. Each gets
   `-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral ranges), so

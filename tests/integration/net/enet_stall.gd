@@ -12,7 +12,8 @@ extends SceneTree
 ## reached the timeout limit (the 6th attempt at PEER_TIMEOUT_LIMIT 32). So a drop comes between
 ## the minimum and about twice it. On one PC ENet's default (5 to 30 s) dropped a stalled host
 ## after 9.8 s and a stalled client after 5.9 s; with EnetTransport's 10 to 20 s after 10.3 to
-## 19.5 s and 12.0 to 14.3 s.
+## 19.5 s and 12.0 to 14.3 s. On the Linux CI runner (5 runs of #95's PR) both dropped after 10.04
+## to 10.07 s and the run took 13 s.
 ## - Every pair, the timeouts from the moment a connection exists: when the client reports
 ##   `connected` its host peer must already have EnetTransport's timeouts (applied_timeouts, set
 ##   in the poll ENet reports the connection in), and so must the host's peer when it reports
@@ -32,7 +33,8 @@ extends SceneTree
 ##   10 s too (measured once at 9.77 s, 180 ms under the bound). So a removed client set_timeout
 ##   can pass here in a narrow band of round-trip times; the applied_timeouts check above cannot
 ##   miss it. A correct build cannot fail this bound, save a frame hitch of over EARLY_MS on the
-##   stalled side just before it stops (measured drops: 10.3 s and up).
+##   stalled side just before it stops. That margin is thin on CI: drops 89 to 124 ms above the
+##   bound. If a correct build ever drops under it, widen EARLY_MS, never the window's top.
 ## - Pair 3, the host's timeout on its client: first the backlog below; then both beat for
 ##   WARM_MS, the client stops polling, and the host must drop it within the same window.
 ## - Backlog: pair 3's host is not polled while its client sends more LATEST poses than ENet reads
