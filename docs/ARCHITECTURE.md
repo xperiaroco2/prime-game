@@ -342,7 +342,9 @@ passes the intent to `core/` as a command stamped with the host tick; `core/` ch
 and the rules below. A rejected intent gets `Rejected` to the sender, whose reason depends only on facts the sender
 is entitled to (§5). The fields each intent carries, with their Variant types, are `Intents.FIELDS` (3e, #97), the
 list below in code: the rules read `MatchCommand.args` only through it (`MatchCommand.field` and its typed getters,
-which log an error for a field the intent does not declare), and 3d checks the wire table against it (§4.4).
+which read a field the intent does not declare as absent; `Match` records each such read as a match error in
+`diagnostics`, which the tests and the bots runner see), and 3d checks the wire table against it (§4.4). A
+`MoveClaim`'s `jumps` outside the wire's u16 is malformed in core itself (`MovementRule.MAX_JUMPS`).
 
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
