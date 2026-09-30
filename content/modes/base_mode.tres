@@ -38,6 +38,9 @@
 [ext_resource type="Resource" uid="uid://5wj7w4i0l5o2" path="res://content/items/knife.tres" id="59_knife"]
 [ext_resource type="Script" uid="uid://court8wt13yrh" path="res://core/content/role_quota.gd" id="59_quota"]
 [ext_resource type="Script" uid="uid://dfhwf7ayo4do4" path="res://core/deal/spawn_items.gd" id="59_spawn_items"]
+[ext_resource type="Script" uid="uid://b72xlahbbwwql" path="res://core/voice/proximity_voice.gd" id="31_proximity"]
+[ext_resource type="Script" uid="uid://dttee25uvdp0o" path="res://core/voice/silent_voice.gd" id="32_silent"]
+[ext_resource type="Script" uid="uid://mkjryqwnegvx" path="res://core/voice/round_voice.gd" id="33_round_voice"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -91,11 +94,16 @@ script = ExtResource("6_accept")
 intent = &"ChangeSettings"
 from = 16
 
+[sub_resource type="Resource" id="Voice_lobby"]
+script = ExtResource("31_proximity")
+radius_m = 8.0
+
 [sub_resource type="Resource" id="Phase_lobby"]
 script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings")])
+voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true
 
@@ -114,6 +122,10 @@ script = ExtResource("6_accept")
 intent = &"SetReady"
 from = 2
 
+[sub_resource type="Resource" id="Voice_countdown"]
+script = ExtResource("31_proximity")
+radius_m = 8.0
+
 [sub_resource type="Resource" id="Phase_countdown"]
 script = ExtResource("5_phase")
 id = &"countdown"
@@ -122,6 +134,7 @@ settings = Dictionary[StringName, float]({
 &"seconds": 5.0
 })
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_countdown_hello"), SubResource("Accept_countdown_move"), SubResource("Accept_countdown_ready")])
+voice_rule = SubResource("Voice_countdown")
 level = 1
 snapshots = true
 
@@ -129,6 +142,9 @@ snapshots = true
 script = ExtResource("6_accept")
 intent = &"LoadAck"
 from = 2
+
+[sub_resource type="Resource" id="Voice_loading"]
+script = ExtResource("32_silent")
 
 [sub_resource type="Resource" id="Phase_loading"]
 script = ExtResource("5_phase")
@@ -138,6 +154,7 @@ settings = Dictionary[StringName, float]({
 &"deadline_seconds": 60.0
 })
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_loading_ack")])
+voice_rule = SubResource("Voice_loading")
 level = 2
 
 [sub_resource type="Resource" id="Accept_round_move"]
@@ -158,6 +175,12 @@ from = 4
 [sub_resource type="Resource" id="TaskTicks_round"]
 script = ExtResource("29_task_ticks")
 
+[sub_resource type="Resource" id="Voice_round"]
+script = ExtResource("33_round_voice")
+living_m = 8.0
+ghost_hears_living_m = 8.0
+ghost_hears_ghost_m = 8.0
+
 [sub_resource type="Resource" id="Phase_round"]
 script = ExtResource("5_phase")
 id = &"round"
@@ -166,6 +189,7 @@ accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubR
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
+voice_rule = SubResource("Voice_round")
 level = 2
 snapshots = true
 
@@ -174,11 +198,15 @@ script = ExtResource("6_accept")
 intent = &"ReturnToLobby"
 from = 16
 
+[sub_resource type="Resource" id="Voice_end"]
+script = ExtResource("32_silent")
+
 [sub_resource type="Resource" id="Phase_end"]
 script = ExtResource("5_phase")
 id = &"end"
 phase_class = ExtResource("13_end")
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_end_return")])
+voice_rule = SubResource("Voice_end")
 level = 2
 
 [sub_resource type="Resource" id="PlayerRules_base"]
