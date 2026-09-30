@@ -86,7 +86,7 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 	for property: Dictionary in expected.get_property_list():
 		var number: String = property["name"]
 		var usage: int = property["usage"]
-		if usage & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
+		if (usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0:
 			continue
 		var got: float = mode.player_rules.get(number)
 		var want: float = expected.get(number)
