@@ -227,8 +227,8 @@ the dissidents win. The same holds for the last crew member leaving with the las
   acknowledgement (the spike's 2 to 4 s dropped peers during main-thread freezes); a crash is noticed that late.
 - Checked by `tests/unit/net/transport/` and a headless run of a host (with its own client) and two clients, one
   process each, on 127.0.0.1:
-  `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`. It is not
-  part of `verify` yet.
+  `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3`. `verify`, and
+  so CI, runs it on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11).
 
 *Open (M3):* intent and event schemas, their payload encoding and their rows in `NetKindTable.game()`, rate limits,
 and what the host does with a peer that keeps sending rejected packets. The protocol version travels in `Hello`
