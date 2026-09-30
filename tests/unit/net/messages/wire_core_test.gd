@@ -20,6 +20,23 @@ func test_every_event_class_with_a_peer_audience_has_samples() -> void:
 		)
 
 
+## A directive reaches no peer (§4.3): a row named after one would let a by-name encode send it.
+func test_no_server_audience_event_has_a_row() -> void:
+	var schema := WireSchema.game(true)
+	var directives := 0
+	var classes := _event_classes()
+	for event_class: String in classes:
+		var script := load(classes[event_class]) as Script
+		var audience: Audience.Kind = script.get_script_constant_map()["AUDIENCE_KIND"]
+		if audience != Audience.Kind.SERVER:
+			continue
+		directives += 1
+		assert_str(event_class).ends_with("Event")
+		var row_name := StringName(event_class.trim_suffix("Event"))
+		assert_object(schema.row_named(row_name)).override_failure_message(event_class).is_null()
+	assert_int(directives).is_greater_equal(3)
+
+
 func test_every_sent_event_has_a_row_with_its_to_dict_keys() -> void:
 	var schema := WireSchema.game(false)
 	for event_class: String in Samples.events():
