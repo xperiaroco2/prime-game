@@ -744,11 +744,13 @@ reading back). The log holds the seed: it stays on the host's disk and is never 
 **A failed deal is fatal** (the engineer's answer on #90, item 2, 2026-09-30). `core/` has no guard for a deal that
 cannot complete: a `Delivery` deal that could not place its packages or circles logs a match error
 (`Match.record_error`, kept in `Match.diagnostics`) and the round starts anyway, with no tasks, which every task done
-turns into an instant crew win (§3.4). So `HostSession` reads `diagnostics` after every `Match.apply` and `Match.tick`
-call, and a new `error:` line in a tick that ran the deal (the `all_loaded` row, §3.2: its outbox holds the
-`PhaseChanged` to `round`) ends the session with that error shown to the host's human, before the tick's events are
-delivered. An error at any other time is logged and the session goes on. The bots runner already fails a scenario on
-any match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
+turns into an instant crew win (§3.4). Which row deals, and which phase it enters, is the game mode's data (invariant
+5), so `server/` keys on neither: 3e has `Match` count the errors recorded while a transition row runs (its actions and
+the exit, `Match.row_error_count()`), and `HostSession` reads the count after every `Match.apply` and `Match.tick` call.
+A new one ends the session with that error shown to the host's human, before that call's slice is delivered (above).
+So any row whose actions fail is fatal, a deal or not; an error outside a row, such as a `ForceRole` naming a role the
+mode lacks in the same host tick, is logged and the session goes on. The bots runner already fails a scenario on any
+match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
 
 **Ending.** The host quits, its own client's load fails, or the deal fails (above): `close()`, and every client sees
 `host_lost` (#40).

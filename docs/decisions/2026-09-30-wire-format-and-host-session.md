@@ -53,9 +53,10 @@ client, the bots and the leak test). The main choices:
    before it applies anything, keeps one queue by arrival, delivers each event to exactly its recipients, carries out
    the directives in the outbox's order, sends snapshots after a tick's events, relays voice along the last tick's
    routing with that tick on each frame (E11), enforces the hello deadline, bounds each peer's rate and disconnects a
-   peer that keeps sending malformed packets (E7). An error that `core/` logs during the deal ends the session (the
-   engineer's answer on #90, item 2): `core/` has no guard for a deal that cannot place its tasks, and the round would
-   start with no tasks and end at once in a crew win.
+   peer that keeps sending malformed packets (E7). An error that `core/` logs while a transition row runs, the deal's
+   included, ends the session (the engineer's answer on #90, item 2): `core/` has no guard for a deal that cannot
+   place its tasks, and the round would start with no tasks and end at once in a crew win. `core/` counts those
+   errors, so `server/` names no phase or outcome of the mode.
 7. **Geometry.** Per level, a `World3D.new()` holding the level's static colliders through `PhysicsServer3D`, built
    when the session starts (E8); `Match` tells the port which level it asks about (E9); a player's floor is the highest
    under the capsule's footprint and an item's is one ray below it (E10); whether a fresh space answers before its
@@ -127,7 +128,8 @@ client, the bots and the leak test). The main choices:
   the rules read through and 3d's test compares with the table (so 3d follows that commit of 3e).
   `WorldQuery` gains `stand_floor_below` for a player's standing, which `MovementRule` and the reach use (E10).
   `Intents.FIELDS` declares `ForceRole`'s fields too, and the doc comment of `Intents.FORCE_ROLE`, which says a
-  client's message never becomes it, changes to "from peer 1's debug-kind message only" (E17).
+  client's message never becomes it, changes to "from peer 1's debug-kind message only" (E17). `Match` counts the
+  errors recorded while a transition row runs (`row_error_count()`), which `HostSession` reads for choice 6.
 - **`tests/harness/`** (3h): `ScenarioRunner`'s steps are split from its stand-in for `server/`, and `ScenarioBot`
   learns from (name, fields) instead of `MatchEvent` objects, so the core runner and the bots runner share them.
   Each runner passes its own map from bot number to peer id to the steps and `ScenarioInvariants` instead of the
