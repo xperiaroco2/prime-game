@@ -33,7 +33,7 @@ func run(ctx: MatchContext) -> void:
 	drawn.sort()
 	for index: int in drawn:
 		var own := ctx.copy()
-		own.source = "deal of task type %s" % pool[index].id
+		own.source = "%s, deal of task type %s" % [ctx.source, pool[index].id]
 		pool[index].deal(own)
 	var counted := Tasks.progress(ctx.state)
 	ctx.emit(TaskProgressEvent.new(counted.x, counted.y))

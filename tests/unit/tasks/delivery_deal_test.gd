@@ -205,6 +205,8 @@ func test_a_map_without_enough_markers_deals_nothing_and_says_so() -> void:
 	assert_int(game.state.tasks.size()).is_equal(0)
 	assert_int(game.state.items.size()).is_equal(0)
 	assert_str(game.diagnostics[0]).contains("4 packages need")
+	# The row that dealt stays in the source, before the task type.
+	assert_str(game.diagnostics[0]).contains("row lobby, all_ready, deal of task type delivery: ")
 	assert_array(game.view_of(P1).events_named(&"StationPlaced")).is_empty()
 
 
