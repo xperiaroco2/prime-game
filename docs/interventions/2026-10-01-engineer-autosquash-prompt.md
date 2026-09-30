@@ -24,8 +24,9 @@
 - An interactive rebase whose `GIT_SEQUENCE_EDITOR` the command itself sets to `:` or `true` (a `VAR=value` prefix,
   bash `export` or PowerShell `$env:`) is judged like any other rebase: it passes in the own worktree on the task
   branch and asks everywhere else. Only that variable counts, because it outranks every other editor setting (an
-  inherited environment, the git config files); `GIT_EDITOR`, `core.editor`, `sequence.editor` and a shell variable
-  that is not exported still ask, and so do `--update-refs`, `--exec` and a rebase that names another branch.
+  inherited environment, the git config files); `GIT_EDITOR`, `core.editor`, `sequence.editor`, a shell variable
+  that is not exported, the other shell's syntax and an `unset` still ask, and so do `--update-refs`, `--exec` and
+  a rebase that names another branch. Bundled and abbreviated rebase options are #105.
 
 **Where the rule lives now.**
 - This entry.
