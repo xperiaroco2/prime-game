@@ -7,6 +7,10 @@ extends RefCounted
 ## dropped and one correction does not cascade. A claim that passes becomes the player's last
 ## accepted position, which every range rule reads.
 ##
+## `client_tick` counts 20 Hz core ticks (Ticks.RATE) of the client's own clock, not its physics
+## frames (60 Hz by default): the speed and rate checks give one core tick of travel and credit per
+## client tick, so a client sending its physics frame count would run out of credit at once.
+##
 ## The checks, in order:
 ## - Well formed: an int client tick and finite position, velocity and facing (NaN or inf fail).
 ##   A negative client tick is dropped when below the baseline, like any tick that does not rise,

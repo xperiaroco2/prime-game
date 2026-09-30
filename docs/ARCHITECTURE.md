@@ -290,7 +290,7 @@ is entitled to (§5).
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting with an int value (`unknown_setting`) within its bounds (`out_of_bounds`); the optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected` |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumped, on_floor)` | living players in Lobby, Countdown and Round; ghosts in Round | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected` |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not held, not delivered); pick-up reach from the host's position of the player; line of sight; a full hand swaps (§7.1) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the held item's kind, the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
@@ -522,7 +522,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     player only, and changes nothing else (stamina settled up to now aside, §9.2).
   - Well formed: an int client tick and finite position, velocity and facing. The velocity is not bounded: it only
     feeds the other clients' interpolation.
-  - The client tick's rate: a player earns one tick of credit per host tick and keeps at most `MAX_TICK_CREDIT`
+  - The client tick's rate: `client_tick` counts 20 Hz core ticks of the client's own clock, not its physics frames
+    (60 Hz), so the M3 client derives it from a 20 Hz counter (or its physics frame divided by 3). A player earns
+    one tick of credit per host tick and keeps at most `MAX_TICK_CREDIT`
     (200 ticks, 10 s); a claim may cover no more client ticks than its credit. So a catch-up burst after a stall
     (#70: 50 to 100 claims in one host tick after 5 s) passes, a client that runs its tick ahead gets
     `TICK_LEAD` (10 ticks) at most, and no claim buys distance by inflating its tick delta. A claim past its credit
