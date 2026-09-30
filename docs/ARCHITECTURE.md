@@ -478,7 +478,7 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 - **Positions.** `core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
   range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
   claiming to stand next to what it wants to grab.
-- **Stamina** belongs to `core/`. The client predicts its own from the published numbers to draw the HUD and gate
+- **Stamina** belongs to `core/` (ghosts are exempt, see Ghosts below). The client predicts its own from the published numbers to draw the HUD and gate
   Shift, and follows `SelfStatus`. `core/` keeps a ledger per player: the host tick up to which stamina is settled.
   A claim settles the ticks it covers (its client-tick delta, never past the current host tick): a covered tick in
   the sprint state in which the player moved horizontally costs 1/20 of the per-second cost, and every other covered
@@ -489,7 +489,7 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   walk speed, measured over the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents:
   a client that never spends stamina, or spaces its claims out to regenerate between them, sprinting forever.
 - **Jumps** are accepted only when the host has the player on the floor (the last claim, and the floor found by
-  `WorldQuery` within step height) and stamina covers the cost. Until the next landing the height above the floor is
+  `WorldQuery` within step height) and stamina covers the cost (a ghost's jump needs none). Until the next landing the height above the floor is
   bounded by the jump height; a rise without an accepted jump beyond step height is corrected. Prevents: free or
   endless jumps, and flying.
 - **Pushing apart.** Each client moves only its own player and collides it with the other living players' capsules
@@ -799,8 +799,8 @@ Settings:
   the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
   1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to
-  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts walk and sprint at those speeds × 1.3 (1 to 3; the
-  engineer's decision of 2026-09-30); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below
+  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts walk and sprint at those speeds × 1.3 (the
+  engineer's decision of 2026-09-30; the bounds 1 to 3 are proposed, not confirmed); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below
   the height); step 0.3 m (0 to 1). Health and stamina are whole points here, thousandths inside `core/` (§3.3).
 - Sides: `crew` ("Crew"), `dissidents` ("Dissidents"). Roles: Crew, Dissident. Item kinds: Package, Knife.
 - Actions: PickUp, PutDown. Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
