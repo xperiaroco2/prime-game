@@ -297,6 +297,9 @@ func test_a_short_prefix_a_view_with_no_peer_and_audiences_for_one() -> void:
 	var leaks := LeakCheck.new(runner.game)
 	assert_str(_text(leaks.check_bot("bot 2", 0, own, true))).contains("with no peer id")
 	assert_array(Array(leaks.check_bot("bot 2", 0, DecodedView.new(), true))).is_empty()
+	var voice_only := DecodedView.new()
+	voice_only.voice[Vector2i(1, 5)] = [LeakCheck.voice_frame(1, 0)]
+	assert_str(_text(leaks.check_bot("bot 2", 0, voice_only, true))).contains("with no peer id")
 	# Over ENet a prefix must reach view_of's last MatchEnded.
 	var view := runner.game.view_of(2)
 	view.events.append(MatchEndedEvent.new(&"crew"))

@@ -125,8 +125,23 @@ func check_bot(
 ) -> PackedStringArray:
 	var found := PackedStringArray()
 	if peer == 0:
-		if not decoded.events.is_empty() or not decoded.snapshots.is_empty():
-			found.append("a view of %d events with no peer id" % decoded.events.size())
+		var held := (
+			decoded.events.size()
+			+ decoded.snapshots.size()
+			+ decoded.repeated_snapshots.size()
+			+ decoded.voice.size()
+			+ decoded.voice_seqs.size()
+		)
+		if held != 0:
+			(
+				found
+				. append(
+					(
+						"a view with no peer id that decoded something (%d events, %d snapshots, %d voice)"
+						% [decoded.events.size(), decoded.snapshots.size(), decoded.voice.size()]
+					)
+				)
+			)
 		return _labelled(label, peer, found)
 	var view := _game.view_of(peer)
 	var matched := _check_events(view, decoded, prefix, found)
