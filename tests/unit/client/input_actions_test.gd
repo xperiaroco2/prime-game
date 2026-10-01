@@ -13,6 +13,9 @@ const ACTIONS: Array[StringName] = [
 	&"put_down",
 	&"use",
 	&"debug_overlay",
+	&"give_up",
+	&"spectate_next",
+	&"spectate_previous",
 ]
 
 
@@ -43,6 +46,21 @@ func test_the_debug_overlay_is_f3() -> void:
 		if key != null:
 			keys.append(key.physical_keycode)
 	assert_array(keys).contains([KEY_F3])
+
+
+func test_give_up_is_g_and_the_mouse_buttons_cycle_the_spectate_target() -> void:
+	# The M4 ADR's controls (D6): hold G to give up; left and right mouse buttons for the next
+	# and the previous spectate target.
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"give_up"):
+		var key := event as InputEventKey
+		if key != null:
+			keys.append(key.physical_keycode)
+	assert_array(keys).contains([KEY_G])
+	var next := InputMap.action_get_events(&"spectate_next")[0] as InputEventMouseButton
+	var previous := InputMap.action_get_events(&"spectate_previous")[0] as InputEventMouseButton
+	assert_int(next.button_index).is_equal(MOUSE_BUTTON_LEFT)
+	assert_int(previous.button_index).is_equal(MOUSE_BUTTON_RIGHT)
 
 
 func test_the_downed_have_no_fly_down_action() -> void:

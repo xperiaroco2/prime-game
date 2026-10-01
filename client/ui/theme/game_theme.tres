@@ -1,0 +1,20 @@
+[gd_resource type="Theme" format=3]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_life_panel"]
+content_margin_left = 18.0
+content_margin_top = 12.0
+content_margin_right = 18.0
+content_margin_bottom = 12.0
+bg_color = Color(0.05, 0.05, 0.07, 0.72)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[resource]
+LifePanel/base_type = &"PanelContainer"
+LifePanel/styles/panel = SubResource("StyleBoxFlat_life_panel")
+LifeText/base_type = &"Label"
+LifeText/font_sizes/font_size = 18
+LifeTitle/base_type = &"Label"
+LifeTitle/font_sizes/font_size = 26
