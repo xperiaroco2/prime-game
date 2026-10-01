@@ -56,6 +56,9 @@
 [ext_resource type="Script" uid="uid://c80a7p6ils60m" path="res://core/life/target_in_sight.gd" id="72_target_in_sight"]
 [ext_resource type="Script" uid="uid://c4mggjdsatp27" path="res://core/life/raise_downed.gd" id="73_raise_downed"]
 [ext_resource type="Script" uid="uid://cmuuqdvdgka5r" path="res://core/life/die.gd" id="74_die"]
+[ext_resource type="Script" uid="uid://d3je3vwistkvf" path="res://core/items/carries_item.gd" id="75_carries"]
+[ext_resource type="Script" uid="uid://ch7fkpg21lawb" path="res://core/items/hand_not_two_handed.gd" id="76_one_handed"]
+[ext_resource type="Script" uid="uid://dfwrfalg8jysm" path="res://core/items/swap_hands.gd" id="77_swap"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -128,6 +131,21 @@ script = ExtResource("74_die")
 script = ExtResource("1_o02jd")
 trigger = &"GiveUp"
 effects = Array[ExtResource("14_effect")]([SubResource("GiveUp_die")])
+
+[sub_resource type="Resource" id="Swap_carries"]
+script = ExtResource("75_carries")
+
+[sub_resource type="Resource" id="Swap_one_handed"]
+script = ExtResource("76_one_handed")
+
+[sub_resource type="Resource" id="Swap_hands"]
+script = ExtResource("77_swap")
+
+[sub_resource type="Resource" id="Rule_swap"]
+script = ExtResource("1_o02jd")
+trigger = &"Swap"
+conditions = Array[ExtResource("21_condition")]([SubResource("Swap_carries"), SubResource("Swap_one_handed")])
+effects = Array[ExtResource("14_effect")]([SubResource("Swap_hands")])
 
 [sub_resource type="Resource" id="Accept_lobby_hello"]
 script = ExtResource("6_accept")
@@ -247,6 +265,11 @@ script = ExtResource("6_accept")
 intent = &"GiveUp"
 from = 32
 
+[sub_resource type="Resource" id="Accept_round_swap"]
+script = ExtResource("6_accept")
+intent = &"Swap"
+from = 4
+
 [sub_resource type="Resource" id="Respawn_round"]
 script = ExtResource("66_respawn")
 tag = &"respawn"
@@ -270,7 +293,7 @@ living_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up"), SubResource("Accept_round_swap")])
 tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
@@ -461,7 +484,7 @@ roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_
 item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn")
-actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up")])
+actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up"), SubResource("Rule_swap")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_round"), SubResource("Phase_end")])

@@ -19,3 +19,4 @@ circle = SubResource("StationKind_circle")
 subtasks_setting = &"packages"
 id = &"delivery"
 display_name = "Delivery"
+description = "Carry each package to the circle of its colour. Packages take both hands."
