@@ -116,7 +116,7 @@ func test_snapshots_hold_no_private_numbers() -> void:
 	FixtureModes.run_ticks(game, 1)
 	var avatar: Dictionary = game.view_of(P1).snapshots[game.ticked_through()]["avatars"][P2]
 	assert_array(avatar.keys()).is_equal(
-		["position", "velocity", "facing", "downed", "invulnerable", "held_item"]
+		["position", "velocity", "facing", "downed", "invulnerable", "held_item", "belt_item"]
 	)
 
 

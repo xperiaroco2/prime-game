@@ -34,8 +34,11 @@ var on_floor := true
 var claim_tick := -1
 ## Raised by every placement; a claim of another epoch is dropped as stale (§7).
 var epoch := 0
-## The held item's id, or -1: the hand slot.
+## The hand item's id, or -1: the hand slot (vision revision 1, Two hands).
 var held_item := -1
+## The belt item's id, or -1: the belt slot, which holds at most one one-handed item and is
+## visible to everyone, as the hand item is.
+var belt_item := -1
 var health := 0
 var stamina := 0
 ## The host tick up to which stamina is settled (§7.1), or -1.

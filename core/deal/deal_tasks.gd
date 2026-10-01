@@ -3,11 +3,13 @@ extends RuleEffect
 ## Deals the match's shared tasks (ARCHITECTURE §3.3, §9.4; the engineer's decision of 2026-09-30,
 ## #79): draws `tasks_setting` different task types at random (`rng_purpose`) from the pool, the
 ## mode's task types minus the ones in `banned_setting` (the host's bans in the lobby), and runs
-## each drawn type's TaskType.deal() once, in the mode's order. Nobody owns a task. Then
-## TaskProgress (everyone) with the subtasks done and in total, so every client knows the shared
-## progress from the start (the HUD shows only that); with no task drawn it is 0 of 0.
+## each drawn type's TaskType.deal() once, in the mode's order. Nobody owns a task. Then each
+## task's TaskState in id order (Tasks.announce: the task screen's data, E30) and TaskProgress
+## (everyone) with the subtasks done and in total, so every client knows each task and the shared
+## progress from the start (the HUD shows only the sum); with no task drawn it is 0 of 0.
 ##
-## Emits: the task types' events (Delivery: StationPlaced, ItemSpawned; §9.5), then TaskProgress.
+## Emits: the task types' events (Delivery: StationPlaced, ItemSpawned; §9.5), then TaskState per
+## task, then TaskProgress.
 ## Demands: for any draw, per spawn tag the sum of the `tasks` largest demands among the types
 ## not banned, and per station kind the same over colours (see add_demands).
 ## Refuses in ChangeSettings (settings_problem): `tasks` above the types not banned, or every
@@ -35,6 +37,7 @@ func run(ctx: MatchContext) -> void:
 		var own := ctx.copy()
 		own.source = "%s, deal of task type %s" % [ctx.source, pool[index].id]
 		pool[index].deal(own)
+	Tasks.announce(ctx)
 	var counted := Tasks.progress(ctx.state)
 	ctx.emit(TaskProgressEvent.new(counted.x, counted.y))
 
@@ -98,7 +101,7 @@ func settings_problem(
 
 
 func emits() -> Array[Script]:
-	return [TaskProgressEvent]
+	return [TaskStateEvent, TaskProgressEvent]
 
 
 func set_settings() -> PackedStringArray:

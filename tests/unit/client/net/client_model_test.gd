@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## ClientModel (ARCHITECTURE §4.6): what a client knows, folded from decoded events (here core/'s
 ## own events through to_dict(), which the codec reproduces exactly): the roster, settings, phase,
-## items, stations, bodies, each player's life (E25), avatars and its own SelfStatus; a match's
+## items with every player's hand and belt (E29), stations, tasks (E30), bodies, each player's life
+## (E25), avatars and its own SelfStatus; a match's
 ## facts cleared on LoadMatch and on entering the lobby, the roster and settings kept.
 
 const OWN := 2
@@ -94,6 +95,58 @@ func test_items_stations_and_bodies_follow_the_events() -> void:
 	assert_bool(_model.is_alive(OWN)).is_true()
 	_fold(MatchEndedEvent.new(&"crew"))
 	assert_str(String(_model.winner)).is_equal("crew")
+
+
+func test_every_players_hand_and_belt_follow_pickups_swaps_and_drops() -> void:
+	# The own player's slots come only from the events: its avatar is never sent to it (E29).
+	_to_round()
+	_fold(ItemSpawnedEvent.new(1, &"knife", Vector3(1, 0, 0)))
+	_fold(ItemSpawnedEvent.new(2, &"package", Vector3(2, 0, 0), 7, Color.BLUE))
+	_fold(ItemSpawnedEvent.new(3, &"knife", Vector3(3, 0, 0)))
+	assert_int(_model.hand_item(OWN)).is_equal(-1)
+	assert_int(_model.belt_item(OWN)).is_equal(-1)
+	_fold(ItemPickedUpEvent.new(OWN, 1))
+	assert_int(_model.hand_item(OWN)).is_equal(1)
+	# The knife goes to the empty belt as the package comes into the hand.
+	_fold(ItemPickedUpEvent.new(OWN, 2, 1))
+	assert_int(_model.hand_item(OWN)).is_equal(2)
+	assert_int(_model.belt_item(OWN)).is_equal(1)
+	assert_int(_model.items[1].holder).is_equal(OWN)
+	assert_bool(_model.items[1].belted).is_true()
+	_fold(ItemPlacedEvent.new(2, Vector3(5, 0, 5), &"put_down"))
+	assert_int(_model.hand_item(OWN)).is_equal(-1)
+	assert_int(_model.belt_item(OWN)).is_equal(1)
+	_fold(SwappedEvent.new(OWN))
+	assert_int(_model.hand_item(OWN)).is_equal(1)
+	assert_int(_model.belt_item(OWN)).is_equal(-1)
+	# Another player's slots fold the same way; a full belt sends the hand item to rest (ItemPlaced).
+	_fold(ItemPickedUpEvent.new(1, 3))
+	_fold(SwappedEvent.new(1))
+	assert_int(_model.hand_item(1)).is_equal(-1)
+	assert_int(_model.belt_item(1)).is_equal(3)
+	_fold(ItemPickedUpEvent.new(1, 2))
+	assert_int(_model.hand_item(1)).is_equal(2)
+	assert_int(_model.belt_item(1)).is_equal(3)
+	assert_int(_model.hand_item(OWN)).is_equal(1)
+	# A death drops both: an ItemPlaced for each.
+	_fold(ItemPlacedEvent.new(2, Vector3(6, 0, 6), &"death"))
+	_fold(ItemPlacedEvent.new(3, Vector3(6, 0, 6), &"death"))
+	assert_int(_model.hand_item(1)).is_equal(-1)
+	assert_int(_model.belt_item(1)).is_equal(-1)
+	assert_bool(_model.items[3].belted).is_false()
+
+
+func test_task_state_gives_each_tasks_row_for_the_task_screen() -> void:
+	_to_round()
+	assert_int(_model.tasks.size()).is_equal(1)
+	_fold(TaskStateEvent.new(2, &"delivery", 1, 2))
+	_fold(TaskStateEvent.new(1, &"delivery", 1, 3))
+	assert_int(_model.tasks.size()).is_equal(2)
+	var task: ClientModel.Task = _model.tasks[1]
+	assert_str(String(task.type)).is_equal("delivery")
+	assert_int(task.done).is_equal(1)
+	assert_int(task.total).is_equal(3)
+	assert_int(_model.tasks[2].total).is_equal(2)
 
 
 func test_its_own_status_role_and_correction() -> void:
@@ -258,6 +311,7 @@ func _to_round() -> void:
 	_fold(RoleAssignedEvent.new(OWN, &"crew"))
 	_fold(StationPlacedEvent.new(7, &"circle", Color.BLUE, Vector3.ZERO))
 	_fold(ItemSpawnedEvent.new(7, &"knife", Vector3.ZERO))
+	_fold(TaskStateEvent.new(1, &"delivery", 0, 2))
 	_fold(TaskProgressEvent.new(0, 2))
 	_fold(RoundStartedEvent.new(40))
 	_fold(PhaseChangedEvent.new(&"round", 12040))
@@ -276,6 +330,7 @@ func _assert_no_match_facts() -> void:
 	assert_str(String(_model.role)).is_empty()
 	assert_int(_model.teammates.size()).is_equal(0)
 	assert_int(_model.tasks_total).is_equal(0)
+	assert_int(_model.tasks.size()).is_equal(0)
 	assert_int(_model.start_tick).is_equal(-1)
 	assert_str(String(_model.winner)).is_empty()
 	assert_int(_model.snapshot_tick).is_equal(-1)

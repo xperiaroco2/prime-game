@@ -212,6 +212,66 @@ func test_at_the_death_the_fact_comes_before_the_held_item_drops_at_the_body() -
 	assert_array(FixtureItemModes.names_after(game, P2, own_seen)).not_contains([&"Correction"])
 
 
+func test_the_downed_keep_both_slots_and_their_death_drops_both_at_the_body() -> void:
+	# Vision revision 1, Two hands: nothing drops at a knockdown; at death the hand item, then the
+	# belt item, rest at the body.
+	var game := _duel()
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	var tool := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1))
+	var package := FixtureItemModes.lay(game, &"package", Vector3(0, 0, 1))
+	FixtureItemModes.pick_up(game, P2, tool)
+	FixtureItemModes.pick_up(game, P2, package)
+	_knock_down(game)
+	var downed := game.state.player(P2)
+	assert_int(downed.held_item).is_equal(package.id)
+	assert_int(downed.belt_item).is_equal(tool.id)
+	assert_int(tool.where).is_equal(ItemState.Where.BELT)
+	FixtureModes.run_ticks(game, 1)
+	var seen := game.view_of(P3).events.size()
+	_run_out(game)
+	(
+		assert_array(FixtureItemModes.names_after(game, P3, seen))
+		. is_equal(
+			[
+				&"Died",
+				&"FixtureNote",
+				&"ItemPlaced",
+				&"FixtureNote",
+				&"FixtureNote",
+				&"ItemPlaced",
+				&"FixtureNote",
+				&"FixtureNote",
+			]
+		)
+	)
+	var placed := FixtureCombatModes.received(game, P3, &"ItemPlaced")
+	assert_int((placed[0] as ItemPlacedEvent).item).is_equal(package.id)
+	assert_int((placed[1] as ItemPlacedEvent).item).is_equal(tool.id)
+	for event: MatchEvent in placed:
+		assert_vector((event as ItemPlacedEvent).position).is_equal(game.state.bodies[P2])
+		assert_str(String((event as ItemPlacedEvent).cause)).is_equal("death")
+	assert_int(downed.held_item).is_equal(-1)
+	assert_int(downed.belt_item).is_equal(-1)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_leaver_drops_both_slots_the_hand_first() -> void:
+	var game := _duel()
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	var tool := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1))
+	var package := FixtureItemModes.lay(game, &"package", Vector3(0, 0, 1))
+	FixtureItemModes.pick_up(game, P2, tool)
+	FixtureItemModes.pick_up(game, P2, package)
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	var placed := FixtureCombatModes.received(game, P3, &"ItemPlaced")
+	assert_array(placed).has_size(2)
+	assert_int((placed[0] as ItemPlacedEvent).item).is_equal(package.id)
+	assert_int((placed[1] as ItemPlacedEvent).item).is_equal(tool.id)
+	assert_str(String((placed[1] as ItemPlacedEvent).cause)).is_equal("leave")
+	assert_int(tool.where).is_equal(ItemState.Where.GROUND)
+	assert_int(game.state.player(P2).belt_item).is_equal(-1)
+
+
 func test_the_dead_send_no_accepted_intent() -> void:
 	var game := _duel()
 	var knife := FixtureCombatModes.arm(game, P2, Vector3(0, 0, 1))

@@ -203,7 +203,8 @@ func reset_match() -> void:
 	rng.next_match()
 
 
-## A player as at the start of a match: no role, alive, empty hand, full health and stamina.
+## A player as at the start of a match: no role, alive, empty hand and belt, full health and
+## stamina.
 static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.ready = false
 	someone.role = &""
@@ -212,6 +213,7 @@ static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.knockdown_left = -1
 	someone.invulnerable_until = -1
 	someone.held_item = -1
+	someone.belt_item = -1
 	someone.velocity = Vector3.ZERO
 	someone.sprinting = false
 	someone.sprint_held = false

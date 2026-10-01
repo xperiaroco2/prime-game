@@ -52,7 +52,7 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
 
 ### 3.1 The loop, and how a game mode supplies its phases
 - `core/` has one loop, `Match`, that knows no game mode. It owns the `MatchState`: the roster, the settings, each
-  player's life state (alive, downed, dead, left), position, hand slot, health and stamina, the items, the tasks with
+  player's life state (alive, downed, dead, left), position, hand and belt, health and stamina, the items, the tasks with
   their stations and per-task state, the bodies, the cooldown and counter tables, the per-part state, the match clock
   and the RNG streams (§9.1 says what each holds). The match state outlives phases, so a mode that leaves Round for a
   phase of its own and returns keeps everything. What lives only as long as one phase (the countdown's end tick, the
@@ -110,7 +110,7 @@ hello deadline.
 | Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
-| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`; downed: `MoveClaim` (the crawl, §7.1), `GiveUp`; dead: nothing; leave | round rule | runs |
+| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`, `Swap` (M4-5); downed: `MoveClaim` (the crawl, §7.1), `GiveUp`; dead: nothing; leave | round rule | runs |
 | End | frozen: no movement, no snapshots | `ReturnToLobby` (host); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
@@ -163,8 +163,9 @@ countdown changes no scene and places nobody.
   different task types from the mode's task types minus the host's bans (`task_types`), and runs each drawn type's deal
   once, in the mode's order. Tasks are shared: nobody owns one. Delivery's deal: circle positions and colours (one
   circle per package, over the map's circle spawn points), package positions, and one task of *packages* packages, each
-  bound to a random circle of its own, whose colour it takes (`tasks`). Then `TaskProgress` (the subtasks done and in
-  total, 0 done unless a package spawned in its circle) to everyone; knife positions (`SpawnItems`); player spawn points
+  bound to a random circle of its own, whose colour it takes (`tasks`). Then each task's `TaskState` (its id, type and
+  subtasks done and in total: the task screen's data, M4-5) and `TaskProgress` (the subtasks done and in total over
+  every task, 0 done unless a package spawned in its circle) to everyone; knife positions (`SpawnItems`); player spawn points
   (`PlacePlayers`). Item and station ids are assigned in spawn-point order and `ItemSpawned` and `StationPlaced` are
   emitted in id order, so an id follows the level, not the draw. Packages and knives share spawn points when their item
   kinds name the same spawn tag; a marker carries one tag, and a deal puts at most one item on a marker (§9.6):
@@ -194,7 +195,7 @@ Content parts (§9.5), checked in Round only, in the mode's order, after every f
 
 "The first win condition met ends the round" (MVP rules) also orders the effects inside one command. The last crew
 member leaving with the last package over its circle meets "no crew present" before the delivery: the dissidents
-win. The check after every fact is what makes this so: a leave raises `player_left` before the held item drops
+win. The check after every fact is what makes this so: a leave raises `player_left` before the carried items drop
 (§9.2). A death ends nothing by itself, so a downed carrier who dies over its circle drops the package in and
 delivers (V4): `player_died` comes first and meets no win condition, then the drop counts. M4-2 tests both with
 fixture win conditions in the base mode's order (`tests/unit/life/life_rules_test.gd`,
@@ -212,7 +213,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
 | Lobby | `Welcome` to it, then `PlayerJoined` and `SettingsChanged` to everyone (it included) | dropped from the roster; `PlayerLeft`, `SettingsChanged` |
 | Countdown | as in Lobby, and `cancelled` | as in Lobby, and `cancelled` |
 | Loading | refused: `core/` emits `RefuseJoins` on entering Loading and `AllowJoins` on entering Lobby, and `server/` sets `refuse_new_connections`. A peer whose connection completed anyway gets `DisconnectPeer`. Entering Loading also disconnects every newcomer still waiting (`DisconnectPeer`, no `Rejected`), and a `Hello` that arrives now gets `Rejected` (`joins_closed`) (E14, 3e) | dropped from the roster; `PlayerLeft` |
-| Round | refused, as in Loading | life state `left`, which "no crew present" counts (§3.4); the avatar is removed and no body stays: a downed player who leaves leaves none, and a dead player's body is removed (the engineer's answer 1 on PR #133); in this order `PlayerLeft` (everyone else), the fact `player_left`, then the held item comes to rest on the floor below where the player stood (§7.1). 2g (#63): `RoundPhase` hands it to `LifeRules.leave`, after forgetting a newcomer that never joined (`JoinRules.forget_newcomer`) |
+| Round | refused, as in Loading | life state `left`, which "no crew present" counts (§3.4); the avatar is removed and no body stays: a downed player who leaves leaves none, and a dead player's body is removed (the engineer's answer 1 on PR #133); in this order `PlayerLeft` (everyone else), the fact `player_left`, then the hand item and then the belt item come to rest on the floor below where the player stood (§7.1, M4-5). 2g (#63): `RoundPhase` hands it to `LifeRules.leave`, after forgetting a newcomer that never joined (`JoinRules.forget_newcomer`) |
 | End | refused, as in Loading | life state `left`; `PlayerLeft`. `ResetMatch` drops the player from the roster |
 
 - **The join** (2b, `JoinRules`): `server/`'s `PeerConnected` makes a peer a *newcomer*, and only a newcomer's
@@ -387,13 +388,14 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
 | `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor)` | living players in Lobby, Countdown and Round; the downed in Round (the crawl, §7.1); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
-| `PickUp(item)` | a living player; Round | the item lies on the ground (not held, not delivered); pick-up reach from the host's position of the player; line of sight; a full hand swaps (§7.1) |
-| `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
-| `Use(facing)` | a living player; Round | the first `Use` rule of the held item's kind, the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
+| `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1, M4-5) |
+| `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1). Only the hand item: a belt item alone is `empty_hand` |
+| `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
 | `ReturnToLobby()` | the host only; End | |
 | `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
 | `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender raises someone (`not_channeling`: a late one after the raise completed or stopped); applied, the raise stops |
 | `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
+| `Swap()` | a living player; Round (M4-5, the ADR's controls: X); the downed and the dead get `not_accepted` | an item in the hand or on the belt (`nothing_to_swap`); no two-handed item in the hand (`two_handed`: a package carrier cannot draw a belted knife, V13). Applied, the hand and belt items change places, either of which may be empty, and a raise the sender runs stops (§9.2) |
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
@@ -422,10 +424,12 @@ wire schemas of the events and the snapshot are §4.3.
 | `Teammates` | a role and the peer ids of its players | each player of that role, for a role that knows its teammates (the dissidents) | the deal |
 | `StationPlaced` | station, station kind (in the MVP the delivery circle), colour, position | everyone | the deal, in station-id order |
 | `ItemSpawned` | item, kind, position; a package's circle and colour | everyone | the deal, in item-id order |
-| `ItemPickedUp` | peer, item | everyone | `PickUp` |
-| `ItemPlaced` | item, rest position, cause: put down, swap, death or leave | everyone | an item comes to rest |
+| `ItemPickedUp` | peer, item; `belted`: the one-handed hand item this pickup moved to the belt, or none (M4-5, E29) | everyone | `PickUp` |
+| `Swapped` | peer | everyone | a `Swap` (M4-5): the peer's hand and belt items changed places. With `ItemPickedUp`'s `belted` and `ItemPlaced` it tells every client every player's two slots, its own included (its avatar is never sent to it) |
+| `ItemPlaced` | item, rest position, cause: put down, swap (a pickup's hand item that did not go to the belt), death or leave (at a death or a leave the hand item's comes first, then the belt item's) | everyone | an item comes to rest |
 | `PackageDelivered` | item, its circle (now shown as done) | everyone | the delivery check (§7.1) |
-| `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt (so the HUD shows the total from the start); a subtask is done |
+| `TaskState` | task, its task type's id, its subtasks done and in total (M4-5, E30) | everyone: the task screen is every player's, living, downed or dead | the deal, for each task in id order, after the task types dealt; a subtask of that task is done, before `TaskProgress` |
+| `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available | that player | on change, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`) |
@@ -445,7 +449,7 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
 `CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`; M4-2 (#138):
 `KnockedDown`, and `Died` moved to the end of the knockdown; M4-3 (#139): `Respawned`; M4-4 (#140): `RaiseStarted`,
-`RaiseStopped` and `Revived`. Built in 2h
+`RaiseStopped` and `Revived`; M4-5 (#141): `Swapped`, `TaskState` and `ItemPickedUp`'s `belted`. Built in 2h
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6).
@@ -519,6 +523,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 10 | `Raise` | RELIABLE | `seq: u32`, `target: peer` (M4-4, #140, E28) | 8; 8 |
 | 11 | `StopRaise` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 12 | `GiveUp` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
+| 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141) | 4; 4 |
 
 **Debug commands** (C→H, E17): only in a debug build's table. `server/` takes them from the host's own client (peer 1)
 only and turns each into the command it names; from another peer, or on a release host, whose table lacks the kind,
@@ -552,7 +557,7 @@ directive has no row, because it reaches no peer.
 | 45 | `Teammates` | `role: id`, `peers: list<peer>` | 19 for two; 98 |
 | 46 | `StationPlaced` | `station: station`, `kind: id`, `colour: colour`, `position: vec3` | 37; 63 |
 | 47 | `ItemSpawned` | `item: item`, `kind: id`, `position: vec3`, `has_station: bool`, then `station: station` and `colour: colour` when true (a package; the fields exist only then, as in `to_dict()`) | 41; 66 |
-| 48 | `ItemPickedUp` | `peer: peer`, `item: item` | 6; 6 |
+| 48 | `ItemPickedUp` | `peer: peer`, `item: item`, `belted: item` (optional: the hand item moved to the belt, M4-5, E29) | 8; 8 |
 | 49 | `ItemPlaced` | `item: item`, `position: vec3`, `cause: id` | 23; 47 |
 | 50 | `PackageDelivered` | `item: item`, `station: station` | 4; 4 |
 | 51 | `TaskProgress` | `done: u16`, `total: u16` | 4; 4 |
@@ -568,12 +573,14 @@ directive has no row, because it reaches no peer.
 | 61 | `RaiseStarted` | `raiser: peer`, `target: peer` (audience *everyone*, M4-4, #140) | 8; 8 |
 | 62 | `RaiseStopped` | `raiser: peer`, `target: peer`: no cause (audience *everyone*, M4-4) | 8; 8 |
 | 63 | `Revived` | `peer: peer` (audience *everyone*, M4-4) | 4; 4 |
+| 64 | `Swapped` | `peer: peer` (audience *everyone*, M4-5, #141) | 4; 4 |
+| 65 | `TaskState` | `task: u8`, `type: id`, `done: u16`, `total: u16` (audience *everyone*, M4-5, E30) | 14 for `delivery`; 38 |
 
 **State and voice.**
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
-| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; other bits 0), `held_item: item` (optional). Every living or downed player's avatar, never a dead one's (§5) | 392; 1024 (15 avatars: 650) |
+| 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's (§5) | 410 (9 avatars); 1024 (15 avatars: 680) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
 | 113 | `VoiceDown` | H→C | VOICE | `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5), `tick: tick` (the host tick whose routing let it through, E11), `opus` | 55; 510 |
 
@@ -592,8 +599,10 @@ The rules of the table:
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
   It was 2 when M4-6 (#142) added `Disconnecting` (58), 3 when M4-2 (#138) added `KnockedDown` (59) and
   renamed the avatar's flag `downed`, 4 when M4-3 (#139) added `Respawned` (60), the avatar's flag
-  `invulnerable` and the debug row `ForceClock` (25), and is 5 since M4-4 (#140) added `Raise`, `StopRaise` and
-  `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63); M4's protocol PRs each set
+  `invulnerable` and the debug row `ForceClock` (25), 5 when M4-4 (#140) added `Raise`, `StopRaise` and
+  `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), and is 6 since M4-5 (#141)
+  added `Swap` (13), `Swapped` (64) and `TaskState` (65), `ItemPickedUp`'s `belted` and the avatar's
+  `belt_item`; M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -623,8 +632,8 @@ The rules of the table:
 - **Lossless** (E6). Every float is an `f32`, as the standard build's `Vector3` and `Color` hold it, so
   decode(encode(x)) == x and the leak test compares exactly.
 - **The snapshot holds avatars only** (E3). Items and bodies change only through reliable events (`ItemSpawned`,
-  `ItemPickedUp`, `ItemPlaced`, `PackageDelivered`, `Died`), which the client folds into its view (§4.6); a held item
-  follows its holder's avatar. `core/`'s snapshot keeps items and bodies for `view_of` and the unit tests; the leak
+  `ItemPickedUp`, `Swapped`, `ItemPlaced`, `PackageDelivered`, `Died`), which the client folds into its view (§4.6);
+  a carried item follows its holder's avatar, in the hand or on the belt (the avatar's `held_item` and `belt_item`). `core/`'s snapshot keeps items and bodies for `view_of` and the unit tests; the leak
   test compares the avatars. Prevents: a snapshot of every item and body (about 920 bytes with 10 players and 20 items)
   outgrowing the 1024-byte unreliable cap as a map gets more knives, with no way to split it, because the LATEST merge
   keeps only the last part.
@@ -697,7 +706,8 @@ The rules of the table:
   - Decoded shapes that `to_dict()` does not set: `ChangeSettings.settings` is an untyped Dictionary of `StringName`
     ids to an `int` or a `PackedStringArray`; a snapshot's `avatars` are untyped, as `Snapshots.for_peer` builds them.
   - At the declared maxima `ChangeSettings`, `Welcome` and `SettingsChanged` exceed their caps; `LoadMatch` (1445
-    bytes) does not, and the snapshot's 15 avatars take 650 bytes of its 1024.
+    bytes) does not, and the snapshot's 15 avatars take 680 bytes of its 1024 (45 bytes each with its key, the belt
+    item included: M4-5 rechecked it).
   - `wire_core_test.gd` compares the table with `Intents.FIELDS` (names and decoded Variant types, `ForceRole`
     included) and applies decoded `ForceRole`, `Hello` and `ChangeSettings` to a `Match`. A decoded `ForceRole`'s
     role must stay a `String`: `Match` reads it with `get_string`, which gives "" for a `StringName`, so the role
@@ -930,6 +940,12 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     `is_alive(peer)` is `life_of(peer)` living. `ClientModel.Life` is the client's own enum, so no `client/` file
     names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd` and
     `client_session_claims_test.gd` (a dead client stops claiming even where every player may).
+  - **The slots and the tasks** (E25 for M4-5, #141): each `ClientModel.Item` holds its holder and whether it is
+    `belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
+    (the swapper's two items change places) and `ItemPlaced` or `PackageDelivered` (resting); `hand_item(peer)` and
+    `belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
+    fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
+    Tests: `client_model_test.gd`.
   - It ends (`ended(reason)`, the transport closed) on a `Rejected` before `Welcome` (its reason), `host_lost`,
     `connect_failed`, `unknown_map` (a `LoadMatch` map its own mode does not list), `load_failed` and `left`; since
     M4-6 (#119) a `host_lost` after a `Disconnecting` ends with the `Disconnecting`'s reason (`load_deadline`).
@@ -1083,6 +1099,18 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     sending dead avatars to the dead (the old ghost rule): `bots dissident_kills_the_crew` failed on
     `ScenarioInvariants` (`peer 2 sees dead 3 in its snapshot`), and with that check switched off on `LeakCheck`
     alone (`it decoded the avatar of dead 3 at tick 518`, for both dead bots), then passed with the plant reverted.
+    **M4-5 (#141)** added `TaskState` to the task events every bot decodes alike (`LeakCheck.TASK_EVENTS`:
+    `StationPlaced`, `ItemSpawned`, `PackageDelivered`, `TaskState`, `TaskProgress`; also `ScenarioInvariants.TASK_EVENTS`), and
+    planted `TaskState` declared to the living only (`Audience.of_life(ALIVE)`): `bots
+    crew_downed_before_a_delivery`, where a crew bot is downed before another delivers, failed on
+    `ScenarioInvariants` (`TaskState reached [1, 2], not every present player [1, 2, 3]`), with `TaskState` out of
+    its `TASK_EVENTS` on `LeakCheck` alone (`bot 1 and bot 3 decoded different task events in match 0`), and with it
+    out of both lists passed: the check sees the plant only through a bot that is not living as a `TaskState` goes
+    out (at the deal everyone is). The bots' network runner had a bug that scenario's sibling found: a bot that
+    stood erased its last move tick, so a `WalkTo` after a step answered within the walk's last client tick claimed
+    two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
+    now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
+    `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
@@ -1431,7 +1459,7 @@ rest.
   The rule is evaluated when the event is emitted, against the state after the command. An event has one audience: when
   parts of a fact have different audiences, `core/` emits separate events (a hit: public `Swung`, private `Damaged`).
 - **Per entity for snapshots.** Every tick `core/` builds each peer's snapshot from visibility rules per entity: a
-  living or downed player's avatar (position, velocity, facing, the flag `downed`, held item) reaches every player of
+  living or downed player's avatar (position, velocity, facing, the flag `downed`, hand and belt items) reaches every player of
   the match, the dead included, whose spectate camera is built from it (§4.7); a dead player has no avatar, so no
   snapshot holds one (M4-2, #138); bodies and items reach everyone. Nobody gets their own avatar: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
   fields; they travel in `SelfStatus`.
@@ -1442,7 +1470,7 @@ rest.
   (`core/CLAUDE.md` and `server/CLAUDE.md` say so since 2a).
 - **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), health,
   stamina and damage; whom a dead player watches (it never leaves the dead player's client, §4.7). Tasks are shared (#79): what a client learns of them is
-  all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskProgress`); no
+  all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskState`, `TaskProgress`); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
 - **Widening** follows from evaluating audiences at emission. A knockdown, a death, a respawn and a revive widen
@@ -1785,7 +1813,13 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The
   cooldown is a `Cooldown` cost with the key `hit` in the knife's rule, recorded per player in `MatchState`.
 - **Pick up and swap.** The client names the item; the host checks reach and line of sight from its own positions.
-  With a full hand, the held item is put down where the picked-up one lay, a spot already known to be valid.
+  The picked item goes to the hand (vision revision 1, Two hands; M4-5, #141). A one-handed hand item moves to an
+  empty belt; otherwise (a full belt, or a two-handed hand item: the package) the hand item rests where the
+  picked-up one lay, a spot already known to be valid, whichever of the two is two-handed. `Swap()` exchanges the
+  hand and belt items; it needs an item in one of them (`nothing_to_swap`) and is refused with a two-handed item in
+  the hand (`two_handed`), so a package carrier cannot draw a belted knife (V13), and only the living send it. Only
+  the hand item is used or put down: `Match._find_action` reads the hand, and `HoldsItem` too. The downed keep both
+  slots; a death places both at the body and a leave drops both, the hand item first; a respawn starts empty.
   2e (#61) measures the reach from the feet (the last accepted position) and the sight from the eye to just above
   the item (`Items.lifted`, 5 cm), so the floor or crate it lies on does not block the line.
 - **Put down.** The client sends only its facing. The host places the item at the put-down distance along the
@@ -1796,11 +1830,11 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   the last accepted position plus the eye height, so a jump does not raise it: nobody puts a package, or sees one,
   over a partition from the top of a jump.
 - **Drops.** An item dropped at a death or a leave, a downed player, and a body, come to rest on the floor below the
-  player's last position (through `WorldQuery`), never in mid-air. `Items.drop_held` (2e, #61) drops the item, asking the floor
+  player's last position (through `WorldQuery`), never in mid-air. `Items.drop_carried` (2e, #61; both slots, M4-5) drops the items, asking the floor
   from 5 cm above the feet so a ray that starts on the floor still finds it; a level with no floor there is a
   level bug: the item rests at that position and the match logs an error. Where a knocked-down player lies
   (`LifeRules.knock_down`) and its body at the death (`LifeRules.die`; M4-2) are found the same way, with the same
-  fallback, and at the death the item then drops at the body. Nothing drops at a knockdown.
+  fallback, and at the death the items then drop at the body (`Items.place_carried`). Nothing drops at a knockdown.
 - **Delivery.** The rule is "the package rests inside its circle, however it got there". So one check runs whenever
   an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
   `server/` reports from its physics (`ItemRested`, #37). A package resting inside its own circle is delivered: it
@@ -1842,8 +1876,8 @@ part is usable in data once its row or entry names the PR that built it. Every n
   cached instance (4.7.2 `Resource` docs). A counter on a part would leak between matches, between unit tests in one
   process, and into replays. So every part (condition, effect, tick system, voice rule, task type, win condition) is
   a stateless definition, and what changes has one of three homes:
-  - **`MatchState`** (§3.1), for what outlives a phase: players; items (kind, where: on the ground, in a hand or
-    locked, position); tasks, each with a **task state** object (`RefCounted`) that its task type creates in its deal
+  - **`MatchState`** (§3.1), for what outlives a phase: players (with their hand and belt items, M4-5); items (kind,
+    where: on the ground, in a hand, on a belt or locked, position); tasks, each with a **task state** object (`RefCounted`) that its task type creates in its deal
     and alone reads and writes (Delivery: which subtasks are done; #36: the time in the zone per subtask); stations;
     **bodies** (peer → rest position, written by `LifeRules.die` before `player_died`, from the death until the
     respawn (`LifeRules.respawn`, M4-3) or the leave; M4-2); two tables keyed by names from the data,
@@ -1901,8 +1935,8 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   negated condition rejects with `not_allowed`. A **cost** is a condition that is also paid (stamina, a cooldown,
   later a use): all conditions and costs are checked first, then every cost is paid in order, then the effects run,
   so a refused intent pays nothing. Between the checks and the costs, an **action** (a rule on an intent) that
-  passed stops its actor's running channel (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses or
-  lets go of E stops its raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
+  passed stops its actor's running channel (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses,
+  swaps (M4-5) or lets go of E stops its raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
 - **Effects** (*what happens*) run in order. An effect changes `MatchState` only through `core/`'s own rules (life,
   items, stamina), emits events, raises facts, and may report an outcome (`ReportOutcome`, §3.1).
 - **A fact is handled at once, depth first.** When an effect raises one, the rules on it run (the mode's reactions,
@@ -1912,9 +1946,9 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
 
 | Fact | Raised when | The rule sees (**hidden** fields in bold) |
 |---|---|---|
-| `item_rested` | an item comes to rest: put down, swapped, dropped at a death or a leave, spawned; later thrown (`ItemRested`, #37) | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`), the rest position |
-| `player_died` | a downed player dies (its knockdown ran out, M4-2, or it gave up, M4-4), before the held item drops | the player, the body position; no killer, as no event names one (§4.2). A knockdown raises no fact |
-| `player_left` | a player leaves while the life state counts (Round, §3.5), before the held item drops | the player |
+| `item_rested` | an item comes to rest: put down; swapped (a pickup's hand item that did not go to the belt, M4-5); dropped at a death or a leave, once per slot, the hand item first; spawned; later thrown (`ItemRested`, #37). A `Swap` between hand and belt raises none: nothing comes to rest | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`), the rest position |
+| `player_died` | a downed player dies (its knockdown ran out, M4-2, or it gave up, M4-4), before its hand and belt items drop | the player, the body position; no killer, as no event names one (§4.2). A knockdown raises no fact |
+| `player_left` | a player leaves while the life state counts (Round, §3.5), before its hand and belt items drop | the player |
 | `subtask_done` | a task type completes a subtask | the task; **its task type's detail** (`detail`; Delivery: the subtask's index and its package; no event carries it). A task has no owner (#79) |
 | `clock_ended` | the match clock reaches its end (§3.3) | nothing more |
 
@@ -1928,14 +1962,15 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
 
 | Owner | Holds | Applies |
 |---|---|---|
-| Item kind | `actions`: rules on intents | while a player holds an item of that kind (the knife's `Use`) |
+| Item kind | `actions`: rules on intents | while a player holds an item of that kind in the hand, never on the belt (the knife's `Use`) |
 | Role | `actions` (abilities) | to the players with that role (none in the MVP) |
 | Game mode | `actions`, and `reactions` (rules on facts) | to every player, and to every fact (no reactions in the MVP) |
 | Task type | its own check of facts, in its class | to its tasks (Delivery on `item_rested`) |
 
 - **An intent** that the phase accepts from this sender (§3.1) goes to the phase class if the class handles it
   (`Hello`, `SetReady`, `LoadAck`, …); `MoveClaim` goes to the movement rule (§7.1); any other goes to the first rule
-  with that trigger among the held item's actions, the actor's role's actions and the mode's actions. If there is
+  with that trigger among the hand item's actions (never the belt item's, M4-5), the actor's role's actions and the
+  mode's actions. If there is
   none: `Rejected` (`nothing_to_do`). So the item in hand decides what `Use` does, and a new item needs no new
   intent; a role's ability on `Use` fires only when the held item has no `Use` rule. That precedence is a gameplay
   rule, provisional for the designer (#38): a #34 medic holding a knife would stab, not revive.
@@ -1989,7 +2024,7 @@ phase classes come in the task each row names.
   `MatchState.newcomers` for the connected peers not yet players and `MatchState.joins` for the `Player<n>` names
   (§3.5); `MovementRule` (`core/movement/`) takes `MoveClaim`s, with the checks of §7.1 since 2d.
 - `MatchState`: players (`PlayerState`, life ALIVE, DOWNED, DEAD or LEFT, and `life_deadline`, M4-2), settings and
-  `id_sets` (§9.1), map, items (`ItemState`: ground, hand or locked), tasks (`MatchTask`: its task type and `TaskState`,
+  `id_sets` (§9.1), map, items (`ItemState`: ground, hand, locked or belt, M4-5), tasks (`MatchTask`: its task type and `TaskState`,
   no owner), stations, bodies, the cooldown and counter tables, `part_state`, the clock, the winner, `RngStreams`, and
   `reset_match` for `ResetMatch`.
 - server/ and the tests drive `Match`: `Match.new(mode, seed, world, layouts, content_hash)` (the host's content
@@ -2005,15 +2040,20 @@ phase classes come in the task each row names.
   `spend`), `StaminaCost`, and `SelfStatusFeed.touch(state, peer)`: a rule that changes a player's health or stamina
   (2g's `Strike` for the victim) touches it, and `Match.tick` sends one `SelfStatus` per changed player at the end of
   the tick. That call is the one line 2d added to `Match`: nothing else runs after a tick's commands.
-- **Items** (`core/items/items.gd`, 2e #61) is the one place that moves an item between the ground and a hand:
-  `take` (the pick-up and the swap), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`; the life rule, 2g, places a dead player's item
-  at its body after `player_died`), `drop_held` (a leaving player's item to the floor below its last accepted
+- **Items** (`core/items/items.gd`, 2e #61; the belt M4-5 #141) is the one place that moves an item between the
+  ground, a hand and a belt (`PlayerState.held_item`, `belt_item`; `ItemState.Where.BELT`): `held_by` and `belted_by`,
+  `take` (the pick-up: the hand item to an empty belt when one-handed, else onto the picked item's spot; `ItemPickedUp`
+  with `belted`), `swap` (`Swapped`), `place` (an item comes to rest: `ItemPlaced`, then `item_rested`),
+  `place_carried` (both slots, the hand's first: the life rule, 2g, places a dead player's items at its body after
+  `player_died`), `drop_carried` (a leaving player's items to the floor below its last accepted
   position; the life rule calls it after the life state changed and `player_left` was raised) and `raise_rested` (`item_rested` for an item
   announced by its own event: after `ItemSpawned`, 2c's `SpawnItems` and 2f's Delivery deal call it with
   `Items.SPAWN`). The causes are constants there. Each condition names its own rejection reason as a constant.
 - **Tasks** (`core/tasks/`, 2f #62; shared since #79): a task type marks a subtask done in its own task state, then
-  calls `Tasks.subtask_done(ctx, task, detail)`, which emits `TaskProgress` (everyone; `Tasks.progress` counts the
-  subtasks done and in total over every task), then raises `subtask_done`. `Tasks.all_done` is "every task done"
+  calls `Tasks.subtask_done(ctx, task, detail)`, which emits that task's `TaskState` event (`TaskStateEvent`, not
+  the task type's `TaskState` class; M4-5, E30: `Tasks.state_of`)
+  and `TaskProgress` (everyone; `Tasks.progress` counts the subtasks done and in total over every task), then raises
+  `subtask_done`. `Tasks.announce` emits every task's `TaskState` in id order; `DealTasks` calls it after the deal. `Tasks.all_done` is "every task done"
   for `AllSubtasksDone`. Delivery (`core/tasks/delivery.gd`, with its task state as the inner class
   `Delivery.State`) is the example for #36. `StationKind.radius_m` and `height_m` have a neutral default of 0,
   which the mode check refuses: the data sets them.
@@ -2029,7 +2069,7 @@ phase classes come in the task each row names.
   dead; then `Died` (everyone), `player_died`, and only then `Items.place` at the body with `Items.DEATH`; no
   `Correction`) and `leave` (life left, a dead player's body removed; `PlayerLeft`, `player_left`, then the drop with
   `Items.LEAVE`), `respawn` (M4-3 #139: from dead, at a marker that `Respawn` draws: the body removed, the role kept,
-  health and stamina full, hands empty, a new epoch; then `Respawned` (everyone) and `Correction` (that player)) and
+  health and stamina full, hand and belt empty, a new epoch; then `Respawned` (everyone) and `Correction` (that player)) and
   `make_invulnerable` (`PlayerState.invulnerable_until`: strikes skip the player for `PlayerRules.invulnerable_s`, and
   `damage` does nothing to it, so every damage source spares it; the respawn and the revive call it), and `revive`
   (M4-4 #140: from downed, where it lies: living with the raise's health, stamina kept, invulnerable; then `Revived`
@@ -2066,8 +2106,8 @@ phase classes come in the task each row names.
 | Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | LifeTicks, ChannelTicks, TaskTicks |
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
-| Item kind | a thing a player can hold, and what using it does; a display name (the HUD's held item) and its spawn tag | `ItemKind` | `content/items/` | Package, Knife |
-| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
+| Item kind | a thing a player can hold, and what using it does; a display name (the HUD's hand or belt item), its spawn tag, and `hands` (1 or 2: a two-handed item never goes on the belt and refuses a swap; the slot model later loot builds on; M4-5) | `ItemKind` | `content/items/` | Package, Knife |
+| Task type | how its one shared task is dealt and done, with its own subtasks setting; what it demands of the map; a `description` the task screen shows (M4-5; the mode check refuses an empty one) | `TaskType` subclasses, each with its `TaskState` (§9.1) | `content/tasks/` | Delivery |
 | Task station | a place where a task is done, placed by its task type | `StationKind` (spawn tag, radius, height, colour palette) | inside its task type | the delivery circle |
 | Win condition | which side wins, and when | `WinCondition` | `content/win_conditions/` | three (§9.5) |
 | Interactable | a thing in the world that a player targets with an intent | v0: an item on the ground (`PickUp`). Fixed ones (a button) and bodies come with `Interact`, v1 (§9.8) | | packages and knives on the ground |
@@ -2096,10 +2136,12 @@ phase classes come in the task each row names.
 
 | Part | Passes when | Settings | Rejects with | Built in |
 |---|---|---|---|---|
-| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not held) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | 2e (#61) |
+| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not in a hand or on a belt) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | 2e (#61) |
 | `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | 2e (#61) |
 | `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
-| `HoldsItem` | the actor has an item in hand | none | `empty_hand` | 2e (#61) |
+| `HoldsItem` | the actor has an item in hand (a belt item does not count) | none | `empty_hand` | 2e (#61) |
+| `CarriesItem` | the actor has an item in the hand or on the belt: the base mode's `Swap` | none | `nothing_to_swap`: its own slots | M4-5 (#141, `core/items/carries_item.gd`) |
+| `HandNotTwoHanded` | the actor's hand item, if any, is not two-handed (`ItemKind.hands` 2): a package carrier cannot draw a belted knife (V13) | none | `two_handed`: what it holds is public | M4-5 (#141, `core/items/hand_not_two_handed.gd`) |
 | `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | with the first mechanic that needs it (#34) |
 | `AllSubtasksDone` | every task is done (`Tasks.all_done`): a task with no subtasks is done, and with no tasks it holds (the engineer's rule of 2026-09-30, #79) | none | (facts only) | 2h (#64, `core/win/all_subtasks_done.gd`) |
 | `NoneAlive` | no player of the side is present: each has left (M4-2: the downed and the dead still count; the name stays from "no crew alive"). A player's side is its role's; a player without a role of the mode is on no side, and with no player of the side it holds (the base mode's deal always leaves at least one crew member). It reads every player's role, which is hidden, but only as a win condition, whose `won` reaches no peer (§9.2) | `side` (a side of the mode) | (facts only) | 2h (#64, `core/win/none_alive.gd`) |
@@ -2116,11 +2158,12 @@ phase classes come in the task each row names.
 
 | Part | What it does | Settings | Emits (audience); raises | Built in |
 |---|---|---|---|---|
-| `TakeIntoHand` | the item goes into the actor's hand; a held item is swapped: it rests where the picked-up one lay (§7.1). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61) |
-| `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
+| `TakeIntoHand` | the item goes into the actor's hand; a one-handed hand item moves to an empty belt, any other hand item is swapped: it rests where the picked-up one lay (§7.1; the belt M4-5). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone, with `belted`: the item moved to the belt, or none); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61); the belt M4-5 (#141) |
+| `SwapHands` | the actor's hand and belt items change places, either of which may be empty (`Items.swap`); run after `CarriesItem` and `HandNotTwoHanded`. One that would put a two-handed item on the belt (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`two_handed`). As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | M4-5 (#141, `core/items/swap_hands.gd`) |
+| `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `Strike` | picks the targets as in §7.1 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target is knocked down there (M4-2) | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
 | `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) and the movement rule holds it in place. Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health` | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
-| `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop at the body. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), the drop's `ItemPlaced` (death, everyone); `player_died`, `item_rested` | M4-4 (#140, `core/life/die.gd`) |
+| `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop of both slots at the body, the hand item first. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), per dropped item `ItemPlaced` (death, everyone); `player_died`, `item_rested` per item | M4-4 (#140, `core/life/die.gd`) |
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
 | `ReportOutcome` | reports an outcome of the current phase (a button in the level, say; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it; 2a builds the outcome reporting it calls |
 
@@ -2129,7 +2172,7 @@ phase classes come in the task each row names.
 | Part | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|
 | `DealRoles` | each quota in order draws its players from the present players not drawn yet, taken in peer-id order and shuffled with its RNG purpose; everyone else gets the default role. Roles forced by a debug command or a scenario (debug builds only, §8) come as data, because `core/` cannot tell a debug build: the command `ForceRole` (peer, role id; an empty id clears it), which only `server/`'s debug path (from M3 also built from peer 1's debug-kind message, §4.3 E17) or the scenario runner sends, in any phase and after the peer connected, since ENet names a peer only then; it sets `MatchState.forced_roles`, which `ResetMatch` keeps, for the deals that follow, and is in the command log like every command; a role the mode lacks is a match error and ignored. Each present peer with a forced role gets it before the draws, and a forced role counts toward its quota (the engineer's answer A on #30: `dissidents` 1 with bot 2 forced to dissident makes bot 2 the only dissident), so a quota draws its count minus the players forced to its role, never below 0; a forced role the mode lacks is a match error and ignored (2j) | `quotas` (`RoleQuota`: role, `count_setting`, `leave_at_least` (0 to 10; class default 0, the mode writes its number): the count is max(0, min(setting, N − leave_at_least)), and never more than are left), `default_role`, `rng_purpose` (`roles`) | `RoleAssigned` (that player), in peer-id order; then, per role of the mode that knows its teammates and has players, in the mode's order, `Teammates` (every player of that role); a forced role is told like a drawn one | 2c (#59); forced roles 2j (#66, `tests/unit/deal/deal_roles_test.gd`) |
-| `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then `TaskProgress`. More tasks than types left (a check that did not run) is an error, and it deals the types left. Refuses in `ChangeSettings` (`settings_problem`): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62) |
+| `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then each task's `TaskState` in id order (M4-5, E30: `Tasks.announce`) and `TaskProgress`. More tasks than types left (a check that did not run) is an error, and it deals the types left. Refuses in `ChangeSettings` (`settings_problem`): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskState` per task and `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62) |
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
 | `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); the last action of the deal's row, so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
@@ -2211,12 +2254,12 @@ Settings:
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
   `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife.
-- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp (below). Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp, Swap (below). Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
   present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
-  Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown`, `Use`, `Raise` and
-  `StopRaise` from the living, `GiveUp` from the downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose
+  Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown`, `Use`, `Raise`,
+  `StopRaise` and `Swap` from the living, `GiveUp` from the downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose
   `respawn`), ChannelTicks, TaskTicks; yes; runs; RoundVoice; map), End
   (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
   `living_m`: 8 m.
@@ -2233,7 +2276,7 @@ Loading and End, the join rules, the fit check, the mode check with layouts and 
 2g (#63) added Round's `Use` from the living together with the knife's rule, because the mode check refuses an
 accepted intent that no rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round; M4-2 (#138)
 LifeTicks before it, the crawl speed and the knockdown time; M4-4 (#140) the raise and the give-up, and ChannelTicks
-between them. 2c (#59) added Crew, Dissident,
+between them; M4-5 (#141) the Swap and Round's `Swap` from the living. 2c (#59) added Crew, Dissident,
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
@@ -2274,6 +2317,8 @@ game design, in the data, not a lobby setting), height 2 m (0.1 to 10; a placeho
 palette: 10 distinct colours, provisional, one per package at the most `packages` allows); `subtasks_setting`:
 `packages` (its own subtasks setting: 1 to 10, default 6, a placeholder); RNG purposes `circles_rng`,
 `packages_rng`, `tasks_rng` (`circles`, `packages`, `tasks`). One circle per package, fixed, not a setting.
+`description` (M4-5, the task screen): "Carry each package to the circle of its colour. Packages take both hands."
+(provisional wording, "not a decision").
 - Deal (when `DealTasks` draws it): N packages and N circles, N the `packages` setting, whatever the player count.
   Circles on distinct random `circle` markers with distinct random palette colours (`circles`), packages on
   distinct random free `package` markers (`packages`; `Items.free_markers`), then each package, in id order,
@@ -2291,11 +2336,11 @@ palette: 10 distinct colours, provisional, one per package at the most `packages
 - Check, on `item_rested`: a package of an undone subtask that rests on the ground inside its circle's cylinder
   (`Delivery.rests_in`, §7.1: its rest position within the radius horizontally, and from the marker's height up to
   that plus the height, edges included) is delivered: locked (no longer interactive), its circle done, its subtask
-  done; then `PackageDelivered`, `TaskProgress` and `subtask_done` (detail: the subtask's index and its package), in
-  that order. Any other item in a circle, or a package in another package's circle, does nothing.
+  done; then `PackageDelivered`, `TaskState` (M4-5), `TaskProgress` and `subtask_done` (detail: the subtask's index
+  and its package), in that order. Any other item in a circle, or a package in another package's circle, does nothing.
 
-Produces: `StationPlaced` and `ItemSpawned` (with the circle and colour) in id order, `PackageDelivered`,
-`TaskProgress` (the subtasks done and in total, over every task); `item_rested` (spawn), `subtask_done`. Its task
+Produces: `StationPlaced` and `ItemSpawned` (with the circle and colour) in id order, `PackageDelivered`, `TaskState`
+(its task's subtasks done and in total), `TaskProgress` (the subtasks done and in total, over every task); `item_rested` (spawn), `subtask_done`. Its task
 state (`Delivery.State`): per subtask its package, its circle and whether it is done. It has no tick.
 Visible to: everyone, all of it: the task is shared, so every player learns the same (the downed and the dead too;
 a player who left, nothing). `PackageDelivered` names the item and the circle, never the task.
@@ -2304,21 +2349,26 @@ shared, with the cylinder, in #79. DealTasks (2c, #59) calls its deal, and its p
 (`Items.free_markers`). Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check, no
 private task event), `tests/unit/tasks/delivery_test.gd` (the check and the cylinder),
 `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
-`tests/unit/content/layout_check_test.gd` (its demands reach the fit check).
+`tests/unit/content/layout_check_test.gd` (its demands reach the fit check). M4-5 (#141): the description and
+`TaskState` (`delivery_test.gd`, `delivery_deal_test.gd`, `tests/unit/deal/deal_tasks_test.gd`; the description's
+mode check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
 
 #### Package (item kind)
 What it does: the item a Delivery subtask moves; any living player may carry any package.
-Settings: id `package`; display name "Package"; spawn tag `package`; actions: none, so `Use` with a package in
-hand is rejected (`nothing_to_do`). Placed by Delivery.
+Settings: id `package`; display name "Package"; spawn tag `package`; `hands` 2 (M4-5, vision revision 1: never on
+the belt, and a carrier cannot swap); actions: none, so `Use` with a package in hand is rejected (`nothing_to_do`).
+Placed by Delivery.
 Produces: `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`; once delivered, `PackageDelivered`, and `PickUp` gets
 `unavailable`.
 Visible to: everyone.
-Status: designed in #33; built in 2e (#61, `content/items/package.tres`) and 2f (#62, Delivery). Tests: the parts'
-in `tests/unit/items/` (a package built in code); its delivery in `tests/unit/tasks/delivery_test.gd`.
+Status: designed in #33; built in 2e (#61, `content/items/package.tres`) and 2f (#62, Delivery); `hands` in M4-5
+(#141, provisional). Tests: the parts' in `tests/unit/items/` (a package built in code, two-handed); its delivery in
+`tests/unit/tasks/delivery_test.gd`; the base mode's `hands` in `tests/unit/content/item_intents_test.gd`.
 
 #### Knife (item kind)
 What it does: the MVP's weapon: `Use` strikes in front of the holder.
-Settings: id `knife`; display name "Knife"; spawn tag `knife`; actions: one rule on `Use` with costs `Cooldown`
+Settings: id `knife`; display name "Knife"; spawn tag `knife`; `hands` 1 (M4-5: it fits the belt, and one player
+may carry both knives, one in hand and one on the belt, V13); actions: one rule on `Use` with costs `Cooldown`
 (key `hit`, 0.5 s) and `StaminaCost` (25), and the effect `Strike` (30°, 1.5 m, 50 damage). The cooldown key is per
 player, so swapping to a second knife does not skip the interval (§7.1). Placed by `SpawnItems` (`knives`).
 Produces: `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`; on `Use`: `Swung`, `Damaged`, `SelfStatus` (the attacker's
@@ -2369,18 +2419,19 @@ Status: designed in #33; built in 2h (#64): `content/win_conditions/time_up.tres
 `tests/unit/content/content_modes_test.gd` (0 dissidents set through the base lobby).
 
 #### PickUp (action)
-What it does: takes an item from the ground into the hand, swapping a held one (§7.1).
+What it does: takes an item from the ground into the hand; a one-handed hand item goes to an empty belt, any other
+rests where the picked one lay (§7.1; M4-5).
 Settings: a rule on the base mode: trigger `PickUp`; conditions `ItemOnGround`, `InReach` (2 m), `InSight`;
 effects `TakeIntoHand`.
-Produces: `ItemPickedUp`; with a full hand, `ItemPlaced` (swap) and `item_rested` for the swapped item, so a package
-swapped onto its circle is delivered.
+Produces: `ItemPickedUp` (with `belted`, the item moved to the belt, or none); with a hand item that does not go to
+the belt, `ItemPlaced` (swap) and `item_rested` for it, so a package swapped onto its circle is delivered.
 Visible to: everyone; a refusal (`unavailable`, `out_of_reach`, `blocked`) only the sender. A mode rule: its public
 events reveal no role.
-Status: designed in #33; built in 2e (#61). Tests: `tests/unit/items/take_into_hand_test.gd`,
+Status: designed in #33; built in 2e (#61); the belt in M4-5 (#141). Tests: `tests/unit/items/take_into_hand_test.gd`,
 `tests/unit/content/item_intents_test.gd` (only the living may send it).
 
 #### PutDown (action)
-What it does: puts the held item down in front of the player (§7.1).
+What it does: puts the hand item down in front of the player (§7.1); a belt item stays (`empty_hand` with only one).
 Settings: a rule on the base mode: trigger `PutDown`; conditions `HoldsItem`; effects `PutDownInFront` (1 m).
 Produces: `ItemPlaced` (put down); `item_rested`.
 Visible to: everyone; a refusal (`empty_hand`) only the sender. A mode rule: its public events reveal no role.
@@ -2388,10 +2439,10 @@ Status: designed in #33; built in 2e (#61). Tests: `tests/unit/items/put_down_in
 death or a leave: `tests/unit/items/items_test.gd`.
 
 #### Use (action; the knife's hit)
-What it does: uses the held item, as its kind's rule says; in the MVP only the knife has one (above). It replaces
+What it does: uses the hand item, as its kind's rule says, never the belt item; in the MVP only the knife has one (above). It replaces
 #32's `Hit` intent, so that a new held item is data, not a new intent.
 Settings, Produces, Visible to: the knife's. A downed or dead player's `Use` is `not_accepted` (Round accepts it
-from the living only); an empty hand, or a package, is `nothing_to_do`.
+from the living only); an empty hand (a knife on the belt too), or a package, is `nothing_to_do`.
 Status: designed in #33; built in 2g (#63), as the knife's. Tests: the knife's; a downed or dead player's `Use`:
 `tests/unit/life/life_rules_test.gd`, `tests/unit/content/content_modes_test.gd` (the base mode),
 `tests/unit/content/item_intents_test.gd` (only the living, in every mode); a package's: `tests/unit/items/items_test.gd`.
@@ -2412,6 +2463,18 @@ the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `bu
 Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`; the
 base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios `crew_revives_the_downed` and
 `raise_stopped_then_given_up` (§9.7).
+
+#### Swap (action)
+What it does (vision revision 1, Two hands; M4-5, #141): exchanges the hand and belt items, either of which may be
+empty, so a lone one-handed item moves between the hand and the belt (the ADR's controls: X).
+Settings: a rule on the base mode: trigger `Swap`; conditions `CarriesItem`, `HandNotTwoHanded`; effects `SwapHands`.
+Round accepts it from the living only: the downed and the dead get `not_accepted`.
+Produces: `Swapped`; it stops the swapper's raise (`RaiseStopped`), as every applied action does (§9.2).
+Visible to: everyone; a refusal (`nothing_to_swap`, `two_handed`) only the sender. A mode rule: its public events
+reveal no role.
+Status: built in M4-5 (#141). Tests: `tests/unit/items/swap_hands_test.gd` (the swap, its refusals, the downed and
+the dead, a swap stopping a raise, only the hand item used); `tests/unit/content/item_intents_test.gd` (the base
+mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_with_a_full_belt` (§9.7).
 
 #### Sprint (not a part in v0)
 What it does: the `sprint` flag of `MoveClaim`, settled by the movement rule for every tick a claim covers (§7.1),
@@ -2526,6 +2589,7 @@ told. One format runs in two runners.
 | `Raise(target, hold_s)` | sends `Raise` of the player of a `bot(i)` target and holds E (M4-4) | its `RaiseStarted` arrived and `hold_s` passed since the step started, or the raise ended before (its `RaiseStopped`, or a `Revived` of the target); the bot still holds E after it |
 | `StopRaise` | sends `StopRaise`: lets go of E (M4-4) | its `RaiseStopped` arrives (`not_channeling` when no raise runs) |
 | `GiveUp` | the downed bot sends `GiveUp` (M4-4) | its own `Died` arrives |
+| `Swap` | sends `Swap`: exchanges its hand and belt items (M4-5) | its own `Swapped` arrives (`nothing_to_swap`, `two_handed` when refused) |
 
 As built in 2j (#66; `core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and
 one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable setup before a run):
@@ -2552,7 +2616,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   bot (0: every bot).
 
 - **Targets come from the bot's own view**, the events and snapshots its client received: `package(n)` (the n-th
-  package in item-id order, from 1; tasks are shared, #79), `circle_of_held`, `nearest(kind)`, `bot(i)` (where it last saw
+  package in item-id order, from 1; tasks are shared, #79), `circle_of_held` (of its hand item), `nearest(kind)` (on
+  the ground: not in a hand or on a belt, which the bot follows from `ItemPickedUp`'s `belted` and `Swapped`, M4-5), `bot(i)` (where it last saw
   that player), `point(x, y, z)`. A target the bot cannot know fails the scenario, so a scenario also proves that the
   mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
@@ -2609,10 +2674,19 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   (M4-4: a raise let go after 1 s, a second raise, the downed bot gives up during it (`RaiseStopped`, `Died`), a late
   `StopRaise` gets `not_channeling`, and the bot respawns 30 s later; time up on a 55 s clock),
   `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina),
-  `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`empty_hand`,
-  `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`, a swap). The first three,
-  `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
-  `dissidents` and `dissidents` (2h's win conditions); the other three `none`.
+  `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`nothing_to_swap`,
+  `empty_hand`, `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`; since M4-5 its knife goes to the belt when it
+  picks up the package, a `Swap` is then `two_handed`, and after the package is put down a `Swap` draws the knife).
+  M4-5 (#141): `crew_downed_before_a_delivery` (a dissident knocks a crew bot down, then another crew bot delivers the
+  only package: the scenario the leak test needs to see a misdeclared `TaskState`, §4.6),
+  `two_handed_pickup_with_a_full_belt` (a knife to the belt, a second in the hand, then the package: the hand knife
+  rests where the package lay, and a `Swap` is `two_handed`), `dissident_hides_a_package` (a dissident carries the
+  package to a corner and puts it down; a crew bot finds it with `nearest(package)` and delivers it) and
+  `crew_walks_after_a_respawn` (`crew_respawns_invulnerable`'s match, where the respawned bot walks at once: the
+  network runner's travel after a respawn). The first
+  three, `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
+  `dissidents` and `dissidents` (2h's win conditions), M4-5's `crew`, `none`, `crew` and `dissidents`; the other three
+  `none`. None of M4-5's runs in `bots-enet`.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each

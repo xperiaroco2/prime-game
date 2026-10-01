@@ -81,6 +81,7 @@ func test_an_accepted_intent_nobody_handles() -> void:
 	var knife := ItemKind.new()
 	knife.id = &"knife"
 	knife.spawn_tag = &"knife"
+	knife.hands = 1
 	knife.actions = [FixtureModes.rule(Intents.PICK_UP, [], [])]
 	mode.item_kinds = [knife]
 	_expect_none(mode)
@@ -177,6 +178,29 @@ func test_numbers_out_of_bounds() -> void:
 	mode = FixtureModes.basic()
 	mode.phases[2].settings[&"typo"] = 1.0
 	_expect(mode, "phase end: unknown setting typo")
+
+
+func test_an_item_kind_takes_one_or_two_hands_which_the_data_sets() -> void:
+	# Vision revision 1, Two hands: the neutral default (0) is out of bounds, so a forgotten
+	# `hands` is refused (#58).
+	for hands: int in [0, 3]:
+		var mode := FixtureItemModes.basic()
+		mode.find_item_kind(&"tool").hands = hands
+		_expect(mode, "item kind tool hands is %d, outside 1 to 2" % hands)
+	for hands: int in [1, 2]:
+		var mode := FixtureItemModes.basic()
+		mode.find_item_kind(&"tool").hands = hands
+		_expect_none(mode)
+	assert_int(ItemKind.new().hands).is_equal(0)
+
+
+func test_a_task_type_needs_a_description() -> void:
+	# The task screen shows it (vision revision 1, the Tab task screen).
+	for empty: String in ["", "  \n"]:
+		var mode := FixtureModes.basic()
+		(mode.task_types[0] as TaskType).description = empty
+		_expect(mode, "task type fixture_task has no description")
+	assert_str(TaskType.new().description).is_empty()
 
 
 func test_repeated_ids() -> void:

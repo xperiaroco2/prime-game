@@ -132,12 +132,14 @@ func _mode(players: int, numbers: int, sets: int, types: int) -> GameMode:
 	for i: int in types:
 		var type := TaskType.new()
 		type.id = StringName(_id(i))
+		type.description = "A task."
 		mode.task_types.append(type)
 	var role := GameRole.new()
 	role.id = StringName(ID_32)
 	mode.roles.append(role)
 	var kind := ItemKind.new()
 	kind.id = StringName(ID_32)
+	kind.hands = 1
 	mode.item_kinds.append(kind)
 	var phase := PhaseSpec.new()
 	phase.id = StringName(ID_32)

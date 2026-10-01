@@ -101,7 +101,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepLeave.new(),
 		StepRaise.new(),
 		StepStopRaise.new(),
-		StepGiveUp.new()
+		StepGiveUp.new(),
+		StepSwap.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -123,7 +124,8 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"Leave",
 			&"Raise",
 			&"StopRaise",
-			&"GiveUp"
+			&"GiveUp",
+			&"Swap"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -131,7 +133,9 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 	assert_bool(StepUse.new().sends_intent()).is_true()
 	assert_bool(StepWalkTo.new().sends_intent()).is_false()
 	assert_str(StepUse.new().until).is_equal("Swung")
-	for raising: ScenarioStep in [StepRaise.new(), StepStopRaise.new(), StepGiveUp.new()]:
+	for raising: ScenarioStep in [
+		StepRaise.new(), StepStopRaise.new(), StepGiveUp.new(), StepSwap.new()
+	]:
 		assert_bool(raising.sends_intent()).is_true()
 
 

@@ -22,8 +22,11 @@ const HALF := 50000
 
 func test_the_dead_respawn_after_their_time_with_full_numbers_and_empty_hands() -> void:
 	var game := _duel()
+	var tool := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1))
 	var package := FixtureItemModes.lay(game, &"package", Vector3(0, 0, 1))
+	FixtureItemModes.pick_up(game, P2, tool)
 	FixtureItemModes.pick_up(game, P2, package)
+	assert_int(game.state.player(P2).belt_item).is_equal(tool.id)
 	var role := game.state.player(P2).role
 	_kill(game)
 	var died_at := game.ticked_through()
@@ -39,12 +42,14 @@ func test_the_dead_respawn_after_their_time_with_full_numbers_and_empty_hands() 
 	assert_int(dead.health).is_equal(FULL)
 	assert_int(dead.stamina).is_equal(FULL)
 	assert_int(dead.held_item).is_equal(-1)
+	assert_int(dead.belt_item).is_equal(-1)
 	assert_str(dead.role).is_equal(role)
 	assert_int(dead.epoch).is_equal(epoch + 1)
 	assert_bool(FixtureModes.RESPAWNS.has(dead.position)).is_true()
 	assert_dict(game.state.bodies).is_empty()
-	# The package it held lies where it died; nothing came back with it.
+	# The items it carried lie where it died; nothing came back with it.
 	assert_int(package.where).is_equal(ItemState.Where.GROUND)
+	assert_int(tool.where).is_equal(ItemState.Where.GROUND)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 

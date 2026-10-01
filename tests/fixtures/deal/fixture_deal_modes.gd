@@ -97,6 +97,7 @@ static func item_kind(kind_id: StringName) -> ItemKind:
 	kind.id = kind_id
 	kind.display_name = String(kind_id).capitalize()
 	kind.spawn_tag = ITEM_TAG
+	kind.hands = 1
 	return kind
 
 

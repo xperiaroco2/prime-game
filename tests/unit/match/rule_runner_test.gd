@@ -65,6 +65,7 @@ func test_the_held_item_then_the_role_then_the_mode_decides() -> void:
 	var knife := ItemKind.new()
 	knife.id = &"knife"
 	knife.spawn_tag = &"knife"
+	knife.hands = 1
 	knife.actions = [FixtureModes.rule(Intents.USE, [], [FixtureNote.of("item")])]
 	mode.item_kinds = [knife]
 	mode.roles[1].actions = [FixtureModes.rule(Intents.USE, [], [FixtureNote.of("role")])]

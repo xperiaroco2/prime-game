@@ -12,7 +12,7 @@ extends RefCounted
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it.
-const VERSION := 5
+const VERSION := 6
 
 ## Frozen rows (§4.3): any client can send its version and read Rejected(wrong_version).
 const HELLO := 1
@@ -214,6 +214,7 @@ static func _intents() -> Array[WireRow]:
 		_up(10, &"Raise", 8, [_seq(), _peer("target")]),
 		_up(11, &"StopRaise", 4, [_seq()]),
 		_up(12, &"GiveUp", 4, [_seq()]),
+		_up(13, &"Swap", 4, [_seq()]),
 	]
 
 
@@ -315,7 +316,12 @@ static func _events() -> Array[WireRow]:
 		teammates,
 		station_placed,
 		item_spawned,
-		_down(48, &"ItemPickedUp", 6, [_peer("peer"), _item("item")]),
+		_down(
+			48,
+			&"ItemPickedUp",
+			8,
+			[_peer("peer"), _item("item"), WireField.maybe("belted", WireField.Type.ITEM)]
+		),
 		_down(49, &"ItemPlaced", 47, [_item("item"), _vec3("position"), _id("cause")]),
 		_down(50, &"PackageDelivered", 4, [_item("item"), _station("station")]),
 		_down(51, &"TaskProgress", 4, [_u16("done"), _u16("total")]),
@@ -331,6 +337,13 @@ static func _events() -> Array[WireRow]:
 		_down(61, &"RaiseStarted", 8, [_peer("raiser"), _peer("target")]),
 		_down(62, &"RaiseStopped", 8, [_peer("raiser"), _peer("target")]),
 		_down(63, &"Revived", 4, [_peer("peer")]),
+		_down(64, &"Swapped", 4, [_peer("peer")]),
+		_down(
+			65,
+			&"TaskState",
+			38,
+			[_of("task", WireField.Type.U8), _id("type"), _u16("done"), _u16("total")]
+		),
 	]
 
 
@@ -345,6 +358,7 @@ static func _state_and_voice() -> Array[WireRow]:
 				_vec3("facing"),
 				WireField.bits(PackedStringArray(["downed", "invulnerable"])),
 				WireField.maybe("held_item", WireField.Type.ITEM),
+				WireField.maybe("belt_item", WireField.Type.ITEM),
 			]
 		)
 	)

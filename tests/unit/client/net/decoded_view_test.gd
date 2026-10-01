@@ -160,6 +160,7 @@ static func _avatar(at: Vector3) -> Dictionary:
 		"downed": false,
 		"invulnerable": false,
 		"held_item": -1,
+		"belt_item": -1,
 	}
 
 

@@ -47,6 +47,7 @@ static func basic(packages: int = 2) -> GameMode:
 static func delivery(package: ItemKind) -> Delivery:
 	var made := Delivery.new()
 	made.id = &"delivery"
+	made.description = "Deliver the packages."
 	made.package = package
 	made.circle = circle()
 	made.subtasks_setting = &"packages"
