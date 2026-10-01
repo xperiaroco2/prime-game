@@ -1621,15 +1621,18 @@ The local player's controller (#46, `client/player/`):
   a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
   `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
   the only copy of it on the client, and takes each `SelfStatus`'s number as it arrives.
-- A ghost (`ghost = true`, the downed player; M4-9 renames it and gives it the lying pose and camera) crawls as the
-  host's crawl check allows (§7.1 The crawl, M4-2): the living's capsule, gravity, floor, steps and slopes at
-  `PlayerRules.crawl_speed_mps`, with no sprint and no jump; `StaminaSource` refuses both to the downed, and their
-  stamina regenerates as usual. There is no flight (the engineer's correction of 2026-09-30, #46). `Game` sets the
-  flag from its own life fold (a `KnockedDown` naming its peer) and clears it when the fold forgets it. A downed
+- A downed player (`PlayerController.life` DOWNED, set by `set_life`; M4-9) crawls as the host's crawl check
+  allows (§7.1 The crawl, M4-2): the living's capsule (left standing, as the host's floor checks expect, under a
+  lying mesh), gravity, floor, steps and slopes at `PlayerRules.crawl_speed_mps`, with no sprint and no jump;
+  `StaminaSource` refuses both to the downed, and their stamina regenerates as usual. There is no flight (the
+  engineer's correction of 2026-09-30, #46). While a raise holds it (`held`, from `ClientModel.raiser_of(own) != 0`)
+  it stands still and claims where it lay. A dead player has no collision layer, no mesh and no physics step. `Game`
+  sets `life` from its own life fold and `held` from the raise fold; any life change drops a pending jump. A downed
   crawl over the loopback, holding sprint and asking to jump, is corrected 0 times, also on a clock that stands still
-  and then jumps, and up the fixture's steps (`player_network_test.gd`).
+  and then jumps, and up the fixture's steps (`player_network_test.gd`, `player_controller_downed_test.gd`).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
-  2 `living_players`, 3 `ghosts`. The living and ghosts collide with the world only; a living player finds the
+  2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9). The living and the downed collide with the world
+  only; the dead are on no layer; a living player finds the
   other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other players are
   `RemotePlayerBody` capsules that only their owner's data moves, on layer 2 while the client's life fold says they
   are living and on layer 3 otherwise (a downed player pushes nobody and nobody pushes it).
@@ -1762,8 +1765,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     player: from the pusher's interpolated motion, at the pusher's reduced speed.
   - Head-on both push, and neither goes deeper than the overlap limit, so neither advances; the round capsules and
     the drift slide them apart. Each drifts to its own right, so they pass each other on opposite sides.
-  - A ghost (the client's downed until M4-9) runs no search, and its layer is not searched: the downed push nobody
-    and nobody pushes them.
+  - A downed player runs no search, and its layer is not searched: the downed push nobody and nobody pushes them.
+    The dead run no physics step at all.
 
   Speed: a pushed player moves faster than its own walk or sprint without cheating (walking sideways at 4.5 m/s
   while a sprinter pushes it at 3.5 m/s is about 5.7 m/s, and two pushers add up). `PlayerController._push_apart`
