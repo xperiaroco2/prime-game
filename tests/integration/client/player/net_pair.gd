@@ -1,0 +1,110 @@
+extends Node
+## Two game roots over a LoopbackHub, for the movement suites of M4-7 (ARCHITECTURE §4.7): a host
+## Game (HostSession and its own ClientSession) and a Game that joins it, each in a SubViewport
+## with a physics world of its own, as two machines would be. The level is the fixture
+## `steps_room.tscn` in FixtureBaseMode's mode (its lobby and its map). The clock is simulated and
+## advances one physics frame (1/60 s) before the sessions step, so 20 Hz claims, host ticks and
+## snapshots keep pace with the physics. Nothing reads devices: a suite drives each
+## PlayerController's wish fields. Forward is -Z.
+##
+## steps_room: a floor at y = 0; lobby markers (0, 0, 0) and (0, 0, -2) first (the host takes the
+## first, the joiner the second); along z = -2 three steps of 0.3 m, each 0.5 m deep, from x = 6,
+## then a top at 1.2 m from x = 7.5 to 13.5. The treads are 0.5 m on purpose: on 0.3 m treads,
+## narrower than the capsule, the host's height check (MovementRule's slope rise from a landing
+## floor found by five rays, #76's to tune) corrects an honest climb, walking or sprinting.
+
+const GAME := preload("res://client/app/game.tscn")
+const STEPS_ROOM := "res://tests/fixtures/client/steps_room.tscn"
+const PORT := 7400
+## One physics frame at 60 Hz, in microseconds.
+const FRAME_USEC := 16667
+## The most physics frames start() waits for both to stand in the lobby.
+const MAX_START_FRAMES := 300
+
+var host: Game
+var client: Game
+var mode: GameMode
+## The simulated clock, in microseconds.
+var now := 1000000
+
+var _hub := LoopbackHub.new()
+
+
+func _init() -> void:
+	# Before HostNode (-100): the clock moves first in every physics frame.
+	process_physics_priority = -1000
+	mode = FixtureBaseMode.mode()
+	mode.lobby_level = STEPS_ROOM
+	mode.maps = PackedStringArray([STEPS_ROOM])
+
+
+## Hosts, joins, and waits until both players stand in the lobby; false when they never did.
+func start() -> bool:
+	host = _game(["--host", "--local", "--no-replay", "--port=%d" % PORT])
+	client = _game(["--join=127.0.0.1", "--port=%d" % PORT])
+	for i: int in MAX_START_FRAMES:
+		if _both_in_the_lobby():
+			# A frame more, so each player has stood still once on its own floor.
+			await frames(5)
+			return true
+		await frames(1)
+	return false
+
+
+## Ends both sessions as the players would (the joiner leaves, the host closes) and lets the
+## freed levels and views go: call it at the end of every test, or they are orphans.
+func stop() -> void:
+	if client != null:
+		client.leave()
+	if host != null:
+		host.leave()
+	await get_tree().process_frame
+
+
+## Waits `count` physics frames.
+func frames(count: int) -> void:
+	for i: int in count:
+		await get_tree().physics_frame
+
+
+## The peer id of `game`'s own player.
+func peer_of(game: Game) -> int:
+	return game.client().model.own_peer
+
+
+func _physics_process(_delta: float) -> void:
+	now += FRAME_USEC
+
+
+func _both_in_the_lobby() -> bool:
+	for game: Game in [host, client]:
+		var session := game.client()
+		if session == null or not session.is_welcomed() or game.player() == null:
+			return false
+		if session.model.roster.size() != 2 or game.screen() != GameFlow.Screen.LOBBY:
+			return false
+	return true
+
+
+func _game(args: Array[String]) -> Game:
+	var viewport := SubViewport.new()
+	viewport.own_world_3d = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(viewport)
+	var game := GAME.instantiate() as Game
+	game.mode = mode
+	game.read_command_line = false
+	game.launch_args = PackedStringArray(args)
+	game.clock = _clock
+	game.make_transport = _transport
+	game.device_input = false
+	viewport.add_child(game)
+	return game
+
+
+func _clock() -> int:
+	return now
+
+
+func _transport() -> NetTransport:
+	return LoopbackTransport.new(WireSchema.game(OS.is_debug_build()).kind_table(), _hub)
