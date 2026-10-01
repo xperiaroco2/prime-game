@@ -1,4 +1,5 @@
-"""`verify` runs the headless ENet (#45), freeze (#70), stall (#95) and bots (#102) runs: their place, arguments, port."""
+"""`verify` runs the headless ENet (#45), freeze (#70), stall (#95), bots (#102) and game (#149) runs: their place,
+arguments, port (the game step's command lines: test_hostjoin.GameCheckTest)."""
 
 import socket
 import unittest
@@ -29,6 +30,7 @@ class EnetStepTest(unittest.TestCase):
             mock.patch.object(verify, "stall", step("stall")),
             mock.patch.object(verify, "bots_one_process", step("bots")),
             mock.patch.object(verify, "bots_enet", step("bots-enet")),
+            mock.patch.object(verify, "game", step("game")),
             mock.patch.object(verify, "selftest", step("selftest")),
             mock.patch.object(verify, "git_status", return_value=set()),
             mock.patch.object(verify, "say"),
@@ -36,11 +38,11 @@ class EnetStepTest(unittest.TestCase):
             self.assertEqual(verify.main(), 0)
         self.assertEqual(
             names,
-            ["doctor", "lint", "check", "test", "enet", "freeze", "stall", "bots", "bots-enet", "selftest"],
+            ["doctor", "lint", "check", "test", "enet", "freeze", "stall", "bots", "bots-enet", "game", "selftest"],
         )
 
     def test_a_failed_enet_freeze_stall_or_bots_run_fails_verify(self) -> None:
-        for failing in ("enet", "freeze", "stall", "bots", "bots-enet"):
+        for failing in ("enet", "freeze", "stall", "bots", "bots-enet", "game"):
             with (
                 self.subTest(failing=failing),
                 mock.patch.object(verify.doctor, "main", return_value=0),
@@ -52,6 +54,7 @@ class EnetStepTest(unittest.TestCase):
                 mock.patch.object(verify, "stall", return_value=int(failing == "stall")),
                 mock.patch.object(verify, "bots_one_process", return_value=int(failing == "bots")),
                 mock.patch.object(verify, "bots_enet", return_value=int(failing == "bots-enet")),
+                mock.patch.object(verify, "game", return_value=int(failing == "game")),
                 mock.patch.object(verify, "selftest", return_value=0),
                 mock.patch.object(verify, "git_status", return_value=set()),
                 mock.patch.object(verify, "say"),
