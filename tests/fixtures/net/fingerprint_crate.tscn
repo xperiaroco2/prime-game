@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://mcmlyje1wp2k"]
+
+[ext_resource type="Texture2D" uid="uid://cpkj3un2uc8e1" path="res://icon.svg" id="1_icon"]
+
+[node name="FingerprintCrate" type="Sprite3D" unique_id=1289873890]
+texture = ExtResource("1_icon")

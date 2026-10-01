@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://fair5fhqt1o8"]
+
+[ext_resource type="Script" uid="uid://vd5rjcgei05i" path="res://tests/fixtures/net/fingerprint_room.gd" id="1_script"]
+[ext_resource type="Shape3D" uid="uid://c1kqvloago4e0" path="res://tests/fixtures/net/fingerprint_wall.tres" id="2_wall"]
+[ext_resource type="PackedScene" uid="uid://mcmlyje1wp2k" path="res://tests/fixtures/net/fingerprint_crate.tscn" id="3_crate"]
+
+[node name="FingerprintRoom" type="Node3D" unique_id=1472896189]
+script = ExtResource("1_script")
+
+[node name="Wall" type="StaticBody3D" parent="." unique_id=1948942483]
+
+[node name="Shape" type="CollisionShape3D" parent="Wall" unique_id=1366850967]
+shape = ExtResource("2_wall")
+
+[node name="Crate" parent="." unique_id=765563123 instance=ExtResource("3_crate")]
