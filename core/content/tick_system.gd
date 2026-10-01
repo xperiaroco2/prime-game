@@ -15,8 +15,9 @@ func emits() -> Array[Script]:
 
 
 ## What this system needs of the map its phase plays on, as RuleEffect.add_demands (§9.4): the
-## layout check and the lobby's fit check sum it with the rows' demands. LifeTicks forwards its
-## Respawn's. No demand by default.
+## layout check and the lobby's fit check add it to the rows' demands, taking per tag the most of
+## any one phase on that level (a system in two phases needs its markers once). LifeTicks forwards
+## its Respawn's. No demand by default.
 func add_demands(_settings: Dictionary[StringName, int], _players: int, _into: Demands) -> void:
 	pass
 

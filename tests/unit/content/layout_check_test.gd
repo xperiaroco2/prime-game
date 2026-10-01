@@ -136,6 +136,16 @@ func test_a_respawn_demands_a_respawn_marker_on_every_map_and_the_fit_check_show
 	assert_array(Array(LayoutCheck.run(FixtureCombatModes.basic(), layouts))).is_empty()
 
 
+func test_a_respawn_in_two_phases_on_the_map_demands_its_marker_once() -> void:
+	# The phases' tick systems share the map's markers: the most of any one phase, not the sum.
+	var mode := FixtureCombatModes.respawning()
+	var overtime := mode.find_phase(&"round").duplicate() as PhaseSpec
+	overtime.id = &"overtime"
+	mode.phases.append(overtime)
+	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, mode.default_settings(), 3)
+	assert_int(demands.markers.get(FixtureModes.RESPAWN_TAG, 0)).is_equal(1)
+
+
 func _mode_with_a_token_task() -> GameMode:
 	var token := ItemKind.new()
 	token.id = &"coin"

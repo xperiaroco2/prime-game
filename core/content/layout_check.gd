@@ -64,10 +64,27 @@ static func demands_of(
 		for action: RuleEffect in row.actions:
 			if action != null:
 				action.add_demands(settings, players, demands)
+	# A tick system's markers serve every phase it runs in (a Respawn's marker is not used up), so
+	# the phases' tick-system demands take the most of any one phase per tag, not their sum.
+	var ticking := Demands.new(mode)
 	for spec: PhaseSpec in _phases_on(mode, level):
+		var one := Demands.new(mode)
+		one.id_sets = demands.id_sets
 		for system: TickSystem in spec.tick_systems:
 			if system != null:
-				system.add_demands(settings, players, demands)
+				system.add_demands(settings, players, one)
+		for tag: StringName in one.markers:
+			ticking.markers[tag] = maxi(ticking.markers.get(tag, 0) as int, one.markers[tag])
+		for station: StringName in one.colours:
+			ticking.colours[station] = maxi(
+				ticking.colours.get(station, 0) as int, one.colours[station]
+			)
+			ticking.palettes[station] = one.palettes[station]
+	for tag: StringName in ticking.markers:
+		demands.add_markers(tag, ticking.markers[tag])
+	for station: StringName in ticking.colours:
+		demands.colours[station] = demands.colours.get(station, 0) + ticking.colours[station]
+		demands.palettes[station] = ticking.palettes[station]
 	return demands
 
 
