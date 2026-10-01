@@ -24,7 +24,8 @@ GitHub retargets to `main` when its parent's branch is deleted.
   the fresh reviews have no open blocker or major finding; and `verify` is green on the merged tree before the push.
 - **The merge is local.** In its own `release/m<k>` worktree the manager runs `git fetch origin`, `git checkout
   --detach origin/release/m<k>`, `git merge --no-ff origin/<task branch>`, `tools\run.cmd verify` on the merged
-  tree, then `git push origin HEAD:release/m<k>`: a fast-forward that the pre-push hook allows. GitHub sees the PR's
+  tree, then pushes that merge commit by its hash, `git push origin <commit>:release/m<k>` (the deny rule
+  `git push *HEAD*` refuses `HEAD:`): a fast-forward that the pre-push hook allows. GitHub sees the PR's
   commits on its base and marks the PR merged. A red `verify` pushes nothing and leaves nothing to undo: the next
   merge starts again from `origin/release/m<k>` (no `git reset`, which the guard would ask for on a branch that is
   not a task branch); the manager reports and relaunches the task.

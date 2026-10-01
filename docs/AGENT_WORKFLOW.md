@@ -216,7 +216,8 @@ Rules for every workflow run:
   release/m<k>`). The manager merges a task PR into it once CI is green, the fresh reviews left no open blocker or
   major, and `verify` passes on the merged tree: locally, in its own `release-m<k>` worktree on a detached HEAD at
   `origin/release/m<k>` (a red run leaves nothing to undo), `git merge --no-ff`, `verify`, then `git push origin
-  HEAD:release/m<k>`, a fast-forward the pre-push hook allows; GitHub marks the PR merged.
+  <commit>:release/m<k>` with the merge commit's hash (`HEAD:` is refused by the deny rule `git push *HEAD*`), a
+  fast-forward the pre-push hook allows; GitHub marks the PR merged.
   `gh pr merge` stays denied (the `main` rulesets ask only for a PR and green checks, so it would let any agent merge
   into `main`). The stage ends with one PR from `release/m<k>` into `main`, which a human reviews and merges; the
   stage's issues stay open until then (`Closes` fires only on the default branch) and a human closes them.

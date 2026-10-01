@@ -159,14 +159,15 @@ locally.
   (cd /d/prime-game/.claude/worktrees/release-m<k> && git fetch origin \
     && git checkout -q --detach origin/release/m<k> \
     && git merge --no-ff origin/<task branch> -m "Merge pull request #<pr> from <owner>/<task branch>" \
-    && tools/run.sh verify && git push origin HEAD:release/m<k>)
+    && tools/run.sh verify && git rev-parse --short=12 HEAD)
   ```
 
-  Each merge starts on a detached HEAD at `origin/release/m<k>`, so a failed one leaves nothing to undo and never
-  reaches the next push. The push is a fast-forward, which the pre-push hook allows; GitHub then marks the PR merged
-  (check with `gh pr view <pr> --json state`). A red `verify` pushes nothing: tell the human and relaunch the task
-  with the failure in `notes`. The guard lets the whole command pass from the main checkout and from the worktree
-  (replayed through `guard.check` on 2026-10-01).
+  Then push the commit it printed: `(cd /d/prime-game/.claude/worktrees/release-m<k> && git push origin
+  <commit>:release/m<k>)`. Never `git push origin HEAD:...`: the deny rule `git push *HEAD*` refuses it. Each merge
+  starts on a detached HEAD at `origin/release/m<k>`, so a failed one leaves nothing to undo and never reaches the
+  next push. The push is a fast-forward, which the pre-push hook allows; GitHub then marks the PR merged (check with
+  `gh pr view <pr> --json state`). A red `verify` pushes nothing: tell the human and relaunch the task with the
+  failure in `notes`. The guard lets these commands pass from the main checkout and from the worktree.
 - **Order.** Stacked PRs: the parent first. Never merge a parent while its child's workflow has not reached Publish:
   the merge deletes the parent branch the child's reviewers diff against and its publisher targets. If it happened
   anyway, relaunch the child fresh with `base: "release/m<k>"` (update its args file) once the running one ends.
