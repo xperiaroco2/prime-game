@@ -9,9 +9,9 @@ extends RefCounted
 ## outcome a phase can report without a row; an accepted intent that neither the phase class, the
 ## movement rule nor any rule handles; a phase whose rules can knock a player down (an effect that
 ## emits KnockedDown: a Strike) that lists no LifeTicks, so the downed would never die (M4-3);
-## two rules on one trigger in one owner; a number outside its
-## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
-## rule with an effect whose event goes to everyone, which reveals the actor's role (§9.2).
+## two rules on one trigger in one owner; a number outside its part's bounds; an id outside the
+## wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect whose event
+## goes to everyone, which reveals the actor's role (§9.2).
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
