@@ -25,8 +25,9 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
 - `dev/`: dev rooms and the preview scenes that `shot` draws.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
-  there). `ui/`: the screens under `GameUi`, built in code, and the shared theme `ui/theme/game_theme.tres`.
-  `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9), M4-8 the views of items and stations.
+  there). `ui/`: the screens under `GameUi`, built in code, the HUD and the task screen (M4-8), and the shared
+  theme `ui/theme/game_theme.tres`. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
+  `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
   `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
   `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
 
@@ -46,10 +47,11 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
 - The downed camera stays at or below the standing eye height above the body and never passes through the level,
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view
   joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
-- Screens are styled only through the shared theme on every screen under `Ui` (`GameUi.THEME`): no inline colours,
-  sizes or fonts (M4-8 moves the M4-6 screens' inline styles into it).
 - A world sound plays only within the hearing range of the listener's camera (E33); a fading sound with
   no cut-off tells everyone, through walls, where a package was put down.
+- Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`): a type
+  variation per look, no `add_theme_*_override`, `Color(...)` or font size in a screen's code; a source test holds it.
+  Wording and looks stay greybox placeholders until the UI milestone (#150).
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
 - Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height,

@@ -1433,7 +1433,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel.
 - `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD) and the shared greybox
   theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
-  `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moves
+  `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
   the older screens' inline styles into it.
 - `project.godot`: `give_up` (G), `spectate_next` and `spectate_previous` (the left and right mouse buttons).
 - The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
@@ -1452,6 +1452,47 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `shot` of the downed pose, a body, the invulnerable look and the panel.
 - Not headless: the keys and the mouse, the feel of the cameras and the music; the one-PC playtest (the M4 ADR's
   §6) checks them.
+
+**Built in M4-8 (#144)**, items, hands, the HUD and the task screen:
+- `client/world/`: `ItemWorld` (`Items` under `World`, made by `Game`) holds `ItemViews`, `CircleViews`,
+  `ItemInteractions` and `WorldSounds` and gives the HUD what the model does not hold (`hud_local()`: the predicted
+  stamina, the crosshair's hint, and the own invulnerability's end from the own `Respawned` or `Revived` and the
+  mode's `invulnerable_s`). `ItemView` is one item's greybox look by its kind's id (D7 (a)), a labelled box for an
+  unknown kind, its origin the resting point; `ItemViews` places one per model item: where it lies, at a remote
+  holder's `RemotePlayerBody` attach point (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind),
+  hidden while that holder has no body drawn and when the own player holds it. Each view joins the group
+  `hidden_out_of_sight` (M4-9's `SightHider.GROUP`) and gives `sight_point()`; the root's `visible` is left to the
+  sight hiding, `ItemViews` toggles the look under it. `CircleViews` finds a station kind's size in the task types'
+  `StationKind` properties (Delivery's `circle`) and draws the D10 (b) marker, the one `no_depth_test` material,
+  over the circle of `ItemViews.destination_item()` (the own hand's package, else the belt's).
+- `TargetChoice` (pure) and `ItemInteractions` (physics priority 6, after the player): one ray from the camera against
+  the world layer only (as the host's line of sight) gives where the level stops it; the candidate is the nearest
+  ground item (not held, not delivered) whose middle the ray passes within 0.3 m of, short of that and of 4 m; the
+  hint and E apply only if the item lies within `InReach.reach_m` of `PickUp` (the client's own mode) of the feet.
+  Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own slots hold something
+  (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
+  menu. The facing is the camera's look vector.
+- `SoundChooser` (pure) and `WorldSounds`: `Swung` at the swinger (the local player or its body), `ItemPickedUp`
+  where the item lay, `ItemPlaced` at its position, each only within `HEARING_RANGE_M` (12 m, "not a decision") of
+  the viewport's current camera, and nothing beyond; every `AudioStreamPlayer3D` sets `max_distance` to it. The
+  sounds are 0.15 s blips generated in code (no asset); CC0 sounds with `docs/credits/` entries are a human step.
+- `client/player/`: `FirstPersonHand` under the camera shows the own hand item (`PlayerController.hand_view()`);
+  `RemotePlayerBody` has the three attach points.
+- `client/ui/`: `HudText` (pure: the HUD's words) and `Hud`; `TaskScreen` (its rows pure: each `TaskState` by task
+  id with its type's display name, progress and description, then `TaskProgress`; no place, no map), shown while
+  `task_screen` (Tab) is held in the round, which hides the crosshair and hint under it. **The shared theme:**
+  `client/ui/theme/game_theme.tres` (`GameUi.THEME`) holds every colour, font size, spacing and style box as a type
+  variation; `GameUi` gives it to every `Control` child, one added later too (a `CanvasLayer` holds no theme); the
+  screens name variations only. The input actions `swap` (X) and `task_screen` (Tab) are in `project.godot`.
+- Tests: `tests/unit/client/ui/hud_test.gd`, `theme_test.gd` (a source test over `client/ui/` against
+  `add_theme_*_override`, `Color(...)`, `Color.X` and `font_size` outside `client/ui/theme/`, seen failing on a planted
+  override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
+  chooser without the range), `tests/integration/client/world/item_interactions_test.gd` (the real controller on a
+  fixture floor: a crate-top item 2.08 m from the feet and 1.75 m from the eye gets no hint, floor items 1.3 to
+  1.95 m away get one; seen failing with the reach measured from the eye) and `item_views_test.gd`. The `shot`s:
+  `client/dev/hud_preview.tscn`, `task_screen_preview.tscn`, `items_preview.tscn` and `hand_preview.tscn`.
+- Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
+  ADR's §6), and a human picks the CC0 sounds.
 
 **What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
