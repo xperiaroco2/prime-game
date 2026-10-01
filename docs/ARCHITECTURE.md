@@ -1155,7 +1155,7 @@ host's own player sees only what its `ClientSession` decoded.
   | Life | Controller | Camera | Inputs | HUD |
   |---|---|---|---|---|
   | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | health, stamina, hand, belt, a package's destination, task progress, clock, own role, invulnerability |
-  | Downed | crawls, keeps its items | third person above the body | crawl, look, give up | the knockdown countdown (paused while raised), who raises them |
+  | Downed | crawls, keeps its items; holds still and claims no displacement from a `RaiseStarted` naming it until `RaiseStopped` or `Revived` (the host corrects any, answer 8) | third person above the body | crawl, look, give up | the knockdown countdown (paused while raised), who raises them |
   | Dead | off: no avatar, no claims | the spectate camera | next and previous target | the respawn countdown, whom they watch; nothing of the target's |
 
 - **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
