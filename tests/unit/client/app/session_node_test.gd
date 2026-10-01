@@ -89,6 +89,32 @@ func test_after_a_long_hitch_the_steps_jump_to_the_real_clock_by_whole_ticks() -
 	assert_int(absi(ticks[-1] - real_tick)).is_less_equal(1)
 
 
+func test_a_stall_without_claims_does_not_jump_after_the_placement() -> void:
+	# Loading accepts no MoveClaim: a 1 s map load, then the round's placement. The count was
+	# re-synced while no claim went out, so every claim after the placement's first covers one
+	# tick, within the TICK_LEAD credit the placement gives (the netcode review of M4-9).
+	_harness.send(PhaseChangedEvent.new(&"loading", -1))
+	for i: int in 3:
+		_step()
+	var ticks_before := _claim_ticks()
+	_real += 1000000
+	for i: int in 3:
+		_step()
+	assert_int(_claim_ticks().size()).is_equal(ticks_before.size())
+	_harness.send(PhaseChangedEvent.new(&"round", 100000))
+	var placed: Dictionary[int, Vector3] = {_harness.peer: Vector3(1, 0, 1)}
+	_harness.send(PlayersPlacedEvent.new(placed))
+	_harness.send(CorrectionEvent.new(_harness.peer, 2, Vector3(1, 0, 1), Vector3.ZERO))
+	for i: int in 12:
+		_step()
+	var ticks: Array[int] = []
+	ticks.assign(_claim_ticks().slice(ticks_before.size()))
+	assert_int(ticks.size()).is_greater_equal(3)
+	for i: int in range(1, ticks.size()):
+		assert_int(ticks[i] - ticks[i - 1]).is_equal(1)
+	assert_int(absi(ticks[-1] - _harness.session.client_tick(_real))).is_less_equal(1)
+
+
 ## One physics step: the real clock moves a step's time, the node steps the session, the host
 ## reads what it sent.
 func _step() -> void:

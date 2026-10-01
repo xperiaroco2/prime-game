@@ -338,6 +338,11 @@ func _claim(now_usec: int) -> void:
 		_last_claim_tick = tick
 
 
+## Whether the client sends MoveClaims now (its own copy of the phase and its own life).
+func claims_accepted() -> bool:
+	return _welcomed and _claims_accepted()
+
+
 ## Whether the client's own copy of the current phase accepts MoveClaim from it (§4.3): as a
 ## player, living or downed, and the host's own player as peer 1; never while dead (the dead send
 ## no intents, and the host accepts none from them).

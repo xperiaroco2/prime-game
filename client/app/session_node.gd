@@ -18,6 +18,12 @@ extends Node
 ## trailing the real clock by CATCH_UP_STEPS or more jumps forward by whole client ticks: the next
 ## claim covers those ticks with only one tick's travel, which every check accepts (the netcode
 ## review of PR #154).
+##
+## While the client sends no claims (before the Welcome, during Loading, while dead), the count
+## is re-synced the same way before every step. The host's next claim from it then follows a
+## placement, which restarts the client-tick baseline with only MovementRule.TICK_LEAD ticks of
+## credit: a jump after that placement's first claim would cover the whole stall (a map load, a
+## death) and cost an honest player a Correction (the netcode review of M4-9).
 
 const PHYSICS_PRIORITY := -90
 ## Steps behind the real clock that make the count jump forward (one client tick at 60 Hz).
@@ -67,6 +73,8 @@ func _physics_process(_delta: float) -> void:
 		_real_start = real - _usec_of(_steps)
 	if session == null or session.is_ended():
 		return
+	if not session.claims_accepted():
+		_catch_up(real)
 	var claimed := session.last_claim_tick()
 	session.step(now_usec())
 	if session.last_claim_tick() != claimed:
