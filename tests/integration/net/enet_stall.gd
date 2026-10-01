@@ -54,8 +54,9 @@ const EARLY_MS := 50
 ## ENet checks a timeout only when a resend is due, so a drop may come a little after
 ## PEER_TIMEOUT_MAX_MS.
 const LATE_MS := 1000
-## Poses in the backlog: more than one ENet service reads, few enough for Linux's default socket
-## receive buffer (208 KB, doubled) to hold them all.
+## Poses in the backlog: more than one ENet service reads, few enough for a default socket receive
+## buffer to hold them all. On Linux that is net.core.rmem_default (208 KB), which some container
+## kernels fill at 256 small datagrams: doctor warns then and tools/cloud/setup.sh raises it (#159).
 const BACKLOG_POSES := EnetTransport.ENET_RECEIVES_PER_SERVICE + 64
 ## Loopback delivery is fast but not synchronous: wait this long before the host takes the backlog.
 const BACKLOG_SETTLE_MS := 200
