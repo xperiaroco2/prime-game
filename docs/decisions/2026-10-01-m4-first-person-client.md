@@ -400,7 +400,8 @@ follow-up reverts.
 - The vision revision ADR's Context and Alternatives take the fixes of PR #133's last review; its pillar waits for
   E32.
 - After the answers: the manager opens M4-1 to M4-9 and L-1 from the handoff on #125, with the answers applied and
-  #76 and #119 amended (#76 after M4-2; #119 closed by M4-6's PR), in §7's order.
+  #76 and #119 amended (#76 after M4-2; M4-6's PR says `Closes #119`, which closes it when `release/m4` merges into
+  `main`, and the humans close the stage's issues after that merge), in §7's order.
 - `project.godot` gets the main scene and the new input actions, and layer 3 becomes `downed` (M4-6, M4-8, M4-9).
 - `docs/AGENT_WORKFLOW.md` §11 and §12 and the root `CLAUDE.md`'s commands row change when M4-6 builds windows for
   `host` and `join` (E20).
