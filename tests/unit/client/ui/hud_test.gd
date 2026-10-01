@@ -130,6 +130,37 @@ func test_the_task_screen_shows_in_the_round_while_held_only() -> void:
 	assert_bool(ui.hud.visible).is_false()
 
 
+func test_the_crosshair_stays_hidden_for_the_downed_whatever_tab_does() -> void:
+	# GameUi reads Tab after the game's refresh_round in the same frame: its show_tasks(false) must
+	# not bring back the crosshair of a downed player.
+	var ui: GameUi = auto_free(GameUi.new())
+	ui.reads_device_input = false
+	ui.show_screen(GameFlow.Screen.ROUND)
+	var model := _round_model()
+	model.fold(&"KnockedDown", {"peer": model.own_peer, "position": Vector3.ZERO})
+	ui.refresh_round(model, _mode, NOW, HudText.Local.new())
+	ui.show_tasks(false)
+	assert_bool(ui.hud.crosshair.visible).is_false()
+	ui.show_tasks(true)
+	ui.show_tasks(false)
+	assert_bool(ui.hud.crosshair.visible).is_false()
+
+
+func test_tab_shows_the_task_screen_with_its_rows() -> void:
+	var ui: GameUi = auto_free(GameUi.new())
+	ui.show_screen(GameFlow.Screen.ROUND)
+	ui.refresh_round(_round_model(), _mode, NOW, HudText.Local.new())
+	Input.action_press(&"task_screen")
+	ui._process(0.0)
+	assert_bool(ui.tasks.visible).is_true()
+	# Its rows are there on the first frame it shows, before the next refresh_round.
+	var texts := PackedStringArray()
+	for label: Node in ui.tasks.find_children("*", "Label", true, false):
+		texts.append((label as Label).text)
+	assert_str("\n".join(texts)).contains("Shared progress: 3 / 5")
+	Input.action_release(&"task_screen")
+
+
 func _round_model() -> ClientModel:
 	var model := Preview.fake_model(_mode, true)
 	Preview.fold_round(model)

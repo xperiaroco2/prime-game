@@ -26,6 +26,12 @@ var screen := GameFlow.Screen.MENU
 var reads_device_input := true
 
 var _tasks_held := false
+## Whether the own player is living, from the last refresh_round: the crosshair is for the living
+## (the downed and the dead pick nothing up).
+var _alive := true
+## The last round's model and mode, so the task screen has its rows on the frame Tab shows it.
+var _model: ClientModel
+var _mode: GameMode
 
 
 func _init() -> void:
@@ -56,11 +62,14 @@ func show_screen(which: GameFlow.Screen) -> void:
 	show_tasks(_tasks_held)
 
 
-## The task screen while `held` (Tab) in the round.
+## The task screen while `held` (Tab) in the round; the crosshair while it is not, for the living.
 func show_tasks(held: bool) -> void:
+	var was_shown := tasks.visible
 	_tasks_held = held
 	tasks.visible = held and screen == GameFlow.Screen.ROUND
-	hud.aiming = not tasks.visible
+	hud.aiming = not tasks.visible and _alive
+	if tasks.visible and not was_shown and _model != null:
+		tasks.refresh(_model, _mode)
 
 
 ## Refreshes the visible screen from `model`; `host_tick` is the newest host tick known.
@@ -80,8 +89,10 @@ func refresh_round(
 ) -> void:
 	if screen != GameFlow.Screen.ROUND:
 		return
-	# The crosshair is for the living: the downed and the dead pick nothing up.
-	hud.aiming = not tasks.visible and model.is_alive(model.own_peer)
+	_model = model
+	_mode = mode
+	_alive = model.is_alive(model.own_peer)
+	hud.aiming = not tasks.visible and _alive
 	hud.show_hud(HudText.of(model, mode, host_tick, local))
 	if tasks.visible:
 		tasks.refresh(model, mode)
