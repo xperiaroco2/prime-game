@@ -104,3 +104,31 @@ func test_a_leave_and_a_join_with_one_peer_id_between_two_ticks() -> void:
 	taker.hello(_h.session.content_hash)
 	_h.pump_frames(3)
 	assert_array(taker.names()).contains([&"Welcome"])
+
+
+func test_a_refused_hello_of_a_peer_that_left_spares_the_one_that_took_its_id() -> void:
+	_h = Harness.new()
+	var leaver := _h.raw()
+	_h.pump()
+	_h.settle_after_tick()
+	var tick := _h.session.game.ticked_through()
+	# Frame 1, no tick due: peer 2 says Hello with the wrong content and leaves.
+	leaver.hello(_h.session.content_hash + 1)
+	leaver.transport.close()
+	_h.pump()
+	# Frame 2, no tick due: a new connection takes id 2.
+	var taker := _h.raw_as(2)
+	taker.poll()
+	_h.pump()
+	assert_int(_h.session.game.ticked_through()).is_equal(tick)
+	# Frame 3: the tick refuses the old Hello (Rejected, DisconnectPeer 2), then PeerLeft(2) and
+	# PeerConnected(2). The DisconnectPeer is about the old connection: the new one stays.
+	_h.pump_frames(3)
+	assert_int(_h.session.game.ticked_through()).is_greater(tick)
+	assert_array(FixtureBaseMode.directives(_h.session.game)).contains(["DisconnectPeer 2"])
+	assert_bool(taker.lost).is_false()
+	assert_array(taker.received).is_empty()
+	taker.hello(_h.session.content_hash)
+	_h.pump_frames(3)
+	assert_array(taker.names().slice(0, 1)).is_equal([&"Welcome"])
+	assert_bool(taker.lost).is_false()

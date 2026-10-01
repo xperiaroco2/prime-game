@@ -19,7 +19,8 @@ extends RefCounted
 ## skipping peers this session disconnected and, from peer_left(p) until the call that applies
 ## PeerLeft(p), p (peer ids are reused). Directives are carried out where they stand:
 ## RefuseJoins/AllowJoins set the transport's refusal, DisconnectPeer disconnects after what came
-## before it (its Rejected) was sent.
+## before it (its Rejected) was sent, and is dropped while the peer's leave is pending (it is about
+## the connection that left).
 ##
 ## Peer 1, the host's own client, is exempt from the budgets, the malformed-message disconnect and
 ## the hello deadline: the transport cannot disconnect it, so a broken own client ends the session.
@@ -324,6 +325,9 @@ func _carry_out(directive: MatchEvent) -> void:
 			errors.append("core/ asked to disconnect the host's own client")
 			_end(OWN_CLIENT_DISCONNECTED)
 			return
+		if _leaving.has(peer):
+			# It answers a command of the connection that left; a new one may hold the id now.
+			return
 		_disconnect(peer)
 	else:
 		push_error("host: unknown directive %s" % directive.event_name())
@@ -394,10 +398,11 @@ func _send(peer: int, kind: int, payload: PackedByteArray) -> void:
 func _disconnect(peer: int) -> void:
 	if peer == NetTransport.HOST_ID or _disconnected.has(peer):
 		return
-	_transport.disconnect_peer(peer)
-	_disconnected[peer] = true
 	_peers.erase(peer)
 	_relay.leave(peer)
+	# Only a disconnect the transport accepted brings a peer_left that clears the mark.
+	if _transport.disconnect_peer(peer) == OK:
+		_disconnected[peer] = true
 
 
 func _end(reason: StringName) -> void:
