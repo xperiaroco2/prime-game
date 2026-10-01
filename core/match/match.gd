@@ -502,9 +502,9 @@ func _run_action(command: MatchCommand, ctx: MatchContext) -> void:
 
 ## Whether the current phase's allowlist accepts the intent from its sender (§3.1). The dead send
 ## no intents as players (vision revision 1): PLAYER, LIVING and DOWNED accept none, so an intent
-## still in flight at a death never reaches a rule. HOST still accepts the host's own player dead:
-## its intents are the session's controls (ReturnToLobby on the end screen, where whoever died in
-## the round is still dead until ResetMatch), not a player's actions.
+## still in flight at a death never reaches a rule. HOST still accepts the host's own player dead
+## for the session's controls (ReturnToLobby on the end screen, where whoever died in the round is
+## still dead until ResetMatch), never for a player's action (Intents.PLAYER_ACTIONS).
 func _accepts(command: MatchCommand) -> bool:
 	var from := _phase_spec.senders_of(command.kind)
 	var player := state.player(command.peer)
@@ -514,7 +514,7 @@ func _accepts(command: MatchCommand) -> bool:
 		return false
 	var host := from & AcceptSpec.From.HOST != 0 and command.peer == 1
 	if player.life == PlayerState.Life.DEAD:
-		return host
+		return host and not Intents.PLAYER_ACTIONS.has(command.kind)
 	var living := from & AcceptSpec.From.LIVING != 0 and player.life == PlayerState.Life.ALIVE
 	var downed := from & AcceptSpec.From.DOWNED != 0 and player.life == PlayerState.Life.DOWNED
 	return from & AcceptSpec.From.PLAYER != 0 or living or downed or host

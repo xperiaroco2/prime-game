@@ -95,9 +95,9 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   downed (32). Bit 8 was the ghosts' and is never reused; a mode still written for ghosts would silently refuse the
   downed's claims, so the mode check refuses a sender bit that names nobody. The dead send no intents as players:
   `Match` accepts none from them under PLAYER, LIVING or DOWNED (M4-2), so an intent in flight at a death reaches no
-  rule. HOST still accepts the host's own player dead: its intents are the session's controls (`ReturnToLobby` on the
-  end screen, where whoever died in the round is dead until `ResetMatch`). A flag for the dead is added only when a
-  mode needs one.
+  rule. HOST still accepts the host's own player dead for the session's controls (`ReturnToLobby` on the end screen,
+  where whoever died in the round is dead until `ResetMatch`), never for a player's action (`MoveClaim`, `PickUp`,
+  `PutDown`, `Use`: `Intents.PLAYER_ACTIONS`). A flag for the dead is added only when a mode needs one.
 
 ### 3.2 Base mode: phases and transitions
 A **player** is a peer whose `Hello` was accepted; *everyone* in an audience means every player (§5). A connected

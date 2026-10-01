@@ -286,6 +286,39 @@ func test_a_dead_host_still_returns_everyone_to_the_lobby_from_the_end_screen() 
 	assert_str(game.phase_id()).is_equal("lobby")
 
 
+func test_a_dead_host_is_refused_a_player_action_even_under_host() -> void:
+	# HOST lets the dead host keep the session's controls, never a player's actions: a mode that
+	# takes MoveClaim and Use from LIVING | HOST still refuses both from a dead peer 1.
+	var mode := FixtureModes.basic()
+	var round_spec := mode.find_phase(&"round")
+	var living_or_host := AcceptSpec.From.LIVING | AcceptSpec.From.HOST
+	round_spec.accepts = [
+		AcceptSpec.of(Intents.USE, living_or_host),
+		AcceptSpec.of(Intents.MOVE_CLAIM, living_or_host),
+	]
+	var game := FixtureModes.in_round(mode, [P1, P2])
+	var dead := game.state.player(P1)
+	dead.life = PlayerState.Life.DEAD
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 5)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
+	assert_array(FixtureModes.notes(game)).not_contains(["used"])
+	var at := dead.position
+	var claim := {
+		"epoch": dead.epoch,
+		"position": at + Vector3(0.01, 0, 0),
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"client_tick": 1,
+		"jumps": 0,
+	}
+	FixtureModes.send(game, Intents.MOVE_CLAIM, P1, claim)
+	assert_vector(dead.position).is_equal(at)
+	# The control: the same phase takes them from the living host.
+	dead.life = PlayerState.Life.ALIVE
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 7)
+	assert_array(FixtureModes.notes(game)).contains(["used"])
+
+
 func test_a_hello_the_phase_refuses_from_a_newcomer_is_told_joins_closed_and_disconnected() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1])
 	FixtureModes.send(game, Intents.PEER_CONNECTED, P3)

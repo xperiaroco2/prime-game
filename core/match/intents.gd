@@ -18,6 +18,10 @@ const ALL: Array[StringName] = [
 	HELLO, SET_READY, CHANGE_SETTINGS, LOAD_ACK, MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RETURN_TO_LOBBY
 ]
 
+## The intents that are a player's actions in the world, not the session's controls: the dead send
+## none of them, not even the host under HOST (Match._accepts, vision revision 1).
+const PLAYER_ACTIONS: Array[StringName] = [MOVE_CLAIM, PICK_UP, PUT_DOWN, USE]
+
 ## Commands server/ originates from what the transport reports; not intents, never rejected.
 const PEER_CONNECTED := &"PeerConnected"
 const PEER_LEFT := &"PeerLeft"
