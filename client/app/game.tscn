@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://bi0opheuanrkv"]
+
+[ext_resource type="Script" uid="uid://c8iodssnaxqxc" path="res://client/app/game.gd" id="1_game"]
+[ext_resource type="Script" uid="uid://btc1fnju4kojs" path="res://client/world/avatar_views.gd" id="2_avatars"]
+[ext_resource type="Script" uid="uid://bj1pwdo5pw5od" path="res://client/ui/game_ui.gd" id="3_ui"]
+
+[node name="Game" type="Node" unique_id=690248028]
+script = ExtResource("1_game")
+
+[node name="World" type="Node3D" parent="." unique_id=1907147963]
+
+[node name="Avatars" type="Node3D" parent="World" unique_id=2071119730]
+script = ExtResource("2_avatars")
+
+[node name="Ui" type="CanvasLayer" parent="." unique_id=2076332710]
+script = ExtResource("3_ui")
