@@ -644,10 +644,10 @@ The rules of the table:
     ids to an `int` or a `PackedStringArray`; a snapshot's `avatars` are untyped, as `Snapshots.for_peer` builds them.
   - At the declared maxima `ChangeSettings`, `Welcome` and `SettingsChanged` exceed their caps; `LoadMatch` (1445
     bytes) does not, and the snapshot's 15 avatars take 650 bytes of its 1024.
-  - The comparison with `Intents.FIELDS` (names and decoded Variant types, `ForceRole` included) is built in
-    `wire_core_test.gd` and found no drift after 3e; with it, a decoded `ForceRole` forces its role in a seeded deal
-    (its role must stay a `String`: `Match` reads it with `get_string`) and a decoded `Hello` joins only with the
-    host's content hash.
+  - `wire_core_test.gd` compares the table with `Intents.FIELDS` (names and decoded Variant types, `ForceRole`
+    included) and applies decoded `ForceRole`, `Hello` and `ChangeSettings` to a `Match`. A decoded `ForceRole`'s
+    role must stay a `String`: `Match` reads it with `get_string`, which gives "" for a `StringName`, so the role
+    would silently go unforced.
 
 ### 4.5 The host session (M3 design, #89)
 `HostSession` (`server/`, 3f) is a `RefCounted` that owns the `Match`, the hosting transport (the host's own client
