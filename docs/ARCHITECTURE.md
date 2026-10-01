@@ -1277,8 +1277,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   placeholder) also snaps.
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
   count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
-  (`PLACING_EVENTS`: `PlayersPlaced` and `KnockedDown`; a death sends no `Correction`; a later rule that places a
-  player with a `Correction`, a revive or a respawn, adds its event there).
+  (`PLACING_EVENTS`: `PlayersPlaced`, `KnockedDown` and `Respawned` (M4-4); a death and a revive send no
+  `Correction`; a later rule that places a player with a `Correction` adds its event there).
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
@@ -1346,7 +1346,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   so an uncut sound would tell every client through the walls where a package was just put down. Occlusion is M5's.
 - **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
   again; the spectate camera and the lift music stop. After `Revived` the controller stands up where it lay, in first
-  person; whether a revive also sends a `Correction` is M4-4's to decide, and the client adopts one like any other.
+  person; a revive sends no `Correction` (M4-4: the raise held the downed player where the host has it).
 - **Others:** a `RemotePlayerBody` shows its facing (a head that turns and nods), the hand item at a hand attach
   point, the belt item at a belt attach point, a two-handed package held in front, the downed pose and its layer, and
   invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.

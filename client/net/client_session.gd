@@ -37,10 +37,10 @@ const LEFT := &"left"
 ## MoveClaim's jumps is a u16 (§4.3); a count that high never happens in one epoch.
 const MAX_JUMPS := 0xFFFF
 ## The events that move this client right before its Correction (place_players.gd at Loading and
-## at End -> Lobby, life_rules.gd at a knockdown; a death sends none): that Correction counts in
-## `placements`, not in `corrections`. A new rule that places a player and sends a Correction (a
-## respawn, M4-3) adds its event here.
-const PLACING_EVENTS: Array[StringName] = [&"PlayersPlaced", &"KnockedDown"]
+## at End -> Lobby, life_rules.gd at a knockdown and a respawn; a death and a revive send none):
+## that Correction counts in `placements`, not in `corrections`. A new rule that places a player
+## and sends a Correction adds its event here.
+const PLACING_EVENTS: Array[StringName] = [&"PlayersPlaced", &"KnockedDown", &"Respawned"]
 
 ## The record of every decoded message, for the bots and the leak test; off by default (a real
 ## client does not need it, and a 10-minute match holds 12000 snapshots), like Match.keep_history.

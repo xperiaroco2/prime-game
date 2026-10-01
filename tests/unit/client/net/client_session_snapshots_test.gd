@@ -70,6 +70,30 @@ func test_a_placement_or_a_knockdown_is_not_a_correction() -> void:
 	assert_int(session.placements).is_equal(2)
 
 
+func test_a_respawn_is_a_placement_and_a_revive_is_not() -> void:
+	# M4-3's respawn sends Respawned, then the respawned player's Correction at the marker; M4-4's
+	# revive sends no Correction (the raise held the player in place), so one after it is a
+	# refused claim.
+	_harness.welcome(&"round", 1)
+	var session := _harness.session
+	_harness.send(DiedEvent.new(_harness.peer, Vector3(6, 0, 8)))
+	_harness.send(RespawnedEvent.new(_harness.peer, Vector3(14, 0, -5)))
+	_harness.send(CorrectionEvent.new(_harness.peer, 2, Vector3(14, 0, -5), Vector3.ZERO))
+	_harness.pump()
+	assert_int(session.corrections).is_equal(0)
+	assert_int(session.placements).is_equal(1)
+	_harness.send(RevivedEvent.new(_harness.peer))
+	_harness.send(CorrectionEvent.new(_harness.peer, 3, Vector3(14, 0, -4), Vector3.ZERO))
+	_harness.pump()
+	assert_int(session.corrections).is_equal(1)
+	assert_int(session.placements).is_equal(1)
+	# Someone else's respawn leaves the next Correction counted.
+	_harness.send(RespawnedEvent.new(99, Vector3(-14, 0, 5)))
+	_harness.send(CorrectionEvent.new(_harness.peer, 4, Vector3(14, 0, -4), Vector3.ZERO))
+	_harness.pump()
+	assert_int(session.corrections).is_equal(2)
+
+
 func test_someone_else_placed_or_knocked_down_leaves_the_next_correction_counted() -> void:
 	_harness.welcome(&"lobby", 1)
 	var session := _harness.session
