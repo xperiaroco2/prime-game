@@ -1,6 +1,6 @@
 # M4: the first-person client on the network, and the split of vision revision 1's rework
 
-- **Status:** Proposed. The engineer answers E18 to E32 and relays the designer's answers to D4 to D10; the answers
+- **Status:** Proposed. The engineer answers E18 to E33 and relays the designer's answers to D4 to D10; the answers
   are written in here before the manager merges this ADR's PR into `release/m4` and before M4's code starts
 - **Date:** 2026-10-01
 - **Deciders:** designed by the agent in #125 (the M4 design, under the M4 manager session, #134); the engineer
@@ -13,7 +13,7 @@
   [Vulkan on Windows](2026-10-01-vulkan-on-windows.md),
   [a release branch per milestone](2026-10-01-release-branch-per-milestone.md)
 - **Numbering:** the choices continue the M3 design's E1 to E17 and D1 to D3, which `docs/ARCHITECTURE.md` cites, so
-  "E8 (a)" never means two things: this ADR's are **E18 to E32** and **D4 to D10**. The proposed issues are **M4-1
+  "E8 (a)" never means two things: this ADR's are **E18 to E33** and **D4 to D10**. The proposed issues are **M4-1
   to M4-9** and the designer's **L-1**; the manager maps them to issue numbers when it opens them.
 
 ## Context
@@ -109,6 +109,11 @@ design routes it for M4's client PRs, although the root routing names it only fo
    a swing): the client has no `Damaged` of another player and plays no hit sound or effect on the attacker's side.
 8. Countdowns come from public events and the mode's numbers (V13); nothing is inferred from timing or packet sizes.
 9. The debug overlay and anything else that shows hidden information exist in debug builds only.
+10. A world sound plays only within a hearing range around the listener's camera, the same for the living, the
+    downed and the dead (E33 (a): `AudioStreamPlayer3D.max_distance` and a sound chooser that plays nothing for an
+    event from farther away; about 12 m, a placeholder, "not a decision"). `Swung`, `ItemPickedUp` and
+    `ItemPlaced` reach everyone with a position, and a fading but uncut sound would tell every crew client, through
+    the walls, where a dissident just put a package down. Occlusion is M5's.
 
 **Host trust:** the client sends intents only, and the host checks every one again (reach, sight, life, slots,
 stamina, the raise's conditions every tick). The facing is a claim whose only effects are the hit zone's direction,
@@ -332,6 +337,7 @@ be reverted. Not reopened: V1 to V13 and the answers 1 to 9 on PR #133.
 | E30 | The task screen's data (rework item 8) | (a) a public `TaskState(task, type, done, total)` per task, after the deal and after each subtask done; `TaskProgress` stays for the HUD; (b) `TaskProgress` grows a per-task list (a changed row); (c) `TasksDealt(types)` once, with the client counting deliveries | (a): additive, and generic for #36's zone task; (c) works for Delivery only |
 | E31 | M4's size | (a) as split (§7): nine issues and #76, with #118 running and #119 folded: 11 workflow tasks against about 8 in the stage's budget; (b) M4-2 and M4-3 as one PR, rework item 4 whole (about 2000 lines): 10 tasks; (c) as (a), with #76 moved to M5 (its placeholders stay until then): 10 tasks | (a): every PR stays near 1500 lines or under, which a fresh reviewer can check. If the budget runs short, (c) is what to drop first, then M4-9's lift music and M4-8's placeholder sounds |
 | E32 | The Open knowledge pillar after answer 2 (found by the review of PR #133's last commit) | (a) keep it: "known to everyone" means not secret and learnable in play (items start on their markers, in view), while a later map draws only zones; (b) reword its "the item spawn points" to "the zones where items may appear" (the vision revision ADR and `docs/GDD.md` §1, relayed to the designer); (c) a later map shows spawn points after all | (b): answer 2's "never points" is the newer and more specific word, and newer answers win. Under (a) a later agent reads the pillar as licence for a spawn-point list or overlay that the engineer ruled out. It changes no code: `ItemSpawned` still reaches everyone (#32) |
+| E33 | How far a world sound carries (found by M4's design review; no ADR sets it) | (a) a hearing range: a world sound for `Swung`, `ItemPickedUp` or `ItemPlaced` plays only within about 12 m of the listener's camera (`AudioStreamPlayer3D.max_distance`, a placeholder), for the living, the downed and the dead alike; no occlusion until M5; (b) no world sounds in M4; (c) sounds that fade with distance but never cut off (Godot's default) | (a): the events reach everyone with a position, so under (c) a dissident who hides a package in a far storeroom is heard putting it down, from its direction, by every crew client, and every fight on the map is heard too: a hidden package would no longer be hidden by sight. (b) is safe but leaves the dead's "world sounds around the target" (V11) silent |
 
 ## Needs the designer
 The engineer answers each by relay (`docs/AGENT_WORKFLOW.md` §9); @SwiftySinister may object on the PR, and a

@@ -1028,7 +1028,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   The M4 design (§4.7, E20) runs the game in windows by default and this session with `--headless`.
 
 ### 4.7 The game client (M4 design, #125)
-Proposed in the [M4 ADR](decisions/2026-10-01-m4-first-person-client.md): the engineer's choices E18 to E32 and the
+Proposed in the [M4 ADR](decisions/2026-10-01-m4-first-person-client.md): the engineer's choices E18 to E33 and the
 designer's D4 to D10 wait for an answer, and this section follows each recommendation until then. It is the client
 that M4-6 to M4-9 build; the core rework of vision revision 1 (M4-1 to M4-5) rewrites §3 to §9 in the issues that
 change their code, and the client reads the events those issues add (the ADR's §4 lists them).
@@ -1174,6 +1174,10 @@ test, like `net/`'s "names no `core/` class"). So the host's own player sees onl
   listener follows the current camera, so positional sounds play around the target); lift music from an
   `AudioStreamPlayer` that only the dead player's client plays. M4's world sounds are placeholders for `Swung`,
   `ItemPickedUp` and `ItemPlaced` at their positions.
+- **A hearing range** (E33 (a)): a world sound plays only within about 12 m of the listener's camera (a placeholder,
+  "not a decision"), for the living, the downed and the dead alike: a pure sound chooser (unit-tested) drops an event
+  from farther away, and each `AudioStreamPlayer3D` sets `max_distance`. The events reach everyone with a position,
+  so an uncut sound would tell every client through the walls where a package was just put down. Occlusion is M5's.
 - **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
   again; the spectate camera and the lift music stop. After `Revived` the controller stands up where it lay, in first
   person; whether a revive also sends a `Correction` is M4-4's to decide, and the client adopts one like any other.
@@ -1201,6 +1205,7 @@ the downed camera at or below eye height and never through the level; no screen 
 position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
 public circles only); a role named only on its own player's screen (a dissident's teammates on theirs); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
+World sounds play within the hearing range only (E33).
 
 **What stays headless:** `HostSession`, `ClientSession`, `ClientModel`, `DecodedView`, the bots runner and the leak
 test, `host` and `join` with `--headless`, and every GdUnit4 suite. A bot loads no scene.
@@ -2269,4 +2274,4 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
 | Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
-| The M4 client's choices E18 to E32 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | before M4's code (#125) |
+| The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | before M4's code (#125) |
