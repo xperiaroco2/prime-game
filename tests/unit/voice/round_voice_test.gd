@@ -103,9 +103,9 @@ func test_a_downed_player_moving_away_stops_hearing_at_living_m() -> void:
 	downed.life = PlayerState.Life.DOWNED
 	var heard_on: Array[bool] = []
 	var within_on: Array[bool] = []
-	# It crawls away: 0.09 m a tick, within the crawl's 0.05 m and its 0.05 m of slack.
-	for i in 140:
-		FixtureMoves.step(game, P2, EAST * 0.09, {"moving": true})
+	# It crawls away at the crawl speed: 0.05 m a tick (1 m/s).
+	for i in 280:
+		FixtureMoves.step(game, P2, EAST * 0.05, {"moving": true})
 		heard_on.append(FixtureVoiceMatch.heard(game, P2) == [P1])
 		within_on.append(p1.position.distance_to(downed.position) <= LIVING_M)
 		assert_array(FixtureVoiceMatch.heard(game, P1)).is_empty()

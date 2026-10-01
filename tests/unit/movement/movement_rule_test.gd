@@ -287,9 +287,9 @@ func test_a_downed_player_crawls_with_no_sprint_and_no_push_allowance() -> void:
 	downed.life = PlayerState.Life.DOWNED
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# The crawl: 1 m/s is 0.05 m per tick, plus 0.05 m of slack, with or without sprint.
-	FixtureMoves.step(game, P1, EAST * 0.095, {"moving": true})
-	FixtureMoves.step(game, P1, EAST * 0.095, FixtureMoves.sprinting())
+	# The crawl: 1 m/s is 0.05 m per tick, plus a tenth of it as slack, with or without sprint.
+	FixtureMoves.step(game, P1, EAST * 0.054, {"moving": true})
+	FixtureMoves.step(game, P1, EAST * 0.054, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	# Sprinting buys nothing: a living walker's 0.225 m per tick is corrected.
 	FixtureMoves.step(game, P1, EAST * 0.2, FixtureMoves.sprinting())
@@ -298,6 +298,20 @@ func test_a_downed_player_crawls_with_no_sprint_and_no_push_allowance() -> void:
 	var fields := {"client_tick": downed.claim_tick + 1}
 	FixtureMoves.step(game, P1, EAST * 0.11, fields)
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 2)
+
+
+func test_one_tick_claims_do_not_double_the_crawl_speed() -> void:
+	# A fixed slack per claim (0.05 m) is a whole tick of the crawl: a client claiming every tick
+	# would crawl at about 1.9 m/s. The crawl's slack is in proportion to its own travel.
+	var game := FixtureMoves.in_round([P1])
+	var downed := game.state.player(P1)
+	downed.life = PlayerState.Life.DOWNED
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.steps(game, P1, 20, EAST * 0.05, {"moving": true})
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	FixtureMoves.steps(game, P1, 20, EAST * 0.095, {"moving": true})
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_greater(seen)
 
 
 func test_a_downed_player_spends_no_stamina_and_regenerates() -> void:

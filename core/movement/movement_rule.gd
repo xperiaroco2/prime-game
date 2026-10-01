@@ -37,7 +37,9 @@ extends RefCounted
 ##   living sprint in the sprint state with movement input, else walk; for the downed the crawl
 ##   speed, with no sprint), plus, for the living only, sprint speed for being pushed (§7.1
 ##   "Pushing apart", proposed for M4; the downed push nobody and nobody pushes them), plus
-##   DISTANCE_SLACK_M. The host never checks or corrects overlap between players.
+##   DISTANCE_SLACK_M. The crawl's slack is CRAWL_SLACK_FRACTION of its own travel (+ the float
+##   slack) instead: a fixed slack per claim would let a client sending one-tick claims crawl at
+##   twice the crawl speed. The host never checks or corrects overlap between players.
 ## - Height: until the next landing (a claim on the floor with a WorldQuery floor within step
 ##   height), the feet stay within the jump height (+ JUMP_SLACK) of the take-off after an
 ##   accepted jump, else within step height (+ STEP_CLEARANCE, + the horizontal travel times
@@ -63,6 +65,9 @@ const STEP_CLEARANCE := 0.01
 const FLOOR_MAX_ANGLE := PI / 4.0
 ## Extra horizontal distance a claim may travel beyond its speed, for rounding.
 const DISTANCE_SLACK_M := 0.05
+## The crawl's slack, a fraction of the crawl's own travel: DISTANCE_SLACK_M is as long as a whole
+## tick of the crawl, so a client sending a claim every tick would crawl at twice the speed.
+const CRAWL_SLACK_FRACTION := 0.1
 ## Extra height a claim may reach beyond its bound: positions are 32-bit floats.
 const HEIGHT_SLACK_M := 0.001
 ## WorldQuery looks for the floor from this far above the feet, so feet resting on it find it.
@@ -258,8 +263,10 @@ static func _allowed_travel(
 ) -> float:
 	var metres_per_tick := 1.0 / Ticks.RATE
 	if player.life == PlayerState.Life.DOWNED:
-		# The crawl: its speed alone, with no sprint and no push allowance.
-		return covered * rules.crawl_speed_mps * metres_per_tick + DISTANCE_SLACK_M
+		# The crawl: its speed alone, with no sprint and no push allowance, and a slack in
+		# proportion (plus the float slack positions need) rather than a fixed one per claim.
+		var crawl := covered * rules.crawl_speed_mps * metres_per_tick
+		return crawl * (1.0 + CRAWL_SLACK_FRACTION) + HEIGHT_SLACK_M
 	# Ticks the claim covers beyond what could be settled now take the state a next tick has.
 	var sprint_ticks := settled.sprint_ticks
 	if settled.next_sprinting:

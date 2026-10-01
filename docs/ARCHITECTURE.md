@@ -1570,7 +1570,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   - Speed: per covered tick the state's speed (a tick not settled yet takes the state the next tick would have;
     a living player's claim without movement input gets the walk speed, since only input pays for sprint),
     for the living plus `sprint_speed` (Pushing apart below; proposed for M4, used provisionally); for the downed the
-    crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M` (0.05 m) per claim.
+    crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M` (0.05 m) per claim, or
+    for the crawl `CRAWL_SLACK_FRACTION` (a tenth) of its own travel plus 1 mm: 0.05 m is a whole tick of the
+    crawl, so a fixed slack would let a client claiming every tick crawl at twice the speed.
   - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus
     `STEP_CLEARANCE` below its feet, which a ledge crossing needs; `FLOOR_PROBE_M` above the feet is where the query
     starts): after an accepted jump, the jump height
@@ -1619,7 +1621,7 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   capsule moved ahead on the pusher's client (display only).
 - **The crawl** (vision revision 1; M4-2, #138, replacing the ghosts' movement). A downed player's claims get the
   movement checks with the crawl's bounds: the allowed travel is `PlayerRules.crawl_speed_mps` times the ticks covered
-  (plus the slack), with no sprint ticks and no push allowance; a new jump is corrected; the rise is the step height
+  (plus a tenth of that, and 1 mm for floats), with no sprint ticks and no push allowance; a new jump is corrected; the rise is the step height
   (plus `STEP_CLEARANCE` and the slope allowance) above the last landing. The downed are never in the sprint state and
   spend no stamina; it regenerates as usual. They collide with the level client-side and with no player. `PickUp`,
   `PutDown` and `Use` from the downed are rejected (`not_accepted`: Round accepts them from the living only); the dead

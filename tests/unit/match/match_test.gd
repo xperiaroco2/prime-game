@@ -216,8 +216,8 @@ func test_a_downed_player_may_move_but_not_use() -> void:
 	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 5)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
 	assert_array(FixtureModes.notes(game)).not_contains(["used"])
-	# One tick of the crawl: 1 m/s is 0.05 m, and the check adds 0.05 m of slack.
-	var to := downed.position + Vector3(0.08, 0, 0)
+	# One tick of the crawl: 1 m/s is 0.05 m (the check adds a tenth of it as slack).
+	var to := downed.position + Vector3(0.05, 0, 0)
 	var claim := {
 		"epoch": downed.epoch,
 		"position": to,
