@@ -348,62 +348,91 @@ ARCHITECTURE describes the code as built, so each section changes in the rework 
 | §10 | the M5 row: dead chat and meetings out |
 
 ### The rework, for #125 to split into M4 issues
-Counted on 2026-10-01: 41 `.gd` files name a `GHOST` constant, and 77 `.gd` and `.tres` files mention ghosts.
-1. **The life model, in one PR.** `PlayerState.Life` becomes {ALIVE, DOWNED, DEAD, LEFT}; `is_alive()` means ALIVE
-   only. `AcceptSpec` gets explicit DOWNED and DEAD flags instead of GHOST, and Round's accepts in `base_mode.tres`
-   are rewritten on purpose (reusing GHOST's bit would make `MoveClaim` accept the downed by accident).
-   `PlayerRules.ghost_speed_factor` becomes a crawl speed with `ModeCheck` bounds. One PR, because a removed enum
-   value is a parse error in every file that names it. The leak test's life-state invariants are replaced in the
-   same PR (item 8), so it never runs without one.
-2. **Knockdown, death and respawn timers.** A tick system in `core/life/` with per-player deadlines (the knockdown
-   paused by a raise, the respawn); the events of §4.2 and their facts; a respawn effect with the marker tag
-   `respawn`, the RNG purpose `respawn` and a `Demands` entry; bodies that live until their player respawns.
-   `MatchState.bodies` is keyed by peer, which stays enough while a player has at most one body. The review proposes
-   a `Correction` at the knockdown (a new epoch, so walk-speed claims in flight drop as stale instead of failing the
-   crawl check) and at the respawn, and none at a death.
-3. **The raise: a channel primitive and the give-up.** A generic channel (start, progress in a tick system, cancel
-   or complete), the first action that targets a player (conditions: the target is downed, in reach, in sight), the
-   pause of the knockdown timer, and the give-up as data (a die effect accepted from the downed). The zone task
-   (#36) can reuse the channel.
-4. **Invulnerability.** An until-tick on the player; `Strike.targets` skips it before any `Damaged`; the player's own
-   attack ends it; a public avatar flag.
-5. **Two hand slots.** `ItemKind.hands` (1 or 2); a belt slot on the player; `ItemState.Where` gains the belt;
-   `Items.take`'s new rule; a swap intent and effect; `Match._find_action` reads the hand only; death and leaving drop
-   both slots. The owner never receives its own avatar, so its own slots must follow from events.
-6. **The voice invariant.** `VoiceRule.speakers_of` drops every speaker who is not living and gives a dead listener
-   nobody, before asking the mode's rule; `RoundVoice` keeps `living_m` only, the downed hearing from where they lie.
-   Tested through a fixture mode whose rule lets everyone hear everyone.
-7. **The protocol rows and the version bump**, one issue before the client issues, updating §4.1 to §4.3 in the same
-   PR: the avatar flags and belt item; the new intents and events; a per-task progress or a "tasks dealt" event for
-   the task screen (public, in the task events the leak test compares); the `Items` causes;
-   `JoinRules.PROTOCOL_VERSION`; the codec samples; `base_mode.tres`'s content hash.
-8. **The leak test and scenario invariants.** Removed: "a living peer never gets a ghost's avatar or voice". Added,
-   written apart from the declarations: no snapshot holds a dead player's avatar; no peer's speakers include a downed
-   or dead speaker; a dead peer's speakers are empty; a downed peer hears only living speakers; a dead peer receives
-   no event or field it would not receive living. `AVATAR_FIELDS` and `LeakCheck.FOR_ONE` follow. Planted leaks prove
-   the new checks (a downed speaker routed to the living; a dead player's avatar sent).
-9. **Bot scenarios.** `dissident_kills_the_crew.tres` (the bots-over-ENet verify step and the only scenario with
-   deaths; it expects a `no_crew_alive` win and a ghost's refusal) is rewritten to knock down, die, respawn and end by
-   time up with a short match; `refusals.tres` expects a swap where the belt now takes the knife. New scenarios: a
-   revive, a give-up and a respawn, a hidden package, a two-handed pickup with a full belt. New steps for raise, give
-   up and swap; bots stop claiming while dead, crawl while downed and adopt the respawn's `Correction`.
-10. **Content data.** `no_crew_alive.tres` out and no crew present in; Crew's display names; a `description` on
-    `TaskType` for the task screen; `hands` on the package (2) and the knife (1); the new numbers in `base_mode.tres`
-    with `ModeCheck` bounds.
+Counted on main on 2026-10-01: `git grep -l GHOST -- '*.gd'` lists 48 files, and
+`git grep -l -i ghost -- '*.gd' '*.tres'` lists 78.
+
+The order below keeps `verify` green after every item. Two rules hold for each of them:
+- A new intent or event gets its wire row, its codec sample and a `JoinRules.PROTOCOL_VERSION` bump in the same PR,
+  with ARCHITECTURE §4.1 to §4.3 updated for it: `WireSchema.encode` refuses a message with no row, so a later
+  "protocol issue" would leave every earlier item red over ENet.
+- The leak test's and `ScenarioInvariants`' checks change in the PR that changes what they check, written apart from
+  the declarations, each new one proven by a planted leak.
+
+1. **Respawn markers (levels, the designer).** `spawn_respawn` markers in the greybox. The host's marker reader
+   already reads any `spawn_<tag>` group (`server/levels/marker_reader.gd`) and nothing demands the tag yet, so this
+   lands first and independently, and item 4's demand finds the markers.
+2. **The life model, in one PR, as a rename.** `PlayerState.Life` becomes {ALIVE, DOWNED, DEAD, LEFT}; `is_alive()`
+   means ALIVE only. In this step DOWNED takes over GHOST's behaviour unchanged (0 health leads to it with no timer;
+   the body, the speed factor, who sees and hears it), so behaviour and tests change only where names do, and DEAD
+   is not reached yet; this transitional state exists only between M4's PRs. `AcceptSpec` gets an explicit DOWNED
+   flag in GHOST's place, and Round's accepts in `base_mode.tres` are rewritten on purpose. GHOST's old bit is never
+   reused for DEAD: that would accept the dead's `MoveClaim`. A DEAD flag is added only when a mode needs one, since
+   the dead send no intents. The leak test's ghost invariant is renamed to the downed (true until item 4). The
+   avatar's wire bit keeps the name `ghost` and is set from DOWNED (`core/match/snapshots.gd`), so this item changes
+   no protocol. One PR, because a removed enum value is a parse error in every file that names it.
+3. **The voice invariant.** `VoiceRule.speakers_of` drops every speaker who is not living and gives a dead listener
+   nobody, before asking the mode's rule; `RoundVoice` keeps `living_m` only, a downed listener hearing from where
+   they lie; the ghost radii leave `base_mode.tres`. Tested through a fixture mode whose rule lets everyone hear
+   everyone. In the same PR the leak test checks: no peer's speakers include a downed or dead speaker; a dead peer's
+   speakers are empty; a downed peer hears only living speakers. ARCHITECTURE §6.
+4. **Knockdown, death and respawn.** The downed become what this ADR says: visible to everyone (the snapshot no
+   longer hides them; the wire bit `ghost` is renamed `downed`, a version bump), crawling at the crawl speed, which
+   replaces `PlayerRules.ghost_speed_factor` with `ModeCheck` bounds. The host's crawl check is named: the allowed
+   travel is the crawl speed times the ticks covered, with no sprint ticks and no push allowance; a new jump is
+   corrected; the allowed rise is the step height. `movement_rule_test` covers a downed claim with sprint, with a
+   jump and with a step-height rise (today `movement_rule.gd` lets a ghost sprint and jump for free). A tick system
+   in `core/life/` with per-player deadlines (the knockdown, which item 5 pauses; the respawn); the public events
+   and their facts; bodies that live until their player respawns (`MatchState.bodies` is keyed by peer, enough
+   while a player has at most one body); a respawn effect with the marker tag `respawn`, the RNG purpose `respawn`
+   and a `Demands` entry of at least 1. A `Correction` at the knockdown (a new epoch, so walk-speed claims in flight
+   drop as stale instead of failing the crawl check) and at the respawn, none at a death; the scenario runner and
+   the bots treat both as placements (ARCHITECTURE §9.7 fails a scenario on a `Correction` outside one), and bots
+   stop claiming while dead, crawl while downed and adopt the respawn's `Correction`. In the same PR, because with
+   `is_alive()` meaning ALIVE a moment with every crew member down would otherwise end the round:
+   `no_crew_alive.tres` is replaced by the no crew present win (`NoneAlive` limited to LEFT, in the same place in
+   the order), and `dissident_kills_the_crew.tres` (the bots-over-ENet verify step, the only scenario with deaths)
+   is rewritten to knock down, die, respawn and end by time up with a short match. The leak test drops the downed
+   invariant of item 2 and checks: no snapshot holds a dead player's avatar; a dead peer receives no event or field
+   it would not receive living. `life_rules_test` covers every transition, leaving while downed or dead included.
+5. **The raise and the give-up.** A generic channel primitive (start, progress in a tick system, cancel or
+   complete), which the zone task (#36) can reuse; the first action that targets a player (conditions: the target
+   is downed, in reach, in sight, checked every tick); one raiser at a time; the knockdown timer paused; the downed
+   player held in place while a raise runs; each cancel of the Revive section, the raise-stopped event naming no
+   cause; the revive health from data; the give-up as data (a die effect accepted from the downed). Unit tests for
+   each cancel and for a restarted raise that cannot move the downed player.
+6. **Invulnerability.** An until-tick on the player; `Strike.targets` skips them before any `Damaged`; the player's
+   own accepted attack ends it; a public avatar flag (a version bump); nobody has it at the round start;
+   `strike_test` cases.
+7. **Two hand slots.** `ItemKind.hands` (1 or 2), set on the package (2) and the knife (1) in the same PR; a belt
+   slot on the player; `ItemState.Where` gains the belt; `Items.take`'s new rule; the swap intent and effect,
+   refused while a two-handed item is in the hand; `Match._find_action` reads the hand only; death and leaving drop
+   both slots. The owner never receives its own avatar, so its own slots follow from events. The avatar's belt item
+   on the wire, and the 1024 B snapshot budget rechecked. `refusals.tres` (which expects a swap where the belt now
+   takes the knife) is updated in the same PR.
+8. **The task screen's data.** A public per-task progress or "tasks dealt" event, emitted by the deal and by
+   Delivery, in the task events the leak test compares (`TASK_EVENTS`); a `description` on `TaskType`, checked by
+   `ModeCheck` and filled in `delivery.tres`.
+9. **More bot scenarios.** A revive, a give-up and a respawn, a hidden package, a two-handed pickup with a full
+   belt; new steps for raise, give up and swap. (The scenarios an item breaks are fixed in that item.)
+10. **Content data.** Crew's display names (Engineer, Engineers); the knockdown, raise, revive health, respawn,
+    invulnerability and crawl numbers in `base_mode.tres` with `ModeCheck` bounds, where an earlier item did not
+    already add them.
 11. **The client (M4).** `ClientModel` folds an explicit life state from the life events instead of "has a body"
-    (today `is_alive()` and `ClientSession._claims_accepted` would leave a respawned player dead); the downed pose
-    and crawl (the ghosts' physics layer becomes the downed's), and a third-person camera that collides with the
-    level (for example a `SpringArm3D`); the give-up and hold-E inputs with the raise's progress; the countdowns;
-    the spectate camera from `ClientModel` only, with target cycling, its seeded generator, the world sounds and lift
-    music; both slots on `RemotePlayerBody` and in the HUD; the swap key; the Tab task screen and its map. The
-    spectate camera needs the look pitch: M4's controller sends the camera's look vector in `MoveClaim.facing`, or
-    the avatar gains a pitch, and M4 does not lower the snapshot rate without checking spectating. `set_ghost` and
-    its tests go.
-12. **Levels.** `spawn_respawn` markers in the greybox; a map asset per level inside the content hash (#118), with
-    the task circles and item spawn points drawn over it (from the public events, or from the level's markers if
-    "Needs the engineer" 2 goes the other way); the put-down rule of `levels/CLAUDE.md`.
+    (today `is_alive()` and `ClientSession._claims_accepted` would leave a respawned player dead). The own player:
+    the downed pose and crawl (the ghosts' physics layer becomes the downed's), a third-person camera within the
+    bound of the Knockdown section that collides with the level (for example a `SpringArm3D`), the give-up and
+    hold-E inputs with the raise's progress, the own countdowns, the swap key, hand and belt in the HUD. Other
+    players: the downed pose, the invulnerable flag, hand and belt on `RemotePlayerBody`, bodies appearing and being
+    removed. The spectate camera from `ClientModel` only, with target cycling, its seeded generator, the world
+    sounds and lift music. It needs the look pitch: M4's controller sends the camera's look vector in
+    `MoveClaim.facing`, with `Strike` and `Swung` flattening it to the horizontal before use (it is `Strike`'s
+    fallback zone direction and `Swung`'s public facing), or the avatar gains a pitch; M4 does not lower the
+    snapshot rate without checking spectating. The Tab task screen and its map. `set_ghost` and its tests go.
+12. **The map asset (levels).** A map asset per level inside the content hash (#118), with the task circles and item
+    spawn points drawn over it (from the public events, or from the level's markers if "Needs the engineer" 2 goes
+    the other way); the put-down rule of `levels/CLAUDE.md` checked in a playtest.
 13. **Review.** M4's adversarial review checks that spectating and the task screen render nothing from private or
-    out-of-sight data.
+    out-of-sight data, and that the downed camera sees no more than a standing player at the body would.
 
 ### Issues
 - #125 (M4 design) designs death, items and the HUD by this revision and splits the rework above.
