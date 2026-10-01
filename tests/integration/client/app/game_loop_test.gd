@@ -16,6 +16,8 @@ const S := GameFlow.Screen
 
 var _hub: LoopbackHub
 var _now := 1000000
+## Each game's Corrections so far, newest last.
+var _corrections: Dictionary[Game, Array] = {}
 
 
 func before_test() -> void:
@@ -28,6 +30,9 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	var one := _game(["--join=127.0.0.1", "--port=%d" % PORT])
 	var two := _game(["--join=127.0.0.1", "--port=%d" % PORT])
 	var games: Array[Game] = [host, one, two]
+	for game: Game in games:
+		_corrections[game] = []
+		game.client().corrected.connect(_on_corrected.bind(game))
 	assert_bool(host.hosting()).is_true()
 	assert_int(one.screen()).is_equal(S.CONNECTING)
 	# The lobby: everyone welcomed, the lobby level under World, the player at its spot.
@@ -61,6 +66,8 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 		assert_int(game.level_kind()).is_equal(PhaseSpec.Level.MAP)
 		assert_bool(game.mode.maps.has(game.level().scene_file_path)).is_true()
 		assert_bool(game.player().reads_device_input).is_true()
+	# Loading placed everyone with a Correction: the player stands where it said.
+	_assert_at_the_last_correction(games)
 	# The others are shown at the newest snapshot's positions.
 	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
 	# Time up: the end screen names the winning side by its display name.
@@ -78,6 +85,7 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	for game: Game in games:
 		assert_int(game.level_kind()).is_equal(PhaseSpec.Level.LOBBY)
 		assert_str(game.level().scene_file_path).is_equal(game.mode.lobby_level)
+	_assert_at_the_last_correction(games)
 	# A client leaves; then the host closes, and the other client hears why.
 	two.leave()
 	assert_int(two.screen()).is_equal(S.MENU)
@@ -114,6 +122,17 @@ func _game(args: Array[String]) -> Game:
 	add_child(game)
 	auto_free(game)
 	return game
+
+
+func _on_corrected(position: Vector3, _velocity: Vector3, game: Game) -> void:
+	_corrections[game].append(position)
+
+
+func _assert_at_the_last_correction(games: Array[Game]) -> void:
+	for game: Game in games:
+		assert_array(_corrections[game]).is_not_empty()
+		var last: Vector3 = _corrections[game].back()
+		assert_vector(game.player().global_position).is_equal_approx(last, Vector3.ONE * 0.01)
 
 
 func _clock() -> int:

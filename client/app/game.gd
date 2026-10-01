@@ -256,13 +256,19 @@ func _on_welcomed(own_peer: int) -> void:
 	_sync_level()
 	_player = PLAYER.instantiate() as PlayerController
 	_world.add_child(_player)
-	_player.global_position = _client.model.spots.get(own_peer, Vector3.ZERO)
+	_place(_client.model.spots.get(own_peer, Vector3.ZERO) as Vector3, Vector3.ZERO)
 
 
 func _on_corrected(position: Vector3, velocity: Vector3) -> void:
 	if _player != null:
-		_player.global_position = position
-		_player.velocity = velocity
+		_place(position, velocity)
+
+
+## Puts the player at `position` through teleport(), so the step-up check measures from there and
+## not from where _ready found the body.
+func _place(position: Vector3, velocity: Vector3) -> void:
+	_player.teleport(Transform3D(_player.global_transform.basis, position))
+	_player.velocity = velocity
 
 
 ## The map LoadMatch asked for: instanced now, before the session sends LoadAck.
