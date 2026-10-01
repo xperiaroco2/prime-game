@@ -62,7 +62,9 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   `disconnect_peer(1)`; a broken own client ends the session.
 - `WorldQuery`: per level a `World3D.new()` holding the level's static colliders (layer 1) through `PhysicsServer3D`,
   built when the session starts, before `MarkerReader` reads the markers through them (`use_level` per level); then
-  the level is the one `Match` names (`use_level`). Never the client's scene.
+  the level is the one `Match` names (`use_level`). Never the client's scene. Built (3c):
+  `HostWorldQuery.for_mode(mode)` (`host_world_query.gd`) builds every level's `LevelWorld` (`level_world.gd`); refuse
+  the host on its `errors`, then pass it to `MarkerReader.read_levels` and `Match.new`. A fresh world answers at once.
 - An error recorded while a transition row runs (`Match.row_error_count()` grew in a `Match` call) ends the session
   before that call's events are delivered (the engineer's answer on #90): a deal that could not place its tasks would
   start a round that the crew wins at once. Key on no phase or outcome id: those are the mode's data.

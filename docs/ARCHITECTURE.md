@@ -781,6 +781,25 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   markers' floor and before `Match.start`. Either way the worlds exist before the first claim can arrive. Physics runs
   on the main thread (`project.godot` sets no physics thread), where the 4.7.2 docs allow `direct_space_state` outside
   `_physics_process`; stepping from `_physics_process` keeps it legal if that setting changes.
+  **Probed in 3c (#99), Godot 4.7.2 with Jolt Physics:** the first query hits. A `World3D.new()` space with one static
+  box added through `PhysicsServer3D` (`body_set_state` of the transform, then `body_set_space`) answers
+  `intersect_ray` in the same frame, before any physics step, and again after one step: the host needs no wait, and 3c
+  wires in no fallback. Shown by `tools\run.cmd test tests/integration/server/level_world_test.gd` (passed on
+  2026-10-01), whose `test_a_fresh_space_answers_a_ray_before_and_after_one_physics_step` asserts both hits.
+- **Built in 3c (#99).** `LevelWorld` (`server/level_world.gd`: `build(path)`, `from_packed(scene, path)`,
+  `from_scene(root, path)`, `errors`) builds one level's world as above, and also reports a `CollisionPolygon3D` of a
+  layer-1 body, which it does not read, any other physics body on layer 1 (a `RigidBody3D`, a `CharacterBody3D`), a
+  scene that cannot be instantiated and a level that gives the world no layer-1 body; a disabled shape and a body on
+  other layers are left out. Only a root CSG node with `use_collision` and a `GridMap` whose used items have shapes
+  count as collision. An `AnimatableBody3D` is a `StaticBody3D`: built where the scene puts it, it never moves on the
+  host. `HostWorldQuery` (`server/host_world_query.gd`: `for_mode(mode)` builds every level of the mode with its capsule
+  radius, `errors`; `add_level`, `use_level`) answers as above; with no level (an empty or unknown path) it answers like
+  an empty world. A floor answer keeps the point's x and z. A ray that starts inside a shape does not hit it
+  (`hit_from_inside` is off: sight from inside a wall is clear, within §7.1's limit that the host does not check walls),
+  and one that starts exactly on a surface may miss it, so callers ask from a little above the point, as `core/` does.
+  `MarkerReader.read_levels` calls `use_level(path)` before reading each level. Tests: `tests/integration/server/`
+  (fixture levels with a wall, a ledge and a low crate in `tests/fixtures/levels/`, a package put down beside the ledge
+  through a `Match`, and 2j's flat levels).
 
 **The command log and replays** (E13). The host keeps the log in memory (§3.3). A debug-build host writes the session's
 log to `user://replays/` when the session ends (never after each match) and keeps the last 10: the log holds the session
@@ -1940,7 +1959,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
-| How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | M3, before `server/` hosts a match (3c) |
+| How `MarkerReader` finds the floor under a `circle` marker in M3: `read_levels` reads every level of the mode before `Match.new`, from a copy outside any physics space, so the host's `WorldQuery` (§7.1, one space holding the loaded level) cannot answer it; either the reader computes the floor from the scene's own static colliders, or it reads each level once it is in the host's space (§9.6). #89 proposes the second: the host builds every level's world first and `read_levels` points the host's `WorldQuery` at each level (§4.5 Starting) | Settled: the second, built in 3c (#99, §4.5) |
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
