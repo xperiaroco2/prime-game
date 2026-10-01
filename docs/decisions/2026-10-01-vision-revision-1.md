@@ -114,7 +114,9 @@ Replaces "Death and ghosts". There are no ghosts.
 - Strikes skip a downed player: they **cannot be hit**.
 - Crawling into a circle with the package and giving up, so that the package drops at the body inside its circle and
   counts, is legal (V4).
-- The camera goes third person above the body.
+- The camera goes third person above the body, no higher than a standing player's eye height (1.6 m) above it,
+  and it collides with the level. A package is hidden by sight only, so being downed (or watching a downed player)
+  must not show over cover or around corners more than standing at the body would ("Needs the engineer" 9).
 
 **Revive** (V3)
 - Any living player, dissidents included, may **raise** a downed player by holding E for 3 s, within reach and in
@@ -215,6 +217,7 @@ public events and the mode's numbers, so this is a rule of the interface, not of
 | Respawn markers the layout check demands | at least 1 |
 | Invulnerability after a revive or a respawn | 3 s |
 | Crawl speed | 1 m/s |
+| Highest point of the downed camera above the body | 1.6 m, the standing eye height |
 | Playtest target: with no sabotage, the default settings finish within | about 60% of the match time (V13) |
 
 ### Closed and parked
@@ -262,6 +265,10 @@ which can be reverted.
    and downed; (b) as (a), and a raise that ends without completing also uses up the time it paused, so the 10 s
    bound holds exactly; (c) a cooldown for a raiser after a cancelled raise. Recommended (a): it keeps V3's pause
    as answered and removes the unhittable courier; (b) is the step up if playtests find stalls in place.
+9. **How far the downed camera sees** (found by the review): "third person above the body" sets no bound, and a
+   high camera would make a knockdown a way to scout hidden packages. (a) No higher than the standing eye height
+   above the body, colliding with the level; (b) a fixed low camera behind the body. Recommended (a): it keeps the
+   third person the engineer chose and sees no more than standing there would.
 
 ## Alternatives
 - **Many small mechanic issues, one per change:** each would be decided alone, and M4 would keep building on the rest
