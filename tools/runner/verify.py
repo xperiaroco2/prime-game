@@ -28,8 +28,7 @@ STALL_PORTS = 3
 # 8 s), then one scenario over ENet, one process per bot on the real clock: 18 s for its 3 bots and 17 s of match.
 BOTS_ENET_SCENARIO = "dissident_kills_the_crew"
 BOTS_ENET_INSTANCES = 3
-# The game's main scene through its real command line (#149): client/app/game.tscn headless, a host and one client
-# over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then stopped through the stop file. About 5 s.
+
 # Below the ephemeral ranges of Windows (49152+) and Linux (32768+): an ENet client's own socket never takes it.
 ENET_PORTS = range(20000, 32000)
 PORT_TRIES = 50
@@ -86,7 +85,9 @@ def bots_enet() -> int:
 
 
 def game() -> int:
-    """The main scene headless over ENet on a free port (hostjoin.game_check)."""
+    """The game's main scene through its real command line (#149): client/app/game.tscn headless, a host and one
+    client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then stopped through the stop file
+    (hostjoin.game_check). About 5 s."""
     return hostjoin.game_check(free_udp_port())
 
 
