@@ -72,17 +72,18 @@ var role: StringName = &""
 var teammates: Dictionary[StringName, PackedInt32Array] = {}
 var items: Dictionary[int, Item] = {}
 var stations: Dictionary[int, Station] = {}
-## Peer -> where its body lies: the dead of this match (Died); a leave removes it (E26).
+## Peer -> where its body lies: the dead of this match (Died); a respawn or a leave removes it
+## (E26).
 var bodies: Dictionary[int, Vector3] = {}
 ## Peer -> its life state, for the players who are not living (E25): KnockedDown makes one
-## downed, Died dead, PlayerLeft left. Absent means living.
+## downed, Died dead, PlayerLeft left; Respawned makes it living again. Absent means living.
 var lives: Dictionary[int, Life] = {}
 var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
 var winner: StringName = &""
 ## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, downed,
-## held_item}).
+## invulnerable, held_item}).
 var snapshot_tick := -1
 var avatars: Dictionary = {}
 ## Its own SelfStatus (and Damaged's health); -1 until the first arrives.
@@ -103,9 +104,16 @@ func is_alive(peer: int) -> bool:
 
 
 ## The life state of `peer` as this client knows it from the public events (E25): ALIVE unless a
-## KnockedDown, a Died or a PlayerLeft of this match said otherwise.
+## KnockedDown, a Died or a PlayerLeft of this match said otherwise and no Respawned undid it.
 func life_of(peer: int) -> Life:
 	return lives.get(peer, Life.ALIVE)
+
+
+## Whether the newest snapshot shows `peer` invulnerable (the avatar's flag, M4-3): strikes skip
+## it after a respawn or a revive. The own player's never arrives (its avatar is not sent).
+func is_invulnerable(peer: int) -> bool:
+	var avatar: Dictionary = avatars.get(peer, {})
+	return avatar.get("invulnerable", false)
 
 
 ## The client's own copy of the current phase, or null.
@@ -245,7 +253,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			health = fields["health"]
 			stamina = fields["stamina"]
 			sprint_available = fields["sprint_available"]
-		&"KnockedDown", &"Died":
+		&"KnockedDown", &"Died", &"Respawned":
 			_fold_life(event_name, fields)
 		&"Correction":
 			epoch = fields["epoch"]
@@ -253,11 +261,15 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			winner = fields["side"]
 
 
-## A knockdown makes its player downed; a death makes it dead, with its body (E25).
+## A knockdown makes its player downed; a death makes it dead, with its body; a respawn makes it
+## living again and removes its body (E25, E26).
 func _fold_life(event_name: StringName, fields: Dictionary) -> void:
 	var peer: int = fields["peer"]
 	if event_name == &"KnockedDown":
 		lives[peer] = Life.DOWNED
+	elif event_name == &"Respawned":
+		lives.erase(peer)
+		bodies.erase(peer)
 	else:
 		lives[peer] = Life.DEAD
 		bodies[peer] = fields["position"]

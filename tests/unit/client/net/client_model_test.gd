@@ -168,6 +168,36 @@ func test_life_folds_from_the_public_events() -> void:
 	assert_bool(_model.bodies.has(OWN)).is_true()
 
 
+func test_a_respawn_makes_the_player_living_and_removes_its_body() -> void:
+	# E25, E26: Respawned of a dead player (peer 1 died in _to_round) makes it living again and
+	# removes its body; nobody else's life or body changes.
+	_to_round()
+	_fold(DiedEvent.new(OWN, Vector3(6, 0, 6)))
+	_fold(RespawnedEvent.new(1, Vector3(14, 0, -5)))
+	assert_int(_model.life_of(1)).is_equal(ClientModel.Life.ALIVE)
+	assert_bool(_model.is_alive(1)).is_true()
+	assert_bool(_model.bodies.has(1)).is_false()
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.DEAD)
+	assert_vector(_model.bodies[OWN]).is_equal(Vector3(6, 0, 6))
+	_fold(RespawnedEvent.new(OWN, Vector3(-14, 0, 5)))
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.ALIVE)
+	assert_dict(_model.bodies).is_empty()
+	assert_int(_model.lives.size()).is_equal(0)
+
+
+func test_the_invulnerable_flag_comes_from_the_newest_snapshot() -> void:
+	_to_round()
+	var shielded := {"position": Vector3.ONE, "downed": false, "invulnerable": true}
+	var plain := {"position": Vector3.ZERO, "downed": false, "invulnerable": false}
+	_model.fold_snapshot({"tick": 42, "avatars": {1: shielded, 9: plain}})
+	assert_bool(_model.is_invulnerable(1)).is_true()
+	assert_bool(_model.is_invulnerable(9)).is_false()
+	# No avatar (the own player, the dead, a stranger): not invulnerable as far as it knows.
+	assert_bool(_model.is_invulnerable(OWN)).is_false()
+	_model.fold_snapshot({"tick": 43, "avatars": {1: plain}})
+	assert_bool(_model.is_invulnerable(1)).is_false()
+
+
 func test_a_new_match_makes_everyone_living_again() -> void:
 	_to_round()
 	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))
