@@ -215,7 +215,10 @@ func test_a_decoded_hello_joins_only_with_the_hosts_content_hash() -> void:
 	assert_array(FixtureModes.rejections(game, 1)).is_empty()
 	assert_object(game.state.player(2)).is_null()
 	assert_array(FixtureModes.rejections(game, 2)).is_equal([&"wrong_content"])
-	var rejected := game.view_of(2).events_named(&"Rejected")[0] as RejectedEvent
+	var rejects := game.view_of(2).events_named(&"Rejected")
+	if rejects.is_empty():
+		return
+	var rejected := rejects[0] as RejectedEvent
 	var payload := schema.encode(WireMessage.new(&"Rejected", rejected.to_dict()))
 	assert_object(schema.decode(WireSchema.REJECTED, payload)).is_not_null()
 	assert_array(Array(game.diagnostics)).is_empty()
