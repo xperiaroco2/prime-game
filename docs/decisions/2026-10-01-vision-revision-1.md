@@ -447,3 +447,6 @@ The order below keeps `verify` green after every item. Two rules hold for each o
   ghost's body stays, ARCHITECTURE §3.5), but its rule stands under "Needs the engineer" 1 (a): a downed or dead
   player who leaves leaves no body. A comment on #126 of 2026-10-01 had read V7 as keeping the body of a player who
   left; the handoff comment on #126 retracts that reading.
+- The skill `new-mechanic` (`.claude/skills/new-mechanic/SKILL.md`, step 2) still lists "dead players, meetings" among
+  a mechanic's edge cases; it follows `content/CLAUDE.md`'s new list in a follow-up, since this ADR's PR changes no
+  file under `.claude/`.
