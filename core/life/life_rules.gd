@@ -42,10 +42,14 @@ extends RefCounted
 
 ## `peer` takes `amount` thousandths of damage. Damaged (the victim), its SelfStatus touched, and
 ## at 0 health knock_down(). A player who is not alive takes none: that is a rule error, logged.
+## An invulnerable player takes none and gets no Damaged, with no error: invulnerability blocks
+## every damage source, not only the strikes that Strike.targets already skips.
 static func damage(ctx: MatchContext, peer: int, amount: int) -> void:
 	var victim := ctx.state.player(peer)
 	if victim == null or not victim.is_alive():
 		ctx.error("damage: player %d is not alive" % peer)
+		return
+	if victim.is_invulnerable(ctx.tick):
 		return
 	var taken := maxi(0, amount)
 	victim.health = maxi(0, victim.health - taken)

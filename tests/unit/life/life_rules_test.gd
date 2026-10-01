@@ -407,6 +407,28 @@ func test_make_invulnerable_lasts_the_invulnerability_time_from_now() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_damage_to_an_invulnerable_player_does_nothing() -> void:
+	# Any damage source, not only a strike: LifeRules.damage itself skips the invulnerable.
+	var game := _duel()
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	var full := game.state.player(P2).health
+	LifeRules.make_invulnerable(ctx, P2)
+	LifeRules.damage(ctx, P2, full)
+	assert_int(game.state.player(P2).health).is_equal(full)
+	assert_bool(game.state.player(P2).is_alive()).is_true()
+	assert_array(FixtureCombatModes.received(game, P2, &"Damaged")).is_empty()
+	# Once it ends, the same damage knocks down.
+	ctx.tick = game.state.player(P2).invulnerable_until
+	LifeRules.damage(ctx, P2, full)
+	assert_int(game.state.player(P2).health).is_equal(0)
+	assert_bool(game.state.player(P2).is_alive()).is_false()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## A round of P1, P2 and P3 in `world`: P1 at the origin with a knife, P2 1 m north, P3 away.
 func _duel(world: WorldQuery = null) -> Match:
 	var game := FixtureCombatModes.in_round(FixtureCombatModes.basic(), [P1, P2, P3], world)
