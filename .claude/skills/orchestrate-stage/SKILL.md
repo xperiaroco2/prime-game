@@ -113,7 +113,7 @@ human to pull; a session opened before the pull needs `/reload-skills` to find t
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 
 The workflow: implementer (commits, verify green, never publishes) → fresh reviewers in parallel, chosen from the
-changed paths (`code-reviewer` always; `netcode-security-reviewer` for `core/ server/ net/ tests/harness/` or a
+changed paths (`code-reviewer` always; `netcode-security-reviewer` for `core/ server/ net/ client/ tests/harness/` or a
 design task; `godot-api-checker` for `.gd .tscn .tres`) → publisher (fixes blocker, major and cheap minor findings,
 `publish` (`--base` for a release base), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most
 two fix rounds, handoff, board In review). It throws when any routed agent returns nothing, and stops unpublished when the implementer ends

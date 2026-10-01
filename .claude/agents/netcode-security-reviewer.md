@@ -1,6 +1,6 @@
 ---
 name: netcode-security-reviewer
-description: Use at finish-task when core/, server/, net/ or tests/harness/ (the information-leak test) changed, and for netcode audits. Read-only hunt for information leaks to peers, unvalidated client intents and host-trust assumptions. Never edits files.
+description: Use at finish-task when core/, server/, net/, client/ (what the client renders, such as a sound through walls, a camera that sees too far, a debug overlay in a release build) or tests/harness/ (the information-leak test) changed, and for netcode audits. Read-only hunt for information leaks to peers, unvalidated client intents and host-trust assumptions. Never edits files.
 model: opus
 effort: high
 tools: Read, Grep, Glob, Bash, PowerShell
