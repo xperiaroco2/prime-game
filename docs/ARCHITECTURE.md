@@ -1258,8 +1258,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   placeholder) also snaps.
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
   count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
-  (`PLACING_EVENTS`: `PlayersPlaced`, `Died`; a later rule that places a player with a `Correction`, a revive or a
-  respawn, adds its event there).
+  (`PLACING_EVENTS`: `PlayersPlaced` and `KnockedDown`; a death sends no `Correction`; a later rule that places a
+  player with a `Correction`, a revive or a respawn, adds its event there).
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
@@ -1521,8 +1521,8 @@ The core tick rate is set in §3.3; what the host checks, in §7.1. The snapshot
   about 0.2 % of frames where a fixed 100 ms holds on 16 % (the spike's lesson below; `snapshot_buffer_test.gd`).
 - **Correction policy:** the host corrects a claim that fails a check of §7.1 with a `Correction` of a new epoch; the
   client adopts it at once (`ClientSession.corrected` teleports the controller before it moves) and counts it, and
-  the debug overlay (F3) shows the count: honest play gets none. A placement's or a death's `Correction` (right after
-  a `PlayersPlaced` or a `Died` naming the client) is counted apart, as a placement. The tolerances stay placeholders until #76 and the
+  the debug overlay (F3) shows the count: honest play gets none. A placement's or a knockdown's `Correction` (right
+  after a `PlayersPlaced` or a `KnockedDown` naming the client) is counted apart, as a placement. The tolerances stay placeholders until #76 and the
   M4 playtests. Found by M4-7's test: on stairs whose treads are narrower than the capsule (0.3 m against 0.8 m) the
   host corrects an honest climb, walking or sprinting, because the landing floor it finds with five rays under the
   footprint lies below the stair edge the capsule rests on; 0.5 m treads pass. That is #76's slope rise to settle.
@@ -1550,17 +1550,19 @@ The local player's controller (#46, `client/player/`):
   a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
   `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
   the only copy of it on the client, and takes each `SelfStatus`'s number as it arrives.
-- A ghost (`ghost = true`) takes the living's path: the same capsule, gravity, floor, steps, slopes and jump, at the
-  living's walk and sprint speeds times a factor in `PlayerTuning`. `StaminaSource` never refuses a ghost and records
-  nothing for it. There is no flight (the engineer's correction of 2026-09-30, #46). This is the client as built; the
-  host no longer accepts it: since M4-2 (#138) a downed player crawls (§7.1 The crawl), and M4-9 replaces the
-  client's ghost mode with the crawl.
+- A ghost (`ghost = true`, the downed player; M4-9 renames it and gives it the lying pose and camera) crawls as the
+  host's crawl check allows (§7.1 The crawl, M4-2): the living's capsule, gravity, floor, steps and slopes at
+  `PlayerRules.crawl_speed_mps`, with no sprint and no jump; `StaminaSource` refuses both to the downed, and their
+  stamina regenerates as usual. There is no flight (the engineer's correction of 2026-09-30, #46). A downed crawl
+  over the loopback, holding sprint and asking to jump, is corrected 0 times (`player_network_test.gd`).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `ghosts`. The living and ghosts collide with the world only; a living player finds the
   other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other living players
   are `RemotePlayerBody` capsules that only their owner's data moves.
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
-  height and glides over the edge until it snaps onto the top. What blocks it must be a ledge: a walkable blocker (a
+  height and glides over the edge until it snaps onto the top. While it glides, `move_and_slide`'s own snap is off
+  and a snap that lands below the ledge's top is undone: at a slow walk or the crawl it would catch the edge under
+  the rounded bottom, which the body then rested on for good (found at the crawl's 1 m/s on 0.3 m treads). What blocks it must be a ledge: a walkable blocker (a
   ramp, a low edge under the rounded bottom) is left to `move_and_slide`, and a ledge whose top is steeper than
   `floor_max_angle` (a steep slope, a round prop) is no step. Only the body jumps up; the view eases after it and
   lags at most one step height. A jump's take-off speed is solved for the physics step so the ballistic peak is the
