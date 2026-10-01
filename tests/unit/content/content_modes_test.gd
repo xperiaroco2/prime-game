@@ -263,6 +263,48 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	assert_array(FixtureCombatModes.received(game, 1, &"Swung")).has_size(2)
 
 
+func test_the_base_mode_raises_the_downed_and_lets_them_give_up() -> void:
+	# M4-4, E27: the raise rule's numbers (3 s, the pick-up's 2 m, 50 health), Round's accepts
+	# (Raise and StopRaise from the living, GiveUp from the downed) and ChannelTicks after LifeTicks.
+	var mode := _base_mode()
+	var in_round := mode.find_phase(&"round")
+	assert_int(in_round.senders_of(Intents.RAISE)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.STOP_RAISE)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.GIVE_UP)).is_equal(AcceptSpec.From.DOWNED)
+	assert_object(in_round.tick_systems[0]).is_instanceof(LifeTicks)
+	assert_object(in_round.tick_systems[1]).is_instanceof(ChannelTicks)
+	var raise: Rule = null
+	for rule: Rule in mode.actions:
+		if rule.trigger == Intents.RAISE:
+			raise = rule
+	var effect := raise.effects[0] as RaiseDowned
+	assert_float(effect.seconds).is_equal(3.0)
+	assert_int(effect.revive_health).is_equal(50)
+	assert_float((raise.conditions[2] as TargetInReach).reach_m).is_equal(2.0)
+	# Played from the base mode's own data: knocked down, raised for 3 s, standing with 50.
+	var game := _base_round(mode, [1, 2, 3])
+	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
+	FixtureItemModes.stand(game, 2, Vector3(0, 0, 101))
+	FixtureItemModes.stand(game, 3, Vector3(1.5, 0, 101))
+	var knife := FixtureItemModes.lay(game, &"knife", Vector3(0, 0, 100))
+	FixtureItemModes.pick_up(game, 1, knife)
+	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
+	FixtureCombatModes.raise(game, 3, 2)
+	FixtureModes.run_ticks(game, 60)
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.ALIVE)
+	assert_int(game.state.player(2).health).is_equal(50000)
+	# Downed again and given up: dead at once.
+	FixtureModes.run_ticks(game, 60)
+	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.DOWNED)
+	FixtureCombatModes.give_up(game, 2)
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.DEAD)
+	assert_array(FixtureModes.rejections(game, 2)).is_empty()
+	assert_array(FixtureModes.rejections(game, 3)).is_empty()
+
+
 func test_the_deal_demands_knife_markers_at_the_default_settings() -> void:
 	var mode := _base_mode()
 	var demands := Demands.new(mode)
