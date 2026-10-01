@@ -136,21 +136,21 @@ func test_the_invariants_catch_a_leak_in_snapshots_and_voice() -> void:
 	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], []]))
 	assert_array(Array(runner.failures)).is_empty()
 	var leaky := LeakyMatch.new(runner.game)
-	leaky.state.players[1002].life = PlayerState.Life.DOWNED
+	leaky.state.players[1002].life = PlayerState.Life.DEAD
 	leaky.avatars = {
 		1002: {"position": Vector3.ZERO, "health": 100, "held_item": runner.scenario.session_seed}
 	}
 	leaky.speakers = PackedInt32Array([1002])
 	var found := "\n".join(ScenarioInvariants.new(leaky, runner.scenario).check_tick())
-	assert_str(found).contains("living peer 1 sees downed 1002")
-	assert_str(found).contains("peer 1 hears downed 1002")
+	assert_str(found).contains("peer 1 sees dead 1002")
+	assert_str(found).contains("peer 1 hears dead 1002")
 	assert_str(found).contains("shows health of peer 1002")
 	assert_str(found).contains("peer 1's snapshot holds a seed")
 
 
 func test_the_invariants_catch_a_break_of_the_voice_invariant() -> void:
-	# Peer 1002 downed, 1003 dead (nothing reaches DEAD before M4-2, so the state is set here). The
-	# control first: the downed hear the living, the dead nobody, and nothing is found.
+	# Peer 1002 downed, 1003 dead (set here). The control first: the downed hear the living, the
+	# dead nobody, and nothing is found.
 	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], [], []]))
 	assert_array(Array(runner.failures)).is_empty()
 	var leaky := LeakyMatch.new(runner.game)
@@ -169,6 +169,32 @@ func test_the_invariants_catch_a_break_of_the_voice_invariant() -> void:
 	assert_str(found).contains("downed peer 1002 hears 1003, who is not living")
 	assert_str(found).contains("dead peer 1003 hears [1]")
 	assert_str(found).not_contains("downed peer 1002 hears 1,")
+
+
+func test_the_invariants_catch_an_event_that_reaches_the_dead_and_not_every_living_peer() -> void:
+	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], [], []]))
+	assert_array(Array(runner.failures)).is_empty()
+	var game := runner.game
+	game.state.players[1003].life = PlayerState.Life.DEAD
+	var invariants := ScenarioInvariants.new(game, runner.scenario)
+	# The control: an event for the dead peer alone, and one for everyone present.
+	var own := CorrectionEvent.new(1003, 9, Vector3.ZERO, Vector3.ZERO)
+	var everyone := PackedInt32Array([1, 1002, 1003])
+	var found := "\n".join(
+		invariants.check_event(EmittedEvent.new(5, own, PackedInt32Array([1003]), false))
+	)
+	found += "\n".join(
+		invariants.check_event(EmittedEvent.new(5, FixtureNoteEvent.new("all"), everyone, false))
+	)
+	assert_str(found).not_contains("dead peer")
+	var planted := FixtureNoteEvent.new("the dead")
+	found = "\n".join(
+		invariants.check_event(EmittedEvent.new(5, planted, PackedInt32Array([1003]), false))
+	)
+	assert_str(found).contains("dead peer 1003 received FixtureNote, which living peer 1 did not")
+	assert_str(found).contains(
+		"dead peer 1003 received FixtureNote, which living peer 1002 did not"
+	)
 
 
 func test_a_match_error_or_a_view_that_differs_fails() -> void:

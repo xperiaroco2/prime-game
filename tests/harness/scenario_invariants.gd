@@ -12,9 +12,12 @@ extends RefCounted
 ## - Every present player receives the same task events (StationPlaced, ItemSpawned,
 ##   PackageDelivered, TaskProgress).
 ## - No event and no snapshot holds the session seed or a match seed.
-## - Per tick, a living peer's snapshot holds no downed player (true until M4-2 makes the downed
-##   public). The voice invariant (§6): no peer's speakers include a downed speaker; a downed
-##   peer hears only living speakers; a dead peer's speakers are empty.
+## - Per tick, no peer's snapshot holds a dead player's avatar (the dead have none). The voice
+##   invariant (§6): no peer's speakers include a downed or dead speaker; a downed peer hears only
+##   living speakers; a dead peer's speakers are empty.
+## - Nothing reaches only the dead: every event a dead peer receives is either for it alone (an
+##   event for one peer, FOR_ONE or a one-peer declaration, naming it) or also reaches every living
+##   peer present then.
 ## - The scenario's `never` events reach nobody they name.
 
 const TASK_EVENTS: Array[StringName] = [
@@ -22,7 +25,7 @@ const TASK_EVENTS: Array[StringName] = [
 ]
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
 ## What anyone may see of another player (§4.2); health and stamina are never avatar fields.
-const AVATAR_FIELDS: Array[String] = ["position", "velocity", "facing", "ghost", "held_item"]
+const AVATAR_FIELDS: Array[String] = ["position", "velocity", "facing", "downed", "held_item"]
 
 ## The peer whose command the runner applies now, or 0 outside a command (a tick, the start).
 var sender := 0
@@ -95,6 +98,7 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 	for seed_value: int in _seeds:
 		if holds_int(event.to_dict(), seed_value):
 			found.append("%s holds a seed" % name)
+	found.append_array(_check_dead_recipients(emitted))
 	for never: NeverEvent in _scenario.never:
 		if not ScenarioPlay.event_matches(event, never.event, never.fields, _peers):
 			continue
@@ -120,11 +124,34 @@ func check_tick() -> PackedStringArray:
 				if not AVATAR_FIELDS.has(str(field)):
 					found.append("peer %d's snapshot shows %s of peer %d" % [peer, field, other])
 		found.append_array(_check_voice(peer))
-		if state.players[peer].life != PlayerState.Life.ALIVE:
-			continue
 		for other: int in avatars:
-			if _life_of(other) == PlayerState.Life.DOWNED:
-				found.append("living peer %d sees downed %d in its snapshot" % [peer, other])
+			if _life_of(other) == PlayerState.Life.DEAD:
+				found.append("peer %d sees dead %d in its snapshot" % [peer, other])
+	return found
+
+
+## The recipients of `emitted` who are dead now and got it although some living peer present did
+## not, unless it is an event for one peer naming that recipient (LeakCheck.for_one).
+func _check_dead_recipients(emitted: EmittedEvent) -> PackedStringArray:
+	var found := PackedStringArray()
+	var event := emitted.event
+	var living := PackedInt32Array()
+	for peer: int in _game.state.present_peers():
+		if _life_of(peer) == PlayerState.Life.ALIVE:
+			living.append(peer)
+	for peer: int in emitted.recipients:
+		if _life_of(peer) != PlayerState.Life.DEAD:
+			continue
+		if LeakCheck.for_one(event) and event.get("peer") is int and event.get("peer") == peer:
+			continue
+		for other: int in living:
+			if not emitted.recipients.has(other):
+				found.append(
+					(
+						"dead peer %d received %s, which living peer %d did not"
+						% [peer, event.event_name(), other]
+					)
+				)
 	return found
 
 
@@ -140,6 +167,8 @@ func _check_voice(peer: int) -> PackedStringArray:
 		var mouth := _life_of(speaker)
 		if mouth == PlayerState.Life.DOWNED:
 			found.append("peer %d hears downed %d" % [peer, speaker])
+		if mouth == PlayerState.Life.DEAD:
+			found.append("peer %d hears dead %d" % [peer, speaker])
 		if life == PlayerState.Life.DOWNED and mouth != PlayerState.Life.ALIVE:
 			found.append("downed peer %d hears %d, who is not living" % [peer, speaker])
 	return found

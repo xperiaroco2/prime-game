@@ -43,8 +43,9 @@ var epoch := 0
 ## Its jumps since it adopted `epoch` (MoveClaim's `jumps`, §4.3): 0 again on every new epoch.
 var jumps := 0
 var position := Vector3.ZERO
-## Downed, from its own Died (until M4-2 a death leaves the player downed).
+## Downed, from its own KnockedDown until its own Died; dead from then until the next match.
 var downed := false
+var dead := false
 var role: StringName
 var held := -1
 var sprint_available := true
@@ -66,9 +67,9 @@ var seen: Dictionary[int, Vector3] = {}
 
 var _next_seq := 1
 var _client_tick := 0
-## A placement of the bot (PlayersPlaced naming it, or its own Died) awaits its Correction: core/
-## emits exactly one after each, so a network poll that splits the two still expects it, and any
-## other Correction fails.
+## A placement of the bot (PlayersPlaced naming it, or its own KnockedDown) awaits its Correction:
+## core/ emits exactly one after each, so a network poll that splits the two still expects it, and
+## any other Correction fails. A death sends none.
 var _correction_due := false
 
 
@@ -157,12 +158,18 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			epoch = fields["epoch"] as int
 			jumps = 0
 			position = fields["position"] as Vector3
+		&"KnockedDown":
+			var knocked := fields["peer"] as int
+			seen[knocked] = fields["position"] as Vector3
+			if knocked == peer:
+				downed = true
+				_correction_due = true
 		&"Died":
 			var died := fields["peer"] as int
 			seen[died] = fields["position"] as Vector3
 			if died == peer:
-				downed = true
-				_correction_due = true
+				downed = false
+				dead = true
 		_:
 			_learn(event_name, fields)
 	return ""
@@ -263,6 +270,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			stations.clear()
 			held = -1
 			downed = false
+			dead = false
 			if current_step() is StepLoadAck:
 				unanswered_load = match_id
 			else:
