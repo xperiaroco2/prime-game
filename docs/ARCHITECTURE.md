@@ -1063,7 +1063,7 @@ test, like `net/`'s "names no `core/` class"). So the host's own player sees onl
 |---|---|---|
 | -100 | `HostNode`, on a host | `HostSession.step` (§4.5); its messages to the own client are read in this frame |
 | -90 | `SessionNode` | `ClientSession.step`: poll, decode, fold into `ClientModel`, fire the signals (a `Correction` teleports the player before it moves), advance a map load, send the `MoveClaim` due |
-| -80 | `Avatars` | place every remote body at its interpolated pose, so the local push search sees this frame's capsules |
+| -80 | `Avatars` | place every remote body at its interpolated pose, so the local push search sees this frame's capsules (`sync_to_physics` off, below) |
 | 0 | `Player` | read input, move, then `set_motion` for the next claim (one physics frame, 1/60 s, old when it is sent) |
 | `_process` | the views, the cameras, `Ui` | draw from `ClientModel` and the interpolated poses |
 
@@ -1127,8 +1127,12 @@ test, like `net/`'s "names no `core/` class"). So the host's own player sees onl
   the host tick from a sliding window of arrivals (not an all-time maximum, §7's lesson), and gives each remote
   player's position and facing, interpolated linearly, and its newest velocity, used only to pick an animation, so a
   claimed velocity never moves a body on another screen, at the estimate minus a delay: one tick plus the jitter seen
-  over the window, from 100 ms to 250 ms (placeholders, "not a decision"). Past the newest snapshot a player holds still (no
-  extrapolation); a placement or a respawn snaps. The bodies stay `AnimatableBody3D` capsules on the living layer.
+  over the window, from 100 ms to 250 ms (placeholders, "not a decision"). Past the newest snapshot a player holds
+  still (no extrapolation); a placement or a respawn snaps. The bodies stay `AnimatableBody3D` capsules on the living
+  layer, with `sync_to_physics` off: they are teleported, not animated platforms, and with it on (the default) a
+  transform set in `_physics_process` is applied as kinematic motion during the physics step, so the local push
+  search at priority 0 would still see the previous frame's capsules. M4-7's two-client push test asserts that the
+  push search sees the pose set at -80 in the same frame.
 - **The crawl** (M4-9): a downed controller moves at the crawl speed, with no sprint and no jump, up the step height,
   colliding with the level only and pushing nobody; it keeps the standing capsule for collision (the host's floor
   checks use it), and only its mesh lies down. Physics layer 3 becomes `downed` (`PhysicsLayers`), which no push
