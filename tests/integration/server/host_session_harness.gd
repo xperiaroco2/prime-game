@@ -36,6 +36,8 @@ var clients: Array[ClientSession] = []
 var raws: Array[RawClient] = []
 ## What the observer saw, one entry per Match call: "<tick> <command kind or tick> <phase>".
 var calls: Array[String] = []
+## The slice of the last Match call the observer saw.
+var last_slice: Array[EmittedEvent] = []
 ## The MoveClaims applied, by the phase they were applied in.
 var claims_in: Dictionary[StringName, int] = {}
 ## Clients that do not step: a frozen client process.
@@ -312,7 +314,8 @@ func _all_welcomed() -> bool:
 	return true
 
 
-func _on_call(at_tick: int, command: MatchCommand, _slice: Array[EmittedEvent]) -> void:
+func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -> void:
+	last_slice = slice
 	var phase := session.game.phase_id()
 	var what := String(command.kind) if command != null else "tick"
 	calls.append("%d %s %s" % [at_tick, what, phase])

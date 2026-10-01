@@ -264,10 +264,19 @@ func test_a_failed_deal_ends_the_session_before_its_events_are_delivered() -> vo
 	assert_str("; ".join(_h.session.errors)).contains("fixture error")
 	_h.pump()
 	assert_str(String(_h.own.end_reason)).is_equal(String(ClientSession.HOST_LOST))
-	# The row's events (the round's entry) never reached the client.
-	assert_array(_h.own.view.event_names()).not_contains([&"RoundStarted"])
-	assert_array(_h.own.view.event_names()).contains([&"LoadMatch"])
+	# The failing call's slice (the placement and the round's entry) never reached the client:
+	# it decoded view_of(1) up to that slice and nothing of it.
 	assert_str(_h.calls[_h.calls.size() - 1]).contains("LoadAck")
+	var withheld: Array[StringName] = []
+	for emitted: EmittedEvent in _h.last_slice:
+		if not emitted.is_directive and emitted.recipients.has(NetTransport.HOST_ID):
+			withheld.append(emitted.event.event_name())
+	assert_array(withheld).contains([&"PlayersPlaced", &"PhaseChanged"])
+	var view := _h.session.game.view_of(NetTransport.HOST_ID).event_names()
+	var decoded := _h.own.view.event_names()
+	assert_array(decoded).contains([&"LoadMatch"])
+	assert_array(decoded).not_contains([&"PlayersPlaced"])
+	assert_array(decoded).is_equal(view.slice(0, view.size() - withheld.size()))
 
 
 func test_an_error_outside_a_row_is_only_logged() -> void:
