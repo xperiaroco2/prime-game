@@ -29,8 +29,8 @@ const VISOR_AHEAD := 0.25
 ## the hand item at the right hand, the belt item at the left hip, and a two-handed item (the
 ## package) held in front with both hands.
 const HAND_POINT := Vector3(0.45, 0.95, -0.15)
-const BELT_POINT := Vector3(-0.42, 0.85, 0.0)
-const CARRY_POINT := Vector3(0.0, 0.85, -0.55)
+const BELT_POINT := Vector3(-0.48, 0.85, 0.0)
+const CARRY_POINT := Vector3(0.0, 0.8, -0.72)
 
 ## The client's own copy of the mode's PlayerRules: the capsule and the eyes. Applied at once
 ## when set in the tree.

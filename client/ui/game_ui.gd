@@ -60,6 +60,7 @@ func show_screen(which: GameFlow.Screen) -> void:
 func show_tasks(held: bool) -> void:
 	_tasks_held = held
 	tasks.visible = held and screen == GameFlow.Screen.ROUND
+	hud.aiming = not tasks.visible
 
 
 ## Refreshes the visible screen from `model`; `host_tick` is the newest host tick known.

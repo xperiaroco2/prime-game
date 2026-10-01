@@ -117,7 +117,6 @@ func _paint(view: MeshInstance3D, station: ClientModel.Station) -> void:
 	var material := StandardMaterial3D.new()
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var colour := station.colour
 	if station.done:
 		colour = colour.darkened(DONE_DIM)

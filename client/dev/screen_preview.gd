@@ -3,10 +3,16 @@ extends Node
 ## fed by a fake ClientModel folded from events written here, as a host would send them. Dev only:
 ## nothing here reaches the game.
 
-enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC }
+enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, TASKS }
 
 const MODE := "res://content/modes/base_mode.tres"
 const MAP := "res://levels/greybox/greybox.tscn"
+## The round's fake facts (M4-8): the match clock's end, the package, the knife and its circle.
+const ROUND_END_TICK := 100 + 20 * 271
+const PACKAGE := 7
+const KNIFE := 3
+const CIRCLE := 2
+const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 
 @export var preview := Preview.MENU
 ## The preview shows the host's view (its settings, Back to lobby, Esc's confirmation).
@@ -19,6 +25,7 @@ func _ready() -> void:
 	add_child(ui)
 	ui.lobby.set_mode(mode)
 	var model := fake_model(mode, hosting)
+	ui.reads_device_input = false
 	match preview:
 		Preview.MENU:
 			ui.menu.set_reason(
@@ -45,6 +52,15 @@ func _ready() -> void:
 			ui.show_screen(GameFlow.Screen.LOBBY)
 			ui.open_esc(hosting)
 			ui.esc.ask_quit()
+		Preview.ROUND, Preview.TASKS:
+			fold_round(model, true)
+			ui.show_screen(GameFlow.Screen.ROUND)
+			ui.show_tasks(preview == Preview.TASKS)
+			var local := HudText.Local.new()
+			local.stamina = 62.0
+			local.hint = "E: pick up Knife"
+			local.invulnerable_until = 100 + 20 * 2.4
+			ui.refresh_round(model, mode, 100, local)
 	ui.refresh(model, mode, 100, hosting)
 
 
@@ -81,3 +97,43 @@ static func fake_model(mode: GameMode, as_host: bool) -> ClientModel:
 		)
 	)
 	return model
+
+
+## The round on top of fake_model (M4-8): the own player (peer 1) a dissident with peer 3, a
+## package in its hands and the knife on its belt, two Delivery tasks, half of the progress done;
+## `with_items` false leaves the items and circles out.
+static func fold_round(model: ClientModel, with_items := true) -> void:
+	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": ROUND_END_TICK})
+	model.fold(&"RoleAssigned", {"role": &"dissident"})
+	model.fold(&"Teammates", {"role": &"dissident", "peers": PackedInt32Array([1, 3])})
+	model.fold(&"SelfStatus", {"health": 75000, "stamina": 62000, "sprint_available": true})
+	model.fold(&"TaskState", {"task": 0, "type": &"delivery", "done": 1, "total": 3})
+	model.fold(&"TaskState", {"task": 1, "type": &"delivery", "done": 2, "total": 2})
+	model.fold(&"TaskProgress", {"done": 3, "total": 5})
+	if not with_items:
+		return
+	model.fold(
+		&"StationPlaced",
+		{
+			"station": CIRCLE,
+			"kind": &"circle",
+			"colour": CIRCLE_COLOUR,
+			"position": Vector3(6, 0, -8)
+		}
+	)
+	(
+		model
+		. fold(
+			&"ItemSpawned",
+			{
+				"item": PACKAGE,
+				"kind": &"package",
+				"position": Vector3(0, 0, -2),
+				"station": CIRCLE,
+				"colour": CIRCLE_COLOUR,
+			}
+		)
+	)
+	model.fold(&"ItemSpawned", {"item": KNIFE, "kind": &"knife", "position": Vector3(1, 0, -1)})
+	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": KNIFE})
+	model.fold(&"ItemPickedUp", {"peer": model.own_peer, "item": PACKAGE, "belted": KNIFE})

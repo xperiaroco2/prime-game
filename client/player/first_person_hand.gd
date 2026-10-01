@@ -8,7 +8,7 @@ extends Node3D
 
 ## Where the item sits in the camera's space, in metres.
 const ONE_HANDED := Vector3(0.28, -0.3, -0.55)
-const TWO_HANDED := Vector3(0.0, -0.5, -0.7)
+const TWO_HANDED := Vector3(0.0, -0.7, -1.0)
 
 var _shown_kind: StringName = &""
 var _shown_colour: Color

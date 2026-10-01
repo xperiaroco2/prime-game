@@ -22,6 +22,9 @@ var destination_label := UiParts.styled_label("", &"HudText")
 var swatch := ColorRect.new()
 var crosshair := UiParts.styled_label("+", &"HudCrosshair")
 var hint_label := UiParts.styled_label("", &"HudHint")
+## The crosshair and its hint show; off while the task screen covers the middle.
+var aiming := true:
+	set = set_aiming
 
 var _destination_row := HBoxContainer.new()
 
@@ -76,7 +79,14 @@ func show_hud(shown: HudText.Shown) -> void:
 	_show_line(destination_label, shown.destination)
 	_destination_row.visible = not shown.destination.is_empty()
 	swatch.color = shown.destination_colour
-	_show_line(hint_label, shown.hint)
+	_show_line(hint_label, shown.hint if aiming else "")
+
+
+func set_aiming(on: bool) -> void:
+	aiming = on
+	crosshair.visible = on
+	if not on:
+		hint_label.visible = false
 
 
 ## A panel in the corner `preset` of `frame` with `rows` in a column, growing inwards.
