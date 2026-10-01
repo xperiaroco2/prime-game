@@ -13,4 +13,6 @@ Closes #
 <!-- yes (which) / no (why not needed). -->
 
 ## Cross-area
-<!-- If this touches the other owner's paths (.github/CODEOWNERS), request them as reviewer and say why. -->
+<!-- If this touches the other owner's paths (.github/CODEOWNERS), request them as reviewer and say why.
+     A change in the designer's area that the engineer says was agreed with the designer: write "agreed with the
+     designer, relayed by the engineer" and tag @SwiftySinister (docs/AGENT_WORKFLOW.md section 9). -->
