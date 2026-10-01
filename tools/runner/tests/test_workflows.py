@@ -131,6 +131,19 @@ class WorkflowTest(unittest.TestCase):
                     labels = [c["label"] for c in run_workflow(WORKFLOWS / name, "release/m3", paths)]
                     self.assertEqual(any(label.startswith("review:netcode") for label in labels), routed, labels)
 
+    def test_a_client_change_gets_a_netcode_review(self) -> None:
+        # The client renders public data, so a rendering leak is an information leak (#158): the M4 manager ran the
+        # netcode review on PR #154 by hand twice, and both runs found real problems.
+        cases = (
+            (["client/player/first_person_camera.gd"], True),
+            (["tools/runner/workflows.py"], False),
+        )
+        for name in ("issue-task.js", "pr-rebase.js"):
+            for paths, routed in cases:
+                with self.subTest(workflow=name, paths=paths):
+                    labels = [c["label"] for c in run_workflow(WORKFLOWS / name, "release/m4", paths)]
+                    self.assertEqual(any(label.startswith("review:netcode") for label in labels), routed, labels)
+
 
 if __name__ == "__main__":
     unittest.main()
