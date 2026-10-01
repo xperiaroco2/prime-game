@@ -129,10 +129,15 @@ func test_the_ghosts_retired_sender_bit_is_refused() -> void:
 	# accepting the downed's claims: 8 is never reused (vision revision 1, M4-1).
 	var mode := FixtureModes.basic()
 	mode.phases[1].accepts[1].from = AcceptSpec.From.LIVING | 8
-	_expect(mode, "phase round accepts MoveClaim from bits 8, which name no sender (8: ghosts)")
+	var text := "phase round accepts MoveClaim from bits 8, which name no sender"
+	_expect(mode, text + " (8 was the ghosts', retired)")
 	mode = FixtureModes.basic()
 	mode.phases[1].accepts[1].from = AcceptSpec.From.LIVING | 64
-	_expect(mode, "phase round accepts MoveClaim from bits 64")
+	# Only bit 8 is named as the ghosts': another stray bit gets no hint.
+	var errors := Array(ModeCheck.run(mode).errors)
+	assert_array(errors).contains(
+		["mode.phases[1]: phase round accepts MoveClaim from bits 64, which name no sender"]
+	)
 	mode = FixtureModes.basic()
 	# Every player flag is fine (a newcomer's intent is a phase class's, which MoveClaim is not).
 	mode.phases[1].accepts[1].from = AcceptSpec.ALL_FROM & ~AcceptSpec.From.NEWCOMER

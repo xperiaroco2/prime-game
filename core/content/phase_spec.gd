@@ -65,6 +65,7 @@ func check(_mode: GameMode) -> PackedStringArray:
 			found.append("phase %s accepts %s from nobody" % [id, entry.intent])
 		elif entry.from & ~AcceptSpec.ALL_FROM != 0:
 			var stray := entry.from & ~AcceptSpec.ALL_FROM
-			var text := "phase %s accepts %s from bits %d, which name no sender (8: ghosts)"
-			found.append(text % [id, entry.intent, stray])
+			var text := "phase %s accepts %s from bits %d, which name no sender%s"
+			var hint := " (8 was the ghosts', retired)" if stray & 8 != 0 else ""
+			found.append(text % [id, entry.intent, stray, hint])
 	return found
