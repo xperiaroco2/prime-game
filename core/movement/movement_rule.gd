@@ -30,10 +30,9 @@ extends RefCounted
 ##   settled first: the claim's own ticks with its own flags, then any later ones (settle_ahead).
 ##   A merged burst of d jumps pays for each but grants one jump height, because the merged
 ##   claims' take-offs are lost (accepted in the ADR). A downed player's jumps cost nothing (until
-##   M4-2's crawl check). The last claim
-##   need not say it was on the floor: claims go at 20 Hz and the client's physics at 60 Hz, so a
-##   landing and a jump can fall in one claim. The take-off is the higher of that floor and the
-##   last feet, so the peak stays bounded.
+##   M4-2's crawl check). The last claim need not say it was on the floor: claims go at 20 Hz
+##   and the client's physics at 60 Hz, so a landing and a jump can fall in one claim. The
+##   take-off is the higher of that floor and the last feet, so the peak stays bounded.
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (sprint in
 ##   the sprint state, for the living only with movement input; else walk; times
 ##   ghost_speed_factor for the downed, until M4-2's crawl speed), plus, for the living

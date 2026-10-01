@@ -13,11 +13,10 @@ extends RefCounted
 ##   body's, with a new epoch, so the claims it sent while alive are dropped as stale and its
 ##   first claim as downed starts a new baseline there (MovementRule treats it like a placement).
 ##   Then, in this order: Died (everyone), Correction (the downed player only: its new epoch and
-##   position), the fact player_died,
-##   and only then the held item drops at the body (Items.place, `death`). The fact comes before
-##   the drop so a win condition that the death meets is checked before one that the dropped item
-##   meets (§3.4: the last crew member killed with its package over its circle is a dissident
-##   win).
+##   position), the fact player_died, and only then the held item drops at the body
+##   (Items.place, `death`). The fact comes before the drop so a win condition that the death
+##   meets is checked before one that the dropped item meets (§3.4: the last crew member killed
+##   with its package over its circle is a dissident win).
 ## - leave(): the life state becomes left (which counts as dead for the win conditions), no body
 ##   stays; PlayerLeft (everyone else), then the fact player_left, then the held item drops on the
 ##   floor below where the player stood (Items.drop_held, `leave`).
