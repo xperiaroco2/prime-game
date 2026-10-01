@@ -734,7 +734,7 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
 - Malformed: a peer whose messages the transport or the codec rejected 50 times within 10 s is disconnected, with one
   log line that names the peer and the reasons. An honest client of the same version sends none, and the margin covers
   a rare corrupted packet. A `Rejected` from `core/` (a swing `too_soon`) is a rule's answer, not a malformed packet,
-  and is not counted. 3f gives `server/` the transport's rejects per peer (they are counted in `NetRejects` today).
+  and is not counted. The transport signals each reject with its peer (`packet_rejected`, 3f), in the inbox's order.
 - The host's own client (peer 1) is exempt from the budgets, the malformed-packet disconnect and the hello deadline:
   the transport refuses `disconnect_peer(1)` (§4). A codec bug that makes peer 1's messages malformed logs an error
   at the threshold and ends the session (3f tests it).
@@ -822,6 +822,50 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
 **Ending.** The host quits, its own client's load fails, or the deal fails (above): `close()`, and every client sees
 `host_lost` (#40).
 
+**Built in 3f (#100).**
+- `HostSession` (`server/host_session.gd`): `HostSession.new(transport, schema)` on a transport not yet hosting, whose
+  kind table is the schema's. `start(mode, port, max_clients, now_usec)` builds `HostWorldQuery.for_mode`, refuses on
+  its errors, reads the markers with `MarkerReader.read_levels` (refused on theirs) and calls `start_with(mode, world,
+  layouts, port, max_clients, now_usec, seed)` with `random_seed()` (8 bytes of `Crypto`); tests and runners on flat
+  levels call `start_with` directly. It checks `WireBudget`, sets `content_hash` to `ContentFingerprint.of(...)`
+  (§4.6) and passes it to `Match.new`, refuses on `Match.refusals`, hosts, links `own_client` (peer 1's transport:
+  the owner runs the own `ClientSession` on it, so `server/` names nothing of `client/`) and runs `Match.start(0)` at
+  `now_usec`. False with `errors`. Then `step(now_usec)` every frame and `close()`; `ended(reason)` fires once
+  (`closed`, `row_error`, `own_client_malformed`, `own_client_disconnected`), after the transport closed.
+- Each `Match` call's slice is delivered as soon as it is taken (the same order as collecting them for step 5: the
+  recipients skipped are those of the moment the slice is taken). Commands left from an earlier step are applied in
+  step 1 only when a skipped tick lies before the due one; otherwise they join step 4's batch on the due tick, which
+  is then `ticked_through() + 1` anyway. Voice frames are held during the poll and relayed right after it, before
+  step 4, so the newest 5 per speaker are known.
+- Settings and counters: `hello_deadline_usec`, `replay_dir` (`user://replays`; empty writes no log, as the tests
+  set it), `observer`, `over_budget`, `bad_payloads`, `malformed_disconnects`, `voice_dropped()`. `over_budget` and
+  `bad_payloads` also go to the transport's summary line (`NetTransport.count_rejected`, reasons `OVER_BUDGET` and
+  `BAD_PAYLOAD` of `NetRejects`); a debug kind from a peer other than 1 counts as `BAD_PAYLOAD`. A transport reject
+  from a peer that is not connected (or was disconnected already) counts toward nobody.
+- **The observer** (debug builds only), for the bots runner (3h): a `Callable` called after every `Match` call (the
+  start, each `apply`, each `tick`, catch-up ticks included) with `(at_tick: int, command: MatchCommand, slice:
+  Array[EmittedEvent])`, `command` null for a tick and the start, before the slice is delivered or anything else is
+  applied; `session.game` is the match right after the call. It must not step the session. A failing row's slice is
+  observed before the session ends.
+- `HostNode` (`server/host_node.gd`): a `Node` with `process_physics_priority` -100 that calls `step` with
+  `Time.get_ticks_usec()` from `_physics_process` and `close()` when it leaves the tree.
+- `PeerBudget` (`server/peer_budget.gd`): the three buckets; a reliable intent takes one intent and its payload
+  bytes, `MoveClaim` its bytes, a voice frame one frame. `VoiceRelay` (`server/voice_relay.gd`): the routing table,
+  the per-stream seq, the newest 5 per speaker per poll by the speaker's own seq (wrapping at 2^16), and the mute of a
+  peer that left until the refresh after its `PeerLeft` (or after its `peer_left`, for a peer this session
+  disconnected). `ReplayFiles` (`server/replay_files.gd`): `write` (`store_var` of `CommandLog.to_dict()`, keeping
+  the newest 10), `read` and `list`; `CommandLog.from_dict` reads a log back for `Match.replay`.
+- `NetTransport.packet_rejected(peer, reason)` fires once per packet the transport rejects; `count_rejected` adds
+  `server/`'s own drops to the summary without the signal.
+- The loading deadline's `DisconnectPeer` has no `Rejected` before it in `core/` (§3.2): the dropped player gets
+  every event addressed to it before the directive, then `host_lost`.
+- Tests: `tests/integration/server/host_session_*_test.gd` over a `LoopbackHub` with a fake clock
+  (`host_session_harness.gd`: the fixture base mode with `res://` level paths and voice rules, the own and remote
+  `ClientSession`s, raw clients, a peer id reused through the host's `_link`), `replay_files_test.gd`,
+  `host_node_test.gd`; `tests/unit/server/` for the budget and the relay; `tests/unit/match/command_log_test.gd`.
+  The guards of the relay, the pending leave, the catch-up before applying and the voice budget were each removed
+  once to see their tests fail.
+
 ### 4.6 The client, the bots and the leak test in M3 (#89)
 - **`ClientSession`** (`client/net/`, 3g) is what every client runs: the host's own over the loopback, a remote one
   over ENet, and every bot. It decodes each message (§4.4) into a **decoded view** shaped like `core/`'s `PeerView`
@@ -856,7 +900,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   - The model keeps its own copy of a snapshot's avatars: the view records the decoded one unchanged. A threaded load
     the session no longer waits for (it ended, or a newer `LoadMatch` came) is collected by `step()` once done.
   - Tested in `tests/unit/client/net/` against host messages encoded with the codec from `core/`'s own events over a
-    `LoopbackHub`; the end-to-end tests against `HostSession` come with 3f (#100) and 3h.
+    `LoopbackHub`; the end-to-end tests against `HostSession` are 3f's (#100,
+    `tests/integration/server/host_session_end_to_end_test.gd` and its siblings), the bots 3h's.
 - **Bots** (`tests/harness/`, 3h): a bot is a `ClientSession`, a scenario script and an honest mover. The script is the
   core runner's (2j): on `main` `ScenarioRunner` holds both the §9.7 steps (`_run_step` and a method per step) and its
   stand-in for `server/` (`_queue`, `_deliver`, `_carry_out`), and `ScenarioBot.receive` takes `MatchEvent` objects. 3h
