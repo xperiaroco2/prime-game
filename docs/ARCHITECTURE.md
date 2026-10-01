@@ -897,7 +897,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
   `ClientModel` (the fold). What the build pinned:
   - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
-    and sends the claim that is due. The client tick counts `Ticks.RATE` ticks from the first step; a step sends at
+    and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
+    physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
+    of travel in a claim of one client tick, past the crawl's allowance. The client tick counts `Ticks.RATE` ticks
+    from the first step; a step sends at
     most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
     (`set_motion`, `count_jump`) and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
     reset the jump count and put the claims at the host's position.
@@ -1553,18 +1556,21 @@ The local player's controller (#46, `client/player/`):
 - A ghost (`ghost = true`, the downed player; M4-9 renames it and gives it the lying pose and camera) crawls as the
   host's crawl check allows (§7.1 The crawl, M4-2): the living's capsule, gravity, floor, steps and slopes at
   `PlayerRules.crawl_speed_mps`, with no sprint and no jump; `StaminaSource` refuses both to the downed, and their
-  stamina regenerates as usual. There is no flight (the engineer's correction of 2026-09-30, #46). A downed crawl
-  over the loopback, holding sprint and asking to jump, is corrected 0 times (`player_network_test.gd`).
+  stamina regenerates as usual. There is no flight (the engineer's correction of 2026-09-30, #46). `Game` sets the
+  flag from its own life fold (a `KnockedDown` naming its peer) and clears it when the fold forgets it. A downed
+  crawl over the loopback, holding sprint and asking to jump, is corrected 0 times, also on a clock that stands still
+  and then jumps, and up the fixture's steps (`player_network_test.gd`).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `ghosts`. The living and ghosts collide with the world only; a living player finds the
-  other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other living players
-  are `RemotePlayerBody` capsules that only their owner's data moves.
+  other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other players are
+  `RemotePlayerBody` capsules that only their owner's data moves, on layer 2 while the client's life fold says they
+  are living and on layer 3 otherwise (a downed player pushes nobody and nobody pushes it).
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
   height and glides over the edge until it snaps onto the top. While it glides, `move_and_slide`'s own snap is off
   and a snap that lands below the ledge's top is undone: at a slow walk or the crawl it would catch the edge under
-  the rounded bottom, which the body then rested on for good (found at the crawl's 1 m/s on 0.3 m treads). What blocks it must be a ledge: a walkable blocker (a
-  ramp, a low edge under the rounded bottom) is left to `move_and_slide`, and a ledge whose top is steeper than
-  `floor_max_angle` (a steep slope, a round prop) is no step. Only the body jumps up; the view eases after it and
+  the rounded bottom, which the body then rested on for good (found at the crawl's 1 m/s on 0.3 m treads). What
+  blocks it must be a ledge: a walkable blocker (a ramp, a low edge under the rounded bottom) is left to
+  `move_and_slide`, and a ledge whose top is steeper than `floor_max_angle` (a steep slope, a round prop) is no step. Only the body jumps up; the view eases after it and
   lags at most one step height. A jump's take-off speed is solved for the physics step so the ballistic peak is the
   jump height.
 - For the host's movement checks (`MovementRule`, 2d, covers both): the controller crosses a ledge's edge `STEP_CLEARANCE` (0.01 m)
