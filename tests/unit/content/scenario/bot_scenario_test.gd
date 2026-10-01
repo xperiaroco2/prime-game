@@ -98,7 +98,10 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepJump.new(),
 		StepExpect.new(),
 		StepExpectNone.new(),
-		StepLeave.new()
+		StepLeave.new(),
+		StepRaise.new(),
+		StepStopRaise.new(),
+		StepGiveUp.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -117,7 +120,10 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"Jump",
 			&"Expect",
 			&"ExpectNone",
-			&"Leave"
+			&"Leave",
+			&"Raise",
+			&"StopRaise",
+			&"GiveUp"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -125,6 +131,21 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 	assert_bool(StepUse.new().sends_intent()).is_true()
 	assert_bool(StepWalkTo.new().sends_intent()).is_false()
 	assert_str(StepUse.new().until).is_equal("Swung")
+	for raising: ScenarioStep in [StepRaise.new(), StepStopRaise.new(), StepGiveUp.new()]:
+		assert_bool(raising.sends_intent()).is_true()
+
+
+func test_a_raise_step_targets_a_bot() -> void:
+	var raise := StepRaise.new()
+	assert_array(Array(raise.problems())).is_equal(["no target"])
+	raise.target = ScenarioTarget.new()
+	assert_array(Array(raise.problems())).is_equal(["a Raise targets a player: bot(i)"])
+	raise.target.kind = ScenarioTarget.Kind.BOT
+	raise.target.bot = 3
+	raise.hold_s = -1.0
+	assert_array(Array(raise.problems())).is_equal(["hold_s -1.0 is outside 0 to 600"])
+	raise.hold_s = 2.0
+	assert_array(Array(raise.problems())).is_empty()
 
 
 func _scenario() -> BotScenario:

@@ -12,7 +12,7 @@ extends RefCounted
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it.
-const VERSION := 4
+const VERSION := 5
 
 ## Frozen rows (§4.3): any client can send its version and read Rejected(wrong_version).
 const HELLO := 1
@@ -211,6 +211,9 @@ static func _intents() -> Array[WireRow]:
 		_up(7, &"PutDown", 16, [_seq(), _vec3("facing")]),
 		_up(8, &"Use", 16, [_seq(), _vec3("facing")]),
 		_up(9, &"ReturnToLobby", 4, [_seq()]),
+		_up(10, &"Raise", 8, [_seq(), _peer("target")]),
+		_up(11, &"StopRaise", 4, [_seq()]),
+		_up(12, &"GiveUp", 4, [_seq()]),
 	]
 
 
@@ -325,6 +328,9 @@ static func _events() -> Array[WireRow]:
 		_down(58, &"Disconnecting", 33, [_id("reason")]),
 		_down(59, &"KnockedDown", 16, [_peer("peer"), _vec3("position")]),
 		_down(60, &"Respawned", 16, [_peer("peer"), _vec3("position")]),
+		_down(61, &"RaiseStarted", 8, [_peer("raiser"), _peer("target")]),
+		_down(62, &"RaiseStopped", 8, [_peer("raiser"), _peer("target")]),
+		_down(63, &"Revived", 4, [_peer("peer")]),
 	]
 
 

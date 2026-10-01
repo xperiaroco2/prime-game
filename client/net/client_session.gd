@@ -37,10 +37,10 @@ const LEFT := &"left"
 ## MoveClaim's jumps is a u16 (§4.3); a count that high never happens in one epoch.
 const MAX_JUMPS := 0xFFFF
 ## The events that move this client right before its Correction (place_players.gd at Loading and
-## at End -> Lobby, life_rules.gd at a knockdown; a death sends none): that Correction counts in
-## `placements`, not in `corrections`. A new rule that places a player and sends a Correction (a
-## respawn, M4-3) adds its event here.
-const PLACING_EVENTS: Array[StringName] = [&"PlayersPlaced", &"KnockedDown"]
+## at End -> Lobby, life_rules.gd at a knockdown and a respawn; a death and a revive send none):
+## that Correction counts in `placements`, not in `corrections`. A new rule that places a player
+## and sends a Correction adds its event here.
+const PLACING_EVENTS: Array[StringName] = [&"PlayersPlaced", &"KnockedDown", &"Respawned"]
 
 ## The record of every decoded message, for the bots and the leak test; off by default (a real
 ## client does not need it, and a 10-minute match holds 12000 snapshots), like Match.keep_history.
@@ -54,10 +54,11 @@ var end_reason: StringName = &""
 ## Payloads the codec rejected (the transport has counted what NetFrame rejected).
 var bad_payloads := 0
 ## The Corrections the host sent because it refused this client's claims (the debug overlay shows
-## it for #76's tuning; honest play gets none). A placement's or a knockdown's is not counted here.
+## it for #76's tuning; honest play gets none). A placement's, a knockdown's or a respawn's is not
+## counted here.
 var corrections := 0
-## The Corrections that came with a placement or a knockdown of this client (PLACING_EVENTS): the
-## host moved it; nothing it claimed was refused.
+## The Corrections that came with a placement, a knockdown or a respawn of this client
+## (PLACING_EVENTS): the host moved it; nothing it claimed was refused.
 var placements := 0
 
 var _transport: NetTransport

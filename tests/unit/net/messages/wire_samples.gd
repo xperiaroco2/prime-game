@@ -65,6 +65,9 @@ static func events() -> Dictionary[String, Array]:
 	found["DiedEvent"] = [DiedEvent.new(2, Vector3(4, 0, 4))]
 	found["KnockedDownEvent"] = [KnockedDownEvent.new(0xFFFE, Vector3(-2, 0.5, 3))]
 	found["RespawnedEvent"] = [RespawnedEvent.new(0x7FFFFFFF, Vector3(20, 0, -22))]
+	found["RaiseStartedEvent"] = [RaiseStartedEvent.new(3, 0x7FFFFFFF)]
+	found["RaiseStoppedEvent"] = [RaiseStoppedEvent.new(0x7FFFFFFF, 1)]
+	found["RevivedEvent"] = [RevivedEvent.new(2)]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
 	found["MatchEndedEvent"] = [MatchEndedEvent.new(&"crew")]
 	found["DisconnectingEvent"] = [DisconnectingEvent.new(2, DisconnectingEvent.LOAD_DEADLINE)]
@@ -87,6 +90,9 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"PutDown", {"facing": Vector3(0, 0, -1)}, 12),
 		WireMessage.new(&"Use", {"facing": Vector3.ZERO}, 0xFFFFFFFF),
 		WireMessage.new(&"ReturnToLobby", {}, 13),
+		WireMessage.new(&"Raise", {"target": 0x7FFFFFFF}, 14),
+		WireMessage.new(&"StopRaise", {}, 15),
+		WireMessage.new(&"GiveUp", {}, 16),
 	]
 
 

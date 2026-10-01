@@ -56,6 +56,9 @@ extends RefCounted
 ##   climb than that. Falling is not bounded, and walls are not checked (§7.1).
 ##   A downed player is bounded the same way: with no jump, its rise is the step height (plus the
 ##   slope allowance) above its last landing.
+## - Held in place (M4-4): while a raise runs on a downed player (Channels.holding), a claim
+##   farther than HOLD_SLACK_M from where the raise started is corrected (the engineer's answer 8
+##   on PR #133), so a raise restarted again and again cannot carry a downed player along.
 ## Then the claim settles its covered ticks of stamina (StaminaLedger), an accepted jump pays its
 ## cost, and the player's SelfStatus is touched (sent at the end of the tick).
 ##
@@ -81,6 +84,12 @@ const CRAWL_SLACK_FRACTION := 0.1
 const HEIGHT_SLACK_M := 0.001
 ## WorldQuery looks for the floor from this far above the feet, so feet resting on it find it.
 const FLOOR_PROBE_M := 0.1
+## How far a claim of a player held in place (a raise) may be from where the raise started
+## (Channel.held_at). Not for the wire: positions travel as 32-bit floats, as Vector3 holds them in
+## this build, so a claim of where the host put the player matches it exactly. A margin for the
+## client's physics settling the held capsule by a hair; it cannot add up, being measured from the
+## one start point.
+const HOLD_SLACK_M := 0.001
 ## Horizontal travel in one claim that counts as moving, for stamina (the client's MOVE_EPSILON).
 const MOVE_EPSILON := 0.0001
 ## Client ticks a player may claim ahead of the host's ticks: the credit after a placement.
@@ -222,6 +231,8 @@ static func _check(
 		Vector2(claim.position.x - player.position.x, claim.position.z - player.position.z).length()
 	)
 	checked.moved_itself = claim.moving and checked.travel > MOVE_EPSILON
+	if held_against(ctx.state, player, claim.position):
+		return null
 	# Read before a jump commits this claim's settlement.
 	var sprint_tail := player.sprinting and player.moving
 	checked.settled = StaminaLedger.simulate(
@@ -385,6 +396,14 @@ static func _near_living_player(
 		if (at - path * along).length() <= reach:
 			return true
 	return false
+
+
+## Whether a running raise holds `player` in place (Channels.holding) and a claim at `to` would
+## move it: farther than HOLD_SLACK_M, in any direction, from where the raise started
+## (Channel.held_at; the engineer's answer 8 on PR #133). Such a claim is corrected.
+static func held_against(state: MatchState, player: PlayerState, to: Vector3) -> bool:
+	var channel := Channels.holding(state, player.peer)
+	return channel != null and to.distance_to(channel.held_at) > HOLD_SLACK_M
 
 
 ## How far from a claim's path another living player's last accepted position may be for the push

@@ -76,8 +76,13 @@ var stations: Dictionary[int, Station] = {}
 ## (E26).
 var bodies: Dictionary[int, Vector3] = {}
 ## Peer -> its life state, for the players who are not living (E25): KnockedDown makes one
-## downed, Died dead, PlayerLeft left; Respawned makes it living again. Absent means living.
+## downed, Died dead, PlayerLeft left; Respawned and Revived make it living again. Absent means
+## living.
 var lives: Dictionary[int, Life] = {}
+## Downed peer -> the peer raising it, while a raise runs (M4-4): RaiseStarted adds one;
+## RaiseStopped, Revived, the leave of either and a new match remove it. The client times the
+## raise's progress itself, from RaiseStarted and the mode's raise time.
+var raises: Dictionary[int, int] = {}
 var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
@@ -107,6 +112,19 @@ func is_alive(peer: int) -> bool:
 ## KnockedDown, a Died or a PlayerLeft of this match said otherwise and no Respawned undid it.
 func life_of(peer: int) -> Life:
 	return lives.get(peer, Life.ALIVE)
+
+
+## The peer raising `peer` (a downed player) as far as this client knows, or 0 when nobody is.
+func raiser_of(peer: int) -> int:
+	return raises.get(peer, 0)
+
+
+## The downed player `raiser` is raising, or 0 when it raises nobody.
+func raised_by(raiser: int) -> int:
+	for target: int in raises:
+		if raises[target] == raiser:
+			return target
+	return 0
 
 
 ## Whether the newest snapshot shows `peer` invulnerable (the avatar's flag, M4-3): strikes skip
@@ -188,6 +206,7 @@ func clear_match() -> void:
 	stations.clear()
 	bodies.clear()
 	lives.clear()
+	raises.clear()
 	tasks_done = 0
 	tasks_total = 0
 	winner = &""
@@ -255,6 +274,8 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			sprint_available = fields["sprint_available"]
 		&"KnockedDown", &"Died", &"Respawned":
 			_fold_life(event_name, fields)
+		&"RaiseStarted", &"RaiseStopped", &"Revived":
+			_fold_raise(event_name, fields)
 		&"Correction":
 			epoch = fields["epoch"]
 		&"MatchEnded":
@@ -275,10 +296,28 @@ func _fold_life(event_name: StringName, fields: Dictionary) -> void:
 		bodies[peer] = fields["position"]
 
 
+## A raise starting records its raiser; one stopping forgets it; a revive also makes the raised
+## player living again (M4-4).
+func _fold_raise(event_name: StringName, fields: Dictionary) -> void:
+	if event_name == &"RaiseStarted":
+		raises[fields["target"] as int] = fields["raiser"] as int
+	elif event_name == &"RaiseStopped":
+		raises.erase(fields["target"] as int)
+	else:
+		var peer: int = fields["peer"]
+		raises.erase(peer)
+		lives.erase(peer)
+
+
 ## A player who left mid-match leaves no body (E26, the engineer's answer 1 on PR #133).
 func _fold_leave(peer: int) -> void:
 	bodies.erase(peer)
 	lives[peer] = Life.LEFT
+	# The host stops a raise of or by a leaver first (RaiseStopped); a lost order changes nothing.
+	raises.erase(peer)
+	var raised := raised_by(peer)
+	if raised != 0:
+		raises.erase(raised)
 
 
 ## Enters `next`: a match's facts are cleared when it plays in the lobby and the phase before did

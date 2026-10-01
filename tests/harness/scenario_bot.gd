@@ -30,6 +30,8 @@ var previous_cursor := 0
 var sent_seq := -1
 ## The item the current step names (PickUp) or held when it sent (PutDown), or -1.
 var sent_item := -1
+## The player the current step's intent names (Raise's target), or 0.
+var sent_peer := 0
 var connected := false
 ## Its Welcome arrived.
 var joined := false
@@ -43,8 +45,8 @@ var epoch := 0
 ## Its jumps since it adopted `epoch` (MoveClaim's `jumps`, §4.3): 0 again on every new epoch.
 var jumps := 0
 var position := Vector3.ZERO
-## Downed, from its own KnockedDown until its own Died; dead from then until its own Respawned or
-## the next match.
+## Downed, from its own KnockedDown until its own Died or Revived; dead from then until its own
+## Respawned or the next match.
 var downed := false
 var dead := false
 var role: StringName
@@ -109,6 +111,7 @@ func start_step(at_tick: int) -> void:
 	step_cursor = events.size()
 	sent_seq = -1
 	sent_item = -1
+	sent_peer = 0
 
 
 func finish_step() -> void:
@@ -177,6 +180,10 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			if back == peer:
 				dead = false
 				_correction_due = true
+		&"Revived":
+			# It stands up where it lay: no Correction follows (M4-4).
+			if fields["peer"] as int == peer:
+				downed = false
 		_:
 			_learn(event_name, fields)
 	return ""

@@ -110,7 +110,7 @@ hello deadline.
 | Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
-| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`; downed: `MoveClaim` (the crawl, §7.1); dead: nothing; leave | round rule | runs |
+| Round | the deal has run (below); `LifeTicks` lets the downed die at the end of their knockdown and the dead respawn; `ChannelTicks` runs the raises (M4-4) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`, `Raise`, `StopRaise`; downed: `MoveClaim` (the crawl, §7.1), `GiveUp`; dead: nothing; leave | round rule | runs |
 | End | frozen: no movement, no snapshots | `ReturnToLobby` (host); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
@@ -391,6 +391,9 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1) |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the held item's kind, the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
 | `ReturnToLobby()` | the host only; End | |
+| `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
+| `StopRaise()` | a living player; Round (M4-4: sent on releasing E) | the sender raises someone (`not_channeling`: a late one after the raise completed or stopped); applied, the raise stops |
+| `GiveUp()` | a downed player; Round (M4-4) | nothing more: the player dies at once, and a raise of it stops first (§9.4 `Die`) |
 
 A connection and a leave are not intents: the transport reports them, and `server/` passes `PeerConnected(peer)` and
 `PeerLeft(peer)` to `core/`. The join is the accepted `Hello`; `server/` disconnects a peer that sent none within
@@ -427,9 +430,12 @@ wire schemas of the events and the snapshot are §4.3.
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
 | `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available | that player | on change, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`) |
 | `KnockedDown` | peer, where it lies (the floor below its last accepted position) | everyone, the downed player included | health reaches 0 (`LifeRules.knock_down`, M4-2); no attacker or cause. It tells the attacker its hit knocked down: an accepted exception to "no hit confirmation" (vision revision 1) |
-| `Died` | peer, body position | everyone, the dead player included | a downed player's knockdown time runs out (`LifeTicks`, M4-2); no event names a killer or a cause. The body stays until its player respawns or leaves |
+| `Died` | peer, body position | everyone, the dead player included | a downed player's knockdown time runs out (`LifeTicks`, M4-2) or it gives up (`GiveUp`, M4-4); no event names a killer or a cause. The body stays until its player respawns or leaves |
+| `RaiseStarted` | raiser, target | everyone | a `Raise` is accepted (M4-4): the target's knockdown pauses and it is held in place |
+| `RaiseStopped` | raiser, target; no cause | everyone | a raise stops before completing (M4-4): `StopRaise`, any other applied action of the raiser, the raiser out of reach or sight, hit, downed or leaving, the target giving up or leaving. The knockdown runs on from where it paused. A raise stopped by a hit tells the attacker the hit landed: an accepted exception to "no hit confirmation" (the engineer's answer 7 on PR #133) |
+| `Revived` | peer | everyone, the revived player included | a raise completes (M4-4): the player stands where it lay with the raise's revive health, its stamina kept, invulnerable for `PlayerRules.invulnerable_s`. It ends the raise (no `RaiseStopped`); no `Correction` (it was held in place) |
 | `Respawned` | peer, the respawn marker it stands on | everyone, the respawned player included | a dead player's respawn time runs out (`LifeTicks`' `Respawn`, M4-3): it is living again with full health and stamina and empty hands, and invulnerable for `PlayerRules.invulnerable_s`. It removes the player's body (E26: no event of its own); before the respawned player's `Correction`. Names no cause of the death |
-| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1 The crawl); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3). None at a death: the dead send no claims |
+| `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a knockdown: the downed player where it lies, with a new epoch (§7.1 The crawl); a respawn: at the marker, with a new epoch, after `Respawned` (M4-3). None at a death (the dead send no claims) or a revive (the raise held the player in place, M4-4) |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
 | `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
@@ -438,7 +444,8 @@ Directives to `server/` have the audience *server* and reach no peer: `RefuseJoi
 `DisconnectPeer(peer)`. Built in 2b (#58): the events from `Welcome` to `PlayerLoaded` above, `ReadyChanged`,
 `CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`; M4-2 (#138):
-`KnockedDown`, and `Died` moved to the end of the knockdown; M4-3 (#139): `Respawned`. Built in 2h
+`KnockedDown`, and `Died` moved to the end of the knockdown; M4-3 (#139): `Respawned`; M4-4 (#140): `RaiseStarted`,
+`RaiseStopped` and `Revived`. Built in 2h
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
 reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
 (#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6).
@@ -509,6 +516,9 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 7 | `PutDown` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
 | 8 | `Use` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
 | 9 | `ReturnToLobby` | RELIABLE | `seq: u32` | 4; 4 |
+| 10 | `Raise` | RELIABLE | `seq: u32`, `target: peer` (M4-4, #140, E28) | 8; 8 |
+| 11 | `StopRaise` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
+| 12 | `GiveUp` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 
 **Debug commands** (C→H, E17): only in a debug build's table. `server/` takes them from the host's own client (peer 1)
 only and turns each into the command it names; from another peer, or on a release host, whose table lacks the kind,
@@ -555,6 +565,9 @@ directive has no row, because it reaches no peer.
 | 58 | `Disconnecting` | `reason: id` (`load_deadline`; audience *only* that player, M4-6, #119) | 14; 33 |
 | 59 | `KnockedDown` | `peer: peer`, `position: vec3` (audience *everyone*, M4-2, #138) | 16; 16 |
 | 60 | `Respawned` | `peer: peer`, `position: vec3` (audience *everyone*, M4-3, #139) | 16; 16 |
+| 61 | `RaiseStarted` | `raiser: peer`, `target: peer` (audience *everyone*, M4-4, #140) | 8; 8 |
+| 62 | `RaiseStopped` | `raiser: peer`, `target: peer`: no cause (audience *everyone*, M4-4) | 8; 8 |
+| 63 | `Revived` | `peer: peer` (audience *everyone*, M4-4) | 4; 4 |
 
 **State and voice.**
 
@@ -578,9 +591,10 @@ The rules of the table:
 - **The version.** `JoinRules.PROTOCOL_VERSION` (`core/`) and the codec's version are one number, which a unit test
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
   It was 2 when M4-6 (#142) added `Disconnecting` (58), 3 when M4-2 (#138) added `KnockedDown` (59) and
-  renamed the avatar's flag `downed`, and is 4 since M4-3 (#139) added `Respawned` (60), the avatar's flag
-  `invulnerable` and the debug row `ForceClock` (25); M4's protocol PRs each set it to their base's plus one at the
-  rebase before the merge (the M4 ADR §4).
+  renamed the avatar's flag `downed`, 4 when M4-3 (#139) added `Respawned` (60), the avatar's flag
+  `invulnerable` and the debug row `ForceClock` (25), and is 5 since M4-4 (#140) added `Raise`, `StopRaise` and
+  `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63); M4's protocol PRs each set
+  it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
   and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
@@ -909,7 +923,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     phase accepts (the dead send no intents). Before `Welcome` it claims nothing.
   - **The life fold** (E25, M4-2 #138): `ClientModel.life_of(peer)` is living unless a `KnockedDown` (downed), a
     `Died` (dead, with its body) or a `PlayerLeft` (left, its body removed, E26) of this match said otherwise, and no
-    `Respawned` (living again, its body removed; M4-3 #139) undid it; `is_invulnerable(peer)` reads the newest
+    `Respawned` (living again, its body removed; M4-3 #139) or `Revived` (living again where it lay; M4-4 #140)
+    undid it; `raiser_of(peer)` and `raised_by(raiser)` follow the raises (`RaiseStarted` until `RaiseStopped`,
+    `Revived`, a leave of either or a new match; M4-4); `is_invulnerable(peer)` reads the newest
     snapshot's avatar flag (the own player's never arrives);
     `is_alive(peer)` is `life_of(peer)` living. `ClientModel.Life` is the client's own enum, so no `client/` file
     names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd` and
@@ -1261,8 +1277,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   placeholder) also snaps.
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
   count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
-  (`PLACING_EVENTS`: `PlayersPlaced` and `KnockedDown`; a death sends no `Correction`; a later rule that places a
-  player with a `Correction`, a revive or a respawn, adds its event there).
+  (`PLACING_EVENTS`: `PlayersPlaced`, `KnockedDown` and `Respawned` (M4-4); a death and a revive send no
+  `Correction`; a later rule that places a player with a `Correction` adds its event there).
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
@@ -1330,7 +1346,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   so an uncut sound would tell every client through the walls where a package was just put down. Occlusion is M5's.
 - **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
   again; the spectate camera and the lift music stop. After `Revived` the controller stands up where it lay, in first
-  person; whether a revive also sends a `Correction` is M4-4's to decide, and the client adopts one like any other.
+  person; a revive sends no `Correction` (M4-4: the raise held the downed player where the host has it).
 - **Others:** a `RemotePlayerBody` shows its facing (a head that turns and nods), the hand item at a hand attach
   point, the belt item at a belt attach point, a two-handed package held in front, the downed pose and its layer, and
   invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.
@@ -1429,8 +1445,9 @@ rest.
   all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskProgress`); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
-- **Widening** follows from evaluating audiences at emission. A knockdown, a death and a respawn widen nothing: the
-  downed are public, `Respawned` is as public as the body it removes and the avatar that appears again, a dead player
+- **Widening** follows from evaluating audiences at emission. A knockdown, a death, a respawn and a revive widen
+  nothing: the downed are public, `Respawned` is as public as the body it removes and the avatar that appears again,
+  a raise and a revive are as public as the two avatars (M4-4), a dead player
   gets the same public snapshots as everyone (minus the dead), and the dead learn no roles and
   no event that a living peer present then does not get (the leak test checks it, §4.6; M4-2 tests the snapshots in
   `tests/unit/life/life_rules_test.gd`). End widens nothing: `MatchEnded` names only the winning
@@ -1733,13 +1750,25 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   crawl check, and its first claim as downed starts a new client-tick baseline there. A death sends no `Correction`:
   the dead claim nothing. Tests: `tests/unit/movement/`, `tests/unit/stamina/stamina_ledger_test.gd`,
   `tests/unit/life/life_rules_test.gd`.
+- **The raise** (vision revision 1, Revive; M4-4, #140). The host checks the raise's conditions when `Raise` arrives
+  and again every tick while it runs (a channel, §9.4): the target is downed, it lies within the pick-up's reach
+  (2 m) of the raiser's last accepted position, both feet, and the line from the raiser's eye (`Items.eye_of`) to
+  just above where it lies (`Items.lifted`) is clear; one raiser at a time. So a raiser who walks away or loses
+  sight stops the raise on the next tick. The raiser may move while it holds E and may hold the package. While a
+  raise runs, the downed player is **held in place** (the engineer's answer 8 on PR #133): a claim farther than
+  `MovementRule.HOLD_SLACK_M` (1 mm, a margin for the client's physics, not for the wire) from where the raise
+  started (`Channel.held_at`), in any direction, is corrected (`MovementRule.held_against`, from
+  `Channels.holding`), so no run of claims a hair apart adds up to a move, and a teammate who restarts a raise
+  just short of its time again and again keeps a downed package carrier alive (the pause) but cannot carry it
+  anywhere; giving up is the way out. A completed raise sends no `Correction`: the player stands where the host has
+  it, and its next claim is checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd`.
 - **Walls.** The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
   walls for hits, pick-ups and placement, because there an honest client would otherwise stab or grab through a thin
   wall.
 - **Hits** (the knife's `Use`: `Strike`, §9.4). The host picks the targets: every living player other than the
   attacker (strikes skip the downed, the dead and the invulnerable: for `PlayerRules.invulnerable_s` after a
   respawn or a revive, `PlayerState.is_invulnerable`, which nothing ends early, not even the player's own attack, the
-  engineer's answer 3 on PR #133; M4-3) whose capsule has a point within
+  engineer's answer 3 on PR #133; M4-3, the revive M4-4) whose capsule has a point within
   the weapon's reach of the attacker's position and within half the weapon's angle of the facing, overlapping
   vertically, and in line of sight from the attacker's eye. Each takes the weapon's damage; the zone lives in the
   weapon's data. The minimum interval between hits is per player, so swapping to a second knife does not skip it.
@@ -1820,8 +1849,9 @@ part is usable in data once its row or entry names the PR that built it. Every n
     respawn (`LifeRules.respawn`, M4-3) or the leave; M4-2); two tables keyed by names from the data,
     **cooldowns** (the tick at which a player last paid a key, such as `hit`) and **counters** (an integer per player
     and key, such as uses left, #34); and a **per-part state** table, one `RefCounted` per key that a part class
-    declares, for state a new part class needs that fits none of the above. So a new part adds state without a new
-    field in `MatchState`. `ResetMatch` clears all of it.
+    declares, for state a new part class needs that fits none of the above (the movement rule's records; the running
+    channels, `Channels`, M4-4). So a new part adds state without a new field in `MatchState`. `ResetMatch` clears
+    all of it.
   - **The phase object.** A `PhaseSpec` names a phase class (a script) and its settings. On each entry into the
     phase `Match` creates a fresh object of that class (`RefCounted`, not a `Resource`) and drops it on exit. It holds
     what lives as long as the phase: the countdown's end tick, Loading's acks and deadline. A
@@ -1834,9 +1864,12 @@ part is usable in data once its row or entry names the PR that built it. Every n
 - **Checked on load**, in two parts. `Match` refuses a mode with errors, listing them all.
   - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does
     not declare; an outcome a phase can report without a row (§3.1); a phase whose rules can knock a player down but
-    that lists no `LifeTicks` (M4-3); an accepted intent that neither the phase class nor any rule handles; two rules on
-    one trigger in one owner; a number outside its part's bounds; an id outside the
-    wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
+    that lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`)
+    but lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action
+    (a reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
+    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); an accepted intent that neither
+    the phase class nor any rule handles; two rules on one trigger in one owner; a number outside its part's
+    bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
     condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), the designer's answer on
     #96). A unit test
     (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
@@ -1867,7 +1900,9 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   `Rejected` with that condition's reason; for a fact, nothing happens. Every condition has `negate: bool` (false); a
   negated condition rejects with `not_allowed`. A **cost** is a condition that is also paid (stamina, a cooldown,
   later a use): all conditions and costs are checked first, then every cost is paid in order, then the effects run,
-  so a refused intent pays nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
+  so a refused intent pays nothing. Between the checks and the costs, an **action** (a rule on an intent) that
+  passed stops its actor's running channel (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses or
+  lets go of E stops its raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
 - **Effects** (*what happens*) run in order. An effect changes `MatchState` only through `core/`'s own rules (life,
   items, stamina), emits events, raises facts, and may report an outcome (`ReportOutcome`, §3.1).
 - **A fact is handled at once, depth first.** When an effect raises one, the rules on it run (the mode's reactions,
@@ -1878,7 +1913,7 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
 | Fact | Raised when | The rule sees (**hidden** fields in bold) |
 |---|---|---|
 | `item_rested` | an item comes to rest: put down, swapped, dropped at a death or a leave, spawned; later thrown (`ItemRested`, #37) | the item, the cause (`put_down`, `swap`, `death`, `leave`, `spawn`), the rest position |
-| `player_died` | a downed player dies (its knockdown ran out, M4-2), before the held item drops | the player, the body position; no killer, as no event names one (§4.2). A knockdown raises no fact |
+| `player_died` | a downed player dies (its knockdown ran out, M4-2, or it gave up, M4-4), before the held item drops | the player, the body position; no killer, as no event names one (§4.2). A knockdown raises no fact |
 | `player_left` | a player leaves while the life state counts (Round, §3.5), before the held item drops | the player |
 | `subtask_done` | a task type completes a subtask | the task; **its task type's detail** (`detail`; Delivery: the subtask's index and its package; no event carries it). A task has no owner (#79) |
 | `clock_ended` | the match clock reaches its end (§3.3) | nothing more |
@@ -1925,7 +1960,10 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
   event to everyone tells everyone who watches it fire that the actor has that role (a blade only dissidents may use:
   whoever is seen swinging it is a dissident). That may be the design, but it must be chosen: each rule entry says
   whether its public events reveal the owner's role, and `Match` validation logs a warning for a role-owned or
-  `ActorRole`-gated rule with an effect whose event goes to everyone. v0 has none.
+  `ActorRole`-gated rule with an effect whose event goes to everyone. v0 has none. A channel adds one more way
+  (M4-4): any applied action stops its actor's running channel (a raiser's public `RaiseStopped`) while a refused
+  one stops nothing, so a role-owned or role-gated action reveals the role of a raiser who tries it; in a mode
+  with a channel the check warns about every such action.
 - **Determinism.** Rules, conditions and effects run in data order, and players in peer-id order. A part that draws
   randomness names its RNG purpose in its data (§3.3), so a new part never shifts the draws of the others.
 
@@ -1993,12 +2031,28 @@ phase classes come in the task each row names.
   `Items.LEAVE`), `respawn` (M4-3 #139: from dead, at a marker that `Respawn` draws: the body removed, the role kept,
   health and stamina full, hands empty, a new epoch; then `Respawned` (everyone) and `Correction` (that player)) and
   `make_invulnerable` (`PlayerState.invulnerable_until`: strikes skip the player for `PlayerRules.invulnerable_s`, and
-  `damage` does nothing to it, so every damage source spares it; the respawn calls it, and M4-4's revive will). `die`
-  sets `life_deadline` to the respawn time later.
+  `damage` does nothing to it, so every damage source spares it; the respawn and the revive call it), and `revive`
+  (M4-4 #140: from downed, where it lies: living with the raise's health, stamina kept, invulnerable; then `Revived`
+  (everyone), no `Correction`). `die` sets `life_deadline` to the respawn time later. A hit stops the victim's own
+  channel (`damage`); `knock_down`, `die` and `leave` first stop every channel the player runs or is the target of
+  (a raise: `RaiseStopped`), so a raiser downed, a downed player giving up and either leaving all stop a raise.
   `LifeTicks` (`core/life/life_ticks.gd`), a tick system, calls `die` for each downed player whose
   `life_deadline` has come, and runs its `Respawn` (`core/life/respawn.gd`) for each dead one, in peer-id order
-  (without a `Respawn` the dead stay dead); M4-4 adds the raise's pause to it. A later weapon
+  (without a `Respawn` the dead stay dead); a raise pauses a knockdown by clearing `life_deadline` and keeping what
+  was left in `PlayerState.knockdown_left` (M4-4), so `LifeTicks` sees no deadline then. A later weapon
   or a trap calls `damage`; the class is `LifeRules`, not `Life`, which would shadow `PlayerState.Life`.
+- **Channels** (`core/channel/`, M4-4 #140): an action that takes time, the generic primitive the raise uses and
+  #36's zone task can reuse. A `ChannelEffect` (an effect, abstract) starts a `Channel` (state: its effect, the rule
+  it came from, actor, target, start tick, ticks done and needed) for its actor on the intent's `target`
+  (`Channels.target_of`: the channel's target while it runs, else the intent's, when the intent declares one);
+  `Channels` keeps the running ones in `MatchState`'s per-part state, one per actor, and is the one place that
+  advances, stops and completes them; `ChannelTicks`, a tick system, advances each running channel once per tick in
+  actor-id order: its rule's conditions again (not its costs), with the channel on `MatchContext.channel` and no
+  intent, the first failing one stopping it, else one more tick, completing it in the tick that reaches its time. A
+  stop or a completion removes the channel, then calls its effect's `stopped` or `completed`. No channel outlives
+  its phase: every transition stops every running one before the row's actions (`Channels.stop_all`, from
+  `Match`), so a raise running when Round ends sends its `RaiseStopped` before `PhaseChanged`. `ChannelFree` and
+  `Channeling` are its conditions; `MatchContext.rule` (set by `RuleRunner`) is how the effect keeps its rule.
 - Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an
   enum of `NetTransport` or GdUnit4).
 
@@ -2006,10 +2060,10 @@ phase classes come in the task each row names.
 |---|---|---|---|---|
 | Game mode | which phases, rules and settings a match has | `GameMode`, with `PhaseSpec` (its allowlist of `AcceptSpec`s), `Transition`, `SettingSpec` (a whole number or a set of task types), `SideSpec`, `PlayerRules` | `content/modes/` | the base mode |
 | Phase class | what a phase does itself: its own intents, timers and outcomes | `Phase` subclasses (`RefCounted`; a fresh object per entry, §9.1) | named by a `PhaseSpec`, with its settings | Lobby, Countdown, Loading, Round, End |
-| Rule | trigger → conditions → effects; an **action** is a rule on an intent, a **reaction** a rule on a fact | `Rule` | inside its owner | PickUp, PutDown, the knife's Use |
+| Rule | trigger → conditions → effects; an **action** is a rule on an intent, a **reaction** a rule on a fact | `Rule` | inside its owner | PickUp, PutDown, the knife's Use, Raise, StopRaise, GiveUp |
 | Condition, cost | *only if*; a cost is also paid | `Condition`, `Cost` subclasses | inside a rule or a win condition | §9.4 |
 | Effect, transition action | *what happens*; a transition action is an effect that a transition row runs, with no actor | `RuleEffect` subclasses | inside a rule or a row | §9.4 |
-| Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | LifeTicks, TaskTicks |
+| Tick system | what runs every tick of a phase, in the phase's order | `TickSystem` subclasses | listed per phase | LifeTicks, ChannelTicks, TaskTicks |
 | Voice rule | who hears whom in a phase (§6) | `VoiceRule` subclasses | one per phase | Silent, Proximity, RoundVoice |
 | Role | a side, what it knows, its abilities; a display name | `GameRole`, `RoleQuota` | `content/roles/` | Crew, Dissident |
 | Item kind | a thing a player can hold, and what using it does; a display name (the HUD's held item) and its spawn tag | `ItemKind` | `content/items/` | Package, Knife |
@@ -2052,6 +2106,11 @@ phase classes come in the task each row names.
 | `ClockEnded` | the match clock has reached its end (`MatchState.clock_ended`, set when `Match` raises `clock_ended`); before `StartClock` there is no end | none | (facts only) | 2h (#64, `core/win/clock_ended.gd`) |
 | `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | 2g (#63, `core/combat/cooldown.gd`) |
 | `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor, at the end of the tick) | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | 2d (#60) |
+| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | M4-4 (#140, `core/life/target_downed.gd`) |
+| `TargetInReach` | the target lies within `reach_m` of the actor: both last accepted positions, their feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode's raise 2) | `out_of_reach` | M4-4 (#140) |
+| `TargetInSight` | the line from the actor's eye (`Items.eye_of`) to just above the target's feet (`Items.lifted`) is clear (§7.1), as `InSight` for an item | none | `blocked` | M4-4 (#140) |
+| `ChannelFree` | the actor runs no channel and no channel targets the rule's target, apart from the channel being checked again: one channel per actor and one per target (one raiser at a time) | none | `busy`: every channel of the MVP (a raise) is public | M4-4 (#140, `core/channel/`) |
+| `Channeling` | the actor runs a channel | none | `not_channeling`: its own state | M4-4 (#140) |
 
 **Effects in rules:**
 
@@ -2060,6 +2119,8 @@ phase classes come in the task each row names.
 | `TakeIntoHand` | the item goes into the actor's hand; a held item is swapped: it rests where the picked-up one lay (§7.1). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61) |
 | `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `Strike` | picks the targets as in §7.1 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target is knocked down there (M4-2) | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
+| `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) and the movement rule holds it in place. Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health` | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
+| `Die` | the actor, downed, dies at once (`LifeRules.die`): a raise of it stops first; the body, `player_died`, the drop at the body. A living actor is a rule error, logged | none | `RaiseStopped` (when raised), `Died` (everyone), the drop's `ItemPlaced` (death, everyone); `player_died`, `item_rested` | M4-4 (#140, `core/life/die.gd`) |
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
 | `ReportOutcome` | reports an outcome of the current phase (a button in the level, say; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it; 2a builds the outcome reporting it calls |
 
@@ -2096,7 +2157,8 @@ each sum with the chosen map's markers of that tag and each colour count with it
 
 | Part | Kind | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|---|
-| `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; M4-4 adds the raise's pause. A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3) | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
+| `LifeTicks` | tick system | each downed player whose knockdown time has run out (`PlayerState.life_deadline`) dies (`LifeRules.die`), and each dead player whose respawn time has run out respawns through `respawn` (M4-3), in peer-id order; a downed player being raised has no deadline (M4-4: the raise keeps what was left). A phase whose rules can knock a player down (an accepted intent's action or a reaction with an effect that emits `KnockedDown`: a `Strike`) lists it, or the mode check refuses the phase (M4-3) | `respawn` (a `Respawn`, or none: the dead stay dead); the knockdown and respawn times are `PlayerRules.knockdown_s` and `respawn_s` (E27) | a death's `Died` (everyone), then the dropped item's `ItemPlaced` (death, everyone); the facts `player_died`, `item_rested`; a respawn's events. Demands: its `Respawn`'s | M4-2 (#138, `core/life/life_ticks.gd`); the respawn M4-3 (#139) |
+| `ChannelTicks` | tick system | each running channel, in actor-id order: its rule's conditions again (not its costs), the first failing one stopping it; else one more tick, and the tick that reaches its time completes it (`Channels.advance`). A phase that accepts an intent whose rule starts a channel lists it, or the mode check refuses the phase | none | what the channels' effects emit when they stop or complete (the raise: `RaiseStopped`, `Revived`, `SelfStatus`) | M4-4 (#140, `core/channel/channel_ticks.gd`) |
 | `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order (none in the MVP; #36) | none | the task types' events | 2f (#62) |
 | `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
@@ -2149,12 +2211,13 @@ Settings:
   placeholders, never checked by the host; every client must ship the same values.
 - Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
   `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife.
-- Actions: PickUp, PutDown. Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
+- Actions: PickUp, PutDown, Raise, StopRaise, GiveUp (below). Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
   present, time up.
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
-  Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown` and `Use` from the living;
-  LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), TaskTicks; yes; runs; RoundVoice; map), End
+  Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown`, `Use`, `Raise` and
+  `StopRaise` from the living, `GiveUp` from the downed; LifeTicks with a Respawn (`respawn` markers, the RNG purpose
+  `respawn`), ChannelTicks, TaskTicks; yes; runs; RoundVoice; map), End
   (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
   `living_m`: 8 m.
 - Transitions: §3.2. Their actions: `Loading, all_loaded → Round`: `DealRoles` (Dissident by `dissidents`, leaving
@@ -2169,7 +2232,8 @@ Loading and End, the join rules, the fit check, the mode check with layouts and 
 `ResetMatch`. 2e (#61) added the Package, PickUp and PutDown, and Round's `PickUp` and `PutDown` from the living;
 2g (#63) added Round's `Use` from the living together with the knife's rule, because the mode check refuses an
 accepted intent that no rule handles. 2f (#62) added Delivery to the task types and TaskTicks to Round; M4-2 (#138)
-LifeTicks before it, the crawl speed and the knockdown time. 2c (#59) added Crew, Dissident,
+LifeTicks before it, the crawl speed and the knockdown time; M4-4 (#140) the raise and the give-up, and ChannelTicks
+between them. 2c (#59) added Crew, Dissident,
 the Knife and the `Loading, all_loaded → Round` actions, whose `DealTasks` deals Delivery. #79 made the tasks
 shared and drawn: the settings `tasks`, `banned_task_types` and `packages`. Tests: the mode check of 2a,
 the base mode's numbers and `End → Lobby` order, and the whole deal run by a match entering the round
@@ -2332,6 +2396,23 @@ Status: designed in #33; built in 2g (#63), as the knife's. Tests: the knife's; 
 `tests/unit/life/life_rules_test.gd`, `tests/unit/content/content_modes_test.gd` (the base mode),
 `tests/unit/content/item_intents_test.gd` (only the living, in every mode); a package's: `tests/unit/items/items_test.gd`.
 
+#### Raise, StopRaise and GiveUp (actions; the revive)
+What it does (vision revision 1, Revive and Give up; M4-4, #140): a living player raises a downed one by holding E
+for the raise time, and the downed player stands up where it lay; a downed player may give up and die at once.
+Settings (provisional, "not a decision"; the numbers are the raise rule's own, E27):
+- `Raise` (the mode's action): `TargetDowned`, `ChannelFree`, `TargetInReach` 2 m (the pick-up's reach),
+  `TargetInSight`, checked at the start and every tick; then `RaiseDowned` of 3 s with a revive health of 50.
+- `StopRaise`: `Channeling`; applied, it stops the raise as every applied action of the raiser does (§9.2).
+- `GiveUp`: no condition; `Die`.
+- Round accepts `Raise` and `StopRaise` from the living, `GiveUp` from the downed (`not_accepted` otherwise).
+Produces: `RaiseStarted`, `RaiseStopped` (no cause), `Revived`; a give-up's `Died` and the drop at the body.
+Visible to: everyone (§4.2); a raise is as public as the two avatars. A raise stopped by a hit confirms that hit to
+the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `busy`, `out_of_reach`, `blocked`,
+`not_channeling`, and `not_accepted` from the phase. The raiser may hold the package (answer 4).
+Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`; the
+base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios `crew_revives_the_downed` and
+`raise_stopped_then_given_up` (§9.7).
+
 #### Sprint (not a part in v0)
 What it does: the `sprint` flag of `MoveClaim`, settled by the movement rule for every tick a claim covers (§7.1),
 with the numbers in `PlayerRules`: 7 m/s, 20 per second, from 20. A tick costs only when the claim's `moving` flag
@@ -2442,6 +2523,9 @@ told. One format runs in two runners.
 | `Expect(event, fields, within)` | checks | it received a matching event since its previous step, or within `within` seconds |
 | `ExpectNone(event, fields, for_s)` | checks | no matching event arrived for `for_s` seconds; the first one fails the step |
 | `Leave` | disconnects | at once |
+| `Raise(target, hold_s)` | sends `Raise` of the player of a `bot(i)` target and holds E (M4-4) | its `RaiseStarted` arrived and `hold_s` passed since the step started, or the raise ended before (its `RaiseStopped`, or a `Revived` of the target); the bot still holds E after it |
+| `StopRaise` | sends `StopRaise`: lets go of E (M4-4) | its `RaiseStopped` arrives (`not_channeling` when no raise runs) |
+| `GiveUp` | the downed bot sends `GiveUp` (M4-4) | its own `Died` arrives |
 
 As built in 2j (#66; `core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and
 one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable setup before a run):
@@ -2463,7 +2547,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   the designer's answer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
   right after the joins at the start, and its settings in one `ChangeSettings` from bot 1 after them.
 - `fields` match a subset of the event's payload, as the bot received it (name and fields): text as text, numbers
-  and vectors approximately, and `peer` holds a bot's number, mapped through the runner's `ScenarioPeers`; an event
+  and vectors approximately, and `peer` (and the raise events' `raiser` and `target`, M4-4) holds a bot's number, mapped through the runner's `ScenarioPeers`; an event
   for one peer whose payload names none (`SelfStatus`) matches `peer` as the bot that received it (3h). `never` names an event, fields and a
   bot (0: every bot).
 
@@ -2473,7 +2557,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2), the bot's own knockdown
-  (M4-2) or its own respawn (M4-3) fails, because an honest bot is never corrected, so every scenario also checks the
+  (M4-2) or its own respawn (M4-3) fails (a revive sends none, M4-4), because an honest bot is never corrected, so
+  every scenario also checks the
   host's movement rules against honest movement. A field that
   names a player is written as the bot's number; the runner maps it to the peer id (the core runner: bot 1 is
   peer 1, bot i is peer 1000 + i, so a scenario that confuses the two fails; the bots runner: the ids its clients
@@ -2518,11 +2603,16 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   step), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
   `respawn` marker; the dissident sprints to it and swings within its 3 s of invulnerability, which brings no
   `Damaged`, then swings again after them, which does; the match ends by time up on a 55 s clock),
+  `crew_revives_the_downed` (M4-4: a dissident knocks a crew bot down and another crew bot raises it for 3 s; it
+  stands with 50 health; nobody dies and no raise stops; time up on a 30 s clock; also run once over ENet,
+  `tools/run.sh bots crew_revives_the_downed --instances 3`, not a `verify` step), `raise_stopped_then_given_up`
+  (M4-4: a raise let go after 1 s, a second raise, the downed bot gives up during it (`RaiseStopped`, `Died`), a late
+  `StopRaise` gets `not_channeling`, and the bot respawns 30 s later; time up on a 55 s clock),
   `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`empty_hand`,
-  `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`, a swap). The first three and
-  `crew_respawns_invulnerable` expect the ends `crew`, `dissidents`, `dissidents` and `dissidents` (2h's win
-  conditions); the other three `none`.
+  `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`, a swap). The first three,
+  `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
+  `dissidents` and `dissidents` (2h's win conditions); the other three `none`.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
@@ -2531,7 +2621,7 @@ costs outside it.
 | Mechanic | Data | New part classes | New event classes | What else changes, and why |
 |---|---|---|---|---|
 | Zone task (#36): stand in a zone for N seconds | a task type `.tres` (N, the zone radius; #36's questions, reset or pause and shared zones, become settings), a zone station kind, `zone` markers in the map, the mode's task types | one task type (one script, §9.3): its deal places the zones and binds each subtask to one; its tick (through `TaskTicks`) advances the time in the zone, kept in its task state, for each subtask whose counted player is alive inside the zone. Who counts (any living player, or only those inside the zone) is #36's question | none for placement and progress: `StationPlaced` and `TaskProgress` are generic. One more if #36 wants the time in the zone shown live, and one if a zone is shown as done to everyone (`PackageDelivered` is Delivery's) | none: `DealTasks` draws among the mode's task types (#79), and the zone task brings its own subtasks setting |
-| Resurrection (#34), as an item | an item kind whose `Use` rule has the conditions `BodyInFront` and `ActorRole` (if only some roles may), the costs `Cooldown` and `Uses` (if the count is limited) and the effect `Revive`; `SpawnItems` for it in the deal | two or three: `BodyInFront` (a condition: a body within reach and angle, in line of sight; else `no_body`, which reveals nothing, as bodies are public), because an effect cannot refuse, and without it a `Use` with no body pays its costs and does nothing; `Revive` (the player of that body becomes alive at the body; which body and how much health are #34's questions and become its settings); `Uses` (a cost over the counters table), which every limited ability reuses | `Revived` (everyone: the body and the avatar are public anyway) | `Revive` places the player: a `Correction` with a new epoch, or its next claim from the ghost's position is a teleport. Bodies are already in `MatchState` (§9.1, 2g). Audiences are evaluated at emission, so the revived player's snapshots and voice narrow at once, and it keeps what it saw as a ghost (§5). Which `Use` wins when a medic holds a knife is #38's (§9.2). As an action at a body without an item, it needs `Interact` (below) |
+| Revive (vision revision 1; built in M4-4, #140), as a timed action on a player | the mode's `Raise` rule: `TargetDowned`, `ChannelFree`, `TargetInReach` (2 m), `TargetInSight`; `RaiseDowned` (3 s, 50 health); `StopRaise` (`Channeling`) and `GiveUp` (`Die`); `ChannelTicks` in Round | as built: the channel primitive (`ChannelEffect`, `ChannelTicks`, `ChannelFree`, `Channeling`, with `Channel` and `Channels` as its state), three conditions on a target player and two effects (`RaiseDowned`, `Die`). The primitive is the reusable part: a timed action is one `ChannelEffect` subclass plus the conditions it is held under, which are checked every tick (#36's zone task, a #34 medic's resurrection at a body) | `RaiseStarted`, `RaiseStopped`, `Revived` (everyone: both avatars are public) | three intents, `Raise(target)`, `StopRaise()` and `GiveUp()` (E28), with their rows in §4.1; the first intent that targets a player rather than an item. Two lines outside the parts: `RuleRunner` stops an actor's channel when another of its actions applies (§9.2), and `MovementRule` holds a raised player in place (§7.1). A #34 resurrection of the dead at their body would add a body target (`BodyInFront`: a body within reach and in sight, else `no_body`, which reveals nothing, bodies being public) and a `ChannelEffect` that brings the dead player back at the body (`LifeRules` gains that move, with its `Correction`, as `respawn` has); if only some roles may, `ActorRole`; a use limit, `Uses` (a cost over the counters table). Which `Use` wins when a medic holds a knife is #38's (§9.2) |
 | Meetings mode (#35) | a new mode `.tres` that reuses the base mode's roles, items, Delivery and win conditions, with the phases Meeting, Vote and Resolution, rows such as `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`, a clock stopped by the phase spec and a meeting voice rule | several, because a meeting is a system, not one mechanic: `Interact` (below) for a button and a body report, whose rules report `meeting_called` with `ReportOutcome`; `CastVote`'s effect; a tally as a transition action, fed by the Vote phase object's votes through the outcome's argument (§9.1); a meeting-wide voice rule; the phase classes Meeting, Vote and Resolution (fewer if one timed phase class serves several) | the vote events, each with its audience (a cast vote hidden until the reveal; the reveal; the result) | a new intent, `CastVote(target)`, with its row in §4.1. `PlacePlayers` gains a `who` setting (everyone, or only the living) to seat players for a meeting. Nothing in `Match` or the base mode: phases, rows, outcomes, the clock and the voice rule per phase are data (§3.1) |
 | Physics throwing (#37) | a `Throw` rule on the mode, for any held item | one: the `Throw` effect, which takes the item out of the hand into a *flying* state | a public `ItemThrown`, and a directive (audience *server*) that tells `server/` to simulate the flight | a new intent, `Throw(facing)` (a new verb for every item, unlike `Use`), with its row in §4.1; the flying state in `MatchState`; `server/` simulates the flight and reports `ItemRested`, which raises `item_rested`, so delivery works unchanged. How the flight is shown is #37's: `core/` builds the snapshots but does not know an item's position in flight, so either `server/` reports the positions as logged commands, or clients draw the arc from `ItemThrown` until `ItemPlaced`. Damage on impact needs an impact fact: #37 decides |
 
@@ -2541,11 +2631,15 @@ bodies. It changes the intent catalogue (§4.1) and the owners once; after it, a
 most one effect.
 
 **Verdict.** Inside `core/`: the zone task passes, with one class, unless #36 wants live progress or a public "zone
-done", which add an event class each. Resurrection as an item does not pass the letter of the test: it needs two part
-classes (three with a use limit) and one event class, because a body is a new kind of target (a condition selects
-it) and a revival is a new public fact (an event). The meetings mode is several parts, as a system. Throwing and
-`Interact` each change the engine once, for the reasons given. None of them changes `Match`, the phase loop or an
-existing part's behaviour; the change to an existing part is a new setting (`PlacePlayers`' `who`).
+done", which add an event class each; its time in the zone can run on the channel primitive (§9.3). The revive, as
+built in M4-4, did not pass the letter of the test: a player is a new kind of target, a timed action needed a new
+primitive (the channel) and the raise three public events and three intents. With them in place, a resurrection at
+a body (#34) is two or three part classes and one event class: a body is again a new kind of target, and a
+resurrection a new public fact. The meetings mode is several parts, as a system. Throwing and
+`Interact` each change the engine once, for the reasons given. None of them changes `Match` or the phase loop; the
+change to an existing part is a new setting (`PlacePlayers`' `who`). The revive changed two existing rules once,
+for every later timed action: `RuleRunner` stops the actor's channel when another of its actions applies, and the
+movement rule holds a raised player in place.
 Outside `core/`, every new event class and intent also costs a wire schema row (M3, §4) and its presentation on the
 client (M4). That is the price of any mechanic that shows something new, not a gap in the content API.
 

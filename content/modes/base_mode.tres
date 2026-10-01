@@ -48,6 +48,14 @@
 [ext_resource type="Resource" uid="uid://cl8ks3hlpyn1c" path="res://content/win_conditions/time_up.tres" id="64_time_up"]
 [ext_resource type="Script" uid="uid://cwp43ht0dotiu" path="res://core/life/life_ticks.gd" id="65_life_ticks"]
 [ext_resource type="Script" uid="uid://blbfjjm1tx6jv" path="res://core/life/respawn.gd" id="66_respawn"]
+[ext_resource type="Script" uid="uid://2fbiqxtovgy1" path="res://core/channel/channel_ticks.gd" id="67_channel_ticks"]
+[ext_resource type="Script" uid="uid://v8nbcqr305rv" path="res://core/channel/channel_free.gd" id="68_channel_free"]
+[ext_resource type="Script" uid="uid://b1nxsqf1xmle1" path="res://core/channel/channeling.gd" id="69_channeling"]
+[ext_resource type="Script" uid="uid://bbkuju8recclp" path="res://core/life/target_downed.gd" id="70_target_downed"]
+[ext_resource type="Script" uid="uid://cfysy8y0y1e10" path="res://core/life/target_in_reach.gd" id="71_target_in_reach"]
+[ext_resource type="Script" uid="uid://c80a7p6ils60m" path="res://core/life/target_in_sight.gd" id="72_target_in_sight"]
+[ext_resource type="Script" uid="uid://c4mggjdsatp27" path="res://core/life/raise_downed.gd" id="73_raise_downed"]
+[ext_resource type="Script" uid="uid://cmuuqdvdgka5r" path="res://core/life/die.gd" id="74_die"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -80,6 +88,46 @@ script = ExtResource("1_o02jd")
 trigger = &"PutDown"
 conditions = Array[ExtResource("21_condition")]([SubResource("PutDown_holds")])
 effects = Array[ExtResource("14_effect")]([SubResource("PutDown_in_front")])
+
+[sub_resource type="Resource" id="Raise_target_downed"]
+script = ExtResource("70_target_downed")
+
+[sub_resource type="Resource" id="Raise_channel_free"]
+script = ExtResource("68_channel_free")
+
+[sub_resource type="Resource" id="Raise_in_reach"]
+script = ExtResource("71_target_in_reach")
+reach_m = 2.0
+
+[sub_resource type="Resource" id="Raise_in_sight"]
+script = ExtResource("72_target_in_sight")
+
+[sub_resource type="Resource" id="Raise_downed"]
+script = ExtResource("73_raise_downed")
+revive_health = 50
+seconds = 3.0
+
+[sub_resource type="Resource" id="Rule_raise"]
+script = ExtResource("1_o02jd")
+trigger = &"Raise"
+conditions = Array[ExtResource("21_condition")]([SubResource("Raise_target_downed"), SubResource("Raise_channel_free"), SubResource("Raise_in_reach"), SubResource("Raise_in_sight")])
+effects = Array[ExtResource("14_effect")]([SubResource("Raise_downed")])
+
+[sub_resource type="Resource" id="StopRaise_channeling"]
+script = ExtResource("69_channeling")
+
+[sub_resource type="Resource" id="Rule_stop_raise"]
+script = ExtResource("1_o02jd")
+trigger = &"StopRaise"
+conditions = Array[ExtResource("21_condition")]([SubResource("StopRaise_channeling")])
+
+[sub_resource type="Resource" id="GiveUp_die"]
+script = ExtResource("74_die")
+
+[sub_resource type="Resource" id="Rule_give_up"]
+script = ExtResource("1_o02jd")
+trigger = &"GiveUp"
+effects = Array[ExtResource("14_effect")]([SubResource("GiveUp_die")])
 
 [sub_resource type="Resource" id="Accept_lobby_hello"]
 script = ExtResource("6_accept")
@@ -184,6 +232,21 @@ script = ExtResource("6_accept")
 intent = &"Use"
 from = 4
 
+[sub_resource type="Resource" id="Accept_round_raise"]
+script = ExtResource("6_accept")
+intent = &"Raise"
+from = 4
+
+[sub_resource type="Resource" id="Accept_round_stop_raise"]
+script = ExtResource("6_accept")
+intent = &"StopRaise"
+from = 4
+
+[sub_resource type="Resource" id="Accept_round_give_up"]
+script = ExtResource("6_accept")
+intent = &"GiveUp"
+from = 32
+
 [sub_resource type="Resource" id="Respawn_round"]
 script = ExtResource("66_respawn")
 tag = &"respawn"
@@ -192,6 +255,9 @@ rng_purpose = &"respawn"
 [sub_resource type="Resource" id="LifeTicks_round"]
 script = ExtResource("65_life_ticks")
 respawn = SubResource("Respawn_round")
+
+[sub_resource type="Resource" id="ChannelTicks_round"]
+script = ExtResource("67_channel_ticks")
 
 [sub_resource type="Resource" id="TaskTicks_round"]
 script = ExtResource("29_task_ticks")
@@ -204,8 +270,8 @@ living_m = 8.0
 script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
-accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("TaskTicks_round")])
+accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use"), SubResource("Accept_round_raise"), SubResource("Accept_round_stop_raise"), SubResource("Accept_round_give_up")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("ChannelTicks_round"), SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
 voice_rule = SubResource("Voice_round")
@@ -395,7 +461,7 @@ roles = Array[ExtResource("12_smei4")]([ExtResource("59_crew"), ExtResource("59_
 item_kinds = Array[ExtResource("2_hh6c0")]([ExtResource("28_package"), ExtResource("59_knife")])
 lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn")
-actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down")])
+actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down"), SubResource("Rule_raise"), SubResource("Rule_stop_raise"), SubResource("Rule_give_up")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery")])
 win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_round"), SubResource("Phase_end")])
