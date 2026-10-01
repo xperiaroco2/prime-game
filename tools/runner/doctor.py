@@ -6,6 +6,7 @@ import configparser
 import json
 import os
 import shutil
+import socket
 import sys
 from pathlib import Path
 
@@ -33,6 +34,11 @@ from .common import (
 
 USER_SETTINGS = "~/.claude/settings.json"
 HOOKS_PATH = ".claude/githooks"
+# The stall step's backlog (tests/integration/net/enet_stall.gd, BACKLOG_POSES: ENET_RECEIVES_PER_SERVICE + 64) is one
+# small datagram per pose, and it must all wait in the host's socket: Godot's ENet keeps the kernel's default UDP
+# receive buffer (net.core.rmem_default on Linux). Some kernels charge more per datagram than others (#159).
+STALL_BACKLOG_DATAGRAMS = 256 + 64
+UDP_PROBE_BYTES = 32
 
 
 def _dotted(parts: tuple[int, ...]) -> str:
@@ -231,6 +237,20 @@ class Doctor:
             else:
                 ok(text)
 
+    def udp_backlog(self) -> None:
+        """Warn early when a default UDP socket on 127.0.0.1 cannot hold the stall step's backlog (Linux only)."""
+        if not sys.platform.startswith("linux"):
+            return
+        held = loopback_datagrams_held(STALL_BACKLOG_DATAGRAMS)
+        if held >= STALL_BACKLOG_DATAGRAMS:
+            ok(f"a default UDP socket holds the stall backlog ({STALL_BACKLOG_DATAGRAMS} datagrams)")
+            return
+        warn(
+            f"a default UDP socket on 127.0.0.1 holds only {held} of the stall step's {STALL_BACKLOG_DATAGRAMS} "
+            f"datagrams, so verify's stall step will fail; raise the default: "
+            f"sudo sysctl -w net.core.rmem_default=425984 (tools/cloud/setup.sh does it)"
+        )
+
     def api_dump(self) -> None:
         target = OUT / "godot-api" / pins.GODOT / "extension_api.json"
         if target.is_file():
@@ -248,6 +268,28 @@ class Doctor:
             self.fail("could not generate the engine API dump", "See tools/out/logs/doctor-api-dump.log")
 
 
+def loopback_datagrams_held(count: int) -> int:
+    """Send `count` small datagrams to a fresh, never-read UDP socket on 127.0.0.1 with the default receive buffer;
+    return how many it holds. The kernel drops the rest (RcvbufErrors in /proc/net/snmp)."""
+    with (
+        socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver,
+        socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender,
+    ):
+        receiver.bind(("127.0.0.1", 0))
+        address = receiver.getsockname()
+        for _ in range(count):
+            sender.sendto(bytes(UDP_PROBE_BYTES), address)
+        receiver.settimeout(0.2)  # loopback delivery is fast but not synchronous
+        held = 0
+        try:
+            while held < count:
+                receiver.recv(UDP_PROBE_BYTES)
+                held += 1
+        except TimeoutError:
+            pass
+        return held
+
+
 def main(quick: bool) -> int:
     say("doctor" + (" --quick" if quick else ""))
     doc = Doctor()
@@ -258,6 +300,7 @@ def main(quick: bool) -> int:
     doc.gdtoolkit()
     doc.addons()
     doc.githooks()  # also in --quick: start-task runs the quick doctor
+    doc.udp_backlog()  # also in --quick: verify's doctor step then warns minutes before its stall step fails
     if not quick:
         doc.git()
         doc.bash()
