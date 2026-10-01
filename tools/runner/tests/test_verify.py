@@ -92,7 +92,6 @@ class EnetStepTest(unittest.TestCase):
         )
         self.assertTrue((ROOT / verify.STALL_RUN).is_file())
 
-
     def test_the_bots_run_every_scenario_in_one_process_then_one_over_enet(self) -> None:
         with mock.patch.object(verify.bots, "main", return_value=0) as run:
             self.assertEqual(verify.bots_one_process(), 0)
