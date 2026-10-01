@@ -359,6 +359,20 @@ func test_the_push_allowance_needs_a_living_player_within_reach_of_the_path() ->
 	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8)).is_true()
 
 
+func test_the_push_reach_grows_while_the_pushers_claims_are_lost() -> void:
+	# The pusher's unreliable claims are lost while it pushes: its last accepted position falls
+	# behind, by a tick of sprinting (0.35 m) for each host tick lost, up to PUSH_TICKS (3.5 m).
+	var game := FixtureMoves.in_round([P1, P2])
+	var reach := MovementRule.push_reach(FixtureModes.player_rules())
+	var beside := EAST * 0.3 + NORTH * (reach + 0.3)
+	assert_bool(_pushed_after_lost_claims(game, beside, 0)).is_true()
+	assert_bool(_pushed_after_lost_claims(game, beside, 1)).is_false()
+	beside = EAST * 0.3 + NORTH * (reach + 3.4)
+	assert_bool(_pushed_after_lost_claims(game, beside, 20)).is_false()
+	beside = EAST * 0.3 + NORTH * (reach + 3.6)
+	assert_bool(_pushed_after_lost_claims(game, beside, 20)).is_true()
+
+
 func test_a_claim_covering_stored_credit_is_pushed_for_at_most_the_push_ticks() -> void:
 	# P1 keeps quiet for 40 ticks beside P2, then one claim without input covers them all. Walk
 	# 40 * 0.225 = 9 m, plus the push for at most PUSH_TICKS (10) ticks, 3.5 m, plus 0.05 m:
@@ -531,4 +545,21 @@ func _quiet_push_corrected(distance: float) -> bool:
 	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureModes.run_ticks(game, 39)
 	FixtureMoves.step(game, P1, EAST * distance)
+	return FixtureMoves.corrections(game, P1).size() > seen
+
+
+## Whether P1's pushed claim of _pushed_claim_corrected is corrected while P2's claim at `offset`
+## from P1 was accepted, then `lost` host ticks went by with none of P2's claims arriving (P1's
+## standing still arrive, so its pushed claim covers one tick).
+func _pushed_after_lost_claims(game: Match, offset: Vector3, lost: int) -> bool:
+	var player := game.state.player(P1)
+	var other := game.state.player(P2)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	_put(game, P2, player.position + offset)
+	FixtureMoves.claim(game, P2, other.position)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	for i in lost:
+		FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, EAST * 0.6)
 	return FixtureMoves.corrections(game, P1).size() > seen

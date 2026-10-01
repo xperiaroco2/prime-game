@@ -38,11 +38,12 @@ extends RefCounted
 ##   living sprint in the sprint state with movement input, else walk; for the downed the crawl
 ##   speed, with no sprint), plus, for the living only, sprint speed for being pushed (§7.1
 ##   "Pushing apart", proposed for M4) for at most PUSH_TICKS covered ticks, while another living
-##   player's last accepted position is within push_reach() of the claim's path (the downed push
-##   nobody and nobody pushes them), plus DISTANCE_SLACK_M. After a claim that sprinted by its own input, one covered tick more may go
-##   at sprint speed: the sprint's last tick, which the claim's flags may no longer show. The
-##   crawl's slack is CRAWL_SLACK_FRACTION of its own travel (+ the float slack) instead: a fixed
-##   slack per claim would let a client sending one-tick claims crawl at twice the crawl speed.
+##   player's last accepted position is within push_reach() of the claim's path, plus a tick of
+##   sprinting per host tick its claims were lost (the downed push nobody and nobody pushes them),
+##   plus DISTANCE_SLACK_M. After a claim that sprinted by its own input, one covered tick more
+##   may go at sprint speed: the sprint's last tick, which the claim's flags may no longer show.
+##   The crawl's slack is CRAWL_SLACK_FRACTION of its own travel (+ the float slack) instead: a
+##   fixed slack per claim would let a client sending one-tick claims crawl at twice the speed.
 ##   The host never checks or corrects overlap between players.
 ## - Height: until the next landing (a claim on the floor with a WorldQuery floor within step
 ##   height), the feet stay within the jump height (+ JUMP_SLACK) of the take-off after an
@@ -131,6 +132,9 @@ class Motion:
 	var rebase := false
 	## The jump count of the last accepted claim in this epoch.
 	var jumps := 0
+	## The host tick of the last accepted claim or placement: how stale the position is that
+	## another player's push allowance measures from (_near_living_player).
+	var accepted_tick := -1
 
 
 ## One MoveClaim's fields, read and checked for type and finiteness.
@@ -244,7 +248,9 @@ static func _check(
 		if not StaminaLedger.covers(player, _jumps_cost(rules, checked.new_jumps)):
 			return null
 		checked.take_off_y = maxf(take_off.y, player.position.y)
-	var pushed := player.is_alive() and _near_living_player(ctx.state, player, claim.position)
+	var pushed := (
+		player.is_alive() and _near_living_player(ctx.state, player, claim.position, ctx.tick)
+	)
 	var allowed := _allowed_travel(
 		player, rules, covered, checked.settled, claim.moving, pushed, sprint_tail
 	)
@@ -283,6 +289,7 @@ static func _accept(
 			motion.base_y = maxf(landing.y, claim.position.y - landing_slack(rules))
 	motion.credit -= checked.covered
 	motion.rebase = false
+	motion.accepted_tick = ctx.tick
 	player.position = claim.position
 	player.velocity = claim.velocity
 	player.facing = stored_facing(claim.facing, player.facing)
@@ -342,10 +349,17 @@ static func _allowed_travel(
 ## Whether a living player other than `player` may be pushing it: that player's last accepted
 ## position is within push_reach() of the claim's path (from `player`'s last accepted position to
 ## `to`), measured horizontally, with the feet at most the capsule's height from the path's. The
-## downed and the dead push nobody (§7.1 The crawl).
-static func _near_living_player(state: MatchState, player: PlayerState, to: Vector3) -> bool:
+## downed and the dead push nobody (§7.1 The crawl). The reach grows by a tick of sprinting for
+## each host tick since that player's last accepted claim beyond the one between two claims, up to
+## PUSH_TICKS (`now`: the host tick): its lost claims leave its position behind where it pushes.
+static func _near_living_player(
+	state: MatchState, player: PlayerState, to: Vector3, now: int
+) -> bool:
 	var rules := state.player_rules
-	var reach := push_reach(rules)
+	var table := (
+		state.part_state(PART_KEY, func() -> RefCounted: return MotionTable.new()) as MotionTable
+	)
+	var lag_per_tick := rules.sprint_speed_mps / Ticks.RATE
 	var from := Vector2(player.position.x, player.position.z)
 	var path := Vector2(to.x, to.z) - from
 	var lowest := minf(player.position.y, to.y) - rules.capsule_height_m
@@ -355,6 +369,11 @@ static func _near_living_player(state: MatchState, player: PlayerState, to: Vect
 			continue
 		if other.position.y < lowest or other.position.y > highest:
 			continue
+		var reach := push_reach(rules)
+		var motion: Motion = table.by_peer.get(other.peer)
+		if motion != null and motion.accepted_tick >= 0:
+			var lost := clampi(now - motion.accepted_tick - 1, 0, PUSH_TICKS)
+			reach += lost * lag_per_tick
 		var at := Vector2(other.position.x, other.position.z) - from
 		var along := 0.0
 		if not path.is_zero_approx():
@@ -444,6 +463,7 @@ static func _after_placement(
 	motion.jumping = false
 	motion.rebase = false
 	motion.jumps = 0
+	motion.accepted_tick = now
 	player.on_floor = true
 	player.claim_tick = -1
 	player.sprint_held = false
