@@ -6,6 +6,10 @@
 - **Amended 2026-10-01:** in a stage the manager session merges task PRs into the milestone's `release/m<k>`
   branch, and humans merge that branch into `main`
   ([release branch per milestone](2026-10-01-release-branch-per-milestone.md)). `gh pr merge` stays denied.
+- **Amended 2026-10-01 (issue #128):** a PR in the designer's area that says "agreed with the designer, relayed by
+  the engineer" is merged without the designer's approval (by the engineer, or in a stage by the manager into
+  `release/m<k>`); the designer looks later, and an objection is reverted by a follow-up PR
+  (`docs/AGENT_WORKFLOW.md` §9).
 
 ## Decision
 Humans click Merge on GitHub or in the Desktop PR pane after CI is green. A cross-area PR is approved by the other

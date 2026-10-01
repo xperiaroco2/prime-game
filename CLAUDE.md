@@ -14,8 +14,7 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 - Never weaken, skip or delete a test to make it pass without the human's explicit approval.
 <!-- see docs/interventions/2026-09-28-engineer-check-live-state.md -->
 - Before stating a fact about the environment (repo, remote, branches, installed tools, versions, settings), check
-  it live with a read-only command. Docs and archives describe the past: when they disagree with the live state,
-  trust the live state and fix the doc.
+  it live with a read-only command. Docs and archives describe the past: trust the live state over them and fix the doc.
 - Do not trust memory for fast-moving tools (Godot 4.7, GdUnit4, Claude Code, GitHub Actions). For Godot use `check`,
   the API dump in `tools/out/godot-api/4.7.2/` and `docs.godotengine.org/en/4.7/`. Godot 3 syntax is a bug.
 <!-- see docs/interventions/2026-09-28-engineer-no-privacy-scrub.md -->
@@ -90,11 +89,13 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - **Designer:** `content/ levels/ docs/GDD.md docs/design/` and the skills `new-mechanic` and `new-level-piece`.
 - **Shared:** `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/`.
 - The designer's agent never edits engine code: a missing primitive becomes an `engine-request` issue with a precise
-  spec. The engineer's agent never rebalances or redesigns content without the designer's approval in the PR.
-- Scenes are single-owner: never edit a scene someone else has an open PR on.
-- The Godot editor may be open on this checkout. Remind the human: Save All Scenes (Ctrl+Shift+Alt+S) before asking
-  the agent, no hand edits while it works, and on "files changed on disk" choose Reload («Джерело отримання»), never
-  «Ігнорувати зовнішні зміни».
+  spec. The engineer's agent never rebalances or redesigns content (`content/ levels/ docs/GDD.md docs/design/`)
+  without the designer's approval in the PR or the engineer's word that the designer agreed: the PR then says "agreed
+  with the designer, relayed by the engineer" and tags @SwiftySinister; a follow-up PR reverts an objection. Never edit
+  a scene in someone else's open PR.
+<!-- see docs/interventions/2026-10-01-engineer-relayed-design-agreement.md -->
+- The Godot editor may be open. Remind the human: Save All Scenes (Ctrl+Shift+Alt+S) before asking the agent, no hand
+  edits while it works; on "files changed on disk" Reload («Джерело отримання»), never «Ігнорувати зовнішні зміни».
 
 ## Routing
 | When | Use |
@@ -121,7 +122,7 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
    the parent's base; a child still showing the parent as base gets `gh pr edit <n> --base <that base>` first.
 
 ## Stop and ask before
-- Adding a dependency or addon; changing an architecture boundary; touching the other owner's area.
+- Adding a dependency or addon; changing an architecture boundary; touching the other owner's area (see Ownership).
 - Anything destructive to git history or that discards work outside your own worktree and task branch (inside them
   git and deletes are free: the guard asks only beyond them); anything that costs money.
 <!-- see docs/interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md -->

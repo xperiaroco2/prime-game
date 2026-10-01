@@ -23,7 +23,8 @@ Commands below use the PowerShell form `tools\run.cmd`; in Git Bash use `tools/r
 3. **Read.** `gh issue view <n> --comments`. Read the latest handoff comment, the docs and ADRs it links, and the
    `CLAUDE.md` of every area the task touches. The issue's acceptance criteria are the definition of the task.
 4. **Ownership.** List the paths the task will change and compare them with the ownership map in root `CLAUDE.md`.
-   - Paths of the other owner: stop and ask the human before anything else.
+   - Paths of the other owner: stop and ask the human before anything else, unless the engineer already said the
+     change in the designer's area was agreed with the designer (`docs/AGENT_WORKFLOW.md` §9: the PR says so).
    - Scenes (`.tscn`) the task edits: `gh pr list --state open --json number,author,files`. If another human's open
      PR changes one of them, stop: scenes are single-owner.
    - If the task touches `.tscn` or `.tres` files, remind the human now: Save All Scenes in Godot (Ctrl+Shift+Alt+S,

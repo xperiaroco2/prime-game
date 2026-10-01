@@ -109,6 +109,15 @@ class WorkflowTest(unittest.TestCase):
                 self.assertNotIn("publish --base", prompts)
                 self.assertNotIn("primeBaseTip", prompts)
 
+    def test_the_publisher_names_a_relayed_agreement(self) -> None:
+        # #128: a change the engineer says was agreed with the designer gets the wording and the tag in its PR,
+        # not only the MVP-provisional note, so the designer sees it later.
+        calls = run_workflow(WORKFLOWS / "issue-task.js", None, ["content/roles/x.tres"])
+        publish = [c["prompt"] for c in calls if c["label"].startswith("publish")]
+        self.assertEqual(len(publish), 1, [c["label"] for c in calls])
+        self.assertIn('"agreed with the designer, relayed by the engineer"', publish[0])
+        self.assertIn("@SwiftySinister", publish[0])
+
     def test_the_leak_test_gets_a_netcode_review(self) -> None:
         # #115 touched only tests/ and tools/: no netcode review was routed, and one run by hand found a major.
         cases = (

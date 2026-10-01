@@ -59,7 +59,9 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
      "стоп", "поясни"; dictation is fine, the agent reads file names back;
    - the rules that bind them: their paths (Ownership in root `CLAUDE.md`), `engine-request` issues for missing engine
      parts (designer), only humans merge into `main` after CI is green (a stage's manager merges task PRs into
-     `release/m<k>`), the other owner approves a cross-area PR, the designer
+     `release/m<k>`), the other owner approves a cross-area PR (or, in the designer's area, the engineer
+     relays the designer's agreement and the designer may have it reverted, `docs/AGENT_WORKFLOW.md` §9), the
+     designer
      reviews through `shot` screenshots and playtests, save-first, one-time guard answers; the designer never uses
      worktrees and works at medium effort;
    - they may reopen any decision that binds them: say so, and the agent opens an issue for both humans.

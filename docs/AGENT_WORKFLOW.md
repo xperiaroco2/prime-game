@@ -497,7 +497,21 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - Enforced by **`.github/CODEOWNERS` and the rules in `CLAUDE.md` files**, not by a hook.
 - The designer's agent never edits engine code. A missing primitive becomes an `engine-request` issue with a precise
   spec, and the agent continues with data. This rule is in `content/CLAUDE.md` and `levels/CLAUDE.md`.
-- The engineer's agent does not rebalance or redesign content without the designer's approval in the PR.
+- The engineer's agent does not change the designer's area (rebalance or redesign content, edit `docs/GDD.md`,
+  `docs/design/` or `levels/`) without the designer's approval in the PR, except on a **relayed agreement**
+  (the engineer, 2026-10-01, option (a), permanent;
+  [intervention](interventions/2026-10-01-engineer-relayed-design-agreement.md)):
+  - The engineer's agent works in the designer's area when the engineer says the change was agreed with the
+    designer. Without that word it stops and asks, as before.
+  - The PR says "agreed with the designer, relayed by the engineer" under "Cross-area" and tags @SwiftySinister
+    there for a later look. It is merged without the designer's approval, by the engineer or, in a stage, by the
+    manager into `release/m<k>` (this replaces "a cross-area PR is approved by the other owner first" in §10 for
+    such a PR).
+  - If the designer objects, a follow-up PR reverts the change.
+  - A scene the designer has an open PR on is still never edited (`gh pr list --state open --json
+    number,author,files`).
+  - The designer keeps his area and his skills (`new-mechanic`, `new-level-piece`); the engineer acts in it on his
+    behalf. The M3 decisions D1 to D3 on #96 were relayed the same way.
 - MVP exception: the engineer's agent builds the MVP's `content/` data and `levels/` scenes, each PR with the
   engineer's explicit approval and marked provisional; the designer may replace them
   ([ADR](decisions/2026-09-29-mvp-content-built-by-the-engineer.md)).

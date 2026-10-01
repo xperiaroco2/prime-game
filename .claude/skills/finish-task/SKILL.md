@@ -62,7 +62,9 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    - Screenshots: `tools\run.cmd shot <scene>` PNGs for visual changes, else "none". `gh` cannot upload images:
      send the PNG to the human and ask them to drag it into the PR description.
    - The other owner's paths touched (`.github/CODEOWNERS`) → `--reviewer <their GitHub handle>` and say why under
-     "Cross-area".
+     "Cross-area". A change in the designer's area that the engineer said was agreed with the designer: write
+     "agreed with the designer, relayed by the engineer" there and tag @SwiftySinister; it does not wait for his
+     approval, and an objection is reverted by a follow-up PR (`docs/AGENT_WORKFLOW.md` §9).
    - End the body with the attribution line this session requires.
 7. **Handoff.** `gh issue comment <n> --body-file <file>` with four headings: Done, Left, Decisions, Gotchas, plus
    the PR link. Then `tools\run.cmd board move <n> in-review`.
