@@ -84,6 +84,8 @@ var _contacts := PhysicsShapeQueryParameters3D.new()
 ## What the last step did, for the claim: gave movement input, jumped.
 var _moving := false
 var _jumped := false
+## The own hand item in the first-person view (M4-8), under the camera.
+var _hand_view := FirstPersonHand.new()
 
 @onready var _head: Node3D = $Head
 @onready var _camera: Camera3D = $Head/Camera3D
@@ -97,6 +99,7 @@ func _ready() -> void:
 		_apply_rules()
 	set_life(life)
 	_floor_y = global_position.y
+	_camera.add_child(_hand_view)
 
 
 func _physics_process(delta: float) -> void:
@@ -222,6 +225,11 @@ func is_sprinting() -> bool:
 
 func get_camera() -> Camera3D:
 	return _camera
+
+
+## The own hand item in the first-person view (M4-8): ItemViews tells it what to show.
+func hand_view() -> FirstPersonHand:
+	return _hand_view
 
 
 func _apply_rules() -> void:

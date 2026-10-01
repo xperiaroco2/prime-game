@@ -25,6 +25,12 @@ extends StaticBody3D
 ## The visor's size and how far it sits in front of the eyes, in metres (greybox looks).
 const VISOR_SIZE := Vector3(0.3, 0.1, 0.12)
 const VISOR_AHEAD := 0.25
+## Where another player's items hang (M4-8), from the feet in the body's space, in metres (looks):
+## the hand item at the right hand, the belt item at the left hip, and a two-handed item (the
+## package) held in front with both hands.
+const HAND_POINT := Vector3(0.45, 0.95, -0.15)
+const BELT_POINT := Vector3(-0.42, 0.85, 0.0)
+const CARRY_POINT := Vector3(0.0, 0.85, -0.55)
 
 ## The client's own copy of the mode's PlayerRules: the capsule and the eyes. Applied at once
 ## when set in the tree.
@@ -38,6 +44,9 @@ var _head: Node3D
 var _shell: MeshInstance3D
 var _downed := false
 var _watched := false
+var _hand_point := Node3D.new()
+var _belt_point := Node3D.new()
+var _carry_point := Node3D.new()
 
 @onready var _shape: CollisionShape3D = $CollisionShape3D
 @onready var _mesh: MeshInstance3D = $Mesh
@@ -54,6 +63,7 @@ func _ready() -> void:
 	_shell.visible = false
 	add_child(_shell)
 	set_process(false)
+	_add_attach_points()
 	if rules != null:
 		_apply_rules()
 
@@ -141,6 +151,32 @@ func _show_looks() -> void:
 	_shell.transform = pose
 	_mesh.visible = not _watched
 	_head.visible = not _downed and not _watched
+
+
+## Where this player's hand item is drawn (M4-8).
+func hand_point() -> Node3D:
+	return _hand_point
+
+
+## Where this player's belt item is drawn: the belt is visible (vision revision 1, Two hands).
+func belt_point() -> Node3D:
+	return _belt_point
+
+
+## Where this player's two-handed item (the package) is drawn: in front, with both hands.
+func carry_point() -> Node3D:
+	return _carry_point
+
+
+func _add_attach_points() -> void:
+	_hand_point.name = "HandPoint"
+	_hand_point.position = HAND_POINT
+	_belt_point.name = "BeltPoint"
+	_belt_point.position = BELT_POINT
+	_carry_point.name = "CarryPoint"
+	_carry_point.position = CARRY_POINT
+	for point: Node3D in [_hand_point, _belt_point, _carry_point]:
+		add_child(point)
 
 
 func _apply_rules() -> void:
