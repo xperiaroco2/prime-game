@@ -73,9 +73,9 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	short.events.pop_back()
 	assert_str(_text(leaks.check_bot("bot 2", 2, short, false))).contains("view_of holds")
 	assert_array(Array(leaks.check_bot("bot 2", 2, short, true))).is_empty()
-	# Another player's event for one peer: the comparison and the subject check both see it.
+	# Another player's view: the comparison sees its first event, bot 1's Welcome.
 	var other := _copy(runner.clients[1].view)
-	assert_str(_text(leaks.check_bot("bot 2", 2, other, true))).contains("event")
+	assert_str(_text(leaks.check_bot("bot 2", 2, other, true))).contains("event 0: decoded Welcome")
 	# A snapshot of a tick view_of never sent, a speaker it may not hear, a changed frame.
 	var tampered := _copy(own)
 	tampered.snapshots[999999] = {"tick": 999999, "avatars": {}}
@@ -88,11 +88,13 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	assert_str(found).contains("tick 999999 that view_of lacks")
 	assert_str(found).contains("voice of 7 under tick 3")
 	assert_str(found).contains("was changed")
-	# A peer that is not a player and decoded an everyone event or a snapshot.
+	# A peer that is not a player and decoded an everyone event, a snapshot or voice.
 	runner.lurker.view.events.append(own.events[0])
 	runner.lurker.view.snapshots[1] = {"tick": 1, "avatars": {}}
+	runner.lurker.view.voice[heard] = [LeakCheck.voice_frame(heard.x, 0)]
 	var lurked := _text(leaks.check_watcher(runner.lurker))
 	assert_str(lurked).contains("a peer that is not a player").contains("snapshots")
+	assert_str(lurked).contains("decoded voice of 1 speaker-ticks")
 	# Different task events for two bots present for the whole match.
 	var tasks_a := DecodedView.new()
 	var tasks_b := DecodedView.new()
@@ -122,6 +124,79 @@ func test_a_teammates_for_a_role_that_does_not_know_them_is_a_leak() -> void:
 	var leaky := LeakyViews.new(runner.game, view)
 	var found := _text(LeakCheck.new(leaky).check_bot("bot 2", 2, decoded, false))
 	assert_str(found).contains("decoded Teammates as crew")
+
+
+func test_a_teammates_of_another_role_or_naming_another_role_is_a_leak() -> void:
+	var scenario := _scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	scenario.forced_roles = {1: &"dissident", 2: &"crew"}
+	var runner := BotsRunner.play(scenario)
+	assert_array(Array(runner.failures)).is_empty()
+	# What bot 1 (dissident) would decode from a server/ that sent it the crew's Teammates.
+	var teammates := runner.game.view_of(1).events_named(&"Teammates")[0] as TeammatesEvent
+	teammates.role = &"crew"
+	teammates.peers = PackedInt32Array([1, 2])
+	var view := runner.game.view_of(1)
+	var found := _text(LeakCheck.new(runner.game).check_bot("bot 1", 1, _decoded(view), false))
+	assert_str(found).contains("decoded the Teammates of crew as dissident")
+	assert_str(found).contains("decoded Teammates naming peer 2, not dissident")
+
+
+func test_another_players_event_for_one_peer_is_a_leak() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	# What a server/ that sent bot 1's RoleAssigned to bot 2 would make view_of hold, decoded alike.
+	var view := runner.game.view_of(2)
+	view.events.append(runner.game.view_of(1).events_named(&"RoleAssigned")[0])
+	var leaky := LeakyViews.new(runner.game, view)
+	var found := _text(LeakCheck.new(leaky).check_bot("bot 2", 2, _decoded(view), false))
+	assert_str(found).contains("decoded RoleAssigned of peer 1")
+
+
+func test_a_living_bot_that_decoded_a_ghost_or_a_changed_snapshot_is_a_leak() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	var own := runner.clients[2].view
+	var at_tick: int = own.snapshots.keys().back()
+	# Peer 1 a ghost after that tick, bot 2 alive: what the observer would have recorded.
+	var leaks := LeakCheck.new(runner.game)
+	runner.game.state.players[1].life = PlayerState.Life.GHOST
+	leaks.record_tick(at_tick)
+	var tampered := _copy(own)
+	var avatars: Dictionary = (own.snapshots[at_tick]["avatars"] as Dictionary).duplicate()
+	avatars[1] = {"planted": true}
+	tampered.snapshots[at_tick] = {"tick": at_tick, "avatars": avatars}
+	tampered.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
+	var found := _text(leaks.check_bot("bot 2", 2, tampered, false))
+	assert_str(found).contains("the snapshot of tick %d differs from view_of's" % at_tick)
+	assert_str(found).contains("living, it decoded ghost 1 at tick %d" % at_tick)
+	assert_str(found).contains("living, it heard ghost 1 at tick %d" % at_tick)
+
+
+func test_a_decoded_seed_is_a_leak() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	var seed_value := 123_456_789_012
+	var leaks := LeakCheck.new(runner.game)
+	leaks.set_seeds([seed_value])
+	var own := runner.clients[2].view
+	assert_array(Array(leaks.check_bot("bot 2", 2, own, false))).is_empty()
+	var tampered := _copy(own)
+	var fields := tampered.events[0].fields.duplicate()
+	fields["planted"] = seed_value
+	tampered.events[0] = WireMessage.new(tampered.events[0].name, fields)
+	var at_tick: int = own.snapshots.keys().back()
+	var snapshot: Dictionary = own.snapshots[at_tick].duplicate()
+	snapshot["planted"] = [seed_value]
+	tampered.snapshots[at_tick] = snapshot
+	var found := _text(leaks.check_bot("bot 2", 2, tampered, false))
+	assert_str(found).contains("decoded Welcome holding a seed")
+	assert_str(found).contains("the snapshot of tick %d holds a seed" % at_tick)
 
 
 ## A match whose view_of(peer) is a planted one.
@@ -174,6 +249,15 @@ static func _copy(view: DecodedView) -> DecodedView:
 	copy.snapshots = view.snapshots.duplicate()
 	copy.voice = view.voice.duplicate()
 	return copy
+
+
+## What an honest client decodes from `view`'s events.
+static func _decoded(view: PeerView) -> DecodedView:
+	var decoded := DecodedView.new()
+	decoded.peer = view.peer
+	for event: MatchEvent in view.events:
+		decoded.events.append(WireMessage.new(event.event_name(), event.to_dict()))
+	return decoded
 
 
 static func _text(found: PackedStringArray) -> String:
