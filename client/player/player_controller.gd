@@ -4,9 +4,10 @@ extends CharacterBody3D
 ## and jumps as `stamina` allows and walks up steps. It never collides with other players like a
 ## wall: walking into a living player pushes them (the engineer's decision of 2026-09-30, #46).
 ## This controller moves only its own body: pushing slows it, and a player that pushes into it
-## moves it out of the overlap. A ghost (the downed until M4-9's crawl) moves the same way with the
-## same capsule, at `rules.ghost_speed_factor` times the living's speeds, never limited by stamina,
-## and pushes nobody and is pushed by nobody; it collides with the level only. The origin is at the
+## moves it out of the overlap. A ghost (the downed, until M4-9 renames it) crawls with the same
+## capsule, gravity, floor and steps at `rules.crawl_speed_mps`, never sprints and never jumps, as
+## the host's crawl check allows (§7.1 The crawl, M4-2); its stamina regenerates as usual. It
+## pushes nobody and is pushed by nobody; it collides with the level only. The origin is at the
 ## feet.
 ##
 ## On the network (M4-7) every physics step ends with what it claims: `attach()`ed to a
@@ -42,8 +43,8 @@ const CONTACT_MARGIN := 0.02
 ## The movement numbers: the client's own copy of the mode's PlayerRules (the class comment).
 @export var rules: PlayerRules:
 	set = set_rules
-## A ghost walks, sprints and jumps like the living, at `rules.ghost_speed_factor` times their
-## speeds, never limited by stamina (`stamina` decides that), and collides with the level only.
+## A ghost is downed: it crawls at `rules.crawl_speed_mps`, never sprints or jumps, and collides
+## with the level only.
 @export var ghost: bool = false:
 	set = set_ghost
 ## Read the keyboard and mouse. Tests turn it off and set the wish fields below themselves.
@@ -248,6 +249,7 @@ func _walk(delta: float) -> void:
 	_moving = not steering.is_zero_approx()
 	_jumped = jumped
 	var moved_itself := moved > MOVE_EPSILON and _moving
+	# The downed never sprint or jump (`stamina` refuses both), so their stamina regenerates.
 	stamina.report(delta, _sprinting and moved_itself, jumped, ghost)
 
 
@@ -268,10 +270,11 @@ func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
 		predicted.set_status(fields["stamina"] as int)
 
 
-## Metres per second on the ground this step: walk or sprint, of the living or of a ghost.
+## Metres per second on the ground this step: the living walk or sprint, the downed crawl.
 func _speed() -> float:
-	var speed := rules.sprint_speed_mps if _sprinting else rules.walk_speed_mps
-	return speed * rules.ghost_speed_factor if ghost else speed
+	if ghost:
+		return rules.crawl_speed_mps
+	return rules.sprint_speed_mps if _sprinting else rules.walk_speed_mps
 
 
 ## The horizontal velocity for `wish` among the other living players this body touches. Walking

@@ -69,13 +69,30 @@ func test_each_self_status_resets_the_prediction_within_bounds() -> void:
 	assert_int(stamina.stamina).is_equal(Ticks.thousandths(_rules.stamina))
 
 
-func test_the_downed_may_always_sprint_and_jump_and_record_nothing() -> void:
+func test_the_downed_never_sprint_or_jump_whatever_their_stamina() -> void:
+	# M4-2's crawl check: only the living sprint, and a downed player's new jump is corrected.
+	var stamina := PredictedStamina.new(_rules)
+	assert_bool(stamina.can_sprint(false, true)).is_false()
+	assert_bool(stamina.can_sprint(true, true)).is_false()
+	assert_bool(stamina.can_jump(true)).is_false()
+	stamina.set_status(0)
+	assert_bool(stamina.can_sprint(false, true)).is_false()
+	assert_bool(stamina.can_jump(true)).is_false()
+
+
+func test_the_downed_regenerate_as_the_ledger_and_spend_nothing() -> void:
+	# From empty, reported as sprinting, moving and jumping: StaminaLedger's downed player pays
+	# nothing and regenerates, and the prediction matches it after every tick.
 	var stamina := PredictedStamina.new(_rules)
 	stamina.set_status(0)
-	assert_bool(stamina.can_sprint(false, true)).is_true()
-	assert_bool(stamina.can_jump(true)).is_true()
-	stamina.report(1.0, true, true, true)
-	assert_int(stamina.stamina).is_equal(0)
+	var player := _ledger_player(0)
+	player.life = PlayerState.Life.DOWNED
+	for tick: int in range(1, 41):
+		for step: int in 3:
+			stamina.report(STEP, true, step == 0, true)
+		StaminaLedger.settle(player, _rules, tick, true, true)
+		assert_int(stamina.stamina).is_equal(player.stamina)
+	assert_int(stamina.stamina).is_greater(0)
 
 
 ## Runs `ticks` ticks of 60 Hz steps holding sprint (`held`) and moving (`moving`), from `from`

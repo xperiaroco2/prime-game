@@ -13,8 +13,8 @@ extends StaminaSource
 ##   engineer's decision of 2026-09-30).
 ## - The sprint state starts at `sprint_start` and lasts while sprint is held and stamina is
 ##   above 0; a jump needs its full cost and spends it at once (Q7).
-## - Stamina never limits the downed (the old ghost flag, until M4-9's crawl): they may always
-##   sprint and jump, and their steps change nothing.
+## - Only the living sprint and jump: the downed (the controller's ghost flag) crawl, are never in
+##   the sprint state and regenerate as usual, since they spend none (M4-2's crawl check).
 
 const TICK_SECONDS := 1.0 / Ticks.RATE
 ## Float rounding of 1/60 s steps must not lose a tick.
@@ -46,22 +46,22 @@ func set_status(thousandths: int) -> void:
 	stamina = clampi(thousandths, 0, _most)
 
 
-func can_sprint(was_sprinting: bool, ghost: bool) -> bool:
-	if ghost:
-		return true
+func can_sprint(was_sprinting: bool, downed: bool) -> bool:
+	if downed:
+		return false
 	if was_sprinting:
 		return stamina > 0
 	return stamina >= _sprint_start
 
 
-func can_jump(ghost: bool) -> bool:
-	return ghost or stamina >= _jump_cost
+func can_jump(downed: bool) -> bool:
+	return not downed and stamina >= _jump_cost
 
 
-func report(delta: float, sprinted_moving: bool, jumped: bool, ghost: bool) -> void:
-	if ghost:
-		return
-	if jumped:
+func report(delta: float, sprinted_moving: bool, jumped: bool, downed: bool) -> void:
+	# The downed spend nothing (StaminaLedger): their steps only regenerate.
+	sprinted_moving = sprinted_moving and not downed
+	if jumped and not downed:
 		stamina = maxi(0, stamina - _jump_cost)
 	_carry += delta
 	while _carry >= TICK_SECONDS - _CARRY_SLACK:

@@ -3,7 +3,7 @@ extends Node3D
 ## height, a ledge above it, a doorway, and dummy players. Run it (it opens a window):
 ##   tools\run.cmd run client/dev/test_room.tscn
 ## Click to capture the mouse, Esc to release it. WASD, Shift to sprint, Space to jump.
-## F1 toggles ghost mode (it moves like the living, without spending stamina, and pushes nobody),
+## F1 toggles ghost mode (the downed: it crawls, never sprints or jumps, and pushes nobody),
 ## F2 puts the player and the dummies back where they started.
 ## Dummies: green stands in the doorway and can be pushed; yellow walks back and forth across the
 ## room and pushes whoever is in its way. Both are player controllers in this same world, so they
