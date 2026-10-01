@@ -194,6 +194,8 @@ public events and the mode's numbers, so this is a rule of the interface, not of
   and its shared progress, and a **map** of the task circles (where tasks are done), the items' spawn points and the
   viewer's own position. The map never shows an item's current position and never other players. Which spawn
   points: "Needs the engineer" 2.
+- A dead viewer has no avatar, so their map shows no own position: not their body (a body is no position of theirs)
+  and never their spectate target (another player). A downed viewer's own position is where they lie.
 
 ### Hidden information
 | What | Who learns it |
