@@ -91,6 +91,16 @@ class WorkflowTest(unittest.TestCase):
         self.assertIn("gh pr create --base release/m3", prompts)
         self.assertIn("branch.tooling/7-x.primeBaseTip", prompts)
 
+    def test_a_stacked_parent_base_is_left_to_publish(self) -> None:
+        # Passing a parent's task branch would fail once the parent merges and its branch is deleted; without --base
+        # publish follows the PR's live base, which GitHub retargets.
+        for name in ("issue-task.js", "pr-rebase.js"):
+            with self.subTest(workflow=name):
+                calls = run_workflow(WORKFLOWS / name, "tooling/5-parent", ["core/x.gd"])
+                prompts = "\n".join(c["prompt"] for c in calls)
+                self.assertIn("`tools\\run.cmd publish`", prompts)
+                self.assertNotIn("publish --base", prompts)
+
     def test_main_base_publishes_without_base(self) -> None:
         for name in ("issue-task.js", "pr-rebase.js"):
             with self.subTest(workflow=name):

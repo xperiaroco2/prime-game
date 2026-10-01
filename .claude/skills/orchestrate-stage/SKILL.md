@@ -103,7 +103,7 @@ human to pull; a session opened before the pull needs `/reload-skills` to find t
 | arg | what |
 |---|---|
 | `n`, `title`, `wt`, `branch` | the issue, its title, the worktree path, the task branch (required) |
-| `base` | the PR base: `"release/m<k>"`, or the parent's branch for a stacked task (`main` only outside a stage); a non-`main` base reaches `publish --base` and `gh pr create --base` |
+| `base` | the PR base: `"release/m<k>"`, or the parent's branch for a stacked task (`main` only outside a stage); every non-`main` base reaches `gh pr create --base`, a release base also `publish --base` (a parent's branch does not: publish follows the PR's live base) |
 | `notes` | the task's specifics, the engineer's answers that apply, ownership splits, merge order (required) |
 | `coord` | what runs in parallel now and which shared files to touch minimally |
 | `decisions` | the engineer's standing decisions, each with where it is recorded (every task that they touch) |
@@ -115,7 +115,7 @@ human to pull; a session opened before the pull needs `/reload-skills` to find t
 The workflow: implementer (commits, verify green, never publishes) → fresh reviewers in parallel, chosen from the
 changed paths (`code-reviewer` always; `netcode-security-reviewer` for `core/ server/ net/ tests/harness/` or a
 design task; `godot-api-checker` for `.gd .tscn .tres`) → publisher (fixes blocker, major and cheap minor findings,
-`publish --base <base>`, PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most
+`publish` (`--base` for a release base), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most
 two fix rounds, handoff, board In review). It throws when any routed agent returns nothing, and stops unpublished when the implementer ends
 red. Every agent writes temporary files only under the scratchpad subfolder `a<n>/`.
 

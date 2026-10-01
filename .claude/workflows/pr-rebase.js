@@ -31,9 +31,11 @@ const WT = A.wt.replace(/\\/g, '/')
 const WTB = WT.replace(/^([A-Za-z]):/, (m, d) => '/' + d.toLowerCase())
 const BASE = A.base || 'main'
 const SCRATCH = `r${PR}`
-// A non-main base (a stage's release/m<k>, a parent's branch) is always passed: `publish` takes a release base that
-// equals main for a merged parent (#113).
-const PUBLISH = `tools\\run.cmd publish${BASE === 'main' ? '' : ` --base ${BASE}`}`
+// A release base (release/m<k>, any base that is not main or a task branch) is always passed: `publish` takes one that
+// equals main for a merged parent (#113). A stacked parent's task branch is not: publish follows the PR's live base,
+// which GitHub retargets once the parent merges and its branch is deleted.
+const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
+const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 
 const RULES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'}. No human answers questions: never ask in chat. Root CLAUDE.md applies in full.`,
