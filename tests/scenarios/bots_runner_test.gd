@@ -262,12 +262,29 @@ func test_a_lurker_lost_early_or_a_refused_bot_not_refused_fails() -> void:
 	early.peer = 99
 	early.lost = true
 	assert_str(_text(leaks.check_watcher(early))).contains("core/ never disconnected it")
+	# A lurker core/ cut off at once, before any match (here: at the refused bot's tick).
+	var cut := BotWatcher.lurker(
+		LoopbackTransport.new(runner.schema.kind_table(), runner.hub), runner.schema
+	)
+	cut.peer = runner.refused.peer
+	cut.lost = true
+	assert_str(_text(leaks.check_watcher(cut))).contains("not on entering Loading")
+	# A lurker core/ disconnected that server/ left connected.
+	runner.lurker.lost = false
+	assert_str(_text(leaks.check_watcher(runner.lurker))).contains("but it is still connected")
 	# A refused bot that decoded no Rejected and stayed connected.
 	runner.refused.view.events.clear()
 	runner.refused.lost = false
 	var refused := _text(leaks.check_watcher(runner.refused))
 	assert_str(refused).contains("decoded 0 Rejected, not exactly one (wrong_version)")
-	assert_str(refused).contains("core/ did not disconnect it")
+	assert_str(refused).contains("but it is still connected")
+	assert_str(refused).not_contains("never emitted DisconnectPeer")
+	# A refused bot core/ never disconnected.
+	var ignored := BotWatcher.refused(
+		LoopbackTransport.new(runner.schema.kind_table(), runner.hub), runner.schema, 0
+	)
+	ignored.peer = 98
+	assert_str(_text(leaks.check_watcher(ignored))).contains("core/ never emitted DisconnectPeer")
 
 
 func test_a_short_prefix_a_view_with_no_peer_and_audiences_for_one() -> void:

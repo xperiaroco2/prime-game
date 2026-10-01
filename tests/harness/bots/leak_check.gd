@@ -19,9 +19,11 @@ extends RefCounted
 ##   holds a seed; the bots present for a whole match decode the same task events (check_tasks).
 ## - A connected peer that is not a player (check_watcher) decodes at most a Rejected, none unless
 ##   it sent a Hello, and never a Snapshot or a VoiceDown. The lurker is still connected unless
-##   core/ disconnected it (DisconnectPeer: the entry into Loading disconnects every waiting
-##   newcomer, E14), so a hello deadline or a transport that dropped it early fails; the refused
-##   bot decoded exactly one Rejected (wrong_version) and core/'s DisconnectPeer disconnected it.
+##   core/ disconnected it on entering Loading (its DisconnectPeer at the tick of a LoadMatch: the
+##   entry disconnects every waiting newcomer, E14), so a hello deadline, a transport that dropped
+##   it, or core/ cutting it off before any match fails; the refused bot decoded exactly one
+##   Rejected (wrong_version) and core/'s DisconnectPeer disconnected it. A watcher core/
+##   disconnected that is still connected fails (server/ did not carry out the directive).
 ## - Nothing was lost on the way (check_counters): no packet rejected by the transport, no message
 ##   that did not decode.
 
@@ -152,10 +154,18 @@ func check_watcher(watcher: BotWatcher) -> PackedStringArray:
 		var rejected := decoded.events_named(&"Rejected")
 		if rejected.size() != 1 or str(rejected[0].fields.get("reason", "")) != "wrong_version":
 			found.append("decoded %d Rejected, not exactly one (wrong_version)" % rejected.size())
-		if not watcher.lost or not _disconnected_by_core(watcher.peer):
-			found.append("core/ did not disconnect it (lost: %s)" % watcher.lost)
-	elif watcher.lost and not _disconnected_by_core(watcher.peer):
-		found.append("it lost its connection, and core/ never disconnected it")
+		if _disconnected_at(watcher.peer) < 0:
+			found.append("core/ never emitted DisconnectPeer for it")
+	else:
+		var at_tick := _disconnected_at(watcher.peer)
+		if watcher.lost and at_tick < 0:
+			found.append("it lost its connection, and core/ never disconnected it")
+		elif at_tick >= 0 and not _loading_entered_at(at_tick):
+			found.append("core/ disconnected it at tick %d, not on entering Loading" % at_tick)
+	if not watcher.lost and _disconnected_at(watcher.peer) >= 0:
+		found.append(
+			"core/ disconnected it, but it is still connected (server/ did not carry it out)"
+		)
 	var view := _game.view_of(watcher.peer)
 	_check_events(view, decoded, false, found)
 	for event: WireMessage in decoded.events:
@@ -362,11 +372,20 @@ func _check_seeds(decoded: DecodedView, found: PackedStringArray) -> void:
 				found.append("the snapshot of tick %d holds a seed" % at_tick)
 
 
-## Whether core/ emitted a DisconnectPeer of `peer` (loopback ids are never reused in one run).
-func _disconnected_by_core(peer: int) -> bool:
+## The tick of core/'s first DisconnectPeer of `peer`, or -1 (loopback ids are never reused in one
+## run).
+func _disconnected_at(peer: int) -> int:
 	for emitted: EmittedEvent in _game.emitted():
 		var directive := emitted.event as DisconnectPeerEvent
 		if directive != null and directive.peer == peer:
+			return emitted.tick
+	return -1
+
+
+## Whether core/ entered Loading at `at_tick` (it emitted a LoadMatch then).
+func _loading_entered_at(at_tick: int) -> bool:
+	for emitted: EmittedEvent in _game.emitted():
+		if emitted.tick == at_tick and emitted.event is LoadMatchEvent:
 			return true
 	return false
 
