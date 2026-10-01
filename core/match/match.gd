@@ -20,7 +20,8 @@ const WON := &"won"
 var mode: GameMode
 var state: MatchState
 ## The host's content hash (§4.3, E1): its game mode's ContentHash combined with the SHA-256 of
-## every level file the mode names, which server/ computes; each Hello's `content` must equal it.
+## every level file the mode names and of every scene and resource those levels reach (#118),
+## which server/ computes; each Hello's `content` must equal it.
 var content_hash := 0
 var command_log: CommandLog
 ## Why the mode was refused (ModeCheck, §9.1), each problem once; empty when it runs.
