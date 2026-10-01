@@ -236,6 +236,6 @@ func _avatar(at: Vector3, facing: Vector3) -> Dictionary:
 		"position": at,
 		"velocity": Vector3.ZERO,
 		"facing": facing,
-		"ghost": false,
+		"downed": false,
 		"held_item": -1,
 	}
