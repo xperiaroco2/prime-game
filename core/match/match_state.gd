@@ -24,7 +24,8 @@ var items: Dictionary[int, ItemState] = {}
 var tasks: Dictionary[int, MatchTask] = {}
 ## Id -> station, in id order.
 var stations: Dictionary[int, StationState] = {}
-## Peer -> body rest position (2g).
+## Peer -> body rest position: a dead player's, from its death until its respawn (M4-3) or its
+## leave (§3.5).
 var bodies: Dictionary[int, Vector3] = {}
 ## Match-clock ticks left while it runs or is paused; -1 before StartClock (2h).
 var clock_ticks_left := -1
@@ -203,6 +204,7 @@ static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.ready = false
 	someone.role = &""
 	someone.life = PlayerState.Life.ALIVE
+	someone.life_deadline = -1
 	someone.held_item = -1
 	someone.velocity = Vector3.ZERO
 	someone.sprinting = false

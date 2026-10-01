@@ -6,9 +6,8 @@ extends RuleEffect
 ## winner, and drops the players who left; then everyone is un-ready. It keeps the roster's
 ## players and the session's join count (MatchState.joins, §3.5), so Player<n> numbering runs on.
 ##
-## It must run before the row's PlacePlayers: placed first, every downed player would still be
-## downed when PlayersPlaced goes to everyone, and a part of the match's hidden state would reach
-## the living with it (until M4-2 the downed are hidden from the living, as the ghosts were).
+## It must run before the row's PlacePlayers: placed first, a downed or dead player would be placed
+## in the lobby still downed or dead, a dead one with no avatar in anyone's snapshot.
 ##
 ## Emits: ReadyChanged(peer, false) (everyone), per player in peer-id order. No demands.
 

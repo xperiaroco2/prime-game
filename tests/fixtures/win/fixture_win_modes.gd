@@ -10,7 +10,7 @@ extends RefCounted
 ## (Dissident by `dissidents`, leaving at least 1; default Crew), DealTasks, PlacePlayers, then
 ## StartClock; `round, won -> end` runs EndMatch; `end, back -> lobby` runs ResetMatch, then
 ## PlacePlayers. The win conditions, in the base mode's order: every task done (crew:
-## AllSubtasksDone), no crew alive (dissidents: NoneAlive of crew), time up (dissidents:
+## AllSubtasksDone), no crew present (dissidents: NoneAlive of crew), time up (dissidents:
 ## ClockEnded, AllSubtasksDone negated).
 
 ## The fixture's round length, in minutes, and in host ticks at 20 Hz.
@@ -32,7 +32,7 @@ static func basic(packages: int = 2) -> GameMode:
 	mode.find_transition(&"round", Match.WON).actions = [EndMatch.new()]
 	var back := mode.find_transition(&"end", &"back")
 	back.actions.insert(0, ResetMatch.new())
-	mode.win_conditions = [every_task_done(), no_crew_alive(), time_up()]
+	mode.win_conditions = [every_task_done(), no_crew_present(), time_up()]
 	return mode
 
 
@@ -47,9 +47,9 @@ static func every_task_done() -> WinCondition:
 	return _win(&"every_task_done", &"crew", [AllSubtasksDone.new()])
 
 
-## "No crew alive" of §9.5: NoneAlive of the side crew.
-static func no_crew_alive() -> WinCondition:
-	return _win(&"no_crew_alive", &"dissidents", [NoneAlive.of(&"crew")])
+## "No crew present" of §9.5: NoneAlive of the side crew (every crew member left).
+static func no_crew_present() -> WinCondition:
+	return _win(&"no_crew_present", &"dissidents", [NoneAlive.of(&"crew")])
 
 
 ## "Time up" of §9.5: ClockEnded, then AllSubtasksDone negated.
@@ -114,9 +114,20 @@ static func deliver(game: Match, peer: int, index: int) -> void:
 	FixtureDeliveryModes.carry_to(game, peer, package, circle.position)
 
 
-## `attacker` takes a knife 1 m south of `victim` and hits it twice, the cooldown apart: at 50
-## damage a hit, the second kills.
+## `attacker` knocks `victim` down and the knockdown time runs out: `victim` is dead.
 static func kill(game: Match, attacker: int, victim: int) -> void:
+	knock_down(game, attacker, victim)
+	run_out(game, victim)
+
+
+## Runs ticks through `downed`'s knockdown deadline: the tick it dies on.
+static func run_out(game: Match, downed: int) -> void:
+	FixtureModes.run_ticks(game, game.state.player(downed).life_deadline - game.ticked_through())
+
+
+## `attacker` takes a knife 1 m south of `victim` and hits it twice, the cooldown apart: at 50
+## damage a hit, the second knocks it down.
+static func knock_down(game: Match, attacker: int, victim: int) -> void:
 	var at := game.state.player(victim).position
 	FixtureCombatModes.arm(game, attacker, at - NORTH)
 	FixtureCombatModes.use(game, attacker, NORTH)
