@@ -23,8 +23,10 @@ ghosts, the one hand slot and the HUD in 3D. This revision changes the rules bef
 A three-angle review of the first draft (PR #127: the code impact, the network and M4 impact, open questions) found
 what it left to the programmer: what a dead spectator receives, what the map shows, how a revive works, what a downed
 player may do, how a pickup fills two slots, and what ends a round when no crew member is left. The engineer answered
-it as V1 to V13. Each answer is written into the Decision below and cited as (Vn); what they still leave open is under
-"Needs the engineer".
+it as V1 to V13: the numbers, each question and its answer are the table in
+[the comment on PR #127](https://github.com/xperiaroco2/prime-game/pull/127#issuecomment-5930164701), and the tags here
+are that table's (the chat's own numbering differed; V8 and V9 were read back and confirmed). Each answer is
+written into the Decision below and cited as (Vn); what they still leave open is under "Needs the engineer".
 
 ## Decision
 
