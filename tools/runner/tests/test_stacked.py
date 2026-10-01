@@ -1,6 +1,7 @@
 """A task stacked on an open PR, end to end: `start --base` on the parent's branch, `publish` onto the parent, then
-the parent merged and its branch deleted (GitHub's auto-delete), and `publish` onto main. Real temp repos with the
-committed pre-push hook; gh, the board, sessions and verify are stubbed."""
+the parent merged and its branch deleted (GitHub's auto-delete), and `publish` onto main; and a task on a stage's
+long-lived release branch. Real temp repos with the committed pre-push hook; gh, the board, sessions and verify are
+stubbed."""
 
 import json
 import shutil
@@ -16,9 +17,12 @@ from runner.tests.test_start import git
 
 PARENT = "core/32-parent"
 CHILD = "tooling/33-child"
+RELEASE = "release/m3"
 
 
-class StackedTest(unittest.TestCase):
+class Repos(unittest.TestCase):
+    """The remote, the task's checkout and GitHub's side (the parent's session, the merge button, the manager)."""
+
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="stacked-"))
         self.addCleanup(_rmtree, str(self.tmp))
@@ -74,6 +78,11 @@ class StackedTest(unittest.TestCase):
     def remote(self, ref: str) -> str:
         return git(self.tmp / "remote.git", "rev-parse", ref)
 
+    def own_commits(self) -> list[str]:
+        return git(self.work, "log", "--format=%s", "origin/main..HEAD").splitlines()
+
+
+class StackedTest(Repos):
     def start_child(self) -> None:
         self.assertEqual(start.main(33, base=PARENT, here=True), 0)  # the stack is published from this checkout
         self.commit(self.work, "c.txt", "child")
@@ -88,9 +97,6 @@ class StackedTest(unittest.TestCase):
         self.commit(self.github, "m.txt", "main moves on")
         git(self.github, "push", "-q", "origin", "main")
         git(self.github, "push", "-q", "origin", "--delete", PARENT)
-
-    def own_commits(self) -> list[str]:
-        return git(self.work, "log", "--format=%s", "origin/main..HEAD").splitlines()
 
     def test_parent_reviewed_then_merged_and_deleted_with_the_child_pr_retargeted(self) -> None:
         self.start_child()
@@ -188,6 +194,81 @@ class StackedTest(unittest.TestCase):
         self.pr_base = "main"
         self.assertEqual(publish.main(), 0)
         self.assertEqual(self.own_commits(), ["child"])
+
+
+class LongLivedBaseTest(Repos):
+    """A task of a stage stacked on its release branch (docs/decisions/2026-10-01-release-branch-per-milestone.md),
+    which the manager creates from main, fast-forwards and merges other task PRs into while this task runs (#113)."""
+
+    def make_release(self, name: str = RELEASE) -> None:
+        """The manager creates the stage's release branch from main: its tip is main's."""
+        git(self.github, "fetch", "-q")
+        git(self.github, "push", "-q", "origin", f"refs/remotes/origin/main:refs/heads/{name}")
+
+    def land_on_release(self, name: str, message: str) -> None:
+        """The manager merges another task's PR into the release branch: --no-ff, pushed by hash."""
+        git(self.github, "fetch", "-q")
+        git(self.github, "switch", "-q", "--detach", f"origin/{RELEASE}")
+        self.commit(self.github, name, message)
+        task = git(self.github, "rev-parse", "HEAD")
+        git(self.github, "switch", "-q", "--detach", f"origin/{RELEASE}")
+        git(self.github, "merge", "-q", "--no-ff", "-m", f"Merge {message}", task)
+        git(self.github, "push", "-q", "origin", f"HEAD:refs/heads/{RELEASE}")
+
+    def main_moves_on(self) -> None:
+        git(self.github, "fetch", "-q")
+        git(self.github, "switch", "-q", "--detach", "origin/main")
+        self.commit(self.github, "m.txt", "main moves on")
+        git(self.github, "push", "-q", "origin", "HEAD:refs/heads/main")
+
+    def start_on(self, base: str) -> None:
+        self.assertEqual(start.main(33, base=base, here=True), 0)
+        self.commit(self.work, "c.txt", "child")
+
+    def assert_kept_on(self, base: str) -> None:
+        self.assertEqual(publish.recorded_base(CHILD), base)
+        self.assertEqual(git(self.work, "log", "--format=%s", f"origin/{base}..HEAD").splitlines(), ["child"])
+        self.assertEqual(git(self.work, "rev-parse", "HEAD~1"), self.remote(base))
+        self.assertEqual(self.remote(CHILD), git(self.work, "rev-parse", "HEAD"))
+
+    def keeps_a_base_equal_to_main(self, base: str) -> None:
+        self.make_release(base)
+        self.start_on(base)
+        self.assertEqual(publish.main(), 0)  # no PR yet: its tip is in main, and still it is the base
+        self.assert_kept_on(base)
+        self.main_moves_on()  # main gets ahead of it (a hotfix): its tip is still in main
+        self.assertEqual(publish.main(), 0)
+        self.assert_kept_on(base)
+        self.assertNotEqual(git(self.work, "rev-parse", "HEAD~1"), self.remote("main"))
+        self.pr_base = base  # the PR opens on it
+        self.assertEqual(publish.main(), 0)
+        self.assert_kept_on(base)
+        warned = " ".join(str(c.args[0]) for c in publish.warn.call_args_list)  # type: ignore[attr-defined]
+        self.assertNotIn("is merged", warned)
+
+    def test_a_release_base_equal_to_main_is_not_a_merged_parent(self) -> None:
+        self.keeps_a_base_equal_to_main(RELEASE)
+
+    def test_any_base_outside_the_task_branch_pattern_is_not_a_merged_parent(self) -> None:
+        self.keeps_a_base_equal_to_main("integration")
+
+    def test_the_release_merged_into_main_and_deleted_moves_the_task_to_main(self) -> None:
+        self.make_release()
+        self.start_on(RELEASE)
+        self.pr_base = RELEASE
+        self.assertEqual(publish.main(), 0)
+        self.land_on_release("x.txt", "task A")
+        # The milestone PR merges into main; auto-delete removes the release branch and GitHub retargets this PR.
+        git(self.github, "fetch", "-q")
+        git(self.github, "switch", "-q", "main")
+        git(self.github, "merge", "-q", "--ff-only", "origin/main")
+        git(self.github, "merge", "-q", "--no-ff", "-m", "Merge the milestone", f"origin/{RELEASE}")
+        git(self.github, "push", "-q", "origin", "main")
+        git(self.github, "push", "-q", "origin", "--delete", RELEASE)
+        self.pr_base = "main"
+        self.assertEqual(publish.main(), 0)
+        self.assertEqual(self.own_commits(), ["child"])
+        self.assertIsNone(publish.recorded_base(CHILD))
 
 
 if __name__ == "__main__":

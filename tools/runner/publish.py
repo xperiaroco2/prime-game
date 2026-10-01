@@ -105,7 +105,10 @@ def main(base: str | None = None) -> int:
     source, unstack = "", False
     if parent:
         live = _sha(f"refs/remotes/{REMOTE}/{parent}")
-        merged = _in(live, f"{REMOTE}/main")
+        # Only a task branch is a parent that is done once main has it. A long-lived base (release/m<k>, any name
+        # outside <area>/<n>-<slug>) is in main right after it was created or fast-forwarded, and stays the base while
+        # origin has it (#113).
+        merged = bool(TASK_BRANCH_RE.match(parent)) and _in(live, f"{REMOTE}/main")
         # Without a usable recorded tip, a parent tip already in this branch still marks where its own commits begin.
         tip = tip or next((c for c in (live, stale) if _in(c, "HEAD")), "")
         if not base and live and not merged:
