@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## ClientModel (ARCHITECTURE §4.6): what a client knows, folded from decoded events (here core/'s
 ## own events through to_dict(), which the codec reproduces exactly): the roster, settings, phase,
-## items, stations, bodies, avatars and its own SelfStatus; a match's facts cleared on LoadMatch
-## and on entering the lobby, the roster and settings kept.
+## items, stations, bodies, each player's life (E25), avatars and its own SelfStatus; a match's
+## facts cleared on LoadMatch and on entering the lobby, the roster and settings kept.
 
 const OWN := 2
 
@@ -147,6 +147,35 @@ func test_a_cancelled_countdown_back_to_the_lobby_clears_nothing() -> void:
 	_fold(PhaseChangedEvent.new(&"lobby", -1))
 	# Both play in the lobby: no match's facts to clear (a Died here is only a probe).
 	assert_bool(_model.is_alive(1)).is_false()
+
+
+func test_life_folds_from_the_public_events() -> void:
+	# E25: KnockedDown makes a player downed, Died dead with its body; a leave removes the body
+	# (E26); every other player is living.
+	_to_round()
+	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.DOWNED)
+	assert_bool(_model.is_alive(OWN)).is_false()
+	assert_bool(_model.bodies.has(OWN)).is_false()
+	_fold(DiedEvent.new(OWN, Vector3(6, 0, 6)))
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.DEAD)
+	assert_vector(_model.bodies[OWN]).is_equal(Vector3(6, 0, 6))
+	assert_int(_model.life_of(1)).is_equal(ClientModel.Life.DEAD)
+	assert_int(_model.life_of(9)).is_equal(ClientModel.Life.ALIVE)
+	_fold(PlayerLeftEvent.new(1))
+	assert_int(_model.life_of(1)).is_equal(ClientModel.Life.LEFT)
+	assert_bool(_model.bodies.has(1)).is_false()
+	assert_bool(_model.bodies.has(OWN)).is_true()
+
+
+func test_a_new_match_makes_everyone_living_again() -> void:
+	_to_round()
+	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))
+	var settings: Dictionary[StringName, int] = {&"knives": 1}
+	_fold(LoadMatchEvent.new(4, "res://levels/c.tscn", settings))
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.ALIVE)
+	assert_int(_model.life_of(1)).is_equal(ClientModel.Life.ALIVE)
+	assert_int(_model.lives.size()).is_equal(0)
 
 
 ## Plays a match up to the round: loading, an item, a station, a body, a role, a snapshot.

@@ -123,12 +123,12 @@ func test_a_downed_player_claims_where_its_phase_accepts_the_downed_only() -> vo
 	var round_accepts := FixtureBaseMode.mode().find_phase(&"round").senders_of(Intents.MOVE_CLAIM)
 	assert_int(round_accepts & AcceptSpec.From.DOWNED).is_not_equal(0)
 	_harness.welcome(&"round")
-	_harness.send(DiedEvent.new(_harness.peer, Vector3(2, 0, 2)))
+	_harness.send(KnockedDownEvent.new(_harness.peer, Vector3(2, 0, 2)))
 	_harness.pump(TICK_USEC)
 	var as_downed := _harness.sent_named(Intents.MOVE_CLAIM).size()
 	_harness.pump(TICK_USEC)
 	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(as_downed + 1)
-	assert_bool(_harness.session.model.is_alive(_harness.peer)).is_false()
+	assert_int(_harness.session.model.life_of(_harness.peer)).is_equal(ClientModel.Life.DOWNED)
 
 
 func test_a_downed_player_in_a_phase_for_the_living_does_not_claim() -> void:
@@ -136,13 +136,35 @@ func test_a_downed_player_in_a_phase_for_the_living_does_not_claim() -> void:
 	var lobby_accepts := mode.find_phase(&"lobby").senders_of(Intents.MOVE_CLAIM)
 	assert_int(lobby_accepts & AcceptSpec.From.DOWNED).is_equal(0)
 	_harness.welcome(&"lobby")
-	# No mode kills in the lobby; a Died there still makes this client downed to its own rules.
-	_harness.send(DiedEvent.new(_harness.peer, Vector3(2, 0, 2)))
+	# No mode knocks down in the lobby; a KnockedDown there still makes this client downed to its
+	# own rules.
+	_harness.send(KnockedDownEvent.new(_harness.peer, Vector3(2, 0, 2)))
 	_harness.pump(TICK_USEC)
 	var claims := _harness.sent_named(Intents.MOVE_CLAIM).size()
 	for i in 5:
 		_harness.pump(TICK_USEC)
 	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(claims)
+
+
+func test_a_dead_player_never_claims_even_where_every_player_may() -> void:
+	# The dead send no intents (E25): a phase that takes MoveClaim from any player does not make a
+	# dead client claim.
+	_harness.mode.find_phase(&"round").accepts = [
+		AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.PLAYER | AcceptSpec.From.HOST)
+	]
+	_harness.welcome(&"round")
+	_harness.pump(TICK_USEC)
+	var living := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	assert_int(living).is_greater(0)
+	_harness.send(KnockedDownEvent.new(_harness.peer, Vector3(2, 0, 2)))
+	_harness.pump(TICK_USEC)
+	var downed := _harness.sent_named(Intents.MOVE_CLAIM).size()
+	assert_int(downed).is_greater(living)
+	_harness.send(DiedEvent.new(_harness.peer, Vector3(2, 0, 2)))
+	for i in 5:
+		_harness.pump(TICK_USEC)
+	assert_int(_harness.sent_named(Intents.MOVE_CLAIM).size()).is_equal(downed)
+	assert_int(_harness.session.model.life_of(_harness.peer)).is_equal(ClientModel.Life.DEAD)
 
 
 func test_the_host_flag_counts_for_the_hosts_own_client_only() -> void:

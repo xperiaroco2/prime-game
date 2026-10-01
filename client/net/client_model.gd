@@ -1,13 +1,17 @@
 class_name ClientModel
 extends RefCounted
 ## What one client knows now (ARCHITECTURE §4.6), folded from the events and snapshots it decoded:
-## its peer id and epoch, the phase, the roster, the settings, the items, stations and bodies, the
-## avatars of the newest snapshot and its own SelfStatus. Built only from what the host sent this
-## client, never from core/ state (invariant 2). The game mode is the client's own copy, read for
-## where each phase plays.
+## its peer id and epoch, the phase, the roster, the settings, the items, stations and bodies, each
+## player's life (E25), the avatars of the newest snapshot and its own SelfStatus. Built only from
+## what the host sent this client, never from core/ state (invariant 2). The game mode is the
+## client's own copy, read for where each phase plays.
 ##
 ## A match's facts (items, stations, bodies, role, tasks, avatars and the like) are cleared on
 ## LoadMatch and on entering the lobby: a new level holds none of the old ones.
+
+## A player's life as the public events tell it (E25): the client's own words for core/'s life
+## states, so no client/ file names a core/ state class (client/CLAUDE.md).
+enum Life { ALIVE, DOWNED, DEAD, LEFT }
 
 ## An item's holder when nobody holds it (no peer id is 0).
 const NO_HOLDER := 0
@@ -68,13 +72,17 @@ var role: StringName = &""
 var teammates: Dictionary[StringName, PackedInt32Array] = {}
 var items: Dictionary[int, Item] = {}
 var stations: Dictionary[int, Station] = {}
-## Peer -> where its body lies: the dead of this match.
+## Peer -> where its body lies: the dead of this match (Died); a leave removes it (E26).
 var bodies: Dictionary[int, Vector3] = {}
+## Peer -> its life state, for the players who are not living (E25): KnockedDown makes one
+## downed, Died dead, PlayerLeft left. Absent means living.
+var lives: Dictionary[int, Life] = {}
 var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
 var winner: StringName = &""
-## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, ghost, held_item}).
+## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, downed,
+## held_item}).
 var snapshot_tick := -1
 var avatars: Dictionary = {}
 ## Its own SelfStatus (and Damaged's health); -1 until the first arrives.
@@ -89,9 +97,15 @@ func _init(mode: GameMode) -> void:
 	_mode = mode
 
 
-## Whether `peer` is alive as far as this client knows: it has no body.
+## Whether `peer` is living as far as this client knows: never knocked down or dead in this match.
 func is_alive(peer: int) -> bool:
-	return not bodies.has(peer)
+	return life_of(peer) == Life.ALIVE
+
+
+## The life state of `peer` as this client knows it from the public events (E25): ALIVE unless a
+## KnockedDown, a Died or a PlayerLeft of this match said otherwise.
+func life_of(peer: int) -> Life:
+	return lives.get(peer, Life.ALIVE)
 
 
 ## The client's own copy of the current phase, or null.
@@ -114,6 +128,7 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 			roster.erase(peer)
 			spots.erase(peer)
 			avatars.erase(peer)
+			_fold_leave(peer)
 		&"ReadyChanged":
 			var member: Member = roster.get(fields["peer"] as int)
 			if member != null:
@@ -164,6 +179,7 @@ func clear_match() -> void:
 	items.clear()
 	stations.clear()
 	bodies.clear()
+	lives.clear()
 	tasks_done = 0
 	tasks_total = 0
 	winner = &""
@@ -229,12 +245,28 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			health = fields["health"]
 			stamina = fields["stamina"]
 			sprint_available = fields["sprint_available"]
-		&"Died":
-			bodies[fields["peer"] as int] = fields["position"]
+		&"KnockedDown", &"Died":
+			_fold_life(event_name, fields)
 		&"Correction":
 			epoch = fields["epoch"]
 		&"MatchEnded":
 			winner = fields["side"]
+
+
+## A knockdown makes its player downed; a death makes it dead, with its body (E25).
+func _fold_life(event_name: StringName, fields: Dictionary) -> void:
+	var peer: int = fields["peer"]
+	if event_name == &"KnockedDown":
+		lives[peer] = Life.DOWNED
+	else:
+		lives[peer] = Life.DEAD
+		bodies[peer] = fields["position"]
+
+
+## A player who left mid-match leaves no body (E26, the engineer's answer 1 on PR #133).
+func _fold_leave(peer: int) -> void:
+	bodies.erase(peer)
+	lives[peer] = Life.LEFT
 
 
 ## Enters `next`: a match's facts are cleared when it plays in the lobby and the phase before did
