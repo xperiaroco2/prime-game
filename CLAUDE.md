@@ -122,7 +122,7 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
    the parent's base; a child still showing the parent as base gets `gh pr edit <n> --base <that base>` first.
 
 ## Stop and ask before
-- Adding a dependency or addon; changing an architecture boundary; touching the other owner's area.
+- Adding a dependency or addon; changing an architecture boundary; touching the other owner's area (see Ownership).
 - Anything destructive to git history or that discards work outside your own worktree and task branch (inside them
   git and deletes are free: the guard asks only beyond them); anything that costs money.
 <!-- see docs/interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md -->
