@@ -33,22 +33,22 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   snapshot poses and the client's own copy of the game mode (its names and numbers).
 - Only `app/` names `server/`, through the `HostNode` façade only (start, `own_client`, `errors`, `end_reason`,
   `ended`, debug counters, `close()`). No `client/` file names `HostSession`, a `core/` state class or `.game`; a
-  source test holds it (E18, proposed).
-- One persistent root: swap levels under `World`; never `SceneTree.change_scene_to_*`, no autoloads (E19, proposed):
+  source test holds it (E18).
+- One persistent root: swap levels under `World`; never `SceneTree.change_scene_to_*`, no autoloads (E19):
   a freed scene would take the `HostNode` and the session with it.
 - Spectating is built on the dead player's own client from the public snapshot. The target is drawn with the
   client's own seeded generator and never sent; there is no target HUD, health, stamina, role or private event.
 - The downed camera stays at or below the standing eye height above the body and never passes through the level,
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7).
-- A world sound plays only within the hearing range of the listener's camera (E33, proposed); a fading sound with
+- A world sound plays only within the hearing range of the listener's camera (E33); a fading sound with
   no cut-off tells everyone, through walls, where a package was put down.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
-- Collision layers come from `PhysicsLayers`. M4-7's target (proposed; the code on the base still reads speeds,
+- Collision layers come from `PhysicsLayers`. M4-7's target (the code on the base still reads speeds,
   capsule, eye height and stamina from `player_tuning.tres`): movement numbers come from the mode's `PlayerRules`,
   and `PlayerTuning` keeps client feel only. Until M4-7, leave that split to it rather than moving numbers in passing.
-- A new event's fold in `ClientModel` lands in the core PR that adds the event, since the bots need it (E25,
-  proposed); client issues read the model.
+- A new event's fold in `ClientModel` lands in the core PR that adds the event, since the bots need it (E25);
+  client issues read the model.
 - Scenes are single-owner. Build reusable pieces as small sub-scenes; level layout itself is the designer's
   (`levels/`). Hand-written `.tscn` follows `.claude/rules/godot-resources.md`.
 - Visual changes come with a `shot` screenshot in the PR. Dev-only scenes (test rooms, previews) go in

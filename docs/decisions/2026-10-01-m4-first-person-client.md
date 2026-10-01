@@ -1,10 +1,12 @@
 # M4: the first-person client on the network, and the split of vision revision 1's rework
 
-- **Status:** Proposed. The engineer answers E18 to E33 and relays the designer's answers to D4 to D10; the answers
-  are written in here before the manager merges this ADR's PR into `release/m4` and before M4's code starts
+- **Status:** Accepted. Every E and D item took its recommendation: E18 to E31 (a), E32 (b), E33 (a), D4 to D9 (a),
+  D10 (b) (the engineer's answers, recorded on PR #136)
 - **Date:** 2026-10-01
-- **Deciders:** designed by the agent in #125 (the M4 design, under the M4 manager session, #134); the engineer
-  decides the E items and relays the designer's D items (`docs/AGENT_WORKFLOW.md` §9)
+- **Deciders:** designed by the agent in #125 (the M4 design, under the M4 manager session, #134). The engineer, in
+  chat with the M4 manager session on 2026-10-01: E31 to E33, and the designer's D4 to D10 by relay
+  (`docs/AGENT_WORKFLOW.md` §9; @SwiftySinister may object on PR #136); E18 to E30 decided by the M4 manager session
+  under the engineer's delegation of technical choices for M4 (#134)
 - **Builds on:** [vision revision 1](2026-10-01-vision-revision-1.md) (its rules and its rework list),
   [wire format and the host session](2026-09-30-wire-format-and-host-session.md),
   [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md),
@@ -14,7 +16,8 @@
   [a release branch per milestone](2026-10-01-release-branch-per-milestone.md)
 - **Numbering:** the choices continue the M3 design's E1 to E17 and D1 to D3, which `docs/ARCHITECTURE.md` cites, so
   "E8 (a)" never means two things: this ADR's are **E18 to E33** and **D4 to D10**. The proposed issues are **M4-1
-  to M4-9** and the designer's **L-1**; the manager maps them to issue numbers when it opens them.
+  to M4-9** and the designer's **L-1**: M4-1 #137, M4-2 #138, M4-3 #139, M4-4 #140, M4-5 #141, M4-6 #142, M4-7 #143,
+  M4-8 #144, M4-9 #145, L-1 #146.
 
 ## Context
 M4's goal (ROADMAP): a map, movement, interactions and tasks in 3D, host-side movement checks, interpolation. M3
@@ -338,8 +341,9 @@ The critical path is the core chain M4-1 to M4-5, then M4-8.
 | `levels/lobby/lobby.tscn` | L-1 | |
 
 ## Needs the engineer
-Each choice has a recommendation, which this design and `docs/ARCHITECTURE.md` §4.7 follow until answered; each can
-be reverted. Not reopened: V1 to V13 and the answers 1 to 9 on PR #133.
+Answered on 2026-10-01 (PR #136): every recommendation, E18 to E31 (a), E32 (b), E33 (a); E18 to E30 by the M4
+manager session under the engineer's delegation of technical choices (#134). Not reopened: V1 to V13 and the answers
+1 to 9 on PR #133.
 
 | # | Choice | Options | Recommendation, and the failure it prevents |
 |---|---|---|---|
@@ -361,8 +365,8 @@ be reverted. Not reopened: V1 to V13 and the answers 1 to 9 on PR #133.
 | E33 | How far a world sound carries (found by M4's design review; no ADR sets it) | (a) a hearing range: a world sound for `Swung`, `ItemPickedUp` or `ItemPlaced` plays only within about 12 m of the listener's camera (`AudioStreamPlayer3D.max_distance`, a placeholder), for the living, the downed and the dead alike; no occlusion until M5; (b) no world sounds in M4; (c) sounds that fade with distance but never cut off (Godot's default) | (a): the events reach everyone with a position, so under (c) a dissident who hides a package in a far storeroom is heard putting it down, from its direction, by every crew client, and every fight on the map is heard too: a hidden package would no longer be hidden by sight. (b) is safe but leaves the dead's "world sounds around the target" (V11) silent |
 
 ## Needs the designer
-The engineer answers each by relay (`docs/AGENT_WORKFLOW.md` §9); @SwiftySinister may object on the PR, and a
-follow-up reverts.
+Answered by the engineer by relay on 2026-10-01 (PR #136; `docs/AGENT_WORKFLOW.md` §9): D4 to D9 (a), D10 (b).
+@SwiftySinister may object on the PR, and a follow-up reverts.
 
 | # | Choice | Options | Recommendation, and the failure it prevents |
 |---|---|---|---|
@@ -397,8 +401,8 @@ follow-up reverts.
 - `docs/ARCHITECTURE.md` gains §4.7, the client's design, with pointers in its status row, below §1's table, in §4.6,
   §7 and §10. The sections the rework changes stay as built until their issues (§4's table).
 - `client/CLAUDE.md` gains the rules of the shell (E18, E19), the rendering rules (§3) and where M4's code goes.
-- The vision revision ADR's Context and Alternatives take the fixes of PR #133's last review; its pillar waits for
-  E32.
+- The vision revision ADR's Context and Alternatives take the fixes of PR #133's last review; its Open knowledge
+  pillar, and the GDD's §1 copy of it, name "the zones where items may appear" (E32 (b)).
 - After the answers: the manager opens M4-1 to M4-9 and L-1 from the handoff on #125, with the answers applied and
   #76 and #119 amended (#76 after M4-2; M4-6's PR says `Closes #119`, which closes it when `release/m4` merges into
   `main`, and the humans close the stage's issues after that merge), in §7's order.
