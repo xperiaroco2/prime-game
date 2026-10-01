@@ -145,7 +145,7 @@ rebased for the merge, adds its codec samples and updates §4.1 to §4.3; they m
 | M4-2 | none | 59 `KnockedDown(peer, position)`, everyone, no attacker | `Snapshot` (96): the avatar's flag 1 renamed `downed`; downed avatars reach everyone | yes |
 | M4-3 | none | 60 `Respawned(peer, position)`, everyone; it removes the body (E26) | `Snapshot`: the avatar's flag 2, `invulnerable` | yes |
 | M4-4 | 10 `Raise(target: peer)`, 11 `StopRaise()`, 12 `GiveUp()` (E28) | 61 `RaiseStarted(raiser, target)`, 62 `RaiseStopped(raiser, target)` (no cause), 63 `Revived(peer)`, everyone | none | yes |
-| M4-5 | 13 `Swap()` | 64 `Swapped(peer)`, 65 `TaskState(task: u8, type: id, done: u16, total: u16)`, everyone (E30) | `ItemPickedUp` (48) gains `belted: item`, optional (E29); the avatar gains `belt_item: item`, optional (680 of 1024 bytes for 15) | yes |
+| M4-5 | 13 `Swap()`, which Round accepts from the living only (`AcceptSpec.From.LIVING`; `PLAYER` would let a downed player swap, which the revision forbids, and a dead player's intent in flight reach the effect); a `Swap` from the downed or the dead gets `not_accepted`, unit-tested | 64 `Swapped(peer)`, 65 `TaskState(task: u8, type: id, done: u16, total: u16)`, everyone (E30) | `ItemPickedUp` (48) gains `belted: item`, optional (E29); the avatar gains `belt_item: item`, optional (680 of 1024 bytes for 15) | yes |
 | M4-6 (#119) | none | 58 `Disconnecting(reason: id)`, only that player (E21) | none | yes |
 | #76, M4-7 to M4-9 | none | none | none | no |
 
