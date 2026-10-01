@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## AvatarViews (ARCHITECTURE §4.7): at physics priority -80 each other player of the model's newest
 ## snapshot gets a RemotePlayerBody at SnapshotBuffer's pose, the yaw on the body and the pitch on
 ## the head; a vertical facing keeps the turn and gives no NaN; a player the model drops goes; a
-## PlayersPlaced snaps; a LoadMatch forgets the poses; the estimated host tick never runs backwards.
+## PlayersPlaced snaps; a LoadMatch forgets the poses; the estimated host tick never runs backwards;
+## a player the model knows as downed is on the ghost layer, where no push searches (§7.1).
 
 const PEER := 2
 const TICK_USEC := 50000
@@ -81,6 +82,21 @@ func test_a_placement_snaps_the_player_it_names() -> void:
 	# Between ticks 2 and 3 it is where it was, not on its way: a placement slides nowhere.
 	var pose := _views.buffer.pose_of(PEER, 2.5)
 	assert_vector(pose.position).is_equal(Vector3.ZERO)
+
+
+func test_a_downed_player_is_on_the_ghost_layer_and_living_again_on_the_living_one() -> void:
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	assert_int(body.collision_layer).is_equal(PhysicsLayers.LIVING)
+	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
+	await _drawn()
+	assert_int(body.collision_layer).is_equal(PhysicsLayers.GHOSTS)
+	assert_bool(body.is_living()).is_false()
+	# A new match forgets the knockdown: the body is on the living layer again.
+	_model.lives.erase(PEER)
+	await _drawn()
+	assert_bool(body.is_living()).is_true()
 
 
 func test_the_host_tick_never_runs_backwards() -> void:

@@ -1,12 +1,14 @@
 class_name RemotePlayerBody
 extends StaticBody3D
-## Another living player as the local client sees it: a capsule on the living layer, of
-## the size of the client's own copy of the mode's PlayerRules (`rules`), with a head that turns
-## and nods. Only its owner's data moves it: AvatarViews places it each physics frame at
-## SnapshotBuffer's interpolated pose (ARCHITECTURE §4.7), the yaw on the body and the pitch on
-## the head, both already guarded against a degenerate facing. The local player never collides
-## with it like a wall and never moves it: it pushes into it, and is pushed out of it when it comes
-## into the local player (§7.1 "Pushing apart"). The origin is at the feet.
+## Another player as the local client sees it: a capsule on the living layer while that player is
+## living, else on the ghost layer, which no push searches (a downed player pushes nobody and
+## nobody pushes it, §7.1; `set_living`). It has the size of the client's own copy of the
+## mode's PlayerRules (`rules`), with a head that turns and nods. Only its owner's data moves it:
+## AvatarViews places it each physics frame at SnapshotBuffer's interpolated pose (ARCHITECTURE
+## §4.7), the yaw on the body and the pitch on the head, both already guarded against a degenerate
+## facing. The local player never collides with it like a wall and never moves it: it pushes into
+## it, and is pushed out of it when it comes into the local player (§7.1 "Pushing apart"). The
+## origin is at the feet.
 ##
 ## It is teleported, and the push search of the same physics frame must see where (§4.7): so it is
 ## a static body, placed with force_update_transform(). Checked on 4.7.2 with Jolt: a transform
@@ -46,6 +48,16 @@ func set_rules(value: PlayerRules) -> void:
 	rules = value
 	if rules != null and is_node_ready():
 		_apply_rules()
+
+
+## Puts the body on the living layer (`living`) or the ghost layer, where no push finds it.
+func set_living(living: bool) -> void:
+	collision_layer = PhysicsLayers.LIVING if living else PhysicsLayers.GHOSTS
+
+
+## Whether the body is on the living layer.
+func is_living() -> bool:
+	return collision_layer == PhysicsLayers.LIVING
 
 
 ## Places the body at `pose`: its position, the yaw on the body and the pitch on the head.

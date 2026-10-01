@@ -4,7 +4,8 @@ extends Node3D
 ## own ClientModel's newest snapshot, placed each physics frame at SnapshotBuffer's interpolated
 ## pose (E23) at priority -80, after the session (-90) and before the local player (0), so the
 ## player's push search sees this frame's capsules (static bodies placed with
-## force_update_transform(), RemotePlayerBody). A placement (PlayersPlaced) snaps the players it
+## force_update_transform(), RemotePlayerBody). A body is on the living layer only while the
+## model's life fold says its player is living. A placement (PlayersPlaced) snaps the players it
 ## names; a new map (LoadMatch) forgets the poses.
 
 const PHYSICS_PRIORITY := -80
@@ -107,4 +108,5 @@ func _physics_process(_delta: float) -> void:
 			body.rules = rules
 			_bodies[peer] = body
 			add_child(body)
+		body.set_living(model.is_alive(peer))
 		body.set_pose(pose)
