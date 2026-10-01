@@ -32,7 +32,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   the host's own client decodes exactly what a remote one does (a superseded LATEST packet is checked the same way
   but not delivered). Signals fire from `poll()` only.
 - ENet timeouts are set in `EnetTransport` and nowhere else. The peer timeout stays at 10 s or more: a windowed
-  D3D12 process can freeze 5 s (#21).
+  D3D12 process can freeze 5 s (#21); Vulkan, the Windows driver since #124, did not, but other freezes remain.
 - `EnetTransport.poll` services ENet until the socket is drained: one service reads at most 256 datagrams, and a
   freeze's backlog is bigger (#95). Never go back to a single `ENetMultiplayerPeer.poll()` per poll.
 - Peer ids are chosen by clients: never treat one as secret or as unique over time (§4).
