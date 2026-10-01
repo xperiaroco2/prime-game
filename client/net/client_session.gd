@@ -22,6 +22,9 @@ signal corrected(position: Vector3, velocity: Vector3)
 ## A map the host asked for was loaded: its owner instantiates it now, before LoadAck goes out.
 signal map_loaded(path: String, scene: PackedScene)
 signal voice_received(speaker: int, tick: int, opus: PackedByteArray)
+## Every decoded snapshot, after the model folded it, older ones included (SnapshotBuffer keeps
+## them by host tick, §4.7): the host tick it was taken at and its avatars (peer -> fields).
+signal snapshot_received(tick: int, avatars: Dictionary)
 
 const HOST_LOST := &"host_lost"
 const CONNECT_FAILED := &"connect_failed"
@@ -45,6 +48,8 @@ var model: ClientModel
 var end_reason: StringName = &""
 ## Payloads the codec rejected (the transport has counted what NetFrame rejected).
 var bad_payloads := 0
+## The Corrections this client adopted (the debug overlay shows it; honest play gets none).
+var corrections := 0
 
 var _transport: NetTransport
 var _schema: WireSchema
@@ -85,6 +90,7 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 	_transport.connect_failed.connect(_end.bind(CONNECT_FAILED))
 	_transport.host_lost.connect(_on_host_lost)
 	_transport.packet_received.connect(_on_packet)
+	corrected.connect(_count_correction)
 
 
 ## Polls the transport, then advances a threaded load and sends the MoveClaim due by `now_usec`.
@@ -225,7 +231,7 @@ func _on_packet(_from_peer: int, kind: int, payload: PackedByteArray) -> void:
 	if keep_history:
 		view.record(message)
 	if message.name == DecodedView.SNAPSHOT:
-		model.fold_snapshot(message.fields)
+		_on_snapshot(message.fields)
 	elif message.name == DecodedView.VOICE_DOWN:
 		voice_received.emit(
 			message.fields["speaker"] as int,
@@ -258,6 +264,16 @@ func _on_event(event_name: StringName, fields: Dictionary) -> void:
 		# #119 (E21): the host disconnects this client next; that ends it with this reason.
 		_disconnecting = fields["reason"]
 	event_received.emit(event_name, fields)
+
+
+## A snapshot: folded into the model, then handed to whoever draws the others (M4-7).
+func _on_snapshot(fields: Dictionary) -> void:
+	model.fold_snapshot(fields)
+	snapshot_received.emit(fields["tick"] as int, fields["avatars"] as Dictionary)
+
+
+func _count_correction(_position: Vector3, _velocity: Vector3) -> void:
+	corrections += 1
 
 
 ## A new epoch (Welcome, Correction): its claims count jumps from 0 and start where the host put it.
