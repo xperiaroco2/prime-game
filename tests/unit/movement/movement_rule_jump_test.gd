@@ -1,8 +1,10 @@
 extends GdUnitTestSuite
 ## MovementRule's jumps and heights (ARCHITECTURE §7, §7.1): a jump needs a WorldQuery floor
-## within step height below the last accepted feet, and stamina for the living; the feet stay
-## within the jump height (plus MovementRule.jump_slack) of the take-off until the next landing; a
-## rise without a jump stays within the step height (plus STEP_CLEARANCE and the slope allowance).
+## within step height below the last accepted feet, and stamina for the living, and a claim adds no
+## more jumps than it covers ticks; the feet stay within the jump height (plus
+## MovementRule.jump_slack) of the take-off until the next landing; a rise without a jump stays
+## within the step height (plus STEP_CLEARANCE and the slope allowance, of at most SLOPE_TICKS
+## ticks of travel) of the last landing, which on narrow stairs counts from the claim's feet.
 ## A downed player never jumps and climbs the step height.
 ## Players are placed at z = 5 on the ground (y = 0); the world has a 0.3 m step at z 6 to 8 and a
 ## 0.9 m ledge at z 10 to 14.
@@ -13,6 +15,8 @@ const NORTH := Vector3(0, 0, 1)
 ## The jump height (1 m) plus the slack: 0.4 * (1 - cos 45°) + 0.01, about 0.127 m.
 const PEAK := 1.12
 const OVER_PEAK := 1.14
+## Where the staircase of 5 cm steps (a 45° slope) starts, north of the players.
+const SLOPE_FOOT := 5.2
 
 
 func test_a_jump_from_the_floor_costs_its_stamina_and_rises_to_the_jump_height() -> void:
@@ -179,12 +183,91 @@ func test_a_rise_may_add_the_horizontal_travel_on_a_slope() -> void:
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := player.position
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# 0.5 m north: up to 0.3 + 0.01 + 0.5 * tan 45° = 0.81 m higher, as up a 45° slope.
+	# 0.5 m north in three ticks (walking, up to 0.725 m): up to 0.3 + 0.01 + 0.5 * tan 45° =
+	# 0.81 m higher, as up a 45° slope.
+	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.step(game, P1, NORTH * 0.5 + UP * 0.8, {"moving": true})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	# 0.5 m further north, 0.85 m above the base (the ground): corrected.
+	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.claim(game, P1, ground + NORTH * 1.0 + UP * 0.85, {"moving": true})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+
+
+func test_a_claim_covering_stored_credit_climbs_at_most_the_slope_ticks() -> void:
+	# A client keeps quiet for 40 ticks, then one claim covering them all walks 8 m north onto a
+	# roof 3 m up. The slope allowance used to count all 8 m (0.3 + 0.01 + 8 = 8.31 m of rise);
+	# it now counts at most SLOPE_TICKS (10) ticks of the claim's allowed travel: 9.05 m * 10 / 40,
+	# about 2.26 m, so up to about 2.57 m.
+	assert_bool(_quiet_climb_corrected(3.0)).is_true()
+	assert_bool(_quiet_climb_corrected(2.5)).is_false()
+
+
+func test_an_honest_climb_whose_claims_were_lost_is_not_corrected() -> void:
+	# Walking up a 45° staircase of 5 cm steps, as up a slope. The unreliable claims are lost: one,
+	# then nine in a row, so the next claim covers two, then ten ticks of climbing from the last
+	# landing. Capping the rise to one tick's travel would correct both (#74).
+	var world := FixtureTerrainWorld.new()
+	for k in range(1, 97):
+		world.add_platform(0, SLOPE_FOOT + 0.05 * (k - 1), 30, 30, 0.05 * k)
+	var game := FixtureMoves.in_round([P1], world)
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	var walk := {"moving": true}
+	for lost: int in [0, 0, 0, 1, 0, 9, 0]:
+		FixtureModes.run_ticks(game, lost)
+		var to := player.position + NORTH * 0.225 * (lost + 1)
+		to.y = _on_slope(to.z)
+		FixtureMoves.step(game, P1, to - player.position, walk)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_float(player.position.y).is_greater(3.0)
+
+
+func test_an_honest_climb_of_stairs_narrower_than_the_capsule_is_not_corrected() -> void:
+	# #143's network test on 0.3 m treads (0.3 m risers, from x = 6): the claims the joiner sent,
+	# sprinting and walking, recorded on the host. Feet resting on a step's corner, the five rays
+	# (0.4 m apart, as the capsule's radius) may all miss that step and find the one below, and
+	# the next step's rise from it was corrected; the claim's feet now bound the base from below.
+	var sprinting: Array[Vector2] = [
+		Vector2(5.316668, 0.0),
+		Vector2(5.666668, 0.304543),
+		Vector2(5.903964, 0.288559),
+		Vector2(6.168145, 0.584008),
+		Vector2(6.432864, 0.859469),
+		Vector2(6.702574, 1.140857),
+		Vector2(7.02151, 1.200299),
+	]
+	assert_int(_climb_corrections(sprinting, FixtureMoves.sprinting())).is_equal(0)
+	var walking: Array[Vector2] = [
+		Vector2(5.474998, 0.0),
+		Vector2(5.699997, 0.302094),
+		Vector2(5.889102, 0.286061),
+		Vector2(6.056526, 0.511394),
+		Vector2(6.212067, 0.590159),
+		Vector2(6.409795, 0.852561),
+		Vector2(6.594612, 1.19475),
+		Vector2(6.775845, 1.173014),
+		Vector2(6.991943, 1.200251),
+	]
+	assert_int(_climb_corrections(walking, {"moving": true})).is_equal(0)
+
+
+func test_a_claim_floating_above_the_floor_is_still_corrected() -> void:
+	# Claims on the floor that climb 0.3 m a tick with no stairs: the first is within step height
+	# of the ground, so it lands, its base its feet less the landing slack (about 0.18 m); the
+	# second passes from there and finds no floor within step height, so the third is corrected.
+	var game := _round()
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	var walk := {"moving": true}
+	for i in 3:
+		FixtureMoves.step(game, P1, Vector3(0.225, 0.3, 0), walk)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_float(player.position.y).is_equal_approx(0.6, 1e-5)
+	var slack := MovementRule.landing_slack(FixtureModes.player_rules())
+	assert_float(slack).is_equal_approx(0.4 * (1.0 - cos(deg_to_rad(45.0))), 1e-6)
 
 
 func test_walking_up_steps_moves_the_base_to_each_landing() -> void:
@@ -259,9 +342,10 @@ func test_a_merged_burst_of_three_jumps_pays_each_and_grants_one_jump_height() -
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := player.position
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# The LATEST lane kept only the newest claim of a burst: the count rose by 3 since the last
-	# accepted one. Each jump is paid (3 * 10000); the take-offs of the merged claims are lost, so
-	# the burst gets one jump height from the last accepted feet (E2).
+	# The LATEST lane kept only the newest claim of a burst of three ticks: the count rose by 3
+	# since the last accepted one. Each jump is paid (3 * 10000); the take-offs of the merged
+	# claims are lost, so the burst gets one jump height from the last accepted feet (E2).
+	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 3}))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	assert_int(player.stamina).is_equal(70000)
@@ -325,17 +409,54 @@ func test_stamina_for_fewer_than_the_counted_jumps_is_corrected() -> void:
 	var game := _round()
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
-	player.stamina = 29000
+	player.stamina = 27000
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# Settled first: one tick of regeneration gives 29750, short of three jumps' 30000.
+	# A claim of three jumps over three ticks, settled first: three ticks of regeneration give
+	# 29250, short of three jumps' 30000.
+	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 3}))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	assert_int(player.stamina).is_equal(29750)
+	assert_int(player.stamina).is_equal(29250)
 	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(0)
-	# In the new epoch, two jumps (20000) are covered by 30500.
+	# In the new epoch, two jumps (20000) are covered by 30000.
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	assert_int(player.stamina).is_equal(10500)
+	assert_int(player.stamina).is_equal(10000)
+
+
+func test_more_new_jumps_than_covered_ticks_is_corrected() -> void:
+	# A client lands between two jumps, so a claim adds at most one jump per client tick it
+	# covers (#117 item 6): two in one tick are corrected and cost nothing; two in two pass.
+	var game := _round()
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var ground := player.position
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_vector(player.position).is_equal(ground)
+	assert_int(player.stamina).is_equal(100000)
+	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(0)
+	# In the new epoch, after a claim standing still: two jumps in a claim covering two ticks.
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"jumps": 0})
+	FixtureModes.run_ticks(game, 1)
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_int(player.stamina).is_equal(80000)
+	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(2)
+
+
+func test_a_fresh_claim_may_carry_more_new_jumps_than_its_one_covered_tick() -> void:
+	# The first claim after a placement starts a client-tick baseline and covers one tick on the
+	# host, whatever span of client ticks it carries: the count bound does not apply to it, and
+	# the two jumps are paid (2 * 10000).
+	var game := _round()
+	var player := game.state.player(P1)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_int(player.stamina).is_equal(80000)
+	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(2)
 
 
 func test_a_claim_without_an_int_jump_count_is_corrected() -> void:
@@ -416,6 +537,46 @@ func _on_ledge_edge(radius: float) -> Match:
 	assert_float(player.position.y).is_equal_approx(0.9, 1e-5)
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(1)
 	return game
+
+
+## Whether one claim covering 40 quiet ticks, walking 8 m north from the ground onto a roof
+## `height` up, is corrected.
+func _quiet_climb_corrected(height: float) -> bool:
+	var world := FixtureTerrainWorld.new()
+	world.add_platform(0, 12.5, 30, 14, height)
+	var game := FixtureMoves.in_round([P1], world)
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureModes.run_ticks(game, 39)
+	FixtureMoves.step(game, P1, NORTH * 8.0 + UP * height, {"moving": true})
+	return FixtureMoves.corrections(game, P1).size() > seen
+
+
+## The top of the 5 cm step of the staircase of test_an_honest_climb... under `z`: the ground
+## before SLOPE_FOOT.
+func _on_slope(z: float) -> float:
+	return maxf(0.0, 0.05 * ceilf((z - SLOPE_FOOT) / 0.05))
+
+
+## The Corrections P1 gets for claims at `feet` (x and height; z = 5), one per tick with `fields`,
+## on #143's narrow stairs along x: three 0.3 m steps 0.3 m deep from x = 6, then a top at 1.2 m,
+## on a world whose footprint radius is the capsule's (0.4 m).
+func _climb_corrections(feet: Array[Vector2], fields: Dictionary) -> int:
+	var world := FixtureTerrainWorld.new()
+	world.add_platform(6.0, 0, 6.3, 30, 0.3).add_platform(6.3, 0, 6.6, 30, 0.6)
+	world.add_platform(6.6, 0, 6.9, 30, 0.9).add_platform(6.9, 0, 12.9, 30, 1.2)
+	world.footprint_radius = 0.4
+	var game := FixtureMoves.in_round([P1], world)
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	player.position = Vector3(feet[0].x, feet[0].y, 5)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	for at: Vector2 in feet.slice(1):
+		FixtureMoves.claim(game, P1, Vector3(at.x, at.y, 5), fields)
+		FixtureModes.run_ticks(game, 1)
+	return FixtureMoves.corrections(game, P1).size() - seen
 
 
 ## A round of P1 on the stepped world.
