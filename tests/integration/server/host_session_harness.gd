@@ -38,6 +38,8 @@ var raws: Array[RawClient] = []
 var calls: Array[String] = []
 ## The MoveClaims applied, by the phase they were applied in.
 var claims_in: Dictionary[StringName, int] = {}
+## Clients that do not step: a frozen client process.
+var frozen: Array[ClientSession] = []
 
 
 ## A client that sends raw messages and records every message it decodes, in arrival order.
@@ -49,13 +51,20 @@ class RawClient:
 	var peer := 0
 	var lost := false
 
-	func _init(wire: WireSchema, hub: LoopbackHub, port: int) -> void:
+	## Joins the host on `port`; or, with `host` and `as_peer`, is linked to it as that peer id
+	## (a reused id: LoopbackHub never hands one out twice).
+	func _init(
+		wire: WireSchema, hub: LoopbackHub, port: int, host: NetTransport = null, as_peer := 0
+	) -> void:
 		schema = wire
 		transport = LoopbackTransport.new(wire.kind_table(), hub)
 		transport.connected.connect(_on_connected)
 		transport.host_lost.connect(_on_host_lost)
 		transport.packet_received.connect(_on_packet)
-		transport.join("loopback", port)
+		if host != null:
+			host._link(transport, as_peer)
+		else:
+			transport.join("loopback", port)
 
 	func poll() -> void:
 		transport.poll()
@@ -158,6 +167,13 @@ func raw() -> RawClient:
 	return made
 
 
+## A raw client that connects with the id `peer_id` (one that left may be reused, §4).
+func raw_as(peer_id: int) -> RawClient:
+	var made := RawClient.new(schema, hub, PORT, transport, peer_id)
+	raws.append(made)
+	return made
+
+
 ## One frame: the host steps, then every client.
 func pump(usec := FRAME_USEC) -> void:
 	now += usec
@@ -199,6 +215,14 @@ func welcome_all() -> bool:
 ## Every client says it is ready, and the match runs until `phase`.
 func run_until_phase(phase: StringName, frames: int = 900) -> bool:
 	return pump_until(func() -> bool: return session.game.phase_id() == phase, frames)
+
+
+## Pumps until a tick has just run and the next `frames` frames are due no new one.
+func settle_after_tick(frames := 2) -> void:
+	for _i in 6:
+		if session.tick_of(now + frames * FRAME_USEC) == session.game.ticked_through():
+			return
+		pump()
 
 
 func ready_all() -> void:
@@ -275,7 +299,8 @@ func _client_on(on: NetTransport, client_mode: GameMode) -> ClientSession:
 
 func _step_clients() -> void:
 	for client: ClientSession in clients:
-		client.step(now)
+		if not frozen.has(client):
+			client.step(now)
 	for each: RawClient in raws:
 		each.poll()
 
