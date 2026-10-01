@@ -662,8 +662,9 @@ world (3c, below), then read the markers with `MarkerReader.read_levels` (2j) th
 `circle` markers snap to the floor the host plays on: option (b) of §10's reader question, recommended on #66. A
 level with load errors stops the host with the errors shown. (2) The session seed: 8 bytes of
 `Crypto.generate_random_bytes`, the operating system's entropy, never the time (§3.3). (3) `Match.new`; a refused
-mode stops the host with the refusals shown. `keep_history` stays off (the bots runner turns it on). `Match.start(0)`:
-host tick 0 is the session's start. (4) Host on the transport and link the own client.
+mode stops the host with the refusals shown. `keep_history` stays off (the bots runner turns it on). (4) Host on the
+transport and link the own client, then `Match.start(0)`: host tick 0 is the session's start (hosting first, so the
+start slice's `RefuseJoins` or `AllowJoins` reaches the transport).
 
 **Host ticks come from the clock:** tick = ⌊(now − start) × `Ticks.RATE` / 10^6⌋, in microseconds. Not a count of
 physics frames: Godot runs at most `Engine.max_physics_steps_per_frame` physics steps per rendered frame and drops the
@@ -674,13 +675,13 @@ host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tic
 
 | # | What | Why |
 |---|---|---|
-| 1 | **Catch up.** t = the tick of now. If the queue holds commands read in an earlier step (no tick was due then), they are applied first, stamped with `ticked_through() + 1`, and that tick runs. Then every tick up to t − 1 runs with no command (`Match.tick`). After each tick its outbox is delivered (5) and the voice routing table is refreshed | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
+| 1 | **Catch up.** t = the tick of now. If the queue holds commands read in an earlier step (no tick was due then) and `ticked_through() + 1` < t, they are applied first, stamped with `ticked_through() + 1`, and that tick runs (when `ticked_through() + 1` = t they join step 4's batch, stamped the same). Then every tick up to t − 1 runs with no command (`Match.tick`). After each tick its outbox is delivered (5) and the voice routing table is refreshed | After a 5 s host freeze that is about 100 ticks: the phase timers and the match clock run through the freeze, and the claims that waited in the socket are then applied at t with the credit of those ticks (§7.1). Prevents: the first claim after a host freeze corrected for covering more client ticks than the host counted (#84's note) |
 | 2 | **Refill** every peer's budgets for the host time elapsed since the last refill | Before any packet of this step is read, so a thawed peer's backlog meets a full budget (the M1 lesson, §7) |
 | 3 | **Poll** the transport. `peer_joined(p)`: queue `PeerConnected(p)` and start p's hello deadline. `peer_left(p)`: queue `PeerLeft(p)`. A packet: over p's budget, dropped and counted (`over_budget`); else decoded (§4.4): malformed, counted (`bad_payload`); an intent, queued with its `seq`; a debug command (§4.3, E17), queued as the command it names when p is 1, else counted as malformed; a `VoiceUp`, relayed at once (below) | The transport's signals fire in arrival order, and the loopback's messages and the network's share one inbox, so the queue is by arrival with no merging (§3.3): the host's own client gets no priority beyond the order in which the host reads its inbox (its messages of the previous frame before the network's read in this one, at most one frame). Voice at once: holding it for the next tick adds up to 50 ms |
 | 4 | **Apply**, when tick t has not run yet: every queued command in queue order, stamped with t (`Match.apply`), then `Match.tick(t)`. Otherwise the queue waits for the next due tick | `Match.apply` takes only the next tick to run (§3.3); a command is stamped when it is applied, so none is stamped with a tick that ran already |
-| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error) and a peer whose leave is pending (a reused id, "One outbox slice per call" below); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
+| 5 | **Deliver** `take_outbox()` in order. An event is encoded once and sent to each recipient in peer-id order, skipping a peer this session disconnected (its `send` would fail with `ERR_DOES_NOT_EXIST`, expected, not an error) and a peer whose leave is pending (a reused id, "One outbox slice per call" below); a directive is carried out in its place: `RefuseJoins` and `AllowJoins` set `set_refuse_new_connections`; `DisconnectPeer(p)` calls `disconnect_peer(p)` after everything before it was sent, the `Rejected` that explains it included, and is dropped while p's leave is pending (it answers the connection that left, not one that took its id) | The recipients are `core/`'s, never the transport's broadcast target, which also reaches peers that are not players (§5). ENet's `peer_disconnect_later` keeps what was queued (§4). A `DisconnectPeer` of the host (peer 1) would be a `core/` bug (§3.2): the host ends the session |
 | 6 | **Snapshots**, when a tick ran in this step: for each present player p, `snapshot_for(p)`; empty means the phase sends none; else `{tick: t, avatars}` (§4.3) to p on LATEST, after the tick's events. The voice routing table is refreshed after every `Match.tick` call, in step 1 as here (below) | A client sees a tick's events before its snapshot (both on channel 0). Catch-up ticks send none: only the newest state counts |
-| 7 | **Deadlines.** A peer connected longer than the hello deadline (10 s, a placeholder, "not a decision") with no `Welcome` sent to it is disconnected (`disconnect_peer`) | Checked after 4, so a `Hello` that waited out a host freeze is applied first. 10 s outlasts a 5 s freeze of either side. The late `PeerLeft` is a newcomer's, which `core/` forgets (§3.5) |
+| 7 | **Deadlines.** A peer connected longer than the hello deadline (10 s, a placeholder, "not a decision") with no `Welcome` sent to it is disconnected (`disconnect_peer`) | Checked only in a step that ran 4, so a `Hello` that waited out a host freeze, or was read in a step with no tick due, is applied first. 10 s outlasts a 5 s freeze of either side. The late `PeerLeft` is a newcomer's, which `core/` forgets (§3.5) |
 
 So a command is stamped with the tick that was due when the host read it, and the replay's order is the queue's.
 Accepted in step 1: a command that waited in the socket during a host freeze is stamped when the host reads it, so a
@@ -822,49 +823,25 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
 **Ending.** The host quits, its own client's load fails, or the deal fails (above): `close()`, and every client sees
 `host_lost` (#40).
 
-**Built in 3f (#100).**
-- `HostSession` (`server/host_session.gd`): `HostSession.new(transport, schema)` on a transport not yet hosting, whose
-  kind table is the schema's. `start(mode, port, max_clients, now_usec)` builds `HostWorldQuery.for_mode`, refuses on
-  its errors, reads the markers with `MarkerReader.read_levels` (refused on theirs) and calls `start_with(mode, world,
-  layouts, port, max_clients, now_usec, seed)` with `random_seed()` (8 bytes of `Crypto`); tests and runners on flat
-  levels call `start_with` directly. It checks `WireBudget`, sets `content_hash` to `ContentFingerprint.of(...)`
-  (§4.6) and passes it to `Match.new`, refuses on `Match.refusals`, hosts, links `own_client` (peer 1's transport:
-  the owner runs the own `ClientSession` on it, so `server/` names nothing of `client/`) and runs `Match.start(0)` at
-  `now_usec`. False with `errors`. Then `step(now_usec)` every frame and `close()`; `ended(reason)` fires once
-  (`closed`, `row_error`, `own_client_malformed`, `own_client_disconnected`), after the transport closed.
-- Each `Match` call's slice is delivered as soon as it is taken (the same order as collecting them for step 5: the
-  recipients skipped are those of the moment the slice is taken). Commands left from an earlier step are applied in
-  step 1 only when a skipped tick lies before the due one; otherwise they join step 4's batch on the due tick, which
-  is then `ticked_through() + 1` anyway. Voice frames are held during the poll and relayed right after it, before
-  step 4, so the newest 5 per speaker are known.
-- Settings and counters: `hello_deadline_usec`, `replay_dir` (`user://replays`; empty writes no log, as the tests
-  set it), `observer`, `over_budget`, `bad_payloads`, `malformed_disconnects`, `voice_dropped()`. `over_budget` and
-  `bad_payloads` also go to the transport's summary line (`NetTransport.count_rejected`, reasons `OVER_BUDGET` and
-  `BAD_PAYLOAD` of `NetRejects`); a debug kind from a peer other than 1 counts as `BAD_PAYLOAD`. A transport reject
-  from a peer that is not connected (or was disconnected already) counts toward nobody.
+**Built in 3f (#100).** The API that 3h and 3i use; the rest is in `server/CLAUDE.md` and the class comments.
+- `HostSession` (`server/host_session.gd`): `HostSession.new(transport, schema)` on a transport not yet hosting.
+  `start(mode, port, max_clients, now_usec)` (the real levels and a `Crypto` seed) or `start_with(mode, world,
+  layouts, port, max_clients, now_usec, seed)` (tests and runners on flat levels) returns false with `errors` when
+  refused, and may be retried; `game` is set only once a start succeeded. Then `step(now_usec)` every frame on the
+  clock `now_usec` came from, and `close()`; `ended(reason)` fires once (`closed`, `row_error`,
+  `own_client_malformed`, `own_client_disconnected`), after the transport closed. `own_client` is peer 1's transport:
+  the owner runs the own `ClientSession` on it, so `server/` names nothing of `client/`. Settings:
+  `hello_deadline_usec`, `replay_dir` (`user://replays`; empty writes no log).
 - **The observer** (debug builds only), for the bots runner (3h): a `Callable` called after every `Match` call (the
   start, each `apply`, each `tick`, catch-up ticks included) with `(at_tick: int, command: MatchCommand, slice:
   Array[EmittedEvent])`, `command` null for a tick and the start, before the slice is delivered or anything else is
-  applied; `session.game` is the match right after the call. It must not step the session. A failing row's slice is
-  observed before the session ends.
-- `HostNode` (`server/host_node.gd`): a `Node` with `process_physics_priority` -100 that calls `step` with
-  `Time.get_ticks_usec()` from `_physics_process` and `close()` when it leaves the tree.
-- `PeerBudget` (`server/peer_budget.gd`): the three buckets; a reliable intent takes one intent and its payload
-  bytes, `MoveClaim` its bytes, a voice frame one frame. `VoiceRelay` (`server/voice_relay.gd`): the routing table,
-  the per-stream seq, the newest 5 per speaker per poll by the speaker's own seq (wrapping at 2^16), and the mute of a
-  peer that left until the refresh after its `PeerLeft` (or after its `peer_left`, for a peer this session
-  disconnected). `ReplayFiles` (`server/replay_files.gd`): `write` (`store_var` of `CommandLog.to_dict()`, keeping
-  the newest 10), `read` and `list`; `CommandLog.from_dict` reads a log back for `Match.replay`.
-- `NetTransport.packet_rejected(peer, reason)` fires once per packet the transport rejects; `count_rejected` adds
-  `server/`'s own drops to the summary without the signal.
+  applied; `session.game` is the match right after the call. It must not step the session.
+- `HostNode` (`server/host_node.gd`): steps the session with `HostNode.now_usec()` from `_physics_process`
+  (priority -100, also while paused); start the session with the same clock. Leaving the tree closes the session.
+- Each slice is delivered as soon as it is taken (the order of step 5; the recipients skipped are those of that
+  moment). Voice is relayed right after the poll, before step 4, stamped with `ticked_through()`.
 - The loading deadline's `DisconnectPeer` has no `Rejected` before it in `core/` (§3.2): the dropped player gets
   every event addressed to it before the directive, then `host_lost`.
-- Tests: `tests/integration/server/host_session_*_test.gd` over a `LoopbackHub` with a fake clock
-  (`host_session_harness.gd`: the fixture base mode with `res://` level paths and voice rules, the own and remote
-  `ClientSession`s, raw clients, a peer id reused through the host's `_link`), `replay_files_test.gd`,
-  `host_node_test.gd`; `tests/unit/server/` for the budget and the relay; `tests/unit/match/command_log_test.gd`.
-  The guards of the relay, the pending leave, the catch-up before applying and the voice budget were each removed
-  once to see their tests fail.
 
 ### 4.6 The client, the bots and the leak test in M3 (#89)
 - **`ClientSession`** (`client/net/`, 3g) is what every client runs: the host's own over the loopback, a remote one
