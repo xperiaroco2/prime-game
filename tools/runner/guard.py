@@ -239,7 +239,36 @@ CHECKOUT_VALUED = {"-b", "-B", "--orphan", "--conflict", "--pathspec-from-file"}
 SWITCH_VALUED = {"-c", "-C", "--create", "--force-create", "--orphan", "--conflict"}
 RESTORE_VALUED = {"-s", "--source", "--conflict", "--pathspec-from-file"}
 CLEAN_VALUED = {"-e", "--exclude"}
-REBASE_VALUED = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "--empty"}
+# git rebase reads its options as git's parse-options does (issue #105). Its long options (`git rebase
+# --git-completion-helper-all`, git 2.49): one is named by any unique prefix (`--interac`, `--exe=x`, `--up`).
+REBASE_LONG = (
+    "--onto --keep-base --no-verify --quiet --verbose --no-stat --signoff --committer-date-is-author-date "
+    "--reset-author-date --ignore-date --ignore-whitespace --whitespace --force-rebase --no-ff --continue --skip "
+    "--abort --quit --edit-todo --show-current-patch --apply --merge --interactive --preserve-merges "
+    "--rerere-autoupdate --empty --keep-empty --autosquash --update-refs --gpg-sign --autostash --exec "
+    "--allow-empty-message --rebase-merges --fork-point --strategy --strategy-option --root "
+    "--reschedule-failed-exec --reapply-cherry-picks --verify --stat --ff --no-onto --no-keep-base --no-quiet "
+    "--no-verbose --no-signoff --no-committer-date-is-author-date --no-reset-author-date --no-ignore-date "
+    "--no-ignore-whitespace --no-whitespace --no-force-rebase --no-preserve-merges --no-rerere-autoupdate "
+    "--no-keep-empty --no-autosquash --no-update-refs --no-gpg-sign --no-autostash --no-exec "
+    "--no-allow-empty-message --no-rebase-merges --no-fork-point --no-strategy --no-strategy-option --no-root "
+    "--no-reschedule-failed-exec --no-reapply-cherry-picks"
+).split()
+# Long options whose value may be the next word (`--onto x`); `--gpg-sign` and `--rebase-merges` take only `=value`.
+REBASE_LONG_VALUED = {"--onto", "--whitespace", "--empty", "--exec", "--strategy", "--strategy-option"}
+# Single-dash letters, read one by one from a cluster (`-qi` is `-q -i`). A valued letter takes the rest of the
+# cluster or the next word (`-x'cmd'`, `-Xtheirs`, `-s ort`). git reads the rest of `-r` and `-S` as their optional
+# value (`-rx` is mode "x", an error); here they stay flags, so `-rx cmd` still counts as an exec.
+REBASE_SHORT = {
+    "i": "--interactive",
+    "x": "--exec",
+    "r": "--rebase-merges",
+    "s": "--strategy",
+    "X": "--strategy-option",
+}
+REBASE_SHORT_VALUED = {"s", "X", "x", "C"}
+# Config values git reads as false (`git -c rebase.updateRefs=no`); any other value, or none, is true.
+GIT_FALSE = {"false", "no", "off", "0", ""}
 # git rebase forms that continue or end a rebase in progress: they name no branch.
 REBASE_STEPS = {"--continue", "--skip", "--abort", "--quit", "--show-current-patch"}
 # Todo editors that open nothing: `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash` runs without one.
@@ -1114,6 +1143,35 @@ def _option_values(args: list[str], names: set[str]) -> list[str]:
     return values
 
 
+def _rebase_options(args: list[str]) -> tuple[list[str], list[str]]:
+    """The options of a `git rebase` in order, as long names (`-qi` gives `-q`, `--interactive`; `--exe=x` gives
+    `--exec`), and its positional arguments (the values of valued options left out)."""
+    options: list[str] = []
+    positionals: list[str] = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        i += 1
+        if arg == "--":
+            positionals += args[i:]
+            break
+        if arg.startswith("--"):
+            name, eq, _ = arg.partition("=")
+            matches = [o for o in REBASE_LONG if o.startswith(name)]
+            name = name if name in REBASE_LONG or len(matches) != 1 else matches[0]  # an ambiguous prefix fails
+            options.append(name)
+            i += 1 if not eq and name in REBASE_LONG_VALUED else 0
+        elif arg.startswith("-") and len(arg) > 1:
+            for at, letter in enumerate(arg[1:], 2):
+                options.append(REBASE_SHORT.get(letter, "-" + letter))
+                if letter in REBASE_SHORT_VALUED:
+                    i += 1 if at == len(arg) else 0
+                    break
+        else:
+            positionals.append(arg)
+    return options, positionals
+
+
 def _positionals(args: list[str], valued: set[str] | None = None) -> list[str]:
     """Arguments that are not options, nor the values of the options in valued."""
     result, skip = [], False
@@ -1214,6 +1272,8 @@ class Analysis:
         self.piped_first: dict[int, list[str]] = {}
         # The `VAR=value` prefixes of the simple command being judged (`GIT_DIR=x git reset`).
         self.prefix_env: dict[str, str] = {}
+        # The `-c name=value` and `--config-env` settings of the git command being judged.
+        self.git_configs: list[str] = []
 
     def add(self, path: str, verb: str, cwd: str | None = "") -> None:
         area = self.paths.area(path, cwd)
@@ -1353,9 +1413,12 @@ class Analysis:
                 git_dir = value
             elif name == "--work-tree":
                 work_tree = value
-            elif name in ("-c", "--config-env"):
+            elif name == "-c":
                 configs.append(value)
+            elif name == "--config-env":
+                configs.append(value.partition("=")[0] + "=?")  # the value comes from the environment
             i += step
+        self.git_configs = configs
         if any("hookspath" in c.lower() for c in configs):
             # The deny rule on `git config *hooksPath*` cannot see `git -c core.hooksPath=... push`.
             self.git_finding(["git", *args], "sets core.hooksPath, which skips the pre-push hook")
@@ -1591,24 +1654,38 @@ class Analysis:
     def git_rebase(self, rest: list[str], place: str, base: str | None) -> None:
         """`git rebase` rewrites the history of the branch it names, or of the current one. Interactive rebases ask
         when they open a todo editor, which an agent cannot use; one whose `GIT_SEQUENCE_EDITOR` is a no-op
-        (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) opens none and is judged like any other."""
+        (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) opens none and is judged like any other.
+        Options are read as git reads them (issue #105): `-qi`, `-x'cmd'`, `--interac`, `--exe=cmd`."""
         shown = ["git", "rebase", *rest]
-        options = {a.split("=")[0] for a in rest if a.startswith("-")}
-        if {"-i", "--interactive", "--edit-todo"} & options and self.git_sequence_editor() not in NO_OP_EDITORS:
+        order, positionals = _rebase_options(rest)
+        options = set(order)
+        if {"--interactive", "--edit-todo"} & options and self.git_sequence_editor() not in NO_OP_EDITORS:
             self.git_finding(shown, "an interactive rebase opens an editor")
             return
-        if "--update-refs" in options:
-            self.git_finding(shown, "--update-refs moves other branches")
+        if self.rebase_update_refs(order):
+            self.git_finding(shown, "--update-refs (or rebase.updateRefs) moves other branches")
             return
-        if {"-x", "--exec"} & options:
+        if "--exec" in options:
             self.git_finding(shown, "--exec runs commands the guard cannot judge")
             return
-        positionals = _positionals(rest, REBASE_VALUED)
         if not REBASE_STEPS & options:
             named = positionals[:1] if "--root" in options else positionals[1:2]
             if named and self.git_other_branches(shown, named, "rewrites"):
                 return
         self.git_discards(shown, place, base)
+
+    def rebase_update_refs(self, options: list[str]) -> bool:
+        """The rebase moves the other branches in its range: `rebase.updateRefs` from `git -c` (`-c
+        rebase.updateRefs` alone is true), then the last `--update-refs` or `--no-update-refs`."""
+        moves = False
+        for setting in self.git_configs:
+            key, eq, value = setting.partition("=")
+            if key.strip().lower() == "rebase.updaterefs":
+                moves = not eq or value.strip().strip("'\"").lower() not in GIT_FALSE
+        for option in options:
+            if option in ("--update-refs", "--no-update-refs"):
+                moves = option == "--update-refs"
+        return moves
 
     def git_branch(self, rest: list[str], place: str, base: str | None) -> None:
         """`git branch -d|-D|--delete` deletes, `-f` moves, `-M` / `-C` overwrite: only the task branch's helpers
