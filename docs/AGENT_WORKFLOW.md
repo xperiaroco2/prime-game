@@ -203,7 +203,8 @@ Rules for every workflow run:
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
   (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A session runs a
   saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
-  session needs `/reload-skills` (code.claude.com/docs/en/workflows).
+  session needs `/reload-skills` (code.claude.com/docs/en/workflows). `tools/runner/tests/test_workflows.py` runs
+  both scripts under Node with stub agents and checks their routing and rules (skipped where Node is missing).
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about 150;
   every agent writes temporary files only under its issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to
   five agents, over the `small` guideline, so the kickoff approves that and the stage's budget once, confirmed by
