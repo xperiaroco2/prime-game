@@ -188,5 +188,6 @@ forced_roles = Dictionary[int, StringName]({
 })
 scripts = Array[ExtResource("4_vgual")]([SubResource("B1_script"), SubResource("B2_script"), SubResource("B3_script")])
 expected_ends = Array[StringName]([&"dissidents"])
-time_limit_s = 100.0
+clock_s = 40
+time_limit_s = 70.0
 never = Array[ExtResource("2_e57gy")]([SubResource("Never_damaged_bot1")])
