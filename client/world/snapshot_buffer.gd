@@ -197,9 +197,9 @@ func pose_of(peer: int, at: float) -> Pose:
 ## The yaw and pitch of `facing`, or `last` (yaw, pitch) for what has no usable direction: a zero
 ## or non-finite facing keeps both, a vertical one keeps the yaw. The pitch stays within MAX_PITCH.
 static func look_angles(facing: Vector3, last: Vector2) -> Vector2:
-	if not facing.is_finite() or facing.length() < DEGENERATE:
+	var unit := _direction(facing)
+	if unit == Vector3.ZERO:
 		return last
-	var unit := facing.normalized()
 	var yaw := last.x
 	if Vector2(unit.x, unit.z).length() >= DEGENERATE:
 		yaw = atan2(-unit.x, -unit.z)
@@ -230,10 +230,29 @@ static func _too_far(from: Vector3, to: Vector3, ticks: float) -> bool:
 	return horizontal > SNAP_SPEED_MPS * ticks / Ticks.RATE
 
 
+## `facing` as a unit vector, or `fallback` (a unit vector) when it has no usable direction.
+static func unit_or(facing: Vector3, fallback: Vector3) -> Vector3:
+	var unit := _direction(facing)
+	return unit if unit != Vector3.ZERO else fallback
+
+
+## `facing` normalised first, so a huge but finite one keeps its direction (its squared length
+## would overflow, and normalized() alone would give zero: the netcode review of PR #154), or
+## `fallback` when it has no usable direction. The result is a unit vector unless `fallback` is not.
 static func _usable(facing: Vector3, fallback: Vector3) -> Vector3:
-	if not facing.is_finite() or facing.length() < DEGENERATE:
-		return fallback
-	return facing
+	return unit_or(facing, fallback)
+
+
+## The unit direction of `facing`, or zero when it has none: not finite, or every component under
+## DEGENERATE. Scaled by its largest component first, so no square overflows.
+static func _direction(facing: Vector3) -> Vector3:
+	if not facing.is_finite():
+		return Vector3.ZERO
+	var largest := maxf(absf(facing.x), maxf(absf(facing.y), absf(facing.z)))
+	if largest < DEGENERATE:
+		return Vector3.ZERO
+	var unit := (facing / largest).normalized()
+	return unit if unit.is_finite() and unit.is_normalized() else Vector3.ZERO
 
 
 func _field(index: int, peer: int, key: String) -> Vector3:

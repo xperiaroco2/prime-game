@@ -162,6 +162,26 @@ func test_look_angles_guard_zero_vertical_and_non_finite_facings() -> void:
 	assert_vector(ahead).is_equal_approx(Vector2.ZERO, Vector2.ONE * 1e-6)
 
 
+func test_a_huge_but_finite_facing_still_gives_a_unit_facing() -> void:
+	# A relayed (1e30, 0, 0) has a finite length whose square overflows: normalized() alone gives
+	# zero (the netcode review of PR #154). Every pose keeps a unit facing and turns to +X.
+	var buffer := SnapshotBuffer.new()
+	var huge := Vector3(1e30, 0, 0)
+	buffer.add(10, {PEER: _avatar(Vector3.ZERO, Vector3(0, 0, -1))}, 500000)
+	buffer.add(11, {PEER: _avatar(Vector3.ZERO, huge)}, 500000 + USEC_PER_TICK)
+	buffer.add(
+		12, {PEER: _avatar(Vector3.ZERO, Vector3(-1e30, -1e30, 0))}, 500000 + 2 * USEC_PER_TICK
+	)
+	for at: float in [10.5, 11.0, 11.5, 12.0]:
+		var pose := buffer.pose_of(PEER, at)
+		assert_bool(pose.facing.is_normalized()).override_failure_message("at %s" % at).is_true()
+	assert_float(buffer.pose_of(PEER, 11.0).yaw).is_equal_approx(-PI / 2.0, 1e-4)
+	var angles := SnapshotBuffer.look_angles(huge, Vector2(0.5, 0.25))
+	assert_vector(angles).is_equal_approx(Vector2(-PI / 2.0, 0.0), Vector2.ONE * 1e-4)
+	assert_vector(SnapshotBuffer.unit_or(huge, Vector3.FORWARD)).is_equal(Vector3(1, 0, 0))
+	assert_vector(SnapshotBuffer.unit_or(Vector3.ZERO, Vector3.BACK)).is_equal(Vector3.BACK)
+
+
 ## What one simulated run saw (frames from WARM_UP_USEC on, unless `judge_from` says later).
 class Run:
 	extends RefCounted
