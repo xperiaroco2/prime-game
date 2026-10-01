@@ -244,6 +244,12 @@ func test_a_second_snapshot_a_gap_in_a_voice_stream_and_lost_packets_are_leaks()
 	assert_str(_text(LeakCheck.check_counters("bot 2", 2, transport, 0, false))).not_contains(
 		"LATEST"
 	)
+	# The host's side: no message over budget, no packet its transport rejected.
+	assert_array(Array(runner.host_problems())).is_empty()
+	runner.session.over_budget = 2
+	runner.host_transport.rejects.count(2, NetRejects.Reason.TOO_SHORT)
+	var host := _text(runner.host_problems())
+	assert_str(host).contains("2 messages over budget").contains("rejected 1 packets")
 
 
 func test_a_lurker_lost_early_or_a_refused_bot_not_refused_fails() -> void:

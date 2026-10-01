@@ -13,8 +13,8 @@ extends NetPlay
 ## for every bot, the lurker and the refused bot, with what only one process can promise: every
 ## speaker's voice seqs without a gap, and no packet rejected, undecoded or superseded on the LATEST
 ## lane (one snapshot per step and one poll per step, so a snapshot sent before a bot's own in the
-## same step cannot hide). Each frame: the host steps, then every client, then every bot acts on
-## what it decoded.
+## same step cannot hide); and on the host, no message over budget and no rejected packet. Each
+## frame: the host steps, then every client, then every bot acts on what it decoded.
 
 const PORT := 7400
 ## One frame of the simulated clock: 60 steps per simulated second.
@@ -29,6 +29,8 @@ const EXTRA_CLIENTS := 3
 var session: HostSession
 var game: Match
 var hub := LoopbackHub.new()
+## The host's transport.
+var host_transport: LoopbackTransport
 var lurker: BotWatcher
 var refused: BotWatcher
 var frames_run := 0
@@ -73,8 +75,8 @@ func run() -> void:
 		failures.append("level: %s" % error)
 	if not levels.errors.is_empty():
 		return
-	var transport := LoopbackTransport.new(schema.kind_table(), hub)
-	session = HostSession.new(transport, schema)
+	host_transport = LoopbackTransport.new(schema.kind_table(), hub)
+	session = HostSession.new(host_transport, schema)
 	session.replay_dir = ""
 	session.hello_deadline_usec = (ceili(scenario.time_limit_s + LURKER_MARGIN_S) * USEC_PER_SECOND)
 	session.observer = _on_call
@@ -202,6 +204,17 @@ func _check_after() -> void:
 				watcher.label, watcher.peer, watcher.transport, watcher.undecodable, true
 			)
 		)
+	failures.append_array(host_problems())
+
+
+## Honest bots trip no host budget and send nothing the host's transport rejects.
+func host_problems() -> PackedStringArray:
+	var found := PackedStringArray()
+	if session.over_budget != 0:
+		found.append("the host counted %d messages over budget" % session.over_budget)
+	if host_transport.rejects.total() != 0:
+		found.append("the host's transport rejected %d packets" % host_transport.rejects.total())
+	return found
 
 
 func _write_files() -> void:
