@@ -137,11 +137,11 @@ static func raise_rule(
 ) -> Rule:
 	var reach := TargetInReach.new()
 	reach.reach_m = reach_m
-	var raise := RaiseDowned.new()
-	raise.seconds = seconds
-	raise.revive_health = revive_health
+	var effect := RaiseDowned.new()
+	effect.seconds = seconds
+	effect.revive_health = revive_health
 	return FixtureModes.rule(
-		Intents.RAISE, [TargetDowned.new(), ChannelFree.new(), reach, TargetInSight.new()], [raise]
+		Intents.RAISE, [TargetDowned.new(), ChannelFree.new(), reach, TargetInSight.new()], [effect]
 	)
 
 
