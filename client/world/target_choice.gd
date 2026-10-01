@@ -41,18 +41,28 @@ static func choose(
 	return picked if feet.distance_to(model.items[picked].position) <= reach else -1
 
 
-## The first item on the ground whose middle the ray from `eye` along `look` passes within
-## PICK_RADIUS_M of, no farther than `length` metres; -1 for none.
+## The item on the ground whose middle the ray from `eye` along `look` passes within PICK_RADIUS_M
+## of, entering that sphere no farther than `length` metres; -1 for none. Of several, the one the
+## crosshair is closest to wins (the smallest miss), then the nearer along the ray: a package a
+## hand's width off the aim line never wins over a knife the crosshair is on.
 static func along_ray(model: ClientModel, eye: Vector3, look: Vector3, length: float) -> int:
 	var best := -1
+	var best_miss := INF
 	var best_t := INF
 	for id: int in model.items:
 		var item := model.items[id]
 		if item.holder != ClientModel.NO_HOLDER or item.delivered:
 			continue
-		var t := enters_at(eye, look, ItemView.centre_of(item.kind, item.position), PICK_RADIUS_M)
-		if t >= 0.0 and t <= length and t < best_t:
+		var centre := ItemView.centre_of(item.kind, item.position)
+		var t := enters_at(eye, look, centre, PICK_RADIUS_M)
+		if t < 0.0 or t > length:
+			continue
+		var to_centre := centre - eye
+		var along := to_centre.dot(look)
+		var miss := snappedf(sqrt(maxf(to_centre.length_squared() - along * along, 0.0)), 0.001)
+		if miss < best_miss or (miss == best_miss and t < best_t):
 			best = id
+			best_miss = miss
 			best_t = t
 	return best
 

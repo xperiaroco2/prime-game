@@ -54,6 +54,21 @@ func test_the_nearest_item_on_the_ground_wins_and_held_or_delivered_ones_never()
 	assert_int(TargetChoice.along_ray(_model, EYE, look, TargetChoice.RAY_M)).is_equal(-1)
 
 
+func test_the_item_the_crosshair_is_on_wins_over_a_nearer_one_aside() -> void:
+	# The crosshair is on the knife; a knife (on a crate) 0.25 m aside and nearer is entered first.
+	_spawn(1, Vector3(0, 0, -2.0))
+	var look := (ItemView.centre_of(&"knife", Vector3(0, 0, -2.0)) - EYE).normalized()
+	var aside := EYE + look * 1.9 + Vector3(0.25, 0, 0)
+	_spawn(2, aside - ItemView.centre_of(&"knife", Vector3.ZERO))
+	var first := TargetChoice.enters_at(EYE, look, aside, TargetChoice.PICK_RADIUS_M)
+	var on := TargetChoice.enters_at(
+		EYE, look, ItemView.centre_of(&"knife", Vector3(0, 0, -2.0)), TargetChoice.PICK_RADIUS_M
+	)
+	assert_float(first).is_greater_equal(0.0)
+	assert_float(first).is_less(on)
+	assert_int(TargetChoice.along_ray(_model, EYE, look, TargetChoice.RAY_M)).is_equal(1)
+
+
 func test_the_reach_counts_from_the_feet_not_along_the_ray() -> void:
 	# A floor item 1.9 m away: 2.5 m from the eye, 1.9 m from the feet. The host accepts it.
 	_spawn(1, Vector3(0, 0, -1.9))
