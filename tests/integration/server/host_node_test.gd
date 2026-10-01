@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## HostNode (ARCHITECTURE §4.5): it steps its HostSession from the physics step with the real
-## clock, before the default-priority nodes, and leaving the tree closes the session.
+## clock, before the default-priority nodes, also while the tree is paused, and leaving the tree
+## closes the session.
 
 const Harness := preload("res://tests/integration/server/host_session_harness.gd")
 
@@ -17,12 +18,13 @@ func test_it_steps_the_session_from_the_physics_step_and_closes_it_on_exit() -> 
 		Harness.layouts(),
 		Harness.PORT,
 		8,
-		Time.get_ticks_usec(),
+		HostNode.now_usec(),
 		Harness.SEED
 	)
 	assert_bool(started).is_true()
 	var node: HostNode = auto_free(HostNode.new(session))
 	assert_int(node.process_physics_priority).is_less(0)
+	assert_int(node.process_mode).is_equal(Node.PROCESS_MODE_ALWAYS)
 	add_child(node)
 	await get_tree().physics_frame
 	await get_tree().physics_frame

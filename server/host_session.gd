@@ -67,8 +67,8 @@ var replay_path := ""
 var errors := PackedStringArray()
 ## Why the session ended; empty while it runs.
 var end_reason: StringName = &""
-## The match; null until a start succeeded. Its keep_history stays off unless the owner turns it on (the
-## bots runner does, right after start()).
+## The match; null until a start succeeded. Its keep_history stays off unless the owner turns it
+## on (the bots runner does, right after start()).
 var game: Match
 ## The host's content hash (§4.3, E1): ContentFingerprint of the mode and its level files, the
 ## same as every client computes from its own copy of the mode; Match.content_hash.
@@ -140,7 +140,8 @@ func _init(transport: NetTransport, schema: WireSchema = null) -> void:
 
 ## Starts hosting `mode` on `port` (§4.5 Starting): every level's collision world (refused on
 ## its errors), the markers read through them, then start_with() with a seed from the operating
-## system's entropy. False, with `errors`, when refused.
+## system's entropy. False, with `errors`, when refused. `now_usec` is host tick 0 on the clock
+## that later steps use: with HostNode, HostNode.now_usec().
 func start(mode: GameMode, port: int, max_clients: int, now_usec: int) -> bool:
 	if not _started and not _ended:
 		errors.clear()
