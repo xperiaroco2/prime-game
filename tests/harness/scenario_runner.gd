@@ -246,14 +246,14 @@ func _check_after() -> void:
 	for bot: ScenarioBot in bots:
 		var view := game.view_of(bot.peer).events
 		var received := bot.events
-		var same := view.size() == received.size()
+		var equal := view.size() == received.size()
 		for i in mini(view.size(), received.size()):
-			if not same:
+			if not equal:
 				break
-			same = (
+			equal = (
 				received[i].name == view[i].event_name() and received[i].fields == view[i].to_dict()
 			)
-		if not same:
+		if not equal:
 			failures.append(
 				(
 					"bot %d received %d events, but view_of(%d) holds %d"
