@@ -53,6 +53,7 @@ func test_commands_queued_before_a_freeze_are_stamped_with_the_next_tick() -> vo
 	assert_int(_h.session.game.ticked_through()).is_equal(last)
 	assert_object(_ready_command(2)).is_null()
 	# Then a 5 s freeze: it is applied on the tick after the last one run, before the catch-up.
+	var seen := _h.calls.size()
 	_h.now += 5 * Harness.SECOND
 	_h.session.step(_h.now)
 	var applied := _ready_command(2)
@@ -60,6 +61,21 @@ func test_commands_queued_before_a_freeze_are_stamped_with_the_next_tick() -> vo
 	assert_int(applied.tick).is_equal(last + 1)
 	assert_int(_h.session.game.ticked_through()).is_equal(_h.session.tick_of(_h.now))
 	assert_bool(_h.session.game.state.player(2).ready).is_true()
+	# The observer saw the start first, then every call of the catch-up: the command before its
+	# tick, and every skipped tick once, in order.
+	assert_str(_h.calls[0]).starts_with("0 tick ")
+	var after := _h.calls.slice(seen)
+	var ticks: Array[int] = []
+	for entry: String in after:
+		if entry.get_slice(" ", 1) == "tick":
+			ticks.append(entry.get_slice(" ", 0).to_int())
+	var expected: Array[int] = []
+	for at_tick in range(last + 1, _h.session.tick_of(_h.now) + 1):
+		expected.append(at_tick)
+	assert_array(ticks).is_equal(expected)
+	var ready_at := after.find("%d SetReady lobby" % (last + 1))
+	assert_int(ready_at).is_greater_equal(0)
+	assert_int(ready_at).is_less(after.find("%d tick lobby" % (last + 1)))
 
 
 func test_commands_read_on_a_due_tick_are_stamped_with_it() -> void:
@@ -81,7 +97,7 @@ func test_a_client_s_freeze_backlog_passes_its_budget_and_relays_only_the_newest
 	_h.frozen.append(thawed)
 	_h.pump_seconds(5)
 	_h.frozen.clear()
-	# On the thaw it sends 5 s of voice, a ready flag and one claim covering the freeze.
+	# On the thaw it sends 5 s of voice and a ready flag (no claim: it does not move).
 	var heard_before := _h.voice_of(_h.own).size()
 	for i in 250:
 		thawed.send_voice(PackedByteArray([i & 0xFF, 2]))
