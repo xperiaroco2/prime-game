@@ -446,6 +446,19 @@ func test_more_new_jumps_than_covered_ticks_is_corrected() -> void:
 	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(2)
 
 
+func test_a_fresh_claim_may_carry_more_new_jumps_than_its_one_covered_tick() -> void:
+	# The first claim after a placement starts a client-tick baseline and covers one tick on the
+	# host, whatever span of client ticks it carries: the count bound does not apply to it, and
+	# the two jumps are paid (2 * 10000).
+	var game := _round()
+	var player := game.state.player(P1)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_int(player.stamina).is_equal(80000)
+	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(2)
+
+
 func test_a_claim_without_an_int_jump_count_is_corrected() -> void:
 	var game := _round()
 	var player := game.state.player(P1)

@@ -25,7 +25,8 @@ extends RefCounted
 ## - Jumps (`jumps`, E2): the client's count of jumps since it adopted the epoch (0 after Welcome,
 ##   a placement or a Correction), which survives the LATEST lane's merge of claims (§4.3). A count
 ##   below the last accepted claim's in the epoch is corrected, and so is a rise d above the client
-##   ticks the claim covers: a client lands between two jumps (#117 item 6). A rise d >= 1 is one
+##   ticks the claim covers (but for a fresh claim, the first of a client-tick baseline, whose span
+##   is unknown): a client lands between two jumps (#117 item 6). A rise d >= 1 is one
 ##   jump: WorldQuery finds a floor within step height (+ STEP_CLEARANCE, a ledge crossing) below
 ##   the player's last accepted position and stamina covers d times the jump's cost, settled first:
 ##   the claim's own ticks with its own flags, then any later ones (settle_ahead). A merged burst
@@ -201,7 +202,7 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		StaminaLedger.settle_ahead(player, ctx.state.player_rules, ctx.tick)
 		_correct(ctx, player, motion)
 		return
-	var checked := _check(ctx, player, motion, claim, covered)
+	var checked := _check(ctx, player, motion, claim, covered, fresh)
 	if checked == null:
 		_correct(ctx, player, motion)
 		return
@@ -209,9 +210,10 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 
 
 ## Runs the checks after the tick rate's; null when one fails. May settle stamina up to now, which
-## applies only ticks that have passed (§9.2).
+## applies only ticks that have passed (§9.2). `fresh`: the claim starts a client-tick baseline,
+## so `covered` is 1 whatever span of client ticks it really covers.
 static func _check(
-	ctx: MatchContext, player: PlayerState, motion: Motion, claim: Claim, covered: int
+	ctx: MatchContext, player: PlayerState, motion: Motion, claim: Claim, covered: int, fresh: bool
 ) -> Checked:
 	var rules := ctx.state.player_rules
 	var checked := Checked.new()
@@ -229,9 +231,10 @@ static func _check(
 	if checked.new_jumps < 0:
 		# A count that falls within an epoch is no honest client's.
 		return null
-	if checked.new_jumps > covered:
+	if checked.new_jumps > covered and not fresh:
 		# A client lands between two jumps, so no honest claim adds more jumps than it covers
-		# client ticks (#117 item 6): a merged burst of d jumps covers at least d ticks.
+		# client ticks (#117 item 6): a merged burst of d jumps covers at least d ticks. A fresh
+		# claim's span is unknown; the stamina check and the one jump height still bound it.
 		return null
 	var jumped := checked.new_jumps > 0
 	if jumped and player.life == PlayerState.Life.DOWNED:
