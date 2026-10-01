@@ -2,8 +2,8 @@
 extends RefCounted
 ## What the controller asks about stamina, and how it reports what it spent (ARCHITECTURE §7.1).
 ## The controller holds no stamina rule of its own: it asks before a sprint or a jump and reports
-## each physics step. `LocalStamina` is the stand-in; once the client talks to a host (M3) it
-## predicts with `core/`'s rule (`StaminaLedger`, 2d) and follows `SelfStatus`.
+## each physics step. `PredictedStamina` predicts with `core/`'s rule (`StaminaLedger`, 2d) and
+## follows `SelfStatus` (M4-7, E24).
 ## `ghost` is the player's life state: stamina never limits a ghost (the engineer's correction of
 ## 2026-09-30), so a source never refuses a ghost and records nothing for it.
 

@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 const SPEED_TOLERANCE := 0.05
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
 
-var _tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
+var _rules := FixtureModes.player_rules()
 var _world: PlayerTestWorld
 
 
@@ -35,7 +35,7 @@ func test_ghost_is_on_the_ghost_layer_and_collides_with_the_level_only() -> void
 
 func test_ghost_speed_factor_is_the_engineers_1_3() -> void:
 	# The engineer's decision of 2026-09-30 (#46); the base speeds stay placeholders.
-	assert_float(_tuning.ghost_speed_factor).is_equal_approx(1.3, 0.0001)
+	assert_float(_rules.ghost_speed_factor).is_equal_approx(1.3, 0.0001)
 
 
 func test_ghost_walks_on_the_floor_at_the_factor_times_walk_speed() -> void:
@@ -43,7 +43,7 @@ func test_ghost_walks_on_the_floor_at_the_factor_times_walk_speed() -> void:
 	player.move_input = Vector2(0.0, 1.0)
 	var speed: float = await _world.measure_speed(player)
 	assert_float(speed).is_equal_approx(
-		_tuning.walk_speed * _tuning.ghost_speed_factor, SPEED_TOLERANCE
+		_rules.walk_speed_mps * _rules.ghost_speed_factor, SPEED_TOLERANCE
 	)
 	assert_bool(player.is_sprinting()).is_false()
 	assert_float(player.global_position.y).is_equal_approx(0.0, 0.01)
@@ -80,21 +80,21 @@ func test_ghost_jumps_no_higher_than_the_living_however_often_it_asks() -> void:
 		player.jump_requested = true
 		await _world.frames(1)
 		peak = maxf(peak, player.global_position.y)
-	assert_float(peak).is_between(_tuning.jump_height - 0.02, _tuning.jump_height + 0.005)
+	assert_float(peak).is_between(_rules.jump_height_m - 0.02, _rules.jump_height_m + 0.005)
 
 
 func test_ghost_sprints_at_the_factor_times_sprint_speed_and_jumps_with_no_stamina() -> void:
 	var player := _world.add_ghost(Vector3.ZERO)
 	await _world.frames(10)
-	_world.stand_in(player).stamina = 0.0
+	_world.stand_in(player).set_status(Ticks.thousandths(0.0))
 	player.jump_requested = true
 	var peak: float = await _world.peak_height(player, 60)
-	assert_float(peak).is_greater(_tuning.jump_height - 0.02)
+	assert_float(peak).is_greater(_rules.jump_height_m - 0.02)
 	player.move_input = Vector2(0.0, 1.0)
 	player.sprint_held = true
 	var speed: float = await _world.measure_speed(player)
 	assert_float(speed).is_equal_approx(
-		_tuning.sprint_speed * _tuning.ghost_speed_factor, SPEED_TOLERANCE
+		_rules.sprint_speed_mps * _rules.ghost_speed_factor, SPEED_TOLERANCE
 	)
 	assert_bool(player.is_sprinting()).is_true()
 
@@ -102,7 +102,7 @@ func test_ghost_sprints_at_the_factor_times_sprint_speed_and_jumps_with_no_stami
 func test_ghost_stamina_neither_spends_nor_regenerates() -> void:
 	var player := _world.add_ghost(Vector3.ZERO)
 	await _world.frames(10)
-	_world.stand_in(player).stamina = 50.0
+	_world.stand_in(player).set_status(Ticks.thousandths(50.0))
 	player.jump_requested = true
 	await _world.frames(60)
 	player.move_input = Vector2(0.0, 1.0)
@@ -119,30 +119,30 @@ func test_ghost_sprints_up_stairs_like_the_living() -> void:
 	var player := _world.add_ghost(Vector3.ZERO)
 	player.move_input = Vector2(0.0, 1.0)
 	player.sprint_held = true
-	var lowest_eye := _tuning.eye_height
+	var lowest_eye := _rules.eye_height_m
 	# Half a second at the ghost's sprint speed ends on the last, long tread, not past it.
 	for i: int in 30:
 		await _world.frames(1)
 		var eye := player.get_camera().global_position.y - player.global_position.y
 		lowest_eye = minf(lowest_eye, eye)
-	assert_float(player.global_position.y).is_equal_approx(_tuning.step_height * steps, 0.01)
+	assert_float(player.global_position.y).is_equal_approx(_rules.step_height_m * steps, 0.01)
 	assert_bool(player.is_on_floor()).is_true()
-	assert_float(lowest_eye).is_greater_equal(_tuning.eye_height - _tuning.step_height - 0.001)
+	assert_float(lowest_eye).is_greater_equal(_rules.eye_height_m - _rules.step_height_m - 0.001)
 
 
 func test_ghost_stops_at_a_ledge_above_step_height() -> void:
-	var height := _tuning.step_height + 0.2
+	var height := _rules.step_height_m + 0.2
 	_world.add_box(Vector3(0.0, height * 0.5, -3.0), Vector3(4.0, height, 2.0))
 	var player := _world.add_ghost(Vector3.ZERO)
 	player.move_input = Vector2(0.0, 1.0)
 	await _world.frames(60)
 	assert_float(player.global_position.y).is_less(0.01)
-	assert_float(player.global_position.z).is_greater(-2.0 + _tuning.capsule_radius - 0.02)
+	assert_float(player.global_position.z).is_greater(-2.0 + _rules.capsule_radius_m - 0.02)
 
 
 func test_ghost_cannot_jump_onto_a_ledge_the_living_cannot() -> void:
 	# Above the jump height plus a landing on the ledge's corner (ARCHITECTURE §7).
-	var height := _tuning.jump_height + 0.3
+	var height := _rules.jump_height_m + 0.3
 	_world.add_box(Vector3(0.0, height * 0.5, -3.0), Vector3(4.0, height, 2.0))
 	var player := _world.add_ghost(Vector3.ZERO)
 	player.move_input = Vector2(0.0, 1.0)
@@ -152,8 +152,8 @@ func test_ghost_cannot_jump_onto_a_ledge_the_living_cannot() -> void:
 		player.jump_requested = true
 		await _world.frames(1)
 		highest = maxf(highest, player.global_position.y)
-	assert_float(highest).is_less(_tuning.jump_height + 0.005)
-	assert_float(player.global_position.z).is_greater(-2.0 + _tuning.capsule_radius - 0.02)
+	assert_float(highest).is_less(_rules.jump_height_m + 0.005)
+	assert_float(player.global_position.z).is_greater(-2.0 + _rules.capsule_radius_m - 0.02)
 
 
 func test_ghost_sprints_up_a_ramp_at_the_steepest_walkable_angle_smoothly() -> void:
@@ -178,10 +178,10 @@ func test_ghost_sprints_up_a_ramp_at_the_steepest_walkable_angle_smoothly() -> v
 		last_y = player.global_position.y
 		# A false step-up lowers the view; the slope never does.
 		var eye := player.get_camera().global_position.y - last_y
-		eye_off = maxf(eye_off, absf(eye - _tuning.eye_height))
+		eye_off = maxf(eye_off, absf(eye - _rules.eye_height_m))
 	assert_int(off_floor).is_equal(0)
 	assert_float(eye_off).is_less(0.001)
-	var speed := _tuning.sprint_speed * _tuning.ghost_speed_factor
+	var speed := _rules.sprint_speed_mps * _rules.ghost_speed_factor
 	var slope_rise := speed * tan(angle) / Engine.physics_ticks_per_second
 	assert_float(largest_rise).is_less(slope_rise * 1.05)
 	assert_float(last_y).is_greater(0.5)
@@ -228,16 +228,16 @@ func test_ghost_is_stopped_by_walls() -> void:
 	var player := _world.add_ghost(Vector3.ZERO)
 	player.move_input = Vector2(0.0, 1.0)
 	await _world.frames(60)
-	assert_float(player.global_position.z).is_greater(-3.0 + 0.1 + _tuning.capsule_radius - 0.02)
+	assert_float(player.global_position.z).is_greater(-3.0 + 0.1 + _rules.capsule_radius_m - 0.02)
 
 
 func test_turning_back_into_the_living_limits_it_by_stamina_again() -> void:
 	var player := _world.add_ghost(Vector3.ZERO)
 	await _world.frames(10)
-	_world.stand_in(player).stamina = 0.0
+	_world.stand_in(player).set_status(Ticks.thousandths(0.0))
 	player.ghost = false
 	player.move_input = Vector2(0.0, 1.0)
 	player.sprint_held = true
 	var speed: float = await _world.measure_speed(player, 5, 10)
-	assert_float(speed).is_equal_approx(_tuning.walk_speed, SPEED_TOLERANCE)
+	assert_float(speed).is_equal_approx(_rules.walk_speed_mps, SPEED_TOLERANCE)
 	assert_bool(player.is_sprinting()).is_false()
