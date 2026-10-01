@@ -79,6 +79,22 @@ func test_a_top_level_body_keeps_its_own_transform() -> void:
 	assert_vector(query.floor_below(Vector3(103, 5, 3))).is_equal(WorldQuery.NO_FLOOR)
 
 
+func test_scaled_parents_and_shapes_scale_the_colliders() -> void:
+	# A level author scales a piece in the editor: through a parent, or on the shape's node.
+	var root := _root()
+	var parent := Node3D.new()
+	parent.scale = Vector3(2, 2, 2)
+	root.add_child(parent)
+	_box_body(parent, Vector3(0, 0.5, 0), Vector3(1, 1, 1))
+	var stretched := _box_body(root, Vector3(10, 0.5, 0), Vector3(1, 1, 1))
+	(stretched.get_child(0) as CollisionShape3D).scale = Vector3(4, 1, 1)
+	var query := _query(LevelWorld.from_scene(root, IN_CODE))
+	assert_float(query.floor_below(Vector3(0.9, 5, 0)).y).is_equal_approx(2.0, 1e-3)
+	assert_vector(query.floor_below(Vector3(1.1, 5, 0))).is_equal(WorldQuery.NO_FLOOR)
+	assert_float(query.floor_below(Vector3(11.9, 5, 0)).y).is_equal_approx(1.0, 1e-3)
+	assert_vector(query.floor_below(Vector3(12.1, 5, 0))).is_equal(WorldQuery.NO_FLOOR)
+
+
 func test_csg_gridmap_and_collision_polygons_with_collision_are_reported() -> void:
 	var root := _root()
 	var csg := CSGBox3D.new()
