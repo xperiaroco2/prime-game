@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## DecodedView (ARCHITECTURE §4.6) as a ClientSession fills it over a LoopbackHub: the events in
-## order, each equal to core/'s to_dict() with its Variant types; the snapshots by tick; the voice
-## frames by speaker and tick, and the speakers per tick in PeerView's shape.
+## order, each equal to core/'s to_dict() with its Variant types; the snapshots by tick, a second
+## one of a tick kept apart; the voice frames and their seqs by speaker and tick, and the speakers
+## per tick in PeerView's shape.
 
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
@@ -59,6 +60,23 @@ func test_it_holds_the_snapshots_by_tick() -> void:
 	assert_bool(WireSamples.same(model.avatars, eleven)).is_true()
 
 
+func test_a_second_snapshot_of_a_tick_overwrites_nothing() -> void:
+	# The host sends one snapshot per tick; a second of the same tick (in another poll, so the LATEST
+	# lane delivers both) must stay visible to the leak test, not replace the first.
+	_harness.welcome()
+	_harness.send_message(_snapshot(10, {1: _avatar(Vector3(1, 0, 0))}))
+	_harness.pump()
+	_harness.send_message(_snapshot(10, {1: _avatar(Vector3(2, 0, 0)), 3: _avatar(Vector3.ONE)}))
+	_harness.pump()
+	var view := _harness.session.view
+	var first: Dictionary = view.snapshots[10]["avatars"]
+	assert_array(first.keys()).contains_exactly([1])
+	assert_vector((first[1] as Dictionary)["position"] as Vector3).is_equal(Vector3(1, 0, 0))
+	assert_int(view.repeated_snapshots.size()).is_equal(1)
+	var second: Dictionary = view.repeated_snapshots[0]["avatars"]
+	assert_array(second.keys()).contains_exactly([1, 3])
+
+
 func test_a_player_leaving_leaves_the_recorded_snapshot_as_decoded() -> void:
 	_harness.welcome()
 	_harness.send_message(_snapshot(12, {1: _avatar(Vector3.ZERO), 2: _avatar(Vector3.ONE)}))
@@ -108,6 +126,9 @@ func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	assert_array(view.frames(1, 20)).is_equal([PackedByteArray([1]), PackedByteArray([2, 2])])
 	assert_array(view.frames(3, 21)).is_equal([PackedByteArray([4])])
 	assert_array(view.frames(3, 22)).is_empty()
+	# Each frame's seq, in the same order.
+	assert_array(view.voice_seqs[Vector2i(1, 20)]).is_equal(PackedInt32Array([0, 1]))
+	assert_array(view.voice_seqs[Vector2i(3, 21)]).is_equal(PackedInt32Array([1]))
 	var speakers := view.speakers()
 	assert_array(speakers[20]).is_equal(PackedInt32Array([1, 3]))
 	assert_array(speakers[21]).is_equal(PackedInt32Array([3]))
