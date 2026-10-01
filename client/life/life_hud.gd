@@ -82,7 +82,7 @@ static func _downed(
 		shown.lines.append("Being raised by %s" % name_of(model, raiser))
 		if progress >= 0.0:
 			shown.progress = progress
-			shown.progress_label = "Raised"
+			shown.progress_label = ""
 		return
 	if local.give_up_held_s > 0.0:
 		shown.progress = clampf(local.give_up_held_s / local.give_up_hold_s, 0.0, 1.0)
