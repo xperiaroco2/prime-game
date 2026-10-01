@@ -115,7 +115,9 @@ func test_snapshots_hold_no_private_numbers() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	FixtureModes.run_ticks(game, 1)
 	var avatar: Dictionary = game.view_of(P1).snapshots[game.ticked_through()]["avatars"][P2]
-	assert_array(avatar.keys()).is_equal(["position", "velocity", "facing", "downed", "held_item"])
+	assert_array(avatar.keys()).is_equal(
+		["position", "velocity", "facing", "downed", "invulnerable", "held_item"]
+	)
 
 
 func test_speakers_are_recorded_per_tick() -> void:

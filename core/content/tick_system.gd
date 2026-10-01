@@ -14,6 +14,13 @@ func emits() -> Array[Script]:
 	return []
 
 
+## What this system needs of the map its phase plays on, as RuleEffect.add_demands (§9.4): the
+## layout check and the lobby's fit check sum it with the rows' demands. LifeTicks forwards its
+## Respawn's. No demand by default.
+func add_demands(_settings: Dictionary[StringName, int], _players: int, _into: Demands) -> void:
+	pass
+
+
 ## The outcomes run() can report through MatchContext.report_outcome: ModeCheck requires a row
 ## for each from the phases that list this system (§9.1).
 func reported_outcomes() -> Array[StringName]:

@@ -47,6 +47,7 @@
 [ext_resource type="Script" uid="uid://b4jna305j0xq6" path="res://core/win/start_clock.gd" id="64_start_clock"]
 [ext_resource type="Resource" uid="uid://cl8ks3hlpyn1c" path="res://content/win_conditions/time_up.tres" id="64_time_up"]
 [ext_resource type="Script" uid="uid://cwp43ht0dotiu" path="res://core/life/life_ticks.gd" id="65_life_ticks"]
+[ext_resource type="Script" uid="uid://blbfjjm1tx6jv" path="res://core/life/respawn.gd" id="66_respawn"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -183,8 +184,14 @@ script = ExtResource("6_accept")
 intent = &"Use"
 from = 4
 
+[sub_resource type="Resource" id="Respawn_round"]
+script = ExtResource("66_respawn")
+tag = &"respawn"
+rng_purpose = &"respawn"
+
 [sub_resource type="Resource" id="LifeTicks_round"]
 script = ExtResource("65_life_ticks")
+respawn = SubResource("Respawn_round")
 
 [sub_resource type="Resource" id="TaskTicks_round"]
 script = ExtResource("29_task_ticks")
@@ -234,6 +241,9 @@ jump_height_m = 1.0
 jump_cost = 10
 crawl_speed_mps = 1.0
 knockdown_s = 10.0
+respawn_s = 30.0
+invulnerable_s = 3.0
+respawn_free_m = 1.0
 capsule_radius_m = 0.4
 capsule_height_m = 1.8
 eye_height_m = 1.6

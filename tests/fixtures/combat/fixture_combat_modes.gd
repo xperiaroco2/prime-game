@@ -60,6 +60,27 @@ static func strike(angle_deg: float, reach_m: float, damage: int) -> Strike:
 	return effect
 
 
+## basic() whose Round's LifeTicks respawns the dead: a Respawn on FixtureModes.RESPAWN_TAG
+## markers with the RNG purpose `respawn` (the fixture's respawn time of 30 s, 3 s of
+## invulnerability, a free radius of 1 m: FixtureModes.player_rules()).
+static func respawning() -> GameMode:
+	var mode := basic()
+	life_ticks(mode).respawn = respawn()
+	return mode
+
+
+static func respawn() -> Respawn:
+	var effect := Respawn.new()
+	effect.tag = FixtureModes.RESPAWN_TAG
+	effect.rng_purpose = &"respawn"
+	return effect
+
+
+## The Round's LifeTicks of a mode built on FixtureModes.basic().
+static func life_ticks(mode: GameMode) -> LifeTicks:
+	return mode.find_phase(&"round").tick_systems[0] as LifeTicks
+
+
 ## A round of `mode` in `world` whose `peers` joined, readied and were placed.
 static func in_round(
 	mode: GameMode, peers: Array[int], world: WorldQuery = null, seed_value: int = 7

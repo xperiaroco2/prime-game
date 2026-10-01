@@ -255,7 +255,7 @@ func take_outbox() -> Array[EmittedEvent]:
 func snapshot_for(peer: int) -> Dictionary:
 	if _phase_spec == null or not _phase_spec.snapshots or not state.is_present(peer):
 		return {}
-	return Snapshots.for_peer(state, peer)
+	return Snapshots.for_peer(state, peer, _ticked_through)
 
 
 ## The speakers `listener` may hear now (§6).
@@ -596,7 +596,7 @@ func _record_views(at_tick: int) -> void:
 		if _phase_spec.snapshots:
 			if not _snapshots.has(peer):
 				_snapshots[peer] = {}
-			_snapshots[peer][at_tick] = Snapshots.for_peer(state, peer)
+			_snapshots[peer][at_tick] = Snapshots.for_peer(state, peer, at_tick)
 		if not _speakers.has(peer):
 			_speakers[peer] = {}
 		_speakers[peer][at_tick] = speakers_for(peer)

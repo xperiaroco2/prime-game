@@ -5,7 +5,8 @@ extends RefCounted
 ## - a level of the mode without a layout;
 ## - a spawn tag that a row's action places on and a level lacks: the lobby for rows into a lobby
 ##   phase, every map for rows into a map phase (the tags an action names at the default settings
-##   and the mode's maximum of players, §9.4);
+##   and the mode's maximum of players, §9.4), or that a tick system of a phase played on the
+##   level places on (LifeTicks' Respawn: `respawn` markers on every map, M4-3);
 ## - a marker with two tags (the same position under two tags; §9.6: a marker carries one tag);
 ## - a lobby with fewer `lobby_player` markers than the mode's maximum of players, since a joiner
 ##   and `End -> Lobby` each put a player on a marker of its own.
@@ -46,9 +47,10 @@ static func run(mode: GameMode, layouts: Dictionary[String, LevelLayout]) -> Pac
 	return found
 
 
-## What the actions of every row into a phase played on `level` demand, summed (§9.4): the fit
-## check of `all_ready` compares this for the map with the chosen map's markers. `id_sets` are
-## the set settings (the host's bans of task types); empty means every set is empty.
+## What the actions of every row into a phase played on `level`, and the tick systems of those
+## phases, demand, summed (§9.4): the fit check of `all_ready` compares this for the map with the
+## chosen map's markers. `id_sets` are the set settings (the host's bans of task types); empty
+## means every set is empty.
 static func demands_of(
 	mode: GameMode,
 	level: PhaseSpec.Level,
@@ -62,6 +64,10 @@ static func demands_of(
 		for action: RuleEffect in row.actions:
 			if action != null:
 				action.add_demands(settings, players, demands)
+	for spec: PhaseSpec in _phases_on(mode, level):
+		for system: TickSystem in spec.tick_systems:
+			if system != null:
+				system.add_demands(settings, players, demands)
 	return demands
 
 
@@ -89,6 +95,19 @@ static func _check_level(
 						% [path, tag, row.from, row.outcome]
 					)
 				)
+	for spec: PhaseSpec in _phases_on(mode, level):
+		var demands := Demands.new(mode)
+		for system: TickSystem in spec.tick_systems:
+			if system != null:
+				system.add_demands(defaults, mode.max_players, demands)
+		for tag: StringName in demands.markers:
+			if demands.markers[tag] > 0 and layout.count(tag) == 0:
+				found.append(
+					(
+						"%s has no %s marker, which a tick system of phase %s places on"
+						% [path, tag, spec.id]
+					)
+				)
 	var tag_at: Dictionary[Vector3, StringName] = {}
 	for tag: StringName in layout.tags():
 		for position: Vector3 in layout.positions(tag):
@@ -101,6 +120,15 @@ static func _check_level(
 				)
 			else:
 				tag_at[position] = tag
+
+
+## The phases played on `level`, in the mode's order.
+static func _phases_on(mode: GameMode, level: PhaseSpec.Level) -> Array[PhaseSpec]:
+	var found: Array[PhaseSpec] = []
+	for spec: PhaseSpec in mode.phases:
+		if spec != null and spec.level == level:
+			found.append(spec)
+	return found
 
 
 static func _rows_into(mode: GameMode, level: PhaseSpec.Level) -> Array[Transition]:
