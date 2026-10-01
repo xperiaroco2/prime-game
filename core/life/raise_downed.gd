@@ -11,7 +11,7 @@ extends ChannelEffect
 ## - stopped(): the knockdown runs on from where it paused; RaiseStopped (everyone), which names no
 ##   cause (answer 7). A stop: a condition failing (the raiser out of reach or out of sight), the
 ##   raiser's StopRaise or any other applied action of the raiser (§9.2), the raiser hit or downed,
-##   the downed player giving up (Die), either player leaving.
+##   the downed player giving up (Die), either player leaving, the phase ending (Channels.stop_all).
 ## - completed(): LifeRules.revive with `revive_health`: Revived (everyone), and the revived
 ##   player's SelfStatus at the end of the tick. No RaiseStopped: Revived ends the raise.
 ##

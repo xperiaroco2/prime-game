@@ -407,6 +407,8 @@ func _transition(outcome: StringName, argument: Variant) -> bool:
 	# The row's actions ask about the level of the phase it enters (§4.5, E9).
 	_world.use_level(_level_path(to_spec))
 	_in_transition = true
+	# A channel (a raise) does not outlive its phase: it stops, and says so, before the row runs.
+	Channels.stop_all(ctx)
 	for action: RuleEffect in row.actions:
 		action.run(ctx)
 	_phase.exit(_context("phase %s" % from))

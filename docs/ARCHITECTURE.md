@@ -2043,7 +2043,9 @@ phase classes come in the task each row names.
   advances, stops and completes them; `ChannelTicks`, a tick system, advances each running channel once per tick in
   actor-id order: its rule's conditions again (not its costs), with the channel on `MatchContext.channel` and no
   intent, the first failing one stopping it, else one more tick, completing it in the tick that reaches its time. A
-  stop or a completion removes the channel, then calls its effect's `stopped` or `completed`. `ChannelFree` and
+  stop or a completion removes the channel, then calls its effect's `stopped` or `completed`. No channel outlives
+  its phase: every transition stops every running one before the row's actions (`Channels.stop_all`, from
+  `Match`), so a raise running when Round ends sends its `RaiseStopped` before `PhaseChanged`. `ChannelFree` and
   `Channeling` are its conditions; `MatchContext.rule` (set by `RuleRunner`) is how the effect keeps its rule.
 - Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an
   enum of `NetTransport` or GdUnit4).

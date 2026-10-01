@@ -2,8 +2,9 @@ class_name Channels
 extends RefCounted
 ## The running channels (ARCHITECTURE §9.1, §9.4; M4-4): the one place that starts, advances,
 ## stops and completes a Channel. They live in MatchState's per-part state (PART_KEY), at most one
-## per actor, so ResetMatch clears them; a channel left running when its phase ends simply stops
-## advancing.
+## per actor, so ResetMatch clears them. Every transition stops every running channel before the
+## row's actions run (stop_all, Match), so a raise running when Round ends sends its RaiseStopped
+## before PhaseChanged and gives its target's knockdown back.
 ##
 ## - add(): ChannelEffect.run records a new channel.
 ## - advance(): ChannelTicks, every tick, for each running channel in actor-id order: the rule's
@@ -107,6 +108,13 @@ static func interrupt_involving(ctx: MatchContext, peer: int) -> void:
 	for channel: Channel in running(ctx.state):
 		if channel.actor == peer or channel.target == peer:
 			stop(ctx, channel)
+
+
+## Stops every running channel, in actor-id order: a phase is ending (Match's transition), and no
+## channel outlives the phase that advanced it.
+static func stop_all(ctx: MatchContext) -> void:
+	for channel: Channel in running(ctx.state):
+		stop(ctx, channel)
 
 
 ## Stops `channel` before it completes: it is removed, then its effect's stopped() runs.

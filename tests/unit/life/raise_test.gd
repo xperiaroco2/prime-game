@@ -433,6 +433,26 @@ func test_a_raise_restarted_again_and_again_cannot_move_the_downed_player() -> v
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_a_raise_running_when_the_round_ends_stops_before_the_phase_changes() -> void:
+	var game := _downed()
+	var downed := game.state.player(P2)
+	FixtureCombatModes.raise(game, P3, P2)
+	FixtureModes.run_ticks(game, 10)
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	assert_str(String(game.phase_id())).is_equal("end")
+	_assert_stopped_once(game)
+	for peer: int in [P1, P2, P3]:
+		var names := game.view_of(peer).event_names()
+		var stopped := names.rfind(&"RaiseStopped")
+		assert_int(stopped).is_greater_equal(0)
+		assert_int(stopped).is_less(names.rfind(&"PhaseChanged"))
+	# The knockdown it paused runs on: nothing is held in place any more.
+	assert_int(downed.life_deadline).is_greater(game.ticked_through())
+	assert_bool(Channels.holds(game.state, P2)).is_false()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## P1 (armed at the origin) knocks P2 down at LIES with two hits the cooldown apart; P3 stands at
 ## RAISER, 1.5 m from P2. Returns the match before the second hit's tick runs.
 func _downed(world: WorldQuery = null, peers: Array[int] = [P1, P2, P3]) -> Match:
