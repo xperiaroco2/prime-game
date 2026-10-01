@@ -221,7 +221,10 @@ func cycle_target(step: int) -> void:
 func _process(delta: float) -> void:
 	if model == null or player == null:
 		return
-	if not (reads_device_input and listening):
+	if not reads_device_input:
+		return
+	if not listening:
+		# Nothing reads the keys now (the Esc menu): a held E or G must not keep acting.
 		_give_up_held_s = 0.0
 		if _raise_wanted:
 			release_raise()
