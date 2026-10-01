@@ -78,6 +78,20 @@ func test_force_role_names_the_player_and_the_role() -> void:
 	assert_str(forced[1].fields["role"] as String).is_equal("")
 
 
+func test_force_clock_names_the_player_and_the_seconds() -> void:
+	_harness.welcome()
+	assert_int(_harness.session.force_clock(5, 40)).is_equal(1)
+	assert_int(_harness.session.force_clock(5, 0)).is_equal(2)
+	_harness.pump()
+	var forced := _harness.sent_named(&"ForceClock")
+	assert_int(forced.size()).is_equal(2)
+	assert_int(forced[0].peer).is_equal(5)
+	assert_int(forced[0].fields["seconds"] as int).is_equal(40)
+	assert_int(forced[0].seq).is_equal(1)
+	assert_int(forced[1].fields["seconds"] as int).is_equal(0)
+	assert_int(forced[1].seq).is_equal(2)
+
+
 func test_a_rejected_before_welcome_ends_the_join_with_its_reason() -> void:
 	_harness.send(RejectedEvent.new(_harness.peer, 0, &"wrong_content"))
 	_harness.pump()

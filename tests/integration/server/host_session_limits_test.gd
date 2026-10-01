@@ -162,6 +162,22 @@ func test_a_debug_kind_is_taken_from_peer_one_only() -> void:
 	assert_int(_h.session.bad_payloads).is_equal(1)
 
 
+func test_a_force_clock_is_taken_from_peer_one_only() -> void:
+	# The second debug kind (M4-3) takes the same path as ForceRole: refused from another peer.
+	_h = Harness.new()
+	var other := _h.join()
+	assert_bool(_h.welcome_all()).is_true()
+	other.force_clock(2, 40)
+	_h.pump_frames(3)
+	assert_int(_h.session.bad_payloads).is_equal(1)
+	assert_array(_forced()).is_empty()
+	_h.own.force_clock(1, 40)
+	_h.pump_frames(3)
+	assert_array(_forced()).is_equal(["ForceClock 1 40"])
+	assert_int(_h.session.game.state.forced_clock_s).is_equal(40)
+	assert_int(_h.session.bad_payloads).is_equal(1)
+
+
 func test_a_release_host_neither_decodes_nor_takes_a_debug_kind() -> void:
 	_h = Harness.new(null, true, WireSchema.game(false))
 	var debug_client := _h.raw()
@@ -182,4 +198,6 @@ func _forced() -> Array[String]:
 	for command: MatchCommand in _h.session.game.command_log.commands:
 		if command.kind == Intents.FORCE_ROLE:
 			found.append("ForceRole %d %s" % [command.peer, command.get_string("role")])
+		elif command.kind == Intents.FORCE_CLOCK:
+			found.append("ForceClock %d %d" % [command.peer, command.get_int("seconds", -1)])
 	return found

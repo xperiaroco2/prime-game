@@ -186,6 +186,25 @@ func test_a_decoded_force_role_without_a_role_clears_the_forced_one() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+## The debug ForceClock (M4-3): decoded and turned into the MatchCommand server/ will make, it sets
+## the forced clock in a Match; a decoded 0 clears it.
+func test_a_decoded_force_clock_forces_the_clock_in_a_match() -> void:
+	var schema := WireSchema.game(true)
+	var game := _deal_lobby([1, 2, 3], 7)
+	var forced := _decoded(schema, WireMessage.new(&"ForceClock", {"seconds": 40}, 1, 1))
+	if forced == null:
+		return
+	assert_int(forced.peer).is_equal(1)
+	game.apply(_command_of(forced, forced.peer, game))
+	assert_int(game.state.forced_clock_s).is_equal(40)
+	var cleared := _decoded(schema, WireMessage.new(&"ForceClock", {"seconds": 0}, 2, 1))
+	if cleared == null:
+		return
+	game.apply(_command_of(cleared, cleared.peer, game))
+	assert_int(game.state.forced_clock_s).is_equal(0)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## Hello.content is an s64 on the wire and an int in Intents.FIELDS (#97): a decoded Hello with
 ## the host's hash joins; one with another hash gets Rejected(wrong_content), which encodes.
 func test_a_decoded_hello_joins_only_with_the_hosts_content_hash() -> void:
