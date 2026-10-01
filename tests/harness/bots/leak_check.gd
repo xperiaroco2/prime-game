@@ -15,7 +15,9 @@ extends RefCounted
 ## - Invariants: every event for one peer (listed in FOR_ONE, which does not trust the declarations,
 ##   or declaring AUDIENCE_KIND ONLY or SENDER) that the bot decoded names it as its subject; a bot
 ##   whose role does not know its teammates decodes no Teammates, and a Teammates names only players
-##   of the bot's own role; a living bot decodes no ghost's avatar or voice; no decoded message
+##   of the bot's own role; a living bot decodes no downed player's avatar (true until M4-2 makes
+##   the downed public); the voice invariant (§6): no bot decodes a downed speaker's frame, a
+##   downed bot decodes only living speakers' frames and a dead bot none; no decoded message
 ##   holds a seed; the bots present for a whole match decode the same task events (check_tasks).
 ## - A connected peer that is not a player (check_watcher) decodes at most a Rejected, none unless
 ##   it sent a Hello, and never a Snapshot or a VoiceDown. The lurker is still connected unless
@@ -50,9 +52,10 @@ const SEQ_MODULO := 0x10000
 
 var _game: Match
 var _seeds: Array[int] = []
-## Tick -> the present living players and the present ghosts after that tick.
+## Tick -> the present living, downed and dead players after that tick.
 var _alive_at: Dictionary[int, PackedInt32Array] = {}
-var _ghosts_at: Dictionary[int, PackedInt32Array] = {}
+var _downed_at: Dictionary[int, PackedInt32Array] = {}
+var _dead_at: Dictionary[int, PackedInt32Array] = {}
 ## MatchEvent instance id -> every player's role when it was emitted (Teammates only).
 var _roles_at: Dictionary[int, Dictionary] = {}
 
@@ -84,18 +87,23 @@ static func frame_problem(speaker: int, frame: PackedByteArray) -> String:
 	return ""
 
 
-## Called after every Match.tick call (HostSession's observer): who is alive and who a ghost.
+## Called after every Match.tick call (HostSession's observer): who is alive, downed and dead.
 func record_tick(at_tick: int) -> void:
 	var alive := PackedInt32Array()
-	var ghosts := PackedInt32Array()
+	var downed := PackedInt32Array()
+	var dead := PackedInt32Array()
 	var state := _game.state
 	for peer: int in state.present_peers():
-		if state.players[peer].life == PlayerState.Life.GHOST:
-			ghosts.append(peer)
-		elif state.players[peer].life == PlayerState.Life.ALIVE:
-			alive.append(peer)
+		match state.players[peer].life:
+			PlayerState.Life.ALIVE:
+				alive.append(peer)
+			PlayerState.Life.DOWNED:
+				downed.append(peer)
+			PlayerState.Life.DEAD:
+				dead.append(peer)
 	_alive_at[at_tick] = alive
-	_ghosts_at[at_tick] = ghosts
+	_downed_at[at_tick] = downed
+	_dead_at[at_tick] = dead
 
 
 ## The seeds no message may hold (ScenarioInvariants.seeds()).
@@ -347,11 +355,11 @@ func _check_snapshots(
 		if not WireSamples.same(avatars, view.snapshots[at_tick]["avatars"]):
 			found.append("the snapshot of tick %d differs from view_of's" % at_tick)
 		var alive: PackedInt32Array = _alive_at.get(at_tick, PackedInt32Array())
-		var ghosts: PackedInt32Array = _ghosts_at.get(at_tick, PackedInt32Array())
+		var downed: PackedInt32Array = _downed_at.get(at_tick, PackedInt32Array())
 		if alive.has(peer):
 			for other: int in avatars:
-				if ghosts.has(other):
-					found.append("living, it decoded ghost %d at tick %d" % [other, at_tick])
+				if downed.has(other):
+					found.append("living, it decoded downed %d at tick %d" % [other, at_tick])
 	for repeated: Dictionary in decoded.repeated_snapshots:
 		found.append("a second snapshot of tick %d" % (repeated["tick"] as int))
 
@@ -367,14 +375,27 @@ func _check_voice(
 			found.append(
 				"voice of %d under tick %d, which view_of does not allow" % [speaker, at_tick]
 			)
-		var alive: PackedInt32Array = _alive_at.get(at_tick, PackedInt32Array())
-		var ghosts: PackedInt32Array = _ghosts_at.get(at_tick, PackedInt32Array())
-		if alive.has(peer) and ghosts.has(speaker):
-			found.append("living, it heard ghost %d at tick %d" % [speaker, at_tick])
+		found.append_array(_voice_invariant(peer, speaker, at_tick))
 		for frame: PackedByteArray in decoded.frames(speaker, at_tick):
 			var problem := frame_problem(speaker, frame)
 			if not problem.is_empty():
 				found.append(problem)
+
+
+## The voice invariant's broken parts (§6) for `peer` decoding `speaker`'s frame under `at_tick`,
+## from the life states the observer recorded, never view_of.
+func _voice_invariant(peer: int, speaker: int, at_tick: int) -> PackedStringArray:
+	var found := PackedStringArray()
+	var alive: PackedInt32Array = _alive_at.get(at_tick, PackedInt32Array())
+	var downed: PackedInt32Array = _downed_at.get(at_tick, PackedInt32Array())
+	var dead: PackedInt32Array = _dead_at.get(at_tick, PackedInt32Array())
+	if downed.has(speaker):
+		found.append("it heard downed %d at tick %d" % [speaker, at_tick])
+	if downed.has(peer) and not alive.has(speaker):
+		found.append("downed, it heard %d, who was not living, at tick %d" % [speaker, at_tick])
+	if dead.has(peer):
+		found.append("dead, it heard %d at tick %d" % [speaker, at_tick])
+	return found
 
 
 func _check_seeds(decoded: DecodedView, found: PackedStringArray) -> void:

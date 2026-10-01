@@ -49,10 +49,10 @@ func test_steps_and_targets_report_their_problems() -> void:
 	pick.target.kind = ScenarioTarget.Kind.NEAREST
 	var wait := StepWait.new()
 	wait.expect_rejected = &"too_soon"
-	var ghost_pick := StepPickUp.new()
-	ghost_pick.target = ScenarioTarget.new()
-	ghost_pick.expect_rejected = &"not_accepted"
-	scenario.scripts[0].steps.append_array([walk, pick, wait, ghost_pick])
+	var downed_pick := StepPickUp.new()
+	downed_pick.target = ScenarioTarget.new()
+	downed_pick.expect_rejected = &"not_accepted"
+	scenario.scripts[0].steps.append_array([walk, pick, wait, downed_pick])
 	var problems := scenario.problems()
 	(
 		assert_array(Array(problems))

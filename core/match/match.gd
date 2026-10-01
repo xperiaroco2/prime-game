@@ -511,7 +511,7 @@ func _accepts(command: MatchCommand) -> bool:
 		return true
 	if from & AcceptSpec.From.LIVING != 0 and player.life == PlayerState.Life.ALIVE:
 		return true
-	if from & AcceptSpec.From.GHOST != 0 and player.life == PlayerState.Life.GHOST:
+	if from & AcceptSpec.From.DOWNED != 0 and player.life == PlayerState.Life.DOWNED:
 		return true
 	return from & AcceptSpec.From.HOST != 0 and command.peer == 1
 

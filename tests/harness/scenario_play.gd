@@ -249,9 +249,9 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 	if ticks <= 0:
 		return Result.WAITING
 	var rules := scenario.mode.player_rules
-	var sprinting := step.sprint and (bot.ghost or bot.sprint_available)
+	var sprinting := step.sprint and (bot.downed or bot.sprint_available)
 	var speed := rules.sprint_speed_mps if sprinting else rules.walk_speed_mps
-	if bot.ghost:
+	if bot.downed:
 		speed *= rules.ghost_speed_factor
 	var direction := offset / distance
 	var travel := minf(speed * ticks / Ticks.RATE, distance - step.stop_m)

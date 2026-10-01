@@ -1,9 +1,9 @@
 class_name ProximityVoice
 extends VoiceRule
 ## `Proximity` (ARCHITECTURE §6, §9.4): every pair of present players within `radius_m` of each
-## other hear each other, except that a living player never hears a ghost (VoiceRule.speakers_of
-## enforces it for every rule, §5): a ghost within the radius hears the living one-way. The base
-## mode's Lobby and Countdown.
+## other hear each other, under the voice invariant (VoiceRule.speakers_of enforces it for every
+## rule, §6): nobody hears a downed or dead player, so a downed player within the radius hears the
+## living one-way, and the dead hear nobody. The base mode's Lobby and Countdown.
 
 ## The cutoff in metres, 0.5 to 100. The class default 0 is refused by the mode check: the mode's
 ## data writes the number (§9.5).

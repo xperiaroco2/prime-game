@@ -12,10 +12,10 @@ func test_recipients_follow_the_state() -> void:
 	for peer: int in [P3, P1, P2]:
 		state.add_player(peer, "p%d" % peer)
 	state.player(P2).role = &"dissident"
-	state.player(P3).life = PlayerState.Life.GHOST
+	state.player(P3).life = PlayerState.Life.DOWNED
 	assert_array(Array(Audience.everyone().recipients(state))).is_equal([P1, P2, P3])
 	assert_array(Array(Audience.of_role(&"dissident").recipients(state))).is_equal([P2])
-	assert_array(Array(Audience.of_life(PlayerState.Life.GHOST).recipients(state))).is_equal([P3])
+	assert_array(Array(Audience.of_life(PlayerState.Life.DOWNED).recipients(state))).is_equal([P3])
 	assert_array(Array(Audience.only(P2).recipients(state))).is_equal([P2])
 	assert_array(Array(Audience.sender(P2).recipients(state))).is_equal([P2])
 	assert_array(Array(Audience.server().recipients(state))).is_empty()

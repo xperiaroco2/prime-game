@@ -14,7 +14,7 @@ static func of(why: StringName) -> FixtureDropHeld:
 
 func run(ctx: MatchContext) -> void:
 	var player := ctx.actor_state()
-	player.life = PlayerState.Life.LEFT if cause == Items.LEAVE else PlayerState.Life.GHOST
+	player.life = PlayerState.Life.LEFT if cause == Items.LEAVE else PlayerState.Life.DOWNED
 	Items.drop_held(ctx, ctx.actor, cause)
 
 

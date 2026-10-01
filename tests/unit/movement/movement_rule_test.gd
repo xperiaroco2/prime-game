@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## MovementRule (ARCHITECTURE §7, §7.1): epochs, well-formed claims, horizontal speed over the
-## client's tick delta with the client's tick rate bounded, the push allowance, ghosts' speeds,
+## client's tick delta with the client's tick rate bounded, the push allowance, the downed's speeds,
 ## Correction with a new epoch to that player only. Jumps and heights: movement_rule_jump_test.gd.
 ## Numbers per tick: FixtureMoves.
 
@@ -280,10 +280,10 @@ func test_a_pushed_player_holding_sprint_moves_at_the_push_allowance_for_free() 
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
-func test_a_ghost_moves_at_its_factor_without_a_push_allowance() -> void:
+func test_a_downed_player_moves_at_its_factor_without_a_push_allowance() -> void:
 	var game := FixtureMoves.in_round([P1])
-	var ghost := game.state.player(P1)
-	ghost.life = PlayerState.Life.GHOST
+	var downed := game.state.player(P1)
+	downed.life = PlayerState.Life.DOWNED
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var seen := FixtureMoves.corrections(game, P1).size()
 	# Walk 0.225 * 1.3 + 0.05 = 0.3425 m; sprint 0.35 * 1.3 + 0.05 = 0.505 m.
@@ -294,21 +294,21 @@ func test_a_ghost_moves_at_its_factor_without_a_push_allowance() -> void:
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	# After a correction the next claim would cover two client ticks: claim just one.
 	var fields := FixtureMoves.sprinting()
-	fields["client_tick"] = ghost.claim_tick + 1
+	fields["client_tick"] = downed.claim_tick + 1
 	FixtureMoves.step(game, P1, EAST * 0.52, fields)
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 2)
 
 
-func test_stamina_never_limits_a_ghost() -> void:
+func test_stamina_never_limits_a_downed_player() -> void:
 	var game := FixtureMoves.in_round([P1])
-	var ghost := game.state.player(P1)
-	ghost.life = PlayerState.Life.GHOST
-	ghost.stamina = 0
+	var downed := game.state.player(P1)
+	downed.life = PlayerState.Life.DOWNED
+	downed.stamina = 0
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.steps(game, P1, 30, EAST * 0.45, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	assert_int(ghost.stamina).is_equal(0)
+	assert_int(downed.stamina).is_equal(0)
 
 
 func test_after_a_placement_claims_start_again_from_the_placed_spot() -> void:

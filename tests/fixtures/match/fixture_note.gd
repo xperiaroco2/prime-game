@@ -5,7 +5,7 @@ extends RuleEffect
 
 @export var text := ""
 @export var to_role: StringName
-@export var to_ghosts := false
+@export var to_downed := false
 @export var to_actor := false
 @export var to_server := false
 @export var with_argument := false
@@ -21,8 +21,8 @@ func run(ctx: MatchContext) -> void:
 	var audience := Audience.everyone()
 	if not to_role.is_empty():
 		audience = Audience.of_role(to_role)
-	elif to_ghosts:
-		audience = Audience.of_life(PlayerState.Life.GHOST)
+	elif to_downed:
+		audience = Audience.of_life(PlayerState.Life.DOWNED)
 	elif to_actor:
 		audience = Audience.only(ctx.actor)
 	elif to_server:

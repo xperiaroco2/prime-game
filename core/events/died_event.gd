@@ -2,7 +2,8 @@ class_name DiedEvent
 extends MatchEvent
 ## A player died (ARCHITECTURE §4.2, §5): its health reached 0, and its body rests at `position`.
 ## Bodies and whose they are are public; no field names a killer or a cause. Emitted after the
-## player became a ghost, so it reaches the dead player too. Audience: everyone.
+## player was downed (M4-1: what a death leads to until M4-2), so it reaches that player too.
+## Audience: everyone.
 
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.EVERYONE

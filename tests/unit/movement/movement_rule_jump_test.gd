@@ -127,19 +127,19 @@ func test_a_jump_claim_pays_for_the_sprint_it_covers() -> void:
 	assert_int(player.stamina).is_equal(80000)
 
 
-func test_a_ghost_jumps_without_stamina_and_no_higher() -> void:
+func test_a_downed_player_jumps_without_stamina_and_no_higher() -> void:
 	var game := _round()
-	var ghost := game.state.player(P1)
-	ghost.life = PlayerState.Life.GHOST
-	ghost.stamina = 0
+	var downed := game.state.player(P1)
+	downed.life = PlayerState.Life.DOWNED
+	downed.stamina = 0
 	FixtureMoves.step(game, P1, Vector3.ZERO)
-	var ground := ghost.position
+	var ground := downed.position
 	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, UP * 0.1, FixtureMoves.jumped(game, P1))
 	FixtureMoves.claim(game, P1, ground + UP * PEAK, _air())
 	FixtureModes.run_ticks(game, 1)
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	assert_int(ghost.stamina).is_equal(0)
+	assert_int(downed.stamina).is_equal(0)
 	FixtureMoves.claim(game, P1, ground + UP * OVER_PEAK, _air())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 

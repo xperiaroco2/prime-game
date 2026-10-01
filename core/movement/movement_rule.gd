@@ -29,13 +29,14 @@ extends RefCounted
 ##   player's last accepted position and, for the living, stamina covers d times the jump's cost,
 ##   settled first: the claim's own ticks with its own flags, then any later ones (settle_ahead).
 ##   A merged burst of d jumps pays for each but grants one jump height, because the merged
-##   claims' take-offs are lost (accepted in the ADR). A ghost's jumps cost nothing. The last claim
+##   claims' take-offs are lost (accepted in the ADR). A downed player's jumps cost nothing (until
+##   M4-2's crawl check). The last claim
 ##   need not say it was on the floor: claims go at 20 Hz and the client's physics at 60 Hz, so a
 ##   landing and a jump can fall in one claim. The take-off is the higher of that floor and the
 ##   last feet, so the peak stays bounded.
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (sprint in
 ##   the sprint state, for the living only with movement input; else walk; times
-##   ghost_speed_factor for a ghost), plus, for the living
+##   ghost_speed_factor for the downed, until M4-2's crawl speed), plus, for the living
 ##   only, sprint speed for being pushed (§7.1 "Pushing apart", proposed for M4), plus
 ##   DISTANCE_SLACK_M. The host never checks or corrects overlap between players.
 ## - Height: until the next landing (a claim on the floor with a WorldQuery floor within step
@@ -243,12 +244,12 @@ static func _allowed_travel(
 	settled: StaminaLedger.Settlement,
 	moving: bool
 ) -> float:
-	var ghost := player.life == PlayerState.Life.GHOST
+	var downed := player.life == PlayerState.Life.DOWNED
 	# Ticks the claim covers beyond what could be settled now take the state a next tick has.
 	var sprint_ticks := settled.sprint_ticks
 	if settled.next_sprinting:
 		sprint_ticks += covered - settled.ticks
-	if not ghost and not moving:
+	if not downed and not moving:
 		# Sprint speed of its own only with the movement input that pays for it: without input a
 		# living player coasts (walk speed covers the client's deceleration) or is pushed, and
 		# holding sprint then would buy speed for free.
@@ -259,7 +260,7 @@ static func _allowed_travel(
 		(sprint_ticks * rules.sprint_speed_mps + walk_ticks * rules.walk_speed_mps)
 		* metres_per_tick
 	)
-	if ghost:
+	if downed:
 		travel *= rules.ghost_speed_factor
 	else:
 		# A pushed living player moves out of an overlap at up to sprint speed on top of its own

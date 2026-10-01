@@ -12,7 +12,9 @@ extends RefCounted
 ## - Every present player receives the same task events (StationPlaced, ItemSpawned,
 ##   PackageDelivered, TaskProgress).
 ## - No event and no snapshot holds the session seed or a match seed.
-## - Per tick, a living peer's snapshot holds no ghost, and it hears no ghost.
+## - Per tick, a living peer's snapshot holds no downed player (true until M4-2 makes the downed
+##   public). The voice invariant (§6): no peer's speakers include a downed speaker; a downed
+##   peer hears only living speakers; a dead peer's speakers are empty.
 ## - The scenario's `never` events reach nobody they name.
 
 const TASK_EVENTS: Array[StringName] = [
@@ -117,15 +119,36 @@ func check_tick() -> PackedStringArray:
 			for field: Variant in avatar:
 				if not AVATAR_FIELDS.has(str(field)):
 					found.append("peer %d's snapshot shows %s of peer %d" % [peer, field, other])
+		found.append_array(_check_voice(peer))
 		if state.players[peer].life != PlayerState.Life.ALIVE:
 			continue
 		for other: int in avatars:
-			if state.is_present(other) and state.players[other].life == PlayerState.Life.GHOST:
-				found.append("living peer %d sees ghost %d in its snapshot" % [peer, other])
-		for speaker: int in _game.speakers_for(peer):
-			if state.is_present(speaker) and state.players[speaker].life == PlayerState.Life.GHOST:
-				found.append("living peer %d hears ghost %d" % [peer, speaker])
+			if _life_of(other) == PlayerState.Life.DOWNED:
+				found.append("living peer %d sees downed %d in its snapshot" % [peer, other])
 	return found
+
+
+## The voice invariant's broken parts for `peer`'s speakers this tick (§6), from the life states
+## alone, never the voice rule.
+func _check_voice(peer: int) -> PackedStringArray:
+	var found := PackedStringArray()
+	var speakers := _game.speakers_for(peer)
+	var life := _life_of(peer)
+	if life == PlayerState.Life.DEAD and not speakers.is_empty():
+		found.append("dead peer %d hears %s" % [peer, speakers])
+	for speaker: int in speakers:
+		var mouth := _life_of(speaker)
+		if mouth == PlayerState.Life.DOWNED:
+			found.append("peer %d hears downed %d" % [peer, speaker])
+		if life == PlayerState.Life.DOWNED and mouth != PlayerState.Life.ALIVE:
+			found.append("downed peer %d hears %d, who is not living" % [peer, speaker])
+	return found
+
+
+## The life state of `peer`, LEFT for a peer that is not a player.
+func _life_of(peer: int) -> PlayerState.Life:
+	var player := _game.state.player(peer)
+	return player.life if player != null else PlayerState.Life.LEFT
 
 
 func _learn_role(peer: int, about: int, role: StringName, found: PackedStringArray) -> void:

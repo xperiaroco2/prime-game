@@ -166,16 +166,16 @@ func test_another_players_event_for_one_peer_is_a_leak() -> void:
 	assert_str(found).contains("decoded RoleAssigned of peer 1")
 
 
-func test_a_living_bot_that_decoded_a_ghost_or_a_changed_snapshot_is_a_leak() -> void:
+func test_a_living_bot_that_decoded_a_downed_player_or_a_changed_snapshot_is_a_leak() -> void:
 	var runner := BotsRunner.play(
 		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
 	)
 	assert_array(Array(runner.failures)).is_empty()
 	var own := runner.clients[2].view
 	var at_tick: int = own.snapshots.keys().back()
-	# Peer 1 a ghost after that tick, bot 2 alive: what the observer would have recorded.
+	# Peer 1 downed after that tick, bot 2 alive: what the observer would have recorded.
 	var leaks := LeakCheck.new(runner.game)
-	runner.game.state.players[1].life = PlayerState.Life.GHOST
+	runner.game.state.players[1].life = PlayerState.Life.DOWNED
 	leaks.record_tick(at_tick)
 	var tampered := _copy(own)
 	var avatars: Dictionary = (own.snapshots[at_tick]["avatars"] as Dictionary).duplicate()
@@ -184,8 +184,36 @@ func test_a_living_bot_that_decoded_a_ghost_or_a_changed_snapshot_is_a_leak() ->
 	tampered.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
 	var found := _text(leaks.check_bot("bot 2", 2, tampered, false))
 	assert_str(found).contains("the snapshot of tick %d differs from view_of's" % at_tick)
-	assert_str(found).contains("living, it decoded ghost 1 at tick %d" % at_tick)
-	assert_str(found).contains("living, it heard ghost 1 at tick %d" % at_tick)
+	assert_str(found).contains("living, it decoded downed 1 at tick %d" % at_tick)
+	assert_str(found).contains("it heard downed 1 at tick %d" % at_tick)
+
+
+func test_a_downed_bot_hearing_the_not_living_or_a_dead_bot_hearing_anyone_is_a_leak() -> void:
+	var scripts := []
+	for bot in 3:
+		scripts.append([StepReady.new(), _round()])
+	var runner := BotsRunner.play(_scenario(scripts))
+	assert_array(Array(runner.failures)).is_empty()
+	var at_tick: int = runner.clients[2].view.snapshots.keys().back()
+	# Peer 2 downed and peer 3 dead after that tick (nothing reaches DEAD before M4-2), peer 1
+	# alive: what the observer would have recorded. The control first: bot 2 hearing the living
+	# peer 1 is no leak.
+	var leaks := LeakCheck.new(runner.game)
+	runner.game.state.players[2].life = PlayerState.Life.DOWNED
+	runner.game.state.players[3].life = PlayerState.Life.DEAD
+	leaks.record_tick(at_tick)
+	var downed := _copy(runner.clients[2].view)
+	downed.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
+	var found := _text(leaks.check_bot("bot 2", 2, downed, false))
+	assert_str(found).not_contains("downed, it heard")
+	downed.voice[Vector2i(3, at_tick)] = [LeakCheck.voice_frame(3, 0)]
+	found = _text(leaks.check_bot("bot 2", 2, downed, false))
+	assert_str(found).contains("downed, it heard 3, who was not living, at tick %d" % at_tick)
+	assert_str(found).not_contains("downed, it heard 1,")
+	var dead := _copy(runner.clients[3].view)
+	dead.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
+	found = _text(leaks.check_bot("bot 3", 3, dead, false))
+	assert_str(found).contains("dead, it heard 1 at tick %d" % at_tick)
 
 
 func test_a_decoded_seed_is_a_leak() -> void:

@@ -115,11 +115,11 @@ func test_an_empty_hand_is_rejected_to_the_sender_only() -> void:
 	assert_array(game.view_of(P2).events_named(&"ItemPlaced")).is_empty()
 
 
-func test_a_ghost_cannot_put_down() -> void:
+func test_a_downed_player_cannot_put_down() -> void:
 	var game := _holding(FlatWorldQuery.new(), HERE)
 	var item := game.state.items[1]
-	# As if the life rule had not dropped it yet: the allowlist still refuses the ghost.
-	game.state.player(P1).life = PlayerState.Life.GHOST
+	# As if the life rule had not dropped it yet: the allowlist still refuses the downed player.
+	game.state.player(P1).life = PlayerState.Life.DOWNED
 	FixtureItemModes.put_down(game, P1, NORTH, 2)
 	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
 	assert_int(item.holder).is_equal(P1)

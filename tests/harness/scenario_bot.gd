@@ -43,7 +43,8 @@ var epoch := 0
 ## Its jumps since it adopted `epoch` (MoveClaim's `jumps`, §4.3): 0 again on every new epoch.
 var jumps := 0
 var position := Vector3.ZERO
-var ghost := false
+## Downed, from its own Died (until M4-2 a death leaves the player downed).
+var downed := false
 var role: StringName
 var held := -1
 var sprint_available := true
@@ -160,7 +161,7 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			var died := fields["peer"] as int
 			seen[died] = fields["position"] as Vector3
 			if died == peer:
-				ghost = true
+				downed = true
 				_correction_due = true
 		_:
 			_learn(event_name, fields)
@@ -261,7 +262,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			items.clear()
 			stations.clear()
 			held = -1
-			ghost = false
+			downed = false
 			if current_step() is StepLoadAck:
 				unanswered_load = match_id
 			else:

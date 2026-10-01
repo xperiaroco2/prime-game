@@ -15,24 +15,26 @@ const MIN_RADIUS_M := 0.5
 const MAX_RADIUS_M := 100.0
 
 
-## Whether `listener` hears `speaker` now. Never called for a player who left.
+## Whether `listener` hears `speaker` now. Called only for a living speaker and a living or
+## downed listener (speakers_of), never for a player who left or is dead.
 func hears(_state: MatchState, _listener: int, _speaker: int) -> bool:
 	return false
 
 
-## The speakers `listener` hears now, in peer-id order. A player who left hears and is heard by
-## nobody, and a living player never hears a ghost (§5) whatever the rule's `hears` says: core
-## enforces it here, as snapshots hide ghosts from the living, so no mode's data can route a
-## ghost's voice to the living.
+## The speakers `listener` hears now, in peer-id order. The voice invariant (§6, vision revision
+## 1), enforced here before the rule's `hears` runs, so no mode's data can break it: only the
+## living speak (nobody hears a downed or dead player), a dead listener hears nobody, and a player
+## who left hears and is heard by nobody.
 func speakers_of(state: MatchState, listener: int) -> PackedInt32Array:
 	var heard := PackedInt32Array()
 	if not state.is_present(listener):
 		return heard
-	var living_ear := state.player(listener).life == PlayerState.Life.ALIVE
+	if state.player(listener).life == PlayerState.Life.DEAD:
+		return heard
 	for speaker: int in state.present_peers():
 		if speaker == listener:
 			continue
-		if living_ear and state.player(speaker).life == PlayerState.Life.GHOST:
+		if not state.player(speaker).is_alive():
 			continue
 		if hears(state, listener, speaker):
 			heard.append(speaker)

@@ -1,7 +1,8 @@
 class_name StepWalkTo
 extends ScenarioStep
-## Sends honest MoveClaims straight towards the target at walk or sprint speed (a ghost's
-## speed as a ghost; ghosts do not fly); a level with walls needs waypoints. Done when it is
+## Sends honest MoveClaims straight towards the target at walk or sprint speed (times
+## `ghost_speed_factor` while downed, until M4-2's crawl; the downed do not fly); a level with
+## walls needs waypoints. Done when it is
 ## within `stop_m` of the target horizontally: 1 m before a circle, the put-down distance, to
 ## deliver. (ARCHITECTURE §9.7)
 

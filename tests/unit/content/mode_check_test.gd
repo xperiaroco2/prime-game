@@ -124,6 +124,21 @@ func test_an_unknown_intent_or_a_sender_nobody_matches() -> void:
 	_expect(mode, "phase round accepts Use from nobody")
 
 
+func test_the_ghosts_retired_sender_bit_is_refused() -> void:
+	# A mode written for ghosts (MoveClaim from LIVING | 8) would otherwise silently stop
+	# accepting the downed's claims: 8 is never reused (vision revision 1, M4-1).
+	var mode := FixtureModes.basic()
+	mode.phases[1].accepts[1].from = AcceptSpec.From.LIVING | 8
+	_expect(mode, "phase round accepts MoveClaim from bits 8, which name no sender (8: ghosts)")
+	mode = FixtureModes.basic()
+	mode.phases[1].accepts[1].from = AcceptSpec.From.LIVING | 64
+	_expect(mode, "phase round accepts MoveClaim from bits 64")
+	mode = FixtureModes.basic()
+	# Every player flag is fine (a newcomer's intent is a phase class's, which MoveClaim is not).
+	mode.phases[1].accepts[1].from = AcceptSpec.ALL_FROM & ~AcceptSpec.From.NEWCOMER
+	_expect_none(mode)
+
+
 func test_rules_with_wrong_or_repeated_triggers() -> void:
 	var mode := FixtureModes.basic()
 	mode.actions.append(FixtureModes.rule(Intents.USE, [], []))

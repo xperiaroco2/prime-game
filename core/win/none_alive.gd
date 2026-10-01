@@ -1,10 +1,10 @@
 class_name NoneAlive
 extends Condition
 ## Passes when no player of `side` is alive (ARCHITECTURE §3.4, §9.4): each player whose role
-## belongs to the side is a ghost or has left (a leave counts as dead for the win conditions,
-## §3.5). A player without a role of the mode belongs to no side. With no player of the side at
-## all it holds, as its words say; the base mode's deal always leaves at least one crew member
-## (DealRoles, `leave_at_least`), so there it cannot hold at the start of a round.
+## belongs to the side is downed or dead, or has left (a leave counts as dead for the win
+## conditions, §3.5). A player without a role of the mode belongs to no side. With no player of
+## the side at all it holds, as its words say; the base mode's deal always leaves at least one
+## crew member (DealRoles, `leave_at_least`), so there it cannot hold at the start of a round.
 ##
 ## It reads every player's role, which is hidden (§5), but only inside a win condition: those
 ## check facts and reject nothing, and `won` reaches no peer (§9.2); MatchEnded names only the

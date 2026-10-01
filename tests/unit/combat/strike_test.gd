@@ -113,13 +113,13 @@ func test_a_wall_between_blocks_the_hit_and_a_low_one_does_not() -> void:
 	assert_int(game.state.player(P2).health).is_equal(HALF)
 
 
-func test_every_living_player_in_the_zone_is_hit_in_peer_id_order_but_ghosts_are_not() -> void:
+func test_every_living_player_in_the_zone_is_hit_in_peer_id_order_but_the_downed_are_not() -> void:
 	var game := _armed([P1, P2, P3, P4])
-	# P3 is nearer than P2, and P4 is a ghost in the zone.
+	# P3 is nearer than P2, and P4 is downed in the zone.
 	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1.4))
 	FixtureItemModes.stand(game, P3, Vector3(0.1, 0, 0.7))
 	FixtureItemModes.stand(game, P4, Vector3(-0.1, 0, 0.9))
-	game.state.player(P4).life = PlayerState.Life.GHOST
+	game.state.player(P4).life = PlayerState.Life.DOWNED
 	FixtureCombatModes.use(game, P1, NORTH)
 	var victims: Array[int] = []
 	for emitted: EmittedEvent in game.emitted():

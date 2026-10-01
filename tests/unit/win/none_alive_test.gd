@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## NoneAlive and the dissidents' "no crew alive" (ARCHITECTURE §3.4, §3.5, §9.4, §9.5): the
-## dissidents win when every crew member is a ghost or has left, and not while one lives. Also the
+## dissidents win when every crew member is downed or has left, and not while one lives. Also the
 ## order of effects inside one command (§3.4), now with the real win conditions in the base mode's
 ## order: a hit that kills the last crew member, whose package then drops into its circle, is a
 ## dissident win, and so is the last crew member leaving with the last package over its circle.
@@ -17,7 +17,7 @@ func test_killing_the_last_crew_member_is_a_dissident_win() -> void:
 	var crew := FixtureDealModes.players_of(game, &"crew")[0]
 	FixtureItemModes.stand(game, crew, Vector3(40, 0, 40))
 	FixtureWinModes.kill(game, dissident, crew)
-	assert_int(game.state.player(crew).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(crew).life).is_equal(PlayerState.Life.DOWNED)
 	assert_str(game.phase_id()).is_equal("end")
 	assert_str(game.state.winner).is_equal("dissidents")
 	for peer: int in [P1, P2]:
@@ -26,7 +26,7 @@ func test_killing_the_last_crew_member_is_a_dissident_win() -> void:
 
 
 func test_the_dissidents_win_only_once_no_crew_member_is_alive() -> void:
-	# Three players, two crew: one killed is a ghost, the round goes on; the other leaving ends it
+	# Three players, two crew: one killed is downed, the round goes on; the other leaving ends it
 	# (a leave counts as dead for the win conditions, §3.5).
 	var game := FixtureWinModes.in_round(FixtureWinModes.basic(2), [P1, P2, P3])
 	var dissident := FixtureDealModes.players_of(game, &"dissident")[0]
@@ -34,7 +34,7 @@ func test_the_dissidents_win_only_once_no_crew_member_is_alive() -> void:
 	FixtureItemModes.stand(game, crew[0], Vector3(40, 0, 40))
 	FixtureItemModes.stand(game, crew[1], Vector3(-40, 0, 40))
 	FixtureWinModes.kill(game, dissident, crew[0])
-	assert_int(game.state.player(crew[0]).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(crew[0]).life).is_equal(PlayerState.Life.DOWNED)
 	assert_str(game.phase_id()).is_equal("round")
 	FixtureModes.send(game, Intents.PEER_LEFT, crew[1])
 	assert_str(game.phase_id()).is_equal("end")
@@ -53,7 +53,7 @@ func test_a_dead_dissident_ends_nothing() -> void:
 	assert_int(dissidents.size()).is_equal(2)
 	FixtureItemModes.stand(game, dissidents[1], Vector3(40, 0, 40))
 	FixtureWinModes.kill(game, dissidents[0], dissidents[1])
-	assert_int(game.state.player(dissidents[1]).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(dissidents[1]).life).is_equal(PlayerState.Life.DOWNED)
 	assert_str(game.phase_id()).is_equal("round")
 
 
@@ -98,7 +98,7 @@ func test_the_condition_reads_sides_through_roles_and_holds_with_nobody_alive_of
 	assert_bool(NoneAlive.of(&"crew").passes(ctx)).is_false()
 	assert_bool(NoneAlive.of(&"dissidents").passes(ctx)).is_false()
 	for peer: int in [P1, P2]:
-		game.state.player(peer).life = PlayerState.Life.GHOST
+		game.state.player(peer).life = PlayerState.Life.DOWNED
 	assert_bool(NoneAlive.of(&"crew").passes(ctx)).is_true()
 	assert_bool(NoneAlive.of(&"dissidents").passes(ctx)).is_true()
 	# A player without a role of the mode belongs to no side.

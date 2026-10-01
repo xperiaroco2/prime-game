@@ -69,7 +69,7 @@ func test_part_state_is_made_once_per_key() -> void:
 	assert_int(made[0]).is_equal(2)
 
 
-## A state after some play: P2 left, P3 a ghost holding an item, P1 a ready dissident with a
+## A state after some play: P2 left, P3 downed holding an item, P1 a ready dissident with a
 ## cooldown and a counter; items, tasks, stations, a body, the clock and a winner set.
 func _played_state() -> MatchState:
 	var state := MatchState.new(5)
@@ -86,7 +86,7 @@ func _played_state() -> MatchState:
 	p1.epoch = 4
 	state.player(P2).life = PlayerState.Life.LEFT
 	var p3 := state.player(P3)
-	p3.life = PlayerState.Life.GHOST
+	p3.life = PlayerState.Life.DOWNED
 	p3.held_item = state.add_item(ItemKind.new(), Vector3.ONE).id
 	state.add_task(FixtureTaskType.new())
 	state.add_station(StationKind.new(), Vector3.ONE, Color.BLUE)

@@ -83,14 +83,14 @@ func test_the_last_crew_member_leaving_over_its_circle_is_a_dissident_win() -> v
 	assert_array(FixtureModes.notes(game)).not_contains(["won crew"])
 
 
-func test_a_ghost_leaving_keeps_its_body() -> void:
+func test_a_downed_player_leaving_keeps_its_body() -> void:
 	var game := FixtureCombatModes.in_round(FixtureCombatModes.basic(), [P1, P2])
 	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
 	FixtureCombatModes.use(game, P1, Vector3(0, 0, 1))
 	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureCombatModes.use(game, P1, Vector3(0, 0, 1))
-	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DOWNED)
 	FixtureModes.send(game, Intents.PEER_LEFT, P2)
 	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.LEFT)
 	assert_dict(game.state.bodies).is_equal({P2: Vector3(0, 0, 1)})

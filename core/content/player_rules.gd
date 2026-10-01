@@ -22,8 +22,9 @@ extends ContentPart
 ## Metres a jump lifts the feet above the floor it started from, at most.
 @export var jump_height_m := 0.0
 @export var jump_cost := 0
-## A ghost walks and sprints at the living's speeds times this factor (the engineer's decision of
-## 2026-09-30, #46). Its bounds, 1 to 3, are proposed, not confirmed.
+## A downed player walks and sprints at the living's speeds times this factor, as the ghosts did
+## (the engineer's decision of 2026-09-30, #46), until M4-2 (#138) replaces it with the crawl
+## speed. Its bounds, 1 to 3, are proposed, not confirmed.
 @export var ghost_speed_factor := 0.0
 @export var capsule_radius_m := 0.0
 @export var capsule_height_m := 0.0
