@@ -19,8 +19,10 @@ extends RuleEffect
 @export var seconds := 0.0
 
 
-## Starts the actor's channel, then started(). An actor that runs one already (a rule without
-## ChannelFree) is a rule error, logged, and nothing starts.
+## Starts the actor's channel, then started(). RuleRunner stopped the actor's running one before
+## the effects ran (§9.2), so a rule without ChannelFree restarts it; a channel still running here,
+## or a start from no player's intent (a transition action, a reaction), is a rule error, logged,
+## and nothing starts.
 func run(ctx: MatchContext) -> void:
 	if ctx.actor_state() == null or ctx.command == null:
 		ctx.error("%s: a channel starts only from a player's intent" % _name())
