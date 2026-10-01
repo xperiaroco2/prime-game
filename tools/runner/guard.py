@@ -496,9 +496,12 @@ class Paths:
         its environment, like exported variables (issue #105)."""
         inner = Paths(self.root, "", self.home, shell or self.shell)
         inner.cwd, inner.vars, inner.tainted, inner.env = self.cwd, dict(self.vars), dict(self.tainted), dict(self.env)
-        for name, value in (prefixes or {}).items():
-            inner.vars[name] = inner.env[name] = self.expand(value)
         inner.project_vars, inner.cwd_text, inner.cwd_base = set(self.project_vars), self.cwd_text, self.cwd_base
+        for name, value in (prefixes or {}).items():
+            # Recorded like an assignment: a value the guard cannot compute still counts as the project when it names
+            # it (`D=$(realpath core) bash -c 'rm -rf "$D"'`).
+            inner.remember(name, value, [f"{name}={value}"])
+            inner.env[name] = inner.vars.get(name)
         inner.oldpwd, inner.own, inner.claim, inner.busy = self.oldpwd, self.own, self.claim, self.busy
         inner.off_branch, inner.stash_moved = self.off_branch, self.stash_moved
         return inner

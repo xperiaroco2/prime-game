@@ -564,6 +564,9 @@ BEYOND_OWN = [
     (P, "git -c rebase.updateRefs=true rebase origin/main"),
     (B, "export GIT_SEQUENCE_EDITOR=:; GIT_SEQUENCE_EDITOR=vim bash -c 'git rebase -i origin/main'"),
     (B, "GIT_SEQUENCE_EDITOR=$E bash -c 'git rebase -i origin/main'"),
+    # Found by the review of #105: a prefix the guard cannot compute still names the project inside the nested shell.
+    (B, "D=$(realpath core) bash -c 'rm -rf \"$D\"'"),
+    (B, "D=$X bash -c 'rm -rf \"$D\"'"),
     (B, f"git -c core.hooksPath=/dev/null push origin {TASK}"),
     (B, "git worktree remove D:/prime-game/.claude/worktrees/47"),
     (B, "git worktree remove --force ../47"),
