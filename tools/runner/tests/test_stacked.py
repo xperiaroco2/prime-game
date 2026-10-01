@@ -252,6 +252,20 @@ class LongLivedBaseTest(Repos):
     def test_any_base_outside_the_task_branch_pattern_is_not_a_merged_parent(self) -> None:
         self.keeps_a_base_equal_to_main("integration")
 
+    def test_a_hand_rebase_on_the_newer_release_moves_the_recorded_tip(self) -> None:
+        self.make_release()
+        self.start_on(RELEASE)
+        self.pr_base = RELEASE
+        self.assertEqual(publish.main(), 0)
+        self.land_on_release("x.txt", "task A")
+        # The implementer rebases by hand on the newer release branch, inside the worktree.
+        git(self.work, "fetch", "-q")
+        git(self.work, "rebase", "-q", f"origin/{RELEASE}")
+        self.land_on_release("x.txt", "task B")  # changes the file task A added
+        # Replaying from the recorded tip would replay task A's commit onto task B's change and stop on a conflict.
+        self.assertEqual(publish.main(), 0)
+        self.assert_kept_on(RELEASE)
+
     def test_the_release_merged_into_main_and_deleted_moves_the_task_to_main(self) -> None:
         self.make_release()
         self.start_on(RELEASE)

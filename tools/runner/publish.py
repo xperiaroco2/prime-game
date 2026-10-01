@@ -138,6 +138,11 @@ def main(base: str | None = None) -> int:
     _must(_git("rev-parse", "--verify", "--quiet", f"refs/remotes/{upstream}"), f"finding {upstream}")
     ok(f"fetched {REMOTE}; base {upstream}{source}")
     onto = bool(tip) and (unstack or base == parent)
+    fork = _git("merge-base", "HEAD", upstream).out.strip() if onto else ""
+    if fork and fork != tip and _in(tip, fork):
+        # The branch was rebased by hand on a newer upstream after the tip was recorded: the commits between the two
+        # are upstream's own, and replaying them from the stale tip would stop on a conflict (#113).
+        tip = fork
 
     before = _must(_git("rev-parse", "HEAD"), "reading HEAD")
     remote_oid = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").out.strip()
