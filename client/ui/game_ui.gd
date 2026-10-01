@@ -22,7 +22,8 @@ var esc := EscMenu.new()
 ## The own player's life in the round (M4-9).
 var life := LifePanel.new()
 var screen := GameFlow.Screen.MENU
-## Read the task screen's key. Tests and previews turn it off and call show_tasks() themselves.
+## Read the task screen's key (the game sets it from its own `device_input`). Tests and previews
+## turn it off and call show_tasks() themselves. Under the Esc menu the key does nothing.
 var reads_device_input := true
 
 var _tasks_held := false
@@ -46,7 +47,7 @@ func _init() -> void:
 
 func _process(_delta: float) -> void:
 	if reads_device_input:
-		show_tasks(Input.is_action_pressed(&"task_screen"))
+		show_tasks(not esc_open() and Input.is_action_pressed(&"task_screen"))
 
 
 ## The screen of `which`; the round shows the HUD.

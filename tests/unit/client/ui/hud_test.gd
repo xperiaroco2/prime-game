@@ -146,7 +146,7 @@ func test_the_crosshair_stays_hidden_for_the_downed_whatever_tab_does() -> void:
 	assert_bool(ui.hud.crosshair.visible).is_false()
 
 
-func test_tab_shows_the_task_screen_with_its_rows() -> void:
+func test_tab_shows_the_task_screen_with_its_rows_and_never_under_the_esc_menu() -> void:
 	var ui: GameUi = auto_free(GameUi.new())
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.refresh_round(_round_model(), _mode, NOW, HudText.Local.new())
@@ -158,7 +158,11 @@ func test_tab_shows_the_task_screen_with_its_rows() -> void:
 	for label: Node in ui.tasks.find_children("*", "Label", true, false):
 		texts.append((label as Label).text)
 	assert_str("\n".join(texts)).contains("Shared progress: 3 / 5")
+	ui.open_esc(false)
+	ui._process(0.0)
 	Input.action_release(&"task_screen")
+	assert_bool(ui.tasks.visible).is_false()
+	assert_bool(ui.hud.crosshair.visible).is_true()
 
 
 func _round_model() -> ClientModel:

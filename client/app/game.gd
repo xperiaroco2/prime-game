@@ -243,6 +243,7 @@ func _process(_delta: float) -> void:
 		if GameFlow.frees_pointer(now):
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	ui.show_screen(now)
+	ui.reads_device_input = device_input
 	if _client != null:
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
 		if now == GameFlow.Screen.ROUND:
