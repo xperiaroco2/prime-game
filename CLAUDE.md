@@ -9,9 +9,8 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 
 ## Hard rules
 - Humans write zero code; they hand-make only the designer's scene layout in the editor and imported third-party
-  assets. You write everything else and verify it from the command line. Never claim something works unless you
-  ran it; show the command and its result. If you cannot verify it, say so and tell the human exactly what to check
-  and how.
+  assets. You write everything else and verify it from the command line. Never claim something works unless you ran
+  it; show the command and its result. If you cannot verify it, say so and tell the human exactly what to check and how.
 - Never weaken, skip or delete a test to make it pass without the human's explicit approval.
 <!-- see docs/interventions/2026-09-28-engineer-check-live-state.md -->
 - Before stating a fact about the environment (repo, remote, branches, installed tools, versions, settings), check
@@ -81,6 +80,9 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
 - Push an explicit task branch only: `git push -u origin <branch>`, or `publish`. Never `main`, never a force push
   by hand: the pre-push hook blocks both, and a rebased branch goes up only through `publish`.
+- No `git stash` (one stash for all worktrees): set work aside with a WIP commit, later `git reset --soft HEAD~1`;
+  fold a fix with `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
+<!-- see docs/interventions/2026-10-01-engineer-night-run-prompts.md -->
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
 - **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot CLAUDE.md`,
@@ -97,14 +99,13 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 ## Routing
 | When | Use |
 |---|---|
-| "start task 42" | skill `start-task` |
-| "finish", "заверши задачу" | skill `finish-task` |
+| "start task 42" / "finish", "заверши задачу" | skill `start-task` / `finish-task` |
 | "нова механіка: …" | skill `new-mechanic` |
 | a room, prop or interactable sub-scene | skill `new-level-piece` |
 | "запам'ятай", "remember", a human correction | the question in Memory below; project → skill `log-intervention` |
 | "налаштуй мене" | skill `onboard` |
 | "оркеструй етап", an "ultracode" kickoff for a stage or a list of issues | skill `orchestrate-stage` |
-| review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/` changed |
+| review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/ tests/harness/` changed |
 | `.gd`, `.tscn` or `.tres` changed | agent `godot-api-checker` |
 | run tests and get back only failures | agent `test-runner` |
 
@@ -115,8 +116,9 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 4. Ask once: "Publish now?". Then `publish` (rebase, verify, push), open the PR from the template (linked issue,
    summary, verification commands and output, screenshots for visual changes, docs updated yes/no) and write the
    handoff comment on the issue: done, left, decisions, gotchas.
-5. Only humans merge. Stacked PRs: merging the parent deletes its branch (auto-delete is on) and GitHub retargets
-   each child to `main`; a child that still shows the parent as base gets `gh pr edit <n> --base main` first.
+5. Only humans merge into `main`; in a stage the manager merges task PRs into `release/m<k>` (the release-branch
+   ADR). Stacked PRs: merging the parent deletes its branch (auto-delete is on) and GitHub retargets each child to
+   the parent's base; a child still showing the parent as base gets `gh pr edit <n> --base <that base>` first.
 
 ## Stop and ask before
 - Adding a dependency or addon; changing an architecture boundary; touching the other owner's area.
