@@ -113,6 +113,12 @@ design routes it for M4's client PRs, although the root routing names it only fo
 **Host trust:** the client sends intents only, and the host checks every one again (reach, sight, life, slots,
 stamina, the raise's conditions every tick). The facing is a claim whose only effects are the hit zone's direction,
 a put-down's direction and the avatar's look. The cameras, the spectate target and the countdowns stay on the client.
+Remote facings and velocities are claims relayed by the host, and an honest one can be degenerate (a bot falling
+straight down claims the facing (0, -1, 0); a standing one may claim zero): from M4-2 `MovementRule` stores a unit
+facing, keeps the last one when a claim's has no direction, and clamps its pitch to ±89°; every client camera, head
+or basis built from a remote facing guards against a zero or vertical vector anyway; and remote players are drawn
+from interpolated positions and facings, with a velocity used only to pick an animation, so no claimed velocity
+moves anything on another screen.
 
 ### 4. The rework as M4 issues
 The order is the revision's rework list (each step keeps `verify` green); the client issues run beside the core

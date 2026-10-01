@@ -1112,7 +1112,10 @@ test, like `net/`'s "names no `core/` class"). So the host's own player sees onl
   and `count_jump` at a jump; `ClientSession` sends one claim per 20 Hz client tick (§4.6). The facing's pitch needs
   no wire or `core/` change (E22): `Strike.horizontal`, `Swung` and `PutDownInFront` flatten it, and `MovementRule`
   only requires it finite; the snapshot's avatar then carries it, for remote heads and the spectate camera. Snapshots
-  stay at 20 Hz, since the spectate camera is built from them.
+  stay at 20 Hz, since the spectate camera is built from them. A relayed facing can be degenerate even in honest play
+  (a bot falling straight down claims (0, -1, 0)): M4-2 has `MovementRule` store a unit facing, keep the last one when
+  a claim's has no direction and clamp the pitch to ±89°, and every camera, head or basis the client builds from a
+  remote facing still guards against a zero or vertical vector (the M4 ADR's §3, Host trust).
 - **Numbers:** the controller's speeds, jump height, capsule, eye and step height, stamina and crawl speed come from
   the client's own copy of the mode's `PlayerRules` when its session starts (the content hash makes it the host's);
   `client/player/player_tuning.tres` keeps only client feel (the push factors, the view's easing). Prevents: a walk
@@ -1122,8 +1125,9 @@ test, like `net/`'s "names no `core/` class"). So the host's own player sees onl
   the prediction, and sprint and jump are gated by it.
 - **Remote players** (E23): `SnapshotBuffer` (pure, unit-tested) keeps the newest snapshots by host tick, estimates
   the host tick from a sliding window of arrivals (not an all-time maximum, §7's lesson), and gives each remote
-  player's position, velocity and facing at the estimate minus a delay: one tick plus the jitter seen over the
-  window, from 100 ms to 250 ms (placeholders, "not a decision"). Past the newest snapshot a player holds still (no
+  player's position and facing, interpolated linearly, and its newest velocity, used only to pick an animation, so a
+  claimed velocity never moves a body on another screen, at the estimate minus a delay: one tick plus the jitter seen
+  over the window, from 100 ms to 250 ms (placeholders, "not a decision"). Past the newest snapshot a player holds still (no
   extrapolation); a placement or a respawn snaps. The bodies stay `AnimatableBody3D` capsules on the living layer.
 - **The crawl** (M4-9): a downed controller moves at the crawl speed, with no sprint and no jump, up the step height,
   colliding with the level only and pushing nobody; it keeps the standing capsule for collision (the host's floor
