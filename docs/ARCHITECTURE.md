@@ -1025,9 +1025,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     living bot's ghost avatar and voice, voice frames and seqs, seeds, task events, lost packets, a view with no
     peer, a prefix short of the last `MatchEnded`) and the watcher's checks fail on a planted leak.
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
-  with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they run
+  with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
-  #21 ran. M4 gives them windows and the real client. The default port is a placeholder. Several windows on one PC
+  #21 ran; with `--headless` they still do. Since #149 (M4-6) they open the game in windows (§4.7). The default port
+  is a placeholder. Several windows on one PC
   met the D3D12 freeze of §4; Windows now renders with Vulkan (#124), which did not meet it in 10 runs on one PC.
   **Built in 3i (#103)** as `tools/run/headless_session.gd` (a `SceneTree` script under `tools/`, which may use
   everything (§1), so it composes `server/` and `client/` in one process without a new boundary; the host's own
@@ -1047,8 +1048,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   `tests/unit/client/app/launch_options_test.gd` (the arguments) and
   `tools/runner/tests/test_hostjoin.py` (the supervision, and a real host with two local clients reaching the lobby
   roster Player1 to Player3).
-  The M4 design (§4.7, E20) runs the game in windows by default and this session with `--headless`; until the
-  runner's windows land (a follow-up PR of M4-6, #142), `host` and `join` run this session only.
+  Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and by default in a shell where
+  `CLAUDECODE` is set (an agent's); otherwise they open the game in windows (§4.7).
 
 ### 4.7 The game client (M4 design, #125)
 Decided in the [M4 ADR](decisions/2026-10-01-m4-first-person-client.md) (Accepted): the engineer's choices E18 to E33
@@ -1166,7 +1167,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   over a `LoopbackHub` on a simulated clock through the lobby, the host's setting, Ready, the countdown, loading, the
   round, time up, the end screen and back, a client's Leave and the host's close (about 5 s). The screens' `shot`s:
   `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
-- Not yet: the runner's windows for `host` and `join` (E20), a follow-up PR of M4-6 on #142.
+- The runner's windows for `host` and `join` (E20) came with #149, the rest of M4-6: below.
 
 **Movement on the network.**
 - **Claims:** every physics step the controller calls `set_motion` (its position and velocity; as the facing, the
@@ -1289,6 +1290,19 @@ test, `host` and `join` with `--headless`, and every GdUnit4 suite. A bot loads 
 in windows, tiled on one PC with `--position`, with Vulkan as everywhere on Windows; `--headless` runs the M3
 session of §4.6. In a shell where `CLAUDECODE` is set (an agent's) the default stays headless, so an unattended run
 never opens a window on a human's screen.
+
+**Built in #149 (M4-6)** in `tools/runner/hostjoin.py`: each window is `client/app/game.tscn` with the arguments of
+`LaunchOptions` after `--` (`--host [--local]` or `--join=<address>`, `--port=`, the runner's stop and alive files),
+so it skips the menu, and stops cleanly for the runner as the headless session does. The console exe (`GODOT_BIN`)
+opens them, since the runner reads each process's lines (the host's `session: hosting` starts the clients; a host
+that prints `session: cannot host` stays at its menu and gets none). A host and its `--clients` are tiled in a grid
+over the primary screen's work area (`--position` and `--resolution`, 16:9, below each title bar; a lone window goes
+where the system puts it); a windowed host on every interface prints what to type on another PC. `--windows` opens
+windows where `CLAUDECODE` is set; agents never pass it. They run until Ctrl+C, `--seconds` or every window closed.
+Tests: `tools/runner/tests/test_hostjoin.py` builds the command lines without starting Godot (the defaults, the
+tiles, `--headless`), and `verify`'s `game` step runs `game.tscn` headless through that command line: a host
+(`--local --no-replay`) and one client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then
+both stopped through the stop file with exit 0 and no engine error line (about 5 s).
 
 **Tests.** The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
 `SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in

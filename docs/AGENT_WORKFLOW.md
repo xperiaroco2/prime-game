@@ -598,26 +598,37 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
   `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
   project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
-- **`host` and `join` [applied]** (3i, #103; `docs/ARCHITECTURE.md` §4.6): headless sessions over ENet of the base
-  mode, through `tools/run/headless_session.gd`. `host [--port P] [--clients N] [--local] [--seconds S]` hosts (a
-  `HostSession` and its own `ClientSession`) on every interface, or on 127.0.0.1 only with `--local` (no firewall
-  prompt), and with `--clients N` (up to 7) starts N headless clients that join it on 127.0.0.1 once it hosts.
-  `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a placeholder ("not a
-  decision"). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase,
-  and the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
-  budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
-  once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
-  answer). The runner echoes them live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a player:
-  client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until Ctrl+C,
-  `--seconds S` or every process ending; the stop is clean (a stop file each process polls: the host closes, so
-  the clients see `host_lost` at once), and a process still running 10 s later is killed. Each process also stops
-  by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner leaves no
-  session holding the port. Fails like `run`: a non-zero exit or an engine error line. Exit 1 is a refused or
-  unanswered join, a client stopped before `Welcome` or ended by anything but its host, or a host that cannot
-  start or ends for an error. The agent's own checks pass `--local --seconds S` (never without `--seconds` in the
-  foreground). On Windows, Ctrl+C in `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session
-  has already stopped, so either answer is fine. Its selftest runs a host and two local clients to the full lobby
-  roster.
+- **`host` and `join` [applied]** (3i, #103; windows since #149; `docs/ARCHITECTURE.md` §4.6 and §4.7, the M4 ADR's
+  E20): the game over ENet. `host [--port P] [--clients N] [--local] [--seconds S]` hosts on every interface, or on
+  127.0.0.1 only with `--local` (no firewall prompt), and with `--clients N` (up to 7) starts N clients that join it
+  on 127.0.0.1 once it hosts. `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a
+  placeholder ("not a decision").
+  - **Windows** (the default for a human): each process is the game, `client/app/game.tscn`, started with the
+    command line `LaunchOptions` reads (`--host [--local]` or `--join=<address>`, `--port=`, the stop and alive files
+    below), so it skips the menu and goes straight to the lobby. A host and its `--clients` are tiled over the primary
+    screen (`--position`, `--resolution`); a windowed host on every interface prints what to type on another PC. A
+    host that cannot listen stays at its menu with the reason, and its clients do not start.
+  - **`--headless`**: M3's `tools/run/headless_session.gd` (a `HostSession` and its own `ClientSession` of the base
+    mode). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase, and
+    the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
+    budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
+    once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
+    answer). Exit 1 is a refused or unanswered join, a client stopped before `Welcome` or ended by anything but its
+    host, or a host that cannot start or ends for an error.
+  - **An agent's shell** (`CLAUDECODE` is set) gets `--headless` by default, so an unattended run never opens a window
+    on a human's screen; `--windows` opens them there, and agents never pass it. A human who asks an agent for
+    windows ("запусти хост і двох клієнтів") gets the command to run in their own PowerShell, starting with `cd`.
+  - The runner echoes every process's lines live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a
+    player: client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until
+    Ctrl+C, `--seconds S` or every process ending (every window closed); the stop is clean (a stop file each process
+    polls: the host closes, so the clients see `host_lost` at once), and a process still running 10 s later is
+    killed. Each process also stops by itself once the runner's alive file (touched every second) is gone or 10 s
+    old, so a killed runner leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error
+    line. The agent's own checks pass `--local --seconds S` (never without `--seconds` in the foreground). On
+    Windows, Ctrl+C in `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already
+    stopped, so either answer is fine. Its selftest runs a headless host and two local clients to the full lobby
+    roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
+    scene headless through its command line (CI below).
 - **`bots [scenario ...]` [applied]** (#102; `docs/ARCHITECTURE.md` §4.6, §9.7): plays every bot scenario in
   `content/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot, in one headless process
   over the loopback on a simulated clock (60 steps per simulated second: the six MVP scenarios take about 8 s), and
@@ -644,9 +655,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
   `verify` on the merged tree is the check there (§7.1). `verify` runs, in this order: `doctor --quick`,
   `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots` and
-  `bots-enet`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about 8 s) and
-  `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 18 s on 2026-10-01, under the minute #102
-  allows). The `enet` step is
+  `bots-enet`, `game`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about
+  8 s) and `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 18 s on 2026-10-01, under the minute
+  #102 allows). `game` (#149, about 5 s) starts `client/app/game.tscn` headless through its command line, a host
+  (`--host --local --no-replay`) and one client (`--join=127.0.0.1`) on a free port: both must be welcomed into
+  the lobby, then stop through the runner's stop file with exit 0 and no engine error line (logs in
+  `tools/out/logs/game/`). The `enet` step is
   `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
   5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
   `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
@@ -676,9 +690,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   of `docs/ARCHITECTURE.md` (the contract). **Effort:** medium.
 - **By milestone:** M0–M1 GDD open questions, `mechanic` issues, review of the content-API draft · M2 first content
   `.tres` · M3 bot scenarios (`content/scenarios/`, `docs/ARCHITECTURE.md` §9.7) · M4 level pieces with `shot`
-  screenshots; "запусти хост і двох клієнтів" runs `tools\run.cmd host --clients 2` (headless in M3; M4 gives it
-  windows; an agent adds `--local --seconds S` or runs it in the background), and a second machine
-  `tools\run.cmd join <address>` (§11).
+  screenshots; "запусти хост і двох клієнтів" is `tools\run.cmd host --clients 2`, which M4 gives windows (#149):
+  the agent hands her that command for her own PowerShell (with the `cd`), since in the agent's shell the runner
+  stays headless; a second machine runs `tools\run.cmd join <address>`. For its own check the agent runs
+  `host --clients 2 --local --seconds S` headless (§11).
 
 ## 13. How humans talk to the agent
 

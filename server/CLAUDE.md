@@ -37,7 +37,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - `HostSession` (`host_session.gd`): `start(mode, port, max_clients, now_usec)` (or `start_with` with given worlds
   and layouts), then `step(now_usec)` per frame and `close()`. It links `own_client` (peer 1's transport); the owner
   runs the own `ClientSession` on it. `HostNode` steps it from `_physics_process`, also while paused; start it with
-  `HostNode.now_usec()` and never reparent the node (leaving the tree closes the session). Parts: `PeerBudget`,
+  `HostNode.now_usec()` and never reparent the node (leaving the tree closes the session). For the game `HostNode`
+  is the façade (§4.7, E18): `HostNode.host(transport, mode, port)` builds and starts a private session, and the game
+  uses only `is_running()`, `own_client`, `errors`, `end_reason`, `ended`, `counters()` (debug builds), `skip_replay()`
+  and `close()`; `tools/` and the tests hand a `HostSession` to `HostNode.new` instead. Parts: `PeerBudget`,
   `VoiceRelay`, `ReplayFiles`. Its observer (debug builds) gets `(at_tick, command, slice)` after every `Match` call,
   catch-up ticks included: the bots runner's hook, never a reason to change `HostSession` for 3h.
 - Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
