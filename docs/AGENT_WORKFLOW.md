@@ -579,7 +579,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   overrides the timeout (300, over ENet 180). It runs `tests/harness/bots/bots_main.gd` through `run`, so `run`'s
   failure rules apply. A failed scenario prints its seed and each failure (the bot, its step, its last events) and
   writes the command log that replays it (`ReplayFiles.read`, then `Match.replay`) to `tools/out/bots/<scenario>/`,
-  next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty.
+  next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over ENet a scenario step that
+  needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is timing-dependent
+  (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself (§4.6).
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with

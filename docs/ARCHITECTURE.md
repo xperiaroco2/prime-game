@@ -931,6 +931,12 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks) that must reach `view_of`'s
     last `MatchEnded`, and its own bot, the lurker and the refused bot exactly. The one-process runner compares
     every bot that did not leave exactly.
+  - A scenario step that needs two events in one poll (an `Expect` with `within_s` 0 right after a `WaitFor`) is
+    exact in one process but timing-dependent over ENet, where a poll may split them:
+    `dropped_at_the_loading_deadline --instances 3` failed once in four runs (2026-10-01), then passed 3 times. The
+    ENet runs checked to pass: `dissident_kills_the_crew` (the `verify` step), `late_join_cancels_the_countdown`
+    and `crew_delivers_every_package`. The bot's own placement check does not depend on polls: core/ emits one
+    `Correction` after each placement of a player, and the bot expects exactly that one.
 - **The information-leak test** (§5) compares what each bot b decoded with `view_of(b)`:
   - events: b's decoded events are `view_of(b)`'s, in order, as (name, `to_dict()`); for a bot that left, a prefix;
   - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
@@ -944,23 +950,29 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     snapshots in one poll). And each speaker's `VoiceDown` seqs, by tick, run 0, 1, 2, ... without a gap
     (wrapping at 65536): the relay renumbers per speaker and listener and the loopback loses nothing, so a relay
     that forwards the speaker's own seq (how long it talked to others) fails. Every runner also fails on a packet
-    its transport rejected or a message that did not decode;
+    its transport rejected or a message that did not decode (over ENet, bot 1's over its whole run), and the
+    one-process runner on a message the host counted over budget or a packet the host's transport rejected;
   - peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
     `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
     `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
     deadline (a `HostSession` setting) for the lurker, so it stays connected through the lobby's and the countdown's
     events, snapshots and voice until the entry into Loading disconnects it (E14): a lurker that lost its connection
-    with no `DisconnectPeer` of `core/` (a hello deadline, a dropped transport) fails, and the refused bot must
-    decode exactly one `Rejected` (`wrong_version`) and be disconnected by `core/`. Prevents: a `server/` refactor that
-    sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s recipients, which the
-    entitlement ADR rejected because it reaches peers that are not players, passing a test in which every bot is a
-    player within one tick;
+    with no `DisconnectPeer` of `core/` (a hello deadline, a dropped transport) fails, and so does one whose
+    `DisconnectPeer` came at a tick with no `LoadMatch` (core/ cutting newcomers off before they saw anything). The
+    refused bot must decode exactly one `Rejected` (`wrong_version`) and be disconnected by `core/`, and a watcher
+    `core/` disconnected that is still connected fails (`server/` did not carry it out). Prevents: a `server/`
+    refactor that sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s
+    recipients, which the entitlement ADR rejected because it reaches peers that are not players, passing a test in
+    which every bot is a player within one tick;
   - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience. Some events carry no
     peer in their `to_dict()` (`RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), so the invariants
     read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
-    decoded: every event for one peer that b decoded (its class's `AUDIENCE_KIND` is `ONLY` or `SENDER`: `Welcome`,
-    `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`) names b as its subject, and a view with events
-    but no peer id fails; a crew bot decodes no `Teammates`; a dissident's `Teammates` names
+    decoded: every event for one peer that b decoded names b as its subject, and a view with no peer id that decoded
+    anything fails. The events for one peer are a hand-written list in `LeakCheck.FOR_ONE` (`Welcome`,
+    `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), which does not trust the declarations, plus
+    any event whose class declares `AUDIENCE_KIND` `ONLY` or `SENDER`; a test fails when such a class is missing
+    from the list. Proven on #115: `Correction` declared *everyone* failed 5 of 6 scenarios (`refusals` has one
+    bot), where the declaration-only check of an earlier commit passed it. A crew bot decodes no `Teammates`; a dissident's `Teammates` names
     that match's dissidents only; an alive bot never decodes a ghost's avatar or voice frame; the bots present for a
     whole round decode the same task events; no decoded message has a field that names a seed; a peer that is not a
     player decodes at most a `Rejected`, none unless it sent a `Hello`. `keep_history` costs memory (§5), so scenarios
