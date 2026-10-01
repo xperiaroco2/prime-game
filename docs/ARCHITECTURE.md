@@ -1199,8 +1199,11 @@ host's own player sees only what its `ClientSession` decoded.
 - **Hands:** the own hand item is drawn in the first-person view and the belt item on the HUD. Every item is drawn
   from `ClientModel`'s fold of the item events: on the ground where it lies, or at its holder's hand or belt. The own
   slots and the own invulnerability come from events only, since the own avatar never arrives.
-- **Interactions:** the crosshair's target is the first item or downed player along the camera's ray within the
-  pick-up's reach (the mode's `InReach` of `PickUp`), in the client's own level. The keys send `PickUp(item)`,
+- **Interactions:** the camera's ray picks the candidate, the first item or downed player along it in the client's
+  own level; the hint and the key then apply only if the mode's `InReach` of `PickUp` holds, measured as the host
+  measures it (2 m from the feet, not along the ray from the eye 1.6 m higher), so a crate-top item the host would
+  refuse gets no hint and a floor item it would accept does. M4-8's target-choice test checks both against a fixture
+  world. The keys send `PickUp(item)`,
   `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()`; the host checks each
   again (§7.1), and the client predicts nothing of an action's outcome.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
