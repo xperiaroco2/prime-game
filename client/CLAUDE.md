@@ -22,9 +22,10 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46), `RemotePlayerBody`, `PlayerTuning`, the stamina sources.
 - `dev/`: dev rooms and the preview scenes that `shot` draws.
-- M4's new code (§4.7): `app/` (the main scene `game.tscn`, the sessions, the level swap, the launch options, the
-  end reasons), `ui/` (the screens), `world/` (snapshot interpolation; the views of avatars, items, stations and
-  bodies), `life/` (the downed and spectate cameras, the countdowns).
+- `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
+  level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
+  there). `ui/`: the screens under `GameUi`, built in code. `world/`: `AvatarViews`; M4-7 adds interpolation, M4-8
+  and M4-9 the views of items, stations and bodies. `life/` (M4-9): the downed and spectate cameras, the countdowns.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
