@@ -579,8 +579,8 @@ The rules of the table:
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
   It was 2 when M4-6 (#142) added `Disconnecting` (58), 3 when M4-2 (#138) added `KnockedDown` (59) and
   renamed the avatar's flag `downed`, and is 4 since M4-3 (#139) added `Respawned` (60), the avatar's flag
-  `invulnerable` and the debug row `ForceClock` (25); M4's protocol PRs each set it to their base's plus one at the rebase before the
-  merge (the M4 ADR §4).
+  `invulnerable` and the debug row `ForceClock` (25); M4's protocol PRs each set it to their base's plus one at the
+  rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
   and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
@@ -638,10 +638,11 @@ The rules of the table:
   and decoder walk the fields. `net/` references no `core/` class (§1): the names are strings, and a unit test in
   `tests/` checks the table against `core/`: every intent of `Intents.ALL` and every event class with a peer audience
   has a row whose fields are the intent's declared fields or the keys its `to_dict()` returns, each debug row (§4.3)
-  matches the fields of the command it names (`ForceRole`'s and `ForceClock`'s, declared in `Intents.FIELDS` too), no row has a field that
-  names a seed, and the table as a release build builds it (debug off) has no debug kind. The comparison leaves out the
-  wire's own fields: `seq`, the presence flags (`has_map`, `has_station`, `has_role`) and the debug rows' `peer`,
-  which becomes `MatchCommand.peer`, not an arg. Before 3e an intent declared no fields: its rules read `args` where they
+  matches the fields of the command it names (`ForceRole`'s and `ForceClock`'s, declared in `Intents.FIELDS` too), no
+  row has a field that names a seed, and the table as a release build builds it (debug off) has no debug kind. The
+  comparison leaves out the wire's own fields: `seq`, the presence flags (`has_map`, `has_station`, `has_role`) and the
+  debug rows' `peer`, which becomes `MatchCommand.peer`, not an arg. Before 3e an intent declared no fields: its rules
+  read `args` where they
   needed them (`MovementRule`, `JoinRules.hello`, the lobby's settings), and
   `MatchCommand.get_bool` returns its default for a missing key, so a wire `jumps` against a rule that reads `jumped`
   would silently mean "never jumped". 3e (#97) therefore added `Intents.FIELDS` (intent → field → Variant type), which
@@ -979,12 +980,14 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     hosts with bot 1, instances 2 to N run one bot each, on the real clock. Each bot writes its decoded view and its
     peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
     lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares.
-  - The one-process `bots` joins `verify` after `freeze` and `stall`, and so CI (every scenario: about 8 s with the six MVP scenarios, a few seconds more with M4-3's respawn scenario);
+  - The one-process `bots` joins `verify` after `freeze` and `stall`, and so CI (every scenario: about 8 s with the six
+    MVP scenarios, a few seconds more with M4-3's respawn scenario);
     the ENet run joins it too as `bots-enet`: `dissident_kills_the_crew` with 3 instances took 18 s (2026-10-01).
     M4-2 (#138) rewrote that scenario to knock both crew bots down, let them die and end by time up in a one-minute
     match (the shortest `match_duration`), so it took about 67 s. M4-3 (#139) brought it back under a minute
     without changing what it proves: the scenario forces a 40 s clock (`clock_s`, the debug command `ForceClock`),
-    so it still knocks down, kills and ends by time up over ENet, in about 48 s.
+    so it still knocks down, kills and ends by time up over ENet, in about 48 s; its 55 s time limit fails a run
+    whose ForceClock was lost (the 1-minute clock).
   - Over ENet each bot writes its view file when its script is done and it decoded the expected ends (or its
     session ended), and keeps stepping until the host closes; the match goes on meanwhile, so the host compares each
     file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks) that must reach `view_of`'s
@@ -1387,8 +1390,9 @@ rest.
   all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskProgress`); no
   task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
   names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
-- **Widening** follows from evaluating audiences at emission. A knockdown, a death and a respawn widen nothing: the downed are
-  public, `Respawned` is as public as the body it removes and the avatar that appears again, a dead player gets the same public snapshots as everyone (minus the dead), and the dead learn no roles and
+- **Widening** follows from evaluating audiences at emission. A knockdown, a death and a respawn widen nothing: the
+  downed are public, `Respawned` is as public as the body it removes and the avatar that appears again, a dead player
+  gets the same public snapshots as everyone (minus the dead), and the dead learn no roles and
   no event that a living peer present then does not get (the leak test checks it, §4.6; M4-2 tests the snapshots in
   `tests/unit/life/life_rules_test.gd`). End widens nothing: `MatchEnded` names only the winning
   side, and each player knows from its own role whether it won. A later mode that reveals roles would add an event with
@@ -1740,9 +1744,9 @@ part is usable in data once its row or entry names the PR that built it. Every n
   replay needs no level (§3.3).
 - **Checked on load**, in two parts. `Match` refuses a mode with errors, listing them all.
   - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does
-    not declare; an outcome a phase can report without a row (§3.1); a phase whose rules can knock a player down but that lists no `LifeTicks` (M4-3); an accepted intent that neither
-    the phase class
-    nor any rule handles; two rules on one trigger in one owner; a number outside its part's bounds; an id outside the
+    not declare; an outcome a phase can report without a row (§3.1); a phase whose rules can knock a player down but
+    that lists no `LifeTicks` (M4-3); an accepted intent that neither the phase class nor any rule handles; two rules on
+    one trigger in one owner; a number outside its part's bounds; an id outside the
     wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
     condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), the designer's answer on
     #96). A unit test
@@ -1899,8 +1903,9 @@ phase classes come in the task each row names.
   `Correction`) and `leave` (life left, a dead player's body removed; `PlayerLeft`, `player_left`, then the drop with
   `Items.LEAVE`), `respawn` (M4-3 #139: from dead, at a marker that `Respawn` draws: the body removed, the role kept,
   health and stamina full, hands empty, a new epoch; then `Respawned` (everyone) and `Correction` (that player)) and
-  `make_invulnerable` (`PlayerState.invulnerable_until`: strikes skip the player for `PlayerRules.invulnerable_s`;
-  the respawn calls it, and M4-4's revive will). `die` sets `life_deadline` to the respawn time later.
+  `make_invulnerable` (`PlayerState.invulnerable_until`: strikes skip the player for `PlayerRules.invulnerable_s`, and
+  `damage` does nothing to it, so every damage source spares it; the respawn calls it, and M4-4's revive will). `die`
+  sets `life_deadline` to the respawn time later.
   `LifeTicks` (`core/life/life_ticks.gd`), a tick system, calls `die` for each downed player whose
   `life_deadline` has come, and runs its `Respawn` (`core/life/respawn.gd`) for each dead one, in peer-id order
   (without a `Respawn` the dead stay dead); M4-4 adds the raise's pause to it. A later weapon
@@ -1977,14 +1982,15 @@ phase classes come in the task each row names.
 | `DealTasks` | draws `tasks_setting` different task types at random (`rng_purpose`) from the mode's task types minus those in `banned_setting`, and runs each drawn type's `TaskType.deal` once, in the mode's order (§9.5, Delivery): one shared task each, owned by nobody (#79). Then `TaskProgress`. More tasks than types left (a check that did not run) is an error, and it deals the types left. Refuses in `ChangeSettings` (`settings_problem`): `tasks` above the types not banned, or every type banned (`out_of_bounds`). Mode check: `tasks_setting` a whole number whose maximum is at most the mode's task types, `banned_setting` a set of task types, `rng_purpose` not empty | `tasks_setting` (`tasks`), `banned_setting` (`banned_task_types`), `rng_purpose` (`task_types`) | the task types' events (Delivery: `StationPlaced`, `ItemSpawned`), then `TaskProgress` (everyone) | 2c (#59), shared and drawn in #79; tested with fake task types; Delivery's deal in 2f (#62) |
 | `SpawnItems` | places `count_setting` items of `kind` on distinct random markers of the kind's spawn tag, skipping the markers where an item already rests (at most one item per marker in a deal, such as a package of Delivery's deal on a shared tag), into `MatchState`'s items; ids follow the markers' level order. Too few free markers (a fit check that did not run) is an error, and it places none | `kind`, `count_setting`, `rng_purpose` (`knives`) | `ItemSpawned` (everyone), in id order; then `item_rested` (spawn) for each, in id order | 2c (#59) |
 | `PlacePlayers` | places every player at a distinct random marker of `tag` (§3.2) | `tag`, RNG purpose (`spawns`) | `PlayersPlaced` (everyone); `Correction` with a new epoch (each player) | 2a (#49) |
-| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); the last action of the deal's row, so the round's `PhaseChanged` announces the end tick. Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
+| `StartClock` | sets the match clock's end to now plus the setting (whole minutes, in ticks toward zero: 10 min is 12000); the last action of the deal's row, so the round's `PhaseChanged` announces the end tick. In a debug build a `ForceClock` (`MatchState.forced_clock_s`, in seconds) replaces the setting (§8, §9.7 `clock_s`). Mode check: a whole-number setting (not a set of ids) whose minimum is at least 1, since a 0-minute clock never ends | `minutes_setting` (`match_duration`) | `RoundStarted` (everyone), with the start tick | 2h (#64, `core/win/start_clock.gd`) |
 | `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side only | 2h (#64, `core/win/end_match.gd`) |
 | `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count (§3.5); everyone un-ready. Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player | 2b (#58, `core/match/reset_match.gd`) |
 
 **Demands.** Every placing action, and every task type through `DealTasks`, answers one question: given the settings
 and the player count, how many markers of which spawn tag does it need (and, for a station kind, how many colours).
 2a defines that interface on `Effect` and `TaskType`, with no demand by default; M4-3 adds it to `TickSystem`, so
-`LifeTicks` forwards its `Respawn`'s one `respawn` marker, summed for the phases played on the level. `DealTasks` asks each task type not
+`LifeTicks` forwards its `Respawn`'s one `respawn` marker, taken per tag at the most that any one phase played on the
+level needs (a `Respawn` in two phases asks for one marker). `DealTasks` asks each task type not
 banned for the demand of its one task; it reads the mode's task types from `Demands.mode` and the bans from
 `Demands.id_sets`, because an effect's `add_demands` is given neither, so a `Demands` is always built for a mode
 (`Demands.new(mode)`, 2c) with the set settings (`LayoutCheck.demands_of`). Which types a match draws is random, so
@@ -1993,7 +1999,7 @@ of that tag among the types left, and per station kind the same over colours. An
 tag, at most that, so a map that fits it fits every draw; with one type in the pool it is exactly that type's demand.
 The price is a stricter check than a given draw needs when the types' demands differ. `all_ready` (2b,
 `FitCheck`) sums the demands per tag over every row into a phase on the map and the tick systems of the phases
-played on it (`LayoutCheck.demands_of`), compares
+played on it (per tag, the most that any one of those phases needs; `LayoutCheck.demands_of`), compares
 each sum with the chosen map's markers of that tag and each colour count with its palette (`Demands.shortfalls`,
 §3.2, §9.6), checks the player count against the mode's bounds, and `SettingsChanged` shows them.
 
@@ -2045,8 +2051,9 @@ Settings:
   walk speed) for a knockdown of 10 s (`knockdown_s`, 1 to 120; vision revision 1's numbers, M4-2, the bounds
   placeholders, "not a decision"); the dead respawn after 30 s (`respawn_s`, 1 to 300) at a `respawn` marker with
   no living or downed player within 1 m (`respawn_free_m`, 0 to 5) and are invulnerable for 3 s (`invulnerable_s`,
-  0 to 30; M4-3, the bounds placeholders); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to
-  1). Health and stamina are whole points here, thousandths inside `core/` (§3.3). `PlayerRules`' class defaults are 0,
+  0 to 30; M4-3, the bounds placeholders); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below
+  the height); step 0.3 m (0 to 1). Health and stamina are whole points here, thousandths inside `core/` (§3.3).
+  `PlayerRules`' class defaults are 0,
   so each number is written in `base_mode.tres` (`PlayerRules_base`), and a mode that leaves one out fails the mode
   check (2d, #60; the engineer's answer (1) on #58). Pushing (§7.1) is not in `PlayerRules`: `push_speed_factor`,
   `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
@@ -2058,8 +2065,9 @@ Settings:
 - Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
   lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
   Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown` and `Use` from the living;
-  LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), TaskTicks; yes; runs; RoundVoice; map), End (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots
-  in Lobby, Countdown and Round. RoundVoice's `living_m`: 8 m.
+  LifeTicks with a Respawn (`respawn` markers, the RNG purpose `respawn`), TaskTicks; yes; runs; RoundVoice; map), End
+  (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots in Lobby, Countdown and Round. RoundVoice's
+  `living_m`: 8 m.
 - Transitions: §3.2. Their actions: `Loading, all_loaded → Round`: `DealRoles` (Dissident by `dissidents`, leaving
   at least 1; default Crew), `DealTasks` (`tasks`, `banned_task_types`, `task_types`), `SpawnItems` (Knife by
   `knives`), `PlacePlayers` (`round_player`),
@@ -2314,8 +2322,9 @@ told. One format runs in two runners.
   - the setup: the mode; the map, one of the mode's maps; the seed; the number of bots (bot 1 is the host's own
     client); the match settings that differ from the defaults; roles forced per bot (debug builds only, invariant 8;
     otherwise the deal draws them from the seed); the match clock's length in seconds, forced with the debug command
-    `ForceClock` in place of `match_duration`'s whole minutes (`clock_s`, M4-3; 0 keeps the setting). By default every bot joins (sends `Hello`) at the start and
-    acknowledges every `LoadMatch` at once; the steps `Join` and `LoadAck` change that for one bot;
+    `ForceClock` in place of `match_duration`'s whole minutes (`clock_s`, M4-3; 0 keeps the setting). By default every
+    bot joins (sends `Hello`) at the start and acknowledges every `LoadMatch` at once; the steps `Join` and `LoadAck`
+    change that for one bot;
   - one script per bot, whose steps run in order; the bots run at the same time;
   - the expected ends, one per match the scenario plays, in order: a winning side, or `none`. `none` passes when every
     script has finished within the time limit and no further `MatchEnded` arrived. Steps may follow an end, so a
@@ -2375,7 +2384,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   mechanic is playable with what a player is told.
 - **Failures:** a step that sends an intent fails on a `Rejected` it did not expect and names the reason; a step that
   does not finish within the time limit fails; a `Correction` outside a placement (§3.2), the bot's own knockdown
-  (M4-2) or its own respawn (M4-3) fails, because an honest bot is never corrected, so every scenario also checks the host's movement rules against honest movement. A field that
+  (M4-2) or its own respawn (M4-3) fails, because an honest bot is never corrected, so every scenario also checks the
+  host's movement rules against honest movement. A field that
   names a player is written as the bot's number; the runner maps it to the peer id (the core runner: bot 1 is
   peer 1, bot i is peer 1000 + i, so a scenario that confuses the two fails; the bots runner: the ids its clients
   got, §4.6).
