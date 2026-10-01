@@ -24,9 +24,10 @@ extends RefCounted
 ##   ahead of the host's (the host stalled and lost ticks) is corrected once and goes on.
 ## - Jumps (`jumps`, E2): the client's count of jumps since it adopted the epoch (0 after Welcome,
 ##   a placement or a Correction), which survives the LATEST lane's merge of claims (§4.3). A count
-##   below the last accepted claim's in the epoch is corrected. A rise d >= 1 is one jump:
-##   WorldQuery finds a floor within step height (+ STEP_CLEARANCE, a ledge crossing) below the
-##   player's last accepted position and stamina covers d times the jump's cost, settled first:
+##   below the last accepted claim's in the epoch is corrected, and so is a rise d above the client
+##   ticks the claim covers: a client lands between two jumps (#117 item 6). A rise d >= 1 is one
+##   jump: WorldQuery finds a floor within step height (+ STEP_CLEARANCE, a ledge crossing) below
+##   the player's last accepted position and stamina covers d times the jump's cost, settled first:
 ##   the claim's own ticks with its own flags, then any later ones (settle_ahead). A merged burst
 ##   of d jumps pays for each but grants one jump height, because the merged claims' take-offs
 ##   are lost (accepted in the ADR). A downed player crawls and never jumps: any new jump of
@@ -206,6 +207,10 @@ static func _check(
 	checked.new_jumps = claim.jumps - motion.jumps
 	if checked.new_jumps < 0:
 		# A count that falls within an epoch is no honest client's.
+		return null
+	if checked.new_jumps > covered:
+		# A client lands between two jumps, so no honest claim adds more jumps than it covers
+		# client ticks (#117 item 6): a merged burst of d jumps covers at least d ticks.
 		return null
 	var jumped := checked.new_jumps > 0
 	if jumped and player.life == PlayerState.Life.DOWNED:

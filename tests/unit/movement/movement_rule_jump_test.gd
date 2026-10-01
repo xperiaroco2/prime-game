@@ -262,9 +262,10 @@ func test_a_merged_burst_of_three_jumps_pays_each_and_grants_one_jump_height() -
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := player.position
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# The LATEST lane kept only the newest claim of a burst: the count rose by 3 since the last
-	# accepted one. Each jump is paid (3 * 10000); the take-offs of the merged claims are lost, so
-	# the burst gets one jump height from the last accepted feet (E2).
+	# The LATEST lane kept only the newest claim of a burst of three ticks: the count rose by 3
+	# since the last accepted one. Each jump is paid (3 * 10000); the take-offs of the merged
+	# claims are lost, so the burst gets one jump height from the last accepted feet (E2).
+	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 3}))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	assert_int(player.stamina).is_equal(70000)
@@ -328,17 +329,41 @@ func test_stamina_for_fewer_than_the_counted_jumps_is_corrected() -> void:
 	var game := _round()
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
-	player.stamina = 29000
+	player.stamina = 27000
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# Settled first: one tick of regeneration gives 29750, short of three jumps' 30000.
+	# A claim of three jumps over three ticks, settled first: three ticks of regeneration give
+	# 29250, short of three jumps' 30000.
+	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 3}))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	assert_int(player.stamina).is_equal(29750)
+	assert_int(player.stamina).is_equal(29250)
 	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(0)
-	# In the new epoch, two jumps (20000) are covered by 30500.
+	# In the new epoch, two jumps (20000) are covered by 30000.
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	assert_int(player.stamina).is_equal(10500)
+	assert_int(player.stamina).is_equal(10000)
+
+
+func test_more_new_jumps_than_covered_ticks_is_corrected() -> void:
+	# A client lands between two jumps, so a claim adds at most one jump per client tick it
+	# covers (#117 item 6): two in one tick are corrected and cost nothing; two in two pass.
+	var game := _round()
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var ground := player.position
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_vector(player.position).is_equal(ground)
+	assert_int(player.stamina).is_equal(100000)
+	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(0)
+	# In the new epoch, after a claim standing still: two jumps in a claim covering two ticks.
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"jumps": 0})
+	FixtureModes.run_ticks(game, 1)
+	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_int(player.stamina).is_equal(80000)
+	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(2)
 
 
 func test_a_claim_without_an_int_jump_count_is_corrected() -> void:
