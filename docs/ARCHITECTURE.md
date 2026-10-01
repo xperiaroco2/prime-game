@@ -1306,8 +1306,7 @@ rest.
   voice invariant (§6): no peer gets a downed speaker's voice frame, a downed peer gets only the living's and a
   dead peer none (`ScenarioInvariants` and `LeakCheck`; nobody is dead before M4-2, so the dead peer's check is
   seen failing in `tests/scenarios/`); nobody gets another player's health, stamina or damage; every player receives
-  the same task events; no message holds a seed. M4-1's planted leak, `speakers_of` keeping a downed speaker, fails
-  the voice unit tests under a rule that lets everyone hear everyone and the bots' `dissident_kills_the_crew`.
+  the same task events; no message holds a seed.
 
 Rejected ways of expressing it (per field, per content part, filtering in `server/`): the ADR.
 
