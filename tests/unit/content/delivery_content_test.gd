@@ -46,6 +46,12 @@ func test_round_runs_life_ticks_then_task_ticks_and_the_mode_deals_delivery() ->
 	assert_int(round_spec.tick_systems.size()).is_equal(2)
 	assert_bool(round_spec.tick_systems[0] is LifeTicks).is_true()
 	assert_bool(round_spec.tick_systems[1] is TaskTicks).is_true()
+	# LifeTicks holds the Round's Respawn (M4-3): a Respawn is optional to the mode check.
+	var respawn := (round_spec.tick_systems[0] as LifeTicks).respawn
+	assert_object(respawn).is_not_null()
+	if respawn != null:
+		assert_str(String(respawn.tag)).is_equal("respawn")
+		assert_str(String(respawn.rng_purpose)).is_equal("respawn")
 	assert_int(mode.task_types.size()).is_equal(1)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 

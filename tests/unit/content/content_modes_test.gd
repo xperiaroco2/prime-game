@@ -62,6 +62,27 @@ func test_the_greybox_fits_ten_players_at_the_default_settings_and_the_most_pack
 	demands = LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
 	assert_array(Array(demands.shortfalls(map))).is_empty()
 	assert_int(map.count(&"knife")).is_greater_equal(settings[&"knives"])
+	# The Round's Respawn (M4-3) asks for one `respawn` marker; the greybox has 4 to 6.
+	assert_int(demands.markers.get(&"respawn", 0)).is_equal(1)
+	assert_int(map.count(&"respawn")).is_between(4, 6)
+
+
+func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
+	# The respawn demand reaches the fit check on the real content: the same map with every
+	# marker but the `respawn` ones is refused for that one need.
+	var mode := _base_mode()
+	var map := _layouts_for(mode)[mode.maps[0]]
+	var stripped := LevelLayout.new(map.path)
+	for tag: StringName in map.tags():
+		if tag == &"respawn":
+			continue
+		for at: Vector3 in map.positions(tag):
+			stripped.add_marker(tag, at)
+	var settings := mode.default_settings()
+	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
+	assert_array(Array(demands.shortfalls(stripped))).contains_exactly(
+		["1 respawn marker(s) needed, the map has 0"]
+	)
 
 
 func test_the_levels_are_flat() -> void:
