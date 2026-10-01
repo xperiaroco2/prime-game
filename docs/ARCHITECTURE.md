@@ -564,8 +564,8 @@ The rules of the table:
   The level files are walked (#118): every scene and resource a level reaches through
   `ResourceLoader.get_dependencies`, recursively and each once (a cycle, a piece two levels share), is hashed too,
   sorted by `res://` path, so a wall moved inside a room the map instances counts. A dependency with a known uid is
-  the file the uid names, as Godot loads it, else its fallback path; a missing file is hashed as `missing`, which
-  `ContentFingerprint.text_of` names. Left out: scripts (`ContentHash` covers them by path) and Godot's generated
+  the file the uid names, as Godot loads it, else its fallback path; a missing file is hashed as `missing`, and
+  `ContentFingerprint.of` logs a warning naming it, on the host and on each client. Left out: scripts (`ContentHash` covers them by path) and Godot's generated
   files under `res://.godot/`; an imported asset counts by its source bytes and its `.import` settings. Levels that
   instance nothing hash as they did before the walk.
 - **Ids** on the wire are the content's own names (`crew`, `knife`, `match_duration`) (E5), so a content difference

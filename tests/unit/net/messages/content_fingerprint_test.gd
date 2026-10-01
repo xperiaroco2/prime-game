@@ -126,6 +126,16 @@ func test_a_missing_dependency_is_named() -> void:
 	DirAccess.remove_absolute(gone)
 	assert_str(_text_of(_mode())).contains("\nfile %s missing" % gone)
 	assert_int(_of(_mode())).is_not_equal(before)
+	var levels := PackedStringArray([_mode().lobby_level, _mode().maps[0]])
+	assert_array(Array(ContentFingerprint.missing_from(levels))).contains_exactly([gone])
+
+
+## Only a reached file that is not there is missing: a mode whose files are all there, and a
+## missing level file (the fixture modes' levels), name nothing.
+func test_nothing_is_missing_when_every_reached_file_is_there() -> void:
+	assert_array(Array(ContentFingerprint.missing_from(PackedStringArray([MAP])))).is_empty()
+	var fixture := PackedStringArray([FixtureBaseMode.LOBBY, FixtureBaseMode.MAP])
+	assert_array(Array(ContentFingerprint.missing_from(fixture))).is_empty()
 
 
 ## A cycle ends, and a piece the lobby and the map share, or one reached twice, is one line.

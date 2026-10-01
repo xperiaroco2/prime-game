@@ -26,9 +26,16 @@ const GENERATED := "res://.godot/"
 
 
 ## The fingerprint of a mode whose ContentHash is `content_hash`, with its lobby level and maps,
-## an s64: the first 8 bytes of the SHA-256 of `text_of`.
+## an s64: the first 8 bytes of the SHA-256 of `text_of`. Each file the levels reach that is not
+## there gets one warning naming it (`missing_from`), so the machine that lacks a room has the
+## reason for its wrong_content refusal in its log. A missing level file gets none: the unit
+## tests' fixture modes name levels that do not exist.
 static func of(content_hash: int, lobby_level: String, maps: PackedStringArray) -> int:
-	return text_of(content_hash, lobby_level, maps).sha256_buffer().decode_s64(0)
+	var levels := _levels_of(lobby_level, maps)
+	var reached := reached_from(levels)
+	for path: String in _missing_in(reached):
+		push_warning("content: %s, which a level reaches, is missing (hashed as missing)" % path)
+	return _text(content_hash, levels, reached).sha256_buffer().decode_s64(0)
 
 
 ## What `of` hashes, one line each: `mode <ContentHash>`; `level <path> <sha256>` per level in the
@@ -36,14 +43,13 @@ static func of(content_hash: int, lobby_level: String, maps: PackedStringArray) 
 ## for the digest of a file that is not there, so the text names a missing dependency. A mode whose
 ## levels reach nothing has no `file` line.
 static func text_of(content_hash: int, lobby_level: String, maps: PackedStringArray) -> String:
-	var lines := PackedStringArray(["mode %d" % content_hash])
-	var levels := PackedStringArray([lobby_level])
-	levels.append_array(maps)
-	for path: String in levels:
-		lines.append("level %s %s" % [path, _digest(path)])
-	for path: String in reached_from(levels):
-		lines.append("file %s %s" % [path, _digest(path)])
-	return "\n".join(lines)
+	var levels := _levels_of(lobby_level, maps)
+	return _text(content_hash, levels, reached_from(levels))
+
+
+## The files `levels` reach that are not there, sorted by path: what `of` warns about.
+static func missing_from(levels: PackedStringArray) -> PackedStringArray:
+	return _missing_in(reached_from(levels))
 
 
 ## Every file the walk reaches from `levels`, sorted, the levels themselves and what it leaves out
@@ -73,6 +79,31 @@ static func reached_from(levels: PackedStringArray) -> PackedStringArray:
 				files.append(settings)
 	files.sort()
 	return files
+
+
+static func _levels_of(lobby_level: String, maps: PackedStringArray) -> PackedStringArray:
+	var levels := PackedStringArray([lobby_level])
+	levels.append_array(maps)
+	return levels
+
+
+static func _text(
+	content_hash: int, levels: PackedStringArray, reached: PackedStringArray
+) -> String:
+	var lines := PackedStringArray(["mode %d" % content_hash])
+	for path: String in levels:
+		lines.append("level %s %s" % [path, _digest(path)])
+	for path: String in reached:
+		lines.append("file %s %s" % [path, _digest(path)])
+	return "\n".join(lines)
+
+
+static func _missing_in(files: PackedStringArray) -> PackedStringArray:
+	var missing := PackedStringArray()
+	for path: String in files:
+		if not FileAccess.file_exists(path):
+			missing.append(path)
+	return missing
 
 
 ## The file a get_dependencies entry names: a bare path, or `uid::type::path` (4.7.2 leaves the
