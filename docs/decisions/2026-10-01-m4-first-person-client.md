@@ -93,7 +93,7 @@ messages, voice). The playtests read it (§6), above all for #76's tuning.
 
 ### 3. What the client renders, and what it may not (rework item 13)
 Each client issue's PR is reviewed against this list by `netcode-security-reviewer` as well as `code-reviewer`: this
-design routes it for M4's client PRs, although the root routing names it only for `core/ server/ net/ tests/harness/`.
+design routes it for M4's client PRs, and since #158 the root routing and the saved workflows name `client/` too.
 1. Everything drawn, played or shown comes from the own `ClientModel`, the interpolated snapshot poses and the
    client's own copy of the mode, never from `server/` or `core/` state, also on the host (E18's source test).
 2. Spectating renders the public snapshot only: no target HUD, health, stamina, role, teammates or private event;
