@@ -14,6 +14,9 @@ low-poly, player-hosted matches for 4 to 10 players. Proximity voice chat is a c
 governed by game rules. The differentiator is a rich, varied set of mechanics: roles, abilities, items, sabotages,
 task types and information tools.
 
+The brief's "social deduction game in the spirit of Lockdown Protocol and Among Us" predates the pillars below,
+where deduction is not central: the designer rewords it with the pitch (open question below).
+
 ### Pillars
 Decided in [vision revision 1](decisions/2026-10-01-vision-revision-1.md) (#126), from the meeting with the designer
 on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with the designer):
@@ -33,6 +36,9 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
 
 Open questions:
 - What is the one-sentence pitch in the designer's own words?
+- Which feeling should a match leave: tension, comedy, detective work, chaos? In what proportion? (Proposed as
+  answered by the pillars: cringe-fun comedy and chaos, action over detective work; the designer confirms or
+  rewrites it.)
 - What does this game do that Lockdown Protocol and Among Us do not?
 
 ## 2. Match setup
