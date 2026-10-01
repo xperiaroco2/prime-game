@@ -62,3 +62,30 @@ func test_a_refused_join_says_why_in_words() -> void:
 	assert_str(Launcher.ended_text(ClientSession.CONNECT_FAILED)).contains("firewall")
 	assert_str(Launcher.ended_text(ClientSession.HOST_LOST)).contains("host closed")
 	assert_str(Launcher.ended_text(&"unknown_map")).is_equal("unknown_map")
+
+
+func test_the_exit_code_fails_a_client_that_never_got_in_or_ended_for_an_error() -> void:
+	const YES := Launcher.EXIT_OK
+	const NO := Launcher.EXIT_FAILED
+	const STOP := Launcher.STOPPED
+	# [hosting, welcomed, reason, exit code, how the last line starts]
+	var cases: Array[Array] = [
+		[true, true, STOP, YES, "stopped"],
+		[true, false, STOP, YES, "stopped"],
+		[false, true, STOP, YES, "stopped"],
+		[false, false, STOP, NO, "stopped before the host welcomed it"],
+		[false, true, ClientSession.HOST_LOST, YES, "the session ended: host_lost"],
+		[false, true, ClientSession.LEFT, YES, "the session ended: left"],
+		[false, true, ClientSession.LOAD_FAILED, NO, "the session ended: load_failed"],
+		[false, true, ClientSession.UNKNOWN_MAP, NO, "the session ended: unknown_map"],
+		[false, false, &"full", NO, "could not join: full ("],
+		[false, false, ClientSession.CONNECT_FAILED, NO, "could not join: connect_failed"],
+		[true, true, ClientSession.LOAD_FAILED, NO, "the host's own client ended"],
+	]
+	for entry in cases:
+		var hosting: bool = entry[0]
+		var welcomed: bool = entry[1]
+		var reason: StringName = entry[2]
+		var code := Launcher.exit_code(hosting, welcomed, reason)
+		assert_int(code).override_failure_message("%s" % [entry]).is_equal(entry[3] as int)
+		assert_str(Launcher.end_text(hosting, welcomed, reason)).starts_with(entry[4] as String)

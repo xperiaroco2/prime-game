@@ -16,6 +16,8 @@ from unittest import mock
 from runner import cli, hostjoin, verify
 from runner.common import ROOT, Failure, godot_bin
 
+LOCALHOST = hostjoin.LOCALHOST
+
 # A stand-in for the Godot script: argv[1] picks what it does, --stop-file= is the runner's stop file.
 FAKE = """
 import pathlib, sys, time
@@ -214,6 +216,24 @@ class RealSessionTest(unittest.TestCase):
         for part in parts:
             self.assertIn("session: phase: lobby", part.lines, out.getvalue())
         self.assertEqual(parts[0].lines[-1], "session: stopped", out.getvalue())
+
+    def join_nobody(self, seconds: int | None) -> hostjoin.Part:
+        """A real join of a free port of 127.0.0.1 that nothing listens on."""
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            parts = hostjoin.join_parts(LOCALHOST, verify.free_udp_port(), stop=Path(tmp) / "stop")
+            hostjoin.set_commands(parts, str(godot_bin()))
+            with mock.patch("sys.stdout", new_callable=io.StringIO):
+                hostjoin.supervise(parts, seconds=seconds, stop=Path(tmp) / "stop")
+        return parts[0]
+
+    def test_a_join_that_nobody_answers_fails_with_connect_failed(self) -> None:
+        part = self.join_nobody(60)
+        self.assertTrue(part.problem.startswith("exited 1 (could not join: connect_failed"), part.lines)
+
+    def test_a_join_stopped_before_welcome_fails(self) -> None:
+        # Shorter than ENet's join timeout: the old stop exited 0, so such a check passed with nobody joined.
+        part = self.join_nobody(2)
+        self.assertEqual(part.problem, "exited 1 (stopped before the host welcomed it)", part.lines)
 
 
 if __name__ == "__main__":

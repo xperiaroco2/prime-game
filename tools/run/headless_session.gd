@@ -12,9 +12,10 @@ extends SceneTree
 ## client/ in one process; the host's own client still reads nothing of HostSession, only what
 ## own_client delivers (invariant 2).
 ##
-## Exit codes: 0 for a clean end (stopped, or a joined client whose host ended the session); 1 when
-## the host could not start or ended for an error, or a client never got in (refused, no answer);
-## 2 for wrong arguments.
+## Exit codes: 0 for a clean end (the host stopped; a welcomed client stopped, or its host ended
+## the session); 1 when the host could not start or ended for an error, or a client never got in
+## (refused, no answer, stopped before Welcome) or ended for any other reason; 2 for wrong
+## arguments.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 ## A placeholder, "not a decision".
@@ -38,6 +39,8 @@ const MAX_FPS := 120
 const EXIT_OK := 0
 const EXIT_FAILED := 1
 const EXIT_USAGE := 2
+## The end reason of a process the runner stopped (its stop file), next to ClientSession's reasons.
+const STOPPED := &"stopped"
 ## Why a join ended before Welcome, as a person reads it.
 const REFUSALS: Dictionary[StringName, String] = {
 	&"wrong_version":
@@ -143,9 +146,9 @@ func _process(_delta: float) -> bool:
 		return false
 	_show_changes()
 	var now_ms := Time.get_ticks_msec()
-	if not _options.stop_file.is_empty() and now_ms - _last_stop_check_ms >= STOP_CHECK_MS:
+	if now_ms - _last_stop_check_ms >= STOP_CHECK_MS:
 		_last_stop_check_ms = now_ms
-		if FileAccess.file_exists(_options.stop_file):
+		if _stop_requested():
 			_stop()
 	return false
 
@@ -269,20 +272,39 @@ func _on_welcomed(own_peer: int) -> void:
 func _on_client_ended(reason: StringName) -> void:
 	if _finished:
 		return
-	if _options.hosting:
-		# The host's own client ended first (a failed load, say): the host ends the session.
-		_finish(EXIT_FAILED, "the host's own client ended: %s" % reason)
-		return
-	if _client.is_welcomed():
-		_finish(EXIT_OK, "the session ended: %s" % ended_text(reason))
-	else:
-		_finish(EXIT_FAILED, "could not join: %s" % ended_text(reason))
+	# The host stopped on the shared stop file before this client polled it: a stop, not a loss.
+	if _stop_requested():
+		reason = STOPPED
+	_end(reason)
 
 
 func _on_host_ended(reason: StringName) -> void:
 	if _finished:
 		return
 	_finish(EXIT_FAILED, "the host session ended: %s %s" % [reason, "; ".join(_session.errors)])
+
+
+## The exit code when this process's client ends with `reason` (or STOPPED).
+static func exit_code(hosting: bool, welcomed: bool, reason: StringName) -> int:
+	if reason == STOPPED:
+		return EXIT_OK if hosting or welcomed else EXIT_FAILED
+	if hosting:
+		# The host's own client ended first (a failed load, say): the host ends the session.
+		return EXIT_FAILED
+	if welcomed and reason in [ClientSession.HOST_LOST, ClientSession.LEFT]:
+		return EXIT_OK
+	return EXIT_FAILED
+
+
+## Why the process ends, as the last `session:` line says it.
+static func end_text(hosting: bool, welcomed: bool, reason: StringName) -> String:
+	if reason == STOPPED:
+		return "stopped" if hosting or welcomed else "stopped before the host welcomed it"
+	if hosting:
+		return "the host's own client ended: %s" % reason
+	if not welcomed:
+		return "could not join: %s" % ended_text(reason)
+	return "the session ended: %s" % ended_text(reason)
 
 
 static func ended_text(reason: StringName) -> String:
@@ -293,9 +315,21 @@ static func ended_text(reason: StringName) -> String:
 	return String(reason)
 
 
-## Asked to stop (the runner's stop file): close cleanly, so the clients see host_lost at once.
+## Asked to stop (the runner's stop file): close cleanly, so the clients see host_lost at once. A
+## client that was not welcomed yet fails: a check that stops it never saw it join.
 func _stop() -> void:
-	_finish(EXIT_OK, "stopped")
+	_end(STOPPED)
+
+
+func _end(reason: StringName) -> void:
+	var welcomed := _client != null and _client.is_welcomed()
+	_finish(
+		exit_code(_options.hosting, welcomed, reason), end_text(_options.hosting, welcomed, reason)
+	)
+
+
+func _stop_requested() -> bool:
+	return not _options.stop_file.is_empty() and FileAccess.file_exists(_options.stop_file)
 
 
 ## Prints the final counters and why it ends, closes the session and quits with `code`.
