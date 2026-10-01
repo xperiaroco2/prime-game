@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://br5bykqn7pv8h"]
+
+[ext_resource type="Script" uid="uid://cec4bitxjrs6t" path="res://client/dev/debug_overlay_preview.gd" id="1_preview"]
+
+[node name="DebugOverlayPreview" type="Node" unique_id=176993021]
+script = ExtResource("1_preview")

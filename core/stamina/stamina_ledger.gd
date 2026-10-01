@@ -17,8 +17,8 @@ extends RefCounted
 ## - Only the living sprint: a downed player crawls (MovementRule), is never in the sprint state
 ##   and regenerates as usual, since it spends none (vision revision 1).
 ##
-## The client's LocalStamina (client/player/) predicts with the same rule until it follows
-## SelfStatus (M3).
+## The client's PredictedStamina (client/player/) predicts with the same rule and takes each
+## SelfStatus (M4-7, E24).
 
 
 ## The result of settling a run of ticks, before it is committed to the player.

@@ -11,6 +11,11 @@ extends Node
 ## (E18; client/app/ names server/ only through the HostNode façade, a source test holds it).
 ## The command line after -- (LaunchOptions: --host [--local], --join=, --port=, the runner's stop
 ## and alive files) skips the menu.
+##
+## Movement on the network (M4-7): the local PlayerController takes the mode's PlayerRules and
+## claims to the session; every snapshot goes into a SnapshotBuffer, from which Avatars draws the
+## others and the countdown and the clock read the estimated host tick. A debug build has the
+## debug overlay (F3).
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
@@ -24,16 +29,23 @@ var read_command_line := true
 ## Makes a session's transport: an EnetTransport with the game's kind table unless a test sets
 ## one (a loopback). Called with no arguments.
 var make_transport := Callable()
-## The clock in microseconds for both sessions: the real one unless a test sets one.
+## The clock in microseconds of the host session and of the avatars' host-tick estimate: the real
+## one unless a test sets one. The client session's claims count physics steps (SessionNode).
 var clock := Callable()
 var options: LaunchOptions
 ## Why the last session ended; empty before the first ended.
 var last_reason: StringName = &""
+## Whether the local player reads the keyboard and mouse when a screen lets it. Tests turn it off
+## and drive the player's wish fields themselves (headless runs have no input).
+var device_input := true
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
 var _client: ClientSession
 var _session_node: SessionNode
+var _buffer: SnapshotBuffer
+## Debug builds only (invariant 8): F3 shows it.
+var _overlay: DebugOverlay
 var _player: PlayerController
 var _level: Node
 var _level_kind := PhaseSpec.Level.NONE
@@ -61,6 +73,10 @@ func _ready() -> void:
 	ui.esc.resume_requested.connect(ui.close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
+	if OS.is_debug_build():
+		_overlay = DebugOverlay.new()
+		_overlay.name = "DebugOverlay"
+		ui.add_child(_overlay)
 	var args := OS.get_cmdline_user_args() if read_command_line else launch_args
 	options = LaunchOptions.parse(args, true)
 	if not options.problem.is_empty():
@@ -186,6 +202,11 @@ func avatars() -> AvatarViews:
 	return _avatars
 
 
+## The debug overlay; null in a release build.
+func overlay() -> DebugOverlay:
+	return _overlay
+
+
 func _process(_delta: float) -> void:
 	_check_runner()
 	var now := screen()
@@ -196,11 +217,13 @@ func _process(_delta: float) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	ui.show_screen(now)
 	if _client != null:
-		ui.refresh(_client.model, mode, _client.model.snapshot_tick, hosting())
+		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
+	_refresh_overlay()
 	if _player != null:
 		_player.set_physics_process(not GameFlow.frozen(now))
-		_player.reads_device_input = not GameFlow.frozen(now) and not ui.esc_open()
-		if not _player.reads_device_input:
+		var listening := not GameFlow.frozen(now) and not ui.esc_open()
+		_player.reads_device_input = device_input and listening
+		if not listening:
 			# Nothing reads the keys now: W held when Esc opened must not keep walking.
 			_player.move_input = Vector2.ZERO
 			_player.sprint_held = false
@@ -208,6 +231,10 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _overlay != null and event.is_action_pressed(&"debug_overlay"):
+		_overlay.visible = not _overlay.visible
+		get_viewport().set_input_as_handled()
+		return
 	if _client == null or not event.is_action_pressed(&"ui_cancel"):
 		return
 	if ui.esc_open():
@@ -249,9 +276,14 @@ func _start_client(transport: NetTransport) -> void:
 	_client.ended.connect(_end_session)
 	_session_node = SessionNode.new(_client)
 	_session_node.name = "SessionNode"
-	_session_node.clock = clock
 	add_child(_session_node)
+	_buffer = SnapshotBuffer.new()
+	_client.snapshot_received.connect(_on_snapshot)
+	_client.event_received.connect(_avatars.on_event)
 	_avatars.model = _client.model
+	_avatars.buffer = _buffer
+	_avatars.rules = mode.player_rules
+	_avatars.clock = clock
 
 
 func _on_welcomed(own_peer: int) -> void:
@@ -259,8 +291,14 @@ func _on_welcomed(own_peer: int) -> void:
 	print("session: welcomed as %s [%d]" % [member.name if member != null else "?", own_peer])
 	_sync_level()
 	_player = PLAYER.instantiate() as PlayerController
+	_player.rules = mode.player_rules
+	_player.attach(_client)
 	_world.add_child(_player)
 	_place(_client.model.spots.get(own_peer, Vector3.ZERO) as Vector3, Vector3.ZERO)
+
+
+func _on_snapshot(tick: int, avatars: Dictionary) -> void:
+	_buffer.add(tick, avatars, _avatars.now_usec())
 
 
 func _on_corrected(position: Vector3, velocity: Vector3) -> void:
@@ -283,6 +321,18 @@ func _on_map_loaded(_path: String, scene: PackedScene) -> void:
 func _on_event(event_name: StringName, _fields: Dictionary) -> void:
 	if event_name == &"PhaseChanged":
 		_sync_level()
+	_sync_life()
+
+
+## The own player crawls while its own life fold says downed (a KnockedDown naming it), and walks
+## again once the fold forgets it (a new match, the lobby). Only a change switches the body, since
+## switching stops it.
+func _sync_life() -> void:
+	if _player == null:
+		return
+	var downed := _client.model.life_of(_client.model.own_peer) == ClientModel.Life.DOWNED
+	if _player.ghost != downed:
+		_player.ghost = downed
 
 
 ## The level of the current phase: the lobby, loaded at once when a lobby phase starts; a map
@@ -336,6 +386,8 @@ func _end_session(reason: StringName) -> void:
 	_session_node = null
 	_client = null
 	_avatars.model = null
+	_avatars.buffer = null
+	_buffer = null
 	_avatars.clear()
 	_clear_level()
 	if _player != null:
@@ -343,6 +395,21 @@ func _end_session(reason: StringName) -> void:
 		_player = null
 	_show_menu(reason)
 	_ending = false
+
+
+## The overlay's numbers, while it shows: the own client's, and on the host the session's counters.
+func _refresh_overlay() -> void:
+	if _overlay == null or not _overlay.visible:
+		return
+	var counters: Dictionary[StringName, int] = {}
+	if _client == null:
+		_overlay.show_numbers(-1, -1, -1, 0.0, counters)
+		return
+	if _host != null:
+		counters = _host.counters()
+	_overlay.show_numbers(
+		_client.corrections, _client.placements, _avatars.host_tick(), _avatars.delay_ms(), counters
+	)
 
 
 func _show_menu(reason: StringName, detail := "") -> void:

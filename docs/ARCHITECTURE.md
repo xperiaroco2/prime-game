@@ -897,7 +897,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
   `ClientModel` (the fold). What the build pinned:
   - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
-    and sends the claim that is due. The client tick counts `Ticks.RATE` ticks from the first step; a step sends at
+    and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
+    physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
+    of travel in a claim of one client tick, past the crawl's allowance. The client tick counts `Ticks.RATE` ticks
+    from the first step; a step sends at
     most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
     (`set_motion`, `count_jump`) and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
     reset the jump count and put the claims at the host's position.
@@ -1132,7 +1135,7 @@ host's own player sees only what its `ClientSession` decoded.
 |---|---|---|
 | -100 | `HostNode`, on a host | `HostSession.step` (§4.5); its messages to the own client are read in this frame |
 | -90 | `SessionNode` | `ClientSession.step`: poll, decode, fold into `ClientModel`, fire the signals (a `Correction` teleports the player before it moves), advance a map load, send the `MoveClaim` due |
-| -80 | `Avatars` | place every remote body at its interpolated pose, so the local push search sees this frame's capsules (`sync_to_physics` off, below) |
+| -80 | `Avatars` | place every remote body at its interpolated pose, so the local push search sees this frame's capsules (static bodies placed with `force_update_transform()`, below) |
 | 0 | `Player` | read input, move, then `set_motion` for the next claim (one physics frame, 1/60 s, old when it is sent) |
 | `_process` | the views, the cameras, `Ui` | draw from `ClientModel` and the interpolated poses |
 
@@ -1184,15 +1187,14 @@ one that accepts `ReturnToLobby` or a match with a winner the end screen, any ot
 (the reasons in words; it writes the host's own reasons as ids, since `client/` may not name `HostSession`, and a
 test pins them to `server/`'s). `client/ui/` holds the screens, built in code under `GameUi` (the `Ui` layer):
 `MainMenu`, `ConnectingScreen`, `LobbyPanel`, `LoadingScreen`, `EndScreen` and `EscMenu`. `client/world/avatar_views.gd`
-(`Avatars`, -80) shows a `RemotePlayerBody` per other player at the newest snapshot's position, which M4-7 replaces
+(`Avatars`, -80) showed a `RemotePlayerBody` per other player at the newest snapshot's position, which M4-7 replaced
 with `SnapshotBuffer`'s poses. What the build pinned:
 - `HostNode` is the façade: `HostNode.host(transport, mode, port)` (and a clock for tests), `is_running()`,
   `own_client`, `errors`, `end_reason`, `ended`, `counters()` (debug builds only), `skip_replay()` and `close()`; the
   session is private. The source test also fails on a path into `server/` (a preload; `app/` may name
   `host_node.gd`) and on `._session`, HostNode's private field.
-- The countdown shows `end_tick` minus the newest snapshot's tick, M4-7's estimate's stand-in; the local player stands
-  still (no physics step) outside the lobby and the round, and claims only where `Welcome` and each `Correction` put
-  it until M4-7 sends its motion.
+- The countdown showed `end_tick` minus the newest snapshot's tick until M4-7's estimate replaced it; the local
+  player stands still (no physics step) outside the lobby and the round.
 - The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`); loading and the end
   read no device input, and under the Esc menu the held keys are cleared. Welcome and each `Correction` place the
   player through `PlayerController.teleport()`.
@@ -1223,23 +1225,60 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   the client's own copy of the mode's `PlayerRules` when its session starts (the content hash makes it the host's);
   `client/player/player_tuning.tres` keeps only client feel (the push factors, the view's easing). Prevents: a walk
   speed changed in `base_mode.tres` but not in `player_tuning.tres`, and every claim corrected.
-- **Stamina** (E24): `PredictedStamina`, the rule `LocalStamina` holds today (the client's only copy of
-  `StaminaLedger`'s), predicts between `SelfStatus` updates and takes each one's numbers as it arrives; the HUD shows
+- **Stamina** (E24): `PredictedStamina`, which replaced `LocalStamina` (the client's only copy of
+  `StaminaLedger`'s rule), predicts between `SelfStatus` updates and takes each one's numbers as it arrives; the HUD shows
   the prediction, and sprint and jump are gated by it.
 - **Remote players** (E23): `SnapshotBuffer` (pure, unit-tested) keeps the newest snapshots by host tick, estimates
   the host tick from a sliding window of arrivals (not an all-time maximum, §7's lesson), and gives each remote
   player's position and facing, interpolated linearly, and its newest velocity, used only to pick an animation, so a
   claimed velocity never moves a body on another screen, at the estimate minus a delay: one tick plus the jitter seen
   over the window, from 100 ms to 250 ms (placeholders, "not a decision"). Past the newest snapshot a player holds
-  still (no extrapolation); a placement or a respawn snaps. The bodies stay `AnimatableBody3D` capsules on the living
-  layer, with `sync_to_physics` off: they are teleported, not animated platforms, and with it on (the default) a
-  transform set in `_physics_process` is applied as kinematic motion during the physics step, so the local push
-  search at priority 0 would still see the previous frame's capsules. M4-7's two-client push test asserts that the
-  push search sees the pose set at -80 in the same frame.
+  still (no extrapolation); a placement or a respawn snaps. The bodies are capsules on the living layer that are
+  teleported, and the push search at priority 0 must see where in the same frame. The design said `AnimatableBody3D`
+  with `sync_to_physics` off; M4-7 found that not enough on 4.7.2 with Jolt: a transform set in `_physics_process`
+  reaches the physics server only after the whole pass unless the node calls `force_update_transform()`, and a
+  kinematic body (`AnimatableBody3D` with `sync_to_physics` on or off, `CharacterBody3D`) shows a teleport to shape
+  queries only after the physics step, even set on the server directly. So `RemotePlayerBody` is a `StaticBody3D`
+  placed with `force_update_transform()`; nothing collides with it as a wall (the controller's mask is the world).
+  M4-7's two-client push tests assert every frame that the server holds the pose set at -80 and that a shape query on
+  the living layer, as the push search's, finds the capsule there and not where it was a frame before (an
+  `AnimatableBody3D` failed both on most frames a body moved, 30 to 173 per test, even with `force_update_transform()`).
 - **The crawl** (M4-9): a downed controller moves at the crawl speed, with no sprint and no jump, up the step height,
   colliding with the level only and pushing nobody; it keeps the standing capsule for collision (the host's floor
   checks use it), and only its mesh lies down. Physics layer 3 becomes `downed` (`PhysicsLayers`), which no push
   search looks at: the downed collide with no player.
+
+**Built in M4-7 (#143)**, movement on the network:
+- `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
+  `ClientSession`, ends every physics step with `set_motion` (the camera's look vector as the facing) and
+  `count_jump` at a jump, and sets its `PredictedStamina` from each `SelfStatus`; `PlayerTuning` holds the push
+  factors and the view's easing only. `RemotePlayerBody` takes its capsule and eye height from the rules, turns the
+  body by the yaw and the head (a visor) by the pitch, and is a `StaticBody3D` (above).
+- `client/world/`: `SnapshotBuffer` (pure) and `AvatarViews`, which draws from it at -80, snaps the players a
+  `PlayersPlaced` names (no blend across a tick within one of the event's estimated tick, since events and
+  snapshots travel on different lanes), forgets the poses at `LoadMatch` and gives the estimated host tick
+  (`host_tick()`) and the delay. A teleport too far for anyone to walk in the time between two snapshots (30 m/s, a
+  placeholder) also snaps.
+- `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
+  count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
+  (`PLACING_EVENTS`: `PlayersPlaced` and `KnockedDown`; a death sends no `Correction`; a later rule that places a
+  player with a `Correction`, a revive or a respawn, adds its event there).
+- `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
+  countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
+  debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
+  for `shot`).
+- Tests: `tests/unit/client/world/snapshot_buffer_test.gd` (jitter, loss, a freeze and its burst, a lasting rise of
+  the latency, degenerate facings, placements), `tests/unit/client/player/predicted_stamina_test.gd` (against
+  `StaminaLedger` after every tick), `tests/unit/client/net/client_session_snapshots_test.gd`,
+  `tests/unit/client/ui/debug_overlay_test.gd`, `tests/integration/client/world/avatar_views_test.gd`, and over a
+  `LoopbackHub` with a `HostSession` (`net_pair.gd`: a host and a joined `Game`, each in a world of its own, on a
+  simulated clock, in `tests/fixtures/client/steps_room.tscn`): `player_network_test.gd` (the real controller walks,
+  sprints up steps, jumps and walks down with 0 corrections; a teleport the test forces is corrected once; the round's
+  placement is one placement and no correction, and the placed joiner snaps on the host's screen; the overlay shows
+  each side its numbers) and
+  `player_network_push_test.gd` (the two-client pushes at the interpolation delay, the same-frame pose asserted).
+- Not headless: how the others look moving, the overlay's key and the feel; the one-PC playtest (the M4 ADR's §6)
+  checks them, and the two-machine one records its movement notes on #76.
 
 **The revision in 3D.**
 - **The life fold** (E25): `ClientModel` keeps each player's life from the public events (`KnockedDown` downed,
@@ -1476,11 +1515,20 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
 ## 7. Movement
 
 Client-side movement for the local player; the host checks speed and teleports; remote players are interpolated.
-*Open (M4):* snapshot rate, tolerances, correction policy. The core tick rate is set in §3.3; what the host checks, in
-§7.1. The snapshot's wire format (avatars only) is §4.3; M3 sends one every tick in the phases that send snapshots,
-a placeholder rate that M4 may reduce.
-The M4 design (§4.7, E22, E23) keeps 20 Hz snapshots, draws remote players behind an estimated host tick with an
-adaptive delay, and leaves the tolerances to #76 and the M4 playtests.
+The core tick rate is set in §3.3; what the host checks, in §7.1. The snapshot's wire format (avatars only) is §4.3.
+- **Snapshot rate:** one per host tick (20 Hz) in the phases that send snapshots, kept by M4 (E22): the spectate
+  camera is built from them.
+- **Interpolation** (M4-7, E23): `SnapshotBuffer` draws remote players behind a host tick estimated from a 2 s
+  sliding window of arrivals, by one tick plus the jitter of that window, within 100 to 250 ms (placeholders), with
+  no extrapolation (§4.7, Movement on the network). On a simulated network with 0 to 100 ms of jitter it holds on
+  about 0.2 % of frames where a fixed 100 ms holds on 16 % (the spike's lesson below; `snapshot_buffer_test.gd`).
+- **Correction policy:** the host corrects a claim that fails a check of §7.1 with a `Correction` of a new epoch; the
+  client adopts it at once (`ClientSession.corrected` teleports the controller before it moves) and counts it, and
+  the debug overlay (F3) shows the count: honest play gets none. A placement's or a knockdown's `Correction` (right
+  after a `PlayersPlaced` or a `KnockedDown` naming the client) is counted apart, as a placement. The tolerances stay placeholders until #76 and the
+  M4 playtests. Found by M4-7's test: on stairs whose treads are narrower than the capsule (0.3 m against 0.8 m) the
+  host corrects an honest climb, walking or sprinting, because the landing floor it finds with five rays under the
+  footprint lies below the stair edge the capsule rests on; 0.5 m treads pass. That is #76's slope rise to settle.
 
 Lessons from the M1 spike (#13, #14):
 - A starting point: 20 Hz snapshots, remote players drawn 2 ticks (100 ms) behind an estimated host clock. The
@@ -1497,27 +1545,32 @@ Lessons from the M1 spike (#13, #14):
   matter. Inputs expire or are bound to a tick, so a killed client's last intent does not keep it moving.
 
 The local player's controller (#46, `client/player/`):
-- `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its numbers (speeds, jump height, capsule,
-  eye and step height, stamina) live in one resource, `client/player/player_tuning.tres` (`PlayerTuning`), whose
-  script defaults are 0 so no number is repeated in code. `core/` has the same numbers in the mode's `PlayerRules`
-  (§9.5, 2d); the client takes them from the mode when it joins a host (M3), and later content from the designer.
+- `PlayerController` is a `CharacterBody3D` with its origin at the feet. Its movement numbers (speeds, jump height,
+  capsule, eye and step height, stamina) are the client's own copy of the mode's `PlayerRules` (§9.5), the same
+  numbers `core/` checks with (M4-7); `client/player/player_tuning.tres` (`PlayerTuning`) keeps the client's feel
+  only (the push factors, the view's easing), with script defaults of 0 so no number is repeated in code.
 - Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step;
   a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
-  `LocalStamina` predicts with `core/`'s rule (`StaminaLedger`, 2d) and is the only copy of it on the client, until
-  the client follows `SelfStatus` (M3).
-- A ghost (`ghost = true`) takes the living's path: the same capsule, gravity, floor, steps, slopes and jump, at the
-  living's walk and sprint speeds times a factor in `PlayerTuning`. `StaminaSource` never refuses a ghost and records
-  nothing for it. There is no flight (the engineer's correction of 2026-09-30, #46). This is the client as built; the
-  host no longer accepts it: since M4-2 (#138) a downed player crawls (§7.1 The crawl), and M4-9 replaces the
-  client's ghost mode with the crawl.
+  `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
+  the only copy of it on the client, and takes each `SelfStatus`'s number as it arrives.
+- A ghost (`ghost = true`, the downed player; M4-9 renames it and gives it the lying pose and camera) crawls as the
+  host's crawl check allows (§7.1 The crawl, M4-2): the living's capsule, gravity, floor, steps and slopes at
+  `PlayerRules.crawl_speed_mps`, with no sprint and no jump; `StaminaSource` refuses both to the downed, and their
+  stamina regenerates as usual. There is no flight (the engineer's correction of 2026-09-30, #46). `Game` sets the
+  flag from its own life fold (a `KnockedDown` naming its peer) and clears it when the fold forgets it. A downed
+  crawl over the loopback, holding sprint and asking to jump, is corrected 0 times, also on a clock that stands still
+  and then jumps, and up the fixture's steps (`player_network_test.gd`).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
   2 `living_players`, 3 `ghosts`. The living and ghosts collide with the world only; a living player finds the
-  other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other living players
-  are `RemotePlayerBody` kinematic capsules that only their owner's data moves.
+  other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other players are
+  `RemotePlayerBody` capsules that only their owner's data moves, on layer 2 while the client's life fold says they
+  are living and on layer 3 otherwise (a downed player pushes nobody and nobody pushes it).
 - Steps: `move_and_slide` stops a capsule at any ledge, so the controller lifts itself onto a ledge up to the step
-  height and glides over the edge until it snaps onto the top. What blocks it must be a ledge: a walkable blocker (a
-  ramp, a low edge under the rounded bottom) is left to `move_and_slide`, and a ledge whose top is steeper than
-  `floor_max_angle` (a steep slope, a round prop) is no step. Only the body jumps up; the view eases after it and
+  height and glides over the edge until it snaps onto the top. While it glides, `move_and_slide`'s own snap is off
+  and a snap that lands below the ledge's top is undone: at a slow walk or the crawl it would catch the edge under
+  the rounded bottom, which the body then rested on for good (found at the crawl's 1 m/s on 0.3 m treads). What
+  blocks it must be a ledge: a walkable blocker (a ramp, a low edge under the rounded bottom) is left to
+  `move_and_slide`, and a ledge whose top is steeper than `floor_max_angle` (a steep slope, a round prop) is no step. Only the body jumps up; the view eases after it and
   lags at most one step height. A jump's take-off speed is solved for the physics step so the ballistic peak is the
   jump height.
 - For the host's movement checks (`MovementRule`, 2d, covers both): the controller crosses a ledge's edge `STEP_CLEARANCE` (0.01 m)

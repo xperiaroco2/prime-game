@@ -12,6 +12,7 @@ const ACTIONS: Array[StringName] = [
 	&"interact",
 	&"put_down",
 	&"use",
+	&"debug_overlay",
 ]
 
 
@@ -32,6 +33,16 @@ func test_put_down_is_q() -> void:
 		if key != null:
 			keys.append(key.physical_keycode)
 	assert_array(keys).contains([KEY_Q])
+
+
+func test_the_debug_overlay_is_f3() -> void:
+	# The M4 ADR's controls (D6): F3 shows the debug overlay in a debug build.
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"debug_overlay"):
+		var key := event as InputEventKey
+		if key != null:
+			keys.append(key.physical_keycode)
+	assert_array(keys).contains([KEY_F3])
 
 
 func test_ghosts_have_no_fly_down_action() -> void:

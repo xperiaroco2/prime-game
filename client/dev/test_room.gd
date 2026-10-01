@@ -3,7 +3,7 @@ extends Node3D
 ## height, a ledge above it, a doorway, and dummy players. Run it (it opens a window):
 ##   tools\run.cmd run client/dev/test_room.tscn
 ## Click to capture the mouse, Esc to release it. WASD, Shift to sprint, Space to jump.
-## F1 toggles ghost mode (it moves like the living, without spending stamina, and pushes nobody),
+## F1 toggles ghost mode (the downed: it crawls, never sprints or jumps, and pushes nobody),
 ## F2 puts the player and the dummies back where they started.
 ## Dummies: green stands in the doorway and can be pushed; yellow walks back and forth across the
 ## room and pushes whoever is in its way. Both are player controllers in this same world, so they
@@ -11,9 +11,12 @@ extends Node3D
 ## moves them, like a frozen client: the player pushes into them and slides round them.
 
 const PLAYER_SCENE := preload("res://client/player/player.tscn")
+## The movement numbers come from the game's mode, as in the game.
+const MODE := "res://content/modes/base_mode.tres"
 ## Where the yellow walker turns back, in metres from the room's middle along X.
 const WALK_TURN_X := 6.0
 
+var _rules: PlayerRules = (load(MODE) as GameMode).player_rules
 var _pushable: PlayerController
 var _walker: PlayerController
 ## Where the pushable dummy and the walker start, for F2.
@@ -25,6 +28,9 @@ var _starts: Array[Transform3D] = []
 
 
 func _ready() -> void:
+	_player.rules = _rules
+	for remote: RemotePlayerBody in [$DummyBlue, $DummyRed]:
+		remote.rules = _rules
 	_pushable = _add_dummy(Vector3(-4.0, 0.0, -5.5), Color(0.3, 0.75, 0.35))
 	_walker = _add_dummy(Vector3(-WALK_TURN_X, 0.0, 1.5), Color(0.9, 0.8, 0.2))
 	# A quarter turn to the right: it walks toward +X.
@@ -64,16 +70,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _add_dummy(at: Vector3, color: Color) -> PlayerController:
 	var dummy := PLAYER_SCENE.instantiate() as PlayerController
 	dummy.reads_device_input = false
+	dummy.rules = _rules
 	(dummy.get_node("Head/Camera3D") as Camera3D).current = false
 	var mesh := CapsuleMesh.new()
-	mesh.radius = dummy.tuning.capsule_radius
-	mesh.height = dummy.tuning.capsule_height
+	mesh.radius = _rules.capsule_radius_m
+	mesh.height = _rules.capsule_height_m
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	mesh.material = material
 	var body := MeshInstance3D.new()
 	body.mesh = mesh
-	body.position = Vector3(0.0, dummy.tuning.capsule_height * 0.5, 0.0)
+	body.position = Vector3(0.0, _rules.capsule_height_m * 0.5, 0.0)
 	dummy.add_child(body)
 	dummy.position = at
 	add_child(dummy)
