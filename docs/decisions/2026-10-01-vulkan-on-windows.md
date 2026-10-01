@@ -49,7 +49,8 @@ test was not repeated on it with Vulkan.
 ## Consequences
 - Windowed runs on one PC (the editor plus runner windows, `host` and `join` with windows in M4) no longer meet the
   #21 freeze, as far as the 10 runs show.
-- If Godot ever changes the engine default for Windows, an empty `project.godot` follows it silently: the review
-  before M6, or `shot`'s `renderer:` line, shows the driver in use.
+- If Godot ever changes the engine default for Windows, an empty `project.godot` would follow it. The unit test
+  `tests/unit/tools/rendering_driver_test.gd` fails then (and on a `d3d12` override), so `verify` and CI catch it;
+  `shot`'s `renderer:` line shows the driver a window actually used.
 - A Windows machine without Vulkan support would need `--rendering-driver d3d12`; none of the humans' machines is
   known to lack it.
