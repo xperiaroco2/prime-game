@@ -1296,9 +1296,11 @@ never opens a window on a human's screen.
 so it skips the menu, and stops cleanly for the runner as the headless session does. The console exe (`GODOT_BIN`)
 opens them, since the runner reads each process's lines (the host's `session: hosting` starts the clients; a host
 that prints `session: cannot host` stays at its menu and gets none). A host and its `--clients` are tiled in a grid
-over the primary screen's work area (`--position` and `--resolution`, 16:9, below each title bar and inside its frame; a lone window goes
-where the system puts it); a windowed host on every interface prints what to type on another PC. `--windows` opens
-windows where `CLAUDECODE` is set; agents never pass it. They run until Ctrl+C, `--seconds` or every window closed.
+over the primary screen's work area (`--position` and `--resolution`, 16:9, below each title bar and inside its
+frame; a lone window goes where the system puts it); a windowed host on every interface prints what to type on
+another PC. `--windows` opens windows where `CLAUDECODE` is set; agents never pass it. They run until Ctrl+C,
+`--seconds` or every window closed. A window never welcomed into a lobby fails the run with the game's `cannot host`
+or `ended:` line, since the game exits 0 from its menu.
 Tests: `tools/runner/tests/test_hostjoin.py` builds the command lines without starting Godot (the defaults, the
 tiles, `--headless`), and `verify`'s `game` step runs `game.tscn` headless through that command line: a host
 (`--local --no-replay`) and one client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then
