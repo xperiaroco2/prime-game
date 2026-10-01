@@ -56,10 +56,16 @@ static func on_target(state: MatchState, peer: int) -> Channel:
 ## Whether a running channel holds `peer` in place (ChannelEffect.holds_target: the raise holds the
 ## downed player it raises; MovementRule corrects any displacement of its claims).
 static func holds(state: MatchState, peer: int) -> bool:
+	return holding(state, peer) != null
+
+
+## The first running channel, in actor-id order, that holds `peer` in place, or null. Its held_at is
+## where `peer` is held.
+static func holding(state: MatchState, peer: int) -> Channel:
 	for channel: Channel in running(state):
 		if channel.target == peer and channel.effect.holds_target():
-			return true
-	return false
+			return channel
+	return null
 
 
 ## Every running channel, in actor-id order.

@@ -433,6 +433,26 @@ func test_a_raise_restarted_again_and_again_cannot_move_the_downed_player() -> v
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_claims_within_the_slack_do_not_add_up_to_a_move() -> void:
+	var game := _downed()
+	var downed := game.state.player(P2)
+	var lies := downed.position
+	FixtureMoves.claim(game, P2, lies)
+	FixtureModes.run_ticks(game, 1)
+	FixtureCombatModes.raise(game, P3, P2)
+	var corrected := FixtureMoves.corrections(game, P2).size()
+	# Each claim lies 0.8 mm past the last one (under MovementRule.HOLD_SLACK_M, 1 mm): the first
+	# passes, the second is 1.6 mm from where the raise started and is corrected.
+	var step := Vector3(0.0008, 0, 0)
+	FixtureMoves.claim(game, P2, lies + step)
+	FixtureModes.run_ticks(game, 1)
+	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected)
+	FixtureMoves.claim(game, P2, lies + step * 2)
+	FixtureModes.run_ticks(game, 1)
+	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(corrected + 1)
+	assert_float(downed.position.distance_to(lies)).is_less_equal(MovementRule.HOLD_SLACK_M)
+
+
 func test_a_raise_running_when_the_round_ends_stops_before_the_phase_changes() -> void:
 	var game := _downed()
 	var downed := game.state.player(P2)

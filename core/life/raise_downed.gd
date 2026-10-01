@@ -30,9 +30,11 @@ func started(ctx: MatchContext, channel: Channel) -> void:
 	var downed := ctx.state.player(channel.target)
 	if downed == null or downed.life != PlayerState.Life.DOWNED:
 		ctx.error("RaiseDowned: player %d is not downed" % channel.target)
-	elif downed.life_deadline >= 0:
-		downed.knockdown_left = maxi(0, downed.life_deadline - ctx.tick)
-		downed.life_deadline = -1
+	else:
+		channel.held_at = downed.position
+		if downed.life_deadline >= 0:
+			downed.knockdown_left = maxi(0, downed.life_deadline - ctx.tick)
+			downed.life_deadline = -1
 	ctx.emit(RaiseStartedEvent.new(channel.actor, channel.target))
 
 

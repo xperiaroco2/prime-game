@@ -1756,8 +1756,9 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   just above where it lies (`Items.lifted`) is clear; one raiser at a time. So a raiser who walks away or loses
   sight stops the raise on the next tick. The raiser may move while it holds E and may hold the package. While a
   raise runs, the downed player is **held in place** (the engineer's answer 8 on PR #133): a claim farther than
-  `MovementRule.HOLD_SLACK_M` (1 mm, for the wire's 32-bit floats) from its last accepted position, in any
-  direction, is corrected (`MovementRule.held_against`, from `Channels.holds`), so a teammate who restarts a raise
+  `MovementRule.HOLD_SLACK_M` (1 mm, a margin for the client's physics, not for the wire) from where the raise
+  started (`Channel.held_at`), in any direction, is corrected (`MovementRule.held_against`, from
+  `Channels.holding`), so no run of claims a hair apart adds up to a move, and a teammate who restarts a raise
   just short of its time again and again keeps a downed package carrier alive (the pause) but cannot carry it
   anywhere; giving up is the way out. A completed raise sends no `Correction`: the player stands where the host has
   it, and its next claim is checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd`.

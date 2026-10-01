@@ -20,3 +20,7 @@ var started_tick := 0
 var done_ticks := 0
 ## The ticks it needs: it completes in the tick that reaches them.
 var total_ticks := 0
+## Where its target stood when it started, when its effect holds the target in place
+## (ChannelEffect.holds_target; RaiseDowned sets it): the movement rule measures every claim of the
+## held target from here, so no run of small claims adds up to a move.
+var held_at := Vector3.ZERO
