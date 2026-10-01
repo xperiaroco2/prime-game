@@ -37,7 +37,8 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   a freed scene would take the `HostNode` and the session with it.
 - Spectating is built on the dead player's own client from the public snapshot. The target is drawn with the
   client's own seeded generator and never sent; there is no target HUD, health, stamina, role or private event.
-- The downed camera stays at or below the standing eye height above the body and never passes through the level.
+- The downed camera stays at or below the standing eye height above the body and never passes through the level,
+  and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7).
 - A world sound plays only within the hearing range of the listener's camera (E33, proposed); a fading sound with
   no cut-off tells everyone, through walls, where a package was put down.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.

@@ -1156,7 +1156,11 @@ test, like `net/`'s "names no `core/` class"). So the host's own player sees onl
 - **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
   (`PlayerRules.eye_height_m`), pointing back along the look, never above its pivot (the arm's pitch is clamped to
   level or lower), with `collision_mask` the world layer and a small sphere `shape`, so it stops before a wall rather
-  than looking through it. Its length is a placeholder (2 m, "not a decision").
+  than looking through it. Its length is a placeholder (2 m, "not a decision"). The arm alone would still see past
+  the end of a short wall the body lies against, more than standing at the body would (vision revision 1): so while
+  this camera is in use (the own player downed, or a spectator watching a downed target) every remote avatar, item
+  and body view with no line of sight from the pivot is hidden, one ray per object per physics frame against the
+  world layer; the level stays drawn, since it is public.
 - **Countdowns** (V13) follow from public events and the mode's numbers: the knockdown's from `KnockedDown` of the
   own player, paused from `RaiseStarted` to `RaiseStopped` or `Revived`; the respawn's from `Died`; a raise's progress
   from `RaiseStarted`, for the raiser and the raised. An event's host tick is taken as the tick of the first snapshot
@@ -1201,7 +1205,8 @@ test, like `net/`'s "names no `core/` class"). So the host's own player sees onl
 
 **What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
-the downed camera at or below eye height and never through the level; no screen with an item's or a player's
+the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
+eye; no screen with an item's or a player's
 position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
 public circles only); a role named only on its own player's screen (a dissident's teammates on theirs); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
@@ -1219,7 +1224,8 @@ never opens a window on a human's screen.
 `SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
 `tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
 sprinting, jumping and climbing steps through a `ClientSession` over a `LoopbackHub` to a `HostSession` on a fixture
-level is corrected 0 times; the downed camera against a fixture wall never rises above eye height or passes the wall;
+level is corrected 0 times; the downed camera against a fixture wall never rises above eye height or passes the wall,
+and an item visible from the arm's end but not from the pivot is hidden;
 the two-client push runs over the loopback with the interpolation delay. Input and UI cannot run headless: every
 screen and view gets a `shot` of its preview scene in `client/dev/`, and the playtests of the ADR's §6 check the
 rest.

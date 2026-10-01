@@ -96,7 +96,12 @@ design routes it for M4's client PRs, although the root routing names it only fo
 2. Spectating renders the public snapshot only: no target HUD, health, stamina, role, teammates or private event;
    the target is never told and nothing about it is sent; the target is drawn with the client's own generator.
 3. The downed camera stays at or below the standing eye height above the body and never passes through the level
-   (answer 9 (a)); from its arm's length behind the body it sees what a player standing there would.
+   (answer 9 (a)), and it shows over cover or around corners no more than standing at the body would (vision
+   revision 1, the downed). The arm alone does not meet that: 2 m back with a wide view, it sees past the end of a
+   short wall the body lies against. So while the own player is downed, or a spectator watches a downed target,
+   `client/life/` hides every remote avatar, item and body view with no line of sight from the arm's pivot (the
+   body's eye): one ray per object per physics frame against the world layer. The level itself is public and stays
+   drawn.
 4. The task screen shows each task's type, description and shared progress: no position of an item, a player or a
    spawn point, and no map (answer 2).
 5. No screen lists items or players with a position or a distance: an item is seen only where it lies in the 3D
