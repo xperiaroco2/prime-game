@@ -48,6 +48,7 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	for game: Game in games:
 		assert_int(game.level_kind()).is_equal(PhaseSpec.Level.MAP)
 		assert_bool(game.mode.maps.has(game.level().scene_file_path)).is_true()
+		assert_bool(game.player().reads_device_input).is_true()
 	# The others are shown at the newest snapshot's positions.
 	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
 	# Time up: the end screen names the winning side by its display name.
@@ -57,6 +58,8 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 		assert_object(winner).is_not_null()
 		assert_str(game.ui.end.winner_label.text).is_equal("The %s won" % winner.display_name)
 		assert_bool(game.ui.end.back_button.visible).is_equal(game.hosting())
+		# No click outside the end screen's button captures the mouse again.
+		assert_bool(game.player().reads_device_input).is_false()
 	# The host's Back to lobby: the lobby level again, the match's facts gone.
 	host.return_to_lobby()
 	assert_bool(await _until(games, _all_on.bind(games, S.LOBBY, 3))).is_true()

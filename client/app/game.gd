@@ -43,6 +43,7 @@ var _level: Node
 var _level_kind := PhaseSpec.Level.NONE
 var _ending := false
 var _last_stop_check_ms := 0
+var _screen := GameFlow.Screen.MENU
 
 @onready var ui: GameUi = $Ui
 @onready var _world: Node3D = $World
@@ -178,12 +179,17 @@ func avatars() -> AvatarViews:
 func _process(_delta: float) -> void:
 	_check_runner()
 	var now := screen()
+	if now != _screen:
+		_screen = now
+		# A mouse captured in the round would stay captured on the end screen's button.
+		if GameFlow.frees_pointer(now):
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	ui.show_screen(now)
 	if _client != null:
 		ui.refresh(_client.model, mode, _client.model.snapshot_tick, hosting())
 	if _player != null:
 		_player.set_physics_process(not GameFlow.frozen(now))
-		_player.reads_device_input = not ui.esc_open()
+		_player.reads_device_input = not GameFlow.frozen(now) and not ui.esc_open()
 
 
 func _input(event: InputEvent) -> void:

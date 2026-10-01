@@ -55,6 +55,13 @@ static func frozen(screen_now: Screen) -> bool:
 	return screen_now != Screen.LOBBY and screen_now != Screen.ROUND
 
 
+## Whether showing `screen_now` frees a captured mouse: every screen but the round has buttons
+## (the lobby's Ready, the end screen's Back to lobby). In the lobby a click outside the panel
+## captures it again for looking around.
+static func frees_pointer(screen_now: Screen) -> bool:
+	return screen_now != Screen.ROUND
+
+
 ## Seconds left until `end_tick` (a countdown's or the match clock's end), from the newest host
 ## tick this client knows; -1 when none runs. M4-7's SnapshotBuffer gives a better estimate.
 static func seconds_left(end_tick: int, host_tick: int) -> int:

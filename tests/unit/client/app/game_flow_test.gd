@@ -59,6 +59,12 @@ func test_the_player_stands_still_outside_the_lobby_and_the_round() -> void:
 		assert_bool(GameFlow.frozen(screen)).is_false()
 
 
+func test_every_screen_but_the_round_frees_the_mouse() -> void:
+	for screen: S in [S.MENU, S.CONNECTING, S.LOBBY, S.LOADING, S.END]:
+		assert_bool(GameFlow.frees_pointer(screen)).is_true()
+	assert_bool(GameFlow.frees_pointer(S.ROUND)).is_false()
+
+
 func test_seconds_left_round_up_and_never_go_below_zero() -> void:
 	assert_int(GameFlow.seconds_left(-1, 10)).is_equal(-1)
 	assert_int(GameFlow.seconds_left(100, -1)).is_equal(-1)
