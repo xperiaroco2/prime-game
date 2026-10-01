@@ -43,6 +43,8 @@ POLL_SECONDS = 0.1
 # How often the runner touches its alive file (the script stops once it is ALIVE_SECONDS = 10 old).
 ALIVE_BEAT_SECONDS = 1.0
 LOG_DIR = LOGS / "session"
+# The supervision's own sleep, so a test can patch it without patching time.sleep for everyone.
+_sleep = time.sleep
 
 
 @dataclass
@@ -177,7 +179,7 @@ def supervise(
             while parts[0].running and not any(line.startswith(HOSTING) for line in parts[0].lines):
                 if time.monotonic() - started > HOST_READY_SECONDS:
                     break
-                time.sleep(POLL_SECONDS)
+                _sleep(POLL_SECONDS)
             if parts[0].running:
                 for part in parts[1:]:
                     start(part, cwd=cwd)
@@ -187,7 +189,7 @@ def supervise(
                 break
             if until is not None and until(parts):
                 break
-            time.sleep(POLL_SECONDS)
+            _sleep(POLL_SECONDS)
     except KeyboardInterrupt:
         say(f"session: Ctrl+C, stopping (each process gets {GRACE_SECONDS}s; Ctrl+C again kills them)")
     finally:
@@ -211,7 +213,7 @@ def _stop(parts: list[Part], stop: Path) -> None:
     try:
         deadline = time.monotonic() + GRACE_SECONDS
         while any(part.running for part in parts) and time.monotonic() < deadline:
-            time.sleep(POLL_SECONDS)
+            _sleep(POLL_SECONDS)
     except KeyboardInterrupt:
         pass
     finally:
@@ -261,7 +263,7 @@ def set_commands(parts: list[Part], exe: str) -> None:
         )
 
 
-def _run(name: str, parts: list[Part], seconds: int | None) -> int:
+def _run(name: str, parts: list[Part], seconds: int | None, stop: Path) -> int:
     exe = require_godot()
     ensure_out()
     launch.import_if_missing()
@@ -269,7 +271,7 @@ def _run(name: str, parts: list[Part], seconds: int | None) -> int:
     say(f"        {' '.join(parts[0].cmd[1:])}" + (f"  (+{len(parts) - 1} local clients)" if len(parts) > 1 else ""))
     if seconds is None:
         say(f"        {name} runs until Ctrl+C")
-    supervise(parts, seconds=seconds, stop=stop_file())
+    supervise(parts, seconds=seconds, stop=stop)
     write_logs(parts, LOG_DIR)
     return report(parts)
 
@@ -277,10 +279,12 @@ def _run(name: str, parts: list[Part], seconds: int | None) -> int:
 def host(*, port: int | None, clients: int, local: bool, seconds: int | None) -> int:
     say("host")
     check_options(port=port, clients=clients, seconds=seconds)
-    return _run("host", host_parts(port, clients, local=local, stop=stop_file()), seconds)
+    stop = stop_file()
+    return _run("host", host_parts(port, clients, local=local, stop=stop), seconds, stop)
 
 
 def join(address: str, *, port: int | None, seconds: int | None) -> int:
     say("join")
     check_options(port=port, seconds=seconds, address=address)
-    return _run("join", join_parts(address, port, stop=stop_file()), seconds)
+    stop = stop_file()
+    return _run("join", join_parts(address, port, stop=stop), seconds, stop)

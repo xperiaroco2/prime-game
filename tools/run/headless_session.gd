@@ -77,7 +77,6 @@ var _last_counters_ms := 0
 var _shown_roster := NOBODY
 var _shown_phase := ""
 var _shown_counters := ""
-var _pending_counters := ""
 
 
 ## The arguments after --.
@@ -225,11 +224,11 @@ func _show_changes() -> void:
 	if String(model.phase) != _shown_phase:
 		_shown_phase = String(model.phase)
 		print("session: phase: %s" % _shown_phase)
-	_pending_counters = _counters_text()
+	var counters := _counters_text()
 	var now_ms := Time.get_ticks_msec()
-	if _pending_counters != _shown_counters and now_ms - _last_counters_ms >= COUNTERS_INTERVAL_MS:
+	if counters != _shown_counters and now_ms - _last_counters_ms >= COUNTERS_INTERVAL_MS:
 		_last_counters_ms = now_ms
-		_shown_counters = _pending_counters
+		_shown_counters = counters
 		print("session: counters: %s" % _shown_counters)
 
 
@@ -275,7 +274,10 @@ static func _lan_addresses() -> PackedStringArray:
 
 
 func _on_peer_joined(peer: int) -> void:
-	print("session: peer %d connected" % peer)
+	if peer == NetTransport.HOST_ID:
+		print("session: own client connected")
+	else:
+		print("session: peer %d connected" % peer)
 
 
 func _on_peer_left(peer: int) -> void:

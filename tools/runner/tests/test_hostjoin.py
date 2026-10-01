@@ -150,7 +150,7 @@ class SupervisionTest(unittest.TestCase):
             real_sleep(seconds)
 
         parts = [fake("host", "host", self.stop), fake("client 2", "client", self.stop)]
-        with mock.patch.object(hostjoin.time, "sleep", interrupt_once):
+        with mock.patch.object(hostjoin, "_sleep", interrupt_once):
             self.run_parts(parts, seconds=None)
         self.assertIn("Ctrl+C, stopping", self.out.getvalue())
         self.assertEqual([p.problem for p in parts], ["", ""], self.out.getvalue())
