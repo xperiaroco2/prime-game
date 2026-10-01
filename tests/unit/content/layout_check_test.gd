@@ -151,6 +151,7 @@ func _mode_with_a_token_task() -> GameMode:
 	token.id = &"coin"
 	token.display_name = "Coin"
 	token.spawn_tag = &"coin"
+	token.hands = 1
 	var mode := FixtureDealModes.deal_mode([FixtureDealtTaskType.new(&"fixture_dealt", token, 3)])
 	mode.item_kinds.append(token)
 	return mode

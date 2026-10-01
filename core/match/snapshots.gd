@@ -5,7 +5,8 @@ extends RefCounted
 ## camera is built from these); a dead player has no avatar, so no snapshot holds one; bodies and
 ## items reach everyone; nobody gets their own avatar. The avatar's flag `downed` marks a downed
 ## player, and `invulnerable` one whom strikes skip at that tick (after a respawn or a revive,
-## vision revision 1: public, so nobody swings at it in vain unawares). Private numbers (health,
+## vision revision 1: public, so nobody swings at it in vain unawares). The hand and belt items are
+## public too (`held_item`, `belt_item`: vision revision 1, Two hands). Private numbers (health,
 ## stamina) are never avatar fields: they travel in SelfStatus.
 
 
@@ -25,6 +26,7 @@ static func for_peer(state: MatchState, viewer: int, at_tick: int) -> Dictionary
 			"downed": player.life == PlayerState.Life.DOWNED,
 			"invulnerable": player.is_invulnerable(at_tick),
 			"held_item": player.held_item,
+			"belt_item": player.belt_item,
 		}
 	var item_data := {}
 	for id: int in state.items:

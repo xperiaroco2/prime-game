@@ -20,7 +20,8 @@ extends RefCounted
 ##   KnockedDown (everyone) and Correction (the downed player only: its new epoch and position).
 ##   Its stamina is settled up to the knockdown first, as the living player it was: the ticks
 ##   since its last claim pay for its sprint, not regenerate as a downed player's would.
-##   Nothing drops: a downed player keeps its hand. No fact: no win condition reads a knockdown.
+##   Nothing drops: a downed player keeps its hand and belt items. No fact: no win condition reads
+##   a knockdown.
 ## - revive(): a downed player whose raise completed stands up where it lay, living, with the
 ##   raise's health (at most PlayerRules.health), its stamina as it was (settled first, as the
 ##   downed player it was: it regenerated), no deadline, and invulnerable (make_invulnerable). Then
@@ -32,11 +33,11 @@ extends RefCounted
 ##   accepted position, recorded in MatchState.bodies until it leaves or respawns; it has no
 ##   avatar any more, and no Correction is sent (the dead send no claims). Its respawn time runs out
 ##   `PlayerRules.respawn_s` later (PlayerState.life_deadline). Then, in this order:
-##   Died (everyone), the fact player_died, and only then the held item drops at the body
-##   (Items.place, `death`). The fact comes before the drop so a win condition that the death
-##   meets is checked before one that the dropped item meets (§3.4).
+##   Died (everyone), the fact player_died, and only then its items drop at the body, the hand's
+##   first, then the belt's (Items.place_carried, `death`). The fact comes before the drop so a win
+##   condition that the death meets is checked before one that a dropped item meets (§3.4).
 ## - respawn(): a dead player is living again at a respawn marker (Respawn draws it): its body is
-##   removed, its role kept, its health and stamina full, its hands empty, a new epoch (a
+##   removed, its role kept, its health and stamina full, its hand and belt empty, a new epoch (a
 ##   placement for the movement rule), and invulnerable (make_invulnerable). Then Respawned
 ##   (everyone; it removes the body, E26) and Correction (that player only), and its SelfStatus
 ##   at the end of the tick. No fact: no win condition reads a respawn.
@@ -45,8 +46,8 @@ extends RefCounted
 ## - leave(): every channel the player runs or is the target of stops first (RaiseStopped). The
 ##   life state becomes left, and a dead player's body is removed (a downed or dead
 ##   player who leaves leaves no body: the engineer's answer 1 on PR #133); PlayerLeft (everyone
-##   else), then the fact player_left, then the held item drops on the floor below where the
-##   player stood (Items.drop_held, `leave`).
+##   else), then the fact player_left, then its items drop on the floor below where the player
+##   stood, the hand's first, then the belt's (Items.drop_carried, `leave`).
 ##
 ## No event names an attacker or a cause (§4.2). The name is LifeRules, not Life, so that no global
 ## class shadows the enum PlayerState.Life.
@@ -96,7 +97,7 @@ static func knock_down(ctx: MatchContext, peer: int) -> void:
 	ctx.emit(CorrectionEvent.new(peer, downed.epoch, downed.position, downed.velocity))
 
 
-## `peer`, downed, dies: its body, Died, player_died, then the drop at the body.
+## `peer`, downed, dies: its body, Died, player_died, then both slots drop at the body.
 static func die(ctx: MatchContext, peer: int) -> void:
 	var dead := ctx.state.player(peer)
 	if dead == null or dead.life != PlayerState.Life.DOWNED:
@@ -115,10 +116,8 @@ static func die(ctx: MatchContext, peer: int) -> void:
 	fact.player = peer
 	fact.position = body
 	ctx.raise_fact(fact)
-	# The item rests at the body itself, not at a second floor query from the same point.
-	var held := Items.held_by(ctx.state, peer)
-	if held != null:
-		Items.place(ctx, held, body, Items.DEATH)
+	# The items rest at the body itself, not at a second floor query from the same point.
+	Items.place_carried(ctx, peer, body, Items.DEATH)
 
 
 ## `peer`, downed, stands up where it lies (a completed raise): living with `health` whole points
@@ -146,7 +145,8 @@ static func revive(ctx: MatchContext, peer: int, health: int) -> void:
 
 
 ## `peer`, dead, comes back at `at` (a respawn marker, which Respawn draws): its body goes, it is
-## living with its role, full health and stamina, empty hands and a new epoch, and invulnerable
+## living with its role, full health and stamina, an empty hand and belt and a new epoch, and
+## invulnerable
 ## (make_invulnerable). Respawned (everyone), then its Correction, then its SelfStatus (at the end
 ## of the tick).
 static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
@@ -158,10 +158,15 @@ static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
 	if rules == null:
 		ctx.error("respawn: the mode has no PlayerRules")
 		return
-	if back.held_item >= 0:
-		# The death dropped it (die); a hand still full is a rule error, and the item drops here.
-		ctx.error("respawn: player %d still holds item %d" % [peer, back.held_item])
-		Items.drop_held(ctx, peer, Items.DEATH)
+	if back.held_item >= 0 or back.belt_item >= 0:
+		# The death dropped them (die); a full slot is a rule error, and its item drops here.
+		ctx.error(
+			(
+				"respawn: player %d still carries items %d and %d"
+				% [peer, back.held_item, back.belt_item]
+			)
+		)
+		Items.drop_carried(ctx, peer, Items.DEATH)
 	ctx.state.bodies.erase(peer)
 	back.life = PlayerState.Life.ALIVE
 	back.life_deadline = -1
@@ -194,7 +199,7 @@ static func make_invulnerable(ctx: MatchContext, peer: int) -> void:
 
 
 ## `peer` leaves while its life state counts (Round, §3.5): left, no body, PlayerLeft,
-## player_left, then the drop. A player who left already changes nothing.
+## player_left, then both slots drop. A player who left already changes nothing.
 static func leave(ctx: MatchContext, peer: int) -> void:
 	var leaver := ctx.state.player(peer)
 	if leaver == null or not leaver.is_present():
@@ -208,7 +213,7 @@ static func leave(ctx: MatchContext, peer: int) -> void:
 	var fact := Fact.new(Facts.PLAYER_LEFT)
 	fact.player = peer
 	ctx.raise_fact(fact)
-	Items.drop_held(ctx, peer, Items.LEAVE)
+	Items.drop_carried(ctx, peer, Items.LEAVE)
 
 
 ## The floor below `player`'s last accepted position; where it is, logged, when there is none.

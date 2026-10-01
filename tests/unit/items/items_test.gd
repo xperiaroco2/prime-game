@@ -1,12 +1,13 @@
 extends GdUnitTestSuite
-## Items (ARCHITECTURE §7.1, §9.2, §9.4): the drop of a dying or leaving player's held item to the
-## floor below its last accepted position (the function the life rule, 2g, calls), item_rested at
-## a spawn, `Use` with a package in hand, and the mode check of the item parts. The drop is
-## driven by FixtureDropHeld on a `Use` of the mode, standing in for 2g's player_died and
-## player_left.
+## Items (ARCHITECTURE §7.1, §9.2, §9.4): the drop of a dying or leaving player's items, the
+## hand's first, then the belt's, to the floor below its last accepted position (the function the
+## life rule, 2g, calls), item_rested at a spawn, `Use` with a package in hand, and the mode check
+## of the item parts. The drop is driven by FixtureDropHeld on a `Use` of the mode, standing in for
+## 2g's player_died and player_left.
 
 const P1 := 1
 const P2 := 2
+const HERE := Vector3.ZERO
 
 
 func test_a_death_drops_the_held_item_to_the_floor_below() -> void:
@@ -74,6 +75,53 @@ func test_with_no_floor_below_the_item_rests_where_the_player_was_and_it_is_logg
 	assert_vector(game.state.items[1].position).is_equal(Vector3(1, 0, 1))
 	assert_int(game.state.items[1].where).is_equal(ItemState.Where.GROUND)
 	assert_str(game.diagnostics[0]).contains("no floor below")
+
+
+func test_a_death_drops_both_slots_the_hand_first() -> void:
+	var game := FixtureItemModes.in_round(_with_drop(Items.DEATH), [P1, P2])
+	FixtureItemModes.stand(game, P1, HERE)
+	var belted := FixtureItemModes.lay(game, &"tool", HERE)
+	var held := FixtureItemModes.lay(game, &"package", HERE)
+	FixtureItemModes.pick_up(game, P1, belted)
+	FixtureItemModes.pick_up(game, P1, held)
+	var seen := game.view_of(P2).events.size()
+	FixtureModes.send(game, Intents.USE, P1)
+	var player := game.state.player(P1)
+	assert_int(player.held_item).is_equal(-1)
+	assert_int(player.belt_item).is_equal(-1)
+	assert_int(belted.where).is_equal(ItemState.Where.GROUND)
+	assert_int(held.where).is_equal(ItemState.Where.GROUND)
+	assert_array(FixtureItemModes.names_after(game, P2, seen)).is_equal(
+		[
+			&"ItemPlaced",
+			&"FixtureNote",
+			&"FixtureNote",
+			&"ItemPlaced",
+			&"FixtureNote",
+			&"FixtureNote"
+		]
+	)
+	var placed := game.view_of(P2).events_named(&"ItemPlaced")
+	assert_int((placed[0] as ItemPlacedEvent).item).is_equal(held.id)
+	assert_int((placed[1] as ItemPlacedEvent).item).is_equal(belted.id)
+	assert_str(String((placed[1] as ItemPlacedEvent).cause)).is_equal("death")
+
+
+func test_a_leave_drops_a_lone_belt_item() -> void:
+	var game := FixtureItemModes.in_round(
+		FixtureItemModes.swapping(_with_drop(Items.LEAVE)), [P1, P2]
+	)
+	FixtureItemModes.stand(game, P1, HERE)
+	var tool := FixtureItemModes.lay(game, &"tool", HERE)
+	FixtureItemModes.pick_up(game, P1, tool)
+	FixtureItemModes.swap(game, P1)
+	FixtureModes.send(game, Intents.USE, P1)
+	assert_int(game.state.player(P1).belt_item).is_equal(-1)
+	assert_int(tool.where).is_equal(ItemState.Where.GROUND)
+	var placed := game.view_of(P2).events_named(&"ItemPlaced")
+	assert_dict(placed[0].to_dict()).is_equal(
+		{"item": tool.id, "position": HERE, "cause": &"leave"}
+	)
 
 
 func test_an_empty_hand_drops_nothing() -> void:
@@ -156,6 +204,13 @@ func test_the_eye_stands_on_the_footprint_and_a_drop_asks_one_ray() -> void:
 	world.calls.clear()
 	FixtureModes.send(game, Intents.USE, P1)
 	assert_array(Array(world.calls)).is_equal(["floor_below"])
+
+
+## The fixture item mode whose `Use` drops the actor's items for `cause`.
+func _with_drop(cause: StringName) -> GameMode:
+	var mode := FixtureItemModes.basic()
+	mode.actions.append(FixtureModes.rule(Intents.USE, [], [FixtureDropHeld.of(cause)]))
+	return mode
 
 
 ## A round of P1 and P2 in `world` whose mode's `Use` drops the actor's held item for `cause`,
