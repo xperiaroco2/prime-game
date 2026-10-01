@@ -109,12 +109,25 @@ func test_csg_gridmap_and_collision_polygons_with_collision_are_reported() -> vo
 	elsewhere.use_collision = true
 	elsewhere.collision_layer = 2
 	root.add_child(elsewhere)
+	# A CSG child's use_collision is unused: only the root CSG shape builds collision.
+	var part := CSGBox3D.new()
+	part.name = "Part"
+	part.use_collision = true
+	looks.add_child(part)
 	var grid := GridMap.new()
 	grid.name = "Tiles"
 	grid.mesh_library = MeshLibrary.new()
 	grid.mesh_library.create_item(0)
+	grid.mesh_library.set_item_shapes(0, [BoxShape3D.new(), Transform3D.IDENTITY])
 	grid.set_cell_item(Vector3i.ZERO, 0)
 	root.add_child(grid)
+	# A looks-only GridMap: its items have meshes but no shapes, so it has no collision.
+	var looks_grid := GridMap.new()
+	looks_grid.name = "LooksOnlyTiles"
+	looks_grid.mesh_library = MeshLibrary.new()
+	looks_grid.mesh_library.create_item(0)
+	looks_grid.set_cell_item(Vector3i.ZERO, 0)
+	root.add_child(looks_grid)
 	var empty_grid := GridMap.new()
 	empty_grid.name = "EmptyTiles"
 	root.add_child(empty_grid)

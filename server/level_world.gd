@@ -8,7 +8,8 @@ extends RefCounted
 ## the host's client scene. HostWorldQuery asks it through `space_state()`.
 ##
 ## Read errors, all listed in `errors` and logged, none fatal to the rest: a scene that does not
-## load; a CSG node or a GridMap that has collision on layer 1, and a CollisionPolygon3D of a
+## load; a root CSG node with use_collision, or a GridMap whose used items have shapes, on layer
+## 1, and a CollisionPolygon3D of a
 ## layer-1 body (they build their collision only inside a tree, so the host would see nothing
 ## where players collide: D2 (a), waiting for the designer on #96); any other physics body on
 ## layer 1 (a RigidBody3D, a CharacterBody3D), which players collide with but the host's static
@@ -93,12 +94,17 @@ func _read(node: Node, root: Node) -> void:
 	if node is StaticBody3D:
 		_add_body(node as StaticBody3D, root)
 	elif node is CSGShape3D:
+		# Only a root CSG shape (no CSG parent) builds collision; a child's use_collision is unused.
 		var csg := node as CSGShape3D
-		if csg.use_collision and (csg.collision_layer & WORLD_LAYER) != 0:
+		if (
+			csg.use_collision
+			and (csg.collision_layer & WORLD_LAYER) != 0
+			and not node.get_parent() is CSGShape3D
+		):
 			_fail(_unread(node, root, "a CSG node with collision"))
 	elif node is GridMap:
 		var grid := node as GridMap
-		if (grid.collision_layer & WORLD_LAYER) != 0 and not grid.get_used_cells().is_empty():
+		if (grid.collision_layer & WORLD_LAYER) != 0 and _grid_has_shapes(grid):
 			_fail(_unread(node, root, "a GridMap with collision"))
 	elif node is PhysicsBody3D:
 		var moving := node as PhysicsBody3D
@@ -134,6 +140,24 @@ func _add_body(node: StaticBody3D, root: Node) -> void:
 		PhysicsServer3D.body_add_shape(body, collision.shape.get_rid(), collision.transform)
 	if body.is_valid():
 		PhysicsServer3D.body_set_space(body, world.space)
+
+
+# Whether a used cell of `grid` holds an item with collision shapes: a looks-only GridMap (items
+# with meshes only) has no collision, whatever its collision_layer.
+static func _grid_has_shapes(grid: GridMap) -> bool:
+	var library := grid.mesh_library
+	if library == null:
+		return false
+	var items := library.get_item_list()
+	var seen: Dictionary[int, bool] = {}
+	for cell: Vector3i in grid.get_used_cells():
+		var item := grid.get_cell_item(cell)
+		if seen.has(item):
+			continue
+		seen[item] = true
+		if items.has(item) and not library.get_item_shapes(item).is_empty():
+			return true
+	return false
 
 
 func _unread(node: Node, root: Node, what: String) -> String:
