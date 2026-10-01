@@ -6,7 +6,8 @@ extends TickSystem
 ## - a downed player whose knockdown time is over dies (LifeRules.die);
 ## - a dead player whose respawn time is over respawns through `respawn` (a Respawn, run with the
 ##   dead player as its actor). Without one the dead stay dead until they leave or the match ends.
-## M4-4 adds the raise's pause.
+## A downed player being raised has no deadline: the raise (RaiseDowned, M4-4) keeps what was left
+## of its knockdown in PlayerState.knockdown_left and sets it again when it stops.
 ##
 ## A mode whose rules can knock a player down lists it in the phase where they can (the base
 ## mode's Round); without it the downed would stay downed until they leave, and the mode check
