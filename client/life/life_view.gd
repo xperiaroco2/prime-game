@@ -58,6 +58,8 @@ var _give_up_held_s := 0.0
 var _gave_up := false
 ## E is held for a raise (sent, or waiting for its RaiseStarted).
 var _raise_wanted := false
+## The downed player under the crosshair in reach, cast in the physics step (raise_target()).
+var _raise_peer := 0
 var _reach_m := 0.0
 ## The own look when the player died: the camera above the own body keeps it.
 var _last_look := Vector2.ZERO
@@ -97,6 +99,7 @@ func reset() -> void:
 	player = null
 	_target = 0
 	_raise_wanted = false
+	_raise_peer = 0
 
 
 ## The reach of the mode's raise (its TargetInReach), from the feet as the host measures it; 0
@@ -146,7 +149,7 @@ func hud(tick: float) -> LifeHud.Shown:
 	local.watching = _target if _is_dead() else 0
 	local.give_up_held_s = _give_up_held_s
 	local.give_up_hold_s = GIVE_UP_HOLD_S
-	local.can_raise = _own_life() == ClientModel.Life.ALIVE and raise_target() != 0
+	local.can_raise = _own_life() == ClientModel.Life.ALIVE and _raise_peer != 0
 	return LifeHud.of(model, countdowns, tick, local)
 
 
@@ -191,9 +194,15 @@ func release_raise() -> void:
 
 
 ## The downed player the crosshair is on, if the mode's raise reach holds from the feet as the
-## host measures it (§4.7 Interactions); 0 when none. The first thing along the camera's ray: a
-## wall in front hides a downed player behind it.
+## host measures it (§4.7 Interactions); 0 when none. Cast in the last physics step, the only time
+## the physics space may be read (it is locked outside it with physics on its own thread).
 func raise_target() -> int:
+	return _raise_peer
+
+
+## raise_target()'s cast: the first thing along the camera's ray, so a wall in front hides a
+## downed player behind it.
+func _cast_raise_target() -> int:
 	if player == null or not player.is_inside_tree() or _reach_m <= 0.0:
 		return 0
 	var camera := player.get_camera()
@@ -254,7 +263,10 @@ func _process(delta: float) -> void:
 
 func _physics_process(_delta: float) -> void:
 	if model == null or player == null:
+		_raise_peer = 0
 		return
+	var alive := _own_life() == ClientModel.Life.ALIVE
+	_raise_peer = _cast_raise_target() if alive else 0
 	match _own_life():
 		ClientModel.Life.DOWNED:
 			var angles := SnapshotBuffer.look_angles(player.look_vector(), Vector2.ZERO)
