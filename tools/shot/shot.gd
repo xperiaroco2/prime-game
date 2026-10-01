@@ -5,7 +5,9 @@ extends SceneTree
 ## frame_post_draw would never fire.
 ##   godot --position -30000,-30000 --resolution 1280x720 -s res://tools/shot/shot.gd
 ##       -- <res://scene.tscn> <out.png> [frames]
-## Prints SHOT saved <png> <width>x<height>, or SHOT error <why>. A watchdog quits after 60 s.
+## Prints SHOT renderer <driver> <method> (the rendering driver and method this window uses, since
+## the runner passes --no-header), then SHOT saved <png> <width>x<height>, or SHOT error <why>.
+## A watchdog quits after 60 s.
 
 const WATCHDOG_S: float = 60.0
 
@@ -22,6 +24,8 @@ func _initialize() -> void:
 		_fail.bind("no frame was drawn within %d s" % WATCHDOG_S)
 	)
 	var frames: int = int(args[2]) if args.size() > 2 else 10
+	var method: String = RenderingServer.get_current_rendering_method()
+	print("SHOT renderer ", RenderingServer.get_current_rendering_driver_name(), " ", method)
 	_shoot(args[0], args[1], frames)
 
 

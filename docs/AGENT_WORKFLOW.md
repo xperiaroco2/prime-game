@@ -560,7 +560,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   uid that resolves to a different file than its `path=`.
 - **`shot <scene>` [applied]:** a real window at `--position -30000,-30000` (off-screen), never headless or minimized
   (Godot then never draws), a 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
-  one that frames all its geometry, plus a light if it has none. Desktop only: CI never runs it, and the designer
+  one that frames all its geometry, plus a light if it has none. It prints the driver it drew with (`renderer: vulkan
+  forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the designer
   gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
 - **`run <scene.tscn | script.gd>` [applied]:** runs a scene, or a `-s` script that extends `SceneTree`, with the
   pinned Godot; arguments after `--` reach `OS.get_cmdline_user_args()`. `--headless` uses `GODOT_BIN`; a window

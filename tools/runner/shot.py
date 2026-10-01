@@ -62,7 +62,9 @@ def main(scene: str, out: str | None = None, size: str = "1280x720", frames: int
     if not png.is_file() or not png.read_bytes().startswith(PNG_MAGIC):
         raise Failure(f"shot reported success but {png} is not a PNG (log: tools/out/logs/shot.log)")
     for line in res.lines:
-        if line.startswith("SHOT framed: "):
+        if line.startswith("SHOT renderer "):
+            say(f"        renderer: {line.removeprefix('SHOT renderer ')}")
+        elif line.startswith("SHOT framed: "):
             say(f"        {line.removeprefix('SHOT framed: ')}")
     ok(f"{res_path} -> {png} ({size}, {png.stat().st_size // 1024} KB)")
     say(f"SHOT {png}")
