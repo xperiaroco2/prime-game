@@ -10,6 +10,7 @@ extends SceneTree
 ##   --stop-file=<path> stop cleanly once this file exists (the runner's Ctrl+C and --seconds)
 ##   --alive-file=<path> stop once this file is gone or ALIVE_SECONDS old: the runner touches it
 ##                      every second, so a killed runner leaves no session running
+##   --no-replay        the host writes no replay (the runner's selftest)
 ## It lives in tools/, which may use everything (ARCHITECTURE §1), because it composes server/ and
 ## client/ in one process; the host's own client still reads nothing of HostSession, only what
 ## own_client delivers (invariant 2).
@@ -28,6 +29,7 @@ const JOIN_ARG := "--join="
 const PORT_ARG := "--port="
 const STOP_ARG := "--stop-file="
 const ALIVE_ARG := "--alive-file="
+const NO_REPLAY_ARG := "--no-replay"
 const LOCALHOST := "127.0.0.1"
 const EVERY_INTERFACE := "*"
 ## The runner starts the local clients once the host printed this.
@@ -87,6 +89,7 @@ class Options:
 	var bind := EVERY_INTERFACE
 	var stop_file := ""
 	var alive_file := ""
+	var replay := true
 	## What is wrong with the arguments; empty when nothing is.
 	var problem := ""
 
@@ -115,6 +118,8 @@ class Options:
 				stop_file = arg.trim_prefix(STOP_ARG)
 			elif arg.begins_with(ALIVE_ARG):
 				alive_file = arg.trim_prefix(ALIVE_ARG)
+			elif arg == NO_REPLAY_ARG:
+				replay = false
 			else:
 				return "unknown argument '%s'" % arg
 		if hosting == joining:
@@ -170,6 +175,8 @@ func _start_host(mode: GameMode, schema: WireSchema) -> void:
 	_transport.peer_left.connect(_on_peer_left)
 	_session = HostSession.new(_transport, schema)
 	_session.ended.connect(_on_host_ended)
+	if not _options.replay:
+		_session.replay_dir = ""
 	# The transport counts remote clients only: one slot more than the mode's remote players, so
 	# the one too many hears `full` from core/ instead of a silent refusal by ENet.
 	if not _session.start(mode, _options.port, mode.max_players, HostNode.now_usec()):

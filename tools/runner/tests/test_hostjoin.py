@@ -226,6 +226,7 @@ class RealSessionTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             parts = hostjoin.host_parts(verify.free_udp_port(), 2, local=True, stop=Path(tmp) / "stop")
+            parts[0].user_args.append("--no-replay")  # keep the developer's newest replays
             hostjoin.set_commands(parts, str(godot_bin()))
             with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
                 hostjoin.supervise(parts, seconds=60, stop=Path(tmp) / "stop", until=everyone)
@@ -241,6 +242,7 @@ class RealSessionTest(unittest.TestCase):
             alive = hostjoin.alive_file(stop)
             alive.write_text("alive\n", encoding="ascii")
             parts = hostjoin.host_parts(verify.free_udp_port(), 0, local=True, stop=stop)
+            parts[0].user_args.append("--no-replay")
             hostjoin.set_commands(parts, str(godot_bin()))
             host = parts[0]
             with mock.patch("sys.stdout", new_callable=io.StringIO):

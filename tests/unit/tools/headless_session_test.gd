@@ -18,11 +18,13 @@ func test_host_arguments() -> void:
 	assert_int(local.port).is_equal(Launcher.DEFAULT_PORT)
 	assert_str(local.stop_file).is_equal("x")
 	assert_str(local.alive_file).is_empty()
+	assert_bool(local.replay).is_true()
 	var runner := Launcher.Options.parse(
-		PackedStringArray(["--host", "--alive-file=x.alive"])
+		PackedStringArray(["--host", "--no-replay", "--alive-file=x.alive"])
 	)
 	assert_str(runner.problem).is_empty()
 	assert_str(runner.alive_file).is_equal("x.alive")
+	assert_bool(runner.replay).is_false()
 
 
 func test_join_arguments() -> void:
