@@ -62,11 +62,12 @@ var hello_deadline_usec := HELLO_DEADLINE_USEC
 var replay_dir := ReplayFiles.DIR
 ## The file the log was written to when the session ended; empty when none was.
 var replay_path := ""
-## Why start() refused, or why the session ended.
+## Why the last start() refused, or why the session ended. A refused start may be retried on the
+## same session (another port, say): each start begins with no errors.
 var errors := PackedStringArray()
 ## Why the session ended; empty while it runs.
 var end_reason: StringName = &""
-## The match; null before start(). Its keep_history stays off unless the owner turns it on (the
+## The match; null until a start succeeded. Its keep_history stays off unless the owner turns it on (the
 ## bots runner does, right after start()).
 var game: Match
 ## The host's content hash (§4.3, E1): ContentFingerprint of the mode and its level files, the
@@ -142,6 +143,8 @@ func _init(transport: NetTransport, schema: WireSchema = null) -> void:
 ## its errors), the markers read through them, then start_with() with a seed from the operating
 ## system's entropy. False, with `errors`, when refused.
 func start(mode: GameMode, port: int, max_clients: int, now_usec: int) -> bool:
+	if not _started and not _ended:
+		errors.clear()
 	var world := HostWorldQuery.for_mode(mode)
 	if not world.errors.is_empty():
 		errors.append_array(world.errors)
@@ -168,18 +171,21 @@ func start_with(
 	if _started or _ended:
 		errors.append("the session has started already")
 		return false
+	errors.clear()
 	errors.append_array(WireBudget.check(mode))
 	if not errors.is_empty():
 		return false
-	content_hash = ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
-	game = Match.new(mode, session_seed, world, layouts, content_hash)
-	if not game.refusals.is_empty():
-		errors.append_array(game.refusals)
+	var fingerprint := ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
+	var made := Match.new(mode, session_seed, world, layouts, fingerprint)
+	if not made.refusals.is_empty():
+		errors.append_array(made.refusals)
 		return false
 	var hosted := _transport.host(port, max_clients)
 	if hosted != OK:
 		errors.append("cannot host on port %d: %s" % [port, error_string(hosted)])
 		return false
+	content_hash = fingerprint
+	game = made
 	own_client = LoopbackTransport.own_client_of(_transport)
 	_started = true
 	_start_usec = now_usec

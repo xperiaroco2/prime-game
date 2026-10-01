@@ -71,6 +71,29 @@ func test_a_refused_mode_refuses_the_host() -> void:
 	assert_bool(started).is_false()
 	assert_array(Array(session.errors)).is_not_empty()
 	assert_bool(transport.is_host()).is_false()
+	assert_object(session.game).is_null()
+
+
+func test_a_refused_start_may_be_retried_on_another_port() -> void:
+	var schema := WireSchema.game(true)
+	var hub := LoopbackHub.new()
+	var first := HostSession.new(LoopbackTransport.new(schema.kind_table(), hub), schema)
+	first.replay_dir = ""
+	var mode := Harness.fixture_mode()
+	var world := FlatWorldQuery.new()
+	assert_bool(first.start_with(mode, world, Harness.layouts(), 7304, 8, 0, 1)).is_true()
+	var second := HostSession.new(LoopbackTransport.new(schema.kind_table(), hub), schema)
+	second.replay_dir = ""
+	assert_bool(second.start_with(mode, world, Harness.layouts(), 7304, 8, 0, 1)).is_false()
+	assert_str("; ".join(second.errors)).contains("7304")
+	assert_object(second.game).is_null()
+	assert_bool(second.is_running()).is_false()
+	assert_bool(second.start_with(mode, world, Harness.layouts(), 7305, 8, 0, 1)).is_true()
+	assert_array(Array(second.errors)).is_empty()
+	assert_object(second.game).is_not_null()
+	assert_bool(second.is_running()).is_true()
+	second.close()
+	first.close()
 
 
 func test_the_seed_comes_from_the_operating_system() -> void:
