@@ -4,23 +4,29 @@ extends RefCounted
 ## its peer, and the §5 invariants read on view_of's MatchEvent objects, which do not trust the
 ## events' declared audiences.
 ## - Events: the decoded events are view_of's, in order, as (name, to_dict()); a prefix for a bot
-##   that left (or whose view was taken while the match went on, over ENet).
+##   that left (or whose view was taken while the match went on, over ENet, where the prefix must
+##   still reach view_of's last MatchEnded).
 ## - Snapshots and voice, subsets (LATEST and VOICE may drop): each decoded snapshot's avatars are
-##   view_of's of that tick; each frame's speaker is one view_of lets the bot hear under its tick,
-##   and the frame is the speaker's own, unchanged (voice_frame()).
-## - Invariants: every event for one peer that the bot decoded names it as its subject; a bot whose
+##   view_of's of that tick, and no tick has a second snapshot (DecodedView.repeated_snapshots);
+##   each frame's speaker is one view_of lets the bot hear under its tick, and the frame is the
+##   speaker's own, unchanged (voice_frame()). In one process (check_voice_streams, check_counters
+##   with `latest`) every speaker's seqs run without a gap and no LATEST message was superseded, so
+##   a snapshot sent before the bot's own in the same step cannot hide.
+## - Invariants: every event for one peer (its class's AUDIENCE_KIND is ONLY or SENDER) that the
+##   bot decoded names it as its subject; a bot whose
 ##   role does not know its teammates decodes no Teammates, and a Teammates names only players of
 ##   the bot's own role; a living bot decodes no ghost's avatar or voice; no decoded message holds a
 ##   seed; the bots present for a whole match decode the same task events (check_tasks).
 ## - A connected peer that is not a player (check_watcher) decodes at most a Rejected, none unless
-##   it sent a Hello, and never a Snapshot or a VoiceDown.
+##   it sent a Hello, and never a Snapshot or a VoiceDown. The lurker is still connected unless
+##   core/ disconnected it (DisconnectPeer: the entry into Loading disconnects every waiting
+##   newcomer, E14), so a hello deadline or a transport that dropped it early fails; the refused
+##   bot decoded exactly one Rejected (wrong_version) and core/'s DisconnectPeer disconnected it.
+## - Nothing was lost on the way (check_counters): no packet rejected by the transport, no message
+##   that did not decode.
 
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 
-## The events for one peer, whose subject must be the bot that decoded them.
-const FOR_ONE: Array[StringName] = [
-	&"Welcome", &"RoleAssigned", &"Damaged", &"SelfStatus", &"Correction", &"Rejected"
-]
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskProgress"
 ]
@@ -31,6 +37,8 @@ const FILL_SPAN := 7
 const FILL := 0xA5
 ## At most this many problems are listed per bot.
 const MAX_LISTED := 5
+## VoiceDown's seq is a u16 (§4.3).
+const SEQ_MODULO := 0x10000
 
 var _game: Match
 var _seeds: Array[int] = []
@@ -87,12 +95,30 @@ func set_seeds(seeds: Array[int]) -> void:
 	_seeds = seeds
 
 
+## Whether `event`'s class declares a one-peer audience (ONLY or SENDER): its `peer` is the subject.
+static func for_one(event: MatchEvent) -> bool:
+	var script := event.get_script() as Script
+	if script == null:
+		return false
+	var kind: Variant = script.get_script_constant_map().get("AUDIENCE_KIND")
+	return kind is int and (kind == Audience.Kind.ONLY or kind == Audience.Kind.SENDER)
+
+
 ## The problems of bot `label` (peer `peer`) that decoded `decoded`; `prefix` when its events may be
-## a prefix of view_of's (it left, or its view was taken while the match went on).
-func check_bot(label: String, peer: int, decoded: DecodedView, prefix: bool) -> PackedStringArray:
+## a prefix of view_of's (it left, or its view was taken while the match went on), and with
+## `to_last_end` that prefix must still reach view_of's last MatchEnded.
+func check_bot(
+	label: String, peer: int, decoded: DecodedView, prefix: bool, to_last_end := false
+) -> PackedStringArray:
 	var found := PackedStringArray()
+	if peer == 0:
+		if not decoded.events.is_empty() or not decoded.snapshots.is_empty():
+			found.append("a view of %d events with no peer id" % decoded.events.size())
+		return _labelled(label, peer, found)
 	var view := _game.view_of(peer)
 	var matched := _check_events(view, decoded, prefix, found)
+	if prefix and to_last_end:
+		_check_reaches_end(view, decoded, found)
 	_check_subjects(view, matched, peer, found)
 	_check_teammates(view, matched, peer, found)
 	_check_snapshots(view, decoded, peer, found)
@@ -101,13 +127,24 @@ func check_bot(label: String, peer: int, decoded: DecodedView, prefix: bool) -> 
 	return _labelled(label, peer, found)
 
 
-## The problems of a connected peer that is not a player (the lurker, the refused bot).
+## The problems of a connected peer that is not a player (the lurker, the refused bot), taken while
+## the run is still connected.
 func check_watcher(watcher: BotWatcher) -> PackedStringArray:
 	var found := PackedStringArray()
 	var decoded := watcher.view
 	if watcher.peer == 0:
 		found.append("it never connected")
 		return _labelled(watcher.label, 0, found)
+	if watcher.sends_hello():
+		if not watcher.said_hello:
+			found.append("it never sent its Hello")
+		var rejected := decoded.events_named(&"Rejected")
+		if rejected.size() != 1 or str(rejected[0].fields.get("reason", "")) != "wrong_version":
+			found.append("decoded %d Rejected, not exactly one (wrong_version)" % rejected.size())
+		if not watcher.lost or not _disconnected_by_core(watcher.peer):
+			found.append("core/ did not disconnect it (lost: %s)" % watcher.lost)
+	elif watcher.lost and not _disconnected_by_core(watcher.peer):
+		found.append("it lost its connection, and core/ never disconnected it")
 	var view := _game.view_of(watcher.peer)
 	_check_events(view, decoded, false, found)
 	for event: WireMessage in decoded.events:
@@ -122,6 +159,52 @@ func check_watcher(watcher: BotWatcher) -> PackedStringArray:
 	if not decoded.voice.is_empty():
 		found.append("decoded voice of %d speaker-ticks" % decoded.voice.size())
 	return _labelled(watcher.label, watcher.peer, found)
+
+
+## The seqs of each speaker's frames that `decoded` holds, by tick then arrival, run 0, 1, 2, ...
+## without a gap (wrapping at 65536): the relay renumbers per speaker and listener (§4.5) and the
+## loopback loses nothing, so another seq (such as the speaker's own, which tells how much it said
+## to others) is a leak. One process only: over ENet the VOICE lane may drop.
+func check_voice_streams(label: String, peer: int, decoded: DecodedView) -> PackedStringArray:
+	var found := PackedStringArray()
+	var keys: Array[Vector2i] = []
+	keys.assign(decoded.voice_seqs.keys())
+	keys.sort()
+	var next: Dictionary[int, int] = {}
+	for key: Vector2i in keys:
+		for seq: int in decoded.voice_seqs[key]:
+			var due: int = next.get(key.x, 0)
+			if seq != due:
+				found.append(
+					(
+						"voice of %d under tick %d has seq %d, its stream's next is %d"
+						% [key.x, key.y, seq, due]
+					)
+				)
+			next[key.x] = (seq + 1) % SEQ_MODULO
+	return _labelled(label, peer, found)
+
+
+## What `label` (peer `peer`) lost on the way: packets its `transport` rejected, `undecodable`
+## messages, and with `latest` any LATEST message the transport superseded in a poll (in one process
+## the host sends one snapshot per peer per step and the client polls once per step, so a
+## superseded one is a second snapshot that would stay unseen).
+static func check_counters(
+	label: String, peer: int, transport: NetTransport, undecodable: int, latest: bool
+) -> PackedStringArray:
+	var found := PackedStringArray()
+	if transport.rejects.total() != 0:
+		found.append("its transport rejected %d packets" % transport.rejects.total())
+	if undecodable != 0:
+		found.append("%d messages did not decode" % undecodable)
+	if latest and transport.latest_superseded != 0:
+		found.append(
+			(
+				"%d LATEST messages were superseded in a poll (a second snapshot of a step)"
+				% transport.latest_superseded
+			)
+		)
+	return _labelled(label, peer, found)
 
 
 ## The bots present for a whole match (its LoadMatch to its MatchEnded) decoded the same task
@@ -171,10 +254,24 @@ func _check_events(
 	return matched
 
 
+func _check_reaches_end(view: PeerView, decoded: DecodedView, found: PackedStringArray) -> void:
+	for i in range(view.events.size() - 1, -1, -1):
+		if view.events[i].event_name() != &"MatchEnded":
+			continue
+		if decoded.events.size() <= i:
+			found.append(
+				(
+					"decoded %d events, short of view_of's last MatchEnded (event %d)"
+					% [decoded.events.size(), i]
+				)
+			)
+		return
+
+
 func _check_subjects(view: PeerView, matched: int, peer: int, found: PackedStringArray) -> void:
 	for i in matched:
 		var event := view.events[i]
-		if not FOR_ONE.has(event.event_name()):
+		if not for_one(event):
 			continue
 		var subject: int = event.get("peer")
 		if subject != peer:
@@ -215,6 +312,8 @@ func _check_snapshots(
 			for other: int in avatars:
 				if ghosts.has(other):
 					found.append("living, it decoded ghost %d at tick %d" % [other, at_tick])
+	for repeated: Dictionary in decoded.repeated_snapshots:
+		found.append("a second snapshot of tick %d" % (repeated["tick"] as int))
 
 
 func _check_voice(
@@ -246,6 +345,15 @@ func _check_seeds(decoded: DecodedView, found: PackedStringArray) -> void:
 		for at_tick: int in decoded.snapshots:
 			if ScenarioInvariants.holds_int(decoded.snapshots[at_tick], seed_value):
 				found.append("the snapshot of tick %d holds a seed" % at_tick)
+
+
+## Whether core/ emitted a DisconnectPeer of `peer` (loopback ids are never reused in one run).
+func _disconnected_by_core(peer: int) -> bool:
+	for emitted: EmittedEvent in _game.emitted():
+		var directive := emitted.event as DisconnectPeerEvent
+		if directive != null and directive.peer == peer:
+			return true
+	return false
 
 
 ## Every player's role (from the RoleAssigned events emitted before it) when `event` was emitted.

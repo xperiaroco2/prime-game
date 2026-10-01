@@ -16,6 +16,8 @@ var peer := 0
 var said_hello := false
 ## The host disconnected it (or closed).
 var lost := false
+## Messages it received that did not decode.
+var undecodable := 0
 
 var _schema: WireSchema
 var _hello: Dictionary = {}
@@ -46,6 +48,11 @@ static func refused(on_transport: NetTransport, schema: WireSchema, content: int
 	return BotWatcher.new("refused", on_transport, schema, hello)
 
 
+## Whether it sends a Hello once connected (the refused bot).
+func sends_hello() -> bool:
+	return not _hello.is_empty()
+
+
 func poll() -> void:
 	if transport.role() != NetTransport.Role.IDLE:
 		transport.poll()
@@ -71,5 +78,7 @@ func _on_lost() -> void:
 
 func _on_packet(_from: int, kind: int, payload: PackedByteArray) -> void:
 	var message := _schema.decode(kind, payload)
-	if message != null:
+	if message == null:
+		undecodable += 1
+	else:
 		view.record(message)

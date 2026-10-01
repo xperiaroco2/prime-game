@@ -10,8 +10,11 @@ extends NetPlay
 ##
 ## Asserted: the steps (ScenarioPlay's failures); ScenarioInvariants per Match call, through
 ## HostSession's observer (§4.5); the expected ends; no match error; and the leak test (LeakCheck)
-## for every bot, the lurker and the refused bot. Each frame: the host steps, then every client,
-## then every bot acts on what it decoded.
+## for every bot, the lurker and the refused bot, with what only one process can promise: every
+## speaker's voice seqs without a gap, and no packet rejected, undecoded or superseded on the LATEST
+## lane (one snapshot per step and one poll per step, so a snapshot sent before a bot's own in the
+## same step cannot hide). Each frame: the host steps, then every client, then every bot acts on
+## what it decoded.
 
 const PORT := 7400
 ## One frame of the simulated clock: 60 steps per simulated second.
@@ -180,14 +183,25 @@ func _check_after() -> void:
 	var views: Dictionary[String, DecodedView] = {}
 	for bot: ScenarioBot in bots:
 		var client: BotClient = clients.get(bot.number)
-		if client == null or bot.peer == 0:
+		if client == null:
 			continue
 		var label := "bot %d" % bot.number
 		failures.append_array(_leaks.check_bot(label, bot.peer, client.view, bot.gone))
+		failures.append_array(
+			LeakCheck.check_counters(label, bot.peer, client.transport(), client.bad_payloads, true)
+		)
+		if bot.peer == 0:
+			continue
+		failures.append_array(_leaks.check_voice_streams(label, bot.peer, client.view))
 		views[label] = client.view
 	failures.append_array(_leaks.check_tasks(views))
 	for watcher: BotWatcher in [lurker, refused]:
 		failures.append_array(_leaks.check_watcher(watcher))
+		failures.append_array(
+			LeakCheck.check_counters(
+				watcher.label, watcher.peer, watcher.transport, watcher.undecodable, true
+			)
+		)
 
 
 func _write_files() -> void:

@@ -26,7 +26,9 @@ static func write(
 		"peer": peer,
 		"events": events,
 		"snapshots": view.snapshots,
+		"repeated_snapshots": view.repeated_snapshots,
 		"voice": view.voice,
+		"voice_seqs": view.voice_seqs,
 		"failures": failures,
 	}
 	var path := path_of(dir, bot)
@@ -63,7 +65,9 @@ static func read(dir: String, bot: int) -> Dictionary:
 	for pair: Array in fields["events"] as Array:
 		view.events.append(WireMessage.new(pair[0] as StringName, pair[1] as Dictionary))
 	view.snapshots.assign(fields["snapshots"] as Dictionary)
+	view.repeated_snapshots.assign(fields["repeated_snapshots"] as Array)
 	view.voice.assign(fields["voice"] as Dictionary)
+	view.voice_seqs.assign(fields["voice_seqs"] as Dictionary)
 	return {
 		"bot": fields["bot"],
 		"peer": fields["peer"],

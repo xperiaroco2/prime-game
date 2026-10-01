@@ -22,6 +22,11 @@ func send_intent(intent: StringName, args: Dictionary = {}) -> int:
 	return super(intent, args)
 
 
+## Its transport, for the leak test's counters (LeakCheck.check_counters).
+func transport() -> NetTransport:
+	return _transport
+
+
 ## The bot's LoadAck step answers the LoadMatch of `match_id`.
 func send_load_ack(match_id: int) -> int:
 	_answering = true

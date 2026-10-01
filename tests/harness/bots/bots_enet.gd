@@ -15,8 +15,11 @@ extends NetPlay
 ## Each bot writes its view file (ViewFile) when its script is done and it decoded the expected
 ## ends, or when its session ended; the host waits for every file (up to the time limit), then
 ## compares each with view_of: the events as a prefix (the match goes on while the files are
-## written), snapshots and voice as subsets, the §4.6 invariants, the lurker and the refused bot.
-## Its own bot (bot 1) it compares from the live client, exactly.
+## written) that reaches view_of's last MatchEnded, snapshots and voice as subsets, the §4.6
+## invariants, the lurker and the refused bot. Its own bot (bot 1) it compares from the live client,
+## exactly. Every bot adds its transport's rejects and its undecodable messages to its failures;
+## only bot 1, the host's own in-process client, also counts a superseded LATEST message (a remote
+## bot's real network may bunch two snapshots in one poll).
 
 const ADDRESS := "127.0.0.1"
 const USEC_PER_SECOND := 1000000
@@ -257,6 +260,13 @@ func _write_view() -> void:
 	var bot := bots[0]
 	var client: BotClient = clients.get(bot.number)
 	var view := client.view if client != null else DecodedView.new()
+	if client != null:
+		var label := "bot %d" % bot.number
+		failures.append_array(
+			LeakCheck.check_counters(
+				label, bot.peer, client.transport(), client.bad_payloads, is_host()
+			)
+		)
 	if not ViewFile.write(dir, bot.number, bot.peer, view, failures):
 		failures.append("cannot write the view file of bot %d" % bot.number)
 
@@ -306,12 +316,16 @@ func _compare() -> void:
 		for failure: String in file["failures"] as PackedStringArray:
 			failures.append("bot %d: %s" % [number, failure])
 		var peer: int = file["peer"]
-		if peer == 0:
-			continue
 		var view: DecodedView = file["view"]
 		var label := "bot %d" % number
-		failures.append_array(_leaks.check_bot(label, peer, view, true))
-		views[label] = view
+		failures.append_array(_leaks.check_bot(label, peer, view, true, true))
+		if peer != 0:
+			views[label] = view
 	failures.append_array(_leaks.check_tasks(views))
 	for watcher: BotWatcher in [lurker, refused]:
 		failures.append_array(_leaks.check_watcher(watcher))
+		failures.append_array(
+			LeakCheck.check_counters(
+				watcher.label, watcher.peer, watcher.transport, watcher.undecodable, false
+			)
+		)

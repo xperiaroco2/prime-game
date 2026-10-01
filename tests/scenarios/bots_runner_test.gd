@@ -2,7 +2,10 @@ extends GdUnitTestSuite
 ## The bots runner (tests/harness/bots/, ARCHITECTURE §4.6, §9.7) on scenarios built in code: it
 ## plays the core runner's steps through HostSession and ClientSessions, a failed scenario names its
 ## bot, step, last events and seed and leaves a command log that replays it (E13), and each check of
-## the leak test (LeakCheck) fails on a planted leak. `tools\run.cmd bots` plays content/scenarios/.
+## the leak test (LeakCheck) fails on a planted leak, the PR #115 review's ones included: a second
+## snapshot of a tick, a gap in a voice stream, lost packets, a lurker lost early, a refused bot not
+## refused, a view with no peer, a prefix short of the last MatchEnded. `tools\run.cmd bots` plays
+## content/scenarios/.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const OUT := "user://bots_runner_test"
@@ -29,10 +32,18 @@ func test_two_bots_ready_up_and_reach_the_round_through_the_network() -> void:
 		assert_array(view.snapshots.keys()).is_not_empty()
 	# Proximity voice in the lobby: each heard the other's synthetic frames, unchanged.
 	assert_array(runner.clients[1].view.speakers().values()).is_not_empty()
-	# The lurker decoded nothing; the refused bot exactly its Rejected.
+	# The lurker decoded nothing; the refused bot exactly its Rejected, then was disconnected.
 	assert_array(runner.lurker.view.events).is_empty()
 	assert_array(runner.refused.view.event_names()).contains_exactly([&"Rejected"])
 	assert_str(str(runner.refused.view.events[0].fields["reason"])).is_equal("wrong_version")
+	assert_bool(runner.refused.lost).is_true()
+	# Nothing superseded on the LATEST lane, and each speaker's seqs from 0 without a gap.
+	for bot: ScenarioBot in runner.bots:
+		var client := runner.clients[bot.number]
+		assert_int(client.transport().latest_superseded).is_equal(0)
+		assert_array(client.view.repeated_snapshots).is_empty()
+	var seqs := runner.clients[2].view.voice_seqs
+	assert_array(seqs.values()).is_not_empty()
 
 
 func test_a_failed_scenario_names_its_bot_step_and_seed_and_leaves_a_log_that_replays() -> void:
@@ -199,6 +210,95 @@ func test_a_decoded_seed_is_a_leak() -> void:
 	assert_str(found).contains("the snapshot of tick %d holds a seed" % at_tick)
 
 
+func test_a_second_snapshot_a_gap_in_a_voice_stream_and_lost_packets_are_leaks() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	var leaks := LeakCheck.new(runner.game)
+	var own := runner.clients[2].view
+	assert_array(Array(leaks.check_voice_streams("bot 2", 2, own))).is_empty()
+	# A second snapshot of a tick, kept apart by DecodedView.
+	var tampered := _copy(own)
+	var at_tick: int = own.snapshots.keys().back()
+	tampered.repeated_snapshots.append(own.snapshots[at_tick])
+	var found := _text(leaks.check_bot("bot 2", 2, tampered, false))
+	assert_str(found).contains("a second snapshot of tick %d" % at_tick)
+	# A seq that is not the stream's next: the speaker's own, say.
+	var heard: Vector2i = own.voice_seqs.keys().back()
+	var seqs: PackedInt32Array = own.voice_seqs[heard]
+	tampered.voice_seqs[heard] = PackedInt32Array([seqs[0] + 5])
+	var gap := _text(leaks.check_voice_streams("bot 2", 2, tampered))
+	assert_str(gap).contains(
+		"voice of %d under tick %d has seq %d" % [heard.x, heard.y, seqs[0] + 5]
+	)
+	# A superseded LATEST message, a rejected packet, a message that did not decode.
+	var transport := LoopbackTransport.new(runner.schema.kind_table(), LoopbackHub.new())
+	assert_array(Array(LeakCheck.check_counters("bot 2", 2, transport, 0, true))).is_empty()
+	transport.latest_superseded = 1
+	transport.rejects.count(1, NetRejects.Reason.TOO_SHORT)
+	var lost := _text(LeakCheck.check_counters("bot 2", 2, transport, 3, true))
+	assert_str(lost).contains("1 LATEST messages were superseded")
+	assert_str(lost).contains("rejected 1 packets").contains("3 messages did not decode")
+	assert_str(_text(LeakCheck.check_counters("bot 2", 2, transport, 0, false))).not_contains(
+		"LATEST"
+	)
+
+
+func test_a_lurker_lost_early_or_a_refused_bot_not_refused_fails() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	var leaks := LeakCheck.new(runner.game)
+	# Entering Loading disconnected the lurker (core/'s DisconnectPeer): no failure.
+	assert_bool(runner.lurker.lost).is_true()
+	assert_array(Array(leaks.check_watcher(runner.lurker))).is_empty()
+	# A lurker that lost its connection with no DisconnectPeer of core/ (a hello deadline).
+	var early := BotWatcher.lurker(
+		LoopbackTransport.new(runner.schema.kind_table(), runner.hub), runner.schema
+	)
+	early.peer = 99
+	early.lost = true
+	assert_str(_text(leaks.check_watcher(early))).contains("core/ never disconnected it")
+	# A refused bot that decoded no Rejected and stayed connected.
+	runner.refused.view.events.clear()
+	runner.refused.lost = false
+	var refused := _text(leaks.check_watcher(runner.refused))
+	assert_str(refused).contains("decoded 0 Rejected, not exactly one (wrong_version)")
+	assert_str(refused).contains("core/ did not disconnect it")
+
+
+func test_a_short_prefix_a_view_with_no_peer_and_audiences_for_one() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	# A view with events but no peer id is a failure, not skipped.
+	var own := runner.clients[2].view
+	var leaks := LeakCheck.new(runner.game)
+	assert_str(_text(leaks.check_bot("bot 2", 0, own, true))).contains("with no peer id")
+	assert_array(Array(leaks.check_bot("bot 2", 0, DecodedView.new(), true))).is_empty()
+	# Over ENet a prefix must reach view_of's last MatchEnded.
+	var view := runner.game.view_of(2)
+	view.events.append(MatchEndedEvent.new(&"crew"))
+	view.events.append(ReadyChangedEvent.new(1, false))
+	var leaky := LeakCheck.new(LeakyViews.new(runner.game, view))
+	var decoded := _decoded(view)
+	decoded.events.resize(view.events.size() - 2)
+	var short := _text(leaky.check_bot("bot 2", 2, decoded, true, true))
+	assert_str(short).contains("short of view_of's last MatchEnded")
+	assert_array(Array(leaky.check_bot("bot 2", 2, decoded, true))).is_empty()
+	decoded.events.append(WireMessage.new(&"MatchEnded", {"side": &"crew"}))
+	assert_array(Array(leaky.check_bot("bot 2", 2, decoded, true, true))).is_empty()
+	# The events for one peer, from each class's AUDIENCE_KIND.
+	var assigned := runner.game.view_of(1).events_named(&"RoleAssigned")[0]
+	assert_bool(LeakCheck.for_one(assigned)).is_true()
+	assert_bool(LeakCheck.for_one(RejectedEvent.new(2, 1, &"full"))).is_true()
+	assert_bool(LeakCheck.for_one(MatchEndedEvent.new(&"crew"))).is_false()
+	assert_bool(LeakCheck.for_one(TeammatesEvent.new(&"crew", PackedInt32Array([1])))).is_false()
+
+
 ## A match whose view_of(peer) is a planted one.
 class LeakyViews:
 	extends Match
@@ -247,7 +347,9 @@ static func _copy(view: DecodedView) -> DecodedView:
 	copy.peer = view.peer
 	copy.events = view.events.duplicate()
 	copy.snapshots = view.snapshots.duplicate()
+	copy.repeated_snapshots = view.repeated_snapshots.duplicate()
 	copy.voice = view.voice.duplicate()
+	copy.voice_seqs = view.voice_seqs.duplicate()
 	return copy
 
 
