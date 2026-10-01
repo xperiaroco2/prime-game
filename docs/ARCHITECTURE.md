@@ -1538,8 +1538,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   first settles its own covered ticks with its own flags, so a sprint that ends in a jump is paid. The sprint state
   (Q7) starts when the claim holds the sprint flag and stamina is at least the start threshold, and lasts while the flag
   is held and stamina is above 0. An accepted jump or hit costs its amount at once. The allowed horizontal speed is the
-  sprint speed in the sprint state, else the walk speed, plus the push allowance (Pushing apart below), measured over
-  the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents: a client that never spends
+  sprint speed in the sprint state, else the walk speed, plus the push allowance near another living player (Pushing
+  apart below), measured over the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents: a client that never spends
   stamina, or spaces its claims out to regenerate between them, sprinting forever.
 - **Jumps** are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within
   step height plus `STEP_CLEARANCE` below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
@@ -1548,8 +1548,10 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
   corrected. Prevents: free or endless jumps, and flying. A claim carries `jumps`, the client's count of jumps since
   it adopted the epoch (3e, E2; §4.3): a rise d ≥ 1 over the last accepted claim's count in the epoch is one jump,
-  which stamina must cover d times; a count that falls within an epoch is corrected; the count restarts at 0 with
-  every new epoch. So a jump in a claim that the LATEST lane merged away or lost still counts in the next one.
+  which stamina must cover d times; a count that falls within an epoch is corrected, and so is a rise d above the
+  client ticks the claim covers, since a client lands between two jumps (#76, from #117 item 6); the count restarts
+  at 0 with every new epoch. So a jump in a claim that the LATEST lane merged away or lost still counts in the next
+  one.
 - **The movement checks** (`MovementRule` in `core/movement/`, the ledger in `core/stamina/`; 2d, #60). Every
   tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client:
   - A claim of another epoch, or whose client tick does not rise, is dropped: no `Correction`, so one correction
@@ -1569,10 +1571,16 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     restarts the credit and the client-tick baseline, and settles the ticks since the last claim as standing still.
   - Speed: per covered tick the state's speed (a tick not settled yet takes the state the next tick would have;
     a living player's claim without movement input gets the walk speed, since only input pays for sprint),
-    for the living plus `sprint_speed` (Pushing apart below; proposed for M4, used provisionally); for the downed the
-    crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M` (0.05 m) per claim, or
+    for the living plus `sprint_speed` while another living player's last accepted position is within
+    `MovementRule.push_reach()` of the claim's path (Pushing apart below; #76); for the downed the crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M` (0.05 m) per claim, or
     for the crawl `CRAWL_SLACK_FRACTION` (a tenth) of its own travel plus 1 mm: 0.05 m is a whole tick of the
     crawl, so a fixed slack would let a client claiming every tick crawl at twice the speed.
+    The sprint's last tick (#76): after a claim that moved itself in the sprint state, one covered tick more may go
+    at sprint speed, not charged. A claim sends the flags of the client's last physics step, so the claim of the
+    tick a sprinter lets go in says no input after most of a sprint tick of travel; and a client learns a tick late
+    that its stamina ran out (the bots sprint while `SelfStatus` says `sprint_available`). The push allowance hid
+    both until #76 granted it only near a living player, and two bot scenarios were corrected. Accepted: a modified
+    client alternating claims with and without input gets the tick every other claim, at most sprint speed.
   - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus
     `STEP_CLEARANCE` below its feet, which a ledge crossing needs; `FLOOR_PROBE_M` above the feet is where the query
     starts): after an accepted jump, the jump height
@@ -1580,6 +1588,18 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     floor and its feet; without one, the step height plus `STEP_CLEARANCE` (0.01 m) plus the claim's horizontal
     travel times tan 45° (slopes and stairs up to the client's `floor_max_angle`). Positions are 32-bit floats:
     `HEIGHT_SLACK_M` (1 mm) on top. Falling is not bounded.
+    The slope allowance counts the travel of at most `SLOPE_TICKS` (10) covered ticks: when a claim covers more, its
+    allowed travel times 10 / covered (#76). A claim covering stored credit (up to 200 ticks after 10 s of silence)
+    used to rise as far as it travelled, onto a roof tens of metres away; up to nine lost claims in a row change
+    nothing, so an honest climb whose unreliable claims were lost passes (a bound of one tick's travel would have
+    corrected it, #74). Accepted: a 45° climb through a stall of more than about half a second is corrected once.
+    A landing's floor is the higher of the floor `WorldQuery` found and the claim's feet less
+    `MovementRule.landing_slack()`, r (1 − cos 45°) ≈ 0.12 m, the most a capsule's rounded bottom hangs below a
+    step's corner it rests on (#76; found by M4-7, #143): on stairs whose treads are narrower than the capsule
+    (0.3 m against 0.8 m), the five rays may all miss the step the capsule rests on and find the one below, and
+    honest climbs were corrected on almost every step. A claim floating above the floor gains at most one step this
+    way and is still corrected. Tests: `tests/unit/movement/movement_rule_jump_test.gd` (the stairs test replays
+    the claims #143's network test sent on 0.3 m treads).
   - Cost: two `WorldQuery.stand_floor_below` calls per jump and one per claim on the floor, each recorded in the
     command log. The movement rule's floor (`stand_floor_below`, 3e) looks below the whole capsule footprint, not one
     ray at the origin: on a ledge's edge a ray from the feet misses the ledge, and a jump from there would be
@@ -1608,8 +1628,14 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   Speed: a pushed player moves faster than its own walk or sprint without cheating (walking sideways at 4.5 m/s
   while a sprinter pushes it at 3.5 m/s is about 5.7 m/s, and two pushers add up). `PlayerController._push_apart`
   caps the push-out at `sprint_speed`, so the host's speed bound for a living player is its state's speed plus
-  `sprint_speed` (proposed for M4, not decided; a test pins the cap). The downed get no allowance: they are never
-  pushed.
+  `sprint_speed` (proposed for M4, not decided; a test pins the cap). The allowance is granted only while another
+  living player's last accepted position is within `MovementRule.push_reach()` of the claim's path (#76): measured
+  horizontally from the segment between the last accepted position and the claim's, with the feet at most the
+  capsule's height apart. The reach is two capsule radii (touching) plus 0.2 s of sprinting, 2.2 m: the pushed
+  client moves away from where it draws the pusher, the interpolation delay (§7) plus a round trip behind the pusher's
+  position on the host, and with two radii alone the honest head-on push of M4-7's network test over the loopback
+  was corrected (0.86 m apart). Before #76 a modified client claiming a push with nobody near moved at 11.5 m/s
+  with no input and no stamina. The downed get no allowance: they are never pushed, and they push nobody.
 
   Prevents: two clients that see each other late snapping each other back and forth, and a player blocking a doorway.
   Accepted: a modified client can walk through players. Latency: the pusher sees the pushed player's capsule a round
