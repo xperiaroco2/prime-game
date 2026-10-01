@@ -260,11 +260,12 @@ func _write_view() -> void:
 	var bot := bots[0]
 	var client: BotClient = clients.get(bot.number)
 	var view := client.view if client != null else DecodedView.new()
-	if client != null:
+	# The host's own bot is counted in _compare, over its whole run.
+	if client != null and not is_host():
 		var label := "bot %d" % bot.number
 		failures.append_array(
 			LeakCheck.check_counters(
-				label, bot.peer, client.transport(), client.bad_payloads, is_host()
+				label, bot.peer, client.transport(), client.bad_payloads, false
 			)
 		)
 	if not ViewFile.write(dir, bot.number, bot.peer, view, failures):
@@ -307,6 +308,9 @@ func _compare() -> void:
 	# The host's own bot, stepped in this frame after the session: exactly what it decoded so far.
 	var own: BotClient = clients[1]
 	failures.append_array(_leaks.check_bot("bot 1", bots[0].peer, own.view, false))
+	failures.append_array(
+		LeakCheck.check_counters("bot 1", bots[0].peer, own.transport(), own.bad_payloads, true)
+	)
 	views["bot 1"] = own.view
 	for number in range(2, scenario.bots + 1):
 		var file := ViewFile.read(dir, number)
