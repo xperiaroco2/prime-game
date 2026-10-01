@@ -928,26 +928,39 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     the ENet run joins it too as `bots-enet`: `dissident_kills_the_crew` with 3 instances took 18 s (2026-10-01).
   - Over ENet each bot writes its view file when its script is done and it decoded the expected ends (or its
     session ended), and keeps stepping until the host closes; the match goes on meanwhile, so the host compares each
-    file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks), and its own bot, the
-    lurker and the refused bot exactly. The one-process runner compares every bot that did not leave exactly.
+    file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks) that must reach `view_of`'s
+    last `MatchEnded`, and its own bot, the lurker and the refused bot exactly. The one-process runner compares
+    every bot that did not leave exactly.
 - **The information-leak test** (§5) compares what each bot b decoded with `view_of(b)`:
   - events: b's decoded events are `view_of(b)`'s, in order, as (name, `to_dict()`); for a bot that left, a prefix;
   - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
-    lacks is a leak (a subset check, because LATEST may drop);
+    lacks is a leak (a subset check, because LATEST may drop), and so is a second snapshot of one tick
+    (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first);
   - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check);
+  - what only one process can promise (#115's review): the host sends one snapshot per peer per step and every
+    client polls once per step, so no transport of a bot or watcher may count a superseded LATEST message
+    (`latest_superseded`); else a snapshot sent *before* the bot's own in the same step would be dropped unseen.
+    Over ENet only the host's own in-process bot is held to it (a remote bot's real network may bunch two
+    snapshots in one poll). And each speaker's `VoiceDown` seqs, by tick, run 0, 1, 2, ... without a gap
+    (wrapping at 65536): the relay renumbers per speaker and listener and the loopback loses nothing, so a relay
+    that forwards the speaker's own seq (how long it talked to others) fails. Every runner also fails on a packet
+    its transport rejected or a message that did not decode;
   - peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
     `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
     `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
     deadline (a `HostSession` setting) for the lurker, so it stays connected through the lobby's and the countdown's
-    events, snapshots and voice until the entry into Loading disconnects it (E14). Prevents: a `server/` refactor that
+    events, snapshots and voice until the entry into Loading disconnects it (E14): a lurker that lost its connection
+    with no `DisconnectPeer` of `core/` (a hello deadline, a dropped transport) fails, and the refused bot must
+    decode exactly one `Rejected` (`wrong_version`) and be disconnected by `core/`. Prevents: a `server/` refactor that
     sends *everyone* events, snapshots or voice to the transport's peers instead of `core/`'s recipients, which the
     entitlement ADR rejected because it reaches peers that are not players, passing a test in which every bot is a
     player within one tick;
   - the §5 invariants, which read each event's own fields in `Match.emitted()`, not its audience. Some events carry no
     peer in their `to_dict()` (`RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), so the invariants
     read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
-    decoded: every event for one peer that b decoded (`Welcome`, `RoleAssigned`, `Damaged`, `SelfStatus`,
-    `Correction`, `Rejected`) names b as its subject; a crew bot decodes no `Teammates`; a dissident's `Teammates` names
+    decoded: every event for one peer that b decoded (its class's `AUDIENCE_KIND` is `ONLY` or `SENDER`: `Welcome`,
+    `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`) names b as its subject, and a view with events
+    but no peer id fails; a crew bot decodes no `Teammates`; a dissident's `Teammates` names
     that match's dissidents only; an alive bot never decodes a ghost's avatar or voice frame; the bots present for a
     whole round decode the same task events; no decoded message has a field that names a seed; a peer that is not a
     player decodes at most a `Rejected`, none unless it sent a `Hello`. `keep_history` costs memory (§5), so scenarios
@@ -961,10 +974,14 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     1`); the third failed every scenario, and in `refusals` only on the lurker and the refused bot. In the scenarios
     with more bots it also reaches a bot that is connected and has not sent its `Hello` yet, a peer that is not a
     player for that moment. Over ENet (`--instances 3`, `dissident_kills_the_crew`) the first leak failed on the
-    comparison of each of the three bots, the remote ones compared as a prefix. `tests/scenarios/bots_runner_test.gd`
-    sees each check of a bot in `LeakCheck` (events, subject, the three `Teammates` checks, snapshots, a living bot's
-    ghost avatar and voice, voice frames, seeds, task events) and the watcher's event, snapshot and voice checks fail
-    on a planted leak.
+    comparison of each of the three bots, the remote ones compared as a prefix. After #115's review two more:
+    `server/` sending peer 1's snapshot to every present peer before each peer's own failed all 6 scenarios on the
+    superseded LATEST messages of every bot (before the fix all 6 passed), and over ENet on bot 1's; the relay
+    forwarding the speaker's own seq failed 4 of 6 on the voice streams (`refusals` has one bot; in
+    `dropped_at_the_loading_deadline` no stream is interrupted). `tests/scenarios/bots_runner_test.gd` sees each check
+    of a bot in `LeakCheck` (events, subject, the three `Teammates` checks, snapshots and a second one of a tick, a
+    living bot's ghost avatar and voice, voice frames and seqs, seeds, task events, lost packets, a view with no
+    peer, a prefix short of the last `MatchEnded`) and the watcher's checks fail on a planted leak.
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they run
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
