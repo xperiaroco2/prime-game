@@ -17,7 +17,7 @@ func emits() -> Array[Script]:
 	return []
 
 
-## The outcomes this effect can report (ReportOutcome, #35); each needs a transition row.
+## The outcomes this effect can report (ReportOutcome, no MVP use); each needs a transition row.
 func reported_outcomes() -> Array[StringName]:
 	return []
 
