@@ -46,6 +46,29 @@ func test_a_player_at_zero_health_is_knocked_down_on_the_floor_below_and_keeps_i
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_a_sprinter_knocked_down_pays_for_the_sprint_up_to_the_knockdown() -> void:
+	# Stamina is settled lazily, at the next claim. The ticks between the living player's last
+	# claim and the knockdown are a living sprint, not a downed player's regeneration.
+	var game := _duel()
+	var victim := game.state.player(P2)
+	var rules := game.state.player_rules
+	FixtureCombatModes.use(game, P1, NORTH)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	victim.stamina = Ticks.thousandths(rules.stamina)
+	victim.stamina_settled_tick = game.ticked_through()
+	victim.sprinting = true
+	victim.sprint_held = true
+	victim.moving = true
+	FixtureModes.run_ticks(game, 10)
+	var knocked_at := game.ticked_through() + 1
+	var expected := StaminaLedger.simulate(victim, rules, knocked_at, true, true)
+	assert_int(expected.stamina).is_less(victim.stamina)
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(victim.life).is_equal(PlayerState.Life.DOWNED)
+	assert_int(victim.stamina).is_equal(expected.stamina)
+	assert_int(victim.stamina_settled_tick).is_equal(knocked_at)
+
+
 func test_knocked_down_reaches_everyone_and_names_no_attacker_and_nobody_died() -> void:
 	var game := _duel()
 	_knock_down(game)

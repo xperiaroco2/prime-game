@@ -13,6 +13,8 @@ extends RefCounted
 ##   starts a new baseline there (MovementRule treats it like a placement); its knockdown runs out
 ##   `PlayerRules.knockdown_s` later (PlayerState.life_deadline, which LifeTicks reads). Then
 ##   KnockedDown (everyone) and Correction (the downed player only: its new epoch and position).
+##   Its stamina is settled up to the knockdown first, as the living player it was: the ticks
+##   since its last claim pay for its sprint, not regenerate as a downed player's would.
 ##   Nothing drops: a downed player keeps its hand. No fact: no win condition reads a knockdown.
 ## - die(): a downed player dies: its body comes to rest on the floor below its last accepted
 ##   position, recorded in MatchState.bodies until it leaves (or, from M4-3, respawns); it has no
@@ -55,6 +57,7 @@ static func knock_down(ctx: MatchContext, peer: int) -> void:
 		ctx.error("knock_down: the mode has no PlayerRules")
 		return
 	var lies_at := _floor_at(ctx, downed, "knock_down")
+	StaminaLedger.settle_ahead(downed, rules, ctx.tick)
 	downed.life = PlayerState.Life.DOWNED
 	downed.life_deadline = ctx.tick + Ticks.from_seconds(rules.knockdown_s)
 	downed.position = lies_at
