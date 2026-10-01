@@ -1,10 +1,12 @@
-"""`host` and `join`: the options, the processes they start, the clean stop and the report.
+"""`host` and `join`: the options, windows or headless, the processes they start, the clean stop and the report.
 
 The supervision tests run small Python processes in place of Godot; the real run starts a headless host and two
 local clients of tools/run/headless_session.gd on a free port of 127.0.0.1 and waits for the full lobby roster.
+Nothing here opens a window: the windowed command lines are only built. verify's `game` step runs the game scene.
 """
 
 import io
+import os
 import re
 import sys
 import tempfile
@@ -33,10 +35,18 @@ if what == "refused":
     sys.exit(1)
 if what == "late-host":
     time.sleep(0.5)
-if what in ("host", "late-host"):
+if what in ("host", "late-host", "game-host"):
     say("session: hosting base_mode.tres on 127.0.0.1:1")
+if what == "menu-host":
+    say("session: cannot host: port taken")
 if what == "error":
     say("SCRIPT ERROR: boom")
+if what == "game-host":
+    say("session: welcomed as Player1 [1]")
+if what in ("welcomed", "leaves"):
+    say("session: welcomed as Player2 [5]")
+if what == "leaves":
+    sys.exit(0)
 say("session: roster: Player1 [1]")
 while what == "stubborn" or not stop.exists():
     time.sleep(0.05)
@@ -58,6 +68,14 @@ class OptionsTest(unittest.TestCase):
         self.assertEqual((args.port, args.clients, args.local, args.seconds), (24999, 2, True, 9))
         args = cli.build_parser().parse_args(["join", "192.168.0.195", "--port", "24999"])
         self.assertEqual((args.address, args.port, args.seconds), ("192.168.0.195", 24999, None))
+        for command in (["host"], ["join", "10.0.0.2"]):
+            args = cli.build_parser().parse_args(command)
+            self.assertEqual((args.headless, args.windows), (False, False))
+            self.assertTrue(cli.build_parser().parse_args([*command, "--headless"]).headless)
+            self.assertTrue(cli.build_parser().parse_args([*command, "--windows"]).windows)
+            with self.subTest(command=command), mock.patch("sys.stderr", new_callable=io.StringIO):
+                with self.assertRaises(SystemExit):
+                    cli.build_parser().parse_args([*command, "--headless", "--windows"])
 
     def test_the_host_and_its_local_clients(self) -> None:
         stop = Path("stop")
@@ -103,6 +121,204 @@ class OptionsTest(unittest.TestCase):
             with self.assertRaises(Failure):
                 hostjoin.join("", port=None, seconds=None)
         godot.assert_not_called()
+
+
+AREA = (0, 0, 1920, 1040)
+
+
+class WindowsTest(unittest.TestCase):
+    """E20: windows for a human, headless where CLAUDECODE is set, --headless always headless; no window opens here."""
+
+    def setUp(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+        def supervise(parts: list[hostjoin.Part], **kwargs: object) -> None:
+            self.calls.append({"parts": parts, **kwargs})
+
+        self.godot = mock.MagicMock(return_value="godot")
+        for target, name, value in (
+            (hostjoin, "require_godot", self.godot),
+            (hostjoin, "ensure_out", mock.MagicMock()),
+            (hostjoin, "supervise", supervise),
+            (hostjoin, "write_logs", mock.MagicMock()),
+            (hostjoin, "report", mock.MagicMock(return_value=0)),
+            (hostjoin, "screen_area", mock.MagicMock(return_value=AREA)),
+            (hostjoin.launch, "import_if_missing", mock.MagicMock()),
+            (hostjoin.shot, "has_display", mock.MagicMock(return_value=True)),
+        ):
+            patcher = mock.patch.object(target, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        out = mock.patch("sys.stdout", new_callable=io.StringIO)
+        self.out = out.start()
+        self.addCleanup(out.stop)
+
+    def env(self, agent: bool) -> "mock._patch[dict[str, str]]":
+        clean = {key: value for key, value in os.environ.items() if key != hostjoin.AGENT_ENV}
+        return mock.patch.dict(os.environ, {**clean, **({hostjoin.AGENT_ENV: "1"} if agent else {})}, clear=True)
+
+    def host(self, *, agent: bool, **kwargs: object) -> list[hostjoin.Part]:
+        options: dict[str, object] = {"port": 24999, "clients": 2, "local": True, "seconds": None, **kwargs}
+        with self.env(agent):
+            self.assertEqual(hostjoin.host(**options), 0)  # type: ignore[arg-type]
+        return self.calls[-1]["parts"]  # type: ignore[return-value]
+
+    def join(self, *, agent: bool) -> list[hostjoin.Part]:
+        with self.env(agent):
+            self.assertEqual(hostjoin.join("192.168.0.195", port=None, seconds=None), 0)
+        return self.calls[-1]["parts"]  # type: ignore[return-value]
+
+    def assert_headless_session(self, parts: list[hostjoin.Part]) -> None:
+        for part in parts:
+            self.assertIn("--headless", part.cmd)
+            self.assertEqual(part.cmd[part.cmd.index("-s") + 1], f"res://{hostjoin.SCRIPT}")
+            self.assertNotIn("--position", part.cmd)
+
+    def assert_game_windows(self, parts: list[hostjoin.Part]) -> None:
+        for part in parts:
+            self.assertNotIn("--headless", part.cmd)
+            self.assertNotIn("--display-driver", part.cmd)
+            self.assertNotIn("-s", part.cmd)
+            self.assertEqual(part.cmd[part.cmd.index("--") - 1], f"res://{hostjoin.GAME}")
+            self.assertEqual(part.cmd[part.cmd.index("--") + 1 :], part.user_args)
+
+    def test_the_defaults_windows_for_a_human_headless_for_an_agent_and_the_explicit_flags(self) -> None:
+        for agent, headless, windows, shown in (
+            (False, False, False, True),
+            (True, False, False, False),
+            (False, True, False, False),
+            (True, True, False, False),
+            (False, False, True, True),
+            (True, False, True, True),
+        ):
+            with self.subTest(agent=agent, headless=headless, windows=windows):
+                env = {hostjoin.AGENT_ENV: "1"} if agent else {}
+                self.assertEqual(hostjoin.windowed(headless=headless, windows=windows, env=env), shown)
+        with self.assertRaises(Failure):
+            hostjoin.windowed(headless=True, windows=True, env={})
+
+    def test_a_human_host_with_clients_opens_the_game_in_tiled_windows(self) -> None:
+        parts = self.host(agent=False)
+        self.assert_game_windows(parts)
+        self.assertEqual(parts[0].user_args[:3], ["--host", "--local", "--port=24999"])
+        self.assertEqual(parts[1].user_args[:2], ["--join=127.0.0.1", "--port=24999"])
+        tiles = [hostjoin.Tile(0, 48, 839, 472), hostjoin.Tile(960, 48, 839, 472), hostjoin.Tile(0, 568, 839, 472)]
+        for part, tile in zip(parts, tiles, strict=True):
+            self.assertEqual(part.cmd[part.cmd.index("--position") + 1], f"{tile.x},{tile.y}")
+            self.assertEqual(part.cmd[part.cmd.index("--resolution") + 1], f"{tile.width}x{tile.height}")
+        self.assertNotIn("--audio-driver", parts[0].cmd)
+        self.assertIsNone(self.calls[-1]["on_hosting"])  # --local: nobody joins from another PC
+        self.assertTrue((ROOT / hostjoin.GAME).is_file())
+
+    def test_an_agent_host_or_join_is_the_headless_session_and_says_why(self) -> None:
+        self.assert_headless_session(self.host(agent=True))
+        self.assertIn(f"{hostjoin.AGENT_ENV} is set", self.out.getvalue())
+        self.assert_headless_session(self.join(agent=True))
+
+    def test_headless_is_always_the_session_and_windows_always_the_game(self) -> None:
+        self.assert_headless_session(self.host(agent=False, headless=True))
+        self.assertNotIn(f"{hostjoin.AGENT_ENV} is set", self.out.getvalue())
+        self.assert_game_windows(self.host(agent=True, windows=True))
+
+    def test_a_host_on_every_interface_prints_what_to_type_on_another_pc(self) -> None:
+        self.host(agent=False, local=False, clients=0)
+        self.assertIs(self.calls[-1]["on_hosting"], hostjoin.lan_hint)
+        with mock.patch.object(hostjoin, "lan_addresses", return_value=["192.168.0.195"]):
+            hostjoin.lan_hint("session: hosting base_mode.tres on *:24600")
+        self.assertIn(
+            "session: from another machine: tools\\run.cmd join <address> --port 24600 (this one: 192.168.0.195)",
+            self.out.getvalue(),
+        )
+        self.host(agent=False, local=False, clients=0, headless=True)
+        self.assertIsNone(self.calls[-1]["on_hosting"])  # the headless session prints its own
+
+    def test_a_lone_window_is_not_tiled(self) -> None:
+        self.assertNotIn("--position", self.host(agent=False, clients=0)[0].cmd)
+        parts = self.join(agent=False)
+        self.assert_game_windows(parts)
+        self.assertNotIn("--position", parts[0].cmd)
+
+    def test_a_window_without_a_desktop_fails_before_godot_starts(self) -> None:
+        with mock.patch.object(hostjoin.shot, "has_display", return_value=False), self.assertRaises(Failure) as caught:
+            self.host(agent=False)
+        self.assertIn("--headless", str(caught.exception))
+        self.godot.assert_not_called()
+
+    def test_tiles_fill_the_area_in_a_grid_without_overlap(self) -> None:
+        for count in range(2, hostjoin.MAX_CLIENTS + 2):
+            with self.subTest(count=count):
+                placed = hostjoin.tiles(count, (100, 50, 2560, 1400))
+                self.assertEqual(len(placed), count)
+                for tile in placed:
+                    self.assertGreaterEqual(tile.y - hostjoin.TITLE_BAR, 50)
+                    self.assertLessEqual(tile.x + tile.width, 100 + 2560)
+                    self.assertLessEqual(tile.y + tile.height, 50 + 1400)
+                    self.assertLessEqual(abs(tile.width * 9 - tile.height * 16), 16)
+                for i, a in enumerate(placed):
+                    for b in placed[i + 1 :]:
+                        apart_x = a.x + a.width <= b.x or b.x + b.width <= a.x
+                        top_a, top_b = a.y - hostjoin.TITLE_BAR, b.y - hostjoin.TITLE_BAR
+                        apart_y = a.y + a.height <= top_b or b.y + b.height <= top_a
+                        self.assertTrue(apart_x or apart_y, (a, b))
+
+
+class ScreenAreaTest(unittest.TestCase):
+    def test_the_screen_area_is_a_rectangle(self) -> None:
+        _x, _y, width, height = hostjoin.screen_area()
+        self.assertGreater(width, 0)
+        self.assertGreater(height, 0)
+
+
+class GameCheckTest(unittest.TestCase):
+    """verify's `game` step: the main scene headless through its command line; what passes and what fails."""
+
+    def test_the_step_runs_the_game_scene_headless_host_and_one_client_on_its_port(self) -> None:
+        seen: list[list[hostjoin.Part]] = []
+
+        def supervise(parts: list[hostjoin.Part], **_kwargs: object) -> None:
+            seen.append(parts)
+
+        with (
+            mock.patch.object(verify, "free_udp_port", return_value=23459),
+            mock.patch.object(hostjoin, "require_godot", return_value="godot"),
+            mock.patch.object(hostjoin, "ensure_out"),
+            mock.patch.object(hostjoin.launch, "import_if_missing"),
+            mock.patch.object(hostjoin, "supervise", supervise),
+            mock.patch.object(hostjoin, "write_logs"),
+            mock.patch.object(hostjoin, "report", return_value=0),
+            mock.patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            self.assertEqual(verify.game(), 0)
+        host, client = seen[0]
+        for part in (host, client):
+            self.assertIn("--headless", part.cmd)
+            self.assertEqual(part.cmd[part.cmd.index("--") - 1], f"res://{hostjoin.GAME}")
+            self.assertIn("--port=23459", part.user_args)
+        self.assertEqual(host.user_args[:2], ["--host", "--local"])
+        self.assertIn(hostjoin.NO_REPLAY, host.user_args)
+        self.assertEqual(client.user_args[0], "--join=127.0.0.1")
+
+    def checked(self, *whats: str) -> list[hostjoin.Part]:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            stop = Path(tmp) / "stop"
+            parts = [fake("host", whats[0], stop), *(fake(f"client {i}", w, stop) for i, w in enumerate(whats[1:], 2))]
+            with mock.patch("sys.stdout", new_callable=io.StringIO):
+                hostjoin.supervise(parts, seconds=3, stop=stop, until=hostjoin._settled_in_lobby())
+        hostjoin.check_game_parts(parts)
+        return parts
+
+    def test_welcomed_parts_that_stop_for_the_stop_file_pass(self) -> None:
+        with mock.patch.object(hostjoin, "GAME_SETTLE_SECONDS", 0.2):
+            parts = self.checked("game-host", "welcomed")
+        self.assertEqual([p.problem for p in parts], ["", ""])
+
+    def test_a_part_never_welcomed_fails(self) -> None:
+        parts = self.checked("game-host", "client")
+        self.assertEqual(parts[1].problem, "never welcomed: it reached no lobby")
+
+    def test_a_part_that_exits_without_the_stop_file_fails(self) -> None:
+        parts = self.checked("game-host", "leaves")
+        self.assertIn("did not end through the stop file", parts[1].problem)
 
 
 class SupervisionTest(unittest.TestCase):
@@ -191,6 +407,18 @@ class SupervisionTest(unittest.TestCase):
         parts = self.run_parts([fake("host", "dies", self.stop), fake("client 2", "client", self.stop)], seconds=30)
         self.assertEqual(parts[0].problem, "exited 1 (cannot host: no levels)")
         self.assertEqual(parts[1].problem, "never started")
+
+    def test_a_host_that_cannot_host_but_keeps_running_gets_no_client(self) -> None:
+        # The game shows its menu with the reason instead of exiting; the clients must not wait HOST_READY_SECONDS.
+        began = time.monotonic()
+        parts = self.run_parts([fake("host", "menu-host", self.stop), fake("client 2", "client", self.stop)], seconds=2)
+        self.assertLess(time.monotonic() - began, 30)
+        self.assertEqual(parts[1].problem, "never started")
+
+    def test_on_hosting_gets_the_host_line(self) -> None:
+        got: list[str] = []
+        self.run_parts([fake("host", "host", self.stop)], seconds=1, on_hosting=got.append)
+        self.assertEqual(got, ["session: hosting base_mode.tres on 127.0.0.1:1"])
 
     def test_an_engine_error_line_fails_the_part_and_the_report(self) -> None:
         parts = self.run_parts([fake("join", "error", self.stop)], seconds=1)
