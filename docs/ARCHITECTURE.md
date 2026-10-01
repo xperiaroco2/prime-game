@@ -1075,8 +1075,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     downed bot hears only the living and a dead bot nobody; every event a bot decodes while dead is for it alone (the
     subject check) or also reached every living peer present then, so nothing reaches only the dead (M4-2, the
     recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots present for a
-    whole round decode the same task events (`LeakCheck.TASK_EVENTS`: `StationPlaced`, `ItemSpawned`,
-    `PackageDelivered`, `TaskState` since M4-5, `TaskProgress`); no decoded message has a field that names a seed; a peer that is not a
+    whole round decode the same task events; no decoded message has a field that names a seed; a peer that is not a
     player decodes at most a `Rejected`, none unless it sent a `Hello`. `keep_history` costs memory (§5), so scenarios
     stay short, or 3h compares per tick over a window and drops what it compared.
   - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
@@ -1100,7 +1099,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     sending dead avatars to the dead (the old ghost rule): `bots dissident_kills_the_crew` failed on
     `ScenarioInvariants` (`peer 2 sees dead 3 in its snapshot`), and with that check switched off on `LeakCheck`
     alone (`it decoded the avatar of dead 3 at tick 518`, for both dead bots), then passed with the plant reverted.
-    **M4-5 (#141)** planted `TaskState` declared to the living only (`Audience.of_life(ALIVE)`): `bots
+    **M4-5 (#141)** added `TaskState` to the task events every bot decodes alike (`LeakCheck.TASK_EVENTS`:
+    `StationPlaced`, `ItemSpawned`, `PackageDelivered`, `TaskState`, `TaskProgress`; also `ScenarioInvariants.TASK_EVENTS`), and
+    planted `TaskState` declared to the living only (`Audience.of_life(ALIVE)`): `bots
     crew_downed_before_a_delivery`, where a crew bot is downed before another delivers, failed on
     `ScenarioInvariants` (`TaskState reached [1, 2], not every present player [1, 2, 3]`), with `TaskState` out of
     its `TASK_EVENTS` on `LeakCheck` alone (`bot 1 and bot 3 decoded different task events in match 0`), and with it
@@ -1108,7 +1109,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     out (at the deal everyone is). The bots' network runner had a bug that scenario's sibling found: a bot that
     stood erased its last move tick, so a `WalkTo` after a step answered within the walk's last client tick claimed
     two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
-    now keeps the walk's own client tick (`NetPlay._stand`).
+    now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
+    `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
@@ -2048,7 +2050,8 @@ phase classes come in the task each row names.
   announced by its own event: after `ItemSpawned`, 2c's `SpawnItems` and 2f's Delivery deal call it with
   `Items.SPAWN`). The causes are constants there. Each condition names its own rejection reason as a constant.
 - **Tasks** (`core/tasks/`, 2f #62; shared since #79): a task type marks a subtask done in its own task state, then
-  calls `Tasks.subtask_done(ctx, task, detail)`, which emits that task's `TaskState` (M4-5, E30: `Tasks.state_of`)
+  calls `Tasks.subtask_done(ctx, task, detail)`, which emits that task's `TaskState` event (`TaskStateEvent`, not
+  the task type's `TaskState` class; M4-5, E30: `Tasks.state_of`)
   and `TaskProgress` (everyone; `Tasks.progress` counts the subtasks done and in total over every task), then raises
   `subtask_done`. `Tasks.announce` emits every task's `TaskState` in id order; `DealTasks` calls it after the deal. `Tasks.all_done` is "every task done"
   for `AllSubtasksDone`. Delivery (`core/tasks/delivery.gd`, with its task state as the inner class
@@ -2156,7 +2159,7 @@ phase classes come in the task each row names.
 | Part | What it does | Settings | Emits (audience); raises | Built in |
 |---|---|---|---|---|
 | `TakeIntoHand` | the item goes into the actor's hand; a one-handed hand item moves to an empty belt, any other hand item is swapped: it rests where the picked-up one lay (§7.1; the belt M4-5). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone, with `belted`: the item moved to the belt, or none); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61); the belt M4-5 (#141) |
-| `SwapHands` | the actor's hand and belt items change places, either of which may be empty (`Items.swap`); run after `CarriesItem` and `HandNotTwoHanded`. One that would put a two-handed item on the belt (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves. As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | M4-5 (#141, `core/items/swap_hands.gd`) |
+| `SwapHands` | the actor's hand and belt items change places, either of which may be empty (`Items.swap`); run after `CarriesItem` and `HandNotTwoHanded`. One that would put a two-handed item on the belt (a rule without `HandNotTwoHanded`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`two_handed`). As every applied action, it stops the actor's raise first (§9.2) | none | `Swapped` (everyone) | M4-5 (#141, `core/items/swap_hands.gd`) |
 | `PutDownInFront` | the hand item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `Strike` | picks the targets as in §7.1 (living, never downed, never invulnerable (M4-3), not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target is knocked down there (M4-2) | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A knockdown: `KnockedDown` (everyone), `Correction` (the downed); nothing drops (M4-2) | 2g (#63, `core/combat/strike.gd`) |
 | `RaiseDowned` (a `ChannelEffect`) | the raise (§7.1): starts a channel of the actor on the downed target; its rule's conditions are checked again every tick (`ChannelTicks`). Start: the target's knockdown pauses (`PlayerState.knockdown_left`) and the movement rule holds it in place. Stop (a condition failing, any applied action of the raiser, the raiser hit, downed or leaving, the target giving up or leaving): the knockdown runs on from where it paused. Completion after `seconds`: `LifeRules.revive` with `revive_health` | `seconds` (0.05 to 600; the base mode 3), `revive_health` (whole points, 1 to `PlayerRules.health`; the base mode 50, E27); no defaults: the data sets them | `RaiseStarted`, `RaiseStopped` (no cause), `Revived` (everyone); the revived player's `SelfStatus` | M4-4 (#140, `core/life/raise_downed.gd`) |
@@ -2677,11 +2680,13 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   M4-5 (#141): `crew_downed_before_a_delivery` (a dissident knocks a crew bot down, then another crew bot delivers the
   only package: the scenario the leak test needs to see a misdeclared `TaskState`, §4.6),
   `two_handed_pickup_with_a_full_belt` (a knife to the belt, a second in the hand, then the package: the hand knife
-  rests where the package lay, and a `Swap` is `two_handed`) and `dissident_hides_a_package` (a dissident carries the
-  package to a corner and puts it down; a crew bot finds it with `nearest(package)` and delivers it). The first
+  rests where the package lay, and a `Swap` is `two_handed`), `dissident_hides_a_package` (a dissident carries the
+  package to a corner and puts it down; a crew bot finds it with `nearest(package)` and delivers it) and
+  `crew_walks_after_a_respawn` (`crew_respawns_invulnerable`'s match, where the respawned bot walks at once: the
+  network runner's travel after a respawn). The first
   three, `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
-  `dissidents` and `dissidents` (2h's win conditions), M4-5's `crew`, `none` and `crew`; the other three `none`. None
-  of M4-5's runs in `bots-enet`.
+  `dissidents` and `dissidents` (2h's win conditions), M4-5's `crew`, `none`, `crew` and `dissidents`; the other three
+  `none`. None of M4-5's runs in `bots-enet`.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
