@@ -2,9 +2,11 @@ extends GdUnitTestSuite
 ## The real PlayerController on the network (ARCHITECTURE §4.7 and §7, M4-7): a joined Game's
 ## player walks, sprints, jumps and climbs steps on a fixture level, claiming through its
 ## ClientSession over a LoopbackHub to the host's HostSession, which checks every claim
-## (MovementRule) against its own copy of the level. Honest play is corrected 0 times; a placement
-## the test forces on the controller is corrected once, and play goes on without another. The host
-## sees the joiner where it walked, through the snapshots and SnapshotBuffer.
+## (MovementRule) against its own copy of the level. Honest play is corrected 0 times; a teleport
+## the test forces on the controller (a refused claim) is corrected once, and play goes on without
+## another. The host's own placement at the round's start is one placement and no correction, the
+## claims of the old epoch still in flight draw none, and the placed joiner snaps on the host's
+## screen. The host sees the joiner where it walked, through the snapshots and SnapshotBuffer.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The top of the fixture's stairs.
@@ -63,7 +65,7 @@ func test_walking_sprinting_jumping_and_steps_are_never_corrected() -> void:
 	await _pair.stop()
 
 
-func test_a_forced_placement_is_corrected_once_and_play_goes_on() -> void:
+func test_a_refused_teleport_is_corrected_once_and_play_goes_on() -> void:
 	assert_bool(await _pair.start()).is_true()
 	var player := _pair.client.player()
 	var session := _pair.client.client()
@@ -86,4 +88,58 @@ func test_a_forced_placement_is_corrected_once_and_play_goes_on() -> void:
 	await _pair.frames(20)
 	assert_float(player.global_position.z).is_greater(stood.z + 3.0)
 	assert_int(session.corrections).is_equal(1)
+	assert_int(session.placements).is_equal(0)
+	await _pair.stop()
+
+
+func test_the_round_placement_is_no_correction_and_the_placed_player_snaps() -> void:
+	assert_bool(await _pair.start()).is_true()
+	var joiner := _pair.peer_of(_pair.client)
+	var lobby_spot := _pair.client.player().global_position
+	# Every pose the host draws of the joiner on the way: at the lobby spot, or later where it is
+	# placed; never anywhere between.
+	var seen: Array[Vector3] = []
+	var record := func() -> void:
+		var body := _pair.host.avatars().body_of(joiner)
+		if body != null and body.is_inside_tree():
+			seen.append(body.global_position)
+	assert_bool(await _pair.to_round(record)).is_true()
+	var placed := _pair.client.client().model.spots[joiner]
+	assert_vector(_pair.client.player().global_position).is_equal_approx(placed, Vector3.ONE * 0.05)
+	for game: Game in [_pair.host, _pair.client]:
+		assert_int(game.client().placements).is_equal(1)
+		assert_int(game.client().corrections).is_equal(0)
+	for i: int in 20:
+		await _pair.frames(1)
+		record.call()
+	for at: Vector3 in seen:
+		var near := at.distance_to(lobby_spot) < 0.1 or at.distance_to(placed) < 0.1
+		assert_bool(near).override_failure_message("drawn between the spots at %s" % at).is_true()
+	assert_vector(seen.back() as Vector3).is_equal_approx(placed, Vector3.ONE * 0.1)
+	# Play goes on in the round: walking and a jump draw no Correction.
+	var player := _pair.client.player()
+	player.move_input = Vector2(0.0, 1.0)
+	player.jump_requested = true
+	await _pair.frames(60)
+	player.move_input = Vector2.ZERO
+	await _pair.frames(20)
+	assert_float(player.global_position.distance_to(placed)).is_greater(2.0)
+	assert_int(_pair.client.client().corrections).is_equal(0)
+	assert_int(_pair.client.client().placements).is_equal(1)
+	await _pair.stop()
+
+
+func test_the_debug_overlay_shows_each_side_its_numbers() -> void:
+	assert_bool(await _pair.start()).is_true()
+	for game: Game in [_pair.host, _pair.client]:
+		game.overlay().visible = true
+	await _pair.frames(3)
+	await get_tree().process_frame
+	var joined := _pair.client.overlay().label.text
+	assert_str(joined).contains("corrections: 0")
+	assert_str(joined).contains("placements: 0")
+	assert_str(joined).not_contains("host:")
+	var hosting := _pair.host.overlay().label.text
+	assert_str(hosting).contains("corrections: 0")
+	assert_str(hosting).contains("host:")
 	await _pair.stop()

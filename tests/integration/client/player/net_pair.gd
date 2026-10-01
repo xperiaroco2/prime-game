@@ -20,6 +20,8 @@ const PORT := 7400
 const FRAME_USEC := 16667
 ## The most physics frames start() waits for both to stand in the lobby.
 const MAX_START_FRAMES := 300
+## The most physics frames to_round() waits: the fixture's 5 s countdown is 300, then the load.
+const MAX_ROUND_FRAMES := 1200
 
 var host: Game
 var client: Game
@@ -48,6 +50,22 @@ func start() -> bool:
 			await frames(5)
 			return true
 		await frames(1)
+	return false
+
+
+## Both ready up; the countdown runs, both load the map and the host places them at its round
+## markers (PlayersPlaced and a Correction each, at Loading's end). Calls `each_frame` every
+## physics frame on the way. False when the round never began for both.
+func to_round(each_frame := Callable()) -> bool:
+	host.set_ready(true)
+	client.set_ready(true)
+	for i: int in MAX_ROUND_FRAMES:
+		if _both_in_the_round():
+			await frames(5)
+			return true
+		await frames(1)
+		if each_frame.is_valid():
+			each_frame.call()
 	return false
 
 
@@ -82,6 +100,14 @@ func _both_in_the_lobby() -> bool:
 		if session == null or not session.is_welcomed() or game.player() == null:
 			return false
 		if session.model.roster.size() != 2 or game.screen() != GameFlow.Screen.LOBBY:
+			return false
+	return true
+
+
+func _both_in_the_round() -> bool:
+	for game: Game in [host, client]:
+		var session := game.client()
+		if session == null or session.model.phase != &"round" or game.player() == null:
 			return false
 	return true
 

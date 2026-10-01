@@ -1269,7 +1269,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `tests/unit/client/ui/debug_overlay_test.gd`, `tests/integration/client/world/avatar_views_test.gd`, and over a
   `LoopbackHub` with a `HostSession` (`net_pair.gd`: a host and a joined `Game`, each in a world of its own, on a
   simulated clock, in `tests/fixtures/client/steps_room.tscn`): `player_network_test.gd` (the real controller walks,
-  sprints up steps, jumps and walks down with 0 corrections, and a placement the test forces is corrected once) and
+  sprints up steps, jumps and walks down with 0 corrections; a teleport the test forces is corrected once; the round's
+  placement is one placement and no correction, and the placed joiner snaps on the host's screen; the overlay shows
+  each side its numbers) and
   `player_network_push_test.gd` (the two-client pushes at the interpolation delay, the same-frame pose asserted).
 - Not headless: how the others look moving, the overlay's key and the feel; the one-PC playtest (the M4 ADR's §6)
   checks them, and the two-machine one records its movement notes on #76.
