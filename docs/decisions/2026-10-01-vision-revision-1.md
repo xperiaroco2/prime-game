@@ -120,6 +120,10 @@ Replaces "Death and ghosts". There are no ghosts.
 - Any living player, dissidents included, may **raise** a downed player by holding E for 3 s, within reach and in
   sight of them (the pick-up's reach of 2 m and its line of sight), checked by the host.
 - The knockdown timer **pauses** while someone raises; a raise that is cancelled lets it run on from where it paused.
+- A downed player **does not crawl while being raised**: the host accepts no displacement from them while a raise runs
+  (any is corrected), so they stand up where they lay. Otherwise a teammate could
+  restart the raise just short of 3 s while walking beside a crawling package carrier whom nobody can hit, and the
+  10 s bound on a downed carrier would be gone ("Needs the engineer" 8).
 - A raise is **cancelled** by: releasing E, the raiser moving out of reach, the raiser being hit or downed, the raiser
   starting another action (pick up, put down, use, swap), or the downed player giving up. One raiser at a time
   ("Needs the engineer" 4).
@@ -252,6 +256,12 @@ which can be reverted.
    the cancels, so only the raiser going down stops it. Recommended (a): it is the engineer's answer, the attacker is
    within a knife's 1.5 m and usually sees the raiser stop anyway, and under (b) a raise could be finished under
    fire.
+8. **A raise restarted again and again** (found by the review): the pause lets a teammate keep a downed package
+   carrier, whom nobody can hit, alive without limit by restarting the raise before it completes. (a) The downed
+   player does not move while a raise runs, so the stall can only hold them in place, where the raiser can be hit
+   and downed; (b) as (a), and a raise that ends without completing also uses up the time it paused, so the 10 s
+   bound holds exactly; (c) a cooldown for a raiser after a cancelled raise. Recommended (a): it keeps V3's pause
+   as answered and removes the unhittable courier; (b) is the step up if playtests find stalls in place.
 
 ## Alternatives
 - **Many small mechanic issues, one per change:** each would be decided alone, and M4 would keep building on the rest
