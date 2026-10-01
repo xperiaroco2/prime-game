@@ -15,10 +15,9 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
 	position = Vector2(8, 8)
-	label.add_theme_font_size_override(&"font_size", 16)
+	label.theme_type_variation = &"DebugText"
 	var margin := MarginContainer.new()
-	for side: String in ["left", "top", "right", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 8)
+	margin.theme_type_variation = &"DebugMargin"
 	margin.add_child(label)
 	add_child(margin)
 

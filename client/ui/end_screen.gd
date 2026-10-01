@@ -12,17 +12,14 @@ var back_button := UiParts.button("Back to lobby", func() -> void: back_requeste
 func _init() -> void:
 	name = "EndScreen"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var black := ColorRect.new()
-	black.color = Color.BLACK
-	black.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(black)
+	UiParts.backdrop(self, &"EndBackdrop")
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override(&"separation", 24)
+	column.theme_type_variation = &"EndColumn"
 	center.add_child(column)
-	winner_label.add_theme_font_size_override(&"font_size", 40)
+	winner_label.theme_type_variation = &"EndTitle"
 	winner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(winner_label)
 	column.add_child(back_button)

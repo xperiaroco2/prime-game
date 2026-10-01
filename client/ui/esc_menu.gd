@@ -22,10 +22,7 @@ var _pending := Callable()
 func _init() -> void:
 	name = "EscMenu"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.5)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(shade)
+	UiParts.backdrop(self, &"EscShade")
 	var column := UiParts.centered_column(self, "Menu")
 	warning_label.text = HOST_WARNING
 	column.add_child(warning_label)
