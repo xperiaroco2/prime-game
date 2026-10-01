@@ -20,8 +20,8 @@
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
 
 Changing a boundary is a stop-and-ask item and gets an ADR.
-Proposed for M4 (E18, §4.7): `client/app/` alone also names `server/`'s `HostSession` and `HostNode`, to host the
-session its own client joins, and never reads `HostSession.game`.
+Proposed for M4 (E18, §4.7): `client/app/` alone also names `server/`, through the `HostNode` façade only, to host the
+session its own client joins; no `client/` file names `HostSession` or reads `.game`.
 
 ## 2. Data flow
 
@@ -1053,9 +1053,13 @@ would load.
 does in M3: an `EnetTransport` with the game's kind table, `HostSession.start(mode, port, mode.max_players,
 HostNode.now_usec())`, a `HostNode`, then the own `ClientSession` on `own_client`. Joining is an `EnetTransport`, a
 `ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`. `client/app/` is the only part
-of `client/` that names `server/`, and only to start, step, close and read `errors`, `ended` and a debug build's
-counters; no `client/` file names `HostSession.game`, `Match`, `MatchState`, `PeerView` or `Snapshots` (a source
-test, like `net/`'s "names no `core/` class"). So the host's own player sees only what its `ClientSession` decoded.
+of `client/` that names `server/`, and only through `HostNode` as a narrow façade: `HostNode.host(transport, mode,
+port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
+`end_reason`, `ended` and a debug build's counters, and calls `close()`. A source test over every `client/` file,
+`app/` included, strips comments and strings and fails on the identifiers `HostSession`, `Match`, `MatchState`,
+`PeerView` and `Snapshots` (case-sensitive, word-bounded: `SnapshotBuffer` passes) and on any `.game` access, like
+`net/`'s "names no `core/` class"; it is seen rejecting a planted `Snapshots.for_peer` call and `_host.game`. So the
+host's own player sees only what its `ClientSession` decoded.
 
 **One physics frame.**
 

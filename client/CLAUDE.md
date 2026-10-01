@@ -31,8 +31,9 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   `Snapshots`), not even on the host's own machine, and never infer hidden information from anything else (node
   names, resource paths, timing). What is drawn, played or shown comes from the own `ClientModel`, the interpolated
   snapshot poses and the client's own copy of the game mode (its names and numbers).
-- Only `app/` names `server/` (`HostSession`, `HostNode`): to start, step, close and read `errors`, `ended` and a
-  debug build's counters; nothing reads `HostSession.game`. A source test holds it (E18, proposed).
+- Only `app/` names `server/`, through the `HostNode` façade only (start, `own_client`, `errors`, `end_reason`,
+  `ended`, debug counters, `close()`). No `client/` file names `HostSession`, a `core/` state class or `.game`; a
+  source test holds it (E18, proposed).
 - One persistent root: swap levels under `World`; never `SceneTree.change_scene_to_*`, no autoloads (E19, proposed):
   a freed scene would take the `HostNode` and the session with it.
 - Spectating is built on the dead player's own client from the public snapshot. The target is drawn with the
