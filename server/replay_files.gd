@@ -59,9 +59,10 @@ static func list(dir: String = DIR) -> PackedStringArray:
 	return found
 
 
-## session-<date>-<time>-<microseconds since start>.cmdlog: sorts by when it was written.
+## session-<UTC date>-<UTC time>-<microseconds since start>.cmdlog: sorts by when it was written,
+## also across a daylight saving change.
 static func _file_name() -> String:
-	var now := Time.get_datetime_dict_from_system()
+	var now := Time.get_datetime_dict_from_system(true)
 	return (
 		"session-%04d%02d%02d-%02d%02d%02d-%013d.%s"
 		% [
