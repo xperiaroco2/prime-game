@@ -1,8 +1,9 @@
 class_name ClientModel
 extends RefCounted
 ## What one client knows now (ARCHITECTURE §4.6), folded from the events and snapshots it decoded:
-## its peer id and epoch, the phase, the roster, the settings, the items, stations and bodies, each
-## player's life (E25), the avatars of the newest snapshot and its own SelfStatus. Built only from
+## its peer id and epoch, the phase, the roster, the settings, the items with every player's hand
+## and belt, the stations, the tasks and bodies, each player's life (E25), the avatars of the
+## newest snapshot and its own SelfStatus. Built only from
 ## what the host sent this client, never from core/ state (invariant 2). The game mode is the
 ## client's own copy, read for where each phase plays.
 ##
@@ -29,12 +30,23 @@ class Item:
 	extends RefCounted
 	var kind: StringName
 	var position := Vector3.ZERO
-	## The peer holding it; NO_HOLDER when it rests somewhere.
+	## The peer carrying it; NO_HOLDER when it rests somewhere.
 	var holder := NO_HOLDER
+	## Carried on the holder's belt rather than in its hand (M4-5, E29).
+	var belted := false
 	## A package's circle and colour; -1 and white for any other item.
 	var station := -1
 	var colour := Color.WHITE
 	var delivered := false
+
+
+## One task as its TaskState tells it (E30): the task screen's row.
+class Task:
+	extends RefCounted
+	## The task type's id: the client's own copy of the mode gives its name and description.
+	var type: StringName
+	var done := 0
+	var total := 0
 
 
 ## One station (in the MVP a delivery circle).
@@ -83,6 +95,8 @@ var lives: Dictionary[int, Life] = {}
 ## RaiseStopped, Revived, the leave of either and a new match remove it. The client times the
 ## raise's progress itself, from RaiseStarted and the mode's raise time.
 var raises: Dictionary[int, int] = {}
+## Task id -> its public state (TaskState, E30), for the task screen.
+var tasks: Dictionary[int, Task] = {}
 var tasks_done := 0
 var tasks_total := 0
 ## The winning side once the match ended; empty before.
@@ -125,6 +139,17 @@ func raised_by(raiser: int) -> int:
 		if raises[target] == raiser:
 			return target
 	return 0
+
+
+## The item `peer` holds in its hand as the events tell it (ItemPickedUp, Swapped, ItemPlaced), or
+## -1. The own player's slots come only from these: its avatar is never sent to it.
+func hand_item(peer: int) -> int:
+	return _carried(peer, false)
+
+
+## The item `peer` carries on its belt as the events tell it, or -1.
+func belt_item(peer: int) -> int:
+	return _carried(peer, true)
 
 
 ## Whether the newest snapshot shows `peer` invulnerable (the avatar's flag, M4-3): strikes skip
@@ -203,6 +228,7 @@ func clear_match() -> void:
 	role = &""
 	teammates.clear()
 	items.clear()
+	tasks.clear()
 	stations.clear()
 	bodies.clear()
 	lives.clear()
@@ -246,19 +272,19 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			item.station = fields.get("station", -1)
 			item.colour = fields.get("colour", Color.WHITE)
 			items[fields["item"] as int] = item
-		&"ItemPickedUp":
-			var item: Item = items.get(fields["item"] as int)
-			if item != null:
-				item.holder = fields["peer"]
+		&"ItemPickedUp", &"Swapped":
+			_fold_slots(event_name, fields)
 		&"ItemPlaced":
 			var item: Item = items.get(fields["item"] as int)
 			if item != null:
 				item.holder = NO_HOLDER
+				item.belted = false
 				item.position = fields["position"]
 		&"PackageDelivered":
 			var item: Item = items.get(fields["item"] as int)
 			if item != null:
 				item.holder = NO_HOLDER
+				item.belted = false
 				item.delivered = true
 			var station: Station = stations.get(fields["station"] as int)
 			if station != null:
@@ -266,6 +292,12 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 		&"TaskProgress":
 			tasks_done = fields["done"]
 			tasks_total = fields["total"]
+		&"TaskState":
+			var task := Task.new()
+			task.type = fields["type"]
+			task.done = fields["done"]
+			task.total = fields["total"]
+			tasks[fields["task"] as int] = task
 		&"Damaged":
 			health = fields["health"]
 		&"SelfStatus":
@@ -280,6 +312,35 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			epoch = fields["epoch"]
 		&"MatchEnded":
 			winner = fields["side"]
+
+
+## A pickup puts the item in the picker's hand and moves `belted`, when it names one, to its belt
+## (E29); a hand item that did not fit the belt follows as ItemPlaced. A swap exchanges the
+## swapper's hand and belt items, either of which may be empty.
+func _fold_slots(event_name: StringName, fields: Dictionary) -> void:
+	var peer: int = fields["peer"]
+	if event_name == &"Swapped":
+		for item: Item in items.values():
+			if item.holder == peer:
+				item.belted = not item.belted
+		return
+	var picked: Item = items.get(fields["item"] as int)
+	if picked != null:
+		picked.holder = peer
+		picked.belted = false
+	var belted: Item = items.get(fields.get("belted", -1) as int)
+	if belted != null:
+		belted.holder = peer
+		belted.belted = true
+
+
+## The item `peer` carries in the hand (`on_belt` false) or on the belt, or -1.
+func _carried(peer: int, on_belt: bool) -> int:
+	for id: int in items:
+		var item := items[id]
+		if item.holder == peer and item.belted == on_belt:
+			return id
+	return -1
 
 
 ## A knockdown makes its player downed; a death makes it dead, with its body; a respawn makes it
