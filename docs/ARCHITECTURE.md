@@ -944,17 +944,19 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   meet the D3D12 freeze of §4.
   **Built in 3i (#103)** as `tools/run/headless_session.gd` (a `SceneTree` script under `tools/`, which may use
   everything (§1), so it composes `server/` and `client/` in one process without a new boundary; the host's own
-  `ClientSession` still reads only `own_client`) and the runner's `hostjoin.py`. `--host` starts `HostSession.start` with `content/modes/base_mode.tres`, the
-  transport's `max_clients` one above the mode's remote players (so the one too many hears `full` from `core/`, not a
-  silent refusal by ENet), a `HostNode`, and the own `ClientSession`; `--local` binds 127.0.0.1, else every interface.
-  `--join=<address>` runs a `ClientSession` over `EnetTransport` with the default `load_levels`. Each prints the
-  roster, the phase and the counters from its `ClientModel`, transport and `HostSession` (the runner's `--clients`
-  start after the host printed `session: hosting`), and stops cleanly on the runner's stop file (Ctrl+C, `--seconds`).
-  A join that ends before `Welcome` exits 1 with its reason in words; the host exits 1 when it cannot start, its
-  session ends for an error or its own client ends. The default port, 24600, is a placeholder, "not a decision".
-  Usage: `docs/AGENT_WORKFLOW.md` §11. Tests: `tests/unit/tools/headless_session_test.gd` (the arguments, the
-  roster line, the refusal texts) and `tools/runner/tests/test_hostjoin.py` (the supervision, and a real host with two
-  local clients reaching the lobby roster Player1 to Player3).
+  `ClientSession` still reads only `own_client`) and the runner's `hostjoin.py`. `--host` starts `HostSession.start`
+  with `content/modes/base_mode.tres`, the transport's `max_clients` one above the mode's remote players (so the one
+  too many hears `full` from `core/`, not a silent refusal by ENet), a `HostNode`, and the own `ClientSession`;
+  `--local` binds 127.0.0.1, else every interface. `--join=<address>` runs a `ClientSession` over `EnetTransport` with
+  the default `load_levels`. Each prints the roster, the phase and the counters from its `ClientModel`, transport and
+  `HostSession` (the runner's `--clients` start after the host printed `session: hosting`), and stops cleanly on the
+  runner's stop file (Ctrl+C, `--seconds`), or by itself once the runner's alive file is gone or stale (a killed
+  runner). A join that ends or is stopped before `Welcome` exits 1 with its reason in words, as does a welcomed client
+  that ends for anything but `host_lost`; the host exits 1 when it cannot start, its session ends for an error or its
+  own client ends. The default port, 24600, is a placeholder, "not a decision". Usage: `docs/AGENT_WORKFLOW.md` §11.
+  Tests: `tests/unit/tools/headless_session_test.gd` (the arguments, the roster line, the refusal texts) and
+  `tools/runner/tests/test_hostjoin.py` (the supervision, and a real host with two local clients reaching the lobby
+  roster Player1 to Player3).
 
 ## 5. Per-peer information filtering
 

@@ -559,12 +559,18 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   decision"). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase,
   and the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
   budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
-  once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no answer). The runner echoes
-  them live as `[host]`, `[client 2]` or `[join]` and keeps each in `tools/out/logs/session/<label>.log`. They run
-  until Ctrl+C, `--seconds S` or every process ending; the stop is clean (a stop file each process polls: the host
-  closes, so the clients see `host_lost` at once), and a process still running 10 s later is killed. Fails like
-  `run`: a non-zero exit (a refused join, a host that cannot start) or an engine error line. The agent's own checks
-  pass `--local --seconds S`. Its selftest runs a host and two local clients to the full lobby roster.
+  once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
+  answer). The runner echoes them live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a player:
+  client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until Ctrl+C,
+  `--seconds S` or every process ending; the stop is clean (a stop file each process polls: the host closes, so
+  the clients see `host_lost` at once), and a process still running 10 s later is killed. Each process also stops
+  by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner leaves no
+  session holding the port. Fails like `run`: a non-zero exit or an engine error line. Exit 1 is a refused or
+  unanswered join, a client stopped before `Welcome` or ended by anything but its host, or a host that cannot
+  start or ends for an error. The agent's own checks pass `--local --seconds S` (never without `--seconds` in the
+  foreground). On Windows, Ctrl+C in `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session
+  has already stopped, so either answer is fine. Its selftest runs a host and two local clients to the full lobby
+  roster.
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
@@ -608,7 +614,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **By milestone:** M0–M1 GDD open questions, `mechanic` issues, review of the content-API draft · M2 first content
   `.tres` · M3 bot scenarios (`content/scenarios/`, `docs/ARCHITECTURE.md` §9.7) · M4 level pieces with `shot`
   screenshots; "запусти хост і двох клієнтів" runs `tools\run.cmd host --clients 2` (headless in M3; M4 gives it
-  windows), and a second machine `tools\run.cmd join <address>` (§11).
+  windows; an agent adds `--local --seconds S` or runs it in the background), and a second machine
+  `tools\run.cmd join <address>` (§11).
 
 ## 13. How humans talk to the agent
 
