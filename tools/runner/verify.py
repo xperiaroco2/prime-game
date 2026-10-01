@@ -8,7 +8,7 @@ import time
 import unittest
 from collections.abc import Callable
 
-from . import check, doctor, gdunit, launch, lint
+from . import bots, check, doctor, gdunit, launch, lint
 from .common import ROOT, Failure, bad, git_status, ok, say
 
 # The headless ENet run (#40): a host with its own client and two clients, one process each, on 127.0.0.1 only.
@@ -24,6 +24,10 @@ FREEZE_SECONDS = 60
 STALL_RUN = "tests/integration/net/enet_stall.gd"
 STALL_SECONDS = 60
 STALL_PORTS = 3
+# The bot scenarios and the information-leak test (#102): every scenario in one process on a simulated clock (about
+# 8 s), then one scenario over ENet, one process per bot on the real clock: 18 s for its 3 bots and 17 s of match.
+BOTS_ENET_SCENARIO = "dissident_kills_the_crew"
+BOTS_ENET_INSTANCES = 3
 # Below the ephemeral ranges of Windows (49152+) and Linux (32768+): an ENet client's own socket never takes it.
 ENET_PORTS = range(20000, 32000)
 PORT_TRIES = 50
@@ -67,6 +71,16 @@ def stall() -> int:
     """`run <STALL_RUN> --headless --seconds 60 -- --port=<free>`: one process, whose hosts take three ports."""
     port = free_udp_port(count=STALL_PORTS)
     return launch.main(STALL_RUN, headless=True, seconds=STALL_SECONDS, instances=1, user_args=[f"--port={port}"])
+
+
+def bots_one_process() -> int:
+    """`bots`: every scenario in one process over the loopback."""
+    return bots.main()
+
+
+def bots_enet() -> int:
+    """`bots <BOTS_ENET_SCENARIO> --instances 3`: one scenario over ENet on a free port."""
+    return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES)
 
 
 def _headless_on_free_port(target: str, seconds: int) -> int:
@@ -114,6 +128,8 @@ def main() -> int:
         ("enet", enet),
         ("freeze", freeze),
         ("stall", stall),
+        ("bots", bots_one_process),
+        ("bots-enet", bots_enet),
         ("selftest", selftest),
     ]
     results: list[tuple[str, str, float]] = []

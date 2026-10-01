@@ -1,4 +1,4 @@
-"""`verify` runs the headless ENet (#45), freeze (#70) and stall (#95) runs: their place, arguments and port."""
+"""`verify` runs the headless ENet (#45), freeze (#70), stall (#95) and bots (#102) runs: their place, arguments, port."""
 
 import socket
 import unittest
@@ -27,15 +27,20 @@ class EnetStepTest(unittest.TestCase):
             mock.patch.object(verify, "enet", step("enet")),
             mock.patch.object(verify, "freeze", step("freeze")),
             mock.patch.object(verify, "stall", step("stall")),
+            mock.patch.object(verify, "bots_one_process", step("bots")),
+            mock.patch.object(verify, "bots_enet", step("bots-enet")),
             mock.patch.object(verify, "selftest", step("selftest")),
             mock.patch.object(verify, "git_status", return_value=set()),
             mock.patch.object(verify, "say"),
         ):
             self.assertEqual(verify.main(), 0)
-        self.assertEqual(names, ["doctor", "lint", "check", "test", "enet", "freeze", "stall", "selftest"])
+        self.assertEqual(
+            names,
+            ["doctor", "lint", "check", "test", "enet", "freeze", "stall", "bots", "bots-enet", "selftest"],
+        )
 
-    def test_a_failed_enet_freeze_or_stall_run_fails_verify(self) -> None:
-        for failing in ("enet", "freeze", "stall"):
+    def test_a_failed_enet_freeze_stall_or_bots_run_fails_verify(self) -> None:
+        for failing in ("enet", "freeze", "stall", "bots", "bots-enet"):
             with (
                 self.subTest(failing=failing),
                 mock.patch.object(verify.doctor, "main", return_value=0),
@@ -45,6 +50,8 @@ class EnetStepTest(unittest.TestCase):
                 mock.patch.object(verify, "enet", return_value=int(failing == "enet")),
                 mock.patch.object(verify, "freeze", return_value=int(failing == "freeze")),
                 mock.patch.object(verify, "stall", return_value=int(failing == "stall")),
+                mock.patch.object(verify, "bots_one_process", return_value=int(failing == "bots")),
+                mock.patch.object(verify, "bots_enet", return_value=int(failing == "bots-enet")),
                 mock.patch.object(verify, "selftest", return_value=0),
                 mock.patch.object(verify, "git_status", return_value=set()),
                 mock.patch.object(verify, "say"),
@@ -84,6 +91,16 @@ class EnetStepTest(unittest.TestCase):
             verify.STALL_RUN, headless=True, seconds=60, instances=1, user_args=["--port=23458"]
         )
         self.assertTrue((ROOT / verify.STALL_RUN).is_file())
+
+    def test_the_bots_run_every_scenario_in_one_process_then_one_over_enet(self) -> None:
+        with mock.patch.object(verify.bots, "main", return_value=0) as run:
+            self.assertEqual(verify.bots_one_process(), 0)
+            self.assertEqual(verify.bots_enet(), 0)
+        self.assertEqual(
+            run.call_args_list,
+            [mock.call(), mock.call([verify.BOTS_ENET_SCENARIO], instances=verify.BOTS_ENET_INSTANCES)],
+        )
+        self.assertTrue((ROOT / "content" / "scenarios" / f"{verify.BOTS_ENET_SCENARIO}.tres").is_file())
 
 
 class FreePortTest(unittest.TestCase):

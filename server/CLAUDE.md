@@ -87,9 +87,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - Integration tests of the transport checks and the per-peer delivery go in `tests/integration/`; the rules
   themselves are unit-tested in `core/`.
 - The information-leak test is the most important test in the project: no client ever receives information it is
-  not entitled to; it compares what each bot decoded with `Match.view_of` of its peer (§5, §4.6). When it exists,
-  prove it works once by injecting a leak, confirming it fails, and reverting. A connected peer that is not a player
-  receives at most a `Rejected`, none unless it sent a `Hello` (so a lurker receives nothing): never an *everyone*
+  not entitled to; it compares what each bot decoded with `Match.view_of` of its peer (§5, §4.6), in `bots`. 3h
+  (#102) proved it once with three injected leaks (§4.6); a new kind of leak gets the same proof: inject it, see
+  `bots` fail, revert. A connected peer that is not a player receives at most a `Rejected`, none unless it sent a
+  `Hello` (so a lurker receives nothing): never an *everyone*
   event, snapshot or voice.
 - Drive the host session with a clock of the test's own: a host freeze is a jump of that clock.
 - At finish, `netcode-security-reviewer` reviews every `server/` change.

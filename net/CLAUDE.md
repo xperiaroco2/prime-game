@@ -67,7 +67,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - Round-trip tests for every schema (serialize, deserialize, compare) in `tests/unit/`, a fuzz test of every decoder
   (truncations, single-byte changes, random payloads: a clean reject and no engine error line), and the table
   checked against `core/`'s intents and events (§4.4).
-- Host plus clients on one machine in `tests/integration/` and the bot harness (`bots`, once it exists). Layers
+- Host plus clients on one machine in `tests/integration/` and the bot harness (`bots`). Layers
   above `net/` test with a `LoopbackHub`; ENet itself with the headless run
   `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3` (127.0.0.1 only),
   and the 5.2 s freeze of the host and of a client,
