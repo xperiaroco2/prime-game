@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
-## The host and join launcher (client/dev/headless_session.gd, 3i): its arguments, the roster line
+## The host and join launcher (tools/run/headless_session.gd, 3i): its arguments, the roster line
 ## it prints and the reasons a join ends with. The runs themselves:
 ## tools/runner/tests/test_hostjoin.py.
 
-const Launcher := preload("res://client/dev/headless_session.gd")
+const Launcher := preload("res://tools/run/headless_session.gd")
 
 
 func test_host_arguments() -> void:

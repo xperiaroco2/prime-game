@@ -1,7 +1,7 @@
 """`host` and `join`: the options, the processes they start, the clean stop and the report.
 
 The supervision tests run small Python processes in place of Godot; the real run starts a headless host and two
-local clients of client/dev/headless_session.gd on a free port of 127.0.0.1 and waits for the full lobby roster.
+local clients of tools/run/headless_session.gd on a free port of 127.0.0.1 and waits for the full lobby roster.
 """
 
 import io
@@ -196,7 +196,7 @@ class SupervisionTest(unittest.TestCase):
 
 @unittest.skipUnless(godot_bin() and (ROOT / ".godot").is_dir(), "needs Godot (GODOT_BIN) and the imported project")
 class RealSessionTest(unittest.TestCase):
-    """client/dev/headless_session.gd under a real headless Godot: a host and two local clients on 127.0.0.1."""
+    """tools/run/headless_session.gd under a real headless Godot: a host and two local clients on 127.0.0.1."""
 
     FULL = re.compile(r"session: roster: Player1 \[1\], Player2 \[\d+\], Player3 \[\d+\]$")
 

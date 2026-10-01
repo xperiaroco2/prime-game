@@ -1,6 +1,6 @@
 """`host` and `join`: headless sessions over ENet with the pinned Godot (ARCHITECTURE §4.6, docs/AGENT_WORKFLOW.md §11).
 
-`host [--port P] [--clients N] [--local] [--seconds S]` runs client/dev/headless_session.gd as the host (a HostSession
+`host [--port P] [--clients N] [--local] [--seconds S]` runs tools/run/headless_session.gd as the host (a HostSession
 and its own ClientSession, the base mode from content/) and, with --clients, N more processes that join it on
 127.0.0.1 once it is hosting. `join <address> [--port P] [--seconds S]` runs one client that joins a host. Each
 process prints the roster, the phase and the counters as they change; the runner echoes its lines live, labelled,
@@ -27,7 +27,7 @@ from pathlib import Path
 from . import launch
 from .common import IS_WINDOWS, LOGS, ROOT, Failure, bad, ensure_out, kill_tree, ok, rel, require_godot, say
 
-SCRIPT = "client/dev/headless_session.gd"
+SCRIPT = "tools/run/headless_session.gd"
 LOCALHOST = "127.0.0.1"
 # The host and its local clients are at most `run`'s instances.
 MAX_CLIENTS = launch.MAX_INSTANCES - 1

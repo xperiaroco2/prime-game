@@ -15,7 +15,6 @@ Loaded when a file in `client/` is read. The invariants in the root `CLAUDE.md` 
   (Hello, intents, claims, loading, voice), `DecodedView` (what it decoded, in `PeerView`'s shape) and `ClientModel`
   (what it knows now). Game code talks to the host only through a `ClientSession`. Its `view` stays empty unless
   `keep_history` is on (off by default; bots and the leak test turn it on).
-- `dev/headless_session.gd` (3i): the headless host and join behind `tools\run.cmd host` and `join` (§4.6).
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state, not even on the host's own machine, and

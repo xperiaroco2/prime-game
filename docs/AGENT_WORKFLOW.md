@@ -552,7 +552,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
   project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
 - **`host` and `join` [applied]** (3i, #103; `docs/ARCHITECTURE.md` §4.6): headless sessions over ENet of the base
-  mode, through `client/dev/headless_session.gd`. `host [--port P] [--clients N] [--local] [--seconds S]` hosts (a
+  mode, through `tools/run/headless_session.gd`. `host [--port P] [--clients N] [--local] [--seconds S]` hosts (a
   `HostSession` and its own `ClientSession`) on every interface, or on 127.0.0.1 only with `--local` (no firewall
   prompt), and with `--clients N` (up to 7) starts N headless clients that join it on 127.0.0.1 once it hosts.
   `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a placeholder ("not a

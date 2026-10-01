@@ -8,8 +8,9 @@ extends SceneTree
 ##   --join=<address>   join that host with a ClientSession over EnetTransport
 ##   --port=<p>         the UDP port (default DEFAULT_PORT)
 ##   --stop-file=<path> stop cleanly once this file exists (the runner's Ctrl+C and --seconds)
-## A dev launcher composes server/ and client/ in one process, as M4's game will: the host's own
-## client still reads nothing of HostSession, only what own_client delivers (invariant 2).
+## It lives in tools/, which may use everything (ARCHITECTURE §1), because it composes server/ and
+## client/ in one process; the host's own client still reads nothing of HostSession, only what
+## own_client delivers (invariant 2).
 ##
 ## Exit codes: 0 for a clean end (stopped, or a joined client whose host ended the session); 1 when
 ## the host could not start or ended for an error, or a client never got in (refused, no answer);
