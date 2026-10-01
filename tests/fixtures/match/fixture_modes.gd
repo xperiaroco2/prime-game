@@ -4,10 +4,11 @@ extends RefCounted
 ## unit tests never load `content/`, ARCHITECTURE §9.6).
 ##
 ## basic(): lobby (FixturePhase: Hello, SetReady, `all_ready`) -> round (RoundPhase: Use from the
-## living, MoveClaim; win checks; the clock) -> end (FixturePhase: ReturnToLobby from the host,
-## `back`) -> lobby. The deal places players on `round_player`; `End -> Lobby` on
-## `lobby_player`. Win conditions, in order: crew when peer 0's counter `crew_win` >= 1,
-## dissidents when `dissidents_win` >= 1. The `won` row emits a note "won <side>".
+## living, MoveClaim from the living and the downed; LifeTicks; win checks; the clock) -> end
+## (FixturePhase: ReturnToLobby from the host, `back`) -> lobby. The deal places players on
+## `round_player`; `End -> Lobby` on `lobby_player`. Win conditions, in order: crew when peer 0's
+## counter `crew_win` >= 1, dissidents when `dissidents_win` >= 1. The `won` row emits a note
+## "won <side>".
 
 const LOBBY := "fixture://lobby"
 const MAP := "fixture://map"
@@ -51,6 +52,7 @@ static func basic() -> GameMode:
 		[AcceptSpec.of(Intents.USE, LIVING), AcceptSpec.of(Intents.MOVE_CLAIM, LIVING | DOWNED)]
 	)
 	round_spec.level = PhaseSpec.Level.MAP
+	round_spec.tick_systems = [LifeTicks.new()]
 	round_spec.checks_wins = true
 	round_spec.clock_runs = true
 	round_spec.snapshots = true
@@ -86,7 +88,8 @@ static func player_rules() -> PlayerRules:
 	rules.sprint_start = 20
 	rules.jump_height_m = 1.0
 	rules.jump_cost = 10
-	rules.ghost_speed_factor = 1.3
+	rules.crawl_speed_mps = 1.0
+	rules.knockdown_s = 10.0
 	rules.capsule_radius_m = 0.4
 	rules.capsule_height_m = 1.8
 	rules.eye_height_m = 1.6

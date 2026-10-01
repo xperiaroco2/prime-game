@@ -500,7 +500,11 @@ func _run_action(command: MatchCommand, ctx: MatchContext) -> void:
 		ctx.reject(command, reason)
 
 
-## Whether the current phase's allowlist accepts the intent from its sender (§3.1).
+## Whether the current phase's allowlist accepts the intent from its sender (§3.1). The dead send
+## no intents as players (vision revision 1): PLAYER, LIVING and DOWNED accept none, so an intent
+## still in flight at a death never reaches a rule. HOST still accepts the host's own player dead
+## for the session's controls (ReturnToLobby on the end screen, where whoever died in the round is
+## still dead until ResetMatch), never for a player's action (Intents.PLAYER_ACTIONS).
 func _accepts(command: MatchCommand) -> bool:
 	var from := _phase_spec.senders_of(command.kind)
 	var player := state.player(command.peer)
@@ -508,13 +512,12 @@ func _accepts(command: MatchCommand) -> bool:
 		return from & AcceptSpec.From.NEWCOMER != 0
 	if not player.is_present():
 		return false
-	if from & AcceptSpec.From.PLAYER != 0:
-		return true
-	if from & AcceptSpec.From.LIVING != 0 and player.life == PlayerState.Life.ALIVE:
-		return true
-	if from & AcceptSpec.From.DOWNED != 0 and player.life == PlayerState.Life.DOWNED:
-		return true
-	return from & AcceptSpec.From.HOST != 0 and command.peer == 1
+	var host := from & AcceptSpec.From.HOST != 0 and command.peer == 1
+	if player.life == PlayerState.Life.DEAD:
+		return host and not Intents.PLAYER_ACTIONS.has(command.kind)
+	var living := from & AcceptSpec.From.LIVING != 0 and player.life == PlayerState.Life.ALIVE
+	var downed := from & AcceptSpec.From.DOWNED != 0 and player.life == PlayerState.Life.DOWNED
+	return from & AcceptSpec.From.PLAYER != 0 or living or downed or host
 
 
 ## The first rule for the intent among the held item's actions, the actor's role's and the

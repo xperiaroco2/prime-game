@@ -40,11 +40,12 @@ func test_the_circle_and_a_palette_for_the_most_packages() -> void:
 	assert_int(demands.palettes[&"circle"]).is_greater_equal(most)
 
 
-func test_round_runs_task_ticks_and_the_mode_deals_delivery() -> void:
+func test_round_runs_life_ticks_then_task_ticks_and_the_mode_deals_delivery() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	var round_spec := mode.find_phase(&"round")
-	assert_int(round_spec.tick_systems.size()).is_equal(1)
-	assert_bool(round_spec.tick_systems[0] is TaskTicks).is_true()
+	assert_int(round_spec.tick_systems.size()).is_equal(2)
+	assert_bool(round_spec.tick_systems[0] is LifeTicks).is_true()
+	assert_bool(round_spec.tick_systems[1] is TaskTicks).is_true()
 	assert_int(mode.task_types.size()).is_equal(1)
 	assert_object(_delivery(mode).package).is_same(mode.find_item_kind(&"package"))
 

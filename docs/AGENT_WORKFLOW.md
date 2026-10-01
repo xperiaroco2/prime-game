@@ -657,11 +657,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `verify` on the merged tree is the check there (§7.1). `verify` runs, in this order: `doctor --quick`,
   `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots` and
   `bots-enet`, `game`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about
-  8 s) and `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 18 s on 2026-10-01, under the minute
-  #102 allows). `game` (#149, about 5 s) starts `client/app/game.tscn` headless through its command line, a host
-  (`--host --local --no-replay`) and one client (`--join=127.0.0.1`) on a free port: both must be welcomed into
-  the lobby, then stop through the runner's stop file with exit 0 and no engine error line (logs in
-  `tools/out/logs/game/`). The `enet` step is
+  8 s) and `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 67 s since M4-2, #138: the scenario
+  ends by time up in a one-minute match, over the minute #102 allowed). `game` (#149, about 5 s) starts
+  `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
+  (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
+  file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
   `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
   5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
   `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on

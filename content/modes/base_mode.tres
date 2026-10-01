@@ -43,9 +43,10 @@
 [ext_resource type="Script" uid="uid://dfhwf7ayo4do4" path="res://core/deal/spawn_items.gd" id="59_spawn_items"]
 [ext_resource type="Script" uid="uid://b22qafiubcc4u" path="res://core/win/end_match.gd" id="64_end_match"]
 [ext_resource type="Resource" uid="uid://cyir8k7pvdeo3" path="res://content/win_conditions/every_task_done.tres" id="64_every_task_done"]
-[ext_resource type="Resource" uid="uid://bxesfl00mde6e" path="res://content/win_conditions/no_crew_alive.tres" id="64_no_crew_alive"]
+[ext_resource type="Resource" uid="uid://bxesfl00mde6e" path="res://content/win_conditions/no_crew_present.tres" id="64_no_crew_present"]
 [ext_resource type="Script" uid="uid://b4jna305j0xq6" path="res://core/win/start_clock.gd" id="64_start_clock"]
 [ext_resource type="Resource" uid="uid://cl8ks3hlpyn1c" path="res://content/win_conditions/time_up.tres" id="64_time_up"]
+[ext_resource type="Script" uid="uid://cwp43ht0dotiu" path="res://core/life/life_ticks.gd" id="65_life_ticks"]
 
 [sub_resource type="Resource" id="PickUp_on_ground"]
 script = ExtResource("22_on_ground")
@@ -182,6 +183,9 @@ script = ExtResource("6_accept")
 intent = &"Use"
 from = 4
 
+[sub_resource type="Resource" id="LifeTicks_round"]
+script = ExtResource("65_life_ticks")
+
 [sub_resource type="Resource" id="TaskTicks_round"]
 script = ExtResource("29_task_ticks")
 
@@ -194,7 +198,7 @@ script = ExtResource("5_phase")
 id = &"round"
 phase_class = ExtResource("12_round")
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_round_move"), SubResource("Accept_round_pick_up"), SubResource("Accept_round_put_down"), SubResource("Accept_round_use")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("TaskTicks_round")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_round"), SubResource("TaskTicks_round")])
 checks_wins = true
 clock_runs = true
 voice_rule = SubResource("Voice_round")
@@ -228,7 +232,8 @@ sprint_cost_per_s = 20
 sprint_start = 20
 jump_height_m = 1.0
 jump_cost = 10
-ghost_speed_factor = 1.3
+crawl_speed_mps = 1.0
+knockdown_s = 10.0
 capsule_radius_m = 0.4
 capsule_height_m = 1.8
 eye_height_m = 1.6
@@ -382,7 +387,7 @@ lobby_level = "res://levels/lobby/lobby.tscn"
 maps = PackedStringArray("res://levels/greybox/greybox.tscn")
 actions = Array[ExtResource("1_o02jd")]([SubResource("Rule_pick_up"), SubResource("Rule_put_down")])
 task_types = Array[ExtResource("16_5hq6p")]([ExtResource("30_delivery")])
-win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_alive"), ExtResource("64_time_up")])
+win_conditions = Array[ExtResource("20_44x55")]([ExtResource("64_every_task_done"), ExtResource("64_no_crew_present"), ExtResource("64_time_up")])
 phases = Array[ExtResource("5_phase")]([SubResource("Phase_lobby"), SubResource("Phase_countdown"), SubResource("Phase_loading"), SubResource("Phase_round"), SubResource("Phase_end")])
 first_phase = &"lobby"
 transitions = Array[ExtResource("7_row")]([SubResource("Row_lobby_all_ready"), SubResource("Row_countdown_cancelled"), SubResource("Row_countdown_done"), SubResource("Row_loading_all_loaded"), SubResource("Row_round_won"), SubResource("Row_end_back")])

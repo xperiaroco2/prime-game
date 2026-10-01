@@ -15,10 +15,13 @@ extends RefCounted
 ## - Invariants: every event for one peer (listed in FOR_ONE, which does not trust the declarations,
 ##   or declaring AUDIENCE_KIND ONLY or SENDER) that the bot decoded names it as its subject; a bot
 ##   whose role does not know its teammates decodes no Teammates, and a Teammates names only players
-##   of the bot's own role; a living bot decodes no downed player's avatar (true until M4-2 makes
-##   the downed public); the voice invariant (§6): no bot decodes a downed speaker's frame, a
-##   downed bot decodes only living speakers' frames and a dead bot none; no decoded message
-##   holds a seed; the bots present for a whole match decode the same task events (check_tasks).
+##   of the bot's own role; no decoded snapshot holds a dead player's avatar; the voice invariant
+##   (§6): no bot decodes a downed or dead speaker's frame, a downed bot decodes only living
+##   speakers' frames and a dead bot none; every event a bot decodes while dead is either for it
+##   alone (the subject check) or also reached every living peer present then (view_of's
+##   recipients, which each bot's decoded events are checked against), so nothing reaches only the
+##   dead; no decoded message holds a seed; the bots present for a whole match decode the same
+##   task events (check_tasks).
 ## - A connected peer that is not a player (check_watcher) decodes at most a Rejected, none unless
 ##   it sent a Hello, and never a Snapshot or a VoiceDown. The lurker is still connected unless
 ##   core/ disconnected it on entering Loading (its DisconnectPeer at the tick of a LoadMatch: the
@@ -162,8 +165,9 @@ func check_bot(
 	if prefix and to_last_end:
 		_check_reaches_end(view, decoded, found)
 	_check_subjects(view, matched, peer, found)
+	_check_dead_events(matched, peer, found)
 	_check_teammates(view, matched, peer, found)
-	_check_snapshots(view, decoded, peer, found)
+	_check_snapshots(view, decoded, found)
 	_check_voice(view, decoded, peer, found)
 	_check_seeds(decoded, found)
 	return _labelled(label, peer, found)
@@ -332,6 +336,33 @@ func _check_subjects(view: PeerView, matched: int, peer: int, found: PackedStrin
 			found.append("decoded %s of peer %d" % [event.event_name(), subject])
 
 
+## The first `matched` events of `peer` (the ones it decoded): each one emitted at a tick after
+## which `peer` was dead is for it alone, or also reached every peer living after that tick.
+func _check_dead_events(matched: int, peer: int, found: PackedStringArray) -> void:
+	var seen := 0
+	for emitted: EmittedEvent in _game.emitted():
+		if seen >= matched:
+			return
+		if not emitted.recipients.has(peer):
+			continue
+		seen += 1
+		var dead: PackedInt32Array = _dead_at.get(emitted.tick, PackedInt32Array())
+		if not dead.has(peer):
+			continue
+		var event := emitted.event
+		if for_one(event) and event.get("peer") is int and event.get("peer") == peer:
+			continue
+		var alive: PackedInt32Array = _alive_at.get(emitted.tick, PackedInt32Array())
+		for other: int in alive:
+			if not emitted.recipients.has(other):
+				found.append(
+					(
+						"dead, it decoded %s at tick %d, which living %d did not"
+						% [event.event_name(), emitted.tick, other]
+					)
+				)
+
+
 func _check_teammates(view: PeerView, matched: int, peer: int, found: PackedStringArray) -> void:
 	for i in matched:
 		var teammates := view.events[i] as TeammatesEvent
@@ -350,9 +381,7 @@ func _check_teammates(view: PeerView, matched: int, peer: int, found: PackedStri
 				found.append("decoded Teammates naming peer %d, not %s" % [other, own])
 
 
-func _check_snapshots(
-	view: PeerView, decoded: DecodedView, peer: int, found: PackedStringArray
-) -> void:
+func _check_snapshots(view: PeerView, decoded: DecodedView, found: PackedStringArray) -> void:
 	for at_tick: int in decoded.snapshots:
 		if not view.snapshots.has(at_tick):
 			found.append("a snapshot of tick %d that view_of lacks" % at_tick)
@@ -360,12 +389,10 @@ func _check_snapshots(
 		var avatars: Dictionary = decoded.snapshots[at_tick]["avatars"]
 		if not WireSamples.same(avatars, view.snapshots[at_tick]["avatars"]):
 			found.append("the snapshot of tick %d differs from view_of's" % at_tick)
-		var alive: PackedInt32Array = _alive_at.get(at_tick, PackedInt32Array())
-		var downed: PackedInt32Array = _downed_at.get(at_tick, PackedInt32Array())
-		if alive.has(peer):
-			for other: int in avatars:
-				if downed.has(other):
-					found.append("living, it decoded downed %d at tick %d" % [other, at_tick])
+		var dead: PackedInt32Array = _dead_at.get(at_tick, PackedInt32Array())
+		for other: int in avatars:
+			if dead.has(other):
+				found.append("it decoded the avatar of dead %d at tick %d" % [other, at_tick])
 	for repeated: Dictionary in decoded.repeated_snapshots:
 		found.append("a second snapshot of tick %d" % (repeated["tick"] as int))
 
@@ -397,6 +424,8 @@ func _voice_invariant(peer: int, speaker: int, at_tick: int) -> PackedStringArra
 	var dead: PackedInt32Array = _dead_at.get(at_tick, PackedInt32Array())
 	if downed.has(speaker):
 		found.append("it heard downed %d at tick %d" % [speaker, at_tick])
+	if dead.has(speaker):
+		found.append("it heard dead %d at tick %d" % [speaker, at_tick])
 	if downed.has(peer) and not alive.has(speaker):
 		found.append("downed, it heard %d, who was not living, at tick %d" % [speaker, at_tick])
 	if dead.has(peer):

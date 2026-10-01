@@ -3,7 +3,8 @@ extends RuleEffect
 ## A weapon's hit (ARCHITECTURE §7.1 "Hits", §9.4): the host picks the targets and damages each.
 ## The zone is the weapon's data: a horizontal sector from the attacker's last accepted position
 ## (its feet), `reach_m` long and `angle_deg` wide, centred on the horizontal part of the facing.
-## A target is every living player other than the attacker such that:
+## A target is every living player other than the attacker (never a downed one: strikes skip the
+## downed, vision revision 1) such that:
 ## - its capsule (the mode's PlayerRules radius and height, standing on its last accepted
 ##   position) has a point in the sector, measured horizontally: its circle of `capsule_radius_m`
 ##   around its position touches the sector;
@@ -11,7 +12,7 @@ extends RuleEffect
 ## - the line from the attacker's eye (Items.eye_of) to the middle of its capsule is clear
 ##   (WorldQuery.line_of_sight).
 ## Each target then takes `damage` through the life rule (LifeRules.damage), in peer-id order; at 0
-## health it dies there (Died, Correction, player_died, the drop).
+## health it is knocked down there (KnockedDown, Correction; nothing drops).
 ##
 ## The facing is the Use's `facing`, a claim: harmless, because the positions are the host's. A
 ## Use without a finite, non-zero facing uses the last accepted claim's. A facing with no
@@ -20,8 +21,8 @@ extends RuleEffect
 ##
 ## Emits: Swung (everyone, with the zone's horizontal direction as a unit vector, or zero when
 ## the facing has none), even with no target, before any damage; per target Damaged and
-## SelfStatus (the victim); a death Died (everyone), Correction (the dead), then player_died and
-## the dropped item's ItemPlaced (everyone) and item_rested. The attacker learns nothing of a hit.
+## SelfStatus (the victim); a knockdown KnockedDown (everyone) and Correction (the downed). The
+## attacker learns nothing of a hit but a knockdown, which everyone learns (an accepted exception).
 
 ## Degrees, 1 to 360. The neutral default is refused by the mode check: the data sets it.
 @export var angle_deg := 0.0
@@ -90,7 +91,7 @@ static func horizontal(facing: Vector3) -> Vector2:
 
 
 func emits() -> Array[Script]:
-	return [SwungEvent, DamagedEvent, SelfStatusEvent, DiedEvent, CorrectionEvent, ItemPlacedEvent]
+	return [SwungEvent, DamagedEvent, SelfStatusEvent, KnockedDownEvent, CorrectionEvent]
 
 
 func check(_mode: GameMode) -> PackedStringArray:

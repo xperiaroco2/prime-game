@@ -4,10 +4,9 @@ extends RefCounted
 ## Health and stamina are thousandths (§3.3). The movement rule (2d) keeps the last accepted
 ## MoveClaim here, and every range rule reads it (§7.1).
 
-## The life states of vision revision 1 (§3.1): alive, downed, dead, or left. Left counts as dead
-## for the win conditions (§3.5). Until M4-2 (#138) DOWNED behaves as the old ghost did (0 health
-## leads to it, with a body and no timer) and nothing reaches DEAD. DOWNED took the ghosts' value,
-## and that value is never reused for DEAD.
+## The life states of vision revision 1 (§3.1): alive, downed, dead, or left. 0 health knocks a
+## living player down for the knockdown time, then it dies (LifeRules, LifeTicks); a player who
+## leaves mid-round is left. DOWNED took the ghosts' value, and that value is never reused for DEAD.
 enum Life { ALIVE, DOWNED, DEAD, LEFT }
 
 var peer: int
@@ -16,6 +15,10 @@ var ready := false
 ## A GameRole id, or empty before the deal.
 var role: StringName
 var life := Life.ALIVE
+## The host tick at which the current life state runs out, or -1: while downed, the knockdown's end,
+## when LifeTicks lets the player die (§3.4). The respawn (M4-3) and the raise's pause (M4-4) use
+## it too.
+var life_deadline := -1
 ## The last accepted claim (§7.1).
 var position := Vector3.ZERO
 var velocity := Vector3.ZERO

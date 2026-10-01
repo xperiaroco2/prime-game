@@ -3,6 +3,7 @@ extends GdUnitTestSuite
 ## within step height below the last accepted feet, and stamina for the living; the feet stay
 ## within the jump height (plus MovementRule.jump_slack) of the take-off until the next landing; a
 ## rise without a jump stays within the step height (plus STEP_CLEARANCE and the slope allowance).
+## A downed player never jumps and climbs the step height.
 ## Players are placed at z = 5 on the ground (y = 0); the world has a 0.3 m step at z 6 to 8 and a
 ## 0.9 m ledge at z 10 to 14.
 
@@ -127,20 +128,35 @@ func test_a_jump_claim_pays_for_the_sprint_it_covers() -> void:
 	assert_int(player.stamina).is_equal(80000)
 
 
-func test_a_downed_player_jumps_without_stamina_and_no_higher() -> void:
+func test_a_downed_players_new_jump_is_corrected_whatever_its_stamina() -> void:
+	# The crawl (M4-2): no jump, even with full stamina and a floor under the feet.
 	var game := _round()
 	var downed := game.state.player(P1)
 	downed.life = PlayerState.Life.DOWNED
-	downed.stamina = 0
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var ground := downed.position
+	var stamina := downed.stamina
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, UP * 0.1, FixtureMoves.jumped(game, P1))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_vector(downed.position).is_equal(ground)
+	assert_int(downed.stamina).is_greater_equal(stamina)
+	# Even a jump that rises nothing: the count alone is a jump.
+	FixtureMoves.step(game, P1, Vector3.ZERO, FixtureMoves.jumped(game, P1, {"on_floor": true}))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 2)
+
+
+func test_a_downed_player_climbs_a_step_height_rise_and_no_more() -> void:
+	var game := _round()
+	var downed := game.state.player(P1)
+	downed.life = PlayerState.Life.DOWNED
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := downed.position
 	var seen := FixtureMoves.corrections(game, P1).size()
-	FixtureMoves.step(game, P1, UP * 0.1, FixtureMoves.jumped(game, P1))
-	FixtureMoves.claim(game, P1, ground + UP * PEAK, _air())
-	FixtureModes.run_ticks(game, 1)
+	# Step height 0.3 m plus the client's 0.01 m clearance, as for the living.
+	FixtureMoves.step(game, P1, UP * 0.305, _air())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	assert_int(downed.stamina).is_equal(0)
-	FixtureMoves.claim(game, P1, ground + UP * OVER_PEAK, _air())
+	FixtureMoves.claim(game, P1, ground + UP * 0.33, _air())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 

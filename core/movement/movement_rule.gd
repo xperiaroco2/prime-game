@@ -26,25 +26,34 @@ extends RefCounted
 ##   a placement or a Correction), which survives the LATEST lane's merge of claims (§4.3). A count
 ##   below the last accepted claim's in the epoch is corrected. A rise d >= 1 is one jump:
 ##   WorldQuery finds a floor within step height (+ STEP_CLEARANCE, a ledge crossing) below the
-##   player's last accepted position and, for the living, stamina covers d times the jump's cost,
-##   settled first: the claim's own ticks with its own flags, then any later ones (settle_ahead).
-##   A merged burst of d jumps pays for each but grants one jump height, because the merged
-##   claims' take-offs are lost (accepted in the ADR). A downed player's jumps cost nothing (until
-##   M4-2's crawl check). The last claim need not say it was on the floor: claims go at 20 Hz
+##   player's last accepted position and stamina covers d times the jump's cost, settled first:
+##   the claim's own ticks with its own flags, then any later ones (settle_ahead). A merged burst
+##   of d jumps pays for each but grants one jump height, because the merged claims' take-offs
+##   are lost (accepted in the ADR). A downed player crawls and never jumps: any new jump of
+##   theirs is corrected. The last claim need not say it was on the floor: claims go at 20 Hz
 ##   and the client's physics at 60 Hz, so a landing and a jump can fall in one claim. The
 ##   take-off is the higher of that floor and the last feet, so the peak stays bounded.
-## - Horizontal speed over the client's tick delta: per covered tick the state's speed (sprint in
-##   the sprint state, for the living only with movement input; else walk; times
-##   ghost_speed_factor for the downed, until M4-2's crawl speed), plus, for the living
-##   only, sprint speed for being pushed (§7.1 "Pushing apart", proposed for M4), plus
-##   DISTANCE_SLACK_M. The host never checks or corrects overlap between players.
+## - Horizontal speed over the client's tick delta: per covered tick the state's speed (for the
+##   living sprint in the sprint state with movement input, else walk; for the downed the crawl
+##   speed, with no sprint), plus, for the living only, sprint speed for being pushed (§7.1
+##   "Pushing apart", proposed for M4; the downed push nobody and nobody pushes them), plus
+##   DISTANCE_SLACK_M. The crawl's slack is CRAWL_SLACK_FRACTION of its own travel (+ the float
+##   slack) instead: a fixed slack per claim would let a client sending one-tick claims crawl at
+##   twice the crawl speed. The host never checks or corrects overlap between players.
 ## - Height: until the next landing (a claim on the floor with a WorldQuery floor within step
 ##   height), the feet stay within the jump height (+ JUMP_SLACK) of the take-off after an
 ##   accepted jump, else within step height (+ STEP_CLEARANCE, + the horizontal travel times
 ##   tan(FLOOR_MAX_ANGLE) for a slope or a staircase) of the last landing's floor. Falling is not
 ##   bounded, and walls are not checked (§7.1).
+##   A downed player is bounded the same way: with no jump, its rise is the step height (plus the
+##   slope allowance) above its last landing.
 ## Then the claim settles its covered ticks of stamina (StaminaLedger), an accepted jump pays its
 ## cost, and the player's SelfStatus is touched (sent at the end of the tick).
+##
+## The facing is a claim relayed to everyone in the snapshots (the M4 ADR §3, Host trust), and an
+## honest one can be degenerate (a bot falling straight down claims (0, -1, 0)): the accepted
+## facing is stored as a unit vector (stored_facing), the last one kept when the claim's has no
+## direction, its pitch clamped to MAX_PITCH_DEG.
 ##
 ## Every tolerance below is a placeholder, "not a decision", except where it copies the client.
 
@@ -56,6 +65,9 @@ const STEP_CLEARANCE := 0.01
 const FLOOR_MAX_ANGLE := PI / 4.0
 ## Extra horizontal distance a claim may travel beyond its speed, for rounding.
 const DISTANCE_SLACK_M := 0.05
+## The crawl's slack, a fraction of the crawl's own travel: DISTANCE_SLACK_M is as long as a whole
+## tick of the crawl, so a client sending a claim every tick would crawl at twice the speed.
+const CRAWL_SLACK_FRACTION := 0.1
 ## Extra height a claim may reach beyond its bound: positions are 32-bit floats.
 const HEIGHT_SLACK_M := 0.001
 ## WorldQuery looks for the floor from this far above the feet, so feet resting on it find it.
@@ -68,6 +80,9 @@ const TICK_LEAD := 10
 const MAX_TICK_CREDIT := 200
 ## Its key in MatchState's per-part state (§9.1): the per-player records below.
 const PART_KEY := &"movement"
+## The steepest stored facing, up or down: a facing straight up or down has no yaw for a head or
+## a camera built from it (the M4 ADR §3).
+const MAX_PITCH_DEG := 89.0
 ## The highest jump count a claim may carry: the wire's `jumps: u16` (§4.3). Core checks it itself
 ## (invariant 1), so a count that skipped the codec cannot overflow the stamina cost.
 const MAX_JUMPS := 0xFFFF
@@ -184,6 +199,9 @@ static func _check(
 		# A count that falls within an epoch is no honest client's.
 		return null
 	var jumped := checked.new_jumps > 0
+	if jumped and player.life == PlayerState.Life.DOWNED:
+		# The downed crawl: no jump.
+		return null
 	if jumped:
 		# The claim's own ticks are settled with its own flags, so a sprint before the jump is paid;
 		# then any ticks up to now with the last claim's (settle_ahead), before the cost is checked.
@@ -227,7 +245,7 @@ static func _accept(
 	motion.rebase = false
 	player.position = claim.position
 	player.velocity = claim.velocity
-	player.facing = claim.facing
+	player.facing = stored_facing(claim.facing, player.facing)
 	player.on_floor = claim.on_floor
 	player.claim_tick = claim.client_tick
 	player.sprint_held = claim.sprint
@@ -243,29 +261,50 @@ static func _allowed_travel(
 	settled: StaminaLedger.Settlement,
 	moving: bool
 ) -> float:
-	var downed := player.life == PlayerState.Life.DOWNED
+	var metres_per_tick := 1.0 / Ticks.RATE
+	if player.life == PlayerState.Life.DOWNED:
+		# The crawl: its speed alone, with no sprint and no push allowance, and a slack in
+		# proportion (plus the float slack positions need) rather than a fixed one per claim.
+		var crawl := covered * rules.crawl_speed_mps * metres_per_tick
+		return crawl * (1.0 + CRAWL_SLACK_FRACTION) + HEIGHT_SLACK_M
 	# Ticks the claim covers beyond what could be settled now take the state a next tick has.
 	var sprint_ticks := settled.sprint_ticks
 	if settled.next_sprinting:
 		sprint_ticks += covered - settled.ticks
-	if not downed and not moving:
+	if not moving:
 		# Sprint speed of its own only with the movement input that pays for it: without input a
 		# living player coasts (walk speed covers the client's deceleration) or is pushed, and
 		# holding sprint then would buy speed for free.
 		sprint_ticks = 0
 	var walk_ticks := covered - sprint_ticks
-	var metres_per_tick := 1.0 / Ticks.RATE
 	var travel := (
 		(sprint_ticks * rules.sprint_speed_mps + walk_ticks * rules.walk_speed_mps)
 		* metres_per_tick
 	)
-	if downed:
-		travel *= rules.ghost_speed_factor
-	else:
-		# A pushed living player moves out of an overlap at up to sprint speed on top of its own
-		# (§7.1 "Pushing apart"; proposed for M4, not decided).
-		travel += covered * rules.sprint_speed_mps * metres_per_tick
+	# A pushed living player moves out of an overlap at up to sprint speed on top of its own
+	# (§7.1 "Pushing apart"; proposed for M4, not decided).
+	travel += covered * rules.sprint_speed_mps * metres_per_tick
 	return travel + DISTANCE_SLACK_M
+
+
+## The facing to store for a claimed `claimed` (finite) after `last`: a unit vector whose pitch is
+## at most MAX_PITCH_DEG up or down. A claim with no direction keeps `last`; one straight up or
+## down keeps the yaw of `last` (or faces Vector3.FORWARD's when that has none either).
+static func stored_facing(claimed: Vector3, last: Vector3) -> Vector3:
+	var largest := maxf(absf(claimed.x), maxf(absf(claimed.y), absf(claimed.z)))
+	if not claimed.is_finite() or largest == 0.0:
+		return last
+	# Scaled before normalising, so a huge finite claim still gives a unit vector.
+	var unit := (claimed / largest).normalized()
+	var flat := Vector2(unit.x, unit.z)
+	if flat.is_zero_approx():
+		flat = Vector2(last.x, last.z)
+		if flat.is_zero_approx():
+			flat = Vector2(Vector3.FORWARD.x, Vector3.FORWARD.z)
+	var yaw := flat.normalized()
+	var most := deg_to_rad(MAX_PITCH_DEG)
+	var pitch := clampf(atan2(unit.y, Vector2(unit.x, unit.z).length()), -most, most)
+	return Vector3(yaw.x * cos(pitch), sin(pitch), yaw.y * cos(pitch))
 
 
 ## The stamina `count` jumps cost, in thousandths.

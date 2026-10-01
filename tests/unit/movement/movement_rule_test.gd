@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## MovementRule (ARCHITECTURE §7, §7.1): epochs, well-formed claims, horizontal speed over the
-## client's tick delta with the client's tick rate bounded, the push allowance, the downed's speeds,
-## Correction with a new epoch to that player only. Jumps and heights: movement_rule_jump_test.gd.
+## client's tick delta with the client's tick rate bounded, the push allowance, the downed's crawl,
+## the stored facing (a unit vector, pitch within ±89°), Correction with a new epoch to that player
+## only. Jumps and heights: movement_rule_jump_test.gd.
 ## Numbers per tick: FixtureMoves.
 
 const P1 := 1
@@ -280,35 +281,101 @@ func test_a_pushed_player_holding_sprint_moves_at_the_push_allowance_for_free() 
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
-func test_a_downed_player_moves_at_its_factor_without_a_push_allowance() -> void:
+func test_a_downed_player_crawls_with_no_sprint_and_no_push_allowance() -> void:
 	var game := FixtureMoves.in_round([P1])
 	var downed := game.state.player(P1)
 	downed.life = PlayerState.Life.DOWNED
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# Walk 0.225 * 1.3 + 0.05 = 0.3425 m; sprint 0.35 * 1.3 + 0.05 = 0.505 m.
-	FixtureMoves.step(game, P1, EAST * 0.34, {"moving": true})
-	FixtureMoves.step(game, P1, EAST * 0.5, FixtureMoves.sprinting())
+	# The crawl: 1 m/s is 0.05 m per tick, plus a tenth of it as slack, with or without sprint.
+	FixtureMoves.step(game, P1, EAST * 0.054, {"moving": true})
+	FixtureMoves.step(game, P1, EAST * 0.054, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	FixtureMoves.step(game, P1, EAST * 0.36, {"moving": true})
+	# Sprinting buys nothing: a living walker's 0.225 m per tick is corrected.
+	FixtureMoves.step(game, P1, EAST * 0.2, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	# After a correction the next claim would cover two client ticks: claim just one.
-	var fields := FixtureMoves.sprinting()
-	fields["client_tick"] = downed.claim_tick + 1
-	FixtureMoves.step(game, P1, EAST * 0.52, fields)
+	# Nobody pushes the downed: no push allowance either, with no movement input.
+	var fields := {"client_tick": downed.claim_tick + 1}
+	FixtureMoves.step(game, P1, EAST * 0.11, fields)
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 2)
 
 
-func test_stamina_never_limits_a_downed_player() -> void:
+func test_one_tick_claims_do_not_double_the_crawl_speed() -> void:
+	# A fixed slack per claim (0.05 m) is a whole tick of the crawl: a client claiming every tick
+	# would crawl at about 1.9 m/s. The crawl's slack is in proportion to its own travel.
+	var game := FixtureMoves.in_round([P1])
+	var downed := game.state.player(P1)
+	downed.life = PlayerState.Life.DOWNED
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.steps(game, P1, 20, EAST * 0.05, {"moving": true})
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	FixtureMoves.steps(game, P1, 20, EAST * 0.095, {"moving": true})
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_greater(seen)
+
+
+func test_a_downed_player_spends_no_stamina_and_regenerates() -> void:
 	var game := FixtureMoves.in_round([P1])
 	var downed := game.state.player(P1)
 	downed.life = PlayerState.Life.DOWNED
 	downed.stamina = 0
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var seen := FixtureMoves.corrections(game, P1).size()
-	FixtureMoves.steps(game, P1, 30, EAST * 0.45, FixtureMoves.sprinting())
+	var stamina_before := downed.stamina
+	FixtureMoves.steps(game, P1, 20, EAST * 0.05, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	assert_int(downed.stamina).is_equal(0)
+	# 750 thousandths a tick, as for a living player who does not sprint.
+	assert_int(downed.stamina).is_equal(stamina_before + 20 * 750)
+	assert_bool(downed.sprinting).is_false()
+
+
+func test_the_stored_facing_is_the_claims_direction_as_a_unit_vector() -> void:
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": Vector3(0, 0, 2)})
+	assert_vector(player.facing).is_equal_approx(Vector3(0, 0, 1), Vector3.ONE * 1e-6)
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": Vector3(3, 0, 4) * 1e30})
+	assert_vector(player.facing).is_equal_approx(Vector3(0.6, 0, 0.8), Vector3.ONE * 1e-6)
+
+
+func test_a_zero_facing_keeps_the_last_one() -> void:
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": Vector3(1, 0, 0)})
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": Vector3.ZERO})
+	assert_vector(player.facing).is_equal(Vector3(1, 0, 0))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+
+
+func test_a_facing_straight_down_keeps_the_last_yaw_at_89_degrees() -> void:
+	# A bot falling straight down claims (0, -1, 0) (the M4 ADR §3).
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": Vector3(1, 0, 0)})
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": Vector3(0, -1, 0)})
+	var most := deg_to_rad(MovementRule.MAX_PITCH_DEG)
+	var expected := Vector3(cos(most), -sin(most), 0)
+	assert_vector(player.facing).is_equal_approx(expected, Vector3.ONE * 1e-6)
+
+
+func test_a_claimed_90_degree_pitch_is_clamped_to_89_degrees() -> void:
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	var most := deg_to_rad(MovementRule.MAX_PITCH_DEG)
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": Vector3(0, 1, 0)})
+	# The placement's facing, Vector3.FORWARD, gives the yaw.
+	var up := Vector3(0, sin(most), -cos(most))
+	assert_vector(player.facing).is_equal_approx(up, Vector3.ONE * 1e-6)
+	# A steep pitch with a yaw of its own keeps that yaw.
+	var steep := Vector3(cos(deg_to_rad(89.9)), sin(deg_to_rad(89.9)), 0)
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": steep})
+	var clamped := Vector3(cos(most), sin(most), 0)
+	assert_vector(player.facing).is_equal_approx(clamped, Vector3.ONE * 1e-6)
+	# A pitch inside the bound is kept as claimed.
+	var gentle := Vector3(1, 1, 0).normalized()
+	FixtureMoves.step(game, P1, Vector3.ZERO, {"facing": gentle})
+	assert_vector(player.facing).is_equal_approx(gentle, Vector3.ONE * 1e-6)
 
 
 func test_after_a_placement_claims_start_again_from_the_placed_spot() -> void:

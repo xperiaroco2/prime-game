@@ -6,8 +6,8 @@ extends RefCounted
 ##
 ## The numbers are FixtureModes.player_rules(), the MVP's (§9.5): per 20 Hz tick a living player
 ## walks 0.225 m and sprints 0.35 m, may be pushed 0.35 m more, and the check adds 0.05 m; sprint
-## costs 1000 thousandths per tick, regeneration gives 750; a downed player walks 0.2925 m and
-## sprints 0.455 m.
+## costs 1000 thousandths per tick, regeneration gives 750; a downed player crawls 0.05 m, with
+## no sprint and no push allowance.
 
 
 ## A match of the fixture mode on `world` (FixtureTerrainWorld when null) whose `peers` joined,
