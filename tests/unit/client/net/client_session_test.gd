@@ -121,6 +121,17 @@ func test_a_disconnect_after_the_rejected_that_explains_it_ends_with_the_reason(
 	assert_array(_harness.endings).contains_exactly([&"wrong_version"])
 
 
+func test_a_disconnecting_ends_the_session_with_its_reason_not_host_lost() -> void:
+	# #119 (E21): dropped at the loading deadline, the client says so.
+	_harness.welcome(&"loading")
+	_harness.send(DisconnectingEvent.new(_harness.peer, DisconnectingEvent.LOAD_DEADLINE))
+	_harness.host.disconnect_peer(_harness.peer)
+	_harness.pump()
+	assert_array(_harness.endings).contains_exactly([&"load_deadline"])
+	assert_str(String(_harness.session.end_reason)).is_equal("load_deadline")
+	assert_array(_harness.session.view.event_names()).contains([&"Disconnecting"])
+
+
 func test_a_join_nobody_answers_ends_with_connect_failed() -> void:
 	var client := LoopbackTransport.new(_harness.schema.kind_table(), _harness.hub)
 	client.join("127.0.0.1", Harness.PORT + 1)

@@ -10,6 +10,7 @@ extends GdUnitTestSuite
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const OUT := "user://bots_runner_test"
 const EVENTS_DIR := "res://core/events"
+const DROPPED := "res://content/scenarios/dropped_at_the_loading_deadline.tres"
 
 
 func after_test() -> void:
@@ -360,6 +361,24 @@ func test_every_event_class_for_one_peer_is_listed_in_for_one() -> void:
 	assert_array(missing).is_empty()
 
 
+func test_disconnecting_reaches_only_the_dropped_player_and_a_misdeclared_one_is_a_leak() -> void:
+	# #119: the player dropped at the loading deadline alone decodes why, and its session ends so.
+	var scenario := load(DROPPED) as BotScenario
+	var runner := BotsRunner.play(scenario)
+	assert_array(Array(runner.failures)).is_empty()
+	var dropped := runner.peers.peer_of(3)
+	assert_str(String(runner.clients[3].end_reason)).is_equal("load_deadline")
+	assert_array(runner.clients[3].view.events_named(&"Disconnecting")).has_size(1)
+	for bot: int in [1, 2]:
+		assert_array(runner.clients[bot].view.events_named(&"Disconnecting")).is_empty()
+	# The planted leak: Disconnecting declared to everyone reaches bot 1 too.
+	var leaked := runner.game.view_of(1)
+	leaked.events.append(MisdeclaredDisconnecting.new(dropped))
+	var leaky := LeakCheck.new(LeakyViews.new(runner.game, leaked))
+	var found := _text(leaky.check_bot("bot 1", 1, _decoded(leaked), false))
+	assert_str(found).contains("decoded Disconnecting of peer %d" % dropped)
+
+
 ## A Correction whose class declares no AUDIENCE_KIND.
 class MisdeclaredCorrection:
 	extends MatchEvent
@@ -376,6 +395,24 @@ class MisdeclaredCorrection:
 
 	func to_dict() -> Dictionary:
 		return {"epoch": 1, "position": Vector3.ZERO, "velocity": Vector3.ZERO}
+
+
+## Disconnecting declared to everyone: the planted leak of #119.
+class MisdeclaredDisconnecting:
+	extends MatchEvent
+	var peer: int
+
+	func _init(to_peer: int) -> void:
+		peer = to_peer
+
+	func event_name() -> StringName:
+		return &"Disconnecting"
+
+	func audience() -> Audience:
+		return Audience.everyone()
+
+	func to_dict() -> Dictionary:
+		return {"reason": DisconnectingEvent.LOAD_DEADLINE}
 
 
 ## A match whose view_of(peer) is a planted one.

@@ -116,6 +116,29 @@ func _act(bot: ScenarioBot, at_tick: int) -> void:
 		_stand(bot)
 
 
+## The host disconnected `bot` (core/'s DisconnectPeer, or its session ended): it acts no more. A
+## WaitFor or Expect left in its script is checked on what it received before (Disconnecting,
+## #119); any step still left then fails, so a script never ends unseen with its connection.
+func _disconnected(bot: ScenarioBot, at_tick: int) -> void:
+	tick_now = at_tick
+	while failures.is_empty():
+		var step := bot.current_step()
+		if step == null:
+			break
+		var expected := step as StepWaitFor
+		var expect := step as StepExpect
+		var done := false
+		if expected != null:
+			done = _received(bot, bot.step_cursor, expected.event, expected.fields)
+		elif expect != null:
+			done = _received(bot, bot.previous_cursor, expect.event, expect.fields)
+		if not done:
+			_fail_step(bot, "the host disconnected the bot before this step was done")
+			break
+		bot.finish_step()
+	bot.gone = true
+
+
 func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 	var elapsed := at_tick - bot.step_started
 	var result := Result.WAITING

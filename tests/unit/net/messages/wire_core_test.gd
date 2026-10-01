@@ -249,7 +249,7 @@ func test_a_decoded_change_settings_changes_numbers_bans_and_the_map() -> void:
 
 func test_cores_constant_ids_fit_the_wire() -> void:
 	var ids: Array[String] = []
-	for script: Script in [RejectReasons, CountdownCancelledEvent]:
+	for script: Script in [RejectReasons, CountdownCancelledEvent, DisconnectingEvent]:
 		for value: Variant in script.get_script_constant_map().values():
 			if value is StringName:
 				ids.append(str(value))

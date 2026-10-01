@@ -33,7 +33,13 @@ const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 ## listed event whose class is declared for everyone is still checked. for_one() adds any event
 ## whose class declares ONLY or SENDER; bots_runner_test fails when such a class is missing here.
 const FOR_ONE: Array[StringName] = [
-	&"Welcome", &"RoleAssigned", &"Damaged", &"SelfStatus", &"Correction", &"Rejected"
+	&"Welcome",
+	&"RoleAssigned",
+	&"Damaged",
+	&"SelfStatus",
+	&"Correction",
+	&"Rejected",
+	&"Disconnecting",
 ]
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskProgress"

@@ -11,7 +11,8 @@ extends RefCounted
 ## transport is polled there, and signals fire from it.
 
 ## The session is over for this client, for `reason`: the reason of a Rejected before Welcome
-## (wrong_version, wrong_content, full, joins_closed...), or one of the constants below.
+## (wrong_version, wrong_content, full, joins_closed...), of a Disconnecting (load_deadline), or
+## one of the constants below. EndReasons (client/app/) says each in words.
 signal ended(reason: StringName)
 signal welcomed(own_peer: int)
 ## Every decoded event, after the model folded it (a bot's script learns from these).
@@ -68,6 +69,8 @@ var _loading_match := -1
 ## Threaded loads nobody waits for any more (the session ended, or a newer LoadMatch replaced
 ## them): each is collected once it is done, or ResourceLoader would keep its scene for good.
 var _abandoned := PackedStringArray()
+## The reason of the last Disconnecting: the end reason when the host then disconnects it.
+var _disconnecting: StringName = &""
 
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
@@ -80,7 +83,7 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 	model = ClientModel.new(mode)
 	_transport.connected.connect(_on_connected)
 	_transport.connect_failed.connect(_end.bind(CONNECT_FAILED))
-	_transport.host_lost.connect(_end.bind(HOST_LOST))
+	_transport.host_lost.connect(_on_host_lost)
 	_transport.packet_received.connect(_on_packet)
 
 
@@ -190,6 +193,10 @@ func _notification(what: int) -> void:
 		_abandoned.clear()
 
 
+func _on_host_lost() -> void:
+	_end(HOST_LOST if _disconnecting.is_empty() else _disconnecting)
+
+
 func _on_connected(_own_id: int) -> void:
 	var hello := {"version": WireSchema.VERSION, "content": _content}
 	_send(WireMessage.new(&"Hello", hello))
@@ -236,6 +243,9 @@ func _on_event(event_name: StringName, fields: Dictionary) -> void:
 			corrected.emit(_position, _velocity)
 		&"LoadMatch":
 			_start_load(fields["match_id"] as int, fields["map"] as String)
+	if event_name == &"Disconnecting":
+		# #119 (E21): the host disconnects this client next; that ends it with this reason.
+		_disconnecting = fields["reason"]
 	event_received.emit(event_name, fields)
 
 

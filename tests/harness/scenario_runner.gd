@@ -224,7 +224,7 @@ func _carry_out(directive: MatchEvent) -> void:
 		var peer := (directive as DisconnectPeerEvent).peer
 		var bot := _bot_of(peer)
 		if bot != null and not bot.gone:
-			bot.gone = true
+			_disconnected(bot, tick_now)
 			_to_leave.append(peer)
 
 
