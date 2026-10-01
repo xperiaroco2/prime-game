@@ -47,8 +47,12 @@ checkout. Branch changes are judged by name whatever the checkout: deleting (`br
 task branch and its helpers (`<task branch>-x`, `<task branch>/x`); `stash drop|clear` only for entries made on
 them (the stash is shared by every checkout). An interactive rebase that opens a todo editor, `rebase --update-refs`
 and `git -c core.hooksPath=...` always ask; an interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to a
-no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) is judged like any other rebase. Branch, ref
-and stash names come from a repository reader (hooks.GitFiles); without one no branch is the session's own.
+no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) is judged like any other rebase. Rebase
+options are read as git reads them (issue #105): a cluster letter by letter (`-qi`), an attached value (`-x'cmd'`),
+a unique prefix of a long option (`--interac`, `--exe=cmd`), and `rebase.updateRefs` set by `git -c` or
+`--config-env` counts as `--update-refs`. A nested shell inherits the `VAR=value` prefixes of the command that starts
+it (`GIT_SEQUENCE_EDITOR=: bash -c '...'`). Branch, ref and stash names come from a repository reader
+(hooks.GitFiles); without one no branch is the session's own.
 
 gh reads of other repositories run without a prompt (issue #68), so no text rule asks for `gh -R|--repo`. The guard
 asks instead when a gh command names a repository other than this project's (`origin`, read by hooks.GitFiles) and
@@ -486,11 +490,14 @@ class Paths:
         # A `git stash` in this command changed the stash: the entries read before it no longer match their indices.
         self.stash_moved = False
 
-    def child(self, shell: str | None = None) -> Paths:
+    def child(self, shell: str | None = None, prefixes: dict[str, str] | None = None) -> Paths:
         """The view of a nested shell (`bash -c`) or a `$(...)`: same directory and variables; its `cd` stays
-        inside it."""
+        inside it. prefixes are the `VAR=value` words before the nested shell (`GIT_SEQUENCE_EDITOR=: bash -c ...`):
+        its environment, like exported variables (issue #105)."""
         inner = Paths(self.root, "", self.home, shell or self.shell)
         inner.cwd, inner.vars, inner.tainted, inner.env = self.cwd, dict(self.vars), dict(self.tainted), dict(self.env)
+        for name, value in (prefixes or {}).items():
+            inner.vars[name] = inner.env[name] = self.expand(value)
         inner.project_vars, inner.cwd_text, inner.cwd_base = set(self.project_vars), self.cwd_text, self.cwd_base
         inner.oldpwd, inner.own, inner.claim, inner.busy = self.oldpwd, self.own, self.claim, self.busy
         inner.off_branch, inner.stash_moved = self.off_branch, self.stash_moved
@@ -1872,7 +1879,7 @@ class Analysis:
         if verb in NESTED_SHELLS and depth < 3:
             code = self.nested_code(verb, args)
             if code:
-                inner = Analysis(self.paths.child(NESTED_SHELLS[verb]), self.repo)
+                inner = Analysis(self.paths.child(NESTED_SHELLS[verb], self.prefix_env), self.repo)
                 inner.command(code, NESTED_SHELLS[verb], depth + 1)
                 self.findings += inner.findings
                 self.paths.adopt(inner.paths)

@@ -422,8 +422,12 @@ OWN_WORK = [
     (B, "export GIT_SEQUENCE_EDITOR=:; bash -c 'git rebase -i --autosquash origin/main'"),
     (B, "GIT_SEQUENCE_EDITOR=':' git rebase -i --autosquash origin/main"),
     (P, "$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main"),
-    # Options are read as git reads them (#105): bundled short flags, values and unique prefixes.
+    # Options are read as git reads them (#105): bundled short flags, values, unique prefixes, and a prefix that a
+    # nested shell inherits.
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -qi --autosquash origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: bash -c 'git rebase -i --autosquash origin/main'"),
+    (B, "env GIT_SEQUENCE_EDITOR=: bash -c 'git rebase -i --autosquash origin/main'"),
+    (B, 'GIT_SEQUENCE_EDITOR=: powershell -Command "git rebase -i --autosquash origin/main"'),
     (B, "git rebase -Xtheirs origin/main"),
     (B, "git rebase -s ort -Xignore-space-change origin/main"),
     (B, f"git rebase --ont origin/main HEAD~2 {TASK}"),
@@ -534,8 +538,8 @@ BEYOND_OWN = [
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i -x 'tools/run.sh test' origin/main"),
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main main"),
     (B, "git rebase --update-refs origin/main"),
-    # Every spelling git accepts (#105): bundled short flags, an attached value, unique prefixes of long options and
-    # `rebase.updateRefs` from `-c`.
+    # Every spelling git accepts (#105): bundled short flags, an attached value, unique prefixes of long options,
+    # `rebase.updateRefs` from `-c`, and a prefix a nested shell inherits.
     (B, "git rebase -qi origin/main"),
     (B, "git rebase -ir origin/main"),
     (B, "git rebase -rx 'tools/run.sh test' origin/main"),
@@ -558,6 +562,8 @@ BEYOND_OWN = [
     (B, "git --config-env=rebase.updateRefs=V rebase origin/main"),
     (B, "git -c rebase.updateRefs=false rebase --update-refs origin/main"),
     (P, "git -c rebase.updateRefs=true rebase origin/main"),
+    (B, "export GIT_SEQUENCE_EDITOR=:; GIT_SEQUENCE_EDITOR=vim bash -c 'git rebase -i origin/main'"),
+    (B, "GIT_SEQUENCE_EDITOR=$E bash -c 'git rebase -i origin/main'"),
     (B, f"git -c core.hooksPath=/dev/null push origin {TASK}"),
     (B, "git worktree remove D:/prime-game/.claude/worktrees/47"),
     (B, "git worktree remove --force ../47"),
