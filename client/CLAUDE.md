@@ -43,8 +43,9 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   no cut-off tells everyone, through walls, where a package was put down.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
-- Movement numbers come from the mode's `PlayerRules`; `PlayerTuning` keeps client feel only. Collision layers come
-  from `PhysicsLayers`.
+- Collision layers come from `PhysicsLayers`. M4-7's target (proposed; the code on the base still reads speeds,
+  capsule, eye height and stamina from `player_tuning.tres`): movement numbers come from the mode's `PlayerRules`,
+  and `PlayerTuning` keeps client feel only. Until M4-7, leave that split to it rather than moving numbers in passing.
 - A new event's fold in `ClientModel` lands in the core PR that adds the event, since the bots need it (E25,
   proposed); client issues read the model.
 - Scenes are single-owner. Build reusable pieces as small sub-scenes; level layout itself is the designer's
