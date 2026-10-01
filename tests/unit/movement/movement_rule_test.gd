@@ -321,11 +321,11 @@ func test_a_downed_player_spends_no_stamina_and_regenerates() -> void:
 	downed.stamina = 0
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var seen := FixtureMoves.corrections(game, P1).size()
-	var before := downed.stamina
+	var stamina_before := downed.stamina
 	FixtureMoves.steps(game, P1, 20, EAST * 0.05, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	# 750 thousandths a tick, as for a living player who does not sprint.
-	assert_int(downed.stamina).is_equal(before + 20 * 750)
+	assert_int(downed.stamina).is_equal(stamina_before + 20 * 750)
 	assert_bool(downed.sprinting).is_false()
 
 

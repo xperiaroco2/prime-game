@@ -121,9 +121,9 @@ func test_a_downed_player_is_never_in_the_sprint_state_and_regenerates() -> void
 	downed.life = PlayerState.Life.DOWNED
 	downed.stamina = 30000
 	FixtureMoves.step(game, P1, Vector3.ZERO)
-	var before := downed.stamina
+	var stamina_before := downed.stamina
 	FixtureMoves.steps(game, P1, 10, NORTH * 0.05, FixtureMoves.sprinting())
-	assert_int(downed.stamina).is_equal(before + 10 * 750)
+	assert_int(downed.stamina).is_equal(stamina_before + 10 * 750)
 	assert_bool(downed.sprinting).is_false()
 	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()
 	assert_bool(last.sprint_available).is_false()
