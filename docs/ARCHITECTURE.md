@@ -13,7 +13,7 @@
 | `core/` | Pure rules: match state machine, intent validation rules (movement checks included), win conditions, who is entitled to each event and entity (§5), voice routing rules, content-API primitives. `RefCounted` only; no Nodes, scenes, networking or audio | nothing outside `core/` | engineer |
 | `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1) | `core/`, the `net/` abstraction | engineer |
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
-| `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents | engineer |
+| `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers) | engineer |
 | `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | `net/`, `client/` playback | engineer |
 | `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), whose data classes are part of the content API | the content API only | designer |
 | `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API only | designer |
@@ -326,7 +326,7 @@ rows in `NetKindTable.game()` (§4.3); the codec (§4.4); rate limits and what t
 sending rejected packets (§4.5). `MoveClaim` stays on the LATEST lane and carries a cumulative jump count, so a jump
 survives a merge (§4.3). The protocol version travels in `Hello` (§4.3), not in the transport's `ADMIT`. The
 engineer took the recommendation of every choice E1 to E17 (E10 (b), E14 (a) with the client rule of (b)); the
-[ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options. The designer's D1 to D3 wait on #96.
+[ADR](decisions/2026-09-30-wire-format-and-host-session.md) lists their options. The designer took D1 to D3 (a) (#96).
 Every schema change updates §4.3 in the same PR.
 
 Lessons from the M1 spike (#13, #15; [voice ADR](decisions/2026-09-29-voice-approach.md)):
@@ -561,7 +561,7 @@ The rules of the table:
   the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.
 - **Ids** on the wire are the content's own names (`crew`, `knife`, `match_duration`) (E5), so a content difference
   shows up as an unknown id, never as the wrong thing. The mode check (§9.1) refuses an id outside the wire's alphabet
-  (3e): a change to the content API that the designer decides (D1 in the ADR): ids lowercase snake_case of at most 32
+  (3e): a change to the content API that the designer took (D1 (a) in the ADR): ids lowercase snake_case of at most 32
   characters, which every MVP id already is. The ids that reach an `id` field, and who checks each: from the content,
   checked by the mode check (3e): role ids, side ids, item and station kinds, setting ids, spawn tags, phase ids, and the reject
   reasons that conditions and costs name (§9.4); from `core/`'s constants, checked by 3d's table-against-core test:
@@ -760,8 +760,8 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   headless host has none, and it holds player capsules), and a second live copy of the level's meshes and scripts.
   The cost: CSG and `GridMap` build their collision only inside a tree, so the builder logs an error for such a node
   with collision, and a level that relies on one fails 3c's check instead of letting players walk where the host sees
-  nothing. The level conventions (4e) then give collision as `StaticBody3D` nodes (the designer decides: D2), or E8 (b) is
-  taken.
+  nothing. The level conventions (4e) then give collision as `StaticBody3D` nodes (the designer took D2 (a), 2026-10-01,
+  #96; `levels/CLAUDE.md`).
 - **Which level** (E9). `Match` tells the port the level of the phase it enters, before a row's actions run:
   `WorldQuery.use_level(path)` on start and in each transition (built in 3e, #97: the path of the lobby or the map,
   empty for a phase with no level; `RecordingWorldQuery` forwards it without recording an answer, the flat fake and
@@ -1179,8 +1179,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   towards B comes to rest. `server/` implements it over its own `World3D` holding the level's static colliders, never
   the client's scene, so a headless host and bots work the same; tests use a fake. `core/` stays pure, and every rule
   is still in one place. The 4.7.2 API limits `World3D.direct_space_state` to `_physics_process` on the main thread
-  when physics runs on a separate thread, so the host ticks `core/` from its physics step; M3 (3c) checks that a new
-  space answers queries before its first step (§4.5).
+  when physics runs on a separate thread, so the host ticks `core/` from its physics step; whether a new space answers
+  queries before its first step was probed in 3c (#99): it does (§4.5).
 - **Positions.** `core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
   range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
   claiming to stand next to what it wants to grab.
@@ -1377,8 +1377,8 @@ part is usable in data once its row or entry names the PR that built it. Every n
     not declare; an outcome a phase can report without a row (§3.1); an accepted intent that neither the phase class
     nor any rule handles; two rules on one trigger in one owner; a number outside its part's bounds; an id outside the
     wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
-    condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), waiting for the designer on
-    #96; reverted with E5 if the designer says no). A unit test
+    condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), the designer's answer on
+    #96). A unit test
     (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
     (`ModeCheck`).
   - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks; a
