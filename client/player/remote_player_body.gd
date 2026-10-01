@@ -1,6 +1,6 @@
 class_name RemotePlayerBody
-extends AnimatableBody3D
-## Another living player as the local client sees it: a kinematic capsule on the living layer, of
+extends StaticBody3D
+## Another living player as the local client sees it: a capsule on the living layer, of
 ## the size of the client's own copy of the mode's PlayerRules (`rules`), with a head that turns
 ## and nods. Only its owner's data moves it: AvatarViews places it each physics frame at
 ## SnapshotBuffer's interpolated pose (ARCHITECTURE §4.7), the yaw on the body and the pitch on
@@ -8,9 +8,13 @@ extends AnimatableBody3D
 ## with it like a wall and never moves it: it pushes into it, and is pushed out of it when it comes
 ## into the local player (§7.1 "Pushing apart"). The origin is at the feet.
 ##
-## `sync_to_physics` is off: the body is teleported, not an animated platform. With it on (the
-## default) a transform set in `_physics_process` is applied as kinematic motion during the
-## physics step, so the local player's push search would see the previous frame's capsule.
+## It is teleported, and the push search of the same physics frame must see where (§4.7): so it is
+## a static body, placed with force_update_transform(). Checked on 4.7.2 with Jolt: a transform
+## set in `_physics_process` reaches the physics server only after the whole pass unless the
+## node forces it, and a kinematic body (an AnimatableBody3D, `sync_to_physics` on or off, or a
+## CharacterBody3D) shows a teleport to shape queries only after the physics step, even when set
+## on the server directly; a static body shows it at once. Nothing collides with it as a wall: the
+## local player's mask is the world, and its push search reads the living layer.
 
 ## The visor's size and how far it sits in front of the eyes, in metres (greybox looks).
 const VISOR_SIZE := Vector3(0.3, 0.1, 0.12)
@@ -26,10 +30,6 @@ var _head: Node3D
 
 @onready var _shape: CollisionShape3D = $CollisionShape3D
 @onready var _mesh: MeshInstance3D = $Mesh
-
-
-func _init() -> void:
-	sync_to_physics = false
 
 
 func _ready() -> void:
@@ -53,6 +53,8 @@ func set_pose(pose: SnapshotBuffer.Pose) -> void:
 	global_position = pose.position
 	rotation = Vector3(0.0, pose.yaw, 0.0)
 	_head.rotation = Vector3(pose.pitch, 0.0, 0.0)
+	# Now, not after the pass: the local player's push search (priority 0) reads it this frame.
+	force_update_transform()
 
 
 ## The head: it holds the pitch (tests read it).
