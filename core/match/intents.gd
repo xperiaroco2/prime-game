@@ -12,15 +12,34 @@ const PICK_UP := &"PickUp"
 const PUT_DOWN := &"PutDown"
 const USE := &"Use"
 const RETURN_TO_LOBBY := &"ReturnToLobby"
+## A living player starts raising a downed one, `target` (M4-4, E28): sent on pressing E over it.
+const RAISE := &"Raise"
+## The raiser lets go of E (M4-4, E28).
+const STOP_RAISE := &"StopRaise"
+## A downed player gives up and dies at once (M4-4).
+const GIVE_UP := &"GiveUp"
 
 ## Every intent a client may send.
 const ALL: Array[StringName] = [
-	HELLO, SET_READY, CHANGE_SETTINGS, LOAD_ACK, MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RETURN_TO_LOBBY
+	HELLO,
+	SET_READY,
+	CHANGE_SETTINGS,
+	LOAD_ACK,
+	MOVE_CLAIM,
+	PICK_UP,
+	PUT_DOWN,
+	USE,
+	RETURN_TO_LOBBY,
+	RAISE,
+	STOP_RAISE,
+	GIVE_UP,
 ]
 
 ## The intents that are a player's actions in the world, not the session's controls: the dead send
 ## none of them, not even the host under HOST (Match._accepts, vision revision 1).
-const PLAYER_ACTIONS: Array[StringName] = [MOVE_CLAIM, PICK_UP, PUT_DOWN, USE]
+const PLAYER_ACTIONS: Array[StringName] = [
+	MOVE_CLAIM, PICK_UP, PUT_DOWN, USE, RAISE, STOP_RAISE, GIVE_UP
+]
 
 ## Commands server/ originates from what the transport reports; not intents, never rejected.
 const PEER_CONNECTED := &"PeerConnected"
@@ -65,6 +84,9 @@ const FIELDS: Dictionary[StringName, Dictionary] = {
 	PUT_DOWN: {"facing": TYPE_VECTOR3},
 	USE: {"facing": TYPE_VECTOR3},
 	RETURN_TO_LOBBY: {},
+	RAISE: {"target": TYPE_INT},
+	STOP_RAISE: {},
+	GIVE_UP: {},
 	FORCE_ROLE: {"role": TYPE_STRING},
 	FORCE_CLOCK: {"seconds": TYPE_INT},
 }

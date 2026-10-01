@@ -16,9 +16,12 @@ var ready := false
 var role: StringName
 var life := Life.ALIVE
 ## The host tick at which the current life state runs out, or -1: while downed, the knockdown's end,
-## when LifeTicks lets the player die (§3.4); while dead, the respawn's (M4-3). The raise's pause
-## (M4-4) uses it too.
+## when LifeTicks lets the player die (§3.4); while dead, the respawn's (M4-3). -1 while a raise
+## pauses the knockdown (M4-4): knockdown_left holds what is left of it then.
 var life_deadline := -1
+## While a raise pauses a downed player's knockdown (RaiseDowned, M4-4), the host ticks it had
+## left; the knockdown runs on from there when the raise stops. -1 otherwise.
+var knockdown_left := -1
 ## The first host tick at which strikes hit the player again, or -1 (LifeRules.make_invulnerable,
 ## after a respawn or a revive): it is invulnerable at every tick before it (is_invulnerable).
 var invulnerable_until := -1

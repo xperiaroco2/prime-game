@@ -259,6 +259,29 @@ func test_a_phase_that_can_knock_down_must_list_life_ticks() -> void:
 	_expect_none(plain)
 
 
+func test_a_phase_that_starts_a_channel_must_list_channel_ticks() -> void:
+	# The raise of FixtureCombatModes.raising() is a channel: without ChannelTicks it would never
+	# complete, and the knockdown it paused would never run on.
+	var mode := FixtureCombatModes.raising()
+	_expect_none(mode)
+	var round_spec := mode.find_phase(&"round")
+	round_spec.tick_systems = [round_spec.tick_systems[0]]
+	_expect(mode, 'phase round accepts [&"Raise"], which starts a channel')
+	_expect(mode, "lists no ChannelTicks")
+
+
+func test_the_raise_parts_check_their_numbers() -> void:
+	var mode := FixtureCombatModes.raising()
+	mode.actions[2] = FixtureCombatModes.raise_rule(0.0, 0.0, 0)
+	_expect(mode, "RaiseDowned seconds is 0, outside 0.05 to 600")
+	_expect(mode, "TargetInReach reach_m is 0, outside 0.1 to 10")
+	_expect(mode, "RaiseDowned revive_health is 0, outside 1 to 100")
+	mode.actions[2] = FixtureCombatModes.raise_rule(3.0, 2.0, 101)
+	_expect(mode, "RaiseDowned revive_health is 101, outside 1 to 100")
+	mode.actions[2] = FixtureCombatModes.raise_rule(3.0, 2.0, 100)
+	_expect_none(mode)
+
+
 func test_a_respawn_needs_its_tag_and_rng_purpose() -> void:
 	var mode := FixtureCombatModes.respawning()
 	_expect_none(mode)
