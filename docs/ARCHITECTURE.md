@@ -1138,11 +1138,16 @@ test pins them to `server/`'s). `client/ui/` holds the screens, built in code un
 `MainMenu`, `ConnectingScreen`, `LobbyPanel`, `LoadingScreen`, `EndScreen` and `EscMenu`. `client/world/avatar_views.gd`
 (`Avatars`, -80) shows a `RemotePlayerBody` per other player at the newest snapshot's position, which M4-7 replaces
 with `SnapshotBuffer`'s poses. What the build pinned:
-- `HostNode` is the façade: `HostNode.host(transport, mode, port)` (and a clock for tests), `own_client`, `errors`,
-  `end_reason`, `ended`, `counters()` (debug builds only), `skip_replay()` and `close()`; the session is private.
+- `HostNode` is the façade: `HostNode.host(transport, mode, port)` (and a clock for tests), `is_running()`,
+  `own_client`, `errors`, `end_reason`, `ended`, `counters()` (debug builds only), `skip_replay()` and `close()`; the
+  session is private. The source test also fails on a path into `server/` (a preload; `app/` may name
+  `host_node.gd`) and on `._session`, HostNode's private field.
 - The countdown shows `end_tick` minus the newest snapshot's tick, M4-7's estimate's stand-in; the local player stands
   still (no physics step) outside the lobby and the round, and claims only where `Welcome` and each `Correction` put
   it until M4-7 sends its motion.
+- The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`); loading and the end
+  read no device input, and under the Esc menu the held keys are cleared. Welcome and each `Correction` place the
+  player through `PlayerController.teleport()`.
 - Every end goes through one function: the `HostNode` leaves the tree (closing the session), the client leaves, the
   level, the views and the player are freed, and the menu says "The last session ended: <words>". The host's Leave
   and Quit, and closing the host's window, ask first (`EscMenu`); a client's Leave does not.
