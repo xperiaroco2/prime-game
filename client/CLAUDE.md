@@ -6,7 +6,7 @@ Loaded when a file in `client/` is read. The invariants in the root `CLAUDE.md` 
 ## Job
 - The first-person player controller, camera and interactions; the local player's movement is client-side.
 - Interpolation of remote players from the data `net/` delivers.
-- UI: lobby, HUD, the Tab task screen and its map, end screen; the spectate camera of the dead.
+- UI: lobby, HUD, the Tab task screen (no map for now), end screen; the spectate camera of the dead.
 - Audio playback: each remote speaker's voice plays through an `AudioStreamPlayer3D` on that speaker's avatar.
 - The dev console and debug commands (spawn bots, force role, skip phase, show hidden info) for solo testing.
 

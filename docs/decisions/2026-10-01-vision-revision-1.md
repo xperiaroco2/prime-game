@@ -6,7 +6,8 @@
 - **Date:** 2026-10-01
 - **Deciders:** Dmytro (xperiaroco2), from the meeting with the designer on 2026-09-30 and the idea inbox (IDEA-1 to
   IDEA-20), item by item on 2026-10-01 in the project chat (recorded on #126); the answers V1 to V13 in chat with the
-  M3 manager session on 2026-10-01 (recorded on PR #127, which this ADR's PR supersedes)
+  M3 manager session on 2026-10-01 (recorded on PR #127, which this ADR's PR supersedes); the answers to "Needs the
+  engineer" 1 to 9 the same day (recorded on PR #133)
 - **Amends:** [MVP rules](2026-09-29-mvp-rules.md),
   [game modes define the phases](2026-09-29-game-modes-define-the-phases.md),
   [match loop, intents and events](2026-09-29-match-loop-intents-events-and-entitlement.md),
@@ -169,7 +170,8 @@ Replaces "Death and ghosts". There are no ghosts.
 
 **Invulnerability** (V8)
 - For 3 s after a revive or a respawn, strikes skip the player: no damage and no damage event. Pushing works as usual.
-- The player's own attack ends it at once (any attack, hit or miss: "Needs the engineer" 3).
+- Nothing ends it early, not even the player's own attack: it always lasts the full 3 s (the engineer's answer to
+  "Needs the engineer" 3, which replaces V8's "the player's own attack ends it").
 - It is visible to everyone.
 - Nobody has it at the start of a round.
 
@@ -188,15 +190,14 @@ public events and the mode's numbers, so this is a rule of the interface, not of
   where they lie.
 - The ghost hearing radii and the dead's own voice group (dead chat) are gone.
 
-### HUD and the task screen (V2)
+### HUD and the task screen (V2, as changed by the engineer's answer 2)
 - The HUD shows health, stamina, the hand item and the belt item; a package also shows its destination; the shared
   task progress.
 - A **task screen** on Tab, for every player, living, downed or dead: the match's tasks, each with a short description
-  and its shared progress, and a **map** of the task circles (where tasks are done), the items' spawn points and the
-  viewer's own position. The map never shows an item's current position and never other players. Which spawn
-  points: "Needs the engineer" 2.
-- A dead viewer has no avatar, so their map shows no own position: not their body (a body is no position of theirs)
-  and never their spectate target (another player). A downed viewer's own position is where they lie.
+  and its shared progress. It has **no map for now** (the engineer's answer to "Needs the engineer" 2, which replaces
+  V2's map).
+- When a map comes later, it shows the **zones where items may appear**: never single spawn points, never an item's
+  current position and never other players.
 
 ### Hidden information
 | What | Who learns it |
@@ -206,7 +207,7 @@ public events and the mode's numbers, so this is a rule of the interface, not of
 | Living and downed avatars: position, velocity, facing, downed and invulnerable, the hand and belt items | Everyone, in the snapshot |
 | A dead player's avatar | Nobody: the dead have none |
 | Knockdowns, raises starting and stopping, revives, deaths with the body, respawns, a body removed | Everyone. None names an attacker, and a raise stopping names no cause. A knockdown, and a raise stopping in the tick of a swing, confirm that swing's hit: the accepted exceptions to #32's "no hit confirmation" |
-| Items on the ground, wherever they lie | Everyone on the wire, as today (#32: positions are not hidden behind walls, which would protect against cheating clients, which nobody asked for). No screen shows an item's position beyond what is in view, the map included, so a hidden package is hidden by sight |
+| Items on the ground, wherever they lie | Everyone on the wire, as today (#32: positions are not hidden behind walls, which would protect against cheating clients, which nobody asked for). No screen shows an item's position beyond what is in view (there is no map for now, and a later one shows only zones), so a hidden package is hidden by sight |
 | Whom a dead player watches | Nobody: it never leaves their client |
 | Voice | The invariant under Voice |
 
@@ -237,17 +238,22 @@ public events and the mode's numbers, so this is a rule of the interface, not of
   a hand ping seen only in view.
 
 ## Needs the engineer
-V1 to V13 leave these open. Each has options and a recommendation; the docs and the rework follow the recommendation,
-which can be reverted.
+V1 to V13 left these open. The engineer answered all nine on PR #133 (2026-10-01, agreed with the designer and
+relayed by the engineer): the recommendation for 1 and 4 to 9; 2 and 3 changed, as their answers below say. The
+Decision above follows the answers.
 1. **A dead player who leaves:** (a) their body is removed at the leave; (b) it stays for the rest of the round, as
    V7's letter ("until its player respawns") reads. Recommended (a): a body then always means a player who is coming
    back, and a body of someone who left would lie there as a false promise for up to an hour.
 2. **The map's item spawn points:** (a) the points where this match's items spawned (the public `ItemSpawned`), each
    marked with its kind, a package with its colour; (b) every item spawn marker of the level, drawn into the map
    asset. Recommended (a): it tells the engineers where each package started, which is where to begin looking, and
-   it never follows the package once it moved.
+   it never follows the package once it moved. **Answer: neither. No map for now**; the task screen keeps the task
+   list and the shared progress. A later map shows the zones where items may appear, never points and never an
+   item's current position.
 3. **What ends invulnerability:** (a) any accepted attack, hit or miss; (b) only a hit. Recommended (a): the attacker
    gets no hit confirmation (ARCHITECTURE §4.2), and a visible protection that ended only on a hit would give them one.
+   **Answer: nothing ends it.** It lasts 3 s after a revive or a respawn, and the player's own attack does not end it
+   (this replaces V8's "the player's own attack ends it"). Nothing ends early, so nothing confirms a hit either.
 4. **Raising, in detail:** (a) one raiser at a time (a second player's raise is refused while one runs); a raiser may
    hold the package (a raise needs no hand); losing sight cancels like moving out of reach (the start conditions
    are checked every tick); (b) raisers stack and finish sooner. Recommended (a): one progress per downed player and
@@ -296,8 +302,11 @@ which can be reverted.
   running during a raise:** a raise started at 8 s would fail at 10 s with the raiser doing everything right.
 - **Full health after a revive:** a 3 s raise would undo the two knife hits it took to down the player, so downing
   would hardly matter. The number stays a placeholder (50, one hit).
-- **Invulnerability that the player's own attack does not end:** a revived or respawned player could stab for 3 s at
-  no risk. **Hidden invulnerability:** an attacker would swing at a protected player with no way to know why nothing
+- **Invulnerability that the player's own attack ends** (V8's first answer, and this ADR's first draft): replaced by
+  the engineer's answer 3 on PR #133. The cost is accepted: a revived or respawned player can stab for 3 s at no
+  risk, which M4's playtest watches. **A map of item spawn points** (V2's first answer, with this match's spawn points
+  or every marker of the level): replaced by the engineer's answer 2 on PR #133, no map for now and later only
+  zones. **Hidden invulnerability:** an attacker would swing at a protected player with no way to know why nothing
   happened, against Open knowledge.
 - **Respawning at the round's start markers or at the body:** the round's markers are placed for the start of a match,
   not for one player mid-round; at the body the attacker who downed them is likely still there.
@@ -348,7 +357,7 @@ ARCHITECTURE describes the code as built, so each section changes in the rework 
 | §9.3 | `MatchState` (life, the belt, timers, bodies), `LifeRules`, `Items` |
 | §9.4 | the parts `NoneAlive`, `TakeIntoHand`, `Strike`, `StaminaCost`, `Proximity`, `RoundVoice`; the new parts; `ReportOutcome`'s example (a meeting button, #35) |
 | §9.5 | Crew's display names, No crew alive replaced, PickUp, Use, Sprint and Jump's ghost lines, the base mode's voice and movement numbers, the items' `hands` |
-| §9.6 | `no_crew_alive.tres` in the data list; the `respawn` tag; the map asset |
+| §9.6 | `no_crew_alive.tres` in the data list; the `respawn` tag |
 | §9.7 | `WalkTo`'s ghost speed; the scenarios that script a ghost |
 | §9.8 | the extensibility test's resurrection and meetings examples |
 | §10 | the M5 row: dead chat and meetings out |
@@ -406,9 +415,9 @@ The order below keeps `verify` green after every item. Two rules hold for each o
    player held in place while a raise runs; each cancel of the Revive section, the raise-stopped event naming no
    cause; the revive health from data; the give-up as data (a die effect accepted from the downed). Unit tests for
    each cancel and for a restarted raise that cannot move the downed player.
-6. **Invulnerability.** An until-tick on the player; `Strike.targets` skips them before any `Damaged`; the player's
-   own accepted attack ends it; a public avatar flag (a version bump); nobody has it at the round start;
-   `strike_test` cases.
+6. **Invulnerability.** An until-tick on the player; `Strike.targets` skips them before any `Damaged`; nothing ends
+   it early, the player's own attack included; a public avatar flag (a version bump); nobody has it at the round
+   start; `strike_test` cases.
 7. **Two hand slots.** `ItemKind.hands` (1 or 2), set on the package (2) and the knife (1) in the same PR; a belt
    slot on the player; `ItemState.Where` gains the belt; `Items.take`'s new rule; the swap intent and effect,
    refused while a two-handed item is in the hand; `Match._find_action` reads the hand only; death and leaving drop
@@ -433,10 +442,10 @@ The order below keeps `verify` green after every item. Two rules hold for each o
     sounds and lift music. It needs the look pitch: M4's controller sends the camera's look vector in
     `MoveClaim.facing`, with `Strike` and `Swung` flattening it to the horizontal before use (it is `Strike`'s
     fallback zone direction and `Swung`'s public facing), or the avatar gains a pitch; M4 does not lower the
-    snapshot rate without checking spectating. The Tab task screen and its map. `set_ghost` and its tests go.
-12. **The map asset (levels).** A map asset per level inside the content hash (#118), with the task circles and item
-    spawn points drawn over it (from the public events, or from the level's markers if "Needs the engineer" 2 goes
-    the other way); the put-down rule of `levels/CLAUDE.md` checked in a playtest.
+    snapshot rate without checking spectating. The Tab task screen: the task list and the shared progress, no map.
+    `set_ghost` and its tests go.
+12. **No map asset in M4** (the engineer's answer 2: no map for now). What stays of this item: the put-down rule of
+    `levels/CLAUDE.md` checked in M4's playtest. A later map of the zones where items may appear is a later issue.
 13. **Review.** M4's adversarial review checks that spectating and the task screen render nothing from private or
     out-of-sight data, and that the downed camera sees no more than a standing player at the body would.
 
