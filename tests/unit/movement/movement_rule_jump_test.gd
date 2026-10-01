@@ -222,6 +222,52 @@ func test_an_honest_climb_whose_claims_were_lost_is_not_corrected() -> void:
 	assert_float(player.position.y).is_greater(3.0)
 
 
+func test_an_honest_climb_of_stairs_narrower_than_the_capsule_is_not_corrected() -> void:
+	# #143's network test on 0.3 m treads (0.3 m risers, from x = 6): the claims the joiner sent,
+	# sprinting and walking, recorded on the host. Feet resting on a step's corner, the five rays
+	# (0.4 m apart, as the capsule's radius) may all miss that step and find the one below, and
+	# the next step's rise from it was corrected; the claim's feet now bound the base from below.
+	var sprinting: Array[Vector2] = [
+		Vector2(5.316668, 0.0),
+		Vector2(5.666668, 0.304543),
+		Vector2(5.903964, 0.288559),
+		Vector2(6.168145, 0.584008),
+		Vector2(6.432864, 0.859469),
+		Vector2(6.702574, 1.140857),
+		Vector2(7.02151, 1.200299),
+	]
+	assert_int(_climb_corrections(sprinting, FixtureMoves.sprinting())).is_equal(0)
+	var walking: Array[Vector2] = [
+		Vector2(5.474998, 0.0),
+		Vector2(5.699997, 0.302094),
+		Vector2(5.889102, 0.286061),
+		Vector2(6.056526, 0.511394),
+		Vector2(6.212067, 0.590159),
+		Vector2(6.409795, 0.852561),
+		Vector2(6.594612, 1.19475),
+		Vector2(6.775845, 1.173014),
+		Vector2(6.991943, 1.200251),
+	]
+	assert_int(_climb_corrections(walking, {"moving": true})).is_equal(0)
+
+
+func test_a_claim_floating_above_the_floor_is_still_corrected() -> void:
+	# Claims on the floor that climb 0.3 m a tick with no stairs: the first is within step height
+	# of the ground, so it lands, its base its feet less the landing slack (about 0.18 m); the
+	# second passes from there and finds no floor within step height, so the third is corrected.
+	var game := _round()
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	var walk := {"moving": true}
+	for i in 3:
+		FixtureMoves.step(game, P1, Vector3(0.225, 0.3, 0), walk)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_float(player.position.y).is_equal_approx(0.6, 1e-5)
+	var slack := MovementRule.landing_slack(FixtureModes.player_rules())
+	assert_float(slack).is_equal_approx(0.4 * (1.0 - cos(deg_to_rad(45.0))), 1e-6)
+
+
 func test_walking_up_steps_moves_the_base_to_each_landing() -> void:
 	var game := _round()
 	var player := game.state.player(P1)
@@ -496,6 +542,26 @@ func _quiet_climb_corrected(height: float) -> bool:
 ## before SLOPE_FOOT.
 func _on_slope(z: float) -> float:
 	return maxf(0.0, 0.05 * ceilf((z - SLOPE_FOOT) / 0.05))
+
+
+## The Corrections P1 gets for claims at `feet` (x and height; z = 5), one per tick with `fields`,
+## on #143's narrow stairs along x: three 0.3 m steps 0.3 m deep from x = 6, then a top at 1.2 m,
+## on a world whose footprint radius is the capsule's (0.4 m).
+func _climb_corrections(feet: Array[Vector2], fields: Dictionary) -> int:
+	var world := FixtureTerrainWorld.new()
+	world.add_platform(6.0, 0, 6.3, 30, 0.3).add_platform(6.3, 0, 6.6, 30, 0.6)
+	world.add_platform(6.6, 0, 6.9, 30, 0.9).add_platform(6.9, 0, 12.9, 30, 1.2)
+	world.footprint_radius = 0.4
+	var game := FixtureMoves.in_round([P1], world)
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	player.position = Vector3(feet[0].x, feet[0].y, 5)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	for at: Vector2 in feet.slice(1):
+		FixtureMoves.claim(game, P1, Vector3(at.x, at.y, 5), fields)
+		FixtureModes.run_ticks(game, 1)
+	return FixtureMoves.corrections(game, P1).size() - seen
 
 
 ## A round of P1 on the stepped world.

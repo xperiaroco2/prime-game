@@ -45,7 +45,9 @@ extends RefCounted
 ## - Height: until the next landing (a claim on the floor with a WorldQuery floor within step
 ##   height), the feet stay within the jump height (+ JUMP_SLACK) of the take-off after an
 ##   accepted jump, else within step height (+ STEP_CLEARANCE, + the horizontal travel times
-##   tan(FLOOR_MAX_ANGLE) for a slope or a staircase) of the last landing's floor. The slope
+##   tan(FLOOR_MAX_ANGLE) for a slope or a staircase) of the last landing's floor: the higher of
+##   the floor WorldQuery found and the claim's feet less landing_slack(), since on stairs whose
+##   treads are narrower than the capsule the rays may miss the step it rests on. The slope
 ##   allowance counts the travel of at most SLOPE_TICKS covered ticks: stored credit buys no more
 ##   climb than that. Falling is not bounded, and walls are not checked (§7.1).
 ##   A downed player is bounded the same way: with no jump, its rise is the step height (plus the
@@ -264,7 +266,10 @@ static func _accept(
 		var landing := _floor_under(ctx.world, claim.position, rules)
 		if landing != WorldQuery.NO_FLOOR:
 			motion.jumping = false
-			motion.base_y = landing.y
+			# On stairs whose treads are narrower than the capsule, the rays may all miss the step
+			# the capsule rests on and find the one below (#143): the claim's own feet, less the
+			# slack of a rounded bottom on a step's corner, bound the base from below.
+			motion.base_y = maxf(landing.y, claim.position.y - landing_slack(rules))
 	motion.credit -= checked.covered
 	motion.rebase = false
 	player.position = claim.position
@@ -382,6 +387,13 @@ static func _allowed_rise(rules: PlayerRules, jumping: bool, travel: float) -> f
 ## (about 0.12 m), and a jump from mid-crossing a step starts STEP_CLEARANCE higher.
 static func jump_slack(rules: PlayerRules) -> float:
 	return rules.capsule_radius_m * (1.0 - cos(FLOOR_MAX_ANGLE)) + STEP_CLEARANCE
+
+
+## How far below the floor it stands on a landing claim's feet may be (#76, #143): a capsule's
+## rounded bottom resting on a step's corner hangs up to r * (1 - cos(floor_max_angle)) below it
+## (about 0.12 m). A placeholder, "not a decision", until the M4 playtest.
+static func landing_slack(rules: PlayerRules) -> float:
+	return rules.capsule_radius_m * (1.0 - cos(FLOOR_MAX_ANGLE))
 
 
 ## The floor WorldQuery finds under feet at `feet` (the capsule's footprint: stand_floor_below,
