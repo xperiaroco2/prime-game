@@ -54,7 +54,7 @@ func test_the_downed_never_hear_each_other_however_close() -> void:
 
 
 func test_the_dead_hear_nobody_and_are_heard_by_nobody() -> void:
-	# Nothing reaches DEAD before M4-2 (#138): the state is set directly.
+	# The state is set directly, as LifeTicks sets it at the end of a knockdown.
 	var game := FixtureVoiceMatch.in_round(_round_voice(), [P1, P2, P3])
 	game.state.player(P2).life = PlayerState.Life.DEAD
 	game.state.player(P3).life = PlayerState.Life.DOWNED
