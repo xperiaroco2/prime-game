@@ -291,10 +291,10 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
 - **Timeouts** live in one place, `EnetTransport`: an ENet peer is dropped after 10 to 20 s without an
   acknowledgement; a crash is noticed that late. ENet runs only on the main thread, so a frozen process sends and
   acknowledges nothing, and the spike's 2 to 4 s dropped it. #21 found a common freeze: on Windows a windowed D3D12
-  Godot process can freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts (Windows
-  now renders with Vulkan, #124, which never froze so; other freezes remain). Keep the
-  minimum at 10 s or more; a servicing thread or an extra keepalive would not help (ENet already pings every
-  500 ms, and a thread would keep a hung game "connected"). ENet resends with a doubling delay from the measured
+  Godot process can freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts (Vulkan,
+  the Windows driver since #124, did not freeze in 10 such runs; other freezes remain). Keep the minimum at 10 s or
+  more; a servicing thread or an extra keepalive would not help (ENet already pings every 500 ms, and a thread
+  would keep a hung game "connected"). ENet resends with a doubling delay from the measured
   round trip and, at a resend check, drops a peer once the oldest unacknowledged send is past the maximum, or
   past the minimum after the command's 6th attempt (timeout limit 32), so a drop comes between 10 s and about
   20 s (with ENet's default of 5 s: 5 to 10 s). Right after a connection, before a round trip is measured, it
@@ -1000,7 +1000,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they run
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
   #21 ran. M4 gives them windows and the real client. The default port is a placeholder. Several windows on one PC
-  no longer meet the D3D12 freeze of §4: Windows renders with Vulkan (#124).
+  met the D3D12 freeze of §4; Windows now renders with Vulkan (#124), which did not meet it in 10 runs on one PC.
   **Built in 3i (#103)** as `tools/run/headless_session.gd` (a `SceneTree` script under `tools/`, which may use
   everything (§1), so it composes `server/` and `client/` in one process without a new boundary; the host's own
   `ClientSession` still reads only `own_client`) and the runner's `hostjoin.py`. `--host` starts `HostSession.start`
