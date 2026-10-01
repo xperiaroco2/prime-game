@@ -62,6 +62,8 @@ HOSTING = "session: hosting"
 CANNOT_HOST = "session: cannot host"
 # The line the game prints once its host welcomed it (client/app/game.gd); a fresh host welcomes in its lobby.
 WELCOMED = re.compile(r"^session: welcomed as \S+ \[\d+\]$")
+# The line the game prints when its session ends, with the reason (client/app/game.gd); it then shows its menu.
+ENDED = "session: ended:"
 # The line both the game and the headless session print when they stop for the runner.
 STOPPED = "session: stopped"
 NO_REPLAY = "--no-replay"
@@ -94,7 +96,7 @@ class Part:
     lines: list[str] = field(default_factory=list)
     killed: bool = False
     log: Path | None = None
-    # What a check of its own found missing in a process that ended well (verify's game step).
+    # What a check of its own found missing in a process that ended well (a window, verify's game step).
     unmet: str = ""
 
     @property
@@ -454,6 +456,8 @@ def _run(
     if seconds is None:
         say(f"        {name} runs until Ctrl+C" + (" or until every window is closed" if windows else ""))
     supervise(parts, seconds=seconds, stop=stop, on_hosting=on_hosting)
+    if windows:
+        check_windowed_parts(parts)
     write_logs(parts, LOG_DIR)
     return report(parts)
 
@@ -486,6 +490,16 @@ def join(address: str, *, port: int | None, seconds: int | None, headless: bool 
 
 def welcomed(part: Part) -> bool:
     return any(WELCOMED.match(line) for line in part.lines)
+
+
+def check_windowed_parts(parts: list[Part]) -> None:
+    """Marks a window that ended well but was never welcomed: the game goes back to its menu instead of exiting when
+    it cannot host or its join fails, so its exit code alone would report a session that never formed as passed."""
+    for part in parts:
+        if part.problem or welcomed(part):
+            continue
+        why = next((line for line in reversed(part.lines) if line.startswith((CANNOT_HOST, ENDED))), "")
+        part.unmet = "never welcomed: " + (why.removeprefix("session: ") if why else "it reached no lobby")
 
 
 def check_game_parts(parts: list[Part]) -> None:

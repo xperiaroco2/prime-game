@@ -163,9 +163,9 @@ class WindowsTest(unittest.TestCase):
             self.assertEqual(hostjoin.host(**options), 0)  # type: ignore[arg-type]
         return self.calls[-1]["parts"]  # type: ignore[return-value]
 
-    def join(self, *, agent: bool) -> list[hostjoin.Part]:
+    def join(self, *, agent: bool, headless: bool = False) -> list[hostjoin.Part]:
         with self.env(agent):
-            self.assertEqual(hostjoin.join("192.168.0.195", port=None, seconds=None), 0)
+            self.assertEqual(hostjoin.join("192.168.0.195", port=None, seconds=None, headless=headless), 0)
         return self.calls[-1]["parts"]  # type: ignore[return-value]
 
     def assert_headless_session(self, parts: list[hostjoin.Part]) -> None:
@@ -231,6 +231,16 @@ class WindowsTest(unittest.TestCase):
         )
         self.host(agent=False, local=False, clients=0, headless=True)
         self.assertIsNone(self.calls[-1]["on_hosting"])  # the headless session prints its own
+
+    def test_only_windows_must_be_welcomed(self) -> None:
+        # The headless session exits 1 when no session forms; a window stays at its menu, so the runner checks it.
+        with mock.patch.object(hostjoin, "check_windowed_parts") as check:
+            self.host(agent=False, clients=0)
+            self.join(agent=False)
+            self.assertEqual(check.call_count, 2)
+            self.host(agent=True)
+            self.join(agent=False, headless=True)
+            self.assertEqual(check.call_count, 2)
 
     def test_a_lone_window_is_not_tiled(self) -> None:
         self.assertNotIn("--position", self.host(agent=False, clients=0)[0].cmd)
@@ -414,6 +424,22 @@ class SupervisionTest(unittest.TestCase):
         parts = self.run_parts([fake("host", "menu-host", self.stop), fake("client 2", "client", self.stop)], seconds=2)
         self.assertLess(time.monotonic() - began, 30)
         self.assertEqual(parts[1].problem, "never started")
+
+    def test_a_window_that_formed_no_session_fails_with_why(self) -> None:
+        # The game goes back to its menu instead of exiting: exit 0 and the stop line alone would say "passed".
+        lone = self.run_parts([fake("host", "menu-host", self.stop)], seconds=1)
+        joined = self.run_parts([fake("join", "client", self.stop)], seconds=1)
+        welcomed = self.run_parts([fake("join", "welcomed", self.stop)], seconds=1)
+        for parts in (lone, joined, welcomed):
+            hostjoin.check_windowed_parts(parts)
+        self.assertEqual(lone[0].problem, "never welcomed: cannot host: port taken")
+        self.assertEqual(joined[0].problem, "never welcomed: it reached no lobby")
+        self.assertEqual(welcomed[0].problem, "")
+        ended = hostjoin.Part("join", [])
+        ended.proc = mock.MagicMock(returncode=0, poll=mock.MagicMock(return_value=0))
+        ended.lines = ["session: joining 10.0.0.2:24600", "session: ended: wrong version", "session: stopped"]
+        hostjoin.check_windowed_parts([ended])
+        self.assertEqual(ended.problem, "never welcomed: ended: wrong version")
 
     def test_on_hosting_gets_the_host_line(self) -> None:
         got: list[str] = []

@@ -607,7 +607,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
     command line `LaunchOptions` reads (`--host [--local]` or `--join=<address>`, `--port=`, the stop and alive files
     below), so it skips the menu and goes straight to the lobby. A host and its `--clients` are tiled over the primary
     screen (`--position`, `--resolution`); a windowed host on every interface prints what to type on another PC. A
-    host that cannot listen stays at its menu with the reason, and its clients do not start.
+    host that cannot listen stays at its menu with the reason, and its clients do not start. A window never welcomed
+    into a lobby (it could not host, or its join ended) fails the run with the reason, though the game exits 0.
   - **`--headless`**: M3's `tools/run/headless_session.gd` (a `HostSession` and its own `ClientSession` of the base
     mode). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase, and
     the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
