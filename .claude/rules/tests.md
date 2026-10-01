@@ -11,7 +11,7 @@ paths:
   suites that need real engine steps, mirroring the source path (`client/player/player_controller.gd` →
   `tests/integration/client/player/player_controller_test.gd`). Bot matches run with `tools\run.cmd bots`
   (`tests/harness/bots/`, scenarios in `content/scenarios/`), also a `verify` step.
-- A suite that outgrows gdlint's 40 public methods splits by topic (`player_controller_ghost_test.gd`); builders it
+- A suite that outgrows gdlint's 40 public methods splits by topic (`player_controller_downed_test.gd`); builders it
   shares go in a plain script next to it, preloaded by each suite (`player_test_world.gd`).
 - A suite is `<name>_test.gd` (GdUnit4's snake_case convention) and `extends GdUnitTestSuite`. Test functions start
   with `test_`, are typed like all GDScript, and return `void`.
