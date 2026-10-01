@@ -5,15 +5,26 @@ extends GdUnitTestSuite
 ## interpolation delay. Each moves only its own player, and the host corrects nobody for it.
 ##
 ## Every physics frame a probe between Avatars (-80) and the players (0) asserts that the physics
-## server already holds the pose Avatars set in that frame, so the push search sees this frame's
-## capsule. It failed (on every frame a body moved) while RemotePlayerBody was an AnimatableBody3D
-## with `sync_to_physics` off and placed without force_update_transform().
+## server already holds the pose Avatars set in that frame, and that a shape query of the kind the
+## push search makes (the living layer, in the world's direct space state) finds the capsule there:
+## at its centre, and, when it moved, at a point just inside its new front that the last frame's
+## capsule did not hold. The transform check failed on most frames a body moved (30 to 173 stale
+## frames per test) while RemotePlayerBody was an AnimatableBody3D with `sync_to_physics` off and
+## placed without force_update_transform(). With an AnimatableBody3D (`sync_to_physics` off) that
+## does call force_update_transform(), both checks fail (checked once, 2026-10-01: 30 to 173 stale
+## frames and 12 to 173 missed queries per test); the StaticBody3D passes both.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## Between Avatars (-80) and the local player (0).
 const PROBE_PRIORITY := -50
 ## How far apart, in metres, the server's and the node's positions of a body may be.
 const SAME := 0.0001
+## The front point's depth inside the new capsule, and the least horizontal move in a frame that
+## puts it outside the last frame's capsule with room to spare, in metres.
+const FRONT_INSIDE := 0.005
+const FRONT_MOVE := 0.015
+## The query sphere's radius: a point, in metres.
+const POINT := 0.001
 
 var _tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
 var _rules := FixtureModes.player_rules()
@@ -24,11 +35,18 @@ var _pair: NetPair
 class SameFrameProbe:
 	extends Node
 	var avatars: AvatarViews
+	var rules: PlayerRules
 	var checked := 0
 	var stale := 0
+	## Shape queries that did not find the capsule where it was placed this frame.
+	var missed := 0
+	## Frames with a front query (the body moved far enough).
+	var fronts := 0
+	var _last: Dictionary[RID, Vector3] = {}
 
-	func _init(of: AvatarViews) -> void:
+	func _init(of: AvatarViews, player_rules: PlayerRules) -> void:
 		avatars = of
+		rules = player_rules
 		process_physics_priority = PROBE_PRIORITY
 
 	func _physics_process(_delta: float) -> void:
@@ -43,6 +61,33 @@ class SameFrameProbe:
 			checked += 1
 			if server.origin.distance_to(remote.global_position) > SAME:
 				stale += 1
+			var centre := remote.global_position + Vector3.UP * rules.capsule_height_m * 0.5
+			if not _hits(remote, centre):
+				missed += 1
+			var rid := remote.get_rid()
+			if _last.has(rid):
+				var moved := centre - _last[rid]
+				moved.y = 0.0
+				if moved.length() > FRONT_MOVE:
+					fronts += 1
+					var inside := rules.capsule_radius_m - FRONT_INSIDE
+					if not _hits(remote, centre + moved.normalized() * inside):
+						missed += 1
+			_last[rid] = centre
+
+	## Whether a point query on the living layer, as the push search's, finds `remote` at `at`.
+	func _hits(remote: RemotePlayerBody, at: Vector3) -> bool:
+		var sphere := SphereShape3D.new()
+		sphere.radius = POINT
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = sphere
+		query.transform = Transform3D(Basis.IDENTITY, at)
+		query.collision_mask = PhysicsLayers.LIVING
+		var space := avatars.get_world_3d().direct_space_state
+		for hit: Dictionary in space.intersect_shape(query, 8):
+			if hit["rid"] == remote.get_rid():
+				return true
+		return false
 
 
 func before_test() -> void:
@@ -97,7 +142,7 @@ func test_head_on_nobody_passes_through() -> void:
 func _probes() -> Array[SameFrameProbe]:
 	var found: Array[SameFrameProbe] = []
 	for game: Game in [_pair.host, _pair.client]:
-		var probe := SameFrameProbe.new(game.avatars())
+		var probe := SameFrameProbe.new(game.avatars(), _rules)
 		game.add_child(probe)
 		found.append(probe)
 	return found
@@ -129,3 +174,5 @@ func _assert_uncorrected_and_same_frame(probes: Array[SameFrameProbe]) -> void:
 	for probe: SameFrameProbe in probes:
 		assert_int(probe.checked).is_greater(100)
 		assert_int(probe.stale).is_equal(0)
+		assert_int(probe.fronts).is_greater(10)
+		assert_int(probe.missed).is_equal(0)

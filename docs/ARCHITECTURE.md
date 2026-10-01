@@ -1237,8 +1237,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   kinematic body (`AnimatableBody3D` with `sync_to_physics` on or off, `CharacterBody3D`) shows a teleport to shape
   queries only after the physics step, even set on the server directly. So `RemotePlayerBody` is a `StaticBody3D`
   placed with `force_update_transform()`; nothing collides with it as a wall (the controller's mask is the world).
-  M4-7's two-client push tests assert every frame that the server holds the pose set at -80 (they failed on every
-  frame a body moved before the change).
+  M4-7's two-client push tests assert every frame that the server holds the pose set at -80 and that a shape query on
+  the living layer, as the push search's, finds the capsule there and not where it was a frame before (an
+  `AnimatableBody3D` failed both on most frames a body moved, 30 to 173 per test, even with `force_update_transform()`).
 - **The crawl** (M4-9): a downed controller moves at the crawl speed, with no sprint and no jump, up the step height,
   colliding with the level only and pushing nobody; it keeps the standing capsule for collision (the host's floor
   checks use it), and only its mesh lies down. Physics layer 3 becomes `downed` (`PhysicsLayers`), which no push
