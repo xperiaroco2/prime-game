@@ -143,7 +143,7 @@ seen failing on a planted leak recorded in its PR:
 | M4-3 | The respawn's `Correction` counts as a placement; no `Damaged` reaches a player whose invulnerability runs (from the match state) | `Strike` ignores invulnerability |
 | M4-4 | None new: every raise event is public, and `RaiseStopped` carries the raiser and the target only, which the table-against-core test pins | none |
 | M4-5 | `TaskState` joins `LeakCheck.TASK_EVENTS`: every player present for a whole round decodes the same task events | `TaskState` declared to the living only |
-| M4-6 | `Disconnecting` is an event for one player, so `LeakCheck.FOR_ONE` takes it through its `AUDIENCE_KIND` (as built): only its subject decodes it | `Disconnecting` declared *everyone* |
+| M4-6 | `Disconnecting` is an event for one player: `&"Disconnecting"` is added by hand to `LeakCheck.FOR_ONE` (its comment requires it; `for_one()` adds a class only while it declares ONLY, so a wrong declaration would hide it), and the core `DisconnectingEvent` holds an int `peer`, its subject, as `CorrectionEvent` does although the wire row has no peer field, so `_check_subjects` compares it: only its subject decodes it | `Disconnecting` declared *everyone*: the check names "decoded Disconnecting of peer N" |
 
 **The ARCHITECTURE sections** each issue rewrites (vision revision 1's table, assigned):
 
