@@ -10,9 +10,8 @@ const Samples := preload("res://tests/unit/net/messages/wire_samples.gd")
 const EVENTS_FOLDER := "res://core/events/"
 ## The wire's own fields (§4.4): the payload never holds them, so no intent declares them.
 ## ForceRole's `peer` becomes MatchCommand.peer and is allowed on its row only.
-const WIRE_ONLY := ["seq", "has_map", "has_station", "has_role"]
-## A host's content hash (§4.3): any 64-bit number; this one needs all 8 bytes.
-const CONTENT := -0x123456789ABCDEF
+const WIRE_ONLY: Array[String] = ["seq", "has_map", "has_station", "has_role"]
+const CONTENT := Samples.CONTENT_HASH
 ## A map path the wire accepts (a `res://` path): the fixture maps' `fixture://` paths do not.
 const WIRE_MAP := "res://levels/maps/fixture_wire_map.tscn"
 
@@ -95,13 +94,9 @@ func test_every_intent_row_carries_the_fields_intents_declares_with_their_types(
 		if row == null:
 			continue
 		var declared: Dictionary = Intents.FIELDS[intent]
-		var carried := _arg_types(row.fields)
-		(
-			assert_str(_type_drift(carried, declared))
-			. override_failure_message("%s: %s" % [intent, _type_drift(carried, declared)])
-			. is_empty()
-		)
-		var allowed := WIRE_ONLY.duplicate()
+		var drift := _type_drift(_arg_types(row.fields), declared)
+		assert_str(drift).override_failure_message("%s: %s" % [intent, drift]).is_empty()
+		var allowed: Array[String] = WIRE_ONLY.duplicate()
 		if intent == Intents.FORCE_ROLE:
 			allowed.append("peer")
 		for wire_only: String in _wire_only(row.fields):
@@ -136,10 +131,8 @@ func test_decoded_intents_hold_the_declared_variant_types() -> void:
 
 
 func test_the_join_refusals_of_3e_are_reject_reasons_that_fit_the_wire() -> void:
-	var reasons: Script = RejectReasons
-	var constants := reasons.get_script_constant_map()
-	assert_str(str(constants.get("WRONG_CONTENT", &""))).is_equal("wrong_content")
-	assert_str(str(constants.get("JOINS_CLOSED", &""))).is_equal("joins_closed")
+	assert_str(str(RejectReasons.WRONG_CONTENT)).is_equal("wrong_content")
+	assert_str(str(RejectReasons.JOINS_CLOSED)).is_equal("joins_closed")
 	var schema := WireSchema.game(false)
 	for reason: StringName in [RejectReasons.WRONG_CONTENT, RejectReasons.JOINS_CLOSED]:
 		assert_bool(WireField.is_id(str(reason))).override_failure_message(reason).is_true()
@@ -160,11 +153,11 @@ func test_the_join_refusals_of_3e_are_reject_reasons_that_fit_the_wire() -> void
 ## MatchCommand server/ will make (the player as the command's peer), and deals.
 func test_a_decoded_force_role_forces_the_role_in_a_match() -> void:
 	var schema := WireSchema.game(true)
-	var sent := Samples.debug_commands()
+	var sent := WireMessage.new(&"ForceRole", {"role": "dissident"}, 1, 3)
 	var peers: Array[int] = [1, 2, 3]
 	for seed_value: int in [1, 2, 3, 7]:
 		var game := _deal_lobby(peers, seed_value)
-		var forced := _decoded(schema, sent[0])
+		var forced := _decoded(schema, sent)
 		if forced == null:
 			return
 		assert_int(forced.peer).is_equal(3)
@@ -179,11 +172,11 @@ func test_a_decoded_force_role_forces_the_role_in_a_match() -> void:
 
 func test_a_decoded_force_role_without_a_role_clears_the_forced_one() -> void:
 	var schema := WireSchema.game(true)
-	var sent := Samples.debug_commands()
+	var sent := WireMessage.new(&"ForceRole", {"role": ""}, 2, 3)
 	var game := _deal_lobby([1, 2, 3], 7)
 	FixtureModes.send(game, Intents.FORCE_ROLE, 3, {"role": "dissident"})
 	assert_dict(game.state.forced_roles).is_equal({3: &"dissident"})
-	var cleared := _decoded(schema, sent[1])
+	var cleared := _decoded(schema, sent)
 	if cleared == null:
 		return
 	assert_int(cleared.peer).is_equal(3)
@@ -246,7 +239,9 @@ func test_a_decoded_change_settings_changes_numbers_bans_and_the_map() -> void:
 	game.apply(_command_of(decoded, FixtureBaseMode.HOST, game))
 	assert_array(FixtureModes.rejections(game, FixtureBaseMode.HOST)).is_empty()
 	assert_int(game.state.settings[&"knives"]).is_equal(3)
-	var banned: PackedStringArray = game.state.id_sets.get(&"banned_task_types", PackedStringArray())
+	var banned: PackedStringArray = game.state.id_sets.get(
+		&"banned_task_types", PackedStringArray()
+	)
 	assert_array(Array(banned)).is_equal(["second"])
 	assert_str(game.state.map).is_equal(WIRE_MAP)
 	assert_array(Array(game.diagnostics)).is_empty()
@@ -357,5 +352,6 @@ func _decoded(schema: WireSchema, message: WireMessage) -> WireMessage:
 ## The MatchCommand a decoded intent becomes (§4.4): its fields are the args and its seq the
 ## command's; `peer` is the sender the transport reports, or ForceRole's player.
 func _command_of(decoded: WireMessage, peer: int, game: Match) -> MatchCommand:
-	var kind := StringName(decoded.name)
-	return MatchCommand.new(kind, peer, game.ticked_through() + 1, decoded.fields, decoded.seq)
+	return MatchCommand.new(
+		decoded.name, peer, game.ticked_through() + 1, decoded.fields, decoded.seq
+	)

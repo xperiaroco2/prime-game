@@ -5,6 +5,8 @@ extends RefCounted
 ## a StringName, a typed Dictionary an untyped one), so same() checks the types as well.
 
 const ID_32 := "abcdefghijklmnopqrstuvwxyz_01234"
+## The Hello sample's content hash (§4.3): any 64-bit number; this one needs all 8 bytes.
+const CONTENT_HASH := -0x123456789ABCDEF
 
 
 ## One event of every class core/ sends to a peer, keyed by class name (ItemSpawned twice: a knife
@@ -70,7 +72,7 @@ static func events() -> Dictionary[String, Array]:
 static func intents() -> Array[WireMessage]:
 	var settings := {&"tasks": 3, &"banned_task_types": PackedStringArray(["delivery"])}
 	return [
-		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": -0x123456789ABCDEF}),
+		WireMessage.new(&"Hello", {"version": WireSchema.VERSION, "content": CONTENT_HASH}),
 		WireMessage.new(&"SetReady", {"ready": true}, 7),
 		WireMessage.new(&"ChangeSettings", {"settings": settings}, 8),
 		WireMessage.new(
