@@ -90,6 +90,7 @@ func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 		var why := "; ".join(node.errors)
 		node.free()
 		print("session: cannot host: %s" % why)
+		last_reason = EndReasons.CANNOT_HOST
 		_show_menu(EndReasons.CANNOT_HOST, why)
 		return false
 	if options != null and not options.replay:

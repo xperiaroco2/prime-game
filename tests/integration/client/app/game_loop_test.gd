@@ -113,6 +113,20 @@ func test_a_join_nobody_answers_returns_to_the_menu_with_the_reason() -> void:
 	await get_tree().process_frame
 
 
+func test_a_host_that_cannot_start_stays_on_the_menu_and_says_why() -> void:
+	var first := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 2)])
+	assert_bool(first.hosting()).is_true()
+	var second := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 2)])
+	assert_bool(second.hosting()).is_false()
+	assert_object(second.client()).is_null()
+	assert_int(second.screen()).is_equal(S.MENU)
+	assert_str(String(second.last_reason)).is_equal(String(EndReasons.CANNOT_HOST))
+	assert_str(second.ui.menu.reason_label.text).contains(EndReasons.words(EndReasons.CANNOT_HOST))
+	assert_bool(second.host(PORT + 2)).is_false()
+	first.leave()
+	await get_tree().process_frame
+
+
 func _game(args: Array[String]) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
