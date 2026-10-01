@@ -27,7 +27,8 @@ player may do, how a pickup fills two slots, and what ends a round when no crew 
 it as V1 to V13: the numbers, each question and its answer are the table in
 [the comment on PR #127](https://github.com/xperiaroco2/prime-game/pull/127#issuecomment-5930164701), and the tags here
 are that table's (the chat's own numbering differed; V8 and V9 were read back and confirmed). Each answer is
-written into the Decision below and cited as (Vn); what they still leave open is under "Needs the engineer".
+written into the Decision below and cited as (Vn); what they left open, answered on PR #133, is under
+"Needs the engineer".
 
 ## Decision
 
@@ -294,6 +295,8 @@ Decision above follows the answers.
   the public snapshot already holds what the camera needs.
 - **The map showing where items are now:** a dissident's only sabotage would undo itself, since the map would point
   at every hidden package.
+- **A map of item spawn points** (V2's first answer, with this match's spawn points or every marker of the level):
+  replaced by the engineer's answer 2 on PR #133, no map for now and later only zones.
 - **A two-handed pickup that drops the hand item in front** (the first draft): `PickUp` carries no facing, the drop
   needs a new geometry query, and "in front" can be inside a wall; the picked item's spot is already known to be
   valid. **A one-handed pickup to the belt first:** the player would not hold what they reached for.
@@ -304,9 +307,7 @@ Decision above follows the answers.
   would hardly matter. The number stays a placeholder (50, one hit).
 - **Invulnerability that the player's own attack ends** (V8's first answer, and this ADR's first draft): replaced by
   the engineer's answer 3 on PR #133. The cost is accepted: a revived or respawned player can stab for 3 s at no
-  risk, which M4's playtest watches. **A map of item spawn points** (V2's first answer, with this match's spawn points
-  or every marker of the level): replaced by the engineer's answer 2 on PR #133, no map for now and later only
-  zones. **Hidden invulnerability:** an attacker would swing at a protected player with no way to know why nothing
+  risk. **Hidden invulnerability:** an attacker would swing at a protected player with no way to know why nothing
   happened, against Open knowledge.
 - **Respawning at the round's start markers or at the body:** the round's markers are placed for the start of a match,
   not for one player mid-round; at the body the attacker who downed them is likely still there.
