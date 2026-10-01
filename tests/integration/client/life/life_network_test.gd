@@ -172,7 +172,7 @@ func _until(done: Callable, frames := 30) -> bool:
 
 
 ## Walks `player` until it stands `distance` from `target` (on the floor), then turns it to look
-## at the target horizontally; false when it never got there.
+## at the target, down at a lying body's middle; false when it never got there.
 func _face_from(player: PlayerController, target: Vector3, distance: float) -> bool:
 	for i: int in 600:
 		var to := target - player.global_position
@@ -181,6 +181,13 @@ func _face_from(player: PlayerController, target: Vector3, distance: float) -> b
 		if to.length() <= distance:
 			player.move_input = Vector2.ZERO
 			await _pair.frames(5)
+			# Down at the lying body's middle, as a player does: its capsule lies with its mesh.
+			var eye := player.get_camera().global_position
+			var aim := target + Vector3.UP * FixtureModes.player_rules().capsule_radius_m
+			var flat := Vector2(aim.x - eye.x, aim.z - eye.z).length()
+			var want := atan2(aim.y - eye.y, flat)
+			player.look(0.0, want - asin(clampf(player.look_vector().y, -1.0, 1.0)))
+			await _pair.frames(2)
 			return true
 		player.move_input = Vector2(0.0, 1.0)
 		await _pair.frames(1)

@@ -99,6 +99,11 @@ func test_a_downed_player_is_on_the_downed_layer_and_living_again_on_the_living_
 	var mesh := body.get_node("Mesh") as MeshInstance3D
 	assert_float(mesh.get_aabb().size.y).is_greater(1.0)
 	assert_float((mesh.global_transform * mesh.get_aabb()).end.y).is_less(0.81)
+	# Its collision capsule lies with the mesh: a ray over the lying body, where the standing
+	# capsule was, finds nothing to raise there.
+	await _drawn()
+	assert_int(_ray_hits_at(1.5)).is_equal(0)
+	assert_int(_ray_hits_at(0.3)).is_equal(1)
 	# A new match forgets the knockdown: the body is on the living layer again, standing.
 	_model.lives.erase(PEER)
 	await _drawn()
@@ -106,6 +111,7 @@ func test_a_downed_player_is_on_the_downed_layer_and_living_again_on_the_living_
 	assert_bool(body.is_downed()).is_false()
 	assert_bool(body.head().visible).is_true()
 	assert_float((mesh.global_transform * mesh.get_aabb()).end.y).is_greater(1.7)
+	assert_int(_ray_hits_at(1.5)).is_equal(1)
 
 
 func test_the_invulnerable_flag_shows_the_shell_and_every_body_hides_out_of_sight() -> void:
@@ -162,3 +168,11 @@ func _snapshot(tick: int, at: Vector3, facing: Vector3, invulnerable := false) -
 	var fields := {"tick": tick, "avatars": {PEER: avatar}}
 	_model.fold_snapshot(fields)
 	_views.buffer.add(tick, fields["avatars"] as Dictionary, _now)
+
+
+## How many bodies a horizontal ray across the origin at `height` metres hits, on any layer.
+func _ray_hits_at(height: float) -> int:
+	var space := _views.get_world_3d().direct_space_state
+	var from := Vector3(-3.0, height, 0.0)
+	var query := PhysicsRayQueryParameters3D.create(from, Vector3(3.0, height, 0.0), 0xFFFFFFFF)
+	return 0 if space.intersect_ray(query).is_empty() else 1

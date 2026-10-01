@@ -3,8 +3,9 @@ extends StaticBody3D
 ## Another player as the local client sees it: a capsule on the living layer while that player is
 ## living, else on the downed layer, which no push searches (a downed player pushes nobody and
 ## nobody pushes it, §7.1; `set_living`). A downed player's mesh lies on its side (`set_downed`, the
-## M4 ADR's D8; its collision capsule stays standing, and the crosshair's search for a downed
-## player to raise finds it on the downed layer); an invulnerable one wears a pulsing white shell
+## M4 ADR's D8; its collision capsule lies with it, so the crosshair's search for a downed player
+## to raise finds it on the downed layer only where it lies; the own controller's capsule stays
+## standing for the host's floor checks); an invulnerable one wears a pulsing white shell
 ## (`set_invulnerable`, the avatar's flag). It has the size of the client's own copy of the
 ## mode's PlayerRules (`rules`), with a head that turns and nods. Only its owner's data moves it:
 ## AvatarViews places it each physics frame at SnapshotBuffer's interpolated pose (ARCHITECTURE
@@ -129,11 +130,13 @@ func _process(_delta: float) -> void:
 	LifeLooks.pulse(_shell, Time.get_ticks_msec() / 1000.0)
 
 
-## Stands or lays the mesh and the shell, and shows the head standing only, unless watched.
+## Stands or lays the mesh, the shell and the collision capsule, and shows the head standing only,
+## unless watched.
 func _show_looks() -> void:
 	if rules == null:
 		return
 	var pose := LifeLooks.lying(rules) if _downed else LifeLooks.standing(rules)
+	_shape.transform = pose
 	_mesh.transform = pose
 	_shell.transform = pose
 	_mesh.visible = not _watched
@@ -147,7 +150,6 @@ func _apply_rules() -> void:
 	_shape.shape = capsule
 	_mesh.mesh = LifeLooks.capsule(rules, color)
 	_shell.mesh = LifeLooks.shell(rules)
-	_shape.position = Vector3(0.0, rules.capsule_height_m * 0.5, 0.0)
 	_show_looks()
 	_head.position = Vector3(0.0, rules.eye_height_m, 0.0)
 	var visor_mesh := BoxMesh.new()
