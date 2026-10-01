@@ -4,7 +4,7 @@ export const meta = {
   whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?}',
   phases: [
     { title: 'Rebase', detail: 'one agent in the task worktree' },
-    { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net changed' },
+    { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/tests/harness changed' },
     { title: 'Fix', detail: 'only if a review found a blocker or major' },
   ],
 }
@@ -31,12 +31,16 @@ const WT = A.wt.replace(/\\/g, '/')
 const WTB = WT.replace(/^([A-Za-z]):/, (m, d) => '/' + d.toLowerCase())
 const BASE = A.base || 'main'
 const SCRATCH = `r${PR}`
+// A non-main base (a stage's release/m<k>, a parent's branch) is always passed: `publish` takes a release base that
+// equals main for a merged parent (#113).
+const PUBLISH = `tools\\run.cmd publish${BASE === 'main' ? '' : ` --base ${BASE}`}`
 
 const RULES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'}. No human answers questions: never ask in chat. Root CLAUDE.md applies in full.`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR #${PR}, issue #${N}, base ${BASE}). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\`. Never change D:/prime-game itself or another worktree.`,
   `- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through \`tools\\run.cmd publish\`), close an issue, edit the body of #${A.plan || 30}. Do not run commands you expect to prompt. No Godot windows. Temporary files only under the subfolder ${SCRATCH}/ of your scratchpad (it is shared with every other agent). LF line endings. Never weaken, skip or delete a test to make it pass.`,
   '- Commits: Conventional Commits ending with the attribution line your system reminder gives for commits. An edit of any path under .claude/ or addons/ prompts unless the session runs in bypass: list it for the human instead.',
+  `- Never use \`git stash\` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later \`git reset --soft HEAD~1\`. To fold a fix into an earlier commit: \`git commit --fixup=<sha>\`, then \`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/${BASE}\`; never an interactive rebase without that variable. Both are free in your own worktree.`,
 ].join('\n')
 
 const REVIEW = { type: 'object', properties: { reviewer: { type: 'string' }, verdict: { type: 'string' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'major', 'minor', 'nit'] }, file: { type: 'string' }, line: { type: 'number' }, problem: { type: 'string' }, fix: { type: 'string' } }, required: ['severity', 'problem'] } } }, required: ['verdict', 'findings'] }
@@ -51,7 +55,7 @@ const reb = await agent([
     'Steps:',
     `1. Record the old tip (\`git rev-parse HEAD\`). \`git fetch --prune origin\`, \`git rebase origin/${BASE}\`. Resolve each conflict keeping both sides' intent: an add/add class keeps the base's file and uid and folds in what this PR needs; data files keep every line of both sides with unique ids (then \`tools\\run.cmd normalize <file>\` if check asks); docs keep both texts.`,
     A.steps ? `2. Reconcile:\n${A.steps}` : '2. Fix what the new base breaks in this PR\'s code and tests, each fix in its own commit.',
-    '3. `tools\\run.cmd verify` until green; `tools\\run.cmd publish` (it can fail right after a rebase that changed tools/runner: run it again).',
+    `3. \`tools\\run.cmd verify\` until green; \`${PUBLISH}\` (it can fail right after a rebase that changed tools/runner: run it again).`,
     `4. Update PR #${PR}'s body (\`gh pr edit ${PR} --body-file\`): a "Rebased on ${BASE}" section with the conflicts, how each was resolved and the fixes; keep the rest. \`gh pr checks ${PR} --watch\`, at most two fix rounds. A short comment on #${N}.`,
   ].join('\n'),
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`.`,
@@ -76,7 +80,8 @@ const base = [
 ].join('\n\n')
 const labels = ['code-reviewer']
 const thunks = [() => agent(base, { label: `review:code:#${PR}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW })]
-if (!paths.length || paths.some(p => /^(core|server|net)\//.test(p))) {
+// tests/harness/ holds the information-leak test (as in issue-task.js).
+if (!paths.length || paths.some(p => /^(core|server|net|tests\/harness)\//.test(p))) {
   labels.push('netcode-security-reviewer')
   thunks.push(() => agent(base + '\n\nFocus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides.', { label: `review:netcode:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }))
 }
@@ -93,7 +98,7 @@ if (serious.length) {
   fix = await agent([
     RULES,
     `Task: fix the blocker and major findings of a fresh review of PR #${PR}, each with a test where it is a behaviour, plus cheap minor ones. Budget: at most about 100 tool calls. Check \`git log\` and PR #${PR}'s body first (a resumed run may have fixed some). Findings: ${JSON.stringify(reviews)}`,
-    `\`tools\\run.cmd verify\` until green, \`tools\\run.cmd publish\`, add the findings and what happened to each to PR #${PR}'s body, \`gh pr checks ${PR} --watch\` (at most two fix rounds).`,
+    `\`tools\\run.cmd verify\` until green, \`${PUBLISH}\`, add the findings and what happened to each to PR #${PR}'s body, \`gh pr checks ${PR} --watch\` (at most two fix rounds).`,
     'Return the structured result.',
   ].join('\n\n'), {
     label: `fix:#${PR}`, phase: 'Fix', effort: 'high',
