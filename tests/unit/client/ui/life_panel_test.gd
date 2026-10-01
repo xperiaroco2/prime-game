@@ -5,8 +5,8 @@ extends GdUnitTestSuite
 ## in the theme. M4-8's source test over client/ui/ covers every screen once it lands.
 
 const SOURCE := "res://client/ui/life_panel.gd"
-## An inline style in a screen's code: a theme override, a colour or a font size.
-const INLINE := ["add_theme_", "Color(", "font_size", "_override("]
+## An inline style in a screen's code: a theme override, a colour, a font size or a size.
+const INLINE := ["add_theme_", "Color(", "font_size", "_override(", "custom_minimum_size"]
 
 
 func test_it_shows_the_words_and_the_bar_and_hides_when_empty() -> void:
@@ -38,7 +38,10 @@ func test_it_is_styled_only_through_the_shared_theme() -> void:
 				inline
 			)
 	var theme := GameUi.THEME
-	for variation: StringName in [&"LifePanel", &"LifeTitle", &"LifeText"]:
+	var variations: Array[StringName] = [
+		&"LifePanel", &"LifeTitle", &"LifeText", &"LifeBar", &"LifeMargin"
+	]
+	for variation: StringName in variations:
 		var base := theme.get_type_variation_base(variation)
 		assert_str(String(base)).is_not_empty()
 		assert_bool(theme.get_type_variation_list(base).has(variation)).is_true()
@@ -54,3 +57,19 @@ func test_the_ui_gives_every_screen_the_theme() -> void:
 	assert_bool(ui.life.visible).is_true()
 	ui.show_screen(GameFlow.Screen.LOBBY)
 	assert_bool(ui.life.visible).is_false()
+
+
+func test_the_theme_sizes_the_bar_and_the_bottom_margin() -> void:
+	var panel := LifePanel.new()
+	panel.theme = GameUi.THEME
+	add_child(panel)
+	var bar := panel.bar.get_combined_minimum_size()
+	assert_float(bar.x).is_equal(
+		GameUi.THEME.get_stylebox(&"background", &"LifeBar").get_minimum_size().x
+	)
+	assert_float(bar.x).is_greater(100.0)
+	assert_float(bar.y).is_greater(4.0)
+	var margin := panel.get_child(0) as MarginContainer
+	assert_object(margin).is_not_null()
+	assert_int(margin.get_theme_constant(&"margin_bottom")).is_greater(0)
+	panel.free()

@@ -1,5 +1,15 @@
 [gd_resource type="Theme" format=3 uid="uid://c8behqt7jtcn8"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_life_bar_background"]
+content_margin_left = 160.0
+content_margin_top = 7.0
+content_margin_right = 160.0
+content_margin_bottom = 7.0
+bg_color = Color(0.15, 0.15, 0.18, 0.9)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_life_bar_fill"]
+bg_color = Color(0.85, 0.85, 0.9, 1)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_life_panel"]
 content_margin_left = 18.0
 content_margin_top = 12.0
@@ -12,6 +22,11 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [resource]
+LifeBar/base_type = &"ProgressBar"
+LifeBar/styles/background = SubResource("StyleBoxFlat_life_bar_background")
+LifeBar/styles/fill = SubResource("StyleBoxFlat_life_bar_fill")
+LifeMargin/base_type = &"MarginContainer"
+LifeMargin/constants/margin_bottom = 96
 LifePanel/base_type = &"PanelContainer"
 LifePanel/styles/panel = SubResource("StyleBoxFlat_life_panel")
 LifeText/base_type = &"Label"
