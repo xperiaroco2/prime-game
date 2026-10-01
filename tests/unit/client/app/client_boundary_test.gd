@@ -3,15 +3,21 @@ extends GdUnitTestSuite
 ## HostSession or core/'s state (Match, MatchState, PeerView, Snapshots) or reads `.game`, so the
 ## host's own player sees only what its ClientSession decoded; and client/app/ alone names server/,
 ## through HostNode only. Comments and strings are stripped first, the names matched
-## case-sensitive and word-bounded, so SnapshotBuffer and DecodedView.snapshots pass.
+## case-sensitive and word-bounded, so SnapshotBuffer and DecodedView.snapshots pass. A path into
+## server/ (a preload of host_session.gd) is matched in the raw source, strings included, and
+## HostNode's private `_session` is forbidden as a member read.
 
 const CLIENT := "res://client"
 const APP := "res://client/app"
 const SERVER := "res://server/"
-## The façade client/app/ may name (E18).
+## The façade client/app/ may name (E18), by class or by path.
 const FACADE := &"HostNode"
+const FACADE_PATH := "res://server/host_node.gd"
+const SERVER_PATH := "res://server/[A-Za-z0-9_./]*"
 ## `.game` as a property (HostSession.game); a call such as WireSchema.game(debug) passes.
-const FORBIDDEN := "\\b(HostSession|Match|MatchState|PeerView|Snapshots)\\b|\\.game\\b(?!\\s*\\()"
+## `._session`: HostNode's private session (GDScript does not enforce privacy).
+const NAMES := "\\b(HostSession|Match|MatchState|PeerView|Snapshots)\\b"
+const FORBIDDEN := NAMES + "|\\.game\\b(?!\\s*\\()|\\._session\\b"
 
 
 func test_no_client_file_reads_the_host_or_core_state() -> void:
@@ -38,6 +44,8 @@ func test_only_client_app_names_server_and_only_its_facade() -> void:
 				continue
 			if RegEx.create_from_string("\\b%s\\b" % server_class).search(code) != null:
 				found.append("%s names %s" % [path, server_class])
+		for problem: String in path_problems(FileAccess.get_file_as_string(path), in_app):
+			found.append("%s: %s" % [path, problem])
 	assert_array(found).is_empty()
 
 
@@ -48,12 +56,20 @@ func test_it_rejects_the_planted_reads_and_accepts_the_look_alikes() -> void:
 	assert_array(problems("func f(m: MatchState) -> void:\n\tpass")).has_size(1)
 	assert_array(problems("var s: HostSession = null")).has_size(1)
 	assert_array(problems("var v: PeerView\nvar m := Match.new()")).has_size(2)
+	assert_array(problems("var o := _host._session.observer")).has_size(1)
+	var preload_session := 'const HS := preload("res://server/host_session.gd")'
+	assert_array(path_problems(preload_session, true)).has_size(1)
+	assert_array(path_problems(preload_session, false)).has_size(1)
+	var preload_facade := 'const HN := preload("res://server/host_node.gd")'
+	assert_array(path_problems(preload_facade, true)).is_empty()
+	assert_array(path_problems(preload_facade, false)).has_size(1)
 	# Look-alikes and mentions pass: other names, comments, strings and StringNames.
 	var allowed := (
 		"var buffer := SnapshotBuffer.new()\n"
 		+ "var ticks := view.snapshots.keys()\n"
 		+ 'var ended := MatchEndedEvent.new(&"crew")\n'
 		+ "var gamer := own.gamepad\n"
+		+ "var node := _session_node\n"
 		+ "var schema := WireSchema.game(true)\n"
 		+ "# HostSession and Match are only named in this comment: _host.game\n"
 		+ 'var text := "Snapshots.for_peer and .game in a string" # and Match\n'
@@ -69,6 +85,16 @@ static func problems(source: String) -> PackedStringArray:
 	var code := strip(source)
 	for hit: RegExMatch in RegEx.create_from_string(FORBIDDEN).search_all(code):
 		found.append("names %s" % hit.get_string())
+	return found
+
+
+## The paths into server/ that `source` names, comments and strings included; a file in
+## client/app/ (`in_app`) may name the façade's own script.
+static func path_problems(source: String, in_app: bool) -> PackedStringArray:
+	var found := PackedStringArray()
+	for hit: RegExMatch in RegEx.create_from_string(SERVER_PATH).search_all(source):
+		if not (in_app and hit.get_string() == FACADE_PATH):
+			found.append("names %s" % hit.get_string())
 	return found
 
 
