@@ -186,6 +186,13 @@ func test_a_path_that_is_not_a_scene_is_an_error() -> void:
 	assert_int(level.body_count()).is_equal(0)
 
 
+func test_a_scene_that_cannot_be_instantiated_is_an_error() -> void:
+	var level := LevelWorld.from_packed(PackedScene.new(), IN_CODE)
+	assert_int(level.errors.size()).is_equal(1)
+	assert_str(level.errors[0]).contains(IN_CODE).contains("cannot be instantiated")
+	assert_int(level.body_count()).is_equal(0)
+
+
 func test_the_world_outlives_the_scene_it_was_read_from() -> void:
 	# The shapes are sub-resources of the scene; the world keeps them after the scene is freed.
 	var root := Node3D.new()

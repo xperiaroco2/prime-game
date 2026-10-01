@@ -42,11 +42,18 @@ static func build(level_path: String) -> LevelWorld:
 	if ResourceLoader.exists(level_path, "PackedScene"):
 		scene = load(level_path) as PackedScene
 	if scene == null:
-		var failed := LevelWorld.new()
-		failed.path = level_path
-		failed._fail("%s: not a scene" % level_path)
-		return failed
+		return _failed(level_path, "not a scene")
+	return from_packed(scene, level_path)
+
+
+## The world of `scene`, as the level at `level_path`: instantiated, read and freed. A scene that
+## cannot be instantiated is an error, not a crash.
+static func from_packed(scene: PackedScene, level_path: String) -> LevelWorld:
+	if not scene.can_instantiate():
+		return _failed(level_path, "cannot be instantiated")
 	var root := scene.instantiate()
+	if root == null:
+		return _failed(level_path, "cannot be instantiated")
 	var built := from_scene(root, level_path)
 	root.free()
 	return built
@@ -63,6 +70,13 @@ static func from_scene(root: Node, level_path: String) -> LevelWorld:
 			"%s: no static collision on layer 1 (the host sees no wall or floor)" % level_path
 		)
 	return built
+
+
+static func _failed(level_path: String, why: String) -> LevelWorld:
+	var failed := LevelWorld.new()
+	failed.path = level_path
+	failed._fail("%s: %s" % [level_path, why])
+	return failed
 
 
 ## Where the scene puts `node`: its transform through its Node3D parents up to `root`, the scene's
