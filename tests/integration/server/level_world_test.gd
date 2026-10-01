@@ -132,6 +132,28 @@ func test_csg_gridmap_and_collision_polygons_with_collision_are_reported() -> vo
 	assert_int(level.body_count()).is_equal(1)
 
 
+func test_other_physics_bodies_on_layer_1_are_reported() -> void:
+	# Players collide with them on the client; the host's static world would not hold them.
+	var root := _root()
+	_box_body(root, Vector3(0, -0.5, 0), Vector3(10, 1, 10))
+	var crate := RigidBody3D.new()
+	crate.name = "Crate"
+	crate.freeze = true
+	root.add_child(crate)
+	var prop := CharacterBody3D.new()
+	prop.name = "Prop"
+	root.add_child(prop)
+	var ghost := RigidBody3D.new()
+	ghost.name = "GhostCrate"
+	ghost.collision_layer = 4
+	root.add_child(ghost)
+	var level := LevelWorld.from_scene(root, IN_CODE)
+	assert_int(level.errors.size()).is_equal(2)
+	assert_str(level.errors[0]).contains(IN_CODE).contains("Crate").contains("a RigidBody3D")
+	assert_str(level.errors[1]).contains("Prop").contains("a CharacterBody3D")
+	assert_int(level.body_count()).is_equal(1)
+
+
 func test_a_path_that_is_not_a_scene_is_an_error() -> void:
 	var level := LevelWorld.build("res://tests/scratch/no_such_level.tscn")
 	assert_int(level.errors.size()).is_equal(1)

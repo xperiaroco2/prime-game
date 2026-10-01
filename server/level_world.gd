@@ -10,8 +10,11 @@ extends RefCounted
 ## Read errors, all listed in `errors` and logged, none fatal to the rest: a scene that does not
 ## load; a CSG node or a GridMap that has collision on layer 1, and a CollisionPolygon3D of a
 ## layer-1 body (they build their collision only inside a tree, so the host would see nothing
-## where players collide: D2 (a), waiting for the designer on #96). A level with errors is refused
-## by the host like one with marker errors.
+## where players collide: D2 (a), waiting for the designer on #96); any other physics body on
+## layer 1 (a RigidBody3D, a CharacterBody3D), which players collide with but the host's static
+## world would not hold. An AnimatableBody3D is a StaticBody3D: it is built where the scene puts
+## it, and never moves on the host. A level with errors is refused by the host like one with
+## marker errors.
 ##
 ## A fresh space answers rays at once, before any physics step (the probe in
 ## tests/integration/server/level_world_test.gd, §4.5), so a world is ready when it is built.
@@ -97,6 +100,10 @@ func _read(node: Node, root: Node) -> void:
 		var grid := node as GridMap
 		if (grid.collision_layer & WORLD_LAYER) != 0 and not grid.get_used_cells().is_empty():
 			_fail(_unread(node, root, "a GridMap with collision"))
+	elif node is PhysicsBody3D:
+		var moving := node as PhysicsBody3D
+		if (moving.collision_layer & WORLD_LAYER) != 0:
+			_fail(_unread(node, root, "a %s on layer 1" % moving.get_class()))
 	for child: Node in node.get_children():
 		_read(child, root)
 
