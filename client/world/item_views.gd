@@ -7,9 +7,10 @@ extends Node3D
 ## - another player holds it: at that player's RemotePlayerBody, in its hand, on its belt, or a
 ##   two-handed item (the package) in front with both hands; hidden while that player has no body
 ##   drawn (no avatar in the newest snapshot);
-## - the own player holds it: hidden here; the hand item is drawn in the first-person view
+## - the own living player holds it: hidden here; the hand item is drawn in the first-person view
 ##   (FirstPersonHand) and the belt item named on the HUD.
-## - its holder is downed (it keeps its items, vision revision 1): on the ground at the body.
+## - its holder is downed (it keeps its items, vision revision 1), the own player too: on the
+##   ground at the body, and the first-person view shows none.
 ## Every view joins SightHider.GROUP, so the downed camera's sight hiding (M4-9) hides one out of
 ## the body's eye's sight; only SightHider sets a view's `visible`, ItemViews shows or hides its
 ## look. Placed in `_process`, after the avatars moved in the physics step.
@@ -77,13 +78,17 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 		view.global_transform = Transform3D(Basis.IDENTITY, item.position)
 		view.show_look(true)
 		return
-	var body := avatars.body_of(item.holder) if avatars != null else null
-	if item.holder == model.own_peer or body == null:
-		view.show_look(false)
-		return
+	var own := item.holder == model.own_peer
+	var body := avatars.body_of(item.holder) if avatars != null and not own else null
 	if model.life_of(item.holder) == ClientModel.Life.DOWNED:
-		view.global_transform = Transform3D(Basis.IDENTITY, body.global_position)
-		view.show_look(true)
+		# Downed, the own player too: the downed camera looks at the own body from outside.
+		var lying: Node3D = player if own else body
+		if lying != null and lying.is_inside_tree():
+			view.global_transform = Transform3D(Basis.IDENTITY, lying.global_position)
+			view.show_look(true)
+			return
+	if own or body == null:
+		view.show_look(false)
 		return
 	var point := body.belt_point()
 	if not item.belted:
@@ -96,7 +101,8 @@ func _show_own_hand() -> void:
 	if player == null or not player.is_inside_tree():
 		return
 	var hand: ClientModel.Item = model.items.get(model.hand_item(model.own_peer))
-	if hand == null:
+	# Only the living look through the first-person camera; a downed player's items lie at its body.
+	if hand == null or not model.is_alive(model.own_peer):
 		player.hand_view().show_item(&"", Color.WHITE)
 	else:
 		player.hand_view().show_item(hand.kind, hand.colour, _two_handed(hand.kind))

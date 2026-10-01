@@ -108,6 +108,21 @@ func test_the_own_hand_item_is_drawn_in_first_person_only() -> void:
 	assert_str(String(_player.hand_view().shown_kind())).is_empty()
 
 
+func test_the_own_downed_players_items_lie_at_its_body_not_in_the_hand_view() -> void:
+	# The downed camera looks at the own body from 2 m back: a hand item under the inactive
+	# first-person camera would hang in mid-air over the body.
+	_spawn(1, &"knife", Vector3.ZERO)
+	_model.fold(&"ItemPickedUp", {"peer": 1, "item": 1})
+	await _drawn()
+	assert_str(String(_player.hand_view().shown_kind())).is_equal("knife")
+	_model.fold(&"KnockedDown", {"peer": 1, "position": _player.global_position})
+	await _drawn()
+	assert_str(String(_player.hand_view().shown_kind())).is_empty()
+	var view := _items.view_of(1)
+	assert_bool(view.is_look_shown()).is_true()
+	assert_bool(view.global_position.is_equal_approx(_player.global_position)).is_true()
+
+
 func test_an_unknown_kind_gets_a_labelled_box_hidden_by_walls() -> void:
 	_spawn(1, &"wrench", Vector3.ZERO)
 	await _drawn()
