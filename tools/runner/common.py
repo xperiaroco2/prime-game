@@ -22,6 +22,7 @@ LOGS = OUT / "logs"
 # pass; full lint, check and test runs skip it, a run that names a path in it covers that path.
 SCRATCH = "tests/scratch"
 IS_WINDOWS = os.name == "nt"
+IS_LINUX = sys.platform.startswith("linux")
 IS_CI = os.environ.get("CI", "").lower() in ("1", "true", "yes")
 # A Claude Code cloud session (#159): a headless Linux container set up by tools/cloud/setup.sh, like CI.
 IS_CLOUD = os.environ.get("CLAUDE_CODE_REMOTE", "").lower() == "true"

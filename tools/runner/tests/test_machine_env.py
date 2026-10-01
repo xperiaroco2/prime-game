@@ -164,7 +164,7 @@ class DoctorTest(unittest.TestCase):
         self.assertIn("add it to the env of $CLAUDE_CONFIG_DIR/settings.json", out)
         self.assertNotIn(USER_SETTINGS, out.replace(f"GODOT_BIN from {USER_SETTINGS}", ""))
 
-    def godot_output(self, gui: str | None) -> str:
+    def godot_output(self, gui: str | None, cloud: bool = False) -> str:
         """machine_paths() and godot() together, as doctor runs them, with GODOT_GUI_BIN unset or set to `gui`."""
         environ = {k: v for k, v in os.environ.items() if k != "GODOT_GUI_BIN"}
         if gui is not None:
@@ -175,7 +175,7 @@ class DoctorTest(unittest.TestCase):
         with (
             mock.patch.object(machine_env, "apply", return_value=report),
             mock.patch.object(doctor, "IS_CI", False),
-            mock.patch.object(doctor, "IS_CLOUD", False),
+            mock.patch.object(doctor, "IS_CLOUD", cloud),
             mock.patch.object(doctor, "require_godot", return_value=GODOT),
             mock.patch.object(doctor, "godot_bin", return_value=GODOT),
             mock.patch.dict(os.environ, environ, clear=True),
@@ -191,6 +191,11 @@ class DoctorTest(unittest.TestCase):
         lines = [line for line in out.splitlines() if line.strip().startswith("warn") and "GODOT_GUI_BIN" in line]
         self.assertEqual(len(lines), 1, out)
         self.assertIn("GODOT_GUI_BIN is not set", lines[0])
+
+    def test_a_cloud_session_needs_no_godot_gui_bin(self) -> None:
+        out = self.godot_output(None, cloud=True)
+        self.assertIn("skip  GODOT_GUI_BIN (not needed in a cloud session)", out)
+        self.assertNotIn("warn  GODOT_GUI_BIN", out)
 
     def test_a_godot_gui_bin_pointing_to_a_missing_file(self) -> None:
         missing = r"C:\no\Godot_v4.7.2-stable_win64.exe"

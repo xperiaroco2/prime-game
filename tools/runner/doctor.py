@@ -14,6 +14,7 @@ from . import machine_env, pins
 from .common import (
     IS_CI,
     IS_CLOUD,
+    IS_LINUX,
     IS_WINDOWS,
     OUT,
     ROOT,
@@ -37,8 +38,11 @@ HOOKS_PATH = ".claude/githooks"
 # The stall step's backlog (tests/integration/net/enet_stall.gd, BACKLOG_POSES: ENET_RECEIVES_PER_SERVICE + 64) is one
 # small datagram per pose, and it must all wait in the host's socket: Godot's ENet keeps the kernel's default UDP
 # receive buffer (net.core.rmem_default on Linux). Some kernels charge more per datagram than others (#159).
+# test_doctor checks this against the two GDScript constants.
 STALL_BACKLOG_DATAGRAMS = 256 + 64
 UDP_PROBE_BYTES = 32
+# Twice Linux's 208 KB default: room for 512 such datagrams here. tools/cloud/setup.sh raises the default to it.
+RMEM_DEFAULT_FIX = 425984
 
 
 def _dotted(parts: tuple[int, ...]) -> str:
@@ -146,6 +150,9 @@ class Doctor:
         if IS_CI:
             skip("gh (not needed in CI)")
             return
+        if IS_CLOUD:
+            skip("gh (a cloud session uses its own GitHub tools; `start` and `board` need an authenticated gh)")
+            return
         exe = shutil.which("gh")
         if not exe:
             self.fail("GitHub CLI (gh) not found", "Install it: winget install --id GitHub.cli")
@@ -239,16 +246,20 @@ class Doctor:
 
     def udp_backlog(self) -> None:
         """Warn early when a default UDP socket on 127.0.0.1 cannot hold the stall step's backlog (Linux only)."""
-        if not sys.platform.startswith("linux"):
+        if not IS_LINUX:
             return
-        held = loopback_datagrams_held(STALL_BACKLOG_DATAGRAMS)
+        try:
+            held = loopback_datagrams_held(STALL_BACKLOG_DATAGRAMS)
+        except OSError as exc:
+            warn(f"could not probe UDP on 127.0.0.1 for the stall step's backlog: {exc}")
+            return
         if held >= STALL_BACKLOG_DATAGRAMS:
             ok(f"a default UDP socket holds the stall backlog ({STALL_BACKLOG_DATAGRAMS} datagrams)")
             return
         warn(
             f"a default UDP socket on 127.0.0.1 holds only {held} of the stall step's {STALL_BACKLOG_DATAGRAMS} "
             f"datagrams, so verify's stall step will fail; raise the default: "
-            f"sudo sysctl -w net.core.rmem_default=425984 (tools/cloud/setup.sh does it)"
+            f"sudo sysctl -w net.core.rmem_default={RMEM_DEFAULT_FIX} (tools/cloud/setup.sh does it)"
         )
 
     def api_dump(self) -> None:
@@ -268,13 +279,15 @@ class Doctor:
             self.fail("could not generate the engine API dump", "See tools/out/logs/doctor-api-dump.log")
 
 
-def loopback_datagrams_held(count: int) -> int:
-    """Send `count` small datagrams to a fresh, never-read UDP socket on 127.0.0.1 with the default receive buffer;
-    return how many it holds. The kernel drops the rest (RcvbufErrors in /proc/net/snmp)."""
+def loopback_datagrams_held(count: int, rcvbuf: int | None = None) -> int:
+    """Send `count` small datagrams to a fresh, never-read UDP socket on 127.0.0.1 with the default receive buffer
+    (or `rcvbuf` bytes); return how many it holds. The kernel drops the rest (RcvbufErrors in /proc/net/snmp)."""
     with (
         socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver,
         socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender,
     ):
+        if rcvbuf is not None:
+            receiver.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, rcvbuf)
         receiver.bind(("127.0.0.1", 0))
         address = receiver.getsockname()
         for _ in range(count):
