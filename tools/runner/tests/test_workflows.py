@@ -2,7 +2,7 @@
 
 The scripts are Claude Code workflow bodies (top-level await and return), so the harness wraps each one in an async
 function and passes `args`, `agent`, `parallel`, `phase` and `log`. Node is not a project dependency: without it the
-tests skip (the GitHub Linux runner has it).
+tests skip.
 """
 
 import json
@@ -67,7 +67,7 @@ def run_workflow(script: Path, base: str | None, paths: list[str]) -> list[dict[
     return json.loads(res.stdout)
 
 
-@unittest.skipUnless(NODE, "needs Node to run the workflow scripts (the GitHub Linux runner has it)")
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
 class WorkflowTest(unittest.TestCase):
     def test_every_agent_gets_the_no_stash_rule(self) -> None:
         # Night run of #96: a publisher's `git stash drop "$ref"` asked; agents set work aside with commits instead.
