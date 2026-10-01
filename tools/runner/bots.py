@@ -13,8 +13,10 @@ from __future__ import annotations
 import re
 import shutil
 
+from pathlib import Path
+
 from . import launch
-from .common import OUT, Failure, say
+from .common import LOGS, OUT, Failure, say
 
 TARGET = "tests/harness/bots/bots_main.gd"
 BOTS_OUT = OUT / "bots"
@@ -23,6 +25,8 @@ ONE_PROCESS_SECONDS = 300
 # Over ENet the scenarios run on the real clock: their own length plus joining and the host's wait for the files.
 ENET_SECONDS = 180
 NAME_RE = re.compile(r"[a-z0-9_]+")
+# `run` writes instance i's output to tools/out/logs/run/bots_main-<i>.log.
+RUN_LOGS = LOGS / "run"
 
 
 def user_args(scenarios: list[str], port: int | None = None, instances: int = 1) -> list[str]:
@@ -61,10 +65,37 @@ def main(scenarios: list[str] | None = None, instances: int = 1, seconds: int | 
     from .verify import free_udp_port
 
     port = free_udp_port()
-    return launch.main(
+    code = launch.main(
         TARGET,
         headless=True,
         seconds=seconds or ENET_SECONDS,
         instances=instances,
         user_args=user_args(names, port, instances),
     )
+    if code != 0:
+        show_failures(instances)
+    return code
+
+
+def failure_block(log: Path) -> list[str]:
+    """A scenario's `BOTS ...: FAILED` line and the indented lines under it (bots_main.gd's report), or []."""
+    try:
+        lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    block: list[str] = []
+    for line in lines:
+        if line.startswith("BOTS ") and "FAILED" in line:
+            block = [line]
+        elif block and line.startswith("  "):
+            block.append(line)
+        elif block:
+            break
+    return block
+
+
+def show_failures(instances: int) -> None:
+    """Over ENet `run` echoes only engine error lines: print each instance's failure report from its log."""
+    for number in range(1, instances + 1):
+        for line in failure_block(RUN_LOGS / f"{Path(TARGET).stem}-{number}.log"):
+            say(f"  #{number} {line}")

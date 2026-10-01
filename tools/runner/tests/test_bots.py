@@ -70,6 +70,36 @@ class BotsRunTest(unittest.TestCase):
             user_args=["--port=24242", "--instances=2", "refusals"],
         )
 
+    def test_a_failed_enet_run_prints_each_instances_failure_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            logs = Path(tmp)
+            first = [
+                "BOTS refusals: instance 1 of 2 on port 1",
+                "BOTS refusals: FAILED (seed 7) instance 1",
+                "  bot 2 (peer 2), step 1 (WalkTo): cannot know",
+                "  command log (Match.replay with ReplayFiles.read): x.replay",
+                "after",
+            ]
+            (logs / "bots_main-1.log").write_text("".join(f"{line}\n" for line in first), encoding="utf-8")
+            (logs / "bots_main-2.log").write_text("BOTS refusals: instance 2 of 2 on port 1\n", encoding="utf-8")
+            with (
+                mock.patch.object(bots, "RUN_LOGS", logs),
+                mock.patch.object(bots, "clear_out"),
+                mock.patch.object(verify, "free_udp_port", return_value=24242),
+                mock.patch.object(bots.launch, "main", return_value=1),
+                mock.patch.object(bots, "say") as said,
+            ):
+                self.assertEqual(bots.main(["refusals"], instances=2), 1)
+        printed = [call.args[0] for call in said.call_args_list]
+        self.assertEqual(
+            printed[1:],
+            [
+                "  #1 BOTS refusals: FAILED (seed 7) instance 1",
+                "  #1   bot 2 (peer 2), step 1 (WalkTo): cannot know",
+                "  #1   command log (Match.replay with ReplayFiles.read): x.replay",
+            ],
+        )
+
     def test_a_run_starts_with_empty_scenario_folders(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "bots"
