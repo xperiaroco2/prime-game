@@ -4,7 +4,7 @@ extends Cost
 ## actor's stamina up to now with its last claim's sprint flag and movement (the only change a
 ## condition may make, §9.2), then passes when the actor has at least `amount`; paying spends it
 ## and touches the actor's SelfStatus, sent at the end of the tick. At 0 stamina the action is
-## unavailable until stamina regenerates that far (Q7). A downed player's stamina never limits it.
+## unavailable until stamina regenerates that far (Q7).
 ##
 ## Rejects with `tired`: it reveals only the actor's own stamina. Emits: SelfStatus (the actor).
 
