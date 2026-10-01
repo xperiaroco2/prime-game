@@ -12,6 +12,8 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
 - The folder layout inside `levels/` and the piece conventions are agreed with the designer when level work starts
   (M4); skill `new-level-piece` then encodes them.
 - Greybox with CSG and CC0 low-poly packs. Stylized low-poly, no texture-heavy art.
+- **Collision** (D2): `StaticBody3D` nodes with `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks
+  only. The host refuses a level with CSG or `GridMap` collision (#112).
 - **Spawn points** (`docs/ARCHITECTURE.md` §9.6, provisional until M4): a `Marker3D` in exactly one persistent
   group `spawn_<tag>` (Groups dock: `spawn_lobby_player`, `spawn_round_player`, `spawn_package`, `spawn_knife`,
   `spawn_circle`). A marker in two such groups is a load error. The host reads them in scene-tree order. A
