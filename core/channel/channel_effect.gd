@@ -1,4 +1,4 @@
-class_name ChannelEffect
+@abstract class_name ChannelEffect
 extends RuleEffect
 ## The base of an effect that starts a channel (ARCHITECTURE §9.4; M4-4): an action that takes
 ## `seconds` of the actor holding it, such as the raise. Run as the effect of an action (a rule on
