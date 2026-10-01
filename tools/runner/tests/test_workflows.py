@@ -79,6 +79,7 @@ class WorkflowTest(unittest.TestCase):
                 with self.subTest(workflow=name, agent=call["label"]):
                     self.assertIn(STASH_RULE, call["prompt"])
                     self.assertIn("GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/release/m3", call["prompt"])
+                    self.assertIn("$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash", call["prompt"])
                     self.assertIn("git reset --soft HEAD~1", call["prompt"])
 
     def test_a_release_base_reaches_publish_and_the_pr(self) -> None:
