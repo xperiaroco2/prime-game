@@ -12,11 +12,11 @@ extends RefCounted
 ##   speaker's own, unchanged (voice_frame()). In one process (check_voice_streams, check_counters
 ##   with `latest`) every speaker's seqs run without a gap and no LATEST message was superseded, so
 ##   a snapshot sent before the bot's own in the same step cannot hide.
-## - Invariants: every event for one peer (its class's AUDIENCE_KIND is ONLY or SENDER) that the
-##   bot decoded names it as its subject; a bot whose
-##   role does not know its teammates decodes no Teammates, and a Teammates names only players of
-##   the bot's own role; a living bot decodes no ghost's avatar or voice; no decoded message holds a
-##   seed; the bots present for a whole match decode the same task events (check_tasks).
+## - Invariants: every event for one peer (listed in FOR_ONE, which does not trust the declarations,
+##   or declaring AUDIENCE_KIND ONLY or SENDER) that the bot decoded names it as its subject; a bot
+##   whose role does not know its teammates decodes no Teammates, and a Teammates names only players
+##   of the bot's own role; a living bot decodes no ghost's avatar or voice; no decoded message
+##   holds a seed; the bots present for a whole match decode the same task events (check_tasks).
 ## - A connected peer that is not a player (check_watcher) decodes at most a Rejected, none unless
 ##   it sent a Hello, and never a Snapshot or a VoiceDown. The lurker is still connected unless
 ##   core/ disconnected it (DisconnectPeer: the entry into Loading disconnects every waiting
@@ -27,6 +27,12 @@ extends RefCounted
 
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 
+## The events for one peer, written by hand (§5: the invariants do not trust the declarations), so a
+## listed event whose class is declared for everyone is still checked. for_one() adds any event
+## whose class declares ONLY or SENDER; bots_runner_test fails when such a class is missing here.
+const FOR_ONE: Array[StringName] = [
+	&"Welcome", &"RoleAssigned", &"Damaged", &"SelfStatus", &"Correction", &"Rejected"
+]
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskProgress"
 ]
@@ -95,9 +101,14 @@ func set_seeds(seeds: Array[int]) -> void:
 	_seeds = seeds
 
 
-## Whether `event`'s class declares a one-peer audience (ONLY or SENDER): its `peer` is the subject.
+## Whether `event` is for one peer, its `peer` the subject: listed in FOR_ONE, or its class declares
+## a one-peer audience (ONLY or SENDER).
 static func for_one(event: MatchEvent) -> bool:
-	var script := event.get_script() as Script
+	return FOR_ONE.has(event.event_name()) or declares_one(event.get_script() as Script)
+
+
+## Whether the event class `script` declares AUDIENCE_KIND ONLY or SENDER.
+static func declares_one(script: Script) -> bool:
 	if script == null:
 		return false
 	var kind: Variant = script.get_script_constant_map().get("AUDIENCE_KIND")
@@ -273,8 +284,12 @@ func _check_subjects(view: PeerView, matched: int, peer: int, found: PackedStrin
 		var event := view.events[i]
 		if not for_one(event):
 			continue
-		var subject: int = event.get("peer")
-		if subject != peer:
+		var subject: Variant = event.get("peer")
+		if not subject is int:
+			found.append(
+				"decoded %s, an event for one peer with no int `peer`" % event.event_name()
+			)
+		elif subject != peer:
 			found.append("decoded %s of peer %d" % [event.event_name(), subject])
 
 

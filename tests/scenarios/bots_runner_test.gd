@@ -9,6 +9,7 @@ extends GdUnitTestSuite
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const OUT := "user://bots_runner_test"
+const EVENTS_DIR := "res://core/events"
 
 
 func after_test() -> void:
@@ -291,12 +292,64 @@ func test_a_short_prefix_a_view_with_no_peer_and_audiences_for_one() -> void:
 	assert_array(Array(leaky.check_bot("bot 2", 2, decoded, true))).is_empty()
 	decoded.events.append(WireMessage.new(&"MatchEnded", {"side": &"crew"}))
 	assert_array(Array(leaky.check_bot("bot 2", 2, decoded, true, true))).is_empty()
-	# The events for one peer, from each class's AUDIENCE_KIND.
+	# The events for one peer: FOR_ONE, or a class declaring ONLY or SENDER.
 	var assigned := runner.game.view_of(1).events_named(&"RoleAssigned")[0]
 	assert_bool(LeakCheck.for_one(assigned)).is_true()
 	assert_bool(LeakCheck.for_one(RejectedEvent.new(2, 1, &"full"))).is_true()
 	assert_bool(LeakCheck.for_one(MatchEndedEvent.new(&"crew"))).is_false()
 	assert_bool(LeakCheck.for_one(TeammatesEvent.new(&"crew", PackedInt32Array([1])))).is_false()
+
+
+func test_a_listed_event_for_one_peer_declared_for_everyone_is_still_checked() -> void:
+	# A Correction whose class declares no one-peer audience (a misdeclaration) is still for one
+	# peer, so a Correction of another player is a leak.
+	var misdeclared := MisdeclaredCorrection.new(2)
+	assert_bool(LeakCheck.declares_one(misdeclared.get_script() as Script)).is_false()
+	assert_bool(LeakCheck.for_one(misdeclared)).is_true()
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	var view := runner.game.view_of(1)
+	view.events.append(misdeclared)
+	var leaky := LeakCheck.new(LeakyViews.new(runner.game, view))
+	var found := _text(leaky.check_bot("bot 1", 1, _decoded(view), false))
+	assert_str(found).contains("decoded Correction of peer 2")
+
+
+func test_every_event_class_for_one_peer_is_listed_in_for_one() -> void:
+	var missing: Array[String] = []
+	var checked := 0
+	for file: String in DirAccess.get_files_at(EVENTS_DIR):
+		if not file.ends_with(".gd"):
+			continue
+		var script := load(EVENTS_DIR.path_join(file)) as Script
+		if not LeakCheck.declares_one(script):
+			continue
+		checked += 1
+		var event_name := StringName(str(script.get_global_name()).trim_suffix("Event"))
+		if not LeakCheck.FOR_ONE.has(event_name):
+			missing.append(event_name)
+	assert_int(checked).is_greater_equal(LeakCheck.FOR_ONE.size())
+	assert_array(missing).is_empty()
+
+
+## A Correction whose class declares no AUDIENCE_KIND.
+class MisdeclaredCorrection:
+	extends MatchEvent
+	var peer: int
+
+	func _init(to_peer: int) -> void:
+		peer = to_peer
+
+	func event_name() -> StringName:
+		return &"Correction"
+
+	func audience() -> Audience:
+		return Audience.everyone()
+
+	func to_dict() -> Dictionary:
+		return {"epoch": 1, "position": Vector3.ZERO, "velocity": Vector3.ZERO}
 
 
 ## A match whose view_of(peer) is a planted one.
