@@ -128,6 +128,10 @@ func test_no_player_receives_a_private_task_event() -> void:
 		for event: MatchEvent in game.view_of(peer).events:
 			if event.event_name() != &"TaskState":
 				assert_bool(event.to_dict().has("task")).is_false()
+			else:
+				var state := event as TaskStateEvent
+				assert_int(state.task).is_equal(task.id)
+				assert_str(String(state.type)).is_equal(String(task.type.id))
 			if task_events.has(event.event_name()):
 				own.append({"name": event.event_name(), "fields": event.to_dict()})
 		seen.append(own)
