@@ -37,7 +37,8 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    message:
    - any code (`.gd`, `.py`, scripts, workflows) → agent `code-reviewer`; a docs-only or content-data-only diff →
      the bundled `/code-review` at medium, or none;
-   - `core/`, `server/` or `net/` changed → also `netcode-security-reviewer`;
+   - `core/`, `server/`, `net/` or `tests/harness/` (the information-leak test) changed → also
+     `netcode-security-reviewer`;
    - `.gd`, `.tscn` or `.tres` changed → also `godot-api-checker`.
    Fix each finding in a new commit and run `verify` again, or list the findings you leave, with the reason, in the
    PR. If a project subagent reviewed, `tools\run.cmd agents-check` confirms it ran on its own model (with no
@@ -51,10 +52,11 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    `verify` again and pushes the task branch with a lease; its line `base origin/<base>` names the PR's base. If it
    stops (a conflict, red verify, or remote commits the branch never had), report what it said and ask the human. Never
    push by hand and never force-push. "cannot confirm that the parent … was merged": ask the human to check the
-   parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`.
+   parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`. A task of a stage (its PR
+   targets `release/m<k>`): always `tools\run.cmd publish --base release/m<k>` (#113).
 6. **Pull request.** If `gh pr view` finds none for the branch, fill `.github/pull_request_template.md` in a scratchpad
    file and run `gh pr create --base <base> --title "<conventional title>" --body-file <file>` (`<base>`: the one
-   `publish` just reported, `main` or a stacked PR's parent). Otherwise update it with `gh pr edit --body-file`.
+   `publish` just reported: `main`, a stage's `release/m<k>` or a stacked PR's parent). Otherwise update it with `gh pr edit --body-file`.
    - `Closes #<n>`; a summary; the verification commands with their output (at least the `verify` tail); docs
      updated yes/no.
    - Screenshots: `tools\run.cmd shot <scene>` PNGs for visual changes, else "none". `gh` cannot upload images:
@@ -64,9 +66,11 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    - End the body with the attribution line this session requires.
 7. **Handoff.** `gh issue comment <n> --body-file <file>` with four headings: Done, Left, Decisions, Gotchas, plus
    the PR link. Then `tools\run.cmd board move <n> in-review`.
-8. **Tell the human** the PR link and that CI runs on it. Only humans merge, with "Create a merge commit". For a
-   stacked PR: GitHub retargets the child to `main` when the parent's branch is deleted on merge; if the child
-   still shows the parent as base, `gh pr edit <child> --base main` before merging it. If the task ran in
+8. **Tell the human** the PR link and that CI runs on it. Only humans merge into `main`, with "Create a merge
+   commit"; a stage's task PR into `release/m<k>` is merged by its manager session
+   ([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). For a stacked PR: GitHub retargets
+   the child to the parent's base when the parent's branch is deleted on merge; if the child still shows the parent
+   as base, `gh pr edit <child> --base <that base>` before merging it. If the task ran in
    a worktree: after the merge, the human archives this session in the app (Windows cannot delete a folder a live
    session sits in), then `tools\run.cmd worktree-done <n>` from the main checkout (`--pushed` for a spike that is
    never merged).

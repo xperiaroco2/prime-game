@@ -88,10 +88,11 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
-1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. Once the bot harness
-   exists (M3), `verify` runs the bot match too.
+1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
+   matches too (`bots` and `bots-enet`, §11).
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
-   content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/` or `net/` changed; plus
+   content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/` or `tests/harness/` (the
+   information-leak test) changed; plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. One question: **"Publish now? (push + PR + handoff comment)"**.
@@ -202,16 +203,28 @@ Rules for every workflow run:
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
   (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A session runs a
   saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
-  session needs `/reload-skills` (code.claude.com/docs/en/workflows).
+  session needs `/reload-skills` (code.claude.com/docs/en/workflows). `tools/runner/tests/test_workflows.py` runs
+  both scripts under Node with stub agents and checks their routing and rules (skipped where Node is missing).
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about 150;
   every agent writes temporary files only under its issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to
   five agents, over the `small` guideline, so the kickoff approves that and the stage's budget once, confirmed by
   the human's yes to the manager's restatement (§7). Code tasks wait for the engineer's review of the stage's
   design PR; before launching anything, the manager lists the runs another session may still own (issues In
   progress with no PR, fresh worktree commits, a rebase in progress) and asks.
-- **The human:** writes the kickoff (template in the skill), merges in the order the manager gives, answers the
-  numbered "Needs the engineer" questions, and runs the housekeeping (`worktree-done`). The manager reports on the
-  plan issue after each wave and stops with a comment when nothing more can run without merges.
+- **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>`
+  from `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base
+  release/m<k>`). The manager merges a task PR into it once CI is green, the fresh reviews left no open blocker or
+  major, and `verify` passes on the merged tree: locally, in its own `release-m<k>` worktree on a detached HEAD at
+  `origin/release/m<k>` (a red run leaves nothing to undo), `git merge --no-ff`, `verify`, then `git push origin
+  <commit>:release/m<k>` with the merge commit's hash (`HEAD:` is refused by the deny rule `git push *HEAD*`), a
+  fast-forward the pre-push hook allows; GitHub marks the PR merged.
+  `gh pr merge` stays denied (the `main` rulesets ask only for a PR and green checks, so it would let any agent merge
+  into `main`). The stage ends with one PR from `release/m<k>` into `main`, which a human reviews and merges; the
+  stage's issues stay open until then (`Closes` fires only on the default branch) and a human closes them.
+- **The human:** writes the kickoff (template in the skill), reviews and merges the stage's PR into `main`, answers
+  the numbered "Needs the engineer" questions, and runs the housekeeping (`worktree-done`, closing issues). The
+  manager reports on the plan issue after each wave and stops with a comment when nothing more can run without the
+  human.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
@@ -297,6 +310,13 @@ commands, by the repository they name (issue #68, a read of another repository m
   detached HEAD moves no branch and stays free. Its helpers are branches named `<task branch>-x`,
   `<task branch>/x`, `<task branch>.x` or `<task branch>_x`. The hook reads branch, ref and stash names from the
   files in `.git` (`hooks.GitFiles`, no git call).
+- **Workflow agents' hooks take the manager session's working directory** (the `cwd` of the hook input), not their
+  own. A manager whose shell stands in a worktree (a `cd` in the Bash tool persists between its calls) makes that
+  worktree every agent's own, and each agent's own worktree someone else's: on the M3 night run a publisher's
+  autosquash in its own worktree asked that way, and a replay with `tools\run.cmd permissions` showed the same
+  command passing from `D:\prime-game`. So the manager enters worktrees only through subshells `(cd <wt> && ...)`,
+  `git -C <wt>` or PowerShell `Push-Location`/`Pop-Location`, and its shell stays in the main checkout
+  ([intervention](interventions/2026-10-01-engineer-night-run-prompts.md)).
 - **Recursive deletes** (`rm -r|-R|-rf|--recursive` or `--rec` in bash, `Remove-Item -Recurse` or `-r`, `rmdir /s`,
   `rd /s/q` (`//s` from Git Bash), `del /s`, a plain delete fed by a recursive listing, an unfiltered `find -delete` or `find -exec rm -rf`,
   `shutil.rmtree('x')` and `[IO.Directory]::Delete('x', $true)`; also inside `bash -c`, pipelines, `xargs`,
@@ -345,7 +365,8 @@ commands, by the repository they name (issue #68, a read of another repository m
   they are judged by name: `branch -d|-D`, `branch -f`, `branch -M|-C`, `checkout -B`, `switch -C`, a rebase that
   names its branch, `update-ref refs/heads/<x>` and a forced switch pass only for the task branch and its helpers;
   `stash drop|clear` only for entries made on them (a human's `start --stash` entry is made on `main` and asks),
-  and never after the same command changed the stash (the indices shift). An interactive rebase whose
+  and never after the same command changed the stash (the indices shift); agents use no stash at all, a WIP commit
+  instead (root `CLAUDE.md`, Shell). An interactive rebase whose
   `GIT_SEQUENCE_EDITOR` the command sets to `:` or `true` (a prefix; in bash `export`, in PowerShell `$env:`, as that
   shell's last value; it outranks every other editor setting) opens no todo editor and is judged like a plain
   rebase: `git commit --fixup=HEAD` then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` stays
@@ -479,9 +500,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 - **Repo:** public, GitHub Free ([ADR](decisions/2026-09-28-public-repo-on-github-free.md)). The Phase A archive
   is published as is.
-- **Merging:** only humans merge, with the Merge button on GitHub or in the Desktop PR pane, after CI is green.
-  A cross-area PR is approved by the other owner first. The designer reviews through `shot` screenshots and a
-  playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)).
+- **Merging:** only humans merge into `main`, with the Merge button on GitHub or in the Desktop PR pane, after CI is
+  green. A cross-area PR is approved by the other owner first. The designer reviews through `shot` screenshots and a
+  playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a stage the manager merges task
+  PRs into the milestone's `release/m<k>` (§7.1, [ADR](decisions/2026-10-01-release-branch-per-milestone.md)).
 - **Board:** a Project owned by the engineer, linked to the repo; the designer is invited to the project and the
   repo. Built-in workflows: keep closed → Done and PR merged → Done; item added → Backlog; disable
   "PR linked → In progress". Agents set only In progress and In review, via `tools\run.cmd board move`.
@@ -592,7 +614,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a
   Claude Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
-  and on `main`, with the checksum-checked Godot build from the pins. `verify` runs, in this order: `doctor --quick`,
+  (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
+  pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
+  seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
+  `verify` on the merged tree is the check there (§7.1). `verify` runs, in this order: `doctor --quick`,
   `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots` and
   `bots-enet`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about 8 s) and
   `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 18 s on 2026-10-01, under the minute #102

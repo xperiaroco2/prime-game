@@ -4,7 +4,7 @@ export const meta = {
   whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?}',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes' },
-    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net changed or a design task; godot-api-checker if .gd/.tscn/.tres changed' },
+    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed' },
     { title: 'Publish', detail: 'fix findings, verify, publish, PR, CI, handoff, board' },
   ],
 }
@@ -13,7 +13,8 @@ export const meta = {
 // args:
 //   n        issue number (required)          title   issue title (required)
 //   wt       worktree path, D:/... (required)  branch  task branch from `start` (required)
-//   base     PR base branch, default 'main' (a parent's branch for a task started with `start --base`)
+//   base     PR base branch, default 'main' (a stage's release/m<k>, or a parent's branch for a task started with
+//            `start --base`); a non-main base reaches `publish --base` and `gh pr create --base`
 //   notes    the manager's task notes: specifics, ownership splits of shared files, merge order (required)
 //   coord    what runs in parallel and which shared files to touch minimally
 //   decisions the engineer's standing decisions that apply, each with where it is recorded
@@ -38,12 +39,18 @@ const BASE = A.base || 'main'
 const PLAN = A.plan || 30
 const DESIGN = A.design === true
 const SCRATCH = `a${N}`
+// A release base (release/m<k>, any base that is not main or a task branch) is always passed: `publish` takes one that
+// equals main for a merged parent (#113). A stacked parent's task branch is not: publish follows the PR's live base,
+// which GitHub retargets once the parent merges and its branch is deleted.
+const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
+const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 
 const RULES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'} through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR base ${BASE}; the manager already ran \`start\`, never run it again). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\` (PowerShell), and use absolute paths under ${WT} for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.`,
   `- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through \`tools\\run.cmd publish\`), close or reopen an issue (humans close issues), edit the body of #${PLAN}, \`gh pr merge\`.`,
   '- Do not run a command you expect to prompt (a delete, reset, rebase or branch delete outside your worktree and task branch; an edit of any path under .claude/ or addons/ unless the session runs in bypass): a prompt blocks the run until the human returns. List such a step in the handoff for the human instead.',
+  `- Never use \`git stash\` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later \`git reset --soft HEAD~1\`. To fold a fix into an earlier commit: \`git commit --fixup=<sha>\`, then \`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/${BASE}\` (Git Bash; in PowerShell \`$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/${BASE}\`); never an interactive rebase without that variable. Both are free in your own worktree.`,
   '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen).',
   `- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder ${SCRATCH}/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or ${WT}/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.`,
   '- Write files with LF line endings (Python: newline="" or bytes). The content API classes are GameRole and RuleEffect (never Role or Effect).',
@@ -151,7 +158,9 @@ if (impl.verify_green) {
   // Only a green implementer is reviewed; a red one stops below.
   phase('Review')
   const paths = impl.changed_paths || []
-  const netcode = DESIGN || !paths.length || paths.some(p => /^(core|server|net)\//.test(p))
+  // tests/harness/ holds the information-leak test: #115 touched only tests/ and tools/, and a netcode review run by
+  // hand found a major there.
+  const netcode = DESIGN || !paths.length || paths.some(p => /^(core|server|net|tests\/harness)\//.test(p))
   const godot = paths.some(p => /\.(gd|tscn|tres)$/.test(p)) || (!DESIGN && !paths.length)
   const base = [
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
@@ -199,8 +208,8 @@ const pub = await agent([
   `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. \`tools\\run.cmd verify\` until green (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
   [
     'Then follow .claude/skills/finish-task/SKILL.md from its docs step: "Publish now?" is answered yes; the reviews above replace its review step; skip agents-check.',
-    `- \`tools\\run.cmd publish\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, verify), then publish again.`,
-    `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md: \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval; a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only into main, after its parent").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
+    `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, verify), then publish again${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (a stale tip replays upstream commits, #113)`}.`,
+    `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md: \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval; a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
     `- \`gh pr checks <pr> --watch\`. Red: fix, verify, publish again; at most two rounds, then report what is still red.`,
     `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
     `- \`tools\\run.cmd board move ${N} in-review\`.`,

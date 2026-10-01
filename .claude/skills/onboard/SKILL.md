@@ -58,7 +58,8 @@ approval of the exact content. Commands use `tools\run.cmd`; in Git Bash use `to
    - how to talk to the agent: "start task 42", "нова механіка: …" (designer), "заверши задачу", "запам'ятай",
      "стоп", "поясни"; dictation is fine, the agent reads file names back;
    - the rules that bind them: their paths (Ownership in root `CLAUDE.md`), `engine-request` issues for missing engine
-     parts (designer), only humans merge after CI is green, the other owner approves a cross-area PR, the designer
+     parts (designer), only humans merge into `main` after CI is green (a stage's manager merges task PRs into
+     `release/m<k>`), the other owner approves a cross-area PR, the designer
      reviews through `shot` screenshots and playtests, save-first, one-time guard answers; the designer never uses
      worktrees and works at medium effort;
    - they may reopen any decision that binds them: say so, and the agent opens an issue for both humans.
