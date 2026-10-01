@@ -918,7 +918,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     than Godot's catch-up (8 steps a frame) the steps would trail real time for good, and the host's stamina ledger
     with them (the next sprint-jump would settle phantom sprint ticks and be refused): right after a claim went
     out, steps trailing the real clock by 3 or more jump forward by whole client ticks, and the next claim covers
-    those ticks with one tick's travel (M4-9, the netcode review of PR #154; `session_node_test.gd`). The client
+    those ticks with one tick's travel (M4-9, the netcode review of PR #154; `session_node_test.gd`). While the
+    client sends no claims (`claims_accepted()` false: before the Welcome, in Loading, while dead) the steps are
+    re-synced the same way before every step, since its next claim follows a placement, whose credit
+    (`TICK_LEAD`) a jump after the first claim would overrun (M4-9's netcode review). The client
     tick counts `Ticks.RATE` ticks from the first step; a step sends at
     most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
     (`set_motion`, `count_jump`) and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
@@ -1393,7 +1396,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   starts after E was let go is stopped at once; G held for 1 s sends `GiveUp` once; the left and right mouse
   buttons cycle the spectate target while the mouse is captured) and plays `LiftMusic` while dead. `DownedCamera`
   is the `SpringArm3D` above (its probe 0.2 m, its arm pitch 0 to 80° down, a look further down tilting the
-  camera alone). `SightHider` (10) hides every node of its group `hidden_out_of_sight` (the avatars, the bodies;
+  camera alone); the arm casts at priority 7, after `LifeView` placed it in the same step. The raise target is
+  cast once per physics step (the physics space is read only there), and the click that captures the mouse does
+  not cycle the target. `SightHider` (10) hides every node of its group `hidden_out_of_sight` (the avatars, the bodies;
   M4-8's item views join it) with no line of sight from the pivot, a ray each against the world layer with 0.1 m
   of slack, and shows them again when the camera is out of use. `SpectateTargets` and `LifeCountdowns` are the pure
   parts; a spectated living target is drawn from its body's interpolated pose (position, yaw, head pitch), so the
