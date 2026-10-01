@@ -14,6 +14,10 @@ const ARM_LENGTH_M := 2.0
 const PROBE_RADIUS_M := 0.2
 ## The steepest the arm points down behind the body: looking up lowers the camera this far.
 const MAX_ARM_PITCH := deg_to_rad(80.0)
+## The arm casts in its internal physics step: after LifeView (5) placed the pivot in the same
+## step, and before SightHider (10), so a turn or a jump of the pivot never shows the camera at the
+## last step's length, through a wall (the reviews of M4-9).
+const ARM_PHYSICS_PRIORITY := 7
 
 var _arm := SpringArm3D.new()
 var _camera := Camera3D.new()
@@ -22,6 +26,7 @@ var _camera := Camera3D.new()
 func _init() -> void:
 	name = "DownedCamera"
 	_arm.name = "Arm"
+	_arm.process_physics_priority = ARM_PHYSICS_PRIORITY
 	_arm.spring_length = ARM_LENGTH_M
 	_arm.collision_mask = PhysicsLayers.WORLD
 	var probe := SphereShape3D.new()
@@ -35,7 +40,8 @@ func _init() -> void:
 
 ## Puts the pivot at `eye` (the body's feet plus the standing eye height) and points the arm back
 ## along the look of `yaw` and `pitch` (radians, as a player's): a look up lowers the arm, a look
-## down tilts only the camera. The arm reaches its new length at the next physics step.
+## down tilts only the camera. Called from a physics step at a priority below
+## ARM_PHYSICS_PRIORITY, the arm reaches its new length in the same step.
 func place(eye: Vector3, yaw: float, pitch: float) -> void:
 	global_position = eye
 	rotation = Vector3(0.0, yaw, 0.0)

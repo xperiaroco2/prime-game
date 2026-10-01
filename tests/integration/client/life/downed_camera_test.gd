@@ -83,6 +83,25 @@ func test_a_view_seen_past_a_short_wall_from_the_arm_but_not_the_eye_is_hidden()
 	assert_bool(hidden.visible).is_true()
 
 
+func test_a_turn_toward_the_wall_is_cast_in_the_same_physics_step() -> void:
+	# The arm at its full length in the open (looking toward the wall puts the arm in the open),
+	# then a turn the other way placed from LifeView's priority: the camera is in front of the wall
+	# when the step ends, not one step later (the reviews of M4-9).
+	_world.add_box(Vector3(0.0, 1.5, WALL_NEAR_Z + WALL_THICK * 0.5), Vector3(6.0, 3.0, WALL_THICK))
+	var eye := Vector3(0.0, _rules.eye_height_m, 0.0)
+	_rig.place(eye, PI, 0.0)
+	await _world.frames(2)
+	assert_float(_rig.arm_length()).is_equal_approx(DownedCamera.ARM_LENGTH_M, 0.01)
+	var turner := Turner.new(_rig, eye)
+	var probe := Probe.new(_rig)
+	_world.add_child(turner)
+	_world.add_child(probe)
+	await _world.frames(2)
+	assert_bool(probe.seen_after_turn).is_true()
+	var label := "camera at %s right after the turn" % probe.at
+	assert_float(probe.at.z).override_failure_message(label).is_less(WALL_NEAR_Z)
+
+
 ## An item-like view in SightHider's group at `at`: a small box mesh, no collision.
 func _view(at: Vector3) -> MeshInstance3D:
 	var view := MeshInstance3D.new()
@@ -93,3 +112,38 @@ func _view(at: Vector3) -> MeshInstance3D:
 	view.add_to_group(SightHider.GROUP)
 	_world.add_child(view)
 	return view
+
+
+## Turns the rig toward the wall once, from LifeView's physics priority, as LifeView places it.
+class Turner:
+	extends Node
+
+	var _rig: DownedCamera
+	var _eye: Vector3
+
+	func _init(rig: DownedCamera, eye: Vector3) -> void:
+		_rig = rig
+		_eye = eye
+		process_physics_priority = LifeView.PHYSICS_PRIORITY
+
+	func _physics_process(_delta: float) -> void:
+		_rig.place(_eye, 0.0, 0.0)
+		set_physics_process(false)
+
+
+## Reads the camera after the turn in the same physics step, before SightHider would cast.
+class Probe:
+	extends Node
+
+	var seen_after_turn := false
+	var at := Vector3.ZERO
+	var _rig: DownedCamera
+
+	func _init(rig: DownedCamera) -> void:
+		_rig = rig
+		process_physics_priority = SightHider.PHYSICS_PRIORITY - 1
+
+	func _physics_process(_delta: float) -> void:
+		at = _rig.camera().global_position
+		seen_after_turn = true
+		set_physics_process(false)
