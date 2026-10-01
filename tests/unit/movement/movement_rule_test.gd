@@ -133,6 +133,39 @@ func test_sprint_speed_needs_the_sprint_state() -> void:
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
+func test_the_tick_after_a_sprint_ran_out_may_still_go_at_sprint_speed() -> void:
+	# The client learns that its stamina ran out a tick late (the bots sprint while SelfStatus
+	# says sprint_available): one claim more at sprint speed passes, a second is corrected.
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
+	player.stamina = 1000
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
+	assert_int(player.stamina).is_equal(0)
+	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_bool(player.sprinting).is_false()
+	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+
+
+func test_the_claim_that_stops_a_sprint_may_carry_a_tick_of_it() -> void:
+	# A claim sends the flags of the client's last physics step: a sprinter who lets go within
+	# the tick claims no input and no sprint, with most of a sprint tick of travel. One such claim
+	# passes; a second without input is held to the walk again.
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, EAST * 0.34)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	FixtureMoves.step(game, P1, EAST * 0.34)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+
+
 func test_speed_is_measured_over_the_clients_own_tick_delta() -> void:
 	var game := FixtureMoves.in_round([P1])
 	var player := game.state.player(P1)
