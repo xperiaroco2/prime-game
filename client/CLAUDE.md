@@ -20,11 +20,12 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   loading, voice), `DecodedView` (what it decoded, in `PeerView`'s shape) and `ClientModel` (what it knows now). Game
   code talks to the host only through a `ClientSession`. Its `view` stays empty unless `keep_history` is on (off by
   default; bots and the leak test turn it on).
-- `player/`: `PlayerController` (#46), `RemotePlayerBody`, `PlayerTuning`, the stamina sources.
+- `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7),
+  `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`.
 - `dev/`: dev rooms and the preview scenes that `shot` draws.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
-  there). `ui/`: the screens under `GameUi`, built in code. `world/`: `AvatarViews`; M4-7 adds interpolation, M4-8
+  there). `ui/`: the screens under `GameUi`, built in code. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), M4-8
   and M4-9 the views of items, stations and bodies. `life/` (M4-9): the downed and spectate cameras, the countdowns.
 
 ## Rules
@@ -46,9 +47,13 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   no cut-off tells everyone, through walls, where a package was put down.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.
 - The client sends intents through `net/`, never state, and predicts nothing of an action's outcome.
-- Collision layers come from `PhysicsLayers`. M4-7's target (the code on the base still reads speeds,
-  capsule, eye height and stamina from `player_tuning.tres`): movement numbers come from the mode's `PlayerRules`,
-  and `PlayerTuning` keeps client feel only. Until M4-7, leave that split to it rather than moving numbers in passing.
+- Collision layers come from `PhysicsLayers`. Movement numbers (speeds, jump, capsule, eye and step height,
+  stamina) come from the client's own copy of the mode's `PlayerRules`; `PlayerTuning` keeps client feel only (the
+  push factors, the view's easing). Never copy a game number into `player_tuning.tres`: the host checks the mode's.
+- Remote players are drawn from `SnapshotBuffer`'s poses only, never from a claimed velocity, and every head or
+  basis built from a remote facing goes through its guard (`SnapshotBuffer.look_angles`): a relayed facing can be
+  zero or vertical in honest play. A body placed in `_physics_process` for the push search is a `StaticBody3D` and
+  calls `force_update_transform()` (§4.7: with Jolt a kinematic body's teleport shows only after the step).
 - A new event's fold in `ClientModel` lands in the core PR that adds the event, since the bots need it (E25);
   client issues read the model.
 - Scenes are single-owner. Build reusable pieces as small sub-scenes; level layout itself is the designer's
