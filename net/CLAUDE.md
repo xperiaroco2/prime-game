@@ -14,7 +14,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 ## Map
 - `transport/`: `NetTransport` (the interface game code uses), `EnetTransport`, `LoopbackTransport` and
   `LoopbackHub`, `NetFrame` (the 3-byte header and the defensive decode), `NetKindTable` (kind → lane, direction,
-  payload cap), `NetRejects` (counts and the summary line). Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
+  payload cap), `NetRejects` (counts and the summary line; `server/` adds its drops with `count_rejected`), and the
+  `packet_rejected(peer, reason)` signal per reject. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
 - `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
   it), `WireRow`, `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the
   fields, `seq` and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
