@@ -13,6 +13,8 @@ const EVENTS_FOLDER := "res://core/events/"
 const WIRE_ONLY := ["seq", "has_map", "has_station", "has_role"]
 ## A host's content hash (§4.3): any 64-bit number; this one needs all 8 bytes.
 const CONTENT := -0x123456789ABCDEF
+## A map path the wire accepts (a `res://` path): the fixture maps' `fixture://` paths do not.
+const WIRE_MAP := "res://levels/maps/fixture_wire_map.tscn"
 
 
 func test_every_event_class_with_a_peer_audience_has_samples() -> void:
@@ -221,6 +223,32 @@ func test_a_decoded_hello_joins_only_with_the_hosts_content_hash() -> void:
 	var rejected := rejects[0] as RejectedEvent
 	var payload := schema.encode(WireMessage.new(&"Rejected", rejected.to_dict()))
 	assert_object(schema.decode(WireSchema.REJECTED, payload)).is_not_null()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## Intents.FIELDS says only that `settings` is a Dictionary: the wire decodes it untyped, with
+## StringName keys, an int for a number and a PackedStringArray for a set of task type ids (§4.4).
+## A decoded ChangeSettings with a number, a ban and a map changes all three in the lobby.
+func test_a_decoded_change_settings_changes_numbers_bans_and_the_map() -> void:
+	var mode := FixtureBanModes.mode()
+	mode.maps.append(WIRE_MAP)
+	var layouts := FixtureBanModes.layouts()
+	layouts[WIRE_MAP] = layouts[FixtureBaseMode.MAP]
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), layouts)
+	game.keep_history = true
+	game.start(0)
+	FixtureBaseMode.join(game, FixtureBaseMode.HOST)
+	var settings := {&"knives": 3, &"banned_task_types": PackedStringArray(["second"])}
+	var sent := WireMessage.new(&"ChangeSettings", {"settings": settings, "map": WIRE_MAP}, 4)
+	var decoded := _decoded(WireSchema.game(false), sent)
+	if decoded == null:
+		return
+	game.apply(_command_of(decoded, FixtureBaseMode.HOST, game))
+	assert_array(FixtureModes.rejections(game, FixtureBaseMode.HOST)).is_empty()
+	assert_int(game.state.settings[&"knives"]).is_equal(3)
+	var banned: PackedStringArray = game.state.id_sets.get(&"banned_task_types", PackedStringArray())
+	assert_array(Array(banned)).is_equal(["second"])
+	assert_str(game.state.map).is_equal(WIRE_MAP)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
