@@ -123,6 +123,9 @@ Replaces "Death and ghosts". There are no ghosts.
 - A raise is **cancelled** by: releasing E, the raiser moving out of reach, the raiser being hit or downed, the raiser
   starting another action (pick up, put down, use, swap), or the downed player giving up. One raiser at a time
   ("Needs the engineer" 4).
+- The public event that a raise stopped names the raiser and the downed player only, never a cause. A raise that
+  stops in the tick of a swing still tells the attacker, and everyone else, that the swing hit the raiser: an accepted
+  exception to "the attacker gets no hit confirmation" (#32), as a knockdown already is ("Needs the engineer" 7).
 - A revived player stands up where they lay with **50 health** (a placeholder in data). Stamina is not reset: it
   regenerates as usual, since a downed player spends none. They are **invulnerable** for 3 s.
 
@@ -191,7 +194,7 @@ public events and the mode's numbers, so this is a rule of the interface, not of
 | Health, stamina, damage | Only that player (unchanged). A spectator never gets the target's |
 | Living and downed avatars: position, velocity, facing, downed and invulnerable, the hand and belt items | Everyone, in the snapshot |
 | A dead player's avatar | Nobody: the dead have none |
-| Knockdowns, raises starting and stopping, revives, deaths with the body, respawns, a body removed | Everyone. None names an attacker |
+| Knockdowns, raises starting and stopping, revives, deaths with the body, respawns, a body removed | Everyone. None names an attacker, and a raise stopping names no cause. A knockdown, and a raise stopping in the tick of a swing, confirm that swing's hit: the accepted exceptions to #32's "no hit confirmation" |
 | Items on the ground, wherever they lie | Everyone on the wire, as today (#32: positions are not hidden behind walls, which would protect against cheating clients, which nobody asked for). No screen shows an item's position beyond what is in view, the map included, so a hidden package is hidden by sight |
 | Whom a dead player watches | Nobody: it never leaves their client |
 | Voice | The invariant under Voice |
@@ -242,6 +245,13 @@ which can be reverted.
 6. **A spectator with no target:** (a) with no living player the first target is a random downed one; with nobody
    living or downed, the camera stays above the player's own body; (b) a fixed overview camera. Recommended (a): no
    new camera for a rare case.
+7. **A raise cancelled by a hit confirms the hit** (found by the review of this ADR's PR): V3 cancels a raise when
+   the raiser is hit, and a raise stopping is public, so a dissident who jabs a raiser sees the raise stop in the
+   same tick and knows the jab landed, which #32 otherwise denies the attacker. (a) Keep V3 as answered and accept
+   the confirmation as an exception, like the knockdown's; the stop event carries no cause; (b) drop "being hit" from
+   the cancels, so only the raiser going down stops it. Recommended (a): it is the engineer's answer, the attacker is
+   within a knife's 1.5 m and usually sees the raiser stop anyway, and under (b) a raise could be finished under
+   fire.
 
 ## Alternatives
 - **Many small mechanic issues, one per change:** each would be decided alone, and M4 would keep building on the rest
