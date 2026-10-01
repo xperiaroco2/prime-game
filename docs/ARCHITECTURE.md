@@ -221,7 +221,8 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
   reused: Player1 to Player3 join, Player2 leaves, and the next joiner becomes Player4. `ResetMatch` keeps the
   count, so it runs on through End → Lobby. The name in `Hello` is ignored in the MVP. After the MVP a player sets
   their own name and body colour, and a reconnecting player gets their old number back (#73).
-- A client's missed loading deadline: `core/` emits `DisconnectPeer(p)` for `server/` and treats p as leaving.
+- A client's missed loading deadline: `core/` emits `Disconnecting(load_deadline)` to p, then `DisconnectPeer(p)`
+  for `server/`, and treats p as leaving; p's client ends with that reason, not `host_lost` (#119, M4-6).
 - **The host is lost:** there is no `core/` event: `core/` runs on the host. How a client notices is a transport
   signal (#40); the client returns to the main menu with a message.
 
@@ -422,13 +423,15 @@ wire schemas of the events and the snapshot are §4.3.
 | `Correction` | epoch, position, velocity | that player | a `MoveClaim` that fails a check (§7.1); a placement (§3.2); a death: the ghost at its body (§7.1 Ghosts) |
 | `Rejected` | the intent's sequence number, reason | the sender (*sender*: a present player, or a peer that is not a player: a newcomer whose `Hello` was not accepted yet, or a peer being disconnected whose intent was in flight) | any rejected intent but a `MoveClaim` (dropped, E15); an applied intent whose outcome was dropped (`outcome_dropped`, §3.1) |
 | `MatchEnded` | the winning side (crew or dissidents), nothing else: no names, no roles | everyone | `won` |
+| `Disconnecting` | reason: `load_deadline` (the only one today) | that player (`peer` is its subject, as `Correction`'s, although the payload names none) | right before the `DisconnectPeer` it explains: a missed loading deadline (#119, the M4 ADR's E21) |
 
 Directives to `server/` have the audience *server* and reach no peer: `RefuseJoins`, `AllowJoins`,
 `DisconnectPeer(peer)`. Built in 2b (#58): the events from `Welcome` to `PlayerLoaded` above, `ReadyChanged`,
 `CountdownCancelled` and the three directives; `DisconnectPeer` follows the `Rejected` it explains, and `server/`
 sends what came before it (§4, `disconnect_peer`). Built in 2g (#63): `Swung`, `Damaged` and `Died`. Built in 2h
 (#64): `MatchEnded`, and `RoundStarted` is emitted (`StartClock`; the class came with 2c's deal events). 3e (#97): the
-reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers.
+reasons `wrong_content` (E1) and `joins_closed` (E14), and `DisconnectPeer` for Loading's waiting newcomers. M4-6
+(#142): `Disconnecting`, which `LeakCheck.FOR_ONE` lists by hand (§4.6).
 
 ### 4.3 Wire schemas (M3 design, #89)
 [ADR](decisions/2026-09-30-wire-format-and-host-session.md); built in 3d (#98): every row below is a row of
@@ -538,6 +541,7 @@ directive has no row, because it reaches no peer.
 | 55 | `Died` | `peer: peer`, `position: vec3` | 16; 16 |
 | 56 | `Correction` | `epoch: u32`, `position: vec3`, `velocity: vec3` | 28; 28 |
 | 57 | `MatchEnded` | `side: id` (the winning `SideSpec`'s id; audience *everyone*, 2h) | 11; 33 |
+| 58 | `Disconnecting` | `reason: id` (`load_deadline`; audience *only* that player, M4-6, #119) | 14; 33 |
 
 **State and voice.**
 
@@ -560,6 +564,7 @@ The rules of the table:
   decodes a synthetic longer `Hello` of another version to `{version}`.
 - **The version.** `JoinRules.PROTOCOL_VERSION` (`core/`) and the codec's version are one number, which a unit test
   pins. Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it in the same PR.
+  It is 2 since M4-6 (#142) added `Disconnecting` (58).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
   and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
@@ -858,8 +863,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   (priority -100, also while paused); start the session with the same clock. Leaving the tree closes the session.
 - Each slice is delivered as soon as it is taken (the order of step 5; the recipients skipped are those of that
   moment). Voice is relayed right after the poll, before step 4, stamped with `ticked_through()`.
-- The loading deadline's `DisconnectPeer` has no `Rejected` before it in `core/` (§3.2): the dropped player gets
-  every event addressed to it before the directive, then `host_lost`.
+- The loading deadline's `DisconnectPeer` has no `Rejected` before it in `core/` (§3.2), but a `Disconnecting`
+  (#119): the dropped player gets every event addressed to it before the directive, that one last, and its
+  `ClientSession` ends with its reason when the transport then reports the host lost.
 
 ### 4.6 The client, the bots and the leak test in M3 (#89)
 - **`ClientSession`** (`client/net/`, 3g) is what every client runs: the host's own over the loopback, a remote one
@@ -881,7 +887,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     (a body of its own in the model), and the host's own player as peer 1 (`AcceptSpec.From`). Before `Welcome` it
     claims nothing.
   - It ends (`ended(reason)`, the transport closed) on a `Rejected` before `Welcome` (its reason), `host_lost`,
-    `connect_failed`, `unknown_map` (a `LoadMatch` map its own mode does not list), `load_failed` and `left`.
+    `connect_failed`, `unknown_map` (a `LoadMatch` map its own mode does not list), `load_failed` and `left`; since
+    M4-6 (#119) a `host_lost` after a `Disconnecting` ends with the `Disconnecting`'s reason (`load_deadline`).
+    `EndReasons` (`client/app/`) says each in words.
     `map_loaded(path, scene)` fires before `LoadAck` goes out, so its owner instantiates the scene in the handler; a
     bot (`load_levels` off) checks the map and acknowledges without loading.
   - "Entering the lobby" is entering a phase whose level is the lobby from one whose level is not (End to Lobby): the
@@ -933,6 +941,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     `ChangeSettings`, as the core runner does at tick 0; a later joiner's `ForceRole` goes once it connected.
   - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
     `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
+  - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
+    acts no more, but the `WaitFor` and `Expect` steps left in its script are checked on what it received, and any
+    step still left fails (M4-6): so `dropped_at_the_loading_deadline`'s third bot waits for its
+    `Disconnecting(load_deadline)`, which arrives just before the disconnect.
 - **The runners** (§9.7; E12):
   - `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/`, or those named, in one headless
     process over `LoopbackHub`: a `HostSession` with `keep_history` on, bot 1 its own client, the others loopback
@@ -987,8 +999,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     read the `MatchEvent` objects of `view_of(b).events`, which the positional equality above has matched to what b
     decoded: every event for one peer that b decoded names b as its subject, and a view with no peer id that decoded
     anything fails. The events for one peer are a hand-written list in `LeakCheck.FOR_ONE` (`Welcome`,
-    `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`), which does not trust the declarations, plus
-    any event whose class declares `AUDIENCE_KIND` `ONLY` or `SENDER`; a test fails when such a class is missing
+    `RoleAssigned`, `Damaged`, `SelfStatus`, `Correction`, `Rejected`, and since M4-6 `Disconnecting`), which does
+    not trust the declarations, plus any event whose class declares `AUDIENCE_KIND` `ONLY` or `SENDER`; a test fails when such a class is missing
     from the list. Proven on #115: `Correction` declared *everyone* failed 5 of 6 scenarios (`refusals` has one
     bot), where the declaration-only check of an earlier commit passed it. A crew bot decodes no `Teammates`; a dissident's `Teammates` names
     that match's dissidents only; an alive bot never decodes a ghost's avatar or voice frame; the bots present for a
@@ -1029,10 +1041,14 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   runner). A join that ends or is stopped before `Welcome` exits 1 with its reason in words, as does a welcomed client
   that ends for anything but `host_lost`; the host exits 1 when it cannot start, its session ends for an error or its
   own client ends. The default port, 24600, is a placeholder, "not a decision". Usage: `docs/AGENT_WORKFLOW.md` §11.
-  Tests: `tests/unit/tools/headless_session_test.gd` (the arguments, the roster line, the refusal texts) and
+  Since M4-6 (#142) its arguments are `LaunchOptions` and its end texts `EndReasons`, both in `client/app/`, which
+  the game reads alike.
+  Tests: `tests/unit/tools/headless_session_test.gd` (the roster line, the refusal texts, the exit codes),
+  `tests/unit/client/app/launch_options_test.gd` (the arguments) and
   `tools/runner/tests/test_hostjoin.py` (the supervision, and a real host with two local clients reaching the lobby
   roster Player1 to Player3).
-  The M4 design (§4.7, E20) runs the game in windows by default and this session with `--headless`.
+  The M4 design (§4.7, E20) runs the game in windows by default and this session with `--headless`; until the
+  runner's windows land (a follow-up PR of M4-6, #142), `host` and `join` run this session only.
 
 ### 4.7 The game client (M4 design, #125)
 Decided in the [M4 ADR](decisions/2026-10-01-m4-first-person-client.md) (Accepted): the engineer's choices E18 to E33
@@ -1118,6 +1134,39 @@ host's own player sees only what its `ClientSession` decoded.
   `peer_disconnect_later` delivers it first (§4 Transport).
 - **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
   runner's `--stop-file` and `--alive-file`; the parser moves from `tools/run/headless_session.gd` to `client/app/`.
+
+**Built in M4-6 (#142)**, the shell: `client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
+`GameFlow` (the flow table above as a pure class: the screen and the level per session state and phase, read from
+the client's own `PhaseSpec`: a lobby level shows the lobby panel, a phase that accepts `LoadAck` the loading screen,
+one that accepts `ReturnToLobby` or a match with a winner the end screen, any other map phase the round),
+`SessionNode` (-90), `LaunchOptions` (the command line, which `headless_session.gd` also reads) and `EndReasons`
+(the reasons in words; it writes the host's own reasons as ids, since `client/` may not name `HostSession`, and a
+test pins them to `server/`'s). `client/ui/` holds the screens, built in code under `GameUi` (the `Ui` layer):
+`MainMenu`, `ConnectingScreen`, `LobbyPanel`, `LoadingScreen`, `EndScreen` and `EscMenu`. `client/world/avatar_views.gd`
+(`Avatars`, -80) shows a `RemotePlayerBody` per other player at the newest snapshot's position, which M4-7 replaces
+with `SnapshotBuffer`'s poses. What the build pinned:
+- `HostNode` is the façade: `HostNode.host(transport, mode, port)` (and a clock for tests), `is_running()`,
+  `own_client`, `errors`, `end_reason`, `ended`, `counters()` (debug builds only), `skip_replay()` and `close()`; the
+  session is private. The source test also fails on a path into `server/` (a preload; `app/` may name
+  `host_node.gd`) and on `._session`, HostNode's private field.
+- The countdown shows `end_tick` minus the newest snapshot's tick, M4-7's estimate's stand-in; the local player stands
+  still (no physics step) outside the lobby and the round, and claims only where `Welcome` and each `Correction` put
+  it until M4-7 sends its motion.
+- The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`); loading and the end
+  read no device input, and under the Esc menu the held keys are cleared. Welcome and each `Correction` place the
+  player through `PlayerController.teleport()`.
+- Every end goes through one function: the `HostNode` leaves the tree (closing the session), the client leaves, the
+  level, the views and the player are freed, and the menu says "The last session ended: <words>". The host's Leave
+  and Quit, and closing the host's window, ask first (`EscMenu`); a client's Leave does not.
+- A `Range` emits `value_changed` only inside the tree; the lobby panel's controls send one `ChangeSettings` with
+  that setting only and are refreshed from `SettingsChanged` without a signal.
+- Tests: `tests/unit/client/app/` (`GameFlow`, `LaunchOptions`, `EndReasons`, and E18's source test, seen failing
+  on a planted `_host._session.game` in `game.gd` and a `HostNode` named in `client/ui/`),
+  `tests/unit/client/ui/screens_test.gd`, and `tests/integration/client/app/game_loop_test.gd`: three `Game` roots
+  over a `LoopbackHub` on a simulated clock through the lobby, the host's setting, Ready, the countdown, loading, the
+  round, time up, the end screen and back, a client's Leave and the host's close (about 5 s). The screens' `shot`s:
+  `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
+- Not yet: the runner's windows for `host` and `join` (E20), a follow-up PR of M4-6 on #142.
 
 **Movement on the network.**
 - **Claims:** every physics step the controller calls `set_motion` (its position and velocity; as the facing, the
@@ -1867,7 +1916,7 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `TaskTicks` | tick system | runs the tick of each task type that has one, in the mode's order (none in the MVP; #36) | none | the task types' events | 2f (#62) |
 | `Lobby` | phase class | allows joins; `Hello` (the join, §3.5), `SetReady`, `ChangeSettings`; leaves (§3.5); reports `all_ready` (§3.2) after a `SetReady`, a settings change (numbers and the bans of task types, #79), a leave and on entry. Rejects (§4.1): `wrong_version`, `full`, `bad_args`, `unchanged`, `unknown_setting`, `out_of_bounds` (a bound, an unknown task type id, or a row action's `settings_problem`), `unknown_map` | none | `Welcome` (the joiner); `PlayerJoined`, `PlayerLeft`, `ReadyChanged`, `SettingsChanged` (everyone); `AllowJoins`, `DisconnectPeer` (server); `Rejected` (the sender) | 2b (#58) |
 | `Countdown` | phase class | as Lobby for joins, leaves and `SetReady(false)`, each reporting `cancelled`; `countdown_done` on its end tick, `seconds` after entry | `seconds` (0 to 60; the class default 0) | as Lobby, and `CountdownCancelled` (everyone); its end tick goes out in `PhaseChanged` | 2b (#58) |
-| `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
+| `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
 | `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i (#65, `SilentVoice`) |

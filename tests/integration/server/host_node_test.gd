@@ -32,3 +32,30 @@ func test_it_steps_the_session_from_the_physics_step_and_closes_it_on_exit() -> 
 	remove_child(node)
 	assert_bool(session.is_running()).is_false()
 	assert_str(String(session.end_reason)).is_equal(String(HostSession.CLOSED))
+
+
+func test_the_facade_reports_a_refused_start_and_a_debug_build_counters() -> void:
+	var schema := WireSchema.game(true)
+	var hub := LoopbackHub.new()
+	var mode := load("res://content/modes/base_mode.tres") as GameMode
+	var first: HostNode = auto_free(
+		HostNode.host(LoopbackTransport.new(schema.kind_table(), hub), mode, Harness.PORT)
+	)
+	first.skip_replay()
+	assert_bool(first.is_running()).is_true()
+	assert_object(first.own_client).is_not_null()
+	assert_array(first.errors).is_empty()
+	assert_str(String(first.end_reason)).is_empty()
+	assert_bool(OS.is_debug_build()).is_true()
+	assert_array(first.counters().keys()).contains_exactly_in_any_order(
+		[&"over_budget", &"bad_payloads", &"malformed_disconnects", &"voice_dropped"]
+	)
+	# The port is taken: the second start is refused and says why.
+	var second: HostNode = auto_free(
+		HostNode.host(LoopbackTransport.new(schema.kind_table(), hub), mode, Harness.PORT)
+	)
+	assert_bool(second.is_running()).is_false()
+	assert_array(second.errors).is_not_empty()
+	first.close()
+	assert_bool(first.is_running()).is_false()
+	assert_str(String(first.end_reason)).is_equal(String(HostSession.CLOSED))

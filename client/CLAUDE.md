@@ -22,18 +22,20 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46), `RemotePlayerBody`, `PlayerTuning`, the stamina sources.
 - `dev/`: dev rooms and the preview scenes that `shot` draws.
-- M4's new code (§4.7): `app/` (the main scene `game.tscn`, the sessions, the level swap, the launch options, the
-  end reasons), `ui/` (the screens), `world/` (snapshot interpolation; the views of avatars, items, stations and
-  bodies), `life/` (the downed and spectate cameras, the countdowns).
+- `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
+  level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
+  there). `ui/`: the screens under `GameUi`, built in code. `world/`: `AvatarViews`; M4-7 adds interpolation, M4-8
+  and M4-9 the views of items, stations and bodies. `life/` (M4-9): the downed and spectate cameras, the countdowns.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
   `Snapshots`), not even on the host's own machine, and never infer hidden information from anything else (node
   names, resource paths, timing). What is drawn, played or shown comes from the own `ClientModel`, the interpolated
   snapshot poses and the client's own copy of the game mode (its names and numbers).
-- Only `app/` names `server/`, through the `HostNode` façade only (start, `own_client`, `errors`, `end_reason`,
-  `ended`, debug counters, `close()`). No `client/` file names `HostSession`, a `core/` state class or `.game`; a
-  source test holds it (E18).
+- Only `app/` names `server/`, through the `HostNode` façade only (`host()` with an optional clock, `is_running()`,
+  `own_client`, `errors`, `end_reason`, `ended`, debug counters, `skip_replay()`, `close()`). No `client/` file names
+  `HostSession`, a `core/` state class, `.game`, `._session` or a path into `server/` other than `app/`'s
+  `host_node.gd`; a source test holds it (E18).
 - One persistent root: swap levels under `World`; never `SceneTree.change_scene_to_*`, no autoloads (E19):
   a freed scene would take the `HostNode` and the session with it.
 - Spectating is built on the dead player's own client from the public snapshot. The target is drawn with the

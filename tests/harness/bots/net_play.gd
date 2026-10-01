@@ -84,7 +84,9 @@ func _lost(bot: ScenarioBot, client: BotClient, at_tick: int) -> void:
 			_fail_step(bot, "the host refuses new connections (connect_failed)")
 		else:
 			_act(bot, at_tick)
-	bot.gone = true
+		bot.gone = true
+		return
+	_disconnected(bot, at_tick)
 
 
 func _on_connected(own_id: int, bot: ScenarioBot) -> void:

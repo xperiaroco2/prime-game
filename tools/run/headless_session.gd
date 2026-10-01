@@ -1,16 +1,10 @@
 extends SceneTree
 ## `tools\run.cmd host` and `tools\run.cmd join` (ARCHITECTURE §4.6, 3i): one headless session over
 ## ENet with the base mode from content/, which prints the roster, the phase and the counters as
-## they change. A connectivity check between two machines, as #21 ran; M4 gives it windows and the
-## real client. Run it through the runner, which passes the arguments after --:
-##   --host [--local]   host: a HostSession (stepped by a HostNode) and its own ClientSession on
-##                      own_client; --local listens on 127.0.0.1 only, else on every interface
-##   --join=<address>   join that host with a ClientSession over EnetTransport
-##   --port=<p>         the UDP port (default DEFAULT_PORT)
-##   --stop-file=<path> stop cleanly once this file exists (the runner's Ctrl+C and --seconds)
-##   --alive-file=<path> stop once this file is gone or ALIVE_SECONDS old: the runner touches it
-##                      every second, so a killed runner leaves no session running
-##   --no-replay        the host writes no replay (the runner's selftest)
+## they change: a connectivity check between two machines, as #21 ran, and what the runner's
+## `host` and `join` run with --headless (the game, client/app/game.tscn, runs them in windows).
+## The arguments after -- are LaunchOptions' (client/app/), one of --host and --join required;
+## the end reasons are said in words by EndReasons (client/app/).
 ## It lives in tools/, which may use everything (ARCHITECTURE §1), because it composes server/ and
 ## client/ in one process; the host's own client still reads nothing of HostSession, only what
 ## own_client delivers (invariant 2).
@@ -21,22 +15,7 @@ extends SceneTree
 ## arguments.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
-## A placeholder, "not a decision".
-const DEFAULT_PORT := 24600
-const HOST_ARG := "--host"
-const LOCAL_ARG := "--local"
-const JOIN_ARG := "--join="
-const PORT_ARG := "--port="
-const STOP_ARG := "--stop-file="
-const ALIVE_ARG := "--alive-file="
-const NO_REPLAY_ARG := "--no-replay"
-const LOCALHOST := "127.0.0.1"
-const EVERY_INTERFACE := "*"
-## The runner starts the local clients once the host printed this.
-const HOSTING := "session: hosting"
 const STOP_CHECK_MS := 200
-## The runner touches its alive file every second; this much older means it was killed.
-const ALIVE_SECONDS := 10
 ## A changed counter is printed at most this often; the roster and the phase at once.
 const COUNTERS_INTERVAL_MS := 1000
 ## The roster before Welcome: not printed until it changes.
@@ -48,25 +27,8 @@ const EXIT_FAILED := 1
 const EXIT_USAGE := 2
 ## The end reason of a process the runner stopped (its stop file), next to ClientSession's reasons.
 const STOPPED := &"stopped"
-## Why a join ended before Welcome, as a person reads it.
-const REFUSALS: Dictionary[StringName, String] = {
-	&"wrong_version":
-	"the host runs another protocol version: put both machines on the same commit",
-	&"wrong_content":
-	(
-		"the host's game content (content/ or levels/) differs from this machine's: put both"
-		+ " machines on the same commit"
-	),
-	&"joins_closed": "the host's match is under way: join again when it is back in the lobby",
-	&"full": "the host's lobby is full",
-	&"connect_failed":
-	(
-		"no answer from the host: check that it runs, the address and the port, and that its"
-		+ " firewall lets UDP in"
-	),
-}
 
-var _options: Options
+var _options: LaunchOptions
 var _session: HostSession
 var _host_node: HostNode
 var _client: ClientSession
@@ -79,61 +41,9 @@ var _shown_phase := ""
 var _shown_counters := ""
 
 
-## The arguments after --.
-class Options:
-	extends RefCounted
-	var hosting := false
-	var port := DEFAULT_PORT
-	var address := ""
-	var bind := EVERY_INTERFACE
-	var stop_file := ""
-	var alive_file := ""
-	var replay := true
-	## What is wrong with the arguments; empty when nothing is.
-	var problem := ""
-
-	static func parse(args: PackedStringArray) -> Options:
-		var options := Options.new()
-		options.problem = options._read(args)
-		return options
-
-	func _read(args: PackedStringArray) -> String:
-		var joining := false
-		var local := false
-		for arg in args:
-			if arg == HOST_ARG:
-				hosting = true
-			elif arg == LOCAL_ARG:
-				local = true
-			elif arg.begins_with(JOIN_ARG):
-				joining = true
-				address = arg.trim_prefix(JOIN_ARG)
-			elif arg.begins_with(PORT_ARG):
-				var text := arg.trim_prefix(PORT_ARG)
-				port = text.to_int() if text.is_valid_int() else 0
-				if port < 1 or port > 65535:
-					return "%s takes a port between 1 and 65535, got '%s'" % [PORT_ARG, text]
-			elif arg.begins_with(STOP_ARG):
-				stop_file = arg.trim_prefix(STOP_ARG)
-			elif arg.begins_with(ALIVE_ARG):
-				alive_file = arg.trim_prefix(ALIVE_ARG)
-			elif arg == NO_REPLAY_ARG:
-				replay = false
-			else:
-				return "unknown argument '%s'" % arg
-		if hosting == joining:
-			return "give either %s or %s<address>" % [HOST_ARG, JOIN_ARG]
-		if joining and address.is_empty():
-			return "%s needs the host's address" % JOIN_ARG
-		if local and not hosting:
-			return "%s is for the host only" % LOCAL_ARG
-		bind = LOCALHOST if local else EVERY_INTERFACE
-		return ""
-
-
 func _initialize() -> void:
 	Engine.max_fps = MAX_FPS
-	_options = Options.parse(OS.get_cmdline_user_args())
+	_options = LaunchOptions.parse(OS.get_cmdline_user_args())
 	if not _options.problem.is_empty():
 		_finish(EXIT_USAGE, _options.problem)
 		return
@@ -186,8 +96,13 @@ func _start_host(mode: GameMode, schema: WireSchema) -> void:
 	_client = ClientSession.new(_session.own_client, mode, schema)
 	_client.ended.connect(_on_client_ended)
 	_client.welcomed.connect(_on_welcomed)
-	print("%s %s on %s:%d" % [HOSTING, mode.resource_path.get_file(), _options.bind, _options.port])
-	if _options.bind == EVERY_INTERFACE:
+	print(
+		(
+			"%s %s on %s:%d"
+			% [LaunchOptions.HOSTING, mode.resource_path.get_file(), _options.bind, _options.port]
+		)
+	)
+	if _options.bind == LaunchOptions.EVERY_INTERFACE:
 		var addresses := _lan_addresses()
 		print(
 			(
@@ -328,11 +243,7 @@ static func end_text(hosting: bool, welcomed: bool, reason: StringName) -> Strin
 
 
 static func ended_text(reason: StringName) -> String:
-	if REFUSALS.has(reason):
-		return "%s (%s)" % [reason, REFUSALS[reason]]
-	if reason == ClientSession.HOST_LOST:
-		return "host_lost (the host closed, or the connection was lost)"
-	return String(reason)
+	return EndReasons.text(reason)
 
 
 ## Asked to stop (the runner's stop file): close cleanly, so the clients see host_lost at once. A
@@ -348,19 +259,12 @@ func _end(reason: StringName) -> void:
 	)
 
 
-## The runner was killed (an agent's command timeout, a closed terminal): nobody would stop this.
 func _runner_gone() -> bool:
-	var path := _options.alive_file
-	if path.is_empty():
-		return false
-	if not FileAccess.file_exists(path):
-		return true
-	var age := int(Time.get_unix_time_from_system()) - FileAccess.get_modified_time(path)
-	return age > ALIVE_SECONDS
+	return _options.runner_gone()
 
 
 func _stop_requested() -> bool:
-	return not _options.stop_file.is_empty() and FileAccess.file_exists(_options.stop_file)
+	return _options.stop_requested()
 
 
 ## Prints the final counters and why it ends, closes the session and quits with `code`.
