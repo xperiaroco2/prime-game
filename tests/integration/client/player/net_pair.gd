@@ -90,6 +90,24 @@ func peer_of(game: Game) -> int:
 	return game.client().model.own_peer
 
 
+## Knocks `game`'s player down on the host as a strike to 0 health would (LifeRules.knock_down,
+## M4-2): KnockedDown to everyone and its Correction go out with the host's next tick. The fixture
+## level has no weapon, so this reaches into the host's Match, which only a test may do: Game and
+## HostNode keep it private (E18). The floor of steps_room's round spots is at y = 0.
+func knock_down(game: Game) -> void:
+	var node := host.get_node("HostNode") as HostNode
+	var session := node.get("_session") as HostSession
+	var played := session.game
+	var peer := peer_of(game)
+	var ctx := MatchContext.new(played)
+	ctx.state = played.state
+	ctx.mode = played.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = played.ticked_through()
+	played.state.player(peer).health = 0
+	LifeRules.knock_down(ctx, peer)
+
+
 func _physics_process(_delta: float) -> void:
 	now += FRAME_USEC
 

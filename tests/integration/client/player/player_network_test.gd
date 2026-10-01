@@ -6,7 +6,8 @@ extends GdUnitTestSuite
 ## the test forces on the controller (a refused claim) is corrected once, and play goes on without
 ## another. The host's own placement at the round's start is one placement and no correction, the
 ## claims of the old epoch still in flight draw none, and the placed joiner snaps on the host's
-## screen. The host sees the joiner where it walked, through the snapshots and SnapshotBuffer.
+## screen. The host sees the joiner where it walked, through the snapshots and SnapshotBuffer. A
+## downed joiner's crawl (M4-2's crawl check) is corrected 0 times.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The top of the fixture's stairs.
@@ -126,6 +127,51 @@ func test_the_round_placement_is_no_correction_and_the_placed_player_snaps() -> 
 	assert_float(player.global_position.distance_to(placed)).is_greater(2.0)
 	assert_int(_pair.client.client().corrections).is_equal(0)
 	assert_int(_pair.client.client().placements).is_equal(1)
+	await _pair.stop()
+
+
+func test_a_downed_crawl_is_never_corrected() -> void:
+	# The host knocks the joiner down in the round. Its controller crawls from the KnockedDown on
+	# (the ghost flag; M4-9 wires it in the game), holding sprint and asking to jump all along:
+	# the host's crawl check (M4-2) never corrects it, and the knockdown's Correction counts as a
+	# placement.
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	var player := _pair.client.player()
+	var session := _pair.client.client()
+	var joiner := _pair.peer_of(_pair.client)
+	var on_event := func(event_name: StringName, fields: Dictionary) -> void:
+		if event_name == &"KnockedDown" and (fields["peer"] as int) == joiner:
+			player.ghost = true
+	session.event_received.connect(on_event)
+	# Walking at the knockdown: the walk's claims still in flight are dropped as stale.
+	player.move_input = Vector2(0.0, 1.0)
+	await _pair.frames(10)
+	_pair.knock_down(_pair.client)
+	for i: int in 10:
+		if player.ghost:
+			break
+		await _pair.frames(1)
+	assert_bool(player.ghost).is_true()
+	await _pair.frames(5)
+	var lay := player.global_position
+	player.sprint_held = true
+	for i: int in 180:
+		player.jump_requested = true
+		await _pair.frames(1)
+	player.move_input = Vector2.ZERO
+	player.sprint_held = false
+	await _pair.frames(20)
+	session.event_received.disconnect(on_event)
+	assert_int(session.model.life_of(joiner)).is_equal(ClientModel.Life.DOWNED)
+	assert_float(player.global_position.distance_to(lay)).is_between(2.5, 3.2)
+	assert_float(player.global_position.y).is_equal_approx(lay.y, 0.01)
+	assert_bool(player.is_sprinting()).is_false()
+	assert_int(session.corrections).is_equal(0)
+	assert_int(session.placements).is_equal(2)
+	# The host draws the downed joiner where it crawled.
+	var seen := _pair.host.avatars().body_of(joiner)
+	assert_vector(seen.global_position).is_equal_approx(player.global_position, Vector3.ONE * 0.05)
 	await _pair.stop()
 
 
