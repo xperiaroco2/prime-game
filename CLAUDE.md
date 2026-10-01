@@ -78,8 +78,8 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - In the Bash tool `\\` arrives as `\`, even inside single quotes and quoted heredocs (`"\\r"` became a CR).
   Write code that contains backslashes to a file with the Write tool, then run the file.
 - `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
-- Push an explicit task branch only: `git push -u origin <branch>`, or `publish`. Never `main`, never a force push
-  by hand: the pre-push hook blocks both, and a rebased branch goes up only through `publish`.
+- Push an explicit task branch only (`git push -u origin <branch>`, or `publish`; a stage's manager also fast-forwards
+  `release/m<k>`, DoD 5). Never `main`, no force push by hand (the pre-push hook blocks both): rebased, only `publish`.
 - No `git stash` (one stash for all worktrees): set work aside with a WIP commit, later `git reset --soft HEAD~1`;
   fold a fix with `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
 <!-- see docs/interventions/2026-10-01-engineer-night-run-prompts.md -->
