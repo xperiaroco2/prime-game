@@ -235,8 +235,10 @@ them already. A change the designer agrees to may be made by the engineer's agen
   git fetch origin
   git switch --detach origin/release/m4
   ```
-  After M4: `git worktree remove D:\prime-game\.claude\worktrees\playtest-m4`, run from `D:\prime-game`. The design
-  did not run these commands, since the windows come with M4-6; M4-6's agent runs them first with `--headless`.
+  After M4: `git worktree remove D:\prime-game\.claude\worktrees\playtest-m4`, run from `D:\prime-game`. A human
+  runs these: they change the main checkout's worktree list, so no agent creates the playtest worktree. #149 (the
+  rest of M4-6) checked the `host` and `join` commands below against the runner, headless in its own worktree; a
+  fresh worktree has no `.godot/`, and the runner imports the project at its first run.
 - **The one-PC windowed playtest** (a human; after M4-7, again after M4-8 and M4-9), on the engineer's PC, in the
   playtest worktree:
   ```powershell
@@ -253,7 +255,8 @@ them already. A change the designer agrees to may be made by the engineer's agen
   return to the lobby; a client window killed in the Task Manager (the others go on, no 5 s freeze: #21 under
   Vulkan); the host's window closed (the clients return to the menu, saying why).
 - **The two-machine playtest** (#21's setup, LAN or VPN; after M4-7, then at M4's end). On the host PC, as above but
-  `tools\run.cmd host` (every interface; it prints its LAN address; allow the firewall prompt on private networks).
+  `tools\run.cmd host` (every interface; the runner prints this PC's addresses; allow the firewall prompt on private
+  networks).
   On the other PC, in its playtest worktree, on the same commit (`git rev-parse --short HEAD` equal on both, or the
   join says `wrong_version` or `wrong_content`):
   ```powershell
