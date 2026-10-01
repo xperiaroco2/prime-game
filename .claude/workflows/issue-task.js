@@ -39,9 +39,9 @@ const BASE = A.base || 'main'
 const PLAN = A.plan || 30
 const DESIGN = A.design === true
 const SCRATCH = `a${N}`
-// A release base (release/m<k>, any base that is not main or a task branch) is always passed: `publish` takes one that
-// equals main for a merged parent (#113). A stacked parent's task branch is not: publish follows the PR's live base,
-// which GitHub retargets once the parent merges and its branch is deleted.
+// A release base (release/m<k>, any base that is not main or a task branch) is always passed, so the base never
+// depends on the record `start --base` left in this checkout. A stacked parent's task branch is not: publish
+// follows the PR's live base, which GitHub retargets once the parent merges and its branch is deleted.
 const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
 const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 

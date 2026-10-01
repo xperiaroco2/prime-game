@@ -83,7 +83,7 @@ class WorkflowTest(unittest.TestCase):
                     self.assertIn("git reset --soft HEAD~1", call["prompt"])
 
     def test_a_release_base_reaches_publish_and_the_pr(self) -> None:
-        # #113: publish takes a release base equal to main for a merged parent, so the base is always passed.
+        # A release base is always passed, so publish never depends on the record start --base left (#113).
         for name in ("issue-task.js", "pr-rebase.js"):
             with self.subTest(workflow=name):
                 prompts = "\n".join(c["prompt"] for c in run_workflow(WORKFLOWS / name, "release/m3", ["core/x.gd"]))

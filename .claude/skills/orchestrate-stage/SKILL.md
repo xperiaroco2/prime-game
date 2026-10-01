@@ -257,11 +257,11 @@ locally.
   drop of an entry it cannot show is the agent's own (`git stash drop "$ref"` at 02:10). The workflows' rules say
   so; repeat it in `notes` for any other agent you start: a WIP commit and later `git reset --soft HEAD~1`, or
   `git commit --fixup=<sha>` then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
-- **`publish` with a release base (#113).** While `release/m<k>` equals `main`, `publish` takes it for a merged
-  parent and rebases on `main`; after a hand rebase on a newer `origin/release/m<k>`, a stale
-  `branch.<branch>.primeBaseTip` replays upstream commits. Always `publish --base release/m<k>` and
-  `gh pr create --base release/m<k>` (the workflows pass `base`); after a hand rebase,
-  `git config branch.<branch>.primeBaseTip $(git merge-base HEAD origin/release/m<k>)` first.
+- **`publish` with a release base (#113, fixed).** On the M3 night `publish` took `release/m<k>` equal to `main` for
+  a merged parent, and after a hand rebase replayed upstream commits from a stale `branch.<branch>.primeBaseTip`.
+  It now keeps a base outside `<area>/<n>-<slug>` and replays only the commits after the merge-base. Still pass
+  `publish --base release/m<k>` and `gh pr create --base release/m<k>` (the workflows pass `base`): a checkout
+  without `start`'s record needs it. The workflows' `primeBaseTip` reset after a hand rebase is now redundant.
 - **The information-leak test gets a netcode review.** A PR that touches only `tests/` and `tools/` once had no
   `netcode-security-reviewer` (#115); a pass run by hand found a major blind spot. The workflows now route it for
   `tests/harness/`; for a leak-test change elsewhere (a new runner in `tools/`), run one by hand before the merge.

@@ -53,7 +53,7 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    stops (a conflict, red verify, or remote commits the branch never had), report what it said and ask the human. Never
    push by hand and never force-push. "cannot confirm that the parent … was merged": ask the human to check the
    parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`. A task of a stage (its PR
-   targets `release/m<k>`): always `tools\run.cmd publish --base release/m<k>` (#113).
+   targets `release/m<k>`): `tools\run.cmd publish --base release/m<k>`, also on a checkout without `start`'s record.
 6. **Pull request.** If `gh pr view` finds none for the branch, fill `.github/pull_request_template.md` in a scratchpad
    file and run `gh pr create --base <base> --title "<conventional title>" --body-file <file>` (`<base>`: the one
    `publish` just reported: `main`, a stage's `release/m<k>` or a stacked PR's parent). Otherwise update it with `gh pr edit --body-file`.
