@@ -13,6 +13,8 @@ const NORTH := Vector3(0, 0, 1)
 ## The jump height (1 m) plus the slack: 0.4 * (1 - cos 45°) + 0.01, about 0.127 m.
 const PEAK := 1.12
 const OVER_PEAK := 1.14
+## Where the staircase of 5 cm steps (a 45° slope) starts, north of the players.
+const SLOPE_FOOT := 5.2
 
 
 func test_a_jump_from_the_floor_costs_its_stamina_and_rises_to_the_jump_height() -> void:
@@ -188,6 +190,36 @@ func test_a_rise_may_add_the_horizontal_travel_on_a_slope() -> void:
 	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.claim(game, P1, ground + NORTH * 1.0 + UP * 0.85, {"moving": true})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+
+
+func test_a_claim_covering_stored_credit_climbs_at_most_the_slope_ticks() -> void:
+	# A client keeps quiet for 40 ticks, then one claim covering them all walks 8 m north onto a
+	# roof 3 m up. The slope allowance used to count all 8 m (0.3 + 0.01 + 8 = 8.31 m of rise);
+	# it now counts at most SLOPE_TICKS (10) ticks of the claim's allowed travel: 9.05 m * 10 / 40,
+	# about 2.26 m, so up to about 2.57 m.
+	assert_bool(_quiet_climb_corrected(3.0)).is_true()
+	assert_bool(_quiet_climb_corrected(2.5)).is_false()
+
+
+func test_an_honest_climb_whose_claims_were_lost_is_not_corrected() -> void:
+	# Walking up a 45° staircase of 5 cm steps, as up a slope. The unreliable claims are lost: one,
+	# then nine in a row, so the next claim covers two, then ten ticks of climbing from the last
+	# landing. Capping the rise to one tick's travel would correct both (#74).
+	var world := FixtureTerrainWorld.new()
+	for k in range(1, 97):
+		world.add_platform(0, SLOPE_FOOT + 0.05 * (k - 1), 30, 30, 0.05 * k)
+	var game := FixtureMoves.in_round([P1], world)
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	var walk := {"moving": true}
+	for lost: int in [0, 0, 0, 1, 0, 9, 0]:
+		FixtureModes.run_ticks(game, lost)
+		var to := player.position + NORTH * 0.225 * (lost + 1)
+		to.y = _on_slope(to.z)
+		FixtureMoves.step(game, P1, to - player.position, walk)
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	assert_float(player.position.y).is_greater(3.0)
 
 
 func test_walking_up_steps_moves_the_base_to_each_landing() -> void:
@@ -444,6 +476,26 @@ func _on_ledge_edge(radius: float) -> Match:
 	assert_float(player.position.y).is_equal_approx(0.9, 1e-5)
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(1)
 	return game
+
+
+## Whether one claim covering 40 quiet ticks, walking 8 m north from the ground onto a roof
+## `height` up, is corrected.
+func _quiet_climb_corrected(height: float) -> bool:
+	var world := FixtureTerrainWorld.new()
+	world.add_platform(0, 12.5, 30, 14, height)
+	var game := FixtureMoves.in_round([P1], world)
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureModes.run_ticks(game, 39)
+	FixtureMoves.step(game, P1, NORTH * 8.0 + UP * height, {"moving": true})
+	return FixtureMoves.corrections(game, P1).size() > seen
+
+
+## The top of the 5 cm step of the staircase of test_an_honest_climb... under `z`: the ground
+## before SLOPE_FOOT.
+func _on_slope(z: float) -> float:
+	return maxf(0.0, 0.05 * ceilf((z - SLOPE_FOOT) / 0.05))
 
 
 ## A round of P1 on the stepped world.

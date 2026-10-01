@@ -45,8 +45,9 @@ extends RefCounted
 ## - Height: until the next landing (a claim on the floor with a WorldQuery floor within step
 ##   height), the feet stay within the jump height (+ JUMP_SLACK) of the take-off after an
 ##   accepted jump, else within step height (+ STEP_CLEARANCE, + the horizontal travel times
-##   tan(FLOOR_MAX_ANGLE) for a slope or a staircase) of the last landing's floor. Falling is not
-##   bounded, and walls are not checked (§7.1).
+##   tan(FLOOR_MAX_ANGLE) for a slope or a staircase) of the last landing's floor. The slope
+##   allowance counts the travel of at most SLOPE_TICKS covered ticks: stored credit buys no more
+##   climb than that. Falling is not bounded, and walls are not checked (§7.1).
 ##   A downed player is bounded the same way: with no jump, its rise is the step height (plus the
 ##   slope allowance) above its last landing.
 ## Then the claim settles its covered ticks of stamina (StaminaLedger), an accepted jump pays its
@@ -96,6 +97,11 @@ const MAX_JUMPS := 0xFFFF
 ## loopback (#143's network push test) was corrected: the players were 0.86 m apart on the host.
 const PUSH_REACH_RADII := 2.0
 const PUSH_LAG_S := 0.2
+## The most covered ticks whose travel the slope allowance counts (#76): 0.5 s, so an honest climb
+## whose claims were lost for up to nine ticks in a row passes, and a claim covering stored credit
+## (up to MAX_TICK_CREDIT ticks) rises no higher than SLOPE_TICKS ticks of its travel would take
+## it. Accepted: a 45° climb through a stall of more than about half a second is corrected once.
+const SLOPE_TICKS := 10
 
 
 ## What the checks remember of one player between claims.
@@ -233,7 +239,9 @@ static func _check(
 		return null
 	var jumping := jumped or motion.jumping
 	var base_y := checked.take_off_y if jumped else motion.base_y
-	if claim.position.y - base_y > _allowed_rise(rules, jumping, checked.travel):
+	# The slope allowance counts the travel of at most SLOPE_TICKS covered ticks.
+	var slope_travel := minf(checked.travel, allowed * mini(covered, SLOPE_TICKS) / covered)
+	if claim.position.y - base_y > _allowed_rise(rules, jumping, slope_travel):
 		return null
 	return checked
 
