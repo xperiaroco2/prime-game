@@ -88,6 +88,10 @@ func _start_enet(names: PackedStringArray, port: int, instances: int) -> void:
 		return
 	_name = paths[0].get_file().get_basename()
 	var scenario := load(paths[0]) as BotScenario
+	if scenario == null:
+		print("BOTS %s: FAILED, not a BotScenario" % paths[0])
+		quit(1)
+		return
 	var instance := OS.get_environment("PRIME_INSTANCE").to_int()
 	_enet = BotsEnet.new(scenario, instance, port, ViewFile.dir_of(_name))
 	Engine.max_fps = ENET_FPS
