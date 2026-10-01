@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://bbb43duwls35t"]
+
+[ext_resource type="PackedScene" uid="uid://fair5fhqt1o8" path="res://tests/fixtures/net/fingerprint_room.tscn" id="1_room"]
+[ext_resource type="PackedScene" uid="uid://mcmlyje1wp2k" path="res://tests/fixtures/net/fingerprint_crate.tscn" id="2_crate"]
+
+[node name="FingerprintMap" type="Node3D" unique_id=1199745995]
+
+[node name="Room" parent="." unique_id=955538045 instance=ExtResource("1_room")]
+
+[node name="Crate" parent="." unique_id=164521407 instance=ExtResource("2_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
