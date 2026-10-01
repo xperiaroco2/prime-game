@@ -52,5 +52,7 @@ test was not repeated on it with Vulkan.
 - If Godot ever changes the engine default for Windows, an empty `project.godot` would follow it. The unit test
   `tests/unit/tools/rendering_driver_test.gd` fails then (and on a `d3d12` override), so `verify` and CI catch it;
   `shot`'s `renderer:` line shows the driver a window actually used.
-- A Windows machine without Vulkan support would need `--rendering-driver d3d12`; none of the humans' machines is
-  known to lack it.
+- A Windows machine without Vulkan support falls back to D3D12 on its own
+  (`rendering/rendering_device/fallback_to_d3d12`, default true, unset here), so it runs but may meet the #21
+  freeze again; `shot`'s `renderer:` line shows which driver was used. None of the humans' machines is known to lack
+  Vulkan.
