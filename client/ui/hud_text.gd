@@ -79,12 +79,12 @@ static func slot_text(model: ClientModel, mode: GameMode, item_id: int) -> Strin
 	return kind.display_name + (" (both hands)" if kind.is_two_handed() else "")
 
 
-## "You are a <role's display name>", or empty before RoleAssigned.
+## "Role: <the role's display name>", or empty before RoleAssigned.
 static func role_text(model: ClientModel, mode: GameMode) -> String:
 	if model.role.is_empty():
 		return ""
 	var role := mode.find_role(model.role)
-	return "You are a %s" % (role.display_name if role != null else String(model.role))
+	return "Role: %s" % (role.display_name if role != null else String(model.role))
 
 
 ## The other players of the own role, by name, when the own role's players know each other

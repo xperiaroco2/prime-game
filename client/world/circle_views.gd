@@ -72,9 +72,8 @@ static func station_kind(game_mode: GameMode, kind_id: StringName) -> StationKin
 	for type: TaskType in game_mode.task_types:
 		for property: Dictionary in type.get_property_list():
 			var value: Variant = type.get(property["name"] as String)
-			var kind := value as StationKind
-			if kind != null and kind.id == kind_id:
-				return kind
+			if value is StationKind and (value as StationKind).id == kind_id:
+				return value as StationKind
 	return null
 
 
