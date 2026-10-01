@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## a missing dependency.
 
 ## Committed fixtures: a map instancing a room and a crate, the room a wall shape, the crate and a
-## script (left out), the crate an imported texture.
+## script (left out), the crate its own imported texture (not the project icon, which a designer
+## may replace).
 const FIXTURES := "res://tests/fixtures/net/"
 const MAP := FIXTURES + "fingerprint_map.tscn"
 
@@ -85,9 +86,9 @@ func test_the_walk_reaches_every_scene_and_resource_by_path_and_no_script() -> v
 		assert_array(Array(reached))
 		. contains_exactly(
 			[
-				"res://icon.svg",
-				"res://icon.svg.import",
 				FIXTURES + "fingerprint_crate.tscn",
+				FIXTURES + "fingerprint_label.svg",
+				FIXTURES + "fingerprint_label.svg.import",
 				FIXTURES + "fingerprint_room.tscn",
 				FIXTURES + "fingerprint_wall.tres",
 			]
@@ -116,6 +117,26 @@ func test_a_changed_sub_scene_changes_the_hash() -> void:
 	assert_int(_of(_mode())).is_equal(before)
 	_write("room.tscn", _scene("Room", [_dir.path_join("prop.tscn")], 4))
 	assert_int(_of(_mode())).is_not_equal(before)
+
+
+## An imported asset counts by its source bytes and by its `.import` settings (a mesh's generated
+## collision lives in them).
+func test_a_changed_asset_or_its_import_settings_change_the_hash() -> void:
+	var label := FIXTURES + "fingerprint_label.svg"
+	var svg := FileAccess.get_file_as_string(label)
+	var settings := FileAccess.get_file_as_string(label + ".import")
+	assert_str(settings).contains("\nsvg/scale=1.0\n")
+	_write("label.svg", svg)
+	_write("label.svg.import", settings)
+	_write("map.tscn", _scene_with_texture("Map", _dir.path_join("label.svg")))
+	var imported := _of(_mode())
+	assert_str(_text_of(_mode())).contains("\nfile %s " % _dir.path_join("label.svg.import"))
+	_write("label.svg.import", settings.replace("\nsvg/scale=1.0\n", "\nsvg/scale=2.0\n"))
+	assert_int(_of(_mode())).is_not_equal(imported)
+	_write("label.svg.import", settings)
+	assert_int(_of(_mode())).is_equal(imported)
+	_write("label.svg", svg.replace("#8a6d3b", "#3b6d8a"))
+	assert_int(_of(_mode())).is_not_equal(imported)
 
 
 func test_a_missing_dependency_is_named() -> void:
@@ -203,6 +224,14 @@ func _scene_with_uid(root: String, uid: String, fallback: String) -> String:
 			% [uid, fallback]
 		)
 		+ '[node name="%s" type="CollisionShape3D"]\nshape = ExtResource("1_shape")\n' % root
+	)
+
+
+## A scene whose one 2D sprite shows the texture at `texture`.
+func _scene_with_texture(root: String, texture: String) -> String:
+	return (
+		'[gd_scene format=3]\n\n[ext_resource type="Texture2D" path="%s" id="1_tex"]\n\n' % texture
+		+ '[node name="%s" type="Sprite2D"]\ntexture = ExtResource("1_tex")\n' % root
 	)
 
 
