@@ -118,10 +118,9 @@ class _Peer:
 	var joined_usec := 0
 	var welcomed := false
 	var budget := PeerBudget.new()
-	## The times of its rejected messages within the window, oldest first.
+	## The times of its rejected messages within the window, oldest first, and their reasons.
 	var malformed: Array[int] = []
-	## Reason -> count, for the log line.
-	var reasons: Dictionary[String, int] = {}
+	var reasons: Array[String] = []
 
 	func _init(at_usec: int) -> void:
 		joined_usec = at_usec
@@ -487,13 +486,17 @@ func _malformed(peer: int, reason: String) -> void:
 		return  # not connected, or disconnected already
 	while not info.malformed.is_empty() and info.malformed[0] <= _now_usec - MALFORMED_WINDOW_USEC:
 		info.malformed.pop_front()
+		info.reasons.pop_front()
 	info.malformed.append(_now_usec)
-	info.reasons[reason] = info.reasons.get(reason, 0) + 1
+	info.reasons.append(reason)
 	if info.malformed.size() < MALFORMED_LIMIT:
 		return
-	var why := PackedStringArray()
+	var counts: Dictionary[String, int] = {}
 	for each: String in info.reasons:
-		why.append("%s x%d" % [each, info.reasons[each]])
+		counts[each] = counts.get(each, 0) + 1
+	var why := PackedStringArray()
+	for each: String in counts:
+		why.append("%s x%d" % [each, counts[each]])
 	var line := (
 		"peer %d sent %d malformed messages within %d s (%s)"
 		% [
@@ -507,6 +510,7 @@ func _malformed(peer: int, reason: String) -> void:
 		errors.append("the host's own client is broken: %s" % line)
 		_end_after_poll = OWN_CLIENT_MALFORMED
 		info.malformed.clear()
+		info.reasons.clear()
 		return
 	push_warning("host: disconnected %s" % line)
 	malformed_disconnects += 1
