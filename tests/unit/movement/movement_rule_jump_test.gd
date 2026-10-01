@@ -1,8 +1,10 @@
 extends GdUnitTestSuite
 ## MovementRule's jumps and heights (ARCHITECTURE §7, §7.1): a jump needs a WorldQuery floor
-## within step height below the last accepted feet, and stamina for the living; the feet stay
-## within the jump height (plus MovementRule.jump_slack) of the take-off until the next landing; a
-## rise without a jump stays within the step height (plus STEP_CLEARANCE and the slope allowance).
+## within step height below the last accepted feet, and stamina for the living, and a claim adds no
+## more jumps than it covers ticks; the feet stay within the jump height (plus
+## MovementRule.jump_slack) of the take-off until the next landing; a rise without a jump stays
+## within the step height (plus STEP_CLEARANCE and the slope allowance, of at most SLOPE_TICKS
+## ticks of travel) of the last landing, which on narrow stairs counts from the claim's feet.
 ## A downed player never jumps and climbs the step height.
 ## Players are placed at z = 5 on the ground (y = 0); the world has a 0.3 m step at z 6 to 8 and a
 ## 0.9 m ledge at z 10 to 14.
