@@ -228,7 +228,9 @@ locally.
   icon while its window is in use; a PowerShell toast tests whether Windows notifications work at all.
 - Merged tasks' worktrees: list `tools\run.cmd worktree-done <n>` (from `D:\prime-game`) for the human in the
   wave comment, to run once `release/m<k>` is merged into `main`; a worktree whose branch never reached main but
-  whose work did (merged into a parent) says so. Your `release-m<k>` worktree goes too.
+  whose work did (merged into a parent) says so. Your `release-m<k>` worktree goes too, but `worktree-done` takes
+  only an issue number: give the human `cd D:\prime-game; git worktree remove .claude/worktrees/release-m<k>; git
+  branch -d release/m<k>`, to run after the closing PR has merged into `main`.
 
 ## 9. Gotchas
 
