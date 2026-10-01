@@ -54,10 +54,11 @@ var end_reason: StringName = &""
 ## Payloads the codec rejected (the transport has counted what NetFrame rejected).
 var bad_payloads := 0
 ## The Corrections the host sent because it refused this client's claims (the debug overlay shows
-## it for #76's tuning; honest play gets none). A placement's or a knockdown's is not counted here.
+## it for #76's tuning; honest play gets none). A placement's, a knockdown's or a respawn's is not
+## counted here.
 var corrections := 0
-## The Corrections that came with a placement or a knockdown of this client (PLACING_EVENTS): the
-## host moved it; nothing it claimed was refused.
+## The Corrections that came with a placement, a knockdown or a respawn of this client
+## (PLACING_EVENTS): the host moved it; nothing it claimed was refused.
 var placements := 0
 
 var _transport: NetTransport
