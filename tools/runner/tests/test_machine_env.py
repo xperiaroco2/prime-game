@@ -130,11 +130,12 @@ class LoadTest(unittest.TestCase):
 
 
 class DoctorTest(unittest.TestCase):
-    def output(self, report: machine_env.Report, ci: bool = False) -> str:
+    def output(self, report: machine_env.Report, ci: bool = False, cloud: bool = False) -> str:
         buffer = io.StringIO()
         with (
             mock.patch.object(machine_env, "apply", return_value=report),
             mock.patch.object(doctor, "IS_CI", ci),
+            mock.patch.object(doctor, "IS_CLOUD", cloud),
             mock.patch.dict(os.environ, {"GODOT_BIN": GODOT}),
             contextlib.redirect_stdout(buffer),
         ):
@@ -174,6 +175,7 @@ class DoctorTest(unittest.TestCase):
         with (
             mock.patch.object(machine_env, "apply", return_value=report),
             mock.patch.object(doctor, "IS_CI", False),
+            mock.patch.object(doctor, "IS_CLOUD", False),
             mock.patch.object(doctor, "require_godot", return_value=GODOT),
             mock.patch.object(doctor, "godot_bin", return_value=GODOT),
             mock.patch.dict(os.environ, environ, clear=True),
@@ -198,6 +200,11 @@ class DoctorTest(unittest.TestCase):
     def test_ci_skips_the_missing_ones(self) -> None:
         out = self.output(self.report(), ci=True)
         self.assertIn("skip  PYTHON_BIN (not set; CI finds its tools on PATH)", out)
+        self.assertEqual(out.count("warn"), 1, out)
+
+    def test_a_cloud_session_skips_the_missing_ones_like_ci(self) -> None:
+        out = self.output(self.report(), cloud=True)
+        self.assertIn("skip  PYTHON_BIN (not set; a cloud session finds its tools on PATH)", out)
         self.assertEqual(out.count("warn"), 1, out)
 
 

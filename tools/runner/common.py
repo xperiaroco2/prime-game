@@ -23,6 +23,8 @@ LOGS = OUT / "logs"
 SCRATCH = "tests/scratch"
 IS_WINDOWS = os.name == "nt"
 IS_CI = os.environ.get("CI", "").lower() in ("1", "true", "yes")
+# A Claude Code cloud session (#159): a headless Linux container set up by tools/cloud/setup.sh, like CI.
+IS_CLOUD = os.environ.get("CLAUDE_CODE_REMOTE", "").lower() == "true"
 
 # Directories that hold project GDScript (addons/ is third-party and never linted or checked).
 GD_DIRS = ("core", "server", "net", "client", "voice", "content", "levels", "tools", "tests")

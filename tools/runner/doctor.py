@@ -12,6 +12,7 @@ from pathlib import Path
 from . import machine_env, pins
 from .common import (
     IS_CI,
+    IS_CLOUD,
     IS_WINDOWS,
     OUT,
     ROOT,
@@ -67,8 +68,8 @@ class Doctor:
             source = report.sources.get(var)
             if source:
                 ok(f"{var} from {source}: {os.environ.get(var, '')}")
-            elif IS_CI:
-                skip(f"{var} (not set; CI finds its tools on PATH)")
+            elif IS_CI or IS_CLOUD:
+                skip(f"{var} (not set; {'CI' if IS_CI else 'a cloud session'} finds its tools on PATH)")
             else:
                 warn(
                     f"{var} is not set: neither " + ", ".join(report.searched[:-1]) + f" nor {report.searched[-1]} "
@@ -86,8 +87,8 @@ class Doctor:
         if IS_WINDOWS and path and not Path(path).name.lower().endswith("_console.exe"):
             warn("GODOT_BIN is not the *_console.exe build; its output may not reach the runner")
         gui = os.environ.get("GODOT_GUI_BIN")
-        if IS_CI:
-            skip("GODOT_GUI_BIN (not needed in CI)")
+        if IS_CI or IS_CLOUD:
+            skip(f"GODOT_GUI_BIN (not needed in {'CI' if IS_CI else 'a cloud session'})")
         elif gui and Path(gui).is_file():
             ok(f"GODOT_GUI_BIN ({gui})")
         elif gui:
