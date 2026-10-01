@@ -1088,8 +1088,9 @@ host's own player sees only what its `ClientSession` decoded.
   where `ClientModel` clears the match's facts, as built). `MAP`: the scene that `ClientSession.map_loaded` hands
   over, instanced in the handler, before the session sends `LoadAck`. On the host the instancing blocks the main
   thread it shares with `HostSession`, and the next step's catch-up covers it (§4.5).
-- **Placement:** `Welcome`'s spot and every `Correction` (a placement, a knockdown, a respawn, a failed check)
-  teleport the local player through `ClientSession.corrected`.
+- **Placement:** `Welcome`'s spot teleports the local player on `ClientSession.welcomed`, from
+  `model.spots[own_peer]` (`Welcome` fires no `corrected`), and every `Correction` (a placement, a knockdown, a
+  respawn, a failed check) through `ClientSession.corrected`.
 - **The lobby panel:** Ready sends `SetReady`; on the host one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
   with that setting only; the demands and shortfalls come from `SettingsChanged`. The countdown and the match clock
