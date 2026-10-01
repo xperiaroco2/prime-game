@@ -36,6 +36,10 @@ const LOAD_FAILED := &"load_failed"
 const LEFT := &"left"
 ## MoveClaim's jumps is a u16 (§4.3); a count that high never happens in one epoch.
 const MAX_JUMPS := 0xFFFF
+## The events that move this client right before its Correction (place_players.gd at Loading and
+## at End -> Lobby, life_rules.gd at a death): that Correction counts in `placements`, not in
+## `corrections`. A new rule that places a player and sends a Correction adds its event here.
+const PLACING_EVENTS: Array[StringName] = [&"PlayersPlaced", &"Died"]
 
 ## The record of every decoded message, for the bots and the leak test; off by default (a real
 ## client does not need it, and a 10-minute match holds 12000 snapshots), like Match.keep_history.
@@ -48,8 +52,12 @@ var model: ClientModel
 var end_reason: StringName = &""
 ## Payloads the codec rejected (the transport has counted what NetFrame rejected).
 var bad_payloads := 0
-## The Corrections this client adopted (the debug overlay shows it; honest play gets none).
+## The Corrections the host sent because it refused this client's claims (the debug overlay shows
+## it for #76's tuning; honest play gets none). A placement's or a death's is not counted here.
 var corrections := 0
+## The Corrections that came with a placement or a death of this client (PLACING_EVENTS): the host
+## moved it; nothing it claimed was refused.
+var placements := 0
 
 var _transport: NetTransport
 var _schema: WireSchema
@@ -76,6 +84,8 @@ var _loading_match := -1
 var _abandoned := PackedStringArray()
 ## The reason of the last Disconnecting: the end reason when the host then disconnects it.
 var _disconnecting: StringName = &""
+## True from a placing event naming this client until the Correction that follows it.
+var _placement_due := false
 
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
@@ -91,6 +101,7 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 	_transport.host_lost.connect(_on_host_lost)
 	_transport.packet_received.connect(_on_packet)
 	corrected.connect(_count_correction)
+	event_received.connect(_note_placement)
 
 
 ## Polls the transport, then advances a threaded load and sends the MoveClaim due by `now_usec`.
@@ -273,7 +284,22 @@ func _on_snapshot(fields: Dictionary) -> void:
 
 
 func _count_correction(_position: Vector3, _velocity: Vector3) -> void:
-	corrections += 1
+	if _placement_due:
+		_placement_due = false
+		placements += 1
+	else:
+		corrections += 1
+
+
+## A placing event that names this client: the next Correction is its placement (the host sends
+## the event first, place_players.gd and life_rules.gd).
+func _note_placement(event_name: StringName, fields: Dictionary) -> void:
+	if not PLACING_EVENTS.has(event_name) or not _welcomed:
+		return
+	if event_name == &"PlayersPlaced":
+		_placement_due = (fields["spots"] as Dictionary).has(model.own_peer)
+	elif fields["peer"] as int == model.own_peer:
+		_placement_due = true
 
 
 ## A new epoch (Welcome, Correction): its claims count jumps from 0 and start where the host put it.

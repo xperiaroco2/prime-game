@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## What ClientSession hands to the views of M4-7 (ARCHITECTURE §4.7, Movement on the network):
 ## every decoded snapshot through `snapshot_received`, older ones included (SnapshotBuffer sorts
-## them by host tick), and the count of Corrections it adopted, for the debug overlay.
+## them by host tick), and the count of Corrections it adopted, for the debug overlay: a refused
+## claim's apart from a placement's or a death's.
 
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
 
@@ -40,6 +41,39 @@ func test_corrections_are_counted_and_welcome_is_not_one() -> void:
 	_harness.send(CorrectionEvent.new(_harness.peer, 3, Vector3(5, 0, 4), Vector3.ZERO))
 	_harness.pump()
 	assert_int(_harness.session.corrections).is_equal(2)
+
+
+func test_a_placement_or_a_death_is_not_a_correction() -> void:
+	_harness.welcome(&"lobby", 1)
+	var session := _harness.session
+	var spots: Dictionary[int, Vector3] = {_harness.peer: Vector3(6, 0, 6), 99: Vector3(7, 0, 6)}
+	_harness.send(PlayersPlacedEvent.new(spots))
+	_harness.send(CorrectionEvent.new(_harness.peer, 2, Vector3(6, 0, 6), Vector3.ZERO))
+	_harness.pump()
+	assert_int(session.corrections).is_equal(0)
+	assert_int(session.placements).is_equal(1)
+	_harness.send(DiedEvent.new(_harness.peer, Vector3(6, 0, 7)))
+	_harness.send(CorrectionEvent.new(_harness.peer, 3, Vector3(6, 0, 7), Vector3.ZERO))
+	_harness.pump()
+	assert_int(session.corrections).is_equal(0)
+	assert_int(session.placements).is_equal(2)
+	# A bare Correction after them is a refused claim again.
+	_harness.send(CorrectionEvent.new(_harness.peer, 4, Vector3(6, 0, 8), Vector3.ZERO))
+	_harness.pump()
+	assert_int(session.corrections).is_equal(1)
+	assert_int(session.placements).is_equal(2)
+
+
+func test_someone_else_placed_or_dead_leaves_the_next_correction_counted() -> void:
+	_harness.welcome(&"lobby", 1)
+	var session := _harness.session
+	var spots: Dictionary[int, Vector3] = {99: Vector3(7, 0, 6)}
+	_harness.send(PlayersPlacedEvent.new(spots))
+	_harness.send(DiedEvent.new(99, Vector3(7, 0, 6)))
+	_harness.send(CorrectionEvent.new(_harness.peer, 2, Vector3(4, 0, 4), Vector3.ZERO))
+	_harness.pump()
+	assert_int(session.corrections).is_equal(1)
+	assert_int(session.placements).is_equal(0)
 
 
 func _snapshot(tick: int, at: Vector3) -> void:

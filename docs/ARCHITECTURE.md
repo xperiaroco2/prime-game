@@ -1255,8 +1255,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   snapshots travel on different lanes), forgets the poses at `LoadMatch` and gives the estimated host tick
   (`host_tick()`) and the delay. A teleport too far for anyone to walk in the time between two snapshots (30 m/s, a
   placeholder) also snaps.
-- `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, and `corrections`,
-  the count of adopted `Correction`s.
+- `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
+  count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
+  (`PLACING_EVENTS`: `PlayersPlaced`, `Died`; a later rule that places a player with a `Correction`, a revive or a
+  respawn, adds its event there).
 - `client/app/game.gd` wires them: a `SnapshotBuffer` per session, the player's rules and session, the lobby's
   countdown from the estimate, `device_input` (tests drive the controller's wish fields), and in a debug build the
   debug overlay (`client/ui/debug_overlay.gd`, the `debug_overlay` action on F3; `client/dev/debug_overlay_preview.tscn`
@@ -1516,7 +1518,8 @@ The core tick rate is set in §3.3; what the host checks, in §7.1. The snapshot
   about 0.2 % of frames where a fixed 100 ms holds on 16 % (the spike's lesson below; `snapshot_buffer_test.gd`).
 - **Correction policy:** the host corrects a claim that fails a check of §7.1 with a `Correction` of a new epoch; the
   client adopts it at once (`ClientSession.corrected` teleports the controller before it moves) and counts it, and
-  the debug overlay (F3) shows the count: honest play gets none. The tolerances stay placeholders until #76 and the
+  the debug overlay (F3) shows the count: honest play gets none. A placement's or a death's `Correction` (right after
+  a `PlayersPlaced` or a `Died` naming the client) is counted apart, as a placement. The tolerances stay placeholders until #76 and the
   M4 playtests. Found by M4-7's test: on stairs whose treads are narrower than the capsule (0.3 m against 0.8 m) the
   host corrects an honest climb, walking or sprinting, because the landing floor it finds with five rays under the
   footprint lies below the stair edge the capsule rests on; 0.5 m treads pass. That is #76's slope rise to settle.
