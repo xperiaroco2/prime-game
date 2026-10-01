@@ -205,11 +205,11 @@ class LongLivedBaseTest(Repos):
         git(self.github, "fetch", "-q")
         git(self.github, "push", "-q", "origin", f"refs/remotes/origin/main:refs/heads/{name}")
 
-    def land_on_release(self, name: str, message: str) -> None:
-        """The manager merges another task's PR into the release branch: --no-ff, pushed by hash."""
+    def land_on_release(self, path: str, message: str) -> None:
+        """The manager merges another task's PR (it changes `path`) into RELEASE: --no-ff, pushed by hash."""
         git(self.github, "fetch", "-q")
         git(self.github, "switch", "-q", "--detach", f"origin/{RELEASE}")
-        self.commit(self.github, name, message)
+        self.commit(self.github, path, message)
         task = git(self.github, "rev-parse", "HEAD")
         git(self.github, "switch", "-q", "--detach", f"origin/{RELEASE}")
         git(self.github, "merge", "-q", "--no-ff", "-m", f"Merge {message}", task)
