@@ -88,10 +88,11 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 5. Restate goal, acceptance criteria, plan, verification commands and risks. Non-trivial work: plan mode, wait for "go".
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
-1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. Once the bot harness
-   exists (M3), `verify` runs the bot match too.
+1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
+   matches too (`bots` and `bots-enet`, §11).
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
-   content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/` or `net/` changed; plus
+   content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/` or `tests/harness/` (the
+   information-leak test) changed; plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. One question: **"Publish now? (push + PR + handoff comment)"**.
