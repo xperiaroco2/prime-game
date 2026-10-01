@@ -164,7 +164,8 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 func test_crew_and_dissident() -> void:
 	var mode := _base_mode()
 	var crew := mode.find_role(&"crew")
-	assert_str(crew.display_name).is_equal("Crew")
+	# Vision revision 1: the crew are shown as Engineers; the ids stay `crew` (the wire, the data).
+	assert_str(crew.display_name).is_equal("Engineer")
 	assert_str(crew.side).is_equal("crew")
 	assert_bool(crew.knows_teammates).is_false()
 	assert_array(crew.actions).is_empty()
@@ -173,6 +174,8 @@ func test_crew_and_dissident() -> void:
 	assert_str(dissident.side).is_equal("dissidents")
 	assert_bool(dissident.knows_teammates).is_true()
 	assert_array(dissident.actions).is_empty()
+	assert_str(mode.find_side(&"crew").display_name).is_equal("Engineers")
+	assert_str(mode.find_side(&"dissidents").display_name).is_equal("Dissidents")
 
 
 func test_knife() -> void:

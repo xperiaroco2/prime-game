@@ -281,7 +281,7 @@ max_value = 100
 [sub_resource type="Resource" id="Side_crew"]
 script = ExtResource("4_side")
 id = &"crew"
-display_name = "Crew"
+display_name = "Engineers"
 
 [sub_resource type="Resource" id="Side_dissidents"]
 script = ExtResource("4_side")
