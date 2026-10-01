@@ -16,6 +16,8 @@ const ACTIONS: Array[StringName] = [
 	&"give_up",
 	&"spectate_next",
 	&"spectate_previous",
+	&"swap",
+	&"task_screen",
 ]
 
 
@@ -61,6 +63,17 @@ func test_give_up_is_g_and_the_mouse_buttons_cycle_the_spectate_target() -> void
 	var previous := InputMap.action_get_events(&"spectate_previous")[0] as InputEventMouseButton
 	assert_int(next.button_index).is_equal(MOUSE_BUTTON_LEFT)
 	assert_int(previous.button_index).is_equal(MOUSE_BUTTON_RIGHT)
+
+
+func test_swap_is_x_and_the_task_screen_is_tab() -> void:
+	# The M4 ADR's controls (D6, M4-8): X swaps the hand and the belt; Tab held shows the tasks.
+	for pair: Array in [[&"swap", KEY_X], [&"task_screen", KEY_TAB]]:
+		var keys: Array[Key] = []
+		for event: InputEvent in InputMap.action_get_events(pair[0] as StringName):
+			var key := event as InputEventKey
+			if key != null:
+				keys.append(key.physical_keycode)
+		assert_array(keys).contains([pair[1]])
 
 
 func test_the_downed_have_no_fly_down_action() -> void:
