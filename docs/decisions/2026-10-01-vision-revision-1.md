@@ -111,7 +111,8 @@ Replaces "Death and ghosts". There are no ghosts.
 - At 0 health a living player is **knocked down** where they stand, for the knockdown time (10 s). Everyone learns it
   from a public event that names no attacker, as a death's names none.
 - A downed player can only **crawl** and **give up**. Crawling: the crawl speed (1 m/s), climbing the step height, no
-  jump, no sprint and no stamina cost; they collide with the level, not with the living, and push nobody.
+  jump, no sprint and no stamina cost; they collide with the level and with no player, living or downed, as
+  ghosts did not collide with ghosts, and push nobody.
 - They keep their items in their hands and cannot use, put down, pick up or swap them.
 - Strikes skip a downed player: they **cannot be hit**.
 - Crawling into a circle with the package and giving up, so that the package drops at the body inside its circle and
