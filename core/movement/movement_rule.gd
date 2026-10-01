@@ -37,9 +37,9 @@ extends RefCounted
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (for the
 ##   living sprint in the sprint state with movement input, else walk; for the downed the crawl
 ##   speed, with no sprint), plus, for the living only, sprint speed for being pushed (§7.1
-##   "Pushing apart", proposed for M4) while another living player's last accepted position is
-##   within push_reach() of the claim's path (the downed push nobody and nobody pushes them), plus
-##   DISTANCE_SLACK_M. After a claim that sprinted by its own input, one covered tick more may go
+##   "Pushing apart", proposed for M4) for at most PUSH_TICKS covered ticks, while another living
+##   player's last accepted position is within push_reach() of the claim's path (the downed push
+##   nobody and nobody pushes them), plus DISTANCE_SLACK_M. After a claim that sprinted by its own input, one covered tick more may go
 ##   at sprint speed: the sprint's last tick, which the claim's flags may no longer show. The
 ##   crawl's slack is CRAWL_SLACK_FRACTION of its own travel (+ the float slack) instead: a fixed
 ##   slack per claim would let a client sending one-tick claims crawl at twice the crawl speed.
@@ -106,6 +106,11 @@ const PUSH_LAG_S := 0.2
 ## (up to MAX_TICK_CREDIT ticks) rises no higher than SLOPE_TICKS ticks of its travel would take
 ## it. Accepted: a 45° climb through a stall of more than about half a second is corrected once.
 const SLOPE_TICKS := 10
+## The most covered ticks the push allowance counts (#76), for the same reason: a client that kept
+## quiet for MAX_TICK_CREDIT ticks would otherwise travel 200 ticks of walk plus push (115 m) in
+## one claim whose path passes near anyone. Accepted: an honest player pushed through a stall of
+## more than about half a second is corrected once.
+const PUSH_TICKS := 10
 
 
 ## What the checks remember of one player between claims.
@@ -329,7 +334,8 @@ static func _allowed_travel(
 	if pushed:
 		# A pushed living player moves out of an overlap at up to sprint speed on top of its own
 		# (§7.1 "Pushing apart"; proposed for M4, not decided).
-		travel += covered * rules.sprint_speed_mps * metres_per_tick
+		# At most PUSH_TICKS ticks of it: stored credit buys no more push.
+		travel += mini(covered, PUSH_TICKS) * rules.sprint_speed_mps * metres_per_tick
 	return travel + DISTANCE_SLACK_M
 
 

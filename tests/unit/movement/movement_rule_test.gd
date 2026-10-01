@@ -359,6 +359,16 @@ func test_the_push_allowance_needs_a_living_player_within_reach_of_the_path() ->
 	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8)).is_true()
 
 
+func test_a_claim_covering_stored_credit_is_pushed_for_at_most_the_push_ticks() -> void:
+	# P1 keeps quiet for 40 ticks beside P2, then one claim without input covers them all. Walk
+	# 40 * 0.225 = 9 m, plus the push for at most PUSH_TICKS (10) ticks, 3.5 m, plus 0.05 m:
+	# 12.55 m. Counting the push over all 40 ticks would allow 23.05 m.
+	assert_int(MovementRule.PUSH_TICKS).is_equal(10)
+	assert_bool(_quiet_push_corrected(12.5)).is_false()
+	assert_bool(_quiet_push_corrected(12.6)).is_true()
+	assert_bool(_quiet_push_corrected(20.0)).is_true()
+
+
 func test_a_downed_player_crawls_with_no_sprint_and_no_push_allowance() -> void:
 	var game := FixtureMoves.in_round([P1])
 	var downed := game.state.player(P1)
@@ -508,4 +518,17 @@ func _pushed_claim_corrected(game: Match, offset: Vector3) -> bool:
 	_put(game, P2, player.position + offset)
 	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, EAST * 0.6)
+	return FixtureMoves.corrections(game, P1).size() > seen
+
+
+## Whether P1's one claim of `distance` m east without movement input, covering 40 client ticks
+## after 39 quiet ones, is corrected while P2's last accepted position is beside its start.
+func _quiet_push_corrected(distance: float) -> bool:
+	var game := FixtureMoves.in_round([P1, P2])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	_put(game, P2, player.position + NORTH * 0.8)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureModes.run_ticks(game, 39)
+	FixtureMoves.step(game, P1, EAST * distance)
 	return FixtureMoves.corrections(game, P1).size() > seen
