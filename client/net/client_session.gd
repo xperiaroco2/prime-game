@@ -73,7 +73,7 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 	_transport = transport
 	_mode = mode
 	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
-	_content = ContentFingerprint.of(mode)
+	_content = ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 	model = ClientModel.new(mode)
 	_transport.connected.connect(_on_connected)
 	_transport.connect_failed.connect(_end.bind(CONNECT_FAILED))

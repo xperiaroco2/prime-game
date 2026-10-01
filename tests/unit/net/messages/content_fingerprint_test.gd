@@ -20,36 +20,36 @@ func after_test() -> void:
 
 
 func test_the_same_mode_and_files_give_the_same_value() -> void:
-	assert_int(ContentFingerprint.of(_mode())).is_equal(ContentFingerprint.of(_mode()))
+	assert_int(_of(_mode())).is_equal(_of(_mode()))
 
 
 func test_a_changed_level_file_gives_another_value() -> void:
-	var before := ContentFingerprint.of(_mode())
+	var before := _of(_mode())
 	_write("map.tscn", "map with a moved wall")
-	assert_int(ContentFingerprint.of(_mode())).is_not_equal(before)
+	assert_int(_of(_mode())).is_not_equal(before)
 	_write("map.tscn", "map")
-	assert_int(ContentFingerprint.of(_mode())).is_equal(before)
+	assert_int(_of(_mode())).is_equal(before)
 	_write("lobby.tscn", "lobby with a light")
-	assert_int(ContentFingerprint.of(_mode())).is_not_equal(before)
+	assert_int(_of(_mode())).is_not_equal(before)
 
 
 func test_a_changed_mode_gives_another_value() -> void:
-	var before := ContentFingerprint.of(_mode())
+	var before := _of(_mode())
 	var mode := _mode()
 	mode.player_rules.walk_speed_mps += 0.5
-	assert_int(ContentFingerprint.of(mode)).is_not_equal(before)
+	assert_int(_of(mode)).is_not_equal(before)
 
 
 func test_a_missing_level_file_gives_another_value() -> void:
-	var before := ContentFingerprint.of(_mode())
+	var before := _of(_mode())
 	DirAccess.remove_absolute(_dir.path_join("map.tscn"))
-	assert_int(ContentFingerprint.of(_mode())).is_not_equal(before)
+	assert_int(_of(_mode())).is_not_equal(before)
 
 
 func test_the_content_mode_has_a_fingerprint() -> void:
 	var mode: GameMode = load("res://content/modes/base_mode.tres")
-	assert_int(ContentFingerprint.of(mode)).is_equal(ContentFingerprint.of(mode))
-	assert_int(ContentFingerprint.of(mode)).is_not_equal(ContentHash.of(mode))
+	assert_int(_of(mode)).is_equal(_of(mode))
+	assert_int(_of(mode)).is_not_equal(ContentHash.of(mode))
 
 
 func _mode() -> GameMode:
@@ -63,3 +63,8 @@ func _write(file: String, text: String) -> void:
 	var out := FileAccess.open(_dir.path_join(file), FileAccess.WRITE)
 	out.store_string(text)
 	out.close()
+
+
+## As server/ and every client call it.
+func _of(mode: GameMode) -> int:
+	return ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)

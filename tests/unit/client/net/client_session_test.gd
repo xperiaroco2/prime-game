@@ -25,7 +25,10 @@ func test_it_sends_hello_with_the_version_and_the_content_fingerprint_on_connect
 	assert_int(hellos[0].fields["version"] as int).is_equal(WireSchema.VERSION)
 	assert_int(hellos[0].fields["version"] as int).is_equal(JoinRules.PROTOCOL_VERSION)
 	var content: int = hellos[0].fields["content"]
-	assert_int(content).is_equal(ContentFingerprint.of(_harness.mode))
+	var mode := _harness.mode
+	assert_int(content).is_equal(
+		ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
+	)
 	assert_int(hellos[0].seq).is_equal(0)
 
 
