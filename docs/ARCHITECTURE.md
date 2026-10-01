@@ -900,6 +900,21 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
   after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
   listener also checks that the relay changed no frame and named the right speaker.
+  **Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
+  claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
+  them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
+  `LoadAck` back while the bot's step is `LoadAck`, since a bot loads no scene and would acknowledge at once),
+  `BotsRunner` (one process), `BotsEnet` (one instance over ENet), `LeakCheck`, `BotWatcher` (the lurker and the
+  refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
+  - A network bot's intent reaches `Match` one host tick or so after the core runner's would (the host reads it in
+    its next step), so a step's timing differs by that much between the runners; the six MVP scenarios pass in both.
+  - The mover claims one client tick of travel per client tick: when the bot walks, it advances by the client ticks
+    since its last move (one per tick on the simulated clock), and its `ClientSession` claims the position on the
+    next client tick. Standing, it claims where it stands with no velocity.
+  - Bot 1 sends the `ForceRole`s once it knows the peer of every bot that joins at the start, then the setup's
+    `ChangeSettings`, as the core runner does at tick 0; a later joiner's `ForceRole` goes once it connected.
+  - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
+    `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
 - **The runners** (§9.7; E12):
   - `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/`, or those named, in one headless
     process over `LoopbackHub`: a `HostSession` with `keep_history` on, bot 1 its own client, the others loopback
@@ -909,8 +924,12 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     hosts with bot 1, instances 2 to N run one bot each, on the real clock. Each bot writes its decoded view and its
     peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
     lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares.
-  - The one-process `bots` joins `verify` after `freeze`, and so CI; the ENet run joins it too if it stays under a
-    minute (3h measures).
+  - The one-process `bots` joins `verify` after `freeze` and `stall`, and so CI (all six MVP scenarios: about 8 s);
+    the ENet run joins it too as `bots-enet`: `dissident_kills_the_crew` with 3 instances took 18 s (2026-10-01).
+  - Over ENet each bot writes its view file when its script is done and it decoded the expected ends (or its
+    session ended), and keeps stepping until the host closes; the match goes on meanwhile, so the host compares each
+    file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks), and its own bot, the
+    lurker and the refused bot exactly. The one-process runner compares every bot that did not leave exactly.
 - **The information-leak test** (§5) compares what each bot b decoded with `view_of(b)`:
   - events: b's decoded events are `view_of(b)`'s, in order, as (name, `to_dict()`); for a bot that left, a prefix;
   - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
@@ -936,7 +955,13 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
     one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
     catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
-    fail on each, revert, and record all three in the PR.
+    fail on each, revert, and record all three in the PR. **Done in 3h (#102)** with `tools\run.cmd bots`: the first
+    failed 5 of the 6 scenarios on the comparison alone (`refusals` has one bot, which gets its own `RoleAssigned`
+    anyway); the second failed on `ScenarioInvariants` through the observer (`peer 2 (crew) learned the role of peer
+    1`); the third failed every scenario, and in `refusals` only on the lurker and the refused bot. In the scenarios
+    with more bots it also reaches a bot that is connected and has not sent its `Hello` yet, a peer that is not a
+    player for that moment. `tests/scenarios/bots_runner_test.gd` sees each check of `LeakCheck` fail on a planted
+    leak.
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they run
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
@@ -1910,10 +1935,11 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
 - `WalkTo` claims one host tick of travel per tick (client ticks rising by one), at sprint speed only while the
   last `SelfStatus` says sprint is available (a ghost always, at 1.3 times), and stops exactly `stop_m` short.
   `Jump` claims a jump where the bot stands, on the floor: the bot's jump count in its epoch plus one (3e; D3 (a),
-  waiting for the designer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
+  the designer's answer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
   right after the joins at the start, and its settings in one `ChangeSettings` from bot 1 after them.
-- `fields` match a subset of the event's payload (then its properties, so `peer` works on `SelfStatus`): text as
-  text, numbers and vectors approximately, and `peer` holds a bot's number. `never` names an event, fields and a
+- `fields` match a subset of the event's payload, as the bot received it (name and fields): text as text, numbers
+  and vectors approximately, and `peer` holds a bot's number, mapped through the runner's `ScenarioPeers`; an event
+  for one peer whose payload names none (`SelfStatus`) matches `peer` as the bot that received it (3h). `never` names an event, fields and a
   bot (0: every bot).
 
 - **Targets come from the bot's own view**, the events and snapshots its client received: `package(n)` (the n-th
@@ -1931,7 +1957,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   events in `Match.view_of`, in order, and every snapshot and voice frame it decoded is in `view_of`, which is a
   subset check, because the unreliable lanes (`LATEST`, `VOICE`) may lose some.
 - **Runners:**
-  - *Core* (stage 2j, #66): `tests/harness/` (`ScenarioRunner`, `ScenarioBot`, `ScenarioInvariants`) drives `Match`
+  - *Core* (stage 2j, #66): `tests/harness/` (`ScenarioRunner` on `ScenarioPlay`'s steps since 3h, `ScenarioBot`,
+    `ScenarioInvariants`, `ScenarioPeers`) drives `Match`
     directly, as `server/` would. Each host tick every bot acts on what it received so far, its commands are
     applied in bot order with the tick's stamp, the tick runs, and each event goes to exactly its recorded
     recipients (`take_outbox`), so a bot holds its peer's `view_of`, which the runner asserts at the end. It
@@ -1951,6 +1978,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     on 127.0.0.1 with `--instances`, on the real clock. It plays the core runner's steps and checks its
     `ScenarioInvariants` (per `Match` call, through `HostSession`'s observer, §4.5), with `HostSession` in the place
     of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
+    Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in

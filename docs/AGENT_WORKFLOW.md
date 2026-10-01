@@ -571,19 +571,29 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   foreground). On Windows, Ctrl+C in `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session
   has already stopped, so either answer is fine. Its selftest runs a host and two local clients to the full lobby
   roster.
+- **`bots [scenario ...]` [applied]** (#102; `docs/ARCHITECTURE.md` §4.6, §9.7): plays every bot scenario in
+  `content/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot, in one headless process
+  over the loopback on a simulated clock (60 steps per simulated second: the six MVP scenarios take about 8 s), and
+  asserts the information-leak test (§5 there) for every bot, a lurker and a refused bot. `--instances N` plays one
+  scenario of N bots over ENet on 127.0.0.1 on a free port, one process per bot, on the real clock; `--seconds`
+  overrides the timeout (300, over ENet 180). It runs `tests/harness/bots/bots_main.gd` through `run`, so `run`'s
+  failure rules apply. A failed scenario prints its seed and each failure (the bot, its step, its last events) and
+  writes the command log that replays it (`ReplayFiles.read`, then `Match.replay`) to `tools/out/bots/<scenario>/`,
+  next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty.
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`, `run`,
-  `agents-check`, `credits`, `host`, `join`, and `hook` (for Claude Code only); `bots` comes with the bot harness
-  (M3). Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
+  `agents-check`, `credits`, `host`, `join`, `bots` (both above), and `hook` (for Claude Code only). Pins and pass/fail
+  rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
   `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a
   Claude Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   and on `main`, with the checksum-checked Godot build from the pins. `verify` runs, in this order: `doctor --quick`,
-  `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below) and `selftest`;
-  any red step fails it. The `enet` step is
+  `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots` and
+  `bots-enet`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about 8 s) and
+  `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 18 s on 2026-10-01, under the minute #102 allows). The `enet` step is
   `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
   5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
   `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
