@@ -551,13 +551,27 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
   `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
   project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
+- **`host` and `join` [applied]** (3i, #103; `docs/ARCHITECTURE.md` §4.6): headless sessions over ENet of the base
+  mode, through `client/dev/headless_session.gd`. `host [--port P] [--clients N] [--local] [--seconds S]` hosts (a
+  `HostSession` and its own `ClientSession`) on every interface, or on 127.0.0.1 only with `--local` (no firewall
+  prompt), and with `--clients N` (up to 7) starts N headless clients that join it on 127.0.0.1 once it hosts.
+  `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a placeholder ("not a
+  decision"). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase,
+  and the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
+  budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
+  once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no answer). The runner echoes
+  them live as `[host]`, `[client 2]` or `[join]` and keeps each in `tools/out/logs/session/<label>.log`. They run
+  until Ctrl+C, `--seconds S` or every process ending; the stop is clean (a stop file each process polls: the host
+  closes, so the clients see `host_lost` at once), and a process still running 10 s later is killed. Fails like
+  `run`: a non-zero exit (a refused join, a host that cannot start) or an engine error line. The agent's own checks
+  pass `--local --seconds S`. Its selftest runs a host and two local clients to the full lobby roster.
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`, `run`,
-  `agents-check`, `credits`, and `hook` (for Claude Code only); `bots`, `host` and `join` come with the bot harness
-  (M3) and the M1 spike. Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
+  `agents-check`, `credits`, `host`, `join`, and `hook` (for Claude Code only); `bots` comes with the bot harness
+  (M3). Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
   `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a
   Claude Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
@@ -593,7 +607,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   of `docs/ARCHITECTURE.md` (the contract). **Effort:** medium.
 - **By milestone:** M0–M1 GDD open questions, `mechanic` issues, review of the content-API draft · M2 first content
   `.tres` · M3 bot scenarios (`content/scenarios/`, `docs/ARCHITECTURE.md` §9.7) · M4 level pieces with `shot`
-  screenshots; "запусти хост і двох клієнтів" runs `run host` / `run join`.
+  screenshots; "запусти хост і двох клієнтів" runs `tools\run.cmd host --clients 2` (headless in M3; M4 gives it
+  windows), and a second machine `tools\run.cmd join <address>` (§11).
 
 ## 13. How humans talk to the agent
 
