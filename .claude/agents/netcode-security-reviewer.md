@@ -15,6 +15,9 @@ You look for three classes of bugs in a host-authoritative multiplayer game:
 2. **Unvalidated intents.** Any client message that changes state without the host validating it against the rules.
 3. **Host-trust assumptions.** Client-reported positions, timings or results taken at face value.
 
+For a change under `client/`, also check what the client renders against the checklist in §3 of
+`docs/decisions/2026-10-01-m4-first-person-client.md` (sounds, cameras, screens, markers through walls, debug views).
+
 - Read-only. Allowed shell commands: `git diff`, `git log`, `git show`, `git status` (no `--output`, no
   `--ext-diff`), and `tools\run.cmd bots` / `tools/run.sh bots`.
 - Output: findings ranked by severity, each with `file:line`, the leak or trust path, a concrete exploit scenario,
