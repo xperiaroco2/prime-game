@@ -90,11 +90,12 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - **Designer:** `content/ levels/ docs/GDD.md docs/design/` and the skills `new-mechanic` and `new-level-piece`.
 - **Shared:** `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/`.
 - The designer's agent never edits engine code: a missing primitive becomes an `engine-request` issue with a precise
-  spec. The engineer's agent never rebalances or redesigns content without the designer's approval in the PR.
-- Scenes are single-owner: never edit a scene someone else has an open PR on.
-- The Godot editor may be open on this checkout. Remind the human: Save All Scenes (Ctrl+Shift+Alt+S) before asking
-  the agent, no hand edits while it works, and on "files changed on disk" choose Reload («Джерело отримання»), never
-  «Ігнорувати зовнішні зміни».
+  spec. The engineer's agent changes the designer's area only with the designer's approval in the PR, or when the
+  engineer says the designer agreed: the PR then says "agreed with the designer, relayed by the engineer" and tags
+  @SwiftySinister; an objection is reverted by a follow-up PR. Never edit a scene in someone else's open PR.
+<!-- see docs/interventions/2026-10-01-engineer-relayed-design-agreement.md -->
+- The Godot editor may be open. Remind the human: Save All Scenes (Ctrl+Shift+Alt+S) before asking the agent, no hand
+  edits while it works; on "files changed on disk" Reload («Джерело отримання»), never «Ігнорувати зовнішні зміни».
 
 ## Routing
 | When | Use |
