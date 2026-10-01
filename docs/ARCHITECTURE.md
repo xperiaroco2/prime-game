@@ -93,8 +93,8 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
   no timer; the body stays; the speed factor, the stamina exemption and who sees it are the ghosts'), and nothing
   reaches DEAD: the sections not yet reworked that say *ghost* describe the downed. `AcceptSpec.From` names a
   newcomer (1), any player (2), the living (4), the host (16) and the downed (32). Bit 8 was the ghosts' and is
-  never reused, so a mode written for ghosts cannot silently accept the dead: the mode check refuses a sender bit
-  that names nobody. There is no flag for the dead, who send no intents; one is added only when a mode needs it.
+  never reused; a mode still written for ghosts would silently refuse the downed's claims, so the mode check refuses
+  a sender bit that names nobody. There is no flag for the dead, who send no intents; one is added only when a mode needs it.
 
 ### 3.2 Base mode: phases and transitions
 A **player** is a peer whose `Hello` was accepted; *everyone* in an audience means every player (§5). A connected
