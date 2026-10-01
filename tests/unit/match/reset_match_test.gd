@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 ## ResetMatch (ARCHITECTURE §3.2, §9.1, §9.4): on `End -> Lobby` it resets the match state from the
 ## roster and un-readies everyone (ReadyChanged per player), and it runs before PlacePlayers, so
-## nobody is placed, and announced to everyone, while still a ghost.
+## nobody is placed, and announced to everyone, while still downed.
 
 const P1 := 1
 const P2 := 2
@@ -10,7 +10,7 @@ const P3 := 3
 
 func test_back_resets_the_match_before_placing_players() -> void:
 	var game := FixtureBaseMode.in_end([P1, P2, P3])
-	game.state.player(P2).life = PlayerState.Life.GHOST
+	game.state.player(P2).life = PlayerState.Life.DOWNED
 	game.state.bodies[P2] = Vector3(1, 0, 1)
 	game.state.player(P3).role = &"crew"
 	var from := game.view_of(P1).events.size()
@@ -43,31 +43,31 @@ func test_back_resets_the_match_before_placing_players() -> void:
 		assert_array(lobby).contains([placed.spots[peer]])
 
 
-func test_placing_before_the_reset_would_place_a_ghost() -> void:
+func test_placing_before_the_reset_would_place_a_downed_player() -> void:
 	# Why the order matters: with the actions swapped, PlacePlayers places and announces P2 while
-	# it is still a ghost, and the reset's ReadyChanged only follows the placement.
+	# it is still downed, and the reset's ReadyChanged only follows the placement.
 	var mode := FixtureBaseMode.mode()
 	var probe := FixtureLifeProbe.new()
 	var row := mode.find_transition(&"end", EndPhase.BACK)
 	row.actions = [FixtureModes.place(&"lobby_player"), probe, ResetMatch.new()]
 	var game := _in_end(mode)
-	game.state.player(P2).life = PlayerState.Life.GHOST
+	game.state.player(P2).life = PlayerState.Life.DOWNED
 	var from := game.view_of(P1).events.size()
 	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1)
-	assert_array(probe.ghosts_seen).is_equal([P2])
+	assert_array(probe.downed_seen).is_equal([P2])
 	var placed := game.view_of(P1).events_named(&"PlayersPlaced")[-1] as PlayersPlacedEvent
 	assert_bool(placed.spots.has(P2)).is_true()
 	var names := FixtureBaseMode.names_since(game, P1, from)
 	assert_int(names.find(&"PlayersPlaced")).is_less(names.find(&"ReadyChanged"))
-	# In the base mode's order, nobody is a ghost any more when the players are placed.
+	# In the base mode's order, nobody is downed any more when the players are placed.
 	var in_order := FixtureBaseMode.mode()
 	var after_reset := FixtureLifeProbe.new()
 	var ordered := in_order.find_transition(&"end", EndPhase.BACK)
 	ordered.actions = [ResetMatch.new(), after_reset, FixtureModes.place(&"lobby_player")]
 	var second := _in_end(in_order)
-	second.state.player(P2).life = PlayerState.Life.GHOST
+	second.state.player(P2).life = PlayerState.Life.DOWNED
 	FixtureModes.send(second, Intents.RETURN_TO_LOBBY, P1)
-	assert_array(after_reset.ghosts_seen).is_empty()
+	assert_array(after_reset.downed_seen).is_empty()
 
 
 func test_the_next_match_has_the_next_id() -> void:

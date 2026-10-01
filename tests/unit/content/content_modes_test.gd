@@ -119,7 +119,8 @@ func test_the_base_mode_writes_its_numbers() -> void:
 
 
 func test_end_to_lobby_resets_the_match_before_placing_players() -> void:
-	# Placed first, a ghost would still be a ghost when PlayersPlaced goes to everyone (#58).
+	# Placed first, a downed player would still be downed when PlayersPlaced goes to everyone
+	# (#58).
 	var mode := _base_mode()
 	var row := mode.find_transition(&"end", &"back")
 	assert_int(row.actions.size()).is_equal(2)
@@ -163,7 +164,8 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 func test_crew_and_dissident() -> void:
 	var mode := _base_mode()
 	var crew := mode.find_role(&"crew")
-	assert_str(crew.display_name).is_equal("Crew")
+	# Vision revision 1: the crew are shown as Engineers; the ids stay `crew` (the wire, the data).
+	assert_str(crew.display_name).is_equal("Engineer")
 	assert_str(crew.side).is_equal("crew")
 	assert_bool(crew.knows_teammates).is_false()
 	assert_array(crew.actions).is_empty()
@@ -172,6 +174,8 @@ func test_crew_and_dissident() -> void:
 	assert_str(dissident.side).is_equal("dissidents")
 	assert_bool(dissident.knows_teammates).is_true()
 	assert_array(dissident.actions).is_empty()
+	assert_str(mode.find_side(&"crew").display_name).is_equal("Engineers")
+	assert_str(mode.find_side(&"dissidents").display_name).is_equal("Dissidents")
 
 
 func test_knife() -> void:
@@ -205,7 +209,13 @@ func test_knife() -> void:
 
 func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	var mode := _base_mode()
-	assert_int(mode.find_phase(&"round").senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
+	var in_round := mode.find_phase(&"round")
+	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
+	# MoveClaim from the living and the downed (M4-1: the downed move as the ghosts did).
+	var moves := AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED
+	assert_int(in_round.senders_of(Intents.MOVE_CLAIM)).is_equal(moves)
 	# The knife from the base mode's own data: a living player strikes, and the dead cannot.
 	var game := _base_round(mode, [1, 2, 3, 4])
 	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
@@ -219,9 +229,9 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 		assert_array(FixtureCombatModes.received(game, peer, &"Swung")).has_size(1)
 	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
-	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.DOWNED)
 	assert_array(FixtureModes.rejections(game, 1)).is_empty()
-	# The ghost, even holding a knife, is refused before any rule runs.
+	# The downed player, even holding a knife, is refused before any rule runs.
 	var dropped := FixtureItemModes.lay(game, &"knife", game.state.bodies[2])
 	game.state.player(2).held_item = dropped.id
 	dropped.where = ItemState.Where.HAND
@@ -336,8 +346,8 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 
 func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
 	# §6 and §9.5: proximity 8 m in the lobby and the countdown, silence while loading and on the
-	# end screen, the round's three radii 8 m. The classes' defaults stay 0 (#58), which the voice
-	# rules' own bounds tests show.
+	# end screen, the round's radius 8 m (the ghost radii are gone: vision revision 1). The classes'
+	# defaults stay 0 (#58), which the voice rules' own bounds tests show.
 	var mode := _base_mode()
 	for id: StringName in [&"lobby", &"countdown"]:
 		var rule := mode.find_phase(id).voice_rule
@@ -352,8 +362,6 @@ func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
 		return
 	var round_voice := in_round as RoundVoice
 	assert_float(round_voice.living_m).is_equal(8.0)
-	assert_float(round_voice.ghost_hears_living_m).is_equal(8.0)
-	assert_float(round_voice.ghost_hears_ghost_m).is_equal(8.0)
 
 
 ## The layouts of the mode's levels, read from the real scenes by the marker reader (2j) with the

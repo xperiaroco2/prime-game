@@ -1,10 +1,10 @@
 extends GdUnitTestSuite
 ## The voice rules through the base mode's phases (ARCHITECTURE §6, §9.5), with the base mode's
 ## phase classes and rows built in code (FixtureBaseMode) and its voice rules: Lobby and
-## Countdown ProximityVoice 8 m, Loading and End SilentVoice, Round RoundVoice 8, 8, 8. A match
-## is driven through Lobby -> Countdown -> Loading -> Round -> End -> Lobby, and on every tick
-## view_of(peer).speakers is compared with the pairs the phase's rule allows, and with the §5
-## invariant written independently of the rules: a living peer never hears a ghost.
+## Countdown ProximityVoice 8 m, Loading and End SilentVoice, Round RoundVoice 8 m. A match is
+## driven through Lobby -> Countdown -> Loading -> Round -> End -> Lobby, and on every tick
+## view_of(peer).speakers is compared with the pairs the phase's rule allows, and with the voice
+## invariant (§6) written independently of the rules: every speaker is living.
 
 const P1 := 1
 const P2 := 2
@@ -31,8 +31,8 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 		FixtureBaseMode.load_ack(game, peer)
 	assert_str(game.phase_id()).is_equal("round")
 	_check_ticks(game, 2, seen)
-	# P2 dies beside P1; P3 walks off, out of every radius.
-	game.state.player(P2).life = PlayerState.Life.GHOST
+	# P2 is downed beside P1; P3 walks off, out of every radius.
+	game.state.player(P2).life = PlayerState.Life.DOWNED
 	FixtureVoiceMatch.put(game, P2, game.state.player(P1).position + Vector3(0, 0, 1))
 	_check_ticks(game, 2, seen)
 	FixtureVoiceMatch.put(game, P3, FAR)
@@ -56,9 +56,9 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 	assert_int(seen[&"end"]).is_equal(0)
 
 
-func test_in_the_round_a_ghost_hears_a_living_player_who_cannot_hear_it() -> void:
+func test_in_the_round_a_downed_player_hears_a_living_player_who_cannot_hear_it() -> void:
 	var game := _in_round()
-	game.state.player(P2).life = PlayerState.Life.GHOST
+	game.state.player(P2).life = PlayerState.Life.DOWNED
 	FixtureVoiceMatch.put(game, P3, FAR)
 	FixtureModes.run_ticks(game, 1)
 	var at := game.ticked_through()
@@ -67,16 +67,16 @@ func test_in_the_round_a_ghost_hears_a_living_player_who_cannot_hear_it() -> voi
 	assert_array(Array(game.view_of(P3).speakers[at])).is_empty()
 
 
-func test_a_living_peer_never_hears_a_ghost_on_any_tick() -> void:
-	# The §5 invariant, written without reading the rules: every living listener's speakers, on
+func test_nobody_hears_a_downed_player_on_any_tick() -> void:
+	# The voice invariant (§6), written without reading the rules: every listener's speakers, on
 	# every recorded tick, were alive on that tick.
 	var game := _in_round()
 	var alive_on: Dictionary[int, Array] = {}
 	for step in 12:
 		if step == 3:
-			game.state.player(P2).life = PlayerState.Life.GHOST
+			game.state.player(P2).life = PlayerState.Life.DOWNED
 		if step == 6:
-			game.state.player(P3).life = PlayerState.Life.GHOST
+			game.state.player(P3).life = PlayerState.Life.DOWNED
 		if step == 9:
 			game.state.player(P2).life = PlayerState.Life.LEFT
 		FixtureModes.run_ticks(game, 1)
@@ -85,7 +85,7 @@ func test_a_living_peer_never_hears_a_ghost_on_any_tick() -> void:
 	for peer: int in PEERS:
 		var speakers := game.view_of(peer).speakers
 		for at: int in speakers:
-			if not alive_on.has(at) or not (alive_on[at] as Array).has(peer):
+			if not alive_on.has(at):
 				continue
 			for speaker: int in speakers[at]:
 				assert_array(alive_on[at]).contains([speaker])
@@ -122,8 +122,6 @@ func _mode() -> GameMode:
 	near.radius_m = RADIUS_M
 	var round_voice := RoundVoice.new()
 	round_voice.living_m = RADIUS_M
-	round_voice.ghost_hears_living_m = RADIUS_M
-	round_voice.ghost_hears_ghost_m = RADIUS_M
 	mode.find_phase(&"lobby").voice_rule = near
 	mode.find_phase(&"countdown").voice_rule = near
 	mode.find_phase(&"loading").voice_rule = SilentVoice.new()
@@ -155,10 +153,9 @@ func _check_ticks(game: Match, count: int, seen: Dictionary[StringName, int]) ->
 				. is_equal(want)
 			)
 			seen[phase] += got.size()
-			# The §5 invariant, independent of the rules: the living hear only the living.
-			if game.state.player(peer).is_alive():
-				for speaker: int in got:
-					assert_bool(game.state.player(speaker).is_alive()).is_true()
+			# The voice invariant, independent of the rules: only the living are heard.
+			for speaker: int in got:
+				assert_bool(game.state.player(speaker).is_alive()).is_true()
 
 
 ## The speakers the base mode's §6 table allows `listener` in `phase`, from the state alone.
@@ -172,10 +169,8 @@ func _expected(game: Match, phase: StringName, listener: int) -> Array:
 			continue
 		var mouth := game.state.player(speaker)
 		var near := ear.position.distance_to(mouth.position) <= RADIUS_M
-		var allowed := true
-		if phase == &"round":
-			allowed = ear.life == PlayerState.Life.GHOST or mouth.life == PlayerState.Life.ALIVE
-		if near and allowed:
+		# Only the living are heard, in every phase (the voice invariant).
+		if near and mouth.life == PlayerState.Life.ALIVE:
 			want.append(speaker)
 	return want
 

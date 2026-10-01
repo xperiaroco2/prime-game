@@ -1,7 +1,7 @@
 class_name FixtureRoleAllDead
 extends Condition
 ## Stands in for 2h's NoneAlive in tests of the life rule: passes when some player has the role
-## `role` and none of them is alive (each is a ghost or has left). Unlike NoneAlive it does not hold
+## `role` and none of them is alive (each is downed or has left). Unlike NoneAlive it does not hold
 ## before the roles are set, so a fixture round is not won on entry.
 
 @export var role: StringName = &"crew"

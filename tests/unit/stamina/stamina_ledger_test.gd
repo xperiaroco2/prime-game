@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## StaminaLedger (ARCHITECTURE §7.1, Q7), driven by MoveClaims: a covered tick in the sprint state
 ## with the player's own movement costs 1000 thousandths, every other tick regenerates 750; the
 ## sprint state starts at 20 points and lasts until 0; claims never settle past the host tick;
-## ticks no claim covers are settled with the last claim's flags seen a jump; ghosts are exempt.
+## ticks no claim covers are settled with the last claim's flags seen a jump; the downed are exempt.
 
 const P1 := 1
 const NORTH := Vector3(0, 0, 1)
@@ -113,15 +113,15 @@ func test_ticks_no_claim_covers_are_settled_before_a_jump_with_the_last_claims_f
 	assert_int(player.stamina).is_equal(80000)
 
 
-func test_a_ghosts_claims_neither_need_nor_spend_stamina() -> void:
+func test_a_downed_players_claims_neither_need_nor_spend_stamina() -> void:
 	var game := FixtureMoves.in_round([P1])
-	var ghost := game.state.player(P1)
-	ghost.life = PlayerState.Life.GHOST
-	ghost.stamina = 30000
+	var downed := game.state.player(P1)
+	downed.life = PlayerState.Life.DOWNED
+	downed.stamina = 30000
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	FixtureMoves.steps(game, P1, 10, NORTH * 0.45, FixtureMoves.sprinting())
 	var jump := FixtureMoves.jumped(game, P1)
 	FixtureMoves.step(game, P1, UP * 0.1, jump)
-	assert_int(ghost.stamina).is_equal(30000)
+	assert_int(downed.stamina).is_equal(30000)
 	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()
 	assert_bool(last.sprint_available).is_true()

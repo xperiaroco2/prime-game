@@ -255,10 +255,10 @@ func test_a_package_dropped_at_a_death_inside_its_circle_is_delivered() -> void:
 	# Mid-jump over the circle: the drop falls to the floor below.
 	FixtureItemModes.stand(game, P1, circle.position + Vector3(0, 0.8, 0.4))
 	FixtureModes.send(game, Intents.USE, P1)
-	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.DOWNED)
 	assert_int(package.where).is_equal(ItemState.Where.LOCKED)
 	assert_vector(package.position).is_equal(circle.position + Vector3(0, 0, 0.4))
-	# The ghost and the living learn the same public delivery.
+	# The downed and the living learn the same public delivery.
 	for peer: int in [P1, P2]:
 		assert_array(game.view_of(peer).events_named(&"PackageDelivered")).has_size(1)
 

@@ -16,7 +16,7 @@ func test_the_mvp_numbers_pass() -> void:
 	assert_array(Array(FixtureModes.player_rules().check(null))).is_empty()
 
 
-func test_the_ghost_speed_factor_is_bounded_from_1_to_3() -> void:
+func test_the_downed_player_speed_factor_is_bounded_from_1_to_3() -> void:
 	var rules := FixtureModes.player_rules()
 	rules.ghost_speed_factor = 0.9
 	assert_str("\n".join(rules.check(null))).contains("ghost_speed_factor is 0.9, outside 1 to 3")

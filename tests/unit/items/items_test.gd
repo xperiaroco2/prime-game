@@ -16,7 +16,7 @@ func test_a_death_drops_the_held_item_to_the_floor_below() -> void:
 	FixtureItemModes.stand(game, P1, Vector3(3, 0.9, 3))
 	var seen := game.view_of(P2).events.size()
 	FixtureModes.send(game, Intents.USE, P1)
-	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.DOWNED)
 	assert_int(game.state.player(P1).held_item).is_equal(-1)
 	assert_int(item.where).is_equal(ItemState.Where.GROUND)
 	assert_int(item.holder).is_equal(0)
@@ -31,7 +31,7 @@ func test_a_death_drops_the_held_item_to_the_floor_below() -> void:
 	assert_array(FixtureModes.notes(game)).is_equal(
 		[FixtureRestedNote.text(item.id, &"death", Vector3(3, 0, 3)), "task item_rested"]
 	)
-	# The dead are still players: the ghost learns where its item fell, like everyone.
+	# The dead are still players: the downed player learns where its item fell, like everyone.
 	assert_array(game.view_of(P1).events_named(&"ItemPlaced")).has_size(1)
 
 
@@ -81,7 +81,7 @@ func test_an_empty_hand_drops_nothing() -> void:
 	mode.actions.append(FixtureModes.rule(Intents.USE, [], [FixtureDropHeld.of(Items.DEATH)]))
 	var game := FixtureItemModes.in_round(mode, [P1, P2])
 	FixtureModes.send(game, Intents.USE, P1)
-	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.DOWNED)
 	assert_array(game.view_of(P2).events_named(&"ItemPlaced")).is_empty()
 	assert_array(FixtureModes.notes(game)).is_empty()
 
@@ -115,9 +115,9 @@ func test_use_with_a_package_in_hand_is_nothing_to_do() -> void:
 	assert_array(FixtureModes.notes(game)).contains(["tool used"])
 
 
-func test_a_ghost_cannot_use() -> void:
+func test_a_downed_player_cannot_use() -> void:
 	var game := FixtureItemModes.in_round(FixtureItemModes.basic(), [P1])
-	game.state.player(P1).life = PlayerState.Life.GHOST
+	game.state.player(P1).life = PlayerState.Life.DOWNED
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
 	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
 

@@ -47,15 +47,16 @@ The game mode defines its phases, as an explicit state machine
 in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are placeholders, "not a decision".
 - **Base mode:** Lobby → Countdown → Loading → Round → End → Lobby. Roles are dealt and packages scattered on the
   way into Round.
-- **Meetings mode** (later, #35): adds Meeting → Vote → Resolution.
+- **More phases** (later): a mode may add its own, such as the deathmatch mode that vision revision 1 parks; the
+  meetings mode (#35) is closed by that revision.
 
 ### 3.1 The loop, and how a game mode supplies its phases
 - `core/` has one loop, `Match`, that knows no game mode. It owns the `MatchState`: the roster, the settings, each
-  player's life state (alive, ghost, left), position, hand slot, health and stamina, the items, the tasks with their
-  stations and per-task state, the bodies, the cooldown and counter tables, the per-part state, the match clock and
-  the RNG streams (§9.1 says what each holds). The match state outlives phases, so Round → Meeting → Round keeps
-  everything. What lives only as long as one phase (the countdown's end tick, the loading acks) is in that phase's
-  own object, created on entry (§9.1).
+  player's life state (alive, downed, dead, left), position, hand slot, health and stamina, the items, the tasks with
+  their stations and per-task state, the bodies, the cooldown and counter tables, the per-part state, the match clock
+  and the RNG streams (§9.1 says what each holds). The match state outlives phases, so a mode that leaves Round for a
+  phase of its own and returns keeps everything. What lives only as long as one phase (the countdown's end tick, the
+  loading acks) is in that phase's own object, created on entry (§9.1).
 - A **game mode** is data (a `GameMode` `Resource`, §9). It lists:
   - the phases, each an id plus a phase class and its parameters, and the first phase;
   - per phase: the intents it accepts and from whom (an allowlist); its **tick systems** in the order they run (the
@@ -65,29 +66,34 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
     (§7.1, §9.4);
   - a **transition table** of rows *from phase, outcome → to phase, actions*.
 - An intent the phase's allowlist does not name, or from a sender it does not name, is rejected (`not_accepted`;
-  the senders are a newcomer, any player, the living, ghosts or the host). Two exceptions (3e, #97; §4.3): a refused
+  the senders are a newcomer, any player, the living, the downed or the host). Two exceptions (3e, #97; §4.3): a refused
   `MoveClaim` is dropped without `Rejected` (E15), and a refused `Hello` from a peer that is not a player gets
   `joins_closed`, with `DisconnectPeer` when it is a newcomer (E14). An accepted intent goes to the phase class, or to the
-  content part that handles it (an action such as pick up, a throw #37, or a body report #35; §9.2: the rule of the
+  content part that handles it (an action such as pick up or a throw #37; §9.2: the rule of the
   held item, the role or the mode): a new action is a part plus an allowlist entry, not an edit of the phase class.
-- A **phase class** handles its own commands and timers (the countdown, the loading deadline, a vote timer), emits
+- A **phase class** handles its own commands and timers (the countdown, the loading deadline), emits
   events, and reports **outcomes**: named triggers such as `all_ready`, `cancelled` or `won`. Any content part may
-  report an outcome as well, so a new trigger (a meeting button, #35) needs no change to the phase it runs in.
-- After every command, every tick, and every phase entry, `Match` takes the first outcome reported in that step,
-  looks it up in the table, runs the row's actions
-  (effects such as the deal's `DealRoles`, §9.4), exits the phase and enters the next. Rows are keyed by an outcome,
-  so a transition without a trigger cannot be written; an outcome without a row fails loudly, and a unit test drives
-  every row. Checking on entry means a phase whose condition already holds (every player ready when the Lobby is
-  re-entered) moves on without waiting for another command. A later outcome in the same step is dropped and logged in
-  every build: a condition (`all_ready`, `won`) is re-checked at the next step anyway. A one-off trigger (a meeting
-  button, #35) comes from the rule of the intent that starts its step, so it is first unless an earlier effect of the
-  same command already ended the phase; then its sender gets `Rejected` with the reason `outcome_dropped`, so the
-  loss is visible. That reason means "applied, but the outcome was dropped": unlike a refusal (§9.2), the rule's
-  costs were paid and its effects ran.
-- The meetings mode (#35) is then data plus the classes Meeting, Vote and Resolution, with rows such as
-  `Round, meeting_called → Meeting`, `Resolution, resume → Round` and `Resolution, won → End`. The deal runs only on
-  `Loading, all_loaded → Round`, so returning to Round deals nothing; Meeting stops the clock by its phase flag.
-  `Match` does not change.
+  report an outcome as well, so a new trigger (a button in the level, say) needs no change to the phase it runs in.
+- After every command, every tick, and every phase entry, `Match` takes the first outcome reported in that step, looks
+  it up in the table, runs the row's actions (effects such as the deal's `DealRoles`, §9.4), exits the phase and enters
+  the next. Rows are keyed by an outcome, so a transition without a trigger cannot be written; an outcome without a row
+  fails loudly, and a unit test drives every row. Checking on entry means a phase whose condition already holds (every
+  player ready when the Lobby is re-entered) moves on without waiting for another command. A later outcome in the same
+  step is dropped and logged in every build: a condition (`all_ready`, `won`) is re-checked at the next step anyway. A
+  one-off trigger (a button's intent) comes from the rule of the intent that starts its step, so it is first unless an
+  earlier effect of the same command already ended the phase; then its sender gets `Rejected` with the reason
+  `outcome_dropped`, so the loss is visible. That reason means "applied, but the outcome was dropped": unlike a refusal
+  (§9.2), the rule's costs were paid and its effects ran.
+- A mode with more phases (the parked deathmatch, say) is then data plus its phase classes, with rows out of Round
+  and back. The deal runs only on `Loading, all_loaded → Round`, so returning to Round deals nothing, and a phase
+  whose clock does not run pauses the match clock by its phase flag. `Match` does not change.
+- **Life states** (vision revision 1; built in M4-1, #137): `PlayerState.Life` is ALIVE, DOWNED, DEAD and LEFT, and
+  `is_alive()` means ALIVE only. Until M4-2 (#138) DOWNED behaves as the ghosts did (0 health leads to it with no timer;
+  the body stays; the speed factor, the stamina exemption and who sees it are the ghosts'), and nothing reaches DEAD:
+  the sections not yet reworked that say *ghost* describe the downed. `AcceptSpec.From` names a newcomer (1), any player
+  (2), the living (4), the host (16) and the downed (32). Bit 8 was the ghosts' and is never reused; a mode still
+  written for ghosts would silently refuse the downed's claims, so the mode check refuses a sender bit that names
+  nobody. There is no flag for the dead, who send no intents; one is added only when a mode needs it.
 
 ### 3.2 Base mode: phases and transitions
 A **player** is a peer whose `Hello` was accepted; *everyone* in an audience means every player (§5). A connected
@@ -99,7 +105,7 @@ hello deadline.
 | Lobby | joins allowed | `Hello`, `MoveClaim`, `SetReady`, `ChangeSettings` (host); leave | proximity | stopped |
 | Countdown | its end tick: now + 5 s | `Hello`, `MoveClaim`, `SetReady(false)`; leave | proximity | stopped |
 | Loading | the roster is frozen; joins refused; `LoadMatch`; the loading deadline | `LoadAck`; leave | nobody | stopped |
-| Round | the deal has run (below) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`; ghosts: `MoveClaim`; leave | round rule | runs |
+| Round | the deal has run (below) | living: `MoveClaim`, `PickUp`, `PutDown`, `Use`; downed: `MoveClaim` (rewritten from the ghosts' on purpose in M4-1); leave | round rule | runs |
 | End | frozen: no movement, no snapshots | `ReturnToLobby` (host); leave | nobody | stopped |
 
 | From | Outcome: its trigger | To | Actions |
@@ -110,7 +116,7 @@ hello deadline.
 | Countdown | `countdown_done`: the end tick is reached | Loading | |
 | Loading | `all_loaded`: every player of the frozen roster confirmed. A leave, or a client's missing `LoadAck` at the loading deadline, drops that player from the roster. The host (peer 1) is never dropped, so the roster is never empty: if its own load fails, `server/` ends the session, which clients see as the host lost (#40) | Round | the deal (§3.3): `DealRoles`, `DealTasks`, `SpawnItems` (knives), `PlacePlayers`; `StartClock` |
 | Round | `won(winner)`: a win condition (§3.4) | End | `EndMatch`: `MatchEnded`. The clock stops because End's clock does not run |
-| End | `back`: the host's `ReturnToLobby` | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; then `PlacePlayers` in the lobby. In this order: placed first, the ghosts would still be ghosts when `PlayersPlaced` goes to everyone |
+| End | `back`: the host's `ReturnToLobby` | Lobby | `ResetMatch`: the match state reset from the roster, everyone un-ready; then `PlacePlayers` in the lobby. In this order: placed first, the downed would still be downed (hidden from the living until M4-2) when `PlayersPlaced` goes to everyone |
 
 The lobby shows why `all_ready` cannot fire (for example more packages than spawn points): every `SettingsChanged`
 carries the demands against the map's markers and each shortfall (`FitCheck`, 2b). The host leaving ends the
@@ -135,7 +141,8 @@ countdown changes no scene and places nobody.
   clock if the phase's clock runs. The win conditions are checked after every fact and at the end of every step
   (§9.2), so a delivery in the last tick counts: its command came before the clock ended.
 - **The match clock** counts only the ticks of phases whose clock runs. Every entry into such a phase announces the
-  clock's end as a host tick (`PhaseChanged`), so a clock paused for a meeting (#35) is re-announced on resume.
+  clock's end as a host tick (`PhaseChanged`), so a clock paused by a phase whose clock does not run is
+  re-announced on resume.
 - **Seeds.** `server/` takes one 64-bit session seed from the operating system's entropy (never the time) when the
   host starts and gives it to `Match`; match *k* uses a seed derived from the session seed and *k*. Each purpose
   (`roles`, `task_types`, `circles`, `tasks`, `packages`, `knives`, `spawns`), named in the data of the part that
@@ -1257,32 +1264,33 @@ rest.
   playtests. Their design, and the leak test's exact comparisons: §4.6.
 
 **How entitlement is expressed** (#32; [ADR](decisions/2026-09-29-match-loop-intents-events-and-entitlement.md)):
-- **Per event type.** Each event class declares its audience as a rule in `core/`: *everyone*, *only(peer)* (a
-  present player), *role(r)*, *life(ghost)*, *server* (a directive, §4.2), or *sender(peer)*, which only `Rejected`
-  uses, because only it may reach a connected peer that is not a player yet (the engineer's answer on #49). The rule is evaluated when the event is emitted, against
-  the state after the command. An event has one audience: when parts of a fact have different audiences, `core/`
-  emits separate events (a hit: public `Swung`, private `Damaged`).
+- **Per event type.** Each event class declares its audience as a rule in `core/`: *everyone*, *only(peer)* (a present
+  player), *role(r)*, *life(state)* (no MVP event uses it), *server* (a directive, §4.2), or *sender(peer)*, which only
+  `Rejected` uses, because only it may reach a connected peer that is not a player yet (the engineer's answer on #49).
+  The rule is evaluated when the event is emitted, against the state after the command. An event has one audience: when
+  parts of a fact have different audiences, `core/` emits separate events (a hit: public `Swung`, private `Damaged`).
 - **Per entity for snapshots.** Every tick `core/` builds each peer's snapshot from visibility rules per entity: a
-  living player's avatar (position, velocity, facing, held item) reaches every player of the match; a ghost reaches
-  the dead only; bodies and items reach everyone. Nobody gets their own avatar: it moves client-side, and `Correction`
-  settles disagreement. Private numbers are never avatar fields; they travel in `SelfStatus`.
+  living player's avatar (position, velocity, facing, held item) reaches every player of the match; a downed player's
+  reaches the downed only, as a ghost's did, until M4-2 makes the downed public; bodies and items reach everyone. Nobody
+  gets their own avatar: it moves client-side, and `Correction` settles disagreement. Private numbers are never avatar
+  fields; they travel in `SelfStatus`.
 - **`core/` says who is entitled; `server/` delivers.** The rule is game logic, like voice routing (§6). `server/`
   asks `core/` for each event's recipients and builds one message per recipient, *everyone* events included: it sends
   them to each player in turn, never to the transport's broadcast target, which would also reach a peer that is not
   a player (no accepted `Hello` yet, or a straggler about to be disconnected). It never adds a recipient or a field
   (`core/CLAUDE.md` and `server/CLAUDE.md` say so since 2a).
-- **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either),
-  health, stamina and damage; ghosts, for the living. Tasks are shared (#79): what a client learns of them is all
-  public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskProgress`);
-  no task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event names a killer; a player who
-  watches the swings and positions (both public by the rules) may still work it out.
-- **Widening** follows from evaluating audiences at emission. Death: the player's life state becomes ghost, so from
-  the next tick their snapshots include the ghosts and their voice joins the dead (§6); they learn no roles (2g
-  tests the snapshots and the invariant below in `tests/unit/life/life_rules_test.gd`). End
-  widens nothing: `MatchEnded` names only the winning side, and each player knows from its own role whether it won.
-  A later mode that reveals roles would add an event with its own audience. A joiner's `Welcome` holds public facts only.
+- **Never leaves the host:** seeds and RNG state; another player's role (the end screen shows none either), health,
+  stamina and damage; the downed, for the living (until M4-2). Tasks are shared (#79): what a client learns of them is
+  all public (`StationPlaced`, `ItemSpawned` with a package's circle and colour, `PackageDelivered`, `TaskProgress`); no
+  task has an owner, and a subtask's detail stays in `subtask_done` (internal to the task type, not secret). No event
+  names a killer; a player who watches the swings and positions (both public by the rules) may still work it out.
+- **Widening** follows from evaluating audiences at emission. Death: the player's life state becomes downed (until
+  M4-2), so from the next tick their snapshots include the downed; they learn no roles (2g tests the snapshots and the
+  invariant below in `tests/unit/life/life_rules_test.gd`). End widens nothing: `MatchEnded` names only the winning
+  side, and each player knows from its own role whether it won. A later mode that reveals roles would add an event with
+  its own audience. A joiner's `Welcome` holds public facts only.
 - **Knowledge never shrinks.** A peer keeps what it was sent. Resurrection (#34) narrows only what is sent from then
-  on: a revived player remembers where the ghosts were, and #34 decides whether that matters.
+  on: a revived player remembers where the downed were, and #34 decides whether that matters.
 - **Projection.** `Match` records the recipients of every event it emits, and per tick each peer's snapshot and the
   voice routing (who hears whom). `Match.view_of(peer)` returns that peer's events in order, its snapshot for every
   tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The per-tick
@@ -1294,8 +1302,11 @@ rest.
 - **Invariants that do not trust the declarations.** A wrong audience (say `Teammates` declared *everyone*) would
   pass the comparison above, because both sides read the same declaration. So unit tests and the leak test also
   assert facts written independently of them: for the whole session, a crew member knows one role, its own, and a
-  dissident knows the dissidents' roles only; a living peer never gets a ghost's entity or voice frame; nobody gets
-  another player's health, stamina or damage; every player receives the same task events; no message holds a seed.
+  dissident knows the dissidents' roles only; a living peer never gets a downed player's entity (until M4-2); the
+  voice invariant (§6): no peer gets a downed speaker's voice frame, a downed peer gets only the living's and a
+  dead peer none (`ScenarioInvariants` and `LeakCheck`; nobody is dead before M4-2, so the dead peer's check is
+  seen failing in `tests/scenarios/`); nobody gets another player's health, stamina or damage; every player receives
+  the same task events; no message holds a seed.
 
 Rejected ways of expressing it (per field, per content part, filtering in `server/`): the ADR.
 
@@ -1303,8 +1314,8 @@ Rejected ways of expressing it (per field, per content part, filtering in `serve
 
 capture → encode (Opus) → routing decision per speaker and listener (`core/` rules, applied by the host's
 `server/`) → listener → decode → jitter buffer → `AudioStreamPlayer3D` on the speaker's avatar.
-- Routing inputs from the brief: distance, walls (occlusion), death (dead chat), meetings (everyone), items such as
-  radios, role abilities.
+- Routing inputs: distance, walls (occlusion), life (the voice invariant below), items such as radios, role
+  abilities. Dead chat and meetings, in the brief, are gone (vision revision 1).
 - **Decided by the M1 spike** ([voice ADR](decisions/2026-09-29-voice-approach.md): **go**; numbers in #15
   and #16):
   - Codec: TwoVoIP (`two-voip-godot-4`) **v6.5** on Windows with Godot 4.7.2: 48 kHz mono, 20 ms frames,
@@ -1331,25 +1342,26 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
   - Godot 4.7.2 WASAPI reads only mono or stereo microphones; laptop arrays need 4.8 (#22). There is no
     input-latency API in 4.7.
 - **Routing per phase in the base mode** (#32; radii in the [MVP rules](decisions/2026-09-29-mvp-rules.md)). The mode's
-  data names each phase's rule (§3.1), so a meeting-wide rule (#35) is one more rule, not a change to the loop.
+  data names each phase's rule (§3.1), so a new mode's rule is one more rule, not a change to the loop.
 
-  | Phase | Who hears whom |
-  |---|---|
-  | Lobby, Countdown | every pair within the voice radius |
-  | Loading | nobody: the old scene's positions are gone, and the phase lasts seconds |
-  | Round | the living hear the living within the voice radius; a ghost hears the living and other ghosts only by distance, each within its own radius, measured from the ghost; the living never hear the dead |
-  | End | nobody: the game is frozen |
+  | Phase | Who hears whom | |---|---| | Lobby, Countdown | every pair within the voice radius | | Loading | nobody: the
+  old scene's positions are gone, and the phase lasts seconds | | Round | the living hear the living within the voice
+  radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed or the dead,
+  and the dead hear nobody | | End | nobody: the game is frozen |
 
   A player who left hears nobody and is heard by nobody.
+- **The voice invariant** (vision revision 1; built in M4-1, #137): nobody hears a downed or dead player, under
+  any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of` drops every speaker who is not living
+  and gives a dead listener nobody before it asks the phase's rule, so no mode's data can route their voice; it
+  replaces 2i's "the living never hear a ghost". Tests: `tests/unit/content/voice_rule_test.gd`, under
+  `FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5).
 - **Built in 2i** (#65, `core/voice/`): `SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
   data names one per phase with the numbers of §9.5. A distance is between the two players' last accepted
   positions (§7.1), in 3D, and a radius includes its edge, as the M1 spike's routing measured them (#15,
   `distance_to(...) <= cutoff`, which the engineer listened to and accepted); 3D also matches the listener's fade.
-  A horizontal radius (a player on the floor above heard like one beside) stays a possible later change. The
-  living never hear a ghost under any rule: `VoiceRule.speakers_of` drops that pair before asking the rule, as
-  snapshots hide ghosts from the living (§5), so no mode's data can route a ghost's voice to the living.
-  Tests: `tests/unit/voice/`.
-- *Open (M5):* occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, and
+  A horizontal radius (a player on the floor above heard like one beside) stays a possible later change. M4-1
+  removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voice/`.
+- *Open (M5):* occlusion, radios, push-to-talk or voice activity, echo cancellation, and
   lowering the device latency (options in the ADR).
 
 ## 7. Movement
@@ -1596,7 +1608,7 @@ part is usable in data once its row or entry names the PR that built it. Every n
     field in `MatchState`. `ResetMatch` clears all of it.
   - **The phase object.** A `PhaseSpec` names a phase class (a script) and its settings. On each entry into the
     phase `Match` creates a fresh object of that class (`RefCounted`, not a `Resource`) and drops it on exit. It holds
-    what lives as long as the phase: the countdown's end tick, Loading's acks and deadline, later #35's votes. A
+    what lives as long as the phase: the countdown's end tick, Loading's acks and deadline. A
     result that must outlive the phase leaves as the outcome's argument (a tally, to a transition action) or goes
     into `MatchState`.
   - **Nothing else.** A part that needs state and fits neither is a design error to raise in its PR.
@@ -1720,10 +1732,10 @@ phase classes come in the task each row names.
   leaves, the ready flag) and `FitCheck` (the fit check) beside them in `core/match/phases/`, and
   `MatchState.newcomers` for the connected peers not yet players and `MatchState.joins` for the `Player<n>` names
   (§3.5); `MovementRule` (`core/movement/`) takes `MoveClaim`s, with the checks of §7.1 since 2d.
-- `MatchState`: players (`PlayerState`, life ALIVE, GHOST or LEFT), settings and `id_sets` (§9.1), map, items
-  (`ItemState`: ground, hand or locked), tasks (`MatchTask`: its task type and `TaskState`, no owner), stations,
-  bodies, the cooldown and counter tables, `part_state`, the clock, the winner, `RngStreams`, and `reset_match` for
-  `ResetMatch`.
+- `MatchState`: players (`PlayerState`, life ALIVE, DOWNED, DEAD or LEFT; DEAD is not reached before M4-2), settings and
+  `id_sets` (§9.1), map, items (`ItemState`: ground, hand or locked), tasks (`MatchTask`: its task type and `TaskState`,
+  no owner), stations, bodies, the cooldown and counter tables, `part_state`, the clock, the winner, `RngStreams`, and
+  `reset_match` for `ResetMatch`.
 - server/ and the tests drive `Match`: `Match.new(mode, seed, world, layouts, content_hash)` (the host's content
   hash, 3e), `start`, then per tick `apply` for each command and `tick`; `take_outbox` (events with recipients),
   `snapshot_for`, `speakers_for`, `view_of`, `row_error_count` (3e, §4.5), `command_log` and `Match.replay` (a
@@ -1753,10 +1765,10 @@ phase classes come in the task each row names.
   transition actions `StartClock` and `EndMatch`. `Match` itself counts the clock and raises `clock_ended` (2a);
   `StartClock` only sets `MatchState.clock_ticks_left`, and `EndMatch` sets `MatchState.winner`, which
   `ResetMatch` clears.
-- **Life** (`core/life/life_rules.gd`, 2g #63) is the one place that lowers health or changes the life state in a
-  round: `LifeRules.damage` (`Damaged` to the victim, its `SelfStatus` touched; at 0 health `die`), `die` (the body
-  on the floor below into `MatchState.bodies`, life ghost at the body with a new epoch; then `Died` (everyone),
-  `Correction` (the ghost), `player_died`, and only then `Items.place` at the body with `Items.DEATH`) and `leave` (life
+- **Life** (`core/life/life_rules.gd`, 2g #63) is the one place that lowers health or changes the life state in a round:
+  `LifeRules.damage` (`Damaged` to the victim, its `SelfStatus` touched; at 0 health `die`), `die` (the body on the
+  floor below into `MatchState.bodies`, life downed at the body with a new epoch; then `Died` (everyone), `Correction`
+  (the downed player), `player_died`, and only then `Items.place` at the body with `Items.DEATH`) and `leave` (life
   left; `PlayerLeft`, `player_left`, then the drop with `Items.LEAVE`). A later weapon or a trap calls `damage`; the
   class is `LifeRules`, not `Life`, which would shadow `PlayerState.Life`.
 - Two class names differ from their kind: `GameRole` and `RuleEffect` (a global `Role` or `Effect` would shadow an
@@ -1780,8 +1792,8 @@ phase classes come in the task each row names.
 | Spawn point | where the deal may place something | `LevelLayout` in `core/content/` (2a): the markers by tag, in level order; `server/`'s marker reader (`MarkerReader`, 2j) fills it | markers in `levels/` (§9.6) | tags `lobby_player`, `round_player`, `package`, `knife`, `circle` |
 | Bot scenario | a scripted match that exercises a mechanic | `BotScenario`, its steps and targets: data only, in `core/content/scenario/`; the runners in `tests/harness/` | `content/scenarios/` | §9.7 |
 
-- **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a
-  newcomer, any player, the living, ghosts, the host); its tick systems in order; whether it checks win conditions;
+- **`PhaseSpec`**: the phase id; the phase class with its settings; the intents it accepts and from whom (a newcomer,
+  any player, the living, the downed, the host; §3.1); its tick systems in order; whether it checks win conditions;
   whether the match clock runs; its voice rule; its level (the lobby or the map); whether snapshots are sent.
 - **`Transition`**: from phase, outcome, to phase, and its actions (effects) in order, which see the outcome and its
   argument (`EndMatch` reads the side of `won`).
@@ -1820,7 +1832,7 @@ phase classes come in the task each row names.
 | `TakeIntoHand` | the item goes into the actor's hand; a held item is swapped: it rests where the picked-up one lay (§7.1). An item not on the ground (a rule without `ItemOnGround`) is a rule error, logged, and nothing moves; the sender gets `Rejected` (`unavailable`) | none | `ItemPickedUp` (everyone); for a swap `ItemPlaced` (swap, everyone), then `item_rested` | 2e (#61) |
 | `PutDownInFront` | the held item rests `distance_m` along the horizontal facing, stopped before a wall and dropped to the floor (`WorldQuery.rest_position` from the actor's eye, taken from the floor it stands on, §7.1); a facing with no horizontal direction puts it at the feet | `distance_m` (0.3 to 3; no default: the data sets it, the base mode 1) | `ItemPlaced` (put down, everyone); `item_rested` | 2e (#61) |
 | `Strike` | picks the targets as in §7.1 (living, not the attacker, within reach and half the angle, overlapping vertically, in line of sight from the eye) and damages each through the life rule (`LifeRules.damage`), in peer-id order; at 0 health a target dies there | `angle_deg` (1 to 360), `reach_m` (0.1 to 10), `damage` (whole points, 1 to 1000); no defaults: the data sets them (the knife 30, 1.5, 50) | `Swung` (everyone), even with no target, before any damage; per target `Damaged` and `SelfStatus` (the victim). A death: `Died` (everyone), `Correction` (the dead: its ghost at the body), `player_died`, then the drop: `ItemPlaced` (death, everyone), `item_rested` | 2g (#63, `core/combat/strike.gd`) |
-| `ReportOutcome` | reports an outcome of the current phase (a meeting button, #35; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it (#35); 2a builds the outcome reporting it calls |
+| `ReportOutcome` | reports an outcome of the current phase (a button in the level, say; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it; 2a builds the outcome reporting it calls |
 
 **Transition actions** (effects that a transition row runs; the base mode's rows are in §9.5):
 
@@ -1859,8 +1871,8 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
 | `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i (#65, `SilentVoice`) |
-| `Proximity` | voice rule | every pair of present players within the radius (3D, §6); the living never hear a ghost (§5, for every rule) | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`) |
-| `RoundVoice` | voice rule | the living hear the living within `living_m`; a ghost hears the living within `ghost_hears_living_m` and ghosts within `ghost_hears_ghost_m`, measured from the ghost; the living never hear the dead; a player who left hears and is heard by nobody (§6) | the three radii (each 0.5 to 100; the class defaults 0, which the mode check refuses) | the routing per tick | 2i (#65) |
+| `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6, for every rule): nobody hears the downed or the dead | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`) |
+| `RoundVoice` | voice rule | a living or downed listener hears a living speaker within `living_m`, measured from the listener's last accepted position (where a downed player lies); under the voice invariant nobody hears the downed or the dead, the dead hear nobody, and a player who left hears and is heard by nobody (§6) | `living_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65); the ghost radii removed in M4-1 (#137) |
 
 The match clock itself is not a part: `Match` counts it in phases whose clock runs, after their tick systems
 (§3.3), and raises `clock_ended`.
@@ -1890,24 +1902,24 @@ Settings:
   be banned); `packages`, Delivery's subtasks, 6 (1 to 10, a placeholder, "not a decision"); `dissidents` 1 (0 to
   9, lowered to N − 1 by the deal); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
-  1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to
-  the maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); ghosts walk and sprint at those speeds × 1.3
-  (`ghost_speed_factor`: the engineer's decision of 2026-09-30; the bounds 1 to 3 are proposed, not confirmed);
-  capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to 1).
-  Health and stamina are whole points here, thousandths inside `core/` (§3.3). `PlayerRules`' class defaults are 0,
+  1000); walk 4.5 m/s (0.5 to 20); sprint 7 m/s (at least walk, to 30) for 20 per second (0 to 1000), from 20 (0 to the
+  maximum); jump 1 m (0 to 5) for 10 (0 to the maximum); the downed walk and sprint at those speeds × 1.3 until M4-2's
+  crawl (`ghost_speed_factor`: the engineer's decision of 2026-09-30 for ghosts; the bounds 1 to 3 are proposed, not
+  confirmed); capsule radius 0.4 m (0.1 to 1) × height 1.8 m (0.5 to 3); eye 1.6 m (below the height); step 0.3 m (0 to
+  1). Health and stamina are whole points here, thousandths inside `core/` (§3.3). `PlayerRules`' class defaults are 0,
   so each number is written in `base_mode.tres` (`PlayerRules_base`), and a mode that leaves one out fails the mode
   check (2d, #60; the engineer's answer (1) on #58). Pushing (§7.1) is not in `PlayerRules`: `push_speed_factor`,
   `push_side_bias` and `push_max_overlap` are client feel tuning in `client/player/player_tuning.tres` (engineer),
   placeholders, never checked by the host; every client must ship the same values.
-- Sides: `crew` ("Crew"), `dissidents` ("Dissidents"). Roles: Crew, Dissident. Item kinds: Package, Knife.
+- Sides: `crew` ("Engineers"), `dissidents` ("Dissidents"). Roles: `crew` ("Engineer"), Dissident. The ids stay
+  `crew` (vision revision 1's names, M4-1). Item kinds: Package, Knife.
 - Actions: PickUp, PutDown. Reactions: none. Task types: Delivery. Win conditions, in order: every task done, no crew
   alive, time up.
-- Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity
-  8 m; lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no;
-  stopped; Silent; map), Round (`MoveClaim` from the living and ghosts, `PickUp`, `PutDown` and `Use` from the living;
-  TaskTicks; yes; runs; RoundVoice; map), End (`ReturnToLobby` from the host; none; no; stopped; Silent; map).
-  Snapshots in Lobby, Countdown and Round.
-  RoundVoice's three radii: 8 m each.
+- Phases (accepts; tick systems; win conditions; clock; voice; level): Lobby (§3.2; none; no; stopped; Proximity 8 m;
+  lobby), Countdown 5 s (§3.2; none; no; stopped; Proximity 8 m; lobby), Loading 60 s (`LoadAck`; none; no; stopped;
+  Silent; map), Round (`MoveClaim` from the living and the downed, `PickUp`, `PutDown` and `Use` from the living;
+  TaskTicks; yes; runs; RoundVoice; map), End (`ReturnToLobby` from the host; none; no; stopped; Silent; map). Snapshots
+  in Lobby, Countdown and Round. RoundVoice's `living_m`: 8 m.
 - Transitions: §3.2. Their actions: `Loading, all_loaded → Round`: `DealRoles` (Dissident by `dissidents`, leaving
   at least 1; default Crew), `DealTasks` (`tasks`, `banned_task_types`, `task_types`), `SpawnItems` (Knife by
   `knives`), `PlacePlayers` (`round_player`),
@@ -1935,12 +1947,12 @@ Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd`.
 
 #### Crew (role)
 What it does: the side that wins only when every task is done (§3.4).
-Settings: id `crew`; display name "Crew"; side `crew`; knows its teammates: no; actions: none. The default role of
-`DealRoles`.
+Settings: id `crew`; display name "Engineer" (its side's "Engineers"; vision revision 1, M4-1); side `crew`; knows
+its teammates: no; actions: none. The default role of `DealRoles`.
 Produces: `RoleAssigned(crew)`.
 Visible to: that player only (§5); `MatchEnded` names only the winning side, never a player's role.
-Status: designed in #33; built in 2c (#59): `content/roles/crew.tres`. Tests:
-`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
+Status: designed in #33; built in 2c (#59): `content/roles/crew.tres`; named Engineer in M4-1 (#137). Tests:
+`tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd` (which pins both names).
 
 #### Dissident (role)
 What it does: the side that wins when time is up or no crew member is alive; dissidents know each other.
@@ -2160,8 +2172,8 @@ told. One format runs in two runners.
   - `never`: events that one bot, or every bot, must never receive.
 - **Steps** are a closed list, like parts: the engineer adds a step and lists it here. Every step that sends an intent
   takes `expect_rejected` (a reason, empty by default): with it, the step is done when that `Rejected` arrives, and
-  fails when the intent succeeds or is refused with another reason. So a scenario can script a ghost's `PickUp`, a
-  second swing within the interval (`too_soon`), a swing without stamina (`tired`) or a `PickUp` of a delivered
+  fails when the intent succeeds or is refused with another reason. So a scenario can script a downed player's `PickUp`,
+  a second swing within the interval (`too_soon`), a swing without stamina (`tired`) or a `PickUp` of a delivered
   package (`unavailable`).
 
 | Step | The bot | Done when |
@@ -2173,7 +2185,7 @@ told. One format runs in two runners.
 | `ReturnToLobby` | (the host's bot) sends `ReturnToLobby` | `PhaseChanged` to the lobby arrives |
 | `WaitFor(event, fields)` | waits | it receives a matching event |
 | `Wait(seconds)` | waits | the time has passed |
-| `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (a ghost's speed as a ghost; ghosts do not fly since the engineer's correction of 2026-09-30), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
+| `WalkTo(target, sprint, stop_m)` | sends honest `MoveClaim`s at walk or sprint speed (times `ghost_speed_factor` while downed, until M4-2's crawl; the downed do not fly, as the ghosts did not since the engineer's correction of 2026-09-30), straight towards the target; a level with walls needs waypoints | it is within `stop_m` (0.5) of the target: 1 m before a circle, the put-down distance, to deliver |
 | `PickUp(target)` | faces the item and sends `PickUp` | its `ItemPickedUp` arrives |
 | `PutDown(towards)` | faces the target and sends `PutDown` | its `ItemPlaced` arrives |
 | `Use(towards, until)` | faces the target and sends `Use` | the event `until` names arrives for this bot (default `Swung`, the knife's; an item whose `Use` emits something else names that) |
@@ -2196,7 +2208,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   earlier step was acknowledged at once, and the `LoadAck` step then fails, saying so. A `Join` refused in Loading
   cannot be scripted in the core runner: `server/` refuses it at the transport, so the step fails.
 - `WalkTo` claims one host tick of travel per tick (client ticks rising by one), at sprint speed only while the
-  last `SelfStatus` says sprint is available (a ghost always, at 1.3 times), and stops exactly `stop_m` short.
+  last `SelfStatus` says sprint is available (a downed bot always, at 1.3 times), and stops exactly `stop_m` short.
   `Jump` claims a jump where the bot stands, on the floor: the bot's jump count in its epoch plus one (3e; D3 (a),
   the designer's answer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
   right after the joins at the start, and its settings in one `ChangeSettings` from bot 1 after them.
@@ -2247,7 +2259,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
   `content/scenarios/`: `crew_delivers_every_package` (3 crew deliver the 6 packages; a delivered package's
   `PickUp` is `unavailable`; the crew never get `Teammates`), `dissident_kills_the_crew` (a forced dissident takes
-  a knife and kills both crew; `too_soon`; a ghost's `PickUp` is `not_accepted`; the ghost walks),
+  a knife and kills both crew; `too_soon`; a downed player's `PickUp` is `not_accepted`; the downed player walks),
   `dissidents_win_by_the_clock` (a 1-minute match that runs out; a jump, a sprint that runs out of stamina),
   `late_join_cancels_the_countdown`, `dropped_at_the_loading_deadline` and `refusals` (`empty_hand`,
   `nothing_to_do`, `out_of_reach`, `too_soon`, `tired`, a swap). The first three expect the ends `crew`,
@@ -2283,7 +2295,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Question | When |
 |---|---|
 | Content API v1: the designer's review of v0 (§9) | #38, before M7 |
-| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | with the first mechanic that needs it (#34 or #35) |
+| `Interact(target)`: fixed interactables and bodies as targets (§9.8) | with the first mechanic that needs it |
 | Movement modifiers, which would make sprint and jump parts (§9.5) | when a mechanic changes movement |
 | Which `Use` rule wins when the held item and the actor's role both have one; v0: the item (§9.2) | #38, before a role has a `Use` ability (#34) |
 | How levels mark spawn points: groups on `Marker3D` or an engine marker scene (§9.6); and give collision the host can read (`StaticBody3D`, not CSG or `GridMap`, with E8 (a): §4.5) | 4e, with the designer |
@@ -2292,6 +2304,6 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
 | The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
-| Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
+| Voice integration: occlusion, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
 | The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |

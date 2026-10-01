@@ -66,7 +66,7 @@ static func deal_mode(task_types: Array[TaskType] = []) -> GameMode:
 		&"round",
 		RoundPhase,
 		{},
-		[AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.LIVING | AcceptSpec.From.GHOST)]
+		[AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED)]
 	)
 	round_spec.level = PhaseSpec.Level.MAP
 	round_spec.snapshots = true

@@ -165,7 +165,7 @@ level = 2
 [sub_resource type="Resource" id="Accept_round_move"]
 script = ExtResource("6_accept")
 intent = &"MoveClaim"
-from = 12
+from = 36
 
 [sub_resource type="Resource" id="Accept_round_pick_up"]
 script = ExtResource("6_accept")
@@ -188,8 +188,6 @@ script = ExtResource("29_task_ticks")
 [sub_resource type="Resource" id="Voice_round"]
 script = ExtResource("33_round_voice")
 living_m = 8.0
-ghost_hears_living_m = 8.0
-ghost_hears_ghost_m = 8.0
 
 [sub_resource type="Resource" id="Phase_round"]
 script = ExtResource("5_phase")
@@ -283,7 +281,7 @@ max_value = 100
 [sub_resource type="Resource" id="Side_crew"]
 script = ExtResource("4_side")
 id = &"crew"
-display_name = "Crew"
+display_name = "Engineers"
 
 [sub_resource type="Resource" id="Side_dissidents"]
 script = ExtResource("4_side")

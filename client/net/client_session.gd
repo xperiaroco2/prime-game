@@ -269,13 +269,14 @@ func _claim(now_usec: int) -> void:
 
 
 ## Whether the client's own copy of the current phase accepts MoveClaim from it (§4.3): as a
-## player, living or dead, and the host's own player as peer 1.
+## player, living or downed (a player with a body: until M4-2 nobody is dead), and the host's own
+## player as peer 1.
 func _claims_accepted() -> bool:
 	var spec := model.phase_spec()
 	if spec == null:
 		return false
 	var mine: int = AcceptSpec.From.PLAYER
-	mine |= AcceptSpec.From.LIVING if model.is_alive(model.own_peer) else AcceptSpec.From.GHOST
+	mine |= AcceptSpec.From.LIVING if model.is_alive(model.own_peer) else AcceptSpec.From.DOWNED
 	if model.own_peer == NetTransport.HOST_ID:
 		mine |= AcceptSpec.From.HOST
 	return (spec.senders_of(Intents.MOVE_CLAIM) & mine) != 0

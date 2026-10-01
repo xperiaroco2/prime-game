@@ -182,10 +182,10 @@ func test_a_full_hand_swaps_onto_the_picked_up_items_spot() -> void:
 	assert_array(game.view_of(P1).events_named(&"ItemPlaced")).has_size(1)
 
 
-func test_a_ghost_cannot_pick_up() -> void:
+func test_a_downed_player_cannot_pick_up() -> void:
 	var game := FixtureItemModes.in_round(FixtureItemModes.basic(), [P1, P2])
 	FixtureItemModes.stand(game, P2, HERE)
-	game.state.player(P2).life = PlayerState.Life.GHOST
+	game.state.player(P2).life = PlayerState.Life.DOWNED
 	var item := FixtureItemModes.lay(game, &"package", Vector3(0.5, 0, 0))
 	FixtureItemModes.pick_up(game, P2, item, 3)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])

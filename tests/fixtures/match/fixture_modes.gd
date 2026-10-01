@@ -12,7 +12,7 @@ extends RefCounted
 const LOBBY := "fixture://lobby"
 const MAP := "fixture://map"
 const LIVING := AcceptSpec.From.LIVING
-const GHOST := AcceptSpec.From.GHOST
+const DOWNED := AcceptSpec.From.DOWNED
 
 
 static func basic() -> GameMode:
@@ -48,7 +48,7 @@ static func basic() -> GameMode:
 		&"round",
 		RoundPhase,
 		{},
-		[AcceptSpec.of(Intents.USE, LIVING), AcceptSpec.of(Intents.MOVE_CLAIM, LIVING | GHOST)]
+		[AcceptSpec.of(Intents.USE, LIVING), AcceptSpec.of(Intents.MOVE_CLAIM, LIVING | DOWNED)]
 	)
 	round_spec.level = PhaseSpec.Level.MAP
 	round_spec.checks_wins = true

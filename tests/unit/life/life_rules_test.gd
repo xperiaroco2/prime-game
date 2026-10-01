@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
-## LifeRules (ARCHITECTURE §3.4, §5, §7.1, §9.2): damage, death, the body, the ghost at the body
-## with its new epoch, the order Died, Correction, player_died, then the drop, and the widening of
-## the dead's view. Driven by the knife's Use (FixtureCombatModes: 50 damage, so two hits kill).
+## LifeRules (ARCHITECTURE §3.4, §5, §7.1, §9.2): damage, death, the body, the downed player at the
+## body with its new epoch, the order Died, Correction, player_died, then the drop, and the
+## widening of the downed's view. Driven by the knife's Use (FixtureCombatModes: 50 damage, so
+## two hits kill).
 ## Leaving mid-round: tests/unit/match/phases/round_phase_test.gd.
 
 const P1 := 1
@@ -13,7 +14,7 @@ const EAST := Vector3(1, 0, 0)
 const HALF := 50000
 
 
-func test_a_player_at_zero_health_becomes_a_ghost_and_its_body_rests_on_the_floor_below() -> void:
+func test_a_player_at_zero_health_is_downed_and_its_body_rests_on_the_floor_below() -> void:
 	var game := _duel()
 	# The victim is in mid-air, at the top of a jump: its body falls to the floor.
 	FixtureItemModes.stand(game, P2, Vector3(0, 0.5, 1))
@@ -23,7 +24,7 @@ func test_a_player_at_zero_health_becomes_a_ghost_and_its_body_rests_on_the_floo
 	_kill_again(game, P1)
 	var victim := game.state.player(P2)
 	assert_int(victim.health).is_equal(0)
-	assert_int(victim.life).is_equal(PlayerState.Life.GHOST)
+	assert_int(victim.life).is_equal(PlayerState.Life.DOWNED)
 	assert_dict(game.state.bodies).is_equal({P2: Vector3(0, 0, 1)})
 	var damaged := FixtureCombatModes.received(game, P2, &"Damaged")
 	assert_dict(damaged[1].to_dict()).is_equal({"amount": 50000, "health": 0})
@@ -40,7 +41,7 @@ func test_died_reaches_everyone_with_the_body_and_names_no_killer() -> void:
 		assert_dict(died[0].to_dict()).is_equal({"peer": P2, "position": Vector3(0, 0, 1)})
 
 
-func test_the_ghost_appears_at_the_body_with_a_new_epoch_told_to_it_alone() -> void:
+func test_the_downed_player_appears_at_the_body_with_a_new_epoch_told_to_it_alone() -> void:
 	var game := _duel()
 	FixtureItemModes.stand(game, P2, Vector3(0, 0.4, 1))
 	FixtureCombatModes.use(game, P1, NORTH)
@@ -50,9 +51,9 @@ func test_the_ghost_appears_at_the_body_with_a_new_epoch_told_to_it_alone() -> v
 		others[peer] = FixtureMoves.corrections(game, peer).size()
 	var seen := FixtureMoves.corrections(game, P2).size()
 	_kill_again(game, P1)
-	var ghost := game.state.player(P2)
-	assert_vector(ghost.position).is_equal(Vector3(0, 0, 1))
-	assert_int(ghost.epoch).is_equal(epoch + 1)
+	var downed := game.state.player(P2)
+	assert_vector(downed.position).is_equal(Vector3(0, 0, 1))
+	assert_int(downed.epoch).is_equal(epoch + 1)
 	var corrections := FixtureMoves.corrections(game, P2)
 	assert_int(corrections.size()).is_equal(seen + 1)
 	assert_dict(corrections[corrections.size() - 1].to_dict()).is_equal(
@@ -62,16 +63,16 @@ func test_the_ghost_appears_at_the_body_with_a_new_epoch_told_to_it_alone() -> v
 		assert_int(FixtureMoves.corrections(game, peer).size()).is_equal(others[peer])
 
 
-func test_the_ghosts_honest_claims_pass_and_its_claims_from_life_are_dropped() -> void:
+func test_the_downed_players_honest_claims_pass_and_its_claims_from_life_are_dropped() -> void:
 	var game := _duel()
 	FixtureCombatModes.use(game, P1, NORTH)
 	_kill_again(game, P1)
-	var ghost := game.state.player(P2)
+	var downed := game.state.player(P2)
 	var seen := FixtureMoves.corrections(game, P2).size()
 	# A claim it sent while alive, still in flight: the old epoch, dropped without a Correction.
-	FixtureMoves.claim(game, P2, Vector3(0, 0, 1.2), {"epoch": ghost.epoch - 1})
-	assert_vector(ghost.position).is_equal(Vector3(0, 0, 1))
-	# Then it walks and sprints at the ghost's speeds (0.2925 and 0.455 m per tick), for free, and
+	FixtureMoves.claim(game, P2, Vector3(0, 0, 1.2), {"epoch": downed.epoch - 1})
+	assert_vector(downed.position).is_equal(Vector3(0, 0, 1))
+	# Then it walks and sprints at the ghosts' old speeds (0.2925 and 0.455 m per tick), for free, and
 	# jumps from the floor at the body.
 	FixtureMoves.steps(game, P2, 5, EAST * 0.29, {"moving": true})
 	FixtureMoves.steps(game, P2, 5, EAST * 0.45, FixtureMoves.sprinting())
@@ -79,11 +80,11 @@ func test_the_ghosts_honest_claims_pass_and_its_claims_from_life_are_dropped() -
 	FixtureMoves.step(game, P2, Vector3(0, 0.4, 0), {"on_floor": false})
 	FixtureMoves.step(game, P2, Vector3(0, -0.9, 0))
 	assert_int(FixtureMoves.corrections(game, P2).size()).is_equal(seen)
-	assert_vector(ghost.position).is_equal_approx(Vector3(3.7, 0, 1), Vector3.ONE * 1e-4)
-	assert_int(ghost.life).is_equal(PlayerState.Life.GHOST)
+	assert_vector(downed.position).is_equal_approx(Vector3(3.7, 0, 1), Vector3.ONE * 1e-4)
+	assert_int(downed.life).is_equal(PlayerState.Life.DOWNED)
 
 
-func test_a_ghost_cannot_use_and_nothing_happens() -> void:
+func test_a_downed_player_cannot_use_and_nothing_happens() -> void:
 	var game := _duel()
 	FixtureCombatModes.use(game, P1, NORTH)
 	_kill_again(game, P1)
@@ -158,7 +159,7 @@ func test_the_crew_fixture_win_holds_when_the_package_rests_without_a_death() ->
 	assert_array(FixtureModes.notes(game)).contains(["won crew"])
 
 
-func test_the_dead_see_ghosts_from_their_death_and_the_living_never_do() -> void:
+func test_the_dead_see_the_downed_from_their_death_and_the_living_never_do() -> void:
 	var game := FixtureCombatModes.in_round(FixtureCombatModes.basic(), [P1, P2, P3, P4])
 	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
@@ -170,7 +171,7 @@ func test_the_dead_see_ghosts_from_their_death_and_the_living_never_do() -> void
 	var p2_died := game.ticked_through() + 1
 	FixtureCombatModes.use(game, P1, NORTH)
 	FixtureModes.run_ticks(game, 3)
-	# P3 steps into the zone and dies too; the ghost P2 there is not hit.
+	# P3 steps into the zone and dies too; the downed P2 there is not hit.
 	FixtureItemModes.stand(game, P3, Vector3(0, 0, 1.2))
 	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureCombatModes.use(game, P1, NORTH)
@@ -178,22 +179,22 @@ func test_the_dead_see_ghosts_from_their_death_and_the_living_never_do() -> void
 	var p3_died := game.ticked_through() + 1
 	FixtureCombatModes.use(game, P1, NORTH)
 	FixtureModes.run_ticks(game, 3)
-	assert_int(game.state.player(P3).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(P3).life).is_equal(PlayerState.Life.DOWNED)
 	assert_array(FixtureCombatModes.received(game, P2, &"Damaged")).has_size(2)
-	# Written independently of Snapshots: who is a ghost from which tick, and who sees whom.
-	var ghost_from := {P2: p2_died, P3: p3_died}
+	# Written independently of Snapshots: who is downed from which tick, and who sees whom.
+	var downed_from := {P2: p2_died, P3: p3_died}
 	for viewer: int in [P1, P2, P3, P4]:
 		var view := game.view_of(viewer)
 		assert_bool(view.snapshots.has(p2_died - 1)).is_true()
 		for at_tick: int in view.snapshots:
 			var avatars: Dictionary = view.snapshots[at_tick]["avatars"]
-			var viewer_dead: bool = ghost_from.has(viewer) and at_tick >= ghost_from[viewer]
+			var viewer_dead: bool = downed_from.has(viewer) and at_tick >= downed_from[viewer]
 			for other: int in [P1, P2, P3, P4]:
 				if other == viewer:
 					assert_bool(avatars.has(other)).is_false()
 					continue
-				var other_dead: bool = ghost_from.has(other) and at_tick >= ghost_from[other]
-				# A living peer never gets a ghost's entity; the dead see the living and the dead.
+				var other_dead: bool = downed_from.has(other) and at_tick >= downed_from[other]
+				# A living peer never gets a downed player's entity; the downed see everyone.
 				var expected := not other_dead or viewer_dead
 				(
 					assert_bool(avatars.has(other))
@@ -210,7 +211,7 @@ func test_a_death_with_no_floor_below_leaves_the_body_where_the_player_was_and_l
 	var game := _duel(FlatWorldQuery.new(5.0))
 	FixtureCombatModes.use(game, P1, NORTH)
 	_kill_again(game, P1)
-	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DOWNED)
 	assert_dict(game.state.bodies).is_equal({P2: Vector3(0, 0, 1)})
 	assert_str(";".join(game.diagnostics)).contains("no floor below")
 

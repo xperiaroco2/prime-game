@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## Ghosts cannot pick up, carry or use items (MVP rules, ARCHITECTURE §7.1): no game mode in
+## The downed cannot pick up, carry or use items (MVP rules, ARCHITECTURE §7.1): no game mode in
 ## `content/modes/` accepts PickUp, PutDown or Use from anyone but the living, in any phase. A
 ## rule of the game, not a number, so this test loads `content/` like the mode check does (§9.6).
 

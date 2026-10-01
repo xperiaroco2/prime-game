@@ -4,8 +4,11 @@ extends RefCounted
 ## Health and stamina are thousandths (§3.3). The movement rule (2d) keeps the last accepted
 ## MoveClaim here, and every range rule reads it (§7.1).
 
-## Alive, a ghost, or left. Left counts as dead for the win conditions (§3.5).
-enum Life { ALIVE, GHOST, LEFT }
+## The life states of vision revision 1 (§3.1): alive, downed, dead, or left. Left counts as dead
+## for the win conditions (§3.5). Until M4-2 (#138) DOWNED behaves as the old ghost did (0 health
+## leads to it, with a body and no timer) and nothing reaches DEAD. DOWNED took the ghosts' value,
+## and that value is never reused for DEAD.
+enum Life { ALIVE, DOWNED, DEAD, LEFT }
 
 var peer: int
 var name: String
@@ -40,6 +43,7 @@ func _init(peer_id: int, player_name: String) -> void:
 	name = player_name
 
 
+## Whether the player is living: ALIVE only, never downed or dead.
 func is_alive() -> bool:
 	return life == Life.ALIVE
 

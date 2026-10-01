@@ -136,16 +136,39 @@ func test_the_invariants_catch_a_leak_in_snapshots_and_voice() -> void:
 	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], []]))
 	assert_array(Array(runner.failures)).is_empty()
 	var leaky := LeakyMatch.new(runner.game)
-	leaky.state.players[1002].life = PlayerState.Life.GHOST
+	leaky.state.players[1002].life = PlayerState.Life.DOWNED
 	leaky.avatars = {
 		1002: {"position": Vector3.ZERO, "health": 100, "held_item": runner.scenario.session_seed}
 	}
 	leaky.speakers = PackedInt32Array([1002])
 	var found := "\n".join(ScenarioInvariants.new(leaky, runner.scenario).check_tick())
-	assert_str(found).contains("living peer 1 sees ghost 1002")
-	assert_str(found).contains("living peer 1 hears ghost 1002")
+	assert_str(found).contains("living peer 1 sees downed 1002")
+	assert_str(found).contains("peer 1 hears downed 1002")
 	assert_str(found).contains("shows health of peer 1002")
 	assert_str(found).contains("peer 1's snapshot holds a seed")
+
+
+func test_the_invariants_catch_a_break_of_the_voice_invariant() -> void:
+	# Peer 1002 downed, 1003 dead (nothing reaches DEAD before M4-2, so the state is set here). The
+	# control first: the downed hear the living, the dead nobody, and nothing is found.
+	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], [], []]))
+	assert_array(Array(runner.failures)).is_empty()
+	var leaky := LeakyMatch.new(runner.game)
+	leaky.state.players[1002].life = PlayerState.Life.DOWNED
+	leaky.state.players[1003].life = PlayerState.Life.DEAD
+	leaky.heard_by = {1: PackedInt32Array(), 1002: PackedInt32Array([1])}
+	var invariants := ScenarioInvariants.new(leaky, runner.scenario)
+	assert_array(Array(invariants.check_tick())).is_empty()
+	leaky.heard_by = {
+		1: PackedInt32Array([1002]),
+		1002: PackedInt32Array([1, 1003]),
+		1003: PackedInt32Array([1]),
+	}
+	var found := "\n".join(invariants.check_tick())
+	assert_str(found).contains("peer 1 hears downed 1002")
+	assert_str(found).contains("downed peer 1002 hears 1003, who is not living")
+	assert_str(found).contains("dead peer 1003 hears [1]")
+	assert_str(found).not_contains("downed peer 1002 hears 1,")
 
 
 func test_a_match_error_or_a_view_that_differs_fails() -> void:
@@ -224,6 +247,8 @@ class LeakyMatch:
 	extends Match
 	var avatars: Dictionary = {}
 	var speakers := PackedInt32Array()
+	## Listener -> its speakers; a listener not here hears `speakers`.
+	var heard_by: Dictionary[int, PackedInt32Array] = {}
 
 	func _init(played: Match) -> void:
 		super(played.mode, 1, FlatWorldQuery.new(), {})
@@ -232,8 +257,8 @@ class LeakyMatch:
 	func snapshot_for(_peer: int) -> Dictionary:
 		return {"avatars": avatars}
 
-	func speakers_for(_listener: int) -> PackedInt32Array:
-		return speakers
+	func speakers_for(listener: int) -> PackedInt32Array:
+		return heard_by[listener] if heard_by.has(listener) else speakers
 
 
 func _scenario(scripts: Array) -> BotScenario:

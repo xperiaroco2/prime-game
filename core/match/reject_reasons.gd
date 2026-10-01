@@ -15,8 +15,9 @@ const OUTCOME_DROPPED := &"outcome_dropped"
 const WRONG_VERSION := &"wrong_version"
 ## Hello: the roster has the mode's maximum of players; DisconnectPeer follows (2b).
 const FULL := &"full"
-## Hello: another content hash than the host's (its game mode and level files: another build of
-## the content, a designer's branch against main); DisconnectPeer follows (§4.3, E1; 3e).
+## Hello: another content hash than the host's (its game mode, its level files and every scene
+## and resource they reach: another build of the content, a designer's branch against main);
+## DisconnectPeer follows (§4.3, E1; 3e).
 const WRONG_CONTENT := &"wrong_content"
 ## Hello in a phase that refuses joins (the base mode's Loading, Round and End), from a peer that
 ## is not a player; DisconnectPeer follows when it was still a newcomer (a peer already

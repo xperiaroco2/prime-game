@@ -8,14 +8,15 @@ extends RefCounted
 ##   SelfStatus is touched (sent at the end of the tick). At 0 health the player dies.
 ## - die(): the body comes to rest on the floor below the last accepted position (WorldQuery, from
 ##   just above the feet: Items.lifted), recorded in MatchState.bodies; the life state becomes
-##   ghost; the ghost appears at the body: its position is the body's, with a new epoch, so the
-##   claims it sent while alive are dropped as stale and its first claim as a ghost starts a new
-##   baseline there (MovementRule treats it like a placement). Then, in this order: Died
-##   (everyone), Correction (the ghost only: its new epoch and position), the fact player_died,
-##   and only then the held item drops at the body (Items.place, `death`). The fact comes before
-##   the drop so a win condition that the death meets is checked before one that the dropped item
-##   meets (§3.4: the last crew member killed with its package over its circle is a dissident
-##   win).
+##   downed (until M4-2, #138, the downed are what the ghosts were: no timer, hidden from the
+##   living, and nothing reaches DEAD); the player appears at the body: its position is the
+##   body's, with a new epoch, so the claims it sent while alive are dropped as stale and its
+##   first claim as downed starts a new baseline there (MovementRule treats it like a placement).
+##   Then, in this order: Died (everyone), Correction (the downed player only: its new epoch and
+##   position), the fact player_died, and only then the held item drops at the body
+##   (Items.place, `death`). The fact comes before the drop so a win condition that the death
+##   meets is checked before one that the dropped item meets (§3.4: the last crew member killed
+##   with its package over its circle is a dissident win).
 ## - leave(): the life state becomes left (which counts as dead for the win conditions), no body
 ##   stays; PlayerLeft (everyone else), then the fact player_left, then the held item drops on the
 ##   floor below where the player stood (Items.drop_held, `leave`).
@@ -39,7 +40,7 @@ static func damage(ctx: MatchContext, peer: int, amount: int) -> void:
 		die(ctx, peer)
 
 
-## `peer` dies: its body, its ghost at the body, Died, Correction, player_died, then the drop.
+## `peer` dies: its body, downed at the body, Died, Correction, player_died, then the drop.
 static func die(ctx: MatchContext, peer: int) -> void:
 	var dead := ctx.state.player(peer)
 	if dead == null or not dead.is_alive():
@@ -50,7 +51,7 @@ static func die(ctx: MatchContext, peer: int) -> void:
 		ctx.error("die: no floor below %s for the body of player %d" % [dead.position, peer])
 		body = dead.position
 	ctx.state.bodies[peer] = body
-	dead.life = PlayerState.Life.GHOST
+	dead.life = PlayerState.Life.DOWNED
 	dead.position = body
 	dead.velocity = Vector3.ZERO
 	dead.epoch += 1
