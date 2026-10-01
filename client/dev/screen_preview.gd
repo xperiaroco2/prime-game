@@ -59,7 +59,6 @@ func _ready() -> void:
 			var local := HudText.Local.new()
 			local.stamina = 62.0
 			local.hint = "E: pick up Knife"
-			local.invulnerable_until = 100 + 20 * 2.4
 			ui.refresh_round(model, mode, 100, local)
 	ui.refresh(model, mode, 100, hosting)
 

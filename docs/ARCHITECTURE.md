@@ -1456,17 +1456,17 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 **Built in M4-8 (#144)**, items, hands, the HUD and the task screen:
 - `client/world/`: `ItemWorld` (`Items` under `World`, made by `Game`) holds `ItemViews`, `CircleViews`,
   `ItemInteractions` and `WorldSounds` and gives the HUD what the model does not hold (`hud_local()`: the predicted
-  stamina, the crosshair's hint, and the own invulnerability's end from the own `Respawned` or `Revived` and the
-  mode's `invulnerable_s`). `ItemView` is one item's greybox look by its kind's id (D7 (a)), a labelled box for an
+  stamina and the crosshair's hint; the own invulnerability is the life panel's, M4-9). `ItemView` is one item's greybox look by its kind's id (D7 (a)), a labelled box for an
   unknown kind, its origin the resting point; `ItemViews` places one per model item: where it lies, at a remote
   holder's `RemotePlayerBody` attach point (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind),
-  hidden while that holder has no body drawn and when the own player holds it. Each view joins the group
-  `hidden_out_of_sight` (M4-9's `SightHider.GROUP`) and gives `sight_point()`; the root's `visible` is left to the
+  on the ground at the body while that holder is downed, hidden while it has no body drawn and when the own player
+  holds it. Each view joins `SightHider.GROUP` and gives `sight_point()`; the root's `visible` is left to the
   sight hiding, `ItemViews` toggles the look under it. `CircleViews` finds a station kind's size in the task types'
   `StationKind` properties (Delivery's `circle`) and draws the D10 (b) marker, the one `no_depth_test` material,
   over the circle of `ItemViews.destination_item()` (the own hand's package, else the belt's).
 - `TargetChoice` (pure) and `ItemInteractions` (physics priority 6, after the player): one ray from the camera against
-  the world layer only (as the host's line of sight) gives where the level stops it; the candidate is the nearest
+  the world layer (as the host's line of sight) and the `downed` layer gives where it stops (a downed player in
+  front is M4-9's raise target, and E there picks up nothing behind it); the candidate is the nearest
   ground item (not held, not delivered) whose middle the ray passes within 0.3 m of, short of that and of 4 m; the
   hint and E apply only if the item lies within `InReach.reach_m` of `PickUp` (the client's own mode) of the feet.
   Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own slots hold something

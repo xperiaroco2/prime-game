@@ -9,7 +9,8 @@ extends Node3D
 ## - X (`swap`) sends Swap() while the own hand or belt holds an item.
 ## The facing is the camera's look vector (E22). The host decides everything and the client
 ## predicts nothing of an action's outcome: the slots change only with the host's events. The keys
-## a raise uses (E on a downed player) are M4-9's.
+## a raise uses (E on a downed player, LifeView) are M4-9's: a downed player in front of an item
+## stops the item's ray, so E on a downed player picks up nothing behind it.
 ##
 ## The target is cast in the physics step, the only time the physics space may be read (it is
 ## locked outside it with physics on its own thread), after the local player moved (0).
@@ -89,7 +90,9 @@ func swap() -> int:
 	return session.send_intent(Intents.SWAP)
 
 
-## The target's cast: the camera's ray against the level (as the host's line of sight), then the
+## The target's cast: the camera's ray against the level (as the host's line of sight) and the
+## downed players' capsules (a downed player in front is M4-9's raise target, and E there picks up
+## nothing behind it), then the
 ## item along it and the reach from the feet (TargetChoice).
 func cast_target() -> int:
 	if not _acts() or not player.is_inside_tree() or _reach_m <= 0.0:
@@ -98,7 +101,7 @@ func cast_target() -> int:
 	var look := player.look_vector()
 	var to := eye + look * TargetChoice.RAY_M
 	var query := PhysicsRayQueryParameters3D.create(
-		eye, to, PhysicsLayers.WORLD, [player.get_rid()]
+		eye, to, PhysicsLayers.WORLD | PhysicsLayers.DOWNED, [player.get_rid()]
 	)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	var blocked_at := TargetChoice.RAY_M

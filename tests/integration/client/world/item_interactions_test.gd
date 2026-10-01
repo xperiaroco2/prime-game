@@ -78,6 +78,19 @@ func test_an_item_behind_a_wall_gets_no_hint() -> void:
 	assert_int(_keys.target()).is_equal(-1)
 
 
+func test_a_downed_player_in_front_hides_the_item_behind() -> void:
+	# E on a downed player is M4-9's raise: it must not also pick up the item behind them.
+	var behind := Vector3(0, 0, -1.8)
+	_spawn(8, behind)
+	var downed := _world.call(&"add_remote", Vector3(0, 0, -1.0)) as RemotePlayerBody
+	downed.set_living(false)
+	await _look_at(behind)
+	assert_int(_keys.target()).is_equal(-1)
+	downed.position = Vector3(3, 0, 0)
+	await _look_at(behind)
+	assert_int(_keys.target()).is_equal(8)
+
+
 func test_a_floor_item_beyond_the_reach_gets_no_hint() -> void:
 	var far := Vector3(0, 0, -2.3)
 	_spawn(4, far)

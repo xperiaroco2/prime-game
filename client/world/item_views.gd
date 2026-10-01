@@ -9,11 +9,10 @@ extends Node3D
 ##   drawn (no avatar in the newest snapshot);
 ## - the own player holds it: hidden here; the hand item is drawn in the first-person view
 ##   (FirstPersonHand) and the belt item named on the HUD.
-## Every view joins SIGHT_GROUP, so the downed camera's sight hiding (M4-9) hides one out of the
-## body's eye's sight. Placed in `_process`, after the avatars moved in the physics step.
-
-## M4-9's SightHider.GROUP: the views the downed camera hides out of the body's eye's sight.
-const SIGHT_GROUP := &"hidden_out_of_sight"
+## - its holder is downed (it keeps its items, vision revision 1): on the ground at the body.
+## Every view joins SightHider.GROUP, so the downed camera's sight hiding (M4-9) hides one out of
+## the body's eye's sight; only SightHider sets a view's `visible`, ItemViews shows or hides its
+## look. Placed in `_process`, after the avatars moved in the physics step.
 
 var model: ClientModel
 ## The client's own copy of the mode: which kinds take both hands.
@@ -66,7 +65,7 @@ func _process(_delta: float) -> void:
 		var view: ItemView = _views.get(id)
 		if view == null:
 			view = ItemView.make(id, item.kind, item.colour)
-			view.add_to_group(SIGHT_GROUP)
+			view.add_to_group(SightHider.GROUP)
 			_views[id] = view
 			add_child(view)
 		_place(view, item)
@@ -81,6 +80,10 @@ func _place(view: ItemView, item: ClientModel.Item) -> void:
 	var body := avatars.body_of(item.holder) if avatars != null else null
 	if item.holder == model.own_peer or body == null:
 		view.show_look(false)
+		return
+	if model.life_of(item.holder) == ClientModel.Life.DOWNED:
+		view.global_transform = Transform3D(Basis.IDENTITY, body.global_position)
+		view.show_look(true)
 		return
 	var point := body.belt_point()
 	if not item.belted:

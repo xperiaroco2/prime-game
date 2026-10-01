@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 ## The HUD's and the task screen's words (client/ui/, ARCHITECTURE §4.7, M4-8) from a fake
 ## ClientModel and the client's own mode only: the own numbers, hand and belt, the package's
-## destination, the shared progress, the clock, the own role and a dissident's teammates, the own
-## invulnerability; the task screen's rows with no position. How they look: the `shot`s of
+## destination, the shared progress, the clock, the own role and a dissident's teammates; the task
+## screen's rows with no position. How they look: the `shot`s of
 ## client/dev/hud_preview.tscn and task_screen_preview.tscn.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
@@ -32,7 +32,6 @@ func test_the_hud_shows_the_own_numbers_slots_destination_progress_and_clock() -
 	assert_str(shown.progress).is_equal("Tasks 3 / 5")
 	assert_str(shown.clock).is_equal("4:31")
 	assert_str(shown.hint).is_equal("E: pick up Knife")
-	assert_str(shown.invulnerable).is_empty()
 
 
 func test_the_hud_names_the_own_role_and_only_a_dissidents_teammates() -> void:
@@ -71,15 +70,6 @@ func test_a_delivered_package_has_no_destination_and_an_unknown_kind_shows_its_i
 	assert_str(HudText.slot_text(model, _mode, 40)).is_equal("wrench")
 
 
-func test_the_own_invulnerability_counts_down_to_nothing() -> void:
-	var model := _round_model()
-	var local := HudText.Local.new()
-	local.invulnerable_until = NOW + 2.5 * Ticks.RATE
-	assert_str(HudText.of(model, _mode, NOW, local).invulnerable).is_equal("Invulnerable 2.5 s")
-	var later := NOW + 3 * Ticks.RATE
-	assert_str(HudText.of(model, _mode, later, local).invulnerable).is_empty()
-
-
 func test_the_hud_control_hides_empty_lines_and_paints_the_swatch() -> void:
 	var hud: Hud = auto_free(Hud.new())
 	var shown := HudText.of(_round_model(), _mode, NOW, HudText.Local.new())
@@ -87,6 +77,11 @@ func test_the_hud_control_hides_empty_lines_and_paints_the_swatch() -> void:
 	assert_bool(hud.hint_label.visible).is_false()
 	assert_bool(hud.hand_label.visible).is_true()
 	assert_that(hud.swatch.color).is_equal(Preview.CIRCLE_COLOUR)
+	# A corner with nothing to show draws no empty panel (the life preview's round before a status).
+	hud.show_hud(HudText.Shown.new())
+	assert_bool((hud.role_label.get_parent().get_parent() as Control).visible).is_false()
+	hud.show_hud(shown)
+	assert_bool((hud.role_label.get_parent().get_parent() as Control).visible).is_true()
 	hud.aiming = false
 	assert_bool(hud.crosshair.visible).is_false()
 

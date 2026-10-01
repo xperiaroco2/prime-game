@@ -80,6 +80,8 @@ func refresh_round(
 ) -> void:
 	if screen != GameFlow.Screen.ROUND:
 		return
+	# The crosshair is for the living: the downed and the dead pick nothing up.
+	hud.aiming = not tasks.visible and model.is_alive(model.own_peer)
 	hud.show_hud(HudText.of(model, mode, host_tick, local))
 	if tasks.visible:
 		tasks.refresh(model, mode)

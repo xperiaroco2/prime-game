@@ -11,7 +11,6 @@ const SWATCH_SIZE := Vector2(28, 28)
 
 var role_label := UiParts.styled_label("", &"HudText")
 var teammates_label := UiParts.styled_label("", &"HudText")
-var invulnerable_label := UiParts.styled_label("", &"HudText")
 var clock_label := UiParts.styled_label("", &"HudTitle")
 var progress_label := UiParts.styled_label("", &"HudText")
 var health_label := UiParts.styled_label("", &"HudText")
@@ -27,6 +26,8 @@ var aiming := true:
 	set = set_aiming
 
 var _destination_row := HBoxContainer.new()
+## The corner panels: one with no line to show is hidden too.
+var _corners: Array[PanelContainer] = []
 
 
 func _init() -> void:
@@ -41,7 +42,7 @@ func _init() -> void:
 	var frame := Control.new()
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(frame)
-	_corner(frame, Control.PRESET_TOP_LEFT, [role_label, teammates_label, invulnerable_label])
+	_corner(frame, Control.PRESET_TOP_LEFT, [role_label, teammates_label])
 	var top := _corner(frame, Control.PRESET_CENTER_TOP, [clock_label, progress_label])
 	clock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -69,7 +70,6 @@ func _init() -> void:
 func show_hud(shown: HudText.Shown) -> void:
 	_show_line(role_label, shown.role)
 	_show_line(teammates_label, shown.teammates)
-	_show_line(invulnerable_label, shown.invulnerable)
 	_show_line(clock_label, shown.clock)
 	_show_line(progress_label, shown.progress)
 	_show_line(health_label, shown.health)
@@ -80,6 +80,10 @@ func show_hud(shown: HudText.Shown) -> void:
 	_destination_row.visible = not shown.destination.is_empty()
 	swatch.color = shown.destination_colour
 	_show_line(hint_label, shown.hint if aiming else "")
+	for panel: PanelContainer in _corners:
+		panel.visible = (panel.get_child(0) as Control).get_children().any(
+			func(row: Node) -> bool: return (row as Control).visible
+		)
 
 
 func set_aiming(on: bool) -> void:
@@ -105,6 +109,7 @@ func _corner(frame: Control, preset: Control.LayoutPreset, rows: Array) -> Panel
 		column.add_child(row)
 	panel.add_child(column)
 	frame.add_child(panel)
+	_corners.append(panel)
 	return panel
 
 

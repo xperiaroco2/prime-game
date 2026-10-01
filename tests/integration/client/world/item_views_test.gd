@@ -57,7 +57,7 @@ func test_an_item_on_the_ground_lies_where_the_events_put_it() -> void:
 	assert_object(view).is_not_null()
 	assert_that(view.global_position).is_equal(Vector3(2, 0, -1))
 	assert_bool(view.is_look_shown()).is_true()
-	assert_bool(view.is_in_group(ItemViews.SIGHT_GROUP)).is_true()
+	assert_bool(view.is_in_group(SightHider.GROUP)).is_true()
 	_model.fold(&"ItemPlaced", {"item": 1, "position": Vector3(3, 0, 0), "cause": &"put_down"})
 	await _drawn()
 	assert_that(view.global_position).is_equal(Vector3(3, 0, 0))

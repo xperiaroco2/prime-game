@@ -2,14 +2,15 @@ class_name HudText
 extends RefCounted
 ## What the round's HUD says (ARCHITECTURE §4.7, the HUD; M4-8), as words: pure, from the own
 ## ClientModel, the client's own copy of the mode, the estimated host tick and what the game knows
-## locally (the predicted stamina, the crosshair's hint, the own invulnerability's end). Greybox
-## wording, placeholders until the UI milestone (#150).
+## locally (the predicted stamina, the crosshair's hint). Greybox wording, placeholders until the
+## UI milestone (#150).
 ##
 ## Only the own player's facts: its health and stamina, its hand and belt by their kinds' display
 ## names, its package's destination (the swatch of its circle's colour; the world marks the
 ## circle, D10 (b)), the shared progress, the match clock, its own role by its display name and,
 ## for a role whose players know each other, its teammates (Teammates, its own knowledge; the M4
-## ADR's §3 item 6), and its invulnerability. No item's or player's position, no other role.
+## ADR's §3 item 6). The own invulnerability is the life panel's (M4-9's LifeHud, under the same
+## Ui in the round). No item's or player's position, no other role.
 
 
 ## What the HUD knows besides the model and the mode.
@@ -19,9 +20,6 @@ class Local:
 	var stamina := -1.0
 	## What the crosshair would do (ItemInteractions); empty for nothing.
 	var hint := ""
-	## The host tick the own invulnerability ends at (the own Respawned or Revived and the mode's
-	## invulnerability time); negative for none.
-	var invulnerable_until := -1.0
 
 
 ## The HUD's lines; an empty one hides its label.
@@ -38,7 +36,6 @@ class Shown:
 	var clock := ""
 	var role := ""
 	var teammates := ""
-	var invulnerable := ""
 	var hint := ""
 
 
@@ -61,9 +58,6 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 		shown.clock = "%d:%02d" % [floori(left / 60.0), left % 60]
 	shown.role = role_text(model, mode)
 	shown.teammates = teammates_text(model)
-	var invulnerable_s := (local.invulnerable_until - host_tick) / Ticks.RATE
-	if local.invulnerable_until >= 0.0 and invulnerable_s > 0.0:
-		shown.invulnerable = "Invulnerable %.1f s" % invulnerable_s
 	shown.hint = local.hint
 	return shown
 
