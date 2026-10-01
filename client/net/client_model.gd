@@ -146,12 +146,13 @@ func fold(event_name: StringName, fields: Dictionary) -> void:
 			_fold_match_event(event_name, fields)
 
 
-## Folds one decoded snapshot: its avatars replace the older ones.
+## Folds one decoded snapshot: its avatars replace the older ones. The model keeps a copy: the
+## DecodedView records the same Dictionary, and a PlayerLeft must not change what was decoded.
 func fold_snapshot(fields: Dictionary) -> void:
 	var tick: int = fields["tick"]
 	if tick > snapshot_tick:
 		snapshot_tick = tick
-		avatars = fields["avatars"]
+		avatars = (fields["avatars"] as Dictionary).duplicate(true)
 
 
 ## Forgets a match's facts: on LoadMatch and on entering the lobby.

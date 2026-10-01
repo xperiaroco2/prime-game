@@ -59,6 +59,17 @@ func test_it_holds_the_snapshots_by_tick() -> void:
 	assert_bool(WireSamples.same(model.avatars, eleven)).is_true()
 
 
+func test_a_player_leaving_leaves_the_recorded_snapshot_as_decoded() -> void:
+	_harness.welcome()
+	_harness.send_message(_snapshot(12, {1: _avatar(Vector3.ZERO), 2: _avatar(Vector3.ONE)}))
+	_harness.pump()
+	_harness.send(PlayerLeftEvent.new(2))
+	_harness.pump()
+	var recorded: Dictionary = _harness.session.view.snapshots[12]["avatars"]
+	assert_array(recorded.keys()).contains_exactly_in_any_order([1, 2])
+	assert_array(_harness.session.model.avatars.keys()).contains_exactly([1])
+
+
 func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	_harness.welcome()
 	var heard: Array[int] = []
