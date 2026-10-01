@@ -76,15 +76,15 @@ func test_a_never_event_fails_when_it_arrives() -> void:
 
 func test_a_correction_outside_a_placement_fails() -> void:
 	# An honest bot is never corrected (§9.7): only a placement or its own death explains one.
-	var bot := ScenarioBot.new(2, ScenarioRunner.peer_of(2), [])
+	var bot := ScenarioBot.new(2, ScenarioPeers.core(2).peer_of(2), [])
 	bot.begin_batch()
-	var problem := bot.receive(CorrectionEvent.new(bot.peer, 3, Vector3(1, 0, 1), Vector3.ZERO))
+	var problem := _receive(bot, CorrectionEvent.new(bot.peer, 3, Vector3(1, 0, 1), Vector3.ZERO))
 	assert_str(problem).contains("Correction outside a placement")
 	bot.begin_batch()
 	var spots: Dictionary[int, Vector3] = {bot.peer: Vector3(2, 0, 2)}
-	assert_str(bot.receive(PlayersPlacedEvent.new(spots))).is_empty()
+	assert_str(_receive(bot, PlayersPlacedEvent.new(spots))).is_empty()
 	(
-		assert_str(bot.receive(CorrectionEvent.new(bot.peer, 4, Vector3(2, 0, 2), Vector3.ZERO)))
+		assert_str(_receive(bot, CorrectionEvent.new(bot.peer, 4, Vector3(2, 0, 2), Vector3.ZERO)))
 		. is_empty()
 	)
 	assert_int(bot.epoch).is_equal(4)
@@ -149,7 +149,7 @@ func test_a_match_error_or_a_view_that_differs_fails() -> void:
 	assert_str(_text(runner)).contains("match error: a planted match error")
 	runner.failures.clear()
 	runner.game.diagnostics.clear()
-	runner.bots[0].events.append(ReadyChangedEvent.new(1, false))
+	runner.bots[0].events.append(WireMessage.new(&"ReadyChanged", {"peer": 1, "ready": false}))
 	runner._check_after()
 	assert_str(_text(runner)).contains("but view_of(1) holds")
 
@@ -170,13 +170,46 @@ func test_an_expect_that_times_out_or_an_expect_none_that_sees_its_event_fails()
 
 
 func test_fields_name_players_by_bot_number() -> void:
-	var event := ReadyChangedEvent.new(ScenarioRunner.peer_of(3), true)
-	assert_bool(ScenarioRunner.matches(event, &"ReadyChanged", {"peer": 3})).is_true()
-	assert_bool(ScenarioRunner.matches(event, &"ReadyChanged", {"peer": 1003})).is_false()
-	assert_bool(ScenarioRunner.matches(event, &"ReadyChanged", {"ready": false})).is_false()
-	assert_bool(ScenarioRunner.matches(event, &"PhaseChanged", {})).is_false()
+	var peers := ScenarioPeers.core(3)
+	var event := ReadyChangedEvent.new(peers.peer_of(3), true)
+	assert_bool(ScenarioPlay.event_matches(event, &"ReadyChanged", {"peer": 3}, peers)).is_true()
+	(
+		assert_bool(ScenarioPlay.event_matches(event, &"ReadyChanged", {"peer": 1003}, peers))
+		. is_false()
+	)
+	(
+		assert_bool(ScenarioPlay.event_matches(event, &"ReadyChanged", {"ready": false}, peers))
+		. is_false()
+	)
+	assert_bool(ScenarioPlay.event_matches(event, &"PhaseChanged", {}, peers)).is_false()
 	var phase := PhaseChangedEvent.new(&"round", -1)
-	assert_bool(ScenarioRunner.matches(phase, &"PhaseChanged", {"phase": "round"})).is_true()
+	(
+		assert_bool(ScenarioPlay.event_matches(phase, &"PhaseChanged", {"phase": "round"}, peers))
+		. is_true()
+	)
+	# What a bot received, as (name, fields): the same rules, through the runner's own map.
+	var bot := ScenarioBot.new(3, peers.peer_of(3), [], peers)
+	var got := WireMessage.new(&"ReadyChanged", event.to_dict())
+	(
+		assert_bool(ScenarioPlay.matches_fields(got, bot, &"ReadyChanged", {"peer": 3}, peers))
+		. is_true()
+	)
+	var other := ScenarioPeers.new()
+	other.set_peer(3, 7)
+	(
+		assert_bool(ScenarioPlay.matches_fields(got, bot, &"ReadyChanged", {"peer": 3}, other))
+		. is_false()
+	)
+	# An event for one peer names none in its payload: its receiver is its subject.
+	var status := WireMessage.new(&"SelfStatus", SelfStatusEvent.new(1003, 90, 50, true).to_dict())
+	(
+		assert_bool(ScenarioPlay.matches_fields(status, bot, &"SelfStatus", {"peer": 3}, peers))
+		. is_true()
+	)
+	(
+		assert_bool(ScenarioPlay.matches_fields(status, bot, &"SelfStatus", {"peer": 2}, peers))
+		. is_false()
+	)
 
 
 ## A match whose snapshots and voice routing show what a test plants, over another match's state.
@@ -228,3 +261,7 @@ func _target(kind: ScenarioTarget.Kind) -> ScenarioTarget:
 
 func _text(runner: ScenarioRunner) -> String:
 	return "\n".join(runner.failures)
+
+
+func _receive(bot: ScenarioBot, event: MatchEvent) -> String:
+	return bot.receive(event.event_name(), event.to_dict())

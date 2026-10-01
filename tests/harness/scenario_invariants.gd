@@ -27,13 +27,35 @@ var sender := 0
 
 var _game: Match
 var _scenario: BotScenario
+var _peers: ScenarioPeers
 var _seeds: Array[int] = []
 
 
-func _init(game: Match, scenario: BotScenario) -> void:
+## `peers` is the runner's map from bot number to peer id (the `never` check); the core runner's by
+## default.
+func _init(game: Match, scenario: BotScenario, peers: ScenarioPeers = null) -> void:
 	_game = game
 	_scenario = scenario
+	_peers = peers if peers != null else ScenarioPeers.core(scenario.bots)
 	_seeds.append(scenario.session_seed)
+
+
+## The broken invariants of one Match call (HostSession's observer, §4.5): its command's sender,
+## each event of its slice, and, after a tick (no command), the tick's snapshots and voice routing.
+func check_call(command: MatchCommand, slice: Array[EmittedEvent]) -> PackedStringArray:
+	var found := PackedStringArray()
+	sender = command.peer if command != null else 0
+	for emitted: EmittedEvent in slice:
+		found.append_array(check_event(emitted))
+	if command == null:
+		found.append_array(check_tick())
+	sender = 0
+	return found
+
+
+## The session seed and every match seed seen so far: no message may hold one.
+func seeds() -> Array[int]:
+	return _seeds.duplicate()
 
 
 ## The broken invariants of one emitted event, checked right after the step that emitted it.
@@ -69,13 +91,13 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 				"%s reached %s, not every present player %s" % [name, emitted.recipients, present]
 			)
 	for seed_value: int in _seeds:
-		if _holds_int(event.to_dict(), seed_value):
+		if holds_int(event.to_dict(), seed_value):
 			found.append("%s holds a seed" % name)
 	for never: NeverEvent in _scenario.never:
-		if not ScenarioRunner.matches(event, never.event, never.fields):
+		if not ScenarioPlay.event_matches(event, never.event, never.fields, _peers):
 			continue
 		for peer: int in emitted.recipients:
-			if never.bot == 0 or ScenarioRunner.peer_of(never.bot) == peer:
+			if never.bot == 0 or _peers.peer_of(never.bot) == peer:
 				found.append("peer %d received %s, which the scenario says never" % [peer, name])
 	return found
 
@@ -88,7 +110,7 @@ func check_tick() -> PackedStringArray:
 		var snapshot := _game.snapshot_for(peer)
 		var avatars: Dictionary = snapshot.get("avatars", {})
 		for seed_value: int in _seeds:
-			if _holds_int(snapshot, seed_value):
+			if holds_int(snapshot, seed_value):
 				found.append("peer %d's snapshot holds a seed" % peer)
 		for other: int in avatars:
 			var avatar: Dictionary = avatars[other]
@@ -119,17 +141,18 @@ func _learn_role(peer: int, about: int, role: StringName, found: PackedStringArr
 		found.append("peer %d (%s) learned the role of peer %d (%s)" % [peer, own, about, truth])
 
 
-static func _holds_int(value: Variant, number: int) -> bool:
+## Whether `value` holds the whole number `number`, at any depth.
+static func holds_int(value: Variant, number: int) -> bool:
 	if value is int:
 		return value == number
 	if value is Dictionary:
 		var fields: Dictionary = value
 		for key: Variant in fields:
-			if _holds_int(key, number) or _holds_int(fields[key], number):
+			if holds_int(key, number) or holds_int(fields[key], number):
 				return true
 	elif value is Array:
 		for element: Variant in value as Array:
-			if _holds_int(element, number):
+			if holds_int(element, number):
 				return true
 	elif value is PackedInt32Array or value is PackedInt64Array:
 		for element: int in value:

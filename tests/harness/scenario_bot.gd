@@ -1,15 +1,25 @@
 class_name ScenarioBot
 extends RefCounted
-## One bot of the core scenario runner (ARCHITECTURE §9.7): its script's progress and everything
-## its client knows, built only from the events and snapshots its peer received (`view_of`). A
+## One bot of a scenario runner (ARCHITECTURE §9.7, §4.6): its script's progress and everything its
+## client knows, learned only from the events and snapshots it received, as (name, fields): the
+## core runner gives each event's to_dict(), a network bot its ClientSession's decoded messages. A
 ## target the bot cannot know from them fails the scenario, so a scenario also proves that its
 ## mechanic is playable with what a player is told.
 
 enum Where { GROUND, HAND, LOCKED }
 
+## The events for one peer whose fields name no peer (§4.6): whoever receives one is its subject,
+## so a step's `peer` field matches the receiving bot.
+const OWN_EVENTS: Array[StringName] = [
+	&"RoleAssigned", &"Damaged", &"SelfStatus", &"Correction", &"Rejected"
+]
+
 var number: int
+## Its peer id; 0 until it is known (a network bot learns it when it connects).
 var peer: int
 var steps: Array[ScenarioStep] = []
+## The runner's map from bot number to peer id, for `bot(i)` targets.
+var peers: ScenarioPeers
 var step_index := 0
 ## The tick the current step started, or -1 before it starts.
 var step_started := -1
@@ -25,8 +35,8 @@ var connected := false
 var joined := false
 ## It left, or the host disconnected it: it acts and receives no more.
 var gone := false
-## Every event it received, in order.
-var events: Array[MatchEvent] = []
+## Every event it received, in order: name and fields (the event's to_dict()).
+var events: Array[WireMessage] = []
 
 ## What its client knows of itself.
 var epoch := 0
@@ -43,8 +53,8 @@ var match_id := 0
 var load_ack_due := false
 ## The match id of the last LoadMatch acknowledged at once (no LoadAck step was current), or -1.
 var auto_acked_match := -1
-## The LoadMatch that the bot's LoadAck step is to answer, or null.
-var unanswered_load: LoadMatchEvent
+## The match id of the LoadMatch that the bot's LoadAck step is to answer, or -1.
+var unanswered_load := -1
 ## Item id -> {kind, position, where, station}, from ItemSpawned, ItemPickedUp, ItemPlaced and
 ## PackageDelivered.
 var items: Dictionary[int, Dictionary] = {}
@@ -59,10 +69,16 @@ var _client_tick := 0
 var _placed_now := false
 
 
-func _init(bot_number: int, peer_id: int, script_steps: Array[ScenarioStep]) -> void:
+func _init(
+	bot_number: int,
+	peer_id: int,
+	script_steps: Array[ScenarioStep],
+	bot_peers: ScenarioPeers = null
+) -> void:
 	number = bot_number
 	peer = peer_id
 	steps = script_steps
+	peers = bot_peers if bot_peers != null else ScenarioPeers.new()
 
 
 ## The step it is on, or null when its script is done.
@@ -105,56 +121,56 @@ func next_client_tick() -> int:
 	return _client_tick
 
 
-## A new batch of events (one step of the match) begins.
+## A new batch of events (one step of the match, or one poll of its client) begins.
 func begin_batch() -> void:
 	_placed_now = false
 
 
-## Takes one event its peer received and learns from it. Returns a failure, or "".
-func receive(event: MatchEvent) -> String:
-	events.append(event)
-	if event is WelcomeEvent:
-		var welcome := event as WelcomeEvent
-		joined = true
-		epoch = welcome.epoch
-		jumps = 0
-		position = welcome.spot
-		phase = welcome.phase
-		for other: int in welcome.positions:
-			seen[other] = welcome.positions[other]
-	elif event is PlayerJoinedEvent:
-		var joiner := event as PlayerJoinedEvent
-		seen[joiner.peer] = joiner.spot
-	elif event is PlayersPlacedEvent:
-		var placed := event as PlayersPlacedEvent
-		for other: int in placed.spots:
-			seen[other] = placed.spots[other]
-		if placed.spots.has(peer):
-			_placed_now = true
-	elif event is CorrectionEvent:
-		var correction := event as CorrectionEvent
-		if not _placed_now:
-			return (
-				"a Correction outside a placement (epoch %d, at %s): an honest bot is never corrected"
-				% [correction.epoch, correction.position]
-			)
-		epoch = correction.epoch
-		jumps = 0
-		position = correction.position
-	elif event is DiedEvent:
-		var died := event as DiedEvent
-		seen[died.peer] = died.position
-		if died.peer == peer:
-			ghost = true
-			_placed_now = true
-	else:
-		_learn(event)
+## Takes one event its peer received, as (name, fields), and learns from it. Returns a failure, or
+## "".
+func receive(event_name: StringName, fields: Dictionary) -> String:
+	events.append(WireMessage.new(event_name, fields))
+	match event_name:
+		&"Welcome":
+			joined = true
+			peer = fields["peer"] as int
+			epoch = fields["epoch"] as int
+			jumps = 0
+			position = fields["spot"] as Vector3
+			phase = StringName(str(fields["phase"]))
+			var positions: Dictionary = fields["positions"]
+			for other: int in positions:
+				seen[other] = positions[other]
+		&"PlayerJoined":
+			seen[fields["peer"] as int] = fields["spot"] as Vector3
+		&"PlayersPlaced":
+			var spots: Dictionary = fields["spots"]
+			for other: int in spots:
+				seen[other] = spots[other]
+			if spots.has(peer):
+				_placed_now = true
+		&"Correction":
+			if not _placed_now:
+				return (
+					"a Correction outside a placement (epoch %d, at %s): an honest bot is never corrected"
+					% [fields["epoch"], fields["position"]]
+				)
+			epoch = fields["epoch"] as int
+			jumps = 0
+			position = fields["position"] as Vector3
+		&"Died":
+			var died := fields["peer"] as int
+			seen[died] = fields["position"] as Vector3
+			if died == peer:
+				ghost = true
+				_placed_now = true
+		_:
+			_learn(event_name, fields)
 	return ""
 
 
-## Takes its snapshot of a tick: where it sees the other players.
-func see(snapshot: Dictionary) -> void:
-	var avatars: Dictionary = snapshot.get("avatars", {})
+## Takes the avatars of a snapshot: where it sees the other players.
+func see(avatars: Dictionary) -> void:
 	for other: int in avatars:
 		var avatar: Dictionary = avatars[other]
 		seen[other] = avatar["position"]
@@ -163,17 +179,27 @@ func see(snapshot: Dictionary) -> void:
 ## The reason of the Rejected answering `seq` since the current step started, or "".
 func rejection_of(seq: int) -> StringName:
 	for i in range(step_cursor, events.size()):
-		var rejected := events[i] as RejectedEvent
-		if rejected != null and rejected.seq == seq:
-			return rejected.reason
+		var event := events[i]
+		if event.name == &"Rejected" and event.fields["seq"] == seq:
+			return StringName(str(event.fields["reason"]))
 	return &""
 
 
-## The first event since `from` that `matches` (a Callable taking a MatchEvent) accepts, or null.
-func find_since(from: int, matches: Callable) -> MatchEvent:
+## The first event since `from` that `matches` (a Callable taking a WireMessage) accepts, or null.
+func find_since(from: int, matches: Callable) -> WireMessage:
 	for i in range(from, events.size()):
 		if matches.call(events[i]):
 			return events[i]
+	return null
+
+
+## The value of `field` in an event this bot received: the payload's, else, for `peer` of an event
+## for one peer that names none (OWN_EVENTS), the bot's own peer id; null when it has none.
+func field_of(event: WireMessage, field: String) -> Variant:
+	if event.fields.has(field):
+		return event.fields[field]
+	if field == "peer" and OWN_EVENTS.has(event.name):
+		return peer
 	return null
 
 
@@ -184,8 +210,11 @@ func where_is(target: ScenarioTarget) -> Vector3:
 		ScenarioTarget.Kind.POINT:
 			found = target.point
 		ScenarioTarget.Kind.BOT:
-			var other := ScenarioRunner.peer_of(target.bot)
-			found = position if other == peer else seen.get(other, Vector3.INF)
+			var other := peers.peer_of(target.bot)
+			if other == 0:
+				found = Vector3.INF
+			else:
+				found = position if other == peer else seen.get(other, Vector3.INF)
 		ScenarioTarget.Kind.CIRCLE_OF_HELD:
 			if held >= 0 and items.has(held):
 				var station: int = items[held]["station"]
@@ -221,55 +250,54 @@ func item_of(target: ScenarioTarget) -> int:
 func last_events(count: int = 12) -> Array[StringName]:
 	var names: Array[StringName] = []
 	for i in range(maxi(0, events.size() - count), events.size()):
-		names.append(events[i].event_name())
+		names.append(events[i].name)
 	return names
 
 
-func _learn(event: MatchEvent) -> void:
-	if event is RoleAssignedEvent:
-		role = (event as RoleAssignedEvent).role
-	elif event is LoadMatchEvent:
-		match_id = (event as LoadMatchEvent).match_id
-		items.clear()
-		stations.clear()
-		held = -1
-		ghost = false
-		if current_step() is StepLoadAck:
-			unanswered_load = event as LoadMatchEvent
-		else:
-			load_ack_due = true
-	elif event is PhaseChangedEvent:
-		phase = (event as PhaseChangedEvent).phase
-	elif event is StationPlacedEvent:
-		var station := event as StationPlacedEvent
-		stations[station.station] = station.position
-	elif event is ItemSpawnedEvent:
-		var spawned := event as ItemSpawnedEvent
-		items[spawned.item] = {
-			"kind": spawned.kind,
-			"position": spawned.position,
-			"where": Where.GROUND,
-			"station": spawned.station,
-		}
-	elif event is ItemPickedUpEvent:
-		var picked := event as ItemPickedUpEvent
-		if items.has(picked.item):
-			items[picked.item]["where"] = Where.HAND
-		if picked.peer == peer:
-			held = picked.item
-	elif event is ItemPlacedEvent:
-		var placed := event as ItemPlacedEvent
-		if items.has(placed.item):
-			items[placed.item]["where"] = Where.GROUND
-			items[placed.item]["position"] = placed.position
-		if held == placed.item:
+func _learn(event_name: StringName, fields: Dictionary) -> void:
+	match event_name:
+		&"RoleAssigned":
+			role = StringName(str(fields["role"]))
+		&"LoadMatch":
+			match_id = fields["match_id"] as int
+			items.clear()
+			stations.clear()
 			held = -1
-	elif event is PackageDeliveredEvent:
-		var delivered := event as PackageDeliveredEvent
-		if items.has(delivered.item):
-			items[delivered.item]["where"] = Where.LOCKED
-	elif event is SelfStatusEvent:
-		sprint_available = (event as SelfStatusEvent).sprint_available
+			ghost = false
+			if current_step() is StepLoadAck:
+				unanswered_load = match_id
+			else:
+				load_ack_due = true
+		&"PhaseChanged":
+			phase = StringName(str(fields["phase"]))
+		&"StationPlaced":
+			stations[fields["station"] as int] = fields["position"] as Vector3
+		&"ItemSpawned":
+			items[fields["item"] as int] = {
+				"kind": StringName(str(fields["kind"])),
+				"position": fields["position"] as Vector3,
+				"where": Where.GROUND,
+				"station": fields.get("station", -1) as int,
+			}
+		&"ItemPickedUp":
+			var item := fields["item"] as int
+			if items.has(item):
+				items[item]["where"] = Where.HAND
+			if fields["peer"] as int == peer:
+				held = item
+		&"ItemPlaced":
+			var item := fields["item"] as int
+			if items.has(item):
+				items[item]["where"] = Where.GROUND
+				items[item]["position"] = fields["position"] as Vector3
+			if held == item:
+				held = -1
+		&"PackageDelivered":
+			var item := fields["item"] as int
+			if items.has(item):
+				items[item]["where"] = Where.LOCKED
+		&"SelfStatus":
+			sprint_available = fields["sprint_available"] as bool
 
 
 func _ids_of_kind(kind: StringName) -> Array[int]:
