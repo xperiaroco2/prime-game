@@ -127,6 +127,15 @@ func test_a_host_that_cannot_start_stays_on_the_menu_and_says_why() -> void:
 	await get_tree().process_frame
 
 
+func test_a_port_alone_fills_the_menu_and_the_tree_gets_its_quit_back() -> void:
+	var game := _game(["--port=%d" % (PORT + 3)])
+	assert_int(game.screen()).is_equal(S.MENU)
+	assert_int(game.ui.menu.port()).is_equal(PORT + 3)
+	assert_bool(get_tree().auto_accept_quit).is_false()
+	remove_child(game)
+	assert_bool(get_tree().auto_accept_quit).is_true()
+
+
 func _game(args: Array[String]) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false

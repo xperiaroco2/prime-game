@@ -74,6 +74,13 @@ func _ready() -> void:
 		host(options.port, options.bind)
 	elif options.joining:
 		join(options.address, options.port)
+	else:
+		ui.menu.port_box.value = options.port
+
+
+## The tree outlives this root in tests: give it back the quit it had.
+func _exit_tree() -> void:
+	get_tree().auto_accept_quit = true
 
 
 ## Hosts a session on `port`, listening on `bind` (every interface unless "127.0.0.1"); false,
