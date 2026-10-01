@@ -1865,9 +1865,11 @@ part is usable in data once its row or entry names the PR that built it. Every n
   - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does
     not declare; an outcome a phase can report without a row (§3.1); a phase whose rules can knock a player down but
     that lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`)
-    but lists no `ChannelTicks`, so the channel would never complete (M4-4); an accepted intent that neither the phase class nor any rule handles; two rules on
-    one trigger in one owner; a number outside its part's bounds; an id outside the
-    wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
+    but lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action
+    (a reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
+    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); an accepted intent that neither
+    the phase class nor any rule handles; two rules on one trigger in one owner; a number outside its part's
+    bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
     condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), the designer's answer on
     #96). A unit test
     (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
@@ -1958,7 +1960,10 @@ but since #79 nothing in it is secret: Delivery's package and its index are publ
   event to everyone tells everyone who watches it fire that the actor has that role (a blade only dissidents may use:
   whoever is seen swinging it is a dissident). That may be the design, but it must be chosen: each rule entry says
   whether its public events reveal the owner's role, and `Match` validation logs a warning for a role-owned or
-  `ActorRole`-gated rule with an effect whose event goes to everyone. v0 has none.
+  `ActorRole`-gated rule with an effect whose event goes to everyone. v0 has none. A channel adds one more way
+  (M4-4): any applied action stops its actor's running channel (a raiser's public `RaiseStopped`) while a refused
+  one stops nothing, so a role-owned or role-gated action reveals the role of a raiser who tries it; in a mode
+  with a channel the check warns about every such action.
 - **Determinism.** Rules, conditions and effects run in data order, and players in peer-id order. A part that draws
   randomness names its RNG purpose in its data (§3.3), so a new part never shifts the draws of the others.
 

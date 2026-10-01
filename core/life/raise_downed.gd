@@ -26,6 +26,10 @@ func holds_target() -> bool:
 	return true
 
 
+func required_conditions() -> Array[Script]:
+	return [TargetDowned]
+
+
 func started(ctx: MatchContext, channel: Channel) -> void:
 	var downed := ctx.state.player(channel.target)
 	if downed == null or downed.life != PlayerState.Life.DOWNED:

@@ -43,6 +43,13 @@ func run(ctx: MatchContext) -> void:
 	started(own, channel)
 
 
+## The condition classes the rule holding this effect must have among its conditions (the mode
+## check refuses a rule without one): RaiseDowned's TargetDowned, without which it would raise a
+## living player. None by default.
+func required_conditions() -> Array[Script]:
+	return []
+
+
 ## Whether a running channel of this effect holds its target in place (the raise: the downed
 ## player's claims may not move it, MovementRule). False by default.
 func holds_target() -> bool:

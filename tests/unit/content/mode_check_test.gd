@@ -282,6 +282,38 @@ func test_the_raise_parts_check_their_numbers() -> void:
 	_expect_none(mode)
 
 
+func test_a_raise_without_target_downed_is_refused() -> void:
+	var mode := FixtureCombatModes.raising()
+	# TargetDowned is the raise rule's first condition.
+	mode.actions[2].conditions.remove_at(0)
+	_expect(mode, "rule Raise starts a channel that requires the condition TargetDowned")
+
+
+func test_a_channel_outside_an_action_is_refused() -> void:
+	var mode := FixtureCombatModes.raising()
+	var raise := FixtureCombatModes.raise_rule()
+	var reaction := FixtureModes.rule(Facts.ITEM_RESTED, [TargetDowned.new()], raise.effects)
+	mode.reactions = [reaction]
+	_expect(mode, "mode.reactions: rule item_rested starts a channel")
+	mode.reactions = []
+	mode.transitions[1].actions.append(raise.effects[0])
+	_expect(mode, "row round, won starts a channel")
+
+
+func test_a_role_gated_action_in_a_mode_with_a_channel_is_a_warning() -> void:
+	# Applying it stops the actor's raise publicly; a refusal does not: the stop reveals the role.
+	var mode := FixtureCombatModes.raising()
+	mode.roles[1].actions = [FixtureModes.rule(Intents.PICK_UP, [], [])]
+	var check := ModeCheck.run(mode)
+	assert_array(Array(check.errors)).is_empty()
+	assert_array(Array(check.warnings)).has_size(1)
+	assert_str(check.warnings[0]).contains("in a mode with a channel")
+	# The same role action in a mode with no channel says nothing.
+	var plain := FixtureCombatModes.respawning()
+	plain.roles[1].actions = [FixtureModes.rule(Intents.PICK_UP, [], [])]
+	assert_array(Array(ModeCheck.run(plain).warnings)).is_empty()
+
+
 func test_a_respawn_needs_its_tag_and_rng_purpose() -> void:
 	var mode := FixtureCombatModes.respawning()
 	_expect_none(mode)
