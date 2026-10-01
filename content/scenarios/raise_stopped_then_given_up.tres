@@ -1,0 +1,176 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://b1uxwg0u4wcf2"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_never"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="3_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="4_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="5_step"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="6_ready"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="7_wait_for"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="8_walk_to"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="9_target"]
+[ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="10_pick_up"]
+[ext_resource type="Script" uid="uid://bir4sbsppao03" path="res://core/content/scenario/step_use.gd" id="11_use"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="12_wait"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="13_expect"]
+[ext_resource type="Script" uid="uid://blv7jx8tyu0gn" path="res://core/content/scenario/step_raise.gd" id="14_raise"]
+[ext_resource type="Script" uid="uid://bpp58hftg11bk" path="res://core/content/scenario/step_stop_raise.gd" id="15_stop_raise"]
+[ext_resource type="Script" uid="uid://mfompr0oah" path="res://core/content/scenario/step_give_up.gd" id="16_give_up"]
+
+[sub_resource type="Resource" id="Never_revived"]
+script = ExtResource("2_never")
+event = &"Revived"
+
+[sub_resource type="Resource" id="Ready"]
+script = ExtResource("6_ready")
+
+[sub_resource type="Resource" id="Wait_round"]
+script = ExtResource("7_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Target_knife"]
+script = ExtResource("9_target")
+kind = 2
+item_kind = &"knife"
+
+[sub_resource type="Resource" id="B1_walk_to_knife"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_knife")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="B1_pick_up_knife"]
+script = ExtResource("10_pick_up")
+target = SubResource("Target_knife")
+
+[sub_resource type="Resource" id="Target_bot3"]
+script = ExtResource("9_target")
+kind = 3
+bot = 3
+
+[sub_resource type="Resource" id="Walk_to_bot3"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_bot3")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="B1_hit"]
+script = ExtResource("11_use")
+towards = SubResource("Target_bot3")
+
+[sub_resource type="Resource" id="Wait_cooldown"]
+script = ExtResource("12_wait")
+seconds = 0.6
+
+[sub_resource type="Resource" id="Knocked_down_3"]
+script = ExtResource("13_expect")
+event = &"KnockedDown"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="Wait_died_3"]
+script = ExtResource("7_wait_for")
+event = &"Died"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="Wait_respawned_3"]
+script = ExtResource("7_wait_for")
+event = &"Respawned"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="Wait_ended"]
+script = ExtResource("7_wait_for")
+event = &"MatchEnded"
+fields = {
+"side": "dissidents"
+}
+
+[sub_resource type="Resource" id="B1_script"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B1_walk_to_knife"), SubResource("B1_pick_up_knife"), SubResource("Walk_to_bot3"), SubResource("B1_hit"), SubResource("Wait_cooldown"), SubResource("B1_hit"), SubResource("Knocked_down_3"), SubResource("Wait_died_3"), SubResource("Wait_respawned_3"), SubResource("Wait_ended")])
+
+[sub_resource type="Resource" id="Wait_knocked_down_3"]
+script = ExtResource("7_wait_for")
+event = &"KnockedDown"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="B2_raise_briefly"]
+script = ExtResource("14_raise")
+target = SubResource("Target_bot3")
+hold_s = 1.0
+
+[sub_resource type="Resource" id="B2_let_go"]
+script = ExtResource("15_stop_raise")
+
+[sub_resource type="Resource" id="Raise_stopped"]
+script = ExtResource("13_expect")
+event = &"RaiseStopped"
+fields = {
+"raiser": 2,
+"target": 3
+}
+
+[sub_resource type="Resource" id="B2_raise_again"]
+script = ExtResource("14_raise")
+target = SubResource("Target_bot3")
+hold_s = 10.0
+
+[sub_resource type="Resource" id="Died_3"]
+script = ExtResource("13_expect")
+event = &"Died"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="B2_let_go_too_late"]
+script = ExtResource("15_stop_raise")
+expect_rejected = &"not_channeling"
+
+[sub_resource type="Resource" id="B2_script"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("Wait_knocked_down_3"), SubResource("Walk_to_bot3"), SubResource("B2_raise_briefly"), SubResource("B2_let_go"), SubResource("Raise_stopped"), SubResource("B2_raise_again"), SubResource("Died_3"), SubResource("B2_let_go_too_late"), SubResource("Wait_respawned_3"), SubResource("Wait_ended")])
+
+[sub_resource type="Resource" id="Wait_raise_started"]
+script = ExtResource("7_wait_for")
+event = &"RaiseStarted"
+fields = {
+"raiser": 2,
+"target": 3
+}
+
+[sub_resource type="Resource" id="Wait_raise_stopped"]
+script = ExtResource("7_wait_for")
+event = &"RaiseStopped"
+fields = {
+"raiser": 2,
+"target": 3
+}
+
+[sub_resource type="Resource" id="B3_give_up"]
+script = ExtResource("16_give_up")
+
+[sub_resource type="Resource" id="B3_script"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("Wait_knocked_down_3"), SubResource("Wait_raise_started"), SubResource("Wait_raise_stopped"), SubResource("Wait_raise_started"), SubResource("B3_give_up"), SubResource("Raise_stopped"), SubResource("Wait_respawned_3"), SubResource("Wait_ended")])
+
+[resource]
+script = ExtResource("3_scenario")
+mode = ExtResource("1_mode")
+session_seed = 422000000005
+bots = 3
+forced_roles = Dictionary[int, StringName]({
+1: &"dissident"
+})
+scripts = Array[ExtResource("4_script")]([SubResource("B1_script"), SubResource("B2_script"), SubResource("B3_script")])
+expected_ends = Array[StringName]([&"dissidents"])
+clock_s = 55
+time_limit_s = 90.0
+never = Array[ExtResource("2_never")]([SubResource("Never_revived")])
