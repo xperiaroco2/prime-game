@@ -190,6 +190,8 @@ func set_life(value: ClientModel.Life) -> void:
 	velocity = Vector3.ZERO
 	_sprinting = false
 	_stepping = false
+	# A jump asked for while dead (no step ran to consume it) must not fire at the respawn.
+	jump_requested = false
 
 
 ## Whether the player is downed: it crawls.
