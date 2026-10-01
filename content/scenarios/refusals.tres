@@ -13,7 +13,7 @@
 [ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="11_npasm"]
 [ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="12_jtnly"]
 [ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="13_0g3kc"]
-[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="14_08f1b"]
+[ext_resource type="Script" uid="uid://cx5gtr3ejdvpi" path="res://core/content/scenario/step_swap.gd" id="15_swap"]
 
 [sub_resource type="Resource" id="Resource_0bphy"]
 script = ExtResource("6_c5q1h")
@@ -24,6 +24,10 @@ event = &"PhaseChanged"
 fields = {
 "phase": "round"
 }
+
+[sub_resource type="Resource" id="Swap_nothing"]
+script = ExtResource("15_swap")
+expect_rejected = &"nothing_to_swap"
 
 [sub_resource type="Resource" id="Resource_av6v5"]
 script = ExtResource("9_mydoj")
@@ -135,21 +139,25 @@ kind = 0
 script = ExtResource("11_npasm")
 target = SubResource("Resource_4jikt")
 
-[sub_resource type="Resource" id="Resource_pxw1c"]
-script = ExtResource("14_08f1b")
-event = &"ItemPlaced"
-fields = {
-"cause": "swap"
-}
+[sub_resource type="Resource" id="Swap_two_handed"]
+script = ExtResource("15_swap")
+expect_rejected = &"two_handed"
 
 [sub_resource type="Resource" id="Resource_eqf2n"]
 script = ExtResource("10_cx5lg")
 towards = SubResource("Resource_av6v5")
 expect_rejected = &"nothing_to_do"
 
+[sub_resource type="Resource" id="PutDown_package"]
+script = ExtResource("8_fvog8")
+towards = SubResource("Resource_av6v5")
+
+[sub_resource type="Resource" id="Swap_belted_knife"]
+script = ExtResource("15_swap")
+
 [sub_resource type="Resource" id="Resource_ua3fo"]
 script = ExtResource("4_xk2kj")
-steps = Array[ExtResource("5_t4n04")]([SubResource("Resource_0bphy"), SubResource("Resource_8jjro"), SubResource("Resource_wg050"), SubResource("Resource_tw5kh"), SubResource("Resource_25ro2"), SubResource("Resource_t7go1"), SubResource("Resource_vwss4"), SubResource("Resource_ypjku"), SubResource("Resource_wfhj0"), SubResource("Resource_tiqiq"), SubResource("Resource_ek2f4"), SubResource("Resource_e3f3e"), SubResource("Resource_ds5xl"), SubResource("Resource_e01lq"), SubResource("Resource_rawql"), SubResource("Resource_13wd8"), SubResource("Resource_16adb"), SubResource("Resource_teo3a"), SubResource("Resource_vpijo"), SubResource("Resource_iytnx"), SubResource("Resource_ymmxy"), SubResource("Resource_pxw1c"), SubResource("Resource_eqf2n")])
+steps = Array[ExtResource("5_t4n04")]([SubResource("Resource_0bphy"), SubResource("Resource_8jjro"), SubResource("Swap_nothing"), SubResource("Resource_wg050"), SubResource("Resource_tw5kh"), SubResource("Resource_25ro2"), SubResource("Resource_t7go1"), SubResource("Resource_vwss4"), SubResource("Resource_ypjku"), SubResource("Resource_wfhj0"), SubResource("Resource_tiqiq"), SubResource("Resource_ek2f4"), SubResource("Resource_e3f3e"), SubResource("Resource_ds5xl"), SubResource("Resource_e01lq"), SubResource("Resource_rawql"), SubResource("Resource_13wd8"), SubResource("Resource_16adb"), SubResource("Resource_teo3a"), SubResource("Resource_vpijo"), SubResource("Resource_iytnx"), SubResource("Resource_ymmxy"), SubResource("Swap_two_handed"), SubResource("Resource_eqf2n"), SubResource("PutDown_package"), SubResource("Swap_belted_knife")])
 
 [resource]
 script = ExtResource("3_71ojc")
