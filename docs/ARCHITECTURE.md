@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Owner** | The engineer. The **content API** section is the contract with the designer: changes to it are reviewed by both. |
-| **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. The wire schemas, the codec, the host session and the M3 client and bots (§4.3 to §4.6): M3 design, #89, accepted ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in M3. Vision revision 1 ([ADR](decisions/2026-10-01-vision-revision-1.md), #126) replaces ghosts, the one hand slot, `no_crew_alive` and the meetings mode: the sections that describe them describe the code as built until the M4 rework updates them (the ADR's Consequences list each section). |
+| **Status** | Skeleton (M0). The boundaries below are locked ([KICKOFF §3](history/KICKOFF.md); stack: [ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)). Everything marked *open* is designed before M2 (core and content API) or in the milestone named. The match loop, intents, events and entitlement (§3, §4.1, §4.2, §5, §7.1): M2 design, #32. The content API v0 and bot scenarios (§9): M2 design, #33; built in stage 2 from 2a (#49) on. The wire schemas, the codec, the host session and the M3 client and bots (§4.3 to §4.6): M3 design, #89, accepted ([ADR](decisions/2026-09-30-wire-format-and-host-session.md)); built in M3. Vision revision 1 ([ADR](decisions/2026-10-01-vision-revision-1.md), #126) replaces ghosts, the one hand slot, `no_crew_alive` and the meetings mode: the sections that describe them describe the code as built until the M4 rework updates them (the ADR's Consequences list each section). The windowed client (§4.7) and the split of that rework into M4 issues: M4 design, #125, accepted ([ADR](decisions/2026-10-01-m4-first-person-client.md)). |
 | **Rules for agents** | The invariants are repeated in the root `CLAUDE.md`, so they survive compaction. Area rules: `core/`, `server/`, `net/`, `client/`, `voice/` `CLAUDE.md`. |
 
 ## 1. Layers and boundaries
@@ -20,6 +20,8 @@
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
 
 Changing a boundary is a stop-and-ask item and gets an ADR.
+Decided for M4 (E18, §4.7): `client/app/` alone also names `server/`, through the `HostNode` façade only, to host the
+session its own client joins; no `client/` file names `HostSession` or reads `.game`.
 
 ## 2. Data flow
 
@@ -1023,6 +1025,224 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   Tests: `tests/unit/tools/headless_session_test.gd` (the arguments, the roster line, the refusal texts) and
   `tools/runner/tests/test_hostjoin.py` (the supervision, and a real host with two local clients reaching the lobby
   roster Player1 to Player3).
+  The M4 design (§4.7, E20) runs the game in windows by default and this session with `--headless`.
+
+### 4.7 The game client (M4 design, #125)
+Decided in the [M4 ADR](decisions/2026-10-01-m4-first-person-client.md) (Accepted): the engineer's choices E18 to E33
+and the designer's D4 to D10 each took its recommendation, which this section follows (for E32 and D10 the
+recommendation was (b)). It is the client
+that M4-6 to M4-9 build; the core rework of vision revision 1 (M4-1 to M4-5) rewrites §3 to §9 in the issues that
+change their code, and the client reads the events those issues add (the ADR's §4 lists them).
+
+**One process, one persistent root** (E19). The main scene `client/app/game.tscn` (`application/run/main_scene`)
+lives for the whole process:
+
+| Node | What it is |
+|---|---|
+| `Game` | `client/app/game.gd`: the menu's choices, the sessions, the level swap, leaving and quitting, the end reasons |
+| `HostNode` | on a host only: steps `HostSession` (§4.5) at `process_physics_priority` -100 |
+| `SessionNode` | steps the `ClientSession` at priority -90 |
+| `World` | a `Node3D`: `Level` (the lobby or the map instance), the views of stations, items and bodies, `Avatars` (a `RemotePlayerBody` per other player) and `Player` (the local `PlayerController` and its cameras) |
+| `Ui` | a `CanvasLayer`: the main menu, the lobby panel, the loading screen, the HUD, the task screen, the end screen, messages |
+
+Levels are swapped under `World`. Nothing calls `SceneTree.change_scene_to_*`: it removes the current scene at once
+and frees it at the end of the frame (4.7.2), so a `HostNode` inside it would close the session (`_exit_tree`) and
+every client would see `host_lost` at the first map load. There is no autoload, which `check` and every test run
+would load.
+
+**Who owns what** (E18). Hosting (the menu's Host, or `--host` after `--`) does what `tools/run/headless_session.gd`
+does in M3: an `EnetTransport` with the game's kind table, `HostSession.start(mode, port, mode.max_players,
+HostNode.now_usec())`, a `HostNode`, then the own `ClientSession` on `own_client`. Joining is an `EnetTransport`, a
+`ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`. `client/app/` is the only part
+of `client/` that names `server/`, and only through `HostNode` as a narrow façade: `HostNode.host(transport, mode,
+port)` builds and starts the `HostSession` and keeps it private; the game reads only `own_client`, `errors`,
+`end_reason`, `ended` and a debug build's counters, and calls `close()`. A source test over every `client/` file,
+`app/` included, strips comments and strings and fails on the identifiers `HostSession`, `Match`, `MatchState`,
+`PeerView` and `Snapshots` (case-sensitive, word-bounded: `SnapshotBuffer` passes) and on any `.game` access, like
+`net/`'s "names no `core/` class"; it is seen rejecting a planted `Snapshots.for_peer` call and `_host.game`. So the
+host's own player sees only what its `ClientSession` decoded.
+
+**One physics frame.**
+
+| Priority | Node | What it does |
+|---|---|---|
+| -100 | `HostNode`, on a host | `HostSession.step` (§4.5); its messages to the own client are read in this frame |
+| -90 | `SessionNode` | `ClientSession.step`: poll, decode, fold into `ClientModel`, fire the signals (a `Correction` teleports the player before it moves), advance a map load, send the `MoveClaim` due |
+| -80 | `Avatars` | place every remote body at its interpolated pose, so the local push search sees this frame's capsules (`sync_to_physics` off, below) |
+| 0 | `Player` | read input, move, then `set_motion` for the next claim (one physics frame, 1/60 s, old when it is sent) |
+| `_process` | the views, the cameras, `Ui` | draw from `ClientModel` and the interpolated poses |
+
+**The flow.**
+
+| State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
+|---|---|---|---|
+| no session | main menu: address, port, Host, Join, Quit, and why the last session ended | none | none |
+| connecting, no `Welcome` yet | "Connecting to <address>", Cancel | none | none |
+| Lobby, Countdown | lobby panel: the roster with ready flags, Ready, the countdown; on the host the settings and their shortfalls | the mode's `lobby_level` | walks and claims |
+| Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
+| Round | HUD; the task screen while Tab is held | the map | by its life (below) |
+| End | end screen: black, "The <side's display name> won"; the host's Back to lobby | the map, not drawn | frozen |
+| ended | main menu with the reason in words | none | none |
+
+- **The level** follows the current phase's `PhaseSpec.level` in the client's own copy of the mode. `LOBBY`: the
+  mode's `lobby_level`, loaded synchronously at `Welcome` and when a lobby phase follows a map phase (End → Lobby,
+  where `ClientModel` clears the match's facts, as built). `MAP`: the scene that `ClientSession.map_loaded` hands
+  over, instanced in the handler, before the session sends `LoadAck`. On the host the instancing blocks the main
+  thread it shares with `HostSession`, and the next step's catch-up covers it (§4.5).
+- **Placement:** `Welcome`'s spot teleports the local player on `ClientSession.welcomed`, from
+  `model.spots[own_peer]` (`Welcome` fires no `corrected`), and every `Correction` (a placement, a knockdown, a
+  respawn, a failed check) through `ClientSession.corrected`.
+- **The lobby panel:** Ready sends `SetReady`; on the host one control per `SettingSpec` of the client's own mode (its
+  display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
+  with that setting only; the demands and shortfalls come from `SettingsChanged`. The countdown and the match clock
+  show `end_tick` minus the estimated host tick (Movement, below).
+- **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and nothing else
+  (§3.2: no names, no roles).
+- **Leaving:** Esc opens Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
+  confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
+  window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
+- **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
+  the views and returns to the main menu with the reason in words from one table, `client/app/end_reasons.gd`, which
+  `tools/run/headless_session.gd` then uses instead of its own: the refusals (`wrong_version`, `wrong_content`,
+  `joins_closed`, `full`, `connect_failed`), `host_lost`, `unknown_map`, `load_failed`, `left`, the host's own ends
+  (`closed`, `row_error`, `own_client_malformed`, `own_client_disconnected`) and `load_deadline`.
+- **A drop at the loading deadline** (#119, E21): the Loading phase emits `Disconnecting(reason)`, `load_deadline`,
+  to the dropped player right before its `DisconnectPeer`, and `ClientSession` ends with that reason. ENet's
+  `peer_disconnect_later` delivers it first (§4 Transport).
+- **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
+  runner's `--stop-file` and `--alive-file`; the parser moves from `tools/run/headless_session.gd` to `client/app/`.
+
+**Movement on the network.**
+- **Claims:** every physics step the controller calls `set_motion` (its position and velocity; as the facing, the
+  camera's 3D look vector, at most 89° up or down; whether it sprints, gives movement input and stands on the floor)
+  and `count_jump` at a jump; `ClientSession` sends one claim per 20 Hz client tick (§4.6). The facing's pitch needs
+  no wire or `core/` change (E22): `Strike.horizontal`, `Swung` and `PutDownInFront` flatten it, and `MovementRule`
+  only requires it finite; the snapshot's avatar then carries it, for remote heads and the spectate camera. Snapshots
+  stay at 20 Hz, since the spectate camera is built from them. A relayed facing can be degenerate even in honest play
+  (a bot falling straight down claims (0, -1, 0)): M4-2 has `MovementRule` store a unit facing, keep the last one when
+  a claim's has no direction and clamp the pitch to ±89°, and every camera, head or basis the client builds from a
+  remote facing still guards against a zero or vertical vector (the M4 ADR's §3, Host trust).
+- **Numbers:** the controller's speeds, jump height, capsule, eye and step height, stamina and crawl speed come from
+  the client's own copy of the mode's `PlayerRules` when its session starts (the content hash makes it the host's);
+  `client/player/player_tuning.tres` keeps only client feel (the push factors, the view's easing). Prevents: a walk
+  speed changed in `base_mode.tres` but not in `player_tuning.tres`, and every claim corrected.
+- **Stamina** (E24): `PredictedStamina`, the rule `LocalStamina` holds today (the client's only copy of
+  `StaminaLedger`'s), predicts between `SelfStatus` updates and takes each one's numbers as it arrives; the HUD shows
+  the prediction, and sprint and jump are gated by it.
+- **Remote players** (E23): `SnapshotBuffer` (pure, unit-tested) keeps the newest snapshots by host tick, estimates
+  the host tick from a sliding window of arrivals (not an all-time maximum, §7's lesson), and gives each remote
+  player's position and facing, interpolated linearly, and its newest velocity, used only to pick an animation, so a
+  claimed velocity never moves a body on another screen, at the estimate minus a delay: one tick plus the jitter seen
+  over the window, from 100 ms to 250 ms (placeholders, "not a decision"). Past the newest snapshot a player holds
+  still (no extrapolation); a placement or a respawn snaps. The bodies stay `AnimatableBody3D` capsules on the living
+  layer, with `sync_to_physics` off: they are teleported, not animated platforms, and with it on (the default) a
+  transform set in `_physics_process` is applied as kinematic motion during the physics step, so the local push
+  search at priority 0 would still see the previous frame's capsules. M4-7's two-client push test asserts that the
+  push search sees the pose set at -80 in the same frame.
+- **The crawl** (M4-9): a downed controller moves at the crawl speed, with no sprint and no jump, up the step height,
+  colliding with the level only and pushing nobody; it keeps the standing capsule for collision (the host's floor
+  checks use it), and only its mesh lies down. Physics layer 3 becomes `downed` (`PhysicsLayers`), which no push
+  search looks at: the downed collide with no player.
+
+**The revision in 3D.**
+- **The life fold** (E25): `ClientModel` keeps each player's life from the public events (`KnockedDown` downed,
+  `Revived` living, `Died` dead with a body, `Respawned` living with the body removed, `PlayerLeft` gone with any
+  body; everyone living at `RoundStarted` and in the lobby). `life_of(peer)` replaces `is_alive()`, which reads "has
+  no body" and would keep a respawned player dead. `ClientSession` claims while its own copy of the phase accepts
+  `MoveClaim` from its life, and never while dead. Each fold lands in the core issue that adds its event, because the
+  bots are `ClientSession`s.
+- **The own player**, by life:
+
+  | Life | Controller | Camera | Inputs | HUD |
+  |---|---|---|---|---|
+  | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | health, stamina, hand, belt, a package's destination, task progress, clock, own role, invulnerability |
+  | Downed | crawls, keeps its items; holds still and claims no displacement from a `RaiseStarted` naming it until `RaiseStopped` or `Revived` (the host corrects any, answer 8) | third person above the body | crawl, look, give up | the knockdown countdown (paused while raised), who raises them |
+  | Dead | off: no avatar, no claims | the spectate camera | next and previous target | the respawn countdown, whom they watch; nothing of the target's |
+
+- **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
+  (`PlayerRules.eye_height_m`), pointing back along the look, never above its pivot (the arm's pitch is clamped to
+  level or lower), with `collision_mask` the world layer and a small sphere `shape`, so it stops before a wall rather
+  than looking through it. Its length is a placeholder (2 m, "not a decision"). The arm alone would still see past
+  the end of a short wall the body lies against, more than standing at the body would (vision revision 1): so while
+  this camera is in use (the own player downed, or a spectator watching a downed target) every remote avatar, item
+  and body view with no line of sight from the pivot is hidden, one ray per object per physics frame against the
+  world layer; the level stays drawn, since it is public.
+- **Countdowns** (V13) follow from public events and the mode's numbers: the knockdown's from `KnockedDown` of the
+  own player, paused from `RaiseStarted` to `RaiseStopped` or `Revived`; the respawn's from `Died`; a raise's progress
+  from `RaiseStarted`, for the raiser and the raised. An event's host tick is `SnapshotBuffer`'s estimated host tick
+  at the moment the event arrives (the estimate the clock already uses). Not "the first snapshot after it": events
+  travel RELIABLE and snapshots LATEST, ENet orders nothing across channels, and a lost and resent `KnockedDown`
+  arrives after several later snapshots, so that rule would start the countdown late by the resend delay. With the
+  estimate a resent event is late by the same delay, and an on-time one is off by the estimate's error; both are
+  display-only, since the host keeps every deadline.
+- **Spectating** (V1, V9, answer 6): the camera is built from `ClientModel` only, with the same interpolated poses as
+  the avatars: the target's eye and facing (yaw and pitch) for a living target, the downed camera above a downed
+  target's body. The first target is a random living player other than the own one, drawn with the client's own
+  `RandomNumberGenerator` (the purpose `spectate`: seeded from the system's entropy in the game, by the test in a
+  test), else a random downed one, else the camera stays above the own body. Next and previous cycle through the
+  living and downed players in peer-id order; when the target goes down, dies or leaves, the camera draws a new first
+  target. Nothing about the target is sent, and the client has no HUD, health, stamina, role or private event of it.
+  The dead keep receiving every snapshot (none holds a dead player's avatar): the camera is built from them.
+- **What the dead hear** (V11): no voice (the host routes none); the world's sounds where the camera is (Godot's
+  listener follows the current camera, so positional sounds play around the target); lift music from an
+  `AudioStreamPlayer` that only the dead player's client plays. M4's world sounds are placeholders for `Swung`,
+  `ItemPickedUp` and `ItemPlaced` at their positions.
+- **A hearing range** (E33 (a)): a world sound plays only within about 12 m of the listener's camera (a placeholder,
+  "not a decision"), for the living, the downed and the dead alike: a pure sound chooser (unit-tested) drops an event
+  from farther away, and each `AudioStreamPlayer3D` sets `max_distance`. The events reach everyone with a position,
+  so an uncut sound would tell every client through the walls where a package was just put down. Occlusion is M5's.
+- **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
+  again; the spectate camera and the lift music stop. After `Revived` the controller stands up where it lay, in first
+  person; whether a revive also sends a `Correction` is M4-4's to decide, and the client adopts one like any other.
+- **Others:** a `RemotePlayerBody` shows its facing (a head that turns and nods), the hand item at a hand attach
+  point, the belt item at a belt attach point, a two-handed package held in front, the downed pose and its layer, and
+  invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.
+- **Hands:** the own hand item is drawn in the first-person view and the belt item on the HUD. Every item is drawn
+  from `ClientModel`'s fold of the item events: on the ground where it lies, or at its holder's hand or belt. The own
+  slots and the own invulnerability come from events only, since the own avatar never arrives.
+- **Interactions:** the camera's ray picks the candidate, the first item or downed player along it in the client's
+  own level; the hint and the key then apply only if the mode's `InReach` of `PickUp` holds, measured as the host
+  measures it (2 m from the feet, not along the ray from the eye 1.6 m higher), so a crate-top item the host would
+  refuse gets no hint and a floor item it would accept does. M4-8's target-choice test checks both against a fixture
+  world. The keys send `PickUp(item)`,
+  `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()`; the host checks each
+  again (§7.1), and the client predicts nothing of an action's outcome.
+- **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
+  display names, a package's destination (a swatch of its circle's colour and a marker over that circle, drawn
+  through walls too, since circles are fixed, public places: D10 (b)), the shared progress (`TaskProgress`), the match
+  clock, the own role by its display name and, for a dissident, its teammates (`Teammates`), invulnerability, and
+  what the crosshair would do. **The task screen** (Tab), for the living, the downed and the dead: each task of the
+  match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
+  progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
+  `StationPlaced`'s colour, dimmed once `PackageDelivered` names it.
+
+**What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
+M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
+the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
+eye; no screen with an item's or a player's
+position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
+public circles only, the destination marker of D10 (b) included); a role named only on its own player's screen
+(a dissident's teammates on theirs); no hit confirmation for
+the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
+World sounds play within the hearing range only (E33).
+
+**What stays headless:** `HostSession`, `ClientSession`, `ClientModel`, `DecodedView`, the bots runner and the leak
+test, `host` and `join` with `--headless`, and every GdUnit4 suite. A bot loads no scene.
+
+**`host` and `join` with windows** (E20): `tools\run.cmd host [--clients N]` and `join <address>` run the game scene
+in windows, tiled on one PC with `--position`, with Vulkan as everywhere on Windows; `--headless` runs the M3
+session of §4.6. In a shell where `CLAUDECODE` is set (an agent's) the default stays headless, so an unattended run
+never opens a window on a human's screen.
+
+**Tests.** The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
+`SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
+`tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
+sprinting, jumping and climbing steps through a `ClientSession` over a `LoopbackHub` to a `HostSession` on a fixture
+level is corrected 0 times; the downed camera against a fixture wall never rises above eye height or passes the wall,
+and an item visible from the arm's end but not from the pivot is hidden;
+the two-client push runs over the loopback with the interpolation delay. Input and UI cannot run headless: every
+screen and view gets a `shot` of its preview scene in `client/dev/`, and the playtests of the ADR's §6 check the
+rest.
 
 ## 5. Per-peer information filtering
 
@@ -1138,6 +1358,8 @@ Client-side movement for the local player; the host checks speed and teleports; 
 *Open (M4):* snapshot rate, tolerances, correction policy. The core tick rate is set in §3.3; what the host checks, in
 §7.1. The snapshot's wire format (avatars only) is §4.3; M3 sends one every tick in the phases that send snapshots,
 a placeholder rate that M4 may reduce.
+The M4 design (§4.7, E22, E23) keeps 20 Hz snapshots, draws remote players behind an estimated host tick with an
+adaptive delay, and leaves the tolerances to #76 and the M4 playtests.
 
 Lessons from the M1 spike (#13, #14):
 - A starting point: 20 Hz snapshots, remote players drawn 2 ticks (100 ms) behind an estimated host clock. The
@@ -2072,3 +2294,4 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
 | Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
+| The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
