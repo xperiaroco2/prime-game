@@ -16,6 +16,7 @@ extends NetPlay
 ## ends, or when its session ended; the host waits for every file (up to the time limit), then
 ## compares each with view_of: the events as a prefix (the match goes on while the files are
 ## written), snapshots and voice as subsets, the §4.6 invariants, the lurker and the refused bot.
+## Its own bot (bot 1) it compares from the live client, exactly.
 
 const ADDRESS := "127.0.0.1"
 const USEC_PER_SECOND := 1000000
@@ -291,14 +292,17 @@ func _compare() -> void:
 			failures.append("match %s" % line)
 	_leaks.set_seeds(_invariants.seeds())
 	var views: Dictionary[String, DecodedView] = {}
-	for number in range(1, scenario.bots + 1):
+	# The host's own bot, stepped in this frame after the session: exactly what it decoded so far.
+	var own: BotClient = clients[1]
+	failures.append_array(_leaks.check_bot("bot 1", bots[0].peer, own.view, false))
+	views["bot 1"] = own.view
+	for number in range(2, scenario.bots + 1):
 		var file := ViewFile.read(dir, number)
 		if file.is_empty():
 			failures.append("bot %d wrote no view file" % number)
 			continue
 		for failure: String in file["failures"] as PackedStringArray:
-			if number != 1:
-				failures.append("bot %d: %s" % [number, failure])
+			failures.append("bot %d: %s" % [number, failure])
 		var peer: int = file["peer"]
 		if peer == 0:
 			continue
