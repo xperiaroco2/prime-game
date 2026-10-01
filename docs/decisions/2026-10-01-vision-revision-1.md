@@ -338,9 +338,10 @@ ARCHITECTURE describes the code as built, so each section changes in the rework 
 | §5 | Open knowledge as reworded above; widening at a knockdown, death and respawn; "knowledge never shrinks" with spectating instead of #34; the invariants |
 | §6 | the voice invariant and `RoundVoice`'s radii; dead chat and meetings out of the open items |
 | §7, §7.1 | ghost movement (`ghost_speed_factor`, the ghosts' layer, the stamina exemption) replaced by the crawl; pick-up and swap with two slots; the raise's reach and sight; invulnerability in `Strike` |
+| §9.1 | "later #35's votes" as the example of phase-lived state (the zone task #36 instead) |
 | §9.2 | the `item_rested` causes; the ordering example of §3.4 |
 | §9.3 | `MatchState` (life, the belt, timers, bodies), `LifeRules`, `Items` |
-| §9.4 | the parts `NoneAlive`, `TakeIntoHand`, `Strike`, `StaminaCost`, `Proximity`, `RoundVoice`; the new parts |
+| §9.4 | the parts `NoneAlive`, `TakeIntoHand`, `Strike`, `StaminaCost`, `Proximity`, `RoundVoice`; the new parts; `ReportOutcome`'s example (a meeting button, #35) |
 | §9.5 | Crew's display names, No crew alive replaced, PickUp, Use, Sprint and Jump's ghost lines, the base mode's voice and movement numbers, the items' `hands` |
 | §9.6 | `no_crew_alive.tres` in the data list; the `respawn` tag; the map asset |
 | §9.7 | `WalkTo`'s ghost speed; the scenarios that script a ghost |
