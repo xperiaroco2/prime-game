@@ -216,7 +216,6 @@ func _read_peer_files() -> void:
 		)
 		if not late and not known.has(number):
 			return  # the first map holds every bot that joins at the start
-	_known_peers = known.size()
 	var lines := PackedStringArray()
 	for number: int in known:
 		lines.append("%d %d" % [number, known[number]])
@@ -226,7 +225,10 @@ func _read_peer_files() -> void:
 		return
 	file.store_string("\n".join(lines))
 	file.close()
-	DirAccess.rename_absolute(dir.path_join(PEERS_FILE + ".part"), dir.path_join(PEERS_FILE))
+	# A remote bot reading `peers` can block the rename on Windows: the next frame tries again.
+	var part := dir.path_join(PEERS_FILE + ".part")
+	if DirAccess.rename_absolute(part, dir.path_join(PEERS_FILE)) == OK:
+		_known_peers = known.size()
 
 
 ## A remote bot plays once it has read bot 1's map.
