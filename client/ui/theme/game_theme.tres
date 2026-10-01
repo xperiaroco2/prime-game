@@ -1,4 +1,4 @@
-[gd_resource type="Theme" format=3]
+[gd_resource type="Theme" format=3 uid="uid://c8behqt7jtcn8"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_life_panel"]
 content_margin_left = 18.0
