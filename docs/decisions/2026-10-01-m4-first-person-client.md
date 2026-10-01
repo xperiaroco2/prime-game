@@ -288,7 +288,8 @@ MVP playtest).
 | M4-9 | client: knockdown, death, spectating and respawn in 3D | M4-4, M4-7 | M4-5, M4-8 | no | ~1400 |
 | L-1 | level: the lobby and the greybox for M4 (the designer) | #118, D4; after M4-3 if it adds the markers | any | no | the designer's |
 
-Waves of at most three: (M4-1, M4-6), (M4-2, M4-7), (M4-3, #76, M4-7 if still open), (M4-4), (M4-5, M4-9), (M4-8).
+Waves of at most three: (M4-1, M4-6), (M4-2, M4-7), (M4-3, #76, M4-7 if still open), (M4-4), (M4-5, M4-9), (M4-8,
+M4-9 if still open).
 The critical path is the core chain M4-1 to M4-5, then M4-8.
 
 **Folded, and why:**
@@ -328,8 +329,9 @@ The critical path is the core chain M4-1 to M4-5, then M4-8.
 | `tests/harness/` (`LeakCheck`, `ScenarioInvariants`, the steps, the bots) | M4-1 to M4-5, M4-6 | a check changes in the PR that changes what it checks |
 | `content/scenarios/` (`refusals.tres` included) | M4-2 (`dissident_kills_the_crew`, the `bots-enet` step), M4-3, M4-4, M4-5 (`refusals.tres`), M4-6 (`dropped_at_the_loading_deadline`) | a renamed `bots-enet` scenario updates `tools/runner/verify.py` in the same PR |
 | `client/net/client_model.gd`, `client_session.gd` | M4-2 to M4-5 (each folds its events, E25), M4-6 (the end reasons, `Disconnecting`), M4-7 (a snapshot signal, the correction count) | small, separate functions; the second to merge rebases |
-| `client/player/` | M4-7 (the network, stamina), M4-9 (the crawl, the downed layer, `set_ghost` removed) | M4-9 after M4-7 |
-| The HUD scene | M4-8 creates it | M4-9 adds a life panel scene of its own under `Ui` |
+| `client/player/` | M4-7 (the network, stamina), M4-8 (the first-person hand item, the attach points on `RemotePlayerBody`), M4-9 (the crawl, the downed layer and pose, `set_ghost` removed) | M4-8 and M4-9 after M4-7; when both are open, each changes its own functions of `player_controller.gd` and `remote_player_body.gd`, and the second to merge rebases |
+| `client/world/` | M4-7 (`SnapshotBuffer`, the avatars), M4-8 (item and circle views, the target choice, the sound chooser), M4-9 (the body view, the line-of-sight hiding) | new files per issue; M4-8 and M4-9 edit no file the other created while both are open |
+| `client/ui/` | M4-6 (menu, lobby, loading, end screens), M4-8 (the HUD scene, the task screen), M4-9 (a life panel scene of its own under `Ui`) | M4-9 never edits M4-8's HUD scene |
 | `project.godot` | M4-6 (the main scene), M4-8 (`swap`, `task_screen`), M4-9 (`give_up`, the spectate actions, layer 3 renamed `downed`) | added lines; the editor's format |
 | `docs/ARCHITECTURE.md` | each issue its sections (§4) | rewrite only the issue's own sections |
 | `levels/greybox/greybox.tscn` | M4-3 (respawn markers, if absent), L-1 | never both open at once; L-1 keeps the markers |
