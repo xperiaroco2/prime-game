@@ -447,12 +447,15 @@ func _on_packet(peer: int, kind: int, payload: PackedByteArray) -> void:
 		over_budget += 1
 		_transport.count_rejected(peer, NetRejects.Reason.OVER_BUDGET)
 		return
-	var message := _schema.decode(kind, payload)
+	# A debug kind from anyone but peer 1 in a debug build is malformed and never decoded (E17).
 	var debug_kind := kind >= WireSchema.FIRST_DEBUG and kind < WireSchema.FIRST_EVENT
-	if message == null or (debug_kind and (peer != NetTransport.HOST_ID or not _debug)):
+	var message: WireMessage = null
+	if not debug_kind or (peer == NetTransport.HOST_ID and _debug):
+		message = _schema.decode(kind, payload)
+	if message == null:
 		bad_payloads += 1
 		_transport.count_rejected(peer, NetRejects.Reason.BAD_PAYLOAD)
-		_malformed(peer, "bad_payload" if message == null else "debug_kind")
+		_malformed(peer, "debug_kind" if debug_kind else "bad_payload")
 		return
 	if row.lane == NetKindTable.Lane.VOICE:
 		_relay.hold(peer, message.fields["seq"] as int, message.fields["opus"] as PackedByteArray)
