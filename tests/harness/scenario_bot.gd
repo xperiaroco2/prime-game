@@ -65,8 +65,10 @@ var seen: Dictionary[int, Vector3] = {}
 
 var _next_seq := 1
 var _client_tick := 0
-## This batch placed the bot (PlayersPlaced naming it, or its own Died): a Correction is expected.
-var _placed_now := false
+## A placement of the bot (PlayersPlaced naming it, or its own Died) awaits its Correction: core/
+## emits exactly one after each, so a network poll that splits the two still expects it, and any
+## other Correction fails.
+var _correction_due := false
 
 
 func _init(
@@ -121,11 +123,6 @@ func next_client_tick() -> int:
 	return _client_tick
 
 
-## A new batch of events (one step of the match, or one poll of its client) begins.
-func begin_batch() -> void:
-	_placed_now = false
-
-
 ## Takes one event its peer received, as (name, fields), and learns from it. Returns a failure, or
 ## "".
 func receive(event_name: StringName, fields: Dictionary) -> String:
@@ -148,13 +145,14 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			for other: int in spots:
 				seen[other] = spots[other]
 			if spots.has(peer):
-				_placed_now = true
+				_correction_due = true
 		&"Correction":
-			if not _placed_now:
+			if not _correction_due:
 				return (
 					"a Correction outside a placement (epoch %d, at %s): an honest bot is never corrected"
 					% [fields["epoch"], fields["position"]]
 				)
+			_correction_due = false
 			epoch = fields["epoch"] as int
 			jumps = 0
 			position = fields["position"] as Vector3
@@ -163,7 +161,7 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			seen[died] = fields["position"] as Vector3
 			if died == peer:
 				ghost = true
-				_placed_now = true
+				_correction_due = true
 		_:
 			_learn(event_name, fields)
 	return ""

@@ -77,10 +77,9 @@ func test_a_never_event_fails_when_it_arrives() -> void:
 func test_a_correction_outside_a_placement_fails() -> void:
 	# An honest bot is never corrected (§9.7): only a placement or its own death explains one.
 	var bot := ScenarioBot.new(2, ScenarioPeers.core(2).peer_of(2), [])
-	bot.begin_batch()
 	var problem := _receive(bot, CorrectionEvent.new(bot.peer, 3, Vector3(1, 0, 1), Vector3.ZERO))
 	assert_str(problem).contains("Correction outside a placement")
-	bot.begin_batch()
+	# The placement's Correction is expected even when a network poll splits it from PlayersPlaced.
 	var spots: Dictionary[int, Vector3] = {bot.peer: Vector3(2, 0, 2)}
 	assert_str(_receive(bot, PlayersPlacedEvent.new(spots))).is_empty()
 	(
@@ -89,6 +88,14 @@ func test_a_correction_outside_a_placement_fails() -> void:
 	)
 	assert_int(bot.epoch).is_equal(4)
 	assert_vector(bot.position).is_equal(Vector3(2, 0, 2))
+	# One Correction per placement: a second one is not explained.
+	var again := _receive(bot, CorrectionEvent.new(bot.peer, 5, Vector3(3, 0, 3), Vector3.ZERO))
+	assert_str(again).contains("Correction outside a placement")
+	# A placement of another player explains none.
+	var others: Dictionary[int, Vector3] = {bot.peer + 1: Vector3(4, 0, 4)}
+	assert_str(_receive(bot, PlayersPlacedEvent.new(others))).is_empty()
+	var theirs := _receive(bot, CorrectionEvent.new(bot.peer, 6, Vector3(4, 0, 4), Vector3.ZERO))
+	assert_str(theirs).contains("Correction outside a placement")
 
 
 func test_the_invariants_catch_a_leak() -> void:

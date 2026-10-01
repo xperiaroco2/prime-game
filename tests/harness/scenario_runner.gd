@@ -195,8 +195,6 @@ func _queue(kind: StringName, peer: int, args: Dictionary = {}, seq: int = 0) ->
 ## Hands the events emitted since the last call to their recipients, as server/ would.
 func _deliver() -> void:
 	var batch := game.take_outbox()
-	for bot: ScenarioBot in bots:
-		bot.begin_batch()
 	for emitted: EmittedEvent in batch:
 		for problem: String in _invariants.check_event(emitted):
 			failures.append("invariant: %s" % problem)

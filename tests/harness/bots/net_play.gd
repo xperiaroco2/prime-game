@@ -50,13 +50,12 @@ func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
 	return client
 
 
-## Steps every bot's client at now_usec, each poll a batch of the bot's events.
+## Steps every bot's client at now_usec.
 func step_clients() -> void:
 	for bot: ScenarioBot in bots:
 		var client: BotClient = clients.get(bot.number)
 		if client == null or client.is_ended():
 			continue
-		bot.begin_batch()
 		client.step(now_usec)
 		if client.model.snapshot_tick != _snapshot_seen.get(bot.number, -1):
 			_snapshot_seen[bot.number] = client.model.snapshot_tick
