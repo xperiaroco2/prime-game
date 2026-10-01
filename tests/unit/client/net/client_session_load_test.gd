@@ -82,6 +82,46 @@ func test_a_failed_load_ends_the_session() -> void:
 	assert_array(_harness.sent_named(Intents.LOAD_ACK)).is_empty()
 
 
+func test_a_load_left_behind_by_the_session_ending_is_collected() -> void:
+	_harness = Harness.new()
+	_harness.welcome(&"countdown")
+	_harness.send(_load_match(1, Harness.TINY_MAP))
+	_harness.pump()
+	_harness.session.leave()
+	assert_array(_harness.session.abandoned_loads()).contains_exactly([Harness.TINY_MAP])
+	await _until_collected()
+	assert_array(_harness.session.abandoned_loads()).is_empty()
+	assert_int(ResourceLoader.load_threaded_get_status(Harness.TINY_MAP)).is_equal(
+		ResourceLoader.THREAD_LOAD_INVALID_RESOURCE
+	)
+
+
+func test_a_load_replaced_by_a_newer_load_match_is_collected() -> void:
+	_harness = Harness.new(true)
+	_harness.welcome(&"countdown")
+	_harness.send(_load_match(1, Harness.TINY_MAP))
+	_harness.send(_load_match(2, Harness.MISSING_MAP))
+	_harness.pump()
+	assert_array(_harness.session.abandoned_loads()).contains_exactly([Harness.TINY_MAP])
+	await _until_collected()
+	assert_int(ResourceLoader.load_threaded_get_status(Harness.TINY_MAP)).is_equal(
+		ResourceLoader.THREAD_LOAD_INVALID_RESOURCE
+	)
+	assert_array(_harness.endings).contains_exactly([ClientSession.LOAD_FAILED])
+	assert_int(ResourceLoader.load_threaded_get_status(Harness.MISSING_MAP)).is_equal(
+		ResourceLoader.THREAD_LOAD_INVALID_RESOURCE
+	)
+
+
+## Steps the session until it collected every abandoned load (and the newest load ended).
+func _until_collected() -> void:
+	for i in MAX_FRAMES:
+		_harness.pump()
+		if _harness.session.abandoned_loads().is_empty() and not _harness.endings.is_empty():
+			return
+		await get_tree().process_frame
+
+
 func _load_match(match_id: int, map: String) -> LoadMatchEvent:
 	var settings: Dictionary[StringName, int] = {&"knives": 2, &"circles": 1}
 	return LoadMatchEvent.new(match_id, map, settings)

@@ -65,6 +65,9 @@ var _on_floor := true
 ## The map being loaded and the match it is for; empty when nothing loads.
 var _loading := ""
 var _loading_match := -1
+## Threaded loads nobody waits for any more (the session ended, or a newer LoadMatch replaced
+## them): each is collected once it is done, or ResourceLoader would keep its scene for good.
+var _abandoned := PackedStringArray()
 
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
@@ -85,6 +88,7 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 func step(now_usec: int) -> void:
 	if _clock_start < 0:
 		_clock_start = now_usec
+	_collect_abandoned()
 	if is_ended():
 		return
 	_transport.poll()
@@ -169,6 +173,21 @@ func send_voice(opus: PackedByteArray) -> Error:
 ## Leaves the session (the owner's choice, not a failure).
 func leave() -> void:
 	_end(LEFT)
+
+
+## The threaded loads it still has to collect; step() collects each once it is done.
+func abandoned_loads() -> PackedStringArray:
+	return _abandoned
+
+
+func _notification(what: int) -> void:
+	# Freed before step() collected them: wait for each here, once, so none stays in ResourceLoader.
+	if what == NOTIFICATION_PREDELETE:
+		for path: String in _abandoned:
+			var status := ResourceLoader.load_threaded_get_status(path)
+			if status != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+				ResourceLoader.load_threaded_get(path)
+		_abandoned.clear()
 
 
 func _on_connected(_own_id: int) -> void:
@@ -270,9 +289,15 @@ func _start_load(match_id: int, map: String) -> void:
 	if not load_levels:
 		send_intent(Intents.LOAD_ACK, {"match_id": match_id})
 		return
-	_loading = map
-	if ResourceLoader.load_threaded_request(map, "PackedScene") != OK:
+	_abandon_load()
+	var abandoned := _abandoned.find(map)
+	if abandoned >= 0:
+		# The same map is still loading for an earlier LoadMatch: take that request over.
+		_abandoned.remove_at(abandoned)
+	elif ResourceLoader.load_threaded_request(map, "PackedScene") != OK:
 		_end(LOAD_FAILED)
+		return
+	_loading = map
 
 
 func _advance_load() -> void:
@@ -284,7 +309,8 @@ func _advance_load() -> void:
 	var path := _loading
 	_loading = ""
 	var scene: PackedScene = null
-	if status == ResourceLoader.THREAD_LOAD_LOADED:
+	if status != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		# A failed load is collected too, or ResourceLoader would keep its task.
 		scene = ResourceLoader.load_threaded_get(path) as PackedScene
 	if scene == null:
 		_end(LOAD_FAILED)
@@ -292,6 +318,24 @@ func _advance_load() -> void:
 	map_loaded.emit(path, scene)
 	if not is_ended():
 		send_intent(Intents.LOAD_ACK, {"match_id": _loading_match})
+
+
+## The load in flight, if any, is no longer waited for.
+func _abandon_load() -> void:
+	if not _loading.is_empty():
+		_abandoned.append(_loading)
+		_loading = ""
+
+
+func _collect_abandoned() -> void:
+	for i in range(_abandoned.size() - 1, -1, -1):
+		var path := _abandoned[i]
+		var status := ResourceLoader.load_threaded_get_status(path)
+		if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			continue
+		if status != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			ResourceLoader.load_threaded_get(path)
+		_abandoned.remove_at(i)
 
 
 func _send(message: WireMessage) -> Error:
@@ -307,6 +351,6 @@ func _end(reason: StringName) -> void:
 	if is_ended():
 		return
 	end_reason = reason
-	_loading = ""
+	_abandon_load()
 	_transport.close()
 	ended.emit(reason)
