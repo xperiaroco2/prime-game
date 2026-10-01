@@ -13,7 +13,7 @@ extends StaminaSource
 ##   engineer's decision of 2026-09-30).
 ## - The sprint state starts at `sprint_start` and lasts while sprint is held and stamina is
 ##   above 0; a jump needs its full cost and spends it at once (Q7).
-## - Only the living sprint and jump: the downed (the controller's ghost flag) crawl, are never in
+## - Only the living sprint and jump: the downed (the controller's life) crawl, are never in
 ##   the sprint state and regenerate as usual, since they spend none (M4-2's crawl check).
 
 const TICK_SECONDS := 1.0 / Ticks.RATE

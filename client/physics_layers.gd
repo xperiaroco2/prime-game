@@ -9,5 +9,7 @@ const WORLD := 1 << 0
 ## Living players' capsules: the local player and the kinematic capsules of the others. No body
 ## collides with this layer; a living player's push search looks for the others on it.
 const LIVING := 1 << 1
-## Ghosts' capsules. Nothing living collides with them; they collide with the level only.
-const GHOSTS := 1 << 2
+## Downed and dead players' capsules (ARCHITECTURE §4.7, M4-9): nothing collides with them and no
+## push search looks at them; they collide with the level only. The crosshair's search for a
+## downed player to raise reads this layer.
+const DOWNED := 1 << 2

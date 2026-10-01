@@ -220,7 +220,8 @@ func _process(_delta: float) -> void:
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
 	_refresh_overlay()
 	if _player != null:
-		_player.set_physics_process(not GameFlow.frozen(now))
+		# The dead have no body to move: it stands still until its Respawned (M4-9).
+		_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
 		var listening := not GameFlow.frozen(now) and not ui.esc_open()
 		_player.reads_device_input = device_input and listening
 		if not listening:
@@ -252,6 +253,10 @@ func _notification(what: int) -> void:
 		ui.esc.ask_quit()
 	else:
 		quit()
+
+
+func _player_dead() -> bool:
+	return _player.life == ClientModel.Life.DEAD or _player.life == ClientModel.Life.LEFT
 
 
 func _session_state() -> GameFlow.Session:
@@ -324,15 +329,19 @@ func _on_event(event_name: StringName, _fields: Dictionary) -> void:
 	_sync_life()
 
 
-## The own player crawls while its own life fold says downed (a KnockedDown naming it), and walks
-## again once the fold forgets it (a new match, the lobby). Only a change switches the body, since
-## switching stops it.
+## The own player's body follows its own life fold (M4-9): it crawls while downed (a KnockedDown
+## naming it), has no body while dead (Died; the physics step stops in _process, so it neither
+## walks nor claims until its Respawned), and walks again once living (Revived, Respawned, a new
+## match, the lobby). Only a change switches the body, since switching stops it. A raise naming it
+## holds it still (`held`).
 func _sync_life() -> void:
 	if _player == null:
 		return
-	var downed := _client.model.life_of(_client.model.own_peer) == ClientModel.Life.DOWNED
-	if _player.ghost != downed:
-		_player.ghost = downed
+	var model := _client.model
+	var life := model.life_of(model.own_peer)
+	if _player.life != life:
+		_player.life = life
+	_player.held = model.raiser_of(model.own_peer) != 0
 
 
 ## The level of the current phase: the lobby, loaded at once when a lobby phase starts; a map

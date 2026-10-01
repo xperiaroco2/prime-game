@@ -1,6 +1,6 @@
 extends Node3D
 ## A small physics world for the player controller's suites: a 60 m floor at y = 0, the level
-## pieces a test adds, local players, ghosts and remote capsules, and waits over physics steps.
+## pieces a test adds, local players, downed ones and remote capsules, and waits over physics steps.
 ## A suite adds one in `before_test()` and frees it in `after_test()`. Forward is -Z.
 
 const PLAYER_SCENE := preload("res://client/player/player.tscn")
@@ -23,11 +23,11 @@ func add_player(at: Vector3) -> PlayerController:
 	return player
 
 
-func add_ghost(at: Vector3) -> PlayerController:
+func add_downed(at: Vector3) -> PlayerController:
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	player.reads_device_input = false
 	player.rules = rules
-	player.ghost = true
+	player.life = ClientModel.Life.DOWNED
 	player.position = at
 	add_child(player)
 	return player

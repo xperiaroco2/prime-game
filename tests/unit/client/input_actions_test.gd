@@ -45,6 +45,6 @@ func test_the_debug_overlay_is_f3() -> void:
 	assert_array(keys).contains([KEY_F3])
 
 
-func test_ghosts_have_no_fly_down_action() -> void:
-	# Ghosts do not fly (the engineer's correction of 2026-09-30, #46).
+func test_the_downed_have_no_fly_down_action() -> void:
+	# The downed (once ghosts) do not fly (the engineer's correction of 2026-09-30, #46).
 	assert_bool(InputMap.has_action(&"fly_down")).is_false()

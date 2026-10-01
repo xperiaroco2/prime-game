@@ -4,7 +4,7 @@ extends RefCounted
 ## The controller holds no stamina rule of its own: it asks before a sprint or a jump and reports
 ## each physics step. `PredictedStamina` predicts with `core/`'s rule (`StaminaLedger`, 2d) and
 ## follows `SelfStatus` (M4-7, E24).
-## `downed` is the player's life state (the controller's ghost flag): only the living sprint and
+## `downed` is the player's life state (the controller's life): only the living sprint and
 ## jump, so a source refuses both to the downed, and their stamina regenerates as usual (M4-2's
 ## crawl check, StaminaLedger).
 

@@ -5,8 +5,10 @@ extends Node3D
 ## pose (E23) at priority -80, after the session (-90) and before the local player (0), so the
 ## player's push search sees this frame's capsules (static bodies placed with
 ## force_update_transform(), RemotePlayerBody). A body is on the living layer only while the
-## model's life fold says its player is living. A placement (PlayersPlaced) snaps the players it
-## names; a new map (LoadMatch) forgets the poses.
+## model's life fold says its player is living, lies while it says downed (M4-9), and wears the
+## invulnerable shell while the newest snapshot's avatar has the flag. Every body is in
+## SightHider's group: the downed camera hides those out of the body's eye's sight. A placement
+## (PlayersPlaced) snaps the players it names; a new map (LoadMatch) forgets the poses.
 
 const PHYSICS_PRIORITY := -80
 const BODY := preload("res://client/player/remote_player_body.tscn")
@@ -106,7 +108,11 @@ func _physics_process(_delta: float) -> void:
 			body = BODY.instantiate() as RemotePlayerBody
 			body.name = "Peer%d" % peer
 			body.rules = rules
+			body.peer = peer
 			_bodies[peer] = body
+			body.add_to_group(SightHider.GROUP)
 			add_child(body)
 		body.set_living(model.is_alive(peer))
+		body.set_downed(model.life_of(peer) == ClientModel.Life.DOWNED)
+		body.set_invulnerable(model.is_invulnerable(peer))
 		body.set_pose(pose)

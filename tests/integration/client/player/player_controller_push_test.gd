@@ -131,23 +131,23 @@ func test_at_an_angle_the_two_slide_apart_and_walk_on() -> void:
 	assert_float(deepest).is_less(_tuning.push_max_overlap + 0.01)
 
 
-func test_a_ghost_is_not_pushed_and_pushes_nobody() -> void:
-	var ghost := _world.add_ghost(Vector3(0.0, 0.0, -2.0))
+func test_a_downed_player_is_not_pushed_and_pushes_nobody() -> void:
+	var downed := _world.add_downed(Vector3(0.0, 0.0, -2.0))
 	var living := _world.add_player(Vector3.ZERO)
 	await _world.frames(5)
 	living.move_input = Vector2(0.0, 1.0)
 	var speed: float = await _world.measure_speed(living, 10, 30)
 	assert_float(speed).is_equal_approx(_rules.walk_speed_mps, SPEED_TOLERANCE)
 	assert_float(living.global_position.z).is_less(-2.5)
-	assert_vector(ghost.global_position).is_equal_approx(
+	assert_vector(downed.global_position).is_equal_approx(
 		Vector3(0.0, 0.0, -2.0), Vector3.ONE * 0.001
 	)
-	# The other way round: a ghost walks through a standing player, who stays put.
+	# The other way round: a downed player crawls through a standing player, who stays put.
 	var standing := living.global_position
 	living.move_input = Vector2.ZERO
-	ghost.move_input = Vector2(0.0, -1.0)
+	downed.move_input = Vector2(0.0, -1.0)
 	await _world.frames(40)
-	assert_float(ghost.global_position.z).is_greater(standing.z + 1.0)
+	assert_float(downed.global_position.z).is_greater(standing.z + 1.0)
 	assert_vector(living.global_position).is_equal_approx(standing, Vector3.ONE * 0.001)
 
 
