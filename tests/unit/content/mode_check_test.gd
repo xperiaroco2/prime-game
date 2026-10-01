@@ -181,7 +181,7 @@ func test_empty_entries_and_missing_parts() -> void:
 
 
 func test_ids_outside_the_wires_alphabet() -> void:
-	# D1 (a), waiting for the designer (#96): every content id is 1 to 32 characters of a-z, 0-9
+	# D1 (a), the designer's answer on #96: every content id is 1 to 32 characters of a-z, 0-9
 	# and _, because ids travel on the wire as the content's names (§4.3, E5).
 	var mode := FixtureItemModes.basic()
 	mode.roles[0].id = &"Crew"

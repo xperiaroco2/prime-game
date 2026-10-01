@@ -15,7 +15,7 @@ extends RefCounted
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
 ## sides, item and station kinds, task types, settings, phases, win conditions), the sides and
 ## spawn tags parts name, and the reason each condition rejects with. D1 (a) in the wire ADR,
-## waiting for the designer (#96): if the designer says no, this check is reverted with E5.
+## the designer's answer on #96.
 
 ## The longest id the wire carries (§4.3 `id`).
 const MAX_ID_LENGTH := 32

@@ -11,7 +11,7 @@ extends RefCounted
 ## load; a root CSG node with use_collision, or a GridMap whose used items have shapes, on layer
 ## 1, and a CollisionPolygon3D of a
 ## layer-1 body (they build their collision only inside a tree, so the host would see nothing
-## where players collide: D2 (a), waiting for the designer on #96); any other physics body on
+## where players collide: D2 (a), the designer's answer on #96); any other physics body on
 ## layer 1 (a RigidBody3D, a CharacterBody3D), which players collide with but the host's static
 ## world would not hold. An AnimatableBody3D is a StaticBody3D: it is built where the scene puts
 ## it, and never moves on the host. A scene that gives the world no body at all is an error too:
