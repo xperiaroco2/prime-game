@@ -1,10 +1,12 @@
 # Wire format and the host session
 
 - **Status:** Accepted (2026-10-01) for E1 to E17: the engineer took every recommendation, with E10 (b) and E14 (a)
-  plus the client rule of (b) ("The engineer's answers" below). D1 to D3 wait for the designer (#96)
-- **Date:** 2026-09-30; accepted 2026-10-01
+  plus the client rule of (b) ("The engineer's answers" below). D1 to D3 accepted (a) by the designer (2026-10-01,
+  relayed by the engineer on #96; the designer confirms there)
+- **Date:** 2026-09-30; accepted 2026-10-01; review answers recorded 2026-10-01
 - **Deciders:** designed by the agent in #89 (M3 design); E1 to E17 decided by the engineer (comment on #89, PR #92,
-  and the chat with the M3 manager session, 2026-10-01); D1 to D3 decided by the designer
+  and the chat with the M3 manager session, 2026-10-01); D1 to D3 decided by the designer (relayed by the engineer,
+  2026-10-01, #96)
 - **Builds on:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md),
   [match loop, intents, events and entitlement](2026-09-29-match-loop-intents-events-and-entitlement.md),
   [content API v0](2026-09-29-content-api-v0.md), [voice approach](2026-09-29-voice-approach.md),
@@ -164,8 +166,20 @@ comment on #89 and PR #92): E1 (a), E2 (a), E3 (a), E4 (a), E5 (a), E6 (a), E7 (
 E12 (a), E13 (a), E14 (a) with the client rule of (b) as well, E15 (a), E16 (a) and E17 (a). The numbers the design
 marks as placeholders stay placeholders, "not a decision": the hello deadline (10 s), the relay's newest 5 voice
 frames per speaker per poll, `rest_position`'s 0.2 m, the default port, the 16 players on the wire and the budgets.
-D1 to D3 are the designer's (asked on #96): the M3 tasks build the recommended option (a) of each, and each is
-reverted before `main` if the designer says no.
+D1 to D3 are the designer's (asked on #96): the M3 tasks build the recommended option (a) of each, and the designer
+took (a) of each (below), so none is reverted.
+
+## Review answers (2026-10-01)
+The engineer reviewed M3 as built (PR #117, `release/m3` into `main`) and took the recommendation of every one of its
+21 "Needs the engineer" items (comment on PR #117, 2026-10-01). Placeholders stay placeholders, "not a decision".
+Linux-only problems are low priority: the game targets Windows for now (item 7). Follow-ups: #118 (item 11, hash the
+sub-scenes a level instances before levels instance rooms), #119 (item 15, the client tells a dropped player why, with
+M4's UI), #113 (item 14, next in tooling) and #76 (item 6, the stricter jump check with M4's movement checks).
+- **A boundary change** (item 10, ARCHITECTURE §1): `client/` may read `core/`'s content definitions and constants
+  (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`,
+  `MatchState`, `view_of`). Before, §1's `client/` row named only the filtered view and `net/`.
+- **The designer** took D1 (a), D2 (a) and D3 (a), relayed by the engineer (#96; the designer confirms there). No level
+  uses CSG or `GridMap` collision today; the host refuses one that does (#112).
 
 ## Needs the engineer
 Answered above ("The engineer's answers"). The table keeps the options for the record.
@@ -191,11 +205,12 @@ Answered above ("The engineer's answers"). The table keeps the options for the r
 | E17 | Debug commands on the wire (`ForceRole`, 2j: a command `server/` originates in debug builds) | (a) kinds 24 to 31 only in a debug build's table, taken from peer 1 only (another sender, or a release host: malformed), turned by `server/` into the command; the bots runner's bot 1 sends a scenario's forced roles on it; (b) no wire: the bots runner queues `ForceRole` on its `HostSession`; (c) the kinds in every build, refused by `server/` in a release build | (a): one path for the bots, the ENet run and a later dev console, tested by every scenario with a forced role, and a release host cannot even decode it |
 
 ## Needs the designer
-Content API and level conventions (ARCHITECTURE §9.1, §9.6, §9.7). **Waiting for the designer** (asked on #96). The
-design follows each recommendation; each is reverted with the engineer's matching choice if the designer says no.
+Content API and level conventions (ARCHITECTURE §9.1, §9.6, §9.7). **Answered** (2026-10-01, relayed by the engineer
+on #96; the designer confirms there): D1 (a), D2 (a) and D3 (a), the recommendation of each, as built. The table keeps
+the options for the record.
 
 | # | Choice | Options | Recommendation |
 |---|---|---|---|
-| D1 | The id alphabet (E5) | (a) every content id is `a-z 0-9 _`, 1 to 32 characters, refused by the mode check otherwise; (b) any id, with E5 (b) (indices on the wire) | (a): every MVP id already fits, and a content mismatch then shows as an unknown id |
-| D2 | Level collision (E8) | (a) collision as `StaticBody3D` nodes with `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only; (b) any collision, with E8 (b) (the level in a `SubViewport` on the host) | (a): the host's world then holds only colliders; 3c's builder names a CSG or `GridMap` node that has collision |
-| D3 | The scenarios' jump step (2j's `content/scenarios/`) | (a) the step stays `Jump`, and the bot harness turns it into a counted jump (`jumps` + 1), so no scenario file changes; (b) scenarios name the count | (a): the scenario says what a player does, not what the wire carries |
+| D1 | The id alphabet (E5) | (a) every content id is `a-z 0-9 _`, 1 to 32 characters, refused by the mode check otherwise; (b) any id, with E5 (b) (indices on the wire) | (a): every MVP id already fits, and a content mismatch then shows as an unknown id. Accepted |
+| D2 | Level collision (E8) | (a) collision as `StaticBody3D` nodes with `CollisionShape3D` children on layer 1; CSG and `GridMap` for looks only; (b) any collision, with E8 (b) (the level in a `SubViewport` on the host) | (a): the host's world then holds only colliders; 3c's builder names a CSG or `GridMap` node that has collision. Accepted |
+| D3 | The scenarios' jump step (2j's `content/scenarios/`) | (a) the step stays `Jump`, and the bot harness turns it into a counted jump (`jumps` + 1), so no scenario file changes; (b) scenarios name the count | (a): the scenario says what a player does, not what the wire carries. Accepted |
