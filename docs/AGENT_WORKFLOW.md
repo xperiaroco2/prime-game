@@ -35,6 +35,26 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | Godot import scope | `docs/.gdignore` keeps the editor from importing anything under `docs/` | [applied] |
 | Auto mode | Not yet. Revisit after the M0 guard tests pass (§14) | — |
 
+### 2.1 Cloud sessions
+A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clone) can run `tools/run.sh verify` as CI
+does (#159). Setup:
+- **Setup script** of the cloud environment: `tools/cloud/setup.sh`. Idempotent: it installs the pinned Godot Linux
+  build in `~/godot/godot` (SHA-512 checked) and the pinned gdtoolkit with pip, and raises `net.core.rmem_default` to
+  416 KB when lower (some container kernels hold only 256 small datagrams in the 208 KB default; verify's stall step
+  queues 320). Then every runner command needs `export GODOT_BIN=$HOME/godot/godot` (or `GODOT_BIN` in the
+  environment's variables). `doctor` treats the session like CI (`CLAUDE_CODE_REMOTE=true`: no machine-path warnings)
+  and warns when the UDP buffer is still too small.
+- **Network access**: `github.com` and its release-asset host (`release-assets.githubusercontent.com`) for the Godot zip,
+  and `pypi.org` with `files.pythonhosted.org` for gdtoolkit.
+- **Task branches**: the container starts on its own branch; switch to the task branch from the stage's base
+  (`git fetch origin release/m<k>; git switch -c <area>/<n>-<slug> origin/release/m<k>`). With `gh` authenticated, the
+  runner's `start --here` and `publish` use it as on a PC (not yet tried in a cloud session). Without it, read the issue and open the PR through the session's
+  GitHub tools, set the board column by hand or leave it to the manager, and push with `publish --base release/m<k>`
+  (it needs no `gh` when given the base) or a plain `git push -u origin <branch>` after a green `verify`.
+- **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` (it stops with "needs a
+  desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the humans' settings
+  files). A full `verify` took 5.5 minutes in one (test, selftest and bots-enet the longest).
+
 ## 3. Instruction files and memory
 
 | File | Loaded | Content | Budget |
