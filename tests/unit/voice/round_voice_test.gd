@@ -29,6 +29,7 @@ func test_the_living_never_hear_a_downed_player_however_close() -> void:
 	FixtureVoiceMatch.put(game, P1, Vector3(0, 0, 0))
 	FixtureVoiceMatch.put(game, P2, Vector3(0, 0, 0))
 	assert_array(FixtureVoiceMatch.tick_and_hear(game, P1)).is_empty()
+	assert_array(_round_voice().speakers_of(game.state, P1)).is_empty()
 	assert_array(FixtureVoiceMatch.heard(game, P2)).is_equal([P1])
 
 
@@ -89,6 +90,10 @@ func test_a_player_who_left_hears_and_is_heard_by_nobody() -> void:
 	assert_array(FixtureVoiceMatch.heard(game, P1)).is_empty()
 	assert_array(FixtureVoiceMatch.heard(game, P2)).is_equal([P1])
 	assert_bool(game.view_of(P3).speakers.has(game.ticked_through())).is_false()
+	var rule := _round_voice()
+	for peer: int in [P1, P2]:
+		assert_bool(rule.hears(game.state, peer, P3)).is_false()
+		assert_bool(rule.hears(game.state, P3, peer)).is_false()
 
 
 func test_a_downed_player_moving_away_stops_hearing_at_living_m() -> void:
