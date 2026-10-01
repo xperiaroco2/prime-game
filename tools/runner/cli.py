@@ -84,6 +84,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instances", type=int, default=1, help="copies at once, each with its own log (default 1)")
     p.add_argument("--audio", choices=["dummy", "default"], default="dummy", help="audio driver (default dummy)")
 
+    p = sub.add_parser("host", help="a headless host over ENet that prints the roster, phase and counters; Ctrl+C stops")
+    p.add_argument("--port", type=int, help="UDP port (default: the script's placeholder port)")
+    p.add_argument("--clients", type=int, default=0, help="also start N headless clients joined on 127.0.0.1")
+    p.add_argument("--local", action="store_true", help="listen on 127.0.0.1 only (this PC's clients; no firewall)")
+    p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
+
+    p = sub.add_parser("join", help="a headless client that joins a host over ENet and prints what it sees")
+    p.add_argument("address", help="the host's address, such as 192.168.0.195 or 127.0.0.1")
+    p.add_argument("--port", type=int, help="UDP port (default: the script's placeholder port)")
+    p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
+
     sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
 
     p = sub.add_parser("agents-check", help="assert each subagent was served by the model family it asked for")
@@ -188,6 +199,14 @@ def main(argv: list[str] | None = None) -> int:
                 audio=args.audio,
                 user_args=user_args,
             )
+        if args.command == "host":
+            from . import hostjoin
+
+            return hostjoin.host(port=args.port, clients=args.clients, local=args.local, seconds=args.seconds)
+        if args.command == "join":
+            from . import hostjoin
+
+            return hostjoin.join(args.address, port=args.port, seconds=args.seconds)
         if args.command == "credits":
             from . import credits
 

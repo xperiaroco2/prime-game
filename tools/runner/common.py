@@ -76,7 +76,7 @@ class Result:
         return self.out.splitlines()
 
 
-def _kill_tree(proc: subprocess.Popen[bytes]) -> None:
+def kill_tree(proc: subprocess.Popen[bytes]) -> None:
     # The Windows console exe of Godot spawns the real engine as a child, so kill the whole tree.
     if IS_WINDOWS:
         subprocess.run(
@@ -142,7 +142,7 @@ def run(
         proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         timed_out = True
-        _kill_tree(proc)
+        kill_tree(proc)
     reader.join(timeout=5)
     if proc.stdout is not None and not reader.is_alive():
         proc.stdout.close()
