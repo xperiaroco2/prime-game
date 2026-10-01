@@ -232,13 +232,13 @@ func test_a_downed_player_may_move_but_not_use() -> void:
 	assert_array(FixtureModes.notes(game)).contains(["used"])
 
 
-func test_a_dead_player_is_refused_even_where_every_player_or_the_host_is_accepted() -> void:
-	# The dead send no intents (vision revision 1): an intent of theirs still in flight at the death
-	# reaches no rule, whatever flag the phase accepts it under.
+func test_a_dead_player_is_refused_even_where_every_player_is_accepted() -> void:
+	# The dead send no intents as players (vision revision 1): an intent of theirs still in flight
+	# at the death reaches no rule, even under PLAYER.
 	var mode := FixtureModes.basic()
 	var round_spec := mode.find_phase(&"round")
 	round_spec.accepts = [
-		AcceptSpec.of(Intents.USE, AcceptSpec.From.PLAYER | AcceptSpec.From.HOST),
+		AcceptSpec.of(Intents.USE, AcceptSpec.From.PLAYER),
 		AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.PLAYER),
 	]
 	var game := FixtureModes.in_round(mode, [P1, P2])
@@ -265,6 +265,25 @@ func test_a_dead_player_is_refused_even_where_every_player_or_the_host_is_accept
 	game.state.player(P1).life = PlayerState.Life.ALIVE
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 7)
 	assert_array(FixtureModes.notes(game)).contains(["used"])
+
+
+func test_a_dead_host_still_returns_everyone_to_the_lobby_from_the_end_screen() -> void:
+	# HOST names the session's controls, not a player's actions: a host who died in the round is
+	# still dead on the end screen until ResetMatch, and must not leave the session stuck there.
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	assert_str(game.phase_id()).is_equal("end")
+	game.state.set_counter(0, &"crew_win", 0)
+	for peer: int in [P1, P2]:
+		game.state.player(peer).ready = false
+		game.state.player(peer).life = PlayerState.Life.DEAD
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P2, {}, 3)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	assert_str(game.phase_id()).is_equal("end")
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1, {}, 4)
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	assert_str(game.phase_id()).is_equal("lobby")
 
 
 func test_a_hello_the_phase_refuses_from_a_newcomer_is_told_joins_closed_and_disconnected() -> void:
