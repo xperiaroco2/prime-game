@@ -13,7 +13,7 @@ extends RefCounted
 ## and PeerLeft, intents are queued by arrival, voice is relayed right after the poll; (4) when
 ## the due tick has not run: every queued command stamped with it, then Match.tick; (5) every
 ## Match call's outbox slice is delivered as soon as it is taken; (6) snapshots for the step's own
-## tick; (7) the hello deadlines.
+## tick; (7) the hello deadlines, in a step that ran (4) only.
 ##
 ## Delivery: an event is encoded once and sent to each of core/'s recipients in peer-id order,
 ## skipping peers this session disconnected and, from peer_left(p) until the call that applies
@@ -241,8 +241,9 @@ func step(now_usec: int) -> void:
 			return
 		# 6. Snapshots for this step's own tick only, after its events.
 		_send_snapshots(due)
-	# 7. Deadlines, after the apply: a Hello that waited out a host freeze is applied first.
-	_check_deadlines()
+		# 7. Deadlines, only after an apply: a queued Hello (one that waited out a host freeze, or
+		# read in a step with no tick due) is applied first.
+		_check_deadlines()
 
 
 ## Ends the session: the owner's choice (the host quits, or its own client's load failed).

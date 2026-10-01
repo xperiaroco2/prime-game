@@ -172,6 +172,28 @@ func test_a_peer_without_hello_is_disconnected_at_the_hello_deadline() -> void:
 	assert_bool(_h.session.is_running()).is_true()
 
 
+func test_a_hello_read_in_a_step_with_no_tick_due_beats_the_deadline() -> void:
+	_h = Harness.new(null, false)
+	var late := _h.raw()
+	_h.pump()
+	var joined := _h.now
+	# The deadline falls 10 ms into a tick; the Hello is read 20 ms into it, when no tick is due.
+	var tick_usec := Harness.SECOND / Ticks.RATE
+	var boundary := Harness.SECOND + (_h.session.tick_of(joined) + 10) * tick_usec
+	_h.session.hello_deadline_usec = boundary + 10000 - joined
+	_h.session.step(boundary)
+	late.poll()
+	assert_bool(late.lost).is_false()
+	late.hello(_h.session.content_hash)
+	_h.session.step(boundary + 20000)
+	assert_int(_h.session.game.ticked_through()).is_equal(_h.session.tick_of(boundary))
+	_h.session.step(boundary + tick_usec)
+	_h.now = boundary + tick_usec
+	late.poll()
+	assert_bool(late.lost).is_false()
+	assert_array(late.names().slice(0, 1)).is_equal([&"Welcome"])
+
+
 func test_the_hello_deadline_is_a_setting_and_spares_peer_one() -> void:
 	_h = Harness.new(null, false)
 	_h.session.hello_deadline_usec = 30 * Harness.SECOND
