@@ -60,6 +60,9 @@ var _gave_up := false
 var _raise_wanted := false
 ## The downed player under the crosshair in reach, cast in the physics step (raise_target()).
 var _raise_peer := 0
+## Whether the mouse was captured at the last _process: the click that captures it (the
+## controller's _unhandled_input) still reads as just pressed, and must not cycle the target.
+var _was_captured := false
 var _reach_m := 0.0
 ## The own look when the player died: the camera above the own body keeps it.
 var _last_look := Vector2.ZERO
@@ -234,6 +237,9 @@ func _process(delta: float) -> void:
 		return
 	if not reads_device_input:
 		return
+	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	var was_captured := _was_captured
+	_was_captured = captured
 	if not listening:
 		# Nothing reads the keys now (the Esc menu): a held E or G must not keep acting.
 		_give_up_held_s = 0.0
@@ -254,7 +260,7 @@ func _process(delta: float) -> void:
 			else:
 				_give_up_held_s = 0.0
 		ClientModel.Life.DEAD:
-			if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			if captured and was_captured:
 				if Input.is_action_just_pressed(&"spectate_next"):
 					cycle_target(1)
 				elif Input.is_action_just_pressed(&"spectate_previous"):
