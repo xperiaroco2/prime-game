@@ -54,9 +54,9 @@ func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 		if each.kind == WireSchema.HELLO:
 			assert_int(each.cap).is_equal(NetKindTable.MAX_PAYLOAD)
 		elif each.name == &"Snapshot":
-			# The unreliable cap; 15 avatars take 650 bytes.
+			# The unreliable cap; 15 avatars take 680 bytes (45 each with the belt item, M4-5).
 			assert_int(each.cap).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
-			assert_int(each.max_size()).is_equal(650)
+			assert_int(each.max_size()).is_equal(680)
 		elif each.name in OVER_CAP_AT_MAXIMA:
 			assert_bool(each.content_sized).is_true()
 			assert_int(each.max_size()).override_failure_message(message).is_greater(each.cap)
