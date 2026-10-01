@@ -146,6 +146,12 @@ func quit() -> void:
 	get_tree().quit()
 
 
+## Esc: the Esc menu over the current screen, the mouse freed; the player stands still under it.
+func open_esc() -> void:
+	ui.open_esc(hosting())
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
 ## The own ClientSession; null without a session.
 func client() -> ClientSession:
 	return _client
@@ -190,6 +196,11 @@ func _process(_delta: float) -> void:
 	if _player != null:
 		_player.set_physics_process(not GameFlow.frozen(now))
 		_player.reads_device_input = not GameFlow.frozen(now) and not ui.esc_open()
+		if not _player.reads_device_input:
+			# Nothing reads the keys now: W held when Esc opened must not keep walking.
+			_player.move_input = Vector2.ZERO
+			_player.sprint_held = false
+			_player.jump_requested = false
 
 
 func _input(event: InputEvent) -> void:
@@ -198,8 +209,7 @@ func _input(event: InputEvent) -> void:
 	if ui.esc_open():
 		ui.close_esc()
 	else:
-		ui.open_esc(hosting())
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		open_esc()
 	get_viewport().set_input_as_handled()
 
 
@@ -207,9 +217,8 @@ func _notification(what: int) -> void:
 	if what != NOTIFICATION_WM_CLOSE_REQUEST:
 		return
 	if hosting():
-		ui.open_esc(true)
+		open_esc()
 		ui.esc.ask_quit()
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	else:
 		quit()
 

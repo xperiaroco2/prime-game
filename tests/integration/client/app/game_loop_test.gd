@@ -39,6 +39,18 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 		assert_vector(game.player().global_position).is_equal_approx(
 			model.spots[model.own_peer], Vector3.ONE * 0.01
 		)
+	# Under the Esc menu nothing reads the keys, and a key held when it opened stops counting.
+	host.open_esc()
+	await get_tree().process_frame
+	var held := host.player()
+	held.move_input = Vector2(0, -1)
+	held.sprint_held = true
+	held.jump_requested = true
+	await get_tree().process_frame
+	assert_bool(held.reads_device_input).is_false()
+	assert_vector(held.move_input).is_equal(Vector2.ZERO)
+	assert_bool(held.sprint_held or held.jump_requested).is_false()
+	host.ui.close_esc()
 	# The host's setting reaches everyone; then Ready, the countdown and loading.
 	host.change_setting(&"match_duration", 1)
 	assert_bool(await _until(games, _setting_is.bind(games, &"match_duration", 1))).is_true()
