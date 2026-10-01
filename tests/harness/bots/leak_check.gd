@@ -46,8 +46,10 @@ const FOR_ONE: Array[StringName] = [
 	&"Rejected",
 	&"Disconnecting",
 ]
+## The events every player present for a whole match decodes alike (check_tasks). TaskState
+## (M4-5) is public to the living, the downed and the dead alike: the task screen is everyone's.
 const TASK_EVENTS: Array[StringName] = [
-	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskProgress"
+	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskState", &"TaskProgress"
 ]
 ## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then counter % FILL_SPAN
 ## bytes of FILL, so frames vary in length.
