@@ -89,19 +89,22 @@ static func intents() -> Array[WireMessage]:
 	]
 
 
-## ForceRole, which only a debug build's table has: set, then cleared.
+## ForceRole and ForceClock, which only a debug build's table has: set, then cleared.
 static func debug_commands() -> Array[WireMessage]:
 	return [
 		WireMessage.new(&"ForceRole", {"role": "dissident"}, 1, 3),
 		WireMessage.new(&"ForceRole", {"role": ""}, 2, 3),
+		WireMessage.new(&"ForceClock", {"seconds": 40}, 3, 1),
+		WireMessage.new(&"ForceClock", {"seconds": 0}, 0xFFFFFFFF, 0x7FFFFFFF),
 	]
 
 
 ## A snapshot in the shape of Snapshots.for_peer's avatars, and the two voice frames.
 static func state_and_voice() -> Array[WireMessage]:
 	var avatars := {
-		2: _avatar(Vector3(1, 0, 1), false, -1),
-		5: _avatar(Vector3(-3, 1.5, 0), true, 0xFFFE),
+		2: _avatar(Vector3(1, 0, 1), false, false, -1),
+		5: _avatar(Vector3(-3, 1.5, 0), true, false, 0xFFFE),
+		7: _avatar(Vector3(4, 0, -4), false, true, 3),
 	}
 	var frame := PackedByteArray()
 	frame.resize(WireSchema.MAX_OPUS)

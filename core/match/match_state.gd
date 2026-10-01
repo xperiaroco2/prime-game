@@ -45,6 +45,10 @@ var joins := 0
 ## answer A on #30). Session state: reset_match() keeps it. core/ cannot tell a debug build, so
 ## only server/'s debug path or the scenario runner sets it, with the ForceRole command.
 var forced_roles: Dictionary[int, StringName] = {}
+## The match clock's length in seconds that StartClock uses instead of its minutes setting, or 0
+## (the ForceClock command, debug builds only, like forced_roles). Session state: reset_match()
+## keeps it.
+var forced_clock_s := 0
 
 var _next_item_id := 1
 var _next_task_id := 1

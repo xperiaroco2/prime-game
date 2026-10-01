@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 ## StartClock (ARCHITECTURE §3.2, §3.3, §9.4): the last action of the deal's row sets the match
 ## clock to the `minutes_setting` in host ticks and emits RoundStarted (everyone) with the start
 ## tick, after PlayersPlaced; the round's PhaseChanged announces the clock's end. A new round
-## after End -> Lobby starts a fresh clock. Its mode check needs a setting of at least 1 minute.
+## after End -> Lobby starts a fresh clock. Its mode check needs a setting of at least 1 minute. A
+## forced clock (ForceClock, debug builds only: the bot scenarios' clock_s) replaces it, in seconds.
 
 const P1 := 1
 const P2 := 2
@@ -81,3 +82,30 @@ func test_the_mode_check_needs_a_setting_of_at_least_one_minute() -> void:
 	assert_str("\n".join(ModeCheck.run(unknown).errors)).contains(
 		"names setting length, which the mode does not declare"
 	)
+
+
+func test_a_forced_clock_gives_the_length_in_seconds_until_it_is_cleared() -> void:
+	var mode := FixtureWinModes.basic(2)
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), FixtureDeliveryModes.layouts())
+	game.keep_history = true
+	game.start(0)
+	for peer: int in [P1, P2]:
+		FixtureModes.send(game, Intents.HELLO, peer, {"name": "p%d" % peer})
+	# ForceClock (debug builds only): from the host's own player, in the lobby, for later rounds.
+	FixtureModes.send(game, Intents.FORCE_CLOCK, P1, {"seconds": 40})
+	assert_int(game.state.forced_clock_s).is_equal(40)
+	for peer: int in [P1, P2]:
+		FixtureModes.send(game, Intents.SET_READY, peer, {"ready": true})
+	assert_str(game.phase_id()).is_equal("round")
+	assert_int(game.state.clock_ticks_left).is_equal(40 * Ticks.RATE)
+	# It is not an intent: no Rejected, no event at all.
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	FixtureModes.send(game, Intents.FORCE_CLOCK, P1, {"seconds": -1})
+	assert_int(game.state.forced_clock_s).is_equal(40)
+	assert_str("\n".join(game.diagnostics)).contains("ForceClock: -1 seconds")
+	FixtureModes.send(game, Intents.FORCE_CLOCK, P1, {"seconds": 0})
+	assert_int(game.state.forced_clock_s).is_equal(0)
+	# ResetMatch keeps it, like a forced role: session state.
+	FixtureModes.send(game, Intents.FORCE_CLOCK, P1, {"seconds": 30})
+	game.state.reset_match()
+	assert_int(game.state.forced_clock_s).is_equal(30)

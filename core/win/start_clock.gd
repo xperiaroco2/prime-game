@@ -3,9 +3,10 @@ extends RuleEffect
 ## Starts the match clock (ARCHITECTURE §3.3, §9.4): a transition action, the last of the deal's
 ## row (`Loading, all_loaded -> Round`, after PlacePlayers). It sets the clock's end to now plus
 ## the match setting `minutes_setting` (converted once, toward zero: 10 min is 12000 ticks) and
-## emits RoundStarted. Match then counts the clock down in the phases whose clock runs and
-## announces its end tick in the PhaseChanged of the round it enters; at the end it raises
-## `clock_ended`.
+## emits RoundStarted. A forced clock (MatchState.forced_clock_s, the debug ForceClock command of
+## the bot scenarios) replaces the setting, in seconds. Match then counts the clock down in the
+## phases whose clock runs and announces its end tick in the PhaseChanged of the round it enters;
+## at the end it raises `clock_ended`.
 ##
 ## Emits: RoundStarted (everyone), with the start tick. No demands.
 
@@ -14,7 +15,10 @@ extends RuleEffect
 
 
 func run(ctx: MatchContext) -> void:
-	ctx.state.clock_ticks_left = Ticks.from_minutes(ctx.setting(minutes_setting))
+	if ctx.state.forced_clock_s > 0:
+		ctx.state.clock_ticks_left = Ticks.from_seconds(ctx.state.forced_clock_s)
+	else:
+		ctx.state.clock_ticks_left = Ticks.from_minutes(ctx.setting(minutes_setting))
 	ctx.state.clock_ended = false
 	ctx.emit(RoundStartedEvent.new(ctx.tick))
 
