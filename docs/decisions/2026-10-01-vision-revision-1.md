@@ -43,9 +43,10 @@ written into the Decision below and cited as (Vn); what they left open, answered
 - **Cringe-fun vibe**, and an audience that is not only guys.
 - **Macro skill over micro skill.** Mechanics are simple; no aim-heavy or one-shot mechanics. Decisions, teamwork
   and communication win, and a player who never plays shooters has as much fun as anyone.
-- **Open knowledge.** The rules, how every mechanic works and the fixed places (the map, the task circles, the item
-  spawn points) are known to everyone, dissidents included. Who the dissidents are is dealt privately, but it is not
-  a secret the game protects. Where a moved item lies now is not shown: players find it by looking (V1, V2).
+- **Open knowledge.** The rules, how every mechanic works and the fixed places (the map, the task circles, the zones
+  where items may appear) are known to everyone, dissidents included. Who the dissidents are is dealt privately, but
+  it is not a secret the game protects. Where a moved item lies now is not shown: players find it by looking (V1, V2;
+  E32 (b) of the [M4 design](2026-10-01-m4-first-person-client.md)).
 
 The engine's filtering does not change: roles still reach only the peers entitled to them (architecture invariant 2),
 and the leak test still checks it. The pillar is about game design, not about what the host sends.
