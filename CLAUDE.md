@@ -59,7 +59,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `run <x.tscn\|x.gd> [--headless\|--offscreen] [--seconds N] [--instances N] [-- args]` | Runs it with the pinned Godot; fails on a non-zero exit, a timeout or an `ERROR:` line. Your own checks: `--headless` |
 | `host [--port P] [--clients N] [--local] [--seconds S]` / `join <address> [--port P] [--seconds S]` | Headless ENet session of the base mode printing roster, phase and counters; Ctrl+C stops. Your checks: `--local --seconds` |
 | `credits` | Writes `CREDITS.md` from `docs/credits/`; `check` fails on an LFS asset without an entry |
-| `bots [scenario ...] [--instances N]` | Bot scenarios through the host and client sessions, and the information-leak test; `--instances`: one over ENet |
+| `bots [scenario ...] [--instances N] [--seconds S]` | Bot scenarios through the host and client sessions, and the information-leak test; `--instances N` (N > 1): one scenario over ENet, a process per bot |
 | `agents-check` / `worktree-done <n> [--pushed]` | Subagents ran on their models / remove a merged (or pushed spike) task's worktree |
 | `selftest` / `pins [--get X]` / `permissions [--before R]` | The runner's own tests / pinned tool versions / transcripts replayed through the permission rules and the guard |
 

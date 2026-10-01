@@ -574,7 +574,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **`bots [scenario ...]` [applied]** (#102; `docs/ARCHITECTURE.md` §4.6, §9.7): plays every bot scenario in
   `content/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot, in one headless process
   over the loopback on a simulated clock (60 steps per simulated second: the six MVP scenarios take about 8 s), and
-  asserts the information-leak test (§5 there) for every bot, a lurker and a refused bot. `--instances N` plays one
+  asserts the information-leak test (§5 there) for every bot, a lurker and a refused bot. `--instances N` (N > 1) plays one
   scenario of N bots over ENet on 127.0.0.1 on a free port, one process per bot, on the real clock; `--seconds`
   overrides the timeout (300, over ENet 180). It runs `tests/harness/bots/bots_main.gd` through `run`, so `run`'s
   failure rules apply. A failed scenario prints its seed and each failure (the bot, its step, its last events) and
@@ -593,7 +593,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   and on `main`, with the checksum-checked Godot build from the pins. `verify` runs, in this order: `doctor --quick`,
   `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots` and
   `bots-enet`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about 8 s) and
-  `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 18 s on 2026-10-01, under the minute #102 allows). The `enet` step is
+  `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 18 s on 2026-10-01, under the minute #102
+  allows). The `enet` step is
   `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
   5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
   `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on

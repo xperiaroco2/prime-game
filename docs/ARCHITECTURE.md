@@ -960,8 +960,11 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     anyway); the second failed on `ScenarioInvariants` through the observer (`peer 2 (crew) learned the role of peer
     1`); the third failed every scenario, and in `refusals` only on the lurker and the refused bot. In the scenarios
     with more bots it also reaches a bot that is connected and has not sent its `Hello` yet, a peer that is not a
-    player for that moment. `tests/scenarios/bots_runner_test.gd` sees each check of `LeakCheck` fail on a planted
-    leak.
+    player for that moment. Over ENet (`--instances 3`, `dissident_kills_the_crew`) the first leak failed on the
+    comparison of each of the three bots, the remote ones compared as a prefix. `tests/scenarios/bots_runner_test.gd`
+    sees each check of a bot in `LeakCheck` (events, subject, the three `Teammates` checks, snapshots, a living bot's
+    ghost avatar and voice, voice frames, seeds, task events) and the watcher's event, snapshot and voice checks fail
+    on a planted leak.
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they run
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
