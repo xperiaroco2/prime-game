@@ -561,6 +561,13 @@ The rules of the table:
   hosts a playtest from a branch with edited `PlayerRules`, the engineer joins from `main`, and the engineer's client
   predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s name is not on
   the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.
+  The level files are walked (#118): every scene and resource a level reaches through
+  `ResourceLoader.get_dependencies`, recursively and each once (a cycle, a piece two levels share), is hashed too,
+  sorted by `res://` path, so a wall moved inside a room the map instances counts. A dependency with a known uid is
+  the file the uid names, as Godot loads it, else its fallback path; a missing file is hashed as `missing`, which
+  `ContentFingerprint.text_of` names. Left out: scripts (`ContentHash` covers them by path) and Godot's generated
+  files under `res://.godot/`; an imported asset counts by its source bytes and its `.import` settings. Levels that
+  instance nothing hash as they did before the walk.
 - **Ids** on the wire are the content's own names (`crew`, `knife`, `match_duration`) (E5), so a content difference
   shows up as an unknown id, never as the wrong thing. The mode check (§9.1) refuses an id outside the wire's alphabet
   (3e): a change to the content API that the designer took (D1 (a) in the ADR): ids lowercase snake_case of at most 32
@@ -875,7 +882,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     10-minute match); the bots and the leak test turn it on. The model is always kept.
   - `Hello`'s content hash is `ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)`
     (`net/messages/`), which #100's host computes the same way. It takes the mode's parts, not the mode: `net/` names
-    no `core/` class (a test pins it). Only each level's own file is hashed, not the sub-scenes it instances.
+    no `core/` class (a test pins it). Each level's file and every scene and resource it reaches are hashed (§4.3).
   - The model keeps its own copy of a snapshot's avatars: the view records the decoded one unchanged. A threaded load
     the session no longer waits for (it ended, or a newer `LoadMatch` came) is collected by `step()` once done.
   - Tested in `tests/unit/client/net/` against host messages encoded with the codec from `core/`'s own events over a
