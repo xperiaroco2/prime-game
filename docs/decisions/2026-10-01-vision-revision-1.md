@@ -438,5 +438,7 @@ The order below keeps `verify` green after every item. Two rules hold for each o
 ### Issues
 - #125 (M4 design) designs death, items and the HUD by this revision and splits the rework above.
 - #34 (resurrection) and #35 (meetings mode) are closed or rewritten after the merge; the engineer closes #127.
-- #126's edge case "a player leaving while downed or dead: as today, no body stays" is corrected in a comment on #126
-  (today a ghost's body stays; under this revision a body stays until its player respawns, V7).
+- #126's edge case "a player leaving while downed or dead: as today, no body stays": its "as today" was wrong (today a
+  ghost's body stays, ARCHITECTURE §3.5), but its rule stands under "Needs the engineer" 1 (a): a downed or dead
+  player who leaves leaves no body. A comment on #126 of 2026-10-01 had read V7 as keeping the body of a player who
+  left; the handoff comment on #126 retracts that reading.
