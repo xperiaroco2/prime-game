@@ -99,7 +99,8 @@ static func take(ctx: MatchContext, peer: int, item: ItemState) -> void:
 ## `peer`'s hand and belt items change places; either may be empty. Swapped (everyone). The rule's
 ## conditions (CarriesItem, HandNotTwoHanded) refuse a swap with both slots empty or a two-handed
 ## item in the hand; one that would put a two-handed item on the belt here is a rule error,
-## logged, and nothing moves.
+## logged, and nothing moves: the sender's Swap is rejected with `two_handed`, as `take` rejects its
+## own rule error.
 static func swap(ctx: MatchContext, peer: int) -> void:
 	var player := ctx.state.player(peer)
 	if player == null:
@@ -109,6 +110,8 @@ static func swap(ctx: MatchContext, peer: int) -> void:
 	var belt := belted_by(ctx.state, peer)
 	if hand != null and hand.kind.is_two_handed():
 		ctx.error("swap: player %d holds two-handed item %d" % [peer, hand.id])
+		if ctx.command != null:
+			ctx.reject(ctx.command, HandNotTwoHanded.TWO_HANDED)
 		return
 	player.held_item = belt.id if belt != null else -1
 	player.belt_item = hand.id if hand != null else -1

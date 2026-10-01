@@ -184,6 +184,8 @@ func test_a_swap_that_would_belt_a_two_handed_item_is_a_rule_error() -> void:
 	assert_int(game.state.player(P1).belt_item).is_equal(-1)
 	assert_array(game.view_of(P2).events_named(&"Swapped")).is_empty()
 	assert_str(game.diagnostics[0]).contains("holds two-handed item")
+	# The sender's seq is answered, as take answers its own rule error.
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"two_handed"])
 
 
 func test_the_swap_rule_passes_the_mode_check() -> void:
