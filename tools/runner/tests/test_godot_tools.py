@@ -159,6 +159,25 @@ class ShotTest(unittest.TestCase):
                     shot.main(PROBE, out=str(png))
             self.assertIn("cannot load", str(caught.exception))
 
+    def test_names_the_rendering_driver(self) -> None:
+        # The runner passes --no-header, so Godot's own "Vulkan ... Forward+" line is gone: shot.gd prints the
+        # driver and the runner echoes it (#124: the shot log proves which driver Windows uses).
+        with tempfile.TemporaryDirectory() as tmp:
+            png = Path(tmp) / "p.png"
+
+            def fake_godot(args: list[str], **_kwargs: object) -> Result:
+                Path(args[args.index("--") + 2]).write_bytes(shot.PNG_MAGIC + b"rest")
+                return Result(0, f"SHOT renderer vulkan forward_plus\nSHOT saved {png} 1280x720\n", False, 0.0)
+
+            said: list[str] = []
+            with mock.patch.object(shot, "has_display", return_value=True), mock.patch.object(shot, "godot", fake_godot), \
+                    mock.patch.object(shot, "say", said.append), mock.patch.object(shot, "ok"):  # fmt: skip
+                shot.main(PROBE, out=str(png))
+        self.assertIn("        renderer: vulkan forward_plus", said)
+        # shot.gd needs a real window, so no test runs it; pin the print statement itself, not the doc comment.
+        source = (ROOT / "tools/shot/shot.gd").read_text(encoding="utf-8")
+        self.assertIn('print("SHOT renderer ", RenderingServer.get_current_rendering_driver_name()', source)
+
     def test_probe_scene_is_committed(self) -> None:
         self.assertTrue((ROOT / PROBE).is_file())
 

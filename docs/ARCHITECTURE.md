@@ -291,9 +291,10 @@ dissidents, no crew alive by a death or a leave, End widens nothing).
 - **Timeouts** live in one place, `EnetTransport`: an ENet peer is dropped after 10 to 20 s without an
   acknowledgement; a crash is noticed that late. ENet runs only on the main thread, so a frozen process sends and
   acknowledges nothing, and the spike's 2 to 4 s dropped it. #21 found a common freeze: on Windows a windowed D3D12
-  Godot process can freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts. Keep the
-  minimum at 10 s or more; a servicing thread or an extra keepalive would not help (ENet already pings every
-  500 ms, and a thread would keep a hung game "connected"). ENet resends with a doubling delay from the measured
+  Godot process can freeze about 5 s (5.0 to 5.2 s) when another one on the same PC is killed or starts (Vulkan,
+  the Windows driver since #124, did not freeze in 10 such runs; other freezes remain). Keep the minimum at 10 s or
+  more; a servicing thread or an extra keepalive would not help (ENet already pings every 500 ms, and a thread
+  would keep a hung game "connected"). ENet resends with a doubling delay from the measured
   round trip and, at a resend check, drops a peer once the oldest unacknowledged send is past the maximum, or
   past the minimum after the command's 6th attempt (timeout limit 32), so a drop comes between 10 s and about
   20 s (with ENet's default of 5 s: 5 to 10 s). Right after a connection, before a round trip is measured, it
@@ -347,8 +348,9 @@ Lessons from the M1 spike (#13, #15; [voice ADR](decisions/2026-09-29-voice-appr
 - #21: on one machine, a hard-killed windowed client made the host lose the other client too. The cause was a 5 s
   freeze of another windowed D3D12 process on the same PC, not the network: between two machines 12 hard kills
   were all clean. `EnetTransport`'s 10 to 20 s timeout rides the freeze out (Timeouts above), and #70 merges the
-  backlog. Kill tests with several windows on one PC run headless, off-screen or with `--rendering-driver vulkan`,
-  or expect a 5 s hitch; whether Windows keeps `d3d12` as its default is the humans' decision.
+  backlog. Vulkan is now the Windows rendering driver (`docs/decisions/2026-10-01-vulkan-on-windows.md`, #124):
+  `--rendering-driver vulkan` never froze in 10 such runs. A windowed run with `--rendering-driver d3d12` still
+  meets the freeze, and the 10 s minimum stays (a freeze can come from elsewhere). Review the driver before M6.
 
 ### 4.1 Intents (MVP, #32)
 What each intent means and who may send it; the wire schemas are §4.3. The sender is always the peer id the transport
@@ -998,7 +1000,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they run
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
   #21 ran. M4 gives them windows and the real client. The default port is a placeholder. Several windows on one PC
-  meet the D3D12 freeze of §4.
+  met the D3D12 freeze of §4; Windows now renders with Vulkan (#124), which did not meet it in 10 runs on one PC.
   **Built in 3i (#103)** as `tools/run/headless_session.gd` (a `SceneTree` script under `tools/`, which may use
   everything (§1), so it composes `server/` and `client/` in one process without a new boundary; the host's own
   `ClientSession` still reads only `own_client`) and the runner's `hostjoin.py`. `--host` starts `HostSession.start`
