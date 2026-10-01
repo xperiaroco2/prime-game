@@ -86,6 +86,7 @@ func test_the_deal_runs_in_the_rows_order() -> void:
 				&"Teammates",
 				&"ItemSpawned",
 				&"FixtureNote",
+				&"TaskState",
 				&"TaskProgress",
 				&"ItemSpawned",
 				&"FixtureNote",

@@ -109,7 +109,8 @@ func test_everyone_sees_the_circles_then_the_packages_in_id_order() -> void:
 
 func test_no_player_receives_a_private_task_event() -> void:
 	# Tasks are shared (#79): every event about them reaches every player, so all views agree on
-	# them, and no event the tasks emit has a narrower audience.
+	# them, and no event the tasks emit has a narrower audience. Only TaskState names a task (its
+	# public id, E30).
 	var game := FixtureDeliveryModes.in_round(FixtureDeliveryModes.basic(3), [P1, P2, P3])
 	var task := FixtureDeliveryModes.task_of(game)
 	FixtureDeliveryModes.carry_to(
@@ -119,17 +120,19 @@ func test_no_player_receives_a_private_task_event() -> void:
 		FixtureDeliveryModes.circle_of(game, task, 0).position
 	)
 	var task_events: Array[StringName] = [
-		&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskProgress"
+		&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskState", &"TaskProgress"
 	]
 	var seen: Array = []
 	for peer: int in [P1, P2, P3]:
 		var own: Array[Dictionary] = []
 		for event: MatchEvent in game.view_of(peer).events:
-			assert_bool(event.to_dict().has("task")).is_false()
+			if event.event_name() != &"TaskState":
+				assert_bool(event.to_dict().has("task")).is_false()
 			if task_events.has(event.event_name()):
 				own.append({"name": event.event_name(), "fields": event.to_dict()})
 		seen.append(own)
-	assert_int((seen[0] as Array).size()).is_equal(3 + 3 + 1 + 2)
+	# 3 circles, 3 packages, 1 delivery, TaskState and TaskProgress at the deal and the delivery.
+	assert_int((seen[0] as Array).size()).is_equal(3 + 3 + 1 + 2 + 2)
 	assert_array(seen[1] as Array).is_equal(seen[0] as Array)
 	assert_array(seen[2] as Array).is_equal(seen[0] as Array)
 	for emitted: EmittedEvent in game.emitted():
@@ -170,12 +173,27 @@ func test_a_package_that_spawns_inside_its_own_circle_is_delivered_at_once() -> 
 	assert_bool(game.state.stations[1].done).is_true()
 	var names := game.view_of(P1).event_names()
 	var spawned := names.find(&"ItemSpawned")
-	assert_array(names.slice(spawned, spawned + 4)).is_equal(
-		[&"ItemSpawned", &"PackageDelivered", &"TaskProgress", &"TaskProgress"]
+	(
+		assert_array(names.slice(spawned, spawned + 6))
+		. is_equal(
+			[
+				&"ItemSpawned",
+				&"PackageDelivered",
+				&"TaskState",
+				&"TaskProgress",
+				&"TaskState",
+				&"TaskProgress",
+			]
+		)
 	)
-	# The deal's own TaskProgress comes last, with the whole match's count.
+	# The deal's own TaskState and TaskProgress come last, with the task's and the match's count.
 	var progress := game.view_of(P1).events_named(&"TaskProgress")
 	assert_dict(progress[1].to_dict()).is_equal({"done": 1, "total": 1})
+	var states := game.view_of(P1).events_named(&"TaskState")
+	var task := FixtureDeliveryModes.task_of(game)
+	assert_dict(states[1].to_dict()).is_equal(
+		{"task": task.id, "type": &"delivery", "done": 1, "total": 1}
+	)
 	assert_array(FixtureModes.notes(game)).is_equal(
 		[FixtureSubtaskNote.text(1, {"subtask": 0, "item": 1})]
 	)

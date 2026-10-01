@@ -12,6 +12,10 @@ extends ContentPart
 
 @export var id: StringName
 @export var display_name: String
+## What a player does for a task of this type, in a sentence or two: the task screen shows it
+## (vision revision 1, the Tab task screen) with the task's shared progress (TaskState). Every
+## client reads it from its own copy of the mode, so it never travels. Empty fails the mode check.
+@export_multiline var description: String
 
 
 ## A fresh state for one task of this type.
@@ -59,4 +63,6 @@ func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	if id.is_empty():
 		found.append("a task type has no id")
+	if description.strip_edges().is_empty():
+		found.append("task type %s has no description" % id)
 	return found

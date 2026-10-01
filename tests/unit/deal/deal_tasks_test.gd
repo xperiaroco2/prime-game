@@ -23,6 +23,7 @@ class Demanding:
 	) -> Demanding:
 		var made := Demanding.new()
 		made.id = type_id
+		made.description = "A demanding task."
 		made.items = item_count
 		made.stations = station_count
 		made.station = kind
@@ -106,6 +107,28 @@ func test_nobody_owns_a_task_and_everyone_learns_the_same_progress() -> void:
 	assert_int(names.find(&"TaskProgress")).is_less(names.find(&"PlayersPlaced"))
 
 
+func test_every_dealt_task_is_announced_to_everyone_in_id_order_before_the_progress() -> void:
+	# The task screen's data (E30): one TaskState per task, after the task types' events.
+	var game := FixtureDealModes.dealt(
+		FixtureDealModes.deal_mode(_three_types()), [P1, P2, P3], {&"tasks": 2}
+	)
+	var states := _emitted_named(game, &"TaskState")
+	assert_int(states.size()).is_equal(2)
+	var ids := game.state.tasks.keys()
+	ids.sort()
+	for i in states.size():
+		var task := game.state.tasks[ids[i] as int]
+		assert_array(Array(states[i].recipients)).is_equal([P1, P2, P3])
+		assert_dict(states[i].event.to_dict()).is_equal(
+			{"task": task.id, "type": task.type.id, "done": 0, "total": 2}
+		)
+	var names := FixtureModes.names(game)
+	assert_int(names.find(&"TaskState")).is_greater(
+		names.rfind(&"ItemSpawned", names.find(&"TaskProgress"))
+	)
+	assert_int(names.rfind(&"TaskState")).is_less(names.find(&"TaskProgress"))
+
+
 func test_zero_tasks_deals_nothing_and_every_task_is_done() -> void:
 	var game := FixtureDealModes.dealt(FixtureDealModes.deal_mode(), [P1, P2], {&"tasks": 0})
 	assert_dict(game.state.tasks).is_empty()
@@ -113,6 +136,7 @@ func test_zero_tasks_deals_nothing_and_every_task_is_done() -> void:
 	assert_dict(game.view_of(P1).events_named(&"TaskProgress")[0].to_dict()).is_equal(
 		{"done": 0, "total": 0}
 	)
+	assert_array(game.view_of(P1).events_named(&"TaskState")).is_empty()
 	assert_bool(Tasks.all_done(game.state)).is_true()
 
 
