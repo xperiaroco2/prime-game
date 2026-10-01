@@ -27,8 +27,9 @@ var now_usec := 0
 ## observer); the one-process runner counts them from the host's slices instead.
 var ends_from_bots := false
 
-## Bot number -> the client tick of its last move; while it stands, the client tick before the
-## current one, or the current one when it walked in it (_stand).
+## Bot number -> the client tick of its last move: kept by _stand only in the client tick of that
+## move, and dropped while the bot is dead, so the first walk after standing or a respawn covers one
+## client tick.
 var _moved_tick: Dictionary[int, int] = {}
 ## Bot number -> the client tick of its last voice frame, and frames sent.
 var _voice_tick: Dictionary[int, int] = {}
@@ -115,6 +116,10 @@ func _on_event(event_name: StringName, fields: Dictionary, bot: ScenarioBot) -> 
 
 
 func _before_steps(bot: ScenarioBot) -> void:
+	if bot.dead:
+		# A dead bot never stands (ScenarioPlay._act): its first walk after Respawned covers one
+		# client tick, not the whole time since its last walk.
+		_moved_tick.erase(bot.number)
 	if bot.load_ack_due:
 		# Its session acknowledged that LoadMatch at once (load_levels off).
 		bot.load_ack_due = false
@@ -196,9 +201,8 @@ func _stand(bot: ScenarioBot) -> void:
 	# walk: a step that ends a walk and a WalkTo that follows it in the same client tick would
 	# otherwise claim two ticks of travel in one (M4-5: a PickUp answered within the tick of the
 	# walk's last claim).
-	var now_tick := client.client_tick(now_usec)
-	var last: int = _moved_tick.get(bot.number, now_tick - 1)
-	_moved_tick[bot.number] = maxi(last, now_tick - 1)
+	if _moved_tick.get(bot.number, -1) != client.client_tick(now_usec):
+		_moved_tick.erase(bot.number)
 	var facing: Vector3 = _facing_of.get(bot.number, Vector3.FORWARD)
 	client.set_motion(bot.position, Vector3.ZERO, facing, false, false, true)
 
