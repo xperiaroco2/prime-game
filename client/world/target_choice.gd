@@ -5,7 +5,8 @@ extends RefCounted
 ## whose look the ray enters, nearer than the first wall along it. The hint and the key then apply
 ## only if the mode's InReach of PickUp holds, measured as the host measures it: from the feet of
 ## the player to where the item lies, not along the ray from the eye 1.6 m higher. So a crate-top
-## item the host would refuse gets no hint, and a floor item it would accept does. The host checks
+## item the host would refuse gets no hint, and a floor item it would accept does. The client
+## mirrors the host's OnGround, InReach and (in ItemInteractions) InSight; the host checks
 ## everything again (§7.1); this only decides what to offer.
 
 ## How far the camera's ray looks for an item, in metres: past any reach the host grants, since
@@ -28,8 +29,9 @@ static func reach_of(mode: GameMode) -> float:
 	return 0.0
 
 
-## The item the crosshair is on and the host would let the player pick up, or -1: the ray from
-## `eye` along `look` (a unit vector) reaches `blocked_at` metres before the level stops it.
+## The item the crosshair is on that passes the host's OnGround and InReach, or -1: the ray from
+## `eye` along `look` (a unit vector) reaches `blocked_at` metres before the level stops it. The
+## host's third check, InSight, needs the physics space: ItemInteractions casts it afterwards.
 static func choose(
 	model: ClientModel, eye: Vector3, look: Vector3, blocked_at: float, feet: Vector3, reach: float
 ) -> int:

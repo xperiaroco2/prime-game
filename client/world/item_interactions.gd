@@ -92,22 +92,34 @@ func swap() -> int:
 
 ## The target's cast: the camera's ray against the level (as the host's line of sight) and the
 ## downed players' capsules (a downed player in front is M4-9's raise target, and E there picks up
-## nothing behind it), then the
-## item along it and the reach from the feet (TargetChoice).
+## nothing behind it), then the item along it and the reach from the feet (TargetChoice); then
+## the host's InSight: the line from the camera to the item's middle must be clear of the level,
+## so an item just behind a thin wall or around a door jamb, whose pick sphere the ray enters
+## before the wall, is never named (the M4 ADR's §3 item 5).
 func cast_target() -> int:
 	if not _acts() or not player.is_inside_tree() or _reach_m <= 0.0:
 		return -1
 	var eye := player.get_camera().global_position
 	var look := player.look_vector()
 	var to := eye + look * TargetChoice.RAY_M
+	var space := get_world_3d().direct_space_state
 	var query := PhysicsRayQueryParameters3D.create(
 		eye, to, PhysicsLayers.WORLD | PhysicsLayers.DOWNED, [player.get_rid()]
 	)
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var hit := space.intersect_ray(query)
 	var blocked_at := TargetChoice.RAY_M
 	if not hit.is_empty():
 		blocked_at = eye.distance_to(hit["position"] as Vector3)
-	return TargetChoice.choose(model, eye, look, blocked_at, player.global_position, _reach_m)
+	var picked := TargetChoice.choose(
+		model, eye, look, blocked_at, player.global_position, _reach_m
+	)
+	if picked < 0:
+		return -1
+	var item := model.items[picked]
+	var sight := PhysicsRayQueryParameters3D.create(
+		eye, ItemView.centre_of(item.kind, item.position), PhysicsLayers.WORLD, [player.get_rid()]
+	)
+	return picked if space.intersect_ray(sight).is_empty() else -1
 
 
 func _physics_process(_delta: float) -> void:

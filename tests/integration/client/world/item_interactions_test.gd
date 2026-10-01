@@ -78,6 +78,22 @@ func test_an_item_behind_a_wall_gets_no_hint() -> void:
 	assert_int(_keys.target()).is_equal(-1)
 
 
+func test_an_item_just_behind_a_thin_wall_is_never_named() -> void:
+	# The knife lies 0.03 m behind a 0.1 m wall, in reach of the feet: the ray enters its pick
+	# sphere before it meets the wall, but the eye cannot see it (the host's InSight refuses it).
+	var behind := Vector3(0, 0, -1.08)
+	_spawn(9, behind)
+	_world.call(&"add_box", Vector3(0, 1.0, -1.0), Vector3(2.0, 2.0, 0.1))
+	await _look_at(behind)
+	var eye := _eye()
+	# Where the camera's ray meets the wall's front face (z = -0.95): the ray alone would pick it.
+	var wall_at := eye.distance_to(ItemView.centre_of(&"knife", behind)) * 0.95 / 1.08
+	assert_int(TargetChoice.along_ray(_model, eye, _player.look_vector(), wall_at)).is_equal(9)
+	assert_int(_keys.target()).is_equal(-1)
+	assert_str(_keys.hint()).is_empty()
+	assert_int(_keys.pick_up()).is_equal(-1)
+
+
 func test_a_downed_player_in_front_hides_the_item_behind() -> void:
 	# E on a downed player is M4-9's raise: it must not also pick up the item behind them.
 	var behind := Vector3(0, 0, -1.8)
