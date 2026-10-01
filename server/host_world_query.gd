@@ -20,7 +20,7 @@ const FLOOR_RAY_M := 1000.0
 
 ## The capsule's radius for stand_floor_below(): the mode's PlayerRules.capsule_radius_m.
 var footprint_radius := 0.0
-## Every level world's read errors, in the order the levels were added.
+## Every level world's read errors, in the order the levels were first added.
 var errors := PackedStringArray()
 
 var _levels: Dictionary[String, LevelWorld] = {}
@@ -41,10 +41,12 @@ static func for_mode(mode: GameMode) -> HostWorldQuery:
 	return query
 
 
-## Adds `level` under its path, replacing a level of the same path.
+## Adds `level` under its path, replacing a level of the same path (and its errors).
 func add_level(level: LevelWorld) -> void:
 	_levels[level.path] = level
-	errors.append_array(level.errors)
+	errors = PackedStringArray()
+	for added: LevelWorld in _levels.values():
+		errors.append_array(added.errors)
 
 
 ## Whether a level of `path` was added.

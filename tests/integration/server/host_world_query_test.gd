@@ -43,6 +43,21 @@ func test_use_level_switches_between_the_levels_worlds() -> void:
 	assert_float(query.floor_below(Vector3(0, 5, 6)).y).is_equal_approx(0.5, 1e-3)
 
 
+func test_a_replaced_level_takes_its_errors_with_it() -> void:
+	var query := HostWorldQuery.new(RADIUS)
+	query.add_level(LevelWorld.build(ROOM))
+	# An empty scene under LEVEL's path: no collision, one error.
+	var empty: Node3D = auto_free(Node3D.new())
+	var broken := LevelWorld.from_scene(empty, LEVEL)
+	query.add_level(broken)
+	assert_int(query.errors.size()).is_equal(1)
+	assert_str(query.errors[0]).contains(LEVEL)
+	query.add_level(LevelWorld.build(LEVEL))
+	assert_array(Array(query.errors)).is_empty()
+	query.add_level(broken)
+	assert_int(query.errors.size()).is_equal(1)
+
+
 func test_the_wall_blocks_the_line_of_sight() -> void:
 	var query := _level()
 	assert_bool(query.line_of_sight(Vector3(0, 1.6, 0), Vector3(8, 1.6, 0))).is_false()
