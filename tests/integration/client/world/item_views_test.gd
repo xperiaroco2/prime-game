@@ -123,6 +123,26 @@ func test_the_own_downed_players_items_lie_at_its_body_not_in_the_hand_view() ->
 	assert_bool(view.global_position.is_equal_approx(_player.global_position)).is_true()
 
 
+func test_an_item_put_out_of_the_bodys_sight_is_hidden_in_that_physics_frame() -> void:
+	# The downed camera's sight hiding (SightHider, M4-9) must see the view where it is now: placed
+	# after it cast, the item would be drawn for a frame where the body's eye cannot see it.
+	_world.call(&"add_box", Vector3(0, 1.0, -2.0), Vector3(4.0, 2.0, 0.2))
+	var hider := SightHider.new()
+	_world.add_child(hider)
+	hider.watch_from(Vector3(0, 0.5, 0))
+	_spawn(1, &"knife", Vector3(2, 0, 0))
+	await _drawn()
+	var view := _items.view_of(1)
+	assert_bool(view.visible).is_true()
+	# The event lands at the start of a physics frame (before the views' and the hider's steps);
+	# by the next one the view must have moved and been hidden, with no drawn frame between.
+	await get_tree().physics_frame
+	_model.fold(&"ItemPlaced", {"item": 1, "position": Vector3(0, 0, -4), "cause": &"put_down"})
+	await get_tree().physics_frame
+	assert_that(view.global_position).is_equal(Vector3(0, 0, -4))
+	assert_bool(view.visible).is_false()
+
+
 func test_an_unknown_kind_gets_a_labelled_box_hidden_by_walls() -> void:
 	_spawn(1, &"wrench", Vector3.ZERO)
 	await _drawn()

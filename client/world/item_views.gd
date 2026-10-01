@@ -13,7 +13,11 @@ extends Node3D
 ##   ground at the body, and the first-person view shows none.
 ## Every view joins SightHider.GROUP, so the downed camera's sight hiding (M4-9) hides one out of
 ## the body's eye's sight; only SightHider sets a view's `visible`, ItemViews shows or hides its
-## look. Placed in `_process`, after the avatars moved in the physics step.
+## look. Placed in the physics step, after the avatars (-80) and the local player (0) moved and
+## before SightHider (10) casts, so a view that appears or jumps out of the body's eye's sight is
+## hidden in that same physics frame, never drawn for a frame first.
+
+const PHYSICS_PRIORITY := 1
 
 var model: ClientModel
 ## The client's own copy of the mode: which kinds take both hands.
@@ -24,6 +28,10 @@ var avatars: AvatarViews
 var player: PlayerController
 
 var _views: Dictionary[int, ItemView] = {}
+
+
+func _init() -> void:
+	process_physics_priority = PHYSICS_PRIORITY
 
 
 ## The item whose destination the HUD and the marker show (D10 (b)): the own hand's package, else
@@ -54,7 +62,7 @@ func clear() -> void:
 		player.hand_view().show_item(&"", Color.WHITE)
 
 
-func _process(_delta: float) -> void:
+func _physics_process(_delta: float) -> void:
 	if model == null:
 		return
 	for id: int in _views.keys():
