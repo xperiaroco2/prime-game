@@ -31,9 +31,9 @@ const WT = A.wt.replace(/\\/g, '/')
 const WTB = WT.replace(/^([A-Za-z]):/, (m, d) => '/' + d.toLowerCase())
 const BASE = A.base || 'main'
 const SCRATCH = `r${PR}`
-// A release base (release/m<k>, any base that is not main or a task branch) is always passed: `publish` takes one that
-// equals main for a merged parent (#113). A stacked parent's task branch is not: publish follows the PR's live base,
-// which GitHub retargets once the parent merges and its branch is deleted.
+// A release base (release/m<k>, any base that is not main or a task branch) is always passed, so the base never
+// depends on the record `start --base` left in this checkout. A stacked parent's task branch is not: publish
+// follows the PR's live base, which GitHub retargets once the parent merges and its branch is deleted.
 const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
 const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 

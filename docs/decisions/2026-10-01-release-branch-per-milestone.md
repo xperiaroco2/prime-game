@@ -54,6 +54,8 @@ GitHub retargets to `main` when its parent's branch is deleted.
   merged tree is the gate there, and the closing PR runs CI on the whole stage.
 - Merging the closing PR deletes `release/m<k>` (auto-delete is on) and would retarget any PR still based on it to
   `main`: the manager opens it only when no task PR targets the release branch, or says which do.
-- `publish` treats a `release/*` base that equals `main` as a merged parent (#113): always pass `--base
-  release/m<k>`.
+- On the M3 night `publish` treated a `release/*` base that equalled `main` as a merged parent. Since #113 it keeps
+  any recorded base outside `<area>/<n>-<slug>` while origin has it, and follows a hand rebase on a newer
+  `origin/release/m<k>`. The workflows still pass `--base release/m<k>`, which also covers a checkout without the
+  record `start --base` leaves.
 - Amends [only humans merge](2026-09-28-humans-merge-prs.md): humans still merge everything into `main`.

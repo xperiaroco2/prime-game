@@ -447,6 +447,12 @@ marker and is blocked; `--dry-run` pushes run the hook too. The agent never forc
   rebased or amended, a stacked child replays only its own commits: those after the parent commit `start` recorded
   (`branch.<task>.primeBaseTip`, renewed by each publish on the parent; `rebase --onto`), else those after the fork
   point (`--fork-point`, which needs the reflog of the parent's remote ref).
+  After a hand rebase on a newer base (`git rebase origin/<base>` in the worktree), the merge-base of the branch and
+  its base replaces a recorded tip it descends from, so the base's own commits are not replayed again (#113).
+- A recorded base outside `<area>/<n>-<slug>` (a stage's `release/m<k>`, any long-lived branch) is never a done
+  parent while origin has it, even when its tip is in `origin/main` (just created from `main` or fast-forwarded):
+  `publish` keeps rebasing on it and keeps the record (#113). Once it is deleted (the milestone PR merged), the rule
+  below applies.
 - A recorded parent is done when the PR's base is `main` (GitHub retargets the child once the parent merges), its branch
   is gone from origin, or it is in `origin/main`. `publish` then rebases the child's own commits on `main` and drops the
   record, but only if the parent's latest known tip is in `origin/main`; otherwise (deleted unmerged, retargeted by

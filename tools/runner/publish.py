@@ -105,7 +105,10 @@ def main(base: str | None = None) -> int:
     source, unstack = "", False
     if parent:
         live = _sha(f"refs/remotes/{REMOTE}/{parent}")
-        merged = _in(live, f"{REMOTE}/main")
+        # Only a task branch is a parent that is done once main has it. A long-lived base (release/m<k>, any name
+        # outside <area>/<n>-<slug>) is in main right after it was created or fast-forwarded, and stays the base while
+        # origin has it (#113).
+        merged = bool(TASK_BRANCH_RE.match(parent)) and _in(live, f"{REMOTE}/main")
         # Without a usable recorded tip, a parent tip already in this branch still marks where its own commits begin.
         tip = tip or next((c for c in (live, stale) if _in(c, "HEAD")), "")
         if not base and live and not merged:
@@ -135,6 +138,11 @@ def main(base: str | None = None) -> int:
     _must(_git("rev-parse", "--verify", "--quiet", f"refs/remotes/{upstream}"), f"finding {upstream}")
     ok(f"fetched {REMOTE}; base {upstream}{source}")
     onto = bool(tip) and (unstack or base == parent)
+    fork = _git("merge-base", "HEAD", upstream).out.strip() if onto else ""
+    if fork and fork != tip and _in(tip, fork):
+        # The branch was rebased by hand on a newer upstream after the tip was recorded: the commits between the two
+        # are upstream's own, and replaying them from the stale tip would stop on a conflict (#113).
+        tip = fork
 
     before = _must(_git("rev-parse", "HEAD"), "reading HEAD")
     remote_oid = _git("rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").out.strip()
