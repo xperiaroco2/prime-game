@@ -19,6 +19,9 @@ const WON := &"won"
 
 var mode: GameMode
 var state: MatchState
+## The host's content hash (§4.3, E1): its game mode's ContentHash combined with the SHA-256 of
+## every level file the mode names, which server/ computes; each Hello's `content` must equal it.
+var content_hash := 0
 var command_log: CommandLog
 ## Why the mode was refused (ModeCheck, §9.1), each problem once; empty when it runs.
 var refusals := PackedStringArray()
@@ -41,6 +44,8 @@ var _ticked_through := -1
 var _in_tick := false
 ## True while a row's actions and the old phase's exit run: no outcome may be reported then.
 var _in_transition := false
+## Errors recorded while a row's actions and the old phase's exit ran (row_error_count()).
+var _row_errors := 0
 var _step_has_outcome := false
 var _step_outcome: StringName
 var _step_argument: Variant
@@ -54,17 +59,21 @@ var _speakers: Dictionary[int, Dictionary] = {}
 
 
 ## A match of `game_mode`, seeded by the session seed, asking `world` its geometry, with the
-## layouts of the mode's levels by path (§9.1). A mode with errors is refused: see `refusals`.
+## layouts of the mode's levels by path (§9.1), and the host's content hash that every joiner's
+## Hello must carry (§4.3, E1). A mode with errors is refused: see `refusals`.
 func _init(
 	game_mode: GameMode,
 	session_seed: int,
 	world: WorldQuery,
-	layouts: Dictionary[String, LevelLayout]
+	layouts: Dictionary[String, LevelLayout],
+	host_content_hash: int = 0
 ) -> void:
 	mode = game_mode
 	state = MatchState.new(session_seed)
+	content_hash = host_content_hash
 	command_log = CommandLog.new()
 	command_log.session_seed = session_seed
+	command_log.content_hash = host_content_hash
 	command_log.layouts = layouts.duplicate()
 	_layouts = layouts.duplicate()
 	_world = RecordingWorldQuery.new(world, command_log)
@@ -91,7 +100,9 @@ func _init(
 ## it says so in `diagnostics`.
 static func replay(recorded: CommandLog, game_mode: GameMode) -> Match:
 	var world := ReplayWorldQuery.new(recorded.world_answers)
-	var replayed := Match.new(game_mode, recorded.session_seed, world, recorded.layouts)
+	var replayed := Match.new(
+		game_mode, recorded.session_seed, world, recorded.layouts, recorded.content_hash
+	)
 	if replayed.command_log.mode_hash != recorded.mode_hash:
 		replayed.refusals.append(
 			(
@@ -137,6 +148,7 @@ func start(at_tick: int) -> bool:
 	command_log.start_tick = at_tick
 	command_log.ticked_through = _ticked_through
 	_begin_step()
+	_world.use_level(_level_path(mode.find_phase(mode.first_phase)))
 	_enter_phase(mode.first_phase)
 	_finish_step()
 	return true
@@ -162,6 +174,15 @@ func apply(command: MatchCommand) -> bool:
 	_begin_step()
 	_dispatch(command)
 	_finish_step()
+	# A rule that read a field its intent does not declare is a bug a test must see (§4.4).
+	for key: String in command.undeclared_reads:
+		record_error(
+			(
+				"%s from peer %d: a rule read field %s, which Intents.FIELDS does not declare"
+				% [command.kind, command.peer, key]
+			)
+		)
+	command.undeclared_reads.clear()
 	return true
 
 
@@ -321,6 +342,17 @@ func report_outcome(outcome: StringName, argument: Variant, sender: MatchCommand
 func record_error(message: String) -> void:
 	diagnostics.append("error: %s" % message)
 	push_error("match: %s" % message)
+	if _in_transition:
+		_row_errors += 1
+
+
+## How many errors were recorded while a transition row ran (its actions, the deal's included,
+## and the old phase's exit) since the match was created. server/ reads it after every apply()
+## and tick(): a new one ends the session, so a round never starts from a failed deal, and server/
+## names no phase or outcome of the mode (§4.5 "A failed deal is fatal"). Errors outside a row (a
+## ForceRole naming a role the mode lacks, a phase's own timers) are only logged.
+func row_error_count() -> int:
+	return _row_errors
 
 
 func _begin_step() -> void:
@@ -369,7 +401,10 @@ func _transition(outcome: StringName, argument: Variant) -> bool:
 	var ctx := _context("row %s, %s" % [from, outcome])
 	ctx.outcome = outcome
 	ctx.outcome_argument = argument
-	ctx.layout = _layout_of(mode.find_phase(row.to))
+	var to_spec := mode.find_phase(row.to)
+	ctx.layout = _layout_of(to_spec)
+	# The row's actions ask about the level of the phase it enters (§4.5, E9).
+	_world.use_level(_level_path(to_spec))
 	_in_transition = true
 	for action: RuleEffect in row.actions:
 		action.run(ctx)
@@ -408,7 +443,7 @@ func _dispatch(command: MatchCommand) -> void:
 	elif not Intents.ALL.has(command.kind):
 		record_error("unknown command %s from peer %d" % [command.kind, command.peer])
 	elif not _accepts(command):
-		ctx.reject(command, RejectReasons.NOT_ACCEPTED)
+		_refuse(command, ctx)
 	elif _phase.handles(command.kind):
 		_phase.handle_intent(ctx, command)
 	elif command.kind == Intents.MOVE_CLAIM:
@@ -428,6 +463,25 @@ func _force_role(command: MatchCommand) -> void:
 		record_error("ForceRole: peer %d, role %s, which the mode lacks" % [command.peer, role_id])
 	else:
 		state.forced_roles[command.peer] = role_id
+
+
+## An intent the phase's allowlist refuses (§3.1, §4.3) gets Rejected (`not_accepted`), except:
+## - a MoveClaim is dropped silently (E15): one in flight at a phase change, which has no seq for
+##   a Rejected to name and which clients ignore, so a looping client cannot fill the command log
+##   and the outbox with Rejected events;
+## - a Hello from a peer that is not a player gets Rejected (`joins_closed`) and, when it is a
+##   newcomer, DisconnectPeer (E14): the phase takes no joins, so the joiner is told why at once
+##   and does not linger. A peer that is neither was disconnected already (its connection was
+##   refused, or Loading's entry dropped it) and gets no second DisconnectPeer.
+func _refuse(command: MatchCommand, ctx: MatchContext) -> void:
+	if command.kind == Intents.MOVE_CLAIM:
+		return
+	if command.kind == Intents.HELLO and state.player(command.peer) == null:
+		ctx.reject(command, RejectReasons.JOINS_CLOSED)
+		if state.newcomers.erase(command.peer):
+			emit_event(DisconnectPeerEvent.new(command.peer))
+		return
+	ctx.reject(command, RejectReasons.NOT_ACCEPTED)
 
 
 ## An accepted intent that no phase class handles goes to the first rule for it (§9.2).
@@ -503,14 +557,20 @@ func _context(source: String) -> MatchContext:
 
 
 func _layout_of(spec: PhaseSpec) -> LevelLayout:
+	var path := _level_path(spec)
+	return _layouts.get(path) if not path.is_empty() else null
+
+
+## The path of the level `spec` plays in: the mode's lobby, the match's map, or empty.
+func _level_path(spec: PhaseSpec) -> String:
 	if spec == null:
-		return null
+		return ""
 	match spec.level:
 		PhaseSpec.Level.LOBBY:
-			return _layouts.get(mode.lobby_level)
+			return mode.lobby_level
 		PhaseSpec.Level.MAP:
-			return _layouts.get(state.map)
-	return null
+			return state.map
+	return ""
 
 
 func _record_views(at_tick: int) -> void:

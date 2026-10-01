@@ -4,6 +4,9 @@ extends RefCounted
 ## §3.2, §3.5, §4.1). A connected peer (PeerConnected) is a newcomer until its Hello is accepted;
 ## only a newcomer may join, once, in a phase that allows joins (Lobby, Countdown). Loading, Round
 ## and End refuse joins: a connection that completed anyway gets DisconnectPeer.
+## A Hello must also carry the host's content hash (`wrong_content`, E1). A Hello in a phase that
+## refuses joins gets `joins_closed` (Match._refuse, E14), and drop_newcomers disconnects the
+## waiting newcomers when a phase freezes the roster (Loading's entry).
 ##
 ## The host names every joiner Player<n>, n counting the session's joins (MatchState.joins); the
 ## name a Hello carries is ignored in the MVP (#73). The joiner's spot is a placeholder, "not a
@@ -30,19 +33,26 @@ static func refuse(ctx: MatchContext, peer: int) -> void:
 
 
 ## A Hello (§4.1): true when the peer joined. In order: the sender must be a newcomer; the
-## version must be the host's, else Rejected (`wrong_version`) and DisconnectPeer; the roster
-## must have room for one more, else Rejected (`full`) and DisconnectPeer. The Hello's name is
-## not read. Accepted: the joiner is named Player<n> by the session's join count, placed at a
-## lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and SettingsChanged
-## (everyone).
+## version must be the host's, else Rejected (`wrong_version`) and DisconnectPeer; the content
+## hash must be the host's (Match.content_hash), else Rejected (`wrong_content`) and
+## DisconnectPeer (§4.3, E1); the roster must have room for one more, else Rejected (`full`) and
+## DisconnectPeer. The version comes first: a Hello of another version carries nothing else that
+## this build can read (§4.3). Accepted: the joiner is named Player<n> by the session's join
+## count, placed at a lobby marker with a new epoch; Welcome (the joiner), PlayerJoined and
+## SettingsChanged (everyone).
 static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName) -> bool:
 	var peer := command.peer
 	if not ctx.state.newcomers.has(peer):
 		ctx.reject(command, RejectReasons.NOT_ACCEPTED)
 		return false
-	var version: Variant = command.args.get("version")
+	var version: Variant = command.field("version")
 	if not (version is int and version == PROTOCOL_VERSION):
 		ctx.reject(command, RejectReasons.WRONG_VERSION)
+		_drop(ctx, peer)
+		return false
+	var content: Variant = command.field("content")
+	if not (content is int and content == ctx.content_hash()):
+		ctx.reject(command, RejectReasons.WRONG_CONTENT)
 		_drop(ctx, peer)
 		return false
 	if ctx.state.peers().size() >= ctx.mode.max_players:
@@ -60,6 +70,18 @@ static func hello(ctx: MatchContext, command: MatchCommand, phase_id: StringName
 	ctx.emit(PlayerJoinedEvent.new(peer, player_name, spot))
 	ctx.emit(FitCheck.settings_changed(ctx))
 	return true
+
+
+## Disconnects every newcomer still waiting (DisconnectPeer each, in peer-id order, no Rejected:
+## none sent a Hello that could be answered) and forgets them: a phase that freezes the roster
+## (Loading's entry, E14) can accept none of their Hellos this match, so none lingers until the
+## hello deadline.
+static func drop_newcomers(ctx: MatchContext) -> void:
+	var waiting: Array[int] = []
+	waiting.assign(ctx.state.newcomers.keys())
+	waiting.sort()
+	for peer: int in waiting:
+		_drop(ctx, peer)
 
 
 ## A PeerLeft outside Round (§3.5): true when a player left the roster (PlayerLeft to everyone
@@ -83,7 +105,7 @@ static func forget_newcomer(ctx: MatchContext, peer: int) -> bool:
 ## True when a SetReady carries a bool `ready`; else Rejected (`bad_args`), so a malformed intent
 ## is never read as SetReady(false) (which would cancel a countdown).
 static func has_ready_flag(ctx: MatchContext, command: MatchCommand) -> bool:
-	if command.args.get("ready") is bool:
+	if command.field("ready") is bool:
 		return true
 	ctx.reject(command, RejectReasons.BAD_ARGS)
 	return false

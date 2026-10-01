@@ -16,8 +16,10 @@ extends RefCounted
 ## its packages below the cylinder (§7.1). The markers of `floor_tags` (the spawn tags of the
 ## mode's station kinds: `circle`) are snapped down to the floor that `world` finds below them,
 ## asked from FLOOR_PROBE_M above so a marker a little under the floor still finds it; one with no
-## floor below is reported. `world` is the host's WorldQuery over the level (M3); the flat levels
-## of stage 2 have one floor at y = 0, which FlatWorldQuery answers.
+## floor below is reported. On the host `world` is the HostWorldQuery over every level of the mode
+## (3c), which read_levels points at each level before reading it; read() and read_scene() ask
+## whichever level it is on. The flat levels of stage 2 have one floor at y = 0, which the host's
+## worlds and FlatWorldQuery answer alike.
 
 ## The group prefix of spawn points: `spawn_package`.
 const GROUP_PREFIX := "spawn_"
@@ -67,21 +69,31 @@ static func read_scene(
 	return result
 
 
-## The lobby and every map of `mode`, read with `world` for the floor.
+## The lobby and every map of `mode` (level_paths_of), read with `world` for the floor. `world`
+## is pointed at each level (WorldQuery.use_level) before that level is read, so the host's
+## WorldQuery snaps each level's markers to that level's own floor (§4.5 Starting; option (b) of
+## §10's reader question); a fake with one world ignores it. It is left at the last level read:
+## Match.start names the level it plays first.
 static func read_levels(mode: GameMode, world: WorldQuery) -> Levels:
 	var levels := Levels.new()
+	var tags := floor_tags_of(mode)
+	for path: String in level_paths_of(mode):
+		world.use_level(path)
+		var result := read_scene(path, world, tags)
+		levels.layouts[path] = result.layout
+		levels.errors.append_array(result.errors)
+	return levels
+
+
+## The paths of the levels `mode` names: its lobby, then its maps, each once, in that order.
+static func level_paths_of(mode: GameMode) -> Array[String]:
 	var paths: Array[String] = []
 	if not mode.lobby_level.is_empty():
 		paths.append(mode.lobby_level)
 	for map: String in mode.maps:
 		if not paths.has(map):
 			paths.append(map)
-	var tags := floor_tags_of(mode)
-	for path: String in paths:
-		var result := read_scene(path, world, tags)
-		levels.layouts[path] = result.layout
-		levels.errors.append_array(result.errors)
-	return levels
+	return paths
 
 
 ## The spawn tags whose markers stand on the floor: those of the station kinds that the mode's
@@ -140,7 +152,7 @@ static func _read_marker(
 	if tag.is_empty():
 		into.errors.append("%s is in the group %s, which names no tag" % [where, GROUP_PREFIX])
 		return
-	var position := _position_of(node as Node3D, root)
+	var position := LevelWorld.transform_in_scene(node as Node3D, root).origin
 	if floor_tags.has(tag):
 		var found := world.floor_below(position + Vector3.UP * FLOOR_PROBE_M)
 		if found == WorldQuery.NO_FLOOR:
@@ -150,15 +162,3 @@ static func _read_marker(
 			return
 		position.y = found.y
 	into.layout.add_marker(tag, position)
-
-
-## Where the scene puts `node`: its transform through its Node3D parents up to `root`, the scene's
-## root (whose own transform counts), and never past a top_level node, whose transform is global.
-## Read outside the scene tree, where Node3D.global_position is not available.
-static func _position_of(node: Node3D, root: Node) -> Vector3:
-	var at := node.transform
-	var current := node
-	while not current.top_level and current != root and current.get_parent() is Node3D:
-		current = current.get_parent() as Node3D
-		at = current.transform * at
-	return at.origin

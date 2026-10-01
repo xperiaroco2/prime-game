@@ -49,6 +49,22 @@ class Recorder:
 		packets.append("%d:%d:%s" % [from_peer, kind, payload.hex_encode()])
 
 
+## Packets and rejects in the order the transport signals them.
+class InOrder:
+	extends RefCounted
+	var seen: Array[String] = []
+
+	func _init(transport: NetTransport) -> void:
+		transport.packet_received.connect(_on_packet_received)
+		transport.packet_rejected.connect(_on_packet_rejected)
+
+	func _on_packet_received(from_peer: int, kind: int, _payload: PackedByteArray) -> void:
+		seen.append("%d:%d" % [from_peer, kind])
+
+	func _on_packet_rejected(from_peer: int, reason: NetRejects.Reason) -> void:
+		seen.append("%d rejected %s" % [from_peer, NetRejects.Reason.find_key(reason)])
+
+
 func before_test() -> void:
 	_kinds = NetKindTable.new()
 	_kinds.add(EVENT, NetKindTable.Lane.RELIABLE, NetKindTable.Direction.HOST_TO_CLIENT, CAP)
@@ -337,6 +353,30 @@ func test_bad_bytes_are_counted_and_never_delivered() -> void:
 	assert_int(host.rejects.of_reason(NetRejects.Reason.UNKNOWN_PEER)).is_equal(1)
 	assert_int(host.rejects.of_reason(NetRejects.Reason.TOO_SHORT)).is_equal(1)
 	assert_int(host.rejects.from_peer(2)).is_equal(4)
+
+
+## The host session counts rejects per peer (ARCHITECTURE §4.5, E7): each rejected packet is one
+## packet_rejected with its sender and reason, in the inbox's order; what server/ itself drops
+## (count_rejected) is counted for the summary but signals nothing.
+func test_each_reject_is_signalled_with_its_peer_in_order() -> void:
+	var host := _host()
+	var client := _client()
+	_poll([host, client])
+	var seen := InOrder.new(host)
+	var trailing := NetFrame.encode(INTENT, PackedByteArray([1]))
+	trailing.append(0)
+	assert_int(client.send(1, INTENT, PackedByteArray([1]))).is_equal(OK)
+	host._push_packet(2, trailing, NetKindTable.Lane.RELIABLE)
+	host._push_packet(42, NetFrame.encode(INTENT, PackedByteArray()), NetKindTable.Lane.RELIABLE)
+	assert_int(client.send(1, INTENT, PackedByteArray([2]))).is_equal(OK)
+	host.poll()
+	assert_array(seen.seen).is_equal(
+		["2:11", "2 rejected TRAILING_BYTES", "42 rejected UNKNOWN_PEER", "2:11"]
+	)
+	host.count_rejected(2, NetRejects.Reason.OVER_BUDGET)
+	assert_int(seen.seen.size()).is_equal(4)
+	assert_int(host.rejects.of_reason(NetRejects.Reason.OVER_BUDGET)).is_equal(1)
+	assert_int(host.rejects.from_peer(2)).is_equal(2)
 
 
 func test_a_client_accepts_only_the_host() -> void:

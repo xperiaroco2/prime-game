@@ -41,11 +41,14 @@ func test_answers_are_recorded_and_replayed_in_order() -> void:
 	var a := recording.line_of_sight(Vector3(0, 1, 0), Vector3(4, 1, 0))
 	var b := recording.floor_below(Vector3(1, 3, 1))
 	var c := recording.rest_position(Vector3(0, 1, 0), Vector3(4, 1, 0))
-	assert_array(recorded.world_answers).is_equal([a, b, c])
+	var d := recording.stand_floor_below(Vector3(2, 5, 2))
+	assert_vector(d).is_equal(Vector3(2, 0, 2))
+	assert_array(recorded.world_answers).is_equal([a, b, c, d])
 	var replay := ReplayWorldQuery.new(recorded.world_answers)
 	assert_bool(replay.line_of_sight(Vector3.ZERO, Vector3.ZERO)).is_equal(a)
 	assert_vector(replay.floor_below(Vector3.ZERO)).is_equal(b)
 	assert_vector(replay.rest_position(Vector3.ZERO, Vector3.ZERO)).is_equal(c)
+	assert_vector(replay.stand_floor_below(Vector3.ZERO)).is_equal(d)
 	assert_bool(replay.diverged).is_false()
 
 
@@ -53,3 +56,16 @@ func test_a_replay_that_asks_something_else_diverges() -> void:
 	var replay := ReplayWorldQuery.new([true])
 	replay.floor_below(Vector3.ZERO)
 	assert_bool(replay.diverged).is_true()
+
+
+func test_the_recording_forwards_use_level_without_an_answer_and_the_replay_ignores_it() -> void:
+	var inner := FixtureLevelWorld.new()
+	var command_log := CommandLog.new()
+	var recording := RecordingWorldQuery.new(inner, command_log)
+	recording.use_level("res://a.tscn")
+	assert_array(Array(inner.calls)).is_equal(["use_level res://a.tscn"])
+	assert_array(command_log.world_answers).is_empty()
+	var replay := ReplayWorldQuery.new([])
+	replay.use_level("res://a.tscn")
+	assert_bool(replay.diverged).is_false()
+	assert_int(replay.unread()).is_equal(0)

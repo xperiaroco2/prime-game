@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://bv7xg5xhx8yqj"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
+size = Vector3(20, 1, 20)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_platform"]
+size = Vector3(2, 1, 2)
+
+[node name="PlatformRoom" type="Node3D" unique_id=492109417]
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=159432506]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Floor" unique_id=1754239814]
+shape = SubResource("BoxShape3D_floor")
+
+[node name="Platform" type="StaticBody3D" parent="." unique_id=2141813058]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 6)
+
+[node name="Shape" type="CollisionShape3D" parent="Platform" unique_id=1166777334]
+shape = SubResource("BoxShape3D_platform")
+
+[node name="PlatformCircle" type="Marker3D" parent="." unique_id=229781213 groups=["spawn_circle"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 6)
+
+[node name="LobbyPlayer" type="Marker3D" parent="." unique_id=1791302766 groups=["spawn_lobby_player"]]

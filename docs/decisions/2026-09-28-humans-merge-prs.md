@@ -3,6 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
+- **Amended 2026-10-01:** in a stage the manager session merges task PRs into the milestone's `release/m<k>`
+  branch, and humans merge that branch into `main`
+  ([release branch per milestone](2026-10-01-release-branch-per-milestone.md)). `gh pr merge` stays denied.
 
 ## Decision
 Humans click Merge on GitHub or in the Desktop PR pane after CI is green. A cross-area PR is approved by the other

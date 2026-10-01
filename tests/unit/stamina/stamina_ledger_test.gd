@@ -102,8 +102,7 @@ func test_ticks_no_claim_covers_are_settled_before_a_jump_with_the_last_claims_f
 	# The jump claims one client tick; the five silent ticks and its own are settled first, as the
 	# last claim's sprinting by its own movement: 6 * 1000, then the jump's 10000.
 	var jump := FixtureMoves.sprinting()
-	jump["jumped"] = true
-	jump["on_floor"] = false
+	jump.merge(FixtureMoves.jumped(game, P1))
 	jump["client_tick"] = player.claim_tick + 1
 	FixtureMoves.step(game, P1, NORTH * 0.3 + UP * 0.1, jump)
 	assert_int(player.stamina).is_equal(81000)
@@ -121,7 +120,7 @@ func test_a_ghosts_claims_neither_need_nor_spend_stamina() -> void:
 	ghost.stamina = 30000
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	FixtureMoves.steps(game, P1, 10, NORTH * 0.45, FixtureMoves.sprinting())
-	var jump := {"jumped": true, "on_floor": false}
+	var jump := FixtureMoves.jumped(game, P1)
 	FixtureMoves.step(game, P1, UP * 0.1, jump)
 	assert_int(ghost.stamina).is_equal(30000)
 	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()

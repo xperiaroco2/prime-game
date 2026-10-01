@@ -30,6 +30,10 @@ signal peer_left(peer_id: int)
 ## this client (ADR); the transport is closed and can join again.
 signal host_lost
 signal packet_received(from_peer: int, kind: int, payload: PackedByteArray)
+## A packet from `from_peer` was rejected (counted in `rejects`), one signal per packet, in the
+## inbox's order among the other signals. The host session counts them per peer to disconnect a
+## peer that keeps sending malformed packets (ARCHITECTURE §4.5, E7). Never for count_rejected().
+signal packet_rejected(from_peer: int, reason: NetRejects.Reason)
 
 enum Role { IDLE, HOST, CLIENT }
 
@@ -227,6 +231,13 @@ func receive_bytes(
 		packet_received.emit(from_peer, frame.kind, frame.payload)
 
 
+## Counts a message that the layer above dropped after the transport passed it (server/'s
+## OVER_BUDGET and BAD_PAYLOAD), so the one summary line names it too. Emits no packet_rejected:
+## the caller has already handled it.
+func count_rejected(peer_id: int, reason: NetRejects.Reason) -> void:
+	_note_reject(peer_id, reason)
+
+
 # Backends override these. Each _backend_* runs only in the matching role.
 func _backend_host(_port: int, _max_clients: int) -> Error:
 	return ERR_UNAVAILABLE
@@ -402,6 +413,11 @@ func _reset() -> void:
 
 
 func _count_reject(peer_id: int, reason: NetRejects.Reason) -> void:
+	_note_reject(peer_id, reason)
+	packet_rejected.emit(peer_id, reason)
+
+
+func _note_reject(peer_id: int, reason: NetRejects.Reason) -> void:
 	rejects.count(peer_id, reason)
 	if _first_pending_reject_ms < 0:
 		_first_pending_reject_ms = Time.get_ticks_msec()

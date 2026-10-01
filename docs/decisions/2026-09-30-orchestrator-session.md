@@ -3,6 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-09-30
 - **Deciders:** the engineer (chat with the M2 manager session, 2026-09-30)
+- **Amended 2026-10-01:** the manager merges task PRs into the stage's `release/m<k>` branch, and humans merge that
+  branch into `main` ([release branch per milestone](2026-10-01-release-branch-per-milestone.md)); "the manager
+  never merges" below now means never into `main`.
 
 ## Context
 On 2026-09-30 one Claude Code session in ultracode ran M2's stage 2 as a manager: from a single kickoff message it

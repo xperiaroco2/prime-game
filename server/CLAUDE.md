@@ -33,7 +33,13 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   mode trivial, though the MVP has none (listen server: `docs/ARCHITECTURE.md` §4).
 - Voice: forward a frame only along the pairs `core/`'s routing allows.
 
-## The host session (M3 design, proposed: `docs/ARCHITECTURE.md` §4.5)
+## The host session (`docs/ARCHITECTURE.md` §4.5; built in 3f, #100)
+- `HostSession` (`host_session.gd`): `start(mode, port, max_clients, now_usec)` (or `start_with` with given worlds
+  and layouts), then `step(now_usec)` per frame and `close()`. It links `own_client` (peer 1's transport); the owner
+  runs the own `ClientSession` on it. `HostNode` steps it from `_physics_process`, also while paused; start it with
+  `HostNode.now_usec()` and never reparent the node (leaving the tree closes the session). Parts: `PeerBudget`,
+  `VoiceRelay`, `ReplayFiles`. Its observer (debug builds) gets `(at_tick, command, slice)` after every `Match` call,
+  catch-up ticks included: the bots runner's hook, never a reason to change `HostSession` for 3h.
 - Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
   behind for good after a freeze. Each physics step, in order: apply commands left from an earlier step at the next
   tick, then run the ticks a freeze skipped with no commands; refill the per-peer budgets; poll; apply the queued
@@ -62,7 +68,9 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   `disconnect_peer(1)`; a broken own client ends the session.
 - `WorldQuery`: per level a `World3D.new()` holding the level's static colliders (layer 1) through `PhysicsServer3D`,
   built when the session starts, before `MarkerReader` reads the markers through them (`use_level` per level); then
-  the level is the one `Match` names (`use_level`). Never the client's scene.
+  the level is the one `Match` names (`use_level`). Never the client's scene. Built (3c):
+  `HostWorldQuery.for_mode(mode)` (`host_world_query.gd`) builds every level's `LevelWorld` (`level_world.gd`); refuse
+  the host on its `errors`, then pass it to `MarkerReader.read_levels` and `Match.new`. A fresh world answers at once.
 - An error recorded while a transition row runs (`Match.row_error_count()` grew in a `Match` call) ends the session
   before that call's events are delivered (the engineer's answer on #90): a deal that could not place its tasks would
   start a round that the crew wins at once. Key on no phase or outcome id: those are the mode's data.
@@ -79,9 +87,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - Integration tests of the transport checks and the per-peer delivery go in `tests/integration/`; the rules
   themselves are unit-tested in `core/`.
 - The information-leak test is the most important test in the project: no client ever receives information it is
-  not entitled to; it compares what each bot decoded with `Match.view_of` of its peer (§5, §4.6). When it exists,
-  prove it works once by injecting a leak, confirming it fails, and reverting. A connected peer that is not a player
-  receives at most a `Rejected`, none unless it sent a `Hello` (so a lurker receives nothing): never an *everyone*
+  not entitled to; it compares what each bot decoded with `Match.view_of` of its peer (§5, §4.6), in `bots`. 3h
+  (#102) proved it once with three injected leaks (§4.6); a new kind of leak gets the same proof: inject it, see
+  `bots` fail, revert. A connected peer that is not a player receives at most a `Rejected`, none unless it sent a
+  `Hello` (so a lurker receives nothing): never an *everyone*
   event, snapshot or voice.
 - Drive the host session with a clock of the test's own: a host freeze is a jump of that clock.
 - At finish, `netcode-security-reviewer` reviews every `server/` change.

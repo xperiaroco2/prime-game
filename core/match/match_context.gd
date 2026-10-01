@@ -31,6 +31,11 @@ func _init(owner: Match) -> void:
 	_match = owner
 
 
+## The host's content hash, which a joiner's Hello must carry (§4.3, E1).
+func content_hash() -> int:
+	return _match.content_hash
+
+
 ## A copy for another part of the same step, with the same actor, intent, fact and outcome.
 func copy() -> MatchContext:
 	var other := MatchContext.new(_match)

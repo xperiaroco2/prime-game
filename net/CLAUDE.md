@@ -14,11 +14,16 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 ## Map
 - `transport/`: `NetTransport` (the interface game code uses), `EnetTransport`, `LoopbackTransport` and
   `LoopbackHub`, `NetFrame` (the 3-byte header and the defensive decode), `NetKindTable` (kind → lane, direction,
-  payload cap), `NetRejects` (counts and the summary line). Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
+  payload cap), `NetRejects` (counts and the summary line; `server/` adds its drops with `count_rejected`), and the
+  `packet_rejected(peer, reason)` signal per reject. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
+- `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
+  it), `WireRow`, `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the
+  fields, `seq` and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
+  `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), from the mode's parts the caller passes.
 
 ## Rules
-- A new message kind is one row in `NetKindTable.game()`: pick its lane (voice takes `VOICE`, unordered), its
-  direction and a payload cap. Never pick a channel or transfer mode anywhere else.
+- A new message kind is one row in `WireSchema` (`NetKindTable.game()` is built from it): pick its lane (voice takes
+  `VOICE`, unordered), its direction and a payload cap. Never pick a channel or transfer mode anywhere else.
 - The LATEST lane delivers only the newest message per sender and kind per poll between two of that sender's
   reliable messages (the backlog after a freeze, #70): a LATEST message must stand alone. Anything that must not be
   lost when a newer one replaces it goes RELIABLE. The merge ignores the subject: a host-to-client LATEST kind holds
@@ -28,6 +33,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   but not delivered). Signals fire from `poll()` only.
 - ENet timeouts are set in `EnetTransport` and nowhere else. The peer timeout stays at 10 s or more: a windowed
   D3D12 process can freeze 5 s (#21).
+- `EnetTransport.poll` services ENet until the socket is drained: one service reads at most 256 datagrams, and a
+  freeze's backlog is bigger (#95). Never go back to a single `ENetMultiplayerPeer.poll()` per poll.
 - Peer ids are chosen by clients: never treat one as secret or as unique over time (§4).
 - Messages carry only what their schema declares. Never serialize a whole `core/` object or state snapshot:
   filtering happens in `server/`, and a generic serializer would bypass it.
@@ -36,7 +43,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - Every schema change updates the protocol section of `docs/ARCHITECTURE.md` in the same PR.
 - No game rules here. If a message handler starts deciding outcomes, the decision belongs in `core/`.
 
-## Messages (M3 design, proposed: `docs/ARCHITECTURE.md` §4.3, §4.4)
+## Messages (`docs/ARCHITECTURE.md` §4.3, §4.4; built in 3d, #98)
 - One declarative table in `messages/` holds every row (kind, name, direction, lane, cap, fields with wire types);
   `NetKindTable.game()` is built from it. Field names are `core/`'s (`MatchCommand.args`, each event's `to_dict()`),
   written as strings: `net/` references no `core/` class.
@@ -60,10 +67,12 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - Round-trip tests for every schema (serialize, deserialize, compare) in `tests/unit/`, a fuzz test of every decoder
   (truncations, single-byte changes, random payloads: a clean reject and no engine error line), and the table
   checked against `core/`'s intents and events (§4.4).
-- Host plus clients on one machine in `tests/integration/` and the bot harness (`bots`, once it exists). Layers
+- Host plus clients on one machine in `tests/integration/` and the bot harness (`bots`). Layers
   above `net/` test with a `LoopbackHub`; ENet itself with the headless run
   `tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3` (127.0.0.1 only),
   and the 5.2 s freeze of the host and of a client,
-  `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (#70). `verify`
-  and CI run both on a free port.
+  `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (#70), and the
+  timeouts and the backlog in one process (#95),
+  `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`. `verify` and CI run all three on
+  a free port.
 - At finish, `netcode-security-reviewer` reviews every `net/` change.

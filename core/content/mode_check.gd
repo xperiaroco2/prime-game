@@ -8,8 +8,20 @@ extends RefCounted
 ## mode does not declare; a `_setting` property that reads a number but names a set of ids; an
 ## outcome a phase can report without a row; an accepted intent that neither the phase class, the
 ## movement rule nor any rule handles; two rules on one trigger in one owner; a number outside its
-## part's bounds. Warnings: a role-owned or role-gated rule with
-## an effect whose event goes to everyone, which reveals the actor's role (§9.2).
+## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
+## rule with an effect whose event goes to everyone, which reveals the actor's role (§9.2).
+##
+## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
+## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
+## sides, item and station kinds, task types, settings, phases, win conditions), the sides and
+## spawn tags parts name, and the reason each condition rejects with. D1 (a) in the wire ADR,
+## the designer's answer on #96.
+
+## The longest id the wire carries (§4.3 `id`).
+const MAX_ID_LENGTH := 32
+## The properties that hold an id (a StringName) of the content.
+const ID_PROPERTIES: Array[String] = ["id", "side", "spawn_tag", "tag"]
+const _ID_ALPHABET := "abcdefghijklmnopqrstuvwxyz0123456789_"
 
 var errors := PackedStringArray()
 var warnings := PackedStringArray()
@@ -50,6 +62,7 @@ func _walk(mode: GameMode, path: String, value: Variant, seen: Dictionary) -> vo
 	if resource is ContentPart and resource != mode:
 		var part: ContentPart = resource
 		_add(path, part.check(mode))
+	_check_ids(path, resource)
 	for property: Dictionary in resource.get_property_list():
 		var name: String = property["name"]
 		var usage: int = property["usage"]
@@ -271,6 +284,42 @@ func _check_nulls(path: String, resource: Resource) -> void:
 		var items: Array = resource.get(name)
 		if items.is_typed() and items.get_typed_builtin() == TYPE_OBJECT and items.has(null):
 			errors.append("%s.%s has an empty entry" % [path, name])
+
+
+## Every id `resource` holds (ID_PROPERTIES, and a condition's rejection reason) against the
+## wire's alphabet. An empty side or tag means "none" and is left to the part's own check.
+func _check_ids(path: String, resource: Resource) -> void:
+	for property: String in ID_PROPERTIES:
+		var value: Variant = resource.get(property)
+		if not (value is StringName or value is String):
+			continue
+		var id := str(value)
+		if id.is_empty() and property != "id":
+			continue
+		if not is_wire_id(id):
+			errors.append(_bad_id("%s.%s" % [path, property], id))
+	if resource is Condition:
+		var reason := String((resource as Condition).rejection_reason())
+		if not is_wire_id(reason):
+			errors.append(_bad_id("%s's rejection reason" % path, reason))
+
+
+## Whether `id` fits the wire's `id` type (§4.3): 1 to MAX_ID_LENGTH characters of `a-z`, `0-9`
+## and `_`.
+static func is_wire_id(id: String) -> bool:
+	if id.is_empty() or id.length() > MAX_ID_LENGTH:
+		return false
+	for character: String in id:
+		if not _ID_ALPHABET.contains(character):
+			return false
+	return true
+
+
+static func _bad_id(where: String, id: String) -> String:
+	return (
+		'%s is "%s": an id is 1 to %d characters of a-z, 0-9 and _ (the wire\'s alphabet)'
+		% [where, id, MAX_ID_LENGTH]
+	)
 
 
 func _check_unique(what: String, ids: Array[StringName]) -> void:

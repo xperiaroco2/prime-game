@@ -180,6 +180,34 @@ func test_empty_entries_and_missing_parts() -> void:
 	_expect(mode, "the mode has no player_rules")
 
 
+func test_ids_outside_the_wires_alphabet() -> void:
+	# D1 (a), the designer's answer on #96: every content id is 1 to 32 characters of a-z, 0-9
+	# and _, because ids travel on the wire as the content's names (§4.3, E5).
+	var mode := FixtureItemModes.basic()
+	mode.roles[0].id = &"Crew"
+	mode.settings[0].id = StringName("k".repeat(33))
+	mode.item_kinds[0].spawn_tag = &"package-spot"
+	(mode.transitions[0].actions[0] as PlacePlayers).tag = &"round player"
+	mode.phases[2].id = &""
+	mode.actions[0].conditions.append(ReasonCondition.new())
+	_expect(mode, 'roles[0].id is "Crew": an id is 1 to 32 characters of a-z, 0-9 and _')
+	_expect(mode, 'settings[0].id is "%s"' % "k".repeat(33))
+	_expect(mode, 'item_kinds[0].spawn_tag is "package-spot"')
+	_expect(mode, 'actions[0].tag is "round player"')
+	_expect(mode, 'phases[2].id is ""')
+	_expect(mode, 'conditions[3]\'s rejection reason is "Too far"')
+
+
+func test_ids_of_32_characters_of_the_alphabet_pass() -> void:
+	var mode := FixtureItemModes.basic()
+	mode.roles[0].id = StringName("crew_0123456789_abcdefghijklmnop")
+	assert_int(String(mode.roles[0].id).length()).is_equal(32)
+	_expect_none(mode)
+	assert_bool(ModeCheck.is_wire_id("a")).is_true()
+	for bad: String in ["", "A", "a-b", "a b", "é", "a.b", "x".repeat(33)]:
+		assert_bool(ModeCheck.is_wire_id(bad)).override_failure_message(bad).is_false()
+
+
 func test_a_role_owned_public_event_is_a_warning_not_an_error() -> void:
 	var mode := FixtureModes.basic()
 	mode.roles[1].actions = [FixtureModes.rule(Intents.USE, [], [FixtureNote.of("seen")])]
@@ -219,3 +247,11 @@ class TickSystemReporting:
 
 	func reported_outcomes() -> Array[StringName]:
 		return [&"overtime"]
+
+
+## A condition that rejects with a reason outside the wire's alphabet.
+class ReasonCondition:
+	extends Condition
+
+	func _reason() -> StringName:
+		return &"Too far"

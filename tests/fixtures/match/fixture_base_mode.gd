@@ -142,7 +142,8 @@ static func started(seed_value: int = 7) -> Match:
 	return game
 
 
-## `peer` connects and says Hello with `player_name` (the host ignores it) and the host's version.
+## `peer` connects and says Hello with `player_name` (the host ignores it), the host's version and
+## the content hash of a Match made without one (0).
 static func join(game: Match, peer: int, player_name: String = "") -> void:
 	FixtureModes.send(game, Intents.PEER_CONNECTED, peer)
 	hello(game, peer, player_name if not player_name.is_empty() else "p%d" % peer)
@@ -153,9 +154,11 @@ static func hello(
 	peer: int,
 	player_name: String,
 	version: int = JoinRules.PROTOCOL_VERSION,
-	seq: int = 0
+	seq: int = 0,
+	content: int = 0
 ) -> void:
-	FixtureModes.send(game, Intents.HELLO, peer, {"name": player_name, "version": version}, seq)
+	var fields := {"name": player_name, "version": version, "content": content}
+	FixtureModes.send(game, Intents.HELLO, peer, fields, seq)
 
 
 static func ready(game: Match, peer: int, is_ready: bool = true, seq: int = 0) -> void:

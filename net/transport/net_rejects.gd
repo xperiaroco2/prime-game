@@ -1,8 +1,10 @@
 class_name NetRejects
 extends RefCounted
-## Counts received packets the transport rejected, by reason and by peer. One peer can send
-## thousands of bad packets a second, so nothing logs one line per packet: the transport logs
-## take_summary() at most once per interval (NetTransport.REJECT_SUMMARY_INTERVAL_MS).
+## Counts received packets the transport rejected, by reason and by peer, and the messages that
+## the host session dropped after the transport (OVER_BUDGET, BAD_PAYLOAD; ARCHITECTURE §4.5), so
+## one summary line holds them all. One peer can send thousands of bad packets a second, so nothing
+## logs one line per packet: the transport logs take_summary() at most once per interval
+## (NetTransport.REJECT_SUMMARY_INTERVAL_MS).
 
 enum Reason {
 	NONE,
@@ -15,6 +17,10 @@ enum Reason {
 	TRUNCATED,
 	TRAILING_BYTES,
 	UNKNOWN_PEER,
+	## server/: over one of the peer's budgets, dropped before decoding (§4.5); not malformed.
+	OVER_BUDGET,
+	## server/: the codec rejected the payload, or a debug kind came from a peer other than 1.
+	BAD_PAYLOAD,
 }
 
 ## Peers named in one summary line; the rest are summed up.
