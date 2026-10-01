@@ -167,7 +167,8 @@ func test_sprints_up_stairs_and_the_view_lags_one_step_at_most() -> void:
 	player.move_input = Vector2(0.0, 1.0)
 	player.sprint_held = true
 	var lowest_eye := _rules.eye_height_m
-	for i: int in 60:
+	# 50 frames end on the last, 3 m tread: no edge holds the sprint back, so a second runs off it.
+	for i: int in 50:
 		await _world.frames(1)
 		var eye := player.get_camera().global_position.y - player.global_position.y
 		lowest_eye = minf(lowest_eye, eye)

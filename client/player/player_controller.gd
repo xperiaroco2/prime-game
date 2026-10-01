@@ -71,6 +71,8 @@ var _floor_y: float = 0.0
 var _stepping: bool = false
 ## Horizontal metres the current crossing may still take before gravity returns.
 var _step_left: float = 0.0
+## The top of the ledge the current crossing is over.
+var _step_top: float = 0.0
 ## The contact search for other living players: the capsule, a margin wider.
 var _contacts := PhysicsShapeQueryParameters3D.new()
 ## What the last step did, for the claim: gave movement input, jumped.
@@ -238,6 +240,8 @@ func _walk(delta: float) -> void:
 		_step_left = rules.capsule_radius_m * 2.0
 	if _stepping:
 		velocity.y = 0.0
+	# While crossing, move_and_slide's own snap would catch the ledge's edge: _cross_step snaps.
+	floor_snap_length = 0.0 if _stepping else rules.step_height_m
 	move_and_slide()
 	var moved := Vector2(global_position.x - start.x, global_position.z - start.z).length()
 	if _stepping:
@@ -317,6 +321,7 @@ func _step_up(motion: Vector3) -> bool:
 		return false
 	var lift := top + STEP_CLEARANCE - global_position.y
 	global_position.y += lift
+	_step_top = top
 	# Sprinting up stairs lifts again before the view has caught up: it lags one step at most.
 	_head.position.y = maxf(_head.position.y - lift, rules.eye_height_m - rules.step_height_m)
 	return true
@@ -392,10 +397,18 @@ func _floor_contact_y() -> float:
 ## ledge's top and snaps onto it. The crossing ends early when the player stops or has moved a
 ## capsule's width without landing; gravity then takes over.
 func _cross_step(moved: float) -> void:
-	if not is_on_floor():
+	var landed := is_on_floor()
+	if not landed:
+		var lifted := global_position
+		floor_snap_length = rules.step_height_m
 		apply_floor_snap()
+		# A snap below the ledge's top caught its edge under the rounded bottom, which the body
+		# would then rest on for good at a slow walk or the crawl: glide on at the crossing height.
+		landed = is_on_floor() and global_position.y >= _step_top - STEP_EPSILON
+		if not landed:
+			global_position = lifted
 	_step_left -= moved
-	if is_on_floor() or moved < MOVE_EPSILON or _step_left <= 0.0:
+	if landed or moved < MOVE_EPSILON or _step_left <= 0.0:
 		_stepping = false
 
 
