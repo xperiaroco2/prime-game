@@ -18,7 +18,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
   it), `WireRow`, `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the
   fields, `seq` and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
-  `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), which host and client both compute.
+  `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), from the mode's parts the caller passes.
 
 ## Rules
 - A new message kind is one row in `WireSchema` (`NetKindTable.game()` is built from it): pick its lane (voice takes

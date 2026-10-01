@@ -555,7 +555,7 @@ The rules of the table:
   and meet the same unexplained corrections and refused pick-ups (the host's `WorldQuery` answers from its level, the
   client walks its own). Any byte of a level counts, a light included: a false alarm costs a rebuild, a miss costs a
   playtest. An exported build, which may convert scenes, is M6's to check. The host's `server/` and each client compute
-  it with `ContentFingerprint.of(mode)` (`net/messages/`, 3g) when they load the mode, and `Match` gets the host's with the seed. `JoinRules` compares it with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
+  it when they load the mode, and `Match` gets the host's with the seed. `JoinRules` compares it with the host's: another one gets `Rejected(wrong_content)` and `DisconnectPeer`. Prevents: the designer
   hosts a playtest from a branch with edited `PlayerRules`, the engineer joins from `main`, and the engineer's client
   predicts other speeds and stamina and is corrected over and over with nothing saying why. `Hello`'s name is not on
   the wire in the MVP (the host names every joiner, §3.5); #73 adds it with a version bump.
@@ -827,6 +827,11 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     avatars), as on `LoadMatch`, and keeps the roster and the settings.
   - The decoded view is recorded only with `keep_history` on (off by default, like `Match`'s: 12000 snapshots in a
     10-minute match); the bots and the leak test turn it on. The model is always kept.
+  - `Hello`'s content hash is `ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)`
+    (`net/messages/`), which #100's host computes the same way. It takes the mode's parts, not the mode: `net/` names
+    no `core/` class (a test pins it). Only each level's own file is hashed, not the sub-scenes it instances.
+  - The model keeps its own copy of a snapshot's avatars: the view records the decoded one unchanged. A threaded load
+    the session no longer waits for (it ended, or a newer `LoadMatch` came) is collected by `step()` once done.
   - Tested in `tests/unit/client/net/` against host messages encoded with the codec from `core/`'s own events over a
     `LoopbackHub`; the end-to-end tests against `HostSession` come with 3f (#100) and 3h.
 - **Bots** (`tests/harness/`, 3h): a bot is a `ClientSession`, a scenario script and an honest mover. The script is the

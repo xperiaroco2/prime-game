@@ -13,7 +13,8 @@ Loaded when a file in `client/` is read. The invariants in the root `CLAUDE.md` 
 ## Map
 - `net/` (3g, `docs/ARCHITECTURE.md` §4.6): `ClientSession`, which every client and bot runs over a `NetTransport`
   (Hello, intents, claims, loading, voice), `DecodedView` (what it decoded, in `PeerView`'s shape) and `ClientModel`
-  (what it knows now). Game code talks to the host only through a `ClientSession`.
+  (what it knows now). Game code talks to the host only through a `ClientSession`. Its `view` stays empty unless
+  `keep_history` is on (off by default; bots and the leak test turn it on).
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state, not even on the host's own machine, and
