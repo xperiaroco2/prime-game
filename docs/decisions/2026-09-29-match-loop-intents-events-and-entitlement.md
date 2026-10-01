@@ -8,6 +8,12 @@
   `DissidentTeam` and `CirclePlaced` are now `Teammates` and `StationPlaced`, and `TasksAssigned` and
   `SettingsChanged` no longer assume Delivery; win conditions are checked after every fact and at the end of every
   step instead of as a tick system
+- **Amended by:** [vision revision 1](2026-10-01-vision-revision-1.md) (#126, 2026-10-01): there are no ghosts.
+  The life states are alive, downed, dead and left, so the audience *life(ghost)* and choice 6's "ghosts never reach
+  a living client" become "the dead have no avatar, and a downed player collides with nobody". In the extensibility
+  test the meetings mode (#35) is dropped and resurrection (#34) is replaced by the knockdown and respawn; what a dead
+  player saw while spectating is fair game after the respawn. "Later mechanics fit without a change to the core
+  loop" stays, with the zone task (#36), physics throwing (#37) and the parked deathmatch mode as its examples
 
 ## Context
 Stage 2 of M2 writes the core rules (#30). Before any core code, the base mode's phases, the MVP's intents and

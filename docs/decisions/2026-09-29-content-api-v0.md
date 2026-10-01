@@ -5,6 +5,12 @@
 - **Date:** 2026-09-29; accepted 2026-09-30
 - **Deciders:** designed by the agent in #33, unattended overnight, and revised after a fresh adversarial review; the
   five choices under "The engineer's answers" decided by the engineer
+- **Amended by:** [vision revision 1](2026-10-01-vision-revision-1.md) (#126, 2026-10-01): the `no_crew_alive` win
+  condition gives way to "no crew present" (every crew member left; `NoneAlive` limited to players who left), so
+  choice 3's "no crew alive before the delivery" example loses its case while the ordering rule stands. A player has
+  a hand and a belt: an item kind's actions apply while it is in the hand, and item kinds get `hands` (1 or 2), the
+  slot model later loot builds on. In the extensibility test resurrection (#34) is replaced by the knockdown and
+  respawn, and the meetings mode (#35) is dropped
 
 ## Context
 Invariant 4 says that roles, abilities, items and task types are `Resource`s composed from trigger → condition →

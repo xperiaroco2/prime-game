@@ -27,7 +27,7 @@ Read the root `CLAUDE.md`, `docs/GDD.md` and the **content API** section of `doc
   - its settings (name, type, allowed values) and what it produces;
   - who may see its result (everyone, the actor, the target, a team, nobody until a reveal), and what a refusal
     tells the sender;
-  - edge cases (dead players, meetings, two players at once, the host's own player);
+  - edge cases (downed and dead players, two players at once, the host's own player);
   - the mechanic that needs it, with a link to the `mechanic` issue.
 - If a request would change how the engine works rather than add a part, say so in the issue: the engineer decides.
 

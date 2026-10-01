@@ -21,6 +21,12 @@ the content-API section of `docs/ARCHITECTURE.md` (which interactables and stati
   `spawn_circle`). A marker in two such groups is a load error. The host reads them in scene-tree order. A
   `circle` marker is snapped down to the floor below it when read (its cylinder starts there); one with no floor
   below is a load error.
+- **Respawn points** ([vision revision 1](../docs/decisions/2026-10-01-vision-revision-1.md)): markers in
+  `spawn_respawn`, at least one per round map. The host already reads any `spawn_<tag>` group; the respawn rework
+  (M4) makes the layout check demand them.
+- **Hiding spots** (the same revision): a dissident may hide a package anywhere a put-down allows, so every floor a
+  put-down can reach must also be reachable for a pickup (the pick-up reach and line of sight, from somewhere a
+  player can stand). No gap, ledge or thin wall may keep a package for good; the designer checks it in a playtest.
 - The MVP's lobby and map live at `lobby/lobby.tscn` and `greybox/greybox.tscn`, the paths the base mode names:
   flat, marker-only scenes from M2 (built by the engineer's agent in #66), dressed in M4.
 
