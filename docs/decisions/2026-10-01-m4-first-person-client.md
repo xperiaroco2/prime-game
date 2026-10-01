@@ -15,7 +15,7 @@
   [Vulkan on Windows](2026-10-01-vulkan-on-windows.md),
   [a release branch per milestone](2026-10-01-release-branch-per-milestone.md)
 - **Numbering:** the choices continue the M3 design's E1 to E17 and D1 to D3, which `docs/ARCHITECTURE.md` cites, so
-  "E8 (a)" never means two things: this ADR's are **E18 to E33** and **D4 to D10**. The proposed issues are **M4-1
+  "E8 (a)" never means two things: this ADR's are **E18 to E33** and **D4 to D10**. The issues are **M4-1
   to M4-9** and the designer's **L-1**: M4-1 #137, M4-2 #138, M4-3 #139, M4-4 #140, M4-5 #141, M4-6 #142, M4-7 #143,
   M4-8 #144, M4-9 #145, L-1 #146.
 
@@ -403,9 +403,9 @@ Answered by the engineer by relay on 2026-10-01 (PR #136; `docs/AGENT_WORKFLOW.m
 - `client/CLAUDE.md` gains the rules of the shell (E18, E19), the rendering rules (§3) and where M4's code goes.
 - The vision revision ADR's Context and Alternatives take the fixes of PR #133's last review; its Open knowledge
   pillar, and the GDD's §1 copy of it, name "the zones where items may appear" (E32 (b)).
-- After the answers: the manager opens M4-1 to M4-9 and L-1 from the handoff on #125, with the answers applied and
-  #76 and #119 amended (#76 after M4-2; M4-6's PR says `Closes #119`, which closes it when `release/m4` merges into
-  `main`, and the humans close the stage's issues after that merge), in §7's order.
+- After the answers the manager opened M4-1 to M4-9 and L-1 (#137 to #146) from the handoff on #125, with the
+  answers applied and #76 and #119 amended (#76 after M4-2; M4-6's PR says `Closes #119`, which closes it when
+  `release/m4` merges into `main`, and the humans close the stage's issues after that merge), in §7's order.
 - `project.godot` gets the main scene and the new input actions, and layer 3 becomes `downed` (M4-6, M4-8, M4-9).
 - `docs/AGENT_WORKFLOW.md` §11 and §12 and the root `CLAUDE.md`'s commands row change when M4-6 builds windows for
   `host` and `join` (E20).

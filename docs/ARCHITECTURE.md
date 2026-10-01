@@ -1029,7 +1029,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
 
 ### 4.7 The game client (M4 design, #125)
 Decided in the [M4 ADR](decisions/2026-10-01-m4-first-person-client.md) (Accepted): the engineer's choices E18 to E33
-and the designer's D4 to D10 each took the recommendation this section follows (E32 (b), D10 (b)). It is the client
+and the designer's D4 to D10 each took its recommendation, which this section follows (for E32 and D10 the
+recommendation was (b)). It is the client
 that M4-6 to M4-9 build; the core rework of vision revision 1 (M4-1 to M4-5) rewrites §3 to §9 in the issues that
 change their code, and the client reads the events those issues add (the ADR's §4 lists them).
 
@@ -1207,7 +1208,8 @@ host's own player sees only what its `ClientSession` decoded.
   `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()`; the host checks each
   again (§7.1), and the client predicts nothing of an action's outcome.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
-  display names, a package's destination (its circle's colour), the shared progress (`TaskProgress`), the match
+  display names, a package's destination (a swatch of its circle's colour and a marker over that circle, drawn
+  through walls too, since circles are fixed, public places: D10 (b)), the shared progress (`TaskProgress`), the match
   clock, the own role by its display name and, for a dissident, its teammates (`Teammates`), invulnerability, and
   what the crosshair would do. **The task screen** (Tab), for the living, the downed and the dead: each task of the
   match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
@@ -1219,7 +1221,8 @@ M4 client PR: only the own model, the interpolated poses and the own mode; spect
 the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
 eye; no screen with an item's or a player's
 position, and no name or marker over a player or an item drawn through walls (`no_depth_test` is for the fixed,
-public circles only); a role named only on its own player's screen (a dissident's teammates on theirs); no hit confirmation for
+public circles only, the destination marker of D10 (b) included); a role named only on its own player's screen
+(a dissident's teammates on theirs); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
 World sounds play within the hearing range only (E33).
 
@@ -2291,4 +2294,4 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
 | Voice integration: occlusion, dead chat, meetings, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
-| The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | before M4's code (#125) |
+| The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
