@@ -1296,7 +1296,7 @@ never opens a window on a human's screen.
 so it skips the menu, and stops cleanly for the runner as the headless session does. The console exe (`GODOT_BIN`)
 opens them, since the runner reads each process's lines (the host's `session: hosting` starts the clients; a host
 that prints `session: cannot host` stays at its menu and gets none). A host and its `--clients` are tiled in a grid
-over the primary screen's work area (`--position` and `--resolution`, 16:9, below each title bar; a lone window goes
+over the primary screen's work area (`--position` and `--resolution`, 16:9, below each title bar and inside its frame; a lone window goes
 where the system puts it); a windowed host on every interface prints what to type on another PC. `--windows` opens
 windows where `CLAUDECODE` is set; agents never pass it. They run until Ctrl+C, `--seconds` or every window closed.
 Tests: `tools/runner/tests/test_hostjoin.py` builds the command lines without starting Godot (the defaults, the

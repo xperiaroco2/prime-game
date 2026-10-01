@@ -202,7 +202,7 @@ class WindowsTest(unittest.TestCase):
         self.assert_game_windows(parts)
         self.assertEqual(parts[0].user_args[:3], ["--host", "--local", "--port=24999"])
         self.assertEqual(parts[1].user_args[:2], ["--join=127.0.0.1", "--port=24999"])
-        tiles = [hostjoin.Tile(0, 48, 839, 472), hostjoin.Tile(960, 48, 839, 472), hostjoin.Tile(0, 568, 839, 472)]
+        tiles = [hostjoin.Tile(8, 48, 824, 464), hostjoin.Tile(968, 48, 824, 464), hostjoin.Tile(8, 568, 824, 464)]
         for part, tile in zip(parts, tiles, strict=True):
             self.assertEqual(part.cmd[part.cmd.index("--position") + 1], f"{tile.x},{tile.y}")
             self.assertEqual(part.cmd[part.cmd.index("--resolution") + 1], f"{tile.width}x{tile.height}")
@@ -259,16 +259,19 @@ class WindowsTest(unittest.TestCase):
             with self.subTest(count=count):
                 placed = hostjoin.tiles(count, (100, 50, 2560, 1400))
                 self.assertEqual(len(placed), count)
-                for tile in placed:
-                    self.assertGreaterEqual(tile.y - hostjoin.TITLE_BAR, 50)
-                    self.assertLessEqual(tile.x + tile.width, 100 + 2560)
-                    self.assertLessEqual(tile.y + tile.height, 50 + 1400)
+                frame, bar = hostjoin.FRAME, hostjoin.TITLE_BAR
+                # Each window's whole outline: the frame on the left, right and bottom, the title bar on top.
+                outer = [(t.x - frame, t.y - bar, t.x + t.width + frame, t.y + t.height + frame) for t in placed]
+                for tile, (left, top, right, bottom) in zip(placed, outer, strict=True):
+                    self.assertGreaterEqual(left, 100)
+                    self.assertGreaterEqual(top, 50)
+                    self.assertLessEqual(right, 100 + 2560)
+                    self.assertLessEqual(bottom, 50 + 1400)
                     self.assertLessEqual(abs(tile.width * 9 - tile.height * 16), 16)
-                for i, a in enumerate(placed):
-                    for b in placed[i + 1 :]:
-                        apart_x = a.x + a.width <= b.x or b.x + b.width <= a.x
-                        top_a, top_b = a.y - hostjoin.TITLE_BAR, b.y - hostjoin.TITLE_BAR
-                        apart_y = a.y + a.height <= top_b or b.y + b.height <= top_a
+                for i, a in enumerate(outer):
+                    for b in outer[i + 1 :]:
+                        apart_x = a[2] <= b[0] or b[2] <= a[0]
+                        apart_y = a[3] <= b[1] or b[3] <= a[1]
                         self.assertTrue(apart_x or apart_y, (a, b))
 
 

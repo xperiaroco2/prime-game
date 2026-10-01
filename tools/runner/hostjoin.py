@@ -71,10 +71,12 @@ POLL_SECONDS = 0.1
 # How often the runner touches its alive file (the script stops once it is ALIVE_SECONDS = 10 old).
 ALIVE_BEAT_SECONDS = 1.0
 LOG_DIR = LOGS / "session"
-# Tiling: the primary screen's work area (x, y, width, height) when the system cannot say, and the room left above
-# each window's client area for its title bar (Godot's --position places the client area). Placeholders.
+# Tiling: the primary screen's work area (x, y, width, height) when the system cannot say, the room left above
+# each window's client area for its title bar (Godot's --position places the client area), and the room left on
+# its other sides for its frame and the system's resize border, so neighbours never overlap. Placeholders.
 FALLBACK_AREA = (0, 0, 1920, 1040)
 TITLE_BAR = 48
+FRAME = 8
 SPI_GETWORKAREA = 0x0030
 # verify's `game` step: its time limit, how long both stay in the lobby before the stop, and its logs.
 GAME_CHECK_SECONDS = 60
@@ -191,17 +193,19 @@ def choose_windows(*, headless: bool, windows: bool) -> bool:
 
 def tiles(count: int, area: tuple[int, int, int, int]) -> list[Tile]:
     """`count` 16:9 windows in a near-square grid over `area` (x, y, width, height), row by row, each below its
-    title bar."""
+    title bar and inside its frame."""
     x0, y0, width, height = area
     columns = math.ceil(math.sqrt(count))
     rows = math.ceil(count / columns)
     cell_w, cell_h = width // columns, height // rows
-    w, h = cell_w, cell_h - TITLE_BAR
+    w, h = cell_w - 2 * FRAME, cell_h - TITLE_BAR - FRAME
     if w * 9 > h * 16:
         w = h * 16 // 9
     else:
         h = w * 9 // 16
-    return [Tile(x0 + (i % columns) * cell_w, y0 + (i // columns) * cell_h + TITLE_BAR, w, h) for i in range(count)]
+    return [
+        Tile(x0 + (i % columns) * cell_w + FRAME, y0 + (i // columns) * cell_h + TITLE_BAR, w, h) for i in range(count)
+    ]
 
 
 def screen_area() -> tuple[int, int, int, int]:
