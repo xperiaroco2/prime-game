@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## snapshot gets a RemotePlayerBody at SnapshotBuffer's pose, the yaw on the body and the pitch on
 ## the head; a vertical facing keeps the turn and gives no NaN; a player the model drops goes; a
 ## PlayersPlaced snaps; a LoadMatch forgets the poses; the estimated host tick never runs backwards;
-## a player the model knows as downed is on the ghost layer, where no push searches (§7.1).
+## a player the model knows as downed is on the downed layer, where no push searches (§7.1).
 
 const PEER := 2
 const TICK_USEC := 50000
@@ -84,19 +84,46 @@ func test_a_placement_snaps_the_player_it_names() -> void:
 	assert_vector(pose.position).is_equal(Vector3.ZERO)
 
 
-func test_a_downed_player_is_on_the_ghost_layer_and_living_again_on_the_living_one() -> void:
+func test_a_downed_player_is_on_the_downed_layer_and_living_again_on_the_living_one() -> void:
 	_snapshot(1, Vector3.ZERO, Vector3.FORWARD)
 	await _drawn()
 	var body := _views.body_of(PEER)
 	assert_int(body.collision_layer).is_equal(PhysicsLayers.LIVING)
 	_model.fold(&"KnockedDown", {"peer": PEER, "position": Vector3.ZERO})
 	await _drawn()
-	assert_int(body.collision_layer).is_equal(PhysicsLayers.GHOSTS)
+	assert_int(body.collision_layer).is_equal(PhysicsLayers.DOWNED)
 	assert_bool(body.is_living()).is_false()
-	# A new match forgets the knockdown: the body is on the living layer again.
+	# The downed pose (D8): the mesh lies on its side, its top at the capsule's width, no head.
+	assert_bool(body.is_downed()).is_true()
+	assert_bool(body.head().visible).is_false()
+	var mesh := body.get_node("Mesh") as MeshInstance3D
+	assert_float(mesh.get_aabb().size.y).is_greater(1.0)
+	assert_float((mesh.global_transform * mesh.get_aabb()).end.y).is_less(0.81)
+	# Its collision capsule lies with the mesh: a ray over the lying body, where the standing
+	# capsule was, finds nothing to raise there.
+	await _drawn()
+	assert_int(_ray_hits_at(1.5)).is_equal(0)
+	assert_int(_ray_hits_at(0.3)).is_equal(1)
+	# A new match forgets the knockdown: the body is on the living layer again, standing.
 	_model.lives.erase(PEER)
 	await _drawn()
 	assert_bool(body.is_living()).is_true()
+	assert_bool(body.is_downed()).is_false()
+	assert_bool(body.head().visible).is_true()
+	assert_float((mesh.global_transform * mesh.get_aabb()).end.y).is_greater(1.7)
+	assert_int(_ray_hits_at(1.5)).is_equal(1)
+
+
+func test_the_invulnerable_flag_shows_the_shell_and_every_body_hides_out_of_sight() -> void:
+	_snapshot(1, Vector3.ZERO, Vector3.FORWARD, true)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	assert_bool(body.is_invulnerable()).is_true()
+	assert_bool(body.is_in_group(SightHider.GROUP)).is_true()
+	assert_int(body.peer).is_equal(PEER)
+	_snapshot(2, Vector3.ZERO, Vector3.FORWARD)
+	await _drawn()
+	assert_bool(body.is_invulnerable()).is_false()
 
 
 func test_the_host_tick_never_runs_backwards() -> void:
@@ -128,15 +155,24 @@ func _drawn() -> void:
 	await get_tree().physics_frame
 
 
-func _snapshot(tick: int, at: Vector3, facing: Vector3) -> void:
+func _snapshot(tick: int, at: Vector3, facing: Vector3, invulnerable := false) -> void:
 	var avatar := {
 		"position": at,
 		"velocity": Vector3.ZERO,
 		"facing": facing,
 		"downed": false,
+		"invulnerable": invulnerable,
 		"held_item": -1,
 	}
 	_now += TICK_USEC
 	var fields := {"tick": tick, "avatars": {PEER: avatar}}
 	_model.fold_snapshot(fields)
 	_views.buffer.add(tick, fields["avatars"] as Dictionary, _now)
+
+
+## How many bodies a horizontal ray across the origin at `height` metres hits, on any layer.
+func _ray_hits_at(height: float) -> int:
+	var space := _views.get_world_3d().direct_space_state
+	var from := Vector3(-3.0, height, 0.0)
+	var query := PhysicsRayQueryParameters3D.create(from, Vector3(3.0, height, 0.0), 0xFFFFFFFF)
+	return 0 if space.intersect_ray(query).is_empty() else 1

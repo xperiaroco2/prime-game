@@ -923,8 +923,16 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
     and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
     physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
-    of travel in a claim of one client tick, past the crawl's allowance. The client tick counts `Ticks.RATE` ticks
-    from the first step; a step sends at
+    of travel in a claim of one client tick, past the crawl's allowance. So the client tick follows physics steps
+    on purpose, and `SessionNode` checks that the physics rate is a multiple of `Ticks.RATE`. After a hitch longer
+    than Godot's catch-up (8 steps a frame) the steps would trail real time for good, and the host's stamina ledger
+    with them (the next sprint-jump would settle phantom sprint ticks and be refused): right after a claim went
+    out, steps trailing the real clock by 3 or more jump forward by whole client ticks, and the next claim covers
+    those ticks with one tick's travel (M4-9, the netcode review of PR #154; `session_node_test.gd`). While the
+    client sends no claims (`claims_accepted()` false: before the Welcome, in Loading, while dead) the steps are
+    re-synced the same way before every step, since its next claim follows a placement, whose credit
+    (`TICK_LEAD`) a jump after the first claim would overrun (M4-9's netcode review). The client
+    tick counts `Ticks.RATE` ticks from the first step; a step sends at
     most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
     (`set_motion`, `count_jump`) and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
     reset the jump count and put the claims at the host's position.
@@ -1289,8 +1297,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `AnimatableBody3D` failed both on most frames a body moved, 30 to 173 per test, even with `force_update_transform()`).
 - **The crawl** (M4-9): a downed controller moves at the crawl speed, with no sprint and no jump, up the step height,
   colliding with the level only and pushing nobody; it keeps the standing capsule for collision (the host's floor
-  checks use it), and only its mesh lies down. Physics layer 3 becomes `downed` (`PhysicsLayers`), which no push
-  search looks at: the downed collide with no player.
+  checks use it), and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`, built in M4-9),
+  which no push search looks at: the downed collide with no player.
 
 **Built in M4-7 (#143)**, movement on the network:
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
@@ -1396,6 +1404,54 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
   progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
   `StationPlaced`'s colour, dimmed once `PackageDelivered` names it.
+
+**Built in M4-9 (#145)**, the life states in 3D:
+- `client/player/`: `PlayerController.life` (`set_life`, replacing the ghost flag and `set_ghost`) follows the own
+  life fold (`Game._sync_life`): living on the living layer; downed on the `downed` layer, crawling, with its lying
+  mesh (`Lying`); dead on no layer, no mesh, and no physics step (the controller returns at once and `Game` stops
+  its step), so a dead player never stands back up and walks before its `Respawned`. `held` (from
+  `ClientModel.raiser_of(own) != 0`) makes a downed controller stand still, spend nothing and claim where it lay.
+  Any life change clears a pending jump. `RemotePlayerBody` lies down while its player is downed (its head hidden,
+  the capsule shape kept standing), wears a pulsing white shell while its avatar has the `invulnerable` flag, hides
+  its meshes while watched from its eyes (`set_watched`), and knows its `peer`. `LifeLooks` holds D8's greybox
+  looks (the lying capsule, the body's grey capsule and dark cross, the shell).
+- `client/world/`: `BodyViews` (`Bodies` under `World`, -70) draws a body per `ClientModel.bodies` entry, the own
+  one included. `SnapshotBuffer` keeps a unit facing for a huge but finite relayed one (scaled by its largest
+  component before normalising; `unit_or()`), which `look_angles` shares.
+- `client/life/`: `LifeView` (`Life` under `World`, 5: after the player, before `SightHider`) picks the camera by
+  the own life (the player's, `DownedCamera`, or the spectate camera), runs the life inputs (E pressed on a downed
+  player within the mode's `TargetInReach` from the feet sends `Raise`, its release `StopRaise`, and a raise that
+  starts after E was let go is stopped at once; G held for 1 s sends `GiveUp` once; the left and right mouse
+  buttons cycle the spectate target while the mouse is captured) and plays `LiftMusic` while dead. `DownedCamera`
+  is the `SpringArm3D` above (its probe 0.2 m, its arm pitch 0 to 80° down, a look further down tilting the
+  camera alone); the arm casts at priority 7, after `LifeView` placed it in the same step. The raise target is
+  cast once per physics step (the physics space is read only there), and the click that captures the mouse does
+  not cycle the target. `SightHider` (10) hides every node of its group `hidden_out_of_sight` (the avatars, the bodies;
+  M4-8's item views join it) with no line of sight from the pivot, a ray each against the world layer with 0.1 m
+  of slack, and shows them again when the camera is out of use. `SpectateTargets` and `LifeCountdowns` are the pure
+  parts; a spectated living target is drawn from its body's interpolated pose (position, yaw, head pitch), so the
+  camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel.
+- `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD) and the shared greybox
+  theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
+  `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moves
+  the older screens' inline styles into it.
+- `project.godot`: `give_up` (G), `spectate_next` and `spectate_previous` (the left and right mouse buttons).
+- The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
+  human picks a CC0 track with its `docs/credits/` entry.
+- Tests: `tests/unit/client/life/` (`LifeCountdowns`, `SpectateTargets` with a pinned seed, `LifeHud`, `LiftMusic`),
+  `tests/unit/client/ui/life_panel_test.gd` (the theme source test, seen failing on a planted override),
+  `tests/unit/client/app/session_node_test.gd`, `tests/integration/client/life/downed_camera_test.gd` (every look
+  at or below the eye and before a wall behind the body, seen failing without the clamp and the mask; a view seen
+  from the arm's end past a short wall but not from the eye is hidden),
+  `tests/integration/client/world/body_views_test.gd`, and over the loopback (`NetPair.with_life()`, which adds the
+  raise, the give-up and a 2 s respawn on `steps_room`'s new `respawn` markers) `life_network_test.gd`: a raised
+  downed joiner trying to crawl holds still and gets 0 `Correction`s (58 without the hold) and stands up
+  invulnerable in first person; a joiner who gives up stays off the living however it is driven, watches the host
+  from its eyes with the music, follows it to the camera above its body when it goes down, and respawns at a marker
+  in first person, invulnerable on the host's screen, with no `Correction`. `client/dev/life_preview.tscn` is the
+  `shot` of the downed pose, a body, the invulnerable look and the panel.
+- Not headless: the keys and the mouse, the feel of the cameras and the music; the one-PC playtest (the M4 ADR's
+  §6) checks them.
 
 **What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
@@ -1598,15 +1654,18 @@ The local player's controller (#46, `client/player/`):
   a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
   `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
   the only copy of it on the client, and takes each `SelfStatus`'s number as it arrives.
-- A ghost (`ghost = true`, the downed player; M4-9 renames it and gives it the lying pose and camera) crawls as the
-  host's crawl check allows (§7.1 The crawl, M4-2): the living's capsule, gravity, floor, steps and slopes at
-  `PlayerRules.crawl_speed_mps`, with no sprint and no jump; `StaminaSource` refuses both to the downed, and their
-  stamina regenerates as usual. There is no flight (the engineer's correction of 2026-09-30, #46). `Game` sets the
-  flag from its own life fold (a `KnockedDown` naming its peer) and clears it when the fold forgets it. A downed
+- A downed player (`PlayerController.life` DOWNED, set by `set_life`; M4-9) crawls as the host's crawl check
+  allows (§7.1 The crawl, M4-2): the living's capsule (left standing, as the host's floor checks expect, under a
+  lying mesh), gravity, floor, steps and slopes at `PlayerRules.crawl_speed_mps`, with no sprint and no jump;
+  `StaminaSource` refuses both to the downed, and their stamina regenerates as usual. There is no flight (the
+  engineer's correction of 2026-09-30, #46). While a raise holds it (`held`, from `ClientModel.raiser_of(own) != 0`)
+  it stands still and claims where it lay. A dead player has no collision layer, no mesh and no physics step. `Game`
+  sets `life` from its own life fold and `held` from the raise fold; any life change drops a pending jump. A downed
   crawl over the loopback, holding sprint and asking to jump, is corrected 0 times, also on a clock that stands still
-  and then jumps, and up the fixture's steps (`player_network_test.gd`).
+  and then jumps, and up the fixture's steps (`player_network_test.gd`, `player_controller_downed_test.gd`).
 - Physics layers (`PhysicsLayers`, named in `project.godot`): 1 `world` (level geometry, Godot's default layer),
-  2 `living_players`, 3 `ghosts`. The living and ghosts collide with the world only; a living player finds the
+  2 `living_players`, 3 `downed` (`PhysicsLayers.DOWNED`, M4-9). The living and the downed collide with the world
+  only; the dead are on no layer; a living player finds the
   other living players with a contact search on layer 2 and pushes them (§7.1 "Pushing apart"). Other players are
   `RemotePlayerBody` capsules that only their owner's data moves, on layer 2 while the client's life fold says they
   are living and on layer 3 otherwise (a downed player pushes nobody and nobody pushes it).
@@ -1739,8 +1798,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     player: from the pusher's interpolated motion, at the pusher's reduced speed.
   - Head-on both push, and neither goes deeper than the overlap limit, so neither advances; the round capsules and
     the drift slide them apart. Each drifts to its own right, so they pass each other on opposite sides.
-  - A ghost (the client's downed until M4-9) runs no search, and its layer is not searched: the downed push nobody
-    and nobody pushes them.
+  - A downed player runs no search, and its layer is not searched: the downed push nobody and nobody pushes them.
+    The dead run no physics step at all.
 
   Speed: a pushed player moves faster than its own walk or sprint without cheating (walking sideways at 4.5 m/s
   while a sprinter pushes it at 3.5 m/s is about 5.7 m/s, and two pushers add up). `PlayerController._push_apart`

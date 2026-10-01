@@ -186,7 +186,7 @@ func test_the_debug_overlay_shows_each_side_its_numbers() -> void:
 
 
 ## The host knocks the joiner down in the round. Game's life fold makes its controller crawl
-## (the ghost flag) from the KnockedDown on; it crawls holding sprint and asking to jump all
+## (its life) from the KnockedDown on; it crawls holding sprint and asking to jump all
 ## along: the host's crawl check (M4-2) never corrects it, and the knockdown's Correction counts
 ## as a placement.
 func _crawl_on_the_floor() -> void:
@@ -224,10 +224,10 @@ func _crawl_on_the_floor() -> void:
 ## Waits until Game made `player` crawl; false after 10 frames.
 func _until_downed(player: PlayerController) -> bool:
 	for i: int in 10:
-		if player.ghost:
+		if player.is_downed():
 			return true
 		await _pair.frames(1)
-	return player.ghost
+	return player.is_downed()
 
 
 ## Walks `player` toward `target` on the floor, turning to it every frame; false when it is not

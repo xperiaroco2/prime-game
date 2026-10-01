@@ -3,7 +3,7 @@ extends GdUnitTestSuite
 ## with the same PlayerRules: three 60 Hz steps make a 20 Hz tick, and after every tick the
 ## prediction holds exactly the ledger's thousandths, sprinting until empty, regenerating, holding
 ## sprint without moving and jumping. It follows each SelfStatus, gates sprint and jump by its own
-## number (Q7), and the downed (the ghost flag until M4-9) are never limited.
+## number (Q7), and the downed are never limited.
 
 const STEP := 1.0 / 60.0
 

@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The first-person controller over real physics steps (Jolt, headless): speeds, a jump's height,
-## stamina gating, steps and pushing apart; ghosts are in `player_controller_ghost_test.gd`.
+## stamina gating, steps and pushing apart; the downed are in `player_controller_downed_test.gd`.
 ## Forward is -Z. Each test builds its own small world, `PlayerTestWorld`, freed after the test.
 
 const SPEED_TOLERANCE := 0.05

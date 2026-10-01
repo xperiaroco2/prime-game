@@ -20,13 +20,15 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   loading, voice), `DecodedView` (what it decoded, in `PeerView`'s shape) and `ClientModel` (what it knows now). Game
   code talks to the host only through a `ClientSession`. Its `view` stays empty unless `keep_history` is on (off by
   default; bots and the leak test turn it on).
-- `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7),
-  `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`.
+- `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`
+  and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks).
 - `dev/`: dev rooms and the preview scenes that `shot` draws.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
-  there). `ui/`: the screens under `GameUi`, built in code. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), M4-8
-  and M4-9 the views of items, stations and bodies. `life/` (M4-9): the downed and spectate cameras, the countdowns.
+  there). `ui/`: the screens under `GameUi`, built in code, and the shared theme `ui/theme/game_theme.tres`.
+  `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9), M4-8 the views of items and stations.
+  `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
+  `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
@@ -42,7 +44,10 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
 - Spectating is built on the dead player's own client from the public snapshot. The target is drawn with the
   client's own seeded generator and never sent; there is no target HUD, health, stamina, role or private event.
 - The downed camera stays at or below the standing eye height above the body and never passes through the level,
-  and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7).
+  and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view
+  joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
+- Screens are styled only through the shared theme on every screen under `Ui` (`GameUi.THEME`): no inline colours,
+  sizes or fonts (M4-8 moves the M4-6 screens' inline styles into it).
 - A world sound plays only within the hearing range of the listener's camera (E33); a fading sound with
   no cut-off tells everyone, through walls, where a package was put down.
 - Showing hidden information is debug-build only (`OS.is_debug_build()`): the dev console and the debug overlay.

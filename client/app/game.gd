@@ -16,6 +16,10 @@ extends Node
 ## claims to the session; every snapshot goes into a SnapshotBuffer, from which Avatars draws the
 ## others and the countdown and the clock read the estimated host tick. A debug build has the
 ## debug overlay (F3).
+##
+## Life (M4-9): the own controller follows the own life fold (_sync_life); `Bodies` (BodyViews)
+## draws the bodies and `Life` (LifeView) the cameras of the downed and the dead, the countdowns,
+## the life inputs and the lift music; the Ui's life panel shows its words in the round.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
@@ -49,6 +53,8 @@ var _overlay: DebugOverlay
 var _player: PlayerController
 var _level: Node
 var _level_kind := PhaseSpec.Level.NONE
+var _bodies := BodyViews.new()
+var _life := LifeView.new()
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -73,6 +79,8 @@ func _ready() -> void:
 	ui.esc.resume_requested.connect(ui.close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
+	_world.add_child(_bodies)
+	_world.add_child(_life)
 	if OS.is_debug_build():
 		_overlay = DebugOverlay.new()
 		_overlay.name = "DebugOverlay"
@@ -202,6 +210,15 @@ func avatars() -> AvatarViews:
 	return _avatars
 
 
+func bodies() -> BodyViews:
+	return _bodies
+
+
+## The cameras, countdowns and inputs of the own player's life.
+func life() -> LifeView:
+	return _life
+
+
 ## The debug overlay; null in a release build.
 func overlay() -> DebugOverlay:
 	return _overlay
@@ -218,11 +235,16 @@ func _process(_delta: float) -> void:
 	ui.show_screen(now)
 	if _client != null:
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
+		if now == GameFlow.Screen.ROUND:
+			ui.life.show_hud(_life.hud(_avatars.host_tick()))
 	_refresh_overlay()
 	if _player != null:
-		_player.set_physics_process(not GameFlow.frozen(now))
+		# The dead have no body to move: it stands still until its Respawned (M4-9).
+		_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
 		var listening := not GameFlow.frozen(now) and not ui.esc_open()
 		_player.reads_device_input = device_input and listening
+		_life.reads_device_input = device_input
+		_life.listening = listening and now == GameFlow.Screen.ROUND
 		if not listening:
 			# Nothing reads the keys now: W held when Esc opened must not keep walking.
 			_player.move_input = Vector2.ZERO
@@ -254,6 +276,10 @@ func _notification(what: int) -> void:
 		quit()
 
 
+func _player_dead() -> bool:
+	return _player.life == ClientModel.Life.DEAD or _player.life == ClientModel.Life.LEFT
+
+
 func _session_state() -> GameFlow.Session:
 	if _client == null:
 		return GameFlow.Session.NONE
@@ -275,6 +301,7 @@ func _start_client(transport: NetTransport) -> void:
 	_client.event_received.connect(_on_event)
 	_client.ended.connect(_end_session)
 	_session_node = SessionNode.new(_client)
+	_session_node.real_clock = clock
 	_session_node.name = "SessionNode"
 	add_child(_session_node)
 	_buffer = SnapshotBuffer.new()
@@ -284,6 +311,9 @@ func _start_client(transport: NetTransport) -> void:
 	_avatars.buffer = _buffer
 	_avatars.rules = mode.player_rules
 	_avatars.clock = clock
+	_bodies.model = _client.model
+	_bodies.rules = mode.player_rules
+	_life.setup(_client, mode, _avatars)
 
 
 func _on_welcomed(own_peer: int) -> void:
@@ -294,6 +324,7 @@ func _on_welcomed(own_peer: int) -> void:
 	_player.rules = mode.player_rules
 	_player.attach(_client)
 	_world.add_child(_player)
+	_life.player = _player
 	_place(_client.model.spots.get(own_peer, Vector3.ZERO) as Vector3, Vector3.ZERO)
 
 
@@ -324,15 +355,19 @@ func _on_event(event_name: StringName, _fields: Dictionary) -> void:
 	_sync_life()
 
 
-## The own player crawls while its own life fold says downed (a KnockedDown naming it), and walks
-## again once the fold forgets it (a new match, the lobby). Only a change switches the body, since
-## switching stops it.
+## The own player's body follows its own life fold (M4-9): it crawls while downed (a KnockedDown
+## naming it), has no body while dead (Died; the physics step stops in _process, so it neither
+## walks nor claims until its Respawned), and walks again once living (Revived, Respawned, a new
+## match, the lobby). Only a change switches the body, since switching stops it. A raise naming it
+## holds it still (`held`).
 func _sync_life() -> void:
 	if _player == null:
 		return
-	var downed := _client.model.life_of(_client.model.own_peer) == ClientModel.Life.DOWNED
-	if _player.ghost != downed:
-		_player.ghost = downed
+	var model := _client.model
+	var own_life := model.life_of(model.own_peer)
+	if _player.life != own_life:
+		_player.life = own_life
+	_player.held = model.raiser_of(model.own_peer) != 0
 
 
 ## The level of the current phase: the lobby, loaded at once when a lobby phase starts; a map
@@ -389,6 +424,9 @@ func _end_session(reason: StringName) -> void:
 	_avatars.buffer = null
 	_buffer = null
 	_avatars.clear()
+	_life.reset()
+	_bodies.model = null
+	_bodies.clear()
 	_clear_level()
 	if _player != null:
 		_player.queue_free()

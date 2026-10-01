@@ -137,6 +137,11 @@ func client_tick(now_usec: int) -> int:
 	return (now_usec - _clock_start) * Ticks.RATE / 1000000
 
 
+## The client tick of the last MoveClaim sent; -1 before the first.
+func last_claim_tick() -> int:
+	return _last_claim_tick
+
+
 ## What the next MoveClaims say, from the mover (the player controller or a bot's).
 func set_motion(
 	position: Vector3,
@@ -331,6 +336,11 @@ func _claim(now_usec: int) -> void:
 	}
 	if _send(WireMessage.new(Intents.MOVE_CLAIM, claim)) == OK:
 		_last_claim_tick = tick
+
+
+## Whether the client sends MoveClaims now (its own copy of the phase and its own life).
+func claims_accepted() -> bool:
+	return _welcomed and _claims_accepted()
 
 
 ## Whether the client's own copy of the current phase accepts MoveClaim from it (§4.3): as a

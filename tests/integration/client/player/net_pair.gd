@@ -13,6 +13,7 @@ extends Node
 ## then a top at 1.2 m from x = 7.5 to 13.5. The treads are 0.5 m on purpose: on 0.3 m treads,
 ## narrower than the capsule, the host's height check (MovementRule's slope rise from a landing
 ## floor found by five rays, #76's to tune) corrects an honest climb, walking or sprinting.
+## Respawn markers at (8, 0, 12) and (12, 0, 12) serve with_life()'s respawn.
 
 const GAME := preload("res://client/app/game.tscn")
 const STEPS_ROOM := "res://tests/fixtures/client/steps_room.tscn"
@@ -93,6 +94,31 @@ func frames(count: int) -> void:
 ## The peer id of `game`'s own player.
 func peer_of(game: Game) -> int:
 	return game.client().model.own_peer
+
+
+## Gives the mode the life rules of the base mode (M4-9's suites), before start(): the Round's
+## LifeTicks with a Respawn on the `respawn` markers after `respawn_s` seconds, the raise (3 s,
+## 2 m), StopRaise and GiveUp (FixtureCombatModes), accepted as the base mode accepts them.
+func with_life(respawn_s: float) -> void:
+	mode.player_rules.respawn_s = respawn_s
+	var ticks := LifeTicks.new()
+	ticks.respawn = FixtureCombatModes.respawn()
+	var round_spec := mode.find_phase(&"round")
+	round_spec.tick_systems.append_array([ticks, ChannelTicks.new()])
+	round_spec.accepts.append(AcceptSpec.of(Intents.RAISE, AcceptSpec.From.LIVING))
+	round_spec.accepts.append(AcceptSpec.of(Intents.STOP_RAISE, AcceptSpec.From.LIVING))
+	round_spec.accepts.append(AcceptSpec.of(Intents.GIVE_UP, AcceptSpec.From.DOWNED))
+	(
+		mode
+		. actions
+		. append_array(
+			[
+				FixtureCombatModes.raise_rule(),
+				FixtureCombatModes.stop_raise_rule(),
+				FixtureCombatModes.give_up_rule(),
+			]
+		)
+	)
 
 
 ## Knocks `game`'s player down on the host as a strike to 0 health would (LifeRules.knock_down,
