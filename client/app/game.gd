@@ -20,6 +20,9 @@ extends Node
 ## Life (M4-9): the own controller follows the own life fold (_sync_life); `Bodies` (BodyViews)
 ## draws the bodies and `Life` (LifeView) the cameras of the downed and the dead, the countdowns,
 ## the life inputs and the lift music; the Ui's life panel shows its words in the round.
+##
+## Items (M4-8): `Items` (ItemWorld) draws the items, the circles and the destination marker, sends
+## the item keys and plays the world sounds; the Ui's HUD and task screen show the round.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
@@ -55,6 +58,7 @@ var _level: Node
 var _level_kind := PhaseSpec.Level.NONE
 var _bodies := BodyViews.new()
 var _life := LifeView.new()
+var _items := ItemWorld.new()
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -81,6 +85,7 @@ func _ready() -> void:
 	ui.esc.quit_requested.connect(quit)
 	_world.add_child(_bodies)
 	_world.add_child(_life)
+	_world.add_child(_items)
 	if OS.is_debug_build():
 		_overlay = DebugOverlay.new()
 		_overlay.name = "DebugOverlay"
@@ -219,6 +224,11 @@ func life() -> LifeView:
 	return _life
 
 
+## The items, circles, item keys and world sounds (M4-8).
+func items() -> ItemWorld:
+	return _items
+
+
 ## The debug overlay; null in a release build.
 func overlay() -> DebugOverlay:
 	return _overlay
@@ -233,10 +243,12 @@ func _process(_delta: float) -> void:
 		if GameFlow.frees_pointer(now):
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	ui.show_screen(now)
+	ui.reads_device_input = device_input
 	if _client != null:
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
+		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _items.hud_local())
 	_refresh_overlay()
 	if _player != null:
 		# The dead have no body to move: it stands still until its Respawned (M4-9).
@@ -245,6 +257,8 @@ func _process(_delta: float) -> void:
 		_player.reads_device_input = device_input and listening
 		_life.reads_device_input = device_input
 		_life.listening = listening and now == GameFlow.Screen.ROUND
+		_items.interactions.reads_device_input = device_input
+		_items.interactions.listening = listening and now == GameFlow.Screen.ROUND
 		if not listening:
 			# Nothing reads the keys now: W held when Esc opened must not keep walking.
 			_player.move_input = Vector2.ZERO
@@ -314,6 +328,7 @@ func _start_client(transport: NetTransport) -> void:
 	_bodies.model = _client.model
 	_bodies.rules = mode.player_rules
 	_life.setup(_client, mode, _avatars)
+	_items.setup(_client, mode, _avatars)
 
 
 func _on_welcomed(own_peer: int) -> void:
@@ -325,6 +340,7 @@ func _on_welcomed(own_peer: int) -> void:
 	_player.attach(_client)
 	_world.add_child(_player)
 	_life.player = _player
+	_items.set_player(_player)
 	_place(_client.model.spots.get(own_peer, Vector3.ZERO) as Vector3, Vector3.ZERO)
 
 
@@ -427,6 +443,7 @@ func _end_session(reason: StringName) -> void:
 	_life.reset()
 	_bodies.model = null
 	_bodies.clear()
+	_items.reset()
 	_clear_level()
 	if _player != null:
 		_player.queue_free()

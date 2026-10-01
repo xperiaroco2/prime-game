@@ -33,7 +33,7 @@ func _init() -> void:
 	column.add_child(ready_button)
 	column.add_child(settings_box)
 	shortfalls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	shortfalls_label.modulate = Color(1.0, 0.75, 0.4)
+	shortfalls_label.theme_type_variation = &"Shortfalls"
 	column.add_child(shortfalls_label)
 
 

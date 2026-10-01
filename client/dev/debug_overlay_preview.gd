@@ -11,6 +11,7 @@ func _ready() -> void:
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(backdrop)
 	var overlay := DebugOverlay.new()
+	overlay.theme = GameUi.THEME
 	overlay.visible = true
 	layer.add_child(overlay)
 	var counters: Dictionary[StringName, int] = {

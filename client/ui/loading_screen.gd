@@ -10,10 +10,7 @@ var players_label := Label.new()
 func _init() -> void:
 	name = "LoadingScreen"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var black := ColorRect.new()
-	black.color = Color(0.05, 0.05, 0.07)
-	black.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(black)
+	UiParts.backdrop(self, &"LoadingBackdrop")
 	var column := UiParts.centered_column(self, "Loading")
 	column.add_child(map_label)
 	column.add_child(players_label)
