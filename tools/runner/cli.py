@@ -32,6 +32,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
     sub.add_parser("selftest", help="unit tests of the runner itself")
+    p = sub.add_parser("bots", help="bot scenarios through the network layers and the information-leak test")
+    p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
+    p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
+    p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
 
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
@@ -154,6 +158,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import verify
 
             return verify.selftest()
+        if args.command == "bots":
+            from . import bots
+
+            return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
         if args.command == "board":
             from . import board
 
