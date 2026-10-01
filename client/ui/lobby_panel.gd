@@ -9,9 +9,6 @@ extends Control
 signal ready_toggled(on: bool)
 signal setting_changed(id: StringName, value: Variant)
 
-## The host's own player (NetTransport.HOST_ID): only it changes the settings.
-const HOST_PEER := 1
-
 var roster_label := Label.new()
 var countdown_label := Label.new()
 var ready_button := Button.new()
@@ -80,7 +77,7 @@ func refresh(model: ClientModel, host_tick: int) -> void:
 	ready_button.text = "Ready (press again to cancel)" if is_ready else "Ready"
 	var left := GameFlow.seconds_left(model.end_tick, host_tick)
 	countdown_label.text = "Starting in %d s" % left if left >= 0 else "Waiting for everyone"
-	var hosting := model.own_peer == HOST_PEER
+	var hosting := model.own_peer == NetTransport.HOST_ID
 	settings_box.visible = hosting
 	shortfalls_label.visible = not model.shortfalls.is_empty()
 	shortfalls_label.text = "\n".join(model.shortfalls)
@@ -103,7 +100,7 @@ static func roster_text(model: ClientModel) -> String:
 	for peer in peers:
 		var member: ClientModel.Member = model.roster[peer]
 		var marks := PackedStringArray()
-		if peer == HOST_PEER:
+		if peer == NetTransport.HOST_ID:
 			marks.append("host")
 		if peer == model.own_peer:
 			marks.append("you")

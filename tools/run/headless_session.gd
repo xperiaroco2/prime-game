@@ -15,8 +15,6 @@ extends SceneTree
 ## arguments.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
-## The runner starts the local clients once the host printed this.
-const HOSTING := "session: hosting"
 const STOP_CHECK_MS := 200
 ## A changed counter is printed at most this often; the roster and the phase at once.
 const COUNTERS_INTERVAL_MS := 1000
@@ -98,7 +96,12 @@ func _start_host(mode: GameMode, schema: WireSchema) -> void:
 	_client = ClientSession.new(_session.own_client, mode, schema)
 	_client.ended.connect(_on_client_ended)
 	_client.welcomed.connect(_on_welcomed)
-	print("%s %s on %s:%d" % [HOSTING, mode.resource_path.get_file(), _options.bind, _options.port])
+	print(
+		(
+			"%s %s on %s:%d"
+			% [LaunchOptions.HOSTING, mode.resource_path.get_file(), _options.bind, _options.port]
+		)
+	)
 	if _options.bind == LaunchOptions.EVERY_INTERFACE:
 		var addresses := _lan_addresses()
 		print(

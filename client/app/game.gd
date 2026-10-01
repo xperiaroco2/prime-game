@@ -14,11 +14,7 @@ extends Node
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
-## The runner starts the local clients once a host printed this (tools/runner/hostjoin.py).
-const HOSTING := "session: hosting"
 const STOP_CHECK_MS := 200
-## The host's own player.
-const HOST_PEER := 1
 
 ## The client's own copy of the game mode; MODE_PATH unless a test sets one before _ready.
 var mode: GameMode
@@ -107,7 +103,7 @@ func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	_host.ended.connect(_on_host_ended)
 	add_child(_host)
 	_start_client(_host.own_client)
-	print("%s %s on %s:%d" % [HOSTING, mode.resource_path.get_file(), bind, port])
+	print("%s %s on %s:%d" % [LaunchOptions.HOSTING, mode.resource_path.get_file(), bind, port])
 	return true
 
 

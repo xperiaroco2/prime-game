@@ -37,7 +37,7 @@ MAX_SECONDS = 24 * 3600
 GRACE_SECONDS = 10
 # How long the local clients wait for the host's HOSTING line before they start anyway (they then fail to join).
 HOST_READY_SECONDS = 60
-# The line the script prints once it hosts (headless_session.gd's HOSTING).
+# The line a host prints once it listens (LaunchOptions.HOSTING in client/app/launch_options.gd).
 HOSTING = "session: hosting"
 POLL_SECONDS = 0.1
 # How often the runner touches its alive file (the script stops once it is ALIVE_SECONDS = 10 old).

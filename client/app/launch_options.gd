@@ -22,6 +22,9 @@ const ALIVE_ARG := "--alive-file="
 const NO_REPLAY_ARG := "--no-replay"
 const LOCALHOST := "127.0.0.1"
 const EVERY_INTERFACE := "*"
+## A host, the game's or the headless session's, prints this once it listens; the runner starts
+## the local clients when it reads it (tools/runner/hostjoin.py).
+const HOSTING := "session: hosting"
 ## The runner touches its alive file every second; this much older means it was killed.
 const ALIVE_SECONDS := 10
 
