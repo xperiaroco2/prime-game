@@ -16,4 +16,4 @@ func _ready() -> void:
 	var counters: Dictionary[StringName, int] = {
 		&"over_budget": 0, &"bad_payloads": 0, &"malformed_disconnects": 0, &"voice_dropped": 2
 	}
-	overlay.show_numbers(0, 4821, 150.0, counters)
+	overlay.show_numbers(0, 1, 4821, 150.0, counters)

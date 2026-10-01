@@ -389,11 +389,15 @@ func _end_session(reason: StringName) -> void:
 func _refresh_overlay() -> void:
 	if _overlay == null or not _overlay.visible:
 		return
+	var counters: Dictionary[StringName, int] = {}
 	if _client == null:
-		_overlay.show_numbers(-1, -1, 0.0, {})
+		_overlay.show_numbers(-1, -1, -1, 0.0, counters)
 		return
-	var counters: Dictionary[StringName, int] = _host.counters() if _host != null else {}
-	_overlay.show_numbers(_client.corrections, _avatars.host_tick(), _avatars.delay_ms(), counters)
+	if _host != null:
+		counters = _host.counters()
+	_overlay.show_numbers(
+		_client.corrections, _client.placements, _avatars.host_tick(), _avatars.delay_ms(), counters
+	)
 
 
 func _show_menu(reason: StringName, detail := "") -> void:
