@@ -144,6 +144,24 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	await _pair.stop()
 
 
+func test_a_dead_player_who_leaves_hears_no_lift_music_in_the_menu() -> void:
+	assert_bool(await _pair.start()).is_true()
+	assert_bool(await _pair.to_round()).is_true()
+	var joiner := _pair.peer_of(_pair.client)
+	var session := _pair.client.client()
+	var life := _pair.client.life()
+	_pair.knock_down(_pair.client)
+	assert_bool(await _until(func() -> bool: return _pair.client.player().is_downed())).is_true()
+	life.give_up()
+	assert_bool(await _until(func() -> bool: return life.music().playing)).is_true()
+	assert_int(session.model.life_of(joiner)).is_equal(ClientModel.Life.DEAD)
+	_pair.client.leave()
+	await _pair.frames(10)
+	assert_bool(life.music().playing).is_false()
+	assert_int(life.view()).is_equal(LifeView.View.FIRST_PERSON)
+	await _pair.stop()
+
+
 ## Waits until `done` holds, at most `frames` physics frames; whether it held.
 func _until(done: Callable, frames := 30) -> bool:
 	for i: int in frames:

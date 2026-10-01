@@ -87,12 +87,14 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 
 
 ## Forgets the session (it ended): first person, nothing hidden, no music.
+## The model is forgotten before the view is chosen, or a dead player's own DEAD would start the
+## music again in the main menu, and nothing would stop it.
 func reset() -> void:
-	_show(View.FIRST_PERSON)
 	session = null
 	model = null
-	player = null
 	countdowns = null
+	_show(View.FIRST_PERSON)
+	player = null
 	_target = 0
 	_raise_wanted = false
 
