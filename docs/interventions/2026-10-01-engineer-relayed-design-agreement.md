@@ -25,7 +25,8 @@
 1. In the designer's area (`docs/GDD.md`, `docs/design/`, `content/`, `levels/`) the engineer's agent works when the
    engineer says the change was agreed with the designer.
 2. The PR says "agreed with the designer, relayed by the engineer" and tags @SwiftySinister for a later look. The
-   engineer merges it; the designer's approval before the merge is not required.
+   PR is merged (by the engineer, or in a stage by the manager into `release/m<k>`) without the designer's
+   approval before the merge.
 3. If the designer objects, a follow-up PR reverts the change.
 4. A scene the designer has an open PR on is still never edited.
 5. The designer keeps his area and his skills (`new-mechanic`, `new-level-piece`); without the engineer's word that

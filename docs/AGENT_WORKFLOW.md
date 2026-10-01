@@ -504,8 +504,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   - The engineer's agent works in the designer's area when the engineer says the change was agreed with the
     designer. Without that word it stops and asks, as before.
   - The PR says "agreed with the designer, relayed by the engineer" under "Cross-area" and tags @SwiftySinister
-    there for a later look. It does not wait for the designer's approval: the engineer merges it (this replaces
-    "a cross-area PR is approved by the other owner first" in §10 for such a PR).
+    there for a later look. It is merged without the designer's approval, by the engineer or, in a stage, by the
+    manager into `release/m<k>` (this replaces "a cross-area PR is approved by the other owner first" in §10 for
+    such a PR).
   - If the designer objects, a follow-up PR reverts the change.
   - A scene the designer has an open PR on is still never edited (`gh pr list --state open --json
     number,author,files`).
