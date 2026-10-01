@@ -593,8 +593,8 @@ The rules of the table:
   It was 2 when M4-6 (#142) added `Disconnecting` (58), 3 when M4-2 (#138) added `KnockedDown` (59) and
   renamed the avatar's flag `downed`, 4 when M4-3 (#139) added `Respawned` (60), the avatar's flag
   `invulnerable` and the debug row `ForceClock` (25), and is 5 since M4-4 (#140) added `Raise`, `StopRaise` and
-  `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63); M4's protocol PRs each set it to their base's plus one at the
-  rebase before the merge (the M4 ADR §4).
+  `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63); M4's protocol PRs each set
+  it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
   and levels only by path, so without the files a designer's branch that moved a wall or a crate would join `main`
