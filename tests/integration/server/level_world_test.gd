@@ -167,6 +167,18 @@ func test_other_physics_bodies_on_layer_1_are_reported() -> void:
 	assert_int(level.body_count()).is_equal(1)
 
 
+func test_a_level_with_no_layer_1_collision_is_an_error() -> void:
+	var root := _root()
+	var elsewhere := _box_body(root, Vector3.ZERO, Vector3(10, 1, 10))
+	elsewhere.collision_layer = 4
+	var off := _box_body(root, Vector3(20, 0, 0), Vector3(10, 1, 10))
+	(off.get_child(0) as CollisionShape3D).disabled = true
+	var level := LevelWorld.from_scene(root, IN_CODE)
+	assert_int(level.body_count()).is_equal(0)
+	assert_int(level.errors.size()).is_equal(1)
+	assert_str(level.errors[0]).contains(IN_CODE).contains("no static collision on layer 1")
+
+
 func test_a_path_that_is_not_a_scene_is_an_error() -> void:
 	var level := LevelWorld.build("res://tests/scratch/no_such_level.tscn")
 	assert_int(level.errors.size()).is_equal(1)

@@ -14,8 +14,9 @@ extends RefCounted
 ## where players collide: D2 (a), waiting for the designer on #96); any other physics body on
 ## layer 1 (a RigidBody3D, a CharacterBody3D), which players collide with but the host's static
 ## world would not hold. An AnimatableBody3D is a StaticBody3D: it is built where the scene puts
-## it, and never moves on the host. A level with errors is refused by the host like one with
-## marker errors.
+## it, and never moves on the host. A scene that gives the world no body at all is an error too:
+## the host would see through everything and find no floor. A level with errors is refused by
+## the host like one with marker errors.
 ##
 ## A fresh space answers rays at once, before any physics step (the probe in
 ## tests/integration/server/level_world_test.gd, §4.5), so a world is ready when it is built.
@@ -57,6 +58,10 @@ static func from_scene(root: Node, level_path: String) -> LevelWorld:
 	var built := LevelWorld.new()
 	built.path = level_path
 	built._read(root, root)
+	if built._bodies.is_empty():
+		built._fail(
+			"%s: no static collision on layer 1 (the host sees no wall or floor)" % level_path
+		)
 	return built
 
 
