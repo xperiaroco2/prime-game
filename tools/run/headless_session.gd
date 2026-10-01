@@ -8,6 +8,8 @@ extends SceneTree
 ##   --join=<address>   join that host with a ClientSession over EnetTransport
 ##   --port=<p>         the UDP port (default DEFAULT_PORT)
 ##   --stop-file=<path> stop cleanly once this file exists (the runner's Ctrl+C and --seconds)
+##   --alive-file=<path> stop once this file is gone or ALIVE_SECONDS old: the runner touches it
+##                      every second, so a killed runner leaves no session running
 ## It lives in tools/, which may use everything (ARCHITECTURE §1), because it composes server/ and
 ## client/ in one process; the host's own client still reads nothing of HostSession, only what
 ## own_client delivers (invariant 2).
@@ -25,11 +27,14 @@ const LOCAL_ARG := "--local"
 const JOIN_ARG := "--join="
 const PORT_ARG := "--port="
 const STOP_ARG := "--stop-file="
+const ALIVE_ARG := "--alive-file="
 const LOCALHOST := "127.0.0.1"
 const EVERY_INTERFACE := "*"
 ## The runner starts the local clients once the host printed this.
 const HOSTING := "session: hosting"
 const STOP_CHECK_MS := 200
+## The runner touches its alive file every second; this much older means it was killed.
+const ALIVE_SECONDS := 10
 ## A changed counter is printed at most this often; the roster and the phase at once.
 const COUNTERS_INTERVAL_MS := 1000
 ## The roster before Welcome: not printed until it changes.
@@ -81,6 +86,7 @@ class Options:
 	var address := ""
 	var bind := EVERY_INTERFACE
 	var stop_file := ""
+	var alive_file := ""
 	## What is wrong with the arguments; empty when nothing is.
 	var problem := ""
 
@@ -107,6 +113,8 @@ class Options:
 					return "%s takes a port between 1 and 65535, got '%s'" % [PORT_ARG, text]
 			elif arg.begins_with(STOP_ARG):
 				stop_file = arg.trim_prefix(STOP_ARG)
+			elif arg.begins_with(ALIVE_ARG):
+				alive_file = arg.trim_prefix(ALIVE_ARG)
 			else:
 				return "unknown argument '%s'" % arg
 		if hosting == joining:
@@ -149,6 +157,9 @@ func _process(_delta: float) -> bool:
 	if now_ms - _last_stop_check_ms >= STOP_CHECK_MS:
 		_last_stop_check_ms = now_ms
 		if _stop_requested():
+			_stop()
+		elif _runner_gone():
+			print("session: the runner is gone (its alive file is missing or stale), stopping")
 			_stop()
 	return false
 
@@ -326,6 +337,17 @@ func _end(reason: StringName) -> void:
 	_finish(
 		exit_code(_options.hosting, welcomed, reason), end_text(_options.hosting, welcomed, reason)
 	)
+
+
+## The runner was killed (an agent's command timeout, a closed terminal): nobody would stop this.
+func _runner_gone() -> bool:
+	var path := _options.alive_file
+	if path.is_empty():
+		return false
+	if not FileAccess.file_exists(path):
+		return true
+	var age := int(Time.get_unix_time_from_system()) - FileAccess.get_modified_time(path)
+	return age > ALIVE_SECONDS
 
 
 func _stop_requested() -> bool:

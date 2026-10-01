@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import cli, hostjoin, verify
-from runner.common import ROOT, Failure, godot_bin
+from runner.common import ROOT, Failure, godot_bin, kill_tree
 
 LOCALHOST = hostjoin.LOCALHOST
 
@@ -61,15 +61,16 @@ class OptionsTest(unittest.TestCase):
 
     def test_the_host_and_its_local_clients(self) -> None:
         stop = Path("stop")
+        files = [f"--stop-file={stop}", f"--alive-file={Path('stop.alive')}"]
         parts = hostjoin.host_parts(24999, 2, local=True, stop=stop)
         self.assertEqual([p.label for p in parts], ["host", "client 2", "client 3"])
-        self.assertEqual(parts[0].user_args, ["--host", "--local", "--port=24999", f"--stop-file={stop}"])
+        self.assertEqual(parts[0].user_args, ["--host", "--local", "--port=24999", *files])
         for part in parts[1:]:
-            self.assertEqual(part.user_args, ["--join=127.0.0.1", "--port=24999", f"--stop-file={stop}"])
+            self.assertEqual(part.user_args, ["--join=127.0.0.1", "--port=24999", *files])
         alone = hostjoin.host_parts(None, 0, local=False, stop=stop)
-        self.assertEqual([p.user_args for p in alone], [["--host", f"--stop-file={stop}"]])
+        self.assertEqual([p.user_args for p in alone], [["--host", *files]])
         joiner = hostjoin.join_parts("192.168.0.195", None, stop=stop)
-        self.assertEqual([p.user_args for p in joiner], [["--join=192.168.0.195", f"--stop-file={stop}"]])
+        self.assertEqual([p.user_args for p in joiner], [["--join=192.168.0.195", *files]])
 
     def test_the_godot_command_runs_the_script_headless(self) -> None:
         parts = hostjoin.join_parts("10.0.0.2", 7, stop=Path("s"))
@@ -77,7 +78,9 @@ class OptionsTest(unittest.TestCase):
         cmd = parts[0].cmd
         self.assertIn("--headless", cmd)
         self.assertEqual(cmd[cmd.index("-s") + 1], f"res://{hostjoin.SCRIPT}")
-        self.assertEqual(cmd[cmd.index("--") + 1 :], ["--join=10.0.0.2", "--port=7", "--stop-file=s"])
+        self.assertEqual(
+            cmd[cmd.index("--") + 1 :], ["--join=10.0.0.2", "--port=7", "--stop-file=s", "--alive-file=s.alive"]
+        )
         self.assertTrue((ROOT / hostjoin.SCRIPT).is_file())
 
     def test_wrong_options_fail_before_godot_starts(self) -> None:
@@ -159,6 +162,21 @@ class SupervisionTest(unittest.TestCase):
         self.assertLess(time.monotonic() - began, 30)
         self.assertEqual(parts[0].problem, "")
 
+    def test_the_runner_keeps_the_alive_file_fresh_while_it_runs_and_removes_it_after(self) -> None:
+        alive = hostjoin.alive_file(self.stop)
+        ages: list[float] = []
+
+        def watch(_parts: list[hostjoin.Part]) -> bool:
+            ages.append(time.time() - alive.stat().st_mtime)
+            return len(ages) >= 30
+
+        with mock.patch.object(hostjoin, "ALIVE_BEAT_SECONDS", 0.2):
+            self.run_parts([fake("join", "client", self.stop)], seconds=60, until=watch)
+        self.assertEqual(len(ages), 30)
+        # 30 polls of 0.1 s with a 0.2 s beat: a beat that never came would leave the file 3 s old.
+        self.assertLess(max(ages), 1.5)
+        self.assertFalse(alive.exists())
+
     def test_a_part_that_ignores_the_stop_is_killed_and_fails(self) -> None:
         parts = [fake("join", "stubborn", self.stop)]
         with mock.patch.object(hostjoin, "GRACE_SECONDS", 1):
@@ -216,6 +234,36 @@ class RealSessionTest(unittest.TestCase):
         for part in parts:
             self.assertIn("session: phase: lobby", part.lines, out.getvalue())
         self.assertEqual(parts[0].lines[-1], "session: stopped", out.getvalue())
+
+    def test_a_host_whose_runner_is_gone_stops_by_itself(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            stop = Path(tmp) / "stop"
+            alive = hostjoin.alive_file(stop)
+            alive.write_text("alive\n", encoding="ascii")
+            parts = hostjoin.host_parts(verify.free_udp_port(), 0, local=True, stop=stop)
+            hostjoin.set_commands(parts, str(godot_bin()))
+            host = parts[0]
+            with mock.patch("sys.stdout", new_callable=io.StringIO):
+                hostjoin.start(host)
+                assert host.proc is not None
+                try:
+                    deadline = time.monotonic() + 60
+                    while not any(line.startswith(hostjoin.HOSTING) for line in host.lines):
+                        self.assertTrue(host.running and time.monotonic() < deadline, host.lines)
+                        time.sleep(0.1)
+                    # A killed runner: its alive file is no longer touched, and here it is gone.
+                    alive.unlink()
+                    host.proc.wait(timeout=20)
+                finally:
+                    if host.running:
+                        kill_tree(host.proc)
+                    if host.reader is not None:
+                        host.reader.join(timeout=5)
+                    if host.proc.stdout is not None:
+                        host.proc.stdout.close()
+        self.assertEqual(host.proc.returncode, 0, host.lines)
+        self.assertTrue(any("the runner is gone" in line for line in host.lines), host.lines)
+        self.assertEqual(host.lines[-1], "session: stopped", host.lines)
 
     def join_nobody(self, seconds: int | None) -> hostjoin.Part:
         """A real join of a free port of 127.0.0.1 that nothing listens on."""

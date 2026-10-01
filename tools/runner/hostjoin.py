@@ -9,7 +9,8 @@ and keeps one log per process in tools/out/logs/session/.
 They run until Ctrl+C, until --seconds pass, or until every process ended. Stopping is clean: the runner creates a
 stop file that each process polls; it closes its session (so the clients see host_lost at once, not after ENet's
 timeout) and exits 0. A process still running GRACE_SECONDS later is killed and fails the run; a second Ctrl+C kills
-at once. The run fails when a process exits non-zero (a refused join, a host that could not start) or prints an
+at once. The runner also touches an alive file every second: a runner that is killed (an agent's command timeout)
+leaves no session running, since each process stops once that file is gone or ten seconds old. The run fails when a process exits non-zero (a refused join, a host that could not start) or prints an
 engine error line, as `run` does.
 """
 
@@ -39,6 +40,8 @@ HOST_READY_SECONDS = 60
 # The line the script prints once it hosts (headless_session.gd's HOSTING).
 HOSTING = "session: hosting"
 POLL_SECONDS = 0.1
+# How often the runner touches its alive file (the script stops once it is ALIVE_SECONDS = 10 old).
+ALIVE_BEAT_SECONDS = 1.0
 LOG_DIR = LOGS / "session"
 
 
@@ -80,17 +83,26 @@ def stop_file() -> Path:
     return LOG_DIR / f"stop-{os.getpid()}"
 
 
+def alive_file(stop: Path) -> Path:
+    """The file the runner touches every second while it runs: a process whose runner was killed stops itself."""
+    return stop.with_name(f"{stop.name}.alive")
+
+
+def _tail(port: int | None, stop: Path) -> list[str]:
+    port_args = [f"--port={port}"] if port is not None else []
+    return [*port_args, f"--stop-file={stop}", f"--alive-file={alive_file(stop)}"]
+
+
 def host_parts(port: int | None, clients: int, *, local: bool, stop: Path) -> list[Part]:
     """The host and its `clients` local joiners."""
-    tail = ([f"--port={port}"] if port is not None else []) + [f"--stop-file={stop}"]
+    tail = _tail(port, stop)
     parts = [Part("host", ["--host", *(["--local"] if local else []), *tail])]
     parts += [Part(f"client {i}", [f"--join={LOCALHOST}", *tail]) for i in range(2, clients + 2)]
     return parts
 
 
 def join_parts(address: str, port: int | None, *, stop: Path) -> list[Part]:
-    tail = ([f"--port={port}"] if port is not None else []) + [f"--stop-file={stop}"]
-    return [Part("join", [f"--join={address}", *tail])]
+    return [Part("join", [f"--join={address}", *_tail(port, stop)])]
 
 
 def check_options(*, port: int | None, clients: int = 0, seconds: int | None = None, address: str | None = None) -> None:
@@ -153,6 +165,11 @@ def supervise(
     """
     stop.parent.mkdir(parents=True, exist_ok=True)
     stop.unlink(missing_ok=True)
+    alive = alive_file(stop)
+    alive.write_text("alive\n", encoding="ascii")
+    done = threading.Event()
+    beat = threading.Thread(target=_keep_alive, args=(alive, done), daemon=True)
+    beat.start()
     started = time.monotonic()
     try:
         start(parts[0], cwd=cwd)
@@ -175,6 +192,18 @@ def supervise(
         say(f"session: Ctrl+C, stopping (each process gets {GRACE_SECONDS}s; Ctrl+C again kills them)")
     finally:
         _stop(parts, stop)
+        done.set()
+        beat.join(timeout=5)
+        alive.unlink(missing_ok=True)
+
+
+def _keep_alive(alive: Path, done: threading.Event) -> None:
+    """Touch the alive file every second until `done`; a killed runner stops touching it."""
+    while not done.wait(ALIVE_BEAT_SECONDS):
+        try:
+            os.utime(alive)
+        except OSError:
+            pass
 
 
 def _stop(parts: list[Part], stop: Path) -> None:

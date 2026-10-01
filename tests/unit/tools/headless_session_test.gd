@@ -17,6 +17,12 @@ func test_host_arguments() -> void:
 	assert_str(local.bind).is_equal(Launcher.LOCALHOST)
 	assert_int(local.port).is_equal(Launcher.DEFAULT_PORT)
 	assert_str(local.stop_file).is_equal("x")
+	assert_str(local.alive_file).is_empty()
+	var runner := Launcher.Options.parse(
+		PackedStringArray(["--host", "--alive-file=x.alive"])
+	)
+	assert_str(runner.problem).is_empty()
+	assert_str(runner.alive_file).is_equal("x.alive")
 
 
 func test_join_arguments() -> void:
