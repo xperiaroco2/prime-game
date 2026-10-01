@@ -218,10 +218,26 @@ them already. A change the designer agrees to may be made by the engineer's agen
 - **`shot` for every visual change:** each screen through a preview scene in `client/dev/` fed by a fake
   `ClientModel` (`tools\run.cmd shot client/dev/<preview>.tscn`), each view (item, circle, body, the downed pose, the
   invulnerable look), each level piece and map. The PNG goes into the PR.
-- **The one-PC windowed playtest** (a human; after M4-7, again after M4-8 and M4-9). Between two of the manager's
-  merges, on the engineer's PC:
+- **A playtest worktree** on each PC, so a playtest never moves the human's main checkout off its branch and never
+  races the manager's merge worktree, which the manager re-detaches at every merge. Once per PC (the clone may live
+  elsewhere on the other PC; use its folder):
   ```powershell
-  cd D:\prime-game\.claude\worktrees\release-m4
+  cd D:\prime-game
+  git fetch origin
+  git worktree add D:\prime-game\.claude\worktrees\playtest-m4 --detach origin/release/m4
+  ```
+  Before each playtest, in that worktree:
+  ```powershell
+  cd D:\prime-game\.claude\worktrees\playtest-m4
+  git fetch origin
+  git switch --detach origin/release/m4
+  ```
+  After M4: `git worktree remove D:\prime-game\.claude\worktrees\playtest-m4`, run from `D:\prime-game`. The design
+  did not run these commands, since the windows come with M4-6; M4-6's agent runs them first with `--headless`.
+- **The one-PC windowed playtest** (a human; after M4-7, again after M4-8 and M4-9), on the engineer's PC, in the
+  playtest worktree:
+  ```powershell
+  cd D:\prime-game\.claude\worktrees\playtest-m4
   tools\run.cmd host --clients 2
   ```
   Three windows open, tiled (E20). It checks: the menu skipped, all three in the lobby; walking, sprinting, jumping,
@@ -235,12 +251,10 @@ them already. A change the designer agrees to may be made by the engineer's agen
   Vulkan); the host's window closed (the clients return to the menu, saying why).
 - **The two-machine playtest** (#21's setup, LAN or VPN; after M4-7, then at M4's end). On the host PC, as above but
   `tools\run.cmd host` (every interface; it prints its LAN address; allow the firewall prompt on private networks).
-  On the other PC, on the same commit (`git rev-parse --short HEAD` equal on both, or the join says `wrong_version`
-  or `wrong_content`):
+  On the other PC, in its playtest worktree, on the same commit (`git rev-parse --short HEAD` equal on both, or the
+  join says `wrong_version` or `wrong_content`):
   ```powershell
-  cd <the clone, for example D:\prime-game>
-  git fetch origin
-  git switch --detach origin/release/m4
+  cd D:\prime-game\.claude\worktrees\playtest-m4
   tools\run.cmd join <the host's address>
   ```
   If the windows cannot connect, the M3 check first: `tools\run.cmd host --headless` and
