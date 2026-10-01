@@ -119,6 +119,9 @@ func _act(bot: ScenarioBot, at_tick: int) -> void:
 ## The host disconnected `bot` (core/'s DisconnectPeer, or its session ended): it acts no more. A
 ## WaitFor or Expect left in its script is checked on what it received before (Disconnecting,
 ## #119); any step still left then fails, so a script never ends unseen with its connection.
+## Leftover steps are not started: each looks back from the cursors of the last step that started,
+## so they are looser than live play (an event from before that step counts). Enough for one
+## leftover wait; a script that needs order among leftovers needs a cursor per step here.
 func _disconnected(bot: ScenarioBot, at_tick: int) -> void:
 	tick_now = at_tick
 	while failures.is_empty():
