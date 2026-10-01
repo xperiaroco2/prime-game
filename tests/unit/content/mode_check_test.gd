@@ -245,6 +245,28 @@ func test_a_role_owned_public_event_is_a_warning_not_an_error() -> void:
 	assert_array(Array(ModeCheck.run(mode).warnings)).is_empty()
 
 
+func test_a_phase_that_can_knock_down_must_list_life_ticks() -> void:
+	# The combat fixture's Round accepts Use, and the knife's Use rule strikes: with its LifeTicks
+	# it passes; without, a downed player would never die.
+	var mode := FixtureCombatModes.basic()
+	_expect_none(mode)
+	mode.find_phase(&"round").tick_systems = []
+	_expect(mode, 'phase round runs [&"Use"], which can knock a player down')
+	_expect(mode, "lists no LifeTicks")
+	# A phase that cannot knock anyone down needs none: the plain fixture's Use only notes.
+	var plain := FixtureModes.basic()
+	plain.find_phase(&"round").tick_systems = []
+	_expect_none(plain)
+
+
+func test_a_respawn_needs_its_tag_and_rng_purpose() -> void:
+	var mode := FixtureCombatModes.respawning()
+	_expect_none(mode)
+	FixtureCombatModes.life_ticks(mode).respawn = Respawn.new()
+	_expect(mode, "Respawn has no tag")
+	_expect(mode, "Respawn has no rng_purpose")
+
+
 func _expect(mode: GameMode, fragment: String) -> void:
 	var errors := ModeCheck.run(mode).errors
 	var found := false
