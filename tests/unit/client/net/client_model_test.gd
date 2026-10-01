@@ -185,6 +185,47 @@ func test_a_respawn_makes_the_player_living_and_removes_its_body() -> void:
 	assert_int(_model.lives.size()).is_equal(0)
 
 
+func test_a_raise_is_folded_from_its_start_to_its_stop() -> void:
+	# M4-4: RaiseStarted records who raises whom; RaiseStopped forgets it and the target stays
+	# downed.
+	_to_round()
+	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))
+	_fold(RaiseStartedEvent.new(5, OWN))
+	assert_int(_model.raiser_of(OWN)).is_equal(5)
+	assert_int(_model.raised_by(5)).is_equal(OWN)
+	assert_int(_model.raiser_of(5)).is_equal(0)
+	_fold(RaiseStoppedEvent.new(5, OWN))
+	assert_int(_model.raiser_of(OWN)).is_equal(0)
+	assert_int(_model.raised_by(5)).is_equal(0)
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.DOWNED)
+
+
+func test_a_revive_ends_the_raise_and_makes_the_player_living() -> void:
+	_to_round()
+	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))
+	_fold(KnockedDownEvent.new(5, Vector3(1, 0, 1)))
+	_fold(RaiseStartedEvent.new(1, OWN))
+	_fold(RevivedEvent.new(OWN))
+	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.ALIVE)
+	assert_bool(_model.is_alive(OWN)).is_true()
+	assert_int(_model.raiser_of(OWN)).is_equal(0)
+	assert_dict(_model.raises).is_empty()
+	# Nobody else's life changes.
+	assert_int(_model.life_of(5)).is_equal(ClientModel.Life.DOWNED)
+
+
+func test_a_leave_or_a_new_match_forgets_the_raises() -> void:
+	_to_round()
+	_fold(RaiseStartedEvent.new(5, OWN))
+	_fold(RaiseStartedEvent.new(OWN, 6))
+	_fold(PlayerLeftEvent.new(5))
+	assert_int(_model.raiser_of(OWN)).is_equal(0)
+	assert_int(_model.raiser_of(6)).is_equal(OWN)
+	var settings: Dictionary[StringName, int] = {&"knives": 1}
+	_fold(LoadMatchEvent.new(4, "res://levels/c.tscn", settings))
+	assert_dict(_model.raises).is_empty()
+
+
 func test_the_invulnerable_flag_comes_from_the_newest_snapshot() -> void:
 	_to_round()
 	var shielded := {"position": Vector3.ONE, "downed": false, "invulnerable": true}
