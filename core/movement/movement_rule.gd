@@ -36,7 +36,8 @@ extends RefCounted
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (for the
 ##   living sprint in the sprint state with movement input, else walk; for the downed the crawl
 ##   speed, with no sprint), plus, for the living only, sprint speed for being pushed (§7.1
-##   "Pushing apart", proposed for M4; the downed push nobody and nobody pushes them), plus
+##   "Pushing apart", proposed for M4) while another living player's last accepted position is
+##   within push_reach() of the claim's path (the downed push nobody and nobody pushes them), plus
 ##   DISTANCE_SLACK_M. The crawl's slack is CRAWL_SLACK_FRACTION of its own travel (+ the float
 ##   slack) instead: a fixed slack per claim would let a client sending one-tick claims crawl at
 ##   twice the crawl speed. The host never checks or corrects overlap between players.
@@ -86,6 +87,14 @@ const MAX_PITCH_DEG := 89.0
 ## The highest jump count a claim may carry: the wire's `jumps: u16` (§4.3). Core checks it itself
 ## (invariant 1), so a count that skipped the codec cannot overflow the stamina cost.
 const MAX_JUMPS := 0xFFFF
+## The push allowance's reach (#76): a living player is granted it only while another living
+## player's last accepted position lies within PUSH_REACH_RADII capsule radii (two capsules
+## touching) plus PUSH_LAG_S of sprinting of the claim's path. The lag: the pushed client moves
+## away from the pusher where it draws it, SnapshotBuffer's delay (about 0.1 s) plus a round trip
+## behind the pusher's position on the host. With two radii alone, an honest head-on push over the
+## loopback (#143's network push test) was corrected: the players were 0.86 m apart on the host.
+const PUSH_REACH_RADII := 2.0
+const PUSH_LAG_S := 0.2
 
 
 ## What the checks remember of one player between claims.
@@ -213,7 +222,9 @@ static func _check(
 		if not StaminaLedger.covers(player, _jumps_cost(rules, checked.new_jumps)):
 			return null
 		checked.take_off_y = maxf(take_off.y, player.position.y)
-	if checked.travel > _allowed_travel(player, rules, covered, checked.settled, claim.moving):
+	var pushed := player.is_alive() and _near_living_player(ctx.state, player, claim.position)
+	var allowed := _allowed_travel(player, rules, covered, checked.settled, claim.moving, pushed)
+	if checked.travel > allowed:
 		return null
 	var jumping := jumped or motion.jumping
 	var base_y := checked.take_off_y if jumped else motion.base_y
@@ -253,13 +264,14 @@ static func _accept(
 
 
 ## The horizontal metres a claim covering `covered` client ticks may travel. `moving`: the claim
-## gave movement input.
+## gave movement input; `pushed`: another living player is near enough to push this one.
 static func _allowed_travel(
 	player: PlayerState,
 	rules: PlayerRules,
 	covered: int,
 	settled: StaminaLedger.Settlement,
-	moving: bool
+	moving: bool,
+	pushed: bool
 ) -> float:
 	var metres_per_tick := 1.0 / Ticks.RATE
 	if player.life == PlayerState.Life.DOWNED:
@@ -281,10 +293,43 @@ static func _allowed_travel(
 		(sprint_ticks * rules.sprint_speed_mps + walk_ticks * rules.walk_speed_mps)
 		* metres_per_tick
 	)
-	# A pushed living player moves out of an overlap at up to sprint speed on top of its own
-	# (§7.1 "Pushing apart"; proposed for M4, not decided).
-	travel += covered * rules.sprint_speed_mps * metres_per_tick
+	if pushed:
+		# A pushed living player moves out of an overlap at up to sprint speed on top of its own
+		# (§7.1 "Pushing apart"; proposed for M4, not decided).
+		travel += covered * rules.sprint_speed_mps * metres_per_tick
 	return travel + DISTANCE_SLACK_M
+
+
+## Whether a living player other than `player` may be pushing it: that player's last accepted
+## position is within push_reach() of the claim's path (from `player`'s last accepted position to
+## `to`), measured horizontally, with the feet at most the capsule's height from the path's. The
+## downed and the dead push nobody (§7.1 The crawl).
+static func _near_living_player(state: MatchState, player: PlayerState, to: Vector3) -> bool:
+	var rules := state.player_rules
+	var reach := push_reach(rules)
+	var from := Vector2(player.position.x, player.position.z)
+	var path := Vector2(to.x, to.z) - from
+	var lowest := minf(player.position.y, to.y) - rules.capsule_height_m
+	var highest := maxf(player.position.y, to.y) + rules.capsule_height_m
+	for other: PlayerState in state.players.values():
+		if other == player or not other.is_alive():
+			continue
+		if other.position.y < lowest or other.position.y > highest:
+			continue
+		var at := Vector2(other.position.x, other.position.z) - from
+		var along := 0.0
+		if not path.is_zero_approx():
+			along = clampf(at.dot(path) / path.length_squared(), 0.0, 1.0)
+		if (at - path * along).length() <= reach:
+			return true
+	return false
+
+
+## How far from a claim's path another living player's last accepted position may be for the push
+## allowance, in metres: PUSH_REACH_RADII capsule radii plus PUSH_LAG_S of sprinting (2.2 m with
+## the MVP's numbers). A placeholder, "not a decision", until the M4 playtest.
+static func push_reach(rules: PlayerRules) -> float:
+	return PUSH_REACH_RADII * rules.capsule_radius_m + PUSH_LAG_S * rules.sprint_speed_mps
 
 
 ## The facing to store for a claimed `claimed` (finite) after `last`: a unit vector whose pitch is

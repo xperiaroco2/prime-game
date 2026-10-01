@@ -1,13 +1,14 @@
 extends GdUnitTestSuite
 ## MovementRule (ARCHITECTURE §7, §7.1): epochs, well-formed claims, horizontal speed over the
-## client's tick delta with the client's tick rate bounded, the push allowance, the downed's crawl,
-## the stored facing (a unit vector, pitch within ±89°), Correction with a new epoch to that player
-## only. Jumps and heights: movement_rule_jump_test.gd.
+## client's tick delta with the client's tick rate bounded, the push allowance (only near another
+## living player), the downed's crawl, the stored facing (a unit vector, pitch within ±89°),
+## Correction with a new epoch to that player only. Jumps and heights: movement_rule_jump_test.gd.
 ## Numbers per tick: FixtureMoves.
 
 const P1 := 1
 const P2 := 2
 const EAST := Vector3(1, 0, 0)
+const NORTH := Vector3(0, 0, 1)
 
 
 func test_a_claim_of_another_epoch_is_dropped_without_a_correction() -> void:
@@ -84,10 +85,27 @@ func test_a_first_claim_with_a_negative_client_tick_is_corrected() -> void:
 	assert_int(player.epoch).is_equal(epoch + 1)
 
 
-func test_a_living_player_walks_at_walk_speed_plus_the_push_allowance() -> void:
+func test_a_living_player_alone_walks_at_walk_speed() -> void:
 	var game := FixtureMoves.in_round([P1])
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	# Walk 0.225 + slack 0.05 = 0.275 m per tick: with nobody near, nobody pushes.
+	FixtureMoves.step(game, P1, EAST * 0.27, {"moving": true})
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	var at := player.position
+	FixtureMoves.step(game, P1, EAST * 0.3, {"moving": true})
+	var found := FixtureMoves.corrections(game, P1)
+	assert_int(found.size()).is_equal(seen + 1)
+	assert_vector(found[found.size() - 1].position).is_equal(at)
+	assert_vector(player.position).is_equal(at)
+
+
+func test_a_living_player_near_another_walks_at_walk_speed_plus_the_push_allowance() -> void:
+	var game := FixtureMoves.in_round([P1, P2])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	_put(game, P2, player.position + NORTH * 0.8)
 	var seen := FixtureMoves.corrections(game, P1).size()
 	# Walk 0.225 + push 0.35 + slack 0.05 = 0.625 m per tick.
 	FixtureMoves.step(game, P1, Vector3(0.6, 0, 0.1), {"moving": true})
@@ -105,13 +123,13 @@ func test_sprint_speed_needs_the_sprint_state() -> void:
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# Sprint 0.35 + push 0.35 + slack 0.05 = 0.75 m per tick in the sprint state.
-	FixtureMoves.step(game, P1, EAST * 0.7, FixtureMoves.sprinting())
+	# Sprint 0.35 + slack 0.05 = 0.4 m per tick in the sprint state.
+	FixtureMoves.step(game, P1, EAST * 0.38, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	assert_bool(player.sprinting).is_true()
 	player.stamina = 19000
 	player.sprinting = false
-	FixtureMoves.step(game, P1, EAST * 0.7, FixtureMoves.sprinting())
+	FixtureMoves.step(game, P1, EAST * 0.38, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
@@ -121,13 +139,13 @@ func test_speed_is_measured_over_the_clients_own_tick_delta() -> void:
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	FixtureModes.run_ticks(game, 2)
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# Three client ticks since the last claim: 3 * 0.575 + 0.05 = 1.775 m.
-	FixtureMoves.step(game, P1, EAST * 1.7, {"moving": true})
+	# Three client ticks since the last claim: 3 * 0.225 + 0.05 = 0.725 m.
+	FixtureMoves.step(game, P1, EAST * 0.7, {"moving": true})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	FixtureModes.run_ticks(game, 2)
 	var at := player.position
 	# Three host ticks passed, but the client claims only one of its own.
-	FixtureMoves.step(game, P1, EAST * 1.7, {"moving": true, "client_tick": player.claim_tick + 1})
+	FixtureMoves.step(game, P1, EAST * 0.7, {"moving": true, "client_tick": player.claim_tick + 1})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	assert_vector(player.position).is_equal(at)
 
@@ -264,21 +282,48 @@ func test_the_host_never_corrects_overlapping_players() -> void:
 
 
 func test_a_pushed_player_holding_sprint_moves_at_the_push_allowance_for_free() -> void:
-	var game := FixtureMoves.in_round([P1])
+	var game := FixtureMoves.in_round([P1, P2])
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	player.stamina = 50000
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# Holding sprint without movement input: walk 0.225 + push 0.35 + slack 0.05 = 0.625 m per
-	# tick, and sprint costs nothing: each tick regenerates.
-	FixtureMoves.steps(game, P1, 4, EAST * 0.6, {"sprint": true, "moving": false})
+	# Holding sprint without movement input while P2 pushes: walk 0.225 + push 0.35 + slack 0.05
+	# = 0.625 m per tick, and sprint costs nothing: each tick regenerates.
+	for i in 4:
+		_put(game, P2, player.position + NORTH * 0.8)
+		FixtureMoves.step(game, P1, EAST * 0.6, {"sprint": true, "moving": false})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	assert_int(player.stamina).is_equal(53000)
 	# Sprint speed of its own needs the movement input that pays for it.
+	_put(game, P2, player.position + NORTH * 0.8)
 	FixtureMoves.step(game, P1, EAST * 0.7, {"sprint": true, "moving": false})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 	FixtureMoves.step(game, P1, EAST * 0.7, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+
+
+func test_the_push_allowance_needs_a_living_player_within_reach_of_the_path() -> void:
+	# A modified client claiming it is pushed, with nobody near, got walk + sprint (11.5 m/s) with
+	# no input and no stamina (#76). Now only another living player's last accepted position
+	# within MovementRule.push_reach() (2.2 m) of the claim's path grants it.
+	var game := FixtureMoves.in_round([P1, P2])
+	var reach := MovementRule.push_reach(FixtureModes.player_rules())
+	assert_float(reach).is_equal_approx(2.2, 1e-6)
+	# Beyond the reach of the path's end (0.6 m east of the start), and ahead within it.
+	assert_bool(_pushed_claim_corrected(game, EAST * (0.6 + reach + 0.05))).is_true()
+	assert_bool(_pushed_claim_corrected(game, EAST * (0.6 + reach - 0.05))).is_false()
+	# Beside the middle of the path, just beyond the reach and just within it.
+	assert_bool(_pushed_claim_corrected(game, EAST * 0.3 + NORTH * (reach + 0.05))).is_true()
+	assert_bool(_pushed_claim_corrected(game, EAST * 0.3 + NORTH * (reach - 0.05))).is_false()
+	# Near, with its feet more than the capsule's height (1.8 m) above: on another floor.
+	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8 + Vector3.UP * 1.9)).is_true()
+	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8 + Vector3.UP * 1.7)).is_false()
+	# The downed and the dead push nobody.
+	var other := game.state.player(P2)
+	other.life = PlayerState.Life.DOWNED
+	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8)).is_true()
+	other.life = PlayerState.Life.DEAD
+	assert_bool(_pushed_claim_corrected(game, NORTH * 0.8)).is_true()
 
 
 func test_a_downed_player_crawls_with_no_sprint_and_no_push_allowance() -> void:
@@ -413,3 +458,21 @@ func test_after_a_correction_claims_in_flight_are_dropped_and_the_next_epoch_goe
 	FixtureMoves.step(game, P1, EAST * 0.2, {"moving": true, "epoch": correction.epoch})
 	assert_vector(player.position).is_equal_approx(at + EAST * 0.2, Vector3.ONE * 1e-4)
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+
+
+## Sets `peer`'s last accepted position, as a claim the host accepted would.
+func _put(game: Match, peer: int, at: Vector3) -> void:
+	game.state.player(peer).position = at
+
+
+## Whether P1's claim of 0.6 m east in one client tick, without movement input, is corrected while
+## P2's last accepted position is at `offset` from P1's: within the push allowance (walk 0.225 +
+## push 0.35 + slack 0.05 = 0.625 m) but beyond a walk alone (0.275 m). A claim standing still
+## first makes the claim cover one tick, also after a correction.
+func _pushed_claim_corrected(game: Match, offset: Vector3) -> bool:
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	_put(game, P2, player.position + offset)
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, EAST * 0.6)
+	return FixtureMoves.corrections(game, P1).size() > seen

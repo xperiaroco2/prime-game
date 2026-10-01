@@ -179,10 +179,13 @@ func test_a_rise_may_add_the_horizontal_travel_on_a_slope() -> void:
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var ground := player.position
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# 0.5 m north: up to 0.3 + 0.01 + 0.5 * tan 45° = 0.81 m higher, as up a 45° slope.
+	# 0.5 m north in three ticks (walking, up to 0.725 m): up to 0.3 + 0.01 + 0.5 * tan 45° =
+	# 0.81 m higher, as up a 45° slope.
+	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.step(game, P1, NORTH * 0.5 + UP * 0.8, {"moving": true})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
 	# 0.5 m further north, 0.85 m above the base (the ground): corrected.
+	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.claim(game, P1, ground + NORTH * 1.0 + UP * 0.85, {"moving": true})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
