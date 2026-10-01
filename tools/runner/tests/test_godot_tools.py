@@ -174,7 +174,9 @@ class ShotTest(unittest.TestCase):
                     mock.patch.object(shot, "say", said.append), mock.patch.object(shot, "ok"):  # fmt: skip
                 shot.main(PROBE, out=str(png))
         self.assertIn("        renderer: vulkan forward_plus", said)
-        self.assertIn("SHOT renderer", (ROOT / "tools/shot/shot.gd").read_text(encoding="utf-8"))
+        # shot.gd needs a real window, so no test runs it; pin the print statement itself, not the doc comment.
+        source = (ROOT / "tools/shot/shot.gd").read_text(encoding="utf-8")
+        self.assertIn('print("SHOT renderer ", RenderingServer.get_current_rendering_driver_name()', source)
 
     def test_probe_scene_is_committed(self) -> None:
         self.assertTrue((ROOT / PROBE).is_file())
