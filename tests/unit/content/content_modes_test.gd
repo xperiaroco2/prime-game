@@ -213,10 +213,10 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
 	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
-	# MoveClaim from the living and the downed (M4-1: the downed move as the ghosts did).
+	# MoveClaim from the living and the downed (the downed crawl, M4-2).
 	var moves := AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED
 	assert_int(in_round.senders_of(Intents.MOVE_CLAIM)).is_equal(moves)
-	# The knife from the base mode's own data: a living player strikes, and the dead cannot.
+	# The knife from the base mode's own data: a living player strikes, and the downed cannot.
 	var game := _base_round(mode, [1, 2, 3, 4])
 	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
 	FixtureItemModes.stand(game, 2, Vector3(0, 0, 101))
@@ -232,7 +232,7 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.DOWNED)
 	assert_array(FixtureModes.rejections(game, 1)).is_empty()
 	# The downed player, even holding a knife, is refused before any rule runs.
-	var dropped := FixtureItemModes.lay(game, &"knife", game.state.bodies[2])
+	var dropped := FixtureItemModes.lay(game, &"knife", game.state.player(2).position)
 	game.state.player(2).held_item = dropped.id
 	dropped.where = ItemState.Where.HAND
 	dropped.holder = 2
@@ -391,12 +391,13 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 
 
 func test_the_win_conditions_in_the_base_modes_order() -> void:
-	# §3.4 and §9.5 (2h, #64): every task done (crew), no crew alive and time up (dissidents).
+	# §3.4 and §9.5 (2h, #64; M4-2): every task done (crew), no crew present and time up
+	# (dissidents).
 	var mode := _base_mode()
 	var ids: Array[StringName] = []
 	for condition: WinCondition in mode.win_conditions:
 		ids.append(condition.id)
-	assert_array(ids).is_equal([&"every_task_done", &"no_crew_alive", &"time_up"])
+	assert_array(ids).is_equal([&"every_task_done", &"no_crew_present", &"time_up"])
 	var every_task_done := mode.win_conditions[0]
 	assert_str(every_task_done.resource_path).is_equal(
 		"res://content/win_conditions/every_task_done.tres"
@@ -405,10 +406,10 @@ func test_the_win_conditions_in_the_base_modes_order() -> void:
 	assert_int(every_task_done.conditions.size()).is_equal(1)
 	assert_object(every_task_done.conditions[0]).is_instanceof(AllSubtasksDone)
 	assert_bool(every_task_done.conditions[0].negate).is_false()
-	var no_crew_alive := mode.win_conditions[1]
-	assert_str(no_crew_alive.side).is_equal("dissidents")
-	assert_int(no_crew_alive.conditions.size()).is_equal(1)
-	var none_alive := no_crew_alive.conditions[0] as NoneAlive
+	var no_crew_present := mode.win_conditions[1]
+	assert_str(no_crew_present.side).is_equal("dissidents")
+	assert_int(no_crew_present.conditions.size()).is_equal(1)
+	var none_alive := no_crew_present.conditions[0] as NoneAlive
 	assert_object(none_alive).is_not_null()
 	assert_str(none_alive.side).is_equal("crew")
 	assert_bool(none_alive.negate).is_false()
