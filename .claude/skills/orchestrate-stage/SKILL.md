@@ -268,6 +268,19 @@ locally.
 - **No `staging`.** A second integration branch was tried and dropped the same night: one `release/m<k>` per
   milestone.
 
+### 2026-10-01 (M4)
+- **The netcode review covers `client/`** (#158). What the client renders can leak (a sound through walls, a camera
+  that sees too far). Before this, the review ran by hand on PR #154 twice, and both runs found real problems.
+- **Name a rename in both tasks' notes**, not only who owns which file. #153 renamed
+  `PlayerRules.ghost_speed_factor` while #154 started reading it: each PR was green alone, the merged tree was red,
+  and `pr-rebase` fixed it.
+- **A `pr-rebase` fix after the review gets a fresh netcode review.** When its fix agent changes netcode-relevant
+  code after the reviewers ran, run `netcode-security-reviewer` again before the merge (done by hand for #154).
+- **Never `cd <wt> && ...` in your Bash shell**: it stayed inside a worktree twice in M4. Only a subshell
+  `(cd <wt> && ...)` or `git -C <wt>`.
+- **`§` in args on Windows.** A Python `print` of the args mangled it: pass the args inline in the Workflow call,
+  or set `PYTHONIOENCODING=utf-8`.
+
 ## 10. Kickoff template
 The human copies it, fills the placeholders and sends it, in English or in their own language. Moving state (which
 issues, which PRs) goes only in the message, never in this file.
