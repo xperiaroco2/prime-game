@@ -1266,8 +1266,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `AnimatableBody3D` failed both on most frames a body moved, 30 to 173 per test, even with `force_update_transform()`).
 - **The crawl** (M4-9): a downed controller moves at the crawl speed, with no sprint and no jump, up the step height,
   colliding with the level only and pushing nobody; it keeps the standing capsule for collision (the host's floor
-  checks use it), and only its mesh lies down. Physics layer 3 becomes `downed` (`PhysicsLayers`), which no push
-  search looks at: the downed collide with no player.
+  checks use it), and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`, built in M4-9),
+  which no push search looks at: the downed collide with no player.
 
 **Built in M4-7 (#143)**, movement on the network:
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
@@ -1373,6 +1373,52 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
   progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
   `StationPlaced`'s colour, dimmed once `PackageDelivered` names it.
+
+**Built in M4-9 (#145)**, the life states in 3D:
+- `client/player/`: `PlayerController.life` (`set_life`, replacing the ghost flag and `set_ghost`) follows the own
+  life fold (`Game._sync_life`): living on the living layer; downed on the `downed` layer, crawling, with its lying
+  mesh (`Lying`); dead on no layer, no mesh, and no physics step (the controller returns at once and `Game` stops
+  its step), so a dead player never stands back up and walks before its `Respawned`. `held` (from
+  `ClientModel.raiser_of(own) != 0`) makes a downed controller stand still, spend nothing and claim where it lay.
+  Any life change clears a pending jump. `RemotePlayerBody` lies down while its player is downed (its head hidden,
+  the capsule shape kept standing), wears a pulsing white shell while its avatar has the `invulnerable` flag, hides
+  its meshes while watched from its eyes (`set_watched`), and knows its `peer`. `LifeLooks` holds D8's greybox
+  looks (the lying capsule, the body's grey capsule and dark cross, the shell).
+- `client/world/`: `BodyViews` (`Bodies` under `World`, -70) draws a body per `ClientModel.bodies` entry, the own
+  one included. `SnapshotBuffer` keeps a unit facing for a huge but finite relayed one (scaled by its largest
+  component before normalising; `unit_or()`), which `look_angles` shares.
+- `client/life/`: `LifeView` (`Life` under `World`, 5: after the player, before `SightHider`) picks the camera by
+  the own life (the player's, `DownedCamera`, or the spectate camera), runs the life inputs (E pressed on a downed
+  player within the mode's `TargetInReach` from the feet sends `Raise`, its release `StopRaise`, and a raise that
+  starts after E was let go is stopped at once; G held for 1 s sends `GiveUp` once; the left and right mouse
+  buttons cycle the spectate target while the mouse is captured) and plays `LiftMusic` while dead. `DownedCamera`
+  is the `SpringArm3D` above (its probe 0.2 m, its arm pitch 0 to 80° down, a look further down tilting the
+  camera alone). `SightHider` (10) hides every node of its group `hidden_out_of_sight` (the avatars, the bodies;
+  M4-8's item views join it) with no line of sight from the pivot, a ray each against the world layer with 0.1 m
+  of slack, and shows them again when the camera is out of use. `SpectateTargets` and `LifeCountdowns` are the pure
+  parts; a spectated living target is drawn from its body's interpolated pose (position, yaw, head pitch), so the
+  camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel.
+- `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD) and the shared greybox
+  theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
+  `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moves
+  the older screens' inline styles into it.
+- `project.godot`: `give_up` (G), `spectate_next` and `spectate_previous` (the left and right mouse buttons).
+- The lift music is a generated placeholder (`LiftMusic.placeholder_stream()`: a quiet looping arpeggio), until a
+  human picks a CC0 track with its `docs/credits/` entry.
+- Tests: `tests/unit/client/life/` (`LifeCountdowns`, `SpectateTargets` with a pinned seed, `LifeHud`, `LiftMusic`),
+  `tests/unit/client/ui/life_panel_test.gd` (the theme source test, seen failing on a planted override),
+  `tests/unit/client/app/session_node_test.gd`, `tests/integration/client/life/downed_camera_test.gd` (every look
+  at or below the eye and before a wall behind the body, seen failing without the clamp and the mask; a view seen
+  from the arm's end past a short wall but not from the eye is hidden),
+  `tests/integration/client/world/body_views_test.gd`, and over the loopback (`NetPair.with_life()`, which adds the
+  raise, the give-up and a 2 s respawn on `steps_room`'s new `respawn` markers) `life_network_test.gd`: a raised
+  downed joiner trying to crawl holds still and gets 0 `Correction`s (58 without the hold) and stands up
+  invulnerable in first person; a joiner who gives up stays off the living however it is driven, watches the host
+  from its eyes with the music, follows it to the camera above its body when it goes down, and respawns at a marker
+  in first person, invulnerable on the host's screen, with no `Correction`. `client/dev/life_preview.tscn` is the
+  `shot` of the downed pose, a body, the invulnerable look and the panel.
+- Not headless: the keys and the mouse, the feel of the cameras and the music; the one-PC playtest (the M4 ADR's
+  §6) checks them.
 
 **What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
