@@ -500,13 +500,15 @@ func _run_action(command: MatchCommand, ctx: MatchContext) -> void:
 		ctx.reject(command, reason)
 
 
-## Whether the current phase's allowlist accepts the intent from its sender (§3.1).
+## Whether the current phase's allowlist accepts the intent from its sender (§3.1). The dead send
+## no intents (vision revision 1): no flag accepts one, not PLAYER or HOST either, so an intent
+## still in flight at a death never reaches a rule.
 func _accepts(command: MatchCommand) -> bool:
 	var from := _phase_spec.senders_of(command.kind)
 	var player := state.player(command.peer)
 	if player == null:
 		return from & AcceptSpec.From.NEWCOMER != 0
-	if not player.is_present():
+	if not player.is_present() or player.life == PlayerState.Life.DEAD:
 		return false
 	if from & AcceptSpec.From.PLAYER != 0:
 		return true

@@ -6,11 +6,11 @@ extends ContentPart
 
 ## Who may send it; a sender matching any set flag is accepted. 8 was the ghosts' bit: it is never
 ## reused, so a mode written for ghosts is refused by the mode check (PhaseSpec) instead of
-## silently accepting someone else. There is no flag for the dead, who send no intents; one is
-## added only when a mode needs it.
+## silently accepting someone else. The dead send no intents: Match accepts none from them under
+## any flag, PLAYER and HOST included; a flag for them is added only when a mode needs one.
 enum From {
 	NEWCOMER = 1,  ## a connected peer whose Hello was not accepted yet
-	PLAYER = 2,  ## any player
+	PLAYER = 2,  ## any player but the dead
 	LIVING = 4,  ## a living player
 	HOST = 16,  ## the host's own player, peer 1
 	DOWNED = 32,  ## a downed player

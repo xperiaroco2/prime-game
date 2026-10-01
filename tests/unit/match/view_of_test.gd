@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 const P1 := 1
 const P2 := 2
 const P3 := 3
+const P4 := 4
 
 
 func test_recipients_are_recorded_with_every_event() -> void:
@@ -92,23 +93,29 @@ func test_the_outbox_hands_out_each_event_once() -> void:
 
 
 func test_snapshots_follow_the_visibility_rules() -> void:
-	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2, P3])
+	# The downed are public (M4-2); the dead have no avatar, and still get every snapshot.
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2, P3, P4])
 	game.state.player(P3).life = PlayerState.Life.DOWNED
+	game.state.player(P4).life = PlayerState.Life.DEAD
 	FixtureModes.run_ticks(game, 1)
 	var at := game.ticked_through()
 	var living: Dictionary = game.view_of(P1).snapshots[at]["avatars"]
-	assert_array(living.keys()).is_equal([P2])
+	assert_array(living.keys()).is_equal([P2, P3])
+	assert_bool(living[P2]["downed"]).is_false()
+	assert_bool(living[P3]["downed"]).is_true()
 	var downed: Dictionary = game.view_of(P3).snapshots[at]["avatars"]
 	assert_array(downed.keys()).is_equal([P1, P2])
-	assert_dict(game.snapshot_for(P2)["avatars"]).contains_keys([P1])
-	assert_dict(game.snapshot_for(P2)["avatars"]).not_contains_keys([P2, P3])
+	var dead: Dictionary = game.view_of(P4).snapshots[at]["avatars"]
+	assert_array(dead.keys()).is_equal([P1, P2, P3])
+	assert_dict(game.snapshot_for(P2)["avatars"]).contains_keys([P1, P3])
+	assert_dict(game.snapshot_for(P2)["avatars"]).not_contains_keys([P2, P4])
 
 
 func test_snapshots_hold_no_private_numbers() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	FixtureModes.run_ticks(game, 1)
 	var avatar: Dictionary = game.view_of(P1).snapshots[game.ticked_through()]["avatars"][P2]
-	assert_array(avatar.keys()).is_equal(["position", "velocity", "facing", "ghost", "held_item"])
+	assert_array(avatar.keys()).is_equal(["position", "velocity", "facing", "downed", "held_item"])
 
 
 func test_speakers_are_recorded_per_tick() -> void:
