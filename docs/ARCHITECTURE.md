@@ -1168,9 +1168,12 @@ host's own player sees only what its `ClientSession` decoded.
   world layer; the level stays drawn, since it is public.
 - **Countdowns** (V13) follow from public events and the mode's numbers: the knockdown's from `KnockedDown` of the
   own player, paused from `RaiseStarted` to `RaiseStopped` or `Revived`; the respawn's from `Died`; a raise's progress
-  from `RaiseStarted`, for the raiser and the raised. An event's host tick is taken as the tick of the first snapshot
-  that arrives after it, since a tick's events go before its snapshot (§4.5, step 6); a lost snapshot makes a
-  countdown 50 ms late, which only a display can afford.
+  from `RaiseStarted`, for the raiser and the raised. An event's host tick is `SnapshotBuffer`'s estimated host tick
+  at the moment the event arrives (the estimate the clock already uses). Not "the first snapshot after it": events
+  travel RELIABLE and snapshots LATEST, ENet orders nothing across channels, and a lost and resent `KnockedDown`
+  arrives after several later snapshots, so that rule would start the countdown late by the resend delay. With the
+  estimate a resent event is late by the same delay, and an on-time one is off by the estimate's error; both are
+  display-only, since the host keeps every deadline.
 - **Spectating** (V1, V9, answer 6): the camera is built from `ClientModel` only, with the same interpolated poses as
   the avatars: the target's eye and facing (yaw and pitch) for a living target, the downed camera above a downed
   target's body. The first target is a random living player other than the own one, drawn with the client's own
