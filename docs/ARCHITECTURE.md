@@ -775,8 +775,8 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   resting at the ledge's height beside it, which the delivery check reads (§7.1), so the same drop counts or not by the
   ledge. `rest_position(a, b)`: a ray from a to b, stopped 0.2 m (a placeholder) before
   the first hit, then `floor_below`. `core/` records every answer in the command log (§3.3).
-- **A fresh space.** Whether a space answers queries before its first physics step under Jolt was unproven (#32's
-  gotcha). 3c probed it first: build a world, query it in the same frame, and again after one physics step. If the first
+- **A fresh space.** Whether a space answers queries before its first physics step under Jolt is unproven (#32's
+  gotcha). 3c probes it first: build a world, query it in the same frame, and again after one physics step. If the first
   query misses, the host waits one physics step after building the worlds, before `MarkerReader` asks them for the
   markers' floor and before `Match.start`. Either way the worlds exist before the first claim can arrive. Physics runs
   on the main thread (`project.godot` sets no physics thread), where the 4.7.2 docs allow `direct_space_state` outside
@@ -786,16 +786,20 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   `intersect_ray` in the same frame, before any physics step, and again after one step: the host needs no wait, and 3c
   wires in no fallback. Shown by `tools\run.cmd test tests/integration/server/level_world_test.gd` (passed on
   2026-10-01), whose `test_a_fresh_space_answers_a_ray_before_and_after_one_physics_step` asserts both hits.
-- **Built in 3c (#99).** `LevelWorld` (`server/level_world.gd`: `build(path)`, `from_scene(root, path)`, `errors`)
-  builds one level's world as above, and also reports a `CollisionPolygon3D` of a layer-1 body, which it does not
-  read; a disabled shape and a body on other layers are left out. `HostWorldQuery`
-  (`server/host_world_query.gd`: `for_mode(mode)` builds every level of the mode with its capsule radius, `errors`;
-  `add_level`, `use_level`) answers as above; with no level (an empty or unknown path) it answers like an empty world.
-  A floor answer keeps the point's x and z. A ray that starts inside a shape does not hit it (`hit_from_inside` is
-  off), and one that starts exactly on a surface may miss it, so callers ask from a little above the point, as
-  `core/` does. `MarkerReader.read_levels` calls `use_level(path)` before reading
-  each level. Tests: `tests/integration/server/` (fixture levels with a wall, a ledge and a low crate in
-  `tests/fixtures/levels/`, a package put down beside the ledge through a `Match`, and 2j's flat levels).
+- **Built in 3c (#99).** `LevelWorld` (`server/level_world.gd`: `build(path)`, `from_packed(scene, path)`,
+  `from_scene(root, path)`, `errors`) builds one level's world as above, and also reports a `CollisionPolygon3D` of a
+  layer-1 body, which it does not read, any other physics body on layer 1 (a `RigidBody3D`, a `CharacterBody3D`), a
+  scene that cannot be instantiated and a level that gives the world no layer-1 body; a disabled shape and a body on
+  other layers are left out. Only a root CSG node with `use_collision` and a `GridMap` whose used items have shapes
+  count as collision. An `AnimatableBody3D` is a `StaticBody3D`: built where the scene puts it, it never moves on the
+  host. `HostWorldQuery` (`server/host_world_query.gd`: `for_mode(mode)` builds every level of the mode with its capsule
+  radius, `errors`; `add_level`, `use_level`) answers as above; with no level (an empty or unknown path) it answers like
+  an empty world. A floor answer keeps the point's x and z. A ray that starts inside a shape does not hit it
+  (`hit_from_inside` is off: sight from inside a wall is clear, within §7.1's limit that the host does not check walls),
+  and one that starts exactly on a surface may miss it, so callers ask from a little above the point, as `core/` does.
+  `MarkerReader.read_levels` calls `use_level(path)` before reading each level. Tests: `tests/integration/server/`
+  (fixture levels with a wall, a ledge and a low crate in `tests/fixtures/levels/`, a package put down beside the ledge
+  through a `Match`, and 2j's flat levels).
 
 **The command log and replays** (E13). The host keeps the log in memory (§3.3). A debug-build host writes the session's
 log to `user://replays/` when the session ends (never after each match) and keeps the last 10: the log holds the session
