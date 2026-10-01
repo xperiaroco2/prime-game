@@ -913,8 +913,13 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
     and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
     physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
-    of travel in a claim of one client tick, past the crawl's allowance. The client tick counts `Ticks.RATE` ticks
-    from the first step; a step sends at
+    of travel in a claim of one client tick, past the crawl's allowance. So the client tick follows physics steps
+    on purpose, and `SessionNode` checks that the physics rate is a multiple of `Ticks.RATE`. After a hitch longer
+    than Godot's catch-up (8 steps a frame) the steps would trail real time for good, and the host's stamina ledger
+    with them (the next sprint-jump would settle phantom sprint ticks and be refused): right after a claim went
+    out, steps trailing the real clock by 3 or more jump forward by whole client ticks, and the next claim covers
+    those ticks with one tick's travel (M4-9, the netcode review of PR #154; `session_node_test.gd`). The client
+    tick counts `Ticks.RATE` ticks from the first step; a step sends at
     most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
     (`set_motion`, `count_jump`) and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
     reset the jump count and put the claims at the host's position.

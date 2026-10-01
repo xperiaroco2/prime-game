@@ -280,6 +280,7 @@ func _start_client(transport: NetTransport) -> void:
 	_client.event_received.connect(_on_event)
 	_client.ended.connect(_end_session)
 	_session_node = SessionNode.new(_client)
+	_session_node.real_clock = clock
 	_session_node.name = "SessionNode"
 	add_child(_session_node)
 	_buffer = SnapshotBuffer.new()

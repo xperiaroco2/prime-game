@@ -137,6 +137,11 @@ func client_tick(now_usec: int) -> int:
 	return (now_usec - _clock_start) * Ticks.RATE / 1000000
 
 
+## The client tick of the last MoveClaim sent; -1 before the first.
+func last_claim_tick() -> int:
+	return _last_claim_tick
+
+
 ## What the next MoveClaims say, from the mover (the player controller or a bot's).
 func set_motion(
 	position: Vector3,
