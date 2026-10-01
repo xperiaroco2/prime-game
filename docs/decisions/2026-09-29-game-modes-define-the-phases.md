@@ -3,6 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-09-29
 - **Deciders:** the engineer (approved in chat with the M2 manager session on 2026-09-29); recorded from #31
+- **Amended by:** [vision revision 1](2026-10-01-vision-revision-1.md) (#126, 2026-10-01): the meetings mode (#35)
+  is dropped, so no mode adds Meeting → Vote → Resolution. "A mode can add phases" stays a requirement: the parked
+  deathmatch mode is its example now, and the zone task (#36) the example of a mechanic that needs no new phase.
 
 ## Context
 Architecture invariant 5, from the founding brief, fixed one phase chain for every match:
