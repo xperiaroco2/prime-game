@@ -3,8 +3,9 @@ extends Node3D
 ## The `Avatars` node under World (ARCHITECTURE §4.7): one RemotePlayerBody per other player of the
 ## own ClientModel's newest snapshot, placed each physics frame at SnapshotBuffer's interpolated
 ## pose (E23) at priority -80, after the session (-90) and before the local player (0), so the
-## player's push search sees this frame's capsules (`sync_to_physics` is off on the bodies). A
-## placement (PlayersPlaced) snaps the players it names; a new map (LoadMatch) forgets the poses.
+## player's push search sees this frame's capsules (static bodies placed with
+## force_update_transform(), RemotePlayerBody). A placement (PlayersPlaced) snaps the players it
+## names; a new map (LoadMatch) forgets the poses.
 
 const PHYSICS_PRIORITY := -80
 const BODY := preload("res://client/player/remote_player_body.tscn")
@@ -20,6 +21,8 @@ var clock := Callable()
 var _bodies: Dictionary[int, RemotePlayerBody] = {}
 ## The host tick the bodies were last drawn at; -1 before.
 var _drawn_at := -1.0
+## The highest host_tick() given so far: it never runs backwards; -1 before.
+var _given_tick := -1
 
 
 func _init() -> void:
@@ -42,11 +45,13 @@ func drawn_at() -> float:
 
 
 ## The estimated host tick now (the countdowns and the clock read it), or the newest snapshot's
-## before any arrived; -1 before both.
+## before any arrived; -1 before both. It never runs backwards, though the estimate drops a little
+## when the least delayed arrival leaves SnapshotBuffer's window: a countdown would show more time.
 func host_tick() -> int:
 	if buffer == null or not buffer.has_estimate():
 		return model.snapshot_tick if model != null else -1
-	return floori(buffer.estimated_tick(now_usec()))
+	_given_tick = maxi(_given_tick, floori(buffer.estimated_tick(now_usec())))
+	return _given_tick
 
 
 ## The interpolation delay in use, in milliseconds (the debug overlay).
@@ -64,6 +69,7 @@ func clear() -> void:
 		body.queue_free()
 	_bodies.clear()
 	_drawn_at = -1.0
+	_given_tick = -1
 
 
 ## The session's events that move the others without a snapshot telling it (connected by the

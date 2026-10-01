@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## AvatarViews (ARCHITECTURE §4.7): at physics priority -80 each other player of the model's newest
 ## snapshot gets a RemotePlayerBody at SnapshotBuffer's pose, the yaw on the body and the pitch on
 ## the head; a vertical facing keeps the turn and gives no NaN; a player the model drops goes; a
-## PlayersPlaced snaps; a LoadMatch forgets the poses.
+## PlayersPlaced snaps; a LoadMatch forgets the poses; the estimated host tick never runs backwards.
 
 const PEER := 2
 const TICK_USEC := 50000
@@ -81,6 +81,29 @@ func test_a_placement_snaps_the_player_it_names() -> void:
 	# Between ticks 2 and 3 it is where it was, not on its way: a placement slides nowhere.
 	var pose := _views.buffer.pose_of(PEER, 2.5)
 	assert_vector(pose.position).is_equal(Vector3.ZERO)
+
+
+func test_the_host_tick_never_runs_backwards() -> void:
+	var avatars := {}
+	# One snapshot arrives with no delay, then every later one 3 ticks late: when the first leaves
+	# the 2 s window, the raw estimate drops by 3 ticks.
+	_views.buffer.add(100, avatars, _now)
+	var given: Array[int] = [_views.host_tick()]
+	var dropped := false
+	var raw := floori(_views.buffer.estimated_tick(_now))
+	for i: int in 60:
+		_now += TICK_USEC
+		_views.buffer.add(101 + i - 3, avatars, _now)
+		given.append(_views.host_tick())
+		var next := floori(_views.buffer.estimated_tick(_now))
+		dropped = dropped or next < raw
+		raw = next
+	assert_bool(dropped).is_true()
+	for i: int in range(1, given.size()):
+		assert_int(given[i]).is_greater_equal(given[i - 1])
+	# Cleared views (a session ended) give the estimate again.
+	_views.clear()
+	assert_int(_views.host_tick()).is_equal(raw)
 
 
 ## Waits until AvatarViews has run once more (physics_frame comes before the nodes' step).
