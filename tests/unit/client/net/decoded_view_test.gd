@@ -70,6 +70,29 @@ func test_a_player_leaving_leaves_the_recorded_snapshot_as_decoded() -> void:
 	assert_array(_harness.session.model.avatars.keys()).contains_exactly([1])
 
 
+func test_the_model_folds_settings_and_placements_as_decoded() -> void:
+	_harness.welcome()
+	var numbers: Dictionary[StringName, int] = {&"knives": 4, &"tasks": 2}
+	var sets: Dictionary[StringName, PackedStringArray] = {
+		&"banned_task_types": PackedStringArray(["delivery"])
+	}
+	var problems := PackedStringArray(["2 knife marker(s) needed, the map has 0"])
+	var map := "res://levels/maps/b.tscn"
+	_harness.send(
+		SettingsChangedEvent.new(numbers, map, 2, Demands.new(null), null, problems, sets)
+	)
+	var placed: Dictionary[int, Vector3] = {1: Vector3(4, 0, 4), 2: Vector3(5, 0, 5)}
+	_harness.send(PlayersPlacedEvent.new(placed))
+	_harness.pump()
+	var model := _harness.session.model
+	assert_bool(WireSamples.same(model.settings, numbers)).is_true()
+	assert_bool(WireSamples.same(model.id_sets, sets)).is_true()
+	assert_str(model.map).is_equal(map)
+	assert_array(model.shortfalls).is_equal(problems)
+	assert_vector(model.spots[1]).is_equal(Vector3(4, 0, 4))
+	assert_vector(model.spots[2]).is_equal(Vector3(5, 0, 5))
+
+
 func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	_harness.welcome()
 	var heard: Array[int] = []
