@@ -173,6 +173,8 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		result = _stop_raise(bot, step as StepStopRaise)
 	elif step is StepGiveUp:
 		result = _give_up(bot, step as StepGiveUp)
+	elif step is StepSwap:
+		result = _swap(bot, step as StepSwap)
 	elif step is StepJump:
 		# D3 (a), the designer's answer on #96: the step says what a player does, and the bot
 		# counts it as one more jump in its epoch, as a client's MoveClaim carries it (§4.3, E2).
@@ -414,6 +416,13 @@ func _give_up(bot: ScenarioBot, step: StepGiveUp) -> Result:
 		_send(bot, Intents.GIVE_UP, {})
 		return Result.WAITING
 	return _intent_result(bot, step, _done_by(bot, &"Died", {}))
+
+
+func _swap(bot: ScenarioBot, step: StepSwap) -> Result:
+	if bot.sent_seq < 0:
+		_send(bot, Intents.SWAP, {})
+		return Result.WAITING
+	return _intent_result(bot, step, _done_by(bot, &"Swapped", {}))
 
 
 ## The horizontal unit direction from the bot to `target`; zero when it stands on it; INF when it

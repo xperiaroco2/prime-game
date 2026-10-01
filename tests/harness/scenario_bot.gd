@@ -6,7 +6,7 @@ extends RefCounted
 ## target the bot cannot know from them fails the scenario, so a scenario also proves that its
 ## mechanic is playable with what a player is told.
 
-enum Where { GROUND, HAND, LOCKED }
+enum Where { GROUND, HAND, LOCKED, BELT }
 
 ## The events for one peer whose fields name no peer (§4.6): whoever receives one is its subject,
 ## so a step's `peer` field matches the receiving bot.
@@ -50,7 +50,9 @@ var position := Vector3.ZERO
 var downed := false
 var dead := false
 var role: StringName
+## Its hand item and its belt item, or -1 (ItemPickedUp with `belted`, Swapped, ItemPlaced).
 var held := -1
+var belted := -1
 var sprint_available := true
 var phase: StringName
 var match_id := 0
@@ -60,8 +62,8 @@ var load_ack_due := false
 var auto_acked_match := -1
 ## The match id of the LoadMatch that the bot's LoadAck step is to answer, or -1.
 var unanswered_load := -1
-## Item id -> {kind, position, where, station}, from ItemSpawned, ItemPickedUp, ItemPlaced and
-## PackageDelivered.
+## Item id -> {kind, position, where, station}, from ItemSpawned, ItemPickedUp, Swapped, ItemPlaced
+## and PackageDelivered.
 var items: Dictionary[int, Dictionary] = {}
 ## Station id -> position, from StationPlaced.
 var stations: Dictionary[int, Vector3] = {}
@@ -283,6 +285,7 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			items.clear()
 			stations.clear()
 			held = -1
+			belted = -1
 			downed = false
 			dead = false
 			if current_step() is StepLoadAck:
@@ -302,10 +305,20 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			}
 		&"ItemPickedUp":
 			var item := fields["item"] as int
+			var to_belt := fields.get("belted", -1) as int
 			if items.has(item):
 				items[item]["where"] = Where.HAND
+			if items.has(to_belt):
+				items[to_belt]["where"] = Where.BELT
 			if fields["peer"] as int == peer:
 				held = item
+				if to_belt >= 0:
+					belted = to_belt
+		&"Swapped":
+			if fields["peer"] as int == peer:
+				var was_held := held
+				held = belted
+				belted = was_held
 		&"ItemPlaced":
 			var item := fields["item"] as int
 			if items.has(item):
@@ -313,6 +326,8 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 				items[item]["position"] = fields["position"] as Vector3
 			if held == item:
 				held = -1
+			if belted == item:
+				belted = -1
 		&"PackageDelivered":
 			var item := fields["item"] as int
 			if items.has(item):
