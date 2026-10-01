@@ -102,7 +102,7 @@ var tasks_total := 0
 ## The winning side once the match ended; empty before.
 var winner: StringName = &""
 ## The newest snapshot's tick and avatars (peer -> {position, velocity, facing, downed,
-## invulnerable, held_item}).
+## invulnerable, held_item, belt_item}).
 var snapshot_tick := -1
 var avatars: Dictionary = {}
 ## Its own SelfStatus (and Damaged's health); -1 until the first arrives.

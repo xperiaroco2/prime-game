@@ -62,8 +62,9 @@ var load_ack_due := false
 var auto_acked_match := -1
 ## The match id of the LoadMatch that the bot's LoadAck step is to answer, or -1.
 var unanswered_load := -1
-## Item id -> {kind, position, where, station}, from ItemSpawned, ItemPickedUp, Swapped, ItemPlaced
-## and PackageDelivered.
+## Item id -> {kind, position, where, station}, from ItemSpawned, ItemPickedUp, ItemPlaced and
+## PackageDelivered. `where` tells GROUND from carried only: a Swapped leaves HAND and BELT as they
+## were (the bot's own slots are `held` and `belted`).
 var items: Dictionary[int, Dictionary] = {}
 ## Station id -> position, from StationPlaced.
 var stations: Dictionary[int, Vector3] = {}

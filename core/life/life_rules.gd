@@ -146,9 +146,8 @@ static func revive(ctx: MatchContext, peer: int, health: int) -> void:
 
 ## `peer`, dead, comes back at `at` (a respawn marker, which Respawn draws): its body goes, it is
 ## living with its role, full health and stamina, an empty hand and belt and a new epoch, and
-## invulnerable
-## (make_invulnerable). Respawned (everyone), then its Correction, then its SelfStatus (at the end
-## of the tick).
+## invulnerable (make_invulnerable). Respawned (everyone), then its Correction, then its SelfStatus
+## (at the end of the tick).
 static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
 	var back := ctx.state.player(peer)
 	if back == null or back.life != PlayerState.Life.DEAD:
