@@ -29,7 +29,8 @@ var read_command_line := true
 ## Makes a session's transport: an EnetTransport with the game's kind table unless a test sets
 ## one (a loopback). Called with no arguments.
 var make_transport := Callable()
-## The clock in microseconds for both sessions: the real one unless a test sets one.
+## The clock in microseconds of the host session and of the avatars' host-tick estimate: the real
+## one unless a test sets one. The client session's claims count physics steps (SessionNode).
 var clock := Callable()
 var options: LaunchOptions
 ## Why the last session ended; empty before the first ended.
@@ -275,7 +276,6 @@ func _start_client(transport: NetTransport) -> void:
 	_client.ended.connect(_end_session)
 	_session_node = SessionNode.new(_client)
 	_session_node.name = "SessionNode"
-	_session_node.clock = clock
 	add_child(_session_node)
 	_buffer = SnapshotBuffer.new()
 	_client.snapshot_received.connect(_on_snapshot)
@@ -321,6 +321,18 @@ func _on_map_loaded(_path: String, scene: PackedScene) -> void:
 func _on_event(event_name: StringName, _fields: Dictionary) -> void:
 	if event_name == &"PhaseChanged":
 		_sync_level()
+	_sync_life()
+
+
+## The own player crawls while its own life fold says downed (a KnockedDown naming it), and walks
+## again once the fold forgets it (a new match, the lobby). Only a change switches the body, since
+## switching stops it.
+func _sync_life() -> void:
+	if _player == null:
+		return
+	var downed := _client.model.life_of(_client.model.own_peer) == ClientModel.Life.DOWNED
+	if _player.ghost != downed:
+		_player.ghost = downed
 
 
 ## The level of the current phase: the lobby, loaded at once when a lobby phase starts; a map

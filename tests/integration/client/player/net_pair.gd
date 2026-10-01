@@ -4,7 +4,8 @@ extends Node
 ## with a physics world of its own, as two machines would be. The level is the fixture
 ## `steps_room.tscn` in FixtureBaseMode's mode (its lobby and its map). The clock is simulated and
 ## advances one physics frame (1/60 s) before the sessions step, so 20 Hz claims, host ticks and
-## snapshots keep pace with the physics. Nothing reads devices: a suite drives each
+## snapshots keep pace with the physics; with `uneven` it stands still for one frame and then
+## advances two, as a real clock does around a hitch. Nothing reads devices: a suite drives each
 ## PlayerController's wish fields. Forward is -Z.
 ##
 ## steps_room: a floor at y = 0; lobby markers (0, 0, 0) and (0, 0, -2) first (the host takes the
@@ -28,6 +29,10 @@ var client: Game
 var mode: GameMode
 ## The simulated clock, in microseconds.
 var now := 1000000
+## The clock alternates: no advance in one physics frame, two frames' worth in the next.
+var uneven := false
+
+var _held := false
 
 var _hub := LoopbackHub.new()
 
@@ -109,7 +114,12 @@ func knock_down(game: Game) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	now += FRAME_USEC
+	if not uneven:
+		now += FRAME_USEC
+		return
+	_held = not _held
+	if not _held:
+		now += 2 * FRAME_USEC
 
 
 func _both_in_the_lobby() -> bool:
