@@ -118,3 +118,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -5)
 
 [node name="Knife04" type="Marker3D" parent="." unique_id=152523306 groups=["spawn_knife"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, -5)
+
+[node name="Respawn01" type="Marker3D" parent="." unique_id=2105588457 groups=["spawn_respawn"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0, -5)
+
+[node name="Respawn02" type="Marker3D" parent="." unique_id=770532099 groups=["spawn_respawn"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, -5)
+
+[node name="Respawn03" type="Marker3D" parent="." unique_id=303231643 groups=["spawn_respawn"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0, 5)
+
+[node name="Respawn04" type="Marker3D" parent="." unique_id=1343774556 groups=["spawn_respawn"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0, 5)

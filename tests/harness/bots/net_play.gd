@@ -10,7 +10,8 @@ extends ScenarioPlay
 ##
 ## Bot 1 is the host's own client: it sends the setup's forced roles (one ForceRole per bot, on the
 ## debug kind, E17), once it knows the peer ids of every bot that joins at the start, then the
-## setup's settings and map; a bot that joins later gets its ForceRole once its id is known.
+## setup's ForceClock (clock_s), settings and map; a bot that joins later gets its ForceRole once
+## its id is known.
 ##
 ## A runner owns the clock (now_usec), makes each bot's client (add_client) and calls play_frame()
 ## once per frame after the clients stepped. BotsRunner plays in one process over LoopbackHub;
@@ -139,6 +140,8 @@ func _send_setup(host: ScenarioBot) -> void:
 	if _settings_sent:
 		return
 	_settings_sent = true
+	if scenario.clock_s > 0 and client.force_clock(host.peer, scenario.clock_s) < 0:
+		_fail_step(host, "could not send ForceClock")
 	if scenario.settings.is_empty() and scenario.map.is_empty():
 		return
 	var values := {}

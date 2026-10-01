@@ -18,6 +18,8 @@ extends RefCounted
 ## - Nothing reaches only the dead: every event a dead peer receives is either for it alone (an
 ##   event for one peer, FOR_ONE or a one-peer declaration, naming it) or also reaches every living
 ##   peer present then.
+## - No Damaged reaches a player whose invulnerability runs (PlayerState.invulnerable_until, after a
+##   respawn or a revive: strikes skip it, M4-3).
 ## - The scenario's `never` events reach nobody they name.
 
 const TASK_EVENTS: Array[StringName] = [
@@ -25,7 +27,9 @@ const TASK_EVENTS: Array[StringName] = [
 ]
 const PRIVATE_NUMBERS: Array[StringName] = [&"Damaged", &"SelfStatus"]
 ## What anyone may see of another player (§4.2); health and stamina are never avatar fields.
-const AVATAR_FIELDS: Array[String] = ["position", "velocity", "facing", "downed", "held_item"]
+const AVATAR_FIELDS: Array[String] = [
+	"position", "velocity", "facing", "downed", "invulnerable", "held_item"
+]
 
 ## The peer whose command the runner applies now, or 0 outside a command (a tick, the start).
 var sender := 0
@@ -99,6 +103,16 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 		if holds_int(event.to_dict(), seed_value):
 			found.append("%s holds a seed" % name)
 	found.append_array(_check_dead_recipients(emitted))
+	if event is DamagedEvent:
+		for peer: int in emitted.recipients:
+			var victim := state.player(peer)
+			if victim != null and victim.is_invulnerable(emitted.tick):
+				found.append(
+					(
+						"peer %d received Damaged at tick %d while invulnerable until tick %d"
+						% [peer, emitted.tick, victim.invulnerable_until]
+					)
+				)
 	for never: NeverEvent in _scenario.never:
 		if not ScenarioPlay.event_matches(event, never.event, never.fields, _peers):
 			continue

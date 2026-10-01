@@ -165,6 +165,17 @@ func force_role(peer: int, role: String) -> int:
 	return seq
 
 
+## Debug builds only (E17): forces the match clocks that start from now on to `seconds` instead
+## of the match duration setting; 0 clears it. `peer` is the sender's own id (the host's own
+## player), which the debug kind names. The bot scenarios' `clock_s` (M4-3).
+func force_clock(peer: int, seconds: int) -> int:
+	var seq := _seq + 1
+	if _send(WireMessage.new(&"ForceClock", {"seconds": seconds}, seq, peer)) != OK:
+		return -1
+	_seq = seq
+	return seq
+
+
 ## Sends one 20 ms Opus frame; the host relays it to whoever may hear this client.
 func send_voice(opus: PackedByteArray) -> Error:
 	var sent := _send(WireMessage.new(&"VoiceUp", {"seq": _voice_seq, "opus": opus}))

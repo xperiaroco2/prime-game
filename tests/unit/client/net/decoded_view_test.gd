@@ -158,6 +158,7 @@ static func _avatar(at: Vector3) -> Dictionary:
 		"velocity": Vector3.ZERO,
 		"facing": Vector3.FORWARD,
 		"downed": false,
+		"invulnerable": false,
 		"held_item": -1,
 	}
 

@@ -7,9 +7,11 @@ extends RefCounted
 ## Errors: a phase, outcome, intent, setting, role, side or item kind that a part names but the
 ## mode does not declare; a `_setting` property that reads a number but names a set of ids; an
 ## outcome a phase can report without a row; an accepted intent that neither the phase class, the
-## movement rule nor any rule handles; two rules on one trigger in one owner; a number outside its
-## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
-## rule with an effect whose event goes to everyone, which reveals the actor's role (§9.2).
+## movement rule nor any rule handles; a phase whose rules can knock a player down (an effect that
+## emits KnockedDown: a Strike) that lists no LifeTicks, so the downed would never die (M4-3);
+## two rules on one trigger in one owner; a number outside its part's bounds; an id outside the
+## wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect whose event
+## goes to everyone, which reveals the actor's role (§9.2).
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
@@ -172,6 +174,17 @@ func _check_phases(mode: GameMode) -> void:
 						% [spec.id, entry.intent]
 					)
 				)
+		var knocks_down := _knocking_down(mode, spec)
+		if not knocks_down.is_empty() and not _lists_life_ticks(spec):
+			errors.append(
+				(
+					(
+						"phase %s runs %s, which can knock a player down, but lists no LifeTicks:"
+						+ " the downed would stay downed until they leave"
+					)
+					% [spec.id, knocks_down]
+				)
+			)
 		for outcome: StringName in reportable_outcomes(mode, spec):
 			if mode.find_transition(spec.id, outcome) == null:
 				errors.append(
@@ -238,6 +251,32 @@ static func reportable_outcomes(mode: GameMode, spec: PhaseSpec) -> Array[String
 					if not found.has(outcome):
 						found.append(outcome)
 	return found
+
+
+## The triggers of the rules that can run in `spec` (its accepted intents' actions, and every
+## reaction) with an effect that can emit KnockedDown (a Strike), each once, in order.
+static func _knocking_down(mode: GameMode, spec: PhaseSpec) -> Array[StringName]:
+	var rules: Array[Rule] = []
+	for entry: AcceptSpec in spec.accepts:
+		if entry != null:
+			rules.append_array(_actions_on(mode, entry.intent))
+	rules.append_array(mode.reactions)
+	var found: Array[StringName] = []
+	for rule: Rule in rules:
+		if rule == null or found.has(rule.trigger):
+			continue
+		for effect: RuleEffect in rule.effects:
+			if effect != null and effect.emits().has(KnockedDownEvent):
+				found.append(rule.trigger)
+				break
+	return found
+
+
+static func _lists_life_ticks(spec: PhaseSpec) -> bool:
+	for system: TickSystem in spec.tick_systems:
+		if system is LifeTicks:
+			return true
+	return false
 
 
 static func _handled(mode: GameMode, phase: Phase, intent: StringName) -> bool:

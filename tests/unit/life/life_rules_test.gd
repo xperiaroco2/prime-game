@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## everyone, the body, no Correction, player_died before the drop), and leaving while living,
 ## downed or dead (no body). Also what the downed and the dead may do and who sees them. Driven by
 ## the knife's Use (FixtureCombatModes: 50 damage, so two hits knock down) and the fixture's
-## knockdown time of 10 s (200 ticks).
+## knockdown time of 10 s (200 ticks). The respawn and invulnerability: respawn_test.gd.
 ## Leaving while living: tests/unit/match/phases/round_phase_test.gd.
 
 const P1 := 1
@@ -165,7 +165,8 @@ func test_the_knockdown_runs_out_after_its_time_and_the_player_dies_where_it_lay
 	FixtureModes.run_ticks(game, 1)
 	var dead := game.state.player(P2)
 	assert_int(dead.life).is_equal(PlayerState.Life.DEAD)
-	assert_int(dead.life_deadline).is_equal(-1)
+	# Its respawn time starts at the death (PlayerRules.respawn_s, 30 s: 600 ticks).
+	assert_int(dead.life_deadline).is_equal(deadline + 600)
 	var body := Vector3(0.2, 0, 1)
 	assert_dict(game.state.bodies).is_equal({P2: body})
 	for peer: int in [P1, P2, P3]:
@@ -372,6 +373,59 @@ func test_life_ticks_kill_only_the_downed_whose_time_ran_out() -> void:
 	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DEAD)
 	assert_int(game.state.player(P3).life).is_equal(PlayerState.Life.DOWNED)
 	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.ALIVE)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_dead_player_who_leaves_before_its_respawn_never_comes_back() -> void:
+	var game := FixtureCombatModes.in_round(FixtureCombatModes.respawning(), [P1, P2, P3])
+	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	FixtureItemModes.stand(game, P3, Vector3(5, 0, 5))
+	_kill(game)
+	var respawn_at := game.state.player(P2).life_deadline
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	FixtureModes.run_ticks(game, respawn_at + 1 - game.ticked_through())
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.LEFT)
+	assert_dict(game.state.bodies).is_empty()
+	assert_array(FixtureCombatModes.received(game, P1, &"Respawned")).is_empty()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_make_invulnerable_lasts_the_invulnerability_time_from_now() -> void:
+	var game := _duel()
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	assert_bool(game.state.player(P2).is_invulnerable(ctx.tick)).is_false()
+	LifeRules.make_invulnerable(ctx, P2)
+	# 3 s at 20 Hz: invulnerable through the 60th tick from now, not at the 61st.
+	assert_int(game.state.player(P2).invulnerable_until).is_equal(ctx.tick + 60)
+	assert_bool(game.state.player(P2).is_invulnerable(ctx.tick + 59)).is_true()
+	assert_bool(game.state.player(P2).is_invulnerable(ctx.tick + 60)).is_false()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_damage_to_an_invulnerable_player_does_nothing() -> void:
+	# Any damage source, not only a strike: LifeRules.damage itself skips the invulnerable.
+	var game := _duel()
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	var full := game.state.player(P2).health
+	LifeRules.make_invulnerable(ctx, P2)
+	LifeRules.damage(ctx, P2, full)
+	assert_int(game.state.player(P2).health).is_equal(full)
+	assert_bool(game.state.player(P2).is_alive()).is_true()
+	assert_array(FixtureCombatModes.received(game, P2, &"Damaged")).is_empty()
+	# Once it ends, the same damage knocks down.
+	ctx.tick = game.state.player(P2).invulnerable_until
+	LifeRules.damage(ctx, P2, full)
+	assert_int(game.state.player(P2).health).is_equal(0)
+	assert_bool(game.state.player(P2).is_alive()).is_false()
 	assert_array(Array(game.diagnostics)).is_empty()
 
 

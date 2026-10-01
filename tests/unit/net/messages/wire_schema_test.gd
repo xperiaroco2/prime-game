@@ -109,7 +109,8 @@ func test_debug_commands_exist_only_in_a_debug_builds_table() -> void:
 		assert_object(release.row(kind)).is_null()
 		assert_bool(release.kind_table().has(kind)).is_false()
 	assert_str(str(debug.row(24).name)).is_equal("ForceRole")
-	assert_int(debug.rows().size()).is_equal(release.rows().size() + 1)
+	assert_str(str(debug.row(25).name)).is_equal("ForceClock")
+	assert_int(debug.rows().size()).is_equal(release.rows().size() + 2)
 	for each: WireRow in release.rows():
 		var twin := debug.row(each.kind)
 		assert_str(str(twin.name)).is_equal(str(each.name))

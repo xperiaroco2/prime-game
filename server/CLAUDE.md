@@ -84,7 +84,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   WebRTC) directly, and never touches `client/` scenes or UI.
 - Debug-only commands (spawn bots, force role, skip phase) are gated to debug builds and never widen what a
   release peer can see. On the wire they are kinds only a debug build's table has, taken from peer 1 only and turned
-  into the command they name (`ForceRole`); from another peer they are malformed (§4.3, E17).
+  into the command they name (`ForceRole`, `ForceClock`); from another peer they are malformed (§4.3, E17).
 
 ## Tests
 - Integration tests of the transport checks and the per-peer delivery go in `tests/integration/`; the rules

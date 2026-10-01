@@ -1,9 +1,10 @@
 class_name LifeRules
 extends RefCounted
-## The life rule (ARCHITECTURE §3.4, §3.5, §5, §9.2): damage, the knockdown, death and leaving
-## mid-round. The one place that lowers a player's health or changes its life state during a
-## round. Strike (2g) calls damage(); LifeTicks calls die() when a knockdown runs out; RoundPhase
-## calls leave() on a PeerLeft.
+## The life rule (ARCHITECTURE §3.4, §3.5, §5, §9.2): damage, the knockdown, death, the respawn,
+## invulnerability and leaving mid-round. The one place that lowers a player's health or changes
+## its life state during a round. Strike (2g) calls damage(); LifeTicks calls die() when a
+## knockdown runs out, and its Respawn calls respawn() when a death's respawn time runs out;
+## RoundPhase calls leave() on a PeerLeft.
 ##
 ## - damage(): health falls by the amount, never below 0; Damaged to the victim only, and its
 ##   SelfStatus is touched (sent at the end of the tick). At 0 health the player is knocked down.
@@ -17,11 +18,19 @@ extends RefCounted
 ##   since its last claim pay for its sprint, not regenerate as a downed player's would.
 ##   Nothing drops: a downed player keeps its hand. No fact: no win condition reads a knockdown.
 ## - die(): a downed player dies: its body comes to rest on the floor below its last accepted
-##   position, recorded in MatchState.bodies until it leaves (or, from M4-3, respawns); it has no
-##   avatar any more, and no Correction is sent (the dead send no claims). Then, in this order:
+##   position, recorded in MatchState.bodies until it leaves or respawns; it has no avatar any
+##   more, and no Correction is sent (the dead send no claims). Its respawn time runs out
+##   `PlayerRules.respawn_s` later (PlayerState.life_deadline). Then, in this order:
 ##   Died (everyone), the fact player_died, and only then the held item drops at the body
 ##   (Items.place, `death`). The fact comes before the drop so a win condition that the death
 ##   meets is checked before one that the dropped item meets (§3.4).
+## - respawn(): a dead player is living again at a respawn marker (Respawn draws it): its body is
+##   removed, its role kept, its health and stamina full, its hands empty, a new epoch (a
+##   placement for the movement rule), and invulnerable (make_invulnerable). Then Respawned
+##   (everyone; it removes the body, E26) and Correction (that player only), and its SelfStatus
+##   at the end of the tick. No fact: no win condition reads a respawn.
+## - make_invulnerable(): strikes skip the player for `PlayerRules.invulnerable_s`
+##   (PlayerState.invulnerable_until); nothing ends it early (the engineer's answer 3, PR #133).
 ## - leave(): the life state becomes left, and a dead player's body is removed (a downed or dead
 ##   player who leaves leaves no body: the engineer's answer 1 on PR #133); PlayerLeft (everyone
 ##   else), then the fact player_left, then the held item drops on the floor below where the
@@ -33,10 +42,14 @@ extends RefCounted
 
 ## `peer` takes `amount` thousandths of damage. Damaged (the victim), its SelfStatus touched, and
 ## at 0 health knock_down(). A player who is not alive takes none: that is a rule error, logged.
+## An invulnerable player takes none and gets no Damaged, with no error: invulnerability blocks
+## every damage source, not only the strikes that Strike.targets already skips.
 static func damage(ctx: MatchContext, peer: int, amount: int) -> void:
 	var victim := ctx.state.player(peer)
 	if victim == null or not victim.is_alive():
 		ctx.error("damage: player %d is not alive" % peer)
+		return
+	if victim.is_invulnerable(ctx.tick):
 		return
 	var taken := maxi(0, amount)
 	victim.health = maxi(0, victim.health - taken)
@@ -77,7 +90,8 @@ static func die(ctx: MatchContext, peer: int) -> void:
 	var body := _floor_at(ctx, dead, "die")
 	ctx.state.bodies[peer] = body
 	dead.life = PlayerState.Life.DEAD
-	dead.life_deadline = -1
+	var rules := ctx.state.player_rules
+	dead.life_deadline = ctx.tick + Ticks.from_seconds(rules.respawn_s) if rules != null else -1
 	dead.position = body
 	dead.velocity = Vector3.ZERO
 	ctx.emit(DiedEvent.new(peer, body))
@@ -89,6 +103,54 @@ static func die(ctx: MatchContext, peer: int) -> void:
 	var held := Items.held_by(ctx.state, peer)
 	if held != null:
 		Items.place(ctx, held, body, Items.DEATH)
+
+
+## `peer`, dead, comes back at `at` (a respawn marker, which Respawn draws): its body goes, it is
+## living with its role, full health and stamina, empty hands and a new epoch, and invulnerable
+## (make_invulnerable). Respawned (everyone), then its Correction, then its SelfStatus (at the end
+## of the tick).
+static func respawn(ctx: MatchContext, peer: int, at: Vector3) -> void:
+	var back := ctx.state.player(peer)
+	if back == null or back.life != PlayerState.Life.DEAD:
+		ctx.error("respawn: player %d is not dead" % peer)
+		return
+	var rules := ctx.state.player_rules
+	if rules == null:
+		ctx.error("respawn: the mode has no PlayerRules")
+		return
+	if back.held_item >= 0:
+		# The death dropped it (die); a hand still full is a rule error, and the item drops here.
+		ctx.error("respawn: player %d still holds item %d" % [peer, back.held_item])
+		Items.drop_held(ctx, peer, Items.DEATH)
+	ctx.state.bodies.erase(peer)
+	back.life = PlayerState.Life.ALIVE
+	back.life_deadline = -1
+	back.health = Ticks.thousandths(rules.health)
+	back.stamina = Ticks.thousandths(rules.stamina)
+	# The ledger starts again at the respawn: nothing before it is settled as this life's.
+	back.stamina_settled_tick = ctx.tick
+	back.sprinting = false
+	back.sprint_held = false
+	back.moving = false
+	back.position = at
+	back.velocity = Vector3.ZERO
+	back.epoch += 1
+	make_invulnerable(ctx, peer)
+	ctx.emit(RespawnedEvent.new(peer, at))
+	ctx.emit(CorrectionEvent.new(peer, back.epoch, back.position, back.velocity))
+	SelfStatusFeed.touch(ctx.state, peer)
+
+
+## `peer` is invulnerable from now for PlayerRules.invulnerable_s (vision revision 1, V8): strikes
+## skip it (Strike.targets) until then, and nothing ends it early, not even its own attack (the
+## engineer's answer 3 on PR #133). The respawn calls it, and M4-4's revive will.
+static func make_invulnerable(ctx: MatchContext, peer: int) -> void:
+	var player := ctx.state.player(peer)
+	var rules := ctx.state.player_rules
+	if player == null or rules == null:
+		ctx.error("make_invulnerable: no player %d or no PlayerRules" % peer)
+		return
+	player.invulnerable_until = ctx.tick + Ticks.from_seconds(rules.invulnerable_s)
 
 
 ## `peer` leaves while its life state counts (Round, §3.5): left, no body, PlayerLeft,

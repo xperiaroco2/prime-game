@@ -135,6 +135,33 @@ func test_every_living_player_in_the_zone_is_hit_in_peer_id_order_but_the_downed
 	assert_array(FixtureCombatModes.received(game, P4, &"Damaged")).is_empty()
 
 
+func test_an_invulnerable_player_is_skipped_before_any_damaged_until_its_tick_comes() -> void:
+	var game := _armed([P1, P2, P3])
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
+	FixtureItemModes.stand(game, P3, Vector3(0.3, 0, 0.8))
+	# P2 is invulnerable through the next tick, when the Use is applied, and not after it.
+	var next := game.ticked_through() + 1
+	game.state.player(P2).invulnerable_until = next + 1
+	var attacker := game.state.player(P1)
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = next
+	var knife := FixtureCombatModes.strike(30.0, 1.5, 50)
+	assert_array(knife.targets(ctx, attacker, NORTH)).is_equal([P3])
+	ctx.tick = next + 1
+	assert_array(knife.targets(ctx, attacker, NORTH)).is_equal([P2, P3])
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_array(FixtureCombatModes.received(game, P2, &"Damaged")).is_empty()
+	assert_array(FixtureCombatModes.received(game, P3, &"Damaged")).has_size(1)
+	assert_array(FixtureCombatModes.received(game, P2, &"Swung")).has_size(1)
+	assert_int(game.state.player(P2).health).is_equal(HEALTH)
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_array(FixtureCombatModes.received(game, P2, &"Damaged")).has_size(1)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_the_facing_is_the_uses_and_without_a_finite_one_the_last_claims() -> void:
 	var game := _armed([P1, P2])
 	FixtureItemModes.stand(game, P2, Vector3(1, 0, 0))

@@ -16,9 +16,12 @@ var ready := false
 var role: StringName
 var life := Life.ALIVE
 ## The host tick at which the current life state runs out, or -1: while downed, the knockdown's end,
-## when LifeTicks lets the player die (§3.4). The respawn (M4-3) and the raise's pause (M4-4) use
-## it too.
+## when LifeTicks lets the player die (§3.4); while dead, the respawn's (M4-3). The raise's pause
+## (M4-4) uses it too.
 var life_deadline := -1
+## The first host tick at which strikes hit the player again, or -1 (LifeRules.make_invulnerable,
+## after a respawn or a revive): it is invulnerable at every tick before it (is_invulnerable).
+var invulnerable_until := -1
 ## The last accepted claim (§7.1).
 var position := Vector3.ZERO
 var velocity := Vector3.ZERO
@@ -49,6 +52,12 @@ func _init(peer_id: int, player_name: String) -> void:
 ## Whether the player is living: ALIVE only, never downed or dead.
 func is_alive() -> bool:
 	return life == Life.ALIVE
+
+
+## Whether strikes skip the player at host tick `tick` (vision revision 1, V8): nothing ends it
+## before invulnerable_until, not even the player's own attack (the engineer's answer 3, PR #133).
+func is_invulnerable(tick: int) -> bool:
+	return tick < invulnerable_until
 
 
 func is_present() -> bool:

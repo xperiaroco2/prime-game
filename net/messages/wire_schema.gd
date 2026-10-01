@@ -12,7 +12,7 @@ extends RefCounted
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it.
-const VERSION := 3
+const VERSION := 4
 
 ## Frozen rows (§4.3): any client can send its version and read Rejected(wrong_version).
 const HELLO := 1
@@ -216,9 +216,14 @@ static func _intents() -> Array[WireRow]:
 
 ## Debug builds only (E17): server/ takes them from the host's own client and turns each into the
 ## command it names. The role decodes as a String, as Match reads it; false clears it ("").
+## ForceClock names the sender itself (the host's own player) in `peer`, as every debug kind
+## names a player.
 static func _debug_commands() -> Array[WireRow]:
 	var role := WireField.when("has_role", [WireField.id("role", true)], {"role": ""})
-	return [_up(24, &"ForceRole", 42, [_seq(), WireField.target_peer(), role])]
+	return [
+		_up(24, &"ForceRole", 42, [_seq(), WireField.target_peer(), role]),
+		_up(25, &"ForceClock", 10, [_seq(), WireField.target_peer(), _u16("seconds")]),
+	]
 
 
 static func _events() -> Array[WireRow]:
@@ -319,6 +324,7 @@ static func _events() -> Array[WireRow]:
 		_down(57, &"MatchEnded", 33, [_id("side")]),
 		_down(58, &"Disconnecting", 33, [_id("reason")]),
 		_down(59, &"KnockedDown", 16, [_peer("peer"), _vec3("position")]),
+		_down(60, &"Respawned", 16, [_peer("peer"), _vec3("position")]),
 	]
 
 
@@ -331,7 +337,7 @@ static func _state_and_voice() -> Array[WireRow]:
 				_vec3("position"),
 				_vec3("velocity"),
 				_vec3("facing"),
-				WireField.bits(PackedStringArray(["downed"])),
+				WireField.bits(PackedStringArray(["downed", "invulnerable"])),
 				WireField.maybe("held_item", WireField.Type.ITEM),
 			]
 		)

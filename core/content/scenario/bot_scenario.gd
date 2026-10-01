@@ -7,11 +7,11 @@ extends Resource
 ## The setup: the mode, the map, the session seed, the bots (bot 1 is the host's own client), the
 ## match settings that differ from the defaults (the host's bot sends them and the map in one
 ## ChangeSettings right after its join, so it joins at the start) and the roles forced per bot
-## (debug builds only, invariant 8; a forced role counts toward its quota). By default every bot
-## joins at the start and acknowledges every LoadMatch at once; the steps StepJoin and StepLoadAck
-## change that for one bot. Then one script per bot, run at the same time; the expected ends, one
-## per match played, in order; a time limit for the whole run; and the events some bot must never
-## receive.
+## (debug builds only, invariant 8; a forced role counts toward its quota), and the match clock's
+## length when it is forced (clock_s, ForceClock, M4-3). By default every bot joins at the start and
+## acknowledges every LoadMatch at once; the steps StepJoin and StepLoadAck change that for one bot.
+## Then one script per bot, run at the same time; the expected ends, one per match played, in order;
+## a time limit for the whole run; and the events some bot must never receive.
 
 ## An expected end that is no winning side: passes when every script finished within the time
 ## limit and no further MatchEnded arrived.
@@ -34,6 +34,10 @@ const MIN_SEED := 1_000_000
 @export var scripts: Array[BotScript] = []
 ## One per match the scenario plays, in order: a side id of the mode, or NONE.
 @export var expected_ends: Array[StringName] = []
+## The match clock's length in seconds, forced by the host's bot with the debug command ForceClock
+## (debug builds only, invariant 8) in place of the match duration setting's whole minutes; 0
+## keeps the setting. A scenario that ends by time up then need not wait a whole minute.
+@export var clock_s := 0
 ## Seconds of match time for the whole run.
 @export var time_limit_s := 120.0
 @export var never: Array[NeverEvent] = []
@@ -77,6 +81,8 @@ func problems() -> PackedStringArray:
 	for end: StringName in expected_ends:
 		if end != NONE and mode.find_side(end) == null:
 			found.append("expected end %s is neither none nor a side of the mode" % end)
+	if clock_s < 0 or clock_s > 0xFFFF:
+		found.append("clock_s %d is outside 0 to %d" % [clock_s, 0xFFFF])
 	if time_limit_s <= 0.0:
 		found.append("time_limit_s is not positive")
 	if session_seed < MIN_SEED:

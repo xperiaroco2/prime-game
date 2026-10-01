@@ -25,8 +25,8 @@ STALL_RUN = "tests/integration/net/enet_stall.gd"
 STALL_SECONDS = 60
 STALL_PORTS = 3
 # The bot scenarios and the information-leak test (#102): every scenario in one process on a simulated clock (about
-# 8 s), then one scenario over ENet, one process per bot on the real clock: about 67 s since M4-2 (#138), whose
-# scenario ends by time up in a one-minute match.
+# 8 s), then one scenario over ENet, one process per bot on the real clock: about 48 s since M4-3 (#139), whose
+# scenario ends by time up on a 40 s clock it forces (BotScenario.clock_s).
 BOTS_ENET_SCENARIO = "dissident_kills_the_crew"
 BOTS_ENET_INSTANCES = 3
 

@@ -255,7 +255,7 @@ func take_outbox() -> Array[EmittedEvent]:
 func snapshot_for(peer: int) -> Dictionary:
 	if _phase_spec == null or not _phase_spec.snapshots or not state.is_present(peer):
 		return {}
-	return Snapshots.for_peer(state, peer)
+	return Snapshots.for_peer(state, peer, _ticked_through)
 
 
 ## The speakers `listener` may hear now (§6).
@@ -441,6 +441,8 @@ func _dispatch(command: MatchCommand) -> void:
 		_phase.on_peer_left(ctx, command.peer)
 	elif command.kind == Intents.FORCE_ROLE:
 		_force_role(command)
+	elif command.kind == Intents.FORCE_CLOCK:
+		_force_clock(command)
 	elif not Intents.ALL.has(command.kind):
 		record_error("unknown command %s from peer %d" % [command.kind, command.peer])
 	elif not _accepts(command):
@@ -464,6 +466,16 @@ func _force_role(command: MatchCommand) -> void:
 		record_error("ForceRole: peer %d, role %s, which the mode lacks" % [command.peer, role_id])
 	else:
 		state.forced_roles[command.peer] = role_id
+
+
+## ForceClock (debug builds only, §8): in any phase, for the match clocks StartClock starts from
+## now on; 0 clears it, and a negative number is a match error and ignored. Kept in the command log.
+func _force_clock(command: MatchCommand) -> void:
+	var seconds := command.get_int("seconds", -1)
+	if seconds < 0:
+		record_error("ForceClock: %d seconds" % seconds)
+	else:
+		state.forced_clock_s = seconds
 
 
 ## An intent the phase's allowlist refuses (§3.1, §4.3) gets Rejected (`not_accepted`), except:
@@ -584,7 +596,7 @@ func _record_views(at_tick: int) -> void:
 		if _phase_spec.snapshots:
 			if not _snapshots.has(peer):
 				_snapshots[peer] = {}
-			_snapshots[peer][at_tick] = Snapshots.for_peer(state, peer)
+			_snapshots[peer][at_tick] = Snapshots.for_peer(state, peer, at_tick)
 		if not _speakers.has(peer):
 			_speakers[peer] = {}
 		_speakers[peer][at_tick] = speakers_for(peer)

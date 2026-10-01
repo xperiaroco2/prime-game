@@ -4,7 +4,9 @@ extends RuleEffect
 ## The zone is the weapon's data: a horizontal sector from the attacker's last accepted position
 ## (its feet), `reach_m` long and `angle_deg` wide, centred on the horizontal part of the facing.
 ## A target is every living player other than the attacker (never a downed one: strikes skip the
-## downed, vision revision 1) such that:
+## downed, vision revision 1; never an invulnerable one, for PlayerRules.invulnerable_s after a
+## respawn or a revive: PlayerState.is_invulnerable, which nothing ends early, not even the
+## player's own attack, the engineer's answer 3 on PR #133) such that:
 ## - its capsule (the mode's PlayerRules radius and height, standing on its last accepted
 ##   position) has a point in the sector, measured horizontally: its circle of `capsule_radius_m`
 ##   around its position touches the sector;
@@ -52,7 +54,8 @@ func run(ctx: MatchContext) -> void:
 		LifeRules.damage(ctx, peer, Ticks.thousandths(damage))
 
 
-## The living players other than `attacker` in this weapon's zone along `facing`, in peer-id order.
+## The living players other than `attacker`, not invulnerable at this tick, in this weapon's zone
+## along `facing`, in peer-id order.
 func targets(ctx: MatchContext, attacker: PlayerState, facing: Vector3) -> Array[int]:
 	var rules := ctx.state.player_rules
 	var ahead := horizontal(facing)
@@ -62,7 +65,7 @@ func targets(ctx: MatchContext, attacker: PlayerState, facing: Vector3) -> Array
 	var eye := Vector3.INF
 	for peer: int in ctx.state.peers():
 		var target := ctx.state.players[peer]
-		if peer == attacker.peer or not target.is_alive():
+		if peer == attacker.peer or not target.is_alive() or target.is_invulnerable(ctx.tick):
 			continue
 		if absf(target.position.y - attacker.position.y) > rules.capsule_height_m:
 			continue
