@@ -40,6 +40,22 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
     p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
 
+    from .mutants import HELP as MUTANTS_HELP, TEST_SECONDS
+
+    p = sub.add_parser(
+        "mutants",
+        help="plant each fault of a spec in a scratch worktree of HEAD and run its tests there",
+        epilog=MUTANTS_HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("spec", help="the JSON spec of the mutants (format below)")
+    p.add_argument(
+        "--seconds",
+        type=int,
+        default=TEST_SECONDS,
+        help=f"hard timeout of each test run; a longer one is an error (default {TEST_SECONDS})",
+    )
+
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
     p = board_sub.add_parser("move", help="put an issue on the board in a column (agents use only these two)")
@@ -195,6 +211,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import bots
 
             return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
+        if args.command == "mutants":
+            from . import mutants
+
+            return mutants.main(args.spec, seconds=args.seconds)
         if args.command == "board":
             from . import board
 
