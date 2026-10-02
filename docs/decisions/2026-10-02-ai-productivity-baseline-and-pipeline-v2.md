@@ -259,7 +259,36 @@ served stays a FAIL, and a runner test covers both cases.
 what a modified client can send: malformed frames, out-of-range values, intents in the wrong phase or for what the
 peer does not own, replays, floods past the wire and peer budgets. A short seeded run joins `verify` (a new check,
 nothing weakened); the long run is a night job. A bug they find becomes an issue, never part of the bot task. They
-are the first thing to drop. **Performance runs** (P10): host tick time (`Time.get_ticks_usec`,
+are the first thing to drop.
+
+The oracle is one rule per input class, each taken from ARCHITECTURE (§3.1, §4.1 to §4.5, E15); behaviour that no
+section specifies becomes an issue or an ARCHITECTURE open question, never a pass/fail assertion:
+- malformed frames, a wrong direction or lane, an over-cap payload, a debug kind (`ForceRole`) from a peer other
+  than 1: dropped by the transport or the codec and counted in `NetRejects` under the named reason, no reply, no
+  state change (a debug kind changes no role);
+- messages over a budget: dropped and counted as `over_budget`, no reply, no disconnect;
+- a peer whose messages were rejected 50 times within 10 s: disconnected, as §4.5 says (asserted, not avoided);
+- well-formed intents the phase or the rules refuse (wrong phase, an item not held, a target out of reach, a life
+  state that may not act): `Rejected(seq, reason)` to that sender with a `RejectReasons` id, and no `NetRejects`
+  count; which life state may send what is read from ARCHITECTURE when the task starts (vision revision 1 replaces
+  ghosts);
+- a `MoveClaim` that fails a check (teleports, speed over the cap, NaN or infinite position, velocity or facing,
+  stale or future epochs and client ticks, an overflowing jumps counter): `Correction`, or a silent drop per E15,
+  and the authoritative position unchanged; never `Rejected`;
+- duplicated, replayed and out-of-order `seq`: not an error (`seq` is only echoed, §4.3); each copy gets the same
+  rule answer the same honest intent sent twice would get, and a `Rejected` echoes the `seq` sent;
+- `VoiceUp` from a peer that may not speak to the living: no `VoiceDown` to a living bot (the voice subset check);
+- rejection reasons depend only on facts the sender is entitled to (§4.1): the same seeded intent script in two runs
+  that differ only in hidden state (roles swapped with `ForceRole` from peer 1) gives identical `Rejected` streams.
+
+The harness keeps the leak test whole. `LeakCheck.check_counters` fails a run on any packet the host's transport
+rejected, and a chaos peer guarantees rejects; it stays unchanged for every honest bot and for the host's counts
+from honest peers, and any exemption is scoped to the chaos peers' ids through `NetRejects`' per-peer counts and
+named in the PR for the engineer's approval. The chaos traffic comes from two peers, never peer 1: a "malformed"
+peer that expects the 50-in-10 s disconnect and a "hostile but valid" peer that stays under it and plays the whole
+round. "The honest bots' run ends the same way" means the same seed and roster as a baseline run with the chaos
+peers joined but idle, comparing the honest bots' decoded views, not the command log. Over ENet, where outcomes are
+timing-dependent, only the invariants are asserted: no crash, no engine error line, the leak check, the counters. **Performance runs** (P10): host tick time (`Time.get_ticks_usec`,
 `Performance.get_monitor` with `TIME_PHYSICS_PROCESS`), snapshot bytes per peer per tick and memory
 (`MEMORY_STATIC`) with 10 bots; reported against the previous night, never failing the build (a threshold is a
 placeholder, not a decision).
