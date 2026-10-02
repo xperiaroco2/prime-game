@@ -140,8 +140,10 @@ frames of 160 bytes, played through an `AudioStreamGenerator`) stands in for it 
 for a single missing frame as the spike did, which is FEC when the data is there and concealment otherwise; the addon
 PR's round trip drops one frame and compares both ways against the original and records which it is.
 
-**1.4 The jitter buffer** (E39). `VoiceJitter`, one per speaker on the listener, pure, fed `(seq, frame,
-arrival_usec)` and asked every frame what to decode, given the decoded audio queued:
+**1.4 The jitter buffer** (E39). `VoiceJitter`, one per speaker on the listener, pure, fed `(seq, tick, frame,
+arrival_usec)` and asked every frame what to decode, given the decoded audio queued. On main
+`ClientSession.voice_received(speaker, tick, opus)` drops the `VoiceDown`'s seq, so M5-5 changes it to
+`voice_received(speaker, seq, tick, opus)`, with its callers and tests (#155 edits the same file and merges first):
 - **Order:** by the stream's seq, which the host renumbers per speaker and listener and which runs on across talk
   spurts (the relay renumbers only what it relays). A duplicate or a frame older than the next due is dropped. A
   missing frame is waited for until the queue would run dry before it, then decoded from the next packet with
@@ -298,7 +300,8 @@ speech mean is 48.7 B at 24 kbit/s, 25.5 B in silence, peaks to 67 B):
 - **Batching** (M5-4b, only if needed): if the relay's time at 81 streams exceeds 2 ms per 20 ms (10% of a core) or
   the host's upload 4.5 Mbit/s (placeholders, "not a decision"), a new row sends one packet per listener per poll with
   that poll's frames for it (`tick`, then per frame `speaker`, `seq`, `opus`), under the 1024-byte unreliable cap,
-  with a version bump, its codec samples and the leak test decoding it. At 81 streams it cuts the sends from 81 to 9
+  with a version bump, its codec samples and the leak test decoding it; `ClientSession` emits `voice_received` per
+  frame with its seq. At 81 streams it cuts the sends from 81 to 9
   per 20 ms and the upload by about 40 B per frame.
 
 ### 5. The leak test and the rendering tests for M5
@@ -434,6 +437,7 @@ M5-4b's batching unless M5-4 shows the host overloaded).
 | `core/content/voice_rule.gd`, `core/voice/` | M5-1 | `hearing_radius_m()` is the name M5-5 and M5-6 read; a rename changes both issues' text |
 | `tests/harness/` (`LeakCheck`, `ScenarioInvariants`, `NetPlay`), `content/scenarios/` | M5-1, M5-4 (`voice_load`), M5-4b | a check changes in the PR that changes what it checks; the scenarios are provisional content (MVP content ADR) |
 | `voice/` | M5-2 (codec, gate, jitter), M5-5 (`VoiceSpeaker`), M5-6 (`VoiceCapture`, the sender) | new files per issue; M5-5 and M5-6 edit no file M5-2 created except to add a function |
+| `client/net/client_session.gd` | #155 (claim flags), M5-5 (`voice_received` carries the seq), M5-4b (the batched row, emitting per frame with its seq) | M5-5 after #155; `voice_received`'s signature is what M5-4b emits |
 | `client/app/game.gd` | M5-5 (`VoiceViews`, `Ears`, `AudioBuses` wiring), M5-6 (capture, settings) | each its own function; the second to merge rebases |
 | `client/world/world_sounds.gd`, `sound_chooser.gd` | M5-5 (the ears, the World bus), M5-7 (the muffle, the CC0 streams) | M5-7 after M5-5 |
 | `client/life/lift_music.gd` | M5-5 (the Music bus), M5-7 (the CC0 stream) | |
