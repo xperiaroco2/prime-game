@@ -206,6 +206,37 @@ func test_by_claims_a_number_it_did_not_predict_is_taken_with_the_claims_in_flig
 	assert_int(stamina.stamina).is_equal(player.stamina)
 
 
+## Reviewers of #155: a status that reached full stamina matched the newest claim and set the
+## round trip to 0, so an unpredicted cost early in the next sprint gave back its claims in flight.
+func test_by_claims_a_number_many_claims_left_keeps_the_round_trip_it_learnt() -> void:
+	var stamina := PredictedStamina.new(_rules)
+	stamina.follow_claims()
+	var after: Array[int] = []
+	for i: int in 2:
+		stamina.settle_claim(1, false, false, false)
+	for i: int in 5:
+		stamina.settle_claim(1, true, true, false)
+		after.append(stamina.stamina)
+	# Two claims in flight: learnt from a number only one claim left.
+	stamina.follow_status(after[2])
+	# Back to full, which many claims leave: the host's answer tells no round trip.
+	for i: int in 12:
+		stamina.settle_claim(1, false, false, false)
+	assert_int(stamina.stamina).is_equal(Ticks.thousandths(_rules.stamina))
+	stamina.follow_status(stamina.stamina)
+	# A sprint from full; the answer to its first claim carries a cost the client did not
+	# predict, with two claims in flight.
+	for i: int in 3:
+		stamina.settle_claim(1, true, true, false)
+	var player := _ledger_player(Ticks.thousandths(_rules.stamina))
+	StaminaLedger.settle(player, _rules, 1, true, true)
+	StaminaLedger.spend(player, 10000)
+	stamina.follow_status(player.stamina)
+	StaminaLedger.settle(player, _rules, 3, true, true)
+	assert_int(stamina.stamina).is_equal(player.stamina)
+	assert_bool(stamina.is_sprinting()).is_equal(player.sprinting)
+
+
 func test_off_the_network_a_self_status_is_taken_as_it_is() -> void:
 	var stamina := PredictedStamina.new(_rules)
 	stamina.follow_status(12345)

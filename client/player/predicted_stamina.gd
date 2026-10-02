@@ -130,9 +130,15 @@ func follow_status(thousandths: int) -> void:
 		return
 	var host := clampi(thousandths, 0, _most)
 	for age: int in _claims.size():
-		if _claims[_claims.size() - 1 - age].stamina_after == host:
+		var index := _claims.size() - 1 - age
+		if _claims[index].stamina_after != host:
+			continue
+		# SelfStatus goes out only when it changes, so it answers the first claim that left this
+		# number. Where the claim before left it too (stamina full, or flat), that claim is
+		# unknown and the round trip learnt at the last clear match is kept.
+		if index > 0 and _claims[index - 1].stamina_after != host:
 			_in_flight = age
-			return
+		return
 	var replay := mini(_in_flight, _claims.size())
 	var first := _claims.size() - replay
 	stamina = host
