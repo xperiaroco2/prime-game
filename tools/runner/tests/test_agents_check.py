@@ -165,6 +165,17 @@ class WorkflowReadTest(unittest.TestCase):
         self.assertEqual(verdict, "FAIL")
         self.assertIn("requestedModel", why)
 
+    def test_a_nested_meta_key_that_may_name_a_model_fails(self) -> None:
+        run = self.folder / "s1" / "subagents" / "workflows" / "wf_0407695f-d88"
+        meta = workflow_meta("workflow-subagent", "implement:#188", "Implement")
+        meta["request"] = {"model": "sonnet", "tools": [{"name": "x", "defaultModel": "haiku"}]}
+        transcript(run, "w5", meta, "claude-opus-5-5")
+        w5 = next(x for x in agents_check.read(self.folder, "s1") if x.agent_id == "w5")
+        self.assertEqual(w5.unread_keys, ("request.model", "request.tools.0.defaultModel"))
+        verdict, why = agents_check.judge(w5, AGENTS, ALLOWED)
+        self.assertEqual(verdict, "FAIL")
+        self.assertIn("request.model", why)
+
     def test_odd_lines_and_a_broken_meta_file_are_skipped(self) -> None:
         run = self.folder / "s3" / "subagents" / "workflows" / "wf_x"
         run.mkdir(parents=True)

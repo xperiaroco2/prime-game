@@ -26,8 +26,8 @@ its .meta.json, the layout `metrics` reads (whose meta reader this module reuses
 inherits the session's model), `description` (the workflow's label, such as review:code:#188), `workflowPhase`,
 `spawnDepth`, `requestShape` and `requestNonInteractive`, and no model (all 431 workflow meta files of 2026-10-02).
 A launch that passes `models` is expected to record the requested model as `model`, as the Agent tool's meta file
-does; until such a launch has shown it, any other meta key that names a model (`MODEL_KEY_RE`) fails, so a different
-key cannot pass silently as an unrequested model.
+does; until such a launch has shown it, any other meta key that names a model (`MODEL_KEY_RE`, at any depth, such as
+`request.model`) fails, so a different key cannot pass silently as an unrequested model.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ class Transcript:
     served: set[str]
     run: str | None = None  # the workflow run's folder (wf_*), None for a hand-run subagent
     label: str = ""  # a workflow agent's label (the meta file's description)
-    unread_keys: tuple[str, ...] = ()  # meta keys other than `model` that name a model
+    unread_keys: tuple[str, ...] = ()  # meta keys (dotted paths) other than `model` that name a model
 
 
 def config_dir() -> Path:
@@ -104,6 +104,21 @@ def served_models(path: Path) -> set[str]:
     return served
 
 
+def model_keys(value: object, prefix: str = "") -> list[str]:
+    """Dotted paths of the keys at any depth of a meta file that may name a model, except the top-level `model`."""
+    found = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            path = f"{prefix}{key}"
+            if path != "model" and MODEL_KEY_RE.search(str(key)):
+                found.append(path)
+            found += model_keys(item, f"{path}.")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found += model_keys(item, f"{prefix}{index}.")
+    return found
+
+
 def read(folder: Path, session: str | None) -> list[Transcript]:
     """The hand-run subagents and the workflow agents of one project folder (`session`: only that session's)."""
     from . import metrics  # here, not at the top: metrics imports this module
@@ -128,7 +143,7 @@ def read(folder: Path, session: str | None) -> list[Transcript]:
                 served=served_models(path),
                 run=parts[3] if workflow else None,
                 label=str(meta.get("description", "")) if workflow else "",
-                unread_keys=tuple(sorted(k for k in meta if k != "model" and MODEL_KEY_RE.search(k))),
+                unread_keys=tuple(sorted(model_keys(meta))),
             )
         )
     return found
