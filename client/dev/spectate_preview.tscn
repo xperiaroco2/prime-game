@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://deyf0kivlmpbk"]
+
+[ext_resource type="Script" uid="uid://b5u03oofgfafh" path="res://client/dev/spectate_preview.gd" id="1_preview"]
+
+[node name="SpectatePreview" type="Node3D" unique_id=1874045574]
+script = ExtResource("1_preview")
