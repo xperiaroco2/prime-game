@@ -313,7 +313,10 @@ def for_verify(
         return None, "no limit on CI"
     if inside:
         return None, "no slot inside a verify (the outer run holds one)"
-    count = int(setting(env, COUNT_VAR, DEFAULT_COUNT))
+    value = setting(env, COUNT_VAR, DEFAULT_COUNT)
+    if not value.is_integer():  # 0.5 would truncate to 0, "no limit"
+        raise Failure(f"{COUNT_VAR}={env.get(COUNT_VAR)!r} is not a whole number")
+    count = int(value)
     if count == 0:
         return None, f"no limit ({COUNT_VAR}=0)"
     wait = setting(env, WAIT_VAR, DEFAULT_WAIT)

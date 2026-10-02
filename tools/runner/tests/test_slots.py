@@ -202,7 +202,7 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(slots.for_verify({}, env={slots.COUNT_VAR: "0"}), (None, f"no limit ({slots.COUNT_VAR}=0)"))
 
     def test_a_wrong_value_is_named(self) -> None:
-        for raw in ("two", "-1"):
+        for raw in ("two", "-1", "1.5", "0.5"):
             with self.subTest(raw=raw), self.assertRaisesRegex(Failure, slots.COUNT_VAR):
                 slots.for_verify({}, env={slots.COUNT_VAR: raw})
 
