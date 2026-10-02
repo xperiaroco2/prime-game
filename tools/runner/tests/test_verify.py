@@ -52,7 +52,9 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
         stack.enter_context(mock.patch.object(target, attribute, step(name)))
     selftest = step("selftest")
     stack.enter_context(
-        mock.patch.object(verify, "selftest", side_effect=lambda group: selftest() if group == "python" else step("selftest-godot")())
+        mock.patch.object(
+            verify, "selftest", side_effect=lambda group: selftest() if group == "python" else step("selftest-godot")()
+        )
     )
     return stack
 
@@ -107,7 +109,9 @@ class Verify:
             mock.patch.object(
                 verify, "count_after_lanes", return_value=(*counted, {"run": 2, "skipped": 0})
             ),
-            mock.patch.object(verify, "git_facts", return_value={"branch": "b", "head": "h", "tree": "t", "runner": "r"}),
+            mock.patch.object(
+                verify, "git_facts", return_value={"branch": "b", "head": "h", "tree": "t", "runner": "r"}
+            ),
             mock.patch.object(verify, "HISTORY", self.history),
             mock.patch.dict(os.environ),
             contextlib.redirect_stdout(out),
@@ -137,7 +141,11 @@ class LaneTest(unittest.TestCase):
             with self.subTest(lane=lane), stub_steps(ran), contextlib.redirect_stdout(io.StringIO()) as out:
                 self.assertEqual(verify.lane_main(lane), 0)
             self.assertEqual(ran, list(names))
-            marks = [json.loads(line[len(verify.MARK) :]) for line in out.getvalue().splitlines() if line.startswith(verify.MARK)]
+            marks = [
+                json.loads(line[len(verify.MARK) :])
+                for line in out.getvalue().splitlines()
+                if line.startswith(verify.MARK)
+            ]
             self.assertEqual([m["step"] for m in marks], list(names))
 
     def test_the_lanes_run_at_once(self) -> None:
@@ -208,7 +216,8 @@ class LaneTest(unittest.TestCase):
         self.assertIsNotNone(record)
 
     def test_a_count_that_differs_from_a_serial_run_fails_verify(self) -> None:
-        rc, text, _record = Verify(self).run(fake_lane(), counted=(["1 runner tests never ran: x"], "runner tests: ..."))
+        counted = (["1 runner tests never ran: x"], "runner tests: ...")
+        rc, text, _record = Verify(self).run(fake_lane(), counted=counted)
         self.assertEqual(rc, 1)
         self.assertIn(("FAILED", "selftest-count"), summary_rows(text))
         self.assertIn("1 runner tests never ran: x", text)
@@ -255,7 +264,8 @@ class LaneTest(unittest.TestCase):
         assert isinstance(steps, list)
         self.assertEqual([s["name"] for s in steps], list(verify.STEP_ORDER))
         self.assertEqual({s["lane"] for s in steps if s["name"] in GODOT_STEPS}, {"godot"})
-        self.assertEqual(steps[0], {"name": "doctor", "lane": "main", "status": "passed", "seconds": steps[0]["seconds"]})
+        doctor = {"name": "doctor", "lane": "main", "status": "passed", "seconds": steps[0]["seconds"]}
+        self.assertEqual(steps[0], doctor)
         self.assertEqual(record["selftest"], {"run": 2, "skipped": 0})
 
     def test_the_tree_hash_only_with_a_clean_tree(self) -> None:
@@ -279,7 +289,11 @@ class LaneTest(unittest.TestCase):
             verify.lane_main("godot")
         marks = {
             m["step"]: m["rc"]
-            for m in (json.loads(line[len(verify.MARK) :]) for line in out.getvalue().splitlines() if line.startswith(verify.MARK))
+            for m in (
+                json.loads(line[len(verify.MARK) :])
+                for line in out.getvalue().splitlines()
+                if line.startswith(verify.MARK)
+            )
         }
         self.assertEqual(list(marks), GODOT_STEPS)
         self.assertEqual((marks["check"], marks["enet"], marks["test"]), (1, 1, 0))
@@ -302,14 +316,20 @@ class LaneProcessTest(unittest.TestCase):
             f"print('ü selftest out'); print('{mark}' + '{{\"step\": \"selftest\", \"rc\": 1, \"seconds\": 3.0}}')"
         )
         steps = self.lane(script, ("lint", "selftest"))
-        self.assertEqual([(s.name, s.status, s.seconds) for s in steps], [("lint", "passed", 2.5), ("selftest", "FAILED", 3.0)])
+        self.assertEqual(
+            [(s.name, s.status, s.seconds) for s in steps], [("lint", "passed", 2.5), ("selftest", "FAILED", 3.0)]
+        )
         self.assertEqual(steps[0].output, "lint out\n")
         self.assertEqual(steps[1].output, "ü selftest out\n")
 
     def test_a_broken_mark_is_output_not_a_step(self) -> None:
         steps: list[verify.StepRun] = []
         reader = verify.LaneReader("python", ("lint",), steps.append)
-        for line in (f"{verify.MARK}not json\n", f'{verify.MARK}{{"rc": 0}}\n', f'{verify.MARK}{{"step": "lint", "rc": 0, "seconds": 1}}\n'):
+        for line in (
+            f"{verify.MARK}not json\n",
+            f'{verify.MARK}{{"rc": 0}}\n',
+            f'{verify.MARK}{{"step": "lint", "rc": 0, "seconds": 1}}\n',
+        ):
             reader.feed(line)
         self.assertEqual([(s.name, s.status) for s in steps], [("lint", "passed")])
         self.assertEqual(steps[0].output, f"{verify.MARK}not json\n{verify.MARK}{{\"rc\": 0}}\n")
@@ -328,7 +348,10 @@ class LaneProcessTest(unittest.TestCase):
 
     def test_a_lane_that_dies_fails_its_unreported_steps_with_its_last_output(self) -> None:
         mark = verify.MARK
-        script = f"print('{mark}' + '{{\"step\": \"lint\", \"rc\": 0, \"seconds\": 1}}'); print('half'); raise SystemExit(3)"
+        script = (
+            f"print('{mark}' + '{{\"step\": \"lint\", \"rc\": 0, \"seconds\": 1}}'); "
+            "print('half'); raise SystemExit(3)"
+        )
         steps = self.lane(script, ("lint", "selftest"))
         self.assertEqual([(s.name, s.status) for s in steps], [("lint", "passed"), ("selftest", "FAILED")])
         self.assertIn("half\n", steps[1].output)
@@ -462,7 +485,8 @@ class SelftestTest(unittest.TestCase):
             (Path(tmp) / f"{name}.py").write_text(FIXTURE, encoding="utf-8")
             sys.path.insert(0, tmp)  # the spawned workers get this process's sys.path
             self.addCleanup(sys.path.remove, tmp)
-            ids = [f"{name}.T.{test}" for test in ("test_passes", "test_fails", "test_skipped_by_a_decorator", "test_skipped_when_it_runs")]
+            names = ("test_passes", "test_fails", "test_skipped_by_a_decorator", "test_skipped_when_it_runs")
+            ids = [f"{name}.T.{test}" for test in names]
             entries = {e["id"]: e for e in verify.run_in_workers(ids, 2)}
             serial = unittest.TestResult()
             unittest.defaultTestLoader.loadTestsFromName(f"{name}.T").run(serial)

@@ -467,7 +467,10 @@ def _slowest_first(group: str, ids: list[str]) -> list[str]:
     """The last run's slowest tests start first, so no long test starts last; new tests count as slow."""
     previous = read_results(group) or {}
     tests = previous.get("tests")
-    seconds = {str(e.get("id")): float(e.get("seconds", 0.0)) for e in tests if isinstance(e, dict)} if isinstance(tests, list) else {}
+    seconds: dict[str, float] = {}
+    for entry in tests if isinstance(tests, list) else []:
+        if isinstance(entry, dict):
+            seconds[str(entry.get("id"))] = float(entry.get("seconds", 0.0))
     return sorted(ids, key=lambda test_id: -seconds.get(test_id, float("inf")))
 
 
@@ -502,7 +505,10 @@ def _report(group: str, entries: list[dict[str, object]], workers: int, seconds:
         return False
     skipped = sum(e["outcome"] == "skipped" for e in entries)
     plural = "es" if workers > 1 else ""
-    counted = f"{len(entries) - skipped} runner tests{what} run, {skipped} skipped, in {seconds:.1f}s on {workers} worker process{plural}"
+    counted = (
+        f"{len(entries) - skipped} runner tests{what} run, {skipped} skipped, "
+        f"in {seconds:.1f}s on {workers} worker process{plural}"
+    )
     if failed:
         bad(f"{len(failed)} failed of {counted}")
         return False
@@ -510,7 +516,8 @@ def _report(group: str, entries: list[dict[str, object]], workers: int, seconds:
     ran = [e for e in entries if e["outcome"] != "skipped"]
     slowest = sorted(ran, key=lambda e: -float(str(e["seconds"])))[:3]
     if slowest:
-        say("        slowest: " + ", ".join(f"{str(e['id']).removeprefix('runner.tests.')} {float(str(e['seconds'])):.1f}s" for e in slowest))
+        named = [f"{str(e['id']).removeprefix('runner.tests.')} {float(str(e['seconds'])):.1f}s" for e in slowest]
+        say("        slowest: " + ", ".join(named))
     return True
 
 
@@ -535,7 +542,8 @@ def selftest(group: str = "all") -> int:
     entries = {name: found for name, (found, _seconds) in done.items()}
     passed = all([_report(name, entries[name], workers[name], done[name][1]) for name in groups])
     if group == "all":
-        problems, line = count_check({t.id(): statically_skipped(t) for t in tests}, entries["python"] + entries["godot"])
+        reference = {t.id(): statically_skipped(t) for t in tests}
+        problems, line = count_check(reference, entries["python"] + entries["godot"])
         for problem in problems:
             bad(problem)
         (bad if problems else ok)(line)
@@ -586,7 +594,8 @@ def count_after_lanes(run_id: str) -> tuple[list[str], str, dict[str, int]]:
     for group in ("python", "godot"):
         data = read_results(group)
         if data is None or data.get("run") != run_id:
-            problems.append(f"selftest {group} left no results of this run (tools/out/logs/{_results_path(group).name})")
+            where = f"tools/out/logs/{_results_path(group).name}"
+            problems.append(f"selftest {group} left no results of this run ({where})")
             continue
         tests = data.get("tests")
         entries += [e for e in tests if isinstance(e, dict)] if isinstance(tests, list) else []
@@ -686,7 +695,9 @@ def main(run_lane: RunLane = run_lane_process) -> int:
             **git_facts(clean=not before),
             "status": "FAILED" if failed else "passed",
             "seconds": round(seconds, 1),
-            "steps": [{"name": s.name, "lane": s.lane, "status": s.status, "seconds": round(s.seconds, 1)} for s in ordered],
+            "steps": [
+                {"name": s.name, "lane": s.lane, "status": s.status, "seconds": round(s.seconds, 1)} for s in ordered
+            ],
             "lanes": {lane: round(wall, 1) for lane, wall in walls.items()},
             "cpus": os.cpu_count(),
             "workers": selftest_workers(),
