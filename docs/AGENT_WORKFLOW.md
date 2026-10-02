@@ -262,11 +262,29 @@ Rules for every workflow run:
   worktree commits, a rebase in progress) and asks.
 - **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>`
   from `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base
-  release/m<k>`). The manager merges a task PR into it once CI is green, the fresh reviews left no open blocker or
-  major, and `verify` passes on the merged tree: locally, in its own `release-m<k>` worktree on a detached HEAD at
-  `origin/release/m<k>` (a red run leaves nothing to undo), `git merge --no-ff`, `verify`, then `git push origin
-  <commit>:release/m<k>` with the merge commit's hash (`HEAD:` is refused by the deny rule `git push *HEAD*`), a
-  fast-forward the pre-push hook allows; GitHub marks the PR merged.
+  release/m<k>`). Before each merge the manager runs `tools\run.cmd merge-check` (#181): every open PR onto its
+  base tip and each pair into the same base, textually (`git merge-tree --write-tree`) and by symbols (what one side
+  removes, renames or changes, used by the other side's added lines: GDScript and runner Python members and
+  signatures, wire rows and fields, `.tres` fields, deleted files); seconds, no Godot; a Markdown table per base for
+  the wave comment, each overlap with file:line on both sides, exit 1 on a conflict, an overlap or a PR it could not
+  check (its base gone from origin). On an overlap it
+  merges the side that changes the symbol first and has the other rebased (`pr-rebase`), or first runs
+  `merge-check --trial <pr>...`: the base plus the PRs merged in order in a scratch detached worktree under
+  `tools/out/merge/`, that tree's own `verify`, then the worktree removed. The manager merges a task PR once CI is
+  green, the fresh reviews left no open blocker or major, and `verify` passes on the merged tree, with
+  `tools\run.cmd merge <pr> --base release/m<k>` from the main checkout or its `release-m<k>` worktree (it refuses
+  `main`, any base outside `release/*` and a task's checkout): fetch (a PR a human already merged is only fetched),
+  green CI (`gh pr checks`), `git merge --no-ff` with GitHub's message in a scratch detached worktree at
+  `origin/release/m<k>`, `verify` on the merged tree (always: no shortcut for an unchanged tree; a red run or a
+  conflict pushes nothing and leaves nothing to undo), `git push origin <commit>:refs/heads/release/m<k>` by hash (a
+  fast-forward the pre-push hook allows; the deny rule `git push *HEAD*` refuses `HEAD:` typed by hand), the scratch
+  worktree removed, the PR confirmed merged on GitHub, and one `wave:` line for the wave comment. Its `verify` takes
+  minutes: run it with `run_in_background`. At a wave boundary, when the AI productivity track (#170) says `main`
+  has something the stage needs, `merge --sync-main --base release/m<k>` takes `origin/main` in the same way. Its git
+  commands run inside the runner, so the session types only `tools\run.cmd merge ...`, which runs without a prompt
+  from the main checkout and from the `release-m<k>` worktree. A red `verify` of `merge` or `merge-check --trial`
+  keeps the merged tree's logs and GdUnit reports in `tools/out/merge-logs/<log>/`. A track whose PRs go straight into `main` (#170) runs `merge-check`
+  before asking the engineer to merge and names the safe order; `merge` never merges into `main`.
   `gh pr merge` stays denied (the `main` rulesets ask only for a PR and green checks, so it would let any agent merge
   into `main`). The stage ends with one PR from `release/m<k>` into `main`, which a human reviews and merges; the
   stage's issues stay open until then (`Closes` fires only on the default branch) and a human closes them.
@@ -716,11 +734,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
-  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`, `run`,
-  `agents-check`, `credits`, `host`, `join`, `bots`, `metrics` (all three above), and `hook` (for Claude Code only).
-  Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
-  launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
-  PowerShell) the runner takes the machine paths from the Claude settings (§2).
+  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`, `merge` (§7.1),
+  `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `metrics` (all three above), and
+  `hook` (for Claude Code only). Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this
+  machine `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder.
+  Outside a Claude Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
