@@ -1680,8 +1680,9 @@ Rejected ways of expressing it (per field, per content part, filtering in `serve
 
 capture → gate → encode (Opus) → routing decision per speaker and listener (`core/` rules, applied by the host's
 `server/`) → listener → jitter buffer → decode → `AudioStreamPlayer3D` on the speaker's avatar → the listener's ears.
-- Routing inputs: distance, life (the voice invariant below), later items such as radios and role abilities; walls
-  muffle on the listener (the M5 ADR's D13 (a)) and enter the routing only under D13 (b). Dead chat and meetings, in the brief, are gone (vision revision 1).
+- Routing inputs: distance, life (the voice invariant below), later items such as radios and role abilities. Walls
+  do not enter the routing: they muffle on the listener (the M5 ADR's D13 (a), the engineer's answer). Dead chat and
+  meetings, in the brief, are gone (vision revision 1).
 - **Decided by the M1 spike** ([voice ADR](decisions/2026-09-29-voice-approach.md): **go**; numbers in #15
   and #16):
   - Codec: TwoVoIP (`two-voip-godot-4`) **v6.5** on Windows with Godot 4.7.2: 48 kHz mono, 20 ms frames,
@@ -1729,8 +1730,9 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
   `distance_to(...) <= cutoff`, which the engineer listened to and accepted); 3D also matches the listener's fade.
   A horizontal radius (a player on the floor above heard like one beside) stays a possible later change. M4-1
   removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voice/`.
-- **Designed for M5** (#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), proposed: E34 to
-  E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7). The lessons above, answered:
+- **Designed for M5** (#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), accepted on
+  2026-10-02: E34 to E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221).
+  The lessons above, answered:
   - **The codec boundary** (E34): `voice/`'s `VoiceCodec`, `VoiceEncoder` and `VoicePlayback`; `TwoVoipCodec` reaches
     the addon only through `ClassDB` by class name, so every script parses without it, and without it voice is
     unavailable and the game runs. Tests never load the addon or open a microphone: a fake codec
@@ -1738,8 +1740,10 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     `verify`, because Godot prints an `ERROR:` line on Linux for a `.gdextension` it cannot load (E35, the ADR §2).
   - **Capture and the gate** (E36, E37, E38, D11): the 4.7 `AudioServer` input API, the device the player picked
     (off until then: Godot 4.7.2 freezes on a microphone of more than two channels, #22); every 20 ms chunk encoded,
-    a frame sent only while the gate is open (push-to-talk on V by default, or voice activity with a hangover), with
-    2 frames of pre-roll; nothing in silence, nothing while downed or dead, nothing in a phase whose rule hears nobody.
+    a frame sent only while the gate is open, with 2 frames of pre-roll. Three modes (D11, the engineer's answer):
+    voice activity by default (a threshold set with a meter, and a hangover), push-to-talk held on V (`voice_talk`),
+    or Off (the microphone closed). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
+    hears nobody. No echo cancellation: under voice activity loudspeakers echo, so the Voice tab advises headphones.
     20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
   - **The jitter buffer** (E39): per speaker on the listener, by the renumbered seq (continuous across silence); a
     single loss decoded with FEC or concealed; playback starts at a prebuffer adapted at each start from a 2 s window
@@ -1751,14 +1755,21 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     the own eye, at the own body when downed, at a spectated target's eye or body; world sounds measure their range
     from the ears too. The client plays only frames the host sent, none while its own player is dead, and flushes a
     speaker who goes down, dies or leaves (the ADR §3 is the review checklist).
-  - **Occlusion** (E42, D13): recommended on the listener only, one ray from the ears per audible speaker per physics
+  - **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
+    Master, in code; four sliders, Master, Voice, Effects and Music (0, 0, −6 and −14 dB by default: placeholders), no
+    ducking, saved per window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the
+    microphone, the mode and the threshold, set in the Esc menu's Voice tab.
+  - **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
+    speaker. No screen lists who is talking, and nothing tells a speaker who hears them. Who talks shows later
+    through a mouth animation with the masks of #73 (after the MVP).
+  - **Occlusion** (E42, D13 (a)): on the listener only, one ray from the ears per audible speaker per physics
     frame and one per world sound, muffling what is behind the level; the host keeps routing by distance. Beyond one
     ray is what drops first.
   - **The wire** (E44): unchanged in M5. M5-4 measures the host's relay time and upload headlessly with bots; a
     batched row only if 81 streams take over 2 ms per 20 ms or 4.5 Mbit/s (placeholders). The leak test gains a
     distance invariant written apart from `VoiceRule.hears` (E45).
-  - Not in M5: radios and role abilities (M7+), echo cancellation (players are advised headphones; push-to-talk is
-    the default), lowering the device latency (the voice ADR's advice to players).
+  - Not in M5: radios and role abilities (M7+), echo cancellation (players are advised headphones), a talking
+    indicator (#73's mouth animation, later), lowering the device latency (the voice ADR's advice to players).
 
 ## 7. Movement
 
@@ -2992,9 +3003,10 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
 | The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M5-4 measures both headlessly with bots; a batched voice row (M5-4b) only past the thresholds of E44 ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)) |
-| Voice integration: capture, the gate (push-to-talk or voice activity), the jitter buffer, playback and the ears, occlusion, buses ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177 (proposed); built in M5 (M5-1 to M5-7) |
-| Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR: `client/` uses `voice/`, `voice/` nothing outside itself) | the engineer, on the M5 design PR |
-| LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | before M5-7 wires the CC0 sounds of #144 and #145 |
+| Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
+| Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows change in M5-5 (#219) |
+| LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled: (a), the engineer, 2026-10-02: CI fetches LFS content, cached by the list of LFS files; added by M5-7 (#221) with the CC0 sounds of #144 and #145 |
+| Who is talking, shown in the world (D14 of the M5 ADR: no talking indicator in M5) | a mouth animation with the masks of #73, after the MVP |
 | Radios, abilities and items that change voice; echo cancellation; lowering the device latency | M7+; echo cancellation only if playtests ask (players are advised headphones, the voice ADR) |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
 | The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
