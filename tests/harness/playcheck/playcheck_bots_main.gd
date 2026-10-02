@@ -60,30 +60,42 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	if _play == null:
 		return false
-	if _stopped():
-		_play.finish()
-		_play = null
-		quit(0)
+	if _stop_due():
+		_end(0, "")
 		return false
 	_play.step(Time.get_ticks_usec())
 	for line: String in _play.progress():
 		print("%sat %s" % [PREFIX, line])
 	var why := "; ".join(_play.failures) if not _play.failures.is_empty() else _play.ended()
-	if not why.is_empty() and not _stopped(true):
-		_play.finish()
-		_play = null
-		_fail(why)
+	if not why.is_empty():
+		# A session that just ended may be the host stopping for the runner: then it is no failure.
+		_end(0 if _stop_requested() else 1, why)
 	return false
 
 
-## The runner's stop file, or its alive file gone or stale; `now` checks at once (a session that
-## just ended may be the host stopping for the runner).
-func _stopped(now := false) -> bool:
+## The runner's stop, checked every STOP_CHECK_MS.
+func _stop_due() -> bool:
 	var now_ms := Time.get_ticks_msec()
-	if not now and now_ms - _last_stop_check_ms < STOP_CHECK_MS:
+	if now_ms - _last_stop_check_ms < STOP_CHECK_MS:
 		return false
 	_last_stop_check_ms = now_ms
+	return _stop_requested()
+
+
+## The runner's stop file, or its alive file gone or stale.
+func _stop_requested() -> bool:
 	return _options.stop_requested() or _options.runner_gone()
+
+
+## The bots leave and the process exits with `code`; a failure prints `why` first.
+func _end(code: int, why: String) -> void:
+	if _play != null:
+		_play.finish()
+		_play = null
+	if code != 0:
+		_fail(why)
+		return
+	quit(0)
 
 
 func _fail(why: String) -> void:
