@@ -177,7 +177,7 @@ static func _bad_frame(shape: Shape, rng: RandomNumberGenerator, schema: WireSch
 			packet.bytes = _random_bytes(rng, rng.randi_range(0, NetFrame.HEADER_BYTES - 1))
 			packet.expect = NetRejects.Reason.TOO_SHORT
 		Shape.TOO_LARGE:
-			var big := _random_bytes(rng, NetKindTable.MAX_PAYLOAD + 1 + rng.randi_range(0, 64))
+			var big := _random_bytes(rng, NetFrame.MAX_PACKET_BYTES + 1 + rng.randi_range(0, 64))
 			big[0] = set_ready
 			packet.bytes = big
 			packet.expect = NetRejects.Reason.TOO_LARGE

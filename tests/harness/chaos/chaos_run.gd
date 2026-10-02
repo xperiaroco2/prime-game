@@ -62,22 +62,28 @@ var _life_at: Dictionary[int, int] = {}
 var _phase_at: Dictionary[int, StringName] = {}
 
 
-func _init(roles_swapped := false, run_mode := Mode.CHAOS, seed_value := 1, enet_port := 0) -> void:
-	super(ChaosScenario.build(roles_swapped))
+func _init(
+	roles_swapped := false,
+	run_mode := Mode.CHAOS,
+	seed_value := 1,
+	enet_port := 0,
+	until_dead := false
+) -> void:
+	super(ChaosScenario.build(roles_swapped, until_dead))
 	swapped = roles_swapped
 	chaos_mode = run_mode
 	chaos_seed = seed_value
 	if enet_port > 0:
 		over_enet = true
 		port = enet_port
-		strict_latest = false
+		one_process = false
 
 
 ## Plays one run to its end and closes it; see `failures`.
 static func play_one(
-	roles_swapped: bool, run_mode: Mode, seed_value: int, enet_port := 0
+	roles_swapped: bool, run_mode: Mode, seed_value: int, enet_port := 0, until_dead := false
 ) -> ChaosRun:
-	var runner := ChaosRun.new(roles_swapped, run_mode, seed_value, enet_port)
+	var runner := ChaosRun.new(roles_swapped, run_mode, seed_value, enet_port, until_dead)
 	runner.run()
 	runner.close()
 	return runner
@@ -232,6 +238,11 @@ func _after_host_step() -> void:
 
 
 func play_frame(at_tick: int) -> void:
+	if over_enet and not _all_connected():
+		# Over ENet the joins take a few frames: bot 1 would be ready alone and start the
+		# countdown before its setup (BotsEnet's bot 1 waits for every peer id the same way).
+		malformed.poll()
+		return
 	super(at_tick)
 	malformed.poll()
 	if chaos_mode == Mode.CHAOS and failures.is_empty():
@@ -239,6 +250,13 @@ func play_frame(at_tick: int) -> void:
 		hostile.act(now_usec, claimed)
 		malformed.act(peers.peer_of(1))
 	_claimed_tick = _hostile_client.last_claim_tick()
+
+
+func _all_connected() -> bool:
+	for bot: ScenarioBot in bots:
+		if not bot.joins_late() and not peers.has_bot(bot.number):
+			return false
+	return true
 
 
 func _play() -> void:
@@ -361,7 +379,7 @@ func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 	var shape := ChaosFrames.claim_shape(command.args)
 	var before_epoch: int = _epoch_of.get(peer, 0)
 	var before: Vector3 = _position_of.get(peer, Vector3.INF)
-	var taken := (
+	var taken: bool = (
 		player != null
 		and ChaosOracle.accepts(Intents.MOVE_CLAIM, peer, game.phase_id(), player)
 		and command.args.get("epoch") == before_epoch
@@ -415,7 +433,7 @@ func _check_after() -> void:
 	failures.append_array(_leaks.check_bot(label, malformed.peer, malformed.view, false))
 	failures.append_array(
 		LeakCheck.check_counters(
-			label, malformed.peer, malformed.transport, malformed.undecodable, strict_latest
+			label, malformed.peer, malformed.transport, malformed.undecodable, one_process
 		)
 	)
 	_check_voice_rule()

@@ -5,7 +5,9 @@ extends SceneTree
 ##   but idle), the chaos run, and the chaos run with the hidden roles swapped; each must pass
 ##   (ChaosRun), the honest bots' views of the chaos run must equal the baseline's, and the
 ##   hostile's Rejected streams of the two chaos runs must be equal;
-## - `--port=<p>`: one chaos run over ENet on 127.0.0.1:<p> in one process, the invariants only.
+## - `--port=<p>`: one chaos run over ENet on 127.0.0.1:<p> in one process, the invariants only;
+## - `--long`: the match in which the hostile also dies (ChaosScenario's `until_dead`), the night
+##   job's; without it the round ends while it is downed (`verify`'s, under 15 s).
 ## Prints one line per seed (`CHAOS seed <n>: passed` or `FAILED`, then each failure) and exits 1
 ## when one failed. A failed seed replays with `tools\run.cmd bots --chaos --seed <n>`.
 
@@ -13,6 +15,8 @@ const SEED := 188_001
 const SEED_ARG := "--seed="
 const RUNS_ARG := "--runs="
 const PORT_ARG := "--port="
+## The long match: the hostile also dies (the night job's).
+const LONG_ARG := "--long"
 const MAX_LISTED := 12
 
 
@@ -20,8 +24,11 @@ func _initialize() -> void:
 	var first_seed := SEED
 	var runs := 1
 	var port := 0
+	var long := false
 	for arg: String in OS.get_cmdline_user_args():
-		if arg.begins_with(SEED_ARG):
+		if arg == LONG_ARG:
+			long = true
+		elif arg.begins_with(SEED_ARG):
 			first_seed = arg.trim_prefix(SEED_ARG).to_int()
 		elif arg.begins_with(RUNS_ARG):
 			runs = arg.trim_prefix(RUNS_ARG).to_int()
@@ -35,7 +42,7 @@ func _initialize() -> void:
 	for i in maxi(runs, 1):
 		var seed_value := first_seed + i
 		var started := Time.get_ticks_msec()
-		var problems := run_enet(seed_value, port) if port > 0 else run_seed(seed_value)
+		var problems := run_enet(seed_value, port, long) if port > 0 else run_seed(seed_value, long)
 		var took := Time.get_ticks_msec() - started
 		var what := "ENet on port %d" % port if port > 0 else "loopback"
 		if problems.is_empty():
@@ -52,11 +59,22 @@ func _initialize() -> void:
 
 
 ## The three loopback runs of one seed and their comparisons; the problems, each labelled.
-static func run_seed(seed_value: int) -> PackedStringArray:
+static func run_seed(seed_value: int, long: bool) -> PackedStringArray:
 	var problems := PackedStringArray()
-	var baseline := ChaosRun.play_one(false, ChaosRun.Mode.BASELINE, seed_value)
-	var chaos := ChaosRun.play_one(false, ChaosRun.Mode.CHAOS, seed_value)
-	var swapped := ChaosRun.play_one(true, ChaosRun.Mode.CHAOS, seed_value)
+	var started := Time.get_ticks_msec()
+	var baseline := ChaosRun.play_one(false, ChaosRun.Mode.BASELINE, seed_value, 0, long)
+	var chaos := ChaosRun.play_one(false, ChaosRun.Mode.CHAOS, seed_value, 0, long)
+	var swapped := ChaosRun.play_one(true, ChaosRun.Mode.CHAOS, seed_value, 0, long)
+	print(
+		(
+			"  three runs of %d frames (%.1f s simulated) each, in %d ms"
+			% [
+				chaos.frames_run,
+				chaos.frames_run * BotsRunner.FRAME_USEC / 1000000.0,
+				Time.get_ticks_msec() - started
+			]
+		)
+	)
 	for named: Array in [["baseline", baseline], ["chaos", chaos], ["swapped roles", swapped]]:
 		var run: ChaosRun = named[1]
 		for failure: String in run.failures:
@@ -72,8 +90,8 @@ static func run_seed(seed_value: int) -> PackedStringArray:
 
 
 ## One chaos run over ENet; the problems.
-static func run_enet(seed_value: int, port: int) -> PackedStringArray:
-	var run := ChaosRun.play_one(false, ChaosRun.Mode.CHAOS, seed_value, port)
+static func run_enet(seed_value: int, port: int, long: bool) -> PackedStringArray:
+	var run := ChaosRun.play_one(false, ChaosRun.Mode.CHAOS, seed_value, port, long)
 	if run.failures.is_empty():
 		print(summary(run))
 	return run.failures
