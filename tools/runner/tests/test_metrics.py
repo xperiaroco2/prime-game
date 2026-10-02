@@ -206,6 +206,19 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(len(session["hand"]), 1)
         self.assertEqual(self.collect(since="2026-10-02T08:01:00Z")["sessions"][0]["manager"]["api_calls"], 1)
 
+    def test_a_hand_run_subagent_is_cut_to_the_window(self) -> None:
+        late = self.fx.dir / SESSION / "subagents" / "agent-h2.jsonl"
+        write_lines(late, [
+            assistant(170, "msg-h2a", usage(inp=1_000_000), model="claude-haiku-4-5-20251001"),
+            assistant(190, "msg-h2b", usage(inp=1_000_000), model="claude-haiku-4-5-20251001"),  # after --until
+        ])
+        hand = {h["id"]: h["data"] for h in self.collect()["sessions"][0]["hand"]}
+        self.assertEqual(sorted(hand), ["h1", "h2"])
+        self.assertEqual(hand["h2"]["api_calls"], 1, "only its line before --until")
+        self.assertAlmostEqual(metrics.usd(hand["h2"]["tokens"]), 1.0)
+        hand = {h["id"] for h in self.collect(since="2026-10-02T08:55:00Z")["sessions"][0]["hand"]}
+        self.assertEqual(hand, {"h2"}, "h1 ran at 08:50, before --since")
+
     def test_price_weights(self) -> None:
         # The shape read_agent keeps per message: the four token kinds, the 1-hour share of the writes, the model.
         opus = {**usage(inp=1_000_000, write=2_000_000, read=1_000_000, out=1_000_000), "cache_write_1h": 1_000_000,

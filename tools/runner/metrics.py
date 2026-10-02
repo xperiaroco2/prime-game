@@ -454,8 +454,8 @@ def collect(dirs: list[Path], sessions: dict[str, str | None], since: float | No
             manager = read_agent(transcript, since, until) if transcript.is_file() else None
             hand = []
             for p in sorted((base / "subagents").glob("agent-*.jsonl")) if base.is_dir() else []:
-                data = read_agent(p)
-                if data["end"] and data["end"] < until and (since is None or data["start"] >= since):
+                data = read_agent(p, since, until)  # cut to the window, like the session's own lines
+                if data["api_calls"]:
                     hand.append({"id": p.name[6:-6], "type": str(read_meta(p).get("agentType", "?")), "data": data})
             cache: dict[str, dict] = {}
             runs = [read_run(w, files, cache, label) for w in run_dirs]
