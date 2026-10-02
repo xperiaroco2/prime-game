@@ -46,7 +46,9 @@ var _ring: Array[PackedByteArray] = []
 
 ## The frames to send for this chunk, oldest first: empty while closed, the pre-roll and `frame`
 ## when the gate opens, `frame` while it stays open. `chunk` is the raw microphone chunk `frame`
-## was encoded from.
+## was encoded from. An empty `frame` (VoiceEncoder.encode failed) is never sent nor kept for the
+## pre-roll; its chunk still counts for the gate and the hangover, and a gate it would open opens
+## with the next frame.
 func feed(
 	chunk: PackedVector2Array, frame: PackedByteArray, may_speak: bool, talk_held: bool
 ) -> Array[PackedByteArray]:
@@ -57,7 +59,11 @@ func feed(
 		_hangover = 0
 		_ring.clear()
 		return out
-	if not _wants_open(talk_held):
+	var wants := _wants_open(talk_held)
+	if frame.is_empty():
+		_open = _open and wants
+		return out
+	if not wants:
 		_open = false
 		_ring.append(frame)
 		if _ring.size() > PREROLL:
@@ -71,7 +77,7 @@ func feed(
 	return out
 
 
-## Whether the last feed() sent its frame.
+## Whether the gate is open: the last feed() sent its frame, unless that frame was empty.
 func is_open() -> bool:
 	return _open
 

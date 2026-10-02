@@ -1853,7 +1853,8 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     after; push-to-talk opens while `talk_held`; Off is the capture's state (M5-6). On opening, up to 2 frames of
     pre-roll go first; the ring fills only while the gate is closed, so it holds only frames never sent and a gate
     closed for one chunk sends no frame twice. `may_speak` false (`client/` decides it) closes the gate and empties
-    the ring, so no frame captured before it turns true again goes out.
+    the ring, so no frame captured before it turns true again goes out. An empty frame (a failed encode) is never
+    sent nor kept for the pre-roll, though its chunk counts for the hangover.
     `VoiceJitter` is pure, one per speaker on the listener: `push(seq, tick, frame, arrival_usec)`, then once a frame
     `update(queued_usec, now_usec)` returns the `Decode`s and `command()` says start, stop or flush. It orders by
     the renumbered u16 seq (unwrapped), drops duplicates and frames older than the next due (`late`), waits for a

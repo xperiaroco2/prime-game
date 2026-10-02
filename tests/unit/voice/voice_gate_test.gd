@@ -110,6 +110,35 @@ func test_a_quick_release_and_press_of_the_talk_key_sends_no_frame_twice() -> vo
 	assert_array(Array(sent)).is_equal(range(8))
 
 
+func test_an_empty_frame_is_never_sent_nor_kept_for_the_pre_roll() -> void:
+	# VoiceEncoder.encode returns an empty frame on failure. Its chunk still counts for the
+	# gate and the hangover; the frame itself never leaves and never enters the ring.
+	var gate := VoiceGate.new()
+	var empty := PackedByteArray()
+	gate.feed(_chunk(QUIET), _frame(0), true, false)
+	gate.feed(_chunk(QUIET), _frame(1), true, false)
+	assert_array(gate.feed(_chunk(QUIET), empty, true, false)).is_empty()
+	# A loud chunk with an empty frame opens nothing yet: the pre-roll waits for a real frame.
+	assert_array(gate.feed(_sine(LOUD), empty, true, false)).is_empty()
+	assert_array(Array(_ids(gate.feed(_sine(LOUD), _frame(4), true, false)))).contains_exactly(
+		[0, 1, 4]
+	)
+	assert_array(gate.feed(_sine(LOUD), empty, true, false)).is_empty()
+	assert_bool(gate.is_open()).is_true()
+	# An empty frame in the hangover uses up its chunk of it.
+	var tail := PackedInt32Array()
+	for i: int in range(6, 6 + VoiceGate.HANGOVER_FRAMES + 2):
+		var frame := empty if i == 6 else _frame(i)
+		tail.append_array(_ids(gate.feed(_chunk(QUIET), frame, true, false)))
+	assert_array(Array(tail)).contains_exactly(range(7, 6 + VoiceGate.HANGOVER_FRAMES))
+	# Push-to-talk alike.
+	gate.set_mode(VoiceGate.Mode.PUSH_TO_TALK)
+	assert_array(gate.feed(_chunk(QUIET), empty, true, true)).is_empty()
+	assert_array(Array(_ids(gate.feed(_chunk(QUIET), _frame(30), true, true)))).contains_exactly(
+		[21, 22, 30]
+	)
+
+
 func test_push_to_talk_sends_only_while_the_key_is_held() -> void:
 	var gate := VoiceGate.new()
 	gate.set_mode(VoiceGate.Mode.PUSH_TO_TALK)
