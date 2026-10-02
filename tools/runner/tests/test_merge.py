@@ -258,7 +258,8 @@ class SemanticTest(unittest.TestCase):
             {
                 "core/content/player_rules.gd": PLAYER_RULES, "content/modes/base_mode.tres": BASE_MODE,
                 "client/player/player_controller.gd": CONTROLLER, "net/messages/wire_schema.gd": WIRE_SCHEMA,
-                "core/match/notes.gd": "extends RefCounted\n\nvar _cache := {}\n\n\nfunc note() -> void:\n\tpass\n",
+                "core/match/notes.gd": "extends RefCounted\n\nvar _cache := {}\n\n\nfunc note() -> void:\n"
+                "\tvar tally := 0\n\tprint(tally)\n",
             },
         )  # fmt: skip
         self.base = self.repo.base
@@ -312,8 +313,8 @@ class SemanticTest(unittest.TestCase):
         a = self.side("#1", {"core/match/notes.gd": "extends RefCounted\n\n\nfunc note() -> void:\n\tvar local := 1\n"})
         self.assertEqual({s.name for s in a.symbols}, {"_cache"})
         elsewhere = self.side("#2", {"client/x.gd": "extends Node\n\nvar _cache := []\n\n\nfunc f() -> void:\n"
-                                     "\t_cache.append(1)\n"})  # fmt: skip
-        self.assertEqual(merge.both_ways(a, elsewhere), [])
+                                     "\t_cache.append(tally)\n"})  # fmt: skip
+        self.assertEqual(merge.both_ways(a, elsewhere), [])  # #1 removed the local `tally`: no member
         same = self.side("#3", {"core/match/notes.gd": "extends RefCounted\n\nvar _cache := {}\n\n\nfunc note() -> void:"
                                 "\n\tpass\n\n\nfunc clear() -> void:\n\t_cache.clear()\n"})  # fmt: skip
         self.assertEqual([o.symbol.name for o in merge.both_ways(a, same)], ["_cache"])
@@ -518,16 +519,20 @@ class CommandTest(unittest.TestCase):
 
     def test_refusals_change_nothing(self) -> None:
         self.task(7, {"core/a.gd": "extends Node\n"})
-        tip = self.repo.remote("release/m1")
+        self.task(8, {"core/b.gd": "extends Node\n"}, base="main")  # a PR into main, green: still refused
+        tip, main = self.repo.remote("release/m1"), self.repo.remote("main")
         cases = {
-            "main": lambda: merge.merge(7, base="main"),
-            "a branch that is not release/": lambda: merge.merge(7, base="core/7-task"),
-            "neither a PR nor --sync-main": lambda: merge.merge(None, base="release/m1"),
-            "both": lambda: merge.merge(7, base="release/m1", sync_main=True),
+            "main": (lambda: merge.merge(8, base="main"), "only humans merge into main"),
+            "main, synced": (lambda: merge.merge(None, base="main", sync_main=True), "only humans merge into main"),
+            "a branch that is not release/": (lambda: merge.merge(7, base="core/7-task"), "only into a release branch"),
+            "neither a PR nor --sync-main": (lambda: merge.merge(None, base="release/m1"), "name one PR"),
+            "both": (lambda: merge.merge(7, base="release/m1", sync_main=True), "name one PR"),
         }
-        for name, call in cases.items():
-            with self.subTest(name), self.assertRaises(Failure):
+        for name, (call, expected) in cases.items():
+            with self.subTest(name), self.assertRaises(Failure) as caught:
                 call()
+            self.assertIn(expected, str(caught.exception))
+        self.assertEqual(self.repo.remote("main"), main)
         for name, change, expected in (
             ("closed", {"state": "CLOSED"}, "is closed"),
             ("another base", {"baseRefName": "release/m2"}, "targets release/m2"),
