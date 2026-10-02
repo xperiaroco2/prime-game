@@ -704,8 +704,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   mutant (a red baseline makes every mutant an `error`), then plants each mutant there, runs its tests (`test` without
   the import) and restores the file: `killed` (a named test failed; they are listed), `survived` (a finding, not a
   failure) or `error` (the mutant does not compile, `--seconds` (default 300) ran out, or the tests could not judge;
-  the reason and the log). At the end it removes the scratch worktree, also after an exception, and confirms the
-  task's `git status` unchanged. A lock in `tools/out/mutants/` allows one run per checkout (the OS releases it when
+  the reason and the log). At the end it removes the scratch worktree (and its `user://` folder, §11), also after an
+  exception, and confirms the task's `git status` unchanged. A lock in `tools/out/mutants/` allows one run per
+  checkout (the OS releases it when
   a run is killed). The table is printed and written to `tools/out/mutants/<spec name>.md` after every mutant, with
   each test run's output and Godot's log in `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever
   the results; 1: an invalid spec, or a run that could not start or finish (a dirty tree, another run, a failed
@@ -904,6 +905,22 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
   declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
   processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
+- **The real app-data folder stays clean [applied]** (#233): a worktree's `user://` folder outlives the worktree,
+  and by 2026-10-02 22:30 UTC 62 such folders had piled up in `%APPDATA%\Godot\app_userdata\`, a new one with every
+  `selftest` and every scratch worktree. Each source and its fix (found by listing a temporary app-data folder before
+  and after one `selftest` and one `merge-check --trial`): the runner tests that start Godot in a throwaway project
+  (`RealUserDirTest`'s settings save made `PrimeGame-182-<hash>`, `RealNormalizeTest` the folder `n` and Godot's
+  editor settings, `RealRunTest` the folder `r`; PR #224's `RealStaleCacheTest` wrote into the main checkout's own
+  `PrimeGame` folder) run in a class marked `@starts_godot`, which now points `APPDATA`
+  (Linux: `XDG_DATA_HOME`) at a temporary folder of the class's own and deletes it after the class
+  (`common.temp_app_data`; `PYTHONUSERBASE` keeps a Python child's user site-packages); `selftest` gives its
+  workers a stand-in app-data folder and fails, naming the files, when a test wrote to it (one that starts Godot
+  outside a `@starts_godot` class: outside `selftest` that would have been the real folder). The scratch worktrees
+  of `merge` and `merge-check --trial` (`PrimeGame-<label>-<random>-<hash>`: a new path, so a new folder, every
+  run) and of `mutants` (`PrimeGame-tree-<checkout>-<hash>`) delete the folder their Godot runs made when they
+  remove the tree (`common.remove_own_user_dir`: only a `<project>-<folder>-<6 hex>` folder in `app_userdata/`,
+  never the default `PrimeGame` folder nor the running checkout's own; one a Godot still holds stays, with a
+  warning). The folders left before the fix are a human's one-time cleanup (the PR of #233 lists them).
 - **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
   from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
   `docs.godotengine.org/en/4.7/`.
