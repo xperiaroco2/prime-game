@@ -17,7 +17,8 @@ extends VoiceCodec
 const ENCODER_CLASS := &"TwovoipOpusEncoder"
 const STREAM_CLASS := &"AudioStreamOpus"
 const PLAYBACK_CLASS := &"AudioStreamPlaybackOpus"
-const OPUS_RATE := 48000
+## The encoder's rate, one source for the adapter.
+const OPUS_RATE := TwoVoipEncoder.OPUS_RATE
 const CHANNELS := 1
 
 var _encoder_class: StringName

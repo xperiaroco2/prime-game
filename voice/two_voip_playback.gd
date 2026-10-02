@@ -8,7 +8,8 @@ extends VoicePlayback
 ## plays the player again for a fresh playback, as the spike shows no call that empties the queue
 ## (M5-3's round trip checks it).
 
-const OPUS_RATE := 48000
+## The encoder's rate, one source for the adapter.
+const OPUS_RATE := TwoVoipEncoder.OPUS_RATE
 
 var _player: AudioStreamPlayer3D
 var _class: StringName
