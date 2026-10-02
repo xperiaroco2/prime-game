@@ -759,6 +759,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over ENet a scenario step that
   needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is timing-dependent
   (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself (§4.6).
+  `bots --chaos [--seed N] [--runs K] [--long] [--enet]` (#188; `docs/ARCHITECTURE.md` §4.6 "Chaos bots") runs the
+  chaos bots instead: `tests/harness/chaos/chaos_main.gd`, a hostile player and a malformed peer against the host
+  beside honest bots, for K seeds from N (without `--seed` a random one, printed first, so a failed night run names
+  the seed that replays it); per seed a baseline with the chaos peers idle, the chaos run and one with hidden roles
+  swapped, in one process over the loopback; `--long` is the match in which the hostile also dies, `--enet` one run
+  over ENet on 127.0.0.1 on a free port (the invariants only). A failure prints `CHAOS seed <n>: FAILED` and each
+  broken rule (the input, the phase and life state, what was expected and what came).
 - **`perf [--bots N] [--seconds S] [--enet] [--baseline FILE]` [applied]** (#187; item 6 of the [AI productivity
   ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)): the host's cost with 10 bots, measured
   from the harness (`tests/harness/perf/`, ARCHITECTURE §9.7); nothing in `server/` or `net/` changes. One seeded
@@ -838,12 +845,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
   `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
   imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots`
-  and `bots-enet`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
+  and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
   output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
   clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
   it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check). The
   summary keeps the serial order (`doctor`, `lint`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
-  `bots-enet`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the test count.
+  `bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
+  test count.
   Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
   `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of
   `tools/runner/` at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds),
@@ -851,7 +859,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   runner test that reaches the real lanes fails instead of starting `verify` inside `verify`; a runner test that
   starts Godot carries `@starts_godot` (`runner.verify`). `bots` is `bots` (every scenario in one process, about
   8 s) and `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario
-  ends by time up on a 40 s clock that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `game` (#149, about 5 s) starts
+  ends by time up on a 40 s clock that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos`
+  (#188, about 6 s) is `bots --chaos --seed 188001`, the short match's three runs; 20 runs in a row passed
+  (2026-10-02). `game` (#149, about 5 s) starts
   `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
   (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
   file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
@@ -966,6 +976,7 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 |---|---|---|
 | `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, a free Linux runner, the latest `main` commit; 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`) | The run's summary page and artifact `nightly-flaky`; on a failure a comment with the run link on the "Night jobs" issue |
 | `nightly.yml`, job `perf`: `tools/run.sh perf` (10 bots over the loopback, a 60 s round) with `--baseline` the last successful night's report | The same run | The run's summary page and artifact `nightly-perf`; changes beyond the threshold are listed there, never a failure; a failed match comments like `flaky` |
+| `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos` (the logs; a failed seed is named in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
 - **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run; any failed run fails it.
@@ -979,8 +990,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   in `needs` and comments when one failed or timed out, creating the "Night jobs" issue (`area:tooling`) the first
   time. `report` alone gets `issues: write`; the rest has `contents: read`. `perf` (#187) keeps its report for the
   next night in an `actions/cache` entry (`tools/out/perf-last/last.json`, a new key per run restored by its prefix,
-  saved only when the job passed), which needs no permission beyond `contents: read`; the long chaos run (#188)
-  comes as one job too. `tools/runner/tests/test_github_workflows.py` parses every workflow and action and
+  saved only when the job passed), which needs no permission beyond `contents: read`; the long chaos run is the job
+  `chaos` (#188). `tools/runner/tests/test_github_workflows.py` parses every workflow and action and
   checks the triggers, permissions, the shared setup, `needs`, and that no action beyond the four CI already uses
   appears (a new one is the engineer's call).
 - **GitHub's limits** (docs.github.com, "Events that trigger workflows", read 2026-10-02): a scheduled run uses the

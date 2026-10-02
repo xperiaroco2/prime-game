@@ -1120,6 +1120,71 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
     now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
     `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
+- **Chaos bots** (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
+  P11): invariant 1 (the host validates every intent) against what a modified client can send, in
+  `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
+  package; bot 1 knocks bot 4 down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
+  **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
+  downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
+  that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
+  it. Each peer's inputs come from a seeded `RandomNumberGenerator`; one rule per input class, each from the
+  sections named:
+  1. malformed frames (too short, too large, an unknown kind, random bytes behind one, the wrong direction or lane,
+     a payload over its kind's cap, truncated, trailing bytes) and payloads the codec rejects (a bool not 0 or 1,
+     item 0xFFFF, peer 0, a NaN or infinite float, unknown flag bits, a capital in an id, bytes after the last
+     field, an empty Opus frame), and `ForceRole` (kind 24) from a peer other than 1: counted under the reason
+     `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold);
+  2. a burst past the reliable-intents bucket (130 refused intents in one frame) and past the voice bucket
+     (530 frames): `OVER_BUDGET`, no reply, no disconnect (§4.5);
+  3. the malformed peer: disconnected at the 50th malformed message within 10 s, with exactly one log line naming
+     it (`ChaosLog`, a `Logger`), what it sent after it in that poll counted `UNKNOWN_PEER` (§4, §4.5);
+  4. well-formed intents the phase or the rules refuse (§3.1, §3.2, §4.1; never one a race could turn into an
+     action): exactly `Rejected(seq, reason)` to the sender, nothing else emitted, no reject counted, the reason
+     `ChaosOracle`'s, written from §3.2's table, not from the code: `not_accepted` for the wrong phase or life
+     state, `unchanged`, `unavailable`, `empty_hand`, `nothing_to_do`, `nothing_to_swap`, `not_channeling`,
+     `not_downed`, and no reply to a `LoadAck` of another match;
+  5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535, another
+     epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire): a `Correction` (its epoch
+     plus one, the old position) to the sender alone when the phase takes its claims and the epoch is its own,
+     else nothing (§7.1, E15); the position never changes; never `Rejected`. A repeated client tick right after a
+     placement is the first claim of a new baseline, checked as one tick and corrected: either answer passes;
+  6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
+     answer echoing the seq it carried (4 checks each copy);
+  7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
+     or End (§6; the leak test's voice checks run too);
+  8. a second chaos run that differs only in hidden roles (bot 1 and bot 3 swapped by bot 1's `ForceRole`) gives
+     the hostile the same `Rejected` stream (§4.1).
+
+  4 to 7 are checked per `Match` call through `HostSession`'s observer, on the state the command met. In one
+  process the host's counts per chaos peer are replayed exactly from what it sent (`ChaosBudget`: `PeerBudget`'s
+  buckets refilled per host step, the 50-in-10 s count) and compared reason by reason with the host transport's,
+  which `CountingLoopback` keeps for the whole run (`RejectLedger`: `NetRejects` keeps per-peer counts only between
+  two summary lines); and the honest bots' decoded views (events, snapshots, voice but the hostile's) equal a
+  **baseline** run with the same seed and roster whose chaos peers are joined but idle. The leak test stays whole:
+  every bot, the lurker and the refused bot get `LeakCheck` and `check_counters` unchanged, the malformed peer
+  `check_bot` (its decoded events exactly `view_of`'s `Rejected`s); only the host's two counts (`host_problems`:
+  nothing rejected, nothing over budget) are exempt, for the two chaos peers' ids only, through the ledger
+  (`ChaosRun.host_problems`; the engineer's approval is asked on the PR). Over ENet (`--enet`: the same run in one
+  process on 127.0.0.1, `CountingEnet` and `ChaosEnet`) only the invariants hold: no crash, no engine error line,
+  the leak check (no superseded-LATEST or voice-seq check: a network bunches and drops), the counters and 4 to 7.
+  - **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
+    baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
+    step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
+    about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). The night job `chaos` runs ten seeds
+    of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
+  - **Proven** (2026-10-02, seed 188001, each plant reverted): `HostSession` taking no budget failed on the
+    replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
+    (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
+    malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
+    forced crew, now a dissident) and on the `BAD_PAYLOAD` counts. Tests: `tests/unit/net/transport/
+    chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
+    `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
+    claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
+  - **Covered wire rows** (M5 extends them with every new intent or row): the C→H kinds 1 to 13 and 112, the debug
+    kind 24 (25, `ForceClock`, is not sent), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
+    23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
+    `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
+    in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
