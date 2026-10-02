@@ -221,10 +221,9 @@ class Pool:
         return [h or Holder(slot) for h in (self.holder(slot) for slot in range(1, self.count + 1))]
 
     def _write_holder(self, slot: int, data: dict[str, object] | None) -> None:
-        path = self._holder_path(slot)
-        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-        tmp.write_text(json.dumps(data) if data else "", encoding="utf-8")
-        os.replace(tmp, path)
+        # In place, not a temporary file and a rename: on Windows a rename fails while a waiting run has the file open
+        # for its report. The slot's lock admits one writer, and a reader that sees a half-written file gets None.
+        self._holder_path(slot).write_text(json.dumps(data) if data else "", encoding="utf-8")
 
     def try_take(self) -> tuple[int, Holder | None] | None:
         """Take the first free slot: (slot, the holder it reclaimed from or None), or None when all are held."""

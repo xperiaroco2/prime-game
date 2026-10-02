@@ -133,6 +133,18 @@ class ReleaseTest(SlotsCase):
         after = self.pool(count=1, name="next").acquire()
         self.assertEqual((after.slot, after.over, after.reclaimed), (1, False, []))
 
+    def test_release_clears_the_holder_file_while_a_waiter_reads_it(self) -> None:
+        # A waiting run reads the holder files for its minute report; on Windows a reader's open file cannot be
+        # replaced by a rename, so the holder file must be cleared in place, or it would name a finished run.
+        pool = self.pool(count=1, name="done")
+        pool.acquire()
+        with (self.where / "slot-1.json").open(encoding="utf-8"):
+            pool.release()
+        self.assertEqual((self.where / "slot-1.json").read_text(encoding="utf-8"), "")
+        self.assertEqual(sorted(p.name for p in self.where.iterdir()), ["slot-1.json", "slot-1.lock"])
+        after = self.pool(count=1, name="next").acquire()
+        self.assertEqual((after.slot, after.reclaimed), (1, []))  # not a false reclaim
+
     def test_release_without_a_slot_does_nothing(self) -> None:
         self.pool().release()
 
