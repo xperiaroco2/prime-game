@@ -929,6 +929,20 @@ def verify_in(path: Path, log: str) -> Result:
     )
 
 
+def keep_reports(path: Path, log: str) -> str:
+    """Copies the merged tree's logs and GdUnit reports out of the scratch worktree before it is removed, so a red
+    verify can be read afterwards; the kept folder, relative to the checkout."""
+    kept = SCRATCH.parent / "merge-logs" / log
+    shutil.rmtree(kept, ignore_errors=True)
+    for name in ("logs", "gdunit"):
+        source = path / "tools" / "out" / name
+        if source.is_dir():
+            shutil.copytree(source, kept / name, dirs_exist_ok=True, ignore_dangling_symlinks=True)
+    where = (kept.relative_to(ROOT) if kept.is_relative_to(ROOT) else kept).as_posix()
+    say(f"kept the merged tree's logs and reports in {where}")
+    return where
+
+
 def _merge_into(path: Path, commit: str, message: str, what: str) -> str:
     """merge --no-ff in the scratch worktree; the merge commit's hash, or a Failure naming the conflicts."""
     res = _git("merge", "--no-ff", "-m", message, commit, cwd=path)
@@ -967,6 +981,8 @@ def run_trial(numbers: list[int], base: str | None) -> int:
             for pr in prs:
                 _merge_into(path, pr.oid, merge_message(pr), pr.label)
             result = verify_in(path, "merge-trial")
+            if result.rc != 0 or result.timed_out:
+                keep_reports(path, "merge-trial")
     except Failure as exc:
         bad(str(exc))
         say(f"trial: {base} + {order}: does not merge")
@@ -1102,6 +1118,10 @@ def _merge_verify_push(tip: str, commit: str, message: str, what: str, base: str
         sha = _merge_into(path, commit, message, what)
         result = verify_in(path, log)
         if result.rc != 0 or result.timed_out:
-            raise Failure(f"verify is red on the merged tree of {what}: nothing was pushed (log tools/out/logs/{log}.log)")
+            kept = keep_reports(path, log)
+            raise Failure(
+                f"verify is red on the merged tree of {what}: nothing was pushed (log tools/out/logs/{log}.log; "
+                f"the merged tree's logs and reports: {kept})"
+            )
         _push(sha, base)
     return sha, time.monotonic() - started

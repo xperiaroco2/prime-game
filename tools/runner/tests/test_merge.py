@@ -407,7 +407,15 @@ class CommandTest(unittest.TestCase):
     def fake_verify(self, path: Path, log: str) -> Result:
         files = {p.relative_to(path).as_posix() for p in path.rglob("*") if p.is_file() and ".git" not in p.parts}
         self.verified.append(files)
+        for report in (f"tools/out/logs/{log}.log", "tools/out/gdunit/results.xml"):
+            (path / report).parent.mkdir(parents=True, exist_ok=True)
+            (path / report).write_text(f"{log}: {self.verify_rc}\n", encoding="utf-8", newline="\n")
         return Result(self.verify_rc, "verify summary", False, 0.0)
+
+    def kept(self, log: str) -> dict[str, str]:
+        """The merged tree's reports kept after a red verify, by path."""
+        root = self.repo.tmp / "out" / "merge-logs" / log
+        return {p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in root.rglob("*") if p.is_file()}
 
     def task(self, number: int, files: dict[str, str | None], base: str = "release/m1") -> str:
         branch = f"core/{number}-task"
@@ -468,9 +476,12 @@ class CommandTest(unittest.TestCase):
         self.assertTrue({"core/a.gd", "core/b.gd"} <= self.verified[0])
         self.assertEqual(self.scratch_left(), [])
         self.assertEqual(_git(self.repo.work, "worktree", "list").count("\n"), 0)  # only the checkout itself
+        self.assertEqual(self.kept("merge-trial"), {})  # a green verify keeps nothing
         self.verify_rc = 1
         self.assertEqual(merge.check([1, 2], trial=True), 1)
         self.assertEqual(self.scratch_left(), [])
+        reports = {"logs/merge-trial.log": "merge-trial: 1\n", "gdunit/results.xml": "merge-trial: 1\n"}
+        self.assertEqual(self.kept("merge-trial"), reports)
 
     def test_trial_stops_at_a_conflict_and_removes_the_worktree(self) -> None:
         self.task(1, {"core/a.gd": "extends Node\n"})
@@ -519,6 +530,9 @@ class CommandTest(unittest.TestCase):
         with self.assertRaises(Failure) as caught:
             merge.merge(7, base="release/m1")
         self.assertIn("nothing was pushed", str(caught.exception))
+        self.assertIn("merge-logs/merge-7", str(caught.exception))
+        reports = {"logs/merge-7.log": "merge-7: 1\n", "gdunit/results.xml": "merge-7: 1\n"}
+        self.assertEqual(self.kept("merge-7"), reports)
         self.assertEqual((self.repo.remote("release/m1"), len(self.verified)), (tip, 1))
         self.assertEqual(self.scratch_left(), [])
 
