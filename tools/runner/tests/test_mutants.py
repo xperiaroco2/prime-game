@@ -410,6 +410,24 @@ class StepTest(unittest.TestCase):
         self.assertIn("run_import", inspect.signature(gdunit.main).parameters)
         self.assertIn("paths", inspect.signature(gdunit.main).parameters)
 
+    def test_a_step_never_reads_the_previous_steps_results(self) -> None:
+        """A child that stops before it writes results (or clears the old ones) gets no verdict from them."""
+        with tempfile.TemporaryDirectory() as folder:
+            tree = Path(folder)
+            old = tree / "tools" / "out" / "gdunit" / "report_1" / "results.xml"
+            old.parent.mkdir(parents=True)
+            old.write_text(
+                '<testsuites><testsuite name="a_test"><testcase name="t1" classname="a_test"/></testsuite></testsuites>',
+                encoding="utf-8",
+            )
+            log = tree / "tools" / "out" / "logs" / "test.log"
+            log.parent.mkdir(parents=True)
+            log.write_text("the previous step's log\n", encoding="utf-8")
+            with mock.patch.object(mutants, "_step", return_value=(1, "Traceback: early exit\n", False)):
+                outcome = mutants.test_step(tree, ["tests/unit"], 300)
+            self.assertEqual((outcome.rc, outcome.tests, outcome.failing, outcome.godot), (1, -1, [], ""))
+            self.assertEqual(mutants.judge(outcome, "core/a.gd", 300)[0], ERROR)
+
 
 class LockTest(unittest.TestCase):
     def test_one_holder_at_a_time(self) -> None:

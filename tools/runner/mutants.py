@@ -423,10 +423,13 @@ def import_step(tree: Path) -> str:
 def test_step(tree: Path, paths: list[str], seconds: float) -> Outcome:
     """`test <paths>` in the scratch tree without its import, judged by the child's exit code and results.xml."""
     log = tree / "tools" / "out" / "logs" / "test.log"
+    gdunit = tree / "tools" / "out" / "gdunit"
+    # The previous step's log and results must never be read as this one's (a child that stops before it clears them).
     log.unlink(missing_ok=True)
+    shutil.rmtree(gdunit, ignore_errors=True)
     rc, out, timed_out = _step(tree, ["test", *paths], seconds)
     godot = log.read_text(encoding="utf-8", errors="replace") if log.is_file() else ""
-    reports = sorted((tree / "tools" / "out" / "gdunit").glob("report_*/results.xml"))
+    reports = sorted(gdunit.glob("report_*/results.xml"))
     if not reports or timed_out:
         return Outcome(rc, out, timed_out, godot=godot)
     tests, failing = read_results(reports[-1])
