@@ -82,7 +82,8 @@ Checked for this design on 2026-10-02, live rather than from memory:
 | Stage | Where | What it does | The failure it prevents |
 |---|---|---|---|
 | Capture | `voice/` `VoiceCapture`; opened by `client/app/` | the device the player picked, 20 ms chunks from the 4.7 microphone API (E36) | a 4-channel laptop array freezing the game at every start (#22) |
-| Gate | `voice/` `VoiceGate` (pure) | push-to-talk or voice activity; sends nothing in silence, nothing while downed or dead, nothing in a silent phase (E37) | a silent player's steady stream showing where they are; bandwidth and decodes for nothing |
+| Gate | `voice/` `VoiceGate` (pure) | push-to-talk or voice activity; sends nothing in silence, nothing while its `may_speak` input is false (E37) | a silent player's steady stream showing where they are; bandwidth and decodes for nothing |
+| The sender | `client/voice/` `VoiceSender` | wires capture, encoder and gate to `ClientSession.send_voice`; decides `may_speak` from the own life fold and the phase's `hearing_radius_m()` (nothing while downed or dead, nothing in a silent phase) | `voice/` reading the life fold or core state, where the E18 boundary test does not look (invariant 2) |
 | Encode | `voice/` `VoiceCodec`, `TwoVoipCodec` | 48 kHz mono Opus, 20 ms, 24 kbit/s, complexity 5, RNNoise on by default (E34, E38) | a script naming an addon class failing to parse where the addon is absent |
 | Send, relay | `ClientSession.send_voice`, `server/VoiceRelay`, `core/` `VoiceRule` (as built) | the host routes each frame by the last tick's routing, renumbers per stream, stamps the tick, never decodes | a client hearing what it is not entitled to (invariant 2) |
 | Receive | `client/world/` `VoiceViews` | plays only `voice_received` frames, for a speaker with a `RemotePlayerBody`, never while the own player is dead (§3) | a dead spectator hearing voice; a frame played for a player not drawn |
@@ -115,7 +116,11 @@ continuous, and `VoiceGate` decides per chunk whether its frame is sent:
   the current frame make at most 3 frames in one send, under the relay's newest 5 per poll.
 - **Never:** while the own player is downed or dead (nobody hears them by the voice invariant), or in a phase whose
   voice rule hears nobody (`hearing_radius_m()` 0 in the client's own mode: Loading and End). Not sending narrows
-  nothing: the host would route none of them anyway.
+  nothing: the host would route none of them anyway. `VoiceGate` only takes `may_speak` as an input; `client/`'s
+  `VoiceSender` (`client/voice/`) decides it from the own life fold and the client's own mode, never from `Match` or
+  `MatchState` (the host's own client included, invariant 2), so `voice/` stays plumbing that reads no game state.
+  M5-2 extends the E18 boundary test (`tests/unit/client/app/client_boundary_test.gd`) so its forbidden names also
+  apply to `res://voice`, seen failing on a planted read.
 - The level is the peak of the raw chunk, computed in `VoiceGate` (pure, so a test feeds it silence and a sine), not
   the addon's `get_peak()`. Both are measured before noise suppression, so a loud fan can hold voice activity open;
   the addon PR checks whether v6.5 offers RNNoise's speech probability (TwoVoIP's current README names
@@ -169,7 +174,8 @@ arrival_usec)` and asked every frame what to decode, given the decoded audio que
 - **One `AudioStreamPlayer3D` per remote speaker** (`VoiceSpeaker`), a child of its `RemotePlayerBody` at mouth height
   (eye height − 0.1 m, a placeholder), on the Voice bus, created at its first frame and freed with the body: a dead
   player has no avatar and so no player. Its `attenuation_model` is `ATTENUATION_DISABLED` and its `max_distance` the
-  current phase's `hearing_radius_m()` from the client's own mode (E41), which Godot documents as linear attenuation
+  current phase's `hearing_radius_m()` from the client's own mode (E41), which `client/`'s `VoiceViews` sets (the
+speaker never reads the phase itself), and which Godot documents as linear attenuation
   clamped to a sphere: the voice fades to silence where the host stops delivering (D12). 3D, as the host measures.
 - **What a listener hears near the edge:** at 7 m of 8 a voice is at one eighth of its amplitude (−18 dB), at 8 m
   silent. The host measures feet to feet between the last accepted positions, the client ears to mouth between
@@ -441,7 +447,8 @@ M5-4b's batching unless M5-4 shows the host overloaded).
 |---|---|---|
 | `core/content/voice_rule.gd`, `core/voice/` | M5-1 | `hearing_radius_m()` is the name M5-5 and M5-6 read; a rename changes both issues' text |
 | `tests/harness/` (`LeakCheck`, `ScenarioInvariants`, `NetPlay`), `content/scenarios/` | M5-1, M5-4 (`voice_load`), M5-4b | a check changes in the PR that changes what it checks; the scenarios are provisional content (MVP content ADR) |
-| `voice/` | M5-2 (codec, gate, jitter), M5-5 (`VoiceSpeaker`), M5-6 (`VoiceCapture`, the sender) | new files per issue; M5-5 and M5-6 edit no file M5-2 created except to add a function |
+| `voice/` | M5-2 (codec, gate, jitter), M5-5 (`VoiceSpeaker`), M5-6 (`VoiceCapture`) | new files per issue; M5-5 and M5-6 edit no file M5-2 created except to add a function; nothing in `voice/` reads the life fold, the phase or `ClientSession` |
+| `client/voice/` | M5-6 (`VoiceSender`: `may_speak` and `send_voice`) | |
 | `client/net/client_session.gd` | #155 (claim flags), M5-5 (`voice_received` carries the seq), M5-4b (the batched row, emitting per frame with its seq) | M5-5 after #155; `voice_received`'s signature is what M5-4b emits |
 | `client/app/game.gd` | M5-5 (`VoiceViews`, `Ears`, `AudioBuses` wiring), M5-6 (capture, settings) | each its own function; the second to merge rebases |
 | `client/world/world_sounds.gd`, `sound_chooser.gd` | M5-5 (the ears, the World bus), M5-7 (the muffle, the CC0 streams) | M5-7 after M5-5 |

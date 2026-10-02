@@ -19,8 +19,10 @@ E34 to E47, D11 to D15; its §3 is the review checklist for what the client play
   spike used them (`git show origin/voice/16-m1-spike-measure-voice-latency-cpu-cost:spike/voice/<file>`), never from
   memory: the engine's API dump does not hold them. Settings, measurements and lessons:
   `docs/decisions/2026-09-29-voice-approach.md`, `docs/ARCHITECTURE.md` §6.
-- Nothing is sent in silence: a frame leaves only while the gate is open, never while the own player is downed or dead
-  or in a phase whose voice rule hears nobody. A steady stream would show where a silent player stands.
+- Nothing is sent in silence: a frame leaves only while the gate is open. A steady stream would show where a silent
+  player stands. The gate closes when its `may_speak` input is false; `client/` decides `may_speak` (the own player
+  downed or dead, a phase whose voice rule hears nobody). `voice/` never reads the life fold, the phase or
+  core state: the E18 boundary test scans `res://voice` too (from M5-2).
 - Frames are 20 ms (48 kHz mono, 24 kbit/s): E7's voice bucket refills 50 a second and the relay keeps the newest 5
   per poll; a shorter frame changes both.
 - Any addon or GDExtension is a stop-and-ask item and lives in `addons/`. Only the `.gdextension`, its `.uid`, its
