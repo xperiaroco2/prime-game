@@ -666,37 +666,36 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is timing-dependent
   (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself (§4.6).
 - **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact]` [applied]** (#178;
-  item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
-  baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from the Claude Code
-  transcripts. It reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is
-  the main checkout's path with every character but letters and digits replaced by `-` (`D--prime-game`), plus
+  item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose baseline
+  it reproduces): time, tokens and API list $ of the task workflows, read-only from the Claude Code transcripts. It
+  reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
+  path with every character but letters and digits replaced by `-` (`D--prime-game`), plus
   `<key>--claude-worktrees-<n>/`. The main checkout is the parent of `git rev-parse --path-format=absolute
-  --git-common-dir`, so every worktree gets the same answer (workflow agents log under their parent session's
-  folder anyway). Per session: its own `<session>.jsonl` (the manager), the subagents it ran by hand, and each
-  workflow run under `subagents/workflows/wf_*/` (`journal.jsonl`, `agent-*.jsonl`, `*.meta.json`). Usage is
-  deduplicated by message id; a run counts when its first line is at or after `--since` and its last before
-  `--until` (default now), so a rerun with a past `--until` gives the same tables while sessions keep working.
-  A session's rows are labelled by its first 8 characters, or `--session dd93bf79=M4` (sessions given one label
-  form one stage). It prints and writes
-  `tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent
-  role, local `verify` by step (from the summaries agents printed, the managers' own runs and
-  `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify` writes it, #179),
-  review findings by reviewer, the prompt cache after waits, manager sessions with their % of a Max 20x week ($44
-  list per 1%, the ADR's calibration), and the other runs; `--ci N` adds CI from `gh` (the job and `verify` steps
-  of the last N green runs). `--compact` prints only its summary of at most ten lines (time and API list $ per task
-  and in total, the % of the week, the `verify` medians): the manager pastes `metrics --since <wave start>
-  --compact` into each wave comment. API list $ is a weight (one price table in `metrics.py`, its source and date
-  beside it), not money spent; no transcripts is a message and exit 0.
+  --git-common-dir`, so every worktree gets the same answer (workflow agents log under their parent session's folder
+  anyway). Per session: its own `<session>.jsonl` (the manager), the subagents it ran by hand, and each workflow run
+  under `subagents/workflows/wf_*/` (`journal.jsonl`, `agent-*.jsonl`, `*.meta.json`). Usage is deduplicated by message
+  id; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a rerun
+  with a past `--until` gives the same tables while sessions keep working. A session's rows are labelled by its first 8
+  characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
+  `tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role,
+  local `verify` by step (from the summaries agents printed, the managers' own runs and
+  `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify` writes it, #179), review
+  findings by reviewer, the prompt cache after waits, manager sessions with their % of a Max 20x week ($44 list per 1%,
+  the ADR's calibration), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the window, and the
+  jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten lines (time and
+  API list $ per task and in total, the % of the week, the `verify` medians): the manager pastes `metrics --since <wave
+  start> --compact` into each wave comment. API list $ is a weight (one price table in `metrics.py`, its source and date
+  beside it), not money spent; no transcripts is a message and exit 0, and so is an empty window, which also writes an
+  empty report over an older one.
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`, `run`,
-  `agents-check`, `credits`, `host`, `join`, `bots`, `metrics` (all three above), and `hook` (for Claude Code
-  only). Pins and pass/fail
-  rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine
-  `bash` on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a
-  Claude Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
+  `agents-check`, `credits`, `host`, `join`, `bots`, `metrics` (all three above), and `hook` (for Claude Code only).
+  Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
+  launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
+  PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
