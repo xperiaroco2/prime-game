@@ -4,8 +4,8 @@ Claude Code writes each subagent's transcript to
 ~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl, with agent-<id>.meta.json next to it. The meta file
 holds `agentType` and, when the caller asked for one, `model`; every assistant line of the transcript holds the model
 that actually answered. The expected family is the caller's `model`, else the `model:` of the project agent in
-.claude/agents/<agentType>.md; a subagent with neither inherits the session's model and is only listed. Families, not
-exact IDs, are compared.
+.claude/agents/<agentType>.md; a subagent with neither inherits the session's model and is only listed, unless a
+model in neither availableModels list served it (a failure, as below). Families, not exact IDs, are compared.
 
 `availableModels` is the shared list (.claude/settings.json) plus the user-scope one (settings.json in the config
 folder: ~/.claude, or CLAUDE_CONFIG_DIR), merged as Claude Code merges lists across non-managed scopes
@@ -181,6 +181,14 @@ def judge(t: Transcript, agents: dict[str, str], allowed: list[str], user: Seque
     if expected is None and t.agent_type in agents and agents[t.agent_type] != "inherit":
         expected, source = agents[t.agent_type], f".claude/agents/{t.agent_type}.md"
     if expected is None:
+        # No request and no agent file: whatever served it must still be in a list (the model guard), else a
+        # `models` override recorded under no key at all would pass as an inherited model.
+        outside = families - {family(m) for m in (*allowed, *user)}
+        if (allowed or user) and outside:
+            return "FAIL", (
+                f"inherits, yet served {served}, outside availableModels (shared and user scope): "
+                "the model guard failed"
+            )
         return "skip", f"inherits the session model; served {served}"
     want = family(expected)
     if want is None:

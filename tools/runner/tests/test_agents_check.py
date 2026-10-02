@@ -288,6 +288,18 @@ class UserScopeJudgeTest(unittest.TestCase):
         self.assertEqual(verdict, "skip")
         self.assertIn("fell back", why)
 
+    def test_an_inherited_model_in_neither_list_that_served_fails(self) -> None:
+        # A workflow-subagent (no agent file) overridden by `models` with no key in its meta file: still guarded.
+        inherited = t("workflow-subagent", {f"claude-{OUTSIDE}-5-1"})
+        for user in ([], ["sonnet"]):
+            with self.subTest(user=user):
+                verdict, why = agents_check.judge(inherited, AGENTS, ALLOWED, user=user)
+                self.assertEqual(verdict, "FAIL")
+                self.assertIn("the model guard failed", why)
+        self.assertEqual(agents_check.judge(inherited, AGENTS, ALLOWED, user=[OUTSIDE])[0], "skip")
+        self.assertEqual(agents_check.judge(t("workflow-subagent", {"claude-opus-5-5"}), AGENTS, ALLOWED)[0], "skip")
+        self.assertEqual(agents_check.judge(inherited, AGENTS, [])[0], "skip")  # no availableModels: no guard
+
     def test_the_user_list_changes_nothing_for_shared_models(self) -> None:
         self.assertEqual(self.judge({"claude-opus-5-5"}, "sonnet", ["sonnet", OUTSIDE])[0], "FAIL")
         self.assertEqual(self.judge({"claude-sonnet-5-5"}, "sonnet", [OUTSIDE])[0], "ok")
