@@ -37,13 +37,19 @@ One message from the human with `ultracode` in it (template in §10). It must st
 - the scope (issue numbers, or the design handoff to open them from, and fillers) and the plan issue to report on.
   A new milestone gets its own plan issue (`M<k>: plan and order`, opened by you after the yes, its body written
   once and never edited); if the kickoff names none, recommend that;
-- the release branch `release/m<k>` every task PR targets, and the order and dependencies: which task stacks on
-  which (`start --base`), which waits for a merge into the release branch;
-- the concurrency cap (default three tasks at once) and "one task = one workflow" with per-agent bounds
-  (implementer about 250 tool calls, reviewers about 60, publisher about 150);
-- explicit approval to exceed the size guideline (`issue-task` runs up to 5 agents; `small` means fewer than 5)
-  and a budget for the whole stage (tasks × about 900k subagent tokens), so you do not ask before each workflow
-  (root `CLAUDE.md`, §7 of AGENT_WORKFLOW);
+- the git flow: the release branch `release/m<k>` every task PR targets (or, on the tooling track, PRs into `main`),
+  and the order and dependencies: which task stacks on which (`start --base`), which waits for a merge;
+- the concurrency cap (default three tasks at once; at most about six task workflows across all tracks, so fewer
+  while other tracks run) and "one task = one workflow" with per-agent bounds (implementer about 250 tool calls,
+  reviewers about 60, publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40,
+  the test reviewer about 60, each skeptic about 30, a publisher that only reports a stop about 30);
+- explicit approval to exceed the size guideline, with the agent count it approves per workflow (`issue-task` runs
+  3 to 5 agents plus those of the v2 args the kickoff names, §3; `small` means fewer than 5), and a budget for the
+  whole stage as a percentage of the weekly limit (`metrics` converts its API list $; §9 has the numbers), so you do
+  not ask before each workflow (root `CLAUDE.md`, §7 of AGENT_WORKFLOW);
+- where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
+  second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of
+  that model's own weekly window (at most half across all tracks). You stay on the shared models;
 - the rules: only humans merge into `main`, you merge task PRs into `release/m<k>` (§5); no agent closes issues;
   each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
   windows only through `shot`; a game rule no ADR settles becomes options under "Needs the engineer"; `content/`
@@ -53,13 +59,16 @@ One message from the human with `ultracode` in it (template in §10). It must st
   the human (answers, a design review, the closing PR's merge); "продовжуй" resumes after a check of the live state.
 
 Something missing: ask once, batched, with a recommendation for each item. Then, always, restate in the human's
-language the waves, the ownership splits, the merge order, the agent count per workflow and the rough cost (§9
-numbers), and wait for their yes. That yes covers every later `issue-task` and `pr-rebase` run of the stage; a new
-kind of workflow still asks.
+language the waves, the ownership splits, the merge order, the agent count per workflow and the rough cost as a
+percentage of the weekly limit (§9 numbers), and wait for their yes. That yes covers every later `issue-task` and
+`pr-rebase` run of the stage; a new kind of workflow still asks.
 
 **Prerequisites** (check them before the restatement): the human pulled `main` in `D:\prime-game` after saving all
-scenes in the editor, and `D:/prime-game/.claude/workflows/issue-task.js` exists (`Test-Path`). Missing: ask the
-human to pull; a session opened before the pull needs `/reload-skills` to find the workflows by name.
+scenes in the editor, and `D:/prime-game/.claude/workflows/issue-task.js` exists (`Test-Path`) and knows the v2 args
+(`Select-String -Path D:/prime-game/.claude/workflows/issue-task.js -Pattern plan_review -Quiet`: an older copy logs
+and ignores them, so the reviews they add would silently not run). The merges of §5 need `merge-check` and `merge`
+in the main checkout's runner (`tools\run.cmd merge-check --help`, #181). Missing: ask the human to pull; a session
+opened before the pull needs `/reload-skills` to find the workflows by name.
 
 ## 2. Before the first launch
 1. `tools\run.cmd doctor --quick`. Read the plan issue, every issue in scope with its comments, the handoffs they
@@ -80,30 +89,37 @@ human to pull; a session opened before the pull needs `/reload-skills` to find t
    and `Tracking: #<plan>`, and `gh issue create --title "<area>: <what>" --label area:<x> --milestone M<k>
    --body-file <file>` (one `area:` label, which `start` needs for the branch prefix). Put the new numbers in a
    plan-issue comment.
-5. **The release branch** (once per milestone, after the yes): from the main checkout, without leaving your shell
-   anywhere else, `git fetch origin && git branch release/m<k> origin/main && git push -u origin release/m<k> &&
-   git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours, for the
-   merges (§5); say both in the first wave comment.
+5. **The release branch** (a milestone only, once, after the yes): from the main checkout, without leaving your
+   shell anywhere else, `git fetch origin && git branch release/m<k> origin/main && git push -u origin release/m<k>
+   && git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
+   both in the first wave comment.
 6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree, the
-   args file), the queue, ownership splits, merge order, open questions. Keep it current: it survives compaction.
-   Keep each task's args in `manager/args-<n>.json`. The scratchpad is per session, so every wave comment also
-   carries what a successor needs (§6).
+   args file), the queue, ownership splits, merge order, open questions, the current wave's start time. Keep it
+   current: it survives compaction. Keep each task's args in `manager/args-<n>.json`. The scratchpad is per session,
+   so every wave comment also carries what a successor needs (§6).
 7. Find the files that tasks running in parallel will all touch (mode `.tres` files, `docs/ARCHITECTURE.md`,
    registries, event folders) and split ownership **up front**: who owns which class, which task creates which
    shared class (same path and class name if two may create it), whose deal places what. Otherwise add/add
    conflicts and duplicate work follow.
+8. **Files shared across tracks** (the engineer's answer N5 (c); AGENT_WORKFLOW §7.1 "Parallel tracks"):
+   `.claude/workflows/` and this skill change only through the tooling track (#170): an issue there, landing between
+   the other managers' waves, since a change in the middle of a wave breaks their resumes (§7). A task of yours may
+   change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` pairs
+   PRs only within one base, so before such a PR merges, list the open PRs into another base that touch the same
+   files (`gh pr list --state open --json number,baseRefName,files`) and name them on that track's plan issue.
 
 ## 3. Launching a task
-1. `tools\run.cmd start <n> --base release/m<k>` (or `--base <parent branch>`, a branch on origin, for a task
-   stacked on an unmerged PR) in **your** session, from the main checkout, never in an agent. From its output take
-   the `WORKTREE <path>` line and the branch from the last line, `start: <branch> in the worktree <path>`.
+1. `tools\run.cmd start <n> --base release/m<k>` (plain `start <n>` on the tooling track; `--base <parent branch>`,
+   a branch on origin, for a task stacked on an unmerged PR) in **your** session, from the main checkout, never in
+   an agent. From its output take the `WORKTREE <path>` line and the branch from the last line, `start: <branch> in
+   the worktree <path>`.
 2. Launch the saved workflow `issue-task` (`.claude/workflows/issue-task.js`; the Workflow tool with
    `name: "issue-task"`, or `scriptPath` to that file in the main checkout) with `args` as a JSON object:
 
 | arg | what |
 |---|---|
 | `n`, `title`, `wt`, `branch` | the issue, its title, the worktree path, the task branch (required) |
-| `base` | the PR base: `"release/m<k>"`, or the parent's branch for a stacked task (`main` only outside a stage); every non-`main` base reaches `gh pr create --base`, a release base also `publish --base` (a parent's branch does not: publish follows the PR's live base) |
+| `base` | the PR base: `"release/m<k>"`, or the parent's branch for a stacked task (`main` outside a stage and on the tooling track); every non-`main` base reaches `gh pr create --base`, a release base also `publish --base` (a parent's branch does not: publish follows the PR's live base) |
 | `notes` | the task's specifics, the engineer's answers that apply, ownership splits, merge order (required) |
 | `coord` | what runs in parallel now and which shared files to touch minimally |
 | `decisions` | the engineer's standing decisions, each with where it is recorded (every task that they touch) |
@@ -112,27 +128,59 @@ human to pull; a session opened before the pull needs `/reload-skills` to find t
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 
-The workflow: implementer (commits, verify green, never publishes) → fresh reviewers in parallel, chosen from the
-changed paths (`code-reviewer` always; `netcode-security-reviewer` for `core/ server/ net/ client/ tests/harness/` or a
-design task; `godot-api-checker` for `.gd .tscn .tres`) → publisher (fixes blocker, major and cheap minor findings,
-`publish` (`--base` for a release base), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most
-two fix rounds, handoff, board In review). It throws when any routed agent returns nothing, and stops unpublished when the implementer ends
-red. Every agent writes temporary files only under the scratchpad subfolder `a<n>/`.
+**Pipeline v2 args** (AGENT_WORKFLOW §7.1), all off by default; the agents each adds count toward the number per
+workflow the kickoff approved:
+
+| arg | when | adds (tool calls each) |
+|---|---|---|
+| `plan_review: true` | the issue's Files line touches `core/ server/ net/ tests/harness/`, or its Size is M or more | 2: a plan agent (80) and a fresh critique (40) |
+| `test_review: true` | the same paths, once `mutants` (#184) is on the task's base (`git show origin/<base>:tools/runner/mutants.py`) | 1 (60); none for a design task or a diff without `core/ server/ net/ client/ voice/` code |
+| `second_review: true` | PRs that touch `core/ server/ net/ tests/harness/`, where the kickoff asks for it; with `models.second_review` where it allows a model beyond the shared list there | 1 (60) where the netcode review is routed |
+| `skeptic: <n>` or `true` | design tasks and audits (publishers judged only 8 of 441 findings wrong) | 1 per blocker or major checked (30) |
+| `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
+| `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review` | 0 |
+
+- **`models`** follows the script's fallbacks: set only `implement` or `second_review`, never `review` or `netcode`
+  (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode` covers `second_review`).
+  `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model too unless you also set
+  `models.plan: "opus"`. Never as a habit, and never for yourself.
+- **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
+  reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
+  that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
+  the kickoff set no cap (the manager's decision on PR #193). `pr-rebase` the same way, from at most 4 (§5).
+
+The workflow: (with `plan_review` a plan agent and a fresh critique of its plan first) implementer (commits, verify
+green, never publishes) → fresh reviewers in parallel, chosen from the changed paths (`code-reviewer` always;
+`netcode-security-reviewer` for `core/ server/ net/ client/ tests/harness/` or a design task; `godot-api-checker`
+for `.gd .tscn .tres`; then, when passed, the second netcode review, the test review with `mutants` and a skeptic per
+blocker or major) → publisher (fixes blocker, major and cheap minor findings, `publish` (`--base` for a release
+base), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most two fix rounds,
+handoff, board In review). It throws when any routed agent returns nothing, and stops unpublished when the
+implementer ends red. Every agent writes temporary files only under the scratchpad subfolder `a<n>/`.
 
 Notes that worked: say which PR a needed file comes from if it is unmerged ("build with fixtures, fetch and rebase
 once it lands"); repeat rules that force fixture updates in every later PR (neutral class defaults with the numbers
-in the data); name a task's merge order relative to the other open PRs.
+in the data); name a task's merge order relative to the other open PRs; name every rename in both tasks' notes (§9).
 
 ## 4. On each completion
-Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not_fixed`). Merge it into the release
-branch when the gate in §5 holds, and tell the human what you merged and in which order; explain each "Needs the
-engineer" item in plain words: a concrete scenario of what goes wrong, the options, your recommendation, numbered so
-they can answer "1A, 2B". Then fill the free slot.
+Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not_fixed`; with v2 args also `plan`
+(the plan and its critique, summarized in the PR), `test_review` (the mutants, or why it was skipped or missing),
+`skeptic` (`refuted`, `stood`, `unchecked`) and `visual` (the PNGs: the engineer drags them into the PR)). Merge it
+into the release branch when the gate in §5 holds (on the tooling track: run `merge-check` and ask the engineer),
+and tell the human what you merged and in which order; explain each "Needs the engineer" item in plain words: a
+concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". Then
+fill the free slot.
 
-When something failed:
+When something failed (never resume a run whose result has `stopped`: a resume replays the stop):
 - `stopped` (the implementer ended red) or `pub.published` false: say so on the plan issue and in chat, then launch
-  `issue-task` once more as a **fresh** run (not a resume: that replays the red result) with the failure added to
-  `notes`; the implementer continues from the worktree's commits. Red again: stop that task and ask the human.
+  `issue-task` once more as a **fresh** run with the failure added to `notes`; the implementer continues from the
+  worktree's commits. Red again: stop that task and ask the human; where the kickoff allows a model beyond the shared
+  list for a task red twice, offer a third launch with `models.implement` (§3).
+- `stopped` after `tools\run.cmd mutants` exited 2 (a scratch worktree could not be removed): nothing was published;
+  the stop comment on the issue names the leftover worktree under the task worktree's `tools/out/mutants/`. Ask the
+  engineer to remove it (a delete outside your worktree prompts; #184's next `mutants` run also removes it first),
+  then relaunch fresh with the stop in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
 
@@ -206,9 +254,10 @@ locally.
 
 ## 7. Resume after a crash, a restart or a plan limit
 - A workflow throws when an agent returns nothing. Relaunch it the same way (name or `scriptPath`) with
-  `resumeFromRunId` and the **same args** (from the args file): finished agents return their saved results. A
-  resume replays agents only while their prompts are unchanged, so it needs the same script too: if `main` changed
-  `issue-task.js` since the launch, expect the changed agents to run again.
+  `resumeFromRunId` and the **same args** (from the args file, v2 args included): finished agents return their saved
+  results. A resume replays agents only while their prompts are unchanged, so it needs the same script too: if `main`
+  changed `issue-task.js` since the launch, expect the changed agents to run again.
+- A result with `stopped` is never resumed (§4): relaunch fresh.
 - A stacked task whose parent has merged since the launch: do not resume; relaunch fresh with
   `base: "release/m<k>"`.
 - After a PC restart or a crashed session: reopen the same session (`claude --resume`, or the app) and resume each
