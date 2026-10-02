@@ -364,7 +364,77 @@ class T(unittest.TestCase):
 '''
 
 
+GROUP_FIXTURE = '''
+import os
+import unittest
+
+from runner.verify import starts_godot
+
+
+class NoGodot(unittest.TestCase):
+    def test_one(self):
+        pass
+
+    def test_two(self):
+        if os.environ.get("SELFTEST_FIXTURE_FAIL"):
+            self.fail("asked to")
+
+
+@starts_godot
+class WithGodot(unittest.TestCase):
+    def test_three(self):
+        pass
+'''
+
+
 class SelftestTest(unittest.TestCase):
+    def selftest_on_fixture(self, group: str, fail: bool = False) -> tuple[int, dict[str, object] | None, str]:
+        """selftest(group) over GROUP_FIXTURE in temp logs; its rc, its results record and its printed text."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        name = f"selftest_group_fixture_{uuid.uuid4().hex}"
+        (Path(tmp.name) / f"{name}.py").write_text(GROUP_FIXTURE, encoding="utf-8")
+        sys.path.insert(0, tmp.name)  # the spawned workers get this process's sys.path
+        self.addCleanup(sys.path.remove, tmp.name)
+        self.addCleanup(sys.modules.pop, name, None)
+        tests = list(verify._flatten(unittest.defaultTestLoader.loadTestsFromName(name)))
+        logs = Path(tmp.name) / "logs"
+        env = {verify.RUN_ID_VAR: "run-1", **({"SELFTEST_FIXTURE_FAIL": "1"} if fail else {})}
+        with (
+            mock.patch.dict(os.environ, env),
+            mock.patch.object(verify, "discover", return_value=tests),
+            mock.patch.object(verify, "LOGS", logs),
+            mock.patch.object(verify, "ensure_out", side_effect=lambda: logs.mkdir(exist_ok=True)),
+            mock.patch.object(verify, "selftest_workers", return_value=2),
+            contextlib.redirect_stdout(io.StringIO()) as out,
+        ):
+            rc = verify.selftest(group)
+            record = verify.read_results(group)
+        return rc, record, out.getvalue()
+
+    def test_each_group_runs_only_its_classes_and_records_this_run(self) -> None:
+        groups = {"python": {"NoGodot.test_one", "NoGodot.test_two"}, "godot": {"WithGodot.test_three"}}
+        for group, expected in groups.items():
+            rc, record, text = self.selftest_on_fixture(group)
+            self.assertEqual(rc, 0, text)
+            assert record is not None
+            self.assertEqual(record["run"], "run-1")
+            self.assertEqual(record["workers"], 2 if group == "python" else 1)
+            tests = record["tests"]
+            assert isinstance(tests, list)
+            self.assertEqual({".".join(str(e["id"]).split(".")[-2:]) for e in tests}, expected)
+            self.assertEqual({e["outcome"] for e in tests}, {"passed"})
+
+    def test_a_failed_test_in_a_worker_fails_its_group(self) -> None:
+        rc, record, text = self.selftest_on_fixture("python", fail=True)
+        self.assertEqual(rc, 1)
+        assert record is not None
+        tests = record["tests"]
+        assert isinstance(tests, list)
+        self.assertEqual(sorted(str(e["outcome"]) for e in tests), ["failed", "passed"])
+        self.assertIn("AssertionError: asked to", text)
+        self.assertIn("selftest: FAILED", text)
+
     def test_the_godot_group_is_every_class_that_needs_godot(self) -> None:
         # A class whose skip asks for godot_bin() starts Godot: it must carry @starts_godot, and only such a class.
         needs, marked = set(), set()
