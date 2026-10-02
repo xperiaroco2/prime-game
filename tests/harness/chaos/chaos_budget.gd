@@ -16,8 +16,9 @@ extends RefCounted
 
 ## Reason -> how many the host must have counted for this peer.
 var expected: Dictionary[int, int] = {}
-## The peer was disconnected for malformed messages; at that host time (-1 before).
+## The peer was disconnected for malformed messages.
 var disconnected := false
+## The host time of that disconnect; -1 before.
 var disconnected_at_usec := -1
 ## Chaos intent seq -> how many of its copies were dropped over a budget.
 var over_budget_seqs: Dictionary[int, int] = {}
