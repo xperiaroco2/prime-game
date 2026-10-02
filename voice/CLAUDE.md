@@ -5,8 +5,8 @@ Loaded when a file in `voice/` is read. The invariants in the root `CLAUDE.md` a
 E34 to E47, D11 to D15; its §3 is the review checklist for what the client plays).
 
 ## Job
-- Microphone capture, Opus encode and decode, the jitter buffer, and the per-speaker playback helper that `client/`
-  hangs on a speaker's avatar.
+- Microphone capture, Opus encode and decode, the jitter buffer, and the playback plumbing (which of `client/` and
+  `voice/` uses the other is E46 of the M5 ADR, open; `docs/ARCHITECTURE.md` §1 holds until it is answered).
 - The gate: push-to-talk and voice activity (M5).
 
 ## Rules
