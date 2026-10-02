@@ -1,8 +1,9 @@
 # AI productivity: the measured baseline and pipeline v2
 
-- **Status:** Proposed: the engineer reviews it in #171's PR. The technical choices below are the manager's under the
-  engineer's delegation (#134, 2026-10-01 14:02 UTC); the items marked **Needs the engineer** and the two amendment
-  drafts at the end (A: the model guard, B: the release branch) are accepted or rejected one by one.
+- **Status:** Accepted (2026-10-02) with the engineer's answers to N1 to N5 ("The engineer's answers" below):
+  amendment A accepted (applied by #183), amendment B rejected (the release-branch ADR stays; one line on the
+  tooling-track exception, #183). The technical choices below are the manager's under the engineer's delegation
+  (#134, 2026-10-01 14:02 UTC). The proposed issues are #178 to #189 (P1 to P12).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
@@ -221,7 +222,7 @@ a resume replays agents only while their prompts and options are unchanged).
 P3 builds (a) to (g) in `.claude/workflows/issue-task.js` (and the review options in `pr-rebase.js`), with
 `tools/runner/tests/test_workflows.py` asserting that today's arguments produce today's prompts and options.
 
-### 5. The model policy (**Needs the engineer**, N1; draft: amendment A)
+### 5. The model policy (N1: the engineer chose (b); amendment A accepted)
 The baseline shows where a stronger model could pay: no review found a blocker in 122 reviews, majors were found in
 20 of 48 PRs (42%), some only by a review the manager ran by hand, and the costliest failures (the red merges, the
 leak-test blind spot of M3, the playtest bugs) are cross-cutting judgements rather than volume. The plan reports a
@@ -294,7 +295,7 @@ timing-dependent, only the invariants are asserted: no crash, no engine error li
 (`MEMORY_STATIC`) with 10 bots; reported against the previous night, never failing the build (a threshold is a
 placeholder, not a decision).
 
-### 7. Parallel tracks at scale (**Needs the engineer**, N2 and N5; draft: amendment B)
+### 7. Parallel tracks at scale (N2: amendment B rejected; N5: (c); see "The engineer's answers")
 M5 (a local session after #167 merges), the UI track (#150), the 3D track (#165) and this track share one PC (8
 cores, 16 threads, 32 GB), one weekly limit and one engineer who merges.
 
@@ -342,7 +343,28 @@ a change to them lands between the other managers' waves.
    belong to this track while it runs, other tracks change them only through an issue here, landing between the
    other managers' waves; (b) any track may change them between waves, after `merge-check`. **Recommended (a).**
 
-### The proposed issues (in full in the handoff on #171)
+### The engineer's answers (chat with the AI productivity manager session, 2026-10-02)
+1. **N1: (b).** The strongest model per launch only for stage designs, second reviews of PRs that touch core/,
+   server/, net/ or tests/harness/, audits and tasks that went red twice; at most half of its weekly window across
+   tracks; amendment A as drafted (`agents-check` reads the user-scope list, #183). Managers stay on the shared models.
+2. **N2: not (d); amendment B is rejected.** The release-branch ADR stays: one milestone at a time in this repository
+   (the art and UX/UI tracks run in their own repositories). This tooling track is the exception: its PRs go straight
+   into `main` and the engineer merges each. When `main` gets a change a running milestone should take in, the
+   tooling track's manager says so on that milestone's plan issue, and the milestone's manager merges `origin/main`
+   into `release/m<k>` at a wave boundary in its release worktree, runs `verify` on the merged tree and pushes the
+   commit by hash (one line in the release-branch ADR and a step in the skill, #183).
+3. **N3: (c)**, starting as (b) until P12 (#189) lands.
+4. **N4: (a)**: `verify` stays exactly what CI runs.
+5. **N5:** the cap of about six task workflows and the budgets as a percentage, as written; the shared files **(c)**,
+   proposed by the manager in place of (a): `.claude/workflows/` and the orchestrate-stage skill change only through
+   this track (a change in the middle of another manager's wave breaks its resumes); `tools/runner/` and
+   `docs/AGENT_WORKFLOW.md` may be changed by any track between waves, after `merge-check`.
+
+The manager changed one dependency of the split: P12 (#189) no longer waits for P10 (#187) and P11 (#188), which add
+their own night jobs to `nightly.yml` once it is on `main`, so the `.claude/` part of P12 runs while the engineer is
+present.
+
+### The proposed issues (in full in the handoff on #171; opened as #178 to #189)
 Waves of at most two tasks while the M4 manager runs, three after; a task that needs an unmerged PR waits for the
 engineer's merge unless "stacks" is said. Tasks that edit `.claude/` run only while the engineer is present (stated in
 the kickoff), so P3 and P6 go early.
@@ -371,7 +393,7 @@ and the merge flow the other tracks will use (P3, P4), then the rest. Cost: abou
 $250 to $350 for the twelve (6 to 8% of a Max 20x week) plus the manager, within the track's 20 to 25%. Drop order:
 P11, then the per-wave report in P6, then audit lenses beyond one in P12.
 
-## Amendment draft A: the model guard (to `2026-09-28-model-guard-no-fable-in-shared-config.md`), Needs the engineer
+## Amendment A: the model guard (to `2026-09-28-model-guard-no-fable-in-shared-config.md`), accepted (N1 (b)); applied by #183
 Proposed text, added under its Decision if N1 is (b):
 - The shared `availableModels` stays `["opus", "sonnet", "haiku"]`. The engineer may add `fable` to
   `availableModels` in his own `~/.claude/settings.json`; the designer's machine does not.
@@ -387,7 +409,7 @@ Proposed text, added under its Decision if N1 is (b):
   shared and the user-scope `availableModels`, accepts a model from the user list when the requested model served,
   and still fails a model in neither list that served.
 
-## Amendment draft B: release branches (to `2026-10-01-release-branch-per-milestone.md`), Needs the engineer
+## Amendment draft B: release branches (to `2026-10-01-release-branch-per-milestone.md`), rejected (N2)
 Proposed text, replacing "There is no `staging` branch and one milestone runs at a time" if N2 is (d):
 - Several tracks may run at once (a milestone stage, the UI, 3D and AI productivity tracks). A track that runs
   unattended at night gets its own `release/<track>` (`release/m<k>` for a milestone stage) under the rules above; a
