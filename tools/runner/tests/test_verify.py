@@ -227,6 +227,18 @@ class LaneTest(unittest.TestCase):
         self.assertEqual([rows[name] for name in GODOT_STEPS[1:]], ["FAILED"] * (len(GODOT_STEPS) - 1))
         self.assertIn("the godot lane crashed", text)
 
+    def test_a_crashed_lanes_message_waits_for_the_step_being_printed(self) -> None:
+        printing = threading.Lock()
+        held: list[bool] = []
+
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            if lane == "godot":
+                raise OSError("no such file")
+
+        with mock.patch.object(verify, "bad", side_effect=lambda *_args: held.append(printing.locked())):
+            verify.run_lanes(run_lane, lambda _step: None, printing)
+        self.assertEqual(held, [True])
+
     def test_the_history_record(self) -> None:
         rc, _text, record = Verify(self).run(fake_lane())
         self.assertEqual(rc, 0)

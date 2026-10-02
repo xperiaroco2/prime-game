@@ -310,17 +310,20 @@ def run_lane_process(
     reader.close(f"stopped after {timeout:.0f}s" if fired.is_set() else f"its process exited {proc.returncode}")
 
 
-def run_lanes(run_lane: RunLane, emit: Emit) -> dict[str, float]:
+def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = None) -> dict[str, float]:
     """Every lane at once, one thread each; returns each lane's wall time in seconds. Ctrl+C stops the lanes'
-    processes (each runs in a process group of its own, which Ctrl+C does not reach)."""
+    processes (each runs in a process group of its own, which Ctrl+C does not reach). `printing` is the lock emit
+    prints under: a crashed lane's message takes it too, so it never lands inside another step's block."""
     walls: dict[str, float] = {}
+    printing = printing or threading.Lock()
 
     def one(lane: str, names: tuple[str, ...]) -> None:
         started = time.monotonic()
         try:
             run_lane(lane, names, emit)
         except Exception:  # noqa: BLE001 - its unreported steps fail in the summary
-            bad(f"the {lane} lane crashed:", traceback.format_exc().rstrip())
+            with printing:
+                bad(f"the {lane} lane crashed:", traceback.format_exc().rstrip())
         walls[lane] = time.monotonic() - started
 
     threads = [threading.Thread(target=one, args=item, daemon=True) for item in LANES.items()]
@@ -651,7 +654,7 @@ def main(run_lane: RunLane = run_lane_process) -> int:
                 runs[step.name] = step
                 _print_step(step)
 
-        walls = run_lanes(run_lane, emit)
+        walls = run_lanes(run_lane, emit, printing)
         for lane, names in LANES.items():
             for name in names:
                 runs.setdefault(name, StepRun(name, lane, "FAILED", 0.0))  # its lane never reported it
