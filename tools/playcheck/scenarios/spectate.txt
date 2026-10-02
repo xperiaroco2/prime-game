@@ -1,0 +1,36 @@
+# Downed, then dead, then spectating through the target's eyes (#168, PR #173) in the game's
+# real windows. Window 1 hosts, window 2 joins, and player 3 is a bot forced to be the dissident
+# (spectate_bots.tres): it takes a knife and knocks player 2 down, then player 1. Window 2 shows
+# its downed camera, holds G (give_up) once player 1 is down too, dies, and watches the one living
+# player, the bot, through its eyes: its knife in the first-person hand, and the spectator HUD
+# naming it with its Hand and Belt and none of the spectator's own slots or numbers.
+players 3
+windows 2
+bots tools/playcheck/scenarios/spectate_bots.tres
+role 3 dissident
+
+window 1
+wait phase lobby
+press ready
+wait screen round timeout=60
+wait life 2 downed timeout=90
+wait life downed timeout=60
+
+window 2
+wait phase lobby
+press ready
+wait screen round timeout=60
+frames 30
+shot round_guest_before
+wait life downed timeout=90
+frames 60
+shot downed_camera
+wait life 1 downed timeout=60
+hold give_up
+wait life dead
+release give_up
+# Still in the round, and the bot is the one living player to watch.
+wait screen round
+wait life 3 alive
+frames 60
+shot spectating_the_bot

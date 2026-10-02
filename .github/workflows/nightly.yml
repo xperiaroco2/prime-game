@@ -2,8 +2,9 @@
 # Each night job is one job below that sets up the toolchain like CI (.github/actions/setup-toolchain), runs one
 # runner command and uploads its reports. `report` lists every night job in `needs` and, when one of them fails,
 # comments with the run link on the standing "Night jobs" issue (creating it the first time).
-# Adding a night job (perf by #187, the long chaos run by #188): copy the `flaky` job, change its command, artifact
-# name and timeout, and add its id to `report`'s `needs`.
+# Adding a night job: copy the `flaky` job, change its command, artifact name and timeout, and add its id to
+# `report`'s `needs`. `perf` (#187) also keeps its report for the next night in a cache. `chaos` (#188) is the long
+# chaos run with random seeds, each printed in its log.
 # Scheduled runs use the latest commit on main and start late at busy times; GitHub disables the schedule of a public
 # repository after 60 days without activity (docs.github.com, "Events that trigger workflows").
 name: Nightly
@@ -60,9 +61,108 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+  perf:
+    name: perf (10 bots, compared with the last night)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      # No LFS content, as in CI.
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - uses: ./.github/actions/setup-toolchain
+
+      - name: doctor
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
+
+      # The last successful night's report, saved by this step at the end of that night's job (a new key every run,
+      # so each successful run saves; restore-keys takes the newest). The cache needs no permission beyond the
+      # workflow's.
+      - name: The last night's report
+        uses: actions/cache@v6
+        with:
+          path: tools/out/perf-last
+          key: nightly-perf-${{ github.run_id }}
+          restore-keys: nightly-perf-
+
+      # 10 bots over the loopback, a 60 s round; changes beyond the threshold are listed, never a failure.
+      - name: perf
+        run: |
+          baseline=()
+          if [ -f tools/out/perf-last/last.json ]; then baseline=(--baseline tools/out/perf-last/last.json); fi
+          GODOT_BIN=$HOME/godot/godot tools/run.sh perf "${baseline[@]}"
+
+      # A fresh checkout holds this run's report alone in tools/out/perf/ (the date is UTC).
+      - name: Keep this report for the next night
+        run: |
+          mkdir -p tools/out/perf-last
+          cp tools/out/perf/[0-9]*.json tools/out/perf-last/last.json
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f tools/out/perf/summary.md ]; then
+            cat tools/out/perf/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the report and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-perf
+          path: |
+            tools/out/perf
+            tools/out/logs
+          if-no-files-found: ignore
+          retention-days: 30
+
+  chaos:
+    name: chaos (the long run, random seeds)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # No LFS content, as in CI.
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - uses: ./.github/actions/setup-toolchain
+
+      - name: doctor
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
+
+      # Ten seeds from a random one (printed first: `tools/run.sh bots --chaos --long --seed <n>` replays a failed
+      # one), each the baseline, the chaos run and the swapped roles of the long match, one process each.
+      - name: chaos over the loopback
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh bots --chaos --long --runs 10
+
+      # The ENet run's launch deletes every chaos_main-<n>.log first: keep the loopback run's (its seeds and
+      # failures) under another name for the artifact.
+      - name: Keep the loopback log
+        if: always()
+        run: |
+          if [ -f tools/out/logs/run/chaos_main-1.log ]; then
+            cp tools/out/logs/run/chaos_main-1.log tools/out/logs/chaos-loopback.log
+          fi
+
+      # Over ENet on 127.0.0.1 only the invariants hold (no crash, no engine error line, the leak check, the counters).
+      - name: chaos over ENet
+        if: success() || failure()
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh bots --chaos --long --enet
+
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-chaos
+          path: tools/out/logs
+          if-no-files-found: ignore
+          retention-days: 30
+
   report:
     name: report on the Night jobs issue
-    needs: [flaky]
+    needs: [flaky, perf, chaos]
     # A failed or timed-out night job; a skipped one is not news.
     if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-24.04
@@ -89,6 +189,6 @@ jobs:
             number=${url##*/}
           fi
           jobs=$(echo "$NEEDS" | jq -r 'to_entries[] | "- `\(.key)`: \(.value.result)"')
-          printf 'Nightly run failed: %s\n\nCommit %s on %s (%s).\n\n%s\n\nReports: the artifacts of the run (per job); the flaky job writes its per-suite comparison to the run summary.\n' \
+          printf 'Nightly run failed: %s\n\nCommit %s on %s (%s).\n\n%s\n\nReports: the artifacts of the run (per job); the flaky job writes its per-suite comparison and perf its numbers to the run summary.\n' \
             "$RUN_URL" "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_EVENT_NAME" "$jobs" > comment.md
           gh issue comment "$number" --body-file comment.md

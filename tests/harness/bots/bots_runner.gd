@@ -30,7 +30,13 @@ var session: HostSession
 var game: Match
 var hub := LoopbackHub.new()
 ## The host's transport.
-var host_transport: LoopbackTransport
+var host_transport: NetTransport
+## The port the host listens on (the hub's, or ENet's for the chaos run's ENet variant).
+var port := PORT
+## One process over the loopback: no client may count a superseded LATEST message (one snapshot
+## per step, one poll per step) and every speaker's voice seqs run without a gap. The chaos run's
+## ENet variant clears it: a real network may bunch, drop and reorder.
+var one_process := true
 var lurker: BotWatcher
 var refused: BotWatcher
 var frames_run := 0
@@ -75,7 +81,7 @@ func run() -> void:
 		failures.append("level: %s" % error)
 	if not levels.errors.is_empty():
 		return
-	host_transport = LoopbackTransport.new(schema.kind_table(), hub)
+	host_transport = _make_host_transport()
 	session = HostSession.new(host_transport, schema)
 	session.replay_dir = ""
 	session.hello_deadline_usec = (ceili(scenario.time_limit_s + LURKER_MARGIN_S) * USEC_PER_SECOND)
@@ -85,7 +91,7 @@ func run() -> void:
 		scenario.mode,
 		world,
 		levels.layouts,
-		PORT,
+		port,
 		scenario.bots + EXTRA_CLIENTS,
 		now_usec,
 		scenario.session_seed
@@ -135,6 +141,7 @@ func _play() -> void:
 				"the host session ended (%s): %s" % [session.end_reason, "; ".join(session.errors)]
 			)
 			return
+		_after_host_step()
 		step_clients()
 		lurker.poll()
 		refused.poll()
@@ -152,10 +159,20 @@ func _join_host(bot: ScenarioBot) -> String:
 
 
 ## A loopback client joining the host (its id comes with `connected`).
-func _joining() -> LoopbackTransport:
+func _joining() -> NetTransport:
 	var transport := LoopbackTransport.new(schema.kind_table(), hub)
-	transport.join("loopback", PORT)
+	transport.join("loopback", port)
 	return transport
+
+
+## The host's transport, not hosting yet: a loopback on the hub.
+func _make_host_transport() -> NetTransport:
+	return LoopbackTransport.new(schema.kind_table(), hub)
+
+
+## Right after each host step, before the clients step (the chaos run's hook).
+func _after_host_step() -> void:
+	pass
 
 
 ## HostSession's observer: after every Match call, before its slice is delivered.
@@ -190,18 +207,21 @@ func _check_after() -> void:
 		var label := "bot %d" % bot.number
 		failures.append_array(_leaks.check_bot(label, bot.peer, client.view, bot.gone))
 		failures.append_array(
-			LeakCheck.check_counters(label, bot.peer, client.transport(), client.bad_payloads, true)
+			LeakCheck.check_counters(
+				label, bot.peer, client.transport(), client.bad_payloads, one_process
+			)
 		)
 		if bot.peer == 0:
 			continue
-		failures.append_array(_leaks.check_voice_streams(label, bot.peer, client.view))
+		if one_process:
+			failures.append_array(_leaks.check_voice_streams(label, bot.peer, client.view))
 		views[label] = client.view
 	failures.append_array(_leaks.check_tasks(views))
 	for watcher: BotWatcher in [lurker, refused]:
 		failures.append_array(_leaks.check_watcher(watcher))
 		failures.append_array(
 			LeakCheck.check_counters(
-				watcher.label, watcher.peer, watcher.transport, watcher.undecodable, true
+				watcher.label, watcher.peer, watcher.transport, watcher.undecodable, one_process
 			)
 		)
 	failures.append_array(host_problems())

@@ -17,3 +17,6 @@ __pycache__/
 
 # JetBrains Rider: personal files; shared run configurations may be un-ignored deliberately
 .idea/
+
+# The runner's per-worktree user:// (tools/runner/common.py ensure_user_dir, #182); the main checkout has none
+/override.cfg

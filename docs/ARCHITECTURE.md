@@ -874,7 +874,8 @@ log to `user://replays/` when the session ends (never after each match) and keep
 seed, from which every later match's seed is derived (§3.3), so a log written after match 1 would let the host's human
 or agent, debugging mid-playtest, replay it and read every role of match 2; the bots runner writes a failed scenario's
 log next to its report, so `Match.replay` reproduces the failure with the same build and content (3f adds `CommandLog`'s
-reading back). The log holds the seed: it stays on the host's disk and is never sent (§5).
+reading back). The log holds the seed: it stays on the host's disk and is never sent (§5). A host started from a task
+worktree writes into that worktree's own `user://` (#182, `docs/AGENT_WORKFLOW.md` §11), not the main checkout's.
 
 **A failed deal is fatal** (the engineer's answer on #90, item 2, 2026-09-30). `core/` has no guard for a deal that
 cannot complete: a `Delivery` deal that could not place its packages or circles logs a match error
@@ -1087,7 +1088,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     subject check) or also reached every living peer present then, so nothing reaches only the dead (M4-2, the
     recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots present for a
     whole round decode the same task events; no decoded message has a field that names a seed; a peer that is not a
-    player decodes at most a `Rejected`, none unless it sent a `Hello`. `keep_history` costs memory (§5), so scenarios
+    player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker) decodes nothing. `keep_history` costs memory (§5), so scenarios
     stay short, or 3h compares per tick over a window and drops what it compared.
   - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
     one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
@@ -1122,6 +1123,79 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
     now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
     `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
+- **Chaos bots** (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
+  P11): invariant 1 (the host validates every intent) against what a modified client can send, in
+  `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
+  package; bot 1 knocks bot 4 down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
+  **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
+  downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
+  that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
+  it. Each peer's inputs come from a seeded `RandomNumberGenerator`; one rule per input class, each from the
+  sections named:
+  1. malformed frames (too short, too large, an unknown kind, random bytes behind one, the wrong direction or lane,
+     a payload over its kind's cap, truncated, trailing bytes) and payloads the codec rejects (a bool not 0 or 1,
+     item 0xFFFF, peer 0, a NaN or infinite float, unknown flag bits, a capital in an id, bytes after the last
+     field, an empty Opus frame), and `ForceRole` (kind 24) and `ForceClock` (kind 25) from a peer other than 1: counted under the reason
+     `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold);
+  2. a burst past the reliable-intents bucket (130 refused intents in one frame) and past the voice bucket
+     (530 frames): `OVER_BUDGET`, no reply, no disconnect (§4.5);
+  3. the malformed peer: disconnected at the 50th malformed message within 10 s, with exactly one log line naming
+     it (`ChaosLog`, a `Logger`), what it sent after it in that poll counted `UNKNOWN_PEER` (§4, §4.5);
+  4. well-formed intents the phase or the rules refuse (§3.1, §3.2, §4.1; never one a race could turn into an
+     action): exactly `Rejected(seq, reason)` to the sender, nothing else emitted, no reject counted, the reason
+     `ChaosOracle`'s, written from §3.2's table, not from the code: `not_accepted` for the wrong phase or life
+     state, `unchanged`, `unavailable`, `empty_hand`, `nothing_to_do`, `nothing_to_swap`, `not_channeling`,
+     `not_downed`, `out_of_reach` (a `PickUp` of an item resting more than 8 m away, half of them right after a
+     claim that teleports the hostile next to it: reach is measured from the host's last accepted position, §7.1,
+     §9.4), and no reply to a `LoadAck` of another match;
+  5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535 where it
+     stands, another epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire): a `Correction` (its epoch
+     plus one, the old position) to the sender alone when the phase takes its claims and the epoch is its own,
+     else nothing (§7.1, E15); the position never changes; never `Rejected`. A repeated client tick right after a
+     placement is the first claim of a new baseline, checked as one tick and corrected: either answer passes;
+  6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
+     answer echoing the seq it carried (4 checks each copy);
+  7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
+     or End (§6; the leak test's voice checks run too);
+  8. a second chaos run that differs only in hidden roles (bot 1 and bot 3 swapped by bot 1's `ForceRole`) gives
+     the hostile the same `Rejected` stream (§4.1). Its refusals name the swapped players: `Raise` targets any
+     player (none downed: `not_downed` whatever the role) and `PickUp` names the items others carry
+     (`unavailable`), bot 1's knife among them.
+
+  4 to 7 are checked per `Match` call through `HostSession`'s observer, on the state the command met. In one
+  process the host's counts per chaos peer are replayed exactly from what it sent (`ChaosBudget`: `PeerBudget`'s
+  buckets refilled per host step, the 50-in-10 s count) and compared reason by reason with the host transport's,
+  which `CountingLoopback` keeps for the whole run (`RejectLedger`: `NetRejects` keeps per-peer counts only between
+  two summary lines); and the honest bots' decoded views (events, snapshots, voice but the hostile's) equal a
+  **baseline** run with the same seed and roster whose chaos peers are joined but idle. The leak test stays whole:
+  every bot, the lurker and the refused bot get `LeakCheck` and `check_counters` unchanged, the malformed peer
+  `check_bot` (its decoded events exactly `view_of`'s `Rejected`s) and, whatever `view_of` says, no snapshot, no
+  voice and no event but a `not_accepted` `Rejected` of an intent it sent; only the host's two counts (`host_problems`:
+  nothing rejected, nothing over budget) are exempt, for the two chaos peers' ids only, through the ledger
+  (`ChaosRun.host_problems`; the engineer's approval is asked on the PR). Over ENet (`--enet`: the same run in one
+  process on 127.0.0.1, `CountingEnet` and `ChaosEnet`) only the invariants hold: no crash, no engine error line,
+  the leak check (no superseded-LATEST or voice-seq check: a network bunches and drops), the counters, 4 to 7, and
+  each chaos peer's host counts per reason bounded by the chaos packets it sent for that reason (`check_bounded`:
+  a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
+  - **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
+    baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
+    step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
+    about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). The night job `chaos` runs ten seeds
+    of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
+  - **Proven** (2026-10-02, seed 188001, each plant reverted): `HostSession` taking no budget failed on the
+    replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
+    (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
+    malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
+    forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always passing (`--long`) failed
+    class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
+    chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
+    `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
+    claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
+  - **Covered wire rows** (M5 extends them with every new intent or row): the C→H kinds 1 to 13 and 112, the debug
+    kind 24 (25, `ForceClock`, is not sent), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
+    23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
+    `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
+    in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
@@ -1602,6 +1676,32 @@ tiles, `--headless`), and `verify`'s `game` step runs `game.tscn` headless throu
 (`--local --no-replay`) and one client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then
 both stopped through the stop file with exit 0 and no engine error line (about 5 s).
 
+**`playcheck`: scripted windows with screenshots (#186)**, the AI productivity design's P9
+(`docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`, item 8), for the UI and camera bugs that
+only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of
+`tools/playcheck/scenarios/` as `host` would with windows: window 1 is `game.tscn` hosting on 127.0.0.1 (`--host
+--local --no-replay` on a free port), up to two more windows join it, and the players after them are bots in one
+headless process (`tests/harness/playcheck/`: `NetPlay`'s bots playing a `BotScenario`'s scripts over ENet). Each
+window runs under `tools/playcheck/playcheck_window.gd`, a `SceneTree` script under `tools/` that adds `game.tscn`
+with its `LaunchOptions` arguments and runs that window's steps (`playcheck_steps.gd`). A wait reads only the
+window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen, Esc menu and pointer, never
+`HostSession`, the match or `core/`, on the host's window too (invariant 2), so a window that draws before its
+filtered event arrived fails its wait instead of being covered by the host's state. Keys go in through
+`Input.parse_input_event`, holds through `Input.action_press`, screenshots through
+`Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
+off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
+that only remembers, so the real mouse is never captured; what needs a captured mouse (`use`, spectate cycling)
+stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`) as the host's own
+client once every player is in its roster; peer ids travel as `peer-<n>` files, as over ENet in `bots`. Nothing in
+`client/` changed for it. The stop is `host`'s: the stop file, then a kill. Desktop only; CI and `verify` never run
+it. Usage: `docs/AGENT_WORKFLOW.md` §11.
+Tests: `tools/runner/tests/test_playcheck.py` (the scenario parser and its errors, the plan, the command lines, and
+runs of stand-in processes that pass, time out, fail a step, print an engine error or miss a PNG, each stopping
+every process) and `tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at
+once or fails at its timeout and not before, with its line and what the window saw; frames; events matched once
+through player numbers; the setup). The scenarios `esc_menu` (#169) and `spectate` (#168) are its own checks, run on
+a desktop.
+
 **Tests.** The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
 `SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
 `tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
@@ -1610,8 +1710,8 @@ level is corrected 0 times; the downed camera against a fixture wall never rises
 and an item visible from the arm's end but not from the pivot is hidden;
 the two-client push runs over the loopback with the interpolation delay. Key events can run headless through
 `Input.parse_input_event` (#169); the mouse mode and the look of the UI cannot: every
-screen and view gets a `shot` of its preview scene in `client/dev/`, and the playtests of the ADR's §6 check the
-rest.
+screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck` (#186) screenshots the real game in
+off-screen windows at the named steps of a scripted run, and the playtests of the ADR's §6 check the rest.
 
 ## 5. Per-peer information filtering
 
@@ -2888,6 +2988,8 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     `ScenarioInvariants` (per `Match` call, through `HostSession`'s observer, §4.5), with `HostSession` in the place
     of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
+  - *Perf* (#187): `tests/harness/perf/` plays a seeded 10-bot match through `HostSession` and meters it from the
+    harness side for `tools\run.cmd perf`, not a `verify` step (`docs/AGENT_WORKFLOW.md` §11).
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in

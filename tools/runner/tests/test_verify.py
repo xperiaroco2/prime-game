@@ -1,5 +1,5 @@
 """`verify`: doctor, then the Python and the Godot lane at once (#179) with the headless ENet (#45), freeze (#70),
-stall (#95), bots (#102) and game (#149) runs in the Godot lane: their place, arguments and port (the game step's
+stall (#95), bots (#102), chaos (#188) and game (#149) runs in the Godot lane: their place, arguments and port (the game step's
 command lines: test_hostjoin.GameCheckTest); each step's output whole, the summary, the history record; and
 `selftest` in worker processes, counted against a serial discovery. Lanes here are stubs: a real lane would run
 verify inside this test run."""
@@ -22,7 +22,7 @@ from unittest import mock
 from runner import verify
 from runner.common import ROOT, Failure
 
-GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "game"]
+GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"]
 
 
 def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib.ExitStack:
@@ -47,6 +47,7 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
         (verify, "stall", "stall"),
         (verify, "bots_one_process", "bots"),
         (verify, "bots_enet", "bots-enet"),
+        (verify, "chaos", "chaos"),
         (verify, "game", "game"),
     ):
         stack.enter_context(mock.patch.object(target, attribute, step(name)))
@@ -471,7 +472,13 @@ class SelftestTest(unittest.TestCase):
                         marked.add(f"{path.stem}.{node.name}")
         self.assertEqual(marked, needs)
         self.assertEqual(
-            needs, {"test_godot_tools.RealNormalizeTest", "test_hostjoin.RealSessionTest", "test_launch.RealRunTest"}
+            needs,
+            {
+                "test_godot_tools.RealNormalizeTest",
+                "test_hostjoin.RealSessionTest",
+                "test_launch.RealRunTest",
+                "test_user_dir.RealUserDirTest",
+            },
         )
         found = {".".join(t.id().split(".")[2:4]) for t in verify.discover() if verify.group_of(t) == "godot"}
         self.assertEqual(found, needs)
@@ -588,6 +595,12 @@ class EnetStepTest(unittest.TestCase):
             verify.STALL_RUN, headless=True, seconds=60, instances=1, user_args=["--port=23458"]
         )
         self.assertTrue((ROOT / verify.STALL_RUN).is_file())
+
+    def test_the_chaos_step_runs_one_fixed_seed_of_the_short_match(self) -> None:
+        with mock.patch.object(verify.bots, "chaos", return_value=0) as run:
+            self.assertEqual(verify.chaos(), 0)
+        run.assert_called_once_with(seed=verify.CHAOS_SEED)
+        self.assertLess(verify.LANES["godot"].index("bots-enet"), verify.LANES["godot"].index("chaos"))
 
     def test_the_bots_run_every_scenario_in_one_process_then_one_over_enet(self) -> None:
         with mock.patch.object(verify.bots, "main", return_value=0) as run:

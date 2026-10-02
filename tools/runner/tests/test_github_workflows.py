@@ -65,6 +65,18 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP])
         self.assertIn("GODOT_BIN=$HOME/godot/godot tools/run.sh verify", [step.get("run") for step in steps])
 
+    def test_ci_restores_the_last_gdunit_times_before_verify(self) -> None:
+        # `test` balances its shards by them (#182); a fresh CI checkout has none of its own.
+        steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]
+        runs = [step.get("run") for step in steps]
+        cache = [i for i, step in enumerate(steps) if step.get("uses") == "actions/cache@v6"]
+        self.assertEqual(len(cache), 1)
+        settings = steps[cache[0]]["with"]
+        self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
+        self.assertEqual(settings["restore-keys"], "gdunit-times-")
+        self.assertIn("${{ github.run_id }}", settings["key"])
+        self.assertLess(cache[0], runs.index("GODOT_BIN=$HOME/godot/godot tools/run.sh verify"))
+
     def test_nightly_runs_on_a_schedule_and_by_hand_with_the_least_permissions(self) -> None:
         data = load(GITHUB / "workflows" / "nightly.yml")
         self.assertEqual(set(data["on"]), {"schedule", "workflow_dispatch"})
@@ -87,6 +99,10 @@ class GithubWorkflowsTest(unittest.TestCase):
             self.assertIn("actions/upload-artifact@v7", uses, f"{name}: uploads its reports")
         runs = [step.get("run", "") for step in jobs["flaky"]["steps"]]
         self.assertTrue(any("tools/run.sh test --repeat 3" in run for run in runs))
+        self.assertIn("perf", jobs)
+        chaos = [step.get("run", "") for step in jobs["chaos"]["steps"]]
+        self.assertTrue(any("tools/run.sh bots --chaos --long --runs" in run for run in chaos))
+        self.assertTrue(any("tools/run.sh bots --chaos --long --enet" in run for run in chaos))
         report = jobs["report"]
         self.assertEqual(sorted(report["needs"]), sorted(night))
         self.assertEqual(report["permissions"], {"contents": "read", "issues": "write"})
@@ -95,6 +111,22 @@ class GithubWorkflowsTest(unittest.TestCase):
         for command in ("gh issue list", "gh issue create", "gh issue comment"):
             self.assertIn(command, script)
         self.assertEqual(report["env"]["TITLE"], "Night jobs")
+
+    def test_perf_compares_with_the_last_nights_report_kept_in_the_cache(self) -> None:
+        steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["perf"]["steps"]
+        names = [step.get("name", step.get("uses", "")) for step in steps]
+        cache = next(step for step in steps if step.get("uses") == "actions/cache@v6")["with"]
+        # A new key every run, so each successful night saves its report; the prefix restores the newest.
+        self.assertIn("${{ github.run_id }}", cache["key"])
+        self.assertTrue(cache["key"].startswith(cache["restore-keys"]))
+        last = cache["path"] + "/last.json"
+        run = next(step["run"] for step in steps if "tools/run.sh perf" in step.get("run", ""))
+        self.assertIn(f"--baseline {last}", run)
+        self.assertNotIn("verify", run)
+        keep = next(step["run"] for step in steps if step.get("name") == "Keep this report for the next night")
+        self.assertIn(last, keep)
+        self.assertLess(names.index("The last night's report"), names.index("perf"))
+        self.assertLess(names.index("perf"), names.index("Keep this report for the next night"))
 
 
 if __name__ == "__main__":

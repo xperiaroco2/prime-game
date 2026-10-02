@@ -27,6 +27,15 @@ jobs:
       # Python, the checksum-checked Godot build and gdtoolkit from the pins; nightly.yml uses the same action.
       - uses: ./.github/actions/setup-toolchain
 
+      # The last run's per-suite GdUnit4 seconds, by which `test` balances its shards (tools/runner/gdunit.py, #182).
+      # A new key every run, saved after a green job: a run restores the newest one of its branch, else of main's.
+      - name: Restore the GdUnit4 suite times
+        uses: actions/cache@v6
+        with:
+          path: tools/out/logs/gdunit-times.json
+          key: gdunit-times-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: gdunit-times-
+
       - name: verify
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify
 
