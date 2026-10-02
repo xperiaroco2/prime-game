@@ -641,8 +641,8 @@ class CommandTest(unittest.TestCase):
         self.assertIn("| #302 (release/m1) + #304 (main) | docs/AGENT_WORKFLOW.md | conflict: docs/AGENT_WORKFLOW.md "
                       "| clean |", text)  # fmt: skip
         self.assertIn("no shared file in common, not compared: #301 (main) + #303 (release/m1); #301 (main) + "
-                      "#305 (core/302-task); #303 (release/m1) + #304 (main); #304 (main) + #305 (core/302-task)",
-                      text)  # fmt: skip
+                      "#305 (release/m1 via core/302-task); #303 (release/m1) + #304 (main); #304 (main) + "
+                      "#305 (release/m1 via core/302-task)", text)  # fmt: skip
         self.assertNotIn("#302 (release/m1) + #305", text)  # stacked on #302: the same track, within its own base
         self.assertIn("`main` (def, changed (paths:list[str]|None=, run_import:bool=)->int -> (paths:list[str]|None=, "
                       "import_first:bool=)->int) by #301 at tools/runner/gdunit.py:4; used by #302 at "

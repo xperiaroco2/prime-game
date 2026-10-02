@@ -1003,12 +1003,20 @@ def cross_pairs(prs: list[PullRequest], everyone: list[PullRequest]) -> list[tup
     return [pairs[key] for key in sorted(pairs)]
 
 
-def check_cross(pairs: list[tuple[PullRequest, PullRequest]], sides: Sides) -> tuple[list[Row], list[str]]:
+def lands_in(pr: PullRequest, by_head: dict[str, PullRequest]) -> str:
+    """`release/m1`, or `release/m1 via core/302-task` for a PR stacked on another one."""
+    root = root_base(pr, by_head)
+    return root if pr.base == root else f"{root} via {pr.base}"
+
+
+def check_cross(
+    pairs: list[tuple[PullRequest, PullRequest]], sides: Sides, by_head: dict[str, PullRequest]
+) -> tuple[list[Row], list[str]]:
     """The pairs that change the same shared files, textually (the conflicts in files both change) and with the same
     symbol check as within a base; and the labels of the pairs with no shared file in common."""
     rows, apart = [], []
     for a, b in pairs:
-        label = f"{a.label} ({a.base}) + {b.label} ({b.base})"
+        label = f"{a.label} ({lands_in(a, by_head)}) + {b.label} ({lands_in(b, by_head)})"
         common = sides.touched(a) & sides.touched(b)
         files = shared(common)
         if not files:
@@ -1108,8 +1116,8 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
         checked = {pr.number for pr in found}
         for pr in {p.number: p for pair in pairs for p in pair if p.number not in checked}.values():
             ensure_head(pr)
-        rows, apart = check_cross(pairs, sides)
         by_head = {pr.head: pr for pr in everyone}
+        rows, apart = check_cross(pairs, sides, by_head)
         report_cross(sorted({root_base(pr, by_head) for pair in pairs for pr in pair}), rows, apart)
         total += len(rows)
         conflicts += sum(1 for r in rows if r.conflicts)
