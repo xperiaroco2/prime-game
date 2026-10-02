@@ -865,8 +865,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   share them. The operating system frees a slot's lock when its process ends however it ends, so a killed run's slot
   is taken over at once (the next run names it: "left by a run that ended without releasing it"). While every slot
   is held the run prints every minute which worktrees, branches and pids hold them. The wait is bounded (default
-  150 s): an agent's foreground shell call dies at 600 s, and the wait plus a run must end before it; after the
-  wait the run goes ahead without a slot, with `OVER THE LIMIT` in its output, its summary's last line and its
+  95 s): an agent's foreground shell call dies at 600 s, and the wait plus the run that then goes ahead over the
+  limit (about 445 s, three runs at once) and a 60 s margin must end before it; after the wait the run goes ahead without a slot, with `OVER THE LIMIT` in its output, its summary's last line and its
   record (`over`). A slot never skips or weakens a step. N is 2, measured on the engineer's PC with #182's shards
   (the PR of #185): one or two runs at once took 315 to 386 s each, three 431 to 441 s, four 452 s; two runs of 4
   shards and 4 selftest workers fill the 16 logical CPUs, while a third or fourth makes every run a third longer (no

@@ -185,8 +185,10 @@ class SettingsTest(unittest.TestCase):
             slots.Pool(Path("x"), 0, 1)
 
     def test_the_default_wait_and_a_verify_fit_an_agents_shell_call(self) -> None:
-        # An agent's foreground shell call dies at 600 s: the longest wait leaves room for a verify run.
-        self.assertLessEqual(slots.DEFAULT_WAIT + slots.VERIFY_RUN, slots.AGENT_CALL_LIMIT)
+        # An agent's foreground shell call dies at 600 s: the longest wait leaves room, with the margin, for the run
+        # that then goes ahead over the limit (one more at once than the slots), the slowest one after a wait.
+        self.assertGreater(slots.VERIFY_OVER, slots.VERIFY_RUN)
+        self.assertLessEqual(slots.DEFAULT_WAIT + slots.VERIFY_OVER + slots.MARGIN, slots.AGENT_CALL_LIMIT)
 
 
 if __name__ == "__main__":

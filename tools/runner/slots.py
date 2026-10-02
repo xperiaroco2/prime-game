@@ -39,10 +39,14 @@ DIR_VAR = "PRIME_VERIFY_SLOTS_DIR"
 DEFAULT_COUNT = 2
 # An agent's foreground shell call (Claude Code's Bash tool) is killed at 600 s, and agents run verify (and publish,
 # which runs it) in the foreground: the longest wait plus a verify run must end before that, with a margin for a
-# slower run. VERIFY_RUN is the slowest verify measured with DEFAULT_COUNT runs at once (above), rounded up.
+# slower run, doctor and the git facts. A run waits the whole DEFAULT_WAIT only when it then goes ahead without a
+# slot, beside DEFAULT_COUNT slotted runs: VERIFY_OVER is the slowest verify measured with DEFAULT_COUNT + 1 runs at
+# once (above), rounded up, and VERIFY_RUN the slowest with DEFAULT_COUNT.
 AGENT_CALL_LIMIT = 600.0
+MARGIN = 60.0
 VERIFY_RUN = 390.0
-DEFAULT_WAIT = 150.0
+VERIFY_OVER = 445.0
+DEFAULT_WAIT = 95.0
 # How often a waiting run tries the slots again, and how often it says who holds them.
 POLL = 2.0
 REPORT_EVERY = 60.0

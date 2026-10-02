@@ -49,7 +49,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `lint [--fix] [paths]` | gdformat and gdlint on files or folders; with none, all GDScript plus CLAUDE.md budgets and rule/agent frontmatter |
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths]` / `mutants <spec.json>` | GdUnit4 headless; judged by exit code and `results.xml`; orphan nodes fail / each fault of the spec (`--help`) planted in a scratch worktree of HEAD, its tests run there; exit 2: tell the human |
-| `verify` | Everything CI runs: `doctor`, then (on a PC in one of 2 machine-wide slots, waiting at most 150 s) a Python and a Godot lane at once; the definition-of-done gate |
+| `verify` | Everything CI runs: `doctor`, then (on a PC in one of 2 machine-wide slots, waiting at most 95 s) a Python and a Godot lane at once; the definition-of-done gate |
 | `start <n> [--base P] [--here] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (the branch of a parent's open PR), for the engineer in its worktree, assign, board In progress (skill `start-task`) |
 | `publish [--base B]` / `merge-check [--base B] [--trial] [<pr>...]` / `merge <pr>\|--sync-main --base release/<x>` | Rebases the task branch on its PR base (else `start --base`, else main), runs `verify`, pushes with a lease / open PRs onto their base and pairwise: textual conflicts and symbol overlaps, exit 1 on either; `--trial`: merged in order in a scratch worktree, then `verify` / a manager's merge into a release branch: `verify` on the merged tree, push by hash (AGENT_WORKFLOW §7.1) |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
