@@ -3,13 +3,16 @@
 - **Status:** Accepted on 2026-10-02 (the answers on PR #194). The engineer: D11 **(b), voice activity the default**,
   with push-to-talk and Off as options and no mode dropped; D12 (a); D13 (a); D14 **none in M5** (no talking indicator;
   a mouth animation later with #73); D15 **four sliders, Master, Voice, Effects and Music** ("Effects" replaces "World"
-  as the world sounds' bus); E46 (a); E40's amendment of E33 confirmed; the addon yes; LFS in CI (a). The M5 manager
-  session, under the engineer's delegation of technical choices (#134): E34 to E39, E41 to E45 and E47, each as
-  recommended. The tables below keep each item's options and recommendation and add the answer.
+  as the world sounds' bus); E46 (a); E40's amendment of E33 confirmed; the addon yes; LFS in CI (a); the split (§7)
+  yes; the placeholders yes (D9 (a)'s world sounds and music until the CC0 files arrive, and every number marked a
+  placeholder). The M5 manager session, under the engineer's delegation of technical choices (#134): E34 to E39,
+  E41 to E45 and E47, each as recommended. The tables below keep each item's options and recommendation and add the
+  answer.
 - **Date:** 2026-10-02
-- **Deciders:** the engineer (D11 to D15, E40's amendment of E33, E46, the stop-and-ask items; in chat with the M5
-  manager session on 2026-10-02, recorded on PR #194; the designer by relay, `docs/AGENT_WORKFLOW.md` §9) and the M5
-  manager session (E34 to E39, E41 to E45, E47, #134); designed by the agent in #177
+- **Deciders:** the engineer (D11 to D15, E40's amendment of E33, E46, the stop-and-ask items, the split and the
+  placeholders; in chat with the M5 manager session on 2026-10-02, recorded on PR #194; the designer by relay,
+  `docs/AGENT_WORKFLOW.md` §9) and the M5 manager session (E34 to E39, E41 to E45, E47, #134); designed by the agent
+  in #177
 - **Builds on:** [the voice approach](2026-09-29-voice-approach.md) (go with TwoVoIP v6.5 on Windows, the relay, the go
   thresholds), [vision revision 1](2026-10-01-vision-revision-1.md) (Voice, the life table, Hidden information),
   [the M4 client](2026-10-01-m4-first-person-client.md) (E33, D9, its §3 checklist and its shape),
@@ -490,10 +493,11 @@ and the renumbering check stay as built.
   ```
 
 ### 7. The split
-Seven issues, opened by the manager with the answers applied, and M5-4b only if M5-4 asks for it. The full text of
-each (goal, acceptance criteria, files, dependencies, size, effort) is in its issue. Not in M5: NAT traversal (M6);
-radios, role abilities and items that change voice (M7+); any talking indicator, and masks with a mouth that will show
-who talks (#73); the UI's look (#150); echo cancellation beyond the advice; per-player mute.
+Seven issues, opened by the manager with the answers applied (the engineer's yes to the split, 2026-10-02), and M5-4b
+only if M5-4 asks for it. The full text of each (goal, acceptance criteria, files, dependencies, size, effort) is in
+its issue. Not in M5: NAT traversal (M6); radios, role abilities and items that change voice (M7+); any talking
+indicator, and masks with a mouth that will show who talks (#73); the UI's look (#150); echo cancellation beyond the
+advice; per-player mute.
 
 | # | Issue | Title | Depends on | May run beside | Protocol | Effort | Size |
 |---|---|---|---|---|---|---|---|
@@ -506,10 +510,11 @@ who talks (#73); the UI's look (#150); echo cancellation beyond the advice; per-
 | M5-7 | #221 | client: occlusion's muffle, and the CC0 sounds when they arrive | M5-5 | M5-6 | no | high | ~900 |
 | M5-4b | not opened | protocol: batched voice to each listener (only past E44's thresholds) | M5-4 | M5-6, M5-7 | yes | xhigh | ~700 |
 
-Waves of at most three (two while #170's track runs beside, as #134's M5 kickoff says): (M5-1, M5-2, M5-3 while
-the engineer is present), (M5-4, M5-5), (M5-6, M5-7, M5-4b if needed). The critical path is M5-2, M5-5, then M5-6. **M5-3 edits `addons/` and `.github/`**, which prompt unless the
-session runs in bypass: the manager runs it while the engineer is present; M5-7's LFS-in-CI step edits `.github/` too.
-No M5 issue edits `.claude/`.
+Waves of at most three tasks at once, two while #170's track runs tasks (#190's plan): while #185 and #188 run, wave 1
+is M5-2 and M5-1, and M5-3 joins when a slot is free and the engineer is at the PC; then (M5-4, M5-5), then (M5-6,
+M5-7, M5-4b if needed), each pair joined by a third task only while #170 runs none. The critical path is M5-2, M5-5,
+then M5-6. **M5-3 edits `addons/` and `.github/`**, which prompt unless the session runs in bypass: the manager runs
+it while the engineer is present; M5-7's LFS-in-CI step edits `.github/` too. No M5 issue edits `.claude/`.
 
 **What to drop first** if the budget runs out, in this order: occlusion beyond one ray (never built here; if even the
 one ray must go, M5-7 keeps the CC0 wiring), then the fillers (the debug tone after the first listening test, M5-4b's
