@@ -71,7 +71,7 @@ func act(host_peer: int) -> void:
 	# before the codec sees them (counted as superseded, not as malformed).
 	var latest := false
 	for _i in rng.randi_range(1, PER_FRAME):
-		var shape: ChaosFrames.Shape = rng.randi_range(0, ChaosFrames.Shape.size() - 1)
+		var shape := rng.randi_range(0, ChaosFrames.Shape.size() - 1) as ChaosFrames.Shape
 		var packet := ChaosFrames.malformed(shape, rng, _schema, peer)
 		if packet.frame_valid and packet.lane == NetKindTable.Lane.LATEST:
 			if latest:

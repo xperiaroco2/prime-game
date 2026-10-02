@@ -43,7 +43,7 @@ func test_malformed_messages_older_than_the_window_do_not_count() -> void:
 	var schema := WireSchema.game(true)
 	var bad := ChaosFrames.malformed(ChaosFrames.Shape.BAD_BOOL, rng, schema, 2)
 	for i in HostSession.MALFORMED_LIMIT:
-		budget.poll(NOW + i * HostSession.MALFORMED_WINDOW_USEC / 10, 0, [bad])
+		budget.poll(NOW + i * int(HostSession.MALFORMED_WINDOW_USEC * 0.1), 0, [bad])
 	assert_bool(budget.disconnected).is_false()
 	assert_int(budget.malformed_within(NOW + HostSession.MALFORMED_LIMIT * 100000)).is_less(
 		HostSession.MALFORMED_LIMIT

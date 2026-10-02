@@ -96,7 +96,7 @@ static func compare_honest(baseline: ChaosRun, chaos: ChaosRun) -> PackedStringA
 	var found := PackedStringArray()
 	if baseline.ends != chaos.ends:
 		found.append("the ends differ: %s, with chaos %s" % [baseline.ends, chaos.ends])
-	var hostile_peer := chaos.peers.peer_of(HOSTILE)
+	var hostile_id := chaos.peers.peer_of(HOSTILE)
 	for number: int in HONEST:
 		var a: DecodedView = baseline.clients[number].view
 		var b: DecodedView = chaos.clients[number].view
@@ -118,7 +118,7 @@ static func compare_honest(baseline: ChaosRun, chaos: ChaosRun) -> PackedStringA
 				break
 		if not WireSamples.same(a.snapshots, b.snapshots):
 			found.append("%s decoded other snapshots with chaos" % label)
-		if not _same_voice(a, b, hostile_peer):
+		if not _same_voice(a, b, hostile_id):
 			found.append("%s decoded other voice (the hostile's aside) with chaos" % label)
 	return found
 

@@ -164,7 +164,7 @@ func _fresh_seq() -> int:
 
 
 func _claim() -> void:
-	var shape: ChaosFrames.Claim = rng.randi_range(0, ChaosFrames.Claim.size() - 1)
+	var shape := rng.randi_range(0, ChaosFrames.Claim.size() - 1) as ChaosFrames.Claim
 	var at := _bot.position
 	var packet := ChaosFrames.claim(
 		shape, _schema, _client.model.epoch, maxi(_client.last_claim_tick(), 0), at, _claims
@@ -181,7 +181,7 @@ func _malformed(now_usec: int, claimed: bool) -> void:
 		return
 	if _budget == null and _count_of_malformed() >= MALFORMED_CAP:
 		return
-	var shape: ChaosFrames.Shape = rng.randi_range(0, ChaosFrames.Shape.size() - 1)
+	var shape := rng.randi_range(0, ChaosFrames.Shape.size() - 1) as ChaosFrames.Shape
 	var packet := ChaosFrames.malformed(shape, rng, _schema, _bot.peer)
 	if claimed and packet.frame_valid and packet.lane == NetKindTable.Lane.LATEST:
 		return

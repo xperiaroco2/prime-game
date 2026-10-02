@@ -79,8 +79,8 @@ func test_a_hostile_claim_decodes_with_its_tag_and_an_honest_one_has_none() -> v
 
 
 func test_everything_a_chaos_transport_sends_is_in_its_outbox_in_order() -> void:
-	var ready := ChaosFrames.message(_schema, &"SetReady", {"ready": true}, 5)
-	var payload := ready.bytes.slice(NetFrame.HEADER_BYTES)
+	var set_ready := ChaosFrames.message(_schema, &"SetReady", {"ready": true}, 5)
+	var payload := set_ready.bytes.slice(NetFrame.HEADER_BYTES)
 	assert_int(_client.send(NetTransport.HOST_ID, _schema.kind_of(&"SetReady"), payload)).is_equal(
 		OK
 	)
