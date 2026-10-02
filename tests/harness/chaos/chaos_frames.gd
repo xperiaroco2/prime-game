@@ -145,6 +145,9 @@ static func claim(
 		Claim.FUTURE_TICK:
 			tick = last_tick + FUTURE_TICKS
 		Claim.JUMPS:
+			# Where it stands: only the count can call for the Correction (a rise d of jumps
+			# above the ticks the claim covers, and stamina for d jumps, §7.1).
+			position = at
 			jumps = ClientSession.MAX_JUMPS
 		Claim.OTHER_EPOCH:
 			claimed_epoch = epoch + 1 + index % 3 if index % 2 == 0 or epoch == 0 else epoch - 1

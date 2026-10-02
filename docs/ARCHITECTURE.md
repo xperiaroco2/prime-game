@@ -1145,8 +1145,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
      `not_downed`, `out_of_reach` (a `PickUp` of an item resting more than 8 m away, half of them right after a
      claim that teleports the hostile next to it: reach is measured from the host's last accepted position, §7.1,
      §9.4), and no reply to a `LoadAck` of another match;
-  5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535, another
-     epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire): a `Correction` (its epoch
+  5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535 where it
+     stands, another epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire): a `Correction` (its epoch
      plus one, the old position) to the sender alone when the phase takes its claims and the epoch is its own,
      else nothing (§7.1, E15); the position never changes; never `Rejected`. A repeated client tick right after a
      placement is the first claim of a new baseline, checked as one tick and corrected: either answer passes;
