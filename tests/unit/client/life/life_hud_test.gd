@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 ## LifeHud's words (ARCHITECTURE §4.7, the own player by life) from a fake ClientModel and the
 ## own LifeCountdowns: the raiser's progress, the raise hint, no own invulnerability; the
 ## knockdown countdown (paused while raised), who raises, the give-up hold; the respawn countdown
-## and whom a dead player watches, and nothing of the target's.
+## and the cycling keys of a dead player, and nothing of the target's (the HUD names it, #168).
 
 const OWN := 2
 const OTHER := 5
@@ -66,14 +66,17 @@ func test_the_downed_see_the_countdown_the_raiser_and_the_give_up() -> void:
 	assert_float(raised.progress).is_equal_approx(0.5, 1e-4)
 
 
-func test_the_dead_see_the_respawn_and_whom_they_watch_only() -> void:
+func test_the_dead_see_the_respawn_and_the_cycling_keys_only() -> void:
 	_fold(&"Died", {"peer": OWN, "position": Vector3.ZERO}, 0.0)
 	_local.watching = 1
 	var shown := _shown(100.0)
 	assert_str(shown.title).is_equal("Dead")
-	assert_array(shown.lines).contains(["Respawn in 25 s", "Watching Player1"])
-	# Nothing of the target's: no health, stamina or role words.
+	var keys := "Left and right click: next and previous"
+	assert_array(shown.lines).contains(["Respawn in 25 s", keys])
+	# Nothing of the target's: no health, stamina or role words; whom it watches is the HUD's
+	# "Spectating <name>" (#168), not said twice.
 	var all := ("\n".join(shown.lines)).to_lower()
+	assert_str(all).not_contains("player1")
 	for word: String in ["health", "stamina", "crew", "dissident", "role"]:
 		assert_str(all).not_contains(word)
 	_local.watching = 0

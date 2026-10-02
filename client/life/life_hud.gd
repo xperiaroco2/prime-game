@@ -10,8 +10,8 @@ extends RefCounted
 ##   show it); other players' invulnerable shell (D8) stays.
 ## - Downed: the knockdown countdown (paused while raised), who raises them and the raise's
 ##   progress, and the give-up hold (G).
-## - Dead: the respawn countdown and whom they watch: nothing of the target's (no health, stamina,
-##   role or private event).
+## - Dead: the respawn countdown and the keys that cycle the target (the HUD names whom they
+##   watch, #168): nothing of the target's (no health, stamina, role or private event).
 
 
 ## One panel's content; an empty title shows no panel.
@@ -45,7 +45,7 @@ static func of(model: ClientModel, countdowns: LifeCountdowns, tick: float, loca
 		ClientModel.Life.DOWNED:
 			_downed(shown, model, countdowns, tick, local)
 		ClientModel.Life.DEAD:
-			_dead(shown, model, countdowns, tick, local)
+			_dead(shown, countdowns, tick, local)
 	return shown
 
 
@@ -86,15 +86,13 @@ static func _downed(
 	shown.lines.append("Hold G to give up")
 
 
-static func _dead(
-	shown: Shown, model: ClientModel, countdowns: LifeCountdowns, tick: float, local: Local
-) -> void:
+static func _dead(shown: Shown, countdowns: LifeCountdowns, tick: float, local: Local) -> void:
 	shown.title = "Dead"
 	var left := countdowns.respawn_left_s(tick)
 	if left >= 0.0:
 		shown.lines.append("Respawn in %d s" % ceili(left))
+	# Whom it watches is the HUD's "Spectating <name>" (HudText, #168).
 	if local.watching != 0:
-		shown.lines.append("Watching %s" % name_of(model, local.watching))
 		shown.lines.append("Left and right click: next and previous")
 	else:
 		shown.lines.append("Nobody to watch")

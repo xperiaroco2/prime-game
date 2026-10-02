@@ -9,8 +9,14 @@ extends RefCounted
 ## names, its package's destination (the swatch of its circle's colour; the world marks the
 ## circle, D10 (b)), the shared progress, the match clock, its own role by its display name and,
 ## for a role whose players know each other, its teammates (Teammates, its own knowledge; the M4
-## ADR's §3 item 6). The own invulnerability is the life panel's (M4-9's LifeHud, under the same
-## Ui in the round). No item's or player's position, no other role.
+## ADR's §3 item 6). No own invulnerability read-out (the engineer's answer 2 on PR #167). No
+## item's or player's position, no other role.
+##
+## While the own player is dead it spectates (#168): "Spectating <name>" and the watched target's
+## hand and belt items by their kinds' display names (public: everyone sees them in 3D), with the
+## match's lines and its own role and teammates; none of the target's health, stamina, role,
+## teammates or private events (the M4 ADR's §3 item 2), and none of its own health, stamina,
+## slots, destination or crosshair hint.
 
 
 ## What the HUD knows besides the model and the mode.
@@ -20,6 +26,8 @@ class Local:
 	var stamina := -1.0
 	## What the crosshair would do (ItemInteractions); empty for nothing.
 	var hint := ""
+	## The peer a dead player watches (LifeView.target()); 0 for none.
+	var watching := 0
 
 
 ## The HUD's lines; an empty one hides its label.
@@ -37,20 +45,12 @@ class Shown:
 	var role := ""
 	var teammates := ""
 	var hint := ""
+	## Whom a dead player watches: "Spectating <name>".
+	var spectating := ""
 
 
 static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Local) -> Shown:
 	var shown := Shown.new()
-	shown.health = "Health %s" % _points(model.health)
-	shown.stamina = ("Stamina %d" % ceili(local.stamina) if local.stamina >= 0.0 else "Stamina -")
-	var hand := model.hand_item(model.own_peer)
-	var belt := model.belt_item(model.own_peer)
-	shown.hand = "Hand: %s" % slot_text(model, mode, hand)
-	shown.belt = "Belt: %s" % slot_text(model, mode, belt)
-	var package := ItemViews.destination_item(model)
-	if package >= 0:
-		shown.destination = "Deliver to the circle of this colour"
-		shown.destination_colour = model.items[package].colour
 	if model.tasks_total > 0:
 		shown.progress = "Tasks %d / %d" % [model.tasks_done, model.tasks_total]
 	var left := GameFlow.seconds_left(model.end_tick, floori(host_tick))
@@ -58,8 +58,34 @@ static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Loca
 		shown.clock = "%d:%02d" % [floori(left / 60.0), left % 60]
 	shown.role = role_text(model, mode)
 	shown.teammates = teammates_text(model)
+	if spectates(model):
+		_spectated(shown, model, mode, local.watching)
+		return shown
+	shown.health = "Health %s" % _points(model.health)
+	shown.stamina = ("Stamina %d" % ceili(local.stamina) if local.stamina >= 0.0 else "Stamina -")
+	shown.hand = "Hand: %s" % slot_text(model, mode, model.hand_item(model.own_peer))
+	shown.belt = "Belt: %s" % slot_text(model, mode, model.belt_item(model.own_peer))
+	var package := ItemViews.destination_item(model)
+	if package >= 0:
+		shown.destination = "Deliver to the circle of this colour"
+		shown.destination_colour = model.items[package].colour
 	shown.hint = local.hint
 	return shown
+
+
+## Whether the own player spectates: dead (or gone), with no body of its own to show.
+static func spectates(model: ClientModel) -> bool:
+	var life := model.life_of(model.own_peer)
+	return life == ClientModel.Life.DEAD or life == ClientModel.Life.LEFT
+
+
+## The spectator's lines: whom it watches and that player's public slots; nothing for nobody.
+static func _spectated(shown: Shown, model: ClientModel, mode: GameMode, target: int) -> void:
+	if target == 0:
+		return
+	shown.spectating = "Spectating %s" % LifeHud.name_of(model, target)
+	shown.hand = "Hand: %s" % slot_text(model, mode, model.hand_item(target))
+	shown.belt = "Belt: %s" % slot_text(model, mode, model.belt_item(target))
 
 
 ## An item in a slot by its kind's display name; "empty" for -1. A two-handed item says so.

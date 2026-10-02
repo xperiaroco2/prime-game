@@ -268,7 +268,7 @@ func _process(_delta: float) -> void:
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
-		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _items.hud_local())
+		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
 	_refresh_overlay()
 	if _player != null:
 		# The dead have no body to move: it stands still until its Respawned (M4-9).
@@ -326,6 +326,14 @@ func _player_dead() -> bool:
 ## The own ClientModel once welcomed; null before and without a session.
 func _welcomed_model() -> ClientModel:
 	return _client.model if _client != null and _client.is_welcomed() else null
+
+
+## What the HUD knows besides the model: the predicted stamina and the crosshair's hint (ItemWorld),
+## and whom a dead player watches (LifeView, #168).
+func _hud_local() -> HudText.Local:
+	var local := _items.hud_local()
+	local.watching = _life.target()
+	return local
 
 
 func _session_state() -> GameFlow.Session:

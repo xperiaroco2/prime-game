@@ -70,6 +70,85 @@ func test_a_delivered_package_has_no_destination_and_an_unknown_kind_shows_its_i
 	assert_str(HudText.slot_text(model, _mode, 40)).is_equal("wrench")
 
 
+func test_a_dead_spectator_sees_whom_it_watches_and_the_targets_hand_and_belt() -> void:
+	# #168: the own player (peer 1) holds the package with the knife on its belt and dies; it
+	# watches Player2, who holds a knife and wears another on its belt.
+	var model := _round_model()
+	_arm_player2(model)
+	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
+	var local := HudText.Local.new()
+	local.stamina = 61.2
+	local.hint = "E: pick up Knife"
+	local.watching = 2
+	var shown := HudText.of(model, _mode, NOW, local)
+	assert_str(shown.spectating).is_equal("Spectating Player2")
+	assert_str(shown.hand).is_equal("Hand: Knife")
+	assert_str(shown.belt).is_equal("Belt: Knife")
+	# None of the spectator's own slots, numbers, destination or crosshair hint.
+	assert_str(shown.health).is_empty()
+	assert_str(shown.stamina).is_empty()
+	assert_str(shown.destination).is_empty()
+	assert_str(shown.hint).is_empty()
+	# The match's lines and the spectator's own role stay; nothing names the target's role.
+	assert_str(shown.clock).is_equal("4:31")
+	assert_str(shown.progress).is_equal("Tasks 3 / 5")
+	assert_str(shown.role).is_equal("Role: Dissident")
+
+
+func test_a_dead_spectator_sees_nothing_private_of_the_target() -> void:
+	# The M4 ADR's §3 item 2: no health, stamina, role, teammates or private event of the target,
+	# whatever the own model holds (here its own SelfStatus, role and teammates).
+	var model := _round_model()
+	_arm_player2(model)
+	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
+	var local := HudText.Local.new()
+	local.stamina = 61.2
+	local.watching = 2
+	var shown := HudText.of(model, _mode, NOW, local)
+	var target_lines := "\n".join(
+		[shown.spectating, shown.hand, shown.belt, shown.health, shown.stamina, shown.hint]
+	)
+	for word: String in ["health", "stamina", "role", "dissident", "engineer", "teammates"]:
+		assert_str(target_lines.to_lower()).not_contains(word)
+	# Nobody to watch: no target line and no slots at all.
+	local.watching = 0
+	var alone := HudText.of(model, _mode, NOW, local)
+	assert_str(alone.spectating).is_empty()
+	assert_str(alone.hand).is_empty()
+	assert_str(alone.belt).is_empty()
+
+
+func test_the_living_and_the_downed_see_their_own_slots_whatever_is_watched() -> void:
+	var model := _round_model()
+	_arm_player2(model)
+	var local := HudText.Local.new()
+	local.watching = 2
+	var living := HudText.of(model, _mode, NOW, local)
+	assert_str(living.spectating).is_empty()
+	assert_str(living.hand).is_equal("Hand: Package (both hands)")
+	model.fold(&"KnockedDown", {"peer": model.own_peer, "position": Vector3.ZERO})
+	var downed := HudText.of(model, _mode, NOW, local)
+	assert_str(downed.spectating).is_empty()
+	assert_str(downed.belt).is_equal("Belt: Knife")
+	assert_str(downed.health).is_equal("Health 75")
+
+
+func test_the_hud_control_shows_the_spectating_line_with_the_slots() -> void:
+	var hud: Hud = auto_free(Hud.new())
+	var model := _round_model()
+	_arm_player2(model)
+	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
+	var local := HudText.Local.new()
+	local.watching = 2
+	hud.show_hud(HudText.of(model, _mode, NOW, local))
+	assert_bool(hud.spectating_label.visible).is_true()
+	assert_str(hud.spectating_label.text).is_equal("Spectating Player2")
+	assert_bool(hud.health_label.visible).is_false()
+	assert_bool(hud.stamina_label.visible).is_false()
+	hud.show_hud(HudText.of(_round_model(), _mode, NOW, HudText.Local.new()))
+	assert_bool(hud.spectating_label.visible).is_false()
+
+
 func test_the_hud_control_hides_empty_lines_and_paints_the_swatch() -> void:
 	var hud: Hud = auto_free(Hud.new())
 	var shown := HudText.of(_round_model(), _mode, NOW, HudText.Local.new())
@@ -169,3 +248,11 @@ func _round_model() -> ClientModel:
 	var model := Preview.fake_model(_mode, true)
 	Preview.fold_round(model)
 	return model
+
+
+## Player2 picks up two knives: one in its hand, one on its belt.
+func _arm_player2(model: ClientModel) -> void:
+	model.fold(&"ItemSpawned", {"item": 20, "kind": &"knife", "position": Vector3(2, 0, 0)})
+	model.fold(&"ItemSpawned", {"item": 21, "kind": &"knife", "position": Vector3(2, 0, 1)})
+	model.fold(&"ItemPickedUp", {"peer": 2, "item": 20})
+	model.fold(&"ItemPickedUp", {"peer": 2, "item": 21, "belted": 20})

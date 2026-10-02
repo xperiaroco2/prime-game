@@ -4,7 +4,8 @@ extends Control
 ## the crosshair and its hint in the middle and the destination's colour swatch beside the slots.
 ## Styled only through the shared theme (GameUi.THEME: HudMargin, HudPanel, HudText, HudTitle,
 ## HudCrosshair, HudHint), no inline colours, sizes or fonts; the swatch's colour is the circle's,
-## from the model. It reads nothing itself: the game feeds it.
+## from the model. It reads nothing itself: the game feeds it. A dead spectator's "Spectating
+## <name>" heads the slots' corner, over the watched player's hand and belt (#168).
 
 ## The swatch's size in pixels (layout, not style).
 const SWATCH_SIZE := Vector2(28, 28)
@@ -17,6 +18,7 @@ var health_label := UiParts.styled_label("", &"HudText")
 var stamina_label := UiParts.styled_label("", &"HudText")
 var hand_label := UiParts.styled_label("", &"HudText")
 var belt_label := UiParts.styled_label("", &"HudText")
+var spectating_label := UiParts.styled_label("", &"HudTitle")
 var destination_label := UiParts.styled_label("", &"HudText")
 var swatch := ColorRect.new()
 var crosshair := UiParts.styled_label("+", &"HudCrosshair")
@@ -52,7 +54,8 @@ func _init() -> void:
 	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_destination_row.add_child(swatch)
 	_destination_row.add_child(destination_label)
-	_corner(frame, Control.PRESET_BOTTOM_RIGHT, [hand_label, belt_label, _destination_row])
+	var slots: Array[Control] = [spectating_label, hand_label, belt_label, _destination_row]
+	_corner(frame, Control.PRESET_BOTTOM_RIGHT, slots)
 	for label: Label in [crosshair, hint_label]:
 		label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 		label.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -76,6 +79,7 @@ func show_hud(shown: HudText.Shown) -> void:
 	_show_line(stamina_label, shown.stamina)
 	_show_line(hand_label, shown.hand)
 	_show_line(belt_label, shown.belt)
+	_show_line(spectating_label, shown.spectating)
 	_show_line(destination_label, shown.destination)
 	_destination_row.visible = not shown.destination.is_empty()
 	swatch.color = shown.destination_colour
