@@ -137,6 +137,15 @@ jobs:
       - name: chaos over the loopback
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh bots --chaos --long --runs 10
 
+      # The ENet run's launch deletes every chaos_main-<n>.log first: keep the loopback run's (its seeds and
+      # failures) under another name for the artifact.
+      - name: Keep the loopback log
+        if: always()
+        run: |
+          if [ -f tools/out/logs/run/chaos_main-1.log ]; then
+            cp tools/out/logs/run/chaos_main-1.log tools/out/logs/chaos-loopback.log
+          fi
+
       # Over ENet on 127.0.0.1 only the invariants hold (no crash, no engine error line, the leak check, the counters).
       - name: chaos over ENet
         if: success() || failure()
