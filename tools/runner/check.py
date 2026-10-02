@@ -198,9 +198,16 @@ def run_import(label: str = "import") -> list[str]:
         if attempt == 2:
             raise Failure(f"godot --import exited {res.rc} twice (log: tools/out/logs/{label}.log)")
         warn(f"godot --import exited {res.rc}; retrying once")
+    record_import(started)
+    return [line.strip() for line in res.lines if IMPORT_UID_PATTERNS.search(line)]
+
+
+def record_import(started: float) -> None:
+    """Record in STAMP an import that started at `started` (time.time()) and has just succeeded: that time, or the
+    newest file the import wrote itself (WRITTEN_BY_IMPORT) if later, never after now. run_import and the post-edit
+    hook's own import (hooks.engine_check) call it."""
     written = newest_change(common.ROOT, WRITTEN_BY_IMPORT)[0]
     write_stamp(common.ROOT, min(max(started, written), time.time()))
-    return [line.strip() for line in res.lines if IMPORT_UID_PATTERNS.search(line)]
 
 
 def ensure_import() -> None:
