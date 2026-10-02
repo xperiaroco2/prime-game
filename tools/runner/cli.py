@@ -40,6 +40,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
     p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
 
+    p = sub.add_parser(
+        "playcheck", help="scripted game windows off-screen (and bots) with screenshots at named steps; never on CI"
+    )
+    p.add_argument("scenarios", nargs="*", help="scenario names in tools/playcheck/scenarios/ (default: every one)")
+    p.add_argument("--seconds", type=int, default=300, help="hard timeout of each scenario's run (default 300)")
+
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
     p = board_sub.add_parser("move", help="put an issue on the board in a column (agents use only these two)")
@@ -195,6 +201,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import bots
 
             return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
+        if args.command == "playcheck":
+            from . import playcheck
+
+            return playcheck.main(args.scenarios, seconds=args.seconds)
         if args.command == "board":
             from . import board
 
