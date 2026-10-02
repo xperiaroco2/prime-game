@@ -41,9 +41,8 @@ extends RefCounted
 ##   "Pushing apart", proposed for M4) for at most PUSH_TICKS covered ticks, while another living
 ##   player's last accepted position is within push_reach() of the claim's path, plus a tick of
 ##   sprinting per host tick its claims were lost (the downed push nobody and nobody pushes them),
-##   plus DISTANCE_SLACK_M. Nothing more: a claim's sprint and movement-input flags say whether any
-##   physics step of its interval had them (the client latches them, #155), so a sprint that ends
-##   within a claim's tick is paid for and allowed by that claim's own flags.
+##   plus DISTANCE_SLACK_M. After a claim that sprinted by its own input, one covered tick more
+##   may go at sprint speed: the sprint's last tick, which the claim's flags may no longer show.
 ##   The crawl's slack is CRAWL_SLACK_FRACTION of its own travel (+ the float slack) instead: a
 ##   fixed slack per claim would let a client sending one-tick claims crawl at twice the speed.
 ##   The host never checks or corrects overlap between players.
@@ -234,6 +233,8 @@ static func _check(
 	checked.moved_itself = claim.moving and checked.travel > MOVE_EPSILON
 	if held_against(ctx.state, player, claim.position):
 		return null
+	# Read before a jump commits this claim's settlement.
+	var sprint_tail := player.sprinting and player.moving
 	checked.settled = StaminaLedger.simulate(
 		player, rules, ctx.tick, claim.sprint, checked.moved_itself, covered
 	)
@@ -264,7 +265,9 @@ static func _check(
 	var pushed := (
 		player.is_alive() and _near_living_player(ctx.state, player, claim.position, ctx.tick)
 	)
-	var allowed := _allowed_travel(player, rules, covered, checked.settled, claim.moving, pushed)
+	var allowed := _allowed_travel(
+		player, rules, covered, checked.settled, claim.moving, pushed, sprint_tail
+	)
 	if checked.travel > allowed:
 		return null
 	var jumping := jumped or motion.jumping
@@ -311,14 +314,16 @@ static func _accept(
 
 
 ## The horizontal metres a claim covering `covered` client ticks may travel. `moving`: the claim
-## gave movement input; `pushed`: another living player is near enough to push this one.
+## gave movement input; `pushed`: another living player is near enough to push this one;
+## `sprint_tail`: the last accepted claim moved itself in the sprint state.
 static func _allowed_travel(
 	player: PlayerState,
 	rules: PlayerRules,
 	covered: int,
 	settled: StaminaLedger.Settlement,
 	moving: bool,
-	pushed: bool
+	pushed: bool,
+	sprint_tail: bool
 ) -> float:
 	var metres_per_tick := 1.0 / Ticks.RATE
 	if player.life == PlayerState.Life.DOWNED:
@@ -335,6 +340,14 @@ static func _allowed_travel(
 		# living player coasts (walk speed covers the client's deceleration) or is pushed, and
 		# holding sprint then would buy speed for free.
 		sprint_ticks = 0
+	if sprint_tail:
+		# The sprint's last tick (#76): a claim sends the flags of the client's last physics step,
+		# so one that lets go of the input within the tick claims none after most of a sprint
+		# tick, and a client learns a tick late that its stamina ran out. One covered tick more
+		# at sprint speed, after a claim that sprinted by its own input; the push allowance
+		# covered both before #76. Not charged, and a held sprint without input gets it once.
+		# #155 (latching the flags on the client) would let the host drop it.
+		sprint_ticks = mini(covered, sprint_ticks + 1)
 	var walk_ticks := covered - sprint_ticks
 	var travel := (
 		(sprint_ticks * rules.sprint_speed_mps + walk_ticks * rules.walk_speed_mps)
