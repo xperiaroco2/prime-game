@@ -770,7 +770,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   in Godot's default `%APPDATA%\Godot\app_userdata\PrimeGame`. An export gets that default folder too: it packs a
   non-resource file only when a preset's include filter names it (there is no preset yet), and an exported game reads
   an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is left alone, with a warning. A
-  removed worktree's folder stays behind in `%APPDATA%\Godot\app_userdata\` (Godot's logs, a few replays).
+  removed worktree's folder stays behind in `%APPDATA%\Godot\app_userdata\` (Godot's logs, a few replays). Saving
+  project settings in a worktree's editor (`ProjectSettings.save()`) copies both keys into `project.godot` (probed on
+  4.7.2), which would move every checkout's and export's `user://`: `check` fails on them; delete the two lines.
 - **`test` in shards [applied]** (#182): `test` with no paths runs the suites in K GdUnit4 processes at once, K =
   half the logical CPUs, at most 4 (`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K`
   or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>`, `test --repeat N` and
@@ -860,8 +862,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
 - **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run; any failed run fails it.
-  Each run's report goes to `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`; `summary.json` (every suite:
-  tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
+  Each run's report goes to `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`;
+  `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
   run (it crashed or timed out) or skipped in it counts neither way.
 - **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite
