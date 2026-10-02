@@ -955,24 +955,39 @@ def shared(paths: set[str]) -> list[str]:
     return sorted(p for p in paths if p.startswith(SHARED_DIRS) or p in SHARED_FILES)
 
 
+def long_lived(branch: str) -> bool:
+    return branch == "main" or branch.startswith("release/")
+
+
+def stacked_on(pr: PullRequest, by_head: dict[str, PullRequest]) -> list[str]:
+    """The bases a PR is stacked through: its base, then the base of the open PR whose head that is, and so on."""
+    seen, chain = {pr.number}, [pr.base]
+    while chain[-1] in by_head and by_head[chain[-1]].number not in seen:
+        seen.add(by_head[chain[-1]].number)
+        chain.append(by_head[chain[-1]].base)
+    return chain
+
+
 def root_base(pr: PullRequest, by_head: dict[str, PullRequest]) -> str:
     """The base a PR finally lands in: through the open PRs it is stacked on (a base that is another open PR's head)
-    to the first base that is no open PR's head (`main`, `release/m<k>`)."""
-    seen, base = {pr.number}, pr.base
-    while base in by_head and by_head[base].number not in seen:
-        seen.add(by_head[base].number)
-        base = by_head[base].base
-    return base
+    to the first long-lived branch (`main`, `release/m<k>`). A stage's own PR (`release/m<k>` into `main`, open while
+    the human reviews it) is no stack: a fix-up PR into `release/m<k>` still lands in `release/m<k>`."""
+    chain = stacked_on(pr, by_head)
+    return next((base for base in chain if long_lived(base)), chain[-1])
 
 
 def cross_pairs(prs: list[PullRequest], everyone: list[PullRequest]) -> list[tuple[PullRequest, PullRequest]]:
-    """Each checked PR with every open PR that finally lands in another base (a PR stacked on another one of its own
-    track is no such partner), each pair once, by PR number."""
+    """Each checked PR with every open PR that finally lands in another base, each pair once, by PR number. A PR
+    stacked on another one (a task PR on its parent, a fix-up into `release/m<k>` on the stage's PR) is no partner of
+    it: the one contains the other's base."""
     by_head = {p.head: p for p in everyone}
     roots = {p.number: root_base(p, by_head) for p in [*everyone, *prs]}
+    chains = {p.number: set(stacked_on(p, by_head)) for p in [*everyone, *prs]}
     pairs: dict[tuple[int, int], tuple[PullRequest, PullRequest]] = {}
     for a in prs:
         for b in everyone:
+            if a.head in chains[b.number] or b.head in chains[a.number]:
+                continue
             if roots[a.number] != roots[b.number]:
                 first, second = sorted((a, b), key=lambda p: p.number)
                 pairs[(first.number, second.number)] = (first, second)

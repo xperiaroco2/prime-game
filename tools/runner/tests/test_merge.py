@@ -649,6 +649,26 @@ class CommandTest(unittest.TestCase):
         self.assertNotIn("| check | shared files |", text)
         self.assertIn("merge-check: clean (0 textual conflicts and 0 overlaps in 1 checks)", text)
 
+    def test_a_stage_pr_under_review_does_not_hide_its_fix_ups_from_the_check_across_bases(self) -> None:
+        # The stage's PR #400 (release/m1 into main) is open while the human reviews it. #401, a fix-up into
+        # release/m1, still lands in release/m1 and is paired with #402 into main; it is no partner of #400 itself.
+        self.repo.branch("stage", "origin/release/m1")
+        stage = self.repo.commit({"core/stage.gd": "extends Node\n"}, "stage work")
+        self.repo.push("stage:refs/heads/release/m1")
+        _git(self.repo.work, "switch", "-q", "main")
+        _git(self.repo.work, "fetch", "-q", "origin")
+        self.gh.add(400, "release/m1", "main", headRefOid=stage)
+        calls = GDUNIT + "\n\ndef again(paths: list[str]) -> int:\n    return main(paths, run_import=False)\n"
+        self.task(401, {"tools/runner/gdunit.py": calls})
+        self.task(402, {"tools/runner/gdunit.py": GDUNIT.replace("run_import: bool", "import_first: bool")}, "main")
+        self.assertEqual(merge.check([]), 1)
+        text = "\n".join(self.printed)
+        self.assertIn("### across bases (main, release/m1)", text)
+        self.assertIn("| #401 (release/m1) + #402 (main) | tools/runner/gdunit.py | clean | overlap: `main` |", text)
+        self.assertNotIn("#400 (main) + #401", text)
+        self.assertNotIn("#401 (release/m1) + #400", text)
+        self.assertIn("| #400 + #402 | clean | clean |", text)  # both land in main: the per-base table
+
     def test_trial_merges_in_order_verifies_and_removes_the_worktree(self) -> None:
         self.task(1, {"core/a.gd": "extends Node\n"})
         self.task(2, {"core/b.gd": "extends Node\n"})
