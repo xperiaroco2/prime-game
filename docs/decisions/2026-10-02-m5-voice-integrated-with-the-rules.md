@@ -202,7 +202,11 @@ M5-1.
 Music, sending to Master, when the game starts (tests make them the same way): voice players on Voice, `WorldSounds` on
 World, `LiftMusic` on Music (its −14 dB moves to the bus default). `client/app/` `UserSettings` keeps the microphone,
 the mode, the threshold, RNNoise and the three volumes in `user://settings.cfg` (`ConfigFile`), read at the start and
-written on each change. The Esc menu (#169) gains a tab, Voice, in every screen: the microphone (Off and the devices),
+written on each change. All windows that `tools\run.cmd host --clients N` starts share one `user://` folder (the runner
+sets only `PRIME_INSTANCE`), so the file is `user://settings.cfg` when `PRIME_INSTANCE` is unset or 1 and
+`user://settings_<n>.cfg` otherwise, and §1.1's "opening" mark lives in that same per-instance file: three windows on
+one PC then neither overwrite each other's choices nor read each other's mark (a unit test covers the file name; no
+runner change, so E47 holds). The Esc menu (#169) gains a tab, Voice, in every screen: the microphone (Off and the devices),
 push-to-talk or voice activity, the key shown, the threshold with a live meter, RNNoise, the three volume sliders, and
 the line that says voice is unavailable without the addon. It is built with the shared greybox theme
 (`client/ui/theme/game_theme.tres`); its look is #150's.
@@ -362,7 +366,8 @@ and the renumbering check stay as built.
   cd D:\prime-game\.claude\worktrees\playtest-m5
   tools\run.cmd host --clients 2
   ```
-  Three windows. Window 1: Esc → Voice → the USB microphone, push-to-talk. Window 2: the source "test tone" (debug
+  Three windows, each keeping its own settings (`settings.cfg`, `settings_2.cfg`, `settings_3.cfg`, §1.7). Window 1:
+  Esc → Voice → the USB microphone, push-to-talk. Window 2: the source "test tone" (debug
   builds). Windows 1 and 2: "mute this window" (debug builds, not saved), so only window 3 is heard. Checks: the tone and
   the voice come from their avatars' directions and fade to silence at 8 m, with no pop at the edge; push-to-talk sends
   only while V is held, voice activity follows the meter; a player knocked down falls silent at once, and while window 3
