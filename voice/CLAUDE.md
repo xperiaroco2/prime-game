@@ -1,13 +1,14 @@
 # voice/: capture, codec, jitter buffer, playback plumbing (engineer)
 
 Loaded when a file in `voice/` is read. The invariants in the root `CLAUDE.md` apply. Design:
-`docs/ARCHITECTURE.md` §6; M5's choices: `docs/decisions/2026-10-02-m5-voice-integrated-with-the-rules.md` (proposed:
+`docs/ARCHITECTURE.md` §6; M5's choices: `docs/decisions/2026-10-02-m5-voice-integrated-with-the-rules.md` (accepted:
 E34 to E47, D11 to D15; its §3 is the review checklist for what the client plays).
 
 ## Job
-- Microphone capture, Opus encode and decode, the jitter buffer, and the playback plumbing (which of `client/` and
-  `voice/` uses the other is E46 of the M5 ADR, open; `docs/ARCHITECTURE.md` §1 holds until it is answered).
-- The gate: push-to-talk and voice activity (M5).
+- Microphone capture, Opus encode and decode, the jitter buffer, and the playback plumbing. `client/` uses `voice/`;
+  `voice/` uses nothing outside itself but the engine and the addon by name (E46 (a) of the M5 ADR; the rows of
+  `docs/ARCHITECTURE.md` §1 change to say so in M5-5, #219).
+- The gate: voice activity (the default), push-to-talk held on V, or Off (D11, M5).
 
 ## Rules
 - Plumbing only. Whether a listener hears a speaker, and how, is decided by the routing rules in `core/` and applied
