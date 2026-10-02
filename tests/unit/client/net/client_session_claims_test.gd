@@ -288,3 +288,9 @@ func test_a_correction_drops_the_steps_before_it_and_a_placement_restarts_the_co
 	_harness.pump(TICK_USEC * 3)
 	assert_int(_harness.session.placements).is_equal(1)
 	assert_array(told[-1]).is_equal([1, false, false])
+
+
+func test_the_move_epsilon_is_the_hosts() -> void:
+	# claim_sent's moved_itself must be what MovementRule counts, or the predicted stamina drifts.
+	assert_float(ClientSession.MOVE_EPSILON).is_equal(MovementRule.MOVE_EPSILON)
+	assert_float(PlayerController.MOVE_EPSILON).is_equal(MovementRule.MOVE_EPSILON)
