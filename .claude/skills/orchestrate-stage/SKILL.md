@@ -178,10 +178,11 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   `issue-task` once more as a **fresh** run with the failure added to `notes`; the implementer continues from the
   worktree's commits. Red again: stop that task and ask the human; where the kickoff allows a model beyond the shared
   list for a task red twice, offer a third launch with `models.implement` (§3).
-- `stopped` after `tools\run.cmd mutants` exited 2 (a scratch worktree could not be removed): nothing was published;
-  the stop comment on the issue names the leftover worktree under the task worktree's `tools/out/mutants/`. Ask the
-  engineer to remove it (a delete outside your worktree prompts; #184's next `mutants` run also removes it first),
-  then relaunch fresh with the stop in `notes`: a resume would replay the cached exit 2.
+- `stopped` after `tools\run.cmd mutants` exited 2 (a scratch worktree could not be removed, or the task's
+  `git status` changed during the run): nothing was published. Read the stop comment on the issue. Only when it
+  names a leftover worktree under the task worktree's `tools/out/mutants/`, ask the engineer to remove it (a delete
+  outside your worktree prompts; #184's next `mutants` run also removes it first). Then relaunch fresh with the stop
+  in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
 
