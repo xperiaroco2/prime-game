@@ -24,7 +24,7 @@ Workflow agents (#206) are read too, with the same verdicts: <session>/subagents
 its .meta.json, the layout `metrics` reads (whose meta reader this module reuses). A default launch's meta file holds
 `agentType` (a project agent such as code-reviewer, judged by its file's `model:`; else `workflow-subagent`, which
 inherits the session's model), `description` (the workflow's label, such as review:code:#188), `workflowPhase`,
-`spawnDepth`, `requestShape` and `requestNonInteractive`, and no model (all 431 workflow meta files of 2026-10-02).
+`spawnDepth`, `requestShape` and `requestNonInteractive`, and no model.
 A launch that passes `models` is expected to record the requested model as `model`, as the Agent tool's meta file
 does; until such a launch has shown it, any other meta key that names a model (`MODEL_KEY_RE`, at any depth, such as
 `request.model`) fails, so a different key cannot pass silently as an unrequested model.
