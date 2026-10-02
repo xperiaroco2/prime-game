@@ -282,7 +282,8 @@ Rules for every workflow run:
   minutes: run it with `run_in_background`. At a wave boundary, when the AI productivity track (#170) says `main`
   has something the stage needs, `merge --sync-main --base release/m<k>` takes `origin/main` in the same way. Its git
   commands run inside the runner, so the session types only `tools\run.cmd merge ...`, which runs without a prompt
-  from the main checkout and from a worktree. A track whose PRs go straight into `main` (#170) runs `merge-check`
+  from the main checkout and from the `release-m<k>` worktree. A red `verify` of `merge` or `merge-check --trial`
+  keeps the merged tree's logs and GdUnit reports in `tools/out/merge-logs/<log>/`. A track whose PRs go straight into `main` (#170) runs `merge-check`
   before asking the engineer to merge and names the safe order; `merge` never merges into `main`.
   `gh pr merge` stays denied (the `main` rulesets ask only for a PR and green checks, so it would let any agent merge
   into `main`). The stage ends with one PR from `release/m<k>` into `main`, which a human reviews and merges; the
