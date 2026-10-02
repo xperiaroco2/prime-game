@@ -696,12 +696,15 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   the engineer's playtest). No `check` is needed after a `git switch`, a pull or new scripts or assets. One line
   says which: `import: current (1489 project files unchanged since the last import, 0.03s)`, or
   `import: res://client/app/game.gd changed after the last import; importing the project first`, then
-  `import: done in 11.3s`. Every import through the runner (`check`, `test`, `mutants` and these) records when it
-  started in `.godot/runner_import.stamp`, or the time of the newest `.uid` or `.import` file it wrote itself; the
+  `import: done in 11.3s`. Every import through the runner (`check`, `test`, `mutants`, these and the `.gd` post-edit
+  hook's) records when it started in `.godot/runner_import.stamp`, or the time of the newest `.uid` or `.import` file
+  it wrote itself, never a time after the import ended; the
   test compares the modification times of the files Godot sees (no hidden folders, none with a `.gdignore`, no
   Markdown, Python or shell scripts) with it: git gives every file a switch, pull or rebase writes the time it
-  arrived. Measured on the engineer's PC: 0.03 to 0.04 s for the test, against 9.9 to 17.7 s for a quick import
-  that finds nothing to do, so the import is not always on. An import by the editor is not recorded: the next
+  arrived. Measured on the engineer's PC: 0.03 to 0.04 s for the test, against 9.9 s for a quick import that
+  finds nothing to do (11.3 s after one changed script, 17.7 s after a `git switch`), so the import is not always
+  on. A file dated in the future (clock skew, or copied with its original time) makes every launch import, with a
+  `warn` line that names it: `touch` it. An import by the editor is not recorded: the next
   launch through the runner imports once. A linked worktree's `override.cfg` (#182) is written before the test and
   the import, so the import uses the worktree's own `user://`.
 - **`mutants <spec.json> [--seconds N]` [applied]** (#184; item 4 (b) of the

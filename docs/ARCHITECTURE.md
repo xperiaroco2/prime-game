@@ -1603,7 +1603,9 @@ imported assets, so a game started after a `git switch` that brought a new `clas
 (`Identifier "MousePointer" not declared`, the engineer's playtest). `check.ensure_import()` runs before Godot starts
 in `host`, `join`, `run` (and through it `perf` and `bots`), `playcheck`, `shot` and `verify`'s `game` step: it
 imports when there is no class cache, no record of an import through the runner (`.godot/runner_import.stamp`, which
-every `check.run_import` writes), or a file Godot sees is newer than that record, and prints one line either way.
+every `check.run_import` and the post-edit hook's import write through `check.record_import`, never later than
+the import's end), or a file Godot sees is newer than that record, and prints one line either way; a file dated in the
+future is a warning that names it, and every launch imports until it is touched.
 The test walks the project (no hidden folders, none with a `.gdignore`, no Markdown or Python) in 0.03 to 0.04 s
 against about 10 s for a quick import that finds nothing to do. A linked worktree's `override.cfg` is written first.
 Tests: `tools/runner/tests/test_import_freshness.py` (the test over throwaway folders, the stamp, the override
