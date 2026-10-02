@@ -1598,6 +1598,32 @@ tiles, `--headless`), and `verify`'s `game` step runs `game.tscn` headless throu
 (`--local --no-replay`) and one client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then
 both stopped through the stop file with exit 0 and no engine error line (about 5 s).
 
+**`playcheck`: scripted windows with screenshots (#186)**, the AI productivity design's P9
+(`docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`, item 8), for the UI and camera bugs that
+only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of
+`tools/playcheck/scenarios/` as `host` would with windows: window 1 is `game.tscn` hosting on 127.0.0.1 (`--host
+--local --no-replay` on a free port), up to two more windows join it, and the players after them are bots in one
+headless process (`tests/harness/playcheck/`: `NetPlay`'s bots playing a `BotScenario`'s scripts over ENet). Each
+window runs under `tools/playcheck/playcheck_window.gd`, a `SceneTree` script under `tools/` that adds `game.tscn`
+with its `LaunchOptions` arguments and runs that window's steps (`playcheck_steps.gd`). A wait reads only the
+window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen, Esc menu and pointer, never
+`HostSession`, the match or `core/`, on the host's window too (invariant 2), so a window that draws before its
+filtered event arrived fails its wait instead of being covered by the host's state. Keys go in through
+`Input.parse_input_event`, holds through `Input.action_press`, screenshots through
+`Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
+off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
+that only remembers, so the real mouse is never captured; what needs a captured mouse (`use`, spectate cycling)
+stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`) as the host's own
+client once every player is in its roster; peer ids travel as `peer-<n>` files, as over ENet in `bots`. Nothing in
+`client/` changed for it. The stop is `host`'s: the stop file, then a kill. Desktop only; CI and `verify` never run
+it. Usage: `docs/AGENT_WORKFLOW.md` §11.
+Tests: `tools/runner/tests/test_playcheck.py` (the scenario parser and its errors, the plan, the command lines, and
+runs of stand-in processes that pass, time out, fail a step, print an engine error or miss a PNG, each stopping
+every process) and `tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at
+once or fails at its timeout and not before, with its line and what the window saw; frames; events matched once
+through player numbers; the setup). The scenarios `esc_menu` (#169) and `spectate` (#168) are its own checks, run on
+a desktop.
+
 **Tests.** The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
 `SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
 `tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
@@ -1606,8 +1632,8 @@ level is corrected 0 times; the downed camera against a fixture wall never rises
 and an item visible from the arm's end but not from the pivot is hidden;
 the two-client push runs over the loopback with the interpolation delay. Key events can run headless through
 `Input.parse_input_event` (#169); the mouse mode and the look of the UI cannot: every
-screen and view gets a `shot` of its preview scene in `client/dev/`, and the playtests of the ADR's §6 check the
-rest.
+screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck` (#186) screenshots the real game in
+off-screen windows at the named steps of a scripted run, and the playtests of the ADR's §6 check the rest.
 
 ## 5. Per-peer information filtering
 
