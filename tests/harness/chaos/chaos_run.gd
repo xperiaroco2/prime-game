@@ -57,6 +57,9 @@ var _corrections_seen := 0
 var _epoch_of: Dictionary[int, int] = {}
 var _position_of: Dictionary[int, Vector3] = {}
 var _welcomed: Dictionary[int, bool] = {}
+## Over ENet, chaos peer -> NetRejects reason -> the chaos packets it sent that must be counted
+## under that reason (the bound of its counts, there being no exact replay).
+var _chaos_sent: Dictionary[int, Dictionary] = {}
 ## Host tick -> the hostile's life and the phase after that tick.
 var _life_at: Dictionary[int, int] = {}
 var _phase_at: Dictionary[int, StringName] = {}
@@ -232,9 +235,20 @@ func _after_host_step() -> void:
 	var from_hostile: Array[ChaosFrames.Packet] = _take_hostile.call()
 	var from_malformed: Array[ChaosFrames.Packet] = _take_malformed.call()
 	if over_enet:
+		_note_chaos_sent(hostile_peer(), from_hostile)
+		_note_chaos_sent(malformed.peer if malformed != null else 0, from_malformed)
 		return
 	_hostile_budget.poll(now_usec, FRAME_USEC, from_hostile)
 	_malformed_budget.poll(now_usec, FRAME_USEC, from_malformed)
+
+
+func _note_chaos_sent(peer: int, packets: Array[ChaosFrames.Packet]) -> void:
+	if peer == 0:
+		return
+	var by_reason: Dictionary = _chaos_sent.get_or_add(peer, {})
+	for packet: ChaosFrames.Packet in packets:
+		if packet.label != "honest" and packet.expect != NetRejects.Reason.NONE:
+			by_reason[packet.expect] = by_reason.get(packet.expect, 0) + 1
 
 
 func play_frame(at_tick: int) -> void:
@@ -511,6 +525,9 @@ func _check_chaos_counts() -> void:
 			failures.append("chaos: no hostile intent went over the intents bucket")
 		if ledger.of(malformed.peer, NetRejects.Reason.OVER_BUDGET) == 0:
 			failures.append("chaos: no frame of the malformed peer went over the voice bucket")
+	else:
+		_check_bounded("hostile", hostile_id)
+		_check_bounded("malformed peer", malformed.peer)
 	if session.malformed_disconnects != 1:
 		(
 			failures
@@ -539,6 +556,31 @@ func _check_chaos_counts() -> void:
 		failures.append("chaos: the hostile's session ended (%s)" % _hostile_client.end_reason)
 	if hostile_rejected.is_empty():
 		failures.append("chaos: the hostile decoded no Rejected")
+
+
+## Over ENet: under each reason a malformed packet names, the host counted at most the chaos
+## packets the peer sent for it, so a reject of the hostile bot's own honest traffic (a codec
+## regression in MoveClaim, say) still fails the run. OVER_BUDGET (bursts and bunching) and
+## UNKNOWN_PEER (in flight after a disconnect) are left out: a network decides them.
+func check_bounded(label: String, peer: int) -> PackedStringArray:
+	var found := PackedStringArray()
+	var sent: Dictionary = _chaos_sent.get(peer, {})
+	for reason: int in NetRejects.Reason.values():
+		if reason in [NetRejects.Reason.OVER_BUDGET, NetRejects.Reason.UNKNOWN_PEER]:
+			continue
+		var counted := ledger.of(peer, reason as NetRejects.Reason)
+		if counted > (sent.get(reason, 0) as int):
+			found.append(
+				(
+					"chaos: the host counted %d %s from the %s, which sent %d such chaos packets"
+					% [counted, NetRejects.Reason.find_key(reason), label, sent.get(reason, 0)]
+				)
+			)
+	return found
+
+
+func _check_bounded(label: String, peer: int) -> void:
+	failures.append_array(check_bounded(label, peer))
 
 
 ## The host counted exactly what ChaosBudget replays for `peer`, and the oracle checked every chaos

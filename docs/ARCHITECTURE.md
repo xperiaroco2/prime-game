@@ -1171,7 +1171,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   nothing rejected, nothing over budget) are exempt, for the two chaos peers' ids only, through the ledger
   (`ChaosRun.host_problems`; the engineer's approval is asked on the PR). Over ENet (`--enet`: the same run in one
   process on 127.0.0.1, `CountingEnet` and `ChaosEnet`) only the invariants hold: no crash, no engine error line,
-  the leak check (no superseded-LATEST or voice-seq check: a network bunches and drops), the counters and 4 to 7.
+  the leak check (no superseded-LATEST or voice-seq check: a network bunches and drops), the counters, 4 to 7, and
+  each chaos peer's host counts per reason bounded by the chaos packets it sent for that reason (`check_bounded`:
+  a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
   - **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
     baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
     step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in

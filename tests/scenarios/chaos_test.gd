@@ -156,6 +156,25 @@ func test_the_host_counts_are_exempt_for_the_two_chaos_peers_only() -> void:
 	assert_array(run.host_problems()).has_size(2)
 
 
+func test_over_enet_a_chaos_peers_counts_are_bounded_by_what_it_sent() -> void:
+	var run := ChaosRun.new()
+	run.ledger = RejectLedger.new()
+	run.ledger.count(4, NetRejects.Reason.TRUNCATED)
+	run.ledger.count(4, NetRejects.Reason.OVER_BUDGET)
+	run.ledger.count(4, NetRejects.Reason.UNKNOWN_PEER)
+	var found := run.check_bounded("hostile", 4)
+	assert_array(found).has_size(1)
+	assert_str(found[0]).contains("1 TRUNCATED from the hostile, which sent 0")
+	var rng := RandomNumberGenerator.new()
+	var truncated := ChaosFrames.malformed(ChaosFrames.Shape.TRUNCATED, rng, run.schema, 4)
+	var honest := ChaosFrames.malformed(ChaosFrames.Shape.TRUNCATED, rng, run.schema, 4)
+	honest.label = "honest"
+	run._note_chaos_sent(4, [honest])
+	assert_array(run.check_bounded("hostile", 4)).has_size(1)
+	run._note_chaos_sent(4, [truncated])
+	assert_array(run.check_bounded("hostile", 4)).is_empty()
+
+
 func test_two_rejected_streams_that_differ_are_reported() -> void:
 	var a := ChaosRun.new()
 	var b := ChaosRun.new()
