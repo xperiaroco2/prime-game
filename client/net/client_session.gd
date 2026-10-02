@@ -12,8 +12,8 @@ extends RefCounted
 ##
 ## A MoveClaim covers every physics step of the mover since the claim before it, so it reports
 ## the sprint state and movement input if any of those steps had them, not only the last one
-## (#155): the claim of the tick in which a sprinter lets go still says it sprinted, and the host
-## grants no tick of sprint beyond what the claim's flags pay for.
+## (#155): the claim of the tick in which a sprinter lets go still says it sprinted and pays for
+## that tick, as the host's ledger charges it.
 
 ## The session is over for this client, for `reason`: the reason of a Rejected before Welcome
 ## (wrong_version, wrong_content, full, joins_closed...), of a Disconnecting (load_deadline), or

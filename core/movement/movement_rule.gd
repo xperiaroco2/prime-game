@@ -346,7 +346,8 @@ static func _allowed_travel(
 		# tick, and a client learns a tick late that its stamina ran out. One covered tick more
 		# at sprint speed, after a claim that sprinted by its own input; the push allowance
 		# covered both before #76. Not charged, and a held sprint without input gets it once.
-		# #155 (latching the flags on the client) would let the host drop it.
+		# #155 latched the flags on the client and kept it: the LATEST lane merges claims that
+		# arrive in one poll, and a merged claim that ends a sprint needs it (ARCHITECTURE §7.1).
 		sprint_ticks = mini(covered, sprint_ticks + 1)
 	var walk_ticks := covered - sprint_ticks
 	var travel := (

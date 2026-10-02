@@ -23,12 +23,13 @@ extends StaminaSource
 ## (settle_claim) instead of cutting the steps' time itself, and pays a claim's jumps after its
 ## ticks, as the host does. A SelfStatus then answers a claim sent some ticks ago, and the claims
 ## since are still in flight: follow_status keeps the prediction when the host's number is one it
-## predicted after one of its last claims (the host agrees so far), and otherwise (a cost the client
-## does not predict, a hit, a respawn, a claim the host dropped) takes the host's number and settles
-## again on top of it the claims sent since the last one the host was seen to agree with. Setting
-## each SelfStatus as it arrives (set_status) would give back the ticks still in flight: a sprinter
-## whose stamina ran out would sprint on for a round trip, and the host, which grants no tick of
-## sprint beyond what the claims pay for, would correct them.
+## predicted after one of its last claims (the host agrees so far; a number only one claim left
+## gives the round trip in claims), and otherwise (a cost the client does not predict, a hit, a
+## respawn, a claim the host dropped) takes the host's number and settles again on top of it as
+## many of the newest claims as that round trip says are in flight. Setting each SelfStatus as it
+## arrives (set_status) would give back the ticks still in flight: a sprinter whose stamina ran out
+## would sprint on for a round trip, more than the host's one tick of allowance covers, and the
+## host would correct them.
 
 const TICK_SECONDS := 1.0 / Ticks.RATE
 ## Float rounding of 1/60 s steps must not lose a tick.

@@ -1811,7 +1811,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
   claiming to stand next to what it wants to grab.
 - **Stamina** belongs to `core/` (only the living sprint; the downed regenerate, see The crawl below). The client predicts its own from the published
-  numbers to draw the HUD and gate Shift, and follows `SelfStatus` (on the network claim by claim, #155: below). `core/` keeps a ledger per player: the host tick up
+  numbers to draw the HUD and gate Shift, and follows `SelfStatus` (on the network claim by claim, #155: below).
+  `core/` keeps a ledger per player: the host tick up
   to which stamina is settled. A claim settles the ticks it covers (its client-tick delta, never past the current host
   tick): a covered tick in the sprint state in which the player gave movement input and moved horizontally costs 1/20 of
   the per-second cost, and every other covered tick regenerates. Only the player's own movement counts (the engineer's
@@ -1863,10 +1864,14 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     (0.05 m) per claim, or
     for the crawl `CRAWL_SLACK_FRACTION` (a tenth) of its own travel plus 1 mm: 0.05 m is a whole tick of the
     crawl, so a fixed slack would let a client claiming every tick crawl at twice the speed.
-    No tick of sprint goes beyond what a claim's own flags and stamina pay for (#155, which removed #76's "sprint's
-    last tick": one more covered tick at sprint speed after a claim that sprinted, uncharged, which a modified client
-    alternating its flags between claims turned into about eight times the sprint endurance). Two honest cases need
-    the client's side:
+    The sprint's last tick (#76): after a claim that moved itself in the sprint state, one covered tick more may go
+    at sprint speed, not charged. #155 set out to drop it and kept it (the engineer to decide, options on #155's
+    PR): the LATEST lane merges claims that arrive in one poll (§4), so over a jittery network the claim that ends
+    a sprint often reaches the host merged with the sprint tick before it, under the newest claim's walking flags,
+    and without this tick the host corrected the honest player (5 times in the jitter guard test below, 0 with it).
+    Accepted: a modified client alternating claims with and without input, or with and without the sprint flag,
+    sprints every other tick for -250 thousandths of stamina per two ticks against an honest sprint's -2000, about
+    eight times the endurance. Two honest cases no longer lean on it, since #155:
     - **The claim that stops a sprint.** A claim covers the 3 physics steps (60 Hz) since the one before, and
       `ClientSession` latches its `sprint` and `moving` flags over them: each says whether any of those steps had
       the sprint state or movement input, not only the last one. So the claim of the tick a sprinter lets go in
@@ -1874,23 +1879,27 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
       it.
     - **Stamina running out.** A `SelfStatus` answers a claim some ticks old (a round trip), so a client that set
       each one as it arrived got back the ticks still in flight and sprinted on for a round trip after its stamina
-      ran out. On the network `PredictedStamina` settles by the claims instead (`ClientSession.claim_sent`: the
-      ticks a claim covers, its latched sprint flag, and whether it moved itself, from the last claim's position):
-      the ledger's rule, the same ticks with the same flags, a claim's jumps paid after its ticks, so after every
-      claim it holds the number the host's ledger will. `follow_status` keeps the prediction when the host's number
-      is one it predicted after one of its last 32 claims (the host agrees so far), and otherwise (a cost or a hit it
-      does not predict, a respawn, a claim the host dropped) takes the host's number and settles again on top of it
-      the claims sent since the last one the host was seen to agree with. The network bots sprint by the same
-      prediction (`NetPlay`). Accepted: a cost it does not predict that happens to leave the host's number equal to
-      one it predicted after a recent claim is taken as agreement, and the client stays that cost ahead until the
-      end of that sprint, where the host corrects it once (the knife's 25 points are 25 sprint ticks of the MVP's
-      numbers, more claims than a round trip holds).
+      ran out (the host corrected it once packets took about 67 ms each way, the allowance notwithstanding). On the
+      network `PredictedStamina` settles by the claims instead (`ClientSession.claim_sent`: the ticks a claim
+      covers, its latched sprint flag, and whether it moved itself, from the last claim's position): the ledger's
+      rule, the same ticks with the same flags, a claim's jumps paid after its ticks, so after every claim it holds
+      the number the host's ledger will. `follow_status` keeps the prediction when the host's number is one it
+      predicted after one of its last 32 claims (the host agrees so far). `SelfStatus` goes out only when it
+      changes, so a number that only one claim left (the claim before left another) gives the round trip in claims;
+      a number several claims in a row left (stamina full, or flat) keeps the round trip learnt before. Otherwise
+      (a cost or a hit it does not predict, a respawn, a claim the host dropped) it takes the host's number and
+      settles again on top of it as many of the newest claims as that round trip says are in flight. The network
+      bots sprint by the same prediction (`NetPlay`). Accepted: a cost it does not predict that happens to leave
+      the host's number equal to one it predicted after a recent claim is taken as agreement, and the client stays
+      that cost ahead until the end of that sprint, where the host corrects it once (the knife's 25 points are 25
+      sprint ticks of the MVP's numbers, more claims than a round trip holds).
     Tests: `tests/unit/client/net/client_session_claims_test.gd` (the latch, `claim_sent`),
     `tests/unit/client/player/predicted_stamina_test.gd` (claim by claim against `StaminaLedger`, `follow_status`),
     `tests/integration/client/player/player_network_sprint_test.gd` (the real controller over the loopback lets go of
     sprint, or of every key, at each step of a claim's tick, and sprints until stamina runs out, also with every
-    packet held back four physics frames each way: 0 Corrections), `tests/unit/movement/movement_rule_test.gd`, and
-    the bot scenarios `crew_delivers_every_package` and `dissidents_win_by_the_clock`, which the host corrected
+    packet held back four physics frames each way; and holds sprint through three cycles of running out with every
+    packet held back 1 to 9 frames in order, the jitter test: 0 Corrections),
+    `tests/unit/movement/movement_rule_test.gd`, and the bot scenarios `crew_delivers_every_package` and `dissidents_win_by_the_clock`, which the host corrected
     without the allowance before the latch and the prediction.
   - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus
     `STEP_CLEARANCE` below its feet, which a ledge crossing needs; `FLOOR_PROBE_M` above the feet is where the query
