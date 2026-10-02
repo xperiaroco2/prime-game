@@ -72,7 +72,7 @@ func test_a_delivered_package_has_no_destination_and_an_unknown_kind_shows_its_i
 
 func test_a_dead_spectator_sees_whom_it_watches_and_the_targets_hand_and_belt() -> void:
 	# #168: the own player (peer 1) holds the package with the knife on its belt and dies; it
-	# watches Player2, who holds a knife and wears another on its belt.
+	# watches Player2, who holds a knife and wears an unknown kind ("wrench") on its belt.
 	var model := _round_model()
 	_arm_player2(model)
 	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
@@ -83,7 +83,7 @@ func test_a_dead_spectator_sees_whom_it_watches_and_the_targets_hand_and_belt() 
 	var shown := HudText.of(model, _mode, NOW, local)
 	assert_str(shown.spectating).is_equal("Spectating Player2")
 	assert_str(shown.hand).is_equal("Hand: Knife")
-	assert_str(shown.belt).is_equal("Belt: Knife")
+	assert_str(shown.belt).is_equal("Belt: wrench")
 	# None of the spectator's own slots, numbers, destination or crosshair hint.
 	assert_str(shown.health).is_empty()
 	assert_str(shown.stamina).is_empty()
@@ -250,9 +250,12 @@ func _round_model() -> ClientModel:
 	return model
 
 
-## Player2 picks up two knives: one in its hand, one on its belt.
+## Player2 picks up an item of a kind the client has no look for (shown by its id) and then a
+## knife: the knife in its hand, the other on its belt. Both slots differ from each other and from
+## the own player's (a package in the hand, a knife on the belt), so a swap of the two, or of the
+## target's slots with the own ones, shows.
 func _arm_player2(model: ClientModel) -> void:
-	model.fold(&"ItemSpawned", {"item": 20, "kind": &"knife", "position": Vector3(2, 0, 0)})
+	model.fold(&"ItemSpawned", {"item": 20, "kind": &"wrench", "position": Vector3(2, 0, 0)})
 	model.fold(&"ItemSpawned", {"item": 21, "kind": &"knife", "position": Vector3(2, 0, 1)})
 	model.fold(&"ItemPickedUp", {"peer": 2, "item": 20})
 	model.fold(&"ItemPickedUp", {"peer": 2, "item": 21, "belted": 20})
