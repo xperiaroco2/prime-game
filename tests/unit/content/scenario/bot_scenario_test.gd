@@ -42,6 +42,17 @@ func test_the_setup_is_checked_against_the_mode() -> void:
 	assert_array(Array(scenario.problems())).is_equal(["no mode"])
 
 
+func test_the_bots_talk_in_spurts_by_default_or_continuously() -> void:
+	# M5-1: the bots' synthetic voice (ARCHITECTURE §4.6).
+	var scenario := _scenario()
+	assert_int(scenario.voice).is_equal(BotScenario.Voice.SPURTS)
+	scenario.voice = BotScenario.Voice.CONTINUOUS
+	assert_array(Array(scenario.problems())).is_empty()
+	# A value no member has, as a hand-edited .tres can hold.
+	scenario.set("voice", 2)
+	assert_str("\n".join(scenario.problems())).contains("voice 2 is neither SPURTS nor CONTINUOUS")
+
+
 func test_steps_and_targets_report_their_problems() -> void:
 	var scenario := _scenario()
 	var walk := StepWalkTo.new()

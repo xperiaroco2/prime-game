@@ -58,10 +58,12 @@ const FOR_ONE: Array[StringName] = [
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskState", &"TaskProgress"
 ]
-## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then counter % FILL_SPAN
-## bytes of FILL, so frames vary in length.
+## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
+## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
+## in length like Opus speech at 24 kbit/s (the M5 ADR §4: a mean near 45 B).
 const FRAME_HEAD := 8
-const FILL_SPAN := 7
+const MIN_FRAME_BYTES := 30
+const MAX_FRAME_BYTES := 60
 const FILL := 0xA5
 ## At most this many problems are listed per bot.
 const MAX_LISTED := 5
@@ -89,7 +91,7 @@ func _init(game: Match) -> void:
 ## The bytes of a synthetic voice frame of `peer`, its `counter`-th.
 static func voice_frame(peer: int, counter: int) -> PackedByteArray:
 	var frame := PackedByteArray()
-	frame.resize(FRAME_HEAD + counter % FILL_SPAN)
+	frame.resize(MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1))
 	frame.fill(FILL)
 	frame.encode_u32(0, peer)
 	frame.encode_u32(4, counter)
