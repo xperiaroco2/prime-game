@@ -302,10 +302,10 @@ speech mean is 48.7 B at 24 kbit/s, 25.5 B in silence, peaks to 67 B):
 
 | Quantity | Value | Basis |
 |---|---|---|
-| `VoiceUp` payload / `VoiceDown` payload | 49 B / 57 B | §4.3's fields: seq 2, length 2, frame 45; speaker 4, seq 2, tick 4, length 2, frame 45 |
-| One `VoiceDown` on the wire | about 108 B: 57 + 3 (frame header) + about 20 (ENet and Godot, the spike's measured difference) + 28 (IP and UDP) | #15, #16 |
-| One stream | about 43 kbit/s (50 frames a second) | |
-| Host upload, 10 players all talking and hearing each other | 81 streams on the wire (the host's own client listens over the loopback): about 3.5 Mbit/s, plus 0.6 Mbit/s of snapshots, about 4.1 Mbit/s; about 4.8 with every frame at the 67 B peak | against the 5 Mbit/s threshold |
+| `VoiceUp` payload / `VoiceDown` payload | 47 B / 55 B | ARCHITECTURE §4.3's fields: seq 2, frame 45; speaker 4, seq 2, tick 4, frame 45 (the frame is the rest of the payload, with no length) |
+| One `VoiceDown` on the wire | about 106 B: 55 + 3 (frame header) + about 20 (ENet and Godot, the spike's measured difference) + 28 (IP and UDP) | #15, #16 |
+| One stream | about 42 kbit/s (50 frames a second) | |
+| Host upload, 10 players all talking and hearing each other | 81 streams on the wire (the host's own client listens over the loopback): about 3.4 Mbit/s, plus 0.6 Mbit/s of snapshots, about 4.0 Mbit/s; about 4.8 with every frame at the 67 B peak | against the 5 Mbit/s threshold |
 | Host upload with the gate, 2 talkers heard by everyone | at most 18 streams: about 0.8 Mbit/s, plus snapshots | |
 | Host download | 9 remote speakers: about 0.4 Mbit/s | |
 | Host sends per 20 ms at 81 streams | 81: 0.8 ms at 10 µs each, 9 to 13.5 ms (45 to 68% of a core) at the spike's unexplained 111 to 167 µs | M5-4 measures it |
@@ -327,7 +327,9 @@ speech mean is 48.7 B at 24 kbit/s, 25.5 B in silence, peaks to 67 B):
   upper bound; the humans' two-machine test reads the host's counters on the F3 overlay.
 - **Batching** (M5-4b, only if needed): if the relay's time at 81 streams exceeds 2 ms per 20 ms (10% of a core) or
   the host's upload 4.5 Mbit/s (placeholders, "not a decision"), a new row sends one packet per listener per poll with
-  that poll's frames for it (`tick`, then per frame `speaker`, `seq`, `opus`), under the 1024-byte unreliable cap,
+  that poll's frames for it (`tick`, then per frame `speaker`, `seq`, a u16 length and `opus`: only a row's last field
+  can be the rest of the payload, so the wire schema gains a length-prefixed opus field type with its codec samples),
+  under the 1024-byte unreliable cap,
   with a version bump, its codec samples and the leak test decoding it; `ClientSession` emits `voice_received` per
   frame with its seq. At 81 streams it cuts the sends from 81 to 9
   per 20 ms and the upload by about 40 B per frame.
