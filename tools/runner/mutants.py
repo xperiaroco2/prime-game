@@ -456,7 +456,9 @@ def judge(outcome: Outcome, file: str, seconds: float) -> tuple[str, list[str], 
     if outcome.timed_out:
         return ERROR, [], f"timed out after {seconds:.0f} s (an endless loop is caught only by the timeout)"
     lines = (outcome.out + "\n" + outcome.godot).splitlines()
-    parse = [line.strip() for line in lines if PARSE_RE.search(line) and file in line]
+    # Godot names the script res://<file>; a bare suffix would also match res://score/a.gd for core/a.gd.
+    script = f"res://{file}"
+    parse = [line.strip() for line in lines if PARSE_RE.search(line) and script in line]
     if parse:
         return ERROR, [], f"the mutant does not compile: {parse[0][:200]}"
     if outcome.failing:

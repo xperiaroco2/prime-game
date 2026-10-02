@@ -365,6 +365,10 @@ class JudgeTest(unittest.TestCase):
         self.assertIn("the mutant does not compile: SCRIPT ERROR: Parse Error", reason)
         # A parse error of another file does not count as the mutant's own.
         self.assertEqual(self.judge(Outcome(1, godot="Parse Error in res://core/x.gd", failing=["a::t"]))[0], KILLED)
+        # Nor does one of a script whose path only ends with the mutant's.
+        for other in ("res://client/core/combat/cooldown.gd", "res://xcore/combat/cooldown.gd"):
+            same_tail = Outcome(1, godot=f'SCRIPT ERROR: Parse Error: from "{other}".', failing=["a::t"])
+            self.assertEqual(self.judge(same_tail)[0], KILLED, other)
         orphans = Outcome(1, "  FAIL  exit 101: orphan nodes detected\n  FAIL  a::t: 1 orphan node(s)\n", tests=7)
         self.assertEqual(self.judge(orphans), (ERROR, [], "exit 101: orphan nodes detected; a::t: 1 orphan node(s)"))
         self.assertEqual(self.judge(Outcome(0, tests=0)), (ERROR, [], "no tests ran"))
