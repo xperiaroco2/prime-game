@@ -1184,9 +1184,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   - **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
     baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
     step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
-    about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02), seeds 1 to 8, `--long` and `--enet`
-    on protocol v7 (#227, 2026-10-03). The night job `chaos` runs ten seeds
-    of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
+    about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
+    `--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
+    `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
   - **Proven** (2026-10-02, seed 188001, each plant reverted): `HostSession` taking no budget failed on the
     replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
     (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
