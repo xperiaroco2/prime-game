@@ -4,8 +4,18 @@ Claude Code writes each subagent's transcript to
 ~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl, with agent-<id>.meta.json next to it. The meta file
 holds `agentType` and, when the caller asked for one, `model`; every assistant line of the transcript holds the model
 that actually answered. The expected family is the caller's `model`, else the `model:` of the project agent in
-.claude/agents/<agentType>.md; a subagent with neither inherits the session's model and is only listed. A requested
-model outside `availableModels` (the model guard) must NOT be what served it. Families, not exact IDs, are compared.
+.claude/agents/<agentType>.md; a subagent with neither inherits the session's model and is only listed. Families, not
+exact IDs, are compared.
+
+`availableModels` is the shared list (.claude/settings.json) plus the user-scope one (settings.json in the config
+folder: ~/.claude, or CLAUDE_CONFIG_DIR), merged as Claude Code merges lists across non-managed scopes
+(code.claude.com/docs/en/settings, "Lists merge instead of overriding", read 2026-10-02). Not modelled: managed
+settings, whose list replaces the merged one (none on the engineer's PC, checked 2026-10-02), and
+.claude/settings.local.json. A requested model from the shared list must be what served it. A model only in the user
+list (amendment A of docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md: the engineer's per-launch
+opt-in) is ok when it served; when another family served it, it fell back and is listed, not judged (its transcripts
+from before the user list held it would otherwise keep `--all` red). A requested model in neither list must NOT be
+what served it (the model guard); a broken user settings file is a failure that names it.
 
 The folders read are the main checkout's and its .claude/worktrees/* sessions' (the main checkout is found as `metrics`
 finds it, from git's common dir), so a run from a worktree reads what a run from the main checkout reads. Workflow
@@ -17,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -106,8 +117,25 @@ def allowed_models(root: Path = ROOT) -> list[str]:
     return list(settings.get("availableModels", []))
 
 
-def judge(t: Transcript, agents: dict[str, str], allowed: list[str]) -> tuple[str, str]:
-    """('ok' | 'FAIL' | 'skip', explanation)."""
+def user_models(config: Path | None = None) -> list[str]:
+    """The user-scope `availableModels` (settings.json in the config folder); [] when the file or the key is missing."""
+    path = (config or config_dir()) / "settings.json"
+    if not path.is_file():
+        return []
+    try:
+        settings = json.loads(path.read_text(encoding="utf-8-sig"))
+    except ValueError as exc:
+        raise Failure(f"{path}: not valid JSON ({exc})") from exc
+    if not isinstance(settings, dict):
+        raise Failure(f"{path}: not a JSON object")
+    value = settings.get("availableModels", [])
+    if not isinstance(value, list) or not all(isinstance(m, str) for m in value):
+        raise Failure(f"{path}: availableModels must be a list of model names, not {value!r}")
+    return value
+
+
+def judge(t: Transcript, agents: dict[str, str], allowed: list[str], user: Sequence[str] = ()) -> tuple[str, str]:
+    """('ok' | 'FAIL' | 'skip', explanation). `allowed`: the shared availableModels; `user`: the user-scope one."""
     families = {family(m) for m in t.served} - {None}
     served = ", ".join(sorted(t.served)) or "nothing"
     if not families:
@@ -123,8 +151,16 @@ def judge(t: Transcript, agents: dict[str, str], allowed: list[str]) -> tuple[st
         return "FAIL", f"{source} model {expected!r} is not a known family"
     # By family, so a full ID such as claude-sonnet-5-5 counts as the allowed alias sonnet.
     if want not in {family(a) for a in allowed}:
+        if want in {family(u) for u in user}:
+            scope = f"{source} {expected} (user-scope availableModels), served {served}"
+            if families == {want}:
+                return "ok", scope
+            return "skip", f"{scope}: it fell back (the user list did not hold it then, or the model was unavailable)"
         if want in families:
-            return "FAIL", f"{source} {expected}, outside availableModels, yet served {served}: the model guard failed"
+            return "FAIL", (
+                f"{source} {expected}, outside availableModels (shared and user scope), yet served {served}: "
+                "the model guard failed"
+            )
         return "ok", f"{source} {expected} is outside availableModels; the guard served {served} instead"
     if families == {want}:
         return "ok", f"{source} {expected}, served {served}"
@@ -141,13 +177,14 @@ def main(
         session = os.environ.get("CLAUDE_CODE_SESSION_ID") or None
     scope = "all sessions" if all_sessions or not session else f"session {session}"
     say(f"agents-check ({scope})")
-    agents, allowed = agent_models(root), allowed_models(root)
+    agents, allowed, user = agent_models(root), allowed_models(root), user_models(config)
+    say(f"availableModels: shared {', '.join(allowed) or 'none'}; user scope {', '.join(user) or 'none'}")
     # The main checkout's folders and its worktrees' sessions, from any worktree, as metrics reads them (#178).
     folders = project_dirs(metrics.main_checkout(root), config)
     transcripts = [t for folder in folders for t in read(folder, None if all_sessions else session)]
     judged = failed = 0
     for t in transcripts:
-        verdict, why = judge(t, agents, allowed)
+        verdict, why = judge(t, agents, allowed, user)
         label = f"{t.agent_type} (agent {t.agent_id[:10]}, session {t.session[:8]}): {why}"
         if verdict == "ok":
             ok(label)

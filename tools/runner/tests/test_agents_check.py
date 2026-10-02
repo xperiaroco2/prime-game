@@ -1,6 +1,7 @@
 """`agents-check`: expected model families from the caller's request, the agent files and the model guard."""
 
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -122,6 +123,82 @@ class MainTest(unittest.TestCase):
     def test_from_a_worktree_it_reads_the_main_checkouts_transcripts(self) -> None:
         self.assertEqual(agents_check.main(all_sessions=True, root=self.worktree, config=self.config), 0)
         self.assertEqual(agents_check.main(all_sessions=True, root=self.main, config=self.config), 0)
+
+    def test_a_user_scope_model_passes_only_while_the_user_list_holds_it(self) -> None:
+        transcript(self.subagents, "a2", {"agentType": "general-purpose", "model": OUTSIDE}, f"claude-{OUTSIDE}-5-1")
+        user_settings = self.config / "settings.json"
+        user_settings.write_text(json.dumps({"availableModels": [OUTSIDE]}), encoding="utf-8")
+        self.assertEqual(agents_check.main(all_sessions=True, root=self.worktree, config=self.config), 0)
+        user_settings.unlink()
+        self.assertEqual(agents_check.main(all_sessions=True, root=self.worktree, config=self.config), 1)
+
+
+# The example of a model outside the shared list, taken from the family table so no test adds its name.
+OUTSIDE = next(f for f in agents_check.FAMILIES if f not in ALLOWED)
+
+
+class UserScopeJudgeTest(unittest.TestCase):
+    """Amendment A of the model-guard ADR: the user-scope availableModels may hold a model the shared list does not."""
+
+    def judge(self, served: set[str], requested: str, user: list[str]) -> tuple[str, str]:
+        return agents_check.judge(t("general-purpose", served, requested), AGENTS, ALLOWED, user=user)
+
+    def test_a_user_scope_model_that_served_is_ok(self) -> None:
+        for user in ([OUTSIDE], [OUTSIDE.capitalize()], [f"claude-{OUTSIDE}-5-1"]):
+            with self.subTest(user=user):
+                verdict, why = self.judge({f"claude-{OUTSIDE}-5-1"}, OUTSIDE, user)
+                self.assertEqual(verdict, "ok")
+                self.assertIn("user-scope", why)
+
+    def test_a_model_in_neither_list_that_served_stays_a_fail(self) -> None:
+        for user in ([], ["sonnet"], ["claude-opus-5-5"]):
+            with self.subTest(user=user):
+                verdict, why = self.judge({f"claude-{OUTSIDE}-5-1"}, OUTSIDE, user)
+                self.assertEqual(verdict, "FAIL")
+                self.assertIn("the model guard failed", why)
+
+    def test_a_user_scope_model_that_fell_back_is_listed_not_judged(self) -> None:
+        # Not a FAIL: transcripts from before the user list held it (the 2026-09-28 guard check) would keep --all red.
+        verdict, why = self.judge({"claude-opus-5-5"}, OUTSIDE, [OUTSIDE])
+        self.assertEqual(verdict, "skip")
+        self.assertIn("fell back", why)
+
+    def test_the_user_list_changes_nothing_for_shared_models(self) -> None:
+        self.assertEqual(self.judge({"claude-opus-5-5"}, "sonnet", ["sonnet", OUTSIDE])[0], "FAIL")
+        self.assertEqual(self.judge({"claude-sonnet-5-5"}, "sonnet", [OUTSIDE])[0], "ok")
+        self.assertEqual(self.judge({"claude-opus-5-5"}, OUTSIDE, ["sonnet"]), self.judge({"claude-opus-5-5"}, OUTSIDE, []))
+
+
+class UserModelsTest(unittest.TestCase):
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.config = Path(tmp.name)
+        self.settings = self.config / "settings.json"
+
+    def test_reads_the_list(self) -> None:
+        self.settings.write_text(json.dumps({"env": {}, "availableModels": ["x", "y"]}), encoding="utf-8")
+        self.assertEqual(agents_check.user_models(self.config), ["x", "y"])
+        self.settings.write_text(json.dumps({"availableModels": ["z"]}), encoding="utf-8-sig")  # PowerShell's BOM
+        self.assertEqual(agents_check.user_models(self.config), ["z"])
+
+    def test_no_file_or_no_key_is_an_empty_list(self) -> None:
+        self.assertEqual(agents_check.user_models(self.config), [])
+        self.settings.write_text("{}", encoding="utf-8")
+        self.assertEqual(agents_check.user_models(self.config), [])
+
+    def test_a_broken_file_is_a_failure_that_names_it(self) -> None:
+        for text in ("{", "[]", '{"availableModels": "x"}', '{"availableModels": [1]}'):
+            with self.subTest(text=text):
+                self.settings.write_text(text, encoding="utf-8")
+                with self.assertRaises(Failure) as caught:
+                    agents_check.user_models(self.config)
+                self.assertIn(str(self.settings), str(caught.exception))
+
+    def test_claude_config_dir_is_honoured(self) -> None:
+        self.settings.write_text(json.dumps({"availableModels": ["x"]}), encoding="utf-8")
+        with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.config)}):
+            self.assertEqual(agents_check.user_models(), ["x"])
 
 
 if __name__ == "__main__":
