@@ -421,6 +421,14 @@ class RunTest(unittest.TestCase):
         self.run_scenario({})
         self.assertFalse(old.exists())
 
+    def test_logs_of_an_earlier_run_with_more_windows_go(self) -> None:
+        old = self.tmp / "logs" / "probe" / "window-3.log"
+        old.parent.mkdir(parents=True)
+        old.write_text("an earlier run\n", encoding="utf-8")
+        self.run_scenario({})
+        self.assertFalse(old.exists())
+        self.assertTrue((self.tmp / "logs" / "probe" / "window-1.log").is_file())
+
     def test_a_folder_it_cannot_clear_fails_before_anything_starts(self) -> None:
         old = self.tmp / "out" / "probe" / "old.png"
         old.parent.mkdir(parents=True)

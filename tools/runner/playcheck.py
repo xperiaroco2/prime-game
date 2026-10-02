@@ -521,6 +521,9 @@ def run_one(scenario: Scenario, exe: str, seconds: int, port: int) -> int:
     say(f"playcheck {scenario.name}: {scenario.windows} window(s) and {scenario.players - scenario.windows} bot(s)")
     out = OUT_DIR / scenario.name
     clear(out)
+    # hostjoin.write_logs clears old logs only for a first part labelled host: a log of an earlier run with more
+    # windows or bots would stay beside this run's.
+    clear(LOG_DIR / scenario.name)
     (out / "peers").mkdir(parents=True)
     plan_path = out / "plan.json"
     plan_path.write_text(json.dumps(plan(scenario, out), indent=2) + "\n", encoding="utf-8")
