@@ -6,8 +6,8 @@ E34 to E47, D11 to D15; its §3 is the review checklist for what the client play
 
 ## Job
 - Microphone capture, Opus encode and decode, the jitter buffer, and the playback plumbing. `client/` uses `voice/`;
-  `voice/` uses nothing outside itself but the engine and the addon by name (E46 (a) of the M5 ADR; the rows of
-  `docs/ARCHITECTURE.md` §1 change to say so in M5-5, #219).
+  `voice/` uses nothing outside itself but the engine and the addon by name (E46 (a) of the M5 ADR,
+  `docs/ARCHITECTURE.md` §1): no `ClientSession`, `ClientModel`, `client/` or `net/` script.
 - The gate: voice activity (the default), push-to-talk held on V, or Off (D11, M5).
 
 ## Rules
