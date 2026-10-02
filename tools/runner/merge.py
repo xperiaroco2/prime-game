@@ -56,7 +56,7 @@ import tempfile
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -493,6 +493,10 @@ class Symbol:
     path: str
     line: int
     own: str = ""  # a private name (`_x`) matches only in this path (its path after the change)
+    # A module-level Python name: its module's stem and paths. Another .py file uses it only as `<module>.<name>`
+    # (or `<module>, "<name>"` in a patch) or after `from ...<module> import <name>`; a .gd file never does.
+    module: str = ""
+    home: tuple[str, ...] = ()
 
     def describe(self) -> str:
         return f"`{self.name}` ({self.kind}, {self.change})"
@@ -511,6 +515,8 @@ class Change:
     idents: dict[str, list[Use]] = field(default_factory=dict)  # identifiers in added lines
     literals: dict[str, list[Use]] = field(default_factory=dict)  # string literals without spaces in added lines
     texts: list[tuple[Use, str]] = field(default_factory=list)  # added code lines, for removed paths
+    py_idents: dict[Use, frozenset[str]] = field(default_factory=dict)  # identifiers of each added .py line
+    py_imports: dict[str, set[tuple[str, str]]] = field(default_factory=dict)  # .py path -> (module stem, name)
 
     def add_use(self, table: dict[str, list[Use]], name: str, use: Use) -> None:
         table.setdefault(name, []).append(use)
@@ -640,15 +646,22 @@ def _code_symbols(f: FileDiff, old: str, new_decls: list[Decl], classes: set[str
     python = (f.old or "").endswith(".py")
     removed = set(f.removed)
     by_key = {(d.scope, d.name): d for d in new_decls}
-    found = []
+    found: list[Symbol] = []
+    home = tuple(p for p in dict.fromkeys([f.old, f.new]) if p)
+    module = (f.old or "").rsplit("/", 1)[-1].removesuffix(".py")
     for d in declarations(old, python=python):
         if not removed.intersection(range(d.line, d.end + 1)) or d.name.startswith("__"):
             continue
-        own = (f.new or f.old or "") if d.name.startswith("_") else ""
+        # A private name, or a member of a private class (`_Quiet.write`), matches only in its own file.
+        private = d.name.startswith("_") or any(part.startswith("_") for part in d.scope.split("."))
+        own = (f.new or f.old or "") if private else ""
+        count = len(found)
         if f.new is None:
             # A deleted file: what others name it by (a class, a class_name); its path is a symbol of its own.
             if d.kind in ("class_name", "class") and not d.scope and d.name not in classes:
                 found.append(Symbol(d.name, d.kind, "removed", f.old or "", d.line, own))
+            if python and len(found) > count:
+                found[-1] = replace(found[-1], module=module, home=home)
             continue
         now = by_key.get((d.scope, d.name))
         if d.kind == "class_name":
@@ -658,6 +671,8 @@ def _code_symbols(f: FileDiff, old: str, new_decls: list[Decl], classes: set[str
             found.append(Symbol(d.name, d.kind, "removed", f.old or "", d.line, own))
         elif d.signature != now.signature and d.kind in ("func", "signal", "def"):
             found.append(Symbol(d.name, d.kind, f"changed {d.signature} -> {now.signature}", f.new, now.line, own))
+        if python and not d.scope and len(found) > count:
+            found[-1] = replace(found[-1], module=module, home=home)
     return found
 
 
@@ -726,15 +741,36 @@ def _resource_symbols(f: FileDiff, old: str, new: str) -> list[Symbol]:
     return found
 
 
+PY_FROM_IMPORT = re.compile(r"^[ \t]*from[ \t]+([.\w]+)[ \t]+import[ \t]+(\([^)]*\)|[^\n]*)", re.M)
+
+
+def _python_use(symbol: Symbol, use: Use, b: Change) -> bool:
+    """Whether a use of a module-level Python name can mean that module's name (see Symbol.module)."""
+    if use.path in symbol.home:
+        return True
+    if not use.path.endswith(".py"):
+        return False
+    return symbol.module in b.py_idents.get(use, ()) or (symbol.module, symbol.name) in b.py_imports.get(use.path, ())
+
+
 def _uses(change: Change, path: str, text: str, added: list[int], decls: list[Decl]) -> None:
     lexed = lex(text)
     declared = {(d.line, d.name) for d in decls}
+    python = path.endswith(".py")
+    if python:
+        imports = change.py_imports.setdefault(path, set())
+        for match in PY_FROM_IMPORT.finditer("\n".join(lexed.code)):
+            stem = match.group(1).rsplit(".", 1)[-1]
+            imports.update((stem, name) for name in re.findall(r"[A-Za-z_]\w*", match.group(2)) if name != "as")
     for number in added:
         if number > len(lexed.code):
             continue
         code = lexed.code[number - 1]
         use = Use(path, number)
-        for name in set(re.findall(r"[A-Za-z_]\w*", code)):
+        idents = set(re.findall(r"[A-Za-z_]\w*", code))
+        if python:
+            change.py_idents[use] = frozenset(idents)
+        for name in idents:
             if (number, name) not in declared:
                 change.add_use(change.idents, name, use)
         for _, literal in lexed.strings[number - 1]:
@@ -764,6 +800,8 @@ def overlaps(a: Change, b: Change) -> list[Overlap]:
             uses = b.idents.get(symbol.name, []) + b.literals.get(symbol.name, [])
         if symbol.own:
             uses = [u for u in uses if u.path == symbol.own]
+        if symbol.module:
+            uses = [u for u in uses if _python_use(symbol, u, b)]
         uses = sorted(set(uses), key=lambda u: (u.path, u.line))
         if uses:
             found.append(Overlap(symbol, a.label, b.label, uses))

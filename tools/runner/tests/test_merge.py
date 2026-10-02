@@ -96,6 +96,25 @@ func _snapshot(tick: int, at: Vector3) -> void:
 \t}
 \t_harness.send_message(WireMessage.new(&"Snapshot", {"tick": tick, "avatars": {1: avatar}}))
 """
+RUNNER_VERIFY = '''"""The runner's verify, cut down."""
+
+
+def write(text: str) -> None:
+    print(text)
+
+
+def main() -> int:
+    write("verify")
+    return 0
+
+
+class _Quiet:
+    def write(self, _text: str) -> None:
+        pass
+
+    def flush(self) -> None:
+        pass
+'''
 
 
 def _git(where: Path, *args: str) -> str:
@@ -260,6 +279,7 @@ class SemanticTest(unittest.TestCase):
                 "client/player/player_controller.gd": CONTROLLER, "net/messages/wire_schema.gd": WIRE_SCHEMA,
                 "core/match/notes.gd": "extends RefCounted\n\nvar _cache := {}\n\n\nfunc note() -> void:\n"
                 "\tvar tally := 0\n\tprint(tally)\n",
+                "tools/runner/verify.py": RUNNER_VERIFY,
             },
         )  # fmt: skip
         self.base = self.repo.base
@@ -329,6 +349,39 @@ class SemanticTest(unittest.TestCase):
         b = self.side("#2", {"levels/x.tscn": '[ext_resource type="Script" path="res://client/player/player_controller.gd"'
                              ' id="1"]\n'})  # fmt: skip
         self.assertEqual([o.symbol.kind for o in merge.both_ways(a, b)], ["file"])
+
+    def test_a_module_level_python_name_matches_only_through_its_module(self) -> None:
+        # #198 against #192 on 2026-10-02: `main` and `write` of verify.py were flagged at `metrics.main(`, a
+        # parameter called `main`, `f.write(` and a regex string. Only a use through the module counts, and a member
+        # of a private class (`_Quiet.write`) matches only in its own file.
+        lanes = RUNNER_VERIFY.replace("def main() -> int:", 'def main(lane: str = "") -> int:')
+        lanes = lanes.replace("def write(text: str) -> None:\n    print(text)\n\n\n", "")
+        a = self.side("#198", {"tools/runner/verify.py": lanes.replace("    def write(self, _text: str) -> None:\n"
+                                                                       "        pass\n\n", "")})  # fmt: skip
+        self.assertEqual(
+            {(s.name, s.module, s.own) for s in a.symbols},
+            {("main", "verify", ""), ("write", "verify", ""), ("write", "", "tools/runner/verify.py")},
+        )
+        noise = self.side("#192", {
+            "tools/runner/metrics.py": "import re\nfrom . import metrics\n\nSELF = re.compile(r\"run\\s+selftest\")\n\n\n"
+            "def history_paths(main: str) -> list[str]:\n    with open(main) as f:\n        f.write(main)\n"
+            "    return [metrics.main()]\n",
+            "core/match/notes.gd": "extends RefCounted\n\n\nfunc main() -> void:\n\twrite(1)\n",
+        })  # fmt: skip
+        self.assertEqual(merge.both_ways(a, noise), [])
+        real = self.side("#193", {
+            "tools/runner/cli.py": "from . import verify\n\n\ndef run() -> int:\n    return verify.main()\n",
+            "tools/runner/tests/test_x.py": "from unittest import mock\n\nfrom runner.verify import (\n    write,\n)\n"
+            "from runner import verify\n\n\ndef test() -> None:\n    write(\"x\")\n"
+            "    mock.patch.object(verify, \"write\")\n",
+            "tools/runner/verify.py": RUNNER_VERIFY + "\n\ndef again() -> int:\n    return main()\n",
+        })  # fmt: skip
+        found = {o.symbol.name: [(u.path, u.line) for u in o.uses] for o in merge.both_ways(a, real)}
+        self.assertEqual(found, {
+            "main": [("tools/runner/cli.py", 5), ("tools/runner/verify.py", 22)],
+            "write": [("tools/runner/tests/test_x.py", 4), ("tools/runner/tests/test_x.py", 10),
+                      ("tools/runner/tests/test_x.py", 11)],
+        })  # fmt: skip
 
     def test_a_textual_conflict_names_the_file(self) -> None:
         self.side("#1", {"core/match/notes.gd": "extends Node\n"})
