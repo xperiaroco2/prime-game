@@ -326,6 +326,12 @@ M4 list (the M4 ADR §3):
 10. Voice statistics on the F3 overlay exist in debug builds only (E47), and the per-speaker lines name no one: an
     index in order of first arrival, never a peer id or a name. Every playtest runs the pinned debug binary, so a
     crew member pressing F3 must not read who the muffled voice behind the wall is.
+11. The host's relay counters (relayed, dropped, over budget, relay µs, `VoiceDown`s sent, the ENet voice upload)
+    never show live on the host's F3 during a Round. Live, they tell the host's player how many hear them: while
+    only they whisper in the storeroom, `VoiceDown`s sent rising by one per relayed frame says exactly one unseen
+    player is within 8 m (item 7), and while they are silent, a rising "relayed" says others talk out of their
+    earshot. They show in the Lobby, the Countdown and End, as totals since the session started, and in the bots
+    runner's end-of-run print (M5-4). A test of the overlay covers it (a Round hides them, the Lobby shows them).
 
 **Host trust:** a client sends `VoiceUp` frames only, never a routing claim; the host relays along `core/`'s routing,
 drops frames of a peer that is not a present player, bounds the rate (E7) and never decodes. A client that ignores
@@ -359,7 +365,8 @@ speech mean is 48.7 B at 24 kbit/s, 25.5 B in silence, peaks to 67 B):
   frames relayed and sent, the time spent in the relay's flush and sends (`Time.get_ticks_usec`), and the ENet upload
   in bytes and packets (`ENetConnection.pop_statistic`), voice and snapshots apart. 8 players give 49 streams on the
   wire; the 10-player figure is scaled to 81. Eight processes on one PC share its cores, so the per-send time is an
-  upper bound; the humans' two-machine test reads the host's counters on the F3 overlay.
+  upper bound; the humans' two-machine test reads the host's counters on the F3 overlay in the Lobby, where everyone
+  within 8 m hears everyone, or after the Round in End (never live in a Round, §3 item 11).
 - **Batching** (M5-4b, only if needed): if the relay's time at 81 streams exceeds 2 ms per 20 ms (10% of a core) or
   the host's upload 4.5 Mbit/s (placeholders, "not a decision"), a new row sends one packet per listener per poll with
   that poll's frames for it (`tick`, then per frame `speaker`, `seq`, a u16 length and `opus`: only a row's last field
@@ -525,7 +532,7 @@ ship, since the engineer says the budget suffices (#190 holds the numbers; the m
 | `client/app/game.gd` | M5-5 (#219: `VoiceViews`, `Ears`, `AudioBuses` wiring), M5-6 (#220: capture, settings) | each its own function; the second to merge rebases |
 | `client/world/world_sounds.gd`, `sound_chooser.gd` | M5-5 (#219: the ears, the Effects bus), M5-7 (#221: the muffle, the CC0 streams) | M5-7 after M5-5 |
 | `client/life/lift_music.gd` | M5-5 (#219: the Music bus), M5-7 (#221: the CC0 stream) | M5-7 after M5-5 |
-| `client/ui/debug_overlay.gd` | M5-4 (#218: the host's relay counters), M5-5 (#219: per speaker), M5-6 (#220: the own microphone) | each its own lines and function |
+| `client/ui/debug_overlay.gd` | M5-4 (#218: the host's relay counters, hidden during a Round, §3 item 11), M5-5 (#219: per speaker), M5-6 (#220: the own microphone) | each its own lines and function |
 | `client/ui/esc_menu_state.gd`, `esc_menu.gd`, the Voice tab (`voice_panel.gd`) | M5-6 (#220) | no HUD element (D14) |
 | `client/player/remote_player_body.gd` | M5-5 (#219: the mouth point, which M5-7's ray aims at) | |
 | `project.godot` | M5-6 (#220: `voice_talk` on V, `audio/driver/enable_input`) | added lines; the editor's format |
@@ -553,7 +560,7 @@ boundary). Every number marked so is a placeholder, "not a decision".
 | E44 | Wire budgets and the measurement | (a) no wire change in M5; M5-4 measures headlessly with bots; a batched row (M5-4b) only past 2 ms per 20 ms of relay time or 4.5 Mbit/s at 81 streams; (b) batch now; (c) no measurement | (a): batching changes the protocol and the leak test for a cost nobody has measured since M1's unexplained 111 to 167 µs. Under (c) the first 10-player playtest finds the host's main thread, which also runs the ticks and the claims, at half a core for voice | (a), the M5 manager session (#134) |
 | E45 | The leak test for M5 | (a) the distance invariant, apart from `VoiceRule.hears`, in `LeakCheck` and `ScenarioInvariants`, with a scenario of bots talking beyond the radius; the bots talk in spurts at 50 frames a second; client tests for the dead, the downed and the ears, each seen failing on a planted widening; (b) the routing subset check alone | (a). Today a `RoundVoice` that lets everyone hear everyone passes the subset check, because `view_of` reads the same rule (§5 of ARCHITECTURE: the invariants that do not trust the declarations) | (a), the M5 manager session (#134) |
 | E46 (the engineer's: a boundary) | Which of `client/` and `voice/` uses the other | (a) `client/` uses `voice/`; `voice/` uses nothing outside itself (the engine, the addon by name); §1's rows say so; (b) §1 as written: `voice/` may use `net/` and `client/` playback, so `voice/` drives players on `client/`'s avatars | (a): the players hang on `client/`'s avatars and follow `client/`'s rules (the life fold, the ears, the phase), so `client/` decides what to play and `voice/` stays plumbing that a test drives without a scene. Under (b) `voice/` reads the life fold and the avatars, and the rendering rules of §3 live in two folders | (a), the engineer; §1's rows change in M5-5 (#219) |
-| E47 | Debug tooling for the humans' voice tests | (a) in debug builds: the F3 overlay's Voice section (own: gate, peak, frame age, encode µs; per speaker, by an index of first arrival with no peer id or name: queue, prebuffer, late, lost, FEC, underruns, decode µs; the host: relayed, dropped, over budget, relay µs); a test tone as a microphone source and "mute this window", neither saved; (b) launch flags per instance through `host --clients` | (a): no new launch flags while #170's tasks edit `tools/`, and three windows on one PC still have one microphone (the spike's tone client) and one pair of headphones. The one runner change kept: `hostjoin.start` sets `PRIME_INSTANCE` per window, so each window keeps its own settings file (§1.7; the design first claimed the runner already did) | (a), the M5 manager session (#134); amended by the review of PR #194 (the `PRIME_INSTANCE` line, M5-6 after #185 and #188) |
+| E47 | Debug tooling for the humans' voice tests | (a) in debug builds: the F3 overlay's Voice section (own: gate, peak, frame age, encode µs; per speaker, by an index of first arrival with no peer id or name: queue, prebuffer, late, lost, FEC, underruns, decode µs; the host: relayed, dropped, over budget, relay µs, never live during a Round, §3 item 11); a test tone as a microphone source and "mute this window", neither saved; (b) launch flags per instance through `host --clients` | (a): no new launch flags while #170's tasks edit `tools/`, and three windows on one PC still have one microphone (the spike's tone client) and one pair of headphones. The one runner change kept: `hostjoin.start` sets `PRIME_INSTANCE` per window, so each window keeps its own settings file (§1.7; the design first claimed the runner already did) | (a), the M5 manager session (#134); amended by the review of PR #194 (the `PRIME_INSTANCE` line, M5-6 after #185 and #188) |
 
 **Stop-and-ask items:**
 - **The addon** (the voice ADR's "What follows"): adding TwoVoIP v6.5 to `addons/` (M5-3), downloaded by the engineer

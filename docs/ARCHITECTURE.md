@@ -1762,7 +1762,8 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     microphone, the mode and the threshold, set in the Esc menu's Voice tab. `host --clients N`'s windows get their
     `PRIME_INSTANCE` from `hostjoin.start` (a runner change M5-6 makes; today only `launch.launch` sets it).
   - **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
-    speaker. No screen lists who is talking, and nothing tells a speaker who hears them. Who talks shows later
+    speaker. No screen lists who is talking, and nothing tells a speaker who hears them: the host's relay counters on
+    F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later
     through a mouth animation with the masks of #73 (after the MVP).
   - **Occlusion** (E42, D13 (a)): on the listener only, one ray from the ears per audible speaker per physics
     frame and one per world sound, muffling what is behind the level; the host keeps routing by distance. Beyond one
