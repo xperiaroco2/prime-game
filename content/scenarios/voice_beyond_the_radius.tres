@@ -1,0 +1,78 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://8mqcft7251ac"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_jxcmr"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="5_ready"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="6_wait_for"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="7_walk_to"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="8_target"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="9_wait"]
+
+[sub_resource type="Resource" id="Ready"]
+script = ExtResource("5_ready")
+
+[sub_resource type="Resource" id="Wait_round"]
+script = ExtResource("6_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Target_south"]
+script = ExtResource("8_target")
+point = Vector3(0, 0, -5.2)
+
+[sub_resource type="Resource" id="B1_walk_south"]
+script = ExtResource("7_walk_to")
+target = SubResource("Target_south")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="B1_talk"]
+script = ExtResource("9_wait")
+seconds = 14.0
+
+[sub_resource type="Resource" id="B1_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B1_walk_south"), SubResource("B1_talk")])
+
+[sub_resource type="Resource" id="Target_north"]
+script = ExtResource("8_target")
+point = Vector3(0, 0, 5.2)
+
+[sub_resource type="Resource" id="B2_walk_north"]
+script = ExtResource("7_walk_to")
+target = SubResource("Target_north")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="B2_talk_apart"]
+script = ExtResource("9_wait")
+seconds = 5.0
+
+[sub_resource type="Resource" id="Target_near"]
+script = ExtResource("8_target")
+point = Vector3(0, 0, 1.2)
+
+[sub_resource type="Resource" id="B2_walk_near"]
+script = ExtResource("7_walk_to")
+target = SubResource("Target_near")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="B2_talk_near"]
+script = ExtResource("9_wait")
+seconds = 5.0
+
+[sub_resource type="Resource" id="B2_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B2_walk_north"), SubResource("B2_talk_apart"), SubResource("B2_walk_near"), SubResource("B2_talk_near")])
+
+[resource]
+script = ExtResource("2_scenario")
+mode = ExtResource("1_mode")
+session_seed = 501000000001
+bots = 2
+scripts = Array[ExtResource("3_script")]([SubResource("B1_script"), SubResource("B2_script")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 60.0

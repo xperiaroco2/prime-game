@@ -4,6 +4,7 @@ extends GdUnitTestSuite
 ## something. Scenarios built in code.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
+const VOICE_BEYOND := "res://content/scenarios/voice_beyond_the_radius.tres"
 
 
 func test_a_target_the_bot_cannot_know_fails() -> void:
@@ -203,6 +204,17 @@ func test_the_invariants_catch_a_voice_beyond_the_phase_s_hearing_radius() -> vo
 	assert_str("\n".join(invariants.check_tick())).contains(
 		"peer 1 hears 1002 in a phase whose hearing radius is 0"
 	)
+
+
+func test_a_round_voice_past_its_radius_fails_voice_beyond_the_radius() -> void:
+	# M5-1's planted leak in the core runner: the round's rule hears every present living speaker
+	# at any distance, and the distance invariant fails the scenario once the bots stand apart;
+	# without the plant it passes (scenarios_test).
+	var scenario := (load(VOICE_BEYOND) as BotScenario).duplicate() as BotScenario
+	scenario.mode = FixtureRoundVoicePastItsRadius.planted_in(scenario.mode)
+	var found := _text(ScenarioRunner.play(scenario))
+	assert_str(found).contains("tick ").contains(": peer 1 hears 1002 from ")
+	assert_str(found).contains("beyond the phase's hearing radius of 8.000 m")
 
 
 func test_the_distance_invariant_compares_as_voice_rule_within_does_at_the_edge() -> void:

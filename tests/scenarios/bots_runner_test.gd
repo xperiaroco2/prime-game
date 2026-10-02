@@ -11,6 +11,9 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 const OUT := "user://bots_runner_test"
 const EVENTS_DIR := "res://core/events"
 const DROPPED := "res://content/scenarios/dropped_at_the_loading_deadline.tres"
+const VOICE_BEYOND := "res://content/scenarios/voice_beyond_the_radius.tres"
+## The base mode's hearing radius in the round, in metres (§9.5).
+const ROUND_RADIUS_M := 8.0
 
 
 func after_test() -> void:
@@ -485,6 +488,77 @@ func test_disconnecting_reaches_only_the_dropped_player_and_a_misdeclared_one_is
 	assert_str(found).contains("decoded Disconnecting of peer %d" % dropped)
 
 
+func test_bots_10_m_apart_decode_nothing_of_each_other_and_within_8_m_both_decode() -> void:
+	# voice_beyond_the_radius (M5-1): in the round bot 1 stands about 10 m south of bot 2, both
+	# talking, then bot 2 walks within 8 m. The distance invariant held on every frame (no failure);
+	# here, the legs happened: seconds of round ticks beyond the radius, and frames of each other
+	# decoded in the round, every one within it.
+	var runner := BotsRunner.play(load(VOICE_BEYOND) as BotScenario)
+	assert_array(Array(runner.failures)).is_empty()
+	var round_tick := _round_tick(runner.game)
+	assert_int(round_tick).is_greater(0)
+	var one := runner.peers.peer_of(1)
+	var two := runner.peers.peer_of(2)
+	var apart := 0
+	for at_tick in range(round_tick + 1, runner.game.ticked_through() + 1):
+		var positions := runner.leaks.positions_at(at_tick)
+		if positions[one].distance_to(positions[two]) > ROUND_RADIUS_M + 1.0:
+			apart += 1
+	assert_int(apart).is_greater(3 * Ticks.RATE)
+	for listener: int in [1, 2]:
+		var speaker := runner.peers.peer_of(3 - listener)
+		var view := runner.clients[listener].view
+		var heard := 0
+		for key: Vector2i in view.voice:
+			if key.x != speaker or key.y <= round_tick:
+				continue
+			var positions := runner.leaks.positions_at(key.y)
+			var squared := positions[one].distance_squared_to(positions[two])
+			assert_float(squared).is_less_equal(ROUND_RADIUS_M * ROUND_RADIUS_M)
+			heard += view.frames(speaker, key.y).size()
+		assert_int(heard).override_failure_message("bot %d" % listener).is_greater(Ticks.RATE)
+
+
+func test_a_round_voice_past_its_radius_fails_on_the_distance_invariant_alone() -> void:
+	# M5-1's planted leak: the round's RoundVoice hears every present living speaker at any
+	# distance. ScenarioInvariants fails it per tick; with them left out LeakCheck fails it on
+	# every bot, while the routing subset check passes it (view_of reads the same rule).
+	var scenario := (load(VOICE_BEYOND) as BotScenario).duplicate() as BotScenario
+	scenario.mode = FixtureRoundVoicePastItsRadius.planted_in(scenario.mode)
+	var runner := BotsRunner.play(scenario)
+	var found := _text(runner.failures)
+	assert_str(found).contains("invariant at tick").contains(" hears ")
+	assert_str(found).contains("beyond the phase's hearing radius of 8.000 m")
+	var alone := LeakCheckOnly.new(scenario)
+	alone.run()
+	alone.close()
+	found = _text(alone.failures)
+	for label: String in ["leak: bot 1 (peer", "leak: bot 2 (peer"]:
+		assert_str(found).contains(label)
+	assert_str(found).contains("beyond the phase's hearing radius of 8.000 m")
+	assert_str(found).not_contains("which view_of does not allow")
+	assert_str(found).not_contains("invariant at tick")
+	# Past the listed problems: view_of allows every frame each bot decoded, the far ones too.
+	for listener: int in [1, 2]:
+		var allowed := alone.game.view_of(alone.peers.peer_of(listener)).speakers
+		var decoded := alone.clients[listener].view.voice
+		assert_int(decoded.size()).is_greater(0)
+		for key: Vector2i in decoded:
+			var speakers: PackedInt32Array = allowed.get(key.y, PackedInt32Array())
+			assert_bool(speakers.has(key.x)).override_failure_message(str(key)).is_true()
+	# The same scenario without the plant passes (the test above).
+
+
+## A bots runner that leaves the §5 invariants out, so a planted leak meets LeakCheck alone.
+class LeakCheckOnly:
+	extends BotsRunner
+
+	func _check_invariants(
+		_command: MatchCommand, _slice: Array[EmittedEvent]
+	) -> PackedStringArray:
+		return PackedStringArray()
+
+
 ## A Correction whose class declares no AUDIENCE_KIND.
 class MisdeclaredCorrection:
 	extends MatchEvent
@@ -587,6 +661,15 @@ static func _decoded(view: PeerView) -> DecodedView:
 	for event: MatchEvent in view.events:
 		decoded.events.append(WireMessage.new(event.event_name(), event.to_dict()))
 	return decoded
+
+
+## The tick at which `game` entered the round (its PhaseChanged to round), or -1.
+static func _round_tick(game: Match) -> int:
+	for emitted: EmittedEvent in game.emitted():
+		var changed := emitted.event as PhaseChangedEvent
+		if changed != null and changed.phase == &"round":
+			return emitted.tick
+	return -1
 
 
 static func _text(found: PackedStringArray) -> String:
