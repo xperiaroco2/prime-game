@@ -105,9 +105,11 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
 8. **Files shared across tracks** (the engineer's answer N5 (c); AGENT_WORKFLOW §7.1 "Parallel tracks"):
    `.claude/workflows/` and this skill change only through the tooling track (#170): an issue there, landing between
    the other managers' waves, since a change in the middle of a wave breaks their resumes (§7). A task of yours may
-   change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` pairs
-   PRs only within one base, so before such a PR merges, list the open PRs into another base that touch the same
-   files (`gh pr list --state open --json number,baseRefName,files`) and name them on that track's plan issue.
+   change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` also
+   pairs your PRs with every open PR into another base when both change a shared file (`tools/`, `.claude/`,
+   `.github/`, `docs/AGENT_WORKFLOW.md`; its table "across bases", #207). A flagged pair: name it on that track's
+   plan issue; the PR into `main` merges first, the milestone takes `main` in (`merge --sync-main`, §5) and its PR
+   is rebased on that before it merges.
 
 ## 3. Launching a task
 1. `tools\run.cmd start <n> --base release/m<k>` (plain `start <n>` on the tooling track; `--base <parent branch>`,
@@ -204,8 +206,9 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   the merged tree (`merge` checks CI and runs that `verify`).
 - **Before every merge: `tools\run.cmd merge-check --base release/m<k>`** (seconds, no Godot): each open PR onto
   its base tip and each pair into it, textually and by symbols (what one side removes or changes and the other's
-  added lines use); a Markdown table for the wave comment; exit 1 on a conflict, an overlap or a PR it could not
-  check. An overlap is a lead, not a proof. When it flags the PR you are about to merge, either merge the side that
+  added lines use; a signature that only appends parameters with defaults is a note), plus the pairs across bases
+  that change a shared file (§2.8); Markdown tables for the wave comment; exit 1 on a conflict, an overlap or a PR it
+  could not check. An overlap is a lead, not a proof. When it flags the PR you are about to merge, either merge the side that
   changes the symbol first and send the other to `pr-rebase` (inline for a docs or test-list conflict, below), or
   first run `tools\run.cmd merge-check --trial <pr> <pr>... --base release/m<k>` with `run_in_background` (the base
   plus the PRs merged in that order in a scratch worktree, then `verify`): green, merge in that order; red, merge the

@@ -275,7 +275,9 @@ Rules for every workflow run:
   release/m<k>`). Before each merge the manager runs `tools\run.cmd merge-check` (#181): every open PR onto its
   base tip and each pair into the same base, textually (`git merge-tree --write-tree`) and by symbols (what one side
   removes, renames or changes, used by the other side's added lines: GDScript and runner Python members and
-  signatures, wire rows and fields, `.tres` fields, deleted files); seconds, no Godot; a Markdown table per base for
+  signatures, wire rows and fields, `.tres` fields, deleted files; a signature that only appends parameters with
+  defaults is a note, not an overlap, #207); and, across bases, each PR with every open PR into another base when both
+  change a shared file (Parallel tracks below); seconds, no Godot; a Markdown table per base and one across bases for
   the wave comment, each overlap with file:line on both sides, exit 1 on a conflict, an overlap or a PR it could not
   check (its base gone from origin). On an overlap it
   merges the side that changes the symbol first and has the other rebased (`pr-rebase`), or first runs
@@ -307,10 +309,13 @@ Rules for every workflow run:
   the stage's running total (`--since <stage start>`): a run counts in the window it started in.
   Shared files (N5 (c)): `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track
   (an issue there, landing between the other managers' waves: a mid-wave change breaks their resumes);
-  `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` pairs
-  PRs only within one base, so before such a change merges its manager lists the open PRs into another base that
-  touch the same files (`gh pr list --state open --json number,baseRefName,files`) and names them on that track's
-  plan issue; the overlap then shows in that track's `merge-check` after its next `main` sync. After the engineer
+  `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` also
+  pairs each PR with every open PR into another base (a PR stacked on one of its own track counts as its track's) when
+  both change a shared file (`tools/`, `.claude/`, `.github/`, this file): the textual conflicts in the files both
+  change and the same symbol check, in a table "across bases" that names both bases (#207); the other cross-base
+  pairs it names as not compared. A flagged pair: its manager names it on the other track's plan issue; the PR into
+  `main` merges first, the milestone takes `main` in (`merge --sync-main`) and its PR is rebased on that
+  (`pr-rebase`) before it merges. After the engineer
   merges a change to a shared file, the tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
   reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
