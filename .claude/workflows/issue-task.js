@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, efforts and models add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, efforts and models add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major)' },
@@ -34,7 +34,8 @@ export const meta = {
 //   test_review   true: after the reviews one agent plants 3 to 5 mutants in the diff's production code with
 //                 `tools\run.cmd mutants` (P7, #184), each in a scratch worktree; a survived mutant is a finding, and
 //                 the publisher stops and reports when `mutants` exits 2. Missing on the task's branch: reported in
-//                 the result and the PR, and the run goes on. +1 agent (none for a design task)
+//                 the result and the PR, and the run goes on. +1 agent (none for a design task, or a diff with no
+//                 path under core/ server/ net/ client/ voice/)
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed (core/ server/ net/ client/ tests/harness/ or a design task). +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -319,6 +320,7 @@ const shots = VISUAL ? (impl.playcheck || { available: false, pngs: [], notes: '
 
 let reviews = []
 let testReview = null
+let testReviewSkipped = ''
 let skeptic = null
 if (impl.verify_green) {
   // Only a green implementer is reviewed; a red one stops below.
@@ -367,7 +369,11 @@ if (impl.verify_green) {
   log(`#${N}: ${reviews.length} reviews, ${reviews.reduce((s, r) => s + (r.findings || []).length, 0)} findings`)
 
   // test_review: planted faults the branch's tests must catch, each in a scratch worktree (never the task's tree).
-  if (TEST_REVIEW) {
+  // The mutants go only into production code: a diff with none of it (tooling, content, docs) gets no test review.
+  if (TEST_REVIEW && paths.length && !paths.some(p => /^(core|server|net|client|voice)\//.test(p))) {
+    testReviewSkipped = 'no changed path is production code (core/, server/, net/, client/, voice/)'
+    log(`#${N}: test_review skipped: ${testReviewSkipped}`)
+  } else if (TEST_REVIEW) {
     testReview = await agent([
       RULES,
       `Task: the test review of issue #${N} (${A.title}) (test_review): show whether the branch's tests fail when its production code is wrong. Effort: ${TEST_EFFORT}. Budget: at most about 60 tool calls. Edit, commit or revert nothing in the worktree: \`tools\\run.cmd mutants\` plants each fault in its own scratch worktree under tools/out/mutants/, never in yours.`,
@@ -435,7 +441,8 @@ const pub = stoppedByMutants
     `The implementer reported: ${JSON.stringify(impl)}`,
     `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. \`tools\\run.cmd verify\` until green (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
     planned ? `The plan and its critique (plan_review): ${JSON.stringify(planned)}\n\nIn the PR, under "Plan review": the plan in a few lines, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
-    !testReview ? ''
+    testReviewSkipped ? `The test review (test_review) was skipped: ${testReviewSkipped}. Say so in the PR's verification section.`
+      : !testReview ? ''
       : testReview.available
         ? `The test review (test_review; \`tools\\run.cmd mutants\` planted each fault in a scratch worktree): ${JSON.stringify(testReview)}\n\nIts findings count like the reviewers': fix each survived mutant with a test that kills it, then run that mutant again (one per call, or in the background: a foreground call dies at 600 s) to show it killed. In the PR, a table of the mutants: file:line, the fault, killed / survived / equivalent, and the test that kills it now. ${MUTANTS_STOP}`
         : `The test review did not run: \`tools\\run.cmd mutants\` is missing on this branch (P7, #184, not merged into its base yet): ${testReview.notes || 'no notes'}. Say so in the PR's verification section and in the handoff.`,
@@ -462,7 +469,7 @@ if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this ru
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
 const out = { n: N, impl, reviews, pub }
 if (planned) out.plan = planned
-if (TEST_REVIEW) out.test_review = testReview
+if (TEST_REVIEW) out.test_review = testReviewSkipped ? { skipped: testReviewSkipped } : testReview
 if (SKEPTICS) out.skeptic = skeptic
 if (VISUAL) out.visual = shots
 if (stoppedByMutants) out.stopped = 'tools\\run.cmd mutants exited 2 in the test review: its scratch worktree could not be removed; nothing published (see the comment on the issue)'

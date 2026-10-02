@@ -546,8 +546,15 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True, skeptic=True), dict(core, queues={"test-review": [survived]})),
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [None]})),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, test_review=True), {"paths": ["docs/x.md"]}),
+            ("issue-task.js", dict(ARGS, test_review=True), {"paths": ["tools/runner/x.py", "content/roles/x.tres"]}),
         ]
-        ok, absent, exit_2, skeptic, dead, design = run_jobs(jobs)
+        ok, absent, exit_2, skeptic, dead, design, tooling = run_jobs(jobs)
+        # No production code in the diff: no mutant can go anywhere, so no agent runs; the PR and the result say so.
+        self.assertIsNone(tooling["error"])
+        self.assertFalse(calls(tooling, "test-review"))
+        self.assertIn("The test review (test_review) was skipped: no changed path is production code", calls(tooling, "publish")[0]["prompt"])
+        self.assertIn("no changed path is production code", tooling["returned"]["test_review"]["skipped"])
+        self.assertTrue(any("test_review skipped" in e["message"] for e in tooling["events"] if e["kind"] == "log"))
         labels = [e["label"] for e in agents(ok)]
         self.assertEqual(labels[-2:], ["test-review:#7", "publish:#7"])
         self.assertTrue(all(label.startswith(("implement", "review:")) for label in labels[:-2]), labels)
