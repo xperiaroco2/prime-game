@@ -293,7 +293,9 @@ M4 list (the M4 ADR §3):
    what it marks); no screen lists who is talking.
 9. Muffling uses the client's own level and the interpolated poses only.
 10. World sounds play within the hearing range of the ears and are muffled by the same ray.
-11. Voice statistics on the F3 overlay exist in debug builds only (E47).
+11. Voice statistics on the F3 overlay exist in debug builds only (E47), and the per-speaker lines name no one: an
+    index in order of first arrival, never a peer id or a name. Every playtest runs the pinned debug binary, so a
+    crew member pressing F3 must not read who the muffled voice behind the wall is.
 
 **Host trust:** a client sends `VoiceUp` frames only, never a routing claim; the host relays along `core/`'s routing,
 drops frames of a peer that is not a present player, bounds the rate (E7) and never decodes. A client that ignores
@@ -513,7 +515,7 @@ placeholder, "not a decision".
 | E44 | Wire budgets and the measurement | (a) no wire change in M5; M5-4 measures headlessly with bots; a batched row (M5-4b) only past 2 ms per 20 ms of relay time or 4.5 Mbit/s at 81 streams; (b) batch now; (c) no measurement | (a): batching changes the protocol and the leak test for a cost nobody has measured since M1's unexplained 111 to 167 µs. Under (c) the first 10-player playtest finds the host's main thread, which also runs the ticks and the claims, at half a core for voice |
 | E45 | The leak test for M5 | (a) the distance invariant, apart from `VoiceRule.hears`, in `LeakCheck` and `ScenarioInvariants`, with a scenario of bots talking beyond the radius; the bots talk in spurts at 50 frames a second; client tests for the dead, the downed and the ears, each seen failing on a planted widening; (b) the routing subset check alone | (a). Today a `RoundVoice` that lets everyone hear everyone passes the subset check, because `view_of` reads the same rule (§5 of ARCHITECTURE: the invariants that do not trust the declarations) |
 | E46 (the engineer's: a boundary) | Which of `client/` and `voice/` uses the other | (a) `client/` uses `voice/`; `voice/` uses nothing outside itself (the engine, the addon by name); §1's rows say so; (b) §1 as written: `voice/` may use `net/` and `client/` playback, so `voice/` drives players on `client/`'s avatars | (a): the players hang on `client/`'s avatars and follow `client/`'s rules (the life fold, the ears, the phase), so `client/` decides what to play and `voice/` stays plumbing that a test drives without a scene. Under (b) `voice/` reads the life fold and the avatars, and the rendering rules of §3 live in two folders |
-| E47 | Debug tooling for the humans' voice tests | (a) in debug builds: the F3 overlay's Voice section (own: gate, peak, frame age, encode µs; per speaker: queue, prebuffer, late, lost, FEC, underruns, decode µs; the host: relayed, dropped, over budget, relay µs); a test tone as a microphone source and "mute this window", neither saved; (b) launch flags per instance through `host --clients` | (a): no runner change while #170's tasks edit `tools/`, and three windows on one PC still have one microphone (the spike's tone client) and one pair of headphones |
+| E47 | Debug tooling for the humans' voice tests | (a) in debug builds: the F3 overlay's Voice section (own: gate, peak, frame age, encode µs; per speaker, by an index of first arrival with no peer id or name: queue, prebuffer, late, lost, FEC, underruns, decode µs; the host: relayed, dropped, over budget, relay µs); a test tone as a microphone source and "mute this window", neither saved; (b) launch flags per instance through `host --clients` | (a): no runner change while #170's tasks edit `tools/`, and three windows on one PC still have one microphone (the spike's tone client) and one pair of headphones |
 
 **Stop-and-ask items:**
 - **The addon** (the voice ADR's "What follows"): adding TwoVoIP v6.5 to `addons/` (M5-3), downloaded by the engineer
