@@ -10,6 +10,20 @@ E34 to E47, D11 to D15; its §3 is the review checklist for what the client play
   `docs/ARCHITECTURE.md` §1): no `ClientSession`, `ClientModel`, `client/` or `net/` script.
 - The gate: voice activity (the default), push-to-talk held on V, or Off (D11, M5).
 
+## Map
+- `voice_codec.gd`, `voice_encoder.gd`, `voice_playback.gd`: the codec boundary (`VoiceCodec`, `VoiceEncoder`,
+  `VoicePlayback`); each base is a codec that is never available. `client/` names only these.
+- `two_voip_codec.gd`, `two_voip_encoder.gd`, `two_voip_playback.gd`: the TwoVoIP adapter, reaching the addon by class
+  name only (constructor arguments, so a test passes a missing class).
+- `voice_gate.gd`: `VoiceGate`, pure: which encoded frames leave (voice activity or push-to-talk, the hangover, the
+  pre-roll ring of frames never sent, `may_speak`).
+- `voice_jitter.gd`: `VoiceJitter`, pure, one per speaker on the listener: order, concealment, the adaptive prebuffer,
+  start, stop, fade and flush, as `Decode`s and a `Command` for a `VoicePlayback`.
+- Tests: `tests/unit/voice/` (`voice_codec_test`, `voice_gate_test`, `voice_jitter_test`, `voice_jitter_timing_test`
+  through `voice_jitter_sim.gd`, `voice_addon_names_test`; the core/voice rule tests live there too), the fake codec
+  and `FixtureVoiceDelivery` in `tests/fixtures/voice/`, the real codec's round trip in
+  `tests/integration/voice/twovoip_roundtrip.gd`, and `res://voice` in `tests/unit/client/app/client_boundary_test.gd`.
+
 ## Rules
 - Plumbing only. Whether a listener hears a speaker, and how, is decided by the routing rules in `core/` and applied
   by `server/`. `voice/` never decides routing itself; the client may narrow what it plays, never widen it.
