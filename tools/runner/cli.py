@@ -29,6 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("test", help="GdUnit4 tests, headless")
     p.add_argument("paths", nargs="*", help="test files or directories (default: res://tests)")
+    p.add_argument(
+        "--repeat", type=int, metavar="N", help="N runs in a row with a per-suite comparison (the nightly flaky job)"
+    )
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
     sub.add_parser("selftest", help="unit tests of the runner itself")
@@ -158,6 +161,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "test":
             from . import gdunit
 
+            if args.repeat is not None:
+                return gdunit.repeat(args.repeat, paths=args.paths or None)
             return gdunit.main(paths=args.paths or None)
         if args.command == "verify":
             from . import verify
