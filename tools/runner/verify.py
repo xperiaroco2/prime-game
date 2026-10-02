@@ -603,12 +603,18 @@ def selftest(group: str = "all") -> int:
 
 
 def app_data_written(folder: Path | None, limit: int = 5) -> list[str]:
-    """What the runner tests wrote to selftest's stand-in app-data folder (its files, at most `limit` named, as paths
+    """What the runner tests wrote to selftest's stand-in app-data folder (its files, and each user:// folder in Godot's
+    app_userdata/ that has none, because a leaked folder is the harm even when empty; at most `limit` named, as paths
     relative to it): nothing, when every test that starts Godot carries @starts_godot."""
     if folder is None or not folder.is_dir():
         return []
-    files = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
-    return files[:limit] + ([f"and {len(files) - limit} more files"] if len(files) > limit else [])
+    written = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
+    for godot in (p for p in folder.iterdir() if p.name in ("Godot", "godot")):  # by listing: Windows ignores case
+        user_dirs = godot / "app_userdata"
+        for user in sorted(user_dirs.iterdir()) if user_dirs.is_dir() else []:
+            if user.is_dir() and not any(p.is_file() for p in user.rglob("*")):
+                written.append(user.relative_to(folder).as_posix() + "/")
+    return written[:limit] + ([f"and {len(written) - limit} more"] if len(written) > limit else [])
 
 
 def count_check(reference: dict[str, bool], entries: list[dict[str, object]]) -> tuple[list[str], str]:

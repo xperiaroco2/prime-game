@@ -506,9 +506,17 @@ class SelftestTest(unittest.TestCase):
             self.assertEqual(verify.app_data_written(folder), [])
             for n in range(7):
                 (folder / "Godot" / f"f{n}.txt").write_text("x", encoding="utf-8")
-            self.assertEqual(
-                verify.app_data_written(folder, limit=2), ["Godot/f0.txt", "Godot/f1.txt", "and 5 more files"]
-            )
+            self.assertEqual(verify.app_data_written(folder, limit=2), ["Godot/f0.txt", "Godot/f1.txt", "and 5 more"])
+
+    def test_app_data_written_names_an_empty_user_dir_folder(self) -> None:
+        # Godot makes the user:// folder before it writes any file into it: an empty one is still a leak.
+        for godot in ("Godot", "godot"):
+            with self.subTest(godot), tempfile.TemporaryDirectory() as tmp:
+                folder = Path(tmp)
+                (folder / godot / "app_userdata").mkdir(parents=True)
+                self.assertEqual(verify.app_data_written(folder), [])
+                (folder / godot / "app_userdata" / "PrimeGame-182-abcdef").mkdir()
+                self.assertEqual(verify.app_data_written(folder), [f"{godot}/app_userdata/PrimeGame-182-abcdef/"])
 
     def test_the_godot_group_is_every_class_that_needs_godot(self) -> None:
         # A class whose skip asks for godot_bin() starts Godot: it must carry @starts_godot, and only such a class.
