@@ -96,7 +96,11 @@ chosen `input_device`, `set_input_device_active`, then every frame as many 20 ms
 holds. The encoder resamples the device's rate (`get_input_mix_rate`) to 48 kHz and encodes mono from Godot's stereo
 frames, as in the spike; a device at 44.1 kHz costs about 400 µs more per frame, so the Voice tab advises 48 kHz.
 `project.godot` turns on `audio/driver/enable_input`, which the spike set in `override.cfg` (#12); the PR that adds it
-shows the headless runs print no new error line. **The microphone stays off until the player picks a device** in the
+shows the headless runs print no new error line. Headless runs use the Dummy driver, so they cannot show whether
+WASAPI on 4.7.2 touches the default capture device at startup once input is enabled: before M5-6 merges, the engineer
+starts the game windowed on the #22 laptop with input enabled and no device picked (§6), expecting no freeze and no
+`WASAPI` channel-count line. **The fallback** if it freezes: `project.godot` keeps input off, and `VoiceCapture`
+turns it on through `override.cfg` (the spike's way) only after the player picks a device, at the next start. **The microphone stays off until the player picks a device** in the
 Voice tab; the choice is remembered (§1.7). Godot 4.7.2 freezes on a microphone with more than two channels and cannot
 tell the channel count beforehand, so before opening a device `VoiceCapture` writes an "opening" mark to the settings
 and clears it after the first second of samples: at the next start a mark still set means the last opening never
@@ -379,6 +383,16 @@ and the renumbering check stay as built.
   ```
   Copy the license file the last line finds into `addons\twovoip\`, run `tools\run.cmd check`, and tell the manager,
   who then launches M5-3: its agent commits the files (they stay untracked until then).
+- **Input enabled on the #22 laptop** (the engineer, on M5-6's branch before it merges; §1.1): on the laptop whose
+  4-channel array 4.7.2 cannot read, in the playtest worktree on M5-6's pushed branch (`<branch>` as its PR names it):
+  ```powershell
+  cd D:\prime-game\.claude\worktrees\playtest-m5
+  git fetch origin
+  git switch --detach origin/<branch>
+  tools\run.cmd host --seconds 30
+  ```
+  With no microphone picked (a fresh `user://`), the window must not freeze and the log under `tools\out\logs\` must
+  hold no `WASAPI` line about the channel count. If it freezes, M5-6 takes §1.1's fallback.
 - **The one-PC listening test** (the engineer, headphones on; after M5-6), in the playtest worktree:
   ```powershell
   cd D:\prime-game\.claude\worktrees\playtest-m5
