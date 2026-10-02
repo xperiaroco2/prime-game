@@ -1063,6 +1063,20 @@ def main(
     if history is None:
         history = history_paths(checkout or main_checkout())
     data = collect(dirs, session_filter(sessions or []), t_since, t_until) if dirs else None
+    folder = Path(out) if out else OUT / "metrics"
+    if data and not data["sessions"] and data["other_sessions"]:
+        # Transcripts exist but none falls in the window: an empty report replaces an older one, which would look
+        # current.
+        window = f"{iso(t_since) or 'the first transcript'} to {iso(t_until)}"
+        message = f"metrics: nothing in the window {window} ({data['other_sessions']} sessions read)."
+        folder.mkdir(parents=True, exist_ok=True)
+        with io.open(folder / "metrics.md", "w", encoding="utf-8", newline="\n") as f:
+            f.write(f"{message}\n")
+        with io.open(folder / "metrics.json", "w", encoding="utf-8", newline="\n") as f:
+            json.dump({"since": iso(t_since), "until": iso(t_until), "sessions": [], "runs": [], "tasks": []}, f)
+            f.write("\n")
+        say(message)
+        return 0
     if not data or not data["sessions"]:
         where = ", ".join(str(d) for d in dirs) or str(
             agents_check.config_dir() / "projects" / project_key(checkout or ROOT)
@@ -1073,7 +1087,6 @@ def main(
     verify_runs = read_history(history, t_since, t_until)
     ci_info = ci_data(t_since, t_until, ci, gh) if ci else None
     md, record, summary = build(data, verify_runs, ci_info, t_since, t_until)
-    folder = Path(out) if out else OUT / "metrics"
     folder.mkdir(parents=True, exist_ok=True)
     text = "\n".join(["## Summary", "", "```", *summary, "```", "", *md])
     with io.open(folder / "metrics.md", "w", encoding="utf-8", newline="\n") as f:

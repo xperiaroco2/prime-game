@@ -394,6 +394,21 @@ class MetricsTest(unittest.TestCase):
         with self.assertRaises(Failure):
             metrics.main(until=UNTIL, ci=-1, dirs=[], history=[])
 
+    def test_an_empty_window_says_so_and_replaces_an_older_report(self) -> None:
+        out = self.root / "out"
+        with redirect_stdout(io.StringIO()):
+            metrics.main(until=UNTIL, out=str(out), dirs=[self.fx.dir], history=[])
+        self.assertIn("## Per finished issue-task run", (out / "metrics.md").read_text(encoding="utf-8"))
+        printed = io.StringIO()
+        with redirect_stdout(printed):
+            rc = metrics.main(since="2026-10-01T00:00:00Z", until="2026-10-01T12:00:00Z", out=str(out),
+                              dirs=[self.fx.dir], history=[])
+        self.assertEqual(rc, 0)
+        self.assertIn("metrics: nothing in the window 2026-10-01T00:00:00Z to 2026-10-01T12:00:00Z", printed.getvalue())
+        self.assertNotIn("no Claude Code transcripts", printed.getvalue())
+        self.assertNotIn("## Per finished issue-task run", (out / "metrics.md").read_text(encoding="utf-8"))
+        self.assertEqual(json.loads((out / "metrics.json").read_text(encoding="utf-8"))["tasks"], [])
+
     def test_one_label_for_two_sessions_is_one_stage(self) -> None:
         other = self.fx.dir / "22222222-0000" / "subagents" / "workflows" / "wf_done"
         shutil.copytree(self.fx.dir / SESSION / "subagents" / "workflows" / "wf_done", other)
