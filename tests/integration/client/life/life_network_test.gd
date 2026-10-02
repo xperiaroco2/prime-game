@@ -75,7 +75,8 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	assert_bool(life.hider().is_active()).is_false()
 	var tick := float(_pair.client.avatars().host_tick())
 	assert_float(life.countdowns.invulnerable_left_s(tick)).is_between(2.0, 3.0)
-	assert_str(life.hud(tick).title).is_equal("Invulnerable")
+	# No own invulnerability read-out (the engineer's answer 2 on PR #167).
+	assert_str(life.hud(tick).title).is_empty()
 	_pair.host.life().release_raise()
 	await _pair.stop()
 

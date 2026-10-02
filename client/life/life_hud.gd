@@ -5,8 +5,9 @@ extends RefCounted
 ## (whom a dead player watches, how long G has been held, whether the crosshair is on a downed
 ## player within reach). Greybox wording, placeholders until the UI milestone (#150).
 ##
-## - Living: the raise it runs and its progress; its own invulnerability; "Hold E to raise" over a
-##   downed player in reach.
+## - Living: the raise it runs and its progress; "Hold E to raise" over a downed player in reach.
+##   No own invulnerability read-out (the engineer's answer 2 on PR #167: a later buffs UI may
+##   show it); other players' invulnerable shell (D8) stays.
 ## - Downed: the knockdown countdown (paused while raised), who raises them and the raise's
 ##   progress, and the give-up hold (G).
 ## - Dead: the respawn countdown and whom they watch: nothing of the target's (no health, stamina,
@@ -58,13 +59,8 @@ static func _living(
 		shown.progress = progress
 		shown.progress_label = "Keep holding E"
 		return
-	var invulnerable := countdowns.invulnerable_left_s(tick)
-	if invulnerable > 0.0:
-		shown.title = "Invulnerable"
-		shown.lines.append("%.1f s" % invulnerable)
 	if local.can_raise:
-		if shown.title.is_empty():
-			shown.title = "Downed player"
+		shown.title = "Downed player"
 		shown.lines.append("Hold E to raise")
 
 

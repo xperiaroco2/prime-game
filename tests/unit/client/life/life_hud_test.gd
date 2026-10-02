@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## LifeHud's words (ARCHITECTURE §4.7, the own player by life) from a fake ClientModel and the
-## own LifeCountdowns: the raiser's progress, the own invulnerability, the raise hint; the
+## own LifeCountdowns: the raiser's progress, the raise hint, no own invulnerability; the
 ## knockdown countdown (paused while raised), who raises, the give-up hold; the respawn countdown
 ## and whom a dead player watches, and nothing of the target's.
 
@@ -38,12 +38,19 @@ func test_the_raiser_sees_its_progress_and_the_hint_over_a_downed_player() -> vo
 	assert_float(raising.progress).is_equal_approx(0.5, 1e-4)
 
 
-func test_the_own_invulnerability_counts_down() -> void:
+func test_the_own_invulnerability_shows_no_panel() -> void:
+	# The engineer's answer 2 on PR #167: no own invulnerability read-out for now (a later buffs
+	# UI may show it); the countdown itself still runs (LifeCountdowns).
 	_event(&"Respawned", {"peer": OWN, "position": Vector3.ZERO}, 0.0)
+	assert_float(_countdowns.invulnerable_left_s(20.0)).is_greater(0.0)
 	var shown := _shown(20.0)
-	assert_str(shown.title).is_equal("Invulnerable")
-	assert_array(shown.lines).contains(["2.0 s"])
-	assert_str(_shown(80.0).title).is_empty()
+	assert_str(shown.title).is_empty()
+	assert_array(shown.lines).is_empty()
+	# Over a downed player in reach the raise hint still shows, with no invulnerability words.
+	_local.can_raise = true
+	var hint := _shown(20.0)
+	assert_str(hint.title).is_equal("Downed player")
+	assert_array(hint.lines).contains_exactly(["Hold E to raise"])
 
 
 func test_the_downed_see_the_countdown_the_raiser_and_the_give_up() -> void:
