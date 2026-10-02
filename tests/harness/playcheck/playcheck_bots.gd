@@ -80,8 +80,8 @@ func progress() -> PackedStringArray:
 		if _reported.get(bot.number, -1) == bot.step_index:
 			continue
 		_reported[bot.number] = bot.step_index
-		var step := bot.current_step()
-		var what := step.step_name() if step != null else &"its script is done"
+		var current := bot.current_step()
+		var what := current.step_name() if current != null else &"its script is done"
 		lines.append("bot %d step %d (%s)" % [bot.number, bot.step_index + 1, what])
 	return lines
 

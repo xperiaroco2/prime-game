@@ -39,6 +39,13 @@ class FakeView:
 		return received
 
 
+class EndedView:
+	extends FakeView
+
+	func unwelcomed() -> String:
+		return "no session: it ended (host_lost)"
+
+
 func _wait(what: String, value: Variant, timeout_s := 2.0, line := 5) -> Dictionary:
 	return {
 		"line": line,
@@ -90,6 +97,15 @@ func test_each_wait_has_its_own_timeout_from_its_own_start() -> void:
 	view.phase_now = "round"
 	steps.advance(5999)
 	assert_int(steps.status).is_equal(Steps.Status.DONE)
+
+
+func test_a_window_without_a_session_says_what_it_has_instead() -> void:
+	var view := EndedView.new()
+	view.is_welcomed = false
+	var steps := _steps([_wait("phase", "lobby", 1.0)], view)
+	steps.advance(0)
+	steps.advance(1000)
+	assert_str(steps.failure).ends_with("the window saw no session: it ended (host_lost)")
 
 
 func test_before_its_welcome_a_window_waits_and_a_timeout_says_so() -> void:

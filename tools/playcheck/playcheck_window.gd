@@ -58,6 +58,12 @@ class GameView:
 	func welcomed() -> bool:
 		return model() != null
 
+	## The game's session ended (its host closed, a refused join): it shows its menu with why.
+	func unwelcomed() -> String:
+		if is_instance_valid(game) and game.client() == null and not game.last_reason.is_empty():
+			return "no session: it ended (%s)" % EndReasons.text(game.last_reason)
+		return "no Welcome yet"
+
 	func phase() -> String:
 		return String(model().phase)
 

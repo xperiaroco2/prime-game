@@ -59,6 +59,10 @@ class View:
 	func events() -> Array[Array]:
 		return []
 
+	## What the window has instead of a Welcome, for a timeout's message.
+	func unwelcomed() -> String:
+		return "no Welcome yet"
+
 
 var steps: Array[Dictionary] = []
 var view: View
@@ -254,7 +258,7 @@ func _saw(step: Dictionary) -> String:
 			"%d of %d players in its roster" % [view.roster_size(), number(step.get("players", 0))]
 		)
 	if not view.welcomed():
-		return "no Welcome yet"
+		return view.unwelcomed()
 	var peer := _peer(number(step.get("player", 0)))
 	var seen := "nothing it can wait for"
 	match str(step.get("what", "")):
