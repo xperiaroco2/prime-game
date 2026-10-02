@@ -103,6 +103,20 @@ class WaitTest(SlotsCase):
         self.assertEqual(taken.record(), {"slot": None, "of": 1, "waited": 150.0, "over": True, "reclaimed": 0})
         self.assertIn("ran over the limit", taken.summary())
 
+    def test_a_failing_slot_folder_lets_the_run_go_ahead_without_a_slot(self) -> None:
+        self.where.parent.mkdir(parents=True, exist_ok=True)
+        self.where.write_text("a file where the folder should be", encoding="utf-8")
+        fake = FakeClock()
+        taken = self.pool(count=1, name="unwritable", clock=fake).acquire()
+        self.assertTrue(taken.over)
+        self.assertIsNone(taken.slot)
+        self.assertEqual(fake.slept, [])  # no wait on a folder that cannot hold a slot
+        self.assertIsNotNone(taken.error)
+        self.assertTrue(any("WARN" in line and str(self.where) in line for line in self.said), self.said)
+        record = taken.record()
+        self.assertEqual((record["slot"], record["over"], record["error"]), (None, True, taken.error))
+        self.assertIn("ran without a slot", taken.summary())
+
     def test_a_zero_wait_never_sleeps(self) -> None:
         self.pool(count=1, name="busy").acquire()
         fake = FakeClock()

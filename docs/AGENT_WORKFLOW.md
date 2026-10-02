@@ -873,7 +873,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   room left for a wait in a 600 s call) and `test` red more often (freeze, stall, enet and bots-enet stayed green).
   `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR`
   override the defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot. The record's `slot`
-  is {`slot`, `of`, `waited`, `over`, `reclaimed`}, its `seconds` leave the wait out, and the summary's last line
+  is {`slot`, `of`, `waited`, `over`, `reclaimed`} (and `error` when the slot folder failed: the run then goes
+  ahead without a slot, a slot never stops the gate), its `seconds` leave the wait out, and the summary's last line
   adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over the
   limit. A lane process and its workers carry `PRIME_VERIFY_INSIDE`, so a
   runner test that reaches the real lanes fails instead of starting `verify` inside `verify`; a runner test that

@@ -133,22 +133,28 @@ class Taken:
     waited: float
     reclaimed: list[Holder] = field(default_factory=list)
     holders: list[Holder] = field(default_factory=list)  # who held every slot when the wait ran out
+    error: str | None = None  # the slot folder failed (unwritable, missing): the run went ahead without a slot
 
     @property
     def over(self) -> bool:
         return self.slot is None
 
     def record(self) -> dict[str, object]:
-        """The history record's `slot` entry."""
-        return {
+        """The history record's `slot` entry (with `error` only when the slot folder failed)."""
+        record: dict[str, object] = {
             "slot": self.slot,
             "of": self.count,
             "waited": round(self.waited, 1),
             "over": self.over,
             "reclaimed": len(self.reclaimed),
         }
+        if self.error is not None:
+            record["error"] = self.error
+        return record
 
     def summary(self) -> str:
+        if self.error is not None:
+            return f"slot: NONE of {self.count}: the verify slots failed ({self.error}); ran without a slot"
         if self.over:
             return (
                 f"slot: NONE of {self.count} after waiting {self.waited:.1f}s: ran over the limit "
@@ -237,11 +243,16 @@ class Pool:
         return None
 
     def acquire(self) -> Taken:
-        """Wait for a slot, saying every `every` seconds who holds them; after max_wait go ahead without one."""
+        """Wait for a slot, saying every `every` seconds who holds them; after max_wait, or when the slot folder
+        fails, go ahead without one (a slot only orders the runs: it never stops the gate)."""
         started = self.clock()
         next_report = started
         while True:
-            got = self.try_take()
+            try:
+                got = self.try_take()
+            except OSError as exc:
+                self.say(f"  WARN  the verify slots in {self.where} failed ({exc}); this verify runs without a slot")
+                return Taken(self.count, None, self.clock() - started, error=f"{type(exc).__name__}: {exc}")
             now = self.clock()
             if got is not None:
                 slot, left = got
