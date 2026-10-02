@@ -100,7 +100,7 @@ does (#159). Setup:
    session (`--here` when the human says it is idle). Work in the worktree: a session opened in that folder, or,
    for a task session whose shell starts in the main checkout, `cd <worktree> && ...` (Git Bash) or
    `Set-Location <worktree>; ...` (PowerShell) at the start of every command. `tools\run.cmd worktree-done <n>`
-   removes the worktree once its branch is merged
+   removes the worktree, and its own `user://` folder (§11), once its branch is merged
    ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose branch is
    never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it from the
    main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is inside the
@@ -886,8 +886,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   checkout and a clone (CI, a cloud session) have a `.git` folder and get no file: the humans' settings and saves stay
   in Godot's default `%APPDATA%\Godot\app_userdata\PrimeGame`. An export gets that default folder too: it packs a
   non-resource file only when a preset's include filter names it (there is no preset yet), and an exported game reads
-  an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is left alone, with a warning. A
-  removed worktree's folder stays behind in `%APPDATA%\Godot\app_userdata\` (Godot's logs, a few replays). Saving
+  an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is left alone, with a warning.
+  `worktree-done <n>` deletes the removed worktree's folder (#202) once `git worktree remove` succeeded, or when it
+  finishes a removal left half done, and says so in one line; never the default `PrimeGame` folder or another
+  worktree's (a missing folder is fine; one a Godot still holds open stays, with a warning). Saving
   project settings in a worktree's editor (`ProjectSettings.save()`) copies both keys into `project.godot` (probed on
   4.7.2), which would move every checkout's and export's `user://`: `check` fails on them; delete the two lines.
 - **`test` in shards [applied]** (#182): `test` with no paths runs the suites in K GdUnit4 processes at once, K =

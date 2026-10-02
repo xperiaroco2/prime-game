@@ -9,7 +9,8 @@ For the engineer it makes a worktree `.claude/worktrees/<n>` instead, unless `--
 keeps the task in this checkout; the designer never gets one
 (docs/decisions/2026-09-28-worktrees-only-for-parallel-sessions.md). `worktree-done <n>`
 removes such a worktree once its branch is merged, or with `--pushed` once origin has the branch (a spike that is never
-merged), and finishes a removal that Windows left half done.
+merged), and finishes a removal that Windows left half done. Either way it also deletes the worktree's own `user://`
+folder (#182, #202), never the main checkout's.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ import time
 from pathlib import Path
 
 from . import board, publish, sessions
-from .common import ROOT, Failure, Result, ok, run, say, warn
+from .common import ROOT, Failure, Result, app_data_dir, ok, run, say, user_dir_name, warn
 
 REMOTE = "origin"
 BASE = "main"
@@ -377,6 +378,7 @@ def worktree_done(number: int, *, pushed: bool = False) -> int:
                 f"{branch} ({head[:10]}) has commits that {REMOTE}/{branch} does not; nothing was removed. Push them "
                 "first (tools\\run.cmd publish from the worktree), or ask the human."
             )
+    user = own_user_dir(path)  # read now: the name follows the worktree's project.godot
     res = _git("worktree", "remove", str(path), timeout=REMOVE_TIMEOUT)
     if res.rc != 0 or res.timed_out:
         half = key not in listed_worktrees()
@@ -390,6 +392,7 @@ def worktree_done(number: int, *, pushed: bool = False) -> int:
             )
         )
     ok(f"removed the worktree {path}")
+    remove_user_dir(user)
     if branch and merged:
         _delete_merged(branch)
     elif branch:
@@ -408,9 +411,31 @@ def _delete_merged(branch: str) -> None:
         warn(f"kept the local branch {branch}: {res.out.strip()[-300:]}")
 
 
+def own_user_dir(path: Path) -> Path | None:
+    """Where the worktree at `path` keeps its own user:// (common.ensure_user_dir, #182): the app-data folder joined
+    to its custom_user_dir_name, `<project>-<folder>-<hash of its path>`, so never the main checkout's default
+    `<project>` folder or another worktree's. None on an OS the runner does not know. Without the worktree's
+    project.godot (a removal already done) the project's name is "PrimeGame" (common.project_name)."""
+    base = app_data_dir()
+    return base / user_dir_name(path) if base is not None else None
+
+
+def remove_user_dir(folder: Path | None) -> bool:
+    """Delete a removed worktree's own user:// folder (#202); a missing one is fine. True when it removed one."""
+    if folder is None or not folder.exists():
+        return False
+    try:
+        shutil.rmtree(folder)
+    except OSError as exc:
+        warn(f"kept the worktree's user:// folder {folder} ({exc.strerror}): a Godot may have it open; delete it later")
+        return False
+    ok(f"removed the worktree's user:// folder {folder}")
+    return True
+
+
 def finish_leftovers(number: int, path: Path, known: dict[str, str]) -> int:
     """The worktree is no longer registered (a removal git began but Windows could not finish, or one done by hand).
-    Finish what is left: an empty folder, and the issue's merged local task branch."""
+    Finish what is left: an empty folder, its own user:// folder, and the issue's merged local task branch."""
     cleaned = False
     listed = _git("branch", "--list", "--format=%(refname:short)", f"*/{number}-*").out.split()
     ours = [b for b in listed if re.fullmatch(rf"[a-z][a-z0-9]*/{number}-[a-z0-9][a-z0-9._-]*", b)]
@@ -436,6 +461,8 @@ def finish_leftovers(number: int, path: Path, known: dict[str, str]) -> int:
                 "it (or a folder in it) open, such as a terminal or an editor. Close it, then run worktree-done again."
             ) from exc
         ok(f"removed the empty leftover folder {path}")
+        cleaned = True
+    if remove_user_dir(own_user_dir(path)):
         cleaned = True
     checked_out = set(known.values())
     for branch in ours if fetched else []:
