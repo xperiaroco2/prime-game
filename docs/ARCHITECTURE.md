@@ -1241,7 +1241,7 @@ host's own player sees only what its `ClientSession` decoded.
 
 **Built in M4-6 (#142)**, the shell: `client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
 `GameFlow` (the flow table above as a pure class: the screen and the level per session state and phase, read from
-the client's own `PhaseSpec`: a lobby level shows the lobby panel, a phase that accepts `LoadAck` the loading screen,
+the client's own `PhaseSpec`: a lobby level shows the lobby screen, a phase that accepts `LoadAck` the loading screen,
 one that accepts `ReturnToLobby` or a match with a winner the end screen, any other map phase the round),
 `SessionNode` (-90), `LaunchOptions` (the command line, which `headless_session.gd` also reads) and `EndReasons`
 (the reasons in words; it writes the host's own reasons as ids, since `client/` may not name `HostSession`, and a
@@ -1255,10 +1255,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `host_node.gd`) and on `._session`, HostNode's private field.
 - The countdown showed `end_tick` minus the newest snapshot's tick until M4-7's estimate replaced it; the local
   player stands still (no physics step) outside the lobby and the round.
-- The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`; since #169 the lobby
-  keeps it too); loading and the end
+- The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`); loading and the end
   read no device input, and under the Esc menu the held keys are cleared. Welcome and each `Correction` place the
-  player through `PlayerController.teleport()`.
+  player through `PlayerController.teleport()`. Since #169 the lobby keeps the mouse too.
 - Every end goes through one function: the `HostNode` leaves the tree (closing the session), the client leaves, the
   level, the views and the player are freed, and the menu says "The last session ended: <words>". The host's Leave
   and Quit, and closing the host's window, ask first (`EscMenu`); a client's Leave does not.

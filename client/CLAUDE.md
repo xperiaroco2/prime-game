@@ -23,12 +23,12 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
 - `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`
   and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks).
 - `dev/`: dev rooms and the preview scenes that `shot` draws.
+- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `EscMenuState` (pure), `EscMenu`, its Lobby tab
+  `LobbyPanel` and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
-  there), `MousePointer` (#169). `ui/`: the screens under `GameUi`, built in code, the HUD and the task screen
-  (M4-8), and the shared theme `ui/theme/game_theme.tres`; `EscMenuState` (pure), `EscMenu`, its Lobby tab
-  `LobbyPanel` and the lobby's `LobbyHud` (#169).
-  `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
+  there). `ui/`: the screens under `GameUi`, built in code, the HUD and the task screen (M4-8), and the shared
+  theme `ui/theme/game_theme.tres`. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
   `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
   `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
