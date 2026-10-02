@@ -1,5 +1,6 @@
 # CI runs exactly what `tools/run.sh verify` runs locally (the definition of done), on Linux.
-# Pins come from tools/runner/pins.py; see docs/decisions/2026-09-28-toolchain-pins.md.
+# Pins come from tools/runner/pins.py (read by .github/actions/setup-toolchain); see
+# docs/decisions/2026-09-28-toolchain-pins.md.
 name: CI
 
 on:
@@ -23,50 +24,8 @@ jobs:
         with:
           lfs: false
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      # Plain assignments first: under `bash -e` a failing `pins --get` stops this step (inside echo it would not).
-      - name: Read pins
-        run: |
-          zip=$(tools/run.sh pins --get godot_linux_zip)
-          url=$(tools/run.sh pins --get godot_linux_url)
-          sha512=$(tools/run.sh pins --get godot_linux_sha512)
-          gdtoolkit=$(tools/run.sh pins --get gdtoolkit)
-          {
-            echo "GODOT_ZIP=$zip"
-            echo "GODOT_URL=$url"
-            echo "GODOT_SHA512=$sha512"
-            echo "GDTOOLKIT_PIN=$gdtoolkit"
-          } >> "$GITHUB_ENV"
-
-      - name: Cache the Godot download
-        id: godot-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/godot-download
-          key: godot-linux-${{ env.GODOT_SHA512 }}
-
-      - name: Download Godot
-        if: steps.godot-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ~/godot-download
-          curl -fsSL --retry 3 -o ~/godot-download/"$GODOT_ZIP" "$GODOT_URL"
-
-      # Checked on every run, cached or not.
-      - name: Check the Godot checksum and install it
-        run: |
-          cd ~/godot-download
-          echo "$GODOT_SHA512  $GODOT_ZIP" | sha512sum -c -
-          mkdir -p ~/godot
-          unzip -q -o "$GODOT_ZIP" -d ~/godot
-          mv ~/godot/"${GODOT_ZIP%.zip}" ~/godot/godot
-          chmod +x ~/godot/godot
-          ~/godot/godot --headless --version
-
-      - name: Install gdtoolkit
-        run: python -m pip install --disable-pip-version-check "gdtoolkit==$GDTOOLKIT_PIN"
+      # Python, the checksum-checked Godot build and gdtoolkit from the pins; nightly.yml uses the same action.
+      - uses: ./.github/actions/setup-toolchain
 
       - name: verify
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify

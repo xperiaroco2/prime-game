@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the verify toolchain in a Linux cloud container the way .github/workflows/ci.yml does:
+# Installs the verify toolchain in a Linux cloud container the way CI does (.github/actions/setup-toolchain):
 # the pinned Godot Linux build in ~/godot/godot (SHA-512 checked on every run, linked as `godot` on PATH when
 # /usr/local/bin is writable) and the pinned gdtoolkit. Idempotent: a downloaded zip with the right checksum is
 # reused. Usage: tools/cloud/setup.sh (from any folder).
