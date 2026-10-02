@@ -44,7 +44,7 @@ def build_parser() -> argparse.ArgumentParser:
         "playcheck", help="scripted game windows off-screen (and bots) with screenshots at named steps; never on CI"
     )
     p.add_argument("scenarios", nargs="*", help="scenario names in tools/playcheck/scenarios/ (default: every one)")
-    p.add_argument("--seconds", type=int, default=300, help="hard timeout of each scenario's run (default 300)")
+    p.add_argument("--seconds", type=int, help="hard timeout of each scenario's run (default 300)")
 
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")

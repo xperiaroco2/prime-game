@@ -536,8 +536,9 @@ def run_one(scenario: Scenario, exe: str, seconds: int, port: int) -> int:
     return report(scenario, parts, out)
 
 
-def main(names: list[str] | None = None, seconds: int = DEFAULT_SECONDS) -> int:
+def main(names: list[str] | None = None, seconds: int | None = None) -> int:
     say("playcheck")
+    seconds = DEFAULT_SECONDS if seconds is None else seconds
     if IS_CI or not shot.has_display():
         raise Failure("playcheck needs a desktop session with a GPU (real windows, like shot); CI never runs it")
     if not 1 <= seconds <= MAX_SECONDS:

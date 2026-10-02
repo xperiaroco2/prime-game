@@ -239,7 +239,7 @@ class CommandTest(unittest.TestCase):
 
     def test_the_cli_takes_scenarios_and_seconds(self) -> None:
         args = cli.build_parser().parse_args(["playcheck"])
-        self.assertEqual((args.scenarios, args.seconds), ([], playcheck.DEFAULT_SECONDS))
+        self.assertEqual((args.scenarios, args.seconds), ([], None))
         args = cli.build_parser().parse_args(["playcheck", "esc_menu", "spectate", "--seconds", "90"])
         self.assertEqual((args.scenarios, args.seconds), (["esc_menu", "spectate"], 90))
 
@@ -268,6 +268,21 @@ class CommandTest(unittest.TestCase):
                 with self.subTest(names=names, seconds=seconds), self.assertRaises(Failure):
                     playcheck.main(names, seconds=seconds)
             godot.assert_not_called()
+
+    def test_without_seconds_each_scenario_gets_the_default(self) -> None:
+        with (
+            mock.patch("sys.stdout", new_callable=io.StringIO),
+            mock.patch.object(playcheck, "IS_CI", False),
+            mock.patch.object(shot, "has_display", return_value=True),
+            mock.patch.object(playcheck, "require_godot", return_value="godot"),
+            mock.patch.object(playcheck, "ensure_out"),
+            mock.patch.object(playcheck.launch, "import_if_missing"),
+            mock.patch.object(playcheck, "run_one", return_value=0) as run_one,
+        ):
+            self.assertEqual(playcheck.main(["esc_menu"]), 0)
+            self.assertEqual(run_one.call_args.args[2], playcheck.DEFAULT_SECONDS)
+            playcheck.main(["esc_menu"], seconds=90)
+            self.assertEqual(run_one.call_args.args[2], 90)
 
 
 # A stand-in for one window or the bots: argv[1] says how it behaves; the rest are the part's arguments.
