@@ -1895,14 +1895,25 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
       after its ticks. Each `SelfStatus` names the client tick of the last claim the host settled (`claim_tick`,
       -1 for none since a placement); `follow_status` takes the host's number and sprint availability (which is
       the host's sprint state wherever that decides the next tick) and settles again exactly the claims after
-      that one (with none, the claims of the current epoch), of the last 32 it remembers. So a cost it does not
-      predict (a hit, a refused jump) or a tick the host could not settle yet is taken in with the next status,
-      and nothing in flight is given back. The jumps since the last claim are forgotten when the session adopts
-      a new epoch, whose claims count jumps from 0. The network bots sprint by the same prediction (`NetPlay`).
-      Accepted: a claim whose ticks reach past the host's clock when it arrives (it overtook the host's ticks,
-      at an epoch's start or when the delay shrinks) has those ticks left unsettled, so the client may predict a
-      tick of regeneration more than the host has until the next `SelfStatus`; no guard test met a `Correction`
-      from it.
+      that one (with none, the claims of the current epoch), of the last 32 it remembers. A refused claim
+      settles nothing on the host (`MovementRule.apply` puts back the ledger a jump claim's check committed), and
+      the next claim covers its ticks. A claim after the named one from an older epoch than the client's was
+      refused or dropped as stale, so it is settled again without its jumps: events share one ordered reliable
+      channel, so a status that arrives after a `Correction` was sent after it. So a cost it does not predict (a
+      hit), a refused jump or a tick the host could not settle yet is taken in with the next status, and nothing
+      in flight is given back. The jumps since the last claim are forgotten when the session adopts a new epoch,
+      whose claims count jumps from 0. The network bots sprint by the same prediction (`NetPlay`).
+      Accepted, until a later `SelfStatus` (no guard test met a `Correction` from these):
+      - A claim whose ticks reach past the host's clock when it arrives (it overtook the host's ticks, at an
+        epoch's start or when the delay shrinks) has those ticks left unsettled, so the client may predict a tick
+        of regeneration more than the host has.
+      - Before a jump or a `StaminaCost` the host settles the ticks past the last claim with its flags
+        (`settle_ahead`), up to the ledger's lag behind the client (about the one-way delay in ticks); the next
+        claim settles only the ticks left, while the client settles all of them again on top of a status that
+        names the last claim. A second jump or a sprint restart right at its cost may then be corrected. No guard
+        test jumps under jitter; the fix, if needed, is a count of those ticks in `SelfStatus`.
+      - After a refused first claim of an epoch (none accepted since its placement) or a claim past its credit,
+        the host takes the next claim as one tick, while the client counts it from its last claim.
     Tests: `tests/unit/movement/movement_rule_masks_test.gd` (merged claims at a sprint's end, bits the stamina
     does not cover, flags against masks, old bits, malformed masks), `tests/unit/movement/movement_rule_test.gd`
     (the two tests that pinned the allowance, rewritten with the engineer's approval, and the release that walks

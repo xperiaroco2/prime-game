@@ -16,7 +16,9 @@ var sprint_available: bool
 ## The client tick of the last MoveClaim the host accepted and settled for this player in its
 ## epoch, or -1 for none since its placement (MovementRule.settled_claim_tick): the stamina is the
 ## number after that claim, and the player's client settles its later claims on top
-## (PredictedStamina).
+## (PredictedStamina). After a jump or a StaminaCost, the number also holds the ticks the host
+## settled ahead of the claims (StaminaLedger.settle_ahead, up to the ledger's lag), which the
+## client settles again until a later status (ARCHITECTURE §7.1, "Accepted").
 var claim_tick: int
 
 
