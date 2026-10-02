@@ -436,10 +436,32 @@ func _check_after() -> void:
 			label, malformed.peer, malformed.transport, malformed.undecodable, one_process
 		)
 	)
+	_check_malformed_view()
 	_check_voice_rule()
 	_check_roles()
 	if chaos_mode == Mode.CHAOS:
 		_check_chaos_counts()
+
+
+## A peer that is not a player and sent intents, voice and a debug kind: whatever view_of says,
+## it decodes no snapshot and no voice, and no event but a not_accepted Rejected of an intent it
+## sent (§3.1, §3.2, §4.4's Rejected audience: the sender alone).
+func _check_malformed_view() -> void:
+	var view := malformed.view
+	if not view.snapshots.is_empty() or not view.repeated_snapshots.is_empty():
+		failures.append("chaos: the malformed peer, no player, decoded snapshots")
+	if not view.voice.is_empty():
+		failures.append("chaos: the malformed peer, no player, decoded voice")
+	for message: WireMessage in view.events:
+		var answer := message.name == &"Rejected"
+		if answer:
+			var seq: int = message.fields.get("seq", -1)
+			var reason: StringName = message.fields.get("reason", &"")
+			answer = malformed.intent_seqs.has(seq) and reason == RejectReasons.NOT_ACCEPTED
+		if not answer:
+			failures.append(
+				"chaos: the malformed peer decoded %s %s" % [message.name, message.fields]
+			)
 
 
 ## Class 7: no honest bot decoded the malformed peer's voice, nor the hostile's while it was not

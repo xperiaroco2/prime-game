@@ -1166,7 +1166,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   two summary lines); and the honest bots' decoded views (events, snapshots, voice but the hostile's) equal a
   **baseline** run with the same seed and roster whose chaos peers are joined but idle. The leak test stays whole:
   every bot, the lurker and the refused bot get `LeakCheck` and `check_counters` unchanged, the malformed peer
-  `check_bot` (its decoded events exactly `view_of`'s `Rejected`s); only the host's two counts (`host_problems`:
+  `check_bot` (its decoded events exactly `view_of`'s `Rejected`s) and, whatever `view_of` says, no snapshot, no
+  voice and no event but a `not_accepted` `Rejected` of an intent it sent; only the host's two counts (`host_problems`:
   nothing rejected, nothing over budget) are exempt, for the two chaos peers' ids only, through the ledger
   (`ChaosRun.host_problems`; the engineer's approval is asked on the PR). Over ENet (`--enet`: the same run in one
   process on 127.0.0.1, `CountingEnet` and `ChaosEnet`) only the invariants hold: no crash, no engine error line,

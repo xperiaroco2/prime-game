@@ -28,6 +28,8 @@ var undecodable := 0
 var active := true
 ## The labels it sent, with counts, for the report.
 var sent: Dictionary[String, int] = {}
+## The seqs of the well-formed intents it sent (the only ones a Rejected may echo to it).
+var intent_seqs: Array[int] = []
 
 var _schema: WireSchema
 var _send_raw: Callable
@@ -108,6 +110,8 @@ func _send(packet: ChaosFrames.Packet) -> void:
 		packet.intent = &""
 	if _send_raw.call(packet) as bool:
 		sent[packet.label] = sent.get(packet.label, 0) + 1
+		if Intents.ALL.has(packet.intent) and packet.intent != Intents.MOVE_CLAIM:
+			intent_seqs.append(packet.seq)
 
 
 func _on_connected(own_id: int) -> void:
