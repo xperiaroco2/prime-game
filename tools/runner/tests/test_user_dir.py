@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import common
+from runner import check, common
 from runner.common import godot_bin
 from runner.verify import starts_godot
 
@@ -17,6 +17,13 @@ PROJECT = 'config_version=5\n\n[application]\n\nconfig/name="PrimeGame"\n'
 PROBE = (
     'extends SceneTree\n\n\nfunc _initialize() -> void:\n\tprint("user_data_dir=", OS.get_user_data_dir())\n\tquit(0)\n'
 )
+# What the editor's Project Settings dialog does on a change: ProjectSettings.save().
+SAVE = "extends SceneTree\n\n\nfunc _initialize() -> void:\n\tquit(ProjectSettings.save())\n"
+
+
+def policy_for(root: Path) -> list[str]:
+    with mock.patch.object(check, "ROOT", root):
+        return check.user_dir_policy()
 
 
 def checkout(parent: Path, name: str, linked: bool) -> Path:
@@ -122,6 +129,19 @@ class OverrideTest(unittest.TestCase):
             self.assertIsNone(common.worktree_user_dir(root))
 
 
+class ProjectKeepsTheDefaultTest(unittest.TestCase):
+    def test_check_fails_on_the_override_keys_in_project_godot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = checkout(Path(tmp), "182", linked=True)
+            self.assertEqual(policy_for(root), [])
+            keys = common.override_text(root).split("[application]\n", 1)[1]
+            (root / "project.godot").write_text(PROJECT + keys + "\n[debug]\n\nx=1\n", encoding="utf-8")
+            problems = policy_for(root)
+            self.assertEqual(len(problems), 2, problems)
+            self.assertIn("config/use_custom_user_dir=true", problems[0])
+            self.assertIn(common.user_dir_name(root), problems[1])
+
+
 @starts_godot
 @unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
 class RealUserDirTest(unittest.TestCase):
@@ -163,6 +183,18 @@ class RealUserDirTest(unittest.TestCase):
                 self.assertEqual(found, os.path.normcase(os.path.normpath(data / name)), label)
                 seen[label] = found
             self.assertEqual(len(set(seen.values())), 3)
+
+    def test_saving_project_settings_in_a_worktree_copies_the_override_and_check_sees_it(self) -> None:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            worktree = checkout(Path(tmp), "182", linked=True)
+            (worktree / "save.gd").write_text(SAVE, encoding="utf-8")
+            common.ensure_user_dir(worktree)
+            self.assertEqual(policy_for(worktree), [])
+            cmd = [str(godot_bin()), "--no-header", "--headless", "--path", str(worktree), "-s", "res://save.gd"]
+            res = common.run(cmd, timeout=60, cwd=worktree)
+            self.assertEqual(res.rc, 0, res.out)
+            saved = (worktree / "project.godot").read_text(encoding="utf-8")
+            self.assertEqual(len(policy_for(worktree)), 2, saved)
 
 
 if __name__ == "__main__":
