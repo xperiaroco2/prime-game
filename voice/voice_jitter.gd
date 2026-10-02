@@ -12,8 +12,11 @@ extends RefCounted
 ##   stop is skipped, not concealed at the start of the next run.
 ## - Start and stop: playback starts when the queue and the frames held reach the prebuffer, and
 ##   stops when the queue runs dry with nothing held: a talk spurt ended, or an underrun. The next
-##   frame starts again under a fresh prebuffer. Frames held without starting for STALE_USEC are
-##   discarded (`stale`), so old speech never plays in front of the speaker's next spurt.
+##   frame starts again under a fresh prebuffer. A held frame whose host tick is more than
+##   SPURT_TICKS past the last decoded frame's begins a new spurt: it is not decoded into a run
+##   still playing, which runs dry and stops first, so every spurt starts under its own prebuffer.
+##   Frames held without starting for STALE_USEC are discarded (`stale`), so old speech never
+##   plays in front of the speaker's next spurt.
 ## - The adaptive prebuffer: at each start, the largest spread of the arrival offsets within one
 ##   talk spurt over the last WINDOW_USEC of frames, plus a frame, within MIN_PREBUFFER_USEC and
 ##   MAX_PREBUFFER_USEC. A frame's offset is its arrival against its spurt's first frame's arrival
@@ -91,6 +94,8 @@ var _window_offset := PackedInt64Array()
 ## The host tick of the last frame decoded without concealment, once _has_decoded.
 var _last_tick := 0
 var _has_decoded := false
+## Whether the current run has decoded a frame without concealment.
+var _run_decoded := false
 var _last_update := 0
 var _has_updated := false
 var _step := FRAME_USEC
@@ -147,9 +152,12 @@ func update(queued_usec: int, now_usec: int) -> Array[Decode]:
 	while not _pending.is_empty():
 		if _pending.has(_next):
 			var held: Array = _pending[_next]
+			if _begins_spurt(held[1] as int):
+				break
 			out.append(Decode.new(held[0] as PackedByteArray, false, _next))
 			_last_tick = held[1]
 			_has_decoded = true
+			_run_decoded = true
 			_pending.erase(_next)
 			_next += 1
 			queued += FRAME_USEC
@@ -157,6 +165,8 @@ func update(queued_usec: int, now_usec: int) -> Array[Decode]:
 		if queued > _step + DRY_MARGIN_USEC:
 			break
 		var first := _first_pending()
+		if _begins_spurt(_pending[first][1] as int):
+			break
 		out.append(Decode.new(_pending[first][0] as PackedByteArray, true, _next))
 		concealed += 1
 		lost += first - _next - 1
@@ -230,6 +240,7 @@ func _try_start(queued_usec: int, now_usec: int) -> bool:
 	_next = first
 	_has_next = true
 	running = true
+	_run_decoded = false
 	starts += 1
 	_command = Command.START
 	if _has_decoded and _pending.has(_next):
@@ -237,6 +248,12 @@ func _try_start(queued_usec: int, now_usec: int) -> bool:
 		if tick - _last_tick <= SPURT_TICKS:
 			underruns += 1
 	return true
+
+
+## Whether a held frame relayed at host tick `tick` begins a new spurt after the current run's
+## frames.
+func _begins_spurt(tick: int) -> bool:
+	return _run_decoded and tick - _last_tick > SPURT_TICKS
 
 
 func _first_pending() -> int:

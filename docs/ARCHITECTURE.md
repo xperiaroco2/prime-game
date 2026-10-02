@@ -1860,7 +1860,9 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     missing frame until the queue would run dry before the next update (within `DRY_MARGIN_USEC`, 10 ms), then
     decodes the next packet held with `conceal` (FEC or concealment) and skips the rest of a longer run (`lost`);
     a frame missing across a stop is skipped. It starts when the queue and the frames held reach the prebuffer and
-    stops when the queue runs dry with nothing held. The prebuffer is chosen at each start: the largest spread of
+    stops when the queue runs dry with nothing held; a held frame whose host tick is more than 2 past the last
+    decoded frame's is the next spurt, never decoded into a run still playing, so each spurt starts under its own
+    prebuffer. The prebuffer is chosen at each start: the largest spread of
     arrival offsets within one talk spurt over the last 2 s of frames, plus 20 ms, within 40 to 120 ms; a spurt
     starts when a frame arrives more than 60 ms after its due time or its host tick is more than 2 past the newest
     frame's. Under the tests' talk (polls 16.7 ms apart) it settles near 40, 59 and 105 ms at 0, 30 and 80 ms of

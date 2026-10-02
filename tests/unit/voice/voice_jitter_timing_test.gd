@@ -112,6 +112,43 @@ func test_a_frame_missing_across_a_stop_is_skipped_not_concealed() -> void:
 	assert_int(sim.jitter.starts).is_equal(2)
 
 
+func test_a_new_spurt_arriving_as_the_last_runs_dry_waits_for_its_own_prebuffer() -> void:
+	# Driven by hand: the next spurt's first frame (seq 5, the next due, as seqs run on across a
+	# silence) arrives on the very poll the last spurt's queue reads empty.
+	var jitter := _started_spurt()
+	jitter.push(5, 10, Sim.frame_of(5), 500000)
+	assert_array(jitter.update(0, 500000)).is_empty()
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.STOP)
+	assert_bool(jitter.running).is_false()
+	jitter.push(6, 10, Sim.frame_of(6), 520000)
+	assert_int(jitter.update(0, 520000).size()).is_equal(2)
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.START)
+	assert_int(jitter.starts).is_equal(2)
+	assert_int(jitter.underruns).is_equal(0)
+
+
+func test_a_new_spurt_is_not_appended_to_the_last_ones_queue() -> void:
+	# The next spurt's first frame arrives while 20 ms of the last spurt are still queued: it is
+	# held, the queue runs dry and stops, and the spurt starts once its own prebuffer is reached.
+	var jitter := _started_spurt()
+	jitter.push(5, 10, Sim.frame_of(5), 500000)
+	assert_array(jitter.update(20000, 500000)).is_empty()
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.NONE)
+	assert_array(jitter.update(0, 520000)).is_empty()
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.STOP)
+	# One frame held is under the 40 ms prebuffer.
+	assert_array(jitter.update(0, 530000)).is_empty()
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.NONE)
+	jitter.push(6, 10, Sim.frame_of(6), 540000)
+	var out := jitter.update(0, 540000)
+	assert_int(out.size()).is_equal(2)
+	assert_bool(out[0].conceal or out[1].conceal).is_false()
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.START)
+	assert_int(jitter.prebuffer_usec).is_equal(VoiceJitter.MIN_PREBUFFER_USEC)
+	assert_int(jitter.starts).is_equal(2)
+	assert_int(jitter.underruns).is_equal(0)
+
+
 func test_a_new_spurt_starts_on_a_late_arrival_or_a_tick_jump() -> void:
 	var jitter := VoiceJitter.new()
 	var f := Sim.FRAME_USEC
@@ -173,6 +210,16 @@ func _talk(jitter_usec: int, seed_value: int) -> Sim:
 		)
 	sim.run(deliveries, SPURTS * SPURT_EVERY + 1000000)
 	return sim
+
+
+## A VoiceJitter running one spurt of frames 0 to 4 (host tick 0, on time), all decoded.
+func _started_spurt() -> VoiceJitter:
+	var jitter := VoiceJitter.new()
+	for seq: int in 5:
+		jitter.push(seq, 0, Sim.frame_of(seq), seq * Sim.FRAME_USEC)
+	assert_int(jitter.update(0, 80000).size()).is_equal(5)
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.START)
+	return jitter
 
 
 func _assert_underruns_bounded(sim: Sim) -> void:
