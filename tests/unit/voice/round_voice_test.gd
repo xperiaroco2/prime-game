@@ -114,6 +114,25 @@ func test_a_downed_player_moving_away_stops_hearing_at_living_m() -> void:
 	assert_bool(heard_on.back()).is_false()
 
 
+func test_its_hearing_radius_is_living_m_where_its_routing_stops() -> void:
+	# E41: the client's cutoff is living_m, the edge of what the host routes, for a downed
+	# listener too (from where it lies).
+	var rule := _radius(7.25)
+	assert_float(rule.hearing_radius_m()).is_equal(7.25)
+	assert_float(VoiceRule.radius_of(rule)).is_equal(7.25)
+	var game := FixtureVoiceMatch.in_round(rule, [P1, P2, P3])
+	game.state.player(P3).life = PlayerState.Life.DOWNED
+	FixtureVoiceMatch.put(game, P1, Vector3.ZERO)
+	FixtureVoiceMatch.put(game, P2, Vector3(rule.hearing_radius_m(), 0, 0))
+	FixtureVoiceMatch.put(game, P3, Vector3(0, 0, -rule.hearing_radius_m()))
+	assert_array(FixtureVoiceMatch.tick_and_hear(game, P2)).is_equal([P1])
+	assert_array(FixtureVoiceMatch.heard(game, P3)).is_equal([P1])
+	FixtureVoiceMatch.put(game, P2, Vector3(rule.hearing_radius_m() + 0.01, 0, 0))
+	FixtureVoiceMatch.put(game, P3, Vector3(0, 0, -rule.hearing_radius_m() - 0.01))
+	assert_array(FixtureVoiceMatch.tick_and_hear(game, P2)).is_empty()
+	assert_array(FixtureVoiceMatch.heard(game, P3)).is_empty()
+
+
 func test_the_radius_must_be_within_its_bounds() -> void:
 	assert_array(_errors_of(_round_voice())).is_empty()
 	assert_array(_errors_of(_radius(0.5))).is_empty()
