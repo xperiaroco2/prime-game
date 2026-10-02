@@ -49,9 +49,12 @@ func test_80_ms_of_jitter_gives_a_prebuffer_near_100_ms() -> void:
 
 func test_the_prebuffer_stops_at_its_cap() -> void:
 	var sim := _talk(200000, 1)
+	var checked := 0
 	for i: int in sim.start_times.size():
 		if sim.start_times[i] >= SETTLED:
 			assert_int(sim.start_prebuffers[i]).is_equal(VoiceJitter.MAX_PREBUFFER_USEC)
+			checked += 1
+	assert_int(checked).is_greater(0)
 
 
 func test_the_prebuffer_falls_back_once_the_jitter_leaves_the_window() -> void:
