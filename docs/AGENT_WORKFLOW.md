@@ -53,9 +53,9 @@ does (#159). Setup:
   the issue and open the PR through the session's GitHub tools, leave the board column to the manager, and push with
   `publish --base release/m<k>` (it needs no `gh` when given the base) or a plain `git push -u origin <branch>` after
   a green `verify`.
-- **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` (it stops with "needs a
-  desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the humans' settings
-  files). A full `verify` took 5.5 minutes in one (test, selftest and bots-enet the longest).
+- **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` or run `playcheck` (they
+  stop with "needs a desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the
+  humans' settings files). A full `verify` took 5.5 minutes in one (test, selftest and bots-enet the longest).
 
 ## 3. Instruction files and memory
 
@@ -712,15 +712,34 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   start> --compact` into each wave comment. API list $ is a weight (one price table in `metrics.py`, its source and date
   beside it), not money spent; no transcripts is a message and exit 0, and so is an empty window, which also writes an
   empty report over an older one.
+- **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
+  windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw
+  before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`),
+  names its players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more
+  windows join it, and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a
+  `BotScenario`'s scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup
+  window 1 sends as the host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps:
+  `wait phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`,
+  Esc menu and pointer, never `HostSession`, the match or `core/` (invariant 2); `press <action>` (its key through
+  `Input.parse_input_event`), `hold`/`release` (`Input.action_press`), `frames N` and `shot <name>`. The windows sit
+  at `shot`'s off-screen position with the dummy audio driver, never headless. The game gets a pointer that only
+  remembers, and playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse
+  (`use`, spectate cycling) is out of its reach. PNGs: `tools/out/playcheck/<scenario>/<shot>.png` (`gh` cannot
+  upload them: the PR lists their paths and says what each shows); logs: `tools/out/logs/playcheck/<scenario>/`. A
+  run fails on a wait past its timeout (the window prints the step's line and what it saw, and saves
+  `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not done within
+  `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started through
+  the stop file (else a kill). Desktop only: CI and `verify` never run it; an agent may (off-screen windows, like
+  `shot`). Scenarios: `esc_menu` (#169) and `spectate` (#168).
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`, `run`,
-  `agents-check`, `credits`, `host`, `join`, `bots`, `metrics` (all three above), and `hook` (for Claude Code only).
-  Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
-  launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
-  PowerShell) the runner takes the machine paths from the Claude settings (§2).
+  `agents-check`, `credits`, `host`, `join`, `bots`, `metrics`, `playcheck` (all four above), and `hook` (for Claude
+  Code only). Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH
+  is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code
+  session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
