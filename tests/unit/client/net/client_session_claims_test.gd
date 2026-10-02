@@ -324,10 +324,12 @@ func test_a_correction_keeps_the_masks_of_the_claims_before_it() -> void:
 	assert_int((claim["moved_ticks"] as int) & 0b11).is_equal(0b11)
 
 
-func test_the_move_epsilon_is_the_hosts() -> void:
+func test_the_move_epsilon_and_the_mask_ticks_are_the_hosts() -> void:
 	# claim_sent's moved_itself must be what MovementRule counts, or the predicted stamina drifts.
 	assert_float(ClientSession.MOVE_EPSILON).is_equal(MovementRule.MOVE_EPSILON)
 	assert_float(PlayerController.MOVE_EPSILON).is_equal(MovementRule.MOVE_EPSILON)
+	# The masks' width must be the host's, or its oldest-bit rule reads long claims differently.
+	assert_int(ClientSession.MASK_TICKS).is_equal(MovementRule.MASK_TICKS)
 
 
 ## One claim's tick: a step at `to` with `sprint` and `moving`, then the clock `ticks` client ticks

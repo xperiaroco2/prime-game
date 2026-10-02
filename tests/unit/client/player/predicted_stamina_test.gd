@@ -200,9 +200,9 @@ func test_by_claims_a_number_it_did_not_predict_is_taken_with_the_claims_in_flig
 	assert_int(stamina.stamina).is_equal(predicted)
 
 
-## The fresh netcode review of #155: an answer that matched no prediction had only as many claims
-## settled again as the last clear match had in flight (one here); with more in flight under
-## jitter the client predicted more stamina than the host's and sprinted past the host's zero.
+## Every claim after the one a status names is settled again on top of the host's number, however
+## many are in flight (five here), so under jitter the client never predicts more stamina than the
+## host's ledger has and never sprints past its zero.
 func test_by_claims_every_claim_after_the_one_a_status_names_is_settled_again() -> void:
 	var stamina := PredictedStamina.new(_rules)
 	stamina.follow_claims()
