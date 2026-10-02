@@ -96,6 +96,14 @@ def kill_tree(proc: subprocess.Popen[bytes]) -> None:
     proc.wait()
 
 
+def group_kwargs() -> dict[str, object]:
+    """Popen arguments that start a process in a group of its own: Ctrl+C reaches only the runner, and kill_tree can
+    stop the process with all of its children."""
+    if IS_WINDOWS:
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
 def run(
     cmd: list[str],
     *,
@@ -110,11 +118,6 @@ def run(
     The full output is also written to tools/out/logs/<log>.log when log is given.
     """
     started = time.monotonic()
-    kwargs: dict[str, object] = {}
-    if IS_WINDOWS:
-        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-    else:
-        kwargs["start_new_session"] = True
     try:
         proc = subprocess.Popen(
             cmd,
@@ -123,7 +126,7 @@ def run(
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env={**os.environ, **(env or {})},
-            **kwargs,  # type: ignore[arg-type]
+            **group_kwargs(),  # type: ignore[arg-type]
         )
     except FileNotFoundError as exc:
         raise Failure(f"cannot start {cmd[0]}: {exc}") from exc

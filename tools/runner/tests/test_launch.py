@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import cli, launch
+from runner.verify import starts_godot
 from runner.common import ROOT, Failure, Result, godot_bin
 
 PROBE = "tools/run/probe.gd"
@@ -181,6 +182,7 @@ class ErrorScanAndExitCodeTest(unittest.TestCase):
         warned.assert_called_once()
 
 
+@starts_godot
 @unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
 class RealRunTest(unittest.TestCase):
     """tools/run/probe.gd under a real headless Godot, in a throwaway project."""

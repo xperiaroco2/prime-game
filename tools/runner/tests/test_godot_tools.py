@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import normalize, shot
+from runner.verify import starts_godot
 from runner.common import ROOT, Failure, Result, godot_bin, run
 
 PROBE = "tools/shot/probe.tscn"
@@ -90,6 +91,7 @@ class NormalizeTest(unittest.TestCase):
             self.assertEqual((root / "m.tres").read_bytes(), original)
 
 
+@starts_godot
 @unittest.skipUnless(godot_bin(), "needs Godot (GODOT_BIN); CI has it")
 class RealNormalizeTest(unittest.TestCase):
     """normalize.gd in a real headless editor, on a throwaway project with a copy of the probe scene."""

@@ -725,9 +725,24 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
   seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
-  `verify` on the merged tree is the check there (§7.1). `verify` runs, in this order: `doctor --quick`,
-  `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots` and
-  `bots-enet`, `game`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about
+  `verify` on the merged tree is the check there (§7.1). `verify` (#179) runs `doctor --quick` first (red: nothing
+  else runs), then two lanes at once, each a process of its own and serial inside: the Python lane (`lint`, then
+  `selftest`: the runner tests that start no Godot, each test in one of the worker processes, a quarter of the
+  logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
+  `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
+  imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots`
+  and `bots-enet`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
+  output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
+  clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
+  it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check). The
+  summary keeps the serial order (`doctor`, `lint`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
+  `bots-enet`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the test count.
+  Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
+  `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of
+  `tools/runner/` at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds),
+  `cpus`, `workers` and `selftest` (run, skipped). A lane process and its workers carry `PRIME_VERIFY_INSIDE`, so a
+  runner test that reaches the real lanes fails instead of starting `verify` inside `verify`; a runner test that
+  starts Godot carries `@starts_godot` (`runner.verify`). `bots` is `bots` (every scenario in one process, about
   8 s) and `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario
   ends by time up on a 40 s clock that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `game` (#149, about 5 s) starts
   `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
