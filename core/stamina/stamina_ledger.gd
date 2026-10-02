@@ -36,17 +36,12 @@ class Settlement:
 	var fast_ticks := 0
 
 
-## Settles `player` through host tick `through_tick`, at most `max_ticks` ticks (-1: no limit),
-## as if it held sprint (`sprint_held`) and moved itself (`moving`) on each, and commits it.
+## Settles `player` through host tick `through_tick`, as if it held sprint (`sprint_held`) and
+## moved itself (`moving`) on each tick, and commits it.
 static func settle(
-	player: PlayerState,
-	rules: PlayerRules,
-	through_tick: int,
-	sprint_held: bool,
-	moving: bool,
-	max_ticks := -1
+	player: PlayerState, rules: PlayerRules, through_tick: int, sprint_held: bool, moving: bool
 ) -> Settlement:
-	var result := simulate(player, rules, through_tick, sprint_held, moving, max_ticks)
+	var result := simulate(player, rules, through_tick, sprint_held, moving)
 	commit(player, result)
 	return result
 
@@ -59,12 +54,7 @@ static func settle_ahead(player: PlayerState, rules: PlayerRules, now: int) -> v
 
 ## What settle() would do, without changing `player`.
 static func simulate(
-	player: PlayerState,
-	rules: PlayerRules,
-	through_tick: int,
-	sprint_held: bool,
-	moving: bool,
-	max_ticks := -1
+	player: PlayerState, rules: PlayerRules, through_tick: int, sprint_held: bool, moving: bool
 ) -> Settlement:
 	var result := Settlement.new()
 	result.stamina = player.stamina
@@ -75,8 +65,6 @@ static func simulate(
 		result.settled_tick = through_tick
 		return result
 	var count := maxi(0, through_tick - player.stamina_settled_tick)
-	if max_ticks >= 0:
-		count = mini(count, max_ticks)
 	result.ticks = count
 	result.settled_tick = player.stamina_settled_tick + count
 	var most := Ticks.thousandths(rules.stamina)
