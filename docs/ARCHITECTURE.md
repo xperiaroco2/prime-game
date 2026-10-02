@@ -1556,9 +1556,12 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   stay.
 - Tests: `tests/unit/client/ui/hud_test.gd` (the spectator's words from a fake `ClientModel`: the target's name
   and slots, none of its private facts, none of the spectator's own slots, numbers or hint),
-  `tests/unit/client/life/life_hud_test.gd`, `life_network_test.gd` (the HUD's line on the network) and
+  `tests/unit/client/life/life_hud_test.gd`, `life_network_test.gd` (the HUD's line on the network),
   `spectate_network_test.gd` (above; the target's meshes and items not drawn from its eyes, drawn again when it
-  goes down or the spectator respawns). The `shot`: `client/dev/spectate_preview.tscn`.
+  goes down or the spectator respawns; the retrace measured to the segment between two recorded poses, so the
+  render tick's phase cannot fail it) and `spectate_cycle_test.gd` (no network: a dead player cycles between two
+  living targets of a hand-folded model, and the one it leaves is drawn with its items again). The `shot`:
+  `client/dev/spectate_preview.tscn`.
 - Not headless: the feel of spectating; the engineer repeats the spectating part of the one-PC playtest.
 
 **What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
