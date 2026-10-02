@@ -170,8 +170,15 @@ Target: half of today's local run (489 s in M4) and under the 5-minute cache lif
 
 | option | the failure it prevents | cost | |
 |---|---|---|---|
-| (a) **two lanes**: lint then selftest (pure Python) beside check, test and the Godot runs; the steps inside the Godot lane stay serial | the 8-minute wall of every run (three per task) and the cache re-writes | one task (M); about max(23 + 199, 17 + 144 + ~100) = 261 s instead of 489 s | **recommended** (P2) |
+| (a) **two lanes**: a Python lane (lint, then the runner tests that start no Godot) beside a Godot lane (check, then the runner tests that start Godot, then test and the Godot runs); the steps inside the Godot lane stay serial | the 8-minute wall of every run (three per task) and the cache re-writes | one task (M); about max(23 + ~170, 17 + G + 144 + ~100) = 261 s + G instead of 489 s, where G is the time of the runner tests that start Godot (measured in P2) | **recommended** (P2) |
 | (b) selftest in parallel worker processes | selftest (199 s on Windows) becoming the critical path once (a) lands | in P2; about 60 s expected | **recommended** (P2) |
+
+`selftest` is not pure Python: `test_hostjoin.py` (`RealSessionTest`, a real headless host and two clients over
+ENet, skipped unless Godot and the imported project's `.godot` exist), `test_launch.py` and `test_godot_tools.py`
+start Godot. In P2 those tests carry a marker (or sit in a named module list) and run in the Godot lane after
+`check`, serially, so a fresh CI checkout has imported the project before the real session is discovered and the
+real-time ENet session never overlaps freeze and stall. The Python lane runs only the tests that start no Godot.
+P2 asserts, locally and on CI, that the number of runner tests actually run (not skipped) equals today's serial run.
 | (c) **an own `user://` per worktree and process**, then `test` in 2 to 3 shards | GdUnit4's `user://tmp` is one folder for every checkout of the project (`config/name="PrimeGame"`, no custom user dir), a cause of the "two verify runs collide, rerun once" gotcha; `test` is 144 s locally and 190 s on CI | one task (M to L); how Godot 4.7.2 takes a per-process user dir is verified first (environment, or a gitignored `override.cfg` with `application/config/use_custom_user_dir`); without one, no sharding | **recommended** (P5) |
 | (d) a machine-wide limit of N verify runs at once | four tracks starving each other's verify runs, and timing-sensitive steps (freeze, stall) failing under load | one task (S) | **recommended** (P8) |
 | (e) the ENet runs in parallel | | they measure timeouts and freezes in real time; overlap on a loaded CPU makes them flaky | rejected |
@@ -180,8 +187,8 @@ Target: half of today's local run (489 s in M4) and under the 5-minute cache lif
 | (h) cache Godot's import on CI | | `check` is 12 s on CI | rejected |
 | (i) split CI into parallel jobs with a final `verify` job | the 5-minute CI watch per task | `.github/` edit; whether the runner's cores make (a) enough is measured in P2 first | later, if P2's CI timing says so |
 
-Expected after P2, P5 and P8: local verify about 3 to 4.5 minutes (the Godot lane: check 17 s, test about 75 s, the
-ENet and bot runs about 100 s), every step kept, the verify-runs share of a task from about 25 to about 12 minutes,
+Expected after P2, P5 and P8: local verify about 3 to 4.5 minutes (the Godot lane: check 17 s, the runner tests that
+start Godot, test about 75 s, the ENet and bot runs about 100 s), every step kept, the verify-runs share of a task from about 25 to about 12 minutes,
 and most of the $115 of cache re-writes gone.
 
 ### 3. Merge safety
