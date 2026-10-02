@@ -35,6 +35,28 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | Godot import scope | `docs/.gdignore` keeps the editor from importing anything under `docs/` | [applied] |
 | Auto mode | Not yet. Revisit after the M0 guard tests pass (§14) | — |
 
+### 2.1 Cloud sessions
+A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clone) can run `tools/run.sh verify` as CI
+does (#159). Setup:
+- **Setup script** of the cloud environment: `tools/cloud/setup.sh` from the repository root. Idempotent: it
+  installs the pinned Godot Linux build in `~/godot/godot` (SHA-512 checked) and links it as `godot` on PATH, installs
+  the pinned gdtoolkit with pip, and raises `net.core.rmem_default` to 416 KB when lower (some container kernels hold
+  only 256 small datagrams in the 208 KB default; verify's stall step queues 320). #159 ran it by hand inside a
+  session, not yet as the environment's setup script; a sysctl may not survive a cached environment, so rerun it
+  when `doctor` warns about the UDP buffer. `doctor` skips the machine paths and `gh` there, as on CI
+  (`CLAUDE_CODE_REMOTE=true`).
+- **Network access**: `github.com` and its release-asset host (`release-assets.githubusercontent.com`) for the
+  Godot zip, and `pypi.org` with `files.pythonhosted.org` for gdtoolkit.
+- **Task branches**: the container starts on its own branch; switch to the task branch from the stage's base
+  (`git fetch origin release/m<k>; git switch -c <area>/<n>-<slug> origin/release/m<k>`). With `gh` authenticated,
+  the runner's `start --here` and `publish` use it as on a PC (not yet tried in a cloud session). Without it, read
+  the issue and open the PR through the session's GitHub tools, leave the board column to the manager, and push with
+  `publish --base release/m<k>` (it needs no `gh` when given the base) or a plain `git push -u origin <branch>` after
+  a green `verify`.
+- **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` (it stops with "needs a
+  desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the humans' settings
+  files). A full `verify` took 5.5 minutes in one (test, selftest and bots-enet the longest).
+
 ## 3. Instruction files and memory
 
 | File | Loaded | Content | Budget |
@@ -91,8 +113,8 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
    matches too (`bots` and `bots-enet`, §11).
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
-   content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/` or `tests/harness/` (the
-   information-leak test) changed; plus
+   content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
+   can leak) or `tests/harness/` (the information-leak test) changed; plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. One question: **"Publish now? (push + PR + handoff comment)"**.
@@ -203,8 +225,10 @@ Rules for every workflow run:
   notes, coordination, the engineer's decisions). A semantic conflict after a merge goes to `pr-rebase`
   (`.claude/workflows/pr-rebase.js`); a docs or test-list conflict the manager resolves inline. A session runs a
   saved workflow as `/issue-task`, or with the Workflow tool by `name` or `scriptPath`; after editing one, a running
-  session needs `/reload-skills` (code.claude.com/docs/en/workflows). `tools/runner/tests/test_workflows.py` runs
-  both scripts under Node with stub agents and checks their routing and rules (skipped where Node is missing).
+  session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
+  same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
+  `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
+  rules (skipped where Node is missing).
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about 150;
   every agent writes temporary files only under its issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to
   five agents, over the `small` guideline, so the kickoff approves that and the stage's budget once, confirmed by
@@ -598,26 +622,38 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
   `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
   project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
-- **`host` and `join` [applied]** (3i, #103; `docs/ARCHITECTURE.md` §4.6): headless sessions over ENet of the base
-  mode, through `tools/run/headless_session.gd`. `host [--port P] [--clients N] [--local] [--seconds S]` hosts (a
-  `HostSession` and its own `ClientSession`) on every interface, or on 127.0.0.1 only with `--local` (no firewall
-  prompt), and with `--clients N` (up to 7) starts N headless clients that join it on 127.0.0.1 once it hosts.
-  `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a placeholder ("not a
-  decision"). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase,
-  and the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
-  budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
-  once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
-  answer). The runner echoes them live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a player:
-  client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until Ctrl+C,
-  `--seconds S` or every process ending; the stop is clean (a stop file each process polls: the host closes, so
-  the clients see `host_lost` at once), and a process still running 10 s later is killed. Each process also stops
-  by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner leaves no
-  session holding the port. Fails like `run`: a non-zero exit or an engine error line. Exit 1 is a refused or
-  unanswered join, a client stopped before `Welcome` or ended by anything but its host, or a host that cannot
-  start or ends for an error. The agent's own checks pass `--local --seconds S` (never without `--seconds` in the
-  foreground). On Windows, Ctrl+C in `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session
-  has already stopped, so either answer is fine. Its selftest runs a host and two local clients to the full lobby
-  roster.
+- **`host` and `join` [applied]** (3i, #103; windows since #149; `docs/ARCHITECTURE.md` §4.6 and §4.7, the M4 ADR's
+  E20): the game over ENet. `host [--port P] [--clients N] [--local] [--seconds S]` hosts on every interface, or on
+  127.0.0.1 only with `--local` (no firewall prompt), and with `--clients N` (up to 7) starts N clients that join it
+  on 127.0.0.1 once it hosts. `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a
+  placeholder ("not a decision").
+  - **Windows** (the default for a human): each process is the game, `client/app/game.tscn`, started with the
+    command line `LaunchOptions` reads (`--host [--local]` or `--join=<address>`, `--port=`, the stop and alive files
+    below), so it skips the menu and goes straight to the lobby. A host and its `--clients` are tiled over the primary
+    screen (`--position`, `--resolution`); a windowed host on every interface prints what to type on another PC. A
+    host that cannot listen stays at its menu with the reason, and its clients do not start. A window never welcomed
+    into a lobby (it could not host, or its join ended) fails the run with the reason, though the game exits 0.
+  - **`--headless`**: M3's `tools/run/headless_session.gd` (a `HostSession` and its own `ClientSession` of the base
+    mode). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase, and
+    the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
+    budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
+    once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
+    answer). Exit 1 is a refused or unanswered join, a client stopped before `Welcome` or ended by anything but its
+    host, or a host that cannot start or ends for an error.
+  - **An agent's shell** (`CLAUDECODE` is set) gets `--headless` by default, so an unattended run never opens a window
+    on a human's screen; `--windows` opens them there, and agents never pass it. A human who asks an agent for
+    windows ("запусти хост і двох клієнтів") gets the command to run in their own PowerShell, starting with `cd`.
+  - The runner echoes every process's lines live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a
+    player: client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until
+    Ctrl+C, `--seconds S` or every process ending (every window closed); the stop is clean (a stop file each process
+    polls: the host closes, so the clients see `host_lost` at once), and a process still running 10 s later is
+    killed. Each process also stops by itself once the runner's alive file (touched every second) is gone or 10 s
+    old, so a killed runner leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error
+    line. The agent's own checks pass `--local --seconds S` (never without `--seconds` in the foreground). On
+    Windows, Ctrl+C in `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already
+    stopped, so either answer is fine. Its selftest runs a headless host and two local clients to the full lobby
+    roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
+    scene headless through its command line (CI below).
 - **`bots [scenario ...]` [applied]** (#102; `docs/ARCHITECTURE.md` §4.6, §9.7): plays every bot scenario in
   `content/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot, in one headless process
   over the loopback on a simulated clock (60 steps per simulated second: the six MVP scenarios take about 8 s), and
@@ -644,9 +680,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
   `verify` on the merged tree is the check there (§7.1). `verify` runs, in this order: `doctor --quick`,
   `lint`, `check`, `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots` and
-  `bots-enet`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about 8 s) and
-  `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 18 s on 2026-10-01, under the minute #102
-  allows). The `enet` step is
+  `bots-enet`, `game`, and `selftest`; any red step fails it. `bots` is `bots` (every scenario in one process, about
+  8 s) and `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario
+  ends by time up on a 40 s clock that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `game` (#149, about 5 s) starts
+  `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
+  (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
+  file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
   `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
   5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
   `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
@@ -676,9 +715,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   of `docs/ARCHITECTURE.md` (the contract). **Effort:** medium.
 - **By milestone:** M0–M1 GDD open questions, `mechanic` issues, review of the content-API draft · M2 first content
   `.tres` · M3 bot scenarios (`content/scenarios/`, `docs/ARCHITECTURE.md` §9.7) · M4 level pieces with `shot`
-  screenshots; "запусти хост і двох клієнтів" runs `tools\run.cmd host --clients 2` (headless in M3; M4 gives it
-  windows; an agent adds `--local --seconds S` or runs it in the background), and a second machine
-  `tools\run.cmd join <address>` (§11).
+  screenshots; "запусти хост і двох клієнтів" is `tools\run.cmd host --clients 2`, which M4 gives windows (#149):
+  the agent hands her that command for her own PowerShell (with the `cd`), since in the agent's shell the runner
+  stays headless; a second machine runs `tools\run.cmd join <address>`. For its own check the agent runs
+  `host --clients 2 --local --seconds S` headless (§11).
 
 ## 13. How humans talk to the agent
 

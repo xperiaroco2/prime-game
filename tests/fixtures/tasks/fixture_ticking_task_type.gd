@@ -7,6 +7,7 @@ extends TaskType
 static func of(type_id: StringName) -> FixtureTickingTaskType:
 	var made := FixtureTickingTaskType.new()
 	made.id = type_id
+	made.description = "A ticking task."
 	return made
 
 

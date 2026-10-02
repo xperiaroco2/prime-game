@@ -1,15 +1,16 @@
 extends GdUnitTestSuite
 ## The table checked against core/ (ARCHITECTURE §4.4): net/ names core/'s fields as strings, so
-## this suite is what notices a drift. Every event class with a peer audience has a row whose
-## fields are its to_dict() keys; every intent's row, and ForceRole's debug row, carries the fields
-## Intents.FIELDS declares with their Variant types; core/'s constant ids fit the wire's id
-## alphabet; and a decoded ForceRole and Hello, turned into MatchCommands, do in a Match what
-## core/ means them to.
+## this suite is what notices a drift. Every event class with a peer audience has a row whose fields
+## are its to_dict() keys; every intent's row, and the debug rows (ForceRole, ForceClock), carry the
+## fields Intents.FIELDS declares with their Variant types; core/'s constant ids fit the wire's id
+## alphabet; and a decoded ForceRole and Hello, turned into MatchCommands, do in a Match what core/
+## means them to.
 
 const Samples := preload("res://tests/unit/net/messages/wire_samples.gd")
 const EVENTS_FOLDER := "res://core/events/"
-## The wire's own fields (§4.4): the payload never holds them, so no intent declares them.
-## ForceRole's `peer` becomes MatchCommand.peer and is allowed on its row only.
+## The wire's own fields (§4.4): the payload never holds them, so no intent declares them. A debug
+## row's `peer` (ForceRole's, ForceClock's) becomes MatchCommand.peer and is allowed on those rows
+## only.
 const WIRE_ONLY: Array[String] = ["seq", "has_map", "has_station", "has_role"]
 const CONTENT := Samples.CONTENT_HASH
 ## A map path the wire accepts (a `res://` path): the fixture maps' `fixture://` paths do not.
@@ -85,7 +86,7 @@ func test_every_intent_has_a_row_and_force_role_a_debug_row() -> void:
 ## absent, so each row's fields, flags and guarded parts must be the declared names and types.
 func test_every_intent_row_carries_the_fields_intents_declares_with_their_types() -> void:
 	var expected: Array[StringName] = Intents.ALL.duplicate()
-	expected.append(Intents.FORCE_ROLE)
+	expected.append_array([Intents.FORCE_ROLE, Intents.FORCE_CLOCK])
 	assert_array(Intents.FIELDS.keys()).contains_exactly_in_any_order(expected)
 	var schema := WireSchema.game(true)
 	for intent: StringName in Intents.FIELDS:
@@ -97,7 +98,7 @@ func test_every_intent_row_carries_the_fields_intents_declares_with_their_types(
 		var drift := _type_drift(_arg_types(row.fields), declared)
 		assert_str(drift).override_failure_message("%s: %s" % [intent, drift]).is_empty()
 		var allowed: Array[String] = WIRE_ONLY.duplicate()
-		if intent == Intents.FORCE_ROLE:
+		if intent == Intents.FORCE_ROLE or intent == Intents.FORCE_CLOCK:
 			allowed.append("peer")
 		for wire_only: String in _wire_only(row.fields):
 			(
@@ -185,6 +186,25 @@ func test_a_decoded_force_role_without_a_role_clears_the_forced_one() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+## The debug ForceClock (M4-3): decoded and turned into the MatchCommand server/ will make, it sets
+## the forced clock in a Match; a decoded 0 clears it.
+func test_a_decoded_force_clock_forces_the_clock_in_a_match() -> void:
+	var schema := WireSchema.game(true)
+	var game := _deal_lobby([1, 2, 3], 7)
+	var forced := _decoded(schema, WireMessage.new(&"ForceClock", {"seconds": 40}, 1, 1))
+	if forced == null:
+		return
+	assert_int(forced.peer).is_equal(1)
+	game.apply(_command_of(forced, forced.peer, game))
+	assert_int(game.state.forced_clock_s).is_equal(40)
+	var cleared := _decoded(schema, WireMessage.new(&"ForceClock", {"seconds": 0}, 2, 1))
+	if cleared == null:
+		return
+	game.apply(_command_of(cleared, cleared.peer, game))
+	assert_int(game.state.forced_clock_s).is_equal(0)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## Hello.content is an s64 on the wire and an int in Intents.FIELDS (#97): a decoded Hello with
 ## the host's hash joins; one with another hash gets Rejected(wrong_content), which encodes.
 func test_a_decoded_hello_joins_only_with_the_hosts_content_hash() -> void:
@@ -249,7 +269,7 @@ func test_a_decoded_change_settings_changes_numbers_bans_and_the_map() -> void:
 
 func test_cores_constant_ids_fit_the_wire() -> void:
 	var ids: Array[String] = []
-	for script: Script in [RejectReasons, CountdownCancelledEvent]:
+	for script: Script in [RejectReasons, CountdownCancelledEvent, DisconnectingEvent]:
 		for value: Variant in script.get_script_constant_map().values():
 			if value is StringName:
 				ids.append(str(value))

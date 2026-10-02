@@ -81,6 +81,7 @@ func test_an_accepted_intent_nobody_handles() -> void:
 	var knife := ItemKind.new()
 	knife.id = &"knife"
 	knife.spawn_tag = &"knife"
+	knife.hands = 1
 	knife.actions = [FixtureModes.rule(Intents.PICK_UP, [], [])]
 	mode.item_kinds = [knife]
 	_expect_none(mode)
@@ -124,6 +125,26 @@ func test_an_unknown_intent_or_a_sender_nobody_matches() -> void:
 	_expect(mode, "phase round accepts Use from nobody")
 
 
+func test_the_ghosts_retired_sender_bit_is_refused() -> void:
+	# A mode written for ghosts (MoveClaim from LIVING | 8) would otherwise silently stop
+	# accepting the downed's claims: 8 is never reused (vision revision 1, M4-1).
+	var mode := FixtureModes.basic()
+	mode.phases[1].accepts[1].from = AcceptSpec.From.LIVING | 8
+	var text := "phase round accepts MoveClaim from bits 8, which name no sender"
+	_expect(mode, text + " (8 was the ghosts', retired)")
+	mode = FixtureModes.basic()
+	mode.phases[1].accepts[1].from = AcceptSpec.From.LIVING | 64
+	# Only bit 8 is named as the ghosts': another stray bit gets no hint.
+	var errors := Array(ModeCheck.run(mode).errors)
+	assert_array(errors).contains(
+		["mode.phases[1]: phase round accepts MoveClaim from bits 64, which name no sender"]
+	)
+	mode = FixtureModes.basic()
+	# Every player flag is fine (a newcomer's intent is a phase class's, which MoveClaim is not).
+	mode.phases[1].accepts[1].from = AcceptSpec.ALL_FROM & ~AcceptSpec.From.NEWCOMER
+	_expect_none(mode)
+
+
 func test_rules_with_wrong_or_repeated_triggers() -> void:
 	var mode := FixtureModes.basic()
 	mode.actions.append(FixtureModes.rule(Intents.USE, [], []))
@@ -157,6 +178,29 @@ func test_numbers_out_of_bounds() -> void:
 	mode = FixtureModes.basic()
 	mode.phases[2].settings[&"typo"] = 1.0
 	_expect(mode, "phase end: unknown setting typo")
+
+
+func test_an_item_kind_takes_one_or_two_hands_which_the_data_sets() -> void:
+	# Vision revision 1, Two hands: the neutral default (0) is out of bounds, so a forgotten
+	# `hands` is refused (#58).
+	for hands: int in [0, 3]:
+		var mode := FixtureItemModes.basic()
+		mode.find_item_kind(&"tool").hands = hands
+		_expect(mode, "item kind tool hands is %d, outside 1 to 2" % hands)
+	for hands: int in [1, 2]:
+		var mode := FixtureItemModes.basic()
+		mode.find_item_kind(&"tool").hands = hands
+		_expect_none(mode)
+	assert_int(ItemKind.new().hands).is_equal(0)
+
+
+func test_a_task_type_needs_a_description() -> void:
+	# The task screen shows it (vision revision 1, the Tab task screen).
+	for empty: String in ["", "  \n"]:
+		var mode := FixtureModes.basic()
+		(mode.task_types[0] as TaskType).description = empty
+		_expect(mode, "task type fixture_task has no description")
+	assert_str(TaskType.new().description).is_empty()
 
 
 func test_repeated_ids() -> void:
@@ -223,6 +267,83 @@ func test_a_role_owned_public_event_is_a_warning_not_an_error() -> void:
 	assert_array(Array(ModeCheck.run(mode).warnings)).has_size(1)
 	mode.roles[1].actions = [FixtureModes.rule(Intents.USE, [], [FixtureBump.of(&"x")])]
 	assert_array(Array(ModeCheck.run(mode).warnings)).is_empty()
+
+
+func test_a_phase_that_can_knock_down_must_list_life_ticks() -> void:
+	# The combat fixture's Round accepts Use, and the knife's Use rule strikes: with its LifeTicks
+	# it passes; without, a downed player would never die.
+	var mode := FixtureCombatModes.basic()
+	_expect_none(mode)
+	mode.find_phase(&"round").tick_systems = []
+	_expect(mode, 'phase round runs [&"Use"], which can knock a player down')
+	_expect(mode, "lists no LifeTicks")
+	# A phase that cannot knock anyone down needs none: the plain fixture's Use only notes.
+	var plain := FixtureModes.basic()
+	plain.find_phase(&"round").tick_systems = []
+	_expect_none(plain)
+
+
+func test_a_phase_that_starts_a_channel_must_list_channel_ticks() -> void:
+	# The raise of FixtureCombatModes.raising() is a channel: without ChannelTicks it would never
+	# complete, and the knockdown it paused would never run on.
+	var mode := FixtureCombatModes.raising()
+	_expect_none(mode)
+	var round_spec := mode.find_phase(&"round")
+	round_spec.tick_systems = [round_spec.tick_systems[0]]
+	_expect(mode, 'phase round accepts [&"Raise"], which starts a channel')
+	_expect(mode, "lists no ChannelTicks")
+
+
+func test_the_raise_parts_check_their_numbers() -> void:
+	var mode := FixtureCombatModes.raising()
+	mode.actions[2] = FixtureCombatModes.raise_rule(0.0, 0.0, 0)
+	_expect(mode, "RaiseDowned seconds is 0, outside 0.05 to 600")
+	_expect(mode, "TargetInReach reach_m is 0, outside 0.1 to 10")
+	_expect(mode, "RaiseDowned revive_health is 0, outside 1 to 100")
+	mode.actions[2] = FixtureCombatModes.raise_rule(3.0, 2.0, 101)
+	_expect(mode, "RaiseDowned revive_health is 101, outside 1 to 100")
+	mode.actions[2] = FixtureCombatModes.raise_rule(3.0, 2.0, 100)
+	_expect_none(mode)
+
+
+func test_a_raise_without_target_downed_is_refused() -> void:
+	var mode := FixtureCombatModes.raising()
+	# TargetDowned is the raise rule's first condition.
+	mode.actions[2].conditions.remove_at(0)
+	_expect(mode, "rule Raise starts a channel that requires the condition TargetDowned")
+
+
+func test_a_channel_outside_an_action_is_refused() -> void:
+	var mode := FixtureCombatModes.raising()
+	var raise := FixtureCombatModes.raise_rule()
+	var reaction := FixtureModes.rule(Facts.ITEM_RESTED, [TargetDowned.new()], raise.effects)
+	mode.reactions = [reaction]
+	_expect(mode, "mode.reactions: rule item_rested starts a channel")
+	mode.reactions = []
+	mode.transitions[1].actions.append(raise.effects[0])
+	_expect(mode, "row round, won starts a channel")
+
+
+func test_a_role_gated_action_in_a_mode_with_a_channel_is_a_warning() -> void:
+	# Applying it stops the actor's raise publicly; a refusal does not: the stop reveals the role.
+	var mode := FixtureCombatModes.raising()
+	mode.roles[1].actions = [FixtureModes.rule(Intents.PICK_UP, [], [])]
+	var check := ModeCheck.run(mode)
+	assert_array(Array(check.errors)).is_empty()
+	assert_array(Array(check.warnings)).has_size(1)
+	assert_str(check.warnings[0]).contains("in a mode with a channel")
+	# The same role action in a mode with no channel says nothing.
+	var plain := FixtureCombatModes.respawning()
+	plain.roles[1].actions = [FixtureModes.rule(Intents.PICK_UP, [], [])]
+	assert_array(Array(ModeCheck.run(plain).warnings)).is_empty()
+
+
+func test_a_respawn_needs_its_tag_and_rng_purpose() -> void:
+	var mode := FixtureCombatModes.respawning()
+	_expect_none(mode)
+	FixtureCombatModes.life_ticks(mode).respawn = Respawn.new()
+	_expect(mode, "Respawn has no tag")
+	_expect(mode, "Respawn has no rng_purpose")
 
 
 func _expect(mode: GameMode, fragment: String) -> void:

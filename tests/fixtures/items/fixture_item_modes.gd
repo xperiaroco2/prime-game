@@ -3,10 +3,14 @@ extends RefCounted
 ## Game modes and drivers for the unit tests of core/items/, built in code on FixtureModes.basic()
 ## (a part's unit tests never load `content/`, ARCHITECTURE §9.6).
 ##
-## basic(): the fixture mode with the eye at 1.6 m; item kinds `package` (no actions) and `tool`
-## (a Use rule that notes "tool used"); the mode's actions PickUp (ItemOnGround, InReach 2 m,
-## InSight; TakeIntoHand) and PutDown (HoldsItem; PutDownInFront 1 m); Round accepts both from
-## the living only; a reaction on item_rested notes "rested <item> <cause> <position>".
+## basic(): the fixture mode with the eye at 1.6 m; item kinds `package` (two-handed, no actions)
+## and `tool` (one-handed, a Use rule that notes "tool used"); the mode's actions PickUp
+## (ItemOnGround, InReach 2 m, InSight; TakeIntoHand) and PutDown (HoldsItem; PutDownInFront 1 m);
+## Round accepts both from the living only; a reaction on item_rested notes "rested <item> <cause>
+## <position>".
+##
+## swapping(mode): `mode` with the base mode's Swap (§9.5) appended to its actions (CarriesItem,
+## HandNotTwoHanded; SwapHands), and Round accepting it from the living only.
 
 const EYE_HEIGHT_M := 1.6
 const REACH_M := 2.0
@@ -17,7 +21,7 @@ static func basic() -> GameMode:
 	var mode := FixtureModes.basic()
 	mode.player_rules.eye_height_m = EYE_HEIGHT_M
 	mode.item_kinds = [
-		item_kind(&"package", []),
+		item_kind(&"package", [], 2),
 		item_kind(&"tool", [FixtureModes.rule(Intents.USE, [], [FixtureNote.of("tool used")])]),
 	]
 	mode.actions = [pick_up_rule(REACH_M), put_down_rule(DISTANCE_M)]
@@ -28,11 +32,19 @@ static func basic() -> GameMode:
 	return mode
 
 
-static func item_kind(id: StringName, actions: Array[Rule]) -> ItemKind:
+static func swapping(mode: GameMode) -> GameMode:
+	mode.actions.append(swap_rule())
+	mode.find_phase(&"round").accepts.append(AcceptSpec.of(Intents.SWAP, AcceptSpec.From.LIVING))
+	return mode
+
+
+## An item kind of `hands` hands (1, or 2 for a package, as the base mode's data has it).
+static func item_kind(id: StringName, actions: Array[Rule], hands := 1) -> ItemKind:
 	var kind := ItemKind.new()
 	kind.id = id
 	kind.display_name = String(id).capitalize()
 	kind.spawn_tag = id
+	kind.hands = hands
 	kind.actions = actions
 	return kind
 
@@ -49,6 +61,12 @@ static func put_down_rule(distance_m: float) -> Rule:
 	var put := PutDownInFront.new()
 	put.distance_m = distance_m
 	return FixtureModes.rule(Intents.PUT_DOWN, [HoldsItem.new()], [put])
+
+
+static func swap_rule() -> Rule:
+	return FixtureModes.rule(
+		Intents.SWAP, [CarriesItem.new(), HandNotTwoHanded.new()], [SwapHands.new()]
+	)
 
 
 ## A match of `mode` asking `world`, that keeps its history, with `peers` joined, ready and in
@@ -84,6 +102,10 @@ static func pick_up(game: Match, peer: int, item: ItemState, seq: int = 0) -> vo
 
 static func put_down(game: Match, peer: int, facing: Vector3, seq: int = 0) -> void:
 	FixtureModes.send(game, Intents.PUT_DOWN, peer, {"facing": facing}, seq)
+
+
+static func swap(game: Match, peer: int, seq: int = 0) -> void:
+	FixtureModes.send(game, Intents.SWAP, peer, {}, seq)
 
 
 ## The names of the events `peer` received after its first `skip` events.

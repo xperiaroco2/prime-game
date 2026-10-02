@@ -111,6 +111,9 @@ func _join_at_start() -> void:
 	# As server/'s debug path would: a ForceRole per forced bot, by its peer id, in the lobby.
 	for bot: int in scenario.forced_roles:
 		_queue(Intents.FORCE_ROLE, peers.peer_of(bot), {"role": String(scenario.forced_roles[bot])})
+	# And a ForceClock from the host's own player for a scenario with its own clock.
+	if scenario.clock_s > 0:
+		_queue(Intents.FORCE_CLOCK, bots[0].peer, {"seconds": scenario.clock_s})
 	if scenario.settings.is_empty() and scenario.map.is_empty():
 		return
 	var host := bots[0]
@@ -153,6 +156,17 @@ func _before_steps(bot: ScenarioBot) -> void:
 func _answer_load(bot: ScenarioBot, match_id: int, skip: bool) -> void:
 	if not skip:
 		_send(bot, Intents.LOAD_ACK, {"match_id": match_id})
+
+
+## The bot stands still this tick. Like every client (ClientSession claims each client tick), it
+## claims where it stands, so the host settles its stamina tick by tick as it stands: without these
+## claims the ledger would lag behind and a later sprint's flags would be charged for the standing
+## ticks (the respawn scenario's sprint and swings, M4-3). A phase that takes no MoveClaim drops
+## them silently (E15).
+func _stand(bot: ScenarioBot) -> void:
+	if not bot.joined or bot.peer == 0:
+		return
+	_claim(bot, bot.position, Vector3.ZERO, false)
 
 
 func _jump(bot: ScenarioBot) -> void:
@@ -224,7 +238,7 @@ func _carry_out(directive: MatchEvent) -> void:
 		var peer := (directive as DisconnectPeerEvent).peer
 		var bot := _bot_of(peer)
 		if bot != null and not bot.gone:
-			bot.gone = true
+			_disconnected(bot, tick_now)
 			_to_leave.append(peer)
 
 

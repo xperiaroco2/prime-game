@@ -66,7 +66,7 @@ static func deal_mode(task_types: Array[TaskType] = []) -> GameMode:
 		&"round",
 		RoundPhase,
 		{},
-		[AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.LIVING | AcceptSpec.From.GHOST)]
+		[AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED)]
 	)
 	round_spec.level = PhaseSpec.Level.MAP
 	round_spec.snapshots = true
@@ -97,6 +97,7 @@ static func item_kind(kind_id: StringName) -> ItemKind:
 	kind.id = kind_id
 	kind.display_name = String(kind_id).capitalize()
 	kind.spawn_tag = ITEM_TAG
+	kind.hands = 1
 	return kind
 
 

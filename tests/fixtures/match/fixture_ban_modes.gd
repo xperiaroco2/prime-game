@@ -15,6 +15,7 @@ static func mode() -> GameMode:
 	token.id = &"token"
 	token.display_name = "Token"
 	token.spawn_tag = TOKEN_TAG
+	token.hands = 1
 	made.item_kinds = [token]
 	made.task_types = [
 		FixtureDealtTaskType.new(&"first", token, 2), FixtureDealtTaskType.new(&"second", token, 4)

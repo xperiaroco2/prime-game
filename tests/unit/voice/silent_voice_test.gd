@@ -21,7 +21,7 @@ func test_nobody_hears_anybody_in_the_lobby() -> void:
 
 func test_nobody_hears_anybody_in_the_round_living_or_dead() -> void:
 	var game := FixtureVoiceMatch.in_round(SilentVoice.new(), [P1, P2, P3])
-	game.state.player(P3).life = PlayerState.Life.GHOST
+	game.state.player(P3).life = PlayerState.Life.DOWNED
 	for peer: int in [P1, P2, P3]:
 		assert_array(FixtureVoiceMatch.tick_and_hear(game, peer)).is_empty()
 		assert_array(Array(game.speakers_for(peer))).is_empty()

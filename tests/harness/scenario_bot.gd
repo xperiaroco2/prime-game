@@ -6,7 +6,7 @@ extends RefCounted
 ## target the bot cannot know from them fails the scenario, so a scenario also proves that its
 ## mechanic is playable with what a player is told.
 
-enum Where { GROUND, HAND, LOCKED }
+enum Where { GROUND, HAND, LOCKED, BELT }
 
 ## The events for one peer whose fields name no peer (§4.6): whoever receives one is its subject,
 ## so a step's `peer` field matches the receiving bot.
@@ -30,6 +30,8 @@ var previous_cursor := 0
 var sent_seq := -1
 ## The item the current step names (PickUp) or held when it sent (PutDown), or -1.
 var sent_item := -1
+## The player the current step's intent names (Raise's target), or 0.
+var sent_peer := 0
 var connected := false
 ## Its Welcome arrived.
 var joined := false
@@ -43,9 +45,14 @@ var epoch := 0
 ## Its jumps since it adopted `epoch` (MoveClaim's `jumps`, §4.3): 0 again on every new epoch.
 var jumps := 0
 var position := Vector3.ZERO
-var ghost := false
+## Downed, from its own KnockedDown until its own Died or Revived; dead from then until its own
+## Respawned or the next match.
+var downed := false
+var dead := false
 var role: StringName
+## Its hand item and its belt item, or -1 (ItemPickedUp with `belted`, Swapped, ItemPlaced).
 var held := -1
+var belted := -1
 var sprint_available := true
 var phase: StringName
 var match_id := 0
@@ -56,7 +63,8 @@ var auto_acked_match := -1
 ## The match id of the LoadMatch that the bot's LoadAck step is to answer, or -1.
 var unanswered_load := -1
 ## Item id -> {kind, position, where, station}, from ItemSpawned, ItemPickedUp, ItemPlaced and
-## PackageDelivered.
+## PackageDelivered. `where` tells GROUND from carried only: a Swapped leaves HAND and BELT as they
+## were (the bot's own slots are `held` and `belted`).
 var items: Dictionary[int, Dictionary] = {}
 ## Station id -> position, from StationPlaced.
 var stations: Dictionary[int, Vector3] = {}
@@ -65,9 +73,9 @@ var seen: Dictionary[int, Vector3] = {}
 
 var _next_seq := 1
 var _client_tick := 0
-## A placement of the bot (PlayersPlaced naming it, or its own Died) awaits its Correction: core/
-## emits exactly one after each, so a network poll that splits the two still expects it, and any
-## other Correction fails.
+## A placement of the bot (PlayersPlaced naming it, its own KnockedDown or its own Respawned)
+## awaits its Correction: core/ emits exactly one after each, so a network poll that splits the
+## two still expects it, and any other Correction fails. A death sends none.
 var _correction_due := false
 
 
@@ -106,6 +114,7 @@ func start_step(at_tick: int) -> void:
 	step_cursor = events.size()
 	sent_seq = -1
 	sent_item = -1
+	sent_peer = 0
 
 
 func finish_step() -> void:
@@ -156,12 +165,28 @@ func receive(event_name: StringName, fields: Dictionary) -> String:
 			epoch = fields["epoch"] as int
 			jumps = 0
 			position = fields["position"] as Vector3
+		&"KnockedDown":
+			var knocked := fields["peer"] as int
+			seen[knocked] = fields["position"] as Vector3
+			if knocked == peer:
+				downed = true
+				_correction_due = true
 		&"Died":
 			var died := fields["peer"] as int
 			seen[died] = fields["position"] as Vector3
 			if died == peer:
-				ghost = true
+				downed = false
+				dead = true
+		&"Respawned":
+			var back := fields["peer"] as int
+			seen[back] = fields["position"] as Vector3
+			if back == peer:
+				dead = false
 				_correction_due = true
+		&"Revived":
+			# It stands up where it lay: no Correction follows (M4-4).
+			if fields["peer"] as int == peer:
+				downed = false
 		_:
 			_learn(event_name, fields)
 	return ""
@@ -261,7 +286,9 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			items.clear()
 			stations.clear()
 			held = -1
-			ghost = false
+			belted = -1
+			downed = false
+			dead = false
 			if current_step() is StepLoadAck:
 				unanswered_load = match_id
 			else:
@@ -279,10 +306,20 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 			}
 		&"ItemPickedUp":
 			var item := fields["item"] as int
+			var to_belt := fields.get("belted", -1) as int
 			if items.has(item):
 				items[item]["where"] = Where.HAND
+			if items.has(to_belt):
+				items[to_belt]["where"] = Where.BELT
 			if fields["peer"] as int == peer:
 				held = item
+				if to_belt >= 0:
+					belted = to_belt
+		&"Swapped":
+			if fields["peer"] as int == peer:
+				var was_held := held
+				held = belted
+				belted = was_held
 		&"ItemPlaced":
 			var item := fields["item"] as int
 			if items.has(item):
@@ -290,6 +327,8 @@ func _learn(event_name: StringName, fields: Dictionary) -> void:
 				items[item]["position"] = fields["position"] as Vector3
 			if held == item:
 				held = -1
+			if belted == item:
+				belted = -1
 		&"PackageDelivered":
 			var item := fields["item"] as int
 			if items.has(item):

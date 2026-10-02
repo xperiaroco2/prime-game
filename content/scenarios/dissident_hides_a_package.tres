@@ -1,0 +1,123 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://ckewb6m3yf1jb"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="2_expect"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_ilxyx"]
+[ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="3_pickup"]
+[ext_resource type="Script" uid="uid://dvl107dygojwj" path="res://core/content/scenario/step_put_down.gd" id="4_putdown"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="5_ready"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="6_waitfor"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="7_walkto"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="8_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="9_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="10_step"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="11_target"]
+
+[sub_resource type="Resource" id="Ready_1"]
+script = ExtResource("5_ready")
+
+[sub_resource type="Resource" id="WaitFor_2"]
+script = ExtResource("6_waitfor")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Target_1"]
+script = ExtResource("11_target")
+kind = 0
+
+[sub_resource type="Resource" id="WalkTo_9"]
+script = ExtResource("7_walkto")
+target = SubResource("Target_1")
+sprint = true
+stop_m = 1.0
+
+[sub_resource type="Resource" id="PickUp_10"]
+script = ExtResource("3_pickup")
+target = SubResource("Target_1")
+
+[sub_resource type="Resource" id="Target_2"]
+script = ExtResource("11_target")
+point = Vector3(-24, 0, -24)
+
+[sub_resource type="Resource" id="WalkTo_11"]
+script = ExtResource("7_walkto")
+target = SubResource("Target_2")
+
+[sub_resource type="Resource" id="Target_3"]
+script = ExtResource("11_target")
+point = Vector3(-24, 0, -30)
+
+[sub_resource type="Resource" id="PutDown_12"]
+script = ExtResource("4_putdown")
+towards = SubResource("Target_3")
+
+[sub_resource type="Resource" id="WaitFor_8"]
+script = ExtResource("6_waitfor")
+event = &"MatchEnded"
+fields = {
+"side": "crew"
+}
+
+[sub_resource type="Resource" id="B1_script"]
+script = ExtResource("9_script")
+steps = Array[ExtResource("10_step")]([SubResource("Ready_1"), SubResource("WaitFor_2"), SubResource("WalkTo_9"), SubResource("PickUp_10"), SubResource("WalkTo_11"), SubResource("PutDown_12"), SubResource("WaitFor_8")])
+
+[sub_resource type="Resource" id="WaitFor_13"]
+script = ExtResource("6_waitfor")
+event = &"ItemPlaced"
+fields = {
+"cause": "put_down"
+}
+
+[sub_resource type="Resource" id="Target_4"]
+script = ExtResource("11_target")
+kind = 2
+item_kind = &"package"
+
+[sub_resource type="Resource" id="WalkTo_14"]
+script = ExtResource("7_walkto")
+target = SubResource("Target_4")
+sprint = true
+stop_m = 1.0
+
+[sub_resource type="Resource" id="PickUp_15"]
+script = ExtResource("3_pickup")
+target = SubResource("Target_4")
+
+[sub_resource type="Resource" id="Target_5"]
+script = ExtResource("11_target")
+kind = 1
+
+[sub_resource type="Resource" id="WalkTo_16"]
+script = ExtResource("7_walkto")
+target = SubResource("Target_5")
+sprint = true
+stop_m = 1.0
+
+[sub_resource type="Resource" id="PutDown_17"]
+script = ExtResource("4_putdown")
+towards = SubResource("Target_5")
+
+[sub_resource type="Resource" id="Expect_18"]
+script = ExtResource("2_expect")
+event = &"PackageDelivered"
+
+[sub_resource type="Resource" id="B2_script"]
+script = ExtResource("9_script")
+steps = Array[ExtResource("10_step")]([SubResource("Ready_1"), SubResource("WaitFor_2"), SubResource("WaitFor_13"), SubResource("WalkTo_14"), SubResource("PickUp_15"), SubResource("WalkTo_16"), SubResource("PutDown_17"), SubResource("Expect_18")])
+
+[resource]
+script = ExtResource("8_scenario")
+mode = ExtResource("1_mode")
+session_seed = 477000000009
+bots = 2
+settings = Dictionary[StringName, int]({
+&"packages": 1
+})
+forced_roles = Dictionary[int, StringName]({
+1: &"dissident"
+})
+scripts = Array[ExtResource("9_script")]([SubResource("B1_script"), SubResource("B2_script")])
+expected_ends = Array[StringName]([&"crew"])

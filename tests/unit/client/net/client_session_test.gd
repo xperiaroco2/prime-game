@@ -78,6 +78,20 @@ func test_force_role_names_the_player_and_the_role() -> void:
 	assert_str(forced[1].fields["role"] as String).is_equal("")
 
 
+func test_force_clock_names_the_player_and_the_seconds() -> void:
+	_harness.welcome()
+	assert_int(_harness.session.force_clock(5, 40)).is_equal(1)
+	assert_int(_harness.session.force_clock(5, 0)).is_equal(2)
+	_harness.pump()
+	var forced := _harness.sent_named(&"ForceClock")
+	assert_int(forced.size()).is_equal(2)
+	assert_int(forced[0].peer).is_equal(5)
+	assert_int(forced[0].fields["seconds"] as int).is_equal(40)
+	assert_int(forced[0].seq).is_equal(1)
+	assert_int(forced[1].fields["seconds"] as int).is_equal(0)
+	assert_int(forced[1].seq).is_equal(2)
+
+
 func test_a_rejected_before_welcome_ends_the_join_with_its_reason() -> void:
 	_harness.send(RejectedEvent.new(_harness.peer, 0, &"wrong_content"))
 	_harness.pump()
@@ -119,6 +133,17 @@ func test_a_disconnect_after_the_rejected_that_explains_it_ends_with_the_reason(
 	_harness.host.disconnect_peer(_harness.peer)
 	_harness.pump()
 	assert_array(_harness.endings).contains_exactly([&"wrong_version"])
+
+
+func test_a_disconnecting_ends_the_session_with_its_reason_not_host_lost() -> void:
+	# #119 (E21): dropped at the loading deadline, the client says so.
+	_harness.welcome(&"loading")
+	_harness.send(DisconnectingEvent.new(_harness.peer, DisconnectingEvent.LOAD_DEADLINE))
+	_harness.host.disconnect_peer(_harness.peer)
+	_harness.pump()
+	assert_array(_harness.endings).contains_exactly([&"load_deadline"])
+	assert_str(String(_harness.session.end_reason)).is_equal("load_deadline")
+	assert_array(_harness.session.view.event_names()).contains([&"Disconnecting"])
 
 
 func test_a_join_nobody_answers_ends_with_connect_failed() -> void:

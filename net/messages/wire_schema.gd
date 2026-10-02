@@ -12,7 +12,7 @@ extends RefCounted
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it.
-const VERSION := 1
+const VERSION := 6
 
 ## Frozen rows (§4.3): any client can send its version and read Rejected(wrong_version).
 const HELLO := 1
@@ -211,14 +211,23 @@ static func _intents() -> Array[WireRow]:
 		_up(7, &"PutDown", 16, [_seq(), _vec3("facing")]),
 		_up(8, &"Use", 16, [_seq(), _vec3("facing")]),
 		_up(9, &"ReturnToLobby", 4, [_seq()]),
+		_up(10, &"Raise", 8, [_seq(), _peer("target")]),
+		_up(11, &"StopRaise", 4, [_seq()]),
+		_up(12, &"GiveUp", 4, [_seq()]),
+		_up(13, &"Swap", 4, [_seq()]),
 	]
 
 
 ## Debug builds only (E17): server/ takes them from the host's own client and turns each into the
 ## command it names. The role decodes as a String, as Match reads it; false clears it ("").
+## ForceClock names the sender itself (the host's own player) in `peer`, as every debug kind
+## names a player.
 static func _debug_commands() -> Array[WireRow]:
 	var role := WireField.when("has_role", [WireField.id("role", true)], {"role": ""})
-	return [_up(24, &"ForceRole", 42, [_seq(), WireField.target_peer(), role])]
+	return [
+		_up(24, &"ForceRole", 42, [_seq(), WireField.target_peer(), role]),
+		_up(25, &"ForceClock", 10, [_seq(), WireField.target_peer(), _u16("seconds")]),
+	]
 
 
 static func _events() -> Array[WireRow]:
@@ -307,7 +316,12 @@ static func _events() -> Array[WireRow]:
 		teammates,
 		station_placed,
 		item_spawned,
-		_down(48, &"ItemPickedUp", 6, [_peer("peer"), _item("item")]),
+		_down(
+			48,
+			&"ItemPickedUp",
+			8,
+			[_peer("peer"), _item("item"), WireField.maybe("belted", WireField.Type.ITEM)]
+		),
 		_down(49, &"ItemPlaced", 47, [_item("item"), _vec3("position"), _id("cause")]),
 		_down(50, &"PackageDelivered", 4, [_item("item"), _station("station")]),
 		_down(51, &"TaskProgress", 4, [_u16("done"), _u16("total")]),
@@ -317,6 +331,19 @@ static func _events() -> Array[WireRow]:
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),
 		_down(56, &"Correction", 28, [_u32("epoch"), _vec3("position"), _vec3("velocity")]),
 		_down(57, &"MatchEnded", 33, [_id("side")]),
+		_down(58, &"Disconnecting", 33, [_id("reason")]),
+		_down(59, &"KnockedDown", 16, [_peer("peer"), _vec3("position")]),
+		_down(60, &"Respawned", 16, [_peer("peer"), _vec3("position")]),
+		_down(61, &"RaiseStarted", 8, [_peer("raiser"), _peer("target")]),
+		_down(62, &"RaiseStopped", 8, [_peer("raiser"), _peer("target")]),
+		_down(63, &"Revived", 4, [_peer("peer")]),
+		_down(64, &"Swapped", 4, [_peer("peer")]),
+		_down(
+			65,
+			&"TaskState",
+			38,
+			[_of("task", WireField.Type.U8), _id("type"), _u16("done"), _u16("total")]
+		),
 	]
 
 
@@ -329,8 +356,9 @@ static func _state_and_voice() -> Array[WireRow]:
 				_vec3("position"),
 				_vec3("velocity"),
 				_vec3("facing"),
-				WireField.bits(PackedStringArray(["ghost"])),
+				WireField.bits(PackedStringArray(["downed", "invulnerable"])),
 				WireField.maybe("held_item", WireField.Type.ITEM),
+				WireField.maybe("belt_item", WireField.Type.ITEM),
 			]
 		)
 	)

@@ -4,15 +4,20 @@ extends RefCounted
 ## unit tests never load `content/`, ARCHITECTURE §9.6).
 ##
 ## basic(): lobby (FixturePhase: Hello, SetReady, `all_ready`) -> round (RoundPhase: Use from the
-## living, MoveClaim; win checks; the clock) -> end (FixturePhase: ReturnToLobby from the host,
-## `back`) -> lobby. The deal places players on `round_player`; `End -> Lobby` on
-## `lobby_player`. Win conditions, in order: crew when peer 0's counter `crew_win` >= 1,
-## dissidents when `dissidents_win` >= 1. The `won` row emits a note "won <side>".
+## living, MoveClaim from the living and the downed; LifeTicks; win checks; the clock) -> end
+## (FixturePhase: ReturnToLobby from the host, `back`) -> lobby. The deal places players on
+## `round_player`; `End -> Lobby` on `lobby_player`. Win conditions, in order: crew when peer 0's
+## counter `crew_win` >= 1, dissidents when `dissidents_win` >= 1. The `won` row emits a note
+## "won <side>".
 
 const LOBBY := "fixture://lobby"
 const MAP := "fixture://map"
 const LIVING := AcceptSpec.From.LIVING
-const GHOST := AcceptSpec.From.GHOST
+const DOWNED := AcceptSpec.From.DOWNED
+## The map's respawn markers (RESPAWN_TAG), in level order: far from the round_player markers and
+## from where the unit tests stand their players.
+const RESPAWNS: Array[Vector3] = [Vector3(-25, 0, 15), Vector3(25, 0, 15), Vector3(5, 0, -25)]
+const RESPAWN_TAG := &"respawn"
 
 
 static func basic() -> GameMode:
@@ -48,9 +53,10 @@ static func basic() -> GameMode:
 		&"round",
 		RoundPhase,
 		{},
-		[AcceptSpec.of(Intents.USE, LIVING), AcceptSpec.of(Intents.MOVE_CLAIM, LIVING | GHOST)]
+		[AcceptSpec.of(Intents.USE, LIVING), AcceptSpec.of(Intents.MOVE_CLAIM, LIVING | DOWNED)]
 	)
 	round_spec.level = PhaseSpec.Level.MAP
+	round_spec.tick_systems = [LifeTicks.new()]
 	round_spec.checks_wins = true
 	round_spec.clock_runs = true
 	round_spec.snapshots = true
@@ -86,7 +92,11 @@ static func player_rules() -> PlayerRules:
 	rules.sprint_start = 20
 	rules.jump_height_m = 1.0
 	rules.jump_cost = 10
-	rules.ghost_speed_factor = 1.3
+	rules.crawl_speed_mps = 1.0
+	rules.knockdown_s = 10.0
+	rules.respawn_s = 30.0
+	rules.invulnerable_s = 3.0
+	rules.respawn_free_m = 1.0
 	rules.capsule_radius_m = 0.4
 	rules.capsule_height_m = 1.8
 	rules.eye_height_m = 1.6
@@ -94,13 +104,16 @@ static func player_rules() -> PlayerRules:
 	return rules
 
 
-## A lobby with `count` lobby_player markers and a map with `count` round_player markers.
+## A lobby with `count` lobby_player markers and a map with `count` round_player markers and the
+## RESPAWNS markers (only a mode with a Respawn reads them).
 static func layouts(count: int = 4) -> Dictionary[String, LevelLayout]:
 	var lobby := LevelLayout.new(LOBBY)
 	var map := LevelLayout.new(MAP)
 	for i in count:
 		lobby.add_marker(&"lobby_player", Vector3(i, 0, 0))
 		map.add_marker(&"round_player", Vector3(10 + i, 0, 5))
+	for spot: Vector3 in RESPAWNS:
+		map.add_marker(RESPAWN_TAG, spot)
 	return {LOBBY: lobby, MAP: map}
 
 

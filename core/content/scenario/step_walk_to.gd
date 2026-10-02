@@ -1,9 +1,9 @@
 class_name StepWalkTo
 extends ScenarioStep
-## Sends honest MoveClaims straight towards the target at walk or sprint speed (a ghost's
-## speed as a ghost; ghosts do not fly); a level with walls needs waypoints. Done when it is
-## within `stop_m` of the target horizontally: 1 m before a circle, the put-down distance, to
-## deliver. (ARCHITECTURE §9.7)
+## Sends honest MoveClaims straight towards the target at walk or sprint speed (at the crawl
+## speed, never sprinting, while downed; a dead bot cannot walk and fails the step); a level with
+## walls needs waypoints. Done when it is within `stop_m` of the target horizontally: 1 m
+## before a circle, the put-down distance, to deliver. (ARCHITECTURE §9.7)
 
 @export var target: ScenarioTarget
 @export var sprint := false

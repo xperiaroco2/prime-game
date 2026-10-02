@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://mcmlyje1wp2k"]
+
+[ext_resource type="Texture2D" uid="uid://diaoewv8w6r4y" path="res://tests/fixtures/net/fingerprint_label.svg" id="1_label"]
+
+[node name="FingerprintCrate" type="Node3D" unique_id=1289873890]
+
+[node name="Label" type="Sprite2D" parent="." unique_id=887777758]
+texture = ExtResource("1_label")

@@ -55,7 +55,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
 | `normalize <files>` / `shot <scene>` | Re-save `.tscn`/`.tres` as the editor would / an off-screen PNG of a scene |
 | `run <x.tscn\|x.gd> [--headless\|--offscreen] [--seconds N] [--instances N] [-- args]` | Runs it with the pinned Godot; fails on a non-zero exit, a timeout or an `ERROR:` line. Your own checks: `--headless` |
-| `host [--port P] [--clients N] [--local] [--seconds S]` / `join <address> [--port P] [--seconds S]` | Headless ENet session of the base mode printing roster, phase and counters; Ctrl+C stops. Your checks: `--local --seconds` |
+| `host [--port P] [--clients N] [--local] [--seconds S] [--headless]` / `join <address> [--port P] [--seconds S] [--headless]` | The game over ENet in windows (tiled on one PC); `--headless`: M3's session printing roster, phase and counters. Yours stay headless (`CLAUDECODE`); never `--windows`. Checks: `--local --seconds` |
 | `credits` | Writes `CREDITS.md` from `docs/credits/`; `check` fails on an LFS asset without an entry |
 | `bots [scenario ...] [--instances N] [--seconds S]` | Bot scenarios through the host and client sessions, and the information-leak test; `--instances N` (N > 1): one scenario over ENet, a process per bot |
 | `agents-check` / `worktree-done <n> [--pushed]` | Subagents ran on their models / remove a merged (or pushed spike) task's worktree |
@@ -106,7 +106,7 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 | "запам'ятай", "remember", a human correction | the question in Memory below; project → skill `log-intervention` |
 | "налаштуй мене" | skill `onboard` |
 | "оркеструй етап", an "ultracode" kickoff for a stage or a list of issues | skill `orchestrate-stage` |
-| review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/ tests/harness/` changed |
+| review of a code diff | agent `code-reviewer`; plus `netcode-security-reviewer` if `core/ server/ net/ client/ tests/harness/` changed |
 | `.gd`, `.tscn` or `.tres` changed | agent `godot-api-checker` |
 | run tests and get back only failures | agent `test-runner` |
 

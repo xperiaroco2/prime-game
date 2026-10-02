@@ -108,11 +108,50 @@ func test_deliverys_circles_and_packages_reach_the_fit_check() -> void:
 	assert_array(Array(LayoutCheck.run(mode, FixtureDeliveryModes.layouts()))).is_empty()
 
 
+func test_a_respawn_demands_a_respawn_marker_on_every_map_and_the_fit_check_shows_it() -> void:
+	var mode := FixtureCombatModes.respawning()
+	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, mode.default_settings(), 3)
+	assert_int(demands.markers.get(FixtureModes.RESPAWN_TAG, 0)).is_equal(1)
+	var lobby := LayoutCheck.demands_of(mode, PhaseSpec.Level.LOBBY, mode.default_settings(), 3)
+	assert_bool(lobby.markers.has(FixtureModes.RESPAWN_TAG)).is_false()
+	var layouts := FixtureModes.layouts()
+	assert_array(Array(LayoutCheck.run(mode, layouts))).is_empty()
+	assert_array(Array(demands.shortfalls(layouts[FixtureModes.MAP]))).is_empty()
+	var bare := LevelLayout.new(FixtureModes.MAP)
+	for i in 4:
+		bare.add_marker(&"round_player", Vector3(10 + i, 0, 5))
+	layouts[FixtureModes.MAP] = bare
+	assert_array(Array(LayoutCheck.run(mode, layouts))).is_equal(
+		[
+			(
+				"%s has no respawn marker, which a tick system of phase round places on"
+				% FixtureModes.MAP
+			)
+		]
+	)
+	assert_array(Array(demands.shortfalls(bare))).is_equal(
+		["1 respawn marker(s) needed, the map has 0"]
+	)
+	# Without a Respawn, LifeTicks demands nothing.
+	assert_array(Array(LayoutCheck.run(FixtureCombatModes.basic(), layouts))).is_empty()
+
+
+func test_a_respawn_in_two_phases_on_the_map_demands_its_marker_once() -> void:
+	# The phases' tick systems share the map's markers: the most of any one phase, not the sum.
+	var mode := FixtureCombatModes.respawning()
+	var overtime := mode.find_phase(&"round").duplicate() as PhaseSpec
+	overtime.id = &"overtime"
+	mode.phases.append(overtime)
+	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, mode.default_settings(), 3)
+	assert_int(demands.markers.get(FixtureModes.RESPAWN_TAG, 0)).is_equal(1)
+
+
 func _mode_with_a_token_task() -> GameMode:
 	var token := ItemKind.new()
 	token.id = &"coin"
 	token.display_name = "Coin"
 	token.spawn_tag = &"coin"
+	token.hands = 1
 	var mode := FixtureDealModes.deal_mode([FixtureDealtTaskType.new(&"fixture_dealt", token, 3)])
 	mode.item_kinds.append(token)
 	return mode

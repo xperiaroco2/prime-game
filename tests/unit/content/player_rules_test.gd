@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## PlayerRules (ARCHITECTURE §9.5): neutral class defaults that fail the mode check, so a mode
-## writes every number in its data; the bounds, the ghost speed factor's included.
+## writes every number in its data; the bounds, the crawl speed's, the knockdown time's and the
+## respawn numbers' included.
 
 
 func test_the_neutral_defaults_fail_the_check_so_a_mode_writes_its_numbers() -> void:
@@ -8,7 +9,8 @@ func test_the_neutral_defaults_fail_the_check_so_a_mode_writes_its_numbers() -> 
 	assert_str(found).contains("health is 0, outside 1 to 1000")
 	assert_str(found).contains("stamina is 0, outside 1 to 1000")
 	assert_str(found).contains("walk_speed_mps is 0, outside 0.5 to 20")
-	assert_str(found).contains("ghost_speed_factor is 0, outside 1 to 3")
+	assert_str(found).contains("crawl_speed_mps is 0, outside 0.1 to 0")
+	assert_str(found).contains("knockdown_s is 0, outside 1 to 120")
 	assert_str(found).contains("capsule_radius_m is 0, outside 0.1 to 1")
 
 
@@ -16,11 +18,38 @@ func test_the_mvp_numbers_pass() -> void:
 	assert_array(Array(FixtureModes.player_rules().check(null))).is_empty()
 
 
-func test_the_ghost_speed_factor_is_bounded_from_1_to_3() -> void:
+func test_the_crawl_speed_is_bounded_from_a_tenth_to_the_walk_speed() -> void:
 	var rules := FixtureModes.player_rules()
-	rules.ghost_speed_factor = 0.9
-	assert_str("\n".join(rules.check(null))).contains("ghost_speed_factor is 0.9, outside 1 to 3")
-	rules.ghost_speed_factor = 3.1
-	assert_str("\n".join(rules.check(null))).contains("ghost_speed_factor is 3.1, outside 1 to 3")
-	rules.ghost_speed_factor = 3.0
+	rules.crawl_speed_mps = 0.09
+	assert_str("\n".join(rules.check(null))).contains("crawl_speed_mps is 0.09, outside 0.1 to 4.5")
+	rules.crawl_speed_mps = 4.6
+	assert_str("\n".join(rules.check(null))).contains("crawl_speed_mps is 4.6, outside 0.1 to 4.5")
+	rules.crawl_speed_mps = 4.5
+	assert_array(Array(rules.check(null))).is_empty()
+
+
+func test_the_knockdown_time_is_bounded_from_1_to_120_seconds() -> void:
+	var rules := FixtureModes.player_rules()
+	rules.knockdown_s = 0.5
+	assert_str("\n".join(rules.check(null))).contains("knockdown_s is 0.5, outside 1 to 120")
+	rules.knockdown_s = 121.0
+	assert_str("\n".join(rules.check(null))).contains("knockdown_s is 121, outside 1 to 120")
+	rules.knockdown_s = 1.0
+	assert_array(Array(rules.check(null))).is_empty()
+
+
+func test_the_respawn_numbers_are_bounded() -> void:
+	var found := "\n".join(PlayerRules.new().check(null))
+	assert_str(found).contains("respawn_s is 0, outside 1 to 300")
+	var rules := FixtureModes.player_rules()
+	rules.respawn_s = 301.0
+	rules.invulnerable_s = 30.5
+	rules.respawn_free_m = 5.5
+	found = "\n".join(rules.check(null))
+	assert_str(found).contains("respawn_s is 301, outside 1 to 300")
+	assert_str(found).contains("invulnerable_s is 30.5, outside 0 to 30")
+	assert_str(found).contains("respawn_free_m is 5.5, outside 0 to 5")
+	rules.respawn_s = 1.0
+	rules.invulnerable_s = 0.0
+	rules.respawn_free_m = 0.0
 	assert_array(Array(rules.check(null))).is_empty()

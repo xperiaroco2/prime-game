@@ -25,7 +25,7 @@ func test_a_package_put_down_in_its_own_circle_is_delivered() -> void:
 	assert_int(task.state.done_count()).is_equal(1)
 	# The task is shared: everyone learns the same, the carrier included.
 	var expected: Array[StringName] = [
-		&"ItemPickedUp", &"ItemPlaced", &"PackageDelivered", &"TaskProgress"
+		&"ItemPickedUp", &"ItemPlaced", &"PackageDelivered", &"TaskState", &"TaskProgress"
 	]
 	assert_array(FixtureItemModes.names_after(game, P1, seen_1)).is_equal(expected)
 	assert_array(FixtureItemModes.names_after(game, P2, seen_2)).is_equal(expected)
@@ -34,6 +34,9 @@ func test_a_package_put_down_in_its_own_circle_is_delivered() -> void:
 		{"item": package.id, "station": circle.id}
 	)
 	assert_dict(view.events_named(&"TaskProgress")[-1].to_dict()).is_equal({"done": 1, "total": 2})
+	assert_dict(view.events_named(&"TaskState")[-1].to_dict()).is_equal(
+		{"task": task.id, "type": &"delivery", "done": 1, "total": 2}
+	)
 
 
 func test_subtask_done_carries_the_task_and_the_detail() -> void:
@@ -255,10 +258,10 @@ func test_a_package_dropped_at_a_death_inside_its_circle_is_delivered() -> void:
 	# Mid-jump over the circle: the drop falls to the floor below.
 	FixtureItemModes.stand(game, P1, circle.position + Vector3(0, 0.8, 0.4))
 	FixtureModes.send(game, Intents.USE, P1)
-	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(P1).life).is_equal(PlayerState.Life.DOWNED)
 	assert_int(package.where).is_equal(ItemState.Where.LOCKED)
 	assert_vector(package.position).is_equal(circle.position + Vector3(0, 0, 0.4))
-	# The ghost and the living learn the same public delivery.
+	# The downed and the living learn the same public delivery.
 	for peer: int in [P1, P2]:
 		assert_array(game.view_of(peer).events_named(&"PackageDelivered")).has_size(1)
 

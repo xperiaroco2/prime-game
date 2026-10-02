@@ -55,7 +55,7 @@ static func events() -> Dictionary[String, Array]:
 		ItemSpawnedEvent.new(1, &"knife", Vector3(0, 1, 0)),
 		ItemSpawnedEvent.new(0xFFFE, &"package", Vector3(2, 1, 0), 0xFFFE, Color.RED),
 	]
-	found["ItemPickedUpEvent"] = [ItemPickedUpEvent.new(2, 1)]
+	found["ItemPickedUpEvent"] = [ItemPickedUpEvent.new(2, 1), ItemPickedUpEvent.new(2, 0, 0xFFFE)]
 	found["ItemPlacedEvent"] = [ItemPlacedEvent.new(1, Vector3(0.5, 0.05, 0.5), &"put_down")]
 	found["PackageDeliveredEvent"] = [PackageDeliveredEvent.new(3, 1)]
 	found["TaskProgressEvent"] = [TaskProgressEvent.new(2, 0xFFFF)]
@@ -63,8 +63,18 @@ static func events() -> Dictionary[String, Array]:
 	found["DamagedEvent"] = [DamagedEvent.new(2, 250, -0x80000000)]
 	found["SelfStatusEvent"] = [SelfStatusEvent.new(2, 1000, 0x7FFFFFFF, false)]
 	found["DiedEvent"] = [DiedEvent.new(2, Vector3(4, 0, 4))]
+	found["KnockedDownEvent"] = [KnockedDownEvent.new(0xFFFE, Vector3(-2, 0.5, 3))]
+	found["RespawnedEvent"] = [RespawnedEvent.new(0x7FFFFFFF, Vector3(20, 0, -22))]
+	found["RaiseStartedEvent"] = [RaiseStartedEvent.new(3, 0x7FFFFFFF)]
+	found["RaiseStoppedEvent"] = [RaiseStoppedEvent.new(0x7FFFFFFF, 1)]
+	found["RevivedEvent"] = [RevivedEvent.new(2)]
+	found["SwappedEvent"] = [SwappedEvent.new(0x7FFFFFFF)]
+	found["TaskStateEvent"] = [
+		TaskStateEvent.new(1, &"delivery", 0, 3), TaskStateEvent.new(0xFF, ID_32, 0xFFFF, 0xFFFF)
+	]
 	found["CorrectionEvent"] = [CorrectionEvent.new(2, 3, Vector3(1, 0, 1), Vector3(-0.0, 0, 5))]
 	found["MatchEndedEvent"] = [MatchEndedEvent.new(&"crew")]
+	found["DisconnectingEvent"] = [DisconnectingEvent.new(2, DisconnectingEvent.LOAD_DEADLINE)]
 	return found
 
 
@@ -84,22 +94,29 @@ static func intents() -> Array[WireMessage]:
 		WireMessage.new(&"PutDown", {"facing": Vector3(0, 0, -1)}, 12),
 		WireMessage.new(&"Use", {"facing": Vector3.ZERO}, 0xFFFFFFFF),
 		WireMessage.new(&"ReturnToLobby", {}, 13),
+		WireMessage.new(&"Raise", {"target": 0x7FFFFFFF}, 14),
+		WireMessage.new(&"StopRaise", {}, 15),
+		WireMessage.new(&"GiveUp", {}, 16),
+		WireMessage.new(&"Swap", {}, 17),
 	]
 
 
-## ForceRole, which only a debug build's table has: set, then cleared.
+## ForceRole and ForceClock, which only a debug build's table has: set, then cleared.
 static func debug_commands() -> Array[WireMessage]:
 	return [
 		WireMessage.new(&"ForceRole", {"role": "dissident"}, 1, 3),
 		WireMessage.new(&"ForceRole", {"role": ""}, 2, 3),
+		WireMessage.new(&"ForceClock", {"seconds": 40}, 3, 1),
+		WireMessage.new(&"ForceClock", {"seconds": 0}, 0xFFFFFFFF, 0x7FFFFFFF),
 	]
 
 
 ## A snapshot in the shape of Snapshots.for_peer's avatars, and the two voice frames.
 static func state_and_voice() -> Array[WireMessage]:
 	var avatars := {
-		2: _avatar(Vector3(1, 0, 1), false, -1),
-		5: _avatar(Vector3(-3, 1.5, 0), true, 0xFFFE),
+		2: _avatar(Vector3(1, 0, 1), false, false, -1, -1),
+		5: _avatar(Vector3(-3, 1.5, 0), true, false, 0xFFFE, 0),
+		7: _avatar(Vector3(4, 0, -4), false, true, 3, 0xFFFE),
 	}
 	var frame := PackedByteArray()
 	frame.resize(WireSchema.MAX_OPUS)
@@ -197,11 +214,15 @@ static func _claim() -> Dictionary:
 	}
 
 
-static func _avatar(at: Vector3, ghost: bool, held: int) -> Dictionary:
+static func _avatar(
+	at: Vector3, downed: bool, invulnerable: bool, held: int, belt: int
+) -> Dictionary:
 	return {
 		"position": at,
 		"velocity": Vector3(0.5, 0, 0),
 		"facing": Vector3(1, 0, 0),
-		"ghost": ghost,
+		"downed": downed,
+		"invulnerable": invulnerable,
 		"held_item": held,
+		"belt_item": belt,
 	}

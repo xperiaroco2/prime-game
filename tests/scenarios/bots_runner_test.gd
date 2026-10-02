@@ -10,6 +10,7 @@ extends GdUnitTestSuite
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const OUT := "user://bots_runner_test"
 const EVENTS_DIR := "res://core/events"
+const DROPPED := "res://content/scenarios/dropped_at_the_loading_deadline.tres"
 
 
 func after_test() -> void:
@@ -166,16 +167,16 @@ func test_another_players_event_for_one_peer_is_a_leak() -> void:
 	assert_str(found).contains("decoded RoleAssigned of peer 1")
 
 
-func test_a_living_bot_that_decoded_a_ghost_or_a_changed_snapshot_is_a_leak() -> void:
+func test_a_bot_that_decoded_a_dead_avatar_or_voice_or_a_changed_snapshot_is_a_leak() -> void:
 	var runner := BotsRunner.play(
 		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
 	)
 	assert_array(Array(runner.failures)).is_empty()
 	var own := runner.clients[2].view
 	var at_tick: int = own.snapshots.keys().back()
-	# Peer 1 a ghost after that tick, bot 2 alive: what the observer would have recorded.
+	# Peer 1 dead after that tick, bot 2 alive: what the observer would have recorded.
 	var leaks := LeakCheck.new(runner.game)
-	runner.game.state.players[1].life = PlayerState.Life.GHOST
+	runner.game.state.players[1].life = PlayerState.Life.DEAD
 	leaks.record_tick(at_tick)
 	var tampered := _copy(own)
 	var avatars: Dictionary = (own.snapshots[at_tick]["avatars"] as Dictionary).duplicate()
@@ -184,8 +185,62 @@ func test_a_living_bot_that_decoded_a_ghost_or_a_changed_snapshot_is_a_leak() ->
 	tampered.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
 	var found := _text(leaks.check_bot("bot 2", 2, tampered, false))
 	assert_str(found).contains("the snapshot of tick %d differs from view_of's" % at_tick)
-	assert_str(found).contains("living, it decoded ghost 1 at tick %d" % at_tick)
-	assert_str(found).contains("living, it heard ghost 1 at tick %d" % at_tick)
+	assert_str(found).contains("it decoded the avatar of dead 1 at tick %d" % at_tick)
+	assert_str(found).contains("it heard dead 1 at tick %d" % at_tick)
+
+
+func test_an_event_that_reaches_the_dead_and_not_every_living_peer_is_a_leak() -> void:
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	var game := runner.game
+	# Past the deal's tick, whose Teammates went to the dissidents alone.
+	FixtureModes.run_ticks(game, 2)
+	game.state.players[2].life = PlayerState.Life.DEAD
+	# The control: an event for the dead peer alone, and one for everyone, are no leak.
+	game.emit_event(CorrectionEvent.new(2, 9, Vector3.ZERO, Vector3.ZERO))
+	game.emit_event(FixtureNoteEvent.new("for everyone"))
+	var last: EmittedEvent = game.emitted().back()
+	var at_tick := last.tick
+	var leaks := LeakCheck.new(game)
+	leaks.record_tick(at_tick)
+	var found := _text(leaks.check_bot("bot 2", 2, _decoded(game.view_of(2)), false))
+	assert_str(found).not_contains("dead, it decoded")
+	# Planted: an event declared to the dead alone.
+	game.emit_event(FixtureNoteEvent.new("for the dead", Audience.of_life(PlayerState.Life.DEAD)))
+	found = _text(leaks.check_bot("bot 2", 2, _decoded(game.view_of(2)), false))
+	assert_str(found).contains(
+		"dead, it decoded FixtureNote at tick %d, which living 1 did not" % at_tick
+	)
+
+
+func test_a_downed_bot_hearing_the_not_living_or_a_dead_bot_hearing_anyone_is_a_leak() -> void:
+	var scripts := []
+	for bot in 3:
+		scripts.append([StepReady.new(), _round()])
+	var runner := BotsRunner.play(_scenario(scripts))
+	assert_array(Array(runner.failures)).is_empty()
+	var at_tick: int = runner.clients[2].view.snapshots.keys().back()
+	# Peer 2 downed and peer 3 dead after that tick, peer 1 alive: what the observer would have
+	# recorded. The control first: bot 2 hearing the living
+	# peer 1 is no leak.
+	var leaks := LeakCheck.new(runner.game)
+	runner.game.state.players[2].life = PlayerState.Life.DOWNED
+	runner.game.state.players[3].life = PlayerState.Life.DEAD
+	leaks.record_tick(at_tick)
+	var downed := _copy(runner.clients[2].view)
+	downed.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
+	var found := _text(leaks.check_bot("bot 2", 2, downed, false))
+	assert_str(found).not_contains("downed, it heard")
+	downed.voice[Vector2i(3, at_tick)] = [LeakCheck.voice_frame(3, 0)]
+	found = _text(leaks.check_bot("bot 2", 2, downed, false))
+	assert_str(found).contains("downed, it heard 3, who was not living, at tick %d" % at_tick)
+	assert_str(found).not_contains("downed, it heard 1,")
+	var dead := _copy(runner.clients[3].view)
+	dead.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
+	found = _text(leaks.check_bot("bot 3", 3, dead, false))
+	assert_str(found).contains("dead, it heard 1 at tick %d" % at_tick)
 
 
 func test_a_decoded_seed_is_a_leak() -> void:
@@ -360,6 +415,24 @@ func test_every_event_class_for_one_peer_is_listed_in_for_one() -> void:
 	assert_array(missing).is_empty()
 
 
+func test_disconnecting_reaches_only_the_dropped_player_and_a_misdeclared_one_is_a_leak() -> void:
+	# #119: the player dropped at the loading deadline alone decodes why, and its session ends so.
+	var scenario := load(DROPPED) as BotScenario
+	var runner := BotsRunner.play(scenario)
+	assert_array(Array(runner.failures)).is_empty()
+	var dropped := runner.peers.peer_of(3)
+	assert_str(String(runner.clients[3].end_reason)).is_equal("load_deadline")
+	assert_array(runner.clients[3].view.events_named(&"Disconnecting")).has_size(1)
+	for bot: int in [1, 2]:
+		assert_array(runner.clients[bot].view.events_named(&"Disconnecting")).is_empty()
+	# The planted leak: Disconnecting declared to everyone reaches bot 1 too.
+	var leaked := runner.game.view_of(1)
+	leaked.events.append(MisdeclaredDisconnecting.new(dropped))
+	var leaky := LeakCheck.new(LeakyViews.new(runner.game, leaked))
+	var found := _text(leaky.check_bot("bot 1", 1, _decoded(leaked), false))
+	assert_str(found).contains("decoded Disconnecting of peer %d" % dropped)
+
+
 ## A Correction whose class declares no AUDIENCE_KIND.
 class MisdeclaredCorrection:
 	extends MatchEvent
@@ -376,6 +449,24 @@ class MisdeclaredCorrection:
 
 	func to_dict() -> Dictionary:
 		return {"epoch": 1, "position": Vector3.ZERO, "velocity": Vector3.ZERO}
+
+
+## Disconnecting declared to everyone: the planted leak of #119.
+class MisdeclaredDisconnecting:
+	extends MatchEvent
+	var peer: int
+
+	func _init(to_peer: int) -> void:
+		peer = to_peer
+
+	func event_name() -> StringName:
+		return &"Disconnecting"
+
+	func audience() -> Audience:
+		return Audience.everyone()
+
+	func to_dict() -> Dictionary:
+		return {"reason": DisconnectingEvent.LOAD_DEADLINE}
 
 
 ## A match whose view_of(peer) is a planted one.

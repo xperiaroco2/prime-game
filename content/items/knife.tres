@@ -34,4 +34,5 @@ script = ExtResource("1_kind")
 id = &"knife"
 display_name = "Knife"
 spawn_tag = &"knife"
+hands = 1
 actions = Array[ExtResource("1_nx1in")]([SubResource("Rule_use")])

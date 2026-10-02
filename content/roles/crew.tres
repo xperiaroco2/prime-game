@@ -6,5 +6,5 @@
 [resource]
 script = ExtResource("1_role")
 id = &"crew"
-display_name = "Crew"
+display_name = "Engineer"
 side = &"crew"

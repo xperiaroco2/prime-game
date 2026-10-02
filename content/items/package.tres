@@ -8,3 +8,4 @@ script = ExtResource("1_kind")
 id = &"package"
 display_name = "Package"
 spawn_tag = &"package"
+hands = 2

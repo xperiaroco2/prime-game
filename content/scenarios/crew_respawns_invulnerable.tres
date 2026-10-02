@@ -1,0 +1,159 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://kc1hne6j7nk6"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_never"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="3_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="4_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="5_step"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="6_ready"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="7_wait_for"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="8_walk_to"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="9_target"]
+[ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="10_pick_up"]
+[ext_resource type="Script" uid="uid://bir4sbsppao03" path="res://core/content/scenario/step_use.gd" id="11_use"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="12_wait"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="13_expect"]
+[ext_resource type="Script" uid="uid://btw85s6sw667k" path="res://core/content/scenario/step_expect_none.gd" id="14_expect_none"]
+
+[sub_resource type="Resource" id="Never_damaged_bot1"]
+script = ExtResource("2_never")
+event = &"Damaged"
+bot = 1
+
+[sub_resource type="Resource" id="Ready"]
+script = ExtResource("6_ready")
+
+[sub_resource type="Resource" id="Wait_round"]
+script = ExtResource("7_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Target_knife"]
+script = ExtResource("9_target")
+kind = 2
+item_kind = &"knife"
+
+[sub_resource type="Resource" id="B1_walk_to_knife"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_knife")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="B1_pick_up_knife"]
+script = ExtResource("10_pick_up")
+target = SubResource("Target_knife")
+
+[sub_resource type="Resource" id="Target_bot2"]
+script = ExtResource("9_target")
+kind = 3
+bot = 2
+
+[sub_resource type="Resource" id="B1_walk_to_bot2"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_bot2")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="B1_hit"]
+script = ExtResource("11_use")
+towards = SubResource("Target_bot2")
+
+[sub_resource type="Resource" id="Wait_cooldown"]
+script = ExtResource("12_wait")
+seconds = 0.6
+
+[sub_resource type="Resource" id="Knocked_down_2"]
+script = ExtResource("13_expect")
+event = &"KnockedDown"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Target_centre"]
+script = ExtResource("9_target")
+
+[sub_resource type="Resource" id="B1_walk_to_centre"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_centre")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Wait_died_2"]
+script = ExtResource("7_wait_for")
+event = &"Died"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Wait_respawned_2"]
+script = ExtResource("7_wait_for")
+event = &"Respawned"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="B1_sprint_to_bot2"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_bot2")
+sprint = true
+stop_m = 1.0
+
+[sub_resource type="Resource" id="B1_wait_out_invulnerability"]
+script = ExtResource("12_wait")
+seconds = 2.0
+
+[sub_resource type="Resource" id="Wait_ended"]
+script = ExtResource("7_wait_for")
+event = &"MatchEnded"
+fields = {
+"side": "dissidents"
+}
+
+[sub_resource type="Resource" id="B1_script"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B1_walk_to_knife"), SubResource("B1_pick_up_knife"), SubResource("B1_walk_to_bot2"), SubResource("B1_hit"), SubResource("Wait_cooldown"), SubResource("B1_hit"), SubResource("Knocked_down_2"), SubResource("B1_walk_to_centre"), SubResource("Wait_died_2"), SubResource("Wait_respawned_2"), SubResource("B1_sprint_to_bot2"), SubResource("B1_hit"), SubResource("B1_wait_out_invulnerability"), SubResource("B1_hit"), SubResource("Wait_ended")])
+
+[sub_resource type="Resource" id="B2_wait_damaged"]
+script = ExtResource("7_wait_for")
+event = &"Damaged"
+
+[sub_resource type="Resource" id="Wait_knocked_down_2"]
+script = ExtResource("7_wait_for")
+event = &"KnockedDown"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="B2_no_damage_while_invulnerable"]
+script = ExtResource("14_expect_none")
+event = &"Damaged"
+for_s = 3.0
+
+[sub_resource type="Resource" id="B2_swung_at_meanwhile"]
+script = ExtResource("13_expect")
+event = &"Swung"
+fields = {
+"peer": 1
+}
+
+[sub_resource type="Resource" id="B2_damaged_after"]
+script = ExtResource("13_expect")
+event = &"Damaged"
+within_s = 3.0
+
+[sub_resource type="Resource" id="B2_script"]
+script = ExtResource("4_script")
+steps = Array[ExtResource("5_step")]([SubResource("Ready"), SubResource("B2_wait_damaged"), SubResource("Wait_knocked_down_2"), SubResource("Wait_died_2"), SubResource("Wait_respawned_2"), SubResource("B2_no_damage_while_invulnerable"), SubResource("B2_swung_at_meanwhile"), SubResource("B2_damaged_after"), SubResource("Wait_ended")])
+
+[resource]
+script = ExtResource("3_scenario")
+mode = ExtResource("1_mode")
+session_seed = 422000000003
+bots = 2
+forced_roles = Dictionary[int, StringName]({
+1: &"dissident"
+})
+scripts = Array[ExtResource("4_script")]([SubResource("B1_script"), SubResource("B2_script")])
+expected_ends = Array[StringName]([&"dissidents"])
+clock_s = 55
+time_limit_s = 90.0
+never = Array[ExtResource("2_never")]([SubResource("Never_damaged_bot1")])

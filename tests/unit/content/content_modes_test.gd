@@ -62,6 +62,27 @@ func test_the_greybox_fits_ten_players_at_the_default_settings_and_the_most_pack
 	demands = LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
 	assert_array(Array(demands.shortfalls(map))).is_empty()
 	assert_int(map.count(&"knife")).is_greater_equal(settings[&"knives"])
+	# The Round's Respawn (M4-3) asks for one `respawn` marker; the greybox has 4 to 6.
+	assert_int(demands.markers.get(&"respawn", 0)).is_equal(1)
+	assert_int(map.count(&"respawn")).is_between(4, 6)
+
+
+func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
+	# The respawn demand reaches the fit check on the real content: the same map with every
+	# marker but the `respawn` ones is refused for that one need.
+	var mode := _base_mode()
+	var map := _layouts_for(mode)[mode.maps[0]]
+	var stripped := LevelLayout.new(map.path)
+	for tag: StringName in map.tags():
+		if tag == &"respawn":
+			continue
+		for at: Vector3 in map.positions(tag):
+			stripped.add_marker(tag, at)
+	var settings := mode.default_settings()
+	var demands := LayoutCheck.demands_of(mode, PhaseSpec.Level.MAP, settings, mode.max_players)
+	assert_array(Array(demands.shortfalls(stripped))).contains_exactly(
+		["1 respawn marker(s) needed, the map has 0"]
+	)
 
 
 func test_the_levels_are_flat() -> void:
@@ -119,7 +140,8 @@ func test_the_base_mode_writes_its_numbers() -> void:
 
 
 func test_end_to_lobby_resets_the_match_before_placing_players() -> void:
-	# Placed first, a ghost would still be a ghost when PlayersPlaced goes to everyone (#58).
+	# Placed first, a downed player would still be downed when PlayersPlaced goes to everyone
+	# (#58).
 	var mode := _base_mode()
 	var row := mode.find_transition(&"end", &"back")
 	assert_int(row.actions.size()).is_equal(2)
@@ -163,7 +185,8 @@ func test_the_deal_runs_roles_tasks_knives_then_placement() -> void:
 func test_crew_and_dissident() -> void:
 	var mode := _base_mode()
 	var crew := mode.find_role(&"crew")
-	assert_str(crew.display_name).is_equal("Crew")
+	# Vision revision 1: the crew are shown as Engineers; the ids stay `crew` (the wire, the data).
+	assert_str(crew.display_name).is_equal("Engineer")
 	assert_str(crew.side).is_equal("crew")
 	assert_bool(crew.knows_teammates).is_false()
 	assert_array(crew.actions).is_empty()
@@ -172,6 +195,8 @@ func test_crew_and_dissident() -> void:
 	assert_str(dissident.side).is_equal("dissidents")
 	assert_bool(dissident.knows_teammates).is_true()
 	assert_array(dissident.actions).is_empty()
+	assert_str(mode.find_side(&"crew").display_name).is_equal("Engineers")
+	assert_str(mode.find_side(&"dissidents").display_name).is_equal("Dissidents")
 
 
 func test_knife() -> void:
@@ -205,8 +230,14 @@ func test_knife() -> void:
 
 func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	var mode := _base_mode()
-	assert_int(mode.find_phase(&"round").senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
-	# The knife from the base mode's own data: a living player strikes, and the dead cannot.
+	var in_round := mode.find_phase(&"round")
+	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.PICK_UP)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.PUT_DOWN)).is_equal(AcceptSpec.From.LIVING)
+	# MoveClaim from the living and the downed (the downed crawl, M4-2).
+	var moves := AcceptSpec.From.LIVING | AcceptSpec.From.DOWNED
+	assert_int(in_round.senders_of(Intents.MOVE_CLAIM)).is_equal(moves)
+	# The knife from the base mode's own data: a living player strikes, and the downed cannot.
 	var game := _base_round(mode, [1, 2, 3, 4])
 	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
 	FixtureItemModes.stand(game, 2, Vector3(0, 0, 101))
@@ -219,10 +250,10 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 		assert_array(FixtureCombatModes.received(game, peer, &"Swung")).has_size(1)
 	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
-	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.DOWNED)
 	assert_array(FixtureModes.rejections(game, 1)).is_empty()
-	# The ghost, even holding a knife, is refused before any rule runs.
-	var dropped := FixtureItemModes.lay(game, &"knife", game.state.bodies[2])
+	# The downed player, even holding a knife, is refused before any rule runs.
+	var dropped := FixtureItemModes.lay(game, &"knife", game.state.player(2).position)
 	game.state.player(2).held_item = dropped.id
 	dropped.where = ItemState.Where.HAND
 	dropped.holder = 2
@@ -230,6 +261,48 @@ func test_the_base_mode_round_accepts_use_from_the_living_only() -> void:
 	assert_array(FixtureModes.rejections(game, 2)).is_equal([&"not_accepted"])
 	assert_int(game.state.player(1).health).is_equal(100000)
 	assert_array(FixtureCombatModes.received(game, 1, &"Swung")).has_size(2)
+
+
+func test_the_base_mode_raises_the_downed_and_lets_them_give_up() -> void:
+	# M4-4, E27: the raise rule's numbers (3 s, the pick-up's 2 m, 50 health), Round's accepts
+	# (Raise and StopRaise from the living, GiveUp from the downed) and ChannelTicks after LifeTicks.
+	var mode := _base_mode()
+	var in_round := mode.find_phase(&"round")
+	assert_int(in_round.senders_of(Intents.RAISE)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.STOP_RAISE)).is_equal(AcceptSpec.From.LIVING)
+	assert_int(in_round.senders_of(Intents.GIVE_UP)).is_equal(AcceptSpec.From.DOWNED)
+	assert_object(in_round.tick_systems[0]).is_instanceof(LifeTicks)
+	assert_object(in_round.tick_systems[1]).is_instanceof(ChannelTicks)
+	var raise: Rule = null
+	for rule: Rule in mode.actions:
+		if rule.trigger == Intents.RAISE:
+			raise = rule
+	var effect := raise.effects[0] as RaiseDowned
+	assert_float(effect.seconds).is_equal(3.0)
+	assert_int(effect.revive_health).is_equal(50)
+	assert_float((raise.conditions[2] as TargetInReach).reach_m).is_equal(2.0)
+	# Played from the base mode's own data: knocked down, raised for 3 s, standing with 50.
+	var game := _base_round(mode, [1, 2, 3])
+	FixtureItemModes.stand(game, 1, Vector3(0, 0, 100))
+	FixtureItemModes.stand(game, 2, Vector3(0, 0, 101))
+	FixtureItemModes.stand(game, 3, Vector3(1.5, 0, 101))
+	var knife := FixtureItemModes.lay(game, &"knife", Vector3(0, 0, 100))
+	FixtureItemModes.pick_up(game, 1, knife)
+	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
+	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
+	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
+	FixtureCombatModes.raise(game, 3, 2)
+	FixtureModes.run_ticks(game, 60)
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.ALIVE)
+	assert_int(game.state.player(2).health).is_equal(50000)
+	# Downed again and given up: dead at once.
+	FixtureModes.run_ticks(game, 60)
+	FixtureCombatModes.use(game, 1, Vector3(0, 0, 1))
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.DOWNED)
+	FixtureCombatModes.give_up(game, 2)
+	assert_int(game.state.player(2).life).is_equal(PlayerState.Life.DEAD)
+	assert_array(FixtureModes.rejections(game, 2)).is_empty()
+	assert_array(FixtureModes.rejections(game, 3)).is_empty()
 
 
 func test_the_deal_demands_knife_markers_at_the_default_settings() -> void:
@@ -336,8 +409,8 @@ func test_entering_the_round_runs_the_whole_deal() -> void:
 
 func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
 	# §6 and §9.5: proximity 8 m in the lobby and the countdown, silence while loading and on the
-	# end screen, the round's three radii 8 m. The classes' defaults stay 0 (#58), which the voice
-	# rules' own bounds tests show.
+	# end screen, the round's radius 8 m (the ghost radii are gone: vision revision 1). The classes'
+	# defaults stay 0 (#58), which the voice rules' own bounds tests show.
 	var mode := _base_mode()
 	for id: StringName in [&"lobby", &"countdown"]:
 		var rule := mode.find_phase(id).voice_rule
@@ -352,8 +425,6 @@ func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
 		return
 	var round_voice := in_round as RoundVoice
 	assert_float(round_voice.living_m).is_equal(8.0)
-	assert_float(round_voice.ghost_hears_living_m).is_equal(8.0)
-	assert_float(round_voice.ghost_hears_ghost_m).is_equal(8.0)
 
 
 ## The layouts of the mode's levels, read from the real scenes by the marker reader (2j) with the
@@ -383,12 +454,13 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 
 
 func test_the_win_conditions_in_the_base_modes_order() -> void:
-	# §3.4 and §9.5 (2h, #64): every task done (crew), no crew alive and time up (dissidents).
+	# §3.4 and §9.5 (2h, #64; M4-2): every task done (crew), no crew present and time up
+	# (dissidents).
 	var mode := _base_mode()
 	var ids: Array[StringName] = []
 	for condition: WinCondition in mode.win_conditions:
 		ids.append(condition.id)
-	assert_array(ids).is_equal([&"every_task_done", &"no_crew_alive", &"time_up"])
+	assert_array(ids).is_equal([&"every_task_done", &"no_crew_present", &"time_up"])
 	var every_task_done := mode.win_conditions[0]
 	assert_str(every_task_done.resource_path).is_equal(
 		"res://content/win_conditions/every_task_done.tres"
@@ -397,10 +469,10 @@ func test_the_win_conditions_in_the_base_modes_order() -> void:
 	assert_int(every_task_done.conditions.size()).is_equal(1)
 	assert_object(every_task_done.conditions[0]).is_instanceof(AllSubtasksDone)
 	assert_bool(every_task_done.conditions[0].negate).is_false()
-	var no_crew_alive := mode.win_conditions[1]
-	assert_str(no_crew_alive.side).is_equal("dissidents")
-	assert_int(no_crew_alive.conditions.size()).is_equal(1)
-	var none_alive := no_crew_alive.conditions[0] as NoneAlive
+	var no_crew_present := mode.win_conditions[1]
+	assert_str(no_crew_present.side).is_equal("dissidents")
+	assert_int(no_crew_present.conditions.size()).is_equal(1)
+	var none_alive := no_crew_present.conditions[0] as NoneAlive
 	assert_object(none_alive).is_not_null()
 	assert_str(none_alive.side).is_equal("crew")
 	assert_bool(none_alive.negate).is_false()

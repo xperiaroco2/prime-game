@@ -70,8 +70,9 @@ var end_reason: StringName = &""
 ## The match; null until a start succeeded. Its keep_history stays off unless the owner turns it
 ## on (the bots runner does, right after start()).
 var game: Match
-## The host's content hash (§4.3, E1): ContentFingerprint of the mode and its level files, the
-## same as every client computes from its own copy of the mode; Match.content_hash.
+## The host's content hash (§4.3, E1): ContentFingerprint of the mode, its level files and every
+## scene and resource a level reaches (#118), the same as every client computes from its own copy
+## of the mode; Match.content_hash.
 var content_hash := 0
 ## The host's own client, peer 1, linked to the hosting transport: its owner runs a ClientSession
 ## on it.

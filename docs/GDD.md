@@ -30,9 +30,9 @@ on 2026-09-30, with the engineer's answers V1 to V13 to its review (agreed with 
 - **Cringe-fun vibe**, and an audience that is not only guys.
 - **Macro skill over micro skill.** Simple mechanics, no aim-heavy or one-shot mechanics: decisions, teamwork and
   communication win, and a player who never plays shooters has as much fun as anyone.
-- **Open knowledge.** The rules, how every mechanic works and the fixed places (the map, the task circles, the item
-  spawn points) are known to everyone, dissidents included. Who the dissidents are is dealt privately, but it is not
-  a secret the game protects. Where a moved item lies now is not shown: players find it by looking.
+- **Open knowledge.** The rules, how every mechanic works and the fixed places (the map, the task circles, the zones
+  where items may appear) are known to everyone, dissidents included. Who the dissidents are is dealt privately, but
+  it is not a secret the game protects. Where a moved item lies now is not shown: players find it by looking.
 
 Open questions:
 - What is the one-sentence pitch in the designer's own words?

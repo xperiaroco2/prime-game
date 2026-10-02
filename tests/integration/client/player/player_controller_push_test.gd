@@ -15,6 +15,7 @@ const DELAY_TICKS_PER_SECOND := 60
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
 
 var _tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
+var _rules := FixtureModes.player_rules()
 var _world: PlayerTestWorld
 
 
@@ -47,7 +48,7 @@ func test_a_pushed_player_holding_sprint_without_moving_keeps_its_stamina() -> v
 	await _world.frames(90)
 	assert_float(_world.horizontal_distance(from, standing.global_position)).is_greater(0.5)
 	assert_bool(standing.is_sprinting()).is_true()
-	assert_float(_world.stand_in(standing).get_stamina()).is_equal(_tuning.max_stamina)
+	assert_float(_world.stand_in(standing).get_stamina()).is_equal(float(_rules.stamina))
 
 
 func test_a_pushed_player_sprinting_sideways_spends_stamina() -> void:
@@ -67,7 +68,7 @@ func test_a_player_standing_in_a_doorway_is_pushed_out_and_the_pusher_passes() -
 	var pusher := _world.add_player(Vector3.ZERO)
 	pusher.move_input = Vector2(0.0, 1.0)
 	await _world.frames(240)
-	var beyond := -3.0 - 0.1 - _tuning.capsule_radius
+	var beyond := -3.0 - 0.1 - _rules.capsule_radius_m
 	assert_float(standing.global_position.z).is_less(beyond)
 	assert_float(pusher.global_position.z).is_less(beyond)
 	assert_float(pusher.global_position.y).is_less(0.01)
@@ -88,8 +89,8 @@ func test_head_on_nobody_advances_and_the_drift_parts_them() -> void:
 		# How far `one` still is from having walked past `other`, and how far aside it is.
 		var along := one.global_position.z - other.global_position.z
 		var across := absf(other.global_position.x - one.global_position.x)
-		if across < _tuning.capsule_radius * 2.0 and along > 0.0:
-			deepest = maxf(deepest, _tuning.capsule_radius * 2.0 - Vector2(along, across).length())
+		if across < _rules.capsule_radius_m * 2.0 and along > 0.0:
+			deepest = maxf(deepest, _rules.capsule_radius_m * 2.0 - Vector2(along, across).length())
 			# Along the line of contact the pushes cancel: while the contact is still nearly
 			# straight, the two stay where they met.
 			var middle := (one.global_position.z + other.global_position.z) * 0.5
@@ -121,7 +122,7 @@ func test_at_an_angle_the_two_slide_apart_and_walk_on() -> void:
 	for i: int in 60:
 		await _world.frames(1)
 		var apart := _world.horizontal_distance(one.global_position, other.global_position)
-		deepest = maxf(deepest, _tuning.capsule_radius * 2.0 - apart)
+		deepest = maxf(deepest, _rules.capsule_radius_m * 2.0 - apart)
 	# Each slid off to its side of the other and walked on past it.
 	assert_float(one.global_position.x).is_less(-0.1)
 	assert_float(other.global_position.x).is_greater(0.4)
@@ -130,23 +131,23 @@ func test_at_an_angle_the_two_slide_apart_and_walk_on() -> void:
 	assert_float(deepest).is_less(_tuning.push_max_overlap + 0.01)
 
 
-func test_a_ghost_is_not_pushed_and_pushes_nobody() -> void:
-	var ghost := _world.add_ghost(Vector3(0.0, 0.0, -2.0))
+func test_a_downed_player_is_not_pushed_and_pushes_nobody() -> void:
+	var downed := _world.add_downed(Vector3(0.0, 0.0, -2.0))
 	var living := _world.add_player(Vector3.ZERO)
 	await _world.frames(5)
 	living.move_input = Vector2(0.0, 1.0)
 	var speed: float = await _world.measure_speed(living, 10, 30)
-	assert_float(speed).is_equal_approx(_tuning.walk_speed, SPEED_TOLERANCE)
+	assert_float(speed).is_equal_approx(_rules.walk_speed_mps, SPEED_TOLERANCE)
 	assert_float(living.global_position.z).is_less(-2.5)
-	assert_vector(ghost.global_position).is_equal_approx(
+	assert_vector(downed.global_position).is_equal_approx(
 		Vector3(0.0, 0.0, -2.0), Vector3.ONE * 0.001
 	)
-	# The other way round: a ghost walks through a standing player, who stays put.
+	# The other way round: a downed player crawls through a standing player, who stays put.
 	var standing := living.global_position
 	living.move_input = Vector2.ZERO
-	ghost.move_input = Vector2(0.0, -1.0)
+	downed.move_input = Vector2(0.0, -1.0)
 	await _world.frames(40)
-	assert_float(ghost.global_position.z).is_greater(standing.z + 1.0)
+	assert_float(downed.global_position.z).is_greater(standing.z + 1.0)
 	assert_vector(living.global_position).is_equal_approx(standing, Vector3.ONE * 0.001)
 
 
@@ -159,7 +160,7 @@ func _assert_pushes_at_the_push_speed(sprint: bool) -> void:
 	pusher.sprint_held = sprint
 	# Into contact (1.2 m to go), a step to settle, then a short look before the drift turns the
 	# straight push into a slide off the other's round side.
-	var touching := _tuning.capsule_radius * 2.0
+	var touching := _rules.capsule_radius_m * 2.0
 	var met := false
 	for i: int in 120:
 		if _world.horizontal_distance(standing.global_position, pusher.global_position) <= touching:
@@ -175,7 +176,7 @@ func _assert_pushes_at_the_push_speed(sprint: bool) -> void:
 	var per_second := float(Engine.physics_ticks_per_second) / count
 	var standing_speed := _world.horizontal_distance(standing_from, standing.global_position)
 	var pusher_speed := _world.horizontal_distance(pusher_from, pusher.global_position)
-	var own := _tuning.sprint_speed if sprint else _tuning.walk_speed
+	var own := _rules.sprint_speed_mps if sprint else _rules.walk_speed_mps
 	var push := own * _tuning.push_speed_factor
 	assert_float(standing_speed * per_second).is_equal_approx(push, SPEED_TOLERANCE)
 	assert_float(pusher_speed * per_second).is_equal_approx(push, SPEED_TOLERANCE)
@@ -193,8 +194,8 @@ func test_leaving_an_overlap_is_no_faster_than_sprinting() -> void:
 	await _world.frames(1)
 	var step := _world.horizontal_distance(from, standing.global_position)
 	var speed := step * Engine.physics_ticks_per_second
-	assert_float(speed).is_greater(_tuning.walk_speed)
-	assert_float(speed).is_less(_tuning.sprint_speed + SPEED_TOLERANCE)
+	assert_float(speed).is_greater(_rules.walk_speed_mps)
+	assert_float(speed).is_less(_rules.sprint_speed_mps + SPEED_TOLERANCE)
 
 
 func test_over_a_delay_the_pushed_client_moves_its_player_from_the_pushers_motion() -> void:
@@ -223,7 +224,7 @@ func test_over_a_delay_head_on_nobody_passes_through() -> void:
 	var views: Array[float] = await _run_two_clients(pair, 120)
 	# The other's late capsule keeps coming for 0.1 s after that player stopped: a client sees it
 	# at most one step of walking deeper before its own player steps back out.
-	var one_step := _tuning.walk_speed / Engine.physics_ticks_per_second
+	var one_step := _rules.walk_speed_mps / Engine.physics_ticks_per_second
 	assert_float(views[0]).is_less(_tuning.push_max_overlap + one_step + 0.01)
 	assert_float(views[1]).is_less(_tuning.push_max_overlap + one_step + 0.01)
 	# They slid apart and walked on past each other.
@@ -259,7 +260,7 @@ func _run_two_clients(pair: Array[Node3D], count: int) -> Array[float]:
 	var first_trail: Array[Vector3] = []
 	var second_trail: Array[Vector3] = []
 	var deepest: Array[float] = [-INF, -INF]
-	var touching := _tuning.capsule_radius * 2.0
+	var touching := _rules.capsule_radius_m * 2.0
 	for i: int in count:
 		await _world.frames(1)
 		first_trail.append(pair[0].global_position)
@@ -286,7 +287,7 @@ func _assert_pushed_sprinter_pays(steer: Vector2) -> void:
 	# The pusher sprints as well, so it keeps up with a player sprinting away from it.
 	pusher.sprint_held = true
 	pusher.move_input = Vector2(0.0, 1.0)
-	var touching := _tuning.capsule_radius * 2.0
+	var touching := _rules.capsule_radius_m * 2.0
 	var met := false
 	for i: int in 120:
 		if _world.horizontal_distance(standing.global_position, pusher.global_position) <= touching:
@@ -294,7 +295,7 @@ func _assert_pushed_sprinter_pays(steer: Vector2) -> void:
 			break
 		await _world.frames(1)
 	assert_bool(met).is_true()
-	assert_float(_world.stand_in(standing).get_stamina()).is_equal(_tuning.max_stamina)
+	assert_float(_world.stand_in(standing).get_stamina()).is_equal(float(_rules.stamina))
 	# Only the steps that start in contact count: out of it, it is an ordinary sprint.
 	standing.move_input = steer
 	var pushed_steps := 0
@@ -305,4 +306,4 @@ func _assert_pushed_sprinter_pays(steer: Vector2) -> void:
 		pushed_steps += 1
 	assert_int(pushed_steps).is_greater(0)
 	assert_bool(standing.is_sprinting()).is_true()
-	assert_float(_world.stand_in(standing).get_stamina()).is_less(_tuning.max_stamina)
+	assert_float(_world.stand_in(standing).get_stamina()).is_less(float(_rules.stamina))

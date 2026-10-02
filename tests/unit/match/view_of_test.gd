@@ -6,6 +6,7 @@ extends GdUnitTestSuite
 const P1 := 1
 const P2 := 2
 const P3 := 3
+const P4 := 4
 
 
 func test_recipients_are_recorded_with_every_event() -> void:
@@ -33,23 +34,23 @@ func test_audiences_are_evaluated_at_emission() -> void:
 	var mode := FixtureModes.basic()
 	var to_dissidents := FixtureNote.of("dissidents only")
 	to_dissidents.to_role = &"dissident"
-	var to_ghosts := FixtureNote.of("ghosts only")
-	to_ghosts.to_ghosts = true
+	var to_downed := FixtureNote.of("downed only")
+	to_downed.to_downed = true
 	var to_actor := FixtureNote.of("actor only")
 	to_actor.to_actor = true
-	mode.actions = [FixtureModes.rule(Intents.USE, [], [to_dissidents, to_ghosts, to_actor])]
+	mode.actions = [FixtureModes.rule(Intents.USE, [], [to_dissidents, to_downed, to_actor])]
 	var game := FixtureModes.in_round(mode, [P1, P2, P3])
 	game.state.player(P2).role = &"dissident"
-	game.state.player(P3).life = PlayerState.Life.GHOST
+	game.state.player(P3).life = PlayerState.Life.DOWNED
 	FixtureModes.send(game, Intents.USE, P1)
 	game.state.player(P1).role = &"dissident"
-	game.state.player(P2).life = PlayerState.Life.GHOST
+	game.state.player(P2).life = PlayerState.Life.DOWNED
 	FixtureModes.send(game, Intents.USE, P1)
 	assert_array(_notes_of(game, P1)).is_equal(["actor only", "dissidents only", "actor only"])
 	assert_array(_notes_of(game, P2)).is_equal(
-		["dissidents only", "dissidents only", "ghosts only"]
+		["dissidents only", "dissidents only", "downed only"]
 	)
-	assert_array(_notes_of(game, P3)).is_equal(["ghosts only", "ghosts only"])
+	assert_array(_notes_of(game, P3)).is_equal(["downed only", "downed only"])
 
 
 func test_a_player_who_left_receives_nothing() -> void:
@@ -92,29 +93,37 @@ func test_the_outbox_hands_out_each_event_once() -> void:
 
 
 func test_snapshots_follow_the_visibility_rules() -> void:
-	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2, P3])
-	game.state.player(P3).life = PlayerState.Life.GHOST
+	# The downed are public (M4-2); the dead have no avatar, and still get every snapshot.
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2, P3, P4])
+	game.state.player(P3).life = PlayerState.Life.DOWNED
+	game.state.player(P4).life = PlayerState.Life.DEAD
 	FixtureModes.run_ticks(game, 1)
 	var at := game.ticked_through()
 	var living: Dictionary = game.view_of(P1).snapshots[at]["avatars"]
-	assert_array(living.keys()).is_equal([P2])
-	var ghost: Dictionary = game.view_of(P3).snapshots[at]["avatars"]
-	assert_array(ghost.keys()).is_equal([P1, P2])
-	assert_dict(game.snapshot_for(P2)["avatars"]).contains_keys([P1])
-	assert_dict(game.snapshot_for(P2)["avatars"]).not_contains_keys([P2, P3])
+	assert_array(living.keys()).is_equal([P2, P3])
+	assert_bool(living[P2]["downed"]).is_false()
+	assert_bool(living[P3]["downed"]).is_true()
+	var downed: Dictionary = game.view_of(P3).snapshots[at]["avatars"]
+	assert_array(downed.keys()).is_equal([P1, P2])
+	var dead: Dictionary = game.view_of(P4).snapshots[at]["avatars"]
+	assert_array(dead.keys()).is_equal([P1, P2, P3])
+	assert_dict(game.snapshot_for(P2)["avatars"]).contains_keys([P1, P3])
+	assert_dict(game.snapshot_for(P2)["avatars"]).not_contains_keys([P2, P4])
 
 
 func test_snapshots_hold_no_private_numbers() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
 	FixtureModes.run_ticks(game, 1)
 	var avatar: Dictionary = game.view_of(P1).snapshots[game.ticked_through()]["avatars"][P2]
-	assert_array(avatar.keys()).is_equal(["position", "velocity", "facing", "ghost", "held_item"])
+	assert_array(avatar.keys()).is_equal(
+		["position", "velocity", "facing", "downed", "invulnerable", "held_item", "belt_item"]
+	)
 
 
 func test_speakers_are_recorded_per_tick() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2, P3])
 	FixtureModes.run_ticks(game, 1)
-	game.state.player(P3).life = PlayerState.Life.GHOST
+	game.state.player(P3).life = PlayerState.Life.DOWNED
 	FixtureModes.run_ticks(game, 1)
 	var at := game.ticked_through()
 	assert_array(Array(game.view_of(P1).speakers[at - 1])).is_equal([P2, P3])

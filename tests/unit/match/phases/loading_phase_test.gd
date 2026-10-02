@@ -65,6 +65,17 @@ func test_the_deadline_drops_who_did_not_confirm() -> void:
 	FixtureModes.run_ticks(game, 1)
 	assert_array(FixtureBaseMode.directives(game).slice(-1)).is_equal(["DisconnectPeer 3"])
 	assert_array(game.state.peers()).is_equal([P1, P2])
+	# #119: the dropped player alone hears why, right before its DisconnectPeer.
+	var told := game.view_of(P3).events_named(&"Disconnecting")
+	assert_int(told.size()).is_equal(1)
+	assert_str((told[0] as DisconnectingEvent).reason).is_equal("load_deadline")
+	assert_int((told[0] as DisconnectingEvent).peer).is_equal(P3)
+	for peer: int in [P1, P2]:
+		assert_array(game.view_of(peer).events_named(&"Disconnecting")).is_empty()
+	var names: Array[StringName] = []
+	for emitted: EmittedEvent in game.emitted():
+		names.append(emitted.event.event_name())
+	assert_int(names.rfind(&"Disconnecting")).is_equal(names.rfind(&"DisconnectPeer") - 1)
 	assert_array(FixtureBaseMode.names_since(game, P1, from).slice(0, 1)).is_equal([&"PlayerLeft"])
 	assert_str(game.phase_id()).is_equal("round")
 	# Its late PeerLeft changes nothing.

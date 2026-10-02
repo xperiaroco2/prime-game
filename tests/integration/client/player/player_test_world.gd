@@ -1,12 +1,13 @@
 extends Node3D
 ## A small physics world for the player controller's suites: a 60 m floor at y = 0, the level
-## pieces a test adds, local players, ghosts and remote capsules, and waits over physics steps.
+## pieces a test adds, local players, downed ones and remote capsules, and waits over physics steps.
 ## A suite adds one in `before_test()` and frees it in `after_test()`. Forward is -Z.
 
 const PLAYER_SCENE := preload("res://client/player/player.tscn")
 const REMOTE_SCENE := preload("res://client/player/remote_player_body.tscn")
 
-var tuning: PlayerTuning = preload("res://client/player/player_tuning.tres")
+## The fixture mode's movement numbers (FixtureModes.player_rules), the client's PlayerRules.
+var rules := FixtureModes.player_rules()
 
 
 func _ready() -> void:
@@ -16,15 +17,17 @@ func _ready() -> void:
 func add_player(at: Vector3) -> PlayerController:
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	player.reads_device_input = false
+	player.rules = rules
 	player.position = at
 	add_child(player)
 	return player
 
 
-func add_ghost(at: Vector3) -> PlayerController:
+func add_downed(at: Vector3) -> PlayerController:
 	var player := PLAYER_SCENE.instantiate() as PlayerController
 	player.reads_device_input = false
-	player.ghost = true
+	player.rules = rules
+	player.life = ClientModel.Life.DOWNED
 	player.position = at
 	add_child(player)
 	return player
@@ -32,6 +35,7 @@ func add_ghost(at: Vector3) -> PlayerController:
 
 func add_remote(at: Vector3) -> RemotePlayerBody:
 	var body := REMOTE_SCENE.instantiate() as RemotePlayerBody
+	body.rules = rules
 	body.position = at
 	add_child(body)
 	return body
@@ -49,7 +53,7 @@ func add_box(center: Vector3, size: Vector3) -> void:
 func add_stairs(steps: int) -> void:
 	for i: int in steps:
 		var tread := 0.3 if i < steps - 1 else 3.0
-		var height := tuning.step_height * (i + 1)
+		var height := rules.step_height_m * (i + 1)
 		var near_z := -1.0 - 0.3 * i
 		add_box(Vector3(0.0, height * 0.5, near_z - tread * 0.5), Vector3(4.0, height, tread))
 
@@ -82,8 +86,8 @@ func add_static(shape: Shape3D, at: Transform3D) -> void:
 	add_child(body)
 
 
-func stand_in(player: PlayerController) -> LocalStamina:
-	return player.stamina as LocalStamina
+func stand_in(player: PlayerController) -> PredictedStamina:
+	return player.stamina as PredictedStamina
 
 
 func frames(count: int) -> void:

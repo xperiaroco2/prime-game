@@ -24,7 +24,8 @@ var items: Dictionary[int, ItemState] = {}
 var tasks: Dictionary[int, MatchTask] = {}
 ## Id -> station, in id order.
 var stations: Dictionary[int, StationState] = {}
-## Peer -> body rest position (2g).
+## Peer -> body rest position: a dead player's, from its death until its respawn (M4-3) or its
+## leave (§3.5).
 var bodies: Dictionary[int, Vector3] = {}
 ## Match-clock ticks left while it runs or is paused; -1 before StartClock (2h).
 var clock_ticks_left := -1
@@ -44,6 +45,10 @@ var joins := 0
 ## answer A on #30). Session state: reset_match() keeps it. core/ cannot tell a debug build, so
 ## only server/'s debug path or the scenario runner sets it, with the ForceRole command.
 var forced_roles: Dictionary[int, StringName] = {}
+## The match clock's length in seconds that StartClock uses instead of its minutes setting, or 0
+## (the ForceClock command, debug builds only, like forced_roles). Session state: reset_match()
+## keeps it.
+var forced_clock_s := 0
 
 var _next_item_id := 1
 var _next_task_id := 1
@@ -198,12 +203,17 @@ func reset_match() -> void:
 	rng.next_match()
 
 
-## A player as at the start of a match: no role, alive, empty hand, full health and stamina.
+## A player as at the start of a match: no role, alive, empty hand and belt, full health and
+## stamina.
 static func reset_player(someone: PlayerState, rules: PlayerRules) -> void:
 	someone.ready = false
 	someone.role = &""
 	someone.life = PlayerState.Life.ALIVE
+	someone.life_deadline = -1
+	someone.knockdown_left = -1
+	someone.invulnerable_until = -1
 	someone.held_item = -1
+	someone.belt_item = -1
 	someone.velocity = Vector3.ZERO
 	someone.sprinting = false
 	someone.sprint_held = false

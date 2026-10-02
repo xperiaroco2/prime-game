@@ -7,9 +7,17 @@ extends RefCounted
 ## Errors: a phase, outcome, intent, setting, role, side or item kind that a part names but the
 ## mode does not declare; a `_setting` property that reads a number but names a set of ids; an
 ## outcome a phase can report without a row; an accepted intent that neither the phase class, the
-## movement rule nor any rule handles; two rules on one trigger in one owner; a number outside its
-## part's bounds; an id outside the wire's alphabet (below). Warnings: a role-owned or role-gated
-## rule with an effect whose event goes to everyone, which reveals the actor's role (§9.2).
+## movement rule nor any rule handles; a phase whose rules can knock a player down (an effect that
+## emits KnockedDown: a Strike) that lists no LifeTicks, so the downed would never die (M4-3); a
+## phase that accepts an intent whose rule starts a channel (a ChannelEffect: the raise) that lists
+## no ChannelTicks, so the channel would never complete and a raise would pause a knockdown for
+## good (M4-4); a ChannelEffect outside an action (a reaction, a row's actions), which has no player
+## to run it, or in a rule that lacks a condition the effect requires (RaiseDowned: TargetDowned);
+## two rules on one trigger in one owner; a number outside its part's bounds; an id
+## outside the wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect
+## whose event goes to everyone, which reveals the actor's role (§9.2); in a mode with a channel,
+## any role-owned or role-gated action, since applying it stops its actor's channel publicly (a
+## raiser's RaiseStopped) while a refused one stops nothing (§9.2).
 ##
 ## Ids travel on the wire as the content's own names (§4.3, E5), so every content id is 1 to
 ## MAX_ID_LENGTH characters of `a-z`, `0-9` and `_`: the `id` of every part that has one (roles,
@@ -25,6 +33,9 @@ const _ID_ALPHABET := "abcdefghijklmnopqrstuvwxyz0123456789_"
 
 var errors := PackedStringArray()
 var warnings := PackedStringArray()
+
+## Whether any action of the mode starts a channel (_check_rules).
+var _has_channel := false
 
 
 static func run(mode: GameMode) -> ModeCheck:
@@ -43,6 +54,7 @@ func _check_mode(mode: GameMode) -> void:
 	_check_unique("phase", _ids(mode.phases))
 	_walk(mode, "mode", mode, {})
 	_check_rules(mode)
+	_check_rows(mode)
 	_check_phases(mode)
 	_check_transitions(mode)
 
@@ -100,6 +112,7 @@ static func _holds_set(resource: Resource, property: String) -> bool:
 ## Every owner's rules: known triggers, one rule per trigger, costs not negated, and the
 ## warning about public events of role-owned or role-gated rules.
 func _check_rules(mode: GameMode) -> void:
+	_has_channel = _any_channel(mode)
 	_check_owner("mode.actions", mode.actions, Intents.ALL, false)
 	_check_owner("mode.reactions", mode.reactions, Facts.ALL, false)
 	for role: GameRole in mode.roles:
@@ -129,6 +142,18 @@ func _check_owner(
 			if condition is Cost and condition.negate:
 				errors.append("%s: rule %s negates a cost" % [owner, rule.trigger])
 			gated = gated or condition.gates_on_role()
+		_check_channel_rule(owner, rule, Array(triggers) == Array(Intents.ALL))
+		if gated and _has_channel and Array(triggers) == Array(Intents.ALL):
+			warnings.append(
+				(
+					(
+						"%s: rule %s is role-owned or role-gated in a mode with a channel: applying"
+						+ " it stops its actor's channel (RaiseStopped to everyone) and a refusal"
+						+ " does not, which reveals the actor's role"
+					)
+					% [owner, rule.trigger]
+				)
+			)
 		for effect: RuleEffect in rule.effects:
 			if effect != null and gated and _emits_to_everyone(effect):
 				(
@@ -141,6 +166,63 @@ func _check_owner(
 							)
 							% [owner, rule.trigger]
 						)
+					)
+				)
+
+
+## A ChannelEffect of `rule`: only in an action (a rule on an intent: a channel is a player's),
+## and with every condition class its effect requires (ChannelEffect.required_conditions).
+func _check_channel_rule(owner: String, rule: Rule, on_intent: bool) -> void:
+	for effect: RuleEffect in rule.effects:
+		if not effect is ChannelEffect:
+			continue
+		if not on_intent:
+			errors.append(
+				(
+					"%s: rule %s starts a channel, which only a player's intent can start"
+					% [owner, rule.trigger]
+				)
+			)
+		for required: Script in (effect as ChannelEffect).required_conditions():
+			if not _has_condition(rule, required):
+				(
+					errors
+					. append(
+						(
+							"%s: rule %s starts a channel that requires the condition %s, which it lacks"
+							% [owner, rule.trigger, required.get_global_name()]
+						)
+					)
+				)
+
+
+static func _has_condition(rule: Rule, condition_class: Script) -> bool:
+	for condition: Condition in rule.conditions:
+		if condition != null and is_instance_of(condition, condition_class):
+			return true
+	return false
+
+
+## Whether any action of `mode` (the mode's, a role's, an item kind's) starts a channel.
+static func _any_channel(mode: GameMode) -> bool:
+	for intent: StringName in Intents.ALL:
+		for rule: Rule in _actions_on(mode, intent):
+			if rule != null and _starts_channel(rule):
+				return true
+	return false
+
+
+## A row's actions run with no actor, so a ChannelEffect among them is an error.
+func _check_rows(mode: GameMode) -> void:
+	for row: Transition in mode.transitions:
+		if row == null:
+			continue
+		for action: RuleEffect in row.actions:
+			if action is ChannelEffect:
+				errors.append(
+					(
+						"row %s, %s starts a channel, which only a player's intent can start"
+						% [row.from, row.outcome]
 					)
 				)
 
@@ -172,6 +254,28 @@ func _check_phases(mode: GameMode) -> void:
 						% [spec.id, entry.intent]
 					)
 				)
+		var knocks_down := _knocking_down(mode, spec)
+		if not knocks_down.is_empty() and not _lists_life_ticks(spec):
+			errors.append(
+				(
+					(
+						"phase %s runs %s, which can knock a player down, but lists no LifeTicks:"
+						+ " the downed would stay downed until they leave"
+					)
+					% [spec.id, knocks_down]
+				)
+			)
+		var channels := _channeling(mode, spec)
+		if not channels.is_empty() and not _lists(spec, ChannelTicks):
+			errors.append(
+				(
+					(
+						"phase %s accepts %s, which starts a channel, but lists no ChannelTicks:"
+						+ " the channel would never complete"
+					)
+					% [spec.id, channels]
+				)
+			)
 		for outcome: StringName in reportable_outcomes(mode, spec):
 			if mode.find_transition(spec.id, outcome) == null:
 				errors.append(
@@ -238,6 +342,58 @@ static func reportable_outcomes(mode: GameMode, spec: PhaseSpec) -> Array[String
 					if not found.has(outcome):
 						found.append(outcome)
 	return found
+
+
+## The triggers of the rules that can run in `spec` (its accepted intents' actions, and every
+## reaction) with an effect that can emit KnockedDown (a Strike), each once, in order.
+static func _knocking_down(mode: GameMode, spec: PhaseSpec) -> Array[StringName]:
+	var rules: Array[Rule] = []
+	for entry: AcceptSpec in spec.accepts:
+		if entry != null:
+			rules.append_array(_actions_on(mode, entry.intent))
+	rules.append_array(mode.reactions)
+	var found: Array[StringName] = []
+	for rule: Rule in rules:
+		if rule == null or found.has(rule.trigger):
+			continue
+		for effect: RuleEffect in rule.effects:
+			if effect != null and effect.emits().has(KnockedDownEvent):
+				found.append(rule.trigger)
+				break
+	return found
+
+
+static func _lists_life_ticks(spec: PhaseSpec) -> bool:
+	return _lists(spec, LifeTicks)
+
+
+## Whether `spec` lists a tick system of the class `system_class`.
+static func _lists(spec: PhaseSpec, system_class: Script) -> bool:
+	for system: TickSystem in spec.tick_systems:
+		if system != null and is_instance_of(system, system_class):
+			return true
+	return false
+
+
+## The intents `spec` accepts whose rules hold an effect that starts a channel (a ChannelEffect),
+## each once, in order.
+static func _channeling(mode: GameMode, spec: PhaseSpec) -> Array[StringName]:
+	var found: Array[StringName] = []
+	for entry: AcceptSpec in spec.accepts:
+		if entry == null or found.has(entry.intent):
+			continue
+		for rule: Rule in _actions_on(mode, entry.intent):
+			if rule != null and _starts_channel(rule):
+				found.append(entry.intent)
+				break
+	return found
+
+
+static func _starts_channel(rule: Rule) -> bool:
+	for effect: RuleEffect in rule.effects:
+		if effect is ChannelEffect:
+			return true
+	return false
 
 
 static func _handled(mode: GameMode, phase: Phase, intent: StringName) -> bool:

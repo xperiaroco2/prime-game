@@ -16,6 +16,12 @@ var actor := 0
 var command: MatchCommand
 ## The fact being handled, or null.
 var fact: Fact
+## The rule being run (RuleRunner), or null: a channel keeps it to check its conditions again
+## every tick (ChannelEffect, M4-4).
+var rule: Rule
+## The channel whose conditions are being checked again or that is ending, or null (Channels,
+## M4-4): a condition reads the channel's target from it, since no intent is being handled then.
+var channel: Channel
 ## The outcome of the row whose actions run, or empty.
 var outcome: StringName
 var outcome_argument: Variant
@@ -36,7 +42,8 @@ func content_hash() -> int:
 	return _match.content_hash
 
 
-## A copy for another part of the same step, with the same actor, intent, fact and outcome.
+## A copy for another part of the same step, with the same actor, intent, fact, rule, channel and
+## outcome.
 func copy() -> MatchContext:
 	var other := MatchContext.new(_match)
 	other.state = state
@@ -46,6 +53,8 @@ func copy() -> MatchContext:
 	other.actor = actor
 	other.command = command
 	other.fact = fact
+	other.rule = rule
+	other.channel = channel
 	other.outcome = outcome
 	other.outcome_argument = outcome_argument
 	other.layout = layout

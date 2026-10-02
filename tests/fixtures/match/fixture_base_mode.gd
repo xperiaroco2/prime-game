@@ -74,7 +74,7 @@ static func mode() -> GameMode:
 		&"round",
 		RoundPhase,
 		{},
-		[AcceptSpec.of(Intents.MOVE_CLAIM, living | AcceptSpec.From.GHOST)]
+		[AcceptSpec.of(Intents.MOVE_CLAIM, living | AcceptSpec.From.DOWNED)]
 	)
 	round_spec.level = PhaseSpec.Level.MAP
 	round_spec.checks_wins = true

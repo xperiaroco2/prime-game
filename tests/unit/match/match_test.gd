@@ -209,16 +209,17 @@ func test_only_the_host_may_send_a_host_intent() -> void:
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
 
 
-func test_a_ghost_may_move_but_not_use() -> void:
+func test_a_downed_player_may_move_but_not_use() -> void:
 	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
-	var ghost := game.state.player(P2)
-	ghost.life = PlayerState.Life.GHOST
+	var downed := game.state.player(P2)
+	downed.life = PlayerState.Life.DOWNED
 	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 5)
 	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
 	assert_array(FixtureModes.notes(game)).not_contains(["used"])
-	var to := ghost.position + Vector3(0.2, 0, 0)
+	# One tick of the crawl: 1 m/s is 0.05 m (the check adds a tenth of it as slack).
+	var to := downed.position + Vector3(0.05, 0, 0)
 	var claim := {
-		"epoch": ghost.epoch,
+		"epoch": downed.epoch,
 		"position": to,
 		"velocity": Vector3.ZERO,
 		"facing": Vector3.FORWARD,
@@ -226,8 +227,95 @@ func test_a_ghost_may_move_but_not_use() -> void:
 		"jumps": 0,
 	}
 	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
-	assert_vector(ghost.position).is_equal(to)
+	assert_vector(downed.position).is_equal(to)
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
+	assert_array(FixtureModes.notes(game)).contains(["used"])
+
+
+func test_a_dead_player_is_refused_even_where_every_player_is_accepted() -> void:
+	# The dead send no intents as players (vision revision 1): an intent of theirs still in flight
+	# at the death reaches no rule, even under PLAYER.
+	var mode := FixtureModes.basic()
+	var round_spec := mode.find_phase(&"round")
+	round_spec.accepts = [
+		AcceptSpec.of(Intents.USE, AcceptSpec.From.PLAYER),
+		AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.PLAYER),
+	]
+	var game := FixtureModes.in_round(mode, [P1, P2])
+	for peer: int in [P1, P2]:
+		game.state.player(peer).life = PlayerState.Life.DEAD
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 5)
+	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 6)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	assert_array(FixtureModes.notes(game)).not_contains(["used"])
+	var dead := game.state.player(P2)
+	var at := dead.position
+	var claim := {
+		"epoch": dead.epoch,
+		"position": at + Vector3(0.01, 0, 0),
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"client_tick": 1,
+		"jumps": 0,
+	}
+	FixtureModes.send(game, Intents.MOVE_CLAIM, P2, claim)
+	assert_vector(dead.position).is_equal(at)
+	# The control: the same phase accepts them from a living player.
+	game.state.player(P1).life = PlayerState.Life.ALIVE
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 7)
+	assert_array(FixtureModes.notes(game)).contains(["used"])
+
+
+func test_a_dead_host_still_returns_everyone_to_the_lobby_from_the_end_screen() -> void:
+	# HOST names the session's controls, not a player's actions: a host who died in the round is
+	# still dead on the end screen until ResetMatch, and must not leave the session stuck there.
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2])
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	assert_str(game.phase_id()).is_equal("end")
+	game.state.set_counter(0, &"crew_win", 0)
+	for peer: int in [P1, P2]:
+		game.state.player(peer).ready = false
+		game.state.player(peer).life = PlayerState.Life.DEAD
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P2, {}, 3)
+	assert_array(FixtureModes.rejections(game, P2)).is_equal([&"not_accepted"])
+	assert_str(game.phase_id()).is_equal("end")
+	FixtureModes.send(game, Intents.RETURN_TO_LOBBY, P1, {}, 4)
+	assert_array(FixtureModes.rejections(game, P1)).is_empty()
+	assert_str(game.phase_id()).is_equal("lobby")
+
+
+func test_a_dead_host_is_refused_a_player_action_even_under_host() -> void:
+	# HOST lets the dead host keep the session's controls, never a player's actions: a mode that
+	# takes MoveClaim and Use from LIVING | HOST still refuses both from a dead peer 1.
+	var mode := FixtureModes.basic()
+	var round_spec := mode.find_phase(&"round")
+	var living_or_host := AcceptSpec.From.LIVING | AcceptSpec.From.HOST
+	round_spec.accepts = [
+		AcceptSpec.of(Intents.USE, living_or_host),
+		AcceptSpec.of(Intents.MOVE_CLAIM, living_or_host),
+	]
+	var game := FixtureModes.in_round(mode, [P1, P2])
+	var dead := game.state.player(P1)
+	dead.life = PlayerState.Life.DEAD
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 5)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([&"not_accepted"])
+	assert_array(FixtureModes.notes(game)).not_contains(["used"])
+	var at := dead.position
+	var claim := {
+		"epoch": dead.epoch,
+		"position": at + Vector3(0.01, 0, 0),
+		"velocity": Vector3.ZERO,
+		"facing": Vector3.FORWARD,
+		"client_tick": 1,
+		"jumps": 0,
+	}
+	FixtureModes.send(game, Intents.MOVE_CLAIM, P1, claim)
+	assert_vector(dead.position).is_equal(at)
+	# The control: the same phase takes them from the living host.
+	dead.life = PlayerState.Life.ALIVE
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 7)
 	assert_array(FixtureModes.notes(game)).contains(["used"])
 
 

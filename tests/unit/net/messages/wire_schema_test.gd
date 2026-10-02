@@ -54,9 +54,9 @@ func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 		if each.kind == WireSchema.HELLO:
 			assert_int(each.cap).is_equal(NetKindTable.MAX_PAYLOAD)
 		elif each.name == &"Snapshot":
-			# The unreliable cap; 15 avatars take 650 bytes.
+			# The unreliable cap; 15 avatars take 680 bytes (45 each with the belt item, M4-5).
 			assert_int(each.cap).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
-			assert_int(each.max_size()).is_equal(650)
+			assert_int(each.max_size()).is_equal(680)
 		elif each.name in OVER_CAP_AT_MAXIMA:
 			assert_bool(each.content_sized).is_true()
 			assert_int(each.max_size()).override_failure_message(message).is_greater(each.cap)
@@ -109,7 +109,8 @@ func test_debug_commands_exist_only_in_a_debug_builds_table() -> void:
 		assert_object(release.row(kind)).is_null()
 		assert_bool(release.kind_table().has(kind)).is_false()
 	assert_str(str(debug.row(24).name)).is_equal("ForceRole")
-	assert_int(debug.rows().size()).is_equal(release.rows().size() + 1)
+	assert_str(str(debug.row(25).name)).is_equal("ForceClock")
+	assert_int(debug.rows().size()).is_equal(release.rows().size() + 2)
 	for each: WireRow in release.rows():
 		var twin := debug.row(each.kind)
 		assert_str(str(twin.name)).is_equal(str(each.name))

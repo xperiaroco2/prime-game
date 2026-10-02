@@ -4,7 +4,7 @@ export const meta = {
   whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?}',
   phases: [
     { title: 'Rebase', detail: 'one agent in the task worktree' },
-    { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/tests/harness changed' },
+    { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/client/tests/harness changed' },
     { title: 'Fix', detail: 'only if a review found a blocker or major' },
   ],
 }
@@ -82,8 +82,9 @@ const base = [
 ].join('\n\n')
 const labels = ['code-reviewer']
 const thunks = [() => agent(base, { label: `review:code:#${PR}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW })]
-// tests/harness/ holds the information-leak test (as in issue-task.js).
-if (!paths.length || paths.some(p => /^(core|server|net|tests\/harness)\//.test(p))) {
+// tests/harness/ holds the information-leak test, and client/ renders public data (a rendering leak is an
+// information leak, #158), as in issue-task.js.
+if (!paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p))) {
   labels.push('netcode-security-reviewer')
   thunks.push(() => agent(base + '\n\nFocus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides.', { label: `review:netcode:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }))
 }

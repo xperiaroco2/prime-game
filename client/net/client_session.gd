@@ -11,7 +11,8 @@ extends RefCounted
 ## transport is polled there, and signals fire from it.
 
 ## The session is over for this client, for `reason`: the reason of a Rejected before Welcome
-## (wrong_version, wrong_content, full, joins_closed...), or one of the constants below.
+## (wrong_version, wrong_content, full, joins_closed...), of a Disconnecting (load_deadline), or
+## one of the constants below. EndReasons (client/app/) says each in words.
 signal ended(reason: StringName)
 signal welcomed(own_peer: int)
 ## Every decoded event, after the model folded it (a bot's script learns from these).
@@ -21,6 +22,9 @@ signal corrected(position: Vector3, velocity: Vector3)
 ## A map the host asked for was loaded: its owner instantiates it now, before LoadAck goes out.
 signal map_loaded(path: String, scene: PackedScene)
 signal voice_received(speaker: int, tick: int, opus: PackedByteArray)
+## Every decoded snapshot, after the model folded it, older ones included (SnapshotBuffer keeps
+## them by host tick, §4.7): the host tick it was taken at and its avatars (peer -> fields).
+signal snapshot_received(tick: int, avatars: Dictionary)
 
 const HOST_LOST := &"host_lost"
 const CONNECT_FAILED := &"connect_failed"
@@ -32,6 +36,11 @@ const LOAD_FAILED := &"load_failed"
 const LEFT := &"left"
 ## MoveClaim's jumps is a u16 (§4.3); a count that high never happens in one epoch.
 const MAX_JUMPS := 0xFFFF
+## The events that move this client right before its Correction (place_players.gd at Loading and
+## at End -> Lobby, life_rules.gd at a knockdown and a respawn; a death and a revive send none):
+## that Correction counts in `placements`, not in `corrections`. A new rule that places a player
+## and sends a Correction adds its event here.
+const PLACING_EVENTS: Array[StringName] = [&"PlayersPlaced", &"KnockedDown", &"Respawned"]
 
 ## The record of every decoded message, for the bots and the leak test; off by default (a real
 ## client does not need it, and a 10-minute match holds 12000 snapshots), like Match.keep_history.
@@ -44,6 +53,13 @@ var model: ClientModel
 var end_reason: StringName = &""
 ## Payloads the codec rejected (the transport has counted what NetFrame rejected).
 var bad_payloads := 0
+## The Corrections the host sent because it refused this client's claims (the debug overlay shows
+## it for #76's tuning; honest play gets none). A placement's, a knockdown's or a respawn's is not
+## counted here.
+var corrections := 0
+## The Corrections that came with a placement, a knockdown or a respawn of this client
+## (PLACING_EVENTS): the host moved it; nothing it claimed was refused.
+var placements := 0
 
 var _transport: NetTransport
 var _schema: WireSchema
@@ -68,6 +84,10 @@ var _loading_match := -1
 ## Threaded loads nobody waits for any more (the session ended, or a newer LoadMatch replaced
 ## them): each is collected once it is done, or ResourceLoader would keep its scene for good.
 var _abandoned := PackedStringArray()
+## The reason of the last Disconnecting: the end reason when the host then disconnects it.
+var _disconnecting: StringName = &""
+## True from a placing event naming this client until the Correction that follows it.
+var _placement_due := false
 
 
 ## `transport` joins (or is the host's own client of) a host whose table is `schema`'s; `mode` is
@@ -80,8 +100,10 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 	model = ClientModel.new(mode)
 	_transport.connected.connect(_on_connected)
 	_transport.connect_failed.connect(_end.bind(CONNECT_FAILED))
-	_transport.host_lost.connect(_end.bind(HOST_LOST))
+	_transport.host_lost.connect(_on_host_lost)
 	_transport.packet_received.connect(_on_packet)
+	corrected.connect(_count_correction)
+	event_received.connect(_note_placement)
 
 
 ## Polls the transport, then advances a threaded load and sends the MoveClaim due by `now_usec`.
@@ -113,6 +135,11 @@ func client_tick(now_usec: int) -> int:
 		return 0
 	@warning_ignore("integer_division")
 	return (now_usec - _clock_start) * Ticks.RATE / 1000000
+
+
+## The client tick of the last MoveClaim sent; -1 before the first.
+func last_claim_tick() -> int:
+	return _last_claim_tick
 
 
 ## What the next MoveClaims say, from the mover (the player controller or a bot's).
@@ -162,6 +189,17 @@ func force_role(peer: int, role: String) -> int:
 	return seq
 
 
+## Debug builds only (E17): forces the match clocks that start from now on to `seconds` instead
+## of the match duration setting; 0 clears it. `peer` is the sender's own id (the host's own
+## player), which the debug kind names. The bot scenarios' `clock_s` (M4-3).
+func force_clock(peer: int, seconds: int) -> int:
+	var seq := _seq + 1
+	if _send(WireMessage.new(&"ForceClock", {"seconds": seconds}, seq, peer)) != OK:
+		return -1
+	_seq = seq
+	return seq
+
+
 ## Sends one 20 ms Opus frame; the host relays it to whoever may hear this client.
 func send_voice(opus: PackedByteArray) -> Error:
 	var sent := _send(WireMessage.new(&"VoiceUp", {"seq": _voice_seq, "opus": opus}))
@@ -190,6 +228,10 @@ func _notification(what: int) -> void:
 		_abandoned.clear()
 
 
+func _on_host_lost() -> void:
+	_end(HOST_LOST if _disconnecting.is_empty() else _disconnecting)
+
+
 func _on_connected(_own_id: int) -> void:
 	var hello := {"version": WireSchema.VERSION, "content": _content}
 	_send(WireMessage.new(&"Hello", hello))
@@ -207,7 +249,7 @@ func _on_packet(_from_peer: int, kind: int, payload: PackedByteArray) -> void:
 	if keep_history:
 		view.record(message)
 	if message.name == DecodedView.SNAPSHOT:
-		model.fold_snapshot(message.fields)
+		_on_snapshot(message.fields)
 	elif message.name == DecodedView.VOICE_DOWN:
 		voice_received.emit(
 			message.fields["speaker"] as int,
@@ -236,7 +278,35 @@ func _on_event(event_name: StringName, fields: Dictionary) -> void:
 			corrected.emit(_position, _velocity)
 		&"LoadMatch":
 			_start_load(fields["match_id"] as int, fields["map"] as String)
+	if event_name == &"Disconnecting":
+		# #119 (E21): the host disconnects this client next; that ends it with this reason.
+		_disconnecting = fields["reason"]
 	event_received.emit(event_name, fields)
+
+
+## A snapshot: folded into the model, then handed to whoever draws the others (M4-7).
+func _on_snapshot(fields: Dictionary) -> void:
+	model.fold_snapshot(fields)
+	snapshot_received.emit(fields["tick"] as int, fields["avatars"] as Dictionary)
+
+
+func _count_correction(_position: Vector3, _velocity: Vector3) -> void:
+	if _placement_due:
+		_placement_due = false
+		placements += 1
+	else:
+		corrections += 1
+
+
+## A placing event that names this client: the next Correction is its placement (the host sends
+## the event first, place_players.gd and life_rules.gd).
+func _note_placement(event_name: StringName, fields: Dictionary) -> void:
+	if not PLACING_EVENTS.has(event_name) or not _welcomed:
+		return
+	if event_name == &"PlayersPlaced":
+		_placement_due = (fields["spots"] as Dictionary).has(model.own_peer)
+	elif fields["peer"] as int == model.own_peer:
+		_placement_due = true
 
 
 ## A new epoch (Welcome, Correction): its claims count jumps from 0 and start where the host put it.
@@ -268,14 +338,23 @@ func _claim(now_usec: int) -> void:
 		_last_claim_tick = tick
 
 
+## Whether the client sends MoveClaims now (its own copy of the phase and its own life).
+func claims_accepted() -> bool:
+	return _welcomed and _claims_accepted()
+
+
 ## Whether the client's own copy of the current phase accepts MoveClaim from it (§4.3): as a
-## player, living or dead, and the host's own player as peer 1.
+## player, living or downed, and the host's own player as peer 1; never while dead (the dead send
+## no intents, and the host accepts none from them).
 func _claims_accepted() -> bool:
 	var spec := model.phase_spec()
 	if spec == null:
 		return false
+	var life := model.life_of(model.own_peer)
+	if life != ClientModel.Life.ALIVE and life != ClientModel.Life.DOWNED:
+		return false
 	var mine: int = AcceptSpec.From.PLAYER
-	mine |= AcceptSpec.From.LIVING if model.is_alive(model.own_peer) else AcceptSpec.From.GHOST
+	mine |= AcceptSpec.From.LIVING if life == ClientModel.Life.ALIVE else AcceptSpec.From.DOWNED
 	if model.own_peer == NetTransport.HOST_ID:
 		mine |= AcceptSpec.From.HOST
 	return (spec.senders_of(Intents.MOVE_CLAIM) & mine) != 0

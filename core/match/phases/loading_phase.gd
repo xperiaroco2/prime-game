@@ -5,8 +5,9 @@ extends Phase
 ## to be accepted (E14), and LoadMatch(match id, map, settings) (everyone). Each player confirms
 ## once with LoadAck(match id): an ack naming another match (an earlier one of the session) is
 ## dropped, a second one is rejected (`unchanged`); a valid one emits PlayerLoaded (everyone). At
-## the deadline, `deadline_seconds` after the entry, each player without an ack gets DisconnectPeer
-## (server) and is dropped from the roster (PlayerLeft); a leave drops too. The host (peer 1) is
+## the deadline, `deadline_seconds` after the entry, each player without an ack gets
+## Disconnecting(load_deadline) (only that player, #119), then DisconnectPeer (server), and is
+## dropped from the roster (PlayerLeft); a leave drops too. The host (peer 1) is
 ## never dropped at the deadline: if its own load fails, server/ ends the session. Reports
 ## `all_loaded` when every remaining player confirmed.
 
@@ -71,6 +72,7 @@ func on_tick(ctx: MatchContext) -> void:
 	for peer: int in ctx.state.present_peers():
 		if _acks.has(peer) or peer == HOST:
 			continue
+		ctx.emit(DisconnectingEvent.new(peer, DisconnectingEvent.LOAD_DEADLINE))
 		ctx.emit(DisconnectPeerEvent.new(peer))
 		JoinRules.leave(ctx, peer)
 	_check_all_loaded(ctx)

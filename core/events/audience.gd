@@ -8,7 +8,7 @@ enum Kind {
 	EVERYONE,  ## every player who has not left
 	ONLY,  ## one present player: the joiner, the victim; not after it left
 	ROLE,  ## every present player of one role
-	LIFE,  ## every player in one life state (the ghosts)
+	LIFE,  ## every player in one life state (the downed, say)
 	SERVER,  ## a directive to server/ (RefuseJoins, DisconnectPeer): no peer
 	SENDER,  ## an intent's sender, a player or a connected newcomer: Rejected only
 }
@@ -19,7 +19,7 @@ var peer := 0
 ## The role id of ROLE.
 var role: StringName
 ## The life state of LIFE.
-var life := PlayerState.Life.GHOST
+var life := PlayerState.Life.DOWNED
 
 
 func _init(audience_kind: Kind) -> void:

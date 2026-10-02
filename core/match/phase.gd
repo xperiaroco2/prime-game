@@ -3,7 +3,7 @@ extends RefCounted
 ## The base of the phase classes (ARCHITECTURE §3.1, §9.3): what a phase does itself, its own
 ## intents, timers and outcomes. Match creates a fresh object on every entry (from its PhaseSpec)
 ## and drops it on exit, so what lives as long as the phase (the countdown's end tick, the
-## loading acks, later the votes) is a field here and never leaks into the next entry (§9.1).
+## loading acks) is a field here and never leaks into the next entry (§9.1).
 ## A result that must outlive the phase leaves as an outcome's argument or goes into MatchState.
 
 ## The spec this object was created from.

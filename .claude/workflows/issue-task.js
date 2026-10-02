@@ -4,7 +4,7 @@ export const meta = {
   whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?}',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes' },
-    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed' },
+    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed' },
     { title: 'Publish', detail: 'fix findings, verify, publish, PR, CI, handoff, board' },
   ],
 }
@@ -159,8 +159,9 @@ if (impl.verify_green) {
   phase('Review')
   const paths = impl.changed_paths || []
   // tests/harness/ holds the information-leak test: #115 touched only tests/ and tools/, and a netcode review run by
-  // hand found a major there.
-  const netcode = DESIGN || !paths.length || paths.some(p => /^(core|server|net|tests\/harness)\//.test(p))
+  // hand found a major there. client/ renders public data, and a rendering leak is an information leak (#158: the M4
+  // manager ran this review by hand on #154 twice, and both runs found real problems).
+  const netcode = DESIGN || !paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p))
   const godot = paths.some(p => /\.(gd|tscn|tres)$/.test(p)) || (!DESIGN && !paths.length)
   const base = [
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,

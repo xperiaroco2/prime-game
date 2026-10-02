@@ -6,12 +6,15 @@ import configparser
 import json
 import os
 import shutil
+import socket
 import sys
 from pathlib import Path
 
 from . import machine_env, pins
 from .common import (
     IS_CI,
+    IS_CLOUD,
+    IS_LINUX,
     IS_WINDOWS,
     OUT,
     ROOT,
@@ -32,6 +35,14 @@ from .common import (
 
 USER_SETTINGS = "~/.claude/settings.json"
 HOOKS_PATH = ".claude/githooks"
+# The stall step's backlog (tests/integration/net/enet_stall.gd, BACKLOG_POSES: ENET_RECEIVES_PER_SERVICE + 64) is one
+# small datagram per pose, and it must all wait in the host's socket: Godot's ENet keeps the kernel's default UDP
+# receive buffer (net.core.rmem_default on Linux). Some kernels charge more per datagram than others (#159).
+# test_doctor checks this against the two GDScript constants.
+STALL_BACKLOG_DATAGRAMS = 256 + 64
+UDP_PROBE_BYTES = 32
+# Twice Linux's 208 KB default: room for 512 such datagrams here. tools/cloud/setup.sh raises the default to it.
+RMEM_DEFAULT_FIX = 425984
 
 
 def _dotted(parts: tuple[int, ...]) -> str:
@@ -67,8 +78,8 @@ class Doctor:
             source = report.sources.get(var)
             if source:
                 ok(f"{var} from {source}: {os.environ.get(var, '')}")
-            elif IS_CI:
-                skip(f"{var} (not set; CI finds its tools on PATH)")
+            elif IS_CI or IS_CLOUD:
+                skip(f"{var} (not set; {'CI' if IS_CI else 'a cloud session'} finds its tools on PATH)")
             else:
                 warn(
                     f"{var} is not set: neither " + ", ".join(report.searched[:-1]) + f" nor {report.searched[-1]} "
@@ -86,8 +97,8 @@ class Doctor:
         if IS_WINDOWS and path and not Path(path).name.lower().endswith("_console.exe"):
             warn("GODOT_BIN is not the *_console.exe build; its output may not reach the runner")
         gui = os.environ.get("GODOT_GUI_BIN")
-        if IS_CI:
-            skip("GODOT_GUI_BIN (not needed in CI)")
+        if IS_CI or IS_CLOUD:
+            skip(f"GODOT_GUI_BIN (not needed in {'CI' if IS_CI else 'a cloud session'})")
         elif gui and Path(gui).is_file():
             ok(f"GODOT_GUI_BIN ({gui})")
         elif gui:
@@ -138,6 +149,9 @@ class Doctor:
     def gh(self) -> None:
         if IS_CI:
             skip("gh (not needed in CI)")
+            return
+        if IS_CLOUD:
+            skip("gh (a cloud session uses its own GitHub tools; `start` and `board` need an authenticated gh)")
             return
         exe = shutil.which("gh")
         if not exe:
@@ -230,6 +244,24 @@ class Doctor:
             else:
                 ok(text)
 
+    def udp_backlog(self) -> None:
+        """Warn early when a default UDP socket on 127.0.0.1 cannot hold the stall step's backlog (Linux only)."""
+        if not IS_LINUX:
+            return
+        try:
+            held = loopback_datagrams_held(STALL_BACKLOG_DATAGRAMS)
+        except OSError as exc:
+            warn(f"could not probe UDP on 127.0.0.1 for the stall step's backlog: {exc}")
+            return
+        if held >= STALL_BACKLOG_DATAGRAMS:
+            ok(f"a default UDP socket holds the stall backlog ({STALL_BACKLOG_DATAGRAMS} datagrams)")
+            return
+        warn(
+            f"a default UDP socket on 127.0.0.1 holds only {held} of the stall step's {STALL_BACKLOG_DATAGRAMS} "
+            f"datagrams, so verify's stall step will fail; raise the default: "
+            f"sudo sysctl -w net.core.rmem_default={RMEM_DEFAULT_FIX} (tools/cloud/setup.sh does it)"
+        )
+
     def api_dump(self) -> None:
         target = OUT / "godot-api" / pins.GODOT / "extension_api.json"
         if target.is_file():
@@ -247,6 +279,30 @@ class Doctor:
             self.fail("could not generate the engine API dump", "See tools/out/logs/doctor-api-dump.log")
 
 
+def loopback_datagrams_held(count: int, rcvbuf: int | None = None) -> int:
+    """Send `count` small datagrams to a fresh, never-read UDP socket on 127.0.0.1 with the default receive buffer
+    (or `rcvbuf` bytes); return how many it holds. The kernel drops the rest (RcvbufErrors in /proc/net/snmp)."""
+    with (
+        socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver,
+        socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender,
+    ):
+        if rcvbuf is not None:
+            receiver.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, rcvbuf)
+        receiver.bind(("127.0.0.1", 0))
+        address = receiver.getsockname()
+        for _ in range(count):
+            sender.sendto(bytes(UDP_PROBE_BYTES), address)
+        receiver.settimeout(0.2)  # loopback delivery is fast but not synchronous
+        held = 0
+        try:
+            while held < count:
+                receiver.recv(UDP_PROBE_BYTES)
+                held += 1
+        except TimeoutError:
+            pass
+        return held
+
+
 def main(quick: bool) -> int:
     say("doctor" + (" --quick" if quick else ""))
     doc = Doctor()
@@ -257,6 +313,7 @@ def main(quick: bool) -> int:
     doc.gdtoolkit()
     doc.addons()
     doc.githooks()  # also in --quick: start-task runs the quick doctor
+    doc.udp_backlog()  # also in --quick: verify's doctor step then warns minutes before its stall step fails
     if not quick:
         doc.git()
         doc.bash()

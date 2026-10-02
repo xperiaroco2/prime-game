@@ -12,6 +12,13 @@ const ACTIONS: Array[StringName] = [
 	&"interact",
 	&"put_down",
 	&"use",
+	&"debug_overlay",
+	&"give_up",
+	&"spectate_next",
+	&"spectate_previous",
+	&"swap",
+	&"task_screen",
+	&"ready",
 ]
 
 
@@ -34,6 +41,52 @@ func test_put_down_is_q() -> void:
 	assert_array(keys).contains([KEY_Q])
 
 
-func test_ghosts_have_no_fly_down_action() -> void:
-	# Ghosts do not fly (the engineer's correction of 2026-09-30, #46).
+func test_ready_is_f() -> void:
+	# #169: F readies up in the lobby without the Esc menu (a placeholder, "not a decision").
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"ready"):
+		var key := event as InputEventKey
+		if key != null:
+			keys.append(key.physical_keycode)
+	assert_array(keys).contains([KEY_F])
+
+
+func test_the_debug_overlay_is_f3() -> void:
+	# The M4 ADR's controls (D6): F3 shows the debug overlay in a debug build.
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"debug_overlay"):
+		var key := event as InputEventKey
+		if key != null:
+			keys.append(key.physical_keycode)
+	assert_array(keys).contains([KEY_F3])
+
+
+func test_give_up_is_g_and_the_mouse_buttons_cycle_the_spectate_target() -> void:
+	# The M4 ADR's controls (D6): hold G to give up; left and right mouse buttons for the next
+	# and the previous spectate target.
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"give_up"):
+		var key := event as InputEventKey
+		if key != null:
+			keys.append(key.physical_keycode)
+	assert_array(keys).contains([KEY_G])
+	var next := InputMap.action_get_events(&"spectate_next")[0] as InputEventMouseButton
+	var previous := InputMap.action_get_events(&"spectate_previous")[0] as InputEventMouseButton
+	assert_int(next.button_index).is_equal(MOUSE_BUTTON_LEFT)
+	assert_int(previous.button_index).is_equal(MOUSE_BUTTON_RIGHT)
+
+
+func test_swap_is_x_and_the_task_screen_is_tab() -> void:
+	# The M4 ADR's controls (D6, M4-8): X swaps the hand and the belt; Tab held shows the tasks.
+	for pair: Array in [[&"swap", KEY_X], [&"task_screen", KEY_TAB]]:
+		var keys: Array[Key] = []
+		for event: InputEvent in InputMap.action_get_events(pair[0] as StringName):
+			var key := event as InputEventKey
+			if key != null:
+				keys.append(key.physical_keycode)
+		assert_array(keys).contains([pair[1]])
+
+
+func test_the_downed_have_no_fly_down_action() -> void:
+	# The downed (once ghosts) do not fly (the engineer's correction of 2026-09-30, #46).
 	assert_bool(InputMap.has_action(&"fly_down")).is_false()

@@ -64,8 +64,9 @@ def command(
     offscreen: bool,
     audio: str,
     user_args: list[str],
+    window: list[str] | None = None,
 ) -> list[str]:
-    """The Godot command line of one instance."""
+    """The Godot command line of one instance; `window` (such as --position and --resolution) only with a window."""
     cmd = [exe, "--no-header", "--path", str(project)]
     if headless:
         # --headless also forces the Dummy audio driver; the display driver alone keeps real audio.
@@ -73,6 +74,7 @@ def command(
     else:
         if offscreen:
             cmd += ["--position", shot.POSITION]
+        cmd += window or []
         if audio == "dummy":
             cmd += ["--audio-driver", "Dummy"]
     cmd += ["-s", target] if target.endswith(".gd") else [target]

@@ -64,9 +64,16 @@ script = ExtResource("6_e32e0")
 script = ExtResource("9_4mixv")
 skip = true
 
+[sub_resource type="Resource" id="Resource_d1sc0"]
+script = ExtResource("7_w7enb")
+event = &"Disconnecting"
+fields = {
+"reason": "load_deadline"
+}
+
 [sub_resource type="Resource" id="Resource_k5obd"]
 script = ExtResource("4_t7k64")
-steps = Array[ExtResource("5_fgmlw")]([SubResource("Resource_ekakw"), SubResource("Resource_ilgv7")])
+steps = Array[ExtResource("5_fgmlw")]([SubResource("Resource_ekakw"), SubResource("Resource_ilgv7"), SubResource("Resource_d1sc0")])
 
 [resource]
 script = ExtResource("3_qipg4")

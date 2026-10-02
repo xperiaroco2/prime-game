@@ -20,9 +20,9 @@ extends TaskType
 ## its circle's cylinder (rests_in) is delivered: locked (PickUp gets `unavailable`), its circle
 ## done, its subtask done. A held package never counts: holding raises no item_rested.
 ##
-## Emits: StationPlaced, ItemSpawned (everyone) in the deal; PackageDelivered and TaskProgress
-## (everyone) on a delivery. Raises item_rested (spawn) in the deal and subtask_done on a
-## delivery.
+## Emits: StationPlaced, ItemSpawned (everyone) in the deal; PackageDelivered, TaskState and
+## TaskProgress (everyone) on a delivery. Raises item_rested (spawn) in the deal and subtask_done
+## on a delivery.
 
 ## How far below its circle's floor a rest position still counts: float noise between a floor the
 ## host's physics finds and a hand-placed marker, not a tolerance for a raised marker (§9.6).
@@ -153,6 +153,7 @@ func emits() -> Array[Script]:
 		StationPlacedEvent,
 		ItemSpawnedEvent,
 		PackageDeliveredEvent,
+		TaskStateEvent,
 		TaskProgressEvent,
 	]
 

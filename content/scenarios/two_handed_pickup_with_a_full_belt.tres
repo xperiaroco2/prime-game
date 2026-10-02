@@ -1,0 +1,90 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://cuu713ytf4wei"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_5t7fn"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="2_expect"]
+[ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="3_pickup"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="4_ready"]
+[ext_resource type="Script" uid="uid://cx5gtr3ejdvpi" path="res://core/content/scenario/step_swap.gd" id="5_swap"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="6_waitfor"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="7_walkto"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="8_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="9_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="10_step"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="11_target"]
+
+[sub_resource type="Resource" id="Ready_3"]
+script = ExtResource("4_ready")
+
+[sub_resource type="Resource" id="WaitFor_4"]
+script = ExtResource("6_waitfor")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Target_1"]
+script = ExtResource("11_target")
+kind = 2
+item_kind = &"knife"
+
+[sub_resource type="Resource" id="WalkTo_5"]
+script = ExtResource("7_walkto")
+target = SubResource("Target_1")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="PickUp_6"]
+script = ExtResource("3_pickup")
+target = SubResource("Target_1")
+
+[sub_resource type="Resource" id="Swap_7"]
+script = ExtResource("5_swap")
+
+[sub_resource type="Resource" id="WalkTo_8"]
+script = ExtResource("7_walkto")
+target = SubResource("Target_1")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="PickUp_9"]
+script = ExtResource("3_pickup")
+target = SubResource("Target_1")
+
+[sub_resource type="Resource" id="Target_2"]
+script = ExtResource("11_target")
+kind = 0
+
+[sub_resource type="Resource" id="WalkTo_10"]
+script = ExtResource("7_walkto")
+target = SubResource("Target_2")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="PickUp_11"]
+script = ExtResource("3_pickup")
+target = SubResource("Target_2")
+
+[sub_resource type="Resource" id="Expect_12"]
+script = ExtResource("2_expect")
+event = &"ItemPlaced"
+fields = {
+"cause": "swap"
+}
+
+[sub_resource type="Resource" id="Swap_13"]
+script = ExtResource("5_swap")
+expect_rejected = &"two_handed"
+
+[sub_resource type="Resource" id="B1_script"]
+script = ExtResource("9_script")
+steps = Array[ExtResource("10_step")]([SubResource("Ready_3"), SubResource("WaitFor_4"), SubResource("WalkTo_5"), SubResource("PickUp_6"), SubResource("Swap_7"), SubResource("WalkTo_8"), SubResource("PickUp_9"), SubResource("WalkTo_10"), SubResource("PickUp_11"), SubResource("Expect_12"), SubResource("Swap_13")])
+
+[resource]
+script = ExtResource("8_scenario")
+mode = ExtResource("1_mode")
+session_seed = 455000000007
+settings = Dictionary[StringName, int]({
+&"knives": 2,
+&"packages": 1
+})
+scripts = Array[ExtResource("9_script")]([SubResource("B1_script")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 60.0

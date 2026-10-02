@@ -88,16 +88,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instances", type=int, default=1, help="copies at once, each with its own log (default 1)")
     p.add_argument("--audio", choices=["dummy", "default"], default="dummy", help="audio driver (default dummy)")
 
-    p = sub.add_parser("host", help="a headless host over ENet that prints the roster, phase and counters; Ctrl+C stops")
-    p.add_argument("--port", type=int, help="UDP port (default: the script's placeholder port)")
-    p.add_argument("--clients", type=int, default=0, help="also start N headless clients joined on 127.0.0.1")
+    p = sub.add_parser("host", help="host the game over ENet in a window (--headless: M3's session); Ctrl+C stops")
+    p.add_argument("--port", type=int, help="UDP port (default: the game's placeholder port)")
+    p.add_argument("--clients", type=int, default=0, help="also start N clients joined on 127.0.0.1 (windows tiled)")
     p.add_argument("--local", action="store_true", help="listen on 127.0.0.1 only (this PC's clients; no firewall)")
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
+    _view_options(p)
 
-    p = sub.add_parser("join", help="a headless client that joins a host over ENet and prints what it sees")
+    p = sub.add_parser("join", help="join a host over ENet in a window (--headless: M3's session); Ctrl+C stops")
     p.add_argument("address", help="the host's address, such as 192.168.0.195 or 127.0.0.1")
-    p.add_argument("--port", type=int, help="UDP port (default: the script's placeholder port)")
+    p.add_argument("--port", type=int, help="UDP port (default: the game's placeholder port)")
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
+    _view_options(p)
 
     sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
 
@@ -116,6 +118,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("hook", help="Claude Code hooks (run by .claude/hooks/run-hook.sh, input on stdin)")
     p.add_argument("name", choices=["guard", "gd-edit"])
     return parser
+
+
+def _view_options(p: argparse.ArgumentParser) -> None:
+    """`host` and `join`: windows by default, headless in an agent's shell (CLAUDECODE set; the M4 ADR's E20)."""
+    view = p.add_mutually_exclusive_group()
+    view.add_argument("--headless", action="store_true", help="M3's headless session, no window; agents' checks")
+    view.add_argument("--windows", action="store_true", help="windows where CLAUDECODE is set; agents never pass it")
 
 
 def split_user_args(argv: list[str]) -> tuple[list[str], list[str]]:
@@ -210,11 +219,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "host":
             from . import hostjoin
 
-            return hostjoin.host(port=args.port, clients=args.clients, local=args.local, seconds=args.seconds)
+            return hostjoin.host(
+                port=args.port,
+                clients=args.clients,
+                local=args.local,
+                seconds=args.seconds,
+                headless=args.headless,
+                windows=args.windows,
+            )
         if args.command == "join":
             from . import hostjoin
 
-            return hostjoin.join(args.address, port=args.port, seconds=args.seconds)
+            return hostjoin.join(
+                args.address, port=args.port, seconds=args.seconds, headless=args.headless, windows=args.windows
+            )
         if args.command == "credits":
             from . import credits
 

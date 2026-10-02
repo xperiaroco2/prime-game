@@ -20,7 +20,8 @@ const WON := &"won"
 var mode: GameMode
 var state: MatchState
 ## The host's content hash (§4.3, E1): its game mode's ContentHash combined with the SHA-256 of
-## every level file the mode names, which server/ computes; each Hello's `content` must equal it.
+## every level file the mode names and of every scene and resource those levels reach (#118),
+## which server/ computes; each Hello's `content` must equal it.
 var content_hash := 0
 var command_log: CommandLog
 ## Why the mode was refused (ModeCheck, §9.1), each problem once; empty when it runs.
@@ -254,7 +255,7 @@ func take_outbox() -> Array[EmittedEvent]:
 func snapshot_for(peer: int) -> Dictionary:
 	if _phase_spec == null or not _phase_spec.snapshots or not state.is_present(peer):
 		return {}
-	return Snapshots.for_peer(state, peer)
+	return Snapshots.for_peer(state, peer, _ticked_through)
 
 
 ## The speakers `listener` may hear now (§6).
@@ -406,6 +407,8 @@ func _transition(outcome: StringName, argument: Variant) -> bool:
 	# The row's actions ask about the level of the phase it enters (§4.5, E9).
 	_world.use_level(_level_path(to_spec))
 	_in_transition = true
+	# A channel (a raise) does not outlive its phase: it stops, and says so, before the row runs.
+	Channels.stop_all(ctx)
 	for action: RuleEffect in row.actions:
 		action.run(ctx)
 	_phase.exit(_context("phase %s" % from))
@@ -440,6 +443,8 @@ func _dispatch(command: MatchCommand) -> void:
 		_phase.on_peer_left(ctx, command.peer)
 	elif command.kind == Intents.FORCE_ROLE:
 		_force_role(command)
+	elif command.kind == Intents.FORCE_CLOCK:
+		_force_clock(command)
 	elif not Intents.ALL.has(command.kind):
 		record_error("unknown command %s from peer %d" % [command.kind, command.peer])
 	elif not _accepts(command):
@@ -463,6 +468,16 @@ func _force_role(command: MatchCommand) -> void:
 		record_error("ForceRole: peer %d, role %s, which the mode lacks" % [command.peer, role_id])
 	else:
 		state.forced_roles[command.peer] = role_id
+
+
+## ForceClock (debug builds only, §8): in any phase, for the match clocks StartClock starts from
+## now on; 0 clears it, and a negative number is a match error and ignored. Kept in the command log.
+func _force_clock(command: MatchCommand) -> void:
+	var seconds := command.get_int("seconds", -1)
+	if seconds < 0:
+		record_error("ForceClock: %d seconds" % seconds)
+	else:
+		state.forced_clock_s = seconds
 
 
 ## An intent the phase's allowlist refuses (§3.1, §4.3) gets Rejected (`not_accepted`), except:
@@ -499,7 +514,11 @@ func _run_action(command: MatchCommand, ctx: MatchContext) -> void:
 		ctx.reject(command, reason)
 
 
-## Whether the current phase's allowlist accepts the intent from its sender (§3.1).
+## Whether the current phase's allowlist accepts the intent from its sender (§3.1). The dead send
+## no intents as players (vision revision 1): PLAYER, LIVING and DOWNED accept none, so an intent
+## still in flight at a death never reaches a rule. HOST still accepts the host's own player dead
+## for the session's controls (ReturnToLobby on the end screen, where whoever died in the round is
+## still dead until ResetMatch), never for a player's action (Intents.PLAYER_ACTIONS).
 func _accepts(command: MatchCommand) -> bool:
 	var from := _phase_spec.senders_of(command.kind)
 	var player := state.player(command.peer)
@@ -507,13 +526,12 @@ func _accepts(command: MatchCommand) -> bool:
 		return from & AcceptSpec.From.NEWCOMER != 0
 	if not player.is_present():
 		return false
-	if from & AcceptSpec.From.PLAYER != 0:
-		return true
-	if from & AcceptSpec.From.LIVING != 0 and player.life == PlayerState.Life.ALIVE:
-		return true
-	if from & AcceptSpec.From.GHOST != 0 and player.life == PlayerState.Life.GHOST:
-		return true
-	return from & AcceptSpec.From.HOST != 0 and command.peer == 1
+	var host := from & AcceptSpec.From.HOST != 0 and command.peer == 1
+	if player.life == PlayerState.Life.DEAD:
+		return host and not Intents.PLAYER_ACTIONS.has(command.kind)
+	var living := from & AcceptSpec.From.LIVING != 0 and player.life == PlayerState.Life.ALIVE
+	var downed := from & AcceptSpec.From.DOWNED != 0 and player.life == PlayerState.Life.DOWNED
+	return from & AcceptSpec.From.PLAYER != 0 or living or downed or host
 
 
 ## The first rule for the intent among the held item's actions, the actor's role's and the
@@ -580,7 +598,7 @@ func _record_views(at_tick: int) -> void:
 		if _phase_spec.snapshots:
 			if not _snapshots.has(peer):
 				_snapshots[peer] = {}
-			_snapshots[peer][at_tick] = Snapshots.for_peer(state, peer)
+			_snapshots[peer][at_tick] = Snapshots.for_peer(state, peer, at_tick)
 		if not _speakers.has(peer):
 			_speakers[peer] = {}
 		_speakers[peer][at_tick] = speakers_for(peer)

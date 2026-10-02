@@ -19,7 +19,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
   it), `WireRow`, `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the
   fields, `seq` and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
-  `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), from the mode's parts the caller passes.
+  `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), from the mode's parts the caller passes;
+  it hashes the level files and every scene and resource they reach, scripts left out (#118).
 
 ## Rules
 - A new message kind is one row in `WireSchema` (`NetKindTable.game()` is built from it): pick its lane (voice takes
@@ -60,8 +61,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   other change to a row bumps the protocol version, which equals `core/`'s `JoinRules.PROTOCOL_VERSION` (a test pins
   them).
 - A kind sent only on change (`SelfStatus`) is RELIABLE: on LATEST a lost last change stays stale for good.
-- Debug commands (kinds 24 to 31, `ForceRole`) are rows of a debug build's table only: a release build neither sends
-  nor decodes them (§4.3, E17).
+- Debug commands (kinds 24 to 31: `ForceRole`, `ForceClock`) are rows of a debug build's table only: a release
+  build neither sends nor decodes them (§4.3, E17).
 
 ## Tests
 - Round-trip tests for every schema (serialize, deserialize, compare) in `tests/unit/`, a fuzz test of every decoder

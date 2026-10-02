@@ -1,11 +1,11 @@
 extends GdUnitTestSuite
-## Intents.FIELDS (ARCHITECTURE §4.1, §4.4): every intent and ForceRole declare their fields, which
-## the rules read through and the wire table is checked against (3d).
+## Intents.FIELDS (ARCHITECTURE §4.1, §4.4): every intent, ForceRole and ForceClock declare their
+## fields, which the rules read through and the wire table is checked against (3d).
 
 
-func test_every_intent_and_force_role_declare_their_fields_and_nothing_else_does() -> void:
+func test_every_intent_and_debug_command_declare_their_fields_and_nothing_else_does() -> void:
 	var expected: Array[StringName] = Intents.ALL.duplicate()
-	expected.append(Intents.FORCE_ROLE)
+	expected.append_array([Intents.FORCE_ROLE, Intents.FORCE_CLOCK])
 	assert_array(Intents.FIELDS.keys()).contains_exactly_in_any_order(expected)
 
 

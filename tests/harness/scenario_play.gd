@@ -21,6 +21,9 @@ const MATCH_ENDED := &"MatchEnded"
 const ARRIVED_SLACK_M := 0.001
 ## The most steps one bot may finish in one tick, against a script that never waits.
 const MAX_STEPS_PER_TICK := 32
+## The fields that name a player: a scenario writes them as a bot's number, mapped through
+## ScenarioPeers (`peer`; RaiseStarted's and RaiseStopped's `raiser` and `target`, M4-4).
+const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target"]
 
 var scenario: BotScenario
 var bots: Array[ScenarioBot] = []
@@ -39,8 +42,9 @@ func _init(bot_scenario: BotScenario, bot_peers: ScenarioPeers) -> void:
 
 
 ## Whether an event named `name` with payload `fields`, received by `receiver`, is `want_name`
-## and matches `want` (a subset): a field that names a player (`peer`) holds a bot's number, mapped
-## through `bot_peers`; strings and StringNames compare as text; vectors and floats approximately.
+## and matches `want` (a subset): a field that names a player (PLAYER_FIELDS) holds a bot's
+## number, mapped through `bot_peers`; strings and StringNames compare as text; vectors and floats
+## approximately.
 static func matches_fields(
 	event: WireMessage,
 	receiver: ScenarioBot,
@@ -53,7 +57,7 @@ static func matches_fields(
 	for key: Variant in want:
 		var field := str(key)
 		var wanted: Variant = want[key]
-		if field == "peer" and wanted is int:
+		if PLAYER_FIELDS.has(field) and wanted is int:
 			wanted = bot_peers.peer_of(wanted as int)
 		var got: Variant = (
 			receiver.field_of(event, field) if receiver != null else event.fields.get(field)
@@ -74,7 +78,7 @@ static func event_matches(
 	for key: Variant in want:
 		var field := str(key)
 		var wanted: Variant = want[key]
-		if field == "peer" and wanted is int:
+		if PLAYER_FIELDS.has(field) and wanted is int:
 			wanted = bot_peers.peer_of(wanted as int)
 		var got: Variant = payload[field] if payload.has(field) else event.get(field)
 		if not same(got, wanted):
@@ -112,8 +116,34 @@ func _act(bot: ScenarioBot, at_tick: int) -> void:
 		if result != Result.DONE:
 			break
 		bot.finish_step()
-	if not bot.gone and not bot.current_step() is StepWalkTo:
+	if not bot.gone and not bot.dead and not bot.current_step() is StepWalkTo:
 		_stand(bot)
+
+
+## The host disconnected `bot` (core/'s DisconnectPeer, or its session ended): it acts no more. A
+## WaitFor or Expect left in its script is checked on what it received before (Disconnecting,
+## #119); any step still left then fails, so a script never ends unseen with its connection.
+## Leftover steps are not started: each looks back from the cursors of the last step that started,
+## so they are looser than live play (an event from before that step counts). Enough for one
+## leftover wait; a script that needs order among leftovers needs a cursor per step here.
+func _disconnected(bot: ScenarioBot, at_tick: int) -> void:
+	tick_now = at_tick
+	while failures.is_empty():
+		var step := bot.current_step()
+		if step == null:
+			break
+		var expected := step as StepWaitFor
+		var expect := step as StepExpect
+		var done := false
+		if expected != null:
+			done = _received(bot, bot.step_cursor, expected.event, expected.fields)
+		elif expect != null:
+			done = _received(bot, bot.previous_cursor, expect.event, expect.fields)
+		if not done:
+			_fail_step(bot, "the host disconnected the bot before this step was done")
+			break
+		bot.finish_step()
+	bot.gone = true
 
 
 func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
@@ -137,6 +167,14 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		result = _put_down(bot, step as StepPutDown)
 	elif step is StepUse:
 		result = _use(bot, step as StepUse)
+	elif step is StepRaise:
+		result = _raise(bot, step as StepRaise, elapsed)
+	elif step is StepStopRaise:
+		result = _stop_raise(bot, step as StepStopRaise)
+	elif step is StepGiveUp:
+		result = _give_up(bot, step as StepGiveUp)
+	elif step is StepSwap:
+		result = _swap(bot, step as StepSwap)
 	elif step is StepJump:
 		# D3 (a), the designer's answer on #96: the step says what a player does, and the bot
 		# counts it as one more jump in its epoch, as a client's MoveClaim carries it (§4.3, E2).
@@ -245,14 +283,17 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 	var distance := offset.length()
 	if distance <= step.stop_m + ARRIVED_SLACK_M:
 		return Result.DONE
+	if bot.dead:
+		return _fail_step(bot, "a dead bot cannot walk: the dead send no claims")
 	var ticks := _travel_ticks(bot)
 	if ticks <= 0:
 		return Result.WAITING
 	var rules := scenario.mode.player_rules
-	var sprinting := step.sprint and (bot.ghost or bot.sprint_available)
+	# The downed crawl: the crawl speed, never a sprint.
+	var sprinting := step.sprint and not bot.downed and bot.sprint_available
 	var speed := rules.sprint_speed_mps if sprinting else rules.walk_speed_mps
-	if bot.ghost:
-		speed *= rules.ghost_speed_factor
+	if bot.downed:
+		speed = rules.crawl_speed_mps
 	var direction := offset / distance
 	var travel := minf(speed * ticks / Ticks.RATE, distance - step.stop_m)
 	_claim(bot, bot.position + direction * travel, direction * speed, sprinting)
@@ -319,6 +360,69 @@ func _use(bot: ScenarioBot, step: StepUse) -> Result:
 			return not by is int or by == bot.peer
 	)
 	return _intent_result(bot, step, done != null)
+
+
+## Sends Raise of the target bot's player, then holds it: done once its RaiseStarted arrived and
+## hold_s passed since the step started, or the raise ended before (RaiseStopped, Revived).
+func _raise(bot: ScenarioBot, step: StepRaise, elapsed: int) -> Result:
+	if bot.sent_seq < 0:
+		var other := peers.peer_of(step.target.bot)
+		if other == 0:
+			return _fail_step(bot, "the bot cannot know which player its target is")
+		bot.sent_peer = other
+		_send(bot, Intents.RAISE, {"target": other})
+		return Result.WAITING
+	var raiser := bot.peer
+	var target := bot.sent_peer
+	var started := bot.find_since(
+		bot.step_cursor,
+		func(event: WireMessage) -> bool:
+			return (
+				event.name == &"RaiseStarted"
+				and event.fields["raiser"] == raiser
+				and event.fields["target"] == target
+			)
+	)
+	var result := _intent_result(bot, step, started != null)
+	if result != Result.DONE or not step.expect_rejected.is_empty():
+		return result
+	var ended := bot.find_since(
+		bot.step_cursor,
+		func(event: WireMessage) -> bool:
+			if event.name == &"RaiseStopped":
+				return event.fields["raiser"] == raiser
+			return event.name == &"Revived" and event.fields["peer"] == target
+	)
+	if ended != null or elapsed >= Ticks.from_seconds(step.hold_s):
+		return Result.DONE
+	return Result.WAITING
+
+
+func _stop_raise(bot: ScenarioBot, step: StepStopRaise) -> Result:
+	if bot.sent_seq < 0:
+		_send(bot, Intents.STOP_RAISE, {})
+		return Result.WAITING
+	var raiser := bot.peer
+	var stopped := bot.find_since(
+		bot.step_cursor,
+		func(event: WireMessage) -> bool:
+			return event.name == &"RaiseStopped" and event.fields["raiser"] == raiser
+	)
+	return _intent_result(bot, step, stopped != null)
+
+
+func _give_up(bot: ScenarioBot, step: StepGiveUp) -> Result:
+	if bot.sent_seq < 0:
+		_send(bot, Intents.GIVE_UP, {})
+		return Result.WAITING
+	return _intent_result(bot, step, _done_by(bot, &"Died", {}))
+
+
+func _swap(bot: ScenarioBot, step: StepSwap) -> Result:
+	if bot.sent_seq < 0:
+		_send(bot, Intents.SWAP, {})
+		return Result.WAITING
+	return _intent_result(bot, step, _done_by(bot, &"Swapped", {}))
 
 
 ## The horizontal unit direction from the bot to `target`; zero when it stands on it; INF when it

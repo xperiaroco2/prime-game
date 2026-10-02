@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## RoundPhase (ARCHITECTURE §3.5, §9.4): a leave mid-round goes to the life rule (LifeRules.leave):
-## life `left`, which counts as dead for the win conditions; no body; PlayerLeft to everyone else;
+## life `left`, which "no crew present" counts (§3.4); no body; PlayerLeft to everyone else;
 ## the fact player_left before the held item drops on the floor below where the player stood. A
 ## newcomer that never joined is forgotten silently (2b's JoinRules.forget_newcomer).
 
@@ -70,7 +70,7 @@ func test_the_last_crew_member_leaving_over_its_circle_is_a_dissident_win() -> v
 	]
 	mode.win_conditions = [
 		FixtureModes.win(&"crew", FixtureCounterAtLeast.of(&"crew_win")),
-		FixtureModes.win(&"dissidents", FixtureRoleAllDead.of(&"crew")),
+		FixtureModes.win(&"dissidents", FixtureRoleAllLeft.of(&"crew")),
 	]
 	var game := FixtureCombatModes.in_round(mode, [P1, P2])
 	game.state.player(P1).role = &"dissident"
@@ -83,17 +83,18 @@ func test_the_last_crew_member_leaving_over_its_circle_is_a_dissident_win() -> v
 	assert_array(FixtureModes.notes(game)).not_contains(["won crew"])
 
 
-func test_a_ghost_leaving_keeps_its_body() -> void:
+func test_a_downed_player_leaving_leaves_no_body() -> void:
+	# The engineer's answer 1 on PR #133: a downed or dead player who leaves leaves no body.
 	var game := FixtureCombatModes.in_round(FixtureCombatModes.basic(), [P1, P2])
 	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
 	FixtureCombatModes.use(game, P1, Vector3(0, 0, 1))
 	FixtureModes.run_ticks(game, FixtureCombatModes.COOLDOWN_TICKS)
 	FixtureCombatModes.use(game, P1, Vector3(0, 0, 1))
-	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.GHOST)
+	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.DOWNED)
 	FixtureModes.send(game, Intents.PEER_LEFT, P2)
 	assert_int(game.state.player(P2).life).is_equal(PlayerState.Life.LEFT)
-	assert_dict(game.state.bodies).is_equal({P2: Vector3(0, 0, 1)})
+	assert_dict(game.state.bodies).is_empty()
 	assert_array(FixtureCombatModes.received(game, P1, &"PlayerLeft")).has_size(1)
 
 

@@ -19,6 +19,7 @@ func test_the_setup_is_checked_against_the_mode() -> void:
 	scenario.settings = {&"speed": 3}
 	scenario.expected_ends = [&"aliens"]
 	scenario.time_limit_s = 0.0
+	scenario.clock_s = -1
 	scenario.session_seed = 1
 	var problems := "\n".join(scenario.problems())
 	for expected: String in [
@@ -29,7 +30,8 @@ func test_the_setup_is_checked_against_the_mode() -> void:
 		"setting speed",
 		"expected end aliens",
 		"time_limit_s",
-		"session_seed 1 is below"
+		"session_seed 1 is below",
+		"clock_s -1 is outside 0 to 65535",
 	]:
 		assert_str(problems).contains(expected)
 	scenario.scripts[0].steps.push_front(StepJoin.new())
@@ -49,10 +51,10 @@ func test_steps_and_targets_report_their_problems() -> void:
 	pick.target.kind = ScenarioTarget.Kind.NEAREST
 	var wait := StepWait.new()
 	wait.expect_rejected = &"too_soon"
-	var ghost_pick := StepPickUp.new()
-	ghost_pick.target = ScenarioTarget.new()
-	ghost_pick.expect_rejected = &"not_accepted"
-	scenario.scripts[0].steps.append_array([walk, pick, wait, ghost_pick])
+	var downed_pick := StepPickUp.new()
+	downed_pick.target = ScenarioTarget.new()
+	downed_pick.expect_rejected = &"not_accepted"
+	scenario.scripts[0].steps.append_array([walk, pick, wait, downed_pick])
 	var problems := scenario.problems()
 	(
 		assert_array(Array(problems))
@@ -96,7 +98,11 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 		StepJump.new(),
 		StepExpect.new(),
 		StepExpectNone.new(),
-		StepLeave.new()
+		StepLeave.new(),
+		StepRaise.new(),
+		StepStopRaise.new(),
+		StepGiveUp.new(),
+		StepSwap.new()
 	]:
 		names.append(step.step_name())
 	assert_array(names).is_equal(
@@ -115,7 +121,11 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 			&"Jump",
 			&"Expect",
 			&"ExpectNone",
-			&"Leave"
+			&"Leave",
+			&"Raise",
+			&"StopRaise",
+			&"GiveUp",
+			&"Swap"
 		]
 	)
 	# The steps that send an intent, so expect_rejected applies (Join sends Hello).
@@ -123,6 +133,23 @@ func test_every_step_names_itself_as_in_section_9_7() -> void:
 	assert_bool(StepUse.new().sends_intent()).is_true()
 	assert_bool(StepWalkTo.new().sends_intent()).is_false()
 	assert_str(StepUse.new().until).is_equal("Swung")
+	for raising: ScenarioStep in [
+		StepRaise.new(), StepStopRaise.new(), StepGiveUp.new(), StepSwap.new()
+	]:
+		assert_bool(raising.sends_intent()).is_true()
+
+
+func test_a_raise_step_targets_a_bot() -> void:
+	var raise := StepRaise.new()
+	assert_array(Array(raise.problems())).is_equal(["no target"])
+	raise.target = ScenarioTarget.new()
+	assert_array(Array(raise.problems())).is_equal(["a Raise targets a player: bot(i)"])
+	raise.target.kind = ScenarioTarget.Kind.BOT
+	raise.target.bot = 3
+	raise.hold_s = -1.0
+	assert_array(Array(raise.problems())).is_equal(["hold_s -1.0 is outside 0 to 600"])
+	raise.hold_s = 2.0
+	assert_array(Array(raise.problems())).is_empty()
 
 
 func _scenario() -> BotScenario:

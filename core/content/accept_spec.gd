@@ -4,18 +4,26 @@ extends ContentPart
 ## accepts it. An intent the allowlist does not name, or from a sender it does not name, is
 ## rejected with `not_accepted`.
 
-## Who may send it; a sender matching any set flag is accepted.
+## Who may send it; a sender matching any set flag is accepted. 8 was the ghosts' bit: it is never
+## reused, so a mode written for ghosts is refused by the mode check (PhaseSpec) instead of
+## silently accepting someone else. The dead send no intents as players: Match accepts none from
+## them under PLAYER, LIVING or DOWNED; HOST still accepts the host's own player dead (its session
+## controls, such as ReturnToLobby on the end screen). A flag for the dead is added only when a mode
+## needs one.
 enum From {
 	NEWCOMER = 1,  ## a connected peer whose Hello was not accepted yet
-	PLAYER = 2,  ## any player
+	PLAYER = 2,  ## any player but the dead
 	LIVING = 4,  ## a living player
-	GHOST = 8,  ## a dead player
 	HOST = 16,  ## the host's own player, peer 1
+	DOWNED = 32,  ## a downed player
 }
+
+## Every flag of From: a `from` with another bit names no sender.
+const ALL_FROM := From.NEWCOMER | From.PLAYER | From.LIVING | From.HOST | From.DOWNED
 
 ## An intent name (Intents).
 @export var intent: StringName
-@export_flags("Newcomer", "Player", "Living", "Ghost", "Host") var from := 0
+@export_flags("Newcomer:1", "Player:2", "Living:4", "Host:16", "Downed:32") var from := 0
 
 
 static func of(intent_name: StringName, senders: int) -> AcceptSpec:

@@ -1,8 +1,11 @@
 class_name PlayerRules
 extends ContentPart
-## The numbers of a player's body (ARCHITECTURE §9.3, §9.5): health, stamina, speeds, jump and
-## capsule, in whole points, metres and seconds. core/ keeps health and stamina in thousandths
-## (§3.3); the movement rule and the stamina ledger (2d, §7.1) read the rest.
+## The numbers of a player's body (ARCHITECTURE §9.3, §9.5): health, stamina, speeds, jump,
+## capsule and the life times, in whole points, metres and seconds. core/ keeps health and stamina
+## in thousandths (§3.3); the movement rule and the stamina ledger (2d, §7.1) read the speeds, the
+## life rule (§3.4, M4-2, M4-3) the knockdown, respawn and invulnerability times and a respawn
+## marker's free radius. The client reads the same numbers for its own crawl
+## and countdowns (E27).
 ##
 ## The class defaults are 0 on purpose (the engineer's answer (1) on #58): the Godot saver drops
 ## a property equal to its class default, so with neutral defaults every number of a mode is
@@ -22,9 +25,21 @@ extends ContentPart
 ## Metres a jump lifts the feet above the floor it started from, at most.
 @export var jump_height_m := 0.0
 @export var jump_cost := 0
-## A ghost walks and sprints at the living's speeds times this factor (the engineer's decision of
-## 2026-09-30, #46). Its bounds, 1 to 3, are proposed, not confirmed.
-@export var ghost_speed_factor := 0.0
+## A downed player's speed: it crawls, never sprints or jumps (vision revision 1, §7.1). Its
+## bounds, 0.1 m/s to the walk speed, are placeholders, "not a decision".
+@export var crawl_speed_mps := 0.0
+## Seconds a knocked-down player stays downed before it dies (vision revision 1). Its bounds, 1 to
+## 120, are placeholders, "not a decision".
+@export var knockdown_s := 0.0
+## Seconds from a death to the respawn (vision revision 1, V6; LifeTicks with a Respawn). Its
+## bounds, 1 to 300, are placeholders, "not a decision".
+@export var respawn_s := 0.0
+## Seconds a revived or respawned player is invulnerable: strikes skip it, and nothing ends it
+## early (V8; the engineer's answer 3 on PR #133). Its bounds, 0 to 30, are placeholders.
+@export var invulnerable_s := 0.0
+## A respawn marker is free when no living or downed player stands within this many metres of it
+## (V6; from its feet). Its bounds, 0 to 5, are placeholders, "not a decision".
+@export var respawn_free_m := 0.0
 @export var capsule_radius_m := 0.0
 @export var capsule_height_m := 0.0
 @export var eye_height_m := 0.0
@@ -46,7 +61,11 @@ func check(_mode: GameMode) -> PackedStringArray:
 			out_of_bounds("sprint_start", sprint_start, 0, stamina),
 			out_of_bounds("jump_height_m", jump_height_m, 0, 5),
 			out_of_bounds("jump_cost", jump_cost, 0, stamina),
-			out_of_bounds("ghost_speed_factor", ghost_speed_factor, 1, 3),
+			out_of_bounds("crawl_speed_mps", crawl_speed_mps, 0.1, walk_speed_mps),
+			out_of_bounds("knockdown_s", knockdown_s, 1, 120),
+			out_of_bounds("respawn_s", respawn_s, 1, 300),
+			out_of_bounds("invulnerable_s", invulnerable_s, 0, 30),
+			out_of_bounds("respawn_free_m", respawn_free_m, 0, 5),
 			out_of_bounds("capsule_radius_m", capsule_radius_m, 0.1, 1),
 			out_of_bounds("capsule_height_m", capsule_height_m, 0.5, 3),
 			out_of_bounds("eye_height_m", eye_height_m, 0, capsule_height_m),

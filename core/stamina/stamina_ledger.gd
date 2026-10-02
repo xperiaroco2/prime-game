@@ -14,11 +14,11 @@ extends RefCounted
 ##   flag and movement (settle_ahead), so an idle player is not refused on stale stamina; a later
 ##   claim settles only what is left.
 ## - At 0 stamina walking works; sprint and jump need their full cost (Q7).
-## - A ghost's stamina never limits it (the engineer's correction of 2026-09-30): settling a ghost
-##   moves its ledger on and changes nothing else, and it is always free to sprint.
+## - Only the living sprint: a downed player crawls (MovementRule), is never in the sprint state
+##   and regenerates as usual, since it spends none (vision revision 1).
 ##
-## The client's LocalStamina (client/player/) predicts with the same rule until it follows
-## SelfStatus (M3).
+## The client's PredictedStamina (client/player/) predicts with the same rule and takes each
+## SelfStatus (M4-7, E24).
 
 
 ## The result of settling a run of ticks, before it is committed to the player.
@@ -81,11 +81,6 @@ static func simulate(
 		count = mini(count, max_ticks)
 	result.ticks = count
 	result.settled_tick = player.stamina_settled_tick + count
-	if player.life == PlayerState.Life.GHOST:
-		result.sprinting = sprint_held if count > 0 else player.sprinting
-		result.sprint_ticks = count if sprint_held else 0
-		result.next_sprinting = sprint_held
-		return result
 	var most := Ticks.thousandths(rules.stamina)
 	var cost := Ticks.per_tick(rules.sprint_cost_per_s)
 	var regen := Ticks.per_tick(rules.stamina_regen_per_s)
@@ -123,25 +118,21 @@ static func sprint_available(player: PlayerState, rules: PlayerRules) -> bool:
 	return _sprint_state(player.life, true, player.sprinting, player.stamina, rules)
 
 
-## Spends `amount` thousandths (a jump, a hit); a ghost spends nothing.
+## Spends `amount` thousandths (a jump, a hit).
 static func spend(player: PlayerState, amount: int) -> void:
-	if player.life == PlayerState.Life.GHOST:
-		return
 	player.stamina = maxi(0, player.stamina - amount)
 
 
-## Whether `player` has at least `amount` thousandths; a ghost always has.
+## Whether `player` has at least `amount` thousandths.
 static func covers(player: PlayerState, amount: int) -> bool:
-	return player.life == PlayerState.Life.GHOST or player.stamina >= amount
+	return player.stamina >= amount
 
 
 static func _sprint_state(
 	life: PlayerState.Life, held: bool, was_sprinting: bool, stamina: int, rules: PlayerRules
 ) -> bool:
-	if not held:
+	if not held or life != PlayerState.Life.ALIVE:
 		return false
-	if life == PlayerState.Life.GHOST:
-		return true
 	if was_sprinting:
 		return stamina > 0
 	return stamina >= Ticks.thousandths(rules.sprint_start)

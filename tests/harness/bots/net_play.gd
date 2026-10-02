@@ -10,7 +10,8 @@ extends ScenarioPlay
 ##
 ## Bot 1 is the host's own client: it sends the setup's forced roles (one ForceRole per bot, on the
 ## debug kind, E17), once it knows the peer ids of every bot that joins at the start, then the
-## setup's settings and map; a bot that joins later gets its ForceRole once its id is known.
+## setup's ForceClock (clock_s), settings and map; a bot that joins later gets its ForceRole once
+## its id is known.
 ##
 ## A runner owns the clock (now_usec), makes each bot's client (add_client) and calls play_frame()
 ## once per frame after the clients stepped. BotsRunner plays in one process over LoopbackHub;
@@ -26,7 +27,9 @@ var now_usec := 0
 ## observer); the one-process runner counts them from the host's slices instead.
 var ends_from_bots := false
 
-## Bot number -> the client tick of its last move (absent while it stands).
+## Bot number -> the client tick of its last move: kept by _stand only in the client tick of that
+## move, and dropped while the bot is dead, so the first walk after standing or a respawn covers one
+## client tick.
 var _moved_tick: Dictionary[int, int] = {}
 ## Bot number -> the client tick of its last voice frame, and frames sent.
 var _voice_tick: Dictionary[int, int] = {}
@@ -84,7 +87,9 @@ func _lost(bot: ScenarioBot, client: BotClient, at_tick: int) -> void:
 			_fail_step(bot, "the host refuses new connections (connect_failed)")
 		else:
 			_act(bot, at_tick)
-	bot.gone = true
+		bot.gone = true
+		return
+	_disconnected(bot, at_tick)
 
 
 func _on_connected(own_id: int, bot: ScenarioBot) -> void:
@@ -111,6 +116,10 @@ func _on_event(event_name: StringName, fields: Dictionary, bot: ScenarioBot) -> 
 
 
 func _before_steps(bot: ScenarioBot) -> void:
+	if bot.dead:
+		# A dead bot never stands (ScenarioPlay._act): its first walk after Respawned covers one
+		# client tick, not the whole time since its last walk.
+		_moved_tick.erase(bot.number)
 	if bot.load_ack_due:
 		# Its session acknowledged that LoadMatch at once (load_levels off).
 		bot.load_ack_due = false
@@ -137,6 +146,8 @@ func _send_setup(host: ScenarioBot) -> void:
 	if _settings_sent:
 		return
 	_settings_sent = true
+	if scenario.clock_s > 0 and client.force_clock(host.peer, scenario.clock_s) < 0:
+		_fail_step(host, "could not send ForceClock")
 	if scenario.settings.is_empty() and scenario.map.is_empty():
 		return
 	var values := {}
@@ -186,7 +197,12 @@ func _stand(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
 	if client == null:
 		return
-	_moved_tick.erase(bot.number)
+	# A walk after standing covers one client tick, or none in the client tick of the bot's last
+	# walk: a step that ends a walk and a WalkTo that follows it in the same client tick would
+	# otherwise claim two ticks of travel in one (M4-5: a PickUp answered within the tick of the
+	# walk's last claim).
+	if _moved_tick.get(bot.number, -1) != client.client_tick(now_usec):
+		_moved_tick.erase(bot.number)
 	var facing: Vector3 = _facing_of.get(bot.number, Vector3.FORWARD)
 	client.set_motion(bot.position, Vector3.ZERO, facing, false, false, true)
 

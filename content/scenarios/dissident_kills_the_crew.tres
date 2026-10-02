@@ -13,205 +13,181 @@
 [ext_resource type="Script" uid="uid://bir4sbsppao03" path="res://core/content/scenario/step_use.gd" id="11_yl7iw"]
 [ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="12_jpsys"]
 [ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="13_4x1nm"]
+[ext_resource type="Script" uid="uid://btw85s6sw667k" path="res://core/content/scenario/step_expect_none.gd" id="14_none"]
 
-[sub_resource type="Resource" id="Resource_7dvtu"]
+[sub_resource type="Resource" id="Never_damaged_bot1"]
 script = ExtResource("2_e57gy")
 event = &"Damaged"
 bot = 1
 
-[sub_resource type="Resource" id="Resource_f3vaq"]
+[sub_resource type="Resource" id="Ready"]
 script = ExtResource("6_s84ao")
 
-[sub_resource type="Resource" id="Resource_36ab2"]
+[sub_resource type="Resource" id="Wait_round"]
 script = ExtResource("7_le1xd")
 event = &"PhaseChanged"
 fields = {
 "phase": "round"
 }
 
-[sub_resource type="Resource" id="Resource_rd203"]
+[sub_resource type="Resource" id="Target_knife"]
 script = ExtResource("9_fb51d")
 kind = 2
 item_kind = &"knife"
 
-[sub_resource type="Resource" id="Resource_xai70"]
+[sub_resource type="Resource" id="B1_walk_to_knife"]
 script = ExtResource("8_pjuy2")
-target = SubResource("Resource_rd203")
-sprint = true
+target = SubResource("Target_knife")
 stop_m = 1.0
 
-[sub_resource type="Resource" id="Resource_gr0p0"]
-script = ExtResource("9_fb51d")
-kind = 2
-item_kind = &"knife"
-
-[sub_resource type="Resource" id="Resource_q7om6"]
+[sub_resource type="Resource" id="B1_pick_up_knife"]
 script = ExtResource("10_5lfhm")
-target = SubResource("Resource_gr0p0")
+target = SubResource("Target_knife")
 
-[sub_resource type="Resource" id="Resource_qm2lm"]
+[sub_resource type="Resource" id="Target_bot2"]
 script = ExtResource("9_fb51d")
 kind = 3
 bot = 2
 
-[sub_resource type="Resource" id="Resource_b137u"]
+[sub_resource type="Resource" id="B1_walk_to_bot2"]
 script = ExtResource("8_pjuy2")
-target = SubResource("Resource_qm2lm")
+target = SubResource("Target_bot2")
 stop_m = 1.0
 
-[sub_resource type="Resource" id="Resource_68tdx"]
-script = ExtResource("9_fb51d")
-kind = 3
-bot = 2
-
-[sub_resource type="Resource" id="Resource_ufbfg"]
+[sub_resource type="Resource" id="B1_hit"]
 script = ExtResource("11_yl7iw")
-towards = SubResource("Resource_68tdx")
+towards = SubResource("Target_bot2")
 
-[sub_resource type="Resource" id="Resource_6kiho"]
-script = ExtResource("9_fb51d")
-kind = 3
-bot = 2
-
-[sub_resource type="Resource" id="Resource_3hwbm"]
+[sub_resource type="Resource" id="B1_hit_too_soon"]
 script = ExtResource("11_yl7iw")
-towards = SubResource("Resource_6kiho")
+towards = SubResource("Target_bot2")
 expect_rejected = &"too_soon"
 
-[sub_resource type="Resource" id="Resource_kuah8"]
+[sub_resource type="Resource" id="Wait_cooldown"]
 script = ExtResource("12_jpsys")
 seconds = 0.6
 
-[sub_resource type="Resource" id="Resource_cfj64"]
+[sub_resource type="Resource" id="B1_knocked_down_2"]
+script = ExtResource("13_4x1nm")
+event = &"KnockedDown"
+fields = {
+"peer": 2
+}
+
+[sub_resource type="Resource" id="Wait_breath"]
+script = ExtResource("12_jpsys")
+seconds = 3.0
+
+[sub_resource type="Resource" id="Target_bot3"]
 script = ExtResource("9_fb51d")
 kind = 3
-bot = 2
+bot = 3
 
-[sub_resource type="Resource" id="Resource_djm13"]
+[sub_resource type="Resource" id="B1_walk_to_bot3"]
+script = ExtResource("8_pjuy2")
+target = SubResource("Target_bot3")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="B1_hit_bot3"]
 script = ExtResource("11_yl7iw")
-towards = SubResource("Resource_cfj64")
+towards = SubResource("Target_bot3")
 
-[sub_resource type="Resource" id="Resource_xpjf1"]
+[sub_resource type="Resource" id="B1_knocked_down_3"]
 script = ExtResource("13_4x1nm")
+event = &"KnockedDown"
+fields = {
+"peer": 3
+}
+
+[sub_resource type="Resource" id="Wait_died_2"]
+script = ExtResource("7_le1xd")
 event = &"Died"
 fields = {
 "peer": 2
 }
 
-[sub_resource type="Resource" id="Resource_ia0lh"]
-script = ExtResource("12_jpsys")
-seconds = 5.0
-
-[sub_resource type="Resource" id="Resource_g77jv"]
-script = ExtResource("9_fb51d")
-kind = 3
-bot = 3
-
-[sub_resource type="Resource" id="Resource_fajmu"]
-script = ExtResource("8_pjuy2")
-target = SubResource("Resource_g77jv")
-stop_m = 1.0
-
-[sub_resource type="Resource" id="Resource_gx3cp"]
-script = ExtResource("9_fb51d")
-kind = 3
-bot = 3
-
-[sub_resource type="Resource" id="Resource_7cufp"]
-script = ExtResource("11_yl7iw")
-towards = SubResource("Resource_gx3cp")
-
-[sub_resource type="Resource" id="Resource_t3wya"]
-script = ExtResource("12_jpsys")
-seconds = 0.6
-
-[sub_resource type="Resource" id="Resource_q6ij7"]
-script = ExtResource("9_fb51d")
-kind = 3
-bot = 3
-
-[sub_resource type="Resource" id="Resource_401f8"]
-script = ExtResource("11_yl7iw")
-towards = SubResource("Resource_q6ij7")
-
-[sub_resource type="Resource" id="Resource_6i1it"]
-script = ExtResource("13_4x1nm")
+[sub_resource type="Resource" id="Wait_died_3"]
+script = ExtResource("7_le1xd")
 event = &"Died"
 fields = {
 "peer": 3
 }
 
-[sub_resource type="Resource" id="Resource_o8rlw"]
+[sub_resource type="Resource" id="Wait_ended"]
+script = ExtResource("7_le1xd")
+event = &"MatchEnded"
+fields = {
+"side": "dissidents"
+}
+
+[sub_resource type="Resource" id="B1_script"]
 script = ExtResource("4_vgual")
-steps = Array[ExtResource("5_oe6iu")]([SubResource("Resource_f3vaq"), SubResource("Resource_36ab2"), SubResource("Resource_xai70"), SubResource("Resource_q7om6"), SubResource("Resource_b137u"), SubResource("Resource_ufbfg"), SubResource("Resource_3hwbm"), SubResource("Resource_kuah8"), SubResource("Resource_djm13"), SubResource("Resource_xpjf1"), SubResource("Resource_ia0lh"), SubResource("Resource_fajmu"), SubResource("Resource_7cufp"), SubResource("Resource_t3wya"), SubResource("Resource_401f8"), SubResource("Resource_6i1it")])
+steps = Array[ExtResource("5_oe6iu")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B1_walk_to_knife"), SubResource("B1_pick_up_knife"), SubResource("B1_walk_to_bot2"), SubResource("B1_hit"), SubResource("B1_hit_too_soon"), SubResource("Wait_cooldown"), SubResource("B1_hit"), SubResource("B1_knocked_down_2"), SubResource("Wait_cooldown"), SubResource("B1_hit"), SubResource("Wait_breath"), SubResource("B1_walk_to_bot3"), SubResource("B1_hit_bot3"), SubResource("Wait_cooldown"), SubResource("B1_hit_bot3"), SubResource("B1_knocked_down_3"), SubResource("Wait_died_2"), SubResource("Wait_died_3"), SubResource("Wait_ended")])
 
-[sub_resource type="Resource" id="Resource_nggga"]
-script = ExtResource("6_s84ao")
-
-[sub_resource type="Resource" id="Resource_l3dfi"]
+[sub_resource type="Resource" id="B2_wait_damaged"]
 script = ExtResource("7_le1xd")
 event = &"Damaged"
 
-[sub_resource type="Resource" id="Resource_1ifn7"]
+[sub_resource type="Resource" id="Wait_knocked_down_2"]
 script = ExtResource("7_le1xd")
-event = &"Died"
+event = &"KnockedDown"
 fields = {
 "peer": 2
 }
 
-[sub_resource type="Resource" id="Resource_18p1a"]
+[sub_resource type="Resource" id="B2_not_hit_while_downed"]
+script = ExtResource("14_none")
+event = &"Damaged"
+for_s = 1.0
+
+[sub_resource type="Resource" id="Target_package"]
 script = ExtResource("9_fb51d")
 kind = 2
 item_kind = &"package"
 
-[sub_resource type="Resource" id="Resource_wd1xk"]
+[sub_resource type="Resource" id="B2_pick_up_refused"]
 script = ExtResource("10_5lfhm")
-target = SubResource("Resource_18p1a")
+target = SubResource("Target_package")
 expect_rejected = &"not_accepted"
 
-[sub_resource type="Resource" id="Resource_c7nk2"]
+[sub_resource type="Resource" id="Target_bot1"]
 script = ExtResource("9_fb51d")
-point = Vector3(0, 0, 8)
+kind = 3
 
-[sub_resource type="Resource" id="Resource_xb10e"]
+[sub_resource type="Resource" id="B2_crawl_to_bot1"]
 script = ExtResource("8_pjuy2")
-target = SubResource("Resource_c7nk2")
+target = SubResource("Target_bot1")
 sprint = true
+stop_m = 0.3
 
-[sub_resource type="Resource" id="Resource_g8ppk"]
+[sub_resource type="Resource" id="B2_script"]
 script = ExtResource("4_vgual")
-steps = Array[ExtResource("5_oe6iu")]([SubResource("Resource_nggga"), SubResource("Resource_l3dfi"), SubResource("Resource_1ifn7"), SubResource("Resource_wd1xk"), SubResource("Resource_xb10e")])
+steps = Array[ExtResource("5_oe6iu")]([SubResource("Ready"), SubResource("B2_wait_damaged"), SubResource("Wait_knocked_down_2"), SubResource("B2_not_hit_while_downed"), SubResource("B2_pick_up_refused"), SubResource("B2_crawl_to_bot1"), SubResource("Wait_died_2"), SubResource("B2_pick_up_refused"), SubResource("Wait_ended")])
 
-[sub_resource type="Resource" id="Resource_qxeq3"]
-script = ExtResource("6_s84ao")
-
-[sub_resource type="Resource" id="Resource_xhtq3"]
+[sub_resource type="Resource" id="Wait_knocked_down_3"]
 script = ExtResource("7_le1xd")
-event = &"Died"
-fields = {
-"peer": 2
-}
-
-[sub_resource type="Resource" id="Resource_qj13e"]
-script = ExtResource("7_le1xd")
-event = &"Died"
+event = &"KnockedDown"
 fields = {
 "peer": 3
 }
 
-[sub_resource type="Resource" id="Resource_em5nl"]
+[sub_resource type="Resource" id="B3_script"]
 script = ExtResource("4_vgual")
-steps = Array[ExtResource("5_oe6iu")]([SubResource("Resource_qxeq3"), SubResource("Resource_xhtq3"), SubResource("Resource_qj13e")])
+steps = Array[ExtResource("5_oe6iu")]([SubResource("Ready"), SubResource("Wait_knocked_down_2"), SubResource("Wait_knocked_down_3"), SubResource("Wait_died_2"), SubResource("Wait_died_3"), SubResource("Wait_ended")])
 
 [resource]
 script = ExtResource("3_oxeq3")
 mode = ExtResource("1_xtrcu")
 session_seed = 422000000002
 bots = 3
+settings = Dictionary[StringName, int]({
+&"match_duration": 1
+})
 forced_roles = Dictionary[int, StringName]({
 1: &"dissident"
 })
-scripts = Array[ExtResource("4_vgual")]([SubResource("Resource_o8rlw"), SubResource("Resource_g8ppk"), SubResource("Resource_em5nl")])
+scripts = Array[ExtResource("4_vgual")]([SubResource("B1_script"), SubResource("B2_script"), SubResource("B3_script")])
 expected_ends = Array[StringName]([&"dissidents"])
-time_limit_s = 90.0
-never = Array[ExtResource("2_e57gy")]([SubResource("Resource_7dvtu")])
+clock_s = 40
+time_limit_s = 55.0
+never = Array[ExtResource("2_e57gy")]([SubResource("Never_damaged_bot1")])
