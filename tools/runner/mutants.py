@@ -564,7 +564,7 @@ def _run(root: Path, mutants: list[Mutant], spec_path: Path, seconds: float, bef
     ]
     tail: list[str] = []
     say(f"        report: {report.relative_to(root).as_posix()} (rewritten after every mutant)")
-    error: Failure | None = None
+    error: BaseException | None = None
     try:
         t0 = time.monotonic()
         _git(root, "worktree", "add", "--detach", str(tree), sha)
@@ -583,11 +583,10 @@ def _run(root: Path, mutants: list[Mutant], spec_path: Path, seconds: float, bef
             if mutant.result == NOT_RUN:
                 _one(root, tree, mutant, seconds, spec_path.stem)
             write_report(report, head, mutants, tail)
-    except Failure as exc:
+    except BaseException as exc:  # noqa: BLE001 - a crash or Ctrl+C still gets the status check, report and exit code
         error = exc
     finally:
-        # Also after any other exception (a crash, Ctrl+C): only a killed process skips this, and the next start
-        # removes what it left.
+        # Only a killed process skips this, and the next start removes what it left.
         t0 = time.monotonic()
         try:
             left = remove_trees(root)
@@ -611,14 +610,25 @@ def _run(root: Path, mutants: list[Mutant], spec_path: Path, seconds: float, bef
     else:
         ok("the task's tree is unchanged (git status)")
     if error is not None:
-        bad(str(error))
-        tail.append(f"stopped: {str(error).splitlines()[0]}")
+        why = _stopped(error)
+        bad(why)
+        tail.append(f"stopped: {why.splitlines()[0] if why else type(error).__name__}")
     tail.append(f"mutants: {summary(mutants)} in {time.monotonic() - started:.1f} s")
     write_report(report, head, mutants, tail)
     say(tail[-1])
     if left or after != before:
         return LEFTOVER
+    if error is not None and not isinstance(error, Exception):
+        raise error  # Ctrl+C or a SystemExit: nothing is left behind, so its own exit code stands
     return INVALID if error is not None else DONE
+
+
+def _stopped(error: BaseException) -> str:
+    """Why the run stopped: a Failure's own words; any other exception's type too (a crash, Ctrl+C)."""
+    if isinstance(error, Failure):
+        return str(error)
+    text = str(error)
+    return f"{type(error).__name__}: {text}" if text else type(error).__name__
 
 
 def _baseline(root: Path, tree: Path, mutants: list[Mutant], seconds: float, stem: str, head: list[str]) -> None:

@@ -179,12 +179,42 @@ class RunTest(RepoCase):
             return self.fake_test(tree, paths, seconds)
 
         with mock.patch.object(mutants, "test_step", side_effect=explode):
-            with self.assertRaises(RuntimeError):
-                self.run_spec(BOUNDARY)
+            self.assertEqual(self.run_spec(BOUNDARY), mutants.INVALID, "a crash is a run that could not finish")
         self.assert_clean_end()
+        self.assertIn("stopped: RuntimeError: the test step crashed", self.report())
+        self.assertIn("| 1 | `core/cooldown.gd:5` `>= 10` -> `> 10` | not run |", self.report())
+        self.assertIn("the task's tree is unchanged", self.out.getvalue())
         # The lock went with the run: the next one works.
         self.assertEqual(self.run_spec(BOUNDARY), mutants.DONE)
         self.assert_clean_end()
+
+    def stuck_at_the_end(self) -> mock._patch:  # type: ignore[type-arg]
+        """remove_trees that removes the tree but reports it left at the end of the run (its second call)."""
+        real = mutants.remove_trees
+        removals: list[int] = []
+
+        def stuck(root: Path) -> list[str]:
+            left = real(root)
+            removals.append(1)
+            return left + (["tools/out/mutants/tree-work"] if len(removals) == 2 else [])
+
+        return mock.patch.object(mutants, "remove_trees", side_effect=stuck)
+
+    def test_a_crash_with_a_stuck_scratch_tree_exits_2(self) -> None:
+        for crash in (RuntimeError("the test step crashed"), OSError("disk full"), KeyboardInterrupt()):
+            with self.subTest(crash=type(crash).__name__):
+                with mock.patch.object(mutants, "test_step", side_effect=crash), self.stuck_at_the_end():
+                    self.assertEqual(self.run_spec(BOUNDARY), mutants.LEFTOVER)
+                self.assertIn("EXIT 2: the scratch worktree could not be removed", self.report())
+                self.assertIn(f"stopped: {type(crash).__name__}", self.report())
+
+    def test_ctrl_c_still_cleans_up_and_keeps_its_own_exit(self) -> None:
+        with mock.patch.object(mutants, "test_step", side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.run_spec(BOUNDARY)
+        self.assert_clean_end()
+        self.assertIn("stopped: KeyboardInterrupt", self.report())
+        self.assertIn("the task's tree is unchanged", self.out.getvalue())
 
     def test_a_failed_import_stops_the_run_with_exit_1_and_cleans_up(self) -> None:
         with mock.patch.object(mutants, "import_step", side_effect=mutants.Failure("the import broke")):
@@ -195,15 +225,7 @@ class RunTest(RepoCase):
         self.assertIn("| 1 | `core/cooldown.gd:5` `>= 10` -> `> 10` | not run |", self.report())
 
     def test_a_scratch_tree_that_cannot_be_removed_exits_2(self) -> None:
-        real = mutants.remove_trees
-        removals: list[int] = []
-
-        def stuck(root: Path) -> list[str]:
-            left = real(root)
-            removals.append(1)
-            return left + (["tools/out/mutants/tree-work"] if len(removals) == 2 else [])
-
-        with mock.patch.object(mutants, "remove_trees", side_effect=stuck):
+        with self.stuck_at_the_end():
             self.assertEqual(self.run_spec(BOUNDARY), mutants.LEFTOVER)
         self.assertIn("could not be removed (exit 2)", self.out.getvalue())
         self.assertIn("EXIT 2: the scratch worktree could not be removed", self.report())
