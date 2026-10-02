@@ -30,7 +30,8 @@ and posting answers. Talk to the human in their chat language, in plain words; e
 is English. Commands use `tools\run.cmd`; in Git Bash `tools/run.sh`. The method and its history:
 [ADR](../../../docs/decisions/2026-09-30-orchestrator-session.md); the git flow: every task PR targets the
 milestone's `release/m<k>`, you merge task PRs into it, a human merges it into `main`
-([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)).
+([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). The one exception is the tooling track
+(the AI productivity track, #170): its PRs go straight into `main` and the engineer merges each (§5).
 
 ## 1. The kickoff
 One message from the human with `ultracode` in it (template in §10). It must state:
@@ -195,27 +196,33 @@ again for that issue with the answers in `notes` (its agents find the branch and
 ## 5. Merges and rebases
 You merge task PRs into `release/m<k>`; only a human merges into `main`
 ([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). `gh pr merge` stays denied: you merge
-locally.
-- **The gate.** Merge a task PR only when CI is green (`gh pr checks <pr>`), the fresh reviews left no open blocker
-  or major (the PR's findings table and `not_fixed`; one that waits for the engineer waits for the merge too), and
-  `verify` is green on the merged tree. First check whether a human already merged it (`gh pr view <pr> --json
-  state,mergedAt`; the engineer merged #107 himself on 2026-10-01): then only fetch.
-- **The merge**, always in a subshell, in your `release-m<k>` worktree (§2.5); `verify` takes about six minutes, so
-  run the whole command with `run_in_background`:
-
-  ```bash
-  (cd /d/prime-game/.claude/worktrees/release-m<k> && git fetch origin \
-    && git checkout -q --detach origin/release/m<k> \
-    && git merge --no-ff origin/<task branch> -m "Merge pull request #<pr> from <owner>/<task branch>" \
-    && tools/run.sh verify && git rev-parse --short=12 HEAD)
-  ```
-
-  Then push the commit it printed: `(cd /d/prime-game/.claude/worktrees/release-m<k> && git push origin
-  <commit>:release/m<k>)`. Never `git push origin HEAD:...`: the deny rule `git push *HEAD*` refuses it. Each merge
-  starts on a detached HEAD at `origin/release/m<k>`, so a failed one leaves nothing to undo and never reaches the
-  next push. The push is a fast-forward, which the pre-push hook allows; GitHub then marks the PR merged (check with
-  `gh pr view <pr> --json state`). A red `verify` pushes nothing: tell the human and relaunch the task with the
-  failure in `notes`. The guard lets these commands pass from the main checkout and from the worktree.
+locally with `tools\run.cmd merge` (#181; AGENT_WORKFLOW §7.1 Git flow). Run `merge` and `merge-check` from the main
+checkout: your `release-m<k>` worktree has them only once `release/m<k>` has taken in a `main` that has them.
+- **The gate.** Merge a task PR only when CI is green, the fresh reviews left no open blocker or major (the PR's
+  findings table and `not_fixed`; one that waits for the engineer waits for the merge too), and `verify` is green on
+  the merged tree (`merge` checks CI and runs that `verify`).
+- **Before every merge: `tools\run.cmd merge-check --base release/m<k>`** (seconds, no Godot): each open PR onto
+  its base tip and each pair into it, textually and by symbols (what one side removes or changes and the other's
+  added lines use); a Markdown table for the wave comment; exit 1 on a conflict, an overlap or a PR it could not
+  check. An overlap is a lead, not a proof. When it flags the PR you are about to merge, either merge the side that
+  changes the symbol first and send the other to `pr-rebase` (inline for a docs or test-list conflict, below), or
+  first run `tools\run.cmd merge-check --trial <pr> <pr>... --base release/m<k>` with `run_in_background` (the base
+  plus the PRs merged in that order in a scratch worktree, then `verify`): green, merge in that order; red, merge the
+  first and send the later PR to `pr-rebase` with the trial's log in `why`. A chain you merge in one go gets a trial
+  too.
+- **The merge:** `tools\run.cmd merge <pr> --base release/m<k>` with `run_in_background` (12 to 14 minutes on this
+  PC: a fresh import plus the whole suite). It refuses `main`, any base outside `release/*` and a task's checkout;
+  a PR a human already merged is only fetched (the engineer merged #107 himself); otherwise it checks CI, merges
+  `--no-ff` in a scratch detached worktree at `origin/release/m<k>`, runs `verify` on the merged tree, pushes the
+  merge commit by hash, confirms the PR merged on GitHub and prints one `wave:` line: paste it into the wave comment.
+  A red `verify` or a conflict pushes nothing and leaves nothing to undo (logs and GdUnit reports in
+  `tools/out/merge-logs/`): tell the human and relaunch the task with the failure in `notes`. Never type its git
+  steps by hand: the guard asks for them, and the deny rule `git push *HEAD*` refuses `HEAD:`.
+- **Taking `main` in** (the engineer's answer N2): when the tooling track's manager says on your plan issue that
+  `main` has a change the stage should take in, run `tools\run.cmd merge --sync-main --base release/m<k>` at the
+  next wave boundary (no merge in flight), with `run_in_background`: `origin/main` merged into the release branch the
+  same way, `verify` on the merged tree, the push by hash. Then `merge-check --base release/m<k>` again (the open
+  task PRs onto the new tip); both go into the wave comment.
 - **Order.** Stacked PRs: the parent first. Never merge a parent while its child's workflow has not reached Publish:
   the merge deletes the parent branch the child's reviewers diff against and its publisher targets. If it happened
   anyway, relaunch the child fresh with `base: "release/m<k>"` (update its args file) once the running one ends.
@@ -229,15 +236,26 @@ locally.
   is on its task branch (AGENT_WORKFLOW §8.2, #51); while another live session works in that worktree it asks, so
   hand such a case to `pr-rebase` when the human is away.
 - A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
-  with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`): rebase agent → fresh
-  reviewer(s) → a fix agent only for a blocker or major. `why` names what merged and the PRs and handoffs to read;
-  `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets
-  one fresh relaunch with `reb.problems` in `steps`, then goes to the human.
+  with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
+  `second_review`, `skeptic`, `efforts` and `models` (roles rebase, review, netcode, second_review, skeptic, fix; the
+  rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4 agents, plus 1 for
+  `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read; `steps` says which
+  side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one fresh relaunch with
+  `reb.problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every blocker and major,
+  so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr> --json body -q
+  .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix agent that
+  changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
+- **A main-based track** (the tooling track, #170): you merge nothing. Before you ask the engineer to merge, run
+  `tools\run.cmd merge-check --base main` and name the safe order in chat and in the wave comment; a flagged overlap
+  gets a `--trial` or a `pr-rebase` first, as above. A PR that changes a shared file follows §2.8. After the
+  engineer merges a change a running milestone needs, say so on that milestone's plan issue (its manager then runs
+  `merge --sync-main`).
 - **The stage's end.** When every task is merged, open the PR from `release/m<k>` into `main` (`gh pr create --base
   main --head release/m<k>`; M3: #117): a table of the task PRs with their merge commits, every open "Needs the
   engineer" and "Needs the designer" item, and the issues a human closes after the merge (`Closes` does not fire
   from the release branch). Open it only when no task PR still targets `release/m<k>`: merging it deletes the branch
-  (auto-delete) and GitHub retargets such a PR to `main`. A human reviews and merges it.
+  (auto-delete) and GitHub retargets such a PR to `main`. Run `merge-check --base main` and put its table in the PR.
+  A human reviews and merges it.
 
 ## 6. Reporting and keeping slots busy
 - After each wave, a comment on the plan issue: merged PRs, decisions recorded (with links), in progress, order from
@@ -277,10 +295,11 @@ locally.
   PushNotification. It is suppressed while the human is active in the session, and the desktop app only flashes its
   icon while its window is in use; a PowerShell toast tests whether Windows notifications work at all.
 - Merged tasks' worktrees: list `tools\run.cmd worktree-done <n>` (from `D:\prime-game`) for the human in the
-  wave comment, to run once `release/m<k>` is merged into `main`; a worktree whose branch never reached main but
-  whose work did (merged into a parent) says so. Your `release-m<k>` worktree goes too, but `worktree-done` takes
-  only an issue number: give the human `cd D:\prime-game; git worktree remove .claude/worktrees/release-m<k>; git
-  branch -d release/m<k>`, to run after the closing PR has merged into `main`.
+  wave comment, to run once `release/m<k>` is merged into `main` (on the tooling track: once the engineer merged the
+  task's PR); a worktree whose branch never reached main but whose work did (merged into a parent) says so. Your
+  `release-m<k>` worktree goes too, but `worktree-done` takes only an issue number: give the human `cd
+  D:\prime-game; git worktree remove .claude/worktrees/release-m<k>; git branch -d release/m<k>`, to run after the
+  closing PR has merged into `main`.
 
 ## 9. Gotchas
 
