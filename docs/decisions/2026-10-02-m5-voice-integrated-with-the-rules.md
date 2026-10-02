@@ -335,8 +335,10 @@ M4 list (the M4 ADR §3):
 8. Muffling uses the client's own level and the interpolated poses only.
 9. World sounds play within the hearing range of the ears and are muffled by the same ray.
 10. Voice statistics on the F3 overlay exist in debug builds only (E47), and the per-speaker lines name no one: an
-    index in order of first arrival, never a peer id or a name. Every playtest runs the pinned debug binary, so a
-    crew member pressing F3 must not read who the muffled voice behind the wall is.
+    index in order of first arrival, never a peer id or a name. Every playtest runs the pinned debug binary, so F3
+    puts no peer id or name on screen beside a voice. The index does not hide who a voice is: it stays the same for
+    the session, so a player who heard index 2 beside Bob knows index 2 behind the wall (as they would know Bob's
+    voice); hiding that is not a goal.
 11. The host's relay counters (relayed, dropped, over budget, relay µs, `VoiceDown`s sent, the ENet voice upload)
     never show live on the host's F3 during a Round. Live, they tell the host's player how many hear them: while
     only they whisper in the storeroom, `VoiceDown`s sent rising by one per relayed frame says exactly one unseen
