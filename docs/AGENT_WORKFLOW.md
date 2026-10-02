@@ -314,9 +314,10 @@ Rules for every workflow run:
   both change a shared file (`tools/`, `.claude/`, `.github/`, this file): the textual conflicts in the files both
   change and the same symbol check, in a table "across bases" that names both bases (#207); the other cross-base
   pairs it names as not compared. A flagged pair: its manager names it on the other track's plan issue; the PR into
-  `main` merges first, the milestone takes `main` in (`merge --sync-main`) and its PR is rebased on that
-  (`pr-rebase`) before it merges. After the engineer
-  merges a change to a shared file, the tooling track's manager says so on each running manager's plan issue.
+  `main` merges first (a human merges it; the milestone's manager holds its own PR meanwhile, merges the rest of the
+  wave and lists the pair under "Needs the engineer"), the milestone takes `main` in (`merge --sync-main`) and its
+  PR is rebased on that (`pr-rebase`) before it merges. After the engineer merges a change to a shared file, the
+  tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
   reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
   housekeeping (`worktree-done`, closing issues). The manager reports on the plan issue after each wave and stops

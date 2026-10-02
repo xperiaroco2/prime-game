@@ -1131,8 +1131,10 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
         say(f"merge-check: {verdict}. Order the merges so the side that removes or changes a symbol goes first and "
             "the other is rebased on it, or run merge-check --trial <pr>... to see whether verify stays green.")
         if crossed:
-            say("Across bases: name the pair on both tracks' plan issues; the PR into main merges first, the milestone "
-                "takes main in (merge --sync-main) and its PR is rebased on that before it merges.")  # fmt: skip
+            say("Across bases: name the pair on both tracks' plan issues; the PR into main merges first (a human "
+                "merges it: hold the milestone's PR, merge the rest of the wave and list the pair under \"Needs the "
+                "engineer\"), the milestone takes main in (merge --sync-main) and its PR is rebased on that before it "
+                "merges.")  # fmt: skip
         return 1
     say(f"merge-check: clean ({verdict})")
     return 0
