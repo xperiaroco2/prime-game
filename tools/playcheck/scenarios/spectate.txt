@@ -29,5 +29,8 @@ wait life 1 downed timeout=60
 hold give_up
 wait life dead
 release give_up
+# Still in the round, and the bot is the one living player to watch.
+wait screen round
+wait life 3 alive
 frames 60
 shot spectating_the_bot

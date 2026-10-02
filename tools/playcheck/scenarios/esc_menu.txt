@@ -44,8 +44,9 @@ press ui_cancel
 wait esc open
 frames 5
 shot esc_lobby_tab_guest
+# F under the menu readies nobody: on loopback a ready reaches the model well within 60 frames.
 press ready
-frames 30
+frames 60
 wait ready off
 press ui_cancel
 wait esc closed
