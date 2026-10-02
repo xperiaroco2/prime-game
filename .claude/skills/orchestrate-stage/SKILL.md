@@ -258,10 +258,17 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   A human reviews and merges it.
 
 ## 6. Reporting and keeping slots busy
-- After each wave, a comment on the plan issue: merged PRs, decisions recorded (with links), in progress, order from
-  here, batched questions (numbered, recommendations), housekeeping for a human: `worktree-done` lines (§8) and the
-  issues to close once `release/m<k>` is merged into `main` (auto-close does not fire from the release branch and
-  agents never close issues). Never edit the plan issue's body.
+- After each wave, a comment on the plan issue: merged PRs (each `merge` `wave:` line), decisions recorded (with
+  links), in progress, order from here, batched questions (numbered, recommendations), housekeeping for a human:
+  `worktree-done` lines (§8) and the issues to close once `release/m<k>` is merged into `main` (auto-close does not
+  fire from the release branch and agents never close issues). Never edit the plan issue's body.
+- **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
+  <your session id> --compact` in a text block (at most ten lines: time and API list $ per task and in total, the %
+  of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
+  `$env:CLAUDE_CODE_SESSION_ID`. This block is the second thing to drop when the budget runs out, after the
+  kickoff's first. Where a launch ran a model beyond the shared list, add that model's use of its own weekly window
+  from get_usage (`metrics` has no price for it and weighs it at Opus rates).
+- **Merge safety**: the latest `merge-check` result, or its table when it flagged something.
 - **Handover data** in every wave comment: for each running run the issue, the worktree, the owning session's name,
   the runId and the args as a JSON block. A successor session (§7) relaunches from that, not from your scratchpad.
 - Keep every slot busy: when the next task waits for a merge, start what does not depend on it (a task's
@@ -341,13 +348,27 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   that sees too far). Before this, the review ran by hand on PR #154 twice, and both runs found real problems.
 - **Name a rename in both tasks' notes**, not only who owns which file. #153 renamed
   `PlayerRules.ghost_speed_factor` while #154 started reading it: each PR was green alone, the merged tree was red,
-  and `pr-rebase` fixed it.
+  and `pr-rebase` fixed it. `merge-check` now flags such a rename across open PRs (§5), but only once both PRs
+  exist: the notes still name it before the second task starts.
 - **A `pr-rebase` fix after the review gets a fresh netcode review.** When its fix agent changes netcode-relevant
   code after the reviewers ran, run `netcode-security-reviewer` again before the merge (done by hand for #154).
+  `pr-rebase`'s `second_review` runs before the fix agent, so it does not cover the fix.
 - **Never `cd <wt> && ...` in your Bash shell**: it stayed inside a worktree twice in M4. Only a subshell
   `(cd <wt> && ...)` or `git -C <wt>`.
 - **`§` in args on Windows.** A Python `print` of the args mangled it: pass the args inline in the Workflow call,
   or set `PYTHONIOENCODING=utf-8`.
+
+### 2026-10-02 (the AI productivity track, #170)
+- **`publish` after a rebase that changed `tools/runner`** needed a second run twice more (#176, #199): the M2
+  gotcha holds; the second run passes.
+- **A bare `cd` into a worktree** happened once more in a manager's shell: the M3 rule holds for every manager.
+- **A Git Bash path given to `tools\run.cmd`** (`/c/Users/...`) made a stray `D:\c\` folder: Python on Windows reads
+  it as a folder on the current drive. Give `tools\run.cmd` Windows paths (`C:/Users/...`); Git Bash paths only to
+  `tools/run.sh`.
+- **An older `issue-task.js` logs and ignores the v2 args**: a launch from a main checkout that was not pulled runs
+  without the reviews they add. Check the prerequisite in §1 first.
+- **Numbers** (M4, the pipeline v2 ADR's baseline): about 82 minutes, $24 API list and 0.55% of a Max 20x week per
+  task; a stage's budget in % starts from them.
 
 ## 10. Kickoff template
 The human copies it, fills the placeholders and sends it, in English or in their own language. Moving state (which
@@ -355,7 +376,7 @@ issues, which PRs) goes only in the message, never in this file.
 
 ```text
 ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
-task = one issue-task workflow, at most three at once.
+task = one issue-task workflow, at most three at once (about six task workflows across all tracks).
 
 Start from: <my review of the design PR #<pr> and its handoff on #<design issue> | the issues below>.
 <If from a design: open the stage's issues from that handoff with my review's changes, show me the list and the
@@ -363,21 +384,27 @@ order, and wait for my "yes".>
 
 Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
-Release branch: release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs
-into it after green CI, fresh reviews with no open blocker or major and verify on the merged tree; I merge it into
-main through one PR at the end.
+Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
+with tools\run.cmd merge after green CI, fresh reviews with no open blocker or major, merge-check and verify on the
+merged tree; I merge it into main through one PR at the end | every PR straight into main (the tooling track); I
+merge each; you run merge-check --base main before you ask me>.
 Order: <order, or "as in the handoff">; stack with start --base <parent> only where a task depends on an unmerged
 PR.
-Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150. I approve exceeding the size guideline
-(up to 5 agents per workflow) and a budget of about <N> tasks × 900k subagent tokens for the stage; do not ask
-before each workflow once I have said yes to your restatement.
+Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; test_review once mutants is on the
+base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
+Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
+≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow) and a budget of
+about <P>% of the weekly limit for the stage (metrics converts API list $ to it); do not ask before each workflow
+once I have said yes to your restatement.
+Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
+PRs, tasks red twice>, at most <Q>% of its own weekly window>; you stay on the shared models.
 Rules: only I merge into main; no issue is closed by an agent; each agent only in its worktree; no git stash;
 you never leave your shell inside a worktree; temporary files in scratchpad/a<n>/ or tests/scratch/; Godot
 windows only through shot; a game rule no ADR settles becomes options with a recommendation under "Needs the
 engineer"; content/ and levels/ files are provisional, I approve them in the PR.
 My decisions: the ADRs and my answers in the comments of <issues> (newer ones win).
 Traps: <known traps>; tasks that edit .claude/ run only while I am around; <decisions reserved for me>.
-Drop first if the budget runs out: <fillers>, then <lowest-priority task>.
+Drop first if the budget runs out: <fillers>, then the per-wave metrics report, then <lowest-priority task>.
 When nothing more can run without me: a comment on #<plan issue> and stop. "продовжуй": check the live
 state and continue.
 ```
