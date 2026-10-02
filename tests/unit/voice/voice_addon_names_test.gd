@@ -3,11 +3,14 @@ extends GdUnitTestSuite
 ## identifier, so every script parses where the extension is not loaded (CI on Linux, a clone
 ## before the addon's download). TwoVoipCodec names them only in strings, for ClassDB. Comments and
 ## strings are stripped first (the E18 boundary test's strip()), the names matched case-sensitive
-## and word-bounded. The scratch folder is left out, as by `check`.
+## and word-bounded. Like `check`, the scan leaves out the scratch folder, folders whose name starts
+## with "." (a checkout's .claude/worktrees would hold every worktree's copy) and folders holding a
+## .gdignore.
 
 const Boundary := preload("res://tests/unit/client/app/client_boundary_test.gd")
 const NAMES := "\\b(TwovoipOpusEncoder|AudioStreamOpus|AudioStreamPlaybackOpus)\\b"
 const SKIPPED: Array[String] = ["res://addons", "res://.godot", "res://tests/scratch"]
+const SCAN_PROBE := "user://voice_addon_names_scan"
 
 
 func test_no_script_outside_addons_names_a_twovoip_class() -> void:
@@ -35,6 +38,22 @@ func test_it_rejects_the_planted_names_and_accepts_strings_and_comments() -> voi
 	assert_array(problems(allowed)).is_empty()
 
 
+func test_the_scan_skips_dot_folders_and_gdignored_ones() -> void:
+	var files := PackedStringArray(
+		["kept/a.gd", ".hidden/b.gd", "ignored/c.gd", "ignored/.gdignore"]
+	)
+	for file: String in files:
+		var path := SCAN_PROBE.path_join(file)
+		DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+		FileAccess.open(path, FileAccess.WRITE).close()
+	var found := _scripts(SCAN_PROBE)
+	for file: String in files:
+		DirAccess.remove_absolute(SCAN_PROBE.path_join(file))
+	for dir: String in ["kept", ".hidden", "ignored", ""]:
+		DirAccess.remove_absolute(SCAN_PROBE.path_join(dir))
+	assert_array(Array(found)).contains_exactly([SCAN_PROBE.path_join("kept/a.gd")])
+
+
 ## The TwoVoIP class names `source` uses as identifiers, after strip().
 static func problems(source: String) -> PackedStringArray:
 	var found := PackedStringArray()
@@ -44,14 +63,16 @@ static func problems(source: String) -> PackedStringArray:
 	return found
 
 
-## Every .gd file under `dir`, recursively, outside the skipped folders.
+## Every .gd file under `dir`, recursively, outside the skipped folders, those whose name starts
+## with "." and those holding a .gdignore (as `check` collects them).
 static func _scripts(dir: String) -> PackedStringArray:
 	var found := PackedStringArray()
-	if SKIPPED.has(dir.trim_suffix("/")):
+	if SKIPPED.has(dir.trim_suffix("/")) or FileAccess.file_exists(dir.path_join(".gdignore")):
 		return found
 	for file: String in DirAccess.get_files_at(dir):
 		if file.ends_with(".gd"):
 			found.append(dir.path_join(file))
 	for sub: String in DirAccess.get_directories_at(dir):
-		found.append_array(_scripts(dir.path_join(sub)))
+		if not sub.begins_with("."):
+			found.append_array(_scripts(dir.path_join(sub)))
 	return found
