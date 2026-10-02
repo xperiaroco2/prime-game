@@ -87,6 +87,7 @@ class GithubWorkflowsTest(unittest.TestCase):
             self.assertIn("actions/upload-artifact@v7", uses, f"{name}: uploads its reports")
         runs = [step.get("run", "") for step in jobs["flaky"]["steps"]]
         self.assertTrue(any("tools/run.sh test --repeat 3" in run for run in runs))
+        self.assertIn("perf", jobs)
         report = jobs["report"]
         self.assertEqual(sorted(report["needs"]), sorted(night))
         self.assertEqual(report["permissions"], {"contents": "read", "issues": "write"})
@@ -95,6 +96,22 @@ class GithubWorkflowsTest(unittest.TestCase):
         for command in ("gh issue list", "gh issue create", "gh issue comment"):
             self.assertIn(command, script)
         self.assertEqual(report["env"]["TITLE"], "Night jobs")
+
+    def test_perf_compares_with_the_last_nights_report_kept_in_the_cache(self) -> None:
+        steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["perf"]["steps"]
+        names = [step.get("name", step.get("uses", "")) for step in steps]
+        cache = next(step for step in steps if step.get("uses") == "actions/cache@v6")["with"]
+        # A new key every run, so each successful night saves its report; the prefix restores the newest.
+        self.assertIn("${{ github.run_id }}", cache["key"])
+        self.assertTrue(cache["key"].startswith(cache["restore-keys"]))
+        last = cache["path"] + "/last.json"
+        run = next(step["run"] for step in steps if "tools/run.sh perf" in step.get("run", ""))
+        self.assertIn(f"--baseline {last}", run)
+        self.assertNotIn("verify", run)
+        keep = next(step["run"] for step in steps if step.get("name") == "Keep this report for the next night")
+        self.assertIn(last, keep)
+        self.assertLess(names.index("The last night's report"), names.index("perf"))
+        self.assertLess(names.index("perf"), names.index("Keep this report for the next night"))
 
 
 if __name__ == "__main__":
