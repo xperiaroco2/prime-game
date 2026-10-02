@@ -687,8 +687,23 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   audio driver (`--display-driver headless`). Fails when an instance exits non-zero, times out or prints an
   `ERROR:` / `SCRIPT ERROR:` line (Godot exits 0 after both), and names the instance and its first error lines. A
   scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
-  `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
-  project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
+  `--headless` (never a window while a human uses the machine). It imports the project first when the import is not
+  current (the next item). `tools/run/probe.gd` is its smoke test.
+- **The import before a launch [applied]** (#174): `host`, `join`, `run` (and through it `perf` and `bots`),
+  `playcheck`, `shot` and `verify`'s `game` step import the project before they start Godot when a file Godot sees
+  changed after the last import through the runner, since only an import rebuilds the global class cache (a game
+  started after a `git switch` that brought a new `class_name` printed `Identifier "MousePointer" not declared` in
+  the engineer's playtest). No `check` is needed after a `git switch`, a pull or new scripts or assets. One line
+  says which: `import: current (1489 project files unchanged since the last import, 0.03s)`, or
+  `import: res://client/app/game.gd changed after the last import; importing the project first`, then
+  `import: done in 11.3s`. Every import through the runner (`check`, `test`, `mutants` and these) records when it
+  started in `.godot/runner_import.stamp`, or the time of the newest `.uid` or `.import` file it wrote itself; the
+  test compares the modification times of the files Godot sees (no hidden folders, none with a `.gdignore`, no
+  Markdown, Python or shell scripts) with it: git gives every file a switch, pull or rebase writes the time it
+  arrived. Measured on the engineer's PC: 0.03 to 0.04 s for the test, against 9.9 to 17.7 s for a quick import
+  that finds nothing to do, so the import is not always on. An import by the editor is not recorded: the next
+  launch through the runner imports once. A linked worktree's `override.cfg` (#182) is written before the test and
+  the import, so the import uses the worktree's own `user://`.
 - **`mutants <spec.json> [--seconds N]` [applied]** (#184; item 4 (b) of the
   [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), the tool of `issue-task`'s
   `test_review`): shows that a change's tests fail when its code is wrong. Each mutant of the spec names a tracked
