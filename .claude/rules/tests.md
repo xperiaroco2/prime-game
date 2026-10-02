@@ -29,11 +29,15 @@ paths:
 - A bug fix starts with a test that fails for the bug; run it and see it fail before the fix.
 
 ## Running
-- One file: `tools\run.cmd test tests/unit/match/vote_test.gd`. Everything: `tools\run.cmd test`.
+- One file: `tools\run.cmd test tests/unit/match/vote_test.gd`. Everything: `tools\run.cmd test`, which with no
+  paths runs in shards: K GdUnit4 processes at once, each with its own `user://` (K from the CPU count, at most 4;
+  `--shards K` sets it, 1 is one process). Named paths run one process unless `--shards K`; `--repeat` always one.
 - The runner trusts only GdUnit4's exit code and `results.xml` (never the console summary). Zero tests is a failure.
   Reports: `tools/out/gdunit/`; log: `tools/out/logs/test.log`.
 - Flaky hunt: `tools\run.cmd test --repeat N [paths]` runs them N times in a row; per-run reports in
   `tools/out/gdunit-runs/`, the flaky comparison in its `summary.json` (`docs/AGENT_WORKFLOW.md` §15).
+- Perf matches live in `tests/harness/perf/` and run with `tools\run.cmd perf` (host tick time and bytes per peer
+  with 10 bots, compared with the last run; not a `verify` step; `docs/ARCHITECTURE.md` §9.7).
 - Agent `test-runner` runs them and returns only failures.
 - A throwaway probe test goes in the gitignored `tests/scratch/`, never beside real tests: run it with
   `tools\run.cmd test tests/scratch/probe_test.gd`, delete it with `rm -r tests/scratch/...` (no prompt). Full
