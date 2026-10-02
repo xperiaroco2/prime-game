@@ -4,7 +4,11 @@ extends ScenarioPlay
 ## (the ClientSession every client runs) and learns only from what it decoded, as (name, fields).
 ## Its mover is honest: it moves its position toward the target at the walk or sprint speed of the
 ## mode's PlayerRules, one client tick of travel per client tick, and its ClientSession claims it
-## every client tick, counts its jumps and adopts every Correction. Its voice is synthetic: one
+## every client tick, counts its jumps and adopts every Correction. It sprints while its own
+## PredictedStamina, settled by its claims and following its SelfStatus as a player's controller
+## does, says the next claim would be in the sprint state: a SelfStatus answers a claim some ticks
+## old, and a bot that sprinted on its `sprint_available` would claim a sprint tick its stamina no
+## longer pays for, which the host corrects (#155). Its voice is synthetic: one
 ## frame per client tick holding its peer id and a counter (LeakCheck.voice_frame), so a listener
 ## checks that the relay changed no frame and named the right speaker.
 ##
@@ -38,6 +42,8 @@ var _facing_of: Dictionary[int, Vector3] = {}
 var _snapshot_seen: Dictionary[int, int] = {}
 ## The bots whose ForceRole bot 1 sent; the settings went.
 var _forced: Dictionary[int, bool] = {}
+## Bot number -> its stamina as its client predicts it.
+var _stamina: Dictionary[int, PredictedStamina] = {}
 var _settings_sent := false
 
 
@@ -50,6 +56,13 @@ func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
 	client.event_received.connect(_on_event.bind(bot))
 	transport.connected.connect(_on_connected.bind(bot))
 	clients[bot.number] = client
+	var stamina := PredictedStamina.new(scenario.mode.player_rules)
+	stamina.follow_claims()
+	_stamina[bot.number] = stamina
+	client.claim_sent.connect(
+		func(covered: int, sprint: bool, moved_itself: bool) -> void:
+			stamina.settle_claim(covered, sprint, moved_itself, bot.downed)
+	)
 	return client
 
 
@@ -106,6 +119,8 @@ func _peer_known(_bot: ScenarioBot) -> void:
 func _on_event(event_name: StringName, fields: Dictionary, bot: ScenarioBot) -> void:
 	if bot.gone:
 		return
+	if event_name == &"SelfStatus":
+		_stamina[bot.number].follow_status(fields["stamina"] as int)
 	var problem := bot.receive(event_name, fields)
 	if not problem.is_empty():
 		_fail_step(bot, problem)
@@ -207,9 +222,15 @@ func _stand(bot: ScenarioBot) -> void:
 	client.set_motion(bot.position, Vector3.ZERO, facing, false, false, true)
 
 
+func _sprint_available(bot: ScenarioBot) -> bool:
+	var stamina := _stamina[bot.number]
+	return stamina.can_sprint(stamina.is_sprinting(), bot.downed)
+
+
 func _jump(bot: ScenarioBot) -> void:
 	bot.jumps += 1
 	clients[bot.number].count_jump()
+	_stamina[bot.number].report(0.0, false, true, bot.downed)
 
 
 func _leave(bot: ScenarioBot) -> void:
