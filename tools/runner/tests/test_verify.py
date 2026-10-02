@@ -302,6 +302,18 @@ class LaneProcessTest(unittest.TestCase):
         self.assertEqual([(s.name, s.status) for s in steps], [("lint", "passed")])
         self.assertEqual(steps[0].output, f"{verify.MARK}not json\n{verify.MARK}{{\"rc\": 0}}\n")
 
+    def test_a_mark_of_another_lanes_step_or_a_reported_one_is_output_not_a_step(self) -> None:
+        # A selftest worker prints into the Python lane: its mark must never replace the Godot lane's red check.
+        steps: list[verify.StepRun] = []
+        reader = verify.LaneReader("python", ("lint", "selftest"), steps.append)
+        stray = f'{verify.MARK}{{"step": "check", "rc": 0, "seconds": 1}}\n'
+        again = f'{verify.MARK}{{"step": "lint", "rc": 0, "seconds": 1}}\n'
+        for line in (f'{verify.MARK}{{"step": "lint", "rc": 1, "seconds": 1}}\n', stray, again):
+            reader.feed(line)
+        reader.feed(f'{verify.MARK}{{"step": "selftest", "rc": 0, "seconds": 2}}\n')
+        self.assertEqual([(s.name, s.status) for s in steps], [("lint", "FAILED"), ("selftest", "passed")])
+        self.assertEqual(steps[1].output, stray + again)
+
     def test_a_lane_that_dies_fails_its_unreported_steps_with_its_last_output(self) -> None:
         mark = verify.MARK
         script = f"print('{mark}' + '{{\"step\": \"lint\", \"rc\": 0, \"seconds\": 1}}'); print('half'); raise SystemExit(3)"

@@ -233,8 +233,10 @@ class LaneReader:
         except (TypeError, ValueError, KeyError):  # not a mark (or a broken one): part of the step's output
             self.lines.append(line)
             return
-        if name in self.waiting:
-            self.waiting.remove(name)
+        if name not in self.waiting:  # another lane's step, or one already reported: output, never a result
+            self.lines.append(line)
+            return
+        self.waiting.remove(name)
         self.emit(StepRun(name, self.lane, "passed" if rc == 0 else "FAILED", seconds, "".join(self.lines)))
         self.lines = []
 
