@@ -168,7 +168,7 @@ and wait for the designer's review.
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | An "ultracode" kickoff for a stage: the manager session runs one `issue-task` workflow per issue (§7.1) |
-| `night-audit` | engineer | The prompt of the nightly Desktop scheduled task: one read-only audit lens, a skeptic per finding, issues and a summary on the "Night jobs" issue (§15) |
+| `night-audit` | engineer | The prompt of the nightly Desktop scheduled task: one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
