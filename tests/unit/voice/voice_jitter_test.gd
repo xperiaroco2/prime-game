@@ -99,6 +99,28 @@ func test_a_concealed_frame_is_decoded_from_the_next_packet() -> void:
 	assert_array(Array(sim.slots())).is_equal(range(20))
 
 
+func test_a_run_of_three_missing_is_concealed_once_and_the_rest_skipped() -> void:
+	# Driven by hand, so the queue holds enough to wait out the gap instead of stopping.
+	var jitter := VoiceJitter.new()
+	for seq: int in 5:
+		jitter.push(seq, 0, Sim.frame_of(seq), 0)
+	assert_int(jitter.update(0, 0).size()).is_equal(5)
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.START)
+	# 5, 6 and 7 never arrive.
+	jitter.push(8, 1, Sim.frame_of(8), 20000)
+	assert_array(jitter.update(100000, 20000)).is_empty()
+	var out := jitter.update(20000, 100000)
+	assert_int(out.size()).is_equal(2)
+	assert_bool(out[0].conceal).is_true()
+	assert_int(out[0].seq).is_equal(5)
+	assert_int(out[0].frame.decode_u16(0)).is_equal(8)
+	assert_bool(out[1].conceal).is_false()
+	assert_int(out[1].seq).is_equal(8)
+	assert_int(jitter.concealed).is_equal(1)
+	assert_int(jitter.lost).is_equal(2)
+	assert_int(jitter.underruns).is_equal(0)
+
+
 func test_reordering_by_up_to_two_frames_conceals_nothing_once_the_prebuffer_adapted() -> void:
 	# Five spurts of 1 s, 0.5 s apart. Every 5th frame arrives after the 2 behind it, every 7th
 	# after the one behind it. The first spurt starts under the smallest prebuffer, before any

@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## VoiceJitter's timing (E39, the M5 ADR §1.4): the adaptive prebuffer under 0, 30 and 80 ms of
-## arrival jitter, its cap, talk spurts with gaps of 0.1 to 5 s, the spurt boundary's two rules,
-## and a burst after the listener stalls. Order and loss: voice_jitter_test.gd.
+## arrival jitter, its cap, its 2 s window, talk spurts with gaps of 0.1 to 5 s, the spurt
+## boundary's two rules, and a burst after the listener stalls. Order and loss:
+## voice_jitter_test.gd.
 ##
 ## The talk is 10 spurts of 1.5 s, 0.5 s apart, arriving after 30 ms plus a uniform 0 to J ms. The
 ## client stamps arrivals at its polls, 16.7 ms apart at 60 fps, which widens the spread by up to a
@@ -51,6 +52,30 @@ func test_the_prebuffer_stops_at_its_cap() -> void:
 	for i: int in sim.start_times.size():
 		if sim.start_times[i] >= SETTLED:
 			assert_int(sim.start_prebuffers[i]).is_equal(VoiceJitter.MAX_PREBUFFER_USEC)
+
+
+func test_the_prebuffer_falls_back_once_the_jitter_leaves_the_window() -> void:
+	# A spurt with 80 ms of jitter, then spurts of 0.5 s with none, a second apart from 2 s on.
+	# The start at 2 s still sees the jitter; from 4 s on the window holds only calm arrivals.
+	var sim := Sim.new()
+	var rng := _rng(2)
+	var deliveries := sim.spurt(0, 0, SPURT_FRAMES, LATENCY, 80000, rng)
+	for s: int in 4:
+		var first := SPURT_FRAMES + s * 25
+		deliveries.append_array(sim.spurt(first, 2000000 + s * 1000000, 25, LATENCY, 0, rng))
+	sim.run(deliveries, 6500000)
+	var early := 0
+	var late_starts := 0
+	for i: int in sim.start_times.size():
+		var at := sim.start_times[i]
+		if at >= 2000000 and at < 2500000:
+			early += 1
+			assert_int(sim.start_prebuffers[i]).is_greater(VoiceJitter.MIN_PREBUFFER_USEC)
+		elif at >= 4000000:
+			late_starts += 1
+			assert_int(sim.start_prebuffers[i]).is_equal(VoiceJitter.MIN_PREBUFFER_USEC)
+	assert_int(early).is_equal(1)
+	assert_int(late_starts).is_equal(2)
 
 
 func test_spurts_with_gaps_of_a_tenth_to_5_seconds_each_start_afresh() -> void:
