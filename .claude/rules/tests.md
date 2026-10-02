@@ -25,7 +25,7 @@ paths:
 - Orphan nodes fail the build. Wrap every `Node` a test creates in `auto_free(...)`, or free it in the test or
   `after_test()`. `test` names the leaking test, or the suite's `before()`/`after()`.
 - Deterministic only: seed every `RandomNumberGenerator`; no sleeps or wall-clock waits.
-- Headless runs have no `InputEvent`s: UI and input need `shot` and a playtest instead.
+- Headless runs have no `InputEvent`s: UI and input need `shot`, `playcheck` (off-screen, keys only) and a playtest.
 - A bug fix starts with a test that fails for the bug; run it and see it fail before the fix.
 
 ## Running

@@ -40,6 +40,28 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
     p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
 
+    from .mutants import HELP as MUTANTS_HELP, TEST_SECONDS
+
+    p = sub.add_parser(
+        "mutants",
+        help="plant each fault of a spec in a scratch worktree of HEAD and run its tests there",
+        epilog=MUTANTS_HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("spec", help="the JSON spec of the mutants (format below)")
+    p.add_argument(
+        "--seconds",
+        type=int,
+        default=TEST_SECONDS,
+        help=f"hard timeout of each test run; a longer one is an error (default {TEST_SECONDS})",
+    )
+
+    p = sub.add_parser(
+        "playcheck", help="scripted game windows off-screen (and bots) with screenshots at named steps; never on CI"
+    )
+    p.add_argument("scenarios", nargs="*", help="scenario names in tools/playcheck/scenarios/ (default: every one)")
+    p.add_argument("--seconds", type=int, help="hard timeout of each scenario's run (default 300)")
+
     p = sub.add_parser("perf", help="the host's cost with 10 bots: tick time, snapshot sizes, bytes per peer (not verify)")
     p.add_argument("--bots", type=int, default=10, help="bots in the match, 2 to 10 (default 10)")
     p.add_argument("--seconds", type=int, default=60, help="the round's length, 20 to 600 (default 60)")
@@ -54,6 +76,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("publish", help="fetch, rebase the task branch on its base, verify, push with a lease")
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
+
+    # Merge safety (#181): checks across open PRs, and a manager's merge into a release branch.
+    p = sub.add_parser("merge-check", help="open PRs onto their base and pairwise: textual conflicts, symbol overlaps")
+    p.add_argument("prs", nargs="*", type=int, help="PR numbers (default: every open PR, grouped by base)")
+    p.add_argument("--base", help="only the PRs into this base; with --trial, the base to merge onto")
+    p.add_argument(
+        "--trial", action="store_true", help="merge the PRs in order onto the base in a scratch worktree, then verify"
+    )
+    p = sub.add_parser("merge", help="merge a PR (or main) into release/<x>: verify on the merged tree, push by hash")
+    p.add_argument("pr", nargs="?", type=int, help="the PR to merge")
+    p.add_argument("--base", required=True, help="the release branch, release/<x> (main is refused)")
+    p.add_argument("--sync-main", action="store_true", help="merge origin/main into the base instead of a PR")
 
     p = sub.add_parser("start", help="put the checkout on the task branch of an issue; assign it; board In progress")
     p.add_argument("issue", type=int, help="issue number")
@@ -201,6 +235,14 @@ def main(argv: list[str] | None = None) -> int:
             from . import bots
 
             return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
+        if args.command == "mutants":
+            from . import mutants
+
+            return mutants.main(args.spec, seconds=args.seconds)
+        if args.command == "playcheck":
+            from . import playcheck
+
+            return playcheck.main(args.scenarios, seconds=args.seconds)
         if args.command == "perf":
             from . import perf
 
@@ -213,6 +255,14 @@ def main(argv: list[str] | None = None) -> int:
             from . import publish
 
             return publish.main(base=args.base)
+        if args.command == "merge-check":
+            from . import merge
+
+            return merge.check(args.prs, base=args.base, trial=args.trial)
+        if args.command == "merge":
+            from . import merge
+
+            return merge.merge(args.pr, base=args.base, sync_main=args.sync_main)
         if args.command == "start":
             from . import start
 
