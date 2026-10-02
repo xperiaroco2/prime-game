@@ -25,7 +25,8 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     workflow tests assert it.
   - A manager passes Fable only where the kickoff allows it: stage designs, a second review of PRs that touch core/,
     server/, net/ or tests/harness/, audits, and a task that went red twice. Budget: at most half of the weekly Fable
-    window across all tracks; each wave comment reports its use from get_usage. Managers stay on the shared models.
+    window across all tracks; each wave comment reports its use from get_usage (the desktop app's session-management tool:
+    its plan limits list the per-model weekly windows with % used). Managers stay on the shared models.
   - Fable may be named in ADRs and in issue and PR comments (kickoffs, launch arguments in the handover data, usage
     reports). It stays out of `.claude/` (settings, agents, workflows, skills, rules), `.github/`, every CLAUDE.md
     file and any workflow argument's default; in `tools/` only the runner's model-family table
