@@ -13,9 +13,10 @@ extends Node3D
 ##   ground at the body, and the first-person view shows none.
 ## Every view joins SightHider.GROUP, so the downed camera's sight hiding (M4-9) hides one out of
 ## the body's eye's sight; only SightHider sets a view's `visible`, ItemViews shows or hides its
-## look. Placed in the physics step, after the avatars (-80) and the local player (0) moved and
-## before SightHider (10) casts, so a view that appears or jumps out of the body's eye's sight is
-## hidden in that same physics frame, never drawn for a frame first.
+## look (and LifeView, after it, hides the looks of a spectated target's items seen from its
+## eyes, #168). Placed in the physics step, after the avatars (-80) and the local player (0)
+## moved and before SightHider (10) casts, so a view that appears or jumps out of the body's
+## eye's sight is hidden in that same physics frame, never drawn for a frame first.
 
 const PHYSICS_PRIORITY := 1
 
