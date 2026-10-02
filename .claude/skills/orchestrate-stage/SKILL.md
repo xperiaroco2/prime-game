@@ -95,9 +95,9 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    && git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
    both in the first wave comment.
 6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree, the
-   args file), the queue, ownership splits, merge order, open questions, the current wave's start time. Keep it
-   current: it survives compaction. Keep each task's args in `manager/args-<n>.json`. The scratchpad is per session,
-   so every wave comment also carries what a successor needs (§6).
+   args file), the queue, ownership splits, merge order, open questions, the stage's and the current wave's start
+   times. Keep it current: it survives compaction. Keep each task's args in `manager/args-<n>.json`. The
+   scratchpad is per session, so every wave comment also carries what a successor needs (§6).
 7. Find the files that tasks running in parallel will all touch (mode `.tres` files, `docs/ARCHITECTURE.md`,
    registries, event folders) and split ownership **up front**: who owns which class, which task creates which
    shared class (same path and class name if two may create it), whose deal places what. Otherwise add/add
@@ -265,9 +265,13 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 - **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
   <your session id> --compact` in a text block (at most ten lines: time and API list $ per task and in total, the %
   of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
-  `$env:CLAUDE_CODE_SESSION_ID`. This block is the second thing to drop when the budget runs out, after the
-  kickoff's first. Where a launch ran a model beyond the shared list, add that model's use of its own weekly window
-  from get_usage (`metrics` has no price for it and weighs it at Opus rates).
+  `$env:CLAUDE_CODE_SESSION_ID`. A run counts in the window it started in (with what it had spent so far, if still
+  running), so a task that spans waves shows up only partly: add the stage's running total, the `total API list $`
+  line of the same command with `--since <stage start>`, and compare its % with the kickoff's budget. This block is
+  the second thing to drop when the budget runs out, after the kickoff's first. Where a launch ran a model beyond
+  the shared list, add that model's line from the desktop app's `get_usage` tool (the session-management MCP
+  server; its `plan` part lists the per-model weekly limits with % used and reset time): `metrics` has no price for
+  it and weighs it at Opus rates.
 - **Merge safety**: the latest `merge-check` result, or its table when it flagged something.
 - **Handover data** in every wave comment: for each running run the issue, the worktree, the owning session's name,
   the runId and the args as a JSON block. A successor session (§7) relaunches from that, not from your scratchpad.

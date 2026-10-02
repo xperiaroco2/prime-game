@@ -285,7 +285,8 @@ Rules for every workflow run:
   sends its PRs straight into `main`, each merged by the engineer (the release-branch ADR's tooling-track bullet; how
   a milestone takes `main` in: Git flow above). At most about six task workflows run at once across all tracks (three
   per stage). Each kickoff states its budget as a percentage of the weekly limit, and its manager reports its own
-  spend in every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`.
+  spend in every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`, plus
+  the stage's running total (`--since <stage start>`): a run counts in the window it started in.
   Shared files (N5 (c)): `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track
   (an issue there, landing between the other managers' waves: a mid-wave change breaks their resumes);
   `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` pairs
