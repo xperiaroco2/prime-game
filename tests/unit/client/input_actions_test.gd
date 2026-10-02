@@ -18,6 +18,7 @@ const ACTIONS: Array[StringName] = [
 	&"spectate_previous",
 	&"swap",
 	&"task_screen",
+	&"ready",
 ]
 
 
@@ -38,6 +39,16 @@ func test_put_down_is_q() -> void:
 		if key != null:
 			keys.append(key.physical_keycode)
 	assert_array(keys).contains([KEY_Q])
+
+
+func test_ready_is_f() -> void:
+	# #169: F readies up in the lobby without the Esc menu (a placeholder, "not a decision").
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"ready"):
+		var key := event as InputEventKey
+		if key != null:
+			keys.append(key.physical_keycode)
+	assert_array(keys).contains([KEY_F])
 
 
 func test_the_debug_overlay_is_f3() -> void:

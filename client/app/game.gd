@@ -45,6 +45,9 @@ var last_reason: StringName = &""
 ## Whether the local player reads the keyboard and mouse when a screen lets it. Tests turn it off
 ## and drive the player's wish fields themselves (headless runs have no input).
 var device_input := true
+## The mouse pointer the game captures and frees: Input's unless a test sets one (headless keeps no
+## mouse mode).
+var pointer := MousePointer.new()
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -72,15 +75,15 @@ func _ready() -> void:
 	get_tree().auto_accept_quit = false
 	if mode == null:
 		mode = load(MODE_PATH) as GameMode
-	ui.lobby.set_mode(mode)
+	ui.esc.lobby.set_mode(mode)
 	ui.menu.host_requested.connect(func(port: int) -> void: host(port))
 	ui.menu.join_requested.connect(join)
 	ui.menu.quit_requested.connect(quit)
 	ui.connecting.cancel_requested.connect(leave)
-	ui.lobby.ready_toggled.connect(set_ready)
-	ui.lobby.setting_changed.connect(change_setting)
+	ui.esc.lobby.ready_toggled.connect(set_ready)
+	ui.esc.lobby.setting_changed.connect(change_setting)
 	ui.end.back_requested.connect(return_to_lobby)
-	ui.esc.resume_requested.connect(ui.close_esc)
+	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
 	_world.add_child(_bodies)
@@ -181,8 +184,25 @@ func quit() -> void:
 
 ## Esc: the Esc menu over the current screen, the mouse freed; the player stands still under it.
 func open_esc() -> void:
-	ui.open_esc(hosting())
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	ui.open_esc(hosting(), _welcomed_model())
+	pointer.capture(false)
+
+
+## Esc again, or Resume: the menu closes; in the lobby and the round the mouse is captured again.
+func close_esc() -> void:
+	ui.close_esc()
+	if not GameFlow.frees_pointer(screen()):
+		pointer.capture(true)
+
+
+## The Ready key (`ready`, F, #169): the Ready toggle's SetReady, with the own ready flag flipped.
+func toggle_ready() -> void:
+	var model := _welcomed_model()
+	if model == null:
+		return
+	var own: ClientModel.Member = model.roster.get(model.own_peer)
+	if own != null:
+		set_ready(not own.ready)
 
 
 ## The own ClientSession; null without a session.
@@ -241,7 +261,7 @@ func _process(_delta: float) -> void:
 		_screen = now
 		# A mouse captured in the round would stay captured on the end screen's button.
 		if GameFlow.frees_pointer(now):
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+			pointer.capture(false)
 	ui.show_screen(now)
 	ui.reads_device_input = device_input
 	if _client != null:
@@ -274,10 +294,19 @@ func _input(event: InputEvent) -> void:
 	if _client == null or not event.is_action_pressed(&"ui_cancel"):
 		return
 	if ui.esc_open():
-		ui.close_esc()
+		close_esc()
 	else:
 		open_esc()
 	get_viewport().set_input_as_handled()
+
+
+## The Ready key, while the player walks in the lobby with no Esc menu (gameplay input).
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed(&"ready") or ui.esc_open():
+		return
+	if screen() == GameFlow.Screen.LOBBY:
+		toggle_ready()
+		get_viewport().set_input_as_handled()
 
 
 func _notification(what: int) -> void:
@@ -285,13 +314,18 @@ func _notification(what: int) -> void:
 		return
 	if hosting():
 		open_esc()
-		ui.esc.ask_quit()
+		ui.esc.ask_quit(screen(), _welcomed_model())
 	else:
 		quit()
 
 
 func _player_dead() -> bool:
 	return _player.life == ClientModel.Life.DEAD or _player.life == ClientModel.Life.LEFT
+
+
+## The own ClientModel once welcomed; null before and without a session.
+func _welcomed_model() -> ClientModel:
+	return _client.model if _client != null and _client.is_welcomed() else null
 
 
 func _session_state() -> GameFlow.Session:
@@ -472,7 +506,7 @@ func _show_menu(reason: StringName, detail := "") -> void:
 	var why := EndReasons.words(reason) + (": " + detail if not detail.is_empty() else "")
 	ui.menu.set_reason("The last session ended: %s." % why)
 	ui.show_screen(GameFlow.Screen.MENU)
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	pointer.capture(false)
 
 
 ## The runner's stop file, or its alive file gone stale (a killed runner): quit cleanly.
