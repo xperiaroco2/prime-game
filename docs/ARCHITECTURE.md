@@ -1008,7 +1008,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   decision"), so every scenario starts and stops streams; continuously when the scenario's `voice` says so (§9.7),
   the load M5-4's `voice_load` measures. After a hitch of the clock at most the newest 5 frames go out at once (the
   relay's newest 5 per poll). It talks in every phase and life state, as a modified client may: the host must route
-  none of it where nobody hears it (§6), which the leak test checks.
+  none of it where nobody hears it (§6), which the leak test checks. The perf harness (§9.7) talks the same way, so
+  its voice numbers from before M5-1 (20 frames a second of 8 to 14 B) do not compare with later ones.
   **Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
   claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
   them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
