@@ -1,0 +1,114 @@
+class_name ChaosOracle
+extends RefCounted
+## The rules' answer to a well-formed chaos intent, written from ARCHITECTURE, not from the code
+## that gives it (§3.1, the base mode's table in §3.2, §4.1, §7.1, E14, E15): evaluated against the
+## state the intent meets when the host applies it (the observer's match right after the call; a
+## refused intent changes nothing, so the state after it is the state it met). The chaos peers send
+## only intents the rules refuse whatever the timing, or that are dropped in silence, so a wrong
+## acceptance shows as a missing Rejected and as a difference from the baseline run.
+
+## The base mode's allowlist (§3.2): phase -> intent -> who may send it. LIVING and DOWNED are the
+## life states; PLAYER any present player that is not dead; HOST peer 1; NEWCOMER a peer whose Hello
+## was not accepted yet.
+enum From { NEWCOMER = 1, PLAYER = 2, LIVING = 4, HOST = 16, DOWNED = 32 }
+
+## No reply: the intent is dropped in silence (a MoveClaim the phase refuses, E15; a LoadAck of
+## another match, §4.1).
+const SILENT := &""
+## A PickUp names this item, which no match spawns (ids count from 0 up to the items of the deal).
+const NO_ITEM := 4000
+## The reasons the conditions of the base mode's actions give (§9.4, §9.5).
+const UNAVAILABLE := &"unavailable"
+const EMPTY_HAND := &"empty_hand"
+const NOTHING_TO_SWAP := &"nothing_to_swap"
+const NOT_CHANNELING := &"not_channeling"
+const NOT_DOWNED := &"not_downed"
+## The base mode's allowlist (§3.2): phase -> intent -> who may send it (From bits).
+const ACCEPTS: Dictionary[StringName, Dictionary] = {
+	&"lobby":
+	{
+		&"Hello": From.NEWCOMER,
+		&"MoveClaim": From.LIVING,
+		&"SetReady": From.PLAYER,
+		&"ChangeSettings": From.HOST,
+	},
+	&"countdown": {&"Hello": From.NEWCOMER, &"MoveClaim": From.LIVING, &"SetReady": From.PLAYER},
+	&"loading": {&"LoadAck": From.PLAYER},
+	&"round":
+	{
+		&"MoveClaim": From.LIVING | From.DOWNED,
+		&"PickUp": From.LIVING,
+		&"PutDown": From.LIVING,
+		&"Use": From.LIVING,
+		&"Raise": From.LIVING,
+		&"StopRaise": From.LIVING,
+		&"Swap": From.LIVING,
+		&"GiveUp": From.DOWNED,
+	},
+	&"end": {&"ReturnToLobby": From.HOST},
+}
+
+
+## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
+## the phase it is applied in, `player` the sender's state (null for a newcomer), `match_id` the
+## current match's id.
+static func answer(
+	intent: StringName,
+	args: Dictionary,
+	peer: int,
+	phase: StringName,
+	player: PlayerState,
+	match_id: int
+) -> StringName:
+	if not accepts(intent, peer, phase, player):
+		# A refused MoveClaim is dropped (E15); everything else is not_accepted (§3.1). A chaos
+		# peer never sends a Hello as a newcomer (that would be its join).
+		return SILENT if intent == Intents.MOVE_CLAIM else RejectReasons.NOT_ACCEPTED
+	return _rule(intent, args, peer, player, match_id)
+
+
+## Whether the phase's allowlist takes `intent` from `peer` (§3.1, §3.2).
+static func accepts(intent: StringName, peer: int, phase: StringName, player: PlayerState) -> bool:
+	var from: int = (ACCEPTS.get(phase, {}) as Dictionary).get(intent, 0)
+	if intent == Intents.SET_READY and phase == &"countdown":
+		# Countdown takes SetReady(false) only (§4.1); the chaos peers send true.
+		return false
+	if player == null:
+		return from & From.NEWCOMER != 0
+	if player.life == PlayerState.Life.DEAD or player.life == PlayerState.Life.LEFT:
+		# The dead send no intents as players (§3.1); the host's own controls are peer 1's.
+		return false
+	var living := player.life == PlayerState.Life.ALIVE
+	return (
+		from & From.PLAYER != 0
+		or (from & From.LIVING != 0 and living)
+		or (from & From.DOWNED != 0 and player.life == PlayerState.Life.DOWNED)
+		or (from & From.HOST != 0 and peer == NetTransport.HOST_ID)
+	)
+
+
+## The answer of an intent the allowlist took, for what a chaos peer sends (§4.1).
+static func _rule(
+	intent: StringName, args: Dictionary, peer: int, player: PlayerState, match_id: int
+) -> StringName:
+	var answer_now := RejectReasons.NOTHING_TO_DO
+	match intent:
+		Intents.SET_READY:
+			answer_now = RejectReasons.UNCHANGED if args.get("ready") == player.ready else &"?"
+		Intents.LOAD_ACK:
+			answer_now = SILENT if args.get("match_id") != match_id else RejectReasons.UNCHANGED
+		Intents.PICK_UP:
+			answer_now = UNAVAILABLE if args.get("item") == NO_ITEM else &"?"
+		Intents.PUT_DOWN:
+			answer_now = EMPTY_HAND if player.held_item < 0 else &"?"
+		Intents.USE:
+			answer_now = RejectReasons.NOTHING_TO_DO if player.held_item < 0 else &"?"
+		Intents.SWAP:
+			var empty := player.held_item < 0 and player.belt_item < 0
+			answer_now = NOTHING_TO_SWAP if empty else &"?"
+		Intents.STOP_RAISE:
+			answer_now = NOT_CHANNELING
+		Intents.RAISE:
+			answer_now = NOT_DOWNED if args.get("target") == peer else &"?"
+	# "?": an input the chaos peers never send in that state; the check reports it.
+	return answer_now
