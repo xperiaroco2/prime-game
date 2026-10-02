@@ -35,9 +35,12 @@ var uneven := false
 ## Physics frames every packet between the two Games is held back, each way (#155): set before
 ## start(). The host's own client is not delayed.
 var delay_frames := 0
-## Up to this many physics frames more for each packet, drawn from a seeded generator, the packets
-## still arriving in order (#155): a network's jitter. Set before start().
+## Up to this many physics frames more for each packet, drawn from a generator seeded per
+## transport, the packets still arriving in order (#155): a network's jitter. Set before start().
 var jitter_frames := 0
+## The host's transport, which the joiner's packets reach (its latest_superseded counts the claims
+## the LATEST lane merged); null until the host started.
+var host_transport: DelayedTransport
 
 var _held := false
 
@@ -54,8 +57,8 @@ func _init() -> void:
 
 ## Hosts, joins, and waits until both players stand in the lobby; false when they never did.
 func start() -> bool:
-	host = _game(["--host", "--local", "--no-replay", "--port=%d" % PORT])
-	client = _game(["--join=127.0.0.1", "--port=%d" % PORT])
+	host = _game(["--host", "--local", "--no-replay", "--port=%d" % PORT], 1)
+	client = _game(["--join=127.0.0.1", "--port=%d" % PORT], 2)
 	for i: int in MAX_START_FRAMES:
 		if _both_in_the_lobby():
 			# A frame more, so each player has stood still once on its own floor.
@@ -89,6 +92,13 @@ func stop() -> void:
 	if host != null:
 		host.leave()
 	await get_tree().process_frame
+
+
+## Holds every packet that reaches the host from now on for `count` physics frames, then hands
+## them over in one poll, as a network that stalls and bursts would (#155): the LATEST lane merges
+## the claims among them into the newest. The packets held before stay in order.
+func hold_at_host(count: int) -> void:
+	host_transport.hold_for(count)
 
 
 ## Waits `count` physics frames.
@@ -172,7 +182,8 @@ func _both_in_the_round() -> bool:
 	return true
 
 
-func _game(args: Array[String]) -> Game:
+## A Game with these launch args; its transports are number `number`'s (1 the host, 2 the joiner).
+func _game(args: Array[String], number: int) -> Game:
 	var viewport := SubViewport.new()
 	viewport.own_world_3d = true
 	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -182,7 +193,7 @@ func _game(args: Array[String]) -> Game:
 	game.read_command_line = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
-	game.make_transport = _transport
+	game.make_transport = _transport.bind(number)
 	game.device_input = false
 	viewport.add_child(game)
 	return game
@@ -192,22 +203,28 @@ func _clock() -> int:
 	return now
 
 
-func _transport() -> NetTransport:
-	var transport := DelayedTransport.new(WireSchema.game(OS.is_debug_build()).kind_table(), _hub)
+func _transport(number: int) -> NetTransport:
+	var kinds := WireSchema.game(OS.is_debug_build()).kind_table()
+	var transport := DelayedTransport.new(kinds, _hub, DelayedTransport.SEED + number)
 	transport.delay = delay_frames
 	transport.jitter = jitter_frames
+	if number == 1:
+		host_transport = transport
 	return transport
 
 
 ## A LoopbackTransport that holds every packet it receives back for `delay` of its polls (one per
-## physics frame) and up to `jitter` more, drawn from a fixed seed, in order, as a network's
-## latency and jitter would; connection events pass at once.
+## physics frame) and up to `jitter` more, drawn from its own seed, in order, as a network's
+## latency and jitter would, and holds them all while hold_for() says so; connection events pass
+## at once.
 class DelayedTransport:
 	extends LoopbackTransport
 	const SEED := 155
 	var delay := 0
 	var jitter := 0
 	var _polls := 0
+	## Packets received before this poll are handed over at it, all at once.
+	var _hold_until := 0
 	var _rng := RandomNumberGenerator.new()
 	## The poll each held packet is due at, and the packets, oldest first.
 	var _due: Array[int] = []
@@ -221,15 +238,24 @@ class DelayedTransport:
 			super._push(item)
 		super()
 
-	func _init(kinds: NetKindTable, hub: LoopbackHub = null) -> void:
+	func _init(kinds: NetKindTable, hub: LoopbackHub = null, rng_seed := SEED) -> void:
 		super(kinds, hub)
-		_rng.seed = SEED
+		_rng.seed = rng_seed
+
+	func hold_for(count: int) -> void:
+		_hold_until = _polls + count
 
 	func _push(item: NetTransport.Inbound) -> void:
-		if (delay <= 0 and jitter <= 0) or item.type != NetTransport.Inbound.Type.PACKET:
+		var holding := _hold_until > _polls
+		if item.type != NetTransport.Inbound.Type.PACKET:
+			super(item)
+			return
+		if delay <= 0 and jitter <= 0 and not holding:
 			super(item)
 			return
 		var due := _polls + delay + _rng.randi_range(0, jitter)
+		if holding:
+			due = maxi(due, _hold_until)
 		if not _due.is_empty():
 			due = maxi(due, _due[-1])
 		_due.append(due)
