@@ -12,7 +12,9 @@ extends Node3D
 ##   generator; the left and right mouse buttons cycle; a target that goes down, dies or leaves is
 ##   replaced by a new first target. A living target is watched from its eyes (its interpolated
 ##   pose: the body's position, yaw and head pitch, already guarded against a degenerate facing),
-##   a downed one through the DownedCamera above its body, and with no target the DownedCamera
+##   as the target sees itself: its body and head hidden, its hand item in the spectate camera's
+##   own FirstPersonHand and the views of its hand and belt items at its body hidden (#168); a
+##   downed one through the DownedCamera above its body, and with no target the DownedCamera
 ##   stays above the own body. Nothing about the target is sent. The lift music plays.
 ## - Respawned: first person again where the Correction put the player; the music stops.
 ##
@@ -34,6 +36,9 @@ var session: ClientSession
 var mode: GameMode
 var player: PlayerController
 var avatars: AvatarViews
+## The item views (M4-8): a target watched from its eyes has its items in the first-person hand,
+## not at its body. Null in tests without items.
+var items: ItemViews
 ## Read the keyboard and mouse. Tests turn it off and call the actions themselves.
 var reads_device_input := true
 ## Whether the life inputs apply now (the game turns it off under the Esc menu and outside the
@@ -47,6 +52,8 @@ var countdowns: LifeCountdowns
 var _targets: SpectateTargets
 var _downed_camera := DownedCamera.new()
 var _spectate_camera := Camera3D.new()
+## The watched target's hand item, where its own first-person view shows it.
+var _spectate_hand := FirstPersonHand.new()
 var _hider := SightHider.new()
 var _music := LiftMusic.new()
 var _view := View.FIRST_PERSON
@@ -74,6 +81,8 @@ func _init() -> void:
 	rng.randomize()
 	_targets = SpectateTargets.new(rng)
 	_spectate_camera.name = "SpectateCamera"
+	_spectate_hand.name = "SpectateHand"
+	_spectate_camera.add_child(_spectate_hand)
 	add_child(_downed_camera)
 	add_child(_spectate_camera)
 	add_child(_hider)
@@ -134,6 +143,11 @@ func downed_camera() -> DownedCamera:
 
 func spectate_camera() -> Camera3D:
 	return _spectate_camera
+
+
+## The watched target's hand item under the spectate camera (#168).
+func spectate_hand() -> FirstPersonHand:
+	return _spectate_hand
 
 
 func hider() -> SightHider:
@@ -305,6 +319,7 @@ func _spectate() -> void:
 		_spectate_camera.global_transform = Transform3D(Basis.from_euler(look), eye)
 		_watch(body)
 		_show(View.SPECTATE_EYES)
+		_hold_as_seen(_target)
 	elif body != null:
 		_watch(null)
 		_show_downed(body.global_position, body.rotation.y, body.head().rotation.x)
@@ -331,6 +346,7 @@ func _show(which: View) -> void:
 		_hider.stop()
 	if which != View.SPECTATE_EYES:
 		_watch(null)
+		_spectate_hand.show_item(&"", Color.WHITE)
 	var camera: Camera3D
 	match which:
 		View.FIRST_PERSON:
@@ -346,6 +362,25 @@ func _show(which: View) -> void:
 		_music.start()
 	else:
 		_music.stop()
+
+
+## The items of `peer`, watched from its eyes, as it sees them itself: the hand item in the
+## spectate camera's first-person hand, and neither item at its body (ItemViews shows and places
+## those views earlier in each physics step, at its priority 1, so a target no longer watched has
+## them back in the next step, and a new one never shows them for a step).
+func _hold_as_seen(peer: int) -> void:
+	var hand: ClientModel.Item = model.items.get(model.hand_item(peer))
+	if hand == null:
+		_spectate_hand.show_item(&"", Color.WHITE)
+	else:
+		var kind := mode.find_item_kind(hand.kind)
+		_spectate_hand.show_item(hand.kind, hand.colour, kind != null and kind.is_two_handed())
+	if items == null:
+		return
+	for item_id: int in [model.hand_item(peer), model.belt_item(peer)]:
+		var view := items.view_of(item_id)
+		if view != null:
+			view.show_look(false)
 
 
 ## Hides `body`'s meshes while watched from its eyes, and shows the one watched before.

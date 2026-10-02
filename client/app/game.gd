@@ -371,6 +371,7 @@ func _start_client(transport: NetTransport) -> void:
 	_bodies.rules = mode.player_rules
 	_life.setup(_client, mode, _avatars)
 	_items.setup(_client, mode, _avatars)
+	_life.items = _items.items
 
 
 func _on_welcomed(own_peer: int) -> void:

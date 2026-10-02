@@ -4,8 +4,10 @@ extends GdUnitTestSuite
 ## joiner gives up and dies, and spectates the host's player while that player walks and turns.
 ## Frame after frame the spectate camera is the target's interpolated eye transform: the pose of
 ## the joiner's own SnapshotBuffer at the tick the avatars were drawn at, the eye height of the
-## mode's PlayerRules, the guarded yaw and pitch; and the target's own meshes are drawn by no camera
-## the spectator uses.
+## mode's PlayerRules, the guarded yaw and pitch; it retraces the target's own camera, later by the
+## interpolation delay. The target's own meshes are drawn by no camera the spectator uses, and its
+## items show as it sees them itself (the hand item in the first-person hand, none at its body),
+## until it goes down or the spectator respawns.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 const RESPAWN_S := 30.0
@@ -20,6 +22,11 @@ const DELAY_FRAMES := 30
 ## frame's walk and turn of the target (it walks about 7 cm and turns 1.7 degrees a frame).
 const RETRACE_M := 0.01
 const RETRACE_RAD := 0.05
+## The respawn of the suite that waits for it, in seconds.
+const SHORT_RESPAWN_S := 2.0
+## The target's items in the spectator's model.
+const HAND_ITEM := 90
+const BELT_ITEM := 91
 
 var _pair: NetPair
 
@@ -105,13 +112,48 @@ func test_the_targets_own_meshes_are_drawn_by_no_camera_the_spectator_uses() -> 
 	var life := _pair.client.life()
 	var target := _pair.peer_of(_pair.host)
 	var watched := _pair.client.avatars().body_of(target)
+	# The target holds a knife and wears another on its belt (folded into the spectator's model as
+	# the host's item events would: the fixture level has no items).
+	var model := _pair.client.client().model
+	model.fold(&"ItemSpawned", {"item": HAND_ITEM, "kind": &"knife", "position": Vector3.ZERO})
+	model.fold(&"ItemSpawned", {"item": BELT_ITEM, "kind": &"knife", "position": Vector3.ZERO})
+	model.fold(&"ItemPickedUp", {"peer": target, "item": BELT_ITEM})
+	model.fold(&"ItemPickedUp", {"peer": target, "item": HAND_ITEM, "belted": BELT_ITEM})
 	await _pair.frames(2)
-	assert_bool(_drawn_by(watched, life.spectate_camera())).is_false()
-	# The target goes down: watched from above its body, which is drawn again.
+	var spectate := life.spectate_camera()
+	assert_bool(_drawn_by(watched, spectate)).is_false()
+	# As the target sees itself: its hand item in the first-person hand, neither item at its body.
+	var views := _pair.client.items().items
+	assert_str(String(life.spectate_hand().shown_kind())).is_equal("knife")
+	assert_bool(life.spectate_hand().is_visible_in_tree()).is_true()
+	for item_id: int in [HAND_ITEM, BELT_ITEM]:
+		assert_bool(views.view_of(item_id).is_look_shown()).is_false()
+	# The target goes down: watched from above its body, which is drawn again, its items with it.
 	_pair.knock_down(_pair.host)
 	var above := func() -> bool: return life.view() == LifeView.View.SPECTATE_ABOVE
 	assert_bool(await _until(above)).is_true()
+	await _pair.frames(1)
 	assert_bool(_drawn_by(watched, life.downed_camera().camera())).is_true()
+	assert_str(String(life.spectate_hand().shown_kind())).is_empty()
+	for item_id: int in [HAND_ITEM, BELT_ITEM]:
+		assert_bool(views.view_of(item_id).is_look_shown()).is_true()
+	await _pair.stop()
+
+
+func test_a_respawned_spectator_sees_the_target_it_watched_again() -> void:
+	_pair.mode.player_rules.respawn_s = SHORT_RESPAWN_S
+	assert_bool(await _dead_joiner()).is_true()
+	var life := _pair.client.life()
+	var player := _pair.client.player()
+	var watched := _pair.client.avatars().body_of(_pair.peer_of(_pair.host))
+	assert_bool(_drawn_by(watched, life.spectate_camera())).is_false()
+	var joiner := _pair.peer_of(_pair.client)
+	var living := func() -> bool: return _pair.client.client().model.is_alive(joiner)
+	assert_bool(await _until(living, 240)).is_true()
+	await _pair.frames(2)
+	assert_int(life.view()).is_equal(LifeView.View.FIRST_PERSON)
+	assert_bool(_drawn_by(watched, player.get_camera())).is_true()
+	assert_str(String(life.spectate_hand().shown_kind())).is_empty()
 	await _pair.stop()
 
 
