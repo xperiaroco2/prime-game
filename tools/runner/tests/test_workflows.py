@@ -574,6 +574,7 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("the test reviewer returned nothing", dead["error"])
         self.assertFalse(calls(dead, "publish"))
         self.assertFalse(calls(design, "test-review"))
+        self.assertTrue(any("test_review skipped" in e["message"] for e in design["events"] if e["kind"] == "log"))
 
     def test_skeptics_check_each_blocker_or_major_up_to_the_limit(self) -> None:
         core = {"paths": ["core/x.gd"], "findings": [MAJOR, MINOR]}  # three reviewers: three majors

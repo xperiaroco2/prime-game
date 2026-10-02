@@ -84,6 +84,7 @@ const flag = k => {
 }
 const PLAN_REVIEW = flag('plan_review')
 const TEST_REVIEW = flag('test_review') && !DESIGN
+if (flag('test_review') && DESIGN) log(`#${N}: test_review skipped: a design task changes no production code`)
 const SECOND_REVIEW = flag('second_review')
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
   throw new Error('issue-task: args.skeptic must be true, false or the most findings to check (a positive integer)')
