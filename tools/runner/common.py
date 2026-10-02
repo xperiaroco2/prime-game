@@ -286,14 +286,15 @@ def project_name(root: Path | None = None) -> str:
     return match.group(1) if match and match.group(1) else "PrimeGame"
 
 
-def user_dir_name(root: Path | None = None) -> str:
+def user_dir_name(root: Path | None = None, project: str | None = None) -> str:
     """A worktree's custom_user_dir_name: beside Godot's default folder, called after the project, the worktree's
-    folder and a hash of its path (two clones may both have a worktree "182")."""
+    folder and a hash of its path (two clones may both have a worktree "182"). `project` names the project when the
+    worktree's own project.godot is gone (worktree-done after a removal); by default it is read from `root`."""
     root = root or ROOT
     folder = re.sub(r"[^A-Za-z0-9._-]", "-", root.name) or "worktree"
     digest = hashlib.sha1(os.path.normcase(str(root.resolve())).encode("utf-8")).hexdigest()[:6]
     # Godot's own folder name: "godot" on Linux, "Godot" elsewhere (OS::get_godot_dir_name).
-    return f"{'godot' if IS_LINUX else 'Godot'}/app_userdata/{project_name(root)}-{folder}-{digest}"
+    return f"{'godot' if IS_LINUX else 'Godot'}/app_userdata/{project or project_name(root)}-{folder}-{digest}"
 
 
 def override_text(root: Path | None = None) -> str:

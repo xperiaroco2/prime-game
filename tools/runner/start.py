@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 from . import board, publish, sessions
-from .common import ROOT, Failure, Result, app_data_dir, ok, run, say, user_dir_name, warn
+from .common import ROOT, Failure, Result, app_data_dir, ok, project_name, run, say, user_dir_name, warn
 
 REMOTE = "origin"
 BASE = "main"
@@ -415,9 +415,12 @@ def own_user_dir(path: Path) -> Path | None:
     """Where the worktree at `path` keeps its own user:// (common.ensure_user_dir, #182): the app-data folder joined
     to its custom_user_dir_name, `<project>-<folder>-<hash of its path>`, so never the main checkout's default
     `<project>` folder or another worktree's. None on an OS the runner does not know. Without the worktree's
-    project.godot (a removal already done) the project's name is "PrimeGame" (common.project_name)."""
+    project.godot (a removal already done) the project's name comes from the main checkout's project.godot."""
     base = app_data_dir()
-    return base / user_dir_name(path) if base is not None else None
+    if base is None:
+        return None
+    project = None if (path / "project.godot").is_file() else project_name(REPO)
+    return base / user_dir_name(path, project)
 
 
 def remove_user_dir(folder: Path | None) -> bool:
@@ -445,6 +448,7 @@ def finish_leftovers(number: int, path: Path, known: dict[str, str]) -> int:
         fetched = res.rc == 0 and not res.timed_out
         if not fetched:
             warn(f"git fetch {REMOTE} failed, so the local branches stay: {res.out.strip()[-300:]}")
+    user = own_user_dir(path)  # before the empty folder goes: the name hashes its resolved path
     if path.exists():
         files = [p for p in path.rglob("*") if not p.is_dir()]
         if files:
@@ -462,7 +466,7 @@ def finish_leftovers(number: int, path: Path, known: dict[str, str]) -> int:
             ) from exc
         ok(f"removed the empty leftover folder {path}")
         cleaned = True
-    if remove_user_dir(own_user_dir(path)):
+    if remove_user_dir(user):
         cleaned = True
     checked_out = set(known.values())
     for branch in ours if fetched else []:

@@ -374,6 +374,26 @@ class StartTest(unittest.TestCase):
             start.worktree_done(42)
         self.assertIn("nothing left over", str(caught.exception))
 
+    def test_worktree_done_leftovers_name_the_user_dir_after_the_live_project(self) -> None:
+        # A renamed project: once the worktree (and its project.godot) is gone, the folder's name still follows
+        # application/config/name, read from the main checkout, not a hardcoded "PrimeGame".
+        self.write("project.godot", '[application]\n\nconfig/name="Renamed"\n')
+        git(self.work, "add", "project.godot")
+        git(self.work, "commit", "-q", "-m", "rename")
+        git(self.work, "push", "-q", "origin", "main")
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")  # merged
+        own = start.own_user_dir(tree)
+        assert own is not None
+        self.assertTrue(own.name.startswith("Renamed-42-"), own.name)
+        (own / "tmp").mkdir(parents=True)
+        git(self.work, "worktree", "remove", str(tree))  # removed by hand: the user:// folder stayed
+        git(self.work, "branch", "-D", "core/42-vote-tally")
+        self.assertEqual(start.worktree_done(42), 0)
+        self.assertFalse(own.exists())
+
     def test_worktree_done_leftovers_keep_files_and_unmerged_branches(self) -> None:
         git(self.work, "branch", "core/43-merged")  # at origin/main: merged
         self.assertEqual(start.worktree_done(43), 0)  # only the merged branch was left
