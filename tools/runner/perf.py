@@ -10,11 +10,13 @@ over ENet, `-<N>b<S>s` for other than 10 bots and a 60 s round) and summary.md, 
 fails only when the match fails, never on a change. Not a `verify` step; the nightly workflow runs it (docs/AGENT_WORKFLOW.md §15).
 
 Each metric is p50/p95/max (nearest rank) over its samples: the host step's time (Time.get_ticks_usec around
-HostSession.step, the steps that ran a host tick), Performance's TIME_PHYSICS_PROCESS once a second (the engine's
-longest physics frame of each second of real time, the whole process: host and bots), the events per host tick,
+HostSession.step, the steps that ran a host tick; the harness's meter only appends to a buffer inside it),
+Performance's TIME_PHYSICS_PROCESS read about once a second of real time (the whole process: host and bots; how the
+engine refreshes it between reads is not documented in the 4.7.2 API), the events per host tick,
 each Snapshot's payload bytes per remote peer per tick, and per remote peer per second of host time: frame bytes sent
 (all, snapshots, voice) and what it sent (payload bytes that are not voice, voice frames). MEMORY_STATIC: at the end
-and the most seen. Peer 1, the host's own client, is not counted.
+and the most seen. Peer 1, the host's own client, is not counted. The pinned Godot is a debug build: compare runs
+with each other, not with a release host's cost.
 """
 
 from __future__ import annotations
@@ -227,8 +229,8 @@ def lines(report: dict) -> list[str]:
         f"perf {report['date']} {report['commit'][:10]}: {report['bots']} bots over {report['transport']}, "
         f"a {report['seconds']} s round, seed {report['seed']}; {report['host_ticks']} host ticks, "
         f"{report['remote_peers']} remote peers",
-        row("host_tick_usec", "us (the host step, ticks only)"),
-        row("physics_process_usec", "us (TIME_PHYSICS_PROCESS: the longest physics frame of each second, host and bots)"),
+        row("host_tick_usec", "us (the host step, ticks only; debug build: compare runs, not release cost)"),
+        row("physics_process_usec", "us (TIME_PHYSICS_PROCESS read about once a second, host and bots)"),
         row("events_per_tick", f"(mean {m['events_per_tick']['mean']})"),
         row("snapshot_payload_bytes", f"B per peer per tick; cap {snap['limit']} B (§4.3: unreliable payloads, so "
             f"ENet never fragments; WireBudget, E16), headroom {snap['headroom']:.0%}"),  # fmt: skip

@@ -690,21 +690,24 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over ENet a scenario step that
   needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is timing-dependent
   (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself (§4.6).
-- **`perf [--bots N] [--seconds S] [--enet] [--baseline FILE]` [applied]** (#187; item 6 of the
-  [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)): the host's cost with 10
-  bots, measured from the harness (`tests/harness/perf/`, ARCHITECTURE §9.7); nothing in `server/` or `net/` changes.
-  One seeded match (every bot readies, walks a spoke across the greybox, the round ends by time up after S seconds,
-  default 60) in one headless process: over the loopback on the simulated clock at `--fixed-fps 60` (about 10 s for
-  a 20 s round), or with `--enet` over real sockets on 127.0.0.1 on the real clock (the round's length and more). It
-  writes `tools/out/perf/<date>.json` (UTC; `<date>-enet.json`) and `summary.md`: p50/p95/max of the host step
-  (`Time.get_ticks_usec` around `HostSession.step`, steps that ran a tick), `TIME_PHYSICS_PROCESS` (the engine's
-  longest physics frame of each second, host and bots together), events per tick, each `Snapshot`'s payload bytes per
-  remote peer per tick, frame bytes per remote peer per second down (all, snapshots, the bots' synthetic voice) and
-  up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets and their headroom (the
-  1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceDown`). It compares with `--baseline`, else
-  `tools/out/perf/baseline.json`, else the newest earlier report of the same transport, and lists every metric
-  that moved by more than 20% (a placeholder, not a decision); only a failed match fails it. Not a `verify` step:
-  the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to pin the comparison.
+- **`perf [--bots N] [--seconds S] [--enet] [--baseline FILE]` [applied]** (#187; item 6 of the [AI productivity
+  ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)): the host's cost with 10 bots, measured
+  from the harness (`tests/harness/perf/`, ARCHITECTURE §9.7); nothing in `server/` or `net/` changes. One seeded
+  match (every bot readies, walks a spoke across the greybox, the round ends by time up after S seconds, default 60)
+  in one headless process: over the loopback on the simulated clock at `--fixed-fps 60` (about 10 s for a 20 s
+  round), or with `--enet` over real sockets on 127.0.0.1 on the real clock (the round's length and more). It writes
+  `tools/out/perf/<date>.json` (UTC; `-enet` over ENet, `-<N>b<S>s` for a run other than 10 bots and 60 s) and
+  `summary.md`: p50/p95/max of the host step (`Time.get_ticks_usec` around `HostSession.step`, steps that ran a tick;
+  inside it the harness's meter only appends to a buffer, folded after), `TIME_PHYSICS_PROCESS` (read about once a
+  second, host and bots together; how the engine refreshes it between reads is not documented), events per tick, each
+  `Snapshot`'s payload bytes per remote peer per tick, frame bytes per remote peer per second down (all, snapshots,
+  the bots' synthetic voice) and up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets
+  and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceDown`). It compares
+  with `--baseline`, else `tools/out/perf/baseline.json`, else the newest earlier report of the same transport, bots
+  and round, and lists every metric that moved by more than 20% (a placeholder, not a decision); only a failed match
+  fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to
+  pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
+  with a release host's cost.
 - **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact]` [applied]** (#178;
   item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose baseline
   it reproduces): time, tokens and API list $ of the task workflows, read-only from the Claude Code transcripts. It
