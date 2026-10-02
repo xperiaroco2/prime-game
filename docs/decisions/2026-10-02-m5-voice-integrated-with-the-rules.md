@@ -31,9 +31,8 @@ What constrains the design:
 - **The voice invariant** (vision revision 1, M4-1): nobody hears a downed or dead speaker; a dead listener hears no
   voice; a downed listener hears the living from where they lie.
 - **The leak test** changes in the PR that changes what it checks, each new check proven by a planted leak.
-- **The stage's budget:** about 10% of the engineer's weekly Max 20x limit (#134's correction of 2026-10-02); M4's
-  eleven tasks took about 8 to 9% of such a week, so M5 gets about 7 or 8 tasks. PRs of at most about 1500 changed
-  lines; at most three tasks at once.
+- **The stage's budget:** set by the engineer once the first wave's usage is seen (#190 holds it; a budget is moving
+  state). The split is sized by reviewable PRs (at most about 1500 changed lines) and at most three tasks at once.
 - **The humans** write no code; agents open no window, use no microphone and download nothing; audio files, the
   addon's download and the listening tests are the engineer's steps. The game targets Windows; CI runs on Linux.
 - **A hobby project:** no anti-cheat or privacy hardening beyond the invariants (root `CLAUDE.md`).
