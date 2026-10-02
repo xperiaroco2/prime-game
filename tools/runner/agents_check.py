@@ -6,6 +6,10 @@ holds `agentType` and, when the caller asked for one, `model`; every assistant l
 that actually answered. The expected family is the caller's `model`, else the `model:` of the project agent in
 .claude/agents/<agentType>.md; a subagent with neither inherits the session's model and is only listed. A requested
 model outside `availableModels` (the model guard) must NOT be what served it. Families, not exact IDs, are compared.
+
+The folders read are the main checkout's and its .claude/worktrees/* sessions' (the main checkout is found as `metrics`
+finds it, from git's common dir), so a run from a worktree reads what a run from the main checkout reads. Workflow
+agents' transcripts (<session>/subagents/workflows/wf_*/) are not read.
 """
 
 from __future__ import annotations
@@ -37,7 +41,8 @@ def config_dir() -> Path:
 
 
 def project_dirs(root: Path = ROOT, base: Path | None = None) -> list[Path]:
-    """This checkout's transcript folders: the checkout itself and its .claude/worktrees/* sessions."""
+    """A checkout's transcript folders: the checkout itself and its .claude/worktrees/* sessions (`base`: the config
+    folder)."""
     name = re.sub(r"[^A-Za-z0-9]", "-", str(root))
     projects = (base or config_dir()) / "projects"
     if not projects.is_dir():
@@ -130,12 +135,15 @@ def main(
     session: str | None = None, all_sessions: bool = False, *, root: Path = ROOT, config: Path | None = None
 ) -> int:
     """`root`: the checkout whose agent files and shared settings apply; `config`: the Claude config folder."""
+    from . import metrics  # here, not at the top: metrics imports this module
+
     if not session and not all_sessions:
         session = os.environ.get("CLAUDE_CODE_SESSION_ID") or None
     scope = "all sessions" if all_sessions or not session else f"session {session}"
     say(f"agents-check ({scope})")
     agents, allowed = agent_models(root), allowed_models(root)
-    folders = project_dirs(root, config)
+    # The main checkout's folders and its worktrees' sessions, from any worktree, as metrics reads them (#178).
+    folders = project_dirs(metrics.main_checkout(root), config)
     transcripts = [t for folder in folders for t in read(folder, None if all_sessions else session)]
     judged = failed = 0
     for t in transcripts:

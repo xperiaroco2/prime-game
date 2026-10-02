@@ -1,12 +1,13 @@
 """`agents-check`: expected model families from the caller's request, the agent files and the model guard."""
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import agents_check
+from runner import agents_check, metrics
 from runner.agents_check import Transcript
 from runner.common import Failure
 
@@ -83,6 +84,44 @@ class ReadTest(unittest.TestCase):
         models = agents_check.agent_models()
         self.assertEqual(models.get("test-runner"), "haiku")
         self.assertEqual(agents_check.allowed_models(), ALLOWED)
+
+
+GIT = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+
+
+def transcript(folder: Path, agent_id: str, meta: dict, served: str) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    line = {"type": "assistant", "message": {"model": served}}
+    (folder / f"agent-{agent_id}.jsonl").write_text(json.dumps(line) + "\n", encoding="utf-8")
+    (folder / f"agent-{agent_id}.meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+
+class MainTest(unittest.TestCase):
+    """main() end to end on a temporary repository with a worktree and a temporary Claude config folder."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.main = Path(tmp.name).resolve() / "game"
+        (self.main / ".claude").mkdir(parents=True)
+        (self.main / ".claude" / "settings.json").write_text(json.dumps({"availableModels": ALLOWED}), encoding="utf-8")
+        subprocess.run([*GIT, "init", "-q"], cwd=self.main, check=True)
+        subprocess.run([*GIT, "add", "."], cwd=self.main, check=True)
+        subprocess.run([*GIT, "commit", "-q", "-m", "x"], cwd=self.main, check=True)
+        self.worktree = self.main / ".claude" / "worktrees" / "7"
+        subprocess.run([*GIT, "worktree", "add", "-q", str(self.worktree)], cwd=self.main, check=True)
+        self.config = Path(tmp.name).resolve() / "config"
+        # Workflow and hand-run agents of a session started in the main checkout log under its key.
+        self.subagents = self.config / "projects" / metrics.project_key(self.main) / "s1" / "subagents"
+        transcript(self.subagents, "a1", {"agentType": "general-purpose", "model": "sonnet"}, "claude-sonnet-5-5")
+        for name in ("say", "ok", "bad", "skip"):
+            patcher = mock.patch.object(agents_check, name)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_from_a_worktree_it_reads_the_main_checkouts_transcripts(self) -> None:
+        self.assertEqual(agents_check.main(all_sessions=True, root=self.worktree, config=self.config), 0)
+        self.assertEqual(agents_check.main(all_sessions=True, root=self.main, config=self.config), 0)
 
 
 if __name__ == "__main__":
