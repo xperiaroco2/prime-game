@@ -475,6 +475,7 @@ class SelftestTest(unittest.TestCase):
             {
                 "test_godot_tools.RealNormalizeTest",
                 "test_hostjoin.RealSessionTest",
+                "test_import_freshness.RealStaleCacheTest",
                 "test_launch.RealRunTest",
                 "test_user_dir.RealUserDirTest",
             },
