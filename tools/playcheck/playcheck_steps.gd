@@ -82,7 +82,7 @@ var _started_ms := -1
 ## it, so a failure now is that step's.
 var _acting := -1
 var _frames := 0
-## Events before this index were matched by an earlier wait, or came before it.
+## Events before this index were matched by an earlier wait (or skipped before that match).
 var _event_cursor := 0
 
 
