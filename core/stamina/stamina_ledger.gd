@@ -9,16 +9,17 @@ extends RefCounted
 ##   costs `sprint_cost_per_s` / 20; every other tick regenerates `stamina_regen_per_s` / 20, up to
 ##   the maximum. Only the player's own movement counts: a pushed player pays nothing for the
 ##   push (the engineer's decision of 2026-09-30, #46).
-## - A claim settles the ticks it covers, never past the current host tick (MovementRule). Before
-##   a jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint
-##   flag and movement (settle_ahead), so an idle player is not refused on stale stamina; a later
-##   claim settles only what is left.
+## - A claim settles the ticks it covers, never past the current host tick, each with the flags
+##   its masks give that tick (MovementRule, simulate_ticks, #155). Before a jump or a hit is
+##   checked, the ticks not yet settled are settled with the last claim's sprint flag and movement
+##   (settle_ahead), so an idle player is not refused on stale stamina; a later claim settles only
+##   what is left.
 ## - At 0 stamina walking works; sprint and jump need their full cost (Q7).
 ## - Only the living sprint: a downed player crawls (MovementRule), is never in the sprint state
 ##   and regenerates as usual, since it spends none (vision revision 1).
 ##
 ## The client's PredictedStamina (client/player/) predicts with the same rule and follows
-## SelfStatus: on the network claim by claim, without giving back the ticks in flight (M4-7, E24,
+## SelfStatus: on the network claim by claim, from the claim each SelfStatus names (M4-7, E24,
 ## #155; ARCHITECTURE §7.1 Speed).
 
 
@@ -30,10 +31,9 @@ class Settlement:
 	var settled_tick := -1
 	## The ticks settled.
 	var ticks := 0
-	## How many of them were in the sprint state.
-	var sprint_ticks := 0
-	## Whether a further tick with the same sprint flag would be in the sprint state.
-	var next_sprinting := false
+	## simulate_ticks only: of all the ticks it was given, settled or not, those in the sprint
+	## state with the player's own movement, which a claim may cover at sprint speed.
+	var fast_ticks := 0
 
 
 ## Settles `player` through host tick `through_tick`, at most `max_ticks` ticks (-1: no limit),
@@ -73,9 +73,6 @@ static func simulate(
 	if player.stamina_settled_tick < 0:
 		# No ledger yet (a join, or ResetMatch): it starts here, with nothing to settle.
 		result.settled_tick = through_tick
-		result.next_sprinting = _sprint_state(
-			player.life, sprint_held, false, player.stamina, rules
-		)
 		return result
 	var count := maxi(0, through_tick - player.stamina_settled_tick)
 	if max_ticks >= 0:
@@ -90,20 +87,56 @@ static func simulate(
 		result.sprinting = _sprint_state(
 			player.life, sprint_held, result.sprinting, result.stamina, rules
 		)
-		if result.sprinting:
-			result.sprint_ticks += 1
 		if result.sprinting and moving:
 			result.stamina = maxi(0, result.stamina - cost)
 		else:
 			result.stamina = mini(most, result.stamina + regen)
 		if result.stamina == most and result.sprinting == sprint_held and not moving_sprint:
 			# Full and steady: every remaining tick is the same.
-			if result.sprinting:
-				result.sprint_ticks += count - i - 1
 			break
-	result.next_sprinting = _sprint_state(
-		player.life, sprint_held, result.sprinting, result.stamina, rules
-	)
+	return result
+
+
+## What settling a claim's covered ticks would do, each tick with its own flags (#155), without
+## changing `player`: `sprint_held[j]` and `moving[j]` are the j-th tick's, oldest first. Like
+## simulate(), never past `through_tick`: `ticks` counts the oldest ticks that fit and the
+## settlement stops after them. The ticks past it are run on from there for `fast_ticks` only,
+## which counts, over every given tick, those in the sprint state with the player's own movement.
+static func simulate_ticks(
+	player: PlayerState,
+	rules: PlayerRules,
+	through_tick: int,
+	sprint_held: Array[bool],
+	moving: Array[bool]
+) -> Settlement:
+	var result := Settlement.new()
+	var count := sprint_held.size()
+	var fits := 0
+	if player.stamina_settled_tick < 0:
+		# No ledger yet (a join, or ResetMatch): it starts here, with nothing to settle.
+		result.settled_tick = through_tick
+	else:
+		fits = clampi(through_tick - player.stamina_settled_tick, 0, count)
+		result.settled_tick = player.stamina_settled_tick + fits
+	result.ticks = fits
+	var most := Ticks.thousandths(rules.stamina)
+	var cost := Ticks.per_tick(rules.sprint_cost_per_s)
+	var regen := Ticks.per_tick(rules.stamina_regen_per_s)
+	var stamina := player.stamina
+	var sprinting := player.sprinting
+	for j in count:
+		if j == fits:
+			result.stamina = stamina
+			result.sprinting = sprinting
+		sprinting = _sprint_state(player.life, sprint_held[j], sprinting, stamina, rules)
+		if sprinting and moving[j]:
+			stamina = maxi(0, stamina - cost)
+			result.fast_ticks += 1
+		else:
+			stamina = mini(most, stamina + regen)
+	if fits == count:
+		result.stamina = stamina
+		result.sprinting = sprinting
 	return result
 
 
