@@ -572,6 +572,22 @@ class PipelineV2Test(unittest.TestCase):
         test_review = calls(ok, "test-review")[0]["prompt"]
         for text in ("`tools\\run.cmd mutants --help`", "ONE mutant per `tools\\run.cmd mutants <spec.json>` call", "600 s", "exit_2 true"):
             self.assertIn(text, test_review)
+        # What `mutants` really does (#202): its exit codes, the spec rules it enforces, its per-test-run timeout,
+        # and its `not run` result, which the schema's enum lacks.
+        for text in (
+            "1: an invalid spec or a run that could not start or finish (a dirty worktree, another mutants run in the "
+            "same checkout, a failed import, a crash): fix the spec, else report the FAIL lines",
+            "2: its scratch worktree could not be removed, or the task's `git status` changed during the run",
+            "a mutant may not touch a `class_name` or `extends` line",
+            "its `original` must start exactly once on its 1-based `line`",
+            "`--seconds` (default 300)",
+            "A mutant that a stopped run lists as `not run` is reported as error",
+        ):
+            self.assertIn(text, test_review)
+        mutant = options(calls(ok, "test-review")[0])["schema"]["properties"]["mutants"]["items"]
+        self.assertNotIn("not run", mutant["properties"]["result"]["enum"])
+        # The publisher's stop on exit 2 is unchanged.
+        self.assertIn("If a `tools\\run.cmd mutants` run exits 2 (its scratch worktree could not be removed), stop", calls(ok, "publish")[0]["prompt"])
         publish = calls(ok, "publish")[0]["prompt"]
         self.assertIn("a table of the mutants", publish)
         self.assertIn("If a `tools\\run.cmd mutants` run exits 2", publish)
