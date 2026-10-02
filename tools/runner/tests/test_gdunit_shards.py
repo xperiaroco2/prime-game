@@ -225,6 +225,15 @@ class OneProcessTest(Fixture):
         folders = ["res://tests/harness", "res://tests/ignored", "res://tests/integration", "res://tests/unit"]
         self.assertEqual([a for a in self.calls[0]["args"] if a.startswith("res://tests")], folders)
 
+    def test_named_paths_stay_one_process_with_the_environment_variable_set(self) -> None:
+        # mutants (#200) calls gdunit.main(paths, run_import=False) and reads report_*/results.xml
+        with mock.patch.dict(os.environ, {gdunit.SHARDS_VAR: "4"}):
+            rc, text = self.run_test(paths=["tests/unit"])
+        self.assertEqual(rc, 0, text)
+        self.assertEqual([c["log"] for c in self.calls], ["test"])
+        self.assertIsNone(self.calls[0]["env"])
+        self.assertIn("report: tools/out/gdunit/report_1/results.xml", text)
+
     def test_the_environment_variable_sets_the_count_for_a_run_without_paths(self) -> None:
         with mock.patch.dict(os.environ, {gdunit.SHARDS_VAR: "1"}):
             self.run_test()
@@ -245,6 +254,8 @@ class CountTest(unittest.TestCase):
             self.assertEqual(gdunit.shard_count(None, 4), (4, "--shards 4"))
             self.assertEqual(gdunit.shard_count(["tests/unit"], None), (1, "named paths"))
             self.assertEqual(gdunit.shard_count(["tests/unit"], 2), (2, "--shards 2"))
+            with mock.patch.dict(os.environ, {gdunit.SHARDS_VAR: "4"}):
+                self.assertEqual(gdunit.shard_count(["tests/unit"], None), (1, "named paths"))
             with mock.patch.object(gdunit, "default_shards", return_value=3):
                 self.assertEqual(gdunit.shard_count(None, None)[0], 3)
             with mock.patch.dict(os.environ, {gdunit.SHARDS_VAR: "2"}):
