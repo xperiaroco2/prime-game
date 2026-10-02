@@ -174,12 +174,28 @@ class BaselineTest(unittest.TestCase):
             with self.assertRaises(Failure):
                 perf.find_baseline(folder / "missing.json", "loopback", folder)
 
+    def test_a_run_of_another_setup_is_not_the_baseline_of_the_default_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            for name in ("2026-10-01.json", "2026-10-02-4b20s.json", "2026-10-02-enet-4b20s.json"):
+                (folder / name).write_text("{}", encoding="utf-8")
+            self.assertEqual(perf.find_baseline(None, "loopback", folder), folder / "2026-10-01.json")
+            self.assertEqual(perf.find_baseline(None, "loopback", folder, 4, 20), folder / "2026-10-02-4b20s.json")
+            self.assertEqual(perf.find_baseline(None, "enet", folder, 4, 20), folder / "2026-10-02-enet-4b20s.json")
+            self.assertIsNone(perf.find_baseline(None, "enet", folder))
+            self.assertIsNone(perf.find_baseline(None, "loopback", folder, 10, 20))
+
     def test_report_names(self) -> None:
         self.assertEqual(perf.report_name("2026-10-02", "loopback"), "2026-10-02.json")
         self.assertEqual(perf.report_name("2026-10-02", "enet"), "2026-10-02-enet.json")
+        self.assertEqual(perf.report_name("2026-10-02", "loopback", 4, 20), "2026-10-02-4b20s.json")
+        self.assertEqual(perf.report_name("2026-10-02", "enet", 10, 30), "2026-10-02-enet-10b30s.json")
 
 
 class RunTest(unittest.TestCase):
+    # A fixed date: two runs straddling midnight UTC would otherwise write two reports.
+    date = "2026-10-02"
+
     def run_main(self, folder: Path, code: int, written: dict | None, **kwargs: object) -> tuple[int, list]:
         def fake_launch(target: str, **options: object) -> int:
             out = [arg for arg in options["user_args"] if arg.startswith("--out=")][0].removeprefix("--out=")
@@ -196,6 +212,7 @@ class RunTest(unittest.TestCase):
             mock.patch.object(perf.launch, "main", side_effect=fake_launch) as launched,
             mock.patch.object(verify, "free_udp_port", return_value=24242),
             mock.patch.object(perf, "say"),
+            mock.patch.object(perf, "today", return_value=self.date),
         ):
             return perf.main(**kwargs), launched.call_args_list  # type: ignore[arg-type]
 
@@ -209,11 +226,17 @@ class RunTest(unittest.TestCase):
             self.assertEqual(options["seconds"], 60 + perf.TIMEOUT_MARGIN_SECONDS)
             self.assertTrue(options["headless"])
             reports = sorted(folder.glob("*.json"))
-            self.assertEqual(len(reports), 1)
+            self.assertEqual([path.name for path in reports], ["2026-10-02.json"])
             first = json.loads(reports[0].read_text(encoding="utf-8"))
             self.assertEqual(first["comparison"]["note"], "no baseline: nothing compared")
             self.assertIn("host_tick_usec", (folder / "summary.md").read_text(encoding="utf-8"))
-            # A second run the same day compares with the first, and a change never fails it.
+            # A run of another setup the same day keeps the default report and compares with nothing.
+            short = raw(bots=4, seconds=20)
+            self.assertEqual(self.run_main(folder, 0, short, bots=4, seconds=20)[0], 0)
+            other = json.loads((folder / "2026-10-02-4b20s.json").read_text(encoding="utf-8"))
+            self.assertEqual(other["comparison"]["note"], "no baseline: nothing compared")
+            self.assertEqual(json.loads(reports[0].read_text(encoding="utf-8")), first)
+            # A second default run the same day compares with the first, and a change never fails it.
             slower = raw(bots=10, seconds=60, tick_usec=[1000, 2000, 3000, 4000, 10000])
             code, _ = self.run_main(folder, 0, slower, bots=10, seconds=60)
             self.assertEqual(code, 0)
@@ -228,7 +251,7 @@ class RunTest(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIsNone(calls[0].kwargs["engine_args"])
             self.assertIn("--port=24242", calls[0].kwargs["user_args"])
-            self.assertTrue(list(folder.glob("*-enet.json")))
+            self.assertTrue((folder / "2026-10-02-enet-3b20s.json").is_file())
 
     def test_a_failed_match_fails_and_writes_no_report(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

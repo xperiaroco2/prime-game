@@ -6,8 +6,8 @@ run) through the host session, headless, and measures it from the harness side. 
 process steps a simulated clock at `--fixed-fps 60`, as fast as the machine runs; `--enet` uses real sockets on
 127.0.0.1 and the real clock, the host and every bot still in one process. Godot writes the raw samples to
 tools/out/perf/raw/<transport>.json; this module summarises them into tools/out/perf/<date>.json (UTC; `-enet` added
-over ENet) and summary.md, and compares them with a baseline: a run fails only when the match fails, never on a
-change. Not a `verify` step; the nightly workflow runs it (docs/AGENT_WORKFLOW.md §15).
+over ENet, `-<N>b<S>s` for other than 10 bots and a 60 s round) and summary.md, and compares them with a baseline: a run
+fails only when the match fails, never on a change. Not a `verify` step; the nightly workflow runs it (docs/AGENT_WORKFLOW.md §15).
 
 Each metric is p50/p95/max (nearest rank) over its samples: the host step's time (Time.get_ticks_usec around
 HostSession.step, the steps that ran a host tick), Performance's TIME_PHYSICS_PROCESS once a second (the engine's
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -166,12 +167,22 @@ def compare(report: dict, baseline: dict | None, threshold: float = THRESHOLD, n
     return result
 
 
-def report_name(date: str, transport: str) -> str:
-    return f"{date}.json" if transport == "loopback" else f"{date}-{transport}.json"
+def report_name(date: str, transport: str, bots: int = DEFAULT_BOTS, seconds: int = DEFAULT_SECONDS) -> str:
+    """<date>.json for the default run over the loopback; `-enet` and `-<N>b<S>s` keep other runs from replacing it."""
+    name = date if transport == "loopback" else f"{date}-{transport}"
+    if (bots, seconds) != (DEFAULT_BOTS, DEFAULT_SECONDS):
+        name += f"-{bots}b{seconds}s"
+    return f"{name}.json"
 
 
-def find_baseline(explicit: Path | None, transport: str, folder: Path | None = None) -> Path | None:
-    """--baseline FILE; else tools/out/perf/baseline.json; else the newest earlier report of the same transport.
+def find_baseline(
+    explicit: Path | None,
+    transport: str,
+    folder: Path | None = None,
+    bots: int = DEFAULT_BOTS,
+    seconds: int = DEFAULT_SECONDS,
+) -> Path | None:
+    """--baseline FILE; else tools/out/perf/baseline.json; else the newest earlier report of the same run setup.
 
     Called before this run's report is written, so a second run on a day compares with the first."""
     if explicit is not None:
@@ -181,15 +192,13 @@ def find_baseline(explicit: Path | None, transport: str, folder: Path | None = N
     folder = folder or PERF_OUT
     if (folder / BASELINE.name).is_file():
         return folder / BASELINE.name
-    reports = [path for path in folder.glob("*.json") if path.name != BASELINE.name and is_report_of(path, transport)]
+    reports = [path for path in folder.glob("*.json") if is_report_of(path, transport, bots, seconds)]
     return max(reports, key=lambda path: path.name, default=None)
 
 
-def is_report_of(path: Path, transport: str) -> bool:
-    stem = path.stem
-    if transport == "loopback":
-        return len(stem) == 10 and stem[4] == "-" and stem[7] == "-"
-    return stem.endswith(f"-{transport}") and len(stem) == 11 + len(transport)
+def is_report_of(path: Path, transport: str, bots: int = DEFAULT_BOTS, seconds: int = DEFAULT_SECONDS) -> bool:
+    suffix = report_name("", transport, bots, seconds)
+    return re.fullmatch(r"\d{4}-\d{2}-\d{2}" + re.escape(suffix), path.name) is not None
 
 
 def shown(path: Path) -> str:
@@ -263,6 +272,11 @@ def run_godot(bots: int, seconds: int, enet: bool, raw: Path) -> int:
     )
 
 
+def today() -> str:
+    """The report's UTC date; one place, so a test can fix it."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
 def main(
     bots: int = DEFAULT_BOTS, seconds: int = DEFAULT_SECONDS, enet: bool = False, baseline: str | None = None
 ) -> int:
@@ -278,13 +292,13 @@ def main(
     if code != 0 or raw is None:
         say(f"perf: FAILED (the run{'' if raw is not None else ' wrote no ' + rel(raw_path)}; nothing compared)")
         return 1
-    date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date = today()
     head = git("rev-parse", "HEAD")
     report = summarize(raw, date=date, commit=head.out.strip() if head.rc == 0 else "")
-    base_path = find_baseline(Path(baseline).resolve() if baseline else None, transport)
+    base_path = find_baseline(Path(baseline).resolve() if baseline else None, transport, None, bots, seconds)
     base = read_json(base_path) if base_path else None
     report["comparison"] = compare(report, base, THRESHOLD, shown(base_path) if base_path else "")
-    out = PERF_OUT / report_name(date, transport)
+    out = PERF_OUT / report_name(date, transport, bots, seconds)
     out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     text = lines(report)
     SUMMARY.write_text("\n".join(["# perf", "", "```", *text, "```", ""]), encoding="utf-8")
