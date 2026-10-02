@@ -321,8 +321,8 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   "Could not resolve hostname github.com" is transient: `git ls-remote origin`, then again.
 - Intermediate commits after a rebase may not compile (the fix lands at the tip): bisect by PR; merge commits keep
   PRs as units.
-- Two verify runs at once in different worktrees can collide (GdUnit4 files under `user://`, a busy port): the
-  agents rerun once before debugging.
+- Two verify runs at once in different worktrees can collide (a busy ENet port, a timeout under CPU load; GdUnit4's
+  `user://` files too, until #182 gave each worktree and shard its own): the agents rerun once before debugging.
 - Agents see the human's mid-turn messages relayed; they ignore requests outside their task. Tell the human that a
   message meant for you should go to your session, not to a running workflow.
 - Numbers: about 20 workflows in one day; 25 to 60 minutes and 450k to 900k subagent tokens per task workflow.
