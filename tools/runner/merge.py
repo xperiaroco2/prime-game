@@ -960,7 +960,8 @@ def _remove(path: Path) -> None:
 def scratch_worktree(commit: str, label: str) -> Iterator[Path]:
     """A detached worktree at commit under tools/out/merge/ (gitignored; tools/out/.gdignore keeps the editor of this
     checkout from importing it), removed afterwards whatever happened in it, with the user:// folder its Godot runs
-    made in the app-data folder (a new one each time: the name hashes the tree's path, #233)."""
+    made in the app-data folder (a new one each time: the name hashes the tree's path, #233). A tree that stays (a
+    program still has it open) keeps its folder too, as in mutants: finished by hand, it would make a new one."""
     if SCRATCH.parent == OUT:
         ensure_out()
     SCRATCH.mkdir(parents=True, exist_ok=True)
@@ -975,7 +976,7 @@ def scratch_worktree(commit: str, label: str) -> Iterator[Path]:
     finally:
         user = worktree_user_dir(path)  # read while the tree's .git file and project.godot are there
         _remove(path)
-        if user is not None and remove_own_user_dir(user):
+        if user is not None and not path.exists() and remove_own_user_dir(user):
             ok(f"removed its user:// folder {user.name}")
 
 

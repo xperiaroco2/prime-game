@@ -563,6 +563,17 @@ class CommandTest(unittest.TestCase):
         self.assertEqual(self.kept("merge-trial"), reports)
         self.assertEqual(self.user_dirs_left(), [])  # also after a red verify
 
+    def test_a_scratch_worktree_that_stays_keeps_its_user_dir(self) -> None:
+        # As mutants does: the folder goes only with the tree, so a tree finished by hand makes no second one.
+        self.task(1, {"core/a.gd": "extends Node\n"})
+        with mock.patch.object(merge, "_remove", lambda path: None):  # a program still has the tree open
+            self.assertEqual(merge.check([1], trial=True), 0)
+        left = self.scratch_left()
+        self.assertEqual(len(left), 1)
+        self.assertEqual(self.user_dirs_left(), self.user_dirs)
+        merge._remove(left[0])
+        self.assertEqual(self.scratch_left(), [])
+
     def test_trial_stops_at_a_conflict_and_removes_the_worktree(self) -> None:
         self.task(1, {"core/a.gd": "extends Node\n"})
         self.task(2, {"core/a.gd": "extends Object\n"})
