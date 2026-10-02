@@ -51,14 +51,15 @@ weekday below). Work in English. Root `CLAUDE.md` applies in full.
   `docs-drift`.
 
 ## Steps
-1. **Where you are.** `git rev-parse --git-dir` and `git rev-parse --git-common-dir` must differ (a linked worktree:
-   the scheduled task's worktree toggle). If they are equal, or `git status --porcelain` shows changes, comment
-   "night-audit skipped: not in a clean worktree of its own" on the Night jobs issue (step 6) and stop. Otherwise
+1. **Where you are.** Find the Night jobs issue first: `gh issue list --state open --search "\"Night jobs\"
+   in:title" --json number,title`, the one titled exactly "Night jobs" (none: create it as in step 6 when you first
+   need it). `git rev-parse --git-dir` and `git rev-parse --git-common-dir` must differ (a linked worktree: the
+   scheduled task's worktree toggle). If they are equal, or `git status --porcelain` shows changes, comment
+   "night-audit skipped: not in a clean worktree of its own" on the Night jobs issue and stop. Otherwise
    `git fetch origin` and `git switch --detach origin/main`: you audit what is on `main`.
 2. **The lens.** An argument names it; else the local weekday: Monday, Thursday, Saturday `docs-drift`; Tuesday
-   `coverage`; Wednesday, Sunday `flaky`; Friday `dead-code`. Find the Night jobs issue: `gh issue list --state open
-   --search "\"Night jobs\" in:title" --json number,title`, the one titled exactly "Night jobs". If today's
-   summary comment ("night-audit <lens>, <today's date>") is already there (a catch-up run after a missed one), stop.
+   `coverage`; Wednesday, Sunday `flaky`; Friday `dead-code`. If today's summary comment ("night-audit <lens>,
+   <today's date>") is already on the Night jobs issue (a catch-up run after a missed one), stop.
 3. **Candidates.** Follow the lens below. Each candidate: one claim, the file and line, and the evidence (what the
    doc or code says, and the command or file that shows otherwise). Mechanical evidence first (a missing path, an
    empty search); judgement second. Skip anything an open or closed issue already reports: `gh issue list --state
