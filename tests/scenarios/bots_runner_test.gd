@@ -492,7 +492,7 @@ func test_bots_10_m_apart_decode_nothing_of_each_other_and_within_8_m_both_decod
 	# voice_beyond_the_radius (M5-1): in the round bot 1 stands about 10 m south of bot 2, both
 	# talking, then bot 2 walks within 8 m. The distance invariant held on every frame (no failure);
 	# here, the legs happened: seconds of round ticks beyond the radius, and frames of each other
-	# decoded in the round, every one within it.
+	# decoded in the round, every one within it, a second of them after the bots last stood apart.
 	var runner := BotsRunner.play(load(VOICE_BEYOND) as BotScenario)
 	assert_array(Array(runner.failures)).is_empty()
 	var round_tick := _round_tick(runner.game)
@@ -500,10 +500,12 @@ func test_bots_10_m_apart_decode_nothing_of_each_other_and_within_8_m_both_decod
 	var one := runner.peers.peer_of(1)
 	var two := runner.peers.peer_of(2)
 	var apart := 0
+	var last_apart := 0
 	for at_tick in range(round_tick + 1, runner.game.ticked_through() + 1):
 		var positions := runner.leaks.positions_at(at_tick)
 		if positions[one].distance_to(positions[two]) > ROUND_RADIUS_M + 1.0:
 			apart += 1
+			last_apart = at_tick
 	assert_int(apart).is_greater(3 * Ticks.RATE)
 	for listener: int in [1, 2]:
 		var speaker := runner.peers.peer_of(3 - listener)
@@ -515,7 +517,8 @@ func test_bots_10_m_apart_decode_nothing_of_each_other_and_within_8_m_both_decod
 			var positions := runner.leaks.positions_at(key.y)
 			var squared := positions[one].distance_squared_to(positions[two])
 			assert_float(squared).is_less_equal(ROUND_RADIUS_M * ROUND_RADIUS_M)
-			heard += view.frames(speaker, key.y).size()
+			if key.y > last_apart:
+				heard += view.frames(speaker, key.y).size()
 		assert_int(heard).override_failure_message("bot %d" % listener).is_greater(Ticks.RATE)
 
 
