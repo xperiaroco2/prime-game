@@ -281,6 +281,33 @@ func test_by_claims_jumps_a_new_epoch_leaves_unclaimed_are_forgotten() -> void:
 	assert_int(stamina.stamina).is_equal(full)
 
 
+func test_by_claims_a_refused_jump_is_given_back_by_the_status_after_its_correction() -> void:
+	# #155's review: the host refused the jump claim of tick 2 and dropped tick 3 as stale (its
+	# epoch was gone); the client adopted the Correction's epoch and claimed tick 4. A status that
+	# arrives after the Correction names tick 1: claims 2 and 3 are settled again, but their jump
+	# was never charged, and claim 4, which the host takes from tick 1, settles their ticks.
+	var stamina := PredictedStamina.new(_rules)
+	stamina.follow_claims()
+	var player := _ledger_player(50000)
+	stamina.follow_status(50000, true, -1, EPOCH)
+	stamina.settle_claim(EPOCH, 1, 1, false, false, false)
+	stamina.report(STEP, false, true, false)
+	stamina.settle_claim(EPOCH, 2, 1, false, false, false)
+	stamina.settle_claim(EPOCH, 3, 1, false, false, false)
+	StaminaLedger.settle(player, _rules, 1, false, false)
+	# A status that arrives before the Correction (the client still in its epoch) keeps the jump
+	# in flight: the host may yet charge it.
+	stamina.follow_status(player.stamina, _available(player), 1, EPOCH)
+	var regen := Ticks.per_tick(_rules.stamina_regen_per_s)
+	var jump := Ticks.thousandths(_rules.jump_cost)
+	assert_int(stamina.stamina).is_equal(player.stamina + 2 * regen - jump)
+	stamina.forget_unclaimed_jumps()
+	stamina.settle_claim(EPOCH + 1, 4, 1, false, false, false)
+	stamina.follow_status(player.stamina, _available(player), 1, EPOCH + 1)
+	StaminaLedger.settle(player, _rules, 4, false, false)
+	assert_int(stamina.stamina).is_equal(player.stamina)
+
+
 func test_off_the_network_a_self_status_is_taken_as_it_is() -> void:
 	var stamina := PredictedStamina.new(_rules)
 	stamina.follow_status(12345, true, -1, EPOCH)
