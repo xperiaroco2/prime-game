@@ -257,10 +257,20 @@ class MetricsTest(unittest.TestCase):
 
     def test_the_wait_before_a_call_lands_in_its_bucket(self) -> None:
         impl = self.agent(self.runs(self.collect())["wf_done"], "a-impl")["data"]
-        self.assertIn((360.0, 19000, 1000), impl["gaps"])
+        gap = next(g for g in impl["gaps"] if g[0] == 360.0)
+        self.assertEqual(gap[:3], (360.0, 19000, 1000))
+        self.assertAlmostEqual(gap[3], 19000 * (5.0 - 0.20) / 1e6, msg="Opus 5.5 write minus read, from PRICES")
         md, _record, _compact = self.build()
         text = "\n".join(md)
         self.assertIn("| 5 to 10 min | 1 | 19k | 1k | 19k | 100% |", text)
+        self.assertIn("about $0.09 list more than reading them", text)
+
+    def test_the_cache_premium_after_a_wait_is_priced_by_each_calls_model(self) -> None:
+        sonnet = {**usage(write=1_000_000), "cache_write_1h": 0, "model": "claude-sonnet-5-5"}
+        self.assertAlmostEqual(metrics.write_premium(sonnet), 2.5 - 0.20)
+        opus_1h = {**usage(write=1_000_000, write_1h=1_000_000), "cache_write_1h": 1_000_000,
+                   "model": "claude-opus-5-5"}
+        self.assertAlmostEqual(metrics.write_premium(opus_1h), 8.0 - 0.20)
 
     def test_parsers(self) -> None:
         v = metrics.parse_verify("noise\n" + SUMMARY)

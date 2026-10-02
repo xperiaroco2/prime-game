@@ -181,6 +181,12 @@ def usd_of(usage: dict) -> dict[str, float]:
     }
 
 
+def write_premium(usage: dict) -> float:
+    """What one API call's cache writes cost above reading the same tokens from the cache, at its model's prices."""
+    price, _known = price_of(usage.get("model"))
+    return usd_of(usage)["usd_cache_write"] - usage["cache_creation_input_tokens"] * price[3] / 1e6
+
+
 def total(t: dict) -> float:
     return sum(t.get(f, 0) for f in TOKEN_FIELDS)
 
@@ -322,7 +328,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             unpriced.add(str(u["model"]))
     order = sorted(first_seen, key=lambda k: first_seen[k])
     gaps = [
-        (first_seen[b] - first_seen[a], usage[b]["cache_creation_input_tokens"], usage[b]["cache_read_input_tokens"])
+        (first_seen[b] - first_seen[a], usage[b]["cache_creation_input_tokens"], usage[b]["cache_read_input_tokens"],
+         write_premium(usage[b]))
         for a, b in zip(order, order[1:])
     ]
     calls = list(uses.values())
@@ -911,11 +918,12 @@ def cache_section(counted: list[dict]) -> list[str]:
     md = ["## The prompt cache after a wait (API calls by the time since the same agent's previous call)", "",
           table(head, rows), ""]
     long_w = sum(g[1] for g in gaps if g[0] >= 300)
+    long_usd = sum(g[3] for g in gaps if g[0] >= 300)
     all_w = sum(g[1] for g in gaps)
     if all_w:
         md += [f"Cache writes after a wait of 5 minutes or more: {fmt_tok(long_w)} of {fmt_tok(all_w)} "
-               f"({long_w / all_w:.0%}), about {fmt_usd(long_w * 4.8 / 1e6)} list more than reading them "
-               "(Opus 5.5).", ""]
+               f"({long_w / all_w:.0%}), about {fmt_usd(long_usd)} list more than reading them "
+               "(each call at its own model's prices).", ""]
     return md
 
 
