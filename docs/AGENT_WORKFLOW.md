@@ -652,7 +652,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `test_review`): shows that a change's tests fail when its code is wrong. Each mutant of the spec names a tracked
   `file` under `core/ server/ net/ client/ voice/`, the 1-based `line` on which `original` (exact text, which must
   start there once) begins, its `replacement`, and the `tests` (files or folders under `tests/`) that should catch it;
-  `mutants --help` prints the format. It refuses a dirty worktree (the mutants run HEAD) and runs nothing on an
+  `mutants --help` prints the format. A mutant on a `class_name` or `extends` line is refused: the scratch tree is
+  imported once, so its global class cache would be stale. It refuses a dirty worktree (the mutants run HEAD) and runs nothing on an
   invalid spec. A run never writes the task's tree, so a run killed half-way (a 600 s Bash limit, a stopped
   workflow) cannot leave a planted fault for the publisher to commit: it makes the scratch worktree
   `tools/out/mutants/tree-<checkout folder>` (`git worktree add --detach` of HEAD; a start first removes one a killed

@@ -56,6 +56,8 @@ GIT_SECONDS = 300
 KILLED, SURVIVED, ERROR, NOT_RUN = "killed", "survived", "error", "not run"
 # Godot's lines for a script that does not compile (the mutant's own fault, not a test's verdict).
 PARSE_RE = re.compile(r"Parse Error|Failed to load script|Compile Error", re.IGNORECASE)
+# What the global class cache holds: the mutants import once, so a mutant there would run against the old cache.
+CLASS_RE = re.compile(r"\b(class_name|extends)\b")
 
 HELP = """\
 spec: a JSON file (UTF-8) with one object:
@@ -67,7 +69,8 @@ spec: a JSON file (UTF-8) with one object:
   ]}
   file         a tracked file under core/ server/ net/ client/ voice/ (repo-relative or res://)
   line         the 1-based line on which original starts
-  original     the exact text; it must start on that line exactly once (\\n continues it on the next lines)
+  original     the exact text; it must start on that line exactly once (\\n continues it on the next lines);
+               never on a class_name or extends line (the scratch tree is imported once, before the mutants)
   replacement  the text put in its place ("" deletes it); never equal to original
   tests        test files or folders under tests/ (repo-relative or res://) that should catch the fault
 
@@ -264,6 +267,12 @@ def _check_entry(index: int, entry: object, root: Path) -> Mutant | list[str]:
         return [
             f"{where}: original {original!r} {count} on line {line} of {file}, which reads {actual!r}"
             + (" (make it longer, so it starts there once)" if hits else "")
+        ]
+    touched = "\n".join(text.split("\n")[line - 1 : line + original.count("\n")])
+    if CLASS_RE.search(touched) or CLASS_RE.search(replacement):
+        return [
+            f"{where}: it touches a class_name or extends line, which the global class cache holds; the scratch tree "
+            "is imported once, so the tests would run against the old cache (mutate a function body instead)"
         ]
     return Mutant(index, file, line, original, replacement, paths)
 
