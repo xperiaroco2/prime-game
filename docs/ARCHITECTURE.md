@@ -1085,7 +1085,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     subject check) or also reached every living peer present then, so nothing reaches only the dead (M4-2, the
     recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots present for a
     whole round decode the same task events; no decoded message has a field that names a seed; a peer that is not a
-    player decodes at most a `Rejected`, none unless it sent a `Hello`. `keep_history` costs memory (§5), so scenarios
+    player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker) decodes nothing. `keep_history` costs memory (§5), so scenarios
     stay short, or 3h compares per tick over a window and drops what it compared.
   - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
     one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
