@@ -321,7 +321,7 @@ class StartTest(unittest.TestCase):
 
     def user_dirs(self, tree: Path) -> tuple[Path, Path, Path]:
         """The worktree's own user:// folder, the main checkout's default one and another worktree's, each with a file."""
-        own = start.own_user_dir(tree)
+        own = common.worktree_user_dir(tree)
         assert own is not None
         folders = (own, own.parent / "PrimeGame", own.parent / "PrimeGame-43-0a1b2c")
         for folder in folders:
@@ -335,8 +335,13 @@ class StartTest(unittest.TestCase):
         self.commit_in(tree, "g.txt")
         git(tree, "push", "-q", "origin", "core/42-vote-tally:main")  # merged
         own, default, other = self.user_dirs(tree)
-        # The folder Godot uses: the custom_user_dir_name the runner writes into the worktree's override.cfg (#182).
-        self.assertIn(f'config/custom_user_dir_name="{own.relative_to(self.appdata).as_posix()}"', common.override_text(tree))
+        # The folder Godot uses: the custom_user_dir_name in the override.cfg the runner writes into the worktree
+        # (#182), ignored as in the real repo, so git worktree remove still takes the worktree.
+        (self.work / ".git" / "info" / "exclude").write_text("override.cfg\n", encoding="utf-8", newline="\n")
+        cfg = common.ensure_user_dir(tree)
+        assert cfg is not None
+        name = own.relative_to(self.appdata).as_posix()
+        self.assertIn(f'config/custom_user_dir_name="{name}"\n', cfg.read_text(encoding="utf-8"))
         with mock.patch.object(start, "ok") as said:
             self.assertEqual(start.worktree_done(42), 0)
         self.assertFalse(tree.exists())
