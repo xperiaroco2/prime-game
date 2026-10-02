@@ -1081,8 +1081,11 @@ def main(
     with io.open(folder / "metrics.json", "w", encoding="utf-8", newline="\n") as f:
         json.dump(record, f, indent=1, default=_json_default)
         f.write("\n")
-    say("\n".join(summary if compact else [*md, "## Summary", "", *summary]))
-    say(f"\nmetrics: wrote {folder / 'metrics.md'} and metrics.json")
+    if compact:
+        say("\n".join(summary))  # only the summary: the manager pastes it into a wave comment as it is
+    else:
+        say("\n".join([*md, "## Summary", "", *summary]))
+        say(f"\nmetrics: wrote {folder / 'metrics.md'} and metrics.json")
     return 0
 
 

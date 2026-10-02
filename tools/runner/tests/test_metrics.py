@@ -378,6 +378,8 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(record["tasks"][0]["session"], "M9")
         self.assertIn("## Per finished issue-task run", (out / "metrics.md").read_text(encoding="utf-8"))
         self.assertNotIn("## Per finished issue-task run", printed.getvalue())
+        self.assertNotIn("metrics: wrote", printed.getvalue(), "--compact prints only the summary")
+        self.assertLessEqual(len(printed.getvalue().strip().splitlines()), 10)
 
     def test_no_transcripts_says_so_and_passes(self) -> None:
         out = self.root / "none"
