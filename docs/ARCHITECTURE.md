@@ -1738,9 +1738,10 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     unavailable and the game runs. Tests never load the addon or open a microphone: a fake codec
     (`tests/fixtures/voice/`) and the pure `VoiceGate` and `VoiceJitter`. CI removes `addons/twovoip/` before
     `verify`, because Godot prints an `ERROR:` line on Linux for a `.gdextension` it cannot load (E35, the ADR §2).
-  - **Capture and the gate** (E36, E37, E38, D11): the 4.7 `AudioServer` input API, the device the player picked
-    (off until then: Godot 4.7.2 freezes on a microphone of more than two channels, #22); every 20 ms chunk encoded,
-    a frame sent only while the gate is open, with 2 frames of pre-roll. Three modes (D11, the engineer's answer):
+  - **Capture and the gate** (E36, E37, E38, D11): the 4.7 `AudioServer` input API, the Windows default device at
+    the first start and then the one the player picked, each opened under an "opening" mark that keeps a device that
+    froze the game closed at the next start (Godot 4.7.2 freezes on a microphone of more than two channels, #22);
+    every 20 ms chunk encoded, a frame sent only while the gate is open, with 2 frames of pre-roll. Three modes (D11, the engineer's answer):
     voice activity by default (a threshold set with a meter, and a hangover), push-to-talk held on V (`voice_talk`),
     or Off (the microphone closed). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
     hears nobody. No echo cancellation: under voice activity loudspeakers echo, so the Voice tab advises headphones.
