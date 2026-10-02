@@ -40,6 +40,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
     p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
 
+    p = sub.add_parser("perf", help="the host's cost with 10 bots: tick time, snapshot sizes, bytes per peer (not verify)")
+    p.add_argument("--bots", type=int, default=10, help="bots in the match, 2 to 10 (default 10)")
+    p.add_argument("--seconds", type=int, default=60, help="the round's length, 20 to 600 (default 60)")
+    p.add_argument("--enet", action="store_true", help="real sockets on 127.0.0.1 and the real clock (default loopback)")
+    p.add_argument("--baseline", help="report to compare with (default tools/out/perf/baseline.json, else the last)")
+
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
     p = board_sub.add_parser("move", help="put an issue on the board in a column (agents use only these two)")
@@ -195,6 +201,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import bots
 
             return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
+        if args.command == "perf":
+            from . import perf
+
+            return perf.main(bots=args.bots, seconds=args.seconds, enet=args.enet, baseline=args.baseline)
         if args.command == "board":
             from . import board
 
