@@ -451,6 +451,11 @@ class CommandTest(unittest.TestCase):
         self.printed.clear()
         self.assertEqual(merge.check([153, 155], base="release/m1"), 0)
         self.assertIn("merge-check: clean (0 textual conflicts and 0 overlaps in 3 checks)", self.printed)
+        # A named PR into another base is an error, not a silent "no open PRs to check".
+        self.task(157, {"core/c.gd": "extends Node\n"}, base="main")
+        with self.assertRaises(Failure) as caught:
+            merge.check([153, 157], base="release/m1")
+        self.assertIn("#157 targets main, not release/m1", str(caught.exception))
 
     def test_merge_check_onto_a_base_that_took_the_other_side_already(self) -> None:
         renamed = PLAYER_RULES.replace("ghost_speed_factor", "crawl_speed_mps")

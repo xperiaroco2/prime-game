@@ -852,6 +852,9 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
         if missing:
             raise Failure(f"not open PRs: {', '.join(f'#{n}' for n in missing)}")
         found = [known[n] for n in numbers]
+        elsewhere = [f"{pr.label} targets {pr.base}" for pr in found if base and pr.base != base]
+        if elsewhere:
+            raise Failure(f"{', '.join(elsewhere)}, not {base}: leave out --base or name only PRs into {base}")
     if base:
         found = [pr for pr in found if pr.base == base]
     if not found:
