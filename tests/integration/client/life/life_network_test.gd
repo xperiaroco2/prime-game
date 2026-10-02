@@ -75,7 +75,8 @@ func test_a_raised_downed_client_holds_still_and_is_never_corrected() -> void:
 	assert_bool(life.hider().is_active()).is_false()
 	var tick := float(_pair.client.avatars().host_tick())
 	assert_float(life.countdowns.invulnerable_left_s(tick)).is_between(2.0, 3.0)
-	assert_str(life.hud(tick).title).is_equal("Invulnerable")
+	# No own invulnerability read-out (the engineer's answer 2 on PR #167).
+	assert_str(life.hud(tick).title).is_empty()
 	_pair.host.life().release_raise()
 	await _pair.stop()
 
@@ -117,7 +118,12 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	assert_vector(camera_at).is_equal_approx(eye, Vector3.ONE * 0.01)
 	var shown := life.hud(float(_pair.client.avatars().host_tick()))
 	assert_str(shown.title).is_equal("Dead")
-	assert_str("\n".join(shown.lines)).contains("Watching Player1")
+	# The HUD names the target, and shows none of the spectator's own numbers (#168).
+	await _pair.frames(1)
+	var hud := _pair.client.ui.hud
+	assert_str(hud.spectating_label.text).is_equal("Spectating Player1")
+	assert_bool(hud.spectating_label.visible).is_true()
+	assert_bool(hud.health_label.visible or hud.stamina_label.visible).is_false()
 	# The target goes down: a new first target, the downed host, watched from above its body.
 	_pair.knock_down(_pair.host)
 	var above := func() -> bool: return life.view() == LifeView.View.SPECTATE_ABOVE

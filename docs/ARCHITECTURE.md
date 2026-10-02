@@ -1352,9 +1352,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 
   | Life | Controller | Camera | Inputs | HUD |
   |---|---|---|---|---|
-  | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | health, stamina, hand, belt, a package's destination, task progress, clock, own role, invulnerability |
+  | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | health, stamina, hand, belt, a package's destination, task progress, clock, own role |
   | Downed | crawls, keeps its items; holds still and claims no displacement from a `RaiseStarted` naming it until `RaiseStopped` or `Revived` (the host corrects any, answer 8) | third person above the body | crawl, look, give up | the knockdown countdown (paused while raised), who raises them |
-  | Dead | off: no avatar, no claims | the spectate camera | next and previous target | the respawn countdown, whom they watch; nothing of the target's |
+  | Dead | off: no avatar, no claims | the spectate camera | next and previous target | the respawn countdown; "Spectating <name>" and the target's hand and belt items (#168); nothing else of the target's |
 
 - **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
   (`PlayerRules.eye_height_m`), pointing back along the look, never above its pivot (the arm's pitch is clamped to
@@ -1378,7 +1378,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `RandomNumberGenerator` (the purpose `spectate`: seeded from the system's entropy in the game, by the test in a
   test), else a random downed one, else the camera stays above the own body. Next and previous cycle through the
   living and downed players in peer-id order; when the target goes down, dies or leaves, the camera draws a new first
-  target. Nothing about the target is sent, and the client has no HUD, health, stamina, role or private event of it.
+  target. Nothing about the target is sent, and the client shows no health, stamina, role, teammates or private
+  event of it.
+  From a living target's eyes the spectator sees what the target's own screen shows (#168): its body and head
+  hidden, its hand item in the spectate camera's first-person hand, the views of its hand and belt items at its
+  body hidden; the HUD says "Spectating <name>" over those public slots (§4.7, The HUD).
   The dead keep receiving every snapshot (none holds a dead player's avatar): the camera is built from them.
 - **What the dead hear** (V11): no voice (the host routes none); the world's sounds where the camera is (Godot's
   listener follows the current camera, so positional sounds play around the target); lift music from an
@@ -1396,7 +1400,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.
 - **Hands:** the own hand item is drawn in the first-person view and the belt item on the HUD. Every item is drawn
   from `ClientModel`'s fold of the item events: on the ground where it lies, or at its holder's hand or belt. The own
-  slots and the own invulnerability come from events only, since the own avatar never arrives.
+  slots come from events only, since the own avatar never arrives. No screen reads out the own invulnerability
+  (the engineer's answer 2 on PR #167: a later buffs UI may show it); others wear the shell (D8).
 - **Interactions:** the camera's ray picks the candidate, the first item or downed player along it in the client's
   own level; the hint and the key then apply only if the mode's `InReach` of `PickUp` holds, measured as the host
   measures it (2 m from the feet, not along the ray from the eye 1.6 m higher), so a crate-top item the host would
@@ -1407,8 +1412,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
   display names, a package's destination (a swatch of its circle's colour and a marker over that circle, drawn
   through walls too, since circles are fixed, public places: D10 (b)), the shared progress (`TaskProgress`), the match
-  clock, the own role by its display name and, for a dissident, its teammates (`Teammates`), invulnerability, and
-  what the crosshair would do. **The task screen** (Tab), for the living, the downed and the dead: each task of the
+  clock, the own role by its display name and, for a dissident, its teammates (`Teammates`), and
+  what the crosshair would do. While dead (#168) the HUD keeps the clock, the progress, the own role and teammates,
+  and shows "Spectating <name>" with the watched player's hand and belt items instead of the own numbers, slots,
+  destination and hint; no target's health, stamina, role, teammates or private event (the ADR's §3 item 2).
+  **The task screen** (Tab), for the living, the downed and the dead: each task of the
   match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
   progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
   `StationPlaced`'s colour, dimmed once `PackageDelivered` names it.
@@ -1438,7 +1446,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   M4-8's item views join it) with no line of sight from the pivot, a ray each against the world layer with 0.1 m
   of slack, and shows them again when the camera is out of use. `SpectateTargets` and `LifeCountdowns` are the pure
   parts; a spectated living target is drawn from its body's interpolated pose (position, yaw, head pitch), so the
-  camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel.
+  camera inherits `SnapshotBuffer`'s guard. `LifeHud` words the panel. (#168 adds the spectator's first-person
+  hand and removes the panel's own invulnerability line and its "Watching" line: below.)
 - `client/ui/`: `LifePanel` (the round's life panel under `Ui`, its own, not M4-8's HUD) and the shared greybox
   theme `client/ui/theme/game_theme.tres` (`GameUi.THEME`, given to every screen under the `Ui` layer, which as a
   `CanvasLayer` holds none itself), with the type variations `LifePanel`, `LifeTitle` and `LifeText`; M4-8 moved
@@ -1464,7 +1473,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 **Built in M4-8 (#144)**, items, hands, the HUD and the task screen:
 - `client/world/`: `ItemWorld` (`Items` under `World`, made by `Game`) holds `ItemViews`, `CircleViews`,
   `ItemInteractions` and `WorldSounds` and gives the HUD what the model does not hold (`hud_local()`: the predicted
-  stamina and the crosshair's hint; the own invulnerability is the life panel's, M4-9). `ItemView` is one item's
+  stamina and the crosshair's hint; `Game` adds whom a dead player watches, #168). `ItemView` is one item's
   greybox look by its kind's id (D7 (a)), a labelled box for an unknown kind, its origin the resting point;
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
   (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
@@ -1529,6 +1538,31 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|resume|leave|quit>_preview.tscn`.
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
   playtest.
+
+**Built in #168**, the follow-up of the one-PC playtest on `release/m4` (PR #167):
+- The spectate camera: the playtest saw it "at another point than the target's eyes". Headless it has no offset:
+  `tests/integration/client/life/spectate_network_test.gd` (NetPair; the joiner dies and watches the host's player
+  while it walks and turns) finds the camera equal to the target's interpolated eye transform every physics frame,
+  and retracing the poses of the target's own camera within a few millimetres, later by the interpolation delay
+  (about 0.15 s on the loopback: some 0.7 m behind a walking target); both fail with a planted 5 cm offset. What
+  the playtest likely saw instead: from the eyes, the target's items hung at its hidden body (the hand item 0.65 m
+  under the eye, seen only when the target looks down, and never where its own screen shows it). `LifeView` now
+  shows the watched target's hand item in a `FirstPersonHand` under the spectate camera (`spectate_hand()`) and hides the
+  views of its hand and belt items after `ItemViews` (1) placed them in the same physics step (`LifeView.items`,
+  given by `Game`); a downed target, another target or the own respawn shows them at the body again.
+- `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `Game._hud_local()`), `HudText.spectates()`
+  and `Shown.spectating`; `Hud.spectating_label` heads the slots' corner. `LifeHud` has no own invulnerability
+  line and no "Watching <name>" line (the HUD names the target once); the respawn countdown and the cycling keys
+  stay.
+- Tests: `tests/unit/client/ui/hud_test.gd` (the spectator's words from a fake `ClientModel`: the target's name
+  and slots, none of its private facts, none of the spectator's own slots, numbers or hint),
+  `tests/unit/client/life/life_hud_test.gd`, `life_network_test.gd` (the HUD's line on the network),
+  `spectate_network_test.gd` (above; the target's meshes and items not drawn from its eyes, drawn again when it
+  goes down or the spectator respawns; the retrace measured to the segment between two recorded poses, so the
+  render tick's phase cannot fail it) and `spectate_cycle_test.gd` (no network: a dead player cycles between two
+  living targets of a hand-folded model, and the one it leaves is drawn with its items again). The `shot`:
+  `client/dev/spectate_preview.tscn`.
+- Not headless: the feel of spectating; the engineer repeats the spectating part of the one-PC playtest.
 
 **What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;

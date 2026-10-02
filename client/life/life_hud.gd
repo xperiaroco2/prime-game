@@ -5,12 +5,13 @@ extends RefCounted
 ## (whom a dead player watches, how long G has been held, whether the crosshair is on a downed
 ## player within reach). Greybox wording, placeholders until the UI milestone (#150).
 ##
-## - Living: the raise it runs and its progress; its own invulnerability; "Hold E to raise" over a
-##   downed player in reach.
+## - Living: the raise it runs and its progress; "Hold E to raise" over a downed player in reach.
+##   No own invulnerability read-out (the engineer's answer 2 on PR #167: a later buffs UI may
+##   show it); other players' invulnerable shell (D8) stays.
 ## - Downed: the knockdown countdown (paused while raised), who raises them and the raise's
 ##   progress, and the give-up hold (G).
-## - Dead: the respawn countdown and whom they watch: nothing of the target's (no health, stamina,
-##   role or private event).
+## - Dead: the respawn countdown and the keys that cycle the target (the HUD names whom they
+##   watch, #168): nothing of the target's (no health, stamina, role or private event).
 
 
 ## One panel's content; an empty title shows no panel.
@@ -44,7 +45,7 @@ static func of(model: ClientModel, countdowns: LifeCountdowns, tick: float, loca
 		ClientModel.Life.DOWNED:
 			_downed(shown, model, countdowns, tick, local)
 		ClientModel.Life.DEAD:
-			_dead(shown, model, countdowns, tick, local)
+			_dead(shown, countdowns, tick, local)
 	return shown
 
 
@@ -58,13 +59,8 @@ static func _living(
 		shown.progress = progress
 		shown.progress_label = "Keep holding E"
 		return
-	var invulnerable := countdowns.invulnerable_left_s(tick)
-	if invulnerable > 0.0:
-		shown.title = "Invulnerable"
-		shown.lines.append("%.1f s" % invulnerable)
 	if local.can_raise:
-		if shown.title.is_empty():
-			shown.title = "Downed player"
+		shown.title = "Downed player"
 		shown.lines.append("Hold E to raise")
 
 
@@ -90,15 +86,13 @@ static func _downed(
 	shown.lines.append("Hold G to give up")
 
 
-static func _dead(
-	shown: Shown, model: ClientModel, countdowns: LifeCountdowns, tick: float, local: Local
-) -> void:
+static func _dead(shown: Shown, countdowns: LifeCountdowns, tick: float, local: Local) -> void:
 	shown.title = "Dead"
 	var left := countdowns.respawn_left_s(tick)
 	if left >= 0.0:
 		shown.lines.append("Respawn in %d s" % ceili(left))
+	# Whom it watches is the HUD's "Spectating <name>" (HudText, #168).
 	if local.watching != 0:
-		shown.lines.append("Watching %s" % name_of(model, local.watching))
 		shown.lines.append("Left and right click: next and previous")
 	else:
 		shown.lines.append("Nobody to watch")

@@ -5,10 +5,11 @@ extends Node3D
 ## new item kind still shows up. Placeholders until the art pass: the sizes and colours here are
 ## looks, never game numbers. The origin is the item's resting point, the bottom of its look.
 ##
-## ItemViews places it and shows or hides its look (`show_look`); the root's own `visible` is left
-## to whatever hides views out of sight (the downed camera's sight hiding, M4-9), which reads
-## `sight_point()`. A label over an unknown kind is drawn in the world and hidden by the level like
-## the item (no `no_depth_test`, the M4 ADR's §3 item 5).
+## ItemViews places it and shows or hides its look (`show_look`); LifeView then hides the looks of
+## a spectated living target's hand and belt items, seen from its eyes (#168); the root's own
+## `visible` is left to whatever hides views out of sight (the downed camera's sight hiding,
+## M4-9), which reads `sight_point()`. A label over an unknown kind is drawn in the world and
+## hidden by the level like the item (no `no_depth_test`, the M4 ADR's §3 item 5).
 
 ## The look's sizes in metres, by kind id; any other kind gets UNKNOWN_SIZE and its id as a label.
 const SIZES: Dictionary[StringName, Vector3] = {
@@ -52,7 +53,8 @@ func sight_point() -> Vector3:
 	return centre_of(kind, global_position)
 
 
-## Shows or hides the look (held by the own player, or by a player with no body drawn).
+## Shows or hides the look (held by the own player, or by a player with no body drawn, or by a
+## spectated target seen from its eyes, #168).
 func show_look(on: bool) -> void:
 	_look.visible = on
 
