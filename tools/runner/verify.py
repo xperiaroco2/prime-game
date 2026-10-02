@@ -33,7 +33,22 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from . import bots, check, doctor, gdunit, hostjoin, launch, lint
-from .common import LOGS, ROOT, Failure, bad, ensure_out, git, git_status, group_kwargs, kill_tree, ok, say, warn
+from .common import (
+    LOGS,
+    ROOT,
+    Failure,
+    app_data_dir,
+    bad,
+    ensure_out,
+    git,
+    git_status,
+    group_kwargs,
+    kill_tree,
+    ok,
+    say,
+    temp_app_data,
+    warn,
+)
 
 # The headless ENet run (#40): a host with its own client and two clients, one process each, on 127.0.0.1 only.
 ENET_RUN = "tests/integration/net/enet_host_and_two_clients.gd"
@@ -367,8 +382,21 @@ def selftest_workers(cpus: int | None = None) -> int:
 
 
 def starts_godot(cls: type[unittest.TestCase]) -> type[unittest.TestCase]:
-    """Marks a runner test class that starts Godot: it runs in the Godot lane, after `check`, serially."""
+    """Marks a runner test class that starts Godot: it runs in the Godot lane, after `check`, serially. Its tests run
+    with the app-data variable pointed at a temporary folder of the class's own (common.temp_app_data, #233), so no
+    Godot they start adds a folder to the real app-data folder, whose path stays in `cls.real_app_data`."""
     cls.starts_godot = True  # type: ignore[attr-defined]
+    own = cls.__dict__.get("setUpClass")
+
+    def set_up_class(klass: type[unittest.TestCase]) -> None:
+        klass.real_app_data = app_data_dir()  # type: ignore[attr-defined]
+        klass.app_data = klass.enterClassContext(temp_app_data())  # type: ignore[attr-defined]
+        if isinstance(own, classmethod):
+            own.__func__(klass)
+        else:
+            super(cls, klass).setUpClass()  # type: ignore[misc]
+
+    cls.setUpClass = classmethod(set_up_class)  # type: ignore[assignment,method-assign]
     return cls
 
 
