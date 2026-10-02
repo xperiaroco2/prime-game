@@ -471,6 +471,7 @@ class SupervisionTest(unittest.TestCase):
             self.assertEqual((logs / "join.log").read_text("utf-8"), "old")
 
 
+@verify.starts_godot
 @unittest.skipUnless(godot_bin() and (ROOT / ".godot").is_dir(), "needs Godot (GODOT_BIN) and the imported project")
 class RealSessionTest(unittest.TestCase):
     """tools/run/headless_session.gd under a real headless Godot: a host and two local clients on 127.0.0.1."""
