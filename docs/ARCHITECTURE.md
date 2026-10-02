@@ -1378,7 +1378,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `RandomNumberGenerator` (the purpose `spectate`: seeded from the system's entropy in the game, by the test in a
   test), else a random downed one, else the camera stays above the own body. Next and previous cycle through the
   living and downed players in peer-id order; when the target goes down, dies or leaves, the camera draws a new first
-  target. Nothing about the target is sent, and the client has no HUD, health, stamina, role or private event of it.
+  target. Nothing about the target is sent, and the client shows no health, stamina, role, teammates or private
+  event of it.
   From a living target's eyes the spectator sees what the target's own screen shows (#168): its body and head
   hidden, its hand item in the spectate camera's first-person hand, the views of its hand and belt items at its
   body hidden; the HUD says "Spectating <name>" over those public slots (§4.7, The HUD).
@@ -1414,7 +1415,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   clock, the own role by its display name and, for a dissident, its teammates (`Teammates`), and
   what the crosshair would do. While dead (#168) the HUD keeps the clock, the progress, the own role and teammates,
   and shows "Spectating <name>" with the watched player's hand and belt items instead of the own numbers, slots,
-  destination and hint; no target's health, stamina, role, teammates or private event (the ADR's §3 item 2). **The task screen** (Tab), for the living, the downed and the dead: each task of the
+  destination and hint; no target's health, stamina, role, teammates or private event (the ADR's §3 item 2).
+  **The task screen** (Tab), for the living, the downed and the dead: each task of the
   match (`TaskState`) with its type's display name and description from the client's own mode, and its shared
   progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
   `StationPlaced`'s colour, dimmed once `PackageDelivered` names it.
@@ -1544,8 +1546,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   and retracing the poses of the target's own camera within a few millimetres, later by the interpolation delay
   (about 0.15 s on the loopback: some 0.7 m behind a walking target); both fail with a planted 5 cm offset. What
   the playtest likely saw instead: from the eyes, the target's items hung at its hidden body (the hand item 0.65 m
-  under the eye, seen only when the target looks down, and never where its own screen shows it). `LifeView` now shows the
-  watched target's hand item in a `FirstPersonHand` under the spectate camera (`spectate_hand()`) and hides the
+  under the eye, seen only when the target looks down, and never where its own screen shows it). `LifeView` now
+  shows the watched target's hand item in a `FirstPersonHand` under the spectate camera (`spectate_hand()`) and hides the
   views of its hand and belt items after `ItemViews` (1) placed them in the same physics step (`LifeView.items`,
   given by `Game`); a downed target, another target or the own respawn shows them at the body again.
 - `client/ui/`: `HudText.Local.watching` (from `LifeView.target()`, `Game._hud_local()`), `HudText.spectates()`
