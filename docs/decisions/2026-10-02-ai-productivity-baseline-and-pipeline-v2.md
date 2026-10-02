@@ -359,7 +359,13 @@ Proposed text, replacing "There is no `staging` branch and one milestone runs at
 - Each release branch takes `main` in at the start of every wave: its manager merges `origin/main` into it in its
   release worktree, runs `verify` on the merged tree and pushes by hash, as for a task PR.
 - A release branch closes into `main` through one PR at its milestone's end and at least every three days; a human
-  merges it.
+  merges it. Merging a PR deletes its head branch (auto-delete is on) and retargets every PR based on it to `main`
+  (this ADR's Consequences), so a closing PR while the track still runs never comes from `release/<track>` itself:
+  at a wave boundary the manager pushes the release tip to a dated snapshot branch
+  (`git push origin <sha>:refs/heads/release/<track>-<yyyy-mm-dd>`) and opens the closing PR from it. The merge
+  then deletes only the snapshot; `release/<track>` and the task PRs based on it stay, and the next wave's `main`
+  sync takes the merge in. Only the milestone's last closing PR comes from `release/<track>` itself, when no task PR
+  targets it.
 - Before every merge, into a release branch or (for the engineer) into `main`, the manager runs `merge-check` across
   all open PRs and names the safe order.
 - Still no `staging` branch.
