@@ -82,6 +82,34 @@ func test_the_gate_reopens_with_a_fresh_pre_roll_after_closing() -> void:
 	assert_array(Array(opening)).contains_exactly([next - 2, next - 1, next])
 
 
+func test_a_gate_closed_for_one_chunk_then_reopened_sends_no_frame_twice() -> void:
+	# The ADR §1.2's case: the hangover ends on a chunk, the next is loud. The ring holds only
+	# the chunk never sent, not the frames sent during the hangover.
+	# The gate first opens with a full pre-roll, so a ring left holding it would show too.
+	var gate := VoiceGate.new()
+	var sent := PackedInt32Array()
+	for i: int in 2:
+		sent.append_array(_ids(gate.feed(_chunk(QUIET), _frame(i), true, false)))
+	sent.append_array(_ids(gate.feed(_sine(LOUD), _frame(2), true, false)))
+	var closing := 3 + VoiceGate.HANGOVER_FRAMES
+	for i: int in range(3, closing + 1):
+		sent.append_array(_ids(gate.feed(_chunk(QUIET), _frame(i), true, false)))
+	assert_bool(gate.is_open()).is_false()
+	sent.append_array(_ids(gate.feed(_sine(LOUD), _frame(closing + 1), true, false)))
+	assert_array(Array(sent)).is_equal(range(closing + 2))
+
+
+func test_a_quick_release_and_press_of_the_talk_key_sends_no_frame_twice() -> void:
+	var gate := VoiceGate.new()
+	gate.set_mode(VoiceGate.Mode.PUSH_TO_TALK)
+	var sent := PackedInt32Array()
+	for i: int in 6:
+		sent.append_array(_ids(gate.feed(_chunk(QUIET), _frame(i), true, i >= 2)))
+	sent.append_array(_ids(gate.feed(_chunk(QUIET), _frame(6), true, false)))
+	sent.append_array(_ids(gate.feed(_chunk(QUIET), _frame(7), true, true)))
+	assert_array(Array(sent)).is_equal(range(8))
+
+
 func test_push_to_talk_sends_only_while_the_key_is_held() -> void:
 	var gate := VoiceGate.new()
 	gate.set_mode(VoiceGate.Mode.PUSH_TO_TALK)

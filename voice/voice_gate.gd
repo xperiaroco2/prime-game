@@ -9,7 +9,9 @@ extends RefCounted
 ## - Push-to-talk: open while the talk key is held (`talk_held`; client/ reads the key).
 ## - Pre-roll: when the gate opens, the PREROLL frames before go out first, oldest first, so the
 ##   first syllable is not cut: with the current frame at most 3 in one send, under the relay's
-##   newest 5 per poll.
+##   newest 5 per poll. The ring holds only frames never sent (it fills only while closed), so a
+##   gate closed for one chunk and reopened sends no frame twice: the relay renumbers what it
+##   relays, and the listener could not tell a resent frame from a new one.
 ## - `may_speak` (client/ decides it: false while the own player is downed or dead and in a phase
 ##   whose voice rule hears nobody) closes the gate and empties the pre-roll ring while false, so
 ##   the ring only ever holds frames captured while the player could be heard: a downed player
