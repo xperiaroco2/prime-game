@@ -3,7 +3,8 @@
 `doctor --quick` runs first, and a red one stops everything. Then two lanes run at once, each in a process of its
 own and serial inside (LANES): the Python lane (`lint`, then `selftest`: the runner tests that start no Godot, in
 worker processes) and the Godot lane (`check`, then `selftest-godot`: the runner tests that start Godot, then
-`test`, `enet`, `freeze`, `stall`, `bots`, `bots-enet` and `game`), so the timing-sensitive ENet runs never overlap.
+`test`, `enet`, `freeze`, `stall`, `bots`, `bots-enet`, `chaos` and `game`), so the timing-sensitive ENet runs never
+overlap.
 Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends. After both
 lanes: the clean-tree check, and the runner tests counted against a serial discovery (every test a serial `selftest`
 would run ran once, skipped where it would be skipped). The summary lists the steps in STEP_ORDER (the order of the
@@ -52,6 +53,8 @@ STALL_PORTS = 3
 # scenario ends by time up on a 40 s clock it forces (BotScenario.clock_s).
 BOTS_ENET_SCENARIO = "dissident_kills_the_crew"
 BOTS_ENET_INSTANCES = 3
+# The chaos bots (#188): one seed, the short match, three runs in one process over the loopback (about 6 s).
+CHAOS_SEED = 188001
 
 # Below the ephemeral ranges of Windows (49152+) and Linux (32768+): an ENet client's own socket never takes it.
 ENET_PORTS = range(20000, 32000)
@@ -68,6 +71,7 @@ STEP_ORDER = (
     "stall",
     "bots",
     "bots-enet",
+    "chaos",
     "game",
     "selftest",
     "selftest-godot",
@@ -77,7 +81,7 @@ STEP_ORDER = (
 # checkout has imported the project (.godot/) before RealSessionTest is discovered.
 LANES: dict[str, tuple[str, ...]] = {
     "python": ("lint", "selftest"),
-    "godot": ("check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "game"),
+    "godot": ("check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"),
 }
 # A lane process that outlives this is stopped and its unfinished steps fail (CI's whole job has 20 minutes).
 LANE_TIMEOUT = 30 * 60
@@ -146,6 +150,11 @@ def bots_enet() -> int:
     return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES)
 
 
+def chaos() -> int:
+    """`bots --chaos --seed <CHAOS_SEED>`: the chaos bots' short seeded run (the night job runs random seeds)."""
+    return bots.chaos(seed=CHAOS_SEED)
+
+
 def game() -> int:
     """The game's main scene through its real command line (#149): client/app/game.tscn headless, a host and one
     client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then stopped through the stop file
@@ -172,6 +181,7 @@ def steps() -> dict[str, Callable[[], int]]:
         "stall": stall,
         "bots": bots_one_process,
         "bots-enet": bots_enet,
+        "chaos": chaos,
         "game": game,
         "selftest": lambda: selftest("python"),
         "selftest-godot": lambda: selftest("godot"),

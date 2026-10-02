@@ -45,6 +45,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
     p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
     p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
+    p.add_argument("--chaos", action="store_true", help="the chaos bots: a hostile and a malformed peer against the host")
+    p.add_argument("--seed", type=int, help="--chaos: the first seed (default: random, printed)")
+    p.add_argument("--runs", type=int, default=1, help="--chaos: seeds to run, from --seed up (default 1)")
+    p.add_argument("--long", action="store_true", help="--chaos: the match in which the hostile also dies")
+    p.add_argument("--enet", action="store_true", help="--chaos: over ENet on 127.0.0.1 (the invariants only)")
 
     from .mutants import HELP as MUTANTS_HELP, TEST_SECONDS
 
@@ -243,6 +248,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "bots":
             from . import bots
 
+            if args.chaos:
+                if args.scenarios or args.instances != 1:
+                    raise Failure("--chaos plays its own match: no scenario names and no --instances")
+                return bots.chaos(args.seed, args.runs, long=args.long, enet=args.enet, seconds=args.seconds)
+            if args.seed is not None or args.runs != 1 or args.long or args.enet:
+                raise Failure("--seed, --runs, --long and --enet need --chaos")
             return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
         if args.command == "mutants":
             from . import mutants

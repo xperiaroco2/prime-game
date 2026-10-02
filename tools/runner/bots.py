@@ -6,10 +6,16 @@ process per bot, on the real clock (E12). Both run tests/harness/bots/bots_main.
 scenario, a non-zero exit, a timeout or an engine error line fails the command. Each run starts with an empty
 tools/out/bots/<scenario>/, where the bots write their view files (and, over ENet, their peer ids) and a failed
 scenario its command log.
+
+`bots --chaos [--seed N] [--runs K] [--long] [--enet]` runs the chaos bots (docs/ARCHITECTURE.md §4.6 "Chaos"):
+tests/harness/chaos/chaos_main.gd, a hostile and a malformed peer against the host beside honest bots, one process
+over the loopback on the simulated clock (with `--enet`, over ENet on 127.0.0.1 on a free port). Without `--seed` the
+seed is random and printed first, so a night run that fails names the seed that replays it.
 """
 
 from __future__ import annotations
 
+import random
 import re
 import shutil
 
@@ -27,6 +33,12 @@ ENET_SECONDS = 180
 NAME_RE = re.compile(r"[a-z0-9_]+")
 # `run` writes instance i's output to tools/out/logs/run/bots_main-<i>.log.
 RUN_LOGS = LOGS / "run"
+CHAOS_TARGET = "tests/harness/chaos/chaos_main.gd"
+# Per seed: three loopback runs of about 2 s each (the long match about 3 s), or one run over ENet.
+CHAOS_SECONDS_PER_SEED = 60
+CHAOS_MAX_RUNS = 100
+# The night job's random seed (printed before the run): positive, and far from int overflow when runs add to it.
+CHAOS_SEEDS = range(1, 2**31)
 
 
 def user_args(scenarios: list[str], port: int | None = None, instances: int = 1) -> list[str]:
@@ -75,6 +87,44 @@ def main(scenarios: list[str] | None = None, instances: int = 1, seconds: int | 
     if code != 0:
         show_failures(instances)
     return code
+
+
+def chaos_args(seed: int, runs: int = 1, long: bool = False, port: int | None = None) -> list[str]:
+    """The arguments after `--` that chaos_main.gd reads."""
+    args = [f"--seed={seed}", f"--runs={runs}"]
+    if long:
+        args.append("--long")
+    if port is not None:
+        args.append(f"--port={port}")
+    return args
+
+
+def chaos(
+    seed: int | None = None,
+    runs: int = 1,
+    long: bool = False,
+    enet: bool = False,
+    seconds: int | None = None,
+    pick: random.Random | None = None,
+) -> int:
+    """`bots --chaos`: the chaos bots for `runs` seeds from `seed` (random when None, printed first)."""
+    say("bots --chaos")
+    if runs < 1 or runs > CHAOS_MAX_RUNS:
+        raise Failure(f"--runs must be between 1 and {CHAOS_MAX_RUNS}")
+    if seed is None:
+        seed = (pick or random.Random()).choice(CHAOS_SEEDS)
+        say(f"  chaos seed {seed} (random; replay: tools/run.sh bots --chaos --seed {seed})")
+    port = None
+    if enet:
+        from .verify import free_udp_port
+
+        port = free_udp_port()
+    return launch.main(
+        CHAOS_TARGET,
+        headless=True,
+        seconds=seconds or CHAOS_SECONDS_PER_SEED * runs,
+        user_args=chaos_args(seed, runs, long, port),
+    )
 
 
 def failure_block(log: Path) -> list[str]:
