@@ -36,6 +36,70 @@ class BotsArgsTest(unittest.TestCase):
         self.assertEqual((args.scenarios, args.instances, args.seconds), ([], 1, None))
 
 
+class ChaosTest(unittest.TestCase):
+    def test_the_chaos_entry_script_exists(self) -> None:
+        self.assertTrue((ROOT / bots.CHAOS_TARGET).is_file())
+
+    def test_the_command_line_reaches_chaos(self) -> None:
+        with mock.patch.object(bots, "chaos", return_value=0) as run:
+            self.assertEqual(cli.main(["bots", "--chaos", "--seed", "7", "--runs", "3", "--long"]), 0)
+            self.assertEqual(cli.main(["bots", "--chaos", "--enet"]), 0)
+        self.assertEqual(
+            run.call_args_list,
+            [
+                mock.call(7, 3, long=True, enet=False, seconds=None),
+                mock.call(None, 1, long=False, enet=True, seconds=None),
+            ],
+        )
+
+    def test_chaos_plays_its_own_match(self) -> None:
+        with mock.patch.object(bots, "chaos", return_value=0) as run:
+            self.assertEqual(cli.main(["bots", "--chaos", "refusals"]), 1)
+            self.assertEqual(cli.main(["bots", "--chaos", "--instances", "2"]), 1)
+        run.assert_not_called()
+
+    def test_a_seeded_run_passes_its_seed_and_a_timeout_per_seed(self) -> None:
+        with mock.patch.object(bots.launch, "main", return_value=0) as run:
+            self.assertEqual(bots.chaos(seed=188001), 0)
+            self.assertEqual(bots.chaos(seed=5, runs=4, long=True, seconds=20), 0)
+        self.assertEqual(
+            run.call_args_list,
+            [
+                mock.call(
+                    bots.CHAOS_TARGET,
+                    headless=True,
+                    seconds=bots.CHAOS_SECONDS_PER_SEED,
+                    user_args=["--seed=188001", "--runs=1"],
+                ),
+                mock.call(bots.CHAOS_TARGET, headless=True, seconds=20, user_args=["--seed=5", "--runs=4", "--long"]),
+            ],
+        )
+
+    def test_a_random_seed_is_printed_before_the_run(self) -> None:
+        pick = mock.MagicMock()
+        pick.choice.return_value = 4242
+        with (
+            mock.patch.object(bots.launch, "main", return_value=1) as run,
+            mock.patch.object(bots, "say") as said,
+        ):
+            self.assertEqual(bots.chaos(pick=pick), 1)
+        self.assertIn("--seed=4242", run.call_args.kwargs["user_args"])
+        self.assertTrue(any("chaos seed 4242" in str(call) for call in said.call_args_list))
+
+    def test_over_enet_it_takes_a_free_port(self) -> None:
+        with (
+            mock.patch.object(bots.launch, "main", return_value=0) as run,
+            mock.patch.object(verify, "free_udp_port", return_value=23999),
+        ):
+            self.assertEqual(bots.chaos(seed=3, enet=True), 0)
+        self.assertEqual(run.call_args.kwargs["user_args"], ["--seed=3", "--runs=1", "--port=23999"])
+
+    def test_runs_stay_in_range(self) -> None:
+        for runs in (0, bots.CHAOS_MAX_RUNS + 1):
+            with self.subTest(runs=runs), self.assertRaises(Failure):
+                bots.chaos(seed=1, runs=runs)
+
+
 class BotsRunTest(unittest.TestCase):
     def test_one_process_runs_every_scenario_headless(self) -> None:
         with (

@@ -100,6 +100,9 @@ class GithubWorkflowsTest(unittest.TestCase):
         runs = [step.get("run", "") for step in jobs["flaky"]["steps"]]
         self.assertTrue(any("tools/run.sh test --repeat 3" in run for run in runs))
         self.assertIn("perf", jobs)
+        chaos = [step.get("run", "") for step in jobs["chaos"]["steps"]]
+        self.assertTrue(any("tools/run.sh bots --chaos --long --runs" in run for run in chaos))
+        self.assertTrue(any("tools/run.sh bots --chaos --long --enet" in run for run in chaos))
         report = jobs["report"]
         self.assertEqual(sorted(report["needs"]), sorted(night))
         self.assertEqual(report["permissions"], {"contents": "read", "issues": "write"})
