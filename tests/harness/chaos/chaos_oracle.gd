@@ -120,7 +120,14 @@ static func _rule(
 		Intents.STOP_RAISE:
 			answer_now = NOT_CHANNELING
 		Intents.RAISE:
-			answer_now = NOT_DOWNED if args.get("target") == peer else &"?"
+			var target_peer: int = args.get("target", 0)
+			var target := player if target_peer == peer else null
+			if state != null and target_peer != peer:
+				target = state.player(target_peer)
+			# TargetDowned comes first (§9.5): a target that is not downed answers not_downed,
+			# whatever its role; a downed one the chaos peers never name.
+			var standing := target != null and target.life != PlayerState.Life.DOWNED
+			answer_now = NOT_DOWNED if standing else &"?"
 	# "?": an input the chaos peers never send in that state; the check reports it.
 	return answer_now
 

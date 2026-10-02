@@ -1155,7 +1155,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
      or End (§6; the leak test's voice checks run too);
   8. a second chaos run that differs only in hidden roles (bot 1 and bot 3 swapped by bot 1's `ForceRole`) gives
-     the hostile the same `Rejected` stream (§4.1).
+     the hostile the same `Rejected` stream (§4.1). Its refusals name the swapped players: `Raise` targets any
+     player (none downed: `not_downed` whatever the role) and `PickUp` names the items others carry
+     (`unavailable`), bot 1's knife among them.
 
   4 to 7 are checked per `Match` call through `HostSession`'s observer, on the state the command met. In one
   process the host's counts per chaos peer are replayed exactly from what it sent (`ChaosBudget`: `PeerBudget`'s

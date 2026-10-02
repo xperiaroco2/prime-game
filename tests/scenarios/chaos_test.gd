@@ -119,6 +119,24 @@ func test_the_oracle_answers_a_pick_up_by_the_items_place_and_the_senders_reach(
 	assert_str(str(near)).is_equal("?")
 
 
+func test_the_oracle_answers_a_raise_by_the_targets_life_alone() -> void:
+	var state := MatchState.new(1)
+	var me := state.add_player(4, "Player4")
+	var dissident := state.add_player(1, "Player1")
+	dissident.role = &"dissident"
+	var crew := state.add_player(3, "Player3")
+	crew.role = &"crew"
+	var downed := state.add_player(2, "Player2")
+	downed.life = PlayerState.Life.DOWNED
+	for target: int in [1, 3, 4]:
+		var answer := ChaosOracle.answer(&"Raise", {"target": target}, 4, &"round", me, 0, state)
+		assert_str(str(answer)).override_failure_message("target %d" % target).is_equal(
+			"not_downed"
+		)
+	var at_downed := ChaosOracle.answer(&"Raise", {"target": 2}, 4, &"round", me, 0, state)
+	assert_str(str(at_downed)).is_equal("?")
+
+
 func test_the_host_counts_are_exempt_for_the_two_chaos_peers_only() -> void:
 	var run := ChaosRun.new()
 	run.ledger = RejectLedger.new()

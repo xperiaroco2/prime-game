@@ -130,7 +130,11 @@ func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 	var seq := _seq_for(intent)
 	var args := _args_of(intent)
 	var item: int = args.get("item", ChaosOracle.NO_ITEM)
-	if item != ChaosOracle.NO_ITEM and not claimed and rng.randf() < NEAR_CLAIM_CHANCE:
+	# Only a resting item is far (FAR_M): a carried one may be next to it, where a claim is a step.
+	var resting := (
+		item != ChaosOracle.NO_ITEM and _client.model.items[item].holder == ClientModel.NO_HOLDER
+	)
+	if resting and not claimed and rng.randf() < NEAR_CLAIM_CHANCE:
 		_claim_at(ChaosFrames.Claim.NEAR_ITEM, _client.model.items[item].position)
 	var packet := ChaosFrames.message(_schema, intent, args, seq)
 	_send(packet)
@@ -148,11 +152,11 @@ func _args_of(intent: StringName) -> Dictionary:
 		Intents.LOAD_ACK:
 			args = {"match_id": 1000 + rng.randi_range(0, 999)}
 		Intents.PICK_UP:
-			args = {"item": _far_item()}
+			args = {"item": _item_to_pick()}
 		Intents.PUT_DOWN, Intents.USE:
 			args = {"facing": Vector3.FORWARD}
 		Intents.RAISE:
-			args = {"target": _bot.peer}
+			args = {"target": _raise_target()}
 		Intents.HELLO:
 			args = {"version": WireSchema.VERSION, "content": 0}
 	return args
@@ -178,18 +182,42 @@ func _fresh_seq() -> int:
 	return seq
 
 
-## An item resting at least FAR_M from it, as its client knows the items, or NO_ITEM (half of the
-## time, and when none is that far).
-func _far_item() -> int:
+## The item a PickUp names, as its client knows the items: one resting at least FAR_M from it
+## (out_of_reach), one another player carries (unavailable: bot 1's knife, bot 2's package, so
+## the two runs of class 8 name what the swapped players hold), or NO_ITEM; NO_ITEM when there is
+## no such item.
+func _item_to_pick() -> int:
 	var far: Array[int] = []
+	var carried: Array[int] = []
 	for id: int in _client.model.items:
 		var item: ClientModel.Item = _client.model.items[id]
-		var resting := item.holder == ClientModel.NO_HOLDER and not item.delivered
-		if resting and item.position.distance_to(_bot.position) > FAR_M:
-			far.append(id)
-	if far.is_empty() or rng.randf() < 0.5:
+		if item.holder != ClientModel.NO_HOLDER and item.holder != _bot.peer:
+			carried.append(id)
+		elif item.holder == ClientModel.NO_HOLDER and not item.delivered:
+			if item.position.distance_to(_bot.position) > FAR_M:
+				far.append(id)
+	var roll := rng.randf()
+	var pool: Array[int] = []
+	if roll < 0.4:
+		pool = far
+	elif roll < 0.7:
+		pool = carried
+	if pool.is_empty():
 		return ChaosOracle.NO_ITEM
-	return far[rng.randi_range(0, far.size() - 1)]
+	return pool[rng.randi_range(0, pool.size() - 1)]
+
+
+## Whom a Raise names: any player of the roster, itself included. None of them is ever downed while
+## the hostile may send a Raise (only bot 4 is knocked down, and then it may not), so the answer is
+## not_downed whatever the target's hidden role: bots 1 and 3 swap roles between the two runs of
+## class 8.
+func _raise_target() -> int:
+	var players: Array[int] = []
+	for peer: int in _client.model.roster:
+		players.append(peer)
+	if players.is_empty():
+		return _bot.peer
+	return players[rng.randi_range(0, players.size() - 1)]
 
 
 func _claim() -> void:
