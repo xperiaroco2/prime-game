@@ -18,9 +18,13 @@ Godot: each PR onto its base tip, and each pair of PRs into the same base.
   `"downed"`, `mock.patch.object(m, "name")`). A wire row or field matches only a string literal (fields travel as
   dictionary keys, and `position` is everywhere as an identifier); a name starting with `_` matches only in its own
   file; a line that declares the name is no use. A symbol match is a lead, not a proof: `--trial` settles it.
+  A `func` / `def` that only appended parameters with defaults (every old call still binds: `gdunit.main` gaining
+  `shards=None` in #210, which #200 called) is a note, not an overlap; a parameter removed, renamed, retyped or
+  reordered, or a new one without a default, stays an overlap (#207).
 - The "onto base" check compares the PR with what its base gained since the PR's fork (another PR merged meanwhile).
-It prints one Markdown table per base (paste it into a wave comment or a PR) and each overlap with the symbol and
-file:line on both sides; exit 1 on any conflict or overlap, or a PR it could not check (its base is gone from origin).
+It prints one Markdown table per base (paste it into a wave comment or a PR), each overlap with the symbol and
+file:line on both sides, and the notes; exit 1 on any conflict or overlap, or a PR it could not check (its base is
+gone from origin).
 
 `merge-check --trial <pr>... [--base B]`: the base (default: the first PR's) plus the PRs merged in order with
 `--no-ff` in a scratch detached worktree under `tools/out/merge/`, then that tree's own `verify`; it reports and
@@ -335,6 +339,26 @@ def _signature(header: str, name: str) -> str:
     return f"{static}({', '.join(params)})" + ("->" + re.sub(r"\s+", "", returns.group(1)) if returns else "")
 
 
+SIGNATURE_RE = re.compile(r"^(static )?\((.*)\)(->.*)?$")
+
+
+def appends_defaults(old: str, new: str) -> bool:
+    """Whether the `_signature` new keeps old's parameters (names, types, defaults), `static` and return type, and
+    only appends parameters with a default (or Python's `*args`, `**kwargs`, a bare `*`): every call that bound
+    before still binds. A parameter removed, renamed, retyped or reordered, or a new one without a default, is not."""
+    before, after = SIGNATURE_RE.match(old), SIGNATURE_RE.match(new)
+    if not before or not after or before.group(1, 3) != after.group(1, 3):
+        return False
+    old_params = before.group(2).split(", ") if before.group(2) else []
+    new_params = after.group(2).split(", ") if after.group(2) else []
+    added = new_params[len(old_params) :]
+    return (
+        bool(added)
+        and new_params[: len(old_params)] == old_params
+        and all(p.endswith("=") or p.startswith("*") for p in added)
+    )
+
+
 @dataclass(frozen=True)
 class Decl:
     name: str
@@ -497,9 +521,12 @@ class Symbol:
     # (or `<module>, "<name>"` in a patch) or after `from ...<module> import <name>`; a .gd file never does.
     module: str = ""
     home: tuple[str, ...] = ()
+    # A `func` / `def` that only gained parameters with defaults after its old ones: every old call still binds, so a
+    # use of it is a note, not an overlap (#207: `gdunit.main` gained `shards=None` in #210; #200 called it).
+    compatible: bool = False
 
     def describe(self) -> str:
-        return f"`{self.name}` ({self.kind}, {self.change})"
+        return f"`{self.name}` ({self.kind}, {self.change}{'; old calls still bind' if self.compatible else ''})"
 
 
 @dataclass(frozen=True)
@@ -670,7 +697,9 @@ def _code_symbols(f: FileDiff, old: str, new_decls: list[Decl], classes: set[str
         elif now is None:
             found.append(Symbol(d.name, d.kind, "removed", f.old or "", d.line, own))
         elif d.signature != now.signature and d.kind in ("func", "signal", "def"):
-            found.append(Symbol(d.name, d.kind, f"changed {d.signature} -> {now.signature}", f.new, now.line, own))
+            compatible = d.kind != "signal" and appends_defaults(d.signature, now.signature)
+            what = f"changed {d.signature} -> {now.signature}"
+            found.append(Symbol(d.name, d.kind, what, f.new, now.line, own, compatible=compatible))
         if python and not d.scope and len(found) > count:
             found[-1] = replace(found[-1], module=module, home=home)
     return found
@@ -787,6 +816,11 @@ class Overlap:
     user: str  # the side whose added lines use it
     uses: list[Use]
 
+    @property
+    def note(self) -> bool:
+        """A compatible signature change (Symbol.compatible): reported, but no overlap."""
+        return self.symbol.compatible
+
 
 def overlaps(a: Change, b: Change) -> list[Overlap]:
     """a's symbols that b's added lines use."""
@@ -823,17 +857,30 @@ def describe(overlap: Overlap, limit: int = 3) -> str:
 # --- merge-check ------------------------------------------------------------------------------------------------------
 
 
+def _names(found: list[Overlap]) -> str:
+    names = sorted({f"`{o.symbol.name}`" for o in found})
+    return ", ".join(names[:6]) + (" ..." if len(names) > 6 else "")
+
+
 @dataclass
 class Row:
     check: str
     conflicts: list[str]
     overlaps: list[Overlap]
+    notes: list[Overlap] = field(default_factory=list)
+
+    @classmethod
+    def of(cls, check: str, conflicts: list[str], found: list[Overlap]) -> Row:
+        """A row from both_ways' result: compatible signature changes go to notes, the rest are overlaps."""
+        overlaps = [o for o in found if not o.note]
+        return cls(check, conflicts, overlaps, [o for o in found if o.note])
 
     def cells(self) -> tuple[str, str]:
         text = f"conflict: {', '.join(self.conflicts[:6])}" + (" ..." if len(self.conflicts) > 6 else "")
-        names = sorted({f"`{o.symbol.name}`" for o in self.overlaps})
-        sem = f"overlap: {', '.join(names[:6])}" + (" ..." if len(names) > 6 else "")
-        return (text if self.conflicts else "clean"), (sem if self.overlaps else "clean")
+        sem = f"overlap: {_names(self.overlaps)}" if self.overlaps else "clean"
+        if self.notes:
+            sem += f"; note: {_names(self.notes)}"
+        return (text if self.conflicts else "clean"), sem
 
 
 def check_group(base: str, prs: list[PullRequest]) -> list[Row]:
@@ -853,11 +900,22 @@ def check_group(base: str, prs: list[PullRequest]) -> list[Row]:
         if fork != tip:
             behind = f" ({_out('rev-list', '--count', fork + '..' + tip).strip()} commits since its fork)"
         semantic = both_ways(changes[pr.number], since[fork])
-        rows.append(Row(f"{pr.label} onto {base}{behind}", textual(tip, pr.oid), semantic))
+        rows.append(Row.of(f"{pr.label} onto {base}{behind}", textual(tip, pr.oid), semantic))
     for a, b in itertools.combinations(prs, 2):
         semantic = both_ways(changes[a.number], changes[b.number])
-        rows.append(Row(f"{a.label} + {b.label}", textual(a.oid, b.oid), semantic))
+        rows.append(Row.of(f"{a.label} + {b.label}", textual(a.oid, b.oid), semantic))
     return rows
+
+
+def _details(rows: list[Row]) -> None:
+    for row in rows:
+        if row.overlaps or row.notes:
+            say()
+            say(f"{row.check}:")
+            for each in row.overlaps:
+                say(f"- {describe(each)}")
+            for each in row.notes:
+                say(f"- note: {describe(each)}")
 
 
 def report(base: str, prs: list[PullRequest], rows: list[Row]) -> None:
@@ -870,12 +928,7 @@ def report(base: str, prs: list[PullRequest], rows: list[Row]) -> None:
     for row in rows:
         textual_cell, semantic_cell = row.cells()
         say(f"| {row.check} | {textual_cell} | {semantic_cell} |")
-    for row in rows:
-        if row.overlaps:
-            say()
-            say(f"{row.check}:")
-            for each in row.overlaps:
-                say(f"- {describe(each)}")
+    _details(rows)
 
 
 def check(numbers: list[int], base: str | None = None, trial: bool = False) -> int:
