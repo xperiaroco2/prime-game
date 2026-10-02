@@ -112,7 +112,9 @@ The `pr-rebase` reviews found 5 more majors in 3 reviews. Publishers (M2 stage 2
 merges in M4 from semantic conflicts between PRs that were each green (#153 renamed a field #154 read; #156 added a
 snapshot flag a #154 test lacked; #170), 6 resumed and 3 unfinished runs, second runs of #58 and #102, and the two
 bugs only the engineer's playtest found (#168: spectating through the target's eyes and its HUD; #169: one Esc menu
-and a Ready key). The `pr-rebase`, resumed and unfinished runs took about 11% of all subagent tokens.
+and a Ready key). The `pr-rebase`, resumed and unfinished runs took about 11% of all subagent tokens. Fix rounds:
+25 of 56 publishers ran `publish` two to four times (after a rebase conflict, a runner change, a network error or a
+red CI), 12 watched CI more than once, and 2 ended with CI red.
 
 ### The five largest time sinks (M4 medians per task: 82 minutes)
 1. **Implementation, 45 minutes (55%).** Implementers spend 43% of their time in tools; their 76 `verify` calls took
@@ -147,7 +149,9 @@ managers budget in (final context), which understates the cost of long agents.
 Principles for every item: each change is measured against this baseline with P1's `metrics`; no check is weakened,
 skipped or removed (root `CLAUDE.md`); every new workflow argument is optional and today's behaviour is its default,
 so other managers' launches and resumes stay the same; a change to a shared file lands between the other tracks'
-waves. Costs are API list $ per task unless said otherwise (1% of a Max 20x week is about $44).
+waves. Costs are API list $ per task unless said otherwise (1% of a Max 20x week is about $44). Items 1 to 4 ask
+nothing of the humans beyond reviewing and merging their PRs; items 5 to 7 change how the humans work and are
+marked for the engineer.
 
 ### 1. Measurement
 | option | the failure it prevents | cost | |
