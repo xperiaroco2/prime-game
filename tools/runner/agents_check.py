@@ -126,13 +126,17 @@ def judge(t: Transcript, agents: dict[str, str], allowed: list[str]) -> tuple[st
     return "FAIL", f"{source} {expected}, served {served}"
 
 
-def main(session: str | None = None, all_sessions: bool = False) -> int:
+def main(
+    session: str | None = None, all_sessions: bool = False, *, root: Path = ROOT, config: Path | None = None
+) -> int:
+    """`root`: the checkout whose agent files and shared settings apply; `config`: the Claude config folder."""
     if not session and not all_sessions:
         session = os.environ.get("CLAUDE_CODE_SESSION_ID") or None
     scope = "all sessions" if all_sessions or not session else f"session {session}"
     say(f"agents-check ({scope})")
-    agents, allowed = agent_models(), allowed_models()
-    transcripts = [t for folder in project_dirs() for t in read(folder, None if all_sessions else session)]
+    agents, allowed = agent_models(root), allowed_models(root)
+    folders = project_dirs(root, config)
+    transcripts = [t for folder in folders for t in read(folder, None if all_sessions else session)]
     judged = failed = 0
     for t in transcripts:
         verdict, why = judge(t, agents, allowed)
