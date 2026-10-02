@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -113,10 +114,12 @@ def run(
     log: str | None = None,
     echo: bool = False,
     env: dict[str, str] | None = None,
+    on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
 ) -> Result:
     """Run cmd with stdout+stderr merged, a hard timeout and a process-tree kill.
 
-    The full output is also written to tools/out/logs/<log>.log when log is given.
+    The full output is also written to tools/out/logs/<log>.log when log is given. `on_start` gets the process once
+    it runs (a caller running several at once keeps them, to stop them all on Ctrl+C).
     """
     started = time.monotonic()
     try:
@@ -131,6 +134,8 @@ def run(
         )
     except FileNotFoundError as exc:
         raise Failure(f"cannot start {cmd[0]}: {exc}") from exc
+    if on_start is not None:
+        on_start(proc)
     chunks: list[str] = []
 
     def pump() -> None:
@@ -240,10 +245,19 @@ def require_godot() -> str:
     return path
 
 
-def godot(args: list[str], *, timeout: float, log: str, echo: bool = False) -> Result:
+def godot(
+    args: list[str],
+    *,
+    timeout: float,
+    log: str,
+    echo: bool = False,
+    env: dict[str, str] | None = None,
+    on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
+) -> Result:
     """Run the pinned Godot on this project. Never pass a bare -d: it hangs on script errors."""
     exe = require_godot()
-    return run([exe, "--no-header", "--path", str(ROOT), *args], timeout=timeout, log=log, echo=echo)
+    cmd = [exe, "--no-header", "--path", str(ROOT), *args]
+    return run(cmd, timeout=timeout, log=log, echo=echo, env=env, on_start=on_start)
 
 
 # --- user:// (#182) -------------------------------------------------------------------------------

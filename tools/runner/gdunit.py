@@ -1,15 +1,38 @@
-"""`test`: GdUnit4 headless, judged by exit code and the JUnit XML (never the console summary)."""
+"""`test`: GdUnit4 headless, judged by exit code and the JUnit XML (never the console summary); with no paths in
+several processes at once (#182, the shards section)."""
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
+import subprocess
+import threading
 import xml.etree.ElementTree as ET
+from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .common import OUT, ROOT, SCRATCH, Failure, bad, ensure_out, godot, ok, say
+from .common import (
+    LOGS,
+    OUT,
+    ROOT,
+    SCRATCH,
+    Failure,
+    Result,
+    app_data_var,
+    bad,
+    ensure_out,
+    git,
+    godot,
+    kill_tree,
+    ok,
+    require_godot,
+    say,
+    warn,
+)
 
 TIMEOUT = 600
 REPORT_DIR = OUT / "gdunit"
@@ -89,40 +112,59 @@ def default_suites(tests_dir: Path) -> list[str]:
     ]
 
 
-def main(paths: list[str] | None = None, run_import: bool = True) -> int:
+def main(paths: list[str] | None = None, run_import: bool = True, shards: int | None = None) -> int:
+    """`test`: with no paths, the suites in several GdUnit4 processes at once (the shards below); with paths, or
+    with one shard, one process as before #182. `shards` is `--shards K` (1: one process)."""
     say("test")
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():
         raise Failure("no tests/ directory")
+    count, why = shard_count(paths, shards)
     if run_import:
-        # The class cache must be current, or new class_name suites fail to resolve.
+        # The class cache must be current, or new class_name suites fail to resolve. One import for every shard.
         from .check import run_import as do_import
 
         for line in do_import("test-import"):
             bad(f"import: {line} (run `check` for details)")
     shutil.rmtree(REPORT_DIR, ignore_errors=True)
-    res = godot(_args(paths, tests_dir), timeout=TIMEOUT, log="test")
-    if res.timed_out:
-        raise Failure(f"tests timed out after {TIMEOUT}s (log: tools/out/logs/test.log)")
-    failed = _judge(res.rc, res.out, _reports(), "tools/out/logs/test.log")
+    failed = run_shards(selectors(paths, tests_dir), count, why) if count > 1 else None
+    if failed is None:
+        res = godot(_args(paths, tests_dir), timeout=TIMEOUT, log="test")
+        if res.timed_out:
+            raise Failure(f"tests timed out after {TIMEOUT}s (log: tools/out/logs/test.log)")
+        reports = _reports()
+        failed = _judge(res.rc, res.out, reports, "tools/out/logs/test.log")
+        record_times(reports[-1:])
     say("test: FAILED" if failed else "test: passed")
     return 1 if failed else 0
 
 
+def selectors(paths: list[str] | None, tests_dir: Path) -> list[str]:
+    """The res:// paths a run covers: the given ones, or default_suites."""
+    return [
+        item if item.startswith("res://") else "res://" + item.replace("\\", "/")
+        for item in paths or default_suites(tests_dir)
+    ]
+
+
 def _args(paths: list[str] | None, tests_dir: Path) -> list[str]:
-    selectors: list[str] = []
-    for item in paths or default_suites(tests_dir):
-        selectors += ["-a", item if item.startswith("res://") else "res://" + item.replace("\\", "/")]
+    return _command(selectors(paths, tests_dir), "res://tools/out/gdunit")
+
+
+def _command(items: list[str], report_dir: str) -> list[str]:
+    selected: list[str] = []
+    for item in items:
+        selected += ["-a", item]
     return [
         "--headless",
         "-s",
         "res://addons/gdUnit4/bin/GdUnitCmdTool.gd",
         "--ignoreHeadlessMode",
         "-c",
-        *selectors,
+        *selected,
         "-rd",
-        "res://tools/out/gdunit",
+        report_dir,
         "-rc",
         "1",
     ]
@@ -132,8 +174,9 @@ def _reports() -> list[Path]:
     return sorted(REPORT_DIR.glob("report_*/results.xml"))
 
 
-def _judge(rc: int, out: str, reports: list[Path], log: str) -> bool:
-    """Print what went wrong in one GdUnit4 run; True when it failed."""
+def _judge(rc: int, out: str, reports: list[Path], log: str, label: str = "") -> bool:
+    """Print what went wrong in one GdUnit4 run (a shard's lines start with its label); True when it failed."""
+    bad, ok = _labelled(label)
     junit = parse_junit(reports[-1]) if reports else None
     failed = rc != 0
     if rc not in EXIT_MEANING:
@@ -160,6 +203,431 @@ def _judge(rc: int, out: str, reports: list[Path], log: str) -> bool:
         elif not failed:
             ok(f"{junit.tests} tests passed (report: {reports[-1].relative_to(ROOT).as_posix()})")
     return failed
+
+
+def _labelled(label: str) -> tuple[Callable[[str], None], Callable[[str], None]]:
+    """bad and ok, with a shard's label before each line."""
+    if not label:
+        return bad, ok
+    return (lambda text: bad(f"{label}: {text}")), (lambda text: ok(f"{label}: {text}"))
+
+
+# --- shards (#182) ----------------------------------------------------------------------------------------------
+# `test` with no paths runs the suites in K GdUnit4 processes at once (a shard each), balanced by the last per-suite
+# times. Each shard process gets a user:// of its own through the app-data variable (common.app_data_var), since
+# GdUnit4 clears and fills user://tmp on every run; each writes its report to tools/out/gdunit/shard-<i>/ and its log
+# to tools/out/logs/test-shard<i>.log. Every shard is judged as a one-process run is (exit code, results.xml,
+# orphans); then the merged tools/out/gdunit/results.xml is checked against a one-process scan: every suite such a
+# run would run ran exactly once, with every test function it declares.
+SHARDS_VAR = "PRIME_TEST_SHARDS"
+# K = half the logical CPUs, at most SHARD_CAP: CI's 4 vCPUs give 2, the engineer's PC (16 logical, 8 physical) the
+# cap, so the shards and the Python lane's 4 selftest workers together fill its 8 cores. Measured there on a quiet
+# machine (#182, 2026-10-02): `test` in 295 s with one process, 156 s with 2, 108 s with 3, 86 s with 4, 72 s with 5.
+SHARD_CAP = 4
+SHARD_USER = OUT / "gdunit-user"
+TIMES = LOGS / "gdunit-times.json"
+EXTENDS_RE = re.compile(r"^(?:class_name\s+\w+\s+)?extends\s+(\"[^\"]+\"|'[^']+'|[\w.]+)", re.MULTILINE)
+CLASS_NAME_RE = re.compile(r"^class_name\s+(\w+)", re.MULTILINE)
+TEST_FUNC_RE = re.compile(r"^func\s+(test_\w+)\s*\(", re.MULTILINE)
+
+
+def default_shards(cpus: int | None = None) -> int:
+    return max(1, min(SHARD_CAP, (cpus if cpus is not None else os.cpu_count() or 1) // 2))
+
+
+def shard_count(paths: list[str] | None, shards: int | None) -> tuple[int, str]:
+    """How many processes a run takes, and why: `--shards K`, else one for named paths, else PRIME_TEST_SHARDS, else
+    default_shards(). Without a per-process user:// on this OS, one."""
+    if shards is not None:
+        if shards < 1:
+            raise Failure("--shards must be at least 1")
+        count, why = shards, f"--shards {shards}"
+    elif paths:
+        return 1, "named paths"
+    elif os.environ.get(SHARDS_VAR):
+        try:
+            count = int(os.environ[SHARDS_VAR])
+        except ValueError:
+            count = 0
+        if count < 1:
+            raise Failure(f"{SHARDS_VAR} must be a whole number of at least 1, not {os.environ[SHARDS_VAR]!r}")
+        why = f"{SHARDS_VAR}={count}"
+    else:
+        count = default_shards()
+        why = f"{os.cpu_count()} CPUs, at most {SHARD_CAP}"
+    if count > 1 and app_data_var() is None:
+        warn("no per-process user:// on this OS (Windows: APPDATA, Linux: XDG_DATA_HOME): one process")
+        return 1, "no per-process user://"
+    return count, why
+
+
+def _res(path: Path) -> str:
+    return "res://" + path.relative_to(ROOT).as_posix()
+
+
+def _walk(folder: Path) -> list[Path]:
+    """The .gd files GdUnit4's scanner loads under a folder: hidden entries and folders with a .gdignore left out."""
+    if (folder / ".gdignore").exists():
+        return []
+    found: list[Path] = []
+    for entry in sorted(folder.iterdir()):
+        if entry.name.startswith("."):
+            continue
+        if entry.is_dir():
+            found += _walk(entry)
+        elif entry.suffix == ".gd":
+            found.append(entry)
+    return found
+
+
+def script_files(items: list[str]) -> list[str]:
+    """Every script a one-process run loads for these selectors, as res:// paths, each once: a .gd file as given, a
+    folder walked as GdUnit4 walks it. Together the shards load exactly these, so they find the suites a one-process
+    run finds (GdUnit4 decides which are suites, as it does in a folder)."""
+    found: dict[str, None] = {}
+    for item in items:
+        path = ROOT / item.removeprefix("res://")
+        if path.is_dir():
+            found.update(dict.fromkeys(_res(p) for p in _walk(path)))
+        elif path.is_file() and path.suffix == ".gd":
+            found[_res(path)] = None
+    return list(found)
+
+
+def static_suites(files: list[str]) -> dict[str, list[str]]:
+    """The suites among files as a one-process scan finds them (a script whose `extends` chain reaches
+    GdUnitTestSuite, through a class_name under tests/ or a quoted path), each with the test functions it declares."""
+    texts: dict[str, str] = {}
+
+    def text(res: str) -> str:
+        if res not in texts:
+            try:
+                texts[res] = (ROOT / res.removeprefix("res://")).read_text(encoding="utf-8")
+            except OSError:
+                texts[res] = ""
+        return texts[res]
+
+    classes: dict[str, str] = {}
+    for path in _walk(ROOT / "tests") if (ROOT / "tests").is_dir() else []:
+        if match := CLASS_NAME_RE.search(text(_res(path))):
+            classes[match.group(1)] = _res(path)
+
+    def is_suite(res: str, seen: set[str]) -> bool:
+        match = EXTENDS_RE.search(text(res))
+        if match is None or res in seen:
+            return False
+        base = match.group(1)
+        if base == "GdUnitTestSuite":
+            return True
+        if base[0] in "\"'":
+            target = base[1:-1]
+            if not target.startswith("res://"):
+                try:
+                    target = _res((ROOT / res.removeprefix("res://")).parent.joinpath(target).resolve())
+                except ValueError:  # a path outside the project: no suite of ours
+                    return False
+        elif base in classes:
+            target = classes[base]
+        else:
+            return False
+        return is_suite(target, seen | {res})
+
+    return {res: TEST_FUNC_RE.findall(text(res)) for res in files if is_suite(res, set())}
+
+
+def suite_key(suite: ET.Element) -> str:
+    """A results.xml testsuite as the res:// path of its script (GdUnit4 names a suite after its file)."""
+    package = (suite.get("package") or "").strip("/")
+    return f"res://{package}/{suite.get('name') or '?'}.gd"
+
+
+def suite_times(report: Path) -> dict[str, float]:
+    times: dict[str, float] = {}
+    try:
+        for suite in ET.parse(report).getroot().iter("testsuite"):
+            times[suite_key(suite)] = float(suite.get("time") or 0.0)
+    except (OSError, ET.ParseError, ValueError):
+        pass
+    return times
+
+
+def _load_times(path: Path) -> dict[str, float]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        suites = data.get("suites") if isinstance(data, dict) else None
+        return {str(k): float(v) for k, v in suites.items()} if isinstance(suites, dict) else {}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {}
+
+
+def record_times(reports: list[Path]) -> None:
+    """Merge the suites' seconds of a run into TIMES (a suite this run did not run keeps its last time; one whose
+    script is gone is dropped). Every run records, a run of named paths too."""
+    found: dict[str, float] = {}
+    for report in reports:
+        found.update(suite_times(report))
+    if not found:
+        return
+    merged = {**_load_times(TIMES), **found}
+    times = {k: v for k, v in sorted(merged.items()) if (ROOT / k.removeprefix("res://")).is_file()}
+    try:
+        ensure_out()
+        TIMES.write_text(json.dumps({"suites": times}, indent=1) + "\n", encoding="utf-8", newline="\n")
+    except OSError as exc:
+        warn(f"could not write {TIMES}: {exc}")
+
+
+def read_times() -> tuple[dict[str, float], str]:
+    """The last per-suite times and where they came from: this checkout's TIMES, else (a fresh worktree) the newest
+    TIMES of another checkout of this clone (read only), else none (then every suite counts the same)."""
+    own = _load_times(TIMES)
+    if own:
+        return own, TIMES.relative_to(ROOT).as_posix()
+    res = git("worktree", "list", "--porcelain")
+    others = []
+    for line in res.lines if res.rc == 0 else []:
+        if line.startswith("worktree "):
+            folder = Path(line.removeprefix("worktree ").strip())
+            candidate = folder / TIMES.relative_to(ROOT)
+            if folder.resolve() != ROOT.resolve() and candidate.is_file():
+                others.append((candidate.stat().st_mtime, candidate))
+    for _mtime, candidate in sorted(others, reverse=True):
+        times = _load_times(candidate)
+        if times:
+            return times, f"{candidate.as_posix()} (this checkout has no times yet)"
+    return {}, "no times yet: every suite counts the same"
+
+
+def estimates(files: list[str], suites: dict[str, list[str]], times: dict[str, float]) -> dict[str, float]:
+    """Each script's expected seconds: a suite's last time (at least a millisecond), a suite with none the mean of
+    the known ones (1 s without any), any other script 0."""
+    known = [times[res] for res in suites if res in times]
+    fallback = sum(known) / len(known) if known else 1.0
+    return {res: max(times.get(res, fallback), 0.001) if res in suites else 0.0 for res in files}
+
+
+def plan_shards(costs: dict[str, float], count: int) -> list[list[str]]:
+    """Longest first, each to the shard with the least so far (ties: the lower shard). With count at most the number
+    of scripts that cost something, every shard gets at least one of them. Each shard's scripts in path order."""
+    loads = [0.0] * count
+    shards: list[list[str]] = [[] for _ in range(count)]
+    for res in sorted(costs, key=lambda r: (-costs[r], r)):
+        index = min(range(count), key=lambda i: (loads[i], i))
+        shards[index].append(res)
+        loads[index] += costs[res]
+    return [sorted(shard) for shard in shards]
+
+
+def merge_junit(reports: list[Path]) -> ET.Element:
+    """One <testsuites> of every report's suites (in path order, renumbered), with the reports' totals summed."""
+    totals: Counter[str] = Counter()
+    suites: list[ET.Element] = []
+    first_id = ""
+    for report in reports:
+        root = ET.parse(report).getroot()
+        first_id = first_id or root.get("id", "")
+        for key in ("tests", "failures", "skipped", "flaky"):
+            totals[key] += int(root.get(key) or 0)
+        suites += root.findall("testsuite")
+    suites.sort(key=lambda s: (s.get("package") or "", s.get("name") or ""))
+    seconds = sum(float(s.get("time") or 0.0) for s in suites)
+    attrs = {"id": first_id, "name": "merged", **{k: str(totals[k]) for k in ("tests", "failures", "skipped", "flaky")}}
+    merged = ET.Element("testsuites", {**attrs, "time": f"{seconds:.3f}"})
+    for index, suite in enumerate(suites):
+        suite.set("id", str(index))
+        merged.append(suite)
+    return merged
+
+
+def _base_name(name: str) -> str:
+    match = re.match(r"\w+", name)
+    return match.group(0) if match else name
+
+
+def coverage(expected: dict[str, list[str]], merged: ET.Element, shards: int) -> tuple[list[str], list[str], str]:
+    """The merged results against a one-process scan: (problems that fail the run, warnings, the count line). A suite
+    that declares no test function (a base class) runs no test case of its own, so it is not expected to appear."""
+    expected = {key: tests for key, tests in expected.items() if tests}
+    ran: Counter[str] = Counter()
+    names: dict[str, set[str]] = {}
+    cases = 0
+    for suite in merged.iter("testsuite"):
+        key = suite_key(suite)
+        ran[key] += 1
+        found = [case.get("name", "") for case in suite.iter("testcase")]
+        cases += len(found)
+        names.setdefault(key, set()).update(_base_name(name) for name in found)
+    missing = sorted(set(expected) - set(ran))
+    doubled = sorted(key for key, n in ran.items() if n > 1)
+    short = sorted(
+        f"{key} ({', '.join(sorted(set(tests) - names[key])[:3])})"
+        for key, tests in expected.items()
+        if key in names and set(tests) - names[key]
+    )
+    extra = sorted(set(ran) - set(expected))
+
+    def listed(items: list[str]) -> str:
+        return f"({len(items)}): " + ", ".join(items[:5]) + (" ..." if len(items) > 5 else "")
+
+    problems = [
+        f"suites {label} {listed(items)}"
+        for label, items in (
+            ("that a one-process run would run but that never ran", missing),
+            ("that ran in more than one shard", doubled),
+            ("that ran without some of their test functions", short),
+        )
+        if items
+    ]
+    warnings = (
+        [f"suites that ran (once each) but the runner's scan did not expect {listed(extra)}; "
+         "teach gdunit.static_suites their base class"]  # fmt: skip
+        if extra
+        else []
+    )
+    functions = sum(len(tests) for tests in expected.values())
+    line = (
+        f"{len(ran)} suites and {cases} test cases ran in {shards} processes; "
+        f"a one-process scan finds {len(expected)} suites with {functions} test functions"
+    )
+    return problems, warnings, line
+
+
+@dataclass
+class ShardRun:
+    index: int
+    scripts: list[str]
+    expected_seconds: float
+    result: Result | None = None
+    error: str = ""
+
+    @property
+    def log(self) -> str:
+        return f"test-shard{self.index}"
+
+    @property
+    def report_dir(self) -> Path:
+        return REPORT_DIR / f"shard-{self.index}"
+
+    @property
+    def user_root(self) -> Path:
+        return SHARD_USER / f"shard-{self.index}"
+
+
+def run_shards(items: list[str], count: int, why: str) -> bool | None:
+    """Run the suites under the selectors in `count` processes at once; True when the run failed. None when fewer
+    than two suites are found: the caller runs them in one process."""
+    files = script_files(items)
+    # Only a suite that declares a test function weighs in the plan: a base class alone runs no test case, and a
+    # GdUnit4 process given no test case writes no results.xml.
+    suites = {res: tests for res, tests in static_suites(files).items() if tests}
+    if len(suites) < 2:
+        return None
+    count = min(count, len(suites))
+    times, source = read_times()
+    costs = estimates(files, suites, times)
+    plan = plan_shards(costs, count)
+    runs = [ShardRun(i, scripts, sum(costs[s] for s in scripts)) for i, scripts in enumerate(plan, 1)]
+    say(f"test: {count} GdUnit4 processes at once ({why}), {len(suites)} suites balanced by {source}")
+    for shard in runs:
+        n = sum(s in suites for s in shard.scripts)
+        say(f"        shard {shard.index}: {n} suites, about {shard.expected_seconds:.0f}s by those times")
+    shutil.rmtree(SHARD_USER, ignore_errors=True)
+    _run_parallel(runs)
+    return _judge_shards(runs, suites)
+
+
+def _run_parallel(runs: list[ShardRun]) -> None:
+    """Each shard in a thread of its own; Ctrl+C stops every shard's process tree."""
+    require_godot()  # once, before the threads: the version check and the worktree's override.cfg
+    var = app_data_var()
+    assert var is not None
+    live: list[subprocess.Popen[bytes]] = []
+    lock = threading.Lock()
+
+    def started(proc: subprocess.Popen[bytes]) -> None:
+        with lock:
+            live.append(proc)
+
+    def one(shard: ShardRun) -> None:
+        try:
+            shard.result = godot(
+                _command(shard.scripts, "res://" + shard.report_dir.relative_to(ROOT).as_posix()),
+                timeout=TIMEOUT,
+                log=shard.log,
+                env={var: str(shard.user_root)},
+                on_start=started,
+            )
+        except Exception as exc:  # noqa: BLE001 - a shard that could not start fails the run, not the other shards
+            shard.error = str(exc) or type(exc).__name__
+
+    threads = [threading.Thread(target=one, args=(shard,), daemon=True) for shard in runs]
+    try:
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            while thread.is_alive():
+                thread.join(0.5)  # a bounded join lets Ctrl+C through on Windows
+    except BaseException:
+        with lock:
+            procs = list(live)
+        for proc in procs:
+            kill_tree(proc)
+        raise
+
+
+def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
+    """Each shard judged as a one-process run is, then the merged results.xml against the one-process scan."""
+    failed = False
+    reports: list[Path] = []
+    for shard in runs:
+        label, log = f"shard {shard.index}", f"tools/out/logs/{shard.log}.log"
+        found = sorted(shard.report_dir.glob("report_*/results.xml"))
+        res = shard.result
+        if res is None:
+            bad(f"{label}: could not start: {shard.error}")
+            failed = True
+            continue
+        say(f"        {label}: {res.seconds:.1f}s (expected about {shard.expected_seconds:.0f}s), exit {res.rc}")
+        if res.timed_out:
+            bad(f"{label}: timed out after {TIMEOUT}s (log: {log})")
+            failed = True
+        else:
+            failed = _judge(res.rc, res.out, found, log, label) or failed
+        if not (shard.user_root.is_dir() and any(shard.user_root.iterdir())):
+            bad(f"{label}: Godot put nothing under {shard.user_root.relative_to(ROOT).as_posix()}, so its user:// "
+                "may be the shared one. Run `test --shards 1` and report it")  # fmt: skip
+            failed = True
+        reports += found[-1:]
+    _combined_log(runs)
+    if not reports:
+        bad("no shard wrote a results.xml")
+        return True
+    merged = merge_junit(reports)
+    path = REPORT_DIR / "results.xml"
+    ET.ElementTree(merged).write(path, encoding="UTF-8", xml_declaration=True)
+    problems, warnings, line = coverage(suites, merged, len(runs))
+    for problem in problems:
+        bad(problem)
+    for text in warnings:
+        warn(text)
+    (bad if problems else ok)(line)
+    junit = parse_junit(path)
+    if problems or junit.failures:
+        failed = True
+    if not failed:
+        ok(f"{junit.tests} tests passed in {len(runs)} processes (report: {path.relative_to(ROOT).as_posix()})")
+    record_times(reports)
+    return failed
+
+
+def _combined_log(runs: list[ShardRun]) -> None:
+    """tools/out/logs/test.log: every shard's log in turn, where a one-process run leaves its log."""
+    parts = []
+    for shard in runs:
+        out = shard.result.out if shard.result else shard.error + "\n"
+        parts.append(f"===== shard {shard.index} ({len(shard.scripts)} scripts; tools/out/logs/{shard.log}.log)\n{out}")
+    ensure_out()
+    (LOGS / "test.log").write_text("".join(parts), encoding="utf-8")
 
 
 # `test --repeat N` (the nightly flaky-test job, docs/AGENT_WORKFLOW.md "Night jobs"): the same suites N times in a
