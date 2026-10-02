@@ -23,7 +23,19 @@ import time
 from pathlib import Path
 
 from . import board, publish, sessions
-from .common import ROOT, Failure, Result, app_data_dir, ok, project_name, run, say, user_dir_name, warn
+from .common import (
+    ROOT,
+    Failure,
+    Result,
+    app_data_dir,
+    ok,
+    project_name,
+    run,
+    say,
+    user_dir_name,
+    warn,
+    worktree_user_dir,
+)
 
 REMOTE = "origin"
 BASE = "main"
@@ -378,7 +390,7 @@ def worktree_done(number: int, *, pushed: bool = False) -> int:
                 f"{branch} ({head[:10]}) has commits that {REMOTE}/{branch} does not; nothing was removed. Push them "
                 "first (tools\\run.cmd publish from the worktree), or ask the human."
             )
-    user = own_user_dir(path)  # read now: the name follows the worktree's project.godot
+    user = worktree_user_dir(path)  # read now: the name follows the worktree's project.godot
     res = _git("worktree", "remove", str(path), timeout=REMOVE_TIMEOUT)
     if res.rc != 0 or res.timed_out:
         half = key not in listed_worktrees()
@@ -412,10 +424,12 @@ def _delete_merged(branch: str) -> None:
 
 
 def own_user_dir(path: Path) -> Path | None:
-    """Where the worktree at `path` keeps its own user:// (common.ensure_user_dir, #182): the app-data folder joined
-    to its custom_user_dir_name, `<project>-<folder>-<hash of its path>`, so never the main checkout's default
-    `<project>` folder or another worktree's. None on an OS the runner does not know. Without the worktree's
-    project.godot (a removal already done) the project's name comes from the main checkout's project.godot."""
+    """common.worktree_user_dir for a worktree git no longer lists (finish_leftovers): its .git file is gone, so the
+    linked-worktree check cannot apply. Where the worktree at `path` kept its own user:// (common.ensure_user_dir,
+    #182): the app-data folder joined to its custom_user_dir_name, `<project>-<folder>-<hash of its path>`, so never
+    the main checkout's default `<project>` folder or another worktree's. None on an OS the runner does not know.
+    Without the worktree's project.godot (a removal already done) the project's name comes from the main checkout's
+    project.godot."""
     base = app_data_dir()
     if base is None:
         return None

@@ -74,6 +74,7 @@ class StartTest(unittest.TestCase):
         self.appdata = self.tmp / "appdata"  # a fake %APPDATA%: worktree-done deletes a worktree's user:// there
         for patch in (
             mock.patch.object(start, "app_data_dir", return_value=self.appdata),
+            mock.patch.object(common, "app_data_dir", return_value=self.appdata),  # common.worktree_user_dir
             mock.patch.object(start, "REPO", self.work),
             mock.patch.object(start, "_gh", side_effect=self.fake_gh),
             mock.patch.object(start.board, "move", self.moves),
