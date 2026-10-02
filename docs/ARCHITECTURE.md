@@ -1149,10 +1149,14 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
      claim that teleports the hostile next to it: reach is measured from the host's last accepted position, §7.1,
      §9.4), and no reply to a `LoadAck` of another match;
   5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535 where it
-     stands, another epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire): a `Correction` (its epoch
-     plus one, the old position) to the sender alone when the phase takes its claims and the epoch is its own,
-     else nothing (§7.1, E15); the position never changes; never `Rejected`. A repeated client tick right after a
-     placement is the first claim of a new baseline, checked as one tick and corrected: either answer passes;
+     stands, another epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire), each with
+     the per-tick masks (protocol v7, #155) of a client that walked every tick (`sprint_ticks` 0, `moved_ticks` all
+     ones: `ChaosFrames.HONEST_MOVED_TICKS`), so the shape alone calls for the answer (a mask outside the u32 the
+     encoder refuses, and core corrects; bits older than the covered ticks count for nothing: both
+     `movement_rule_masks_test.gd`, not chaos shapes): a `Correction` (its epoch plus one, the old position) to
+     the sender alone when the phase takes its claims and the epoch is its own, else nothing (§7.1, E15); the
+     position never changes; never `Rejected`. A repeated client tick right after a placement is the first claim of
+     a new baseline, checked as one tick and corrected: either answer passes;
   6. repeated, replayed and out-of-order seqs (and `Hello`'s seq 0 from a player): every copy gets its own rule
      answer echoing the seq it carried (4 checks each copy);
   7. no honest bot decodes the malformed peer's voice, nor the hostile's while it is downed or dead or in Loading
@@ -1180,7 +1184,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   - **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
     baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
     step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
-    about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). The night job `chaos` runs ten seeds
+    about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02), seeds 1 to 8, `--long` and `--enet`
+    on protocol v7 (#227, 2026-10-03). The night job `chaos` runs ten seeds
     of `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
   - **Proven** (2026-10-02, seed 188001, each plant reverted): `HostSession` taking no budget failed on the
     replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
@@ -1192,7 +1197,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
     claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
   - **Covered wire rows** (M5 extends them with every new intent or row): the C→H kinds 1 to 13 and 112, the debug
-    kind 24 (25, `ForceClock`, is not sent), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
+    kinds 24 and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
     23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
     `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
     in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
