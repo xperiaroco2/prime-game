@@ -1,19 +1,23 @@
 # M5: voice integrated with the rules, and the M5 task split
 
-- **Status:** Proposed (#177). The technical choices E34 to E45 and E47 are for the M5 manager session under the
-  engineer's delegation (#134), which reports them, except E40's amendment of E33, which the engineer confirms; E46 changes an architecture boundary and is the engineer's; D11 to
-  D15 (who hears whom and how it sounds) are the engineer's, with the designer by relay; the two stop-and-ask items
-  (the addon, LFS in CI) are the engineer's. Until answered, the design proceeds with each recommendation where it can
-  be reverted.
+- **Status:** Accepted on 2026-10-02 (the answers on PR #194). The engineer: D11 **(b), voice activity the default**,
+  with push-to-talk and Off as options and no mode dropped; D12 (a); D13 (a); D14 **none in M5** (no talking indicator;
+  a mouth animation later with #73); D15 **four sliders, Master, Voice, Effects and Music** ("Effects" replaces "World"
+  as the world sounds' bus); E46 (a); E40's amendment of E33 confirmed; the addon yes; LFS in CI (a). The M5 manager
+  session, under the engineer's delegation of technical choices (#134): E34 to E39, E41 to E45 and E47, each as
+  recommended. The tables below keep each item's options and recommendation and add the answer.
 - **Date:** 2026-10-02
-- **Deciders:** designed by the agent in #177 under the M5 manager session
+- **Deciders:** the engineer (D11 to D15, E40's amendment of E33, E46, the stop-and-ask items; in chat with the M5
+  manager session on 2026-10-02, recorded on PR #194; the designer by relay, `docs/AGENT_WORKFLOW.md` §9) and the M5
+  manager session (E34 to E39, E41 to E45, E47, #134); designed by the agent in #177
 - **Builds on:** [the voice approach](2026-09-29-voice-approach.md) (go with TwoVoIP v6.5 on Windows, the relay, the go
   thresholds), [vision revision 1](2026-10-01-vision-revision-1.md) (Voice, the life table, Hidden information),
   [the M4 client](2026-10-01-m4-first-person-client.md) (E33, D9, its §3 checklist and its shape),
   [wire format and the host session](2026-09-30-wire-format-and-host-session.md) (E7, E11),
   [Git LFS](2026-09-29-git-lfs-for-binary-assets.md), [a release branch per milestone](2026-10-01-release-branch-per-milestone.md)
 - **Numbering:** the choices continue the M4 design's: **E34 to E47** and **D11 to D15**. The issues are **M5-1 to
-  M5-7** (and M5-4b only if M5-4's measurement asks for it); their numbers come when the manager opens them.
+  M5-7**: M5-1 #215, M5-2 #216, M5-3 #217, M5-4 #218, M5-5 #219, M5-6 #220, M5-7 #221 (and M5-4b, opened only if
+  M5-4's measurement asks for it).
 
 ## Context
 M5's goal (ROADMAP, as amended by vision revision 1): proximity voice integrated with the rules, occlusion,
@@ -31,8 +35,9 @@ What constrains the design:
 - **The voice invariant** (vision revision 1, M4-1): nobody hears a downed or dead speaker; a dead listener hears no
   voice; a downed listener hears the living from where they lie.
 - **The leak test** changes in the PR that changes what it checks, each new check proven by a planted leak.
-- **The stage's budget:** set by the engineer once the first wave's usage is seen (#190 holds it; a budget is moving
-  state). The split is sized by reviewable PRs (at most about 1500 changed lines) and at most three tasks at once.
+- **The stage's budget:** the engineer says it suffices, so no mode or feature is dropped (#190 holds the numbers; a
+  budget is moving state). The split is sized by reviewable PRs (at most about 1500 changed lines) and at most three
+  tasks at once.
 - **The humans** write no code; agents open no window, use no microphone and download nothing; audio files, the
   addon's download and the listening tests are the engineer's steps. The game targets Windows; CI runs on Linux.
 - **A hobby project:** no anti-cheat or privacy hardening beyond the invariants (root `CLAUDE.md`).
@@ -81,7 +86,7 @@ Checked for this design on 2026-10-02, live rather than from memory:
 | Stage | Where | What it does | The failure it prevents |
 |---|---|---|---|
 | Capture | `voice/` `VoiceCapture`; opened by `client/app/` | the device the player picked, 20 ms chunks from the 4.7 microphone API (E36) | a 4-channel laptop array freezing the game at every start (#22) |
-| Gate | `voice/` `VoiceGate` (pure) | push-to-talk or voice activity; sends nothing in silence, nothing while its `may_speak` input is false (E37) | a silent player's steady stream showing where they are; bandwidth and decodes for nothing |
+| Gate | `voice/` `VoiceGate` (pure) | voice activity (the default), push-to-talk or Off (D11); sends nothing in silence, nothing while its `may_speak` input is false (E37) | a silent player's steady stream showing where they are; bandwidth and decodes for nothing |
 | The sender | `client/voice/` `VoiceSender` | wires capture, encoder and gate to `ClientSession.send_voice`; decides `may_speak` from the own life fold and the phase's `hearing_radius_m()` (nothing while downed or dead, nothing in a silent phase) | `voice/` reading the life fold or core state, where the E18 boundary test does not look (invariant 2) |
 | Encode | `voice/` `VoiceCodec`, `TwoVoipCodec` | 48 kHz mono Opus, 20 ms, 24 kbit/s, complexity 5, RNNoise on by default (E34, E38) | a script naming an addon class failing to parse where the addon is absent |
 | Send, relay | `ClientSession.send_voice`, `server/VoiceRelay`, `core/` `VoiceRule` (as built) | the host routes each frame by the last tick's routing, renumbers per stream, stamps the tick, never decodes | a client hearing what it is not entitled to (invariant 2) |
@@ -106,21 +111,27 @@ tell the channel count beforehand, so before opening a device `VoiceCapture` wri
 and clears it after the first second of samples: at the next start a mark still set means the last opening never
 finished (the game froze or was killed), and the device is not opened again until the player picks it, with a line
 that names #22 and advises a headset. Windows' microphone privacy refusing the device shows the error
-`set_input_device_active` returns. Echo cancellation is not built: a player on loudspeakers sends the others' voices
-back through their microphone, so the Voice tab advises headphones, and push-to-talk is the default (D11).
+`set_input_device_active` returns. Echo cancellation is not built: under voice activity, the default (D11), a player
+on loudspeakers sends the others' voices back through their microphone, so the Voice tab says plainly that
+loudspeakers echo and headphones avoid it (the voice ADR's advice).
 
-**1.2 The gate** (E37). While the microphone is open every 20 ms chunk is encoded, so Opus's and RNNoise's state stay
-continuous, and `VoiceGate` decides per chunk whether its frame is sent:
+**1.2 The gate** (E37). The player picks one of three modes in the Voice tab (D11, the engineer's answer): **voice
+activity, the default**, push-to-talk, or Off. While the microphone is open every 20 ms chunk is encoded, so Opus's
+and RNNoise's state stay continuous, and `VoiceGate` decides per chunk whether its frame is sent:
+- **Voice activity** (the default): while the chunk's peak is over the threshold (a slider with a live meter, D11; a
+  peak of 0.1, about −20 dBFS, a placeholder, "not a decision"), and for a hangover of 300 ms after it falls below (a
+  placeholder, "not a decision").
 - **Push-to-talk:** while `voice_talk` (V, D11) is held, with no Esc menu open (the menu already releases the keys
   held when it opened, #169).
-- **Voice activity:** while the chunk's peak is over the threshold (a slider with a live meter, D11), and for a
-  hangover of 300 ms after it falls below (a placeholder, "not a decision").
+- **Off:** voice turned off: the microphone is closed, nothing is captured, encoded or sent. Off concerns the own
+  microphone; other players stay audible, and the Voice slider silences them (read from the answer's words, "turn
+  voice off entirely" as a talking mode; "Needs the engineer" below).
 - **Pre-roll:** when the gate opens, the 2 frames before go out first, so the first syllable is not cut. Pre-roll and
   the current frame make at most 3 frames in one send, under the relay's newest 5 per poll. The pre-roll ring is
   emptied whenever `may_speak` is false, so it only ever holds frames captured while the player could be heard: a
-  downed player whispering with V held while being raised sends nothing of it when the revive lands, and nothing
+  downed player whispering while being raised sends nothing of it when the revive lands, and nothing
   recorded in Loading or End opens the next phase. A gate test covers it (`may_speak` false then true with the key
-  held sends no frame captured before the change), seen failing on a plant.
+  held, or a loud chunk under voice activity, sends no frame captured before the change), seen failing on a plant.
 - **Never:** while the own player is downed or dead (nobody hears them by the voice invariant), or in a phase whose
   voice rule hears nobody (`hearing_radius_m()` 0 in the client's own mode: Loading and End; a phase with no voice
   rule counts as 0 through `VoiceRule.radius_of`, E41). Not sending narrows
@@ -202,7 +213,8 @@ speaker never reads the phase itself), and which Godot documents as linear atten
   where it lies (downed: vision revision 1's "from where they lie", not the downed camera up to 2 m behind and 1.6 m
   above), the target's eye (spectating a living target), the target's body (a downed target). The dead hear no voice,
   so their ears serve the world sounds around their target (V11). The world-sound chooser measures its 12 m from the
-  ears too: E33's "the listener's camera" becomes "the ears", a shift of at most about 2.5 m for the downed.
+  ears too: E33's "the listener's camera" becomes "the ears", a shift of at most about 2.5 m for the downed (the
+  engineer confirmed this amendment of E33 on 2026-10-02; the M4 ADR says so).
 - **What `VoiceViews` plays** (§3): only frames of `ClientSession.voice_received`; nothing for a speaker without a
   `RemotePlayerBody`; nothing while the own life fold is dead (and every speaker flushed at the own `Died`); a speaker
   whose life fold turns downed, dead or left is faded and flushed at once; entering a phase whose rule hears nobody
@@ -213,28 +225,32 @@ speaker never reads the phase itself), and which Godot documents as linear atten
   current phase's `hearing_radius_m()` is 0, not only at the event; and at each flush it records the newest host tick
   the client has seen, then drops that speaker's frames stamped at or below it (E11's tick is there for this).
 
-**1.6 Occlusion** (E42, D13). Recommended (D13 (a)): the listener decides how a wall sounds, the host's routing stays
-distance only. `VoiceViews` casts one ray per audible speaker per physics frame from the ears to the speaker's mouth
-against the world layer of the client's own level (as `SightHider` does for sight), at most 9 rays a frame; a hit
+**1.6 Occlusion** (E42, D13). D13 (a), the engineer's answer: the listener decides how a wall sounds, the host's
+routing stays distance only. `VoiceViews` casts one ray per audible speaker per physics frame from the ears to the
+speaker's mouth against the world layer of the client's own level (as `SightHider` does for sight), at most 9 rays a frame; a hit
 muffles that speaker (quieter and duller: D13's numbers), eased over 100 ms so a door jamb's edge does not click.
 `WorldSounds` casts one ray from the ears to a sound's position when it starts and muffles it the same way; E33's 12 m
 range stays. How the muffle is made, the player's own `attenuation_filter_cutoff_hz` and `volume_db` or a muffled bus
 with an `AudioEffectLowPassFilter`, the PR decides by a headless measurement of the Voice bus's peak under the Dummy
 driver, which mixes (#15). **Drop first** if the budget runs out: anything beyond this one ray (several rays,
-thickness, portals) is not built. If the engineer picks D13 (b), the host's routing changes as E42 (b) says, inside
-M5-1.
+thickness, portals) is not built.
 
-**1.7 Buses, settings and the Voice tab** (E43, D15). `client/audio/` `AudioBuses` makes the buses Voice, World and
+**1.7 Buses, settings and the Voice tab** (E43, D15). `client/audio/` `AudioBuses` makes the buses Voice, Effects and
 Music, sending to Master, when the game starts (tests make them the same way): voice players on Voice, `WorldSounds` on
-World, `LiftMusic` on Music (its −14 dB moves to the bus default). `client/app/` `UserSettings` keeps the microphone,
-the mode, the threshold, RNNoise and the three volumes in `user://settings.cfg` (`ConfigFile`), read at the start and
-written on each change. All windows that `tools\run.cmd host --clients N` starts share one `user://` folder (the runner
+Effects, `LiftMusic` on Music (its −14 dB moves to the bus default). "Effects" is the world sounds' bus (D15, the
+engineer's name; it replaces the design's earlier "World"). Four sliders (D15): **Master** (Godot's bus 0), **Voice**
+(the players' voices), **Effects** and **Music**, at 0, 0, −6 and −14 dB by default (placeholders, "not a decision"),
+set through `AudioServer.set_bus_volume_db`; no ducking. `client/app/` `UserSettings` keeps the microphone, the mode,
+the threshold, RNNoise and the four volumes in `user://settings.cfg` (`ConfigFile`), read at the start and written on
+each change. All windows that `tools\run.cmd host --clients N` starts share one `user://` folder (the runner
 sets only `PRIME_INSTANCE`), so the file is `user://settings.cfg` when `PRIME_INSTANCE` is unset or 1 and
 `user://settings_<n>.cfg` otherwise, and §1.1's "opening" mark lives in that same per-instance file: three windows on
 one PC then neither overwrite each other's choices nor read each other's mark (a unit test covers the file name; no
-runner change, so E47 holds). The Esc menu (#169) gains a tab, Voice, in every screen: the microphone (Off and the devices),
-push-to-talk or voice activity, the key shown, the threshold with a live meter, RNNoise, the three volume sliders, and
-the line that says voice is unavailable without the addon. It is built with the shared greybox theme
+runner change, so E47 holds). The Esc menu (#169) gains a tab, Voice, in every screen: the microphone (Off and the
+devices), the mode (voice activity, the default; push-to-talk with the key shown; Off), the threshold with a live
+meter, RNNoise, the four volume sliders, the line that loudspeakers echo and headphones avoid it (§1.1), the headset
+and #22 advice, and the line that says voice is unavailable without the addon. No HUD element shows the own gate or
+who talks (D14: none in M5). It is built with the shared greybox theme
 (`client/ui/theme/game_theme.tres`); its look is #150's.
 
 **1.8 World sounds and the lift music.** M4's placeholders stay until the engineer's CC0 files arrive (D9 (a)):
@@ -242,8 +258,8 @@ the line that says voice is unavailable without the addon. It is built with the 
 to `client/audio/sounds/swing.ogg`, `pick_up.ogg`, `put_down.ogg` and `client/audio/music/lift_music.ogg` (`.ogg` or
 `.wav`; both go through LFS), each with a `docs/credits/` entry that the agent writes from the author, source and
 license the engineer gives; the music loops through its import settings. They are the first LFS assets outside
-`addons/`, so LFS in CI is decided first (the stop-and-ask below). The world sounds go to the World bus, measure from
-the ears and are muffled by occlusion (§1.6).
+`addons/`, so LFS in CI was decided first (the stop-and-ask below: (a)). The world sounds go to the Effects bus,
+measure from the ears and are muffled by occlusion (§1.6).
 
 ### 2. The addon in the repo, and CI on Linux
 **The engineer's step** (a stop-and-ask, the voice ADR's "What follows"): download TwoVoIP **v6.5**, check its SHA-256,
@@ -288,18 +304,16 @@ M4 list (the M4 ADR §3):
    spectating; never the downed camera's arm.
 5. `max_distance` is the current phase's `hearing_radius_m()` from the client's own mode; no radius is copied into
    client tuning.
-6. The microphone sends nothing in silence (the gate), nothing while the own player is downed or dead, nothing in a
-   phase whose rule hears nobody.
-7. The own transmit icon shows only what the own gate does; nothing tells a speaker who hears it (the host never
-   sends it).
-8. A remote talking indicator, if built (D14), shows only while that speaker's audio plays, drawn in the world,
-   depth-tested and hidden with its avatar (`SightHider.GROUP`), and only while §1.6's occlusion ray from the ears
-   reaches the speaker's mouth unblocked: an icon over the head would otherwise clear a shelf or a half wall that
-   hides the avatar and pin where a muffled voice comes from (the M4 ADR §3.5: a marker is hidden by the level like
-   what it marks); no screen lists who is talking.
-9. Muffling uses the client's own level and the interpolated poses only.
-10. World sounds play within the hearing range of the ears and are muffled by the same ray.
-11. Voice statistics on the F3 overlay exist in debug builds only (E47), and the per-speaker lines name no one: an
+6. The microphone sends nothing in silence (the gate: under voice activity, the default, only above the threshold and
+   through its hangover; under push-to-talk only while V is held), nothing when the mode is Off or no device is
+   picked, nothing while the own player is downed or dead, nothing in a phase whose rule hears nobody.
+7. No screen lists who is talking, and nothing tells a speaker who hears it (the host never sends it). M5 draws no
+   talking indicator at all (D14): no own transmit icon on the HUD, no icon over a speaker. Who talks shows later
+   through a mouth animation with the masks of #73 (after the MVP), which then follows the M4 ADR §3.5 (a marker is
+   hidden by the level like what it marks).
+8. Muffling uses the client's own level and the interpolated poses only.
+9. World sounds play within the hearing range of the ears and are muffled by the same ray.
+10. Voice statistics on the F3 overlay exist in debug builds only (E47), and the per-speaker lines name no one: an
     index in order of first arrival, never a peer id or a name. Every playtest runs the pinned debug binary, so a
     crew member pressing F3 must not read who the muffled voice behind the wall is.
 
@@ -364,8 +378,8 @@ and the renumbering check stay as built.
   distance invariant over the loopback and over ENet. Agents run `run`, `host` and `join` with `--headless` only.
 - **On Windows, not in CI:** the TwoVoIP round trip (§1.3) in the addon's PR and in any PR that changes the codec
   adapter.
-- **`shot`:** the Voice tab (`client/dev/esc_voice_preview.tscn`), the HUD's transmit icon, the talking indicator over
-  an avatar (D14), and the F3 overlay's Voice section, each fed by fake data.
+- **`shot`:** the Voice tab (`client/dev/esc_voice_preview.tscn`) and the F3 overlay's Voice section, each fed by fake
+  data.
 - **The playtest worktree** on each PC, as in M4 (the M4 ADR §6), once:
   ```powershell
   cd D:\prime-game
@@ -380,9 +394,9 @@ and the renumbering check stay as built.
   ```
   After M5: `git worktree remove D:\prime-game\.claude\worktrees\playtest-m5`, from `D:\prime-game`.
 - **The addon download** (the engineer, in M5-3's worktree after the manager's `start` and before M5-3's workflow
-  launches, so the files are there when the agent starts; `<n>` is M5-3's issue number):
+  launches, so the files are there when the agent starts; M5-3 is #217):
   ```powershell
-  cd D:\prime-game\.claude\worktrees\<n>
+  cd D:\prime-game\.claude\worktrees\217
   $Zip = "$env:TEMP\TwoVoIP-v6.5.zip"
   $Tmp = "$env:TEMP\TwoVoIP-v6.5"
   Invoke-WebRequest -Uri 'https://github.com/goatchurchprime/two-voip-godot-4/releases/download/v6.5/TwoVoIP.zip' -OutFile $Zip -UseBasicParsing
@@ -413,14 +427,17 @@ and the renumbering check stay as built.
   cd D:\prime-game\.claude\worktrees\playtest-m5
   tools\run.cmd host --clients 2
   ```
-  Three windows, each keeping its own settings (`settings.cfg`, `settings_2.cfg`, `settings_3.cfg`, §1.7). Window 1:
-  Esc → Voice → the USB microphone, push-to-talk. Window 2: the source "test tone" (debug
-  builds). Windows 1 and 2: "mute this window" (debug builds, not saved), so only window 3 is heard. Checks: the tone and
-  the voice come from their avatars' directions and fade to silence at 8 m, with no pop at the edge; push-to-talk sends
-  only while V is held, voice activity follows the meter; a player knocked down falls silent at once, and while window 3
-  is downed it hears from its body; while window 3 is dead it hears no voice, but the world sounds around its target
-  and the music; behind a wall a voice is muffled (after M5-7); the Voice, World and Music sliders; the F3 Voice
-  section (queues, losses, underruns); the settings survive a restart.
+  Three windows, each keeping its own settings (`settings.cfg`, `settings_2.cfg`, `settings_3.cfg`, §1.7). Headphones
+  on throughout: voice activity, the default, picks up loudspeakers (§1.1). Window 1: Esc → Voice → the USB
+  microphone, mode voice activity (the default), then set the threshold with the meter so that speaking opens the gate
+  and silence and the keyboard do not. Window 2: the source "test tone" (debug builds). Windows 1 and 2: "mute this
+  window" (debug builds, not saved), so only window 3 is heard. Checks: the tone and the voice come from their avatars'
+  directions and fade to silence at 8 m, with no pop at the edge; voice activity follows the meter and holds through
+  short pauses (the hangover); switched to push-to-talk, window 1 sends only while V is held; switched to Off, it sends
+  nothing; a player knocked down falls silent at once, and while window 3 is downed it hears from its body; while
+  window 3 is dead it hears no voice, but the world sounds around its target and the music; behind a wall a voice is
+  muffled (after M5-7); the Master, Voice, Effects and Music sliders; the F3 Voice section (queues, losses, underruns);
+  the settings survive a restart.
 - **The two-machine test** (#21's setup; after M5-6, again at M5's end): on the host PC `tools\run.cmd host`, on the
   other `tools\run.cmd join <the host's address>`, both in the playtest worktree on the same commit (`git rev-parse
   --short HEAD`). The laptop's microphone does not work under 4.7.2 (#22): a headset microphone, or the test tone.
@@ -430,9 +447,10 @@ and the renumbering check stay as built.
   ≈ the speaker's frame age at encoding + half of each machine's round trip to the host + the listener's reorder wait
   and playback queue + `AudioServer.get_output_latency()` + 23 ms with RNNoise: at most 200 ms on one machine and over
   the LAN. CPU for 10 talkers ≈ (encode µs + 9 × decode µs) / 20 000 on the laptop: at most 15% of a core. The host's
-  upload: M5-4's figure and the overlay's counter, at most 5 Mbit/s. The engineer writes the numbers on M5's plan issue.
-- **The CC0 files** (#144, #145; any time, after the LFS-in-CI answer): the engineer copies them to the paths of §1.8 in
-  that task's worktree and gives the agent each file's author, source and license:
+  upload: M5-4's figure and the overlay's counter, at most 5 Mbit/s. The engineer writes the numbers on M5's plan issue (#190).
+- **The CC0 files** (#144, #145; LFS in CI is answered (a)): the engineer copies them to the paths of §1.8 in the
+  worktree of the task that wires them (`<n>`: 221 for M5-7, or a follow-up's number if they arrive later) and gives
+  the agent each file's author, source and license:
   ```powershell
   cd D:\prime-game\.claude\worktrees\<n>
   New-Item -ItemType Directory -Force client\audio\sounds, client\audio\music
@@ -443,21 +461,21 @@ and the renumbering check stay as built.
   ```
 
 ### 7. The split
-Seven issues, and M5-4b only if M5-4 asks for it. The full text of each (goal, acceptance criteria, out of scope,
-files, dependencies, size, effort) is in the handoff on #177. Not in M5: NAT traversal (M6); radios, role abilities and
-items that change voice (M7+); masks with a mouth (#73); the UI's look (#150); echo cancellation beyond the advice;
-per-player mute.
+Seven issues, opened by the manager with the answers applied, and M5-4b only if M5-4 asks for it. The full text of
+each (goal, acceptance criteria, files, dependencies, size, effort) is in its issue. Not in M5: NAT traversal (M6);
+radios, role abilities and items that change voice (M7+); any talking indicator, and masks with a mouth that will show
+who talks (#73); the UI's look (#150); echo cancellation beyond the advice; per-player mute.
 
-| # | Title | Depends on | May run beside | Protocol | Effort | Size |
-|---|---|---|---|---|---|---|
-| M5-1 | core: the cutoff for the client, the distance invariant in the leak test, bots that talk in spurts | the answers (D13) | M5-2, M5-3 | no | xhigh | ~900 (~1500 with D13 (b)) |
-| M5-2 | voice: the codec boundary, the gate and the jitter buffer, tested without the addon | E34, E37, E39 | M5-1, M5-3 | no | high | ~1300 |
-| M5-3 | voice: TwoVoIP v6.5 in `addons/`, and CI without it (the engineer present) | the engineer's yes and download | M5-1, M5-2 | no | high | ~150 and the libraries |
-| M5-4 | server: measure the host's voice relay cost and upload with bots | M5-1 | M5-5 | no | high | ~500 |
-| M5-5 | client: hearing voice (players on avatars, the ears, the client's rules, buses, world sounds from the ears) | M5-1, M5-2 | M5-4 | no | high | ~1400 |
-| M5-6 | client: speaking (capture, push-to-talk and voice activity, the Voice tab, settings, the transmit icon, debug tone and overlay) | M5-2, M5-5 | M5-7 | no | high | ~1400 |
-| M5-7 | client: occlusion's muffle, the talking indicator, and the CC0 sounds when they arrive | M5-5 | M5-6 | no | high | ~900 |
-| M5-4b | protocol: batched voice to each listener (only past E44's thresholds) | M5-4 | M5-6, M5-7 | yes | xhigh | ~700 |
+| # | Issue | Title | Depends on | May run beside | Protocol | Effort | Size |
+|---|---|---|---|---|---|---|---|
+| M5-1 | #215 | core: the client's voice cutoff, the distance invariant in the leak test, and bots that talk in spurts | D13 (a) (answered) | M5-2, M5-3 | no | xhigh | ~900 |
+| M5-2 | #216 | voice: the codec boundary, the gate and the jitter buffer, tested without the addon | E34, E37, E39 | M5-1, M5-3 | no | high | ~1300 |
+| M5-3 | #217 | voice: TwoVoIP v6.5 in `addons/`, and CI without it (the engineer present) | the engineer's download (the yes is given) | M5-1, M5-2 | no | high | ~150 and the libraries |
+| M5-4 | #218 | server: measure the host's voice relay cost and upload with bots | M5-1 | M5-5 | no | high | ~500 |
+| M5-5 | #219 | client: hearing voice: players on avatars, the ears, the client's rules, buses | M5-1, M5-2 | M5-4 | no | high | ~1400 |
+| M5-6 | #220 | client: speaking: capture, voice activity and push-to-talk, the Voice tab, settings | M5-2, M5-5 | M5-7 | no | high | ~1400 |
+| M5-7 | #221 | client: occlusion's muffle, and the CC0 sounds when they arrive | M5-5 | M5-6 | no | high | ~900 |
+| M5-4b | not opened | protocol: batched voice to each listener (only past E44's thresholds) | M5-4 | M5-6, M5-7 | yes | xhigh | ~700 |
 
 Waves of at most three (two while #170's track runs beside, as #134's M5 kickoff says): (M5-1, M5-2, M5-3 while
 the engineer is present), (M5-4, M5-5), (M5-6, M5-7, M5-4b if needed). The critical path is M5-2, M5-5, then M5-6. **M5-3 edits `addons/` and `.github/`**, which prompt unless the
@@ -465,9 +483,9 @@ session runs in bypass: the manager runs it while the engineer is present; M5-7'
 No M5 issue edits `.claude/`.
 
 **What to drop first** if the budget runs out, in this order: occlusion beyond one ray (never built here; if even the
-one ray must go, M5-7 keeps the indicator and the CC0 wiring), then the voice-activity mode (M5-6 keeps
-push-to-talk), then the fillers (the in-world talking indicator, the debug tone after the first listening test,
-M5-4b's batching unless M5-4 shows the host overloaded).
+one ray must go, M5-7 keeps the CC0 wiring), then the fillers (the debug tone after the first listening test, M5-4b's
+batching unless M5-4 shows the host overloaded). No voice mode is dropped: voice activity, push-to-talk and Off all
+ship, since the engineer says the budget suffices (#190 holds the numbers; the manager reports usage after each wave).
 
 **Folded, and why:**
 - The client's cutoff (`hearing_radius_m()`) into M5-1, the core issue: the leak test's distance invariant reads it,
@@ -486,66 +504,78 @@ M5-4b's batching unless M5-4 shows the host overloaded).
 
 | File | Writers, in merge order | Rule |
 |---|---|---|
-| `core/content/voice_rule.gd`, `core/voice/` | M5-1 | `hearing_radius_m()` is the name M5-5 and M5-6 read; a rename changes both issues' text |
-| `tests/harness/` (`LeakCheck`, `ScenarioInvariants`, `NetPlay`), `content/scenarios/` | M5-1, M5-4 (`voice_load`), M5-4b | a check changes in the PR that changes what it checks; the scenarios are provisional content (MVP content ADR) |
-| `voice/` | M5-2 (codec, gate, jitter), M5-5 (`VoiceSpeaker`), M5-6 (`VoiceCapture`) | new files per issue; M5-5 and M5-6 edit no file M5-2 created except to add a function; nothing in `voice/` reads the life fold, the phase or `ClientSession` |
-| `client/voice/` | M5-6 (`VoiceSender`: `may_speak` and `send_voice`) | |
-| `client/net/client_session.gd` | #155 (claim flags), M5-5 (`voice_received` carries the seq), M5-4b (the batched row, emitting per frame with its seq) | M5-5 after #155; `voice_received`'s signature is what M5-4b emits |
-| `client/app/game.gd` | M5-5 (`VoiceViews`, `Ears`, `AudioBuses` wiring), M5-6 (capture, settings) | each its own function; the second to merge rebases |
-| `client/world/world_sounds.gd`, `sound_chooser.gd` | M5-5 (the ears, the World bus), M5-7 (the muffle, the CC0 streams) | M5-7 after M5-5 |
-| `client/life/lift_music.gd` | M5-5 (the Music bus), M5-7 (the CC0 stream) | |
-| `client/ui/debug_overlay.gd` | M5-4 (the host's relay counters), M5-5 (per speaker), M5-6 (the own microphone) | each its own lines and function |
-| `client/ui/esc_menu_state.gd`, the Voice tab, `client/ui/hud.gd` | M5-6 | |
-| `client/player/remote_player_body.gd` | M5-5 (the mouth point), M5-7 (the indicator) | M5-7 after M5-5 |
-| `project.godot` | M5-6 (`voice_talk` on V, `audio/driver/enable_input`) | added lines; the editor's format |
-| `.github/workflows/ci.yml` | M5-3 (remove the addon before `verify`), M5-7 (LFS, if the answer is (a)) | coordinate with #176's pipeline v2 and #170's tasks, which also edit `.github/` |
-| `docs/ARCHITECTURE.md` | §6 by each voice issue as built; §4.5 and §10 by M5-4; §4.3 by M5-4b; §4.7 by M5-5 to M5-7; §5 and §9.7 by M5-1 | rewrite only the issue's own sections; in §6's "Designed for M5" each issue rewrites only its own sub-bullet (M5-1 the cutoff and the distance invariant, M5-2 the codec boundary, the gate and the jitter buffer, M5-3 the addon and CI, M5-5 playback and the ears, M5-6 capture, M5-7 occlusion), so wave 1's three merges do not conflict |
+| `core/content/voice_rule.gd`, `core/voice/` | M5-1 (#215) | `hearing_radius_m()` is the name M5-5 and M5-6 read; a rename changes both issues' text |
+| `tests/harness/` (`LeakCheck`, `ScenarioInvariants`, `NetPlay`), `content/scenarios/` | M5-1 (#215), M5-4 (#218, `voice_load`), M5-4b | a check changes in the PR that changes what it checks; the scenarios are provisional content (MVP content ADR) |
+| `voice/` | M5-2 (#216: codec, gate, jitter), M5-5 (#219: `VoiceSpeaker`), M5-6 (#220: `VoiceCapture`) | new files per issue; M5-5 and M5-6 edit no file M5-2 created except to add a function; nothing in `voice/` reads the life fold, the phase or `ClientSession` |
+| `client/voice/` | M5-6 (#220: `VoiceSender`, `may_speak` and `send_voice`) | |
+| `client/net/client_session.gd` | #155 (claim flags, merged), M5-5 (#219: `voice_received` carries the seq), M5-4b (the batched row, emitting per frame with its seq) | M5-5 after #155 (done); `voice_received`'s signature is what M5-4b emits |
+| `client/app/game.gd` | M5-5 (#219: `VoiceViews`, `Ears`, `AudioBuses` wiring), M5-6 (#220: capture, settings) | each its own function; the second to merge rebases |
+| `client/world/world_sounds.gd`, `sound_chooser.gd` | M5-5 (#219: the ears, the Effects bus), M5-7 (#221: the muffle, the CC0 streams) | M5-7 after M5-5 |
+| `client/life/lift_music.gd` | M5-5 (#219: the Music bus), M5-7 (#221: the CC0 stream) | M5-7 after M5-5 |
+| `client/ui/debug_overlay.gd` | M5-4 (#218: the host's relay counters), M5-5 (#219: per speaker), M5-6 (#220: the own microphone) | each its own lines and function |
+| `client/ui/esc_menu_state.gd`, `esc_menu.gd`, the Voice tab (`voice_panel.gd`) | M5-6 (#220) | no HUD element (D14) |
+| `client/player/remote_player_body.gd` | M5-5 (#219: the mouth point, which M5-7's ray aims at) | |
+| `project.godot` | M5-6 (#220: `voice_talk` on V, `audio/driver/enable_input`) | added lines; the editor's format |
+| `.github/workflows/ci.yml` | M5-3 (#217: remove the addon before `verify`), M5-7 (#221: the LFS fetch, answer (a)) | coordinate with #176's pipeline v2 and #170's tasks, which also edit `.github/` |
+| `docs/ARCHITECTURE.md` | §6 by each voice issue as built; §4.5 and §10 by M5-4; §4.3 by M5-4b; §4.7 by M5-5 to M5-7; §5 and §9.7 by M5-1; §1's rows by M5-5 (E46 (a)) | rewrite only the issue's own sections; in §6's "Designed for M5" each issue rewrites only its own sub-bullet (M5-1 the cutoff and the distance invariant, M5-2 the codec boundary, the gate and the jitter buffer, M5-3 the addon and CI, M5-5 playback, the ears and the buses, M5-6 capture and the gate's modes, M5-7 occlusion; the no-indicator bullet stays as written), so wave 1's three merges do not conflict |
 
-## Needs the engineer
-The technical choices. E34 to E45 and E47 are for the M5 manager session under the engineer's delegation (#134),
-which reports its answers; **E46 is the engineer's** (an architecture boundary). Every number marked so is a
-placeholder, "not a decision".
+## The technical choices, answered
+Answered on 2026-10-02: E34 to E45 and E47 by the M5 manager session under the engineer's delegation (#134), each as
+recommended, with E40's amendment of E33 confirmed by the engineer; **E46 by the engineer** (an architecture
+boundary). Every number marked so is a placeholder, "not a decision".
 
-| # | Choice | Options | Recommendation, and the failure it prevents |
-|---|---|---|---|
-| E34 | The codec boundary, and a game without the addon | (a) `VoiceCodec` in `voice/`; `TwoVoipCodec` reaches the addon only through `ClassDB` by class name and `Object.call`; a fake codec in `tests/fixtures/voice/`; without the addon voice is unavailable and the game runs; (b) scripts name `TwovoipOpusEncoder` and `AudioStreamPlaybackOpus`, as the spike did; (c) (a) with a PCM codec for players without the addon | (a). Under (b) a machine where the extension does not load (CI on Linux, a fresh clone before the engineer's download) fails `check` on every script that names a TwoVoIP class ("not declared"), and every test suite that loads one. (c) would cost about 8 Mbit/s of host upload at 10 players (160-byte frames), above the 5 Mbit/s threshold |
-| E35 | Linux CI with the addon | (a) the Windows libraries only, the `.gdextension` as shipped, and CI removes `addons/twovoip/` before `verify`; (b) the Windows and Linux libraries, CI loads the Linux one, and falls back to (a) the first time it fails; (c) only Windows listed in the `.gdextension`, and the runner ignores its "No GDExtension library found" line | (a). With any `.gdextension` present Godot 4.7.2 prints an `ERROR:` line on Linux unless the library loads (§2), and `run`, `bots` and `game` fail on it: under (b) CI's colour depends on an untested binary and on the next runner image; (c) teaches the engineer's runner to hide an error class. Windows `verify` keeps covering the addon where the game runs |
-| E36 | Capture and the microphone | (a) the 4.7 `AudioServer` input API; 48 kHz mono via the encoder; `audio/driver/enable_input` on; the microphone off until the player picks a device, remembered; an "opening" mark that keeps a device that froze the game from being opened at the next start; (b) the Windows default microphone opened at every session's start; (c) `AudioStreamMicrophone` with an `AudioEffectCapture` bus | (a). Under (b) a laptop player whose 4-channel array Godot 4.7.2 cannot read (#22, the spike's laptop) freezes at the lobby with no way to pick another device, and again at every start: 4.7.2 has no call that tells the channel count. (c) adds a bus and an effect for what the 4.7 API gives directly, unmeasured |
-| E37 | The gate and what is sent | (a) encode every chunk while the microphone is open, send only while the gate is open (push-to-talk held, or voice activity with a 300 ms hangover), 2 frames of pre-roll (emptied while `may_speak` is false), nothing while downed, dead or in a silent phase, the level from the raw samples, RNNoise on by default with a toggle, no DTX; (b) Opus DTX alone; (c) the microphone opened only while the key is held | (a): nothing leaves in silence, so a silent player's stream never shows where they stand (§6's lesson), and the first syllable is not cut. Under (b) v6.5 shows no DTX setting in the spike or the README, and DTX still sends now and then in silence; under (c) every press waits for the device to start, and voice activity cannot work |
-| E38 | The frame duration | (a) 20 ms, as measured; (b) 10 ms | (a). (b) saves about 10 ms of frame age but doubles the host's sends (the unexplained per-send cost), the headers (half of each packet) and the rate E7's bucket refills: after 10 s of talk half of every frame would be dropped, unless E7 changes too |
-| E39 | The jitter buffer | (a) `VoiceJitter` (§1.4): order by the renumbered seq, conceal or FEC a single loss, start at a prebuffer adapted at each start from a 2 s window (40 to 120 ms), stop when dry, fade and flush on demand; (b) the spike's: a fixed 60 ms and a reset on a jump of 25 seqs; (c) time-stretching within a spurt | (a). Over Wi-Fi the spike's queue doubled to 75 ms (p90 93): a fixed 60 ms underruns there and wastes 20 ms on a LAN; and (b)'s reset never fires, since the renumbered seqs run on across silence. (c) needs a resampler per stream that TwoVoIP does not offer |
-| E40 | Playback and the ears | (a) one `AudioStreamPlayer3D` per speaker on its `RemotePlayerBody`, bus Voice; an `AudioListener3D` placed by life (own eye; own body when downed; the target's eye or body when spectating); world sounds measured from the ears (this part amends E33, which the engineer decided: the engineer confirms it); (b) Godot's default listener, the current camera | (a). Under (b) a downed engineer hears from the downed camera, up to 2 m behind and 1.6 m above the body: a dissident whispering behind the crate the body lies against is heard clearly, since the muffle's ray passes over the crate, where at the body the crate would muffle it (vision revision 1: from where they lie) |
-| E41 | How the client knows the cutoff | (a) `VoiceRule.hearing_radius_m()` (Silent 0, `Proximity.radius_m`, `RoundVoice.living_m`), read from the client's own mode for the current phase through one static helper, `VoiceRule.radius_of(rule)`, which gives 0 for a phase with no voice rule (null), and which the client's cutoff, the sender's `may_speak` and `LeakCheck` all use; (b) a copy of 8 m in client tuning; (c) the radius on the wire | (a): the fade ends at the host's cutoff in every phase and mode, and the leak test reads the same number. Under (b) a mode with a 12 m radius fades to silence at 8 m while the host delivers to 12 m (client/CLAUDE.md forbids copying a game number); (c) sends what the client's mode already holds |
-| E42 | Occlusion's test | (a) on the listener: one ray per audible speaker per physics frame from the ears to the mouth, and one per world sound as it starts, against the client's own level; nothing on the host; (b) also the host's routing (D13 (b)): `VoiceRule` gets the `WorldQuery`, `Match` computes the routing once per tick and caches it, at most 45 rays a tick at 10 players | (a) costs at most 9 rays a frame on a client, as `SightHider` already casts, and nothing on the host. Under (b) every answer joins the command log (about 900 a second at 10 players, about 13 MB over 10 minutes), and the routing must move into `Match`'s tick: today `HostSession` and `Match._record_views` both call `speakers_for`, and a replay, which runs no `HostSession`, would read the recorded answers out of step and diverge |
-| E43 | Buses, settings and the Voice tab | (a) Voice, World and Music made in code by `AudioBuses`; `user://settings.cfg` through `ConfigFile`; a Voice tab in the Esc menu; (b) an editor-made `default_bus_layout.tres` named in `project.godot`; (c) no persistence | (a): one place, built the same way in tests. (b) is a file no test builds, from which a merge can drop a bus unseen; under (c) every start asks for the microphone again, and with E36 there is no voice until the player does |
-| E44 | Wire budgets and the measurement | (a) no wire change in M5; M5-4 measures headlessly with bots; a batched row (M5-4b) only past 2 ms per 20 ms of relay time or 4.5 Mbit/s at 81 streams; (b) batch now; (c) no measurement | (a): batching changes the protocol and the leak test for a cost nobody has measured since M1's unexplained 111 to 167 µs. Under (c) the first 10-player playtest finds the host's main thread, which also runs the ticks and the claims, at half a core for voice |
-| E45 | The leak test for M5 | (a) the distance invariant, apart from `VoiceRule.hears`, in `LeakCheck` and `ScenarioInvariants`, with a scenario of bots talking beyond the radius; the bots talk in spurts at 50 frames a second; client tests for the dead, the downed and the ears, each seen failing on a planted widening; (b) the routing subset check alone | (a). Today a `RoundVoice` that lets everyone hear everyone passes the subset check, because `view_of` reads the same rule (§5 of ARCHITECTURE: the invariants that do not trust the declarations) |
-| E46 (the engineer's: a boundary) | Which of `client/` and `voice/` uses the other | (a) `client/` uses `voice/`; `voice/` uses nothing outside itself (the engine, the addon by name); §1's rows say so; (b) §1 as written: `voice/` may use `net/` and `client/` playback, so `voice/` drives players on `client/`'s avatars | (a): the players hang on `client/`'s avatars and follow `client/`'s rules (the life fold, the ears, the phase), so `client/` decides what to play and `voice/` stays plumbing that a test drives without a scene. Under (b) `voice/` reads the life fold and the avatars, and the rendering rules of §3 live in two folders |
-| E47 | Debug tooling for the humans' voice tests | (a) in debug builds: the F3 overlay's Voice section (own: gate, peak, frame age, encode µs; per speaker, by an index of first arrival with no peer id or name: queue, prebuffer, late, lost, FEC, underruns, decode µs; the host: relayed, dropped, over budget, relay µs); a test tone as a microphone source and "mute this window", neither saved; (b) launch flags per instance through `host --clients` | (a): no runner change while #170's tasks edit `tools/`, and three windows on one PC still have one microphone (the spike's tone client) and one pair of headphones |
+| # | Choice | Options | Recommendation, and the failure it prevents | Answer (2026-10-02) |
+|---|---|---|---|---|
+| E34 | The codec boundary, and a game without the addon | (a) `VoiceCodec` in `voice/`; `TwoVoipCodec` reaches the addon only through `ClassDB` by class name and `Object.call`; a fake codec in `tests/fixtures/voice/`; without the addon voice is unavailable and the game runs; (b) scripts name `TwovoipOpusEncoder` and `AudioStreamPlaybackOpus`, as the spike did; (c) (a) with a PCM codec for players without the addon | (a). Under (b) a machine where the extension does not load (CI on Linux, a fresh clone before the engineer's download) fails `check` on every script that names a TwoVoIP class ("not declared"), and every test suite that loads one. (c) would cost about 8 Mbit/s of host upload at 10 players (160-byte frames), above the 5 Mbit/s threshold | (a), the M5 manager session (#134) |
+| E35 | Linux CI with the addon | (a) the Windows libraries only, the `.gdextension` as shipped, and CI removes `addons/twovoip/` before `verify`; (b) the Windows and Linux libraries, CI loads the Linux one, and falls back to (a) the first time it fails; (c) only Windows listed in the `.gdextension`, and the runner ignores its "No GDExtension library found" line | (a). With any `.gdextension` present Godot 4.7.2 prints an `ERROR:` line on Linux unless the library loads (§2), and `run`, `bots` and `game` fail on it: under (b) CI's colour depends on an untested binary and on the next runner image; (c) teaches the engineer's runner to hide an error class. Windows `verify` keeps covering the addon where the game runs | (a), the M5 manager session (#134) |
+| E36 | Capture and the microphone | (a) the 4.7 `AudioServer` input API; 48 kHz mono via the encoder; `audio/driver/enable_input` on; the microphone off until the player picks a device, remembered; an "opening" mark that keeps a device that froze the game from being opened at the next start; (b) the Windows default microphone opened at every session's start; (c) `AudioStreamMicrophone` with an `AudioEffectCapture` bus | (a). Under (b) a laptop player whose 4-channel array Godot 4.7.2 cannot read (#22, the spike's laptop) freezes at the lobby with no way to pick another device, and again at every start: 4.7.2 has no call that tells the channel count. (c) adds a bus and an effect for what the 4.7 API gives directly, unmeasured | (a), the M5 manager session (#134) |
+| E37 | The gate and what is sent | (a) encode every chunk while the microphone is open, send only while the gate is open (push-to-talk held, or voice activity with a 300 ms hangover), 2 frames of pre-roll (emptied while `may_speak` is false), nothing while downed, dead or in a silent phase, the level from the raw samples, RNNoise on by default with a toggle, no DTX; (b) Opus DTX alone; (c) the microphone opened only while the key is held | (a): nothing leaves in silence, so a silent player's stream never shows where they stand (§6's lesson), and the first syllable is not cut. Under (b) v6.5 shows no DTX setting in the spike or the README, and DTX still sends now and then in silence; under (c) every press waits for the device to start, and voice activity cannot work | (a), the M5 manager session (#134); the modes as D11's answer |
+| E38 | The frame duration | (a) 20 ms, as measured; (b) 10 ms | (a). (b) saves about 10 ms of frame age but doubles the host's sends (the unexplained per-send cost), the headers (half of each packet) and the rate E7's bucket refills: after 10 s of talk half of every frame would be dropped, unless E7 changes too | (a), the M5 manager session (#134) |
+| E39 | The jitter buffer | (a) `VoiceJitter` (§1.4): order by the renumbered seq, conceal or FEC a single loss, start at a prebuffer adapted at each start from a 2 s window (40 to 120 ms), stop when dry, fade and flush on demand; (b) the spike's: a fixed 60 ms and a reset on a jump of 25 seqs; (c) time-stretching within a spurt | (a). Over Wi-Fi the spike's queue doubled to 75 ms (p90 93): a fixed 60 ms underruns there and wastes 20 ms on a LAN; and (b)'s reset never fires, since the renumbered seqs run on across silence. (c) needs a resampler per stream that TwoVoIP does not offer | (a), the M5 manager session (#134) |
+| E40 | Playback and the ears | (a) one `AudioStreamPlayer3D` per speaker on its `RemotePlayerBody`, bus Voice; an `AudioListener3D` placed by life (own eye; own body when downed; the target's eye or body when spectating); world sounds measured from the ears (this part amends E33, which the engineer decided: the engineer confirms it); (b) Godot's default listener, the current camera | (a). Under (b) a downed engineer hears from the downed camera, up to 2 m behind and 1.6 m above the body: a dissident whispering behind the crate the body lies against is heard clearly, since the muffle's ray passes over the crate, where at the body the crate would muffle it (vision revision 1: from where they lie) | (a), the M5 manager session (#134); its amendment of E33 confirmed by the engineer |
+| E41 | How the client knows the cutoff | (a) `VoiceRule.hearing_radius_m()` (Silent 0, `Proximity.radius_m`, `RoundVoice.living_m`), read from the client's own mode for the current phase through one static helper, `VoiceRule.radius_of(rule)`, which gives 0 for a phase with no voice rule (null), and which the client's cutoff, the sender's `may_speak` and `LeakCheck` all use; (b) a copy of 8 m in client tuning; (c) the radius on the wire | (a): the fade ends at the host's cutoff in every phase and mode, and the leak test reads the same number. Under (b) a mode with a 12 m radius fades to silence at 8 m while the host delivers to 12 m (client/CLAUDE.md forbids copying a game number); (c) sends what the client's mode already holds | (a), the M5 manager session (#134) |
+| E42 | Occlusion's test | (a) on the listener: one ray per audible speaker per physics frame from the ears to the mouth, and one per world sound as it starts, against the client's own level; nothing on the host; (b) also the host's routing (D13 (b)): `VoiceRule` gets the `WorldQuery`, `Match` computes the routing once per tick and caches it, at most 45 rays a tick at 10 players | (a) costs at most 9 rays a frame on a client, as `SightHider` already casts, and nothing on the host. Under (b) every answer joins the command log (about 900 a second at 10 players, about 13 MB over 10 minutes), and the routing must move into `Match`'s tick: today `HostSession` and `Match._record_views` both call `speakers_for`, and a replay, which runs no `HostSession`, would read the recorded answers out of step and diverge | (a), the M5 manager session (#134), with D13 (a) |
+| E43 | Buses, settings and the Voice tab | (a) Voice, Effects and Music made in code by `AudioBuses`; `user://settings.cfg` through `ConfigFile`; a Voice tab in the Esc menu; (b) an editor-made `default_bus_layout.tres` named in `project.godot`; (c) no persistence | (a): one place, built the same way in tests. (b) is a file no test builds, from which a merge can drop a bus unseen; under (c) every start asks for the microphone again, and with E36 there is no voice until the player does | (a), the M5 manager session (#134), with D15's names |
+| E44 | Wire budgets and the measurement | (a) no wire change in M5; M5-4 measures headlessly with bots; a batched row (M5-4b) only past 2 ms per 20 ms of relay time or 4.5 Mbit/s at 81 streams; (b) batch now; (c) no measurement | (a): batching changes the protocol and the leak test for a cost nobody has measured since M1's unexplained 111 to 167 µs. Under (c) the first 10-player playtest finds the host's main thread, which also runs the ticks and the claims, at half a core for voice | (a), the M5 manager session (#134) |
+| E45 | The leak test for M5 | (a) the distance invariant, apart from `VoiceRule.hears`, in `LeakCheck` and `ScenarioInvariants`, with a scenario of bots talking beyond the radius; the bots talk in spurts at 50 frames a second; client tests for the dead, the downed and the ears, each seen failing on a planted widening; (b) the routing subset check alone | (a). Today a `RoundVoice` that lets everyone hear everyone passes the subset check, because `view_of` reads the same rule (§5 of ARCHITECTURE: the invariants that do not trust the declarations) | (a), the M5 manager session (#134) |
+| E46 (the engineer's: a boundary) | Which of `client/` and `voice/` uses the other | (a) `client/` uses `voice/`; `voice/` uses nothing outside itself (the engine, the addon by name); §1's rows say so; (b) §1 as written: `voice/` may use `net/` and `client/` playback, so `voice/` drives players on `client/`'s avatars | (a): the players hang on `client/`'s avatars and follow `client/`'s rules (the life fold, the ears, the phase), so `client/` decides what to play and `voice/` stays plumbing that a test drives without a scene. Under (b) `voice/` reads the life fold and the avatars, and the rendering rules of §3 live in two folders | (a), the engineer; §1's rows change in M5-5 (#219) |
+| E47 | Debug tooling for the humans' voice tests | (a) in debug builds: the F3 overlay's Voice section (own: gate, peak, frame age, encode µs; per speaker, by an index of first arrival with no peer id or name: queue, prebuffer, late, lost, FEC, underruns, decode µs; the host: relayed, dropped, over budget, relay µs); a test tone as a microphone source and "mute this window", neither saved; (b) launch flags per instance through `host --clients` | (a): no runner change while #170's tasks edit `tools/`, and three windows on one PC still have one microphone (the spike's tone client) and one pair of headphones | (a), the M5 manager session (#134) |
 
 **Stop-and-ask items:**
 - **The addon** (the voice ADR's "What follows"): adding TwoVoIP v6.5 to `addons/` (M5-3), downloaded by the engineer
-  (§6). Recommendation: yes, as E35 (a).
+  (§6). Recommendation: yes, as E35 (a). **Answer (the engineer, 2026-10-02): yes**: TwoVoIP v6.5 into `addons/`
+  (Windows libraries only, plain git files), downloaded by the engineer with the SHA-256 check into M5-3's worktree
+  (`D:\prime-game\.claude\worktrees\217`) after the manager's `start`; M5-3 (#217) runs while he is at the PC.
 - **LFS in CI before the first audio file** (the LFS ADR's open item; it spends the account's LFS bandwidth quota):
   (a) CI fetches LFS content, cached by the list of LFS files (`git lfs ls-files -l`), so it downloads only when the
   audio changes; (b) `client/audio/**` stays out of LFS like `addons/` (one `.gitattributes` line; a few MB in git
   history); (c) the game keeps its generated placeholders where a file is an LFS pointer (CI). Recommendation: (a). Under
   (c) Godot's import of a pointer file is not an audio file, and a run that loads it prints errors that fail `verify`;
-  (b) goes against KICKOFF §2's routing for a small saving.
+  (b) goes against KICKOFF §2's routing for a small saving. **Answer (the engineer, 2026-10-02): (a)**; M5-7 (#221)
+  adds the CI step with the first audio file.
 
-**Game rules no ADR settles:** none beyond D11 to D15. Not reopened: vision revision 1's voice rules (V11), the MVP's
-8 m, the phase table of ARCHITECTURE §6.
+**Game rules no ADR settles:** none beyond D11 to D15 and the reading of Off below. Not reopened: vision revision 1's
+voice rules (V11), the MVP's 8 m, the phase table of ARCHITECTURE §6.
 
-## Needs the engineer: how voice and sound feel
-The engineer's, with the designer by relay (`docs/AGENT_WORKFLOW.md` §9; @SwiftySinister may object on the PR).
+## How voice and sound feel: the engineer's answers
+The engineer's, with the designer by relay (`docs/AGENT_WORKFLOW.md` §9; @SwiftySinister may object on the PR),
+answered in chat with the M5 manager session on 2026-10-02 (recorded on PR #194). Where the answer is not the
+recommendation, the row keeps the recommendation as it was proposed.
+
+| # | Choice | Options | Recommendation, and the failure it prevents | Answer (2026-10-02) |
+|---|---|---|---|---|
+| D11 | Push-to-talk or voice activity | (a) both, push-to-talk the default, held on V (`voice_talk`); voice activity at a threshold set with a meter (a peak of 0.1, about −20 dBFS: a placeholder); (b) both, voice activity the default (with Off, voice turned off, as a third mode in the answer); (c) push-to-talk only | (a): by default only what a player means goes out. The game has no echo cancellation: with (b), the designer on laptop speakers sends everyone's voices back, and the engineer hears himself about a second late in every lobby; a fan, a keyboard or a Discord call opens the gate too. (a)'s cost: a new player forgets to press. Drop order: voice activity goes first, leaving (c). The answer keeps the echo risk in view: the Voice tab says that loudspeakers echo and headphones avoid it (§1.1) | **(b)**, the engineer: voice activity the default; push-to-talk (held on V) and Off in the Voice tab; no mode dropped |
+| D12 | The falloff | (a) linear to silence at the host's cutoff (`ATTENUATION_DISABLED` and `max_distance`, the spike's curve the engineer listened to), 3D, 8 m (the MVP's placeholder); (b) full volume within 2 m, then linear to silence at the cutoff (a scripted volume); (c) inverse distance (Godot's default) cut at the cutoff | (a). (c) stays loud to 8 m and stops dead: every crossing makes an audible step, and the step tells a listener exactly where the cutoff lies. (b) is clearer up close and costs a volume script per speaker per frame. 3D: a player on the floor above is heard, muffled by the floor (D13), not as if beside | (a), the engineer |
+| D13 | Occlusion: who decides, and how much a wall muffles | (a) the listener only: behind the level (one ray) a voice or a world sound is 8 dB quieter and duller (a low-pass near 1 kHz; placeholders); the host still routes by distance, so a voice within 8 m is heard through a wall, muffled; (b) the host too: behind a wall a voice reaches only within a shorter radius (4 m, a placeholder), muffled; (c) walls silence: no voice through any wall | (a): a dissident plotting in the storeroom is heard, muffled, by the crew member passing the door: someone is there, not every word. (b) makes walls private between 4 and 8 m, at E42 (b)'s cost in `core/`; (c) silences two players on either side of a crate or a door jamb, since one ray cannot tell a crate from a wall | (a), the engineer |
+| D14 | A talking indicator | (a) the own: a microphone icon on the HUD while the gate sends, crossed out while nobody can hear by the rules (downed, dead, a silent phase); others: an icon over a speaker's head while its audio plays and the occlusion ray reaches its mouth unblocked, drawn in the world with the avatar; never a list of names; (b) the own icon only; (c) a HUD list of who talks; (d) none in M5 | Proposed: (a). **The answer, (d):** no own transmit icon on the HUD and no icon over a speaker's head in M5; who talks shows later through a mouth animation with the masks of #73 (after the MVP). The rules hold without an indicator: no screen lists who is talking (under (c) a crew member hears a muffled voice behind a wall and the list names the dissident), and nothing tells a speaker who hears them (the host never says) | **(d) none in M5**, the engineer (read back and confirmed) |
+| D15 | The mix | (a) three sliders, Voice, Effects (the world sounds) and Music, defaults 0, −6 and −14 dB (placeholders); no ducking; the dead hear the music under the world sounds around their target; (b) one master slider; (c) world sounds ducked while someone talks; (d) (a) with a Master slider, four in all | Proposed: (a): a player tired of the lift music turns it down without losing the swings. **The answer, (d):** Master, Voice (the players' voices), Effects and Music, defaults 0, 0, −6 and −14 dB (placeholders, "not a decision"); no ducking; "Effects" replaces "World" as the bus's name. Under (c) a swing behind a player is ducked by the very voice warning them about it | **(d) four sliders**, the engineer: Master, Voice, Effects, Music |
+
+## Needs the engineer
+One reading of the answers, which the design proceeds with because it can be reverted in M5-6 (#220) by one setting:
 
 | # | Choice | Options | Recommendation, and the failure it prevents |
 |---|---|---|---|
-| D11 | Push-to-talk or voice activity | (a) both, push-to-talk the default, held on V (`voice_talk`); voice activity at a threshold set with a meter (a peak of 0.1, about −20 dBFS: a placeholder); (b) both, voice activity the default; (c) push-to-talk only | (a): by default only what a player means goes out. The game has no echo cancellation: with (b), the designer on laptop speakers sends everyone's voices back, and the engineer hears himself about a second late in every lobby; a fan, a keyboard or a Discord call opens the gate too. (a)'s cost: a new player forgets to press, which the HUD's transmit icon shows. Drop order: voice activity goes first, leaving (c) |
-| D12 | The falloff | (a) linear to silence at the host's cutoff (`ATTENUATION_DISABLED` and `max_distance`, the spike's curve the engineer listened to), 3D, 8 m (the MVP's placeholder); (b) full volume within 2 m, then linear to silence at the cutoff (a scripted volume); (c) inverse distance (Godot's default) cut at the cutoff | (a). (c) stays loud to 8 m and stops dead: every crossing makes an audible step, and the step tells a listener exactly where the cutoff lies. (b) is clearer up close and costs a volume script per speaker per frame. 3D: a player on the floor above is heard, muffled by the floor (D13), not as if beside |
-| D13 | Occlusion: who decides, and how much a wall muffles | (a) the listener only: behind the level (one ray) a voice or a world sound is 8 dB quieter and duller (a low-pass near 1 kHz; placeholders); the host still routes by distance, so a voice within 8 m is heard through a wall, muffled; (b) the host too: behind a wall a voice reaches only within a shorter radius (4 m, a placeholder), muffled; (c) walls silence: no voice through any wall | (a): a dissident plotting in the storeroom is heard, muffled, by the crew member passing the door: someone is there, not every word. (b) makes walls private between 4 and 8 m, at E42 (b)'s cost in `core/`; (c) silences two players on either side of a crate or a door jamb, since one ray cannot tell a crate from a wall |
-| D14 | A talking indicator | (a) the own: a microphone icon on the HUD while the gate sends, crossed out while nobody can hear by the rules (downed, dead, a silent phase); others: an icon over a speaker's head while its audio plays and the occlusion ray reaches its mouth unblocked, drawn in the world with the avatar; never a list of names; (b) the own icon only; (c) a HUD list of who talks | (a): the own icon answers "am I sending?" for push-to-talk; the in-world icon shows which player in view talks, which the audio and the eyes already tell. Under (c) a crew member hears a muffled voice behind a wall and the list names the dissident. Neither icon tells a speaker who hears them (the host never says). The in-world icon is a filler (drop order) |
-| D15 | The mix | (a) three sliders, Voice, World and Music, defaults 0, −6 and −14 dB (placeholders); no ducking; the dead hear the music under the world sounds around their target; (b) one master slider; (c) world sounds ducked while someone talks | (a): a player tired of the lift music turns it down without losing the swings. Under (c) a swing behind a player is ducked by the very voice warning them about it |
+| D11's Off | What "turn voice off entirely" covers | (a) the own microphone only: Off closes it and sends nothing; other players stay audible, and the Voice slider at its minimum silences them; (b) Off also mutes every voice the player hears | (a), read from the answer's words (a talking mode beside voice activity and push-to-talk): a player who turns the microphone off to stop a loudspeaker echo, or whose laptop array 4.7.2 cannot read (#22), still hears the crew warn them. Under (b) that player is deaf to voice and does not know it |
 
 ## Alternatives
 - **Scripts that name the addon's classes** (E34 (b)); **a PCM fallback codec for players** (E34 (c)).
@@ -562,18 +592,22 @@ The engineer's, with the designer by relay (`docs/AGENT_WORKFLOW.md` §9; @Swift
 - **The routing subset check alone** (E45 (b)).
 - **`voice/` driving `client/`'s players** (E46 (b)).
 - **Launch flags per window for the one-PC test** (E47 (b)).
-- **Voice activity by default** (D11 (b)); **a flat-then-fading curve** or **inverse distance** (D12 (b), (c)); **a HUD
-  list of talkers** (D14 (c)); **one master slider** or **ducking** (D15 (b), (c)).
+- **Push-to-talk by default** (D11 (a), the agent's recommendation) and **push-to-talk only** (D11 (c)); **a
+  flat-then-fading curve** or **inverse distance** (D12 (b), (c)); **a talking indicator in M5**, the own transmit icon
+  and an icon over a speaker's head (D14 (a), (b)), and **a HUD list of talkers** (D14 (c)); **three sliders without
+  Master** (D15 (a)), **one master slider** or **ducking** (D15 (b), (c)).
 - **One issue for the whole client** (about 3700 lines), **one issue for hearing and speaking** (about 2800).
 
 ## Consequences
-- `docs/ARCHITECTURE.md` §6 gains the design (the path, the gate, the jitter buffer, playback and the ears, the
-  falloff, occlusion, buses), and §10 the M5 rows; the sections each issue builds are rewritten as built (§7's table).
-- `voice/CLAUDE.md` gains the codec boundary, the tests without the addon, the gate's rule and the 20 ms frame.
-- After the answers, the manager opens M5-1 to M5-7 from the handoff on #177, with the answers applied, in §7's order;
-  M5-4b only if M5-4's numbers cross E44's thresholds.
-- `project.godot` gets `voice_talk` (V) and `audio/driver/enable_input` (M5-6); CI removes the addon before `verify`
-  (M5-3); `client/CLAUDE.md` gains §3's rules with M5-5, and its world-sound line (E33: "the listener's camera")
-  measures from the ears once the engineer confirms E40.
-- If E46 is (a), §1's rows for `client/` and `voice/` change in M5-5, the first PR in which `client/` uses `voice/`.
+- `docs/ARCHITECTURE.md` §6 gains the design (the path, the gate and its three modes, the jitter buffer, playback and
+  the ears, the falloff, occlusion, the buses Voice, Effects and Music), and §10 the M5 rows; the sections each issue
+  builds are rewritten as built (§7's table).
+- `voice/CLAUDE.md` gains the codec boundary, the tests without the addon, the gate's rule, the 20 ms frame and E46.
+- The manager opened M5-1 to M5-7 (#215 to #221) with the answers applied, in §7's order; M5-4b only if M5-4's
+  numbers cross E44's thresholds.
+- `project.godot` gets `voice_talk` (V) and `audio/driver/enable_input` (M5-6, #220); CI removes the addon before
+  `verify` (M5-3, #217) and fetches LFS content (M5-7, #221); `client/CLAUDE.md` gains §3's rules with M5-5 (#219),
+  and its world-sound line (E33: "the listener's camera") measures from the ears there (E40, confirmed; the M4 ADR
+  records the amendment).
+- E46 (a): §1's rows for `client/` and `voice/` change in M5-5 (#219), the first PR in which `client/` uses `voice/`.
 - The CC0 files close #144's and #145's open human steps once wired (M5-7).
