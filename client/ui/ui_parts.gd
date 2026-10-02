@@ -20,19 +20,6 @@ static func centered_column(parent: Control, title: String) -> VBoxContainer:
 	return column
 
 
-## A panel on the right edge of `parent`, full height; returns its column.
-static func side_column(parent: Control, title: String) -> VBoxContainer:
-	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	panel.offset_left = -360
-	parent.add_child(panel)
-	var column := VBoxContainer.new()
-	column.theme_type_variation = &"SideColumn"
-	panel.add_child(_margin(column))
-	column.add_child(heading(title))
-	return column
-
-
 static func heading(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
