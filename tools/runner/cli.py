@@ -32,6 +32,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--repeat", type=int, metavar="N", help="N runs in a row with a per-suite comparison (the nightly flaky job)"
     )
+    p.add_argument(
+        "--shards",
+        type=int,
+        metavar="K",
+        help="K GdUnit4 processes at once (1: one process). Default: with no paths, from the CPU count; with paths, 1",
+    )
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
     sub.add_parser("selftest", help="unit tests of the runner itself")
@@ -193,8 +199,11 @@ def main(argv: list[str] | None = None) -> int:
             from . import gdunit
 
             if args.repeat is not None:
+                if args.shards is not None:
+                    raise Failure("--repeat runs one process per run; drop --shards")
                 return gdunit.repeat(args.repeat, paths=args.paths or None)
-            return gdunit.main(paths=args.paths or None)
+            shards = {"shards": args.shards} if args.shards is not None else {}
+            return gdunit.main(paths=args.paths or None, **shards)
         if args.command == "verify":
             from . import verify
 

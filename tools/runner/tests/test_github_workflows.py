@@ -65,6 +65,18 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP])
         self.assertIn("GODOT_BIN=$HOME/godot/godot tools/run.sh verify", [step.get("run") for step in steps])
 
+    def test_ci_restores_the_last_gdunit_times_before_verify(self) -> None:
+        # `test` balances its shards by them (#182); a fresh CI checkout has none of its own.
+        steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]
+        runs = [step.get("run") for step in steps]
+        cache = [i for i, step in enumerate(steps) if step.get("uses") == "actions/cache@v6"]
+        self.assertEqual(len(cache), 1)
+        settings = steps[cache[0]]["with"]
+        self.assertEqual(settings["path"], "tools/out/logs/gdunit-times.json")
+        self.assertEqual(settings["restore-keys"], "gdunit-times-")
+        self.assertIn("${{ github.run_id }}", settings["key"])
+        self.assertLess(cache[0], runs.index("GODOT_BIN=$HOME/godot/godot tools/run.sh verify"))
+
     def test_nightly_runs_on_a_schedule_and_by_hand_with_the_least_permissions(self) -> None:
         data = load(GITHUB / "workflows" / "nightly.yml")
         self.assertEqual(set(data["on"]), {"schedule", "workflow_dispatch"})

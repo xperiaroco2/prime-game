@@ -801,6 +801,34 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
   (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
   branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
+- **An own `user://` per worktree [applied]** (#182): Godot names `user://` after the project, so every checkout of
+  "PrimeGame" shared one folder, and two worktrees' `test` runs cleared each other's GdUnit4 files in `user://tmp`.
+  Before every Godot start (`require_godot`, and a windowed `run`) the runner writes a gitignored `override.cfg` into
+  a linked worktree (one whose `.git` is a file: a task's `.claude/worktrees/<n>`, a scratch worktree) with
+  `application/config/use_custom_user_dir=true` and `custom_user_dir_name="Godot/app_userdata/PrimeGame-<folder>-<6
+  hex of its path>"`. Godot 4.7.2 joins the name to the app-data folder, so worktree 182's `user://` is
+  `%APPDATA%\Godot\app_userdata\PrimeGame-182-7f974f` (Linux: under `~/.local/share/godot/app_userdata/`). The main
+  checkout and a clone (CI, a cloud session) have a `.git` folder and get no file: the humans' settings and saves stay
+  in Godot's default `%APPDATA%\Godot\app_userdata\PrimeGame`. An export gets that default folder too: it packs a
+  non-resource file only when a preset's include filter names it (there is no preset yet), and an exported game reads
+  an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is left alone, with a warning. A
+  removed worktree's folder stays behind in `%APPDATA%\Godot\app_userdata\` (Godot's logs, a few replays). Saving
+  project settings in a worktree's editor (`ProjectSettings.save()`) copies both keys into `project.godot` (probed on
+  4.7.2), which would move every checkout's and export's `user://`: `check` fails on them; delete the two lines.
+- **`test` in shards [applied]** (#182): `test` with no paths runs the suites in K GdUnit4 processes at once, K =
+  half the logical CPUs, at most 4 (`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K`
+  or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>`, `test --repeat N` and
+  `gdunit.main(paths)` stay one process. The shards are balanced by the last per-suite times
+  (`tools/out/logs/gdunit-times.json`, merged after every run; a fresh worktree reads the newest one of another
+  checkout, CI restores it from the Actions cache): the longest suite first, each to the least loaded shard. A
+  shard is one GdUnit4 process given its scripts one by one (`-a <file>`; together every `.gd` file a one-process
+  run's folder scan loads), with `APPDATA` (Linux: `XDG_DATA_HOME`) set to `tools/out/gdunit-user/shard-<i>`, which
+  gives it a `user://` of its own; its report goes to `tools/out/gdunit/shard-<i>/`, its log to
+  `tools/out/logs/test-shard<i>.log`, and `test.log` holds every shard's log in turn. Each shard is judged as a
+  one-process run (exit code, `results.xml`, orphans named), a shard whose `user://` stayed empty fails, and the
+  merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
+  declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
+  processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
 - **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
   from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
   `docs.godotengine.org/en/4.7/`.
@@ -874,9 +902,9 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, a free Linux runner, the latest `main` commit; 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`) | The run's summary page and artifact `nightly-flaky`; on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
-- **`test --repeat N`** runs the GdUnit4 suites N times in a row; any failed run fails it. Each run's report goes to
-  `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`; `summary.json` (every suite:
-  tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
+- **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run; any failed run fails it.
+  Each run's report goes to `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`;
+  `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
   run (it crashed or timed out) or skipped in it counts neither way.
 - **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite

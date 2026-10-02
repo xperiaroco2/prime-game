@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import shutil
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -112,10 +114,12 @@ def run(
     log: str | None = None,
     echo: bool = False,
     env: dict[str, str] | None = None,
+    on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
 ) -> Result:
     """Run cmd with stdout+stderr merged, a hard timeout and a process-tree kill.
 
-    The full output is also written to tools/out/logs/<log>.log when log is given.
+    The full output is also written to tools/out/logs/<log>.log when log is given. `on_start` gets the process once
+    it runs (a caller running several at once keeps them, to stop them all on Ctrl+C).
     """
     started = time.monotonic()
     try:
@@ -130,6 +134,8 @@ def run(
         )
     except FileNotFoundError as exc:
         raise Failure(f"cannot start {cmd[0]}: {exc}") from exc
+    if on_start is not None:
+        on_start(proc)
     chunks: list[str] = []
 
     def pump() -> None:
@@ -235,13 +241,125 @@ def require_godot() -> str:
             + ("." if where else ", or put `godot` on PATH.")
         )
     check_godot_version(path)
+    ensure_user_dir()
     return path
 
 
-def godot(args: list[str], *, timeout: float, log: str, echo: bool = False) -> Result:
+def godot(
+    args: list[str],
+    *,
+    timeout: float,
+    log: str,
+    echo: bool = False,
+    env: dict[str, str] | None = None,
+    on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
+) -> Result:
     """Run the pinned Godot on this project. Never pass a bare -d: it hangs on script errors."""
     exe = require_godot()
-    return run([exe, "--no-header", "--path", str(ROOT), *args], timeout=timeout, log=log, echo=echo)
+    cmd = [exe, "--no-header", "--path", str(ROOT), *args]
+    return run(cmd, timeout=timeout, log=log, echo=echo, env=env, on_start=on_start)
+
+
+# --- user:// (#182) -------------------------------------------------------------------------------
+# Godot puts user:// (settings, saves, replays, GdUnit4's user://tmp) in a folder named after the project, so every
+# checkout of "PrimeGame" shares one: two worktrees' test runs cleared each other's GdUnit4 files. A linked worktree
+# (a task's under .claude/worktrees/, a scratch one) therefore gets a gitignored override.cfg that gives it a folder
+# of its own; the main checkout (where the humans play and host) and a CI clone get none and keep Godot's default.
+# Godot 4.7.2 joins custom_user_dir_name to the OS app-data folder (%APPDATA% on Windows, $XDG_DATA_HOME or
+# ~/.local/share on Linux), and a name may hold "/": the folder goes next to the default one.
+OVERRIDE = "override.cfg"
+OVERRIDE_MARK = "; Written by the task runner (tools/runner/common.py, #182)"
+
+
+def is_linked_worktree(root: Path | None = None) -> bool:
+    """A worktree made by `git worktree add` has a .git file; the main checkout and a clone have a .git folder."""
+    return ((root or ROOT) / ".git").is_file()
+
+
+def project_name(root: Path | None = None) -> str:
+    """application/config/name from project.godot (the name Godot's default user:// folder is called after)."""
+    try:
+        text = ((root or ROOT) / "project.godot").read_text(encoding="utf-8")
+    except OSError:
+        return "PrimeGame"
+    match = re.search(r'^config/name="([^"]*)"', text, re.MULTILINE)
+    return match.group(1) if match and match.group(1) else "PrimeGame"
+
+
+def user_dir_name(root: Path | None = None) -> str:
+    """A worktree's custom_user_dir_name: beside Godot's default folder, called after the project, the worktree's
+    folder and a hash of its path (two clones may both have a worktree "182")."""
+    root = root or ROOT
+    folder = re.sub(r"[^A-Za-z0-9._-]", "-", root.name) or "worktree"
+    digest = hashlib.sha1(os.path.normcase(str(root.resolve())).encode("utf-8")).hexdigest()[:6]
+    # Godot's own folder name: "godot" on Linux, "Godot" elsewhere (OS::get_godot_dir_name).
+    return f"{'godot' if IS_LINUX else 'Godot'}/app_userdata/{project_name(root)}-{folder}-{digest}"
+
+
+def override_text(root: Path | None = None) -> str:
+    return (
+        f"{OVERRIDE_MARK}: this worktree's own user://.\n"
+        "; Gitignored. The main checkout has none and keeps Godot's default folder (docs/AGENT_WORKFLOW.md §11).\n"
+        "[application]\n"
+        "\n"
+        "config/use_custom_user_dir=true\n"
+        f'config/custom_user_dir_name="{user_dir_name(root)}"\n'
+    )
+
+
+def ensure_user_dir(root: Path | None = None) -> Path | None:
+    """Write a linked worktree's override.cfg when it is missing or stale; returns its path (None in the main
+    checkout or a clone, which keep the default user://). A hand-made override.cfg (without the runner's first line)
+    is left alone, with a warning."""
+    root = root or ROOT
+    if not is_linked_worktree(root):
+        return None
+    path = root / OVERRIDE
+    want = override_text(root)
+    try:
+        have = path.read_text(encoding="utf-8") if path.exists() else None
+    except OSError:
+        have = None
+    if have == want:
+        return path
+    if have is not None and not have.startswith(OVERRIDE_MARK):
+        warn(f"{path} was not written by the runner; this worktree may share user:// with the main checkout")
+        return path
+    path.write_text(want, encoding="utf-8", newline="\n")
+    return path
+
+
+def app_data_dir() -> Path | None:
+    """The folder Godot joins custom_user_dir_name to, read as Godot reads it (OS_Windows / OS_LinuxBSD)."""
+    if IS_WINDOWS:
+        value = os.environ.get("APPDATA")
+        return Path(value) if value else None
+    if IS_LINUX:
+        value = os.environ.get("XDG_DATA_HOME", "")
+        if value and Path(value).is_absolute():
+            return Path(value)
+        home = os.environ.get("HOME")
+        return Path(home) / ".local" / "share" if home else None
+    return None
+
+
+def worktree_user_dir(root: Path) -> Path | None:
+    """Where a linked worktree's user:// lives on this machine (None for the main checkout or an unknown OS)."""
+    base = app_data_dir()
+    if base is None or not is_linked_worktree(root):
+        return None
+    return base / user_dir_name(root)
+
+
+# The per-process mechanism: Godot reads the app-data folder from the environment on every start, so a process
+# started with this variable set gets a user:// of its own under the given folder (whatever override.cfg names).
+# Windows: APPDATA; Linux: XDG_DATA_HOME (it must be absolute). Probed on 4.7.2 (#182).
+def app_data_var() -> str | None:
+    if IS_WINDOWS:
+        return "APPDATA"
+    if IS_LINUX:
+        return "XDG_DATA_HOME"
+    return None
 
 
 def git(*args: str, timeout: float = 60) -> Result:
