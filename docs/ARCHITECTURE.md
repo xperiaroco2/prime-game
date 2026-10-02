@@ -1838,11 +1838,53 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
 - **Designed for M5** (#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), accepted on
   2026-10-02: E34 to E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221).
   The lessons above, answered:
-  - **The codec boundary** (E34): `voice/`'s `VoiceCodec`, `VoiceEncoder` and `VoicePlayback`; `TwoVoipCodec` reaches
-    the addon only through `ClassDB` by class name, so every script parses without it, and without it voice is
-    unavailable and the game runs. Tests never load the addon or open a microphone: a fake codec
-    (`tests/fixtures/voice/`) and the pure `VoiceGate` and `VoiceJitter`. CI removes `addons/twovoip/` before
-    `verify`, because Godot prints an `ERROR:` line on Linux for a `.gdextension` it cannot load (E35, the ADR §2).
+  - **The codec boundary, the gate and the jitter buffer** (E34, E37, E38, E39; built in M5-2, #216). `voice/`'s
+    `VoiceCodec` (`available()`, `new_encoder()`, `new_stream()`, `playback_of(player)`), `VoiceEncoder`
+    (`start(input_rate, denoise)` returns an error text, `encode(chunk)` one 20 ms frame) and `VoicePlayback`
+    (`push(frame, conceal)`, `queued_frames()`, `free_frames()`, `set_running(on)`, `flush()`) are what `client/`
+    and the rest of `voice/` use; each base is a codec that is never available. `TwoVoipCodec` (with
+    `TwoVoipEncoder` and `TwoVoipPlayback`) reaches the addon only through `ClassDB.class_exists`, `instantiate` and
+    `Object.call` with typed results, with the M1 spike's settings (48 kHz, mono, 960 samples, 24 kbit/s,
+    complexity 5, RNNoise or none) and the spike's method names; its class names are constructor arguments
+    defaulting to TwoVoIP's, so a test passes a missing class and sees it unavailable on any machine. Without the
+    addon every script parses, voice is unavailable and the game runs.
+    `VoiceGate` is pure: `feed(chunk, frame, may_speak, talk_held)` returns the frames to send, oldest first. Voice
+    activity (the default) opens while the raw chunk's peak is over `threshold` (0.1) and for a hangover of 300 ms
+    after; push-to-talk opens while `talk_held`; Off is the capture's state (M5-6). On opening, up to 2 frames of
+    pre-roll go first; the ring fills only while the gate is closed, so it holds only frames never sent and a gate
+    closed for one chunk sends no frame twice. `may_speak` false (`client/` decides it) closes the gate and empties
+    the ring, so no frame captured before it turns true again goes out. An empty frame (a failed encode) is never
+    sent nor kept for the pre-roll, though its chunk counts for the hangover.
+    `VoiceJitter` is pure, one per speaker on the listener: `push(seq, tick, frame, arrival_usec)`, then once a frame
+    `update(queued_usec, now_usec)` returns the `Decode`s and `command()` says start, stop or flush. It orders by
+    the renumbered u16 seq (unwrapped), drops duplicates and frames older than the next due (`late`), waits for a
+    missing frame until the queue would run dry before the next update (within `DRY_MARGIN_USEC`, 10 ms), then
+    decodes the next packet held with `conceal` (FEC or concealment) and skips the rest of a longer run (`lost`);
+    a frame missing across a stop is skipped. It starts when the queue and the frames held reach the prebuffer and
+    stops when the queue runs dry with nothing held; a held frame whose host tick is more than 2 past the last
+    decoded frame's is the next spurt, never decoded into a run still playing, so each spurt starts under its own
+    prebuffer. The prebuffer is chosen at each start: the largest spread of
+    arrival offsets within one talk spurt over the last 2 s of frames, plus 20 ms, within 40 to 120 ms; a spurt
+    starts when a frame arrives more than 60 ms after its due time or its host tick is more than 2 past the newest
+    frame's. Under the tests' talk (polls 16.7 ms apart) it settles near 40, 59 and 105 ms at 0, 30 and 80 ms of
+    jitter, with underruns only before the window has seen the jitter. Frames held 200 ms without starting are
+    discarded (`stale`); `fade_out()` lowers `gain()` to 0 over 50 ms, then says flush; `flush()` empties the held
+    frames, and a frame older than the flush arrives late. A stream that restarts at seq 0 gets a new `VoiceJitter`.
+    No queue cap after a burst (the manager's call, until the listening test shows a problem); `VoicePlayback.push`
+    does not check for room either, so its caller (M5-5) checks `free_frames()` first and drops a frame that does
+    not fit. A known limit for the listening test (M5-6, M5-7): a spurt shorter than the prebuffer never starts and
+    is discarded as stale. A voice-activity spurt lasts at least 320 ms (the hangover), so it reaches only a
+    push-to-talk tap: a key held for one chunk sends 3 frames with the pre-roll (60 ms), under the prebuffer once
+    the window has seen more than 40 ms of spread. Every number here is a placeholder, "not a decision".
+    Tests (no addon, no microphone): `tests/unit/voice/voice_codec_test.gd`, `voice_gate_test.gd`,
+    `voice_jitter_test.gd` and `voice_jitter_timing_test.gd` (through `voice_jitter_sim.gd`, a listener polling at
+    60 fps with a playback model), with the fake codec in `tests/fixtures/voice/` (8 kHz µ-law, 160 B per 20 ms,
+    played through an `AudioStreamGenerator`); `voice_addon_names_test.gd` fails on any script outside `addons/`
+    naming a TwoVoIP class; `tests/unit/client/app/client_boundary_test.gd` holds `res://voice` to E18's forbidden
+    names and to E46 (a). The real codec's round trip and FEC probe: `tests/integration/voice/twovoip_roundtrip.gd`
+    (`tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless`; SKIP without the addon; not a
+    `verify` step). CI removes `addons/twovoip/` before `verify`, because Godot prints an `ERROR:` line on Linux for
+    a `.gdextension` it cannot load (E35, the ADR §2; M5-3).
   - **Capture and the gate** (E36, E37, E38, D11): the 4.7 `AudioServer` input API, the Windows default device at
     the first start and then the one the player picked, each opened under an "opening" mark that keeps a device that
     froze the game closed at the next start (Godot 4.7.2 freezes on a microphone of more than two channels, #22);
@@ -1851,10 +1893,6 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     threshold set with a meter, and a hangover), push-to-talk held on V (`voice_talk`), or Off (the microphone closed). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
     hears nobody. No echo cancellation: under voice activity loudspeakers echo, so the Voice tab advises headphones.
     20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
-  - **The jitter buffer** (E39): per speaker on the listener, by the renumbered seq (continuous across silence); a
-    single loss decoded with FEC or concealed; playback starts at a prebuffer adapted at each start from a 2 s window
-    of arrivals (40 to 120 ms, placeholders) and stops when the queue runs dry; a speaker who must not be heard any
-    more is faded over 50 ms and flushed.
   - **Playback and the ears** (E40, E41, D12): one `AudioStreamPlayer3D` per remote speaker on its
     `RemotePlayerBody`, bus Voice, `ATTENUATION_DISABLED` with `max_distance` the phase's `VoiceRule.hearing_radius_m()`
     read from the client's own mode, so the linear fade ends at the host's cutoff. An `AudioListener3D` (the ears) at
