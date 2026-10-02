@@ -43,6 +43,16 @@ class PathsAndArgumentsTest(unittest.TestCase):
         self.assertEqual(cmd, ["godot", "--no-header", "--path", str(ROOT), "--headless", "-s", "res://a.gd",
                                "--", "--role", "host"])  # fmt: skip
 
+    def test_engine_args_go_before_the_target_and_user_args_after_the_separator(self) -> None:
+        cmd = launch.command(
+            "godot", ROOT, "res://a.gd", headless=True, offscreen=False, audio="dummy", user_args=["--x=1"],
+            engine_args=["--fixed-fps", "60"],
+        )  # fmt: skip
+        self.assertEqual(cmd[cmd.index("--headless") + 1 :], ["--fixed-fps", "60", "-s", "res://a.gd", "--", "--x=1"])
+        scene = launch.command("godot", ROOT, "res://a.tscn", headless=True, offscreen=False, audio="dummy",
+                               user_args=[], engine_args=["--fixed-fps", "60"])  # fmt: skip
+        self.assertEqual(scene[-3:], ["--fixed-fps", "60", "res://a.tscn"])
+
     def test_headless_with_real_audio_keeps_the_audio_driver(self) -> None:
         cmd = launch.command("godot", ROOT, "res://a.tscn", headless=True, offscreen=False, audio="default", user_args=[])
         self.assertNotIn("--headless", cmd)

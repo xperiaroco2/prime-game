@@ -759,6 +759,24 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over ENet a scenario step that
   needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is timing-dependent
   (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself (§4.6).
+- **`perf [--bots N] [--seconds S] [--enet] [--baseline FILE]` [applied]** (#187; item 6 of the [AI productivity
+  ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)): the host's cost with 10 bots, measured
+  from the harness (`tests/harness/perf/`, ARCHITECTURE §9.7); nothing in `server/` or `net/` changes. One seeded
+  match (every bot readies, walks a spoke across the greybox, the round ends by time up after S seconds, default 60)
+  in one headless process: over the loopback on the simulated clock at `--fixed-fps 60` (about 10 s for a 20 s
+  round), or with `--enet` over real sockets on 127.0.0.1 on the real clock (the round's length and more). It writes
+  `tools/out/perf/<date>.json` (UTC; `-enet` over ENet, `-<N>b<S>s` for a run other than 10 bots and 60 s) and
+  `summary.md`: p50/p95/max of the host step (`Time.get_ticks_usec` around `HostSession.step`, steps that ran a tick;
+  inside it the harness's meter only appends to a buffer, folded after), `TIME_PHYSICS_PROCESS` (read about once a
+  second, host and bots together; how the engine refreshes it between reads is not documented), events per tick, each
+  `Snapshot`'s payload bytes per remote peer per tick, frame bytes per remote peer per second down (all, snapshots,
+  the bots' synthetic voice) and up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets
+  and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceDown`). It compares
+  with `--baseline`, else `tools/out/perf/baseline.json`, else the newest earlier report of the same transport, bots
+  and round, and lists every metric that moved by more than 20% (a placeholder, not a decision); only a failed match
+  fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to
+  pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
+  with a release host's cost.
 - **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact]` [applied]** (#178;
   item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose baseline
   it reproduces): time, tokens and API list $ of the task workflows, read-only from the Claude Code transcripts. It
@@ -805,8 +823,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`, `merge` (§7.1),
-  `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `metrics`, `mutants`, `playcheck`
-  (the last six above), and `hook` (for Claude Code only). Pins and pass/fail rules:
+  `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `metrics`, `mutants`, `playcheck`,
+  `perf` (the last seven above), `permissions` (§8.1), and `hook` (for Claude Code only). Pins and pass/fail rules:
   [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git Bash;
   `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
   runner takes the machine paths from the Claude settings (§2).
@@ -947,6 +965,7 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | What | Where and when | Report |
 |---|---|---|
 | `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, a free Linux runner, the latest `main` commit; 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`) | The run's summary page and artifact `nightly-flaky`; on a failure a comment with the run link on the "Night jobs" issue |
+| `nightly.yml`, job `perf`: `tools/run.sh perf` (10 bots over the loopback, a 60 s round) with `--baseline` the last successful night's report | The same run | The run's summary page and artifact `nightly-perf`; changes beyond the threshold are listed there, never a failure; a failed match comments like `flaky` |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
 - **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run; any failed run fails it.
@@ -958,8 +977,10 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   action `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job
   is one job in `nightly.yml` (checkout, the setup, one runner command, an upload); the job `report` lists them all
   in `needs` and comments when one failed or timed out, creating the "Night jobs" issue (`area:tooling`) the first
-  time. `report` alone gets `issues: write`; the rest has `contents: read`. `perf` (#187) and the long chaos run
-  (#188) come as one job each. `tools/runner/tests/test_github_workflows.py` parses every workflow and action and
+  time. `report` alone gets `issues: write`; the rest has `contents: read`. `perf` (#187) keeps its report for the
+  next night in an `actions/cache` entry (`tools/out/perf-last/last.json`, a new key per run restored by its prefix,
+  saved only when the job passed), which needs no permission beyond `contents: read`; the long chaos run (#188)
+  comes as one job too. `tools/runner/tests/test_github_workflows.py` parses every workflow and action and
   checks the triggers, permissions, the shared setup, `needs`, and that no action beyond the four CI already uses
   appears (a new one is the engineer's call).
 - **GitHub's limits** (docs.github.com, "Events that trigger workflows", read 2026-10-02): a scheduled run uses the
@@ -980,6 +1001,10 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   3 runs": each run's status, **flaky tests** (an issue to fix the test or the race; never skip or delete it without
   the engineer's approval), **failed in every run** (a regression on `main`: fix first), and the suites with a
   failure. The artifact `nightly-flaky` holds each run's HTML report, `summary.json` and the logs.
+- The perf job's section of the summary page: its numbers with the wire budgets' headroom, and the metrics that
+  moved by more than the threshold against the last night. A jump in the host step or the bytes per peer after a
+  merge is worth an issue (timings on a shared runner are noisy: look for a move that stays); the artifact
+  `nightly-perf` holds the report JSON and the run's log.
 - A night-audit summary (one a night, first line `night-audit <lens>, <date>, origin/main <sha>`): what it checked,
   the issues it opened, and what the skeptic refuted or could not decide (those are not issues). Its issues:
   `gh issue list --search "\"Found by: night-audit\" in:body"`. A wrong one is closed by a human (label `invalid`).
