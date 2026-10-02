@@ -49,6 +49,18 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("publish", help="fetch, rebase the task branch on its base, verify, push with a lease")
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
 
+    # Merge safety (#181): checks across open PRs, and a manager's merge into a release branch.
+    p = sub.add_parser("merge-check", help="open PRs onto their base and pairwise: textual conflicts, symbol overlaps")
+    p.add_argument("prs", nargs="*", type=int, help="PR numbers (default: every open PR, grouped by base)")
+    p.add_argument("--base", help="only the PRs into this base; with --trial, the base to merge onto")
+    p.add_argument(
+        "--trial", action="store_true", help="merge the PRs in order onto the base in a scratch worktree, then verify"
+    )
+    p = sub.add_parser("merge", help="merge a PR (or main) into release/<x>: verify on the merged tree, push by hash")
+    p.add_argument("pr", nargs="?", type=int, help="the PR to merge")
+    p.add_argument("--base", required=True, help="the release branch, release/<x> (main is refused)")
+    p.add_argument("--sync-main", action="store_true", help="merge origin/main into the base instead of a PR")
+
     p = sub.add_parser("start", help="put the checkout on the task branch of an issue; assign it; board In progress")
     p.add_argument("issue", type=int, help="issue number")
     p.add_argument("--area", help="branch prefix when the issue has no single area label")
@@ -203,6 +215,14 @@ def main(argv: list[str] | None = None) -> int:
             from . import publish
 
             return publish.main(base=args.base)
+        if args.command == "merge-check":
+            from . import merge
+
+            return merge.check(args.prs, base=args.base, trial=args.trial)
+        if args.command == "merge":
+            from . import merge
+
+            return merge.merge(args.pr, base=args.base, sync_main=args.sync_main)
         if args.command == "start":
             from . import start
 
