@@ -252,6 +252,8 @@ def main(argv: list[str] | None = None) -> int:
                 if args.scenarios or args.instances != 1:
                     raise Failure("--chaos plays its own match: no scenario names and no --instances")
                 return bots.chaos(args.seed, args.runs, long=args.long, enet=args.enet, seconds=args.seconds)
+            if args.seed is not None or args.runs != 1 or args.long or args.enet:
+                raise Failure("--seed, --runs, --long and --enet need --chaos")
             return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
         if args.command == "mutants":
             from . import mutants

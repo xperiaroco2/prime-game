@@ -58,6 +58,13 @@ class ChaosTest(unittest.TestCase):
             self.assertEqual(cli.main(["bots", "--chaos", "--instances", "2"]), 1)
         run.assert_not_called()
 
+    def test_the_chaos_options_need_chaos(self) -> None:
+        with mock.patch.object(bots, "main", return_value=0) as run:
+            for extra in (["--seed", "5"], ["--runs", "2"], ["--long"], ["--enet"]):
+                self.assertEqual(cli.main(["bots", *extra]), 1, extra)
+            self.assertEqual(cli.main(["bots"]), 0)
+        run.assert_called_once()
+
     def test_a_seeded_run_passes_its_seed_and_a_timeout_per_seed(self) -> None:
         with mock.patch.object(bots.launch, "main", return_value=0) as run:
             self.assertEqual(bots.chaos(seed=188001), 0)
