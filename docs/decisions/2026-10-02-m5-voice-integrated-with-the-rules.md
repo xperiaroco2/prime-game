@@ -164,7 +164,9 @@ arrival_usec)` and asked every frame what to decode, given the decoded audio que
   time-stretching within a spurt: TwoVoIP offers no resampler per stream.
 - **Fade and flush:** when a speaker must not be heard any more (below), its player fades over 50 ms and its queue
   is flushed, so the 60 to 120 ms already queued do not play on at the last gain (the spike measured them 2.7 m past
-  the cutoff, at −46 dB).
+  the cutoff, at −46 dB). A flush also empties the frames pending below the prebuffer, and pending frames that have
+  not started playback within 200 ms (a placeholder, "not a decision") are discarded, so old speech never waits in
+  the buffer to play in front of the speaker's next spurt.
 - Tests with synthetic frames: silence, a sine, 3% loss, reordering by up to 2 frames, duplicates, a burst after a
   stall, spurts with gaps of 0.1 to 5 s, arrivals with 0, 30 and 80 ms of jitter (the prebuffer then lies near 40, 50
   and 100 ms, and underruns stay under a bound the test pins).
@@ -190,7 +192,12 @@ speaker never reads the phase itself), and which Godot documents as linear atten
 - **What `VoiceViews` plays** (§3): only frames of `ClientSession.voice_received`; nothing for a speaker without a
   `RemotePlayerBody`; nothing while the own life fold is dead (and every speaker flushed at the own `Died`); a speaker
   whose life fold turns downed, dead or left is faded and flushed at once; entering a phase whose rule hears nobody
-  flushes every speaker; a speaker past `max_distance` from the ears is faded and flushed.
+  flushes every speaker; a speaker past `max_distance` from the ears is faded and flushed. **Late frames:** voice
+  travels on the unreliable unordered VOICE lane and events on a reliable one, and ENet orders nothing across
+  channels, so a frame stamped before a knockdown can arrive after the client folded `KnockedDown`. `VoiceViews`
+  therefore drops every frame of a speaker whose life fold is not living (or who left) and every frame while the
+  current phase's `hearing_radius_m()` is 0, not only at the event; and at each flush it records the newest host tick
+  the client has seen, then drops that speaker's frames stamped at or below it (E11's tick is there for this).
 
 **1.6 Occlusion** (E42, D13). Recommended (D13 (a)): the listener decides how a wall sounds, the host's routing stays
 distance only. `VoiceViews` casts one ray per audible speaker per physics frame from the ears to the speaker's mouth
@@ -258,7 +265,9 @@ M4 list (the M4 ADR §3):
 2. A dead own player plays no voice, even if a frame arrives: frames are dropped while the own life fold is dead,
    and every speaker is flushed at the own `Died`.
 3. A speaker whose life fold turns downed, dead or left is faded (≤ 50 ms) and flushed at once; a phase whose voice
-   rule hears nobody flushes every speaker; a speaker past `max_distance` from the ears is flushed.
+   rule hears nobody flushes every speaker; a speaker past `max_distance` from the ears is flushed. Frames that
+   arrive late are dropped too: any frame of a speaker whose life fold is not living, any frame in a phase whose rule
+   hears nobody, and any frame stamped at or below the tick recorded at that speaker's flush (§1.5).
 4. The ears are the own eye, the own body's head when downed, a living target's eye or a downed target's body when
    spectating; never the downed camera's arm.
 5. `max_distance` is the current phase's `hearing_radius_m()` from the client's own mode; no radius is copied into
@@ -318,7 +327,7 @@ speech mean is 48.7 B at 24 kbit/s, 25.5 B in silence, peaks to 67 B):
 |---|---|---|
 | M5-1 | **The distance invariant**, written apart from `VoiceRule.hears`: no peer decodes a frame of a speaker farther than the phase's `hearing_radius_m()` at the frame's tick, in 3D between the last accepted positions that `LeakCheck.record_tick` now records (also in `ScenarioInvariants` per tick on `speakers_for`). A scenario where two bots talk 10 m apart, then walk within the radius (`voice_beyond_the_radius`). The bots' synthetic voice at 50 frames a second, 30 to 60 B, in talk spurts by default (continuous in `voice_load`), so every scenario starts and stops streams and the seq check runs across silence | `RoundVoice.hears` ignoring its radius: the routing subset check passes it (view_of reads the same rule), the distance invariant fails |
 | M5-4b, if built | The batched row decoded and each frame in it checked as a `VoiceDown` (routing, distance, the voice invariant, bytes unchanged, seqs) | the relay batching a frame to a listener whose routing lacks the speaker |
-| M5-5 | Client tests, not the wire: `VoiceViews` plays nothing while the own life is dead, flushes a speaker at its `KnockedDown`, plays nothing for a speaker without a body; the ears sit at the body while downed | each rule removed in turn (the dead check, the flush, the ears left at the camera), seen failing |
+| M5-5 | Client tests, not the wire: `VoiceViews` plays nothing while the own life is dead, flushes a speaker at its `KnockedDown`, plays nothing of a frame delivered after `KnockedDown` (stamped before it), plays nothing for a speaker without a body; the ears sit at the body while downed | each rule removed in turn (the dead check, the flush, the late-frame drop, the ears left at the camera), seen failing |
 | M5-6 | The gate sends nothing in silence, while downed or dead, or in a silent phase (pure tests) | the downed check removed, seen failing |
 
 The voice invariant's checks (M4-1, M4-2), the lurker's (no `VoiceDown` before a `Hello`), the bytes-unchanged check
