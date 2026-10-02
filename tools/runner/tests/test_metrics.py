@@ -305,6 +305,62 @@ class MetricsTest(unittest.TestCase):
         with self.assertRaises(Failure):
             metrics.parse_time("yesterday")
 
+    def test_each_v2_agent_label_has_its_role(self) -> None:
+        # issue-task v2 (#180) and pr-rebase label their optional agents so; each is a fixture agent of its own run.
+        labels = {
+            "plan:#21": "planner",
+            "review:plan:#21": "plan-reviewer",
+            "review:netcode-second:#21": "netcode-second-reviewer",
+            "test-review:#21": "test-reviewer",
+            "skeptic:#21": "skeptic",
+        }
+        wf = self.fx.dir / SESSION / "subagents" / "workflows"
+        agents = [
+            (f"k{i}", f"a-v2-{i}", label, "Review", {"findings": [{"severity": "minor"}]},
+             [assistant(60 + i, f"msg-v2-{i}", usage(inp=1, write=100)),
+              assistant(61 + i, f"msg-v2b-{i}", usage(inp=1))])
+            for i, label in enumerate(labels)
+        ]  # fmt: skip
+        Fixture.run(wf / "wf_v2", [("k-impl21", "a-impl21", "implement:#21", "Implement", {"x": 1},
+                                    [assistant(55, "msg-i21", usage(inp=1))]), *agents])  # fmt: skip
+        run = self.runs(self.collect())["wf_v2"]
+        for i, (label, role) in enumerate(labels.items()):
+            with self.subTest(label=label):
+                self.assertEqual(metrics.role_of(label), role)
+                self.assertEqual(self.agent(run, f"a-v2-{i}")["role"], role)
+        md, _record, _compact = self.build()
+        text = "\n".join(md)
+        for role in labels.values():
+            self.assertIn(f"| {role} |", text)
+        reviews = text[text.index("## Review findings by reviewer") :]
+        for role in ("plan-reviewer", "netcode-second-reviewer", "test-reviewer"):
+            self.assertIn(f"| {role} | 1 | 0 | 0 | 1 |", reviews)
+
+    def test_the_slot_wait_from_the_history_and_from_a_printed_summary(self) -> None:
+        waited = "in 271.0s (after 45.0s waiting for a verify slot)"
+        printed = metrics.parse_verify(SUMMARY.replace("in 271.0s", waited))
+        self.assertEqual((printed["total"], printed["wait"], printed["over"]), (271.0, 45.0, False))
+        over = SUMMARY.replace("in 271.0s", "in 271.0s (after 150.0s waiting for a verify slot); it ran OVER THE LIMIT")
+        self.assertEqual(metrics.parse_verify(over)["over"], True)
+        self.assertEqual(metrics.parse_verify(SUMMARY)["wait"], None)
+        path = self.root / "verify-history.jsonl"
+        write_lines(path, [
+            {"start": "2026-10-02T09:00:00Z", "worktree": "a", "seconds": 250, "slot": {"waited": 30.0, "over": False},
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+            {"start": "2026-10-02T09:10:00Z", "worktree": "b", "seconds": 260, "slot": {"waited": 150.0, "over": True},
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+            {"start": "2026-10-02T09:20:00Z", "worktree": "c", "seconds": 240, "slot": None,
+             "steps": [{"name": "lint", "status": "passed", "seconds": 20}]},
+        ])  # fmt: skip
+        found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
+        self.assertEqual([(v["wait"], v["over"]) for v in found], [(30.0, False), (150.0, True), (None, False)])
+        md, _record, compact = self.build(history=found)
+        line = next(line for line in compact if line.startswith("local verify (history file)"))
+        self.assertIn("slot wait median 90 s (max 150), 1 over the limit", line)
+        text = "\n".join(md)
+        self.assertIn("slot wait (median / max) | over the limit |", text)
+        self.assertIn("| 90 / 150 | 1 |", text)
+
     def test_the_verify_history_file(self) -> None:
         path = self.root / "verify-history.jsonl"
         write_lines(path, [

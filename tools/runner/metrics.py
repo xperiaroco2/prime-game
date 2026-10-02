@@ -28,7 +28,9 @@ of token and model at its API list price (PRICES): a weight, not money spent.
 `tools/out/logs/verify-history.jsonl` (written by `verify` since P2, #179), in the main checkout and in every worktree
 under .claude/worktrees/, adds a row to the verify table when present. Each line is one run: `start` (ISO 8601 or epoch
 seconds), `worktree`, `branch`, `steps` (a list of {name, status, seconds} or a map name -> {status, seconds}), and
-`seconds` (the run's wall time; else the sum of the steps). `--ci N` adds CI from `gh` (read-only): every run in the
+`seconds` (the run's wall time without its slot wait; else the sum of the steps) and `slot` (#185: `waited` seconds
+for a machine-wide verify slot, `over` when none was free within the longest wait; null without slots). A printed
+summary carries the same wait in its last line. `--ci N` adds CI from `gh` (read-only): every run in the
 window and the job and `verify` step times of the last N green runs.
 """
 
@@ -78,8 +80,17 @@ ROLES = {
     "review:godot-api": "godot-api-checker",
     "rebase": "pr-rebase",
     "fix": "pr-rebase fix",
+    # issue-task v2 (#180) and pr-rebase's optional agents
+    "plan": "planner",
+    "review:plan": "plan-reviewer",
+    "review:netcode-second": "netcode-second-reviewer",
+    "test-review": "test-reviewer",
+    "skeptic": "skeptic",
 }
+# The reviewers of a task's diff: their findings make a task's "blockers+majors" (as in the M4 baseline).
 REVIEWERS = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
+# Every agent that reports findings: the review table shows them all.
+FINDERS = (*REVIEWERS, "netcode-second-reviewer", "plan-reviewer", "test-reviewer")
 SEVERITIES = ("blocker", "major", "minor", "nit")
 
 # Shell commands by what they wait on; the first match wins.
@@ -97,6 +108,9 @@ CMD_KINDS = [
 ]
 STEP_LINE = re.compile(r"^\s*(passed|FAILED)\s+(\S+(?: tree)?)\s+([\d.]+)s\s*$")
 VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
+# The end line's slot wait (#185): "(after 45.0s waiting for a verify slot)", and "OVER THE LIMIT" when none was free.
+SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
+OVER_LIMIT = "OVER THE LIMIT"
 # `gh run list --limit`: enough for the project's history so far (149 runs before 2026-10-02 11:00 UTC).
 CI_LIST_LIMIT = 1000
 # The workflow that runs `verify` on every push and PR; other workflows (a nightly run) are left out.
@@ -233,12 +247,13 @@ def union_seconds(intervals: list[tuple[float, float]]) -> float:
 
 
 def parse_verify(text: str) -> dict | None:
-    """The last "verify summary" block in text: {steps: {name: (status, seconds)}, total, status}."""
+    """The last "verify summary" block in text: {steps: {name: (status, seconds)}, total, status, wait, over}; wait is
+    the seconds it waited for a verify slot (None: a run without slots), over whether it ran without one."""
     i = text.rfind("verify summary")
     if i < 0:
         return None
     steps: dict[str, tuple[str, float]] = {}
-    total_s, status = None, None
+    total_s, status, wait, over = None, None, None, False
     for line in text[i:].splitlines()[1:]:
         m = STEP_LINE.match(line)
         if m:
@@ -247,10 +262,13 @@ def parse_verify(text: str) -> dict | None:
         m = VERIFY_END.search(line)
         if m:
             status, total_s = m.group(1), float(m.group(2))
+            waited = SLOT_WAIT.search(line)
+            wait = float(waited.group(1)) if waited else None
+            over = OVER_LIMIT in line
             break
     if not steps:
         return None
-    return {"steps": steps, "total": total_s, "status": status}
+    return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over}
 
 
 def read_agent(path: Path, since: float | None = None, until: float | None = None) -> dict:
@@ -566,10 +584,15 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             seconds = rec.get("seconds")
             total_s = float(seconds) if isinstance(seconds, (int, float)) else sum(s for _, s in steps.values())
             status = "FAILED" if any(st == "FAILED" for st, _ in steps.values()) else "passed"
+            slot = rec.get("slot")
+            waited = slot.get("waited") if isinstance(slot, dict) else None
+            wait = float(waited) if isinstance(waited, (int, float)) else None
+            over = bool(slot.get("over")) if isinstance(slot, dict) else False
             key = (start, str(rec.get("worktree", "")), total_s)
             if key not in seen:
                 seen.add(key)
-                found.append({"steps": steps, "total": total_s, "status": status, "via": "history", "t": start})
+                found.append({"steps": steps, "total": total_s, "status": status, "via": "history", "t": start,
+                              "wait": wait, "over": over})  # fmt: skip
     return found
 
 
@@ -849,11 +872,18 @@ def agent_verifies(by_row: dict[str, list[dict]]) -> list[dict]:
     return [v for k, lst in by_row.items() if k not in ("managers", "history file") for v in lst]
 
 
+def slot_waits(lst: list[dict]) -> tuple[list[float], int]:
+    """The seconds each run waited for a verify slot (#185; runs without slots left out), and how many ran over the
+    limit (no slot free within the longest wait)."""
+    return [float(v["wait"]) for v in lst if v.get("wait") is not None], sum(bool(v.get("over")) for v in lst)
+
+
 def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
     step_names: list[str] = []
     for lst in by_row.values():
         for v in lst:
             step_names += [s for s in v["steps"] if s not in step_names]
+    with_slots = any(slot_waits(lst)[0] for lst in by_row.values())
     rows = []
     for name, lst in [*by_row.items(), ("all agents", agent_verifies(by_row))]:
         if not lst:
@@ -864,10 +894,18 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
             row.append(f"{med(vals):.0f}" if vals else "")
         tots = [v["total"] for v in lst if v["total"]]
         row.append(f"{med(tots):.0f} / {max(tots):.0f}" if tots else "")
+        if with_slots:
+            waits, over = slot_waits(lst)
+            row += [f"{med(waits):.0f} / {max(waits):.0f}" if waits else "", over]
         rows.append(row)
     fails = Counter(s for lst in by_row.values() for v in lst for s, (st, _) in v["steps"].items() if st == "FAILED")
+    slot_head = ["slot wait (median / max)", "over the limit"] if with_slots else []
     md = ["## Local verify by step (seconds, medians of the printed summaries)", "",
-          table(["", "runs", "red", *step_names, "total (median / max)"], rows), ""]
+          table(["", "runs", "red", *step_names, "total (median / max)", *slot_head], rows), ""]
+    if with_slots:
+        md += ["\"slot wait\" is the time a run waited for one of the machine-wide verify slots before its lanes "
+               "(left out of its total); \"over the limit\" counts runs that found no slot within the longest wait "
+               "and ran anyway.", ""]  # fmt: skip
     if fails:
         md += ["Red steps: " + ", ".join(f"{k} {v}" for k, v in fails.most_common()) + ".", ""]
     return md
@@ -877,7 +915,7 @@ def review_section(counted: list[dict]) -> list[str]:
     rv: dict[tuple[str, str], dict] = defaultdict(lambda: {"n": 0, "sev": Counter(), "zero": 0})
     for r in counted:
         for x in r["agents"]:
-            if x["role"] in REVIEWERS and x["result"]:
+            if x["role"] in FINDERS and x["result"]:
                 f = [i for i in (x["result"].get("findings") or []) if isinstance(i, dict)]
                 g = rv[(r["kind"], x["role"])]
                 g["n"] += 1
@@ -891,7 +929,7 @@ def review_section(counted: list[dict]) -> list[str]:
 def time_section(counted: list[dict]) -> list[str]:
     """Where the agents' time went: tool time by kind, per role."""
     rows = []
-    for role in ("implementer", "publisher", *REVIEWERS, "pr-rebase", "pr-rebase fix", "other"):
+    for role in (*dict.fromkeys(ROLES.values()), "other"):
         k: Counter = Counter()
         n: Counter = Counter()
         wall = 0.0
@@ -1028,8 +1066,11 @@ def compact_lines(
             for v in lst:
                 names += [s for s in v["steps"] if s not in names]
             steps = ", ".join(f"{s} {med([v['steps'][s][1] for v in lst if s in v['steps']]):.0f}" for s in names)
+            waits, over = slot_waits(lst)
+            slot = (f"; slot wait median {med(waits):.0f} s (max {max(waits):.0f}), {over} over the limit"
+                    if waits else "")  # fmt: skip
             lines.append(f"{name}: {len(lst)} runs, {sum(v['status'] == 'FAILED' for v in lst)} red, median "
-                         f"{med(tots):.0f} s (max {max(tots, default=0):.0f}); steps: {steps}")
+                         f"{med(tots):.0f} s (max {max(tots, default=0):.0f}){slot}; steps: {steps}")
     if ci is not None:
         job = f"job {med(ci['job_s']) / 60:.1f} min median" if ci["job_s"] else "no green run"
         vt = ci["steps"].get("verify total")
