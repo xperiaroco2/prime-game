@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ from unittest import mock
 
 from runner import agents_check, metrics
 from runner.agents_check import Transcript
-from runner.common import Failure
+from runner.common import ROOT, Failure
 
 AGENTS = {"code-reviewer": "opus", "test-runner": "haiku", "godot-api-checker": "sonnet"}
 ALLOWED = ["opus", "sonnet", "haiku"]
@@ -199,6 +200,38 @@ class UserModelsTest(unittest.TestCase):
         self.settings.write_text(json.dumps({"availableModels": ["x"]}), encoding="utf-8")
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.config)}):
             self.assertEqual(agents_check.user_models(), ["x"])
+
+
+def names_outside(text: str, outside: list[str]) -> list[str]:
+    """The families of `outside` that the text names as a word; a path ending in .md (a link to the model-guard ADR,
+    whose file name holds one) is not a name."""
+    text = re.sub(r"[\w./-]+\.md\b", " ", text.lower())
+    return [f for f in outside if re.search(rf"\b{f}\b", text)]
+
+
+class SharedFilesTest(unittest.TestCase):
+    """Amendment A of the model-guard ADR: a model beyond the shared availableModels is passed per launch and named
+    in ADRs, issues and PRs, never in .claude/ (settings, agents, workflows, skills, rules), .github/ or a CLAUDE.md."""
+
+    def test_the_scan_sees_a_named_model_and_passes_a_link_to_the_adr(self) -> None:
+        self.assertEqual(names_outside(f"the second review runs on {OUTSIDE.capitalize()}.", [OUTSIDE]), [OUTSIDE])
+        link = f"[ADR](../../../docs/decisions/2026-09-28-model-guard-no-{OUTSIDE}-in-shared-config.md)"
+        self.assertEqual(names_outside(f"the guard ({link})", [OUTSIDE]), [])
+
+    def test_no_shared_instruction_file_names_a_model_outside_the_shared_list(self) -> None:
+        shared = {agents_check.family(m) for m in agents_check.allowed_models()}
+        outside = [f for f in agents_check.FAMILIES if f not in shared]
+        self.assertTrue(outside, "the family table names no model outside availableModels: nothing to guard")
+        listed = subprocess.run(
+            ["git", "ls-files", "-z", "--", ".claude", ".github", "CLAUDE.md", "*/CLAUDE.md"],
+            cwd=ROOT, capture_output=True, check=True,
+        ).stdout.decode("utf-8")
+        files = [f for f in listed.split("\0") if f and not f.startswith("docs/history/")]
+        self.assertIn(".claude/settings.json", files)
+        for name in files:
+            text = (ROOT / name).read_bytes().decode("utf-8", errors="replace")
+            with self.subTest(file=name):
+                self.assertEqual(names_outside(text, outside), [], f"{name} names a model beyond the shared list")
 
 
 if __name__ == "__main__":
