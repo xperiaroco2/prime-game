@@ -1026,9 +1026,14 @@ def _push(sha: str, base: str) -> None:
 
 
 def _confirm(number: int) -> bool:
+    """Whether GitHub shows the PR merged after the push. A failed `gh pr view` (a network blip, a rate limit) counts
+    as "not yet": the push already happened, so merge must not exit 1, which means nothing was pushed."""
     for attempt in range(CONFIRM_TRIES):
-        if pr_view(number).state == "MERGED":
-            return True
+        try:
+            if pr_view(number).state == "MERGED":
+                return True
+        except Failure:
+            pass
         if attempt + 1 < CONFIRM_TRIES:
             time.sleep(CONFIRM_WAIT)
     return False

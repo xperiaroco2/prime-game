@@ -496,6 +496,22 @@ class CommandTest(unittest.TestCase):
         self.assertEqual(self.scratch_left(), [])
         self.assertTrue(self.printed[-1].startswith(f"wave: merged #7 ({branch}) into release/m1 as {merged[:12]}"))
 
+    def test_a_failed_gh_after_the_push_still_exits_0_with_the_wave_line(self) -> None:
+        self.task(7, {"core/a.gd": "extends Node\n"})
+        tip = self.repo.remote("release/m1")
+        real = self.gh.__call__
+
+        def flaky(*args: str) -> Result:
+            if args[:2] == ("pr", "view") and self.repo.remote("release/m1") != tip:
+                return _gh_result("error connecting to api.github.com", 1)
+            return real(*args)
+
+        with mock.patch.object(merge, "gh", flaky):
+            self.assertEqual(merge.merge(7, base="release/m1"), 0)
+        self.assertNotEqual(self.repo.remote("release/m1"), tip)
+        self.assertTrue(any("does not show #7 merged yet" in line for line in self.printed))
+        self.assertTrue(self.printed[-1].startswith("wave: merged #7"))
+
     def test_a_red_verify_pushes_nothing(self) -> None:
         self.task(7, {"core/a.gd": "extends Node\n"})
         tip = self.repo.remote("release/m1")
