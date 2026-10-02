@@ -365,6 +365,15 @@ class RunTest(unittest.TestCase):
         self.assertEqual(parts[0].lines[-1], "session: stopped")
         self.assertEqual(parts[2].lines[-1], "session: stopped")
 
+    def test_a_window_cut_short_by_another_failure_says_so(self) -> None:
+        code, parts = self.run_scenario({"window 1": "hang", "window 2": "fail"})
+        self.assertEqual(code, 1)
+        self.assertIn(
+            "FAIL  window 1: stopped before its steps were done, since another process failed; it was at step 2 "
+            "(line 12: wait phase lobby)",
+            self.out.getvalue(),
+        )
+
     def test_a_window_that_never_finishes_fails_at_the_runs_time_limit_naming_its_last_step(self) -> None:
         code, parts = self.run_scenario({"window 1": "hang"}, seconds=3)
         self.assertEqual(code, 1)

@@ -440,8 +440,9 @@ def finished(parts: list[hostjoin.Part]) -> bool:
     return all(done(part) for part in parts if part.label != "bots")
 
 
-def problem(part: hostjoin.Part) -> str:
-    """Why this process failed the run, or ''."""
+def problem(part: hostjoin.Part, *, others_failed: bool = False) -> str:
+    """Why this process failed the run, or ''. `others_failed`: another process failed first, and the stop that
+    followed cut this window's steps short."""
     line = failed_line(part)
     if line:
         return line.removeprefix(FAIL)
@@ -449,7 +450,10 @@ def problem(part: hostjoin.Part) -> str:
         return part.problem
     if part.label != "bots" and not done(part):
         where = last_step(part)
-        return "did not finish its steps" + (f"; it was at {where}" if where else "; it started none")
+        why = "stopped before its steps were done, since another process failed" if others_failed else (
+            "did not finish its steps"
+        )
+        return why + (f"; it was at {where}" if where else "; it started none")
     return ""
 
 
@@ -467,9 +471,10 @@ def shown(path: Path) -> str:
 
 def report(scenario: Scenario, parts: list[hostjoin.Part], out: Path) -> int:
     failed = 0
+    first = any(failed_line(part) or part.problem for part in parts)
     for part in parts:
         where = f" (log: {shown(part.log)})" if part.log is not None else ""
-        why = problem(part)
+        why = problem(part, others_failed=first and not (failed_line(part) or part.problem))
         if why:
             failed += 1
             bad(f"{part.label}: {why}{where}", "\n".join(launch.error_lines(part.lines)[1]))
