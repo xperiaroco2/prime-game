@@ -3,9 +3,9 @@ extends RefCounted
 ## The "malformed" chaos peer (ARCHITECTURE §4.5): it connects in the lobby and never sends a
 ## Hello, so it stays a peer that is not a player, in no rule and invisible to the players (§3.2).
 ## It sends, from a seeded RandomNumberGenerator: a few well-formed intents (a newcomer's are
-## not_accepted,
-## its MoveClaim dropped), its voice (never relayed: it is no player), one burst past the voice
-## bucket, a debug kind (ForceRole naming bot 1's peer as a dissident), then malformed frames of
+## not_accepted, its MoveClaim dropped), its voice (never relayed: it is no player), one burst past
+## the voice bucket, a debug kind (ForceRole naming bot 2's peer, crew in every run, as a
+## dissident, so a role it changed shows in every variant), then malformed frames of
 ## every shape, a few per frame, until the host disconnects it for MALFORMED_LIMIT of them within
 ## the window, with one log line naming it. In the baseline run it connects and stays idle until the
 ## entry into Loading disconnects it (E14).
@@ -59,15 +59,15 @@ func close() -> void:
 	transport.close()
 
 
-## One frame: its chaos, once connected, while connected. `host_peer` is bot 1's peer.
-func act(host_peer: int) -> void:
+## One frame: its chaos, once connected, while connected. `crew_peer` is bot 2's peer.
+func act(crew_peer: int) -> void:
 	if not active or peer == 0 or lost:
 		return
 	_frames += 1
 	if _frames < START_AFTER_FRAMES:
 		return
 	if _frames == START_AFTER_FRAMES:
-		_first_words(host_peer)
+		_first_words(crew_peer)
 		return
 	# At most one LATEST frame NetFrame accepts per frame: the merge would supersede the others
 	# before the codec sees them (counted as superseded, not as malformed).
@@ -83,13 +83,13 @@ func act(host_peer: int) -> void:
 
 
 ## What a newcomer may well try before its malformed burst.
-func _first_words(host_peer: int) -> void:
+func _first_words(crew_peer: int) -> void:
 	_send(ChaosFrames.message(_schema, Intents.SET_READY, {"ready": true}, _next_seq()))
 	_send(ChaosFrames.message(_schema, Intents.PICK_UP, {"item": ChaosOracle.NO_ITEM}, _next_seq()))
 	var claim := ChaosFrames.claim(ChaosFrames.Claim.TELEPORT, _schema, 0, 0, Vector3.ZERO, 0)
 	_send(claim)
 	var role := {"role": "dissident"}
-	_send(ChaosFrames.message(_schema, &"ForceRole", role, _next_seq(), host_peer))
+	_send(ChaosFrames.message(_schema, &"ForceRole", role, _next_seq(), crew_peer))
 	for i in BURST_VOICE:
 		var fields := {"seq": i, "opus": LeakCheck.voice_frame(peer, i)}
 		_send(ChaosFrames.message(_schema, &"VoiceUp", fields))

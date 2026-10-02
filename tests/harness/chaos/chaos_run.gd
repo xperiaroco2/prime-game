@@ -248,7 +248,7 @@ func play_frame(at_tick: int) -> void:
 	if chaos_mode == Mode.CHAOS and failures.is_empty():
 		var claimed := _hostile_client.last_claim_tick() != _claimed_tick
 		hostile.act(now_usec, claimed)
-		malformed.act(peers.peer_of(1))
+		malformed.act(peers.peer_of(2))
 	_claimed_tick = _hostile_client.last_claim_tick()
 
 
