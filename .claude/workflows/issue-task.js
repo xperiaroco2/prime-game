@@ -424,8 +424,11 @@ if (!impl.verify_green) {
 
 phase('Publish')
 // test_review: a `mutants` run that exited 2 left its scratch worktree behind; the publisher stops and reports it.
-const MUTANTS_STOP = `If a \`tools\\run.cmd mutants\` run exits 2 (its scratch worktree could not be removed), stop: publish nothing, fix nothing more, post a comment on #${N} (\`gh issue comment ${N} --body-file <file under ${SCRATCH}/>\`: Done / Stopped: mutants exited 2, with the leftover worktree's path from \`git worktree list\` / Needs the engineer: remove it), and return published false with that step under human_steps.`
+const MUTANTS_STOP = `If a \`tools\\run.cmd mutants\` run exits 2 (its scratch worktree could not be removed), stop: publish nothing, fix nothing more, post a comment on #${N} (\`gh issue comment ${N} --body-file <file under ${SCRATCH}/>\`: Done / Stopped: mutants exited 2, with the leftover worktree's path from \`git worktree list\` / Needs the engineer: remove it), and return published false and stopped_by_mutants true with that step under human_steps.`
 const stoppedByMutants = testReview && testReview.exit_2 === true
+// The publisher's schema gains stopped_by_mutants only where its prompt can stop on mutants, so a default run's
+// schema stays byte-identical.
+const PUB_SCHEMA = testReview && testReview.available ? { ...PUB, properties: { ...PUB.properties, stopped_by_mutants: { type: 'boolean' } } } : PUB
 const pub = stoppedByMutants
   ? await agent([
     RULES,
@@ -433,7 +436,7 @@ const pub = stoppedByMutants
     `The test review (test_review) reported: ${JSON.stringify(testReview)}`,
     `${MUTANTS_STOP} Check \`git status\` in the worktree first: it must show no planted fault.`,
     'Return the structured result.',
-  ].join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB }, 'publish'))
+  ].join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
   : await agent([
     RULES,
     `Task: publish issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${PUB_EFFORT}. Budget: at most about 150 tool calls.`,
@@ -463,7 +466,7 @@ const pub = stoppedByMutants
     ].join('\n'),
     `Task notes from the manager (for the PR's merge order and the handoff):\n${A.notes}${A.coord ? '\n\n' + A.coord : ''}`,
     'Return the structured result.',
-  ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB }, 'publish'))
+  ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
@@ -472,5 +475,8 @@ if (planned) out.plan = planned
 if (TEST_REVIEW) out.test_review = testReviewSkipped ? { skipped: testReviewSkipped } : testReview
 if (SKEPTICS) out.skeptic = skeptic
 if (VISUAL) out.visual = shots
-if (stoppedByMutants) out.stopped = 'tools\\run.cmd mutants exited 2 in the test review: its scratch worktree could not be removed; nothing published (see the comment on the issue)'
+// A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
+if (stoppedByMutants || pub.stopped_by_mutants === true) {
+  out.stopped = `tools\\run.cmd mutants exited 2 ${stoppedByMutants ? 'in the test review' : 'in a rerun by the publisher'}: its scratch worktree could not be removed; nothing published (see the comment on the issue). Once the engineer removes the leftover worktree, relaunch issue-task (not a resume: a resume replays the cached exit 2) with the stop in notes`
+}
 return out

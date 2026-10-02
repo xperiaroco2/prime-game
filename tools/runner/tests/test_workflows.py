@@ -547,8 +547,19 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [None]})),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, test_review=True), {"paths": ["docs/x.md"]}),
             ("issue-task.js", dict(ARGS, test_review=True), {"paths": ["tools/runner/x.py", "content/roles/x.tres"]}),
+            (
+                "issue-task.js",
+                dict(ARGS, branch="core/7-x", test_review=True),
+                dict(core, queues={"publish": [{"published": False, "handoff_posted": True, "stopped_by_mutants": True}]}),
+            ),
         ]
-        ok, absent, exit_2, skeptic, dead, design, tooling = run_jobs(jobs)
+        ok, absent, exit_2, skeptic, dead, design, tooling, pub_stuck = run_jobs(jobs)
+        # The publisher's own mutants rerun exited 2: the result says so, like the test review's, with the way on.
+        self.assertIn("stopped_by_mutants true", calls(pub_stuck, "publish")[0]["prompt"])
+        self.assertIn("stopped_by_mutants", options(calls(pub_stuck, "publish")[0])["schema"]["properties"])
+        self.assertIn("in a rerun by the publisher", pub_stuck["returned"]["stopped"])
+        self.assertNotIn("stopped", ok["returned"])
+        self.assertNotIn("stopped_by_mutants", options(calls(absent, "publish")[0])["schema"]["properties"])
         # No production code in the diff: no mutant can go anywhere, so no agent runs; the PR and the result say so.
         self.assertIsNone(tooling["error"])
         self.assertFalse(calls(tooling, "test-review"))
@@ -575,7 +586,9 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("Task: report a stopped run of issue #7", publish)
         self.assertIn("publish nothing", publish)
         self.assertNotIn("gh pr create", publish)
-        self.assertIn("mutants exited 2", exit_2["returned"]["stopped"])
+        self.assertIn("mutants exited 2 in the test review", exit_2["returned"]["stopped"])
+        # A resume would replay the cached exit 2 and stop again, so the result names the way on.
+        self.assertIn("relaunch issue-task (not a resume", exit_2["returned"]["stopped"])
         # A survived mutant is a finding like a reviewer's, so a skeptic checks it too.
         self.assertIn("from the test review", calls(skeptic, "skeptic")[0]["prompt"])
         self.assertIn("the test reviewer returned nothing", dead["error"])
