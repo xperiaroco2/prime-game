@@ -63,10 +63,11 @@ weekday below). Work in English. Root `CLAUDE.md` applies in full.
    doc or code says, and the command or file that shows otherwise). Mechanical evidence first (a missing path, an
    empty search); judgement second. Skip anything an open or closed issue already reports: `gh issue list --state
    all --search "<file or name> in:body"`.
-4. **Skeptic.** One subagent of type `code-reviewer` (read-only by its frontmatter; this is not a diff review), all
-   candidates in one prompt: "You are night-audit's skeptic. Try to refute each candidate by reading the repo at
-   HEAD. Verdict per candidate: CONFIRMED, REFUTED or UNSURE, with the file:line or command output that decides it.
-   Read-only; about 30 tool calls." Only CONFIRMED becomes an issue; UNSURE and REFUTED go in the summary.
+4. **Skeptic.** One subagent of type `night-skeptic` (read-only by its frontmatter; it may run `git log/show`,
+   `gh run list/view` and `gh issue list/view`), all candidates numbered in one prompt with the lens, the
+   origin/main sha and "about 30 tool calls". Paste the evidence verbatim into each candidate (the command and its
+   output lines), so a log the skeptic cannot fetch again is still judged. It answers CONFIRMED, REFUTED or UNSURE
+   per candidate. Only CONFIRMED becomes an issue; UNSURE and REFUTED go in the summary.
 5. **Issues.** One per confirmed finding, `gh issue create --title "<area>: <lens>: <what>" --label area:<x>
    --body-file tests/scratch/night-audit/<k>.md` (add `--label documentation` for docs drift). The area is the
    owner of the path to fix: `core/` core, `server/` server, `net/` net, `client/` client, `voice/` voice, `content/`

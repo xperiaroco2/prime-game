@@ -132,7 +132,7 @@ does (#159). Setup:
 
 ## 5. Subagents and models
 
-Files in `.claude/agents/` **[applied]**. All four are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
+Files in `.claude/agents/` **[applied]**. All five are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
 includes `Agent`, no `memory:` field. Their shell use is limited by the shared permission rules.
 
 | Agent | Job | Model |
@@ -141,6 +141,7 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
 | `test-runner` | Run test / lint / check / bots via the runner; return only failures | `haiku` |
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, `ARCHITECTURE.md` and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions | `opus`, effort high |
+| `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
 
 - **Model guard [applied]:** `"availableModels": ["opus", "sonnet", "haiku"]` in the shared settings. A request for
   another model falls back with a warning. Fable appears in no shared file
@@ -794,7 +795,7 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   catch-up run for the latest missed time of the last seven days (the skill stops if that day's summary exists). A
   permission prompt stalls the run until someone answers it in the session under **Scheduled** in the sidebar.
 - **Bounds of the audit** (in the skill): one lens, at most 2 agents (the auditor and one skeptic of type
-  `code-reviewer`), about 100 tool calls, about $10 list a night; read-only on the repo (issue bodies in its
+  `night-skeptic`), about 100 tool calls, about $10 list a night; read-only on the repo (issue bodies in its
   worktree's `tests/scratch/`), at most 5 issues a night, never closes or edits issues. Lenses beyond docs drift
   are the first thing to drop: set every weekday in the skill to `docs-drift`.
 
