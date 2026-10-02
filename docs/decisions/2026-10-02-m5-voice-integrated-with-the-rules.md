@@ -253,8 +253,11 @@ choices nor read each other's mark (a unit test covers the file name). Today onl
 window would read it unset. **A one-line runner change** therefore comes with M5-6 (#220): `hostjoin.start` passes
 `PRIME_INSTANCE` = the part's number (1 the host, 2 and on the clients, in tile order) to each process it starts, with a
 selftest; window 1's settings then survive a restart, tied to its tile. `tools/` is #170's track's, so M5-6 makes that
-change only after #185 and #188 merge, or the manager hands it to #170 (E47 amended: one runner change). The Esc menu (#169) gains a tab, Voice, in every screen: the microphone (Off and the
-devices), the mode (voice activity, the default; push-to-talk with the key shown; Off), the threshold with a live
+change only after #185 and #188 merge, or the manager hands it to #170 (E47 amended: one runner change).
+
+The Esc menu (#169) gains a tab, Voice, in every screen: the microphone (the Windows default, then each device; the
+list has no Off entry, so one control closes the microphone), the mode (voice activity, the default; push-to-talk with
+the key shown; Off, which closes the microphone and is saved as the mode), the threshold with a live
 meter, RNNoise, the four volume sliders, the line that loudspeakers echo and headphones avoid it (§1.1), the headset
 and #22 advice, and the line that says voice is unavailable without the addon. No HUD element shows the own gate or
 who talks (D14: none in M5). It is built with the shared greybox theme
