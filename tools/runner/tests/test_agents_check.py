@@ -78,9 +78,10 @@ class ReadTest(unittest.TestCase):
             self.assertEqual(agents_check.read(dirs[0], "other-session"), [])
 
     def test_nothing_to_judge_is_a_failure(self) -> None:
-        with mock.patch.object(agents_check, "project_dirs", return_value=[]), mock.patch.object(agents_check, "say"):
-            with self.assertRaises(Failure):
-                agents_check.main(all_sessions=True)
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(agents_check, "project_dirs", return_value=[]):
+            with mock.patch.object(agents_check, "say"), self.assertRaises(Failure) as raised:
+                agents_check.main(all_sessions=True, config=Path(tmp))
+        self.assertIn("no subagent transcript", str(raised.exception))
 
     def test_repo_agent_models_are_read(self) -> None:
         models = agents_check.agent_models()
