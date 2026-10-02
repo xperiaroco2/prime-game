@@ -35,6 +35,9 @@ var uneven := false
 ## Physics frames every packet between the two Games is held back, each way (#155): set before
 ## start(). The host's own client is not delayed.
 var delay_frames := 0
+## Up to this many physics frames more for each packet, drawn from a seeded generator, the packets
+## still arriving in order (#155): a network's jitter. Set before start().
+var jitter_frames := 0
 
 var _held := false
 
@@ -192,15 +195,20 @@ func _clock() -> int:
 func _transport() -> NetTransport:
 	var transport := DelayedTransport.new(WireSchema.game(OS.is_debug_build()).kind_table(), _hub)
 	transport.delay = delay_frames
+	transport.jitter = jitter_frames
 	return transport
 
 
 ## A LoopbackTransport that holds every packet it receives back for `delay` of its polls (one per
-## physics frame), in order, as a network's latency would; connection events pass at once.
+## physics frame) and up to `jitter` more, drawn from a fixed seed, in order, as a network's
+## latency and jitter would; connection events pass at once.
 class DelayedTransport:
 	extends LoopbackTransport
+	const SEED := 155
 	var delay := 0
+	var jitter := 0
 	var _polls := 0
+	var _rng := RandomNumberGenerator.new()
 	## The poll each held packet is due at, and the packets, oldest first.
 	var _due: Array[int] = []
 	var _held: Array[NetTransport.Inbound] = []
@@ -213,9 +221,16 @@ class DelayedTransport:
 			super._push(item)
 		super()
 
+	func _init(kinds: NetKindTable, hub: LoopbackHub = null) -> void:
+		super(kinds, hub)
+		_rng.seed = SEED
+
 	func _push(item: NetTransport.Inbound) -> void:
-		if delay <= 0 or item.type != NetTransport.Inbound.Type.PACKET:
+		if (delay <= 0 and jitter <= 0) or item.type != NetTransport.Inbound.Type.PACKET:
 			super(item)
 			return
-		_due.append(_polls + delay)
+		var due := _polls + delay + _rng.randi_range(0, jitter)
+		if not _due.is_empty():
+			due = maxi(due, _due[-1])
+		_due.append(due)
 		_held.append(item)
