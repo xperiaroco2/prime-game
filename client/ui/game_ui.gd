@@ -1,9 +1,10 @@
 class_name GameUi
 extends CanvasLayer
 ## The `Ui` layer of the game (ARCHITECTURE §4.7): one screen at a time as GameFlow says, and Esc's
-## menu over it; in the round the HUD, and the task screen while Tab (`task_screen`) is held. It
-## shows what the own ClientModel and the client's own mode hold; the game connects the screens'
-## signals.
+## menu over it; in the lobby the lobby HUD (the keys' hint, the roster), whose Ready and settings
+## are in the Esc menu's Lobby tab (#169); in the round the HUD, and the task screen while Tab
+## (`task_screen`) is held. It shows what the own ClientModel and the client's own mode hold; the
+## game connects the screens' signals.
 ##
 ## Every screen is styled only through one shared Theme, THEME (the M4 manager's decision of
 ## 2026-10-01 on #144 and #145; client/CLAUDE.md): a CanvasLayer holds no theme, so each Control
@@ -13,7 +14,8 @@ const THEME := preload("res://client/ui/theme/game_theme.tres")
 
 var menu := MainMenu.new()
 var connecting := ConnectingScreen.new()
-var lobby := LobbyPanel.new()
+## Walking in the lobby: the keys' hint, the roster and the countdown, nothing to click.
+var lobby_hud := LobbyHud.new()
 var loading := LoadingScreen.new()
 var hud := Hud.new()
 var tasks := TaskScreen.new()
@@ -38,7 +40,7 @@ var _mode: GameMode
 func _init() -> void:
 	name = "Ui"
 	child_entered_tree.connect(_style)
-	for each: Control in [menu, connecting, lobby, loading, hud, life, tasks, end, esc]:
+	for each: Control in [menu, connecting, lobby_hud, loading, hud, life, tasks, end, esc]:
 		_style(each)
 		add_child(each)
 	show_screen(GameFlow.Screen.MENU)
@@ -55,7 +57,7 @@ func show_screen(which: GameFlow.Screen) -> void:
 	screen = which
 	menu.visible = which == GameFlow.Screen.MENU
 	connecting.visible = which == GameFlow.Screen.CONNECTING
-	lobby.visible = which == GameFlow.Screen.LOBBY
+	lobby_hud.visible = which == GameFlow.Screen.LOBBY
 	loading.visible = which == GameFlow.Screen.LOADING
 	hud.visible = which == GameFlow.Screen.ROUND
 	end.visible = which == GameFlow.Screen.END
@@ -73,11 +75,13 @@ func show_tasks(held: bool) -> void:
 		tasks.refresh(_model, _mode)
 
 
-## Refreshes the visible screen from `model`; `host_tick` is the newest host tick known.
+## Refreshes the visible screen and an open Esc menu from `model`; `host_tick` is the newest host
+## tick known.
 func refresh(model: ClientModel, mode: GameMode, host_tick: int, hosting: bool) -> void:
+	esc.refresh(screen, model, host_tick, hosting)
 	match screen:
 		GameFlow.Screen.LOBBY:
-			lobby.refresh(model, host_tick)
+			lobby_hud.refresh(model, host_tick)
 		GameFlow.Screen.LOADING:
 			loading.refresh(model)
 		GameFlow.Screen.END:
@@ -99,17 +103,17 @@ func refresh_round(
 		tasks.refresh(model, mode)
 
 
-func open_esc(hosting: bool) -> void:
-	esc.open(hosting)
-	esc.visible = true
+## Opens the Esc menu over the current screen; `model` is the own ClientModel once welcomed.
+func open_esc(hosting: bool, model: ClientModel = null) -> void:
+	esc.open(screen, model, hosting)
 
 
 func close_esc() -> void:
-	esc.visible = false
+	esc.close()
 
 
 func esc_open() -> bool:
-	return esc.visible
+	return esc.is_open()
 
 
 ## Gives a Control child the shared theme, unless it brought one of its own.

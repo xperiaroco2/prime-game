@@ -17,13 +17,17 @@ const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 @export var preview := Preview.MENU
 ## The preview shows the host's view (its settings, Back to lobby, Esc's confirmation).
 @export var hosting := true
+## The Esc menu's tab (Preview.ESC; #169): the Lobby tab, Resume, or the host's Leave or Quit.
+@export var esc_tab := EscMenuState.Tab.LOBBY
+## The Esc menu over the round instead of the lobby (no Lobby tab there).
+@export var esc_in_round := false
 
 
 func _ready() -> void:
 	var mode := load(MODE) as GameMode
 	var ui := GameUi.new()
 	add_child(ui)
-	ui.lobby.set_mode(mode)
+	ui.esc.lobby.set_mode(mode)
 	var model := fake_model(mode, hosting)
 	ui.reads_device_input = false
 	match preview:
@@ -49,9 +53,13 @@ func _ready() -> void:
 			model.fold(&"MatchEnded", {"side": &"dissidents"})
 			ui.show_screen(GameFlow.Screen.END)
 		Preview.ESC:
-			ui.show_screen(GameFlow.Screen.LOBBY)
-			ui.open_esc(hosting)
-			ui.esc.ask_quit()
+			if esc_in_round:
+				fold_round(model, false)
+			ui.show_screen(GameFlow.Screen.ROUND if esc_in_round else GameFlow.Screen.LOBBY)
+			ui.open_esc(hosting, model)
+			if esc_tab != EscMenuState.Tab.RESUME:
+				# Pressing Resume would close the menu: in the round it is the tab Esc opens on.
+				ui.esc.press(esc_tab)
 		Preview.ROUND, Preview.TASKS:
 			fold_round(model, true)
 			ui.show_screen(GameFlow.Screen.ROUND)

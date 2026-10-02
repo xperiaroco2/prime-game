@@ -59,10 +59,12 @@ func test_the_player_stands_still_outside_the_lobby_and_the_round() -> void:
 		assert_bool(GameFlow.frozen(screen)).is_false()
 
 
-func test_every_screen_but_the_round_frees_the_mouse() -> void:
-	for screen: S in [S.MENU, S.CONNECTING, S.LOBBY, S.LOADING, S.END]:
+func test_every_screen_but_the_lobby_and_the_round_frees_the_mouse() -> void:
+	# #169: the lobby is walked like the round; its Ready and settings are in the Esc menu.
+	for screen: S in [S.MENU, S.CONNECTING, S.LOADING, S.END]:
 		assert_bool(GameFlow.frees_pointer(screen)).is_true()
-	assert_bool(GameFlow.frees_pointer(S.ROUND)).is_false()
+	for screen: S in [S.LOBBY, S.ROUND]:
+		assert_bool(GameFlow.frees_pointer(screen)).is_false()
 
 
 func test_seconds_left_round_up_and_never_go_below_zero() -> void:

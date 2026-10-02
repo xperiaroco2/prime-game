@@ -15,7 +15,7 @@ enum Session {
 enum Screen {
 	MENU,  ## address, port, Host, Join, Quit, and why the last session ended
 	CONNECTING,  ## "Connecting to <address>", Cancel
-	LOBBY,  ## the roster with ready flags, Ready, the countdown; the host's settings
+	LOBBY,  ## walking in the lobby: the keys' hint, the roster, the countdown (Esc: Ready, settings)
 	LOADING,  ## who has loaded
 	ROUND,  ## the round (M4-8's HUD)
 	END,  ## "The <side> won"; the host's Back to lobby
@@ -55,11 +55,11 @@ static func frozen(screen_now: Screen) -> bool:
 	return screen_now != Screen.LOBBY and screen_now != Screen.ROUND
 
 
-## Whether showing `screen_now` frees a captured mouse: every screen but the round has buttons
-## (the lobby's Ready, the end screen's Back to lobby). In the lobby a click outside the panel
-## captures it again for looking around.
+## Whether showing `screen_now` frees a captured mouse: every screen but the lobby and the round
+## has buttons (the end screen's Back to lobby). In the lobby and the round the player looks around:
+## a click captures the mouse, Esc's menu frees it and closing the menu captures it again (#169).
 static func frees_pointer(screen_now: Screen) -> bool:
-	return screen_now != Screen.ROUND
+	return screen_now != Screen.LOBBY and screen_now != Screen.ROUND
 
 
 ## Seconds left until `end_tick` (a countdown's or the match clock's end), from the newest host
