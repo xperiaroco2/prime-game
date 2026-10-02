@@ -32,6 +32,9 @@ var mode: GameMode
 var now := 1000000
 ## The clock alternates: no advance in one physics frame, two frames' worth in the next.
 var uneven := false
+## Physics frames every packet between the two Games is held back, each way (#155): set before
+## start(). The host's own client is not delayed.
+var delay_frames := 0
 
 var _held := false
 
@@ -187,4 +190,32 @@ func _clock() -> int:
 
 
 func _transport() -> NetTransport:
-	return LoopbackTransport.new(WireSchema.game(OS.is_debug_build()).kind_table(), _hub)
+	var transport := DelayedTransport.new(WireSchema.game(OS.is_debug_build()).kind_table(), _hub)
+	transport.delay = delay_frames
+	return transport
+
+
+## A LoopbackTransport that holds every packet it receives back for `delay` of its polls (one per
+## physics frame), in order, as a network's latency would; connection events pass at once.
+class DelayedTransport:
+	extends LoopbackTransport
+	var delay := 0
+	var _polls := 0
+	## The poll each held packet is due at, and the packets, oldest first.
+	var _due: Array[int] = []
+	var _held: Array[NetTransport.Inbound] = []
+
+	func poll() -> void:
+		_polls += 1
+		while not _held.is_empty() and _due[0] <= _polls:
+			_due.pop_front()
+			var item: NetTransport.Inbound = _held.pop_front()
+			super._push(item)
+		super()
+
+	func _push(item: NetTransport.Inbound) -> void:
+		if delay <= 0 or item.type != NetTransport.Inbound.Type.PACKET:
+			super(item)
+			return
+		_due.append(_polls + delay)
+		_held.append(item)
