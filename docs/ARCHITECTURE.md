@@ -1072,12 +1072,12 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     client polls once per step, so no transport of a bot or watcher may count a superseded LATEST message
     (`latest_superseded`); else a snapshot sent *before* the bot's own in the same step would be dropped unseen.
     Over ENet only the host's own in-process bot is held to it (a remote bot's real network may bunch two
-    snapshots in one poll). And each speaker's `VoiceDown` seqs, by tick, run 0, 1, 2, ... without a gap
-    (wrapping at 65536), across the silences of the bots' talk spurts too (M5-1): the relay renumbers per speaker
-    and listener and the loopback loses nothing, so a relay
-    that forwards the speaker's own seq (how long it talked to others) fails. Every runner also fails on a packet
-    its transport rejected or a message that did not decode (over ENet, bot 1's over its whole run), and the
-    one-process runner on a message the host counted over budget or a packet the host's transport rejected;
+    snapshots in one poll). And each speaker's `VoiceDown` seqs, by tick, run 0, 1, 2, ... without a gap (wrapping
+    at 65536), across the silences of the bots' talk spurts too (M5-1): the relay renumbers per speaker and listener
+    and the loopback loses nothing, so a relay that forwards the speaker's own seq (how long it talked to others)
+    fails. Every runner also fails on a packet its transport rejected or a message that did not decode (over ENet,
+    bot 1's over its whole run), and the one-process runner on a message the host counted over budget or a packet
+    the host's transport rejected;
   - peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
     `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
     `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
@@ -1107,12 +1107,13 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     against the radius squared, written again, never a call of the rule), and none under a radius of 0; a tick it
     never recorded or a speaker that was not present then fails too (the distance invariant, M5-1, #215, E45: the
     relay stamps a frame with the tick whose routing it used, refreshed right after that tick from the same state,
-    so bots exactly 8 m apart, as the greybox's spawns put them, pass); every event a bot decodes while dead is for it alone (the
-    subject check) or also reached every living peer present then, so nothing reaches only the dead (M4-2, the
-    recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots present for a
-    whole round decode the same task events; no decoded message has a field that names a seed; a peer that is not a
-    player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker) decodes nothing. `keep_history` costs memory (§5), so scenarios
-    stay short, or 3h compares per tick over a window and drops what it compared.
+    so bots exactly 8 m apart, as the greybox's spawns put them, pass); every event a bot decodes while dead is for
+    it alone (the subject check) or also reached every living peer present then, so nothing reaches only the dead
+    (M4-2, the recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots
+    present for a whole round decode the same task events; no decoded message has a field that names a seed; a peer
+    that is not a player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker)
+    decodes nothing. `keep_history` costs memory (§5), so scenarios stay short, or 3h compares per tick over a
+    window and drops what it compared.
   - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
     one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
     catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
