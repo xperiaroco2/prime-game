@@ -25,6 +25,11 @@ paths:
 - Orphan nodes fail the build. Wrap every `Node` a test creates in `auto_free(...)`, or free it in the test or
   `after_test()`. `test` names the leaking test, or the suite's `before()`/`after()`.
 - Deterministic only: seed every `RandomNumberGenerator`; no sleeps or wall-clock waits.
+- Under load one idle frame runs several physics frames (up to 8) before its `_process`, and `process_frame` is
+  emitted before that `_process`. So a fixed count of physics frames proves nothing about what a `_process` writes (a
+  label, a button, `Game`'s per-frame flags): after the state it follows, `await get_tree().process_frame` twice
+  (#222). To see such a test fail, a probe in `tests/scratch/` extends the suite and adds a node whose `_process`
+  calls `OS.delay_msec(120)`.
 - Headless runs have no `InputEvent`s: UI and input need `shot`, `playcheck` (off-screen, keys only) and a playtest.
 - A bug fix starts with a test that fails for the bug; run it and see it fail before the fix.
 
