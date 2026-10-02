@@ -16,9 +16,17 @@ class FakeView:
 	var lives: Dictionary[int, String] = {}
 	var roster := 2
 	var received: Array[Array] = []
+	var screen_now := "lobby"
+	var esc_now := false
 
 	func welcomed() -> bool:
 		return is_welcomed
+
+	func screen() -> String:
+		return screen_now
+
+	func esc_open() -> bool:
+		return esc_now
 
 	func phase() -> String:
 		return phase_now
@@ -115,6 +123,28 @@ func test_before_its_welcome_a_window_waits_and_a_timeout_says_so() -> void:
 	steps.advance(0)
 	steps.advance(1000)
 	assert_str(steps.failure).ends_with("the window saw no Welcome yet")
+
+
+func test_screen_esc_and_pointer_waits_hold_without_a_session() -> void:
+	var view := EndedView.new()
+	view.is_welcomed = false
+	view.screen_now = "menu"
+	var plan: Array[Dictionary] = [
+		_wait("screen", "menu"), _wait("esc", false), _wait("pointer", false)
+	]
+	var steps := _steps(plan, view)
+	steps.advance(0)
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+	# A model's wait still waits for the Welcome, and its timeout still says why.
+	steps = _steps([_wait("screen", "round", 1.0), _wait("phase", "lobby", 1.0)], view)
+	steps.advance(0)
+	steps.advance(1000)
+	assert_str(steps.failure).ends_with("the window saw screen 'menu'")
+	view.screen_now = "round"
+	steps = _steps([_wait("screen", "round", 1.0), _wait("phase", "lobby", 1.0)], view)
+	steps.advance(2000)
+	steps.advance(3000)
+	assert_str(steps.failure).ends_with("the window saw no session: it ended (host_lost)")
 
 
 func test_frames_lets_that_many_frames_pass() -> void:

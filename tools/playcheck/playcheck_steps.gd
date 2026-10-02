@@ -15,6 +15,9 @@ enum Status { RUNNING, DONE, FAILED }
 ## The event fields that name a player: the plan holds the player's number (ScenarioPlay's
 ## PLAYER_FIELDS), mapped to its peer id through View.peer_of().
 const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target"]
+## The waits that read the window itself, not its model: they hold before a Welcome and after the
+## session ended too (`wait screen menu` after a Leave or a host close).
+const WINDOW_WAITS: Array[String] = ["screen", "esc", "pointer"]
 
 
 ## What a window's waits read. playcheck_window.gd reads its Game; a test fakes it.
@@ -157,7 +160,7 @@ func _check_timeout(step: Dictionary, now_ms: int) -> void:
 func _holds(step: Dictionary) -> bool:
 	if str(step.get("do", "")) == "setup":
 		return _setup_ready(step)
-	if not view.welcomed():
+	if not view.welcomed() and str(step.get("what", "")) not in WINDOW_WAITS:
 		return false
 	var value: Variant = step.get("value")
 	var holds := false
@@ -257,7 +260,7 @@ func _saw(step: Dictionary) -> String:
 		return (
 			"%d of %d players in its roster" % [view.roster_size(), number(step.get("players", 0))]
 		)
-	if not view.welcomed():
+	if not view.welcomed() and str(step.get("what", "")) not in WINDOW_WAITS:
 		return view.unwelcomed()
 	var peer := _peer(number(step.get("player", 0)))
 	var seen := "nothing it can wait for"
