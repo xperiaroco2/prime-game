@@ -50,6 +50,9 @@ func test_the_meter_counts_frame_bytes_per_peer_and_tick_and_skips_the_own_clien
 	meter.received(3, schema.kind_of(&"VoiceUp"), payload)
 	meter.received(3, schema.kind_of(&"SetReady"), payload)
 	meter.received(NetTransport.HOST_ID, schema.kind_of(&"SetReady"), payload)
+	# Inside the timed host step the meter only buffers; flush() fills the tables.
+	assert_dict(meter.down).is_empty()
+	meter.flush()
 	assert_dict(meter.down).is_equal({2: {7: 2 * (10 + NetFrame.HEADER_BYTES)}})
 	assert_dict(meter.down_voice).is_equal({2: {7: 10 + NetFrame.HEADER_BYTES}})
 	assert_dict(meter.snapshots).is_equal({2: {7: 10}})
@@ -70,9 +73,11 @@ func test_the_metered_transport_counts_only_what_it_sent() -> void:
 	var payload := PackedByteArray([1, 2, 3])
 	# Not a connected peer: not sent, not counted.
 	assert_int(host.send(9, schema.kind_of(&"Snapshot"), payload)).is_not_equal(OK)
+	meter.flush()
 	assert_dict(meter.down).is_empty()
 	var peer := client.own_id()
 	assert_int(host.send(peer, schema.kind_of(&"Snapshot"), payload)).is_equal(OK)
+	meter.flush()
 	assert_dict(meter.down).is_equal({peer: {0: 3 + NetFrame.HEADER_BYTES}})
 	client.close()
 	host.close()

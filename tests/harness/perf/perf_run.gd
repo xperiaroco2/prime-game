@@ -8,15 +8,17 @@ extends NetPlay
 ##
 ## Measured, without changing what the host does:
 ## - the host step: Time.get_ticks_usec() around HostSession.step(), kept for the steps that ran at
-##   least one host tick (a frame between two ticks only polls);
+##   least one host tick (a frame between two ticks only polls). Inside that window the meter and
+##   the observer only append to buffers; they are folded after it (WireMeter.flush, _fold_calls);
 ## - what the host's transport sent and received per remote peer and tick (WireMeter, through
 ##   MeteredLoopback or MeteredEnet and packet_received);
 ## - the events per host tick: the slices HostSession's observer (debug builds) hands over, counted
 ##   and nothing else, so the host's Match keeps keep_history off, as in the game;
-## - with sample() once per physics frame (PerfMain): Performance's TIME_PHYSICS_PROCESS, which
-##   the engine sets once a second of real time to the longest physics frame of that second (so it
-##   is kept once a second), and MEMORY_STATIC; both
-##   MEMORY_STATIC, the whole process's, the bots' clients included.
+## - with sample() once per physics frame (PerfMain): Performance's TIME_PHYSICS_PROCESS ("time it
+##   took to complete one physics frame"), read about once a second of real time, and
+##   MEMORY_STATIC; both cover the whole process, the bots' clients included.
+## The numbers come from the debug build the runner pins (start() refuses others): compare runs
+## with each other, not with a release host's cost.
 ## Fails on a step's failure, the session ending, an end other than the scenario's, or the host
 ## counting a message over budget or a rejected packet: honest bots trip neither.
 
@@ -39,14 +41,17 @@ var hub := LoopbackHub.new()
 var frames_run := 0
 ## Host step durations in microseconds, of the steps that ran at least one host tick.
 var tick_usec := PackedInt64Array()
-## TIME_PHYSICS_PROCESS once per second of real time, in microseconds: the longest physics frame
-## of the second before.
+## TIME_PHYSICS_PROCESS about once per second of real time, in microseconds (how the engine
+## refreshes the monitor between two reads is not documented in the 4.7.2 API).
 var physics_usec := PackedInt64Array()
 var memory_static_max := 0
 var memory_static_end := 0
 
 ## Host tick -> events in the slices of that tick's Match calls.
 var _events: Dictionary[int, int] = {}
+## The observer's calls of the current host step, folded into _events after the timed window.
+var _call_ticks := PackedInt64Array()
+var _call_slices: Array[Array] = []
 var _finished := false
 var _sampled_ms := -1
 
@@ -115,6 +120,8 @@ func frame() -> void:
 	var began := Time.get_ticks_usec()
 	session.step(now_usec)
 	var took := Time.get_ticks_usec() - began
+	meter.flush()
+	_fold_calls()
 	frames_run += 1
 	if not session.is_running():
 		failures.append(
@@ -225,10 +232,21 @@ func _join_host(bot: ScenarioBot) -> String:
 	return ""
 
 
-## HostSession's observer: counts each call's events for its tick, and the ends.
+## HostSession's observer, inside the timed host step: only keeps the call's tick and slice.
 func _on_call(at_tick: int, _command: MatchCommand, slice: Array[EmittedEvent]) -> void:
-	var had: int = _events.get(at_tick, 0)
-	_events[at_tick] = had + slice.size()
-	for emitted: EmittedEvent in slice:
-		if emitted.event.event_name() == MATCH_ENDED:
-			ends.append(StringName(str(emitted.event.to_dict().get("side", ""))))
+	_call_ticks.append(at_tick)
+	_call_slices.append(slice)
+
+
+## Counts the kept calls' events for their ticks, and the ends; after the timed window.
+func _fold_calls() -> void:
+	for index in _call_ticks.size():
+		var at_tick := _call_ticks[index]
+		var slice: Array = _call_slices[index]
+		var had: int = _events.get(at_tick, 0)
+		_events[at_tick] = had + slice.size()
+		for emitted: EmittedEvent in slice:
+			if emitted.event.event_name() == MATCH_ENDED:
+				ends.append(StringName(str(emitted.event.to_dict().get("side", ""))))
+	_call_ticks.clear()
+	_call_slices.clear()
