@@ -14,7 +14,8 @@ const USEC := 1000000
 
 ## Decodes `frame` into the queue. With `conceal` it decodes the frame before it instead, from
 ## the in-band FEC data `frame` carries if any, else by the codec's concealment; the caller then
-## pushes `frame` again without `conceal` for its own slot (the M5 ADR §1.3).
+## pushes `frame` again without `conceal` for its own slot (the M5 ADR §1.3). push() does not check
+## for room: the caller checks free_frames() first and drops (and counts) a frame that does not fit.
 func push(_frame: PackedByteArray, _conceal: bool) -> void:
 	pass
 
@@ -24,7 +25,7 @@ func queued_frames() -> int:
 	return 0
 
 
-## Audio frames the queue still has room for.
+## Audio frames the queue still has room for; the caller checks it before each push().
 func free_frames() -> int:
 	return 0
 

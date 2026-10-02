@@ -1870,8 +1870,12 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     jitter, with underruns only before the window has seen the jitter. Frames held 200 ms without starting are
     discarded (`stale`); `fade_out()` lowers `gain()` to 0 over 50 ms, then says flush; `flush()` empties the held
     frames, and a frame older than the flush arrives late. A stream that restarts at seq 0 gets a new `VoiceJitter`.
-    No queue cap after a burst (the manager's call, until the listening test shows a problem). Every number here is
-    a placeholder, "not a decision".
+    No queue cap after a burst (the manager's call, until the listening test shows a problem); `VoicePlayback.push`
+    does not check for room either, so its caller (M5-5) checks `free_frames()` first and drops a frame that does
+    not fit. A known limit for the listening test (M5-6, M5-7): a spurt shorter than the prebuffer never starts and
+    is discarded as stale. A voice-activity spurt lasts at least 320 ms (the hangover), so it reaches only a
+    push-to-talk tap: a key held for one chunk sends 3 frames with the pre-roll (60 ms), under the prebuffer once
+    the window has seen more than 40 ms of spread. Every number here is a placeholder, "not a decision".
     Tests (no addon, no microphone): `tests/unit/voice/voice_codec_test.gd`, `voice_gate_test.gd`,
     `voice_jitter_test.gd` and `voice_jitter_timing_test.gd` (through `voice_jitter_sim.gd`, a listener polling at
     60 fps with a playback model), with the fake codec in `tests/fixtures/voice/` (8 kHz µ-law, 160 B per 20 ms,

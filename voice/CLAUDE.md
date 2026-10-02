@@ -8,7 +8,7 @@ E34 to E47, D11 to D15; its §3 is the review checklist for what the client play
 - Microphone capture, Opus encode and decode, the jitter buffer, and the playback plumbing. `client/` uses `voice/`;
   `voice/` uses nothing outside itself but the engine and the addon by name (E46 (a) of the M5 ADR,
   `docs/ARCHITECTURE.md` §1): no `ClientSession`, `ClientModel`, `client/` or `net/` script.
-- The gate: voice activity (the default), push-to-talk held on V, or Off (D11, M5).
+- The gate: voice activity (the default) or push-to-talk held on V; Off (D11) is the capture's state, M5-6.
 
 ## Map
 - `voice_codec.gd`, `voice_encoder.gd`, `voice_playback.gd`: the codec boundary (`VoiceCodec`, `VoiceEncoder`,
