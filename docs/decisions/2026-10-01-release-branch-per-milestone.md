@@ -58,4 +58,9 @@ GitHub retargets to `main` when its parent's branch is deleted.
   any recorded base outside `<area>/<n>-<slug>` while origin has it, and follows a hand rebase on a newer
   `origin/release/m<k>`. The workflows still pass `--base release/m<k>`, which also covers a checkout without the
   record `start --base` leaves.
+- Since #181 `tools\run.cmd merge <pr> --base release/m<k>` runs the local merge above as one command, in a
+  scratch detached worktree under `tools/out/merge/` (removed afterwards) instead of on the release worktree's own
+  HEAD, with the same gate: green CI, `verify` on the merged tree every time, the push by hash. It refuses `main`.
+  `tools\run.cmd merge-check` checks the open PRs against each other and their base before each merge
+  (`docs/AGENT_WORKFLOW.md` §7.1).
 - Amends [only humans merge](2026-09-28-humans-merge-prs.md): humans still merge everything into `main`.
