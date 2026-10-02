@@ -335,7 +335,10 @@ a change to them lands between the other managers' waves.
 4. **N4, selftest only when `tools/` changed (locally):** (a) no, `verify` stays exactly what CI runs; (b) yes.
    **Recommended (a).**
 5. **N5, shared limits across tracks:** at most about six task workflows at once across tracks and each kickoff's
-   budget as a percentage reported from `metrics`. **Recommended as written.**
+   budget as a percentage reported from `metrics`. **Recommended as written.** And the shared files
+   (`tools/runner/`, `.claude/workflows/`, the orchestrate-stage skill, `docs/AGENT_WORKFLOW.md`, item 7): (a) they
+   belong to this track while it runs, other tracks change them only through an issue here, landing between the
+   other managers' waves; (b) any track may change them between waves, after `merge-check`. **Recommended (a).**
 
 ### The proposed issues (in full in the handoff on #171)
 Waves of at most two tasks while the M4 manager runs, three after; a task that needs an unmerged PR waits for the
