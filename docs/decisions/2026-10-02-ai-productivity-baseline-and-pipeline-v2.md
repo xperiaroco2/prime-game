@@ -361,7 +361,9 @@ until about 21:00 UTC), so P3 and P6 go early.
 | 6 | P11 chaos bots against the host (dropped first) | net, L | no | P2; P10 (`cli.py`, the bots arguments) | `tests/harness/chaos/`, `bots.py`, `cli.py`, one `verify` step; ARCHITECTURE §4.6 |
 
 Within a wave at most one task edits `tools/runner/cli.py` or `tools/runner/verify.py`, and each task owns a different
-paragraph of `docs/AGENT_WORKFLOW.md`; waves 4 to 6 assume the M4 manager has finished (otherwise the third task
+paragraph of `docs/AGENT_WORKFLOW.md`. Each task that adds a runner command (P1, P4, P7, P9, P10) adds its row to
+the root CLAUDE.md commands table within the budget `lint` checks (merging rows if needed), and P2 updates the
+`verify` row and `verify.py`'s docstring, which say "in the same order"; waves 4 to 6 assume the M4 manager has finished (otherwise the third task
 waits). The order follows leverage: what speeds up or measures every later task first (P1, P2), then the workflow
 and the merge flow the other tracks will use (P3, P4), then the rest. Cost: about $15 to $30 list a task, about
 $250 to $350 for the twelve (6 to 8% of a Max 20x week) plus the manager, within the track's 20 to 25%. Drop order:
