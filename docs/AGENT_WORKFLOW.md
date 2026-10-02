@@ -796,10 +796,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   id; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a rerun
   with a past `--until` gives the same tables while sessions keep working. A session's rows are labelled by its first 8
   characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
-  `tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role,
-  local `verify` by step (from the summaries agents printed, the managers' own runs and
-  `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify` writes it, #179), review
-  findings by reviewer, the prompt cache after waits, manager sessions with their % of a Max 20x week ($44 list per 1%,
+  `tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role
+  (from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
+  issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review` and `skeptic`; any other is "other"),
+  local `verify` by step with its verify-slot wait and runs over the limit (#185) (from the summaries agents printed,
+  the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when
+  `verify` writes it, #179), review findings by reviewer (a task's blockers and majors count only its diff
+  reviewers', as in the baseline), the prompt cache after waits, manager sessions with their % of a Max 20x week ($44 list per 1%,
   the ADR's calibration), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the window, and the
   jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten lines (time and
   API list $ per task and in total, the % of the week, the `verify` medians): the manager pastes `metrics --since <wave
@@ -855,7 +858,21 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
   `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of
   `tools/runner/` at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds),
-  `cpus`, `workers` and `selftest` (run, skipped). A lane process and its workers carry `PRIME_VERIFY_INSIDE`, so a
+  `cpus`, `workers`, `selftest` (run, skipped) and `slot` (below; null without one). **Verify slots (#185):** on a
+  PC, after `doctor`, `verify` takes one of N machine-wide slots for its lanes, so the tracks' runs queue instead of
+  starving each other (and `freeze` and `stall`): a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots`
+  (elsewhere `~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree
+  share them. The operating system frees a slot's lock when its process ends however it ends, so a killed run's slot
+  is taken over at once (the next run names it: "left by a run that ended without releasing it"). While every slot
+  is held the run prints every minute which worktrees, branches and pids hold them. The wait is bounded (default
+  WAIT_PLACEHOLDER s): an agent's foreground shell call dies at 600 s, and the wait plus a run must end before it; after the
+  wait the run goes ahead without a slot, with `OVER THE LIMIT` in its output, its summary's last line and its
+  record (`over`). A slot never skips or weakens a step. N is NPLACEHOLDER, from measurements on the engineer's PC (the PR of
+  #185). `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR`
+  override the defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot. The record's `slot`
+  is {`slot`, `of`, `waited`, `over`, `reclaimed`}, its `seconds` leave the wait out, and the summary's last line
+  adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over the
+  limit. A lane process and its workers carry `PRIME_VERIFY_INSIDE`, so a
   runner test that reaches the real lanes fails instead of starting `verify` inside `verify`; a runner test that
   starts Godot carries `@starts_godot` (`runner.verify`). `bots` is `bots` (every scenario in one process, about
   8 s) and `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario

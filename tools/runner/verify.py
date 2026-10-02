@@ -356,7 +356,7 @@ def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = N
 # --- selftest ---------------------------------------------------------------------------------------------------
 
 # The Python lane runs beside the Godot lane's timing-sensitive freeze and stall runs, and on the engineer's PC beside
-# up to four other worktrees' verify runs (8 cores, 16 logical CPUs). Its runner tests therefore take at most a
+# another worktree's verify run (slots.DEFAULT_COUNT, #185) and the other sessions' work (8 cores, 16 logical CPUs). Its runner tests therefore take at most a
 # quarter of the logical CPUs (half the physical cores: 4 there, 1 on CI's 4-vCPU runner), which still ends the lane
 # long before the Godot lane reaches freeze (on the PC with four other runs going, 2026-10-02: the Python lane about
 # 125 to 150 s, the Godot lane's check, selftest-godot and test alone about 370 s).

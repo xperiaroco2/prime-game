@@ -30,12 +30,18 @@ from .common import IS_WINDOWS, Failure
 COUNT_VAR = "PRIME_VERIFY_SLOTS"
 WAIT_VAR = "PRIME_VERIFY_SLOT_WAIT"
 DIR_VAR = "PRIME_VERIFY_SLOTS_DIR"
+# Measured on the engineer's PC (8 cores, 16 logical CPUs; #185, 2026-10-02, with #182's four GdUnit4 shards and
+# selftest's four workers, beside the other sessions' runs): k verify runs at once took 316 s (k = 1), 315 and 386 s
+# (k = 2), 431 and 441 s (k = 3) and 452 s (k = 4) per batch, so 11, 19 to 23, 25 and 32 runs an hour. Two at once
+# cost a run little and fill the 16 logical CPUs (2 x (4 shards + 4 workers)); a third or fourth makes every run a
+# third longer (450 s leaves no room for a wait in an agent's 600 s call) and `test`, whose load-sensitive suites
+# already fail under the other sessions' load, red more often. freeze, stall, enet and bots-enet stayed green.
 DEFAULT_COUNT = 2
 # An agent's foreground shell call (Claude Code's Bash tool) is killed at 600 s, and agents run verify (and publish,
-# which runs it) in the foreground: the longest wait plus a verify run must end before that. VERIFY_RUN is a verify's
-# wall time on the engineer's PC with DEFAULT_COUNT runs at once (measured for #185, see its PR).
+# which runs it) in the foreground: the longest wait plus a verify run must end before that, with a margin for a
+# slower run. VERIFY_RUN is the slowest verify measured with DEFAULT_COUNT runs at once (above), rounded up.
 AGENT_CALL_LIMIT = 600.0
-VERIFY_RUN = 420.0
+VERIFY_RUN = 390.0
 DEFAULT_WAIT = 150.0
 # How often a waiting run tries the slots again, and how often it says who holds them.
 POLL = 2.0
