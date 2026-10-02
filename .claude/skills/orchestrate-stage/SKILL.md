@@ -30,20 +30,27 @@ and posting answers. Talk to the human in their chat language, in plain words; e
 is English. Commands use `tools\run.cmd`; in Git Bash `tools/run.sh`. The method and its history:
 [ADR](../../../docs/decisions/2026-09-30-orchestrator-session.md); the git flow: every task PR targets the
 milestone's `release/m<k>`, you merge task PRs into it, a human merges it into `main`
-([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)).
+([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). The one exception is the tooling track
+(the AI productivity track, #170): its PRs go straight into `main` and the engineer merges each (§5).
 
 ## 1. The kickoff
 One message from the human with `ultracode` in it (template in §10). It must state:
 - the scope (issue numbers, or the design handoff to open them from, and fillers) and the plan issue to report on.
   A new milestone gets its own plan issue (`M<k>: plan and order`, opened by you after the yes, its body written
   once and never edited); if the kickoff names none, recommend that;
-- the release branch `release/m<k>` every task PR targets, and the order and dependencies: which task stacks on
-  which (`start --base`), which waits for a merge into the release branch;
-- the concurrency cap (default three tasks at once) and "one task = one workflow" with per-agent bounds
-  (implementer about 250 tool calls, reviewers about 60, publisher about 150);
-- explicit approval to exceed the size guideline (`issue-task` runs up to 5 agents; `small` means fewer than 5)
-  and a budget for the whole stage (tasks × about 900k subagent tokens), so you do not ask before each workflow
-  (root `CLAUDE.md`, §7 of AGENT_WORKFLOW);
+- the git flow: the release branch `release/m<k>` every task PR targets (or, on the tooling track, PRs into `main`),
+  and the order and dependencies: which task stacks on which (`start --base`), which waits for a merge;
+- the concurrency cap (default three tasks at once; at most about six task workflows across all tracks, so fewer
+  while other tracks run) and "one task = one workflow" with per-agent bounds (implementer about 250 tool calls,
+  reviewers about 60, publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40,
+  the test reviewer about 60, each skeptic about 30, a publisher that only reports a stop about 30);
+- explicit approval to exceed the size guideline, with the agent count it approves per workflow (`issue-task` runs
+  3 to 5 agents plus those of the v2 args the kickoff names, §3; `small` means fewer than 5), and a budget for the
+  whole stage as a percentage of the weekly limit (`metrics` converts its API list $; §9 has the numbers), so you do
+  not ask before each workflow (root `CLAUDE.md`, §7 of AGENT_WORKFLOW);
+- where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
+  second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of
+  that model's own weekly window (at most half across all tracks). You stay on the shared models;
 - the rules: only humans merge into `main`, you merge task PRs into `release/m<k>` (§5); no agent closes issues;
   each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
   windows only through `shot`; a game rule no ADR settles becomes options under "Needs the engineer"; `content/`
@@ -53,13 +60,16 @@ One message from the human with `ultracode` in it (template in §10). It must st
   the human (answers, a design review, the closing PR's merge); "продовжуй" resumes after a check of the live state.
 
 Something missing: ask once, batched, with a recommendation for each item. Then, always, restate in the human's
-language the waves, the ownership splits, the merge order, the agent count per workflow and the rough cost (§9
-numbers), and wait for their yes. That yes covers every later `issue-task` and `pr-rebase` run of the stage; a new
-kind of workflow still asks.
+language the waves, the ownership splits, the merge order, the agent count per workflow and the rough cost as a
+percentage of the weekly limit (§9 numbers), and wait for their yes. That yes covers every later `issue-task` and
+`pr-rebase` run of the stage; a new kind of workflow still asks.
 
 **Prerequisites** (check them before the restatement): the human pulled `main` in `D:\prime-game` after saving all
-scenes in the editor, and `D:/prime-game/.claude/workflows/issue-task.js` exists (`Test-Path`). Missing: ask the
-human to pull; a session opened before the pull needs `/reload-skills` to find the workflows by name.
+scenes in the editor, and `D:/prime-game/.claude/workflows/issue-task.js` exists (`Test-Path`) and knows the v2 args
+(`Select-String -Path D:/prime-game/.claude/workflows/issue-task.js -Pattern plan_review -Quiet`: an older copy logs
+and ignores them, so the reviews they add would silently not run). The merges of §5 need `merge-check` and `merge`
+in the main checkout's runner (`tools\run.cmd merge-check --help`, #181). Missing: ask the human to pull; a session
+opened before the pull needs `/reload-skills` to find the workflows by name.
 
 ## 2. Before the first launch
 1. `tools\run.cmd doctor --quick`. Read the plan issue, every issue in scope with its comments, the handoffs they
@@ -80,30 +90,37 @@ human to pull; a session opened before the pull needs `/reload-skills` to find t
    and `Tracking: #<plan>`, and `gh issue create --title "<area>: <what>" --label area:<x> --milestone M<k>
    --body-file <file>` (one `area:` label, which `start` needs for the branch prefix). Put the new numbers in a
    plan-issue comment.
-5. **The release branch** (once per milestone, after the yes): from the main checkout, without leaving your shell
-   anywhere else, `git fetch origin && git branch release/m<k> origin/main && git push -u origin release/m<k> &&
-   git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours, for the
-   merges (§5); say both in the first wave comment.
+5. **The release branch** (a milestone only, once, after the yes): from the main checkout, without leaving your
+   shell anywhere else, `git fetch origin && git branch release/m<k> origin/main && git push -u origin release/m<k>
+   && git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
+   both in the first wave comment.
 6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree, the
-   args file), the queue, ownership splits, merge order, open questions. Keep it current: it survives compaction.
-   Keep each task's args in `manager/args-<n>.json`. The scratchpad is per session, so every wave comment also
-   carries what a successor needs (§6).
+   args file), the queue, ownership splits, merge order, open questions, the stage's and the current wave's start
+   times. Keep it current: it survives compaction. Keep each task's args in `manager/args-<n>.json`. The
+   scratchpad is per session, so every wave comment also carries what a successor needs (§6).
 7. Find the files that tasks running in parallel will all touch (mode `.tres` files, `docs/ARCHITECTURE.md`,
    registries, event folders) and split ownership **up front**: who owns which class, which task creates which
    shared class (same path and class name if two may create it), whose deal places what. Otherwise add/add
    conflicts and duplicate work follow.
+8. **Files shared across tracks** (the engineer's answer N5 (c); AGENT_WORKFLOW §7.1 "Parallel tracks"):
+   `.claude/workflows/` and this skill change only through the tooling track (#170): an issue there, landing between
+   the other managers' waves, since a change in the middle of a wave breaks their resumes (§7). A task of yours may
+   change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` pairs
+   PRs only within one base, so before such a PR merges, list the open PRs into another base that touch the same
+   files (`gh pr list --state open --json number,baseRefName,files`) and name them on that track's plan issue.
 
 ## 3. Launching a task
-1. `tools\run.cmd start <n> --base release/m<k>` (or `--base <parent branch>`, a branch on origin, for a task
-   stacked on an unmerged PR) in **your** session, from the main checkout, never in an agent. From its output take
-   the `WORKTREE <path>` line and the branch from the last line, `start: <branch> in the worktree <path>`.
+1. `tools\run.cmd start <n> --base release/m<k>` (plain `start <n>` on the tooling track; `--base <parent branch>`,
+   a branch on origin, for a task stacked on an unmerged PR) in **your** session, from the main checkout, never in
+   an agent. From its output take the `WORKTREE <path>` line and the branch from the last line, `start: <branch> in
+   the worktree <path>`.
 2. Launch the saved workflow `issue-task` (`.claude/workflows/issue-task.js`; the Workflow tool with
    `name: "issue-task"`, or `scriptPath` to that file in the main checkout) with `args` as a JSON object:
 
 | arg | what |
 |---|---|
 | `n`, `title`, `wt`, `branch` | the issue, its title, the worktree path, the task branch (required) |
-| `base` | the PR base: `"release/m<k>"`, or the parent's branch for a stacked task (`main` only outside a stage); every non-`main` base reaches `gh pr create --base`, a release base also `publish --base` (a parent's branch does not: publish follows the PR's live base) |
+| `base` | the PR base: `"release/m<k>"`, or the parent's branch for a stacked task (`main` outside a stage and on the tooling track); every non-`main` base reaches `gh pr create --base`, a release base also `publish --base` (a parent's branch does not: publish follows the PR's live base) |
 | `notes` | the task's specifics, the engineer's answers that apply, ownership splits, merge order (required) |
 | `coord` | what runs in parallel now and which shared files to touch minimally |
 | `decisions` | the engineer's standing decisions, each with where it is recorded (every task that they touch) |
@@ -112,27 +129,60 @@ human to pull; a session opened before the pull needs `/reload-skills` to find t
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 
-The workflow: implementer (commits, verify green, never publishes) → fresh reviewers in parallel, chosen from the
-changed paths (`code-reviewer` always; `netcode-security-reviewer` for `core/ server/ net/ client/ tests/harness/` or a
-design task; `godot-api-checker` for `.gd .tscn .tres`) → publisher (fixes blocker, major and cheap minor findings,
-`publish` (`--base` for a release base), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most
-two fix rounds, handoff, board In review). It throws when any routed agent returns nothing, and stops unpublished when the implementer ends
-red. Every agent writes temporary files only under the scratchpad subfolder `a<n>/`.
+**Pipeline v2 args** (AGENT_WORKFLOW §7.1), all off by default; the agents each adds count toward the number per
+workflow the kickoff approved:
+
+| arg | when | adds (tool calls each) |
+|---|---|---|
+| `plan_review: true` | the issue's Files line touches `core/ server/ net/ tests/harness/`, or its Size is M or more | 2: a plan agent (80) and a fresh critique (40) |
+| `test_review: true` | the same paths, once `mutants` (#184) is on the task's base (`git show origin/<base>:tools/runner/mutants.py`) | 1 (60); none for a design task or a diff without `core/ server/ net/ client/ voice/` code |
+| `second_review: true` | PRs that touch `core/ server/ net/ tests/harness/`, where the kickoff asks for it; with `models.second_review` where it allows a model beyond the shared list there | 1 (60) where the netcode review is routed |
+| `skeptic: <n>` or `true` | design tasks and audits (publishers judged only 8 of 441 findings wrong) | 1 per blocker or major checked (30) |
+| `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
+| `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review` | 0 |
+
+- **`models`** follows the script's fallbacks: set only `implement` or `second_review`, never `review` or `netcode`
+  (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode` covers `second_review`).
+  `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model too unless you also set
+  `models.plan: "opus"`. Never as a habit, and never for yourself.
+- **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
+  reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
+  that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
+  the kickoff set no cap (the manager's decision on PR #193). `pr-rebase` the same way, from at most 4 (§5).
+
+The workflow: (with `plan_review` a plan agent and a fresh critique of its plan first) implementer (commits, verify
+green, never publishes) → fresh reviewers in parallel, chosen from the changed paths (`code-reviewer` always;
+`netcode-security-reviewer` for `core/ server/ net/ client/ tests/harness/` or a design task; `godot-api-checker`
+for `.gd .tscn .tres`; then, when passed, the second netcode review, the test review with `mutants` and a skeptic per
+blocker or major) → publisher (fixes blocker, major and cheap minor findings, `publish` (`--base` for a release
+base), PR with a findings table, "Needs the engineer" and "Merge order", CI watch with at most two fix rounds,
+handoff, board In review). It throws when any routed agent returns nothing, and stops unpublished when the
+implementer ends red. Every agent writes temporary files only under the scratchpad subfolder `a<n>/`.
 
 Notes that worked: say which PR a needed file comes from if it is unmerged ("build with fixtures, fetch and rebase
 once it lands"); repeat rules that force fixture updates in every later PR (neutral class defaults with the numbers
-in the data); name a task's merge order relative to the other open PRs.
+in the data); name a task's merge order relative to the other open PRs; name every rename in both tasks' notes (§9).
 
 ## 4. On each completion
-Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not_fixed`). Merge it into the release
-branch when the gate in §5 holds, and tell the human what you merged and in which order; explain each "Needs the
-engineer" item in plain words: a concrete scenario of what goes wrong, the options, your recommendation, numbered so
-they can answer "1A, 2B". Then fill the free slot.
+Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not_fixed`; with v2 args also `plan`
+(the plan and its critique, summarized in the PR), `test_review` (the mutants, or why it was skipped or missing),
+`skeptic` (`refuted`, `stood`, `unchecked`) and `visual` (the PNGs: the engineer drags them into the PR)). Merge it
+into the release branch when the gate in §5 holds (on the tooling track: run `merge-check` and ask the engineer),
+and tell the human what you merged and in which order; explain each "Needs the engineer" item in plain words: a
+concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". Then
+fill the free slot.
 
-When something failed:
+When something failed (never resume a run whose result has `stopped`: a resume replays the stop):
 - `stopped` (the implementer ended red) or `pub.published` false: say so on the plan issue and in chat, then launch
-  `issue-task` once more as a **fresh** run (not a resume: that replays the red result) with the failure added to
-  `notes`; the implementer continues from the worktree's commits. Red again: stop that task and ask the human.
+  `issue-task` once more as a **fresh** run with the failure added to `notes`; the implementer continues from the
+  worktree's commits. Red again: stop that task and ask the human; where the kickoff allows a model beyond the shared
+  list for a task red twice, offer a third launch with `models.implement` (§3).
+- `stopped` after `tools\run.cmd mutants` exited 2 (a scratch worktree could not be removed, or the task's
+  `git status` changed during the run): nothing was published. Read the stop comment on the issue. Only when it
+  names a leftover worktree under the task worktree's `tools/out/mutants/`, ask the engineer to remove it (a delete
+  outside your worktree prompts; #184's next `mutants` run also removes it first). Then relaunch fresh with the stop
+  in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
 
@@ -147,27 +197,33 @@ again for that issue with the answers in `notes` (its agents find the branch and
 ## 5. Merges and rebases
 You merge task PRs into `release/m<k>`; only a human merges into `main`
 ([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). `gh pr merge` stays denied: you merge
-locally.
-- **The gate.** Merge a task PR only when CI is green (`gh pr checks <pr>`), the fresh reviews left no open blocker
-  or major (the PR's findings table and `not_fixed`; one that waits for the engineer waits for the merge too), and
-  `verify` is green on the merged tree. First check whether a human already merged it (`gh pr view <pr> --json
-  state,mergedAt`; the engineer merged #107 himself on 2026-10-01): then only fetch.
-- **The merge**, always in a subshell, in your `release-m<k>` worktree (§2.5); `verify` takes about six minutes, so
-  run the whole command with `run_in_background`:
-
-  ```bash
-  (cd /d/prime-game/.claude/worktrees/release-m<k> && git fetch origin \
-    && git checkout -q --detach origin/release/m<k> \
-    && git merge --no-ff origin/<task branch> -m "Merge pull request #<pr> from <owner>/<task branch>" \
-    && tools/run.sh verify && git rev-parse --short=12 HEAD)
-  ```
-
-  Then push the commit it printed: `(cd /d/prime-game/.claude/worktrees/release-m<k> && git push origin
-  <commit>:release/m<k>)`. Never `git push origin HEAD:...`: the deny rule `git push *HEAD*` refuses it. Each merge
-  starts on a detached HEAD at `origin/release/m<k>`, so a failed one leaves nothing to undo and never reaches the
-  next push. The push is a fast-forward, which the pre-push hook allows; GitHub then marks the PR merged (check with
-  `gh pr view <pr> --json state`). A red `verify` pushes nothing: tell the human and relaunch the task with the
-  failure in `notes`. The guard lets these commands pass from the main checkout and from the worktree.
+locally with `tools\run.cmd merge` (#181; AGENT_WORKFLOW §7.1 Git flow). Run `merge` and `merge-check` from the main
+checkout: your `release-m<k>` worktree has them only once `release/m<k>` has taken in a `main` that has them.
+- **The gate.** Merge a task PR only when CI is green, the fresh reviews left no open blocker or major (the PR's
+  findings table and `not_fixed`; one that waits for the engineer waits for the merge too), and `verify` is green on
+  the merged tree (`merge` checks CI and runs that `verify`).
+- **Before every merge: `tools\run.cmd merge-check --base release/m<k>`** (seconds, no Godot): each open PR onto
+  its base tip and each pair into it, textually and by symbols (what one side removes or changes and the other's
+  added lines use); a Markdown table for the wave comment; exit 1 on a conflict, an overlap or a PR it could not
+  check. An overlap is a lead, not a proof. When it flags the PR you are about to merge, either merge the side that
+  changes the symbol first and send the other to `pr-rebase` (inline for a docs or test-list conflict, below), or
+  first run `tools\run.cmd merge-check --trial <pr> <pr>... --base release/m<k>` with `run_in_background` (the base
+  plus the PRs merged in that order in a scratch worktree, then `verify`): green, merge in that order; red, merge the
+  first and send the later PR to `pr-rebase` with the trial's log in `why`. A chain you merge in one go gets a trial
+  too.
+- **The merge:** `tools\run.cmd merge <pr> --base release/m<k>` with `run_in_background` (12 to 14 minutes on this
+  PC: a fresh import plus the whole suite). It refuses `main`, any base outside `release/*` and a task's checkout;
+  a PR a human already merged is only fetched (the engineer merged #107 himself); otherwise it checks CI, merges
+  `--no-ff` in a scratch detached worktree at `origin/release/m<k>`, runs `verify` on the merged tree, pushes the
+  merge commit by hash, confirms the PR merged on GitHub and prints one `wave:` line: paste it into the wave comment.
+  A red `verify` or a conflict pushes nothing and leaves nothing to undo (logs and GdUnit reports in
+  `tools/out/merge-logs/`): tell the human and relaunch the task with the failure in `notes`. Never type its git
+  steps by hand: the guard asks for them, and the deny rule `git push *HEAD*` refuses `HEAD:`.
+- **Taking `main` in** (the engineer's answer N2): when the tooling track's manager says on your plan issue that
+  `main` has a change the stage should take in, run `tools\run.cmd merge --sync-main --base release/m<k>` at the
+  next wave boundary (no merge in flight), with `run_in_background`: `origin/main` merged into the release branch the
+  same way, `verify` on the merged tree, the push by hash. Then `merge-check --base release/m<k>` again (the open
+  task PRs onto the new tip); both go into the wave comment.
 - **Order.** Stacked PRs: the parent first. Never merge a parent while its child's workflow has not reached Publish:
   the merge deletes the parent branch the child's reviewers diff against and its publisher targets. If it happened
   anyway, relaunch the child fresh with `base: "release/m<k>"` (update its args file) once the running one ends.
@@ -181,21 +237,43 @@ locally.
   is on its task branch (AGENT_WORKFLOW §8.2, #51); while another live session works in that worktree it asks, so
   hand such a case to `pr-rebase` when the human is away.
 - A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
-  with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`): rebase agent → fresh
-  reviewer(s) → a fix agent only for a blocker or major. `why` names what merged and the PRs and handoffs to read;
-  `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets
-  one fresh relaunch with `reb.problems` in `steps`, then goes to the human.
+  with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
+  `second_review`, `skeptic`, `efforts` and `models` (roles rebase, review, netcode, second_review, skeptic, fix; the
+  rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4 agents, plus 1 for
+  `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read; `steps` says which
+  side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one fresh relaunch with
+  `reb.problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every blocker and major,
+  so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr> --json body -q
+  .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix agent that
+  changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
+- **A main-based track** (the tooling track, #170): you merge nothing. Before you ask the engineer to merge, run
+  `tools\run.cmd merge-check --base main` and name the safe order in chat and in the wave comment; a flagged overlap
+  gets a `--trial` or a `pr-rebase` first, as above. A PR that changes a shared file follows §2.8. After the
+  engineer merges a change a running milestone needs, say so on that milestone's plan issue (its manager then runs
+  `merge --sync-main`).
 - **The stage's end.** When every task is merged, open the PR from `release/m<k>` into `main` (`gh pr create --base
   main --head release/m<k>`; M3: #117): a table of the task PRs with their merge commits, every open "Needs the
   engineer" and "Needs the designer" item, and the issues a human closes after the merge (`Closes` does not fire
   from the release branch). Open it only when no task PR still targets `release/m<k>`: merging it deletes the branch
-  (auto-delete) and GitHub retargets such a PR to `main`. A human reviews and merges it.
+  (auto-delete) and GitHub retargets such a PR to `main`. Run `merge-check --base main` and put its table in the PR.
+  A human reviews and merges it.
 
 ## 6. Reporting and keeping slots busy
-- After each wave, a comment on the plan issue: merged PRs, decisions recorded (with links), in progress, order from
-  here, batched questions (numbered, recommendations), housekeeping for a human: `worktree-done` lines (§8) and the
-  issues to close once `release/m<k>` is merged into `main` (auto-close does not fire from the release branch and
-  agents never close issues). Never edit the plan issue's body.
+- After each wave, a comment on the plan issue: merged PRs (each `merge` `wave:` line), decisions recorded (with
+  links), in progress, order from here, batched questions (numbered, recommendations), housekeeping for a human:
+  `worktree-done` lines (§8) and the issues to close once `release/m<k>` is merged into `main` (auto-close does not
+  fire from the release branch and agents never close issues). Never edit the plan issue's body.
+- **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
+  <your session id> --compact` in a text block (at most ten lines: time and API list $ per task and in total, the %
+  of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
+  `$env:CLAUDE_CODE_SESSION_ID`. A run counts in the window it started in (with what it had spent so far, if still
+  running), so a task that spans waves shows up only partly: add the stage's running total, the `total API list $`
+  line of the same command with `--since <stage start>`, and compare its % with the kickoff's budget. This block is
+  the second thing to drop when the budget runs out, after the kickoff's first. Where a launch ran a model beyond
+  the shared list, add that model's line from the desktop app's `get_usage` tool (the session-management MCP
+  server; its `plan` part lists the per-model weekly limits with % used and reset time): `metrics` has no price for
+  it and weighs it at Opus rates.
+- **Merge safety**: the latest `merge-check` result, or its table when it flagged something.
 - **Handover data** in every wave comment: for each running run the issue, the worktree, the owning session's name,
   the runId and the args as a JSON block. A successor session (§7) relaunches from that, not from your scratchpad.
 - Keep every slot busy: when the next task waits for a merge, start what does not depend on it (a task's
@@ -206,9 +284,10 @@ locally.
 
 ## 7. Resume after a crash, a restart or a plan limit
 - A workflow throws when an agent returns nothing. Relaunch it the same way (name or `scriptPath`) with
-  `resumeFromRunId` and the **same args** (from the args file): finished agents return their saved results. A
-  resume replays agents only while their prompts are unchanged, so it needs the same script too: if `main` changed
-  `issue-task.js` since the launch, expect the changed agents to run again.
+  `resumeFromRunId` and the **same args** (from the args file, v2 args included): finished agents return their saved
+  results. A resume replays agents only while their prompts are unchanged, so it needs the same script too: if `main`
+  changed `issue-task.js` since the launch, expect the changed agents to run again.
+- A result with `stopped` is never resumed (§4): relaunch fresh.
 - A stacked task whose parent has merged since the launch: do not resume; relaunch fresh with
   `base: "release/m<k>"`.
 - After a PC restart or a crashed session: reopen the same session (`claude --resume`, or the app) and resume each
@@ -228,10 +307,11 @@ locally.
   PushNotification. It is suppressed while the human is active in the session, and the desktop app only flashes its
   icon while its window is in use; a PowerShell toast tests whether Windows notifications work at all.
 - Merged tasks' worktrees: list `tools\run.cmd worktree-done <n>` (from `D:\prime-game`) for the human in the
-  wave comment, to run once `release/m<k>` is merged into `main`; a worktree whose branch never reached main but
-  whose work did (merged into a parent) says so. Your `release-m<k>` worktree goes too, but `worktree-done` takes
-  only an issue number: give the human `cd D:\prime-game; git worktree remove .claude/worktrees/release-m<k>; git
-  branch -d release/m<k>`, to run after the closing PR has merged into `main`.
+  wave comment, to run once `release/m<k>` is merged into `main` (on the tooling track: once the engineer merged the
+  task's PR); a worktree whose branch never reached main but whose work did (merged into a parent) says so. Your
+  `release-m<k>` worktree goes too, but `worktree-done` takes only an issue number: give the human `cd
+  D:\prime-game; git worktree remove .claude/worktrees/release-m<k>; git branch -d release/m<k>`, to run after the
+  closing PR has merged into `main`.
 
 ## 9. Gotchas
 
@@ -273,13 +353,27 @@ locally.
   that sees too far). Before this, the review ran by hand on PR #154 twice, and both runs found real problems.
 - **Name a rename in both tasks' notes**, not only who owns which file. #153 renamed
   `PlayerRules.ghost_speed_factor` while #154 started reading it: each PR was green alone, the merged tree was red,
-  and `pr-rebase` fixed it.
+  and `pr-rebase` fixed it. `merge-check` now flags such a rename across open PRs (§5), but only once both PRs
+  exist: the notes still name it before the second task starts.
 - **A `pr-rebase` fix after the review gets a fresh netcode review.** When its fix agent changes netcode-relevant
   code after the reviewers ran, run `netcode-security-reviewer` again before the merge (done by hand for #154).
+  `pr-rebase`'s `second_review` runs before the fix agent, so it does not cover the fix.
 - **Never `cd <wt> && ...` in your Bash shell**: it stayed inside a worktree twice in M4. Only a subshell
   `(cd <wt> && ...)` or `git -C <wt>`.
 - **`§` in args on Windows.** A Python `print` of the args mangled it: pass the args inline in the Workflow call,
   or set `PYTHONIOENCODING=utf-8`.
+
+### 2026-10-02 (the AI productivity track, #170)
+- **`publish` after a rebase that changed `tools/runner`** needed a second run twice more (#176, #199): the M2
+  gotcha holds; the second run passes.
+- **A bare `cd` into a worktree** happened once more in a manager's shell: the M3 rule holds for every manager.
+- **A Git Bash path given to `tools\run.cmd`** (`/c/Users/...`) made a stray `D:\c\` folder: Python on Windows reads
+  it as a folder on the current drive. Give `tools\run.cmd` Windows paths (`C:/Users/...`); Git Bash paths only to
+  `tools/run.sh`.
+- **An older `issue-task.js` logs and ignores the v2 args**: a launch from a main checkout that was not pulled runs
+  without the reviews they add. Check the prerequisite in §1 first.
+- **Numbers** (M4, the pipeline v2 ADR's baseline): about 82 minutes, $24 API list and 0.55% of a Max 20x week per
+  task; a stage's budget in % starts from them.
 
 ## 10. Kickoff template
 The human copies it, fills the placeholders and sends it, in English or in their own language. Moving state (which
@@ -287,7 +381,7 @@ issues, which PRs) goes only in the message, never in this file.
 
 ```text
 ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
-task = one issue-task workflow, at most three at once.
+task = one issue-task workflow, at most three at once (about six task workflows across all tracks).
 
 Start from: <my review of the design PR #<pr> and its handoff on #<design issue> | the issues below>.
 <If from a design: open the stage's issues from that handoff with my review's changes, show me the list and the
@@ -295,21 +389,27 @@ order, and wait for my "yes".>
 
 Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
-Release branch: release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs
-into it after green CI, fresh reviews with no open blocker or major and verify on the merged tree; I merge it into
-main through one PR at the end.
+Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
+with tools\run.cmd merge after green CI, fresh reviews with no open blocker or major, merge-check and verify on the
+merged tree; I merge it into main through one PR at the end | every PR straight into main (the tooling track); I
+merge each; you run merge-check --base main before you ask me>.
 Order: <order, or "as in the handoff">; stack with start --base <parent> only where a task depends on an unmerged
 PR.
-Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150. I approve exceeding the size guideline
-(up to 5 agents per workflow) and a budget of about <N> tasks × 900k subagent tokens for the stage; do not ask
-before each workflow once I have said yes to your restatement.
+Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; test_review once mutants is on the
+base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
+Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
+≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow) and a budget of
+about <P>% of the weekly limit for the stage (metrics converts API list $ to it); do not ask before each workflow
+once I have said yes to your restatement.
+Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
+PRs, tasks red twice>, at most <Q>% of its own weekly window>; you stay on the shared models.
 Rules: only I merge into main; no issue is closed by an agent; each agent only in its worktree; no git stash;
 you never leave your shell inside a worktree; temporary files in scratchpad/a<n>/ or tests/scratch/; Godot
 windows only through shot; a game rule no ADR settles becomes options with a recommendation under "Needs the
 engineer"; content/ and levels/ files are provisional, I approve them in the PR.
 My decisions: the ADRs and my answers in the comments of <issues> (newer ones win).
 Traps: <known traps>; tasks that edit .claude/ run only while I am around; <decisions reserved for me>.
-Drop first if the budget runs out: <fillers>, then <lowest-priority task>.
+Drop first if the budget runs out: <fillers>, then the per-wave metrics report, then <lowest-priority task>.
 When nothing more can run without me: a comment on #<plan issue> and stop. "продовжуй": check the live
 state and continue.
 ```
