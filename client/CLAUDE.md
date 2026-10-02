@@ -85,5 +85,7 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
 - Key events do run headless: `Input.parse_input_event(event)` then `Input.flush_buffered_events()` reaches
   `_input`, `_unhandled_input` and the action states (#169's `esc_menu_input_test.gd`); release every key a test
   holds. The mouse mode does not (headless keeps none): give `Game` a `MousePointer` that remembers. How the UI
-  looks and feels: `shot` of a preview scene and a human playtest (the M4 ADR's §6); say so in the PR.
-- Never open a window yourself: `run`, `host` and `join` with `--headless` only.
+  looks and feels: `shot` of a preview scene, `playcheck` of the real game in off-screen windows (keys only, its
+  scenarios in `tools/playcheck/`) and a human playtest (the M4 ADR's §6); say so in the PR.
+- Never open a visible window: `run`, `host` and `join` with `--headless` only; `shot` and `playcheck` are the
+  off-screen exceptions.

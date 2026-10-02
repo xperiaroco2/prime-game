@@ -32,6 +32,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--repeat", type=int, metavar="N", help="N runs in a row with a per-suite comparison (the nightly flaky job)"
     )
+    p.add_argument(
+        "--shards",
+        type=int,
+        metavar="K",
+        help="K GdUnit4 processes at once (1: one process). Default: with no paths, from the CPU count; with paths, 1",
+    )
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
     sub.add_parser("selftest", help="unit tests of the runner itself")
@@ -39,6 +45,39 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
     p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
     p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
+    p.add_argument("--chaos", action="store_true", help="the chaos bots: a hostile and a malformed peer against the host")
+    p.add_argument("--seed", type=int, help="--chaos: the first seed (default: random, printed)")
+    p.add_argument("--runs", type=int, default=1, help="--chaos: seeds to run, from --seed up (default 1)")
+    p.add_argument("--long", action="store_true", help="--chaos: the match in which the hostile also dies")
+    p.add_argument("--enet", action="store_true", help="--chaos: over ENet on 127.0.0.1 (the invariants only)")
+
+    from .mutants import HELP as MUTANTS_HELP, TEST_SECONDS
+
+    p = sub.add_parser(
+        "mutants",
+        help="plant each fault of a spec in a scratch worktree of HEAD and run its tests there",
+        epilog=MUTANTS_HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("spec", help="the JSON spec of the mutants (format below)")
+    p.add_argument(
+        "--seconds",
+        type=int,
+        default=TEST_SECONDS,
+        help=f"hard timeout of each test run; a longer one is an error (default {TEST_SECONDS})",
+    )
+
+    p = sub.add_parser(
+        "playcheck", help="scripted game windows off-screen (and bots) with screenshots at named steps; never on CI"
+    )
+    p.add_argument("scenarios", nargs="*", help="scenario names in tools/playcheck/scenarios/ (default: every one)")
+    p.add_argument("--seconds", type=int, help="hard timeout of each scenario's run (default 300)")
+
+    p = sub.add_parser("perf", help="the host's cost with 10 bots: tick time, snapshot sizes, bytes per peer (not verify)")
+    p.add_argument("--bots", type=int, default=10, help="bots in the match, 2 to 10 (default 10)")
+    p.add_argument("--seconds", type=int, default=60, help="the round's length, 20 to 600 (default 60)")
+    p.add_argument("--enet", action="store_true", help="real sockets on 127.0.0.1 and the real clock (default loopback)")
+    p.add_argument("--baseline", help="report to compare with (default tools/out/perf/baseline.json, else the last)")
 
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
@@ -48,6 +87,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("publish", help="fetch, rebase the task branch on its base, verify, push with a lease")
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
+
+    # Merge safety (#181): checks across open PRs, and a manager's merge into a release branch.
+    p = sub.add_parser("merge-check", help="open PRs onto their base and pairwise: textual conflicts, symbol overlaps")
+    p.add_argument("prs", nargs="*", type=int, help="PR numbers (default: every open PR, grouped by base)")
+    p.add_argument("--base", help="only the PRs into this base; with --trial, the base to merge onto")
+    p.add_argument(
+        "--trial", action="store_true", help="merge the PRs in order onto the base in a scratch worktree, then verify"
+    )
+    p = sub.add_parser("merge", help="merge a PR (or main) into release/<x>: verify on the merged tree, push by hash")
+    p.add_argument("pr", nargs="?", type=int, help="the PR to merge")
+    p.add_argument("--base", required=True, help="the release branch, release/<x> (main is refused)")
+    p.add_argument("--sync-main", action="store_true", help="merge origin/main into the base instead of a PR")
 
     p = sub.add_parser("start", help="put the checkout on the task branch of an issue; assign it; board In progress")
     p.add_argument("issue", type=int, help="issue number")
@@ -181,8 +232,11 @@ def main(argv: list[str] | None = None) -> int:
             from . import gdunit
 
             if args.repeat is not None:
+                if args.shards is not None:
+                    raise Failure("--repeat runs one process per run; drop --shards")
                 return gdunit.repeat(args.repeat, paths=args.paths or None)
-            return gdunit.main(paths=args.paths or None)
+            shards = {"shards": args.shards} if args.shards is not None else {}
+            return gdunit.main(paths=args.paths or None, **shards)
         if args.command == "verify":
             from . import verify
 
@@ -194,7 +248,25 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "bots":
             from . import bots
 
+            if args.chaos:
+                if args.scenarios or args.instances != 1:
+                    raise Failure("--chaos plays its own match: no scenario names and no --instances")
+                return bots.chaos(args.seed, args.runs, long=args.long, enet=args.enet, seconds=args.seconds)
+            if args.seed is not None or args.runs != 1 or args.long or args.enet:
+                raise Failure("--seed, --runs, --long and --enet need --chaos")
             return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
+        if args.command == "mutants":
+            from . import mutants
+
+            return mutants.main(args.spec, seconds=args.seconds)
+        if args.command == "playcheck":
+            from . import playcheck
+
+            return playcheck.main(args.scenarios, seconds=args.seconds)
+        if args.command == "perf":
+            from . import perf
+
+            return perf.main(bots=args.bots, seconds=args.seconds, enet=args.enet, baseline=args.baseline)
         if args.command == "board":
             from . import board
 
@@ -203,6 +275,14 @@ def main(argv: list[str] | None = None) -> int:
             from . import publish
 
             return publish.main(base=args.base)
+        if args.command == "merge-check":
+            from . import merge
+
+            return merge.check(args.prs, base=args.base, trial=args.trial)
+        if args.command == "merge":
+            from . import merge
+
+            return merge.merge(args.pr, base=args.base, sync_main=args.sync_main)
         if args.command == "start":
             from . import start
 

@@ -23,6 +23,7 @@ from .common import (
     bad,
     check_godot_version,
     ensure_out,
+    ensure_user_dir,
     ok,
     rel,
     require_godot,
@@ -65,8 +66,12 @@ def command(
     audio: str,
     user_args: list[str],
     window: list[str] | None = None,
+    engine_args: list[str] | None = None,
 ) -> list[str]:
-    """The Godot command line of one instance; `window` (such as --position and --resolution) only with a window."""
+    """The Godot command line of one instance; `window` (such as --position and --resolution) only with a window.
+
+    `engine_args` (such as `--fixed-fps 60`) go to the engine, before the target; `user_args` to the game, after `--`.
+    """
     cmd = [exe, "--no-header", "--path", str(project)]
     if headless:
         # --headless also forces the Dummy audio driver; the display driver alone keeps real audio.
@@ -77,6 +82,7 @@ def command(
         cmd += window or []
         if audio == "dummy":
             cmd += ["--audio-driver", "Dummy"]
+    cmd += engine_args or []
     cmd += ["-s", target] if target.endswith(".gd") else [target]
     if user_args:
         cmd += ["--", *user_args]
@@ -182,6 +188,7 @@ def gui_exe() -> str:
     if not Path(gui).is_file():
         raise Failure(f"GODOT_GUI_BIN points to a missing file: {gui} (env in ~/.claude/settings.json)")
     check_godot_version(gui, "GODOT_GUI_BIN")
+    ensure_user_dir()  # require_godot does it for the console exe
     return gui
 
 
@@ -207,6 +214,7 @@ def main(
     instances: int = 1,
     audio: str = "dummy",
     user_args: list[str] | None = None,
+    engine_args: list[str] | None = None,
 ) -> int:
     say("run")
     if headless and offscreen:
@@ -224,7 +232,14 @@ def main(
     ensure_out()
     import_if_missing()
     cmd = command(
-        exe, ROOT, res_path, headless=headless, offscreen=offscreen, audio=audio, user_args=user_args or []
+        exe,
+        ROOT,
+        res_path,
+        headless=headless,
+        offscreen=offscreen,
+        audio=audio,
+        user_args=user_args or [],
+        engine_args=engine_args,
     )
     say(f"        {' '.join(cmd[1:])}" + (f"  x{instances}" if instances > 1 else ""))
     name = Path(res_path).stem

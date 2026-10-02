@@ -55,6 +55,23 @@ def warnings_policy() -> list[str]:
     return problems
 
 
+# A worktree's override.cfg (common.ensure_user_dir) sets these; ProjectSettings.save(), which the editor's Project
+# Settings dialog calls, writes them into project.godot (probed on 4.7.2, #182). Committed, they would move every
+# checkout's user://, the engineer's game data included, and every export's.
+USER_DIR_KEYS = ("config/use_custom_user_dir", "config/custom_user_dir_name")
+
+
+def user_dir_policy() -> list[str]:
+    """Problems with the [application] user:// settings in project.godot: it must keep Godot's default folder."""
+    application = section_values((ROOT / "project.godot").read_text(encoding="utf-8"), "application")
+    return [
+        f"project.godot [application] {key}={application[key]}: the editor copied it from a worktree's override.cfg"
+        " when it saved project settings; delete the line (every checkout and export would use that user://)"
+        for key in USER_DIR_KEYS
+        if key in application
+    ]
+
+
 def run_import(label: str = "import") -> list[str]:
     """Headless import: builds the class cache and .uid files. Exits 0 even on script errors.
 
@@ -84,6 +101,14 @@ def main(files: list[str] | None = None) -> int:
             bad(line)
     else:
         ok("warnings policy (" + ", ".join(REQUIRED_WARNINGS) + " = Error)")
+
+    user_dir = user_dir_policy()
+    if user_dir:
+        failed = True
+        for line in user_dir:
+            bad(line)
+    else:
+        ok("project.godot keeps the default user://")
 
     before = git_status()
     uid_problems = run_import()

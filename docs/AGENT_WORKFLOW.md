@@ -53,9 +53,9 @@ does (#159). Setup:
   the issue and open the PR through the session's GitHub tools, leave the board column to the manager, and push with
   `publish --base release/m<k>` (it needs no `gh` when given the base) or a plain `git push -u origin <branch>` after
   a green `verify`.
-- **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` (it stops with "needs a
-  desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the humans' settings
-  files). A full `verify` took 5.5 minutes in one (test, selftest and bots-enet the longest).
+- **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` or run `playcheck` (they
+  stop with "needs a desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the
+  humans' settings files). A full `verify` took 5.5 minutes in one (test, selftest and bots-enet the longest).
 
 ## 3. Instruction files and memory
 
@@ -145,14 +145,23 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
 
 - **Model guard [applied]:** `"availableModels": ["opus", "sonnet", "haiku"]` in the shared settings. A request for
   another model falls back with a warning. Fable appears in no shared file
-  ([ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)). 👤 Both humans keep **usage credits off**
-  or set a spend cap: the only hard stop on money.
+  ([ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)). Its amendment A (the engineer's answer N1
+  (b), 2026-10-02): the engineer may add Fable to `availableModels` in his own `~/.claude/settings.json` (the lists
+  merge across non-managed scopes), and a manager passes it per launch through a workflow's `models` argument, only
+  where the kickoff allows it (stage designs, second reviews of PRs that touch `core/ server/ net/ tests/harness/`,
+  audits, a task red twice), within at most half of its weekly window across tracks, reported per wave. It stays out
+  of `.claude/`, `.github/`, every CLAUDE.md and every workflow default (`test_agents_check.py` and
+  `test_workflows.py` assert it). 👤 Both humans keep **usage credits off** or set a spend cap: the only hard stop on
+  money.
 - **Routing check [applied]:** each subagent transcript under
   `~/.claude/projects/D--prime-game/<session>/subagents/agent-*.jsonl` records the model that actually served it,
   and `agent-*.meta.json` next to it the `agentType` and any requested `model`. `tools\run.cmd agents-check`
-  (this session; `--all` for every session of the checkout and its worktrees) asserts the model **family**, not exact
-  IDs: the requested model, else the agent file's `model:`. A request outside `availableModels` must be served by
-  another family (the model guard). `finish-task` runs it after the reviews.
+  (this session; `--all` for every session of the main checkout and its worktrees, from any of them) asserts the model
+  **family**, not exact IDs: the requested model, else the agent file's `model:`. `availableModels` is the shared list
+  merged with the user-scope one (#183). A request from the user list is ok when it served and listed as "fell back"
+  when another family served it; a request in neither list must be served by another family (the model guard).
+  Workflow agents' transcripts (`<session>/subagents/workflows/`) are not read yet. `finish-task` runs it after the
+  reviews.
 - A new `.claude/agents/` directory is only seen by sessions started after it exists.
 
 ## 6. Skills [applied]
@@ -246,8 +255,9 @@ Rules for every workflow run:
   reviewer reads the PNGs, and the rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per
   role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish);
   `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
-  default names a model (the model-guard ADR). A missing `mutants` or `playcheck` on the task's branch is reported
-  in the result and the PR, and the run goes on. `pr-rebase` takes `second_review`, `skeptic`, `efforts` and
+  default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
+  where the kickoff allows it (its amendment A, §5). A missing `mutants` or `playcheck` on the task's branch is
+  reported in the result and the PR, and the run goes on. `pr-rebase` takes `second_review`, `skeptic`, `efforts` and
   `models` (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or
   major, no fix agent runs and the result's `note` asks the manager to list the refuted findings with their reasons
   in the PR body. The kickoff's approved agent count must cover the options the manager will pass; each script's
@@ -262,18 +272,50 @@ Rules for every workflow run:
   worktree commits, a rebase in progress) and asks.
 - **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>`
   from `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base
-  release/m<k>`). The manager merges a task PR into it once CI is green, the fresh reviews left no open blocker or
-  major, and `verify` passes on the merged tree: locally, in its own `release-m<k>` worktree on a detached HEAD at
-  `origin/release/m<k>` (a red run leaves nothing to undo), `git merge --no-ff`, `verify`, then `git push origin
-  <commit>:release/m<k>` with the merge commit's hash (`HEAD:` is refused by the deny rule `git push *HEAD*`), a
-  fast-forward the pre-push hook allows; GitHub marks the PR merged.
+  release/m<k>`). Before each merge the manager runs `tools\run.cmd merge-check` (#181): every open PR onto its
+  base tip and each pair into the same base, textually (`git merge-tree --write-tree`) and by symbols (what one side
+  removes, renames or changes, used by the other side's added lines: GDScript and runner Python members and
+  signatures, wire rows and fields, `.tres` fields, deleted files); seconds, no Godot; a Markdown table per base for
+  the wave comment, each overlap with file:line on both sides, exit 1 on a conflict, an overlap or a PR it could not
+  check (its base gone from origin). On an overlap it
+  merges the side that changes the symbol first and has the other rebased (`pr-rebase`), or first runs
+  `merge-check --trial <pr>...`: the base plus the PRs merged in order in a scratch detached worktree under
+  `tools/out/merge/`, that tree's own `verify`, then the worktree removed. The manager merges a task PR once CI is
+  green, the fresh reviews left no open blocker or major, and `verify` passes on the merged tree, with
+  `tools\run.cmd merge <pr> --base release/m<k>` from the main checkout or its `release-m<k>` worktree (it refuses
+  `main`, any base outside `release/*` and a task's checkout): fetch (a PR a human already merged is only fetched),
+  green CI (`gh pr checks`), `git merge --no-ff` with GitHub's message in a scratch detached worktree at
+  `origin/release/m<k>`, `verify` on the merged tree (always: no shortcut for an unchanged tree; a red run or a
+  conflict pushes nothing and leaves nothing to undo), `git push origin <commit>:refs/heads/release/m<k>` by hash (a
+  fast-forward the pre-push hook allows; the deny rule `git push *HEAD*` refuses `HEAD:` typed by hand), the scratch
+  worktree removed, the PR confirmed merged on GitHub, and one `wave:` line for the wave comment. Its `verify` takes
+  minutes: run it with `run_in_background`. At a wave boundary, when the AI productivity track (#170) says `main`
+  has something the stage needs, `merge --sync-main --base release/m<k>` takes `origin/main` in the same way. Its git
+  commands run inside the runner, so the session types only `tools\run.cmd merge ...`, which runs without a prompt
+  from the main checkout and from the `release-m<k>` worktree. A red `verify` of `merge` or `merge-check --trial`
+  keeps the merged tree's logs and GdUnit reports in `tools/out/merge-logs/<log>/`. A track whose PRs go straight into `main` (#170) runs `merge-check`
+  before asking the engineer to merge and names the safe order; `merge` never merges into `main`.
   `gh pr merge` stays denied (the `main` rulesets ask only for a PR and green checks, so it would let any agent merge
   into `main`). The stage ends with one PR from `release/m<k>` into `main`, which a human reviews and merges; the
   stage's issues stay open until then (`Closes` fires only on the default branch) and a human closes them.
-- **The human:** writes the kickoff (template in the skill), reviews and merges the stage's PR into `main`, answers
-  the numbered "Needs the engineer" questions, and runs the housekeeping (`worktree-done`, closing issues). The
-  manager reports on the plan issue after each wave and stops with a comment when nothing more can run without the
-  human.
+- **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7,
+  the engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170)
+  sends its PRs straight into `main`, each merged by the engineer (the release-branch ADR's tooling-track bullet; how
+  a milestone takes `main` in: Git flow above). At most about six task workflows run at once across all tracks (three
+  per stage). Each kickoff states its budget as a percentage of the weekly limit, and its manager reports its own
+  spend in every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`, plus
+  the stage's running total (`--since <stage start>`): a run counts in the window it started in.
+  Shared files (N5 (c)): `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track
+  (an issue there, landing between the other managers' waves: a mid-wave change breaks their resumes);
+  `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` pairs
+  PRs only within one base, so before such a change merges its manager lists the open PRs into another base that
+  touch the same files (`gh pr list --state open --json number,baseRefName,files`) and names them on that track's
+  plan issue; the overlap then shows in that track's `merge-check` after its next `main` sync. After the engineer
+  merges a change to a shared file, the tooling track's manager says so on each running manager's plan issue.
+- **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
+  reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
+  housekeeping (`worktree-done`, closing issues). The manager reports on the plan issue after each wave and stops
+  with a comment when nothing more can run without the human.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
@@ -647,6 +689,33 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
   `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
   project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
+- **`mutants <spec.json> [--seconds N]` [applied]** (#184; item 4 (b) of the
+  [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), the tool of `issue-task`'s
+  `test_review`): shows that a change's tests fail when its code is wrong. Each mutant of the spec names a tracked
+  `file` under `core/ server/ net/ client/ voice/`, the 1-based `line` on which `original` (exact text, which must
+  start there once) begins, its `replacement`, and the `tests` (files or folders under `tests/`) that should catch it;
+  `mutants --help` prints the format. A mutant on a `class_name` or `extends` line is refused: the scratch tree is
+  imported once, so its global class cache would be stale. It refuses a dirty worktree (the mutants run HEAD) and runs nothing on an
+  invalid spec. A run never writes the task's tree, so a run killed half-way (a 600 s Bash limit, a stopped
+  workflow) cannot leave a planted fault for the publisher to commit: it makes the scratch worktree
+  `tools/out/mutants/tree-<checkout folder>` (`git worktree add --detach` of HEAD; a start first removes one a killed
+  run left), copies the checkout's `.godot` import cache and its files' modification times in (Godot then rechecks
+  nothing: the import takes about 7.5 s, 10 to 11 s afresh), imports it once, runs every named test once without a
+  mutant (a red baseline makes every mutant an `error`), then plants each mutant there, runs its tests (`test` without
+  the import) and restores the file: `killed` (a named test failed; they are listed), `survived` (a finding, not a
+  failure) or `error` (the mutant does not compile, `--seconds` (default 300) ran out, or the tests could not judge;
+  the reason and the log). At the end it removes the scratch worktree, also after an exception, and confirms the
+  task's `git status` unchanged. A lock in `tools/out/mutants/` allows one run per checkout (the OS releases it when
+  a run is killed). The table is printed and written to `tools/out/mutants/<spec name>.md` after every mutant, with
+  each test run's output and Godot's log in `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever
+  the results; 1: an invalid spec, or a run that could not start or finish (a dirty tree, another run, a failed
+  import), nothing left behind; 2: the scratch worktree could not be removed or the task's tree changed: run no more
+  mutants and tell the human (`git worktree list` shows it; the next run removes it first). One mutant per call takes
+  about 17 to 19 s with small suites (setup about 9 s, baseline and mutant about 4 s each); several, or tests that
+  name all of `tests/` (two full runs: 596 s while other worktrees verified), go in the background, and their report
+  file shows the progress. The runner's own git commands are not the session's shell
+  commands, so the guard judges only `tools\run.cmd mutants <spec>`, which passes from a task worktree and the main
+  checkout; a hand-typed `git worktree remove` of the scratch tree asks (§8.2).
 - **`host` and `join` [applied]** (3i, #103; windows since #149; `docs/ARCHITECTURE.md` §4.6 and §4.7, the M4 ADR's
   E20): the game over ENet. `host [--port P] [--clients N] [--local] [--seconds S]` hosts on every interface, or on
   127.0.0.1 only with `--local` (no firewall prompt), and with `--clients N` (up to 7) starts N clients that join it
@@ -690,6 +759,31 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over ENet a scenario step that
   needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is timing-dependent
   (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself (§4.6).
+  `bots --chaos [--seed N] [--runs K] [--long] [--enet]` (#188; `docs/ARCHITECTURE.md` §4.6 "Chaos bots") runs the
+  chaos bots instead: `tests/harness/chaos/chaos_main.gd`, a hostile player and a malformed peer against the host
+  beside honest bots, for K seeds from N (without `--seed` a random one, printed first, so a failed night run names
+  the seed that replays it); per seed a baseline with the chaos peers idle, the chaos run and one with hidden roles
+  swapped, in one process over the loopback; `--long` is the match in which the hostile also dies, `--enet` one run
+  over ENet on 127.0.0.1 on a free port (the invariants only). A failure prints `CHAOS seed <n>: FAILED` and each
+  broken rule (the input, the phase and life state, what was expected and what came).
+- **`perf [--bots N] [--seconds S] [--enet] [--baseline FILE]` [applied]** (#187; item 6 of the [AI productivity
+  ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)): the host's cost with 10 bots, measured
+  from the harness (`tests/harness/perf/`, ARCHITECTURE §9.7); nothing in `server/` or `net/` changes. One seeded
+  match (every bot readies, walks a spoke across the greybox, the round ends by time up after S seconds, default 60)
+  in one headless process: over the loopback on the simulated clock at `--fixed-fps 60` (about 10 s for a 20 s
+  round), or with `--enet` over real sockets on 127.0.0.1 on the real clock (the round's length and more). It writes
+  `tools/out/perf/<date>.json` (UTC; `-enet` over ENet, `-<N>b<S>s` for a run other than 10 bots and 60 s) and
+  `summary.md`: p50/p95/max of the host step (`Time.get_ticks_usec` around `HostSession.step`, steps that ran a tick;
+  inside it the harness's meter only appends to a buffer, folded after), `TIME_PHYSICS_PROCESS` (read about once a
+  second, host and bots together; how the engine refreshes it between reads is not documented), events per tick, each
+  `Snapshot`'s payload bytes per remote peer per tick, frame bytes per remote peer per second down (all, snapshots,
+  the bots' synthetic voice) and up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets
+  and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceDown`). It compares
+  with `--baseline`, else `tools/out/perf/baseline.json`, else the newest earlier report of the same transport, bots
+  and round, and lists every metric that moved by more than 20% (a placeholder, not a decision); only a failed match
+  fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to
+  pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
+  with a release host's cost.
 - **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact]` [applied]** (#178;
   item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose baseline
   it reproduces): time, tokens and API list $ of the task workflows, read-only from the Claude Code transcripts. It
@@ -712,15 +806,35 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   start> --compact` into each wave comment. API list $ is a weight (one price table in `metrics.py`, its source and date
   beside it), not money spent; no transcripts is a message and exit 0, and so is an empty window, which also writes an
   empty report over an older one.
+- **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
+  windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw
+  before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`),
+  names its players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more
+  windows join it, and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a
+  `BotScenario`'s scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup
+  window 1 sends as the host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps:
+  `wait phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`,
+  Esc menu and pointer, never `HostSession`, the match or `core/` (invariant 2); `press <action>` (its key through
+  `Input.parse_input_event`), `hold`/`release` (`Input.action_press`), `frames N` and `shot <name>`. The windows sit
+  at `shot`'s off-screen position with the dummy audio driver, never headless. The game gets a pointer that only
+  remembers, and playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse
+  (`use`, spectate cycling) is out of its reach. PNGs: `tools/out/playcheck/<scenario>/<shot>.png` (`gh` cannot
+  upload them: the PR lists their paths and says what each shows); logs: `tools/out/logs/playcheck/<scenario>/`. A
+  run fails on a wait past its timeout (the window prints the step's line and what it saw, and saves
+  `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not done within
+  `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started through
+  the stop file (else a kill). Desktop only: CI and `verify` never run it; an agent may (off-screen windows, like
+  `shot`). Scenarios: `esc_menu` (#169) and `spectate` (#168).
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
-  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`, `run`,
-  `agents-check`, `credits`, `host`, `join`, `bots`, `metrics` (all three above), and `hook` (for Claude Code only).
-  Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
-  launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
-  PowerShell) the runner takes the machine paths from the Claude settings (§2).
+  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`, `merge` (§7.1),
+  `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `metrics`, `mutants`, `playcheck`,
+  `perf` (the last seven above), `permissions` (§8.1), and `hook` (for Claude Code only). Pins and pass/fail rules:
+  [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git Bash;
+  `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
+  runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
@@ -731,12 +845,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
   `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
   imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots`
-  and `bots-enet`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
+  and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
   output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
   clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
   it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check). The
   summary keeps the serial order (`doctor`, `lint`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
-  `bots-enet`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the test count.
+  `bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
+  test count.
   Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
   `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of
   `tools/runner/` at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds),
@@ -744,7 +859,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   runner test that reaches the real lanes fails instead of starting `verify` inside `verify`; a runner test that
   starts Godot carries `@starts_godot` (`runner.verify`). `bots` is `bots` (every scenario in one process, about
   8 s) and `bots-enet` is `bots dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario
-  ends by time up on a 40 s clock that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `game` (#149, about 5 s) starts
+  ends by time up on a 40 s clock that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos`
+  (#188, about 6 s) is `bots --chaos --seed 188001`, the short match's three runs; 20 runs in a row passed
+  (2026-10-02). `game` (#149, about 5 s) starts
   `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
   (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
   file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
@@ -759,6 +876,34 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
   (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
   branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
+- **An own `user://` per worktree [applied]** (#182): Godot names `user://` after the project, so every checkout of
+  "PrimeGame" shared one folder, and two worktrees' `test` runs cleared each other's GdUnit4 files in `user://tmp`.
+  Before every Godot start (`require_godot`, and a windowed `run`) the runner writes a gitignored `override.cfg` into
+  a linked worktree (one whose `.git` is a file: a task's `.claude/worktrees/<n>`, a scratch worktree) with
+  `application/config/use_custom_user_dir=true` and `custom_user_dir_name="Godot/app_userdata/PrimeGame-<folder>-<6
+  hex of its path>"`. Godot 4.7.2 joins the name to the app-data folder, so worktree 182's `user://` is
+  `%APPDATA%\Godot\app_userdata\PrimeGame-182-7f974f` (Linux: under `~/.local/share/godot/app_userdata/`). The main
+  checkout and a clone (CI, a cloud session) have a `.git` folder and get no file: the humans' settings and saves stay
+  in Godot's default `%APPDATA%\Godot\app_userdata\PrimeGame`. An export gets that default folder too: it packs a
+  non-resource file only when a preset's include filter names it (there is no preset yet), and an exported game reads
+  an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is left alone, with a warning. A
+  removed worktree's folder stays behind in `%APPDATA%\Godot\app_userdata\` (Godot's logs, a few replays). Saving
+  project settings in a worktree's editor (`ProjectSettings.save()`) copies both keys into `project.godot` (probed on
+  4.7.2), which would move every checkout's and export's `user://`: `check` fails on them; delete the two lines.
+- **`test` in shards [applied]** (#182): `test` with no paths runs the suites in K GdUnit4 processes at once, K =
+  half the logical CPUs, at most 4 (`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K`
+  or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>`, `test --repeat N` and
+  `gdunit.main(paths)` stay one process. The shards are balanced by the last per-suite times
+  (`tools/out/logs/gdunit-times.json`, merged after every run; a fresh worktree reads the newest one of another
+  checkout, CI restores it from the Actions cache): the longest suite first, each to the least loaded shard. A
+  shard is one GdUnit4 process given its scripts one by one (`-a <file>`; together every `.gd` file a one-process
+  run's folder scan loads), with `APPDATA` (Linux: `XDG_DATA_HOME`) set to `tools/out/gdunit-user/shard-<i>`, which
+  gives it a `user://` of its own; its report goes to `tools/out/gdunit/shard-<i>/`, its log to
+  `tools/out/logs/test-shard<i>.log`, and `test.log` holds every shard's log in turn. Each shard is judged as a
+  one-process run (exit code, `results.xml`, orphans named), a shard whose `user://` stayed empty fails, and the
+  merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
+  declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
+  processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
 - **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
   from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
   `docs.godotengine.org/en/4.7/`.
@@ -809,7 +954,6 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 | Godot MCP server; if needed, prefer an in-game debug autoload plus the bot harness | M4 revisit |
 | GDScript LSP bridge; Context7 (off; if ever used, pin `/websites/godotengine_en_4_7`) | After M2 |
 | Trial the Superpowers plugin, engineer-only, on the M1 throwaway spike | M1, optional |
-| A Fable `code-reviewer-deep` as the engineer's personal opt-in, never in workflows | On demand |
 | Auto permission mode | After the M0 guard tests pass |
 | `tools\run.cmd merge` (agent merges after the human says "merge", with CI and approval checks) | If manual merging becomes friction |
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
@@ -831,19 +975,23 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | What | Where and when | Report |
 |---|---|---|
 | `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, a free Linux runner, the latest `main` commit; 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`) | The run's summary page and artifact `nightly-flaky`; on a failure a comment with the run link on the "Night jobs" issue |
+| `nightly.yml`, job `perf`: `tools/run.sh perf` (10 bots over the loopback, a 60 s round) with `--baseline` the last successful night's report | The same run | The run's summary page and artifact `nightly-perf`; changes beyond the threshold are listed there, never a failure; a failed match comments like `flaky` |
+| `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
-- **`test --repeat N`** runs the GdUnit4 suites N times in a row; any failed run fails it. Each run's report goes to
-  `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`; `summary.json` (every suite:
-  tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
+- **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run; any failed run fails it.
+  Each run's report goes to `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`;
+  `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
   run (it crashed or timed out) or skipped in it counts neither way.
 - **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite
   action `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job
   is one job in `nightly.yml` (checkout, the setup, one runner command, an upload); the job `report` lists them all
   in `needs` and comments when one failed or timed out, creating the "Night jobs" issue (`area:tooling`) the first
-  time. `report` alone gets `issues: write`; the rest has `contents: read`. `perf` (#187) and the long chaos run
-  (#188) come as one job each. `tools/runner/tests/test_github_workflows.py` parses every workflow and action and
+  time. `report` alone gets `issues: write`; the rest has `contents: read`. `perf` (#187) keeps its report for the
+  next night in an `actions/cache` entry (`tools/out/perf-last/last.json`, a new key per run restored by its prefix,
+  saved only when the job passed), which needs no permission beyond `contents: read`; the long chaos run is the job
+  `chaos` (#188). `tools/runner/tests/test_github_workflows.py` parses every workflow and action and
   checks the triggers, permissions, the shared setup, `needs`, and that no action beyond the four CI already uses
   appears (a new one is the engineer's call).
 - **GitHub's limits** (docs.github.com, "Events that trigger workflows", read 2026-10-02): a scheduled run uses the
@@ -864,6 +1012,10 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   3 runs": each run's status, **flaky tests** (an issue to fix the test or the race; never skip or delete it without
   the engineer's approval), **failed in every run** (a regression on `main`: fix first), and the suites with a
   failure. The artifact `nightly-flaky` holds each run's HTML report, `summary.json` and the logs.
+- The perf job's section of the summary page: its numbers with the wire budgets' headroom, and the metrics that
+  moved by more than the threshold against the last night. A jump in the host step or the bytes per peer after a
+  merge is worth an issue (timings on a shared runner are noisy: look for a move that stays); the artifact
+  `nightly-perf` holds the report JSON and the run's log.
 - A night-audit summary (one a night, first line `night-audit <lens>, <date>, origin/main <sha>`): what it checked,
   the issues it opened, and what the skeptic refuted or could not decide (those are not issues). Its issues:
   `gh issue list --search "\"Found by: night-audit\" in:body"`. A wrong one is closed by a human (label `invalid`).
