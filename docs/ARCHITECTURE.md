@@ -1132,7 +1132,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   1. malformed frames (too short, too large, an unknown kind, random bytes behind one, the wrong direction or lane,
      a payload over its kind's cap, truncated, trailing bytes) and payloads the codec rejects (a bool not 0 or 1,
      item 0xFFFF, peer 0, a NaN or infinite float, unknown flag bits, a capital in an id, bytes after the last
-     field, an empty Opus frame), and `ForceRole` (kind 24) from a peer other than 1: counted under the reason
+     field, an empty Opus frame), and `ForceRole` (kind 24) and `ForceClock` (kind 25) from a peer other than 1: counted under the reason
      `ChaosFrames` names (§4 Transport, §4.3, §4.4, E17), with no reply; no role changes (the forced roles hold);
   2. a burst past the reliable-intents bucket (130 refused intents in one frame) and past the voice bucket
      (530 frames): `OVER_BUDGET`, no reply, no disconnect (§4.5);

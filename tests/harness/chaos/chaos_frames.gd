@@ -6,9 +6,9 @@ extends RefCounted
 ##   bytes behind one, the wrong direction or lane, a payload over its kind's cap, truncated,
 ##   trailing bytes) and the codec's (a bool that is not 0 or 1, an item 0xFFFF, a peer 0, a NaN or
 ##   infinite float, unknown flag bits, an id with a capital letter, bytes after the last field, an
-##   empty Opus frame), and a debug kind (ForceRole, kind 24) from a peer other than 1, which the
-##   host counts as a bad payload (E17). Each Packet names the NetRejects reason it must be counted
-##   under (`expect`);
+##   empty Opus frame), and the debug kinds (ForceRole, kind 24; ForceClock, kind 25, one second)
+##   from a peer other than 1, which the host counts as bad payloads (E17). Each Packet names the
+##   NetRejects reason it must be counted under (`expect`);
 ## - well-formed intents (message()), whose answer the rules give (ChaosOracle);
 ## - hostile MoveClaims (Claim), tagged in their velocity so the host's observer can tell them from
 ##   the bot's own claims: a teleport, a speed over the cap, a client tick far past the credit, an
@@ -36,6 +36,7 @@ enum Shape {
 	CODEC_TRAILING,
 	EMPTY_OPUS,
 	DEBUG_KIND,
+	DEBUG_CLOCK,
 }
 
 ## The hostile MoveClaims. STALE_TICK repeats a client tick the host already has: dropped, or, as
@@ -270,6 +271,11 @@ static func _bad_payload(
 		Shape.EMPTY_OPUS:
 			var seq_only := PackedByteArray([rng.randi_range(0, 255), rng.randi_range(0, 255)])
 			packet = framed(schema.kind_of(&"VoiceUp"), seq_only, NetKindTable.Lane.VOICE)
+		Shape.DEBUG_CLOCK:
+			# A well-formed ForceClock from a peer other than 1, naming itself (E17): taken, it
+			# would end the round in a second, and the ends would differ from the baseline's.
+			var clock := {"seconds": 1}
+			packet = message(schema, &"ForceClock", clock, CHAOS_SEQ, maxi(own, 2))
 		_:
 			# DEBUG_KIND: a well-formed ForceRole from a peer other than 1 (E17).
 			var role := {"role": "dissident"}
