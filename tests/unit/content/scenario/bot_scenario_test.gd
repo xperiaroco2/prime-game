@@ -51,6 +51,8 @@ func test_the_bots_talk_in_spurts_by_default_or_continuously() -> void:
 	# A value no member has, as a hand-edited .tres can hold.
 	scenario.set("voice", 2)
 	assert_str("\n".join(scenario.problems())).contains("voice 2 is neither SPURTS nor CONTINUOUS")
+	scenario.set("voice", -1)
+	assert_str("\n".join(scenario.problems())).contains("voice -1 is neither SPURTS nor CONTINUOUS")
 
 
 func test_steps_and_targets_report_their_problems() -> void:
