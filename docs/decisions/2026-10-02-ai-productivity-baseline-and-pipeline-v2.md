@@ -314,7 +314,8 @@ a change to them lands between the other managers' waves.
 - **The playtest bugs** (#168, #169): item 4 (g) with P9, scripted off-screen client runs that screenshot named
   moments (spectating, the Esc menu, downed, the HUD); `Input.parse_input_event`, `Input.action_press`,
   `Viewport.get_texture`, `Texture2D.get_image` and `Image.save_png` exist in 4.7.2. Like `shot`, it needs a desktop
-  session and never runs on CI. The engineer's playtest stays.
+  session and never runs on CI. A step waits only on its own window's filtered client view (`ClientSession` or
+  the client model, the host's own client included), never on `HostSession`, the match or `core/` (invariant 2). The engineer's playtest stays.
 - **The prompt cache:** a 1-hour cache lifetime for subagents (`subagentPromptCacheTtl`) was costed and rejected
   (Alternatives); a `verify` under 5 minutes removes most re-writes, and agents should not wait on CI longer than
   needed.
