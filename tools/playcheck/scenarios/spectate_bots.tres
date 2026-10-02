@@ -1,0 +1,100 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://ubk1gr1xi8eh"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_nki21"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" uid="uid://b7ghaa5bm47jq" path="res://core/content/scenario/step_ready.gd" id="5_ready"]
+[ext_resource type="Script" uid="uid://wku33r5fup0" path="res://core/content/scenario/step_wait_for.gd" id="6_wait_for"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="7_target"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="8_walk_to"]
+[ext_resource type="Script" uid="uid://bb8noxpqdukeo" path="res://core/content/scenario/step_pick_up.gd" id="9_pick_up"]
+[ext_resource type="Script" uid="uid://bir4sbsppao03" path="res://core/content/scenario/step_use.gd" id="10_use"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="11_wait"]
+[ext_resource type="Script" uid="uid://cw7y3viinl8pr" path="res://core/content/scenario/step_expect.gd" id="12_expect"]
+
+[sub_resource type="Resource" id="Window_script"]
+script = ExtResource("3_script")
+
+[sub_resource type="Resource" id="Ready"]
+script = ExtResource("5_ready")
+
+[sub_resource type="Resource" id="Wait_round"]
+script = ExtResource("6_wait_for")
+event = &"PhaseChanged"
+fields = {
+"phase": "round"
+}
+
+[sub_resource type="Resource" id="Target_knife"]
+script = ExtResource("7_target")
+kind = 2
+item_kind = &"knife"
+
+[sub_resource type="Resource" id="Walk_to_knife"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_knife")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Pick_up_knife"]
+script = ExtResource("9_pick_up")
+target = SubResource("Target_knife")
+
+[sub_resource type="Resource" id="Target_player2"]
+script = ExtResource("7_target")
+kind = 3
+bot = 2
+
+[sub_resource type="Resource" id="Walk_to_player2"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_player2")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Hit_player2"]
+script = ExtResource("10_use")
+towards = SubResource("Target_player2")
+
+[sub_resource type="Resource" id="Wait_cooldown"]
+script = ExtResource("11_wait")
+seconds = 0.6
+
+[sub_resource type="Resource" id="Knocked_down_player2"]
+script = ExtResource("12_expect")
+event = &"KnockedDown"
+fields = {
+"peer": 2
+}
+within_s = 2.0
+
+[sub_resource type="Resource" id="Target_player1"]
+script = ExtResource("7_target")
+kind = 3
+
+[sub_resource type="Resource" id="Walk_to_player1"]
+script = ExtResource("8_walk_to")
+target = SubResource("Target_player1")
+stop_m = 1.0
+
+[sub_resource type="Resource" id="Hit_player1"]
+script = ExtResource("10_use")
+towards = SubResource("Target_player1")
+
+[sub_resource type="Resource" id="Knocked_down_player1"]
+script = ExtResource("12_expect")
+event = &"KnockedDown"
+fields = {
+"peer": 1
+}
+within_s = 2.0
+
+[sub_resource type="Resource" id="Bot3_script"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("Walk_to_knife"), SubResource("Pick_up_knife"), SubResource("Walk_to_player2"), SubResource("Hit_player2"), SubResource("Wait_cooldown"), SubResource("Hit_player2"), SubResource("Knocked_down_player2"), SubResource("Wait_cooldown"), SubResource("Walk_to_player1"), SubResource("Hit_player1"), SubResource("Wait_cooldown"), SubResource("Hit_player1"), SubResource("Knocked_down_player1")])
+
+[resource]
+script = ExtResource("2_scenario")
+mode = ExtResource("1_mode")
+bots = 3
+scripts = Array[ExtResource("3_script")]([SubResource("Window_script"), SubResource("Window_script"), SubResource("Bot3_script")])
+expected_ends = Array[StringName]([&"none"])
