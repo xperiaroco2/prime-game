@@ -2828,6 +2828,11 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
     `ScenarioInvariants` (per `Match` call, through `HostSession`'s observer, §4.5), with `HostSession` in the place
     of the runner's stand-in for `server/` (§4.6). The same files; it joins `verify` with the leak test (§5). Each bot sees only its `ClientSession`'s decoded view (§4.6).
     Built in 3h (#102): `tests/harness/bots/`, `tools\run.cmd bots`, tested by `tests/scenarios/bots_runner_test.gd`.
+  - *Perf* (#187): `tools\run.cmd perf` plays one seeded 10-bot match built in code (`PerfScenario`, no `content/`
+    file) through `HostSession` over the loopback or ENet and measures it from the harness: the host step's time, the
+    events per tick, the host transport's bytes per remote peer (a metered subclass of it, `WireMeter`), and
+    `Performance`'s monitors; not a `verify` step (`docs/AGENT_WORKFLOW.md` §11). Built in `tests/harness/perf/`, tested
+    by `tests/scenarios/perf_run_test.gd` and `tools/runner/tests/test_perf.py`.
 - **Reproducing a failure:** the runner prints the bot, the step, that bot's last events and the seed; the command log
   replays the match (§3.3).
 - **The MVP's scenarios** (2j, #66; provisional under the MVP content ADR, for the engineer's approval), in
