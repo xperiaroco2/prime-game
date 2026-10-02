@@ -14,8 +14,9 @@ var stamina: int
 ## Whether holding sprint puts the player in the sprint state on its next tick (Q7).
 var sprint_available: bool
 ## The client tick of the last MoveClaim the host accepted and settled for this player in its
-## epoch (PlayerState.claim_tick), or -1 for none since its placement: the stamina is the number
-## after that claim, and the player's client settles its later claims on top (PredictedStamina).
+## epoch, or -1 for none since its placement (MovementRule.settled_claim_tick): the stamina is the
+## number after that claim, and the player's client settles its later claims on top
+## (PredictedStamina).
 var claim_tick: int
 
 

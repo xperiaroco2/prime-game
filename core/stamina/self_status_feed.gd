@@ -46,9 +46,8 @@ static func flush(ctx: MatchContext) -> void:
 		if feed.sent.get(peer, []) == status:
 			continue
 		feed.sent[peer] = status
-		ctx.emit(
-			SelfStatusEvent.new(peer, player.health, player.stamina, available, player.claim_tick)
-		)
+		var claimed := MovementRule.settled_claim_tick(ctx.state, player)
+		ctx.emit(SelfStatusEvent.new(peer, player.health, player.stamina, available, claimed))
 
 
 static func _feed(state: MatchState) -> FeedState:

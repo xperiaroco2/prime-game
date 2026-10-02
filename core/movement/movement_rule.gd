@@ -410,6 +410,22 @@ static func _near_living_player(
 	return false
 
 
+## The client tick of `player`'s last claim accepted in its current epoch, or -1 when there was none
+## since its last placement (SelfStatus's claim_tick, #155). A placement (PlacePlayers, a knockdown,
+## a respawn) starts an epoch whose first claim restarts the client-tick baseline
+## (_after_placement), and the claims of the old one in flight are dropped as stale, so a claim
+## before it answers nothing of the new epoch; a refused claim's Correction keeps the last one,
+## from which the next claim covers its ticks.
+static func settled_claim_tick(state: MatchState, player: PlayerState) -> int:
+	var table := (
+		state.part_state(PART_KEY, func() -> RefCounted: return MotionTable.new()) as MotionTable
+	)
+	var motion: Motion = table.by_peer.get(player.peer)
+	if motion == null or motion.epoch != player.epoch:
+		return -1
+	return player.claim_tick
+
+
 ## Whether a running raise holds `player` in place (Channels.holding) and a claim at `to` would
 ## move it: farther than HOLD_SLACK_M, in any direction, from where the raise started
 ## (Channel.held_at; the engineer's answer 8 on PR #133). Such a claim is corrected.
