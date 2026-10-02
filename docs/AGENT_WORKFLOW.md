@@ -167,6 +167,7 @@ and wait for the designer's review.
 | `log-intervention` | both | Writes a `docs/interventions/` entry and promotes the rule in the same PR (§10) |
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | An "ultracode" kickoff for a stage: the manager session runs one `issue-task` workflow per issue (§7.1) |
+| `night-audit` | engineer | The prompt of the nightly Desktop scheduled task: one read-only audit lens, a skeptic per finding, issues and a summary on the "Night jobs" issue (§15) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
 - All skills are model-invocable, so a dictated "заверши задачу" works; publishing still asks once.
@@ -760,3 +761,67 @@ decide LFS in CI before the first LFS asset outside `addons/`.
 
 **Verification of the Phase A setup:** done on 2026-09-28. A fresh session confirmed subagent routing for all four
 agents and the user-settings `env`. M0's `agents-check` makes the routing check repeatable.
+
+## 15. Night jobs
+
+([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 6, the engineer's N3 answer (c);
+#189.) The night runs deterministic jobs on GitHub for free and one Claude audit lens on the engineer's PC.
+
+| What | Where and when | Report |
+|---|---|---|
+| `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, a free Linux runner, the latest `main` commit; 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`) | The run's summary page and artifact `nightly-flaky`; on a failure a comment with the run link on the "Night jobs" issue |
+| The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
+
+- **`test --repeat N`** runs the GdUnit4 suites N times in a row; any failed run fails it. Each run's report goes to
+  `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`; `summary.json` (every suite:
+  tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
+  failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
+  run (it crashed or timed out) counts neither way.
+- **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite
+  action `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job
+  is one job in `nightly.yml` (checkout, the setup, one runner command, an upload); the job `report` lists them all
+  in `needs` and comments when one failed or timed out, creating the "Night jobs" issue (`area:tooling`) the first
+  time. `report` alone gets `issues: write`; the rest has `contents: read`. `perf` (#187) and the long chaos run
+  (#188) come as one job each. `tools/runner/tests/test_github_workflows.py` parses every workflow and action and
+  checks the triggers, permissions, the shared setup, `needs`, and that no action beyond the four CI already uses
+  appears (a new one is the engineer's call).
+- **GitHub's limits** (docs.github.com, "Events that trigger workflows", read 2026-10-02): a scheduled run uses the
+  latest commit on the default branch and may start late at busy times; in a public repository the schedule is
+  disabled after 60 days without activity (Actions → Nightly → Enable workflow); `workflow_dispatch` works only once
+  the file is on the default branch, so a task branch cannot try it: the first run is by hand after the merge.
+- **Desktop's limits** (code.claude.com/docs/en/desktop-scheduled-tasks, read 2026-10-02): a local task runs only
+  while the Desktop app is open and the PC awake; a sleeping PC skips the run, and on wake Desktop starts one
+  catch-up run for the latest missed time of the last seven days (the skill stops if that day's summary exists). A
+  permission prompt stalls the run until someone answers it in the session under **Scheduled** in the sidebar.
+- **Bounds of the audit** (in the skill): one lens, at most 2 agents (the auditor and one skeptic of type
+  `code-reviewer`), about 100 tool calls, about $10 list a night; read-only on the repo (issue bodies in its
+  worktree's `tests/scratch/`), at most 5 issues a night, never closes or edits issues. Lenses beyond docs drift
+  are the first thing to drop: set every weekday in the skill to `docs-drift`.
+
+**Reading the reports.**
+- A comment on the "Night jobs" issue from the nightly workflow: open its run link. The summary page shows "GdUnit4,
+  3 runs": each run's status, **flaky tests** (an issue to fix the test or the race; never skip or delete it without
+  the engineer's approval), **failed in every run** (a regression on `main`: fix first), and the suites with a
+  failure. The artifact `nightly-flaky` holds each run's HTML report, `summary.json` and the logs.
+- A night-audit summary (one a night, first line `night-audit <lens>, <date>, origin/main <sha>`): what it checked,
+  the issues it opened, and what the skeptic refuted or could not decide (those are not issues). Its issues:
+  `gh issue list --search "\"Found by: night-audit\" in:body"`. A wrong one is closed by a human (label `invalid`).
+
+**The engineer's one-time setup 👤** (checked against the Desktop docs above on 2026-10-02; Claude Desktop 1.1.5368
+or later):
+1. After the merge, start the first nightly run by hand and check it:
+   `cd D:\prime-game; gh workflow run nightly.yml --ref main`, then `gh run list --workflow nightly.yml --limit 1`.
+2. In Claude Desktop, **Code** tab: **Routines** in the sidebar (or in the sidebar's **More** menu), **New
+   routine**, **Local**.
+3. **Name** `night-audit`; **Description** "One audit lens a night (AGENT_WORKFLOW §15)"; **Instructions**
+   `/night-audit` and nothing else. In the pickers of the instructions box: the permission mode you use for your own
+   sessions (never bypass), and the strongest model the picker offers (N1 (b): an audit is one of its per-launch
+   uses; no shared file names it). Below it: the folder `D:\prime-game`, and the **worktree** toggle on (the skill
+   stops without a worktree of its own).
+4. **Schedule** **Daily** at 05:00 (after the 01:17 UTC nightly run, which is 04:17 in Kyiv in summer time); save.
+5. Settings → **Desktop app** → **General** → **Keep computer awake** on (a closed laptop lid still sleeps).
+6. On the task's page, **Run now** once while at the PC; answer each permission prompt with "always allow" (later
+   runs approve the same tools; the page lists them under **Always allowed**). Expect one summary comment on the
+   "Night jobs" issue and at most 5 new issues.
+7. After a week, check that the scheduled sessions' worktrees do not pile up under `.claude/worktrees/` (not tried
+   yet). Pause: the task's page, **Status** → **Paused**.
