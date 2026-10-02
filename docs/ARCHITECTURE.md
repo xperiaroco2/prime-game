@@ -1758,7 +1758,8 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
   - **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
     Master, in code; four sliders, Master, Voice, Effects and Music (0, 0, −6 and −14 dB by default: placeholders), no
     ducking, saved per window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the
-    microphone, the mode and the threshold, set in the Esc menu's Voice tab.
+    microphone, the mode and the threshold, set in the Esc menu's Voice tab. `host --clients N`'s windows get their
+    `PRIME_INSTANCE` from `hostjoin.start` (a runner change M5-6 makes; today only `launch.launch` sets it).
   - **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
     speaker. No screen lists who is talking, and nothing tells a speaker who hears them. Who talks shows later
     through a mouth animation with the masks of #73 (after the MVP).

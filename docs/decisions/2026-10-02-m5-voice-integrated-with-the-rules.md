@@ -242,11 +242,15 @@ engineer's name; it replaces the design's earlier "World"). Four sliders (D15): 
 (the players' voices), **Effects** and **Music**, at 0, 0, −6 and −14 dB by default (placeholders, "not a decision"),
 set through `AudioServer.set_bus_volume_db`; no ducking. `client/app/` `UserSettings` keeps the microphone, the mode,
 the threshold, RNNoise and the four volumes in `user://settings.cfg` (`ConfigFile`), read at the start and written on
-each change. All windows that `tools\run.cmd host --clients N` starts share one `user://` folder (the runner
-sets only `PRIME_INSTANCE`), so the file is `user://settings.cfg` when `PRIME_INSTANCE` is unset or 1 and
-`user://settings_<n>.cfg` otherwise, and §1.1's "opening" mark lives in that same per-instance file: three windows on
-one PC then neither overwrite each other's choices nor read each other's mark (a unit test covers the file name; no
-runner change, so E47 holds). The Esc menu (#169) gains a tab, Voice, in every screen: the microphone (Off and the
+each change. All windows that `tools\run.cmd host --clients N` starts share one `user://` folder, so the file is
+`user://settings.cfg` when `PRIME_INSTANCE` is unset or 1 and `user://settings_<n>.cfg` otherwise, and §1.1's
+"opening" mark lives in that same per-instance file: three windows on one PC then neither overwrite each other's
+choices nor read each other's mark (a unit test covers the file name). Today only `launch.launch` (`run`, `bots
+--instances`) sets `PRIME_INSTANCE`; `hostjoin.start`, which starts `host`'s windows, passes no environment, so every
+window would read it unset. **A one-line runner change** therefore comes with M5-6 (#220): `hostjoin.start` passes
+`PRIME_INSTANCE` = the part's number (1 the host, 2 and on the clients, in tile order) to each process it starts, with a
+selftest; window 1's settings then survive a restart, tied to its tile. `tools/` is #170's track's, so M5-6 makes that
+change only after #185 and #188 merge, or the manager hands it to #170 (E47 amended: one runner change). The Esc menu (#169) gains a tab, Voice, in every screen: the microphone (Off and the
 devices), the mode (voice activity, the default; push-to-talk with the key shown; Off), the threshold with a live
 meter, RNNoise, the four volume sliders, the line that loudspeakers echo and headphones avoid it (§1.1), the headset
 and #22 advice, and the line that says voice is unavailable without the addon. No HUD element shows the own gate or
@@ -427,7 +431,8 @@ and the renumbering check stay as built.
   cd D:\prime-game\.claude\worktrees\playtest-m5
   tools\run.cmd host --clients 2
   ```
-  Three windows, each keeping its own settings (`settings.cfg`, `settings_2.cfg`, `settings_3.cfg`, §1.7). Headphones
+  Three windows, each keeping its own settings (`settings.cfg`, `settings_2.cfg`, `settings_3.cfg`, through the
+  runner's `PRIME_INSTANCE` per window, §1.7). Headphones
   on throughout: voice activity, the default, picks up loudspeakers (§1.1). Window 1: Esc → Voice → the USB
   microphone, mode voice activity (the default), then set the threshold with the meter so that speaking opens the gate
   and silence and the keyboard do not. Window 2: the source "test tone" (debug builds). Windows 1 and 2: "mute this
@@ -516,6 +521,7 @@ ship, since the engineer says the budget suffices (#190 holds the numbers; the m
 | `client/ui/esc_menu_state.gd`, `esc_menu.gd`, the Voice tab (`voice_panel.gd`) | M5-6 (#220) | no HUD element (D14) |
 | `client/player/remote_player_body.gd` | M5-5 (#219: the mouth point, which M5-7's ray aims at) | |
 | `project.godot` | M5-6 (#220: `voice_talk` on V, `audio/driver/enable_input`) | added lines; the editor's format |
+| `tools/runner/hostjoin.py` and its selftest | M5-6 (#220: `PRIME_INSTANCE` per window, §1.7), or #170's track if the manager hands it over | only after #185 and #188 merge (they edit `tools/`) |
 | `.github/workflows/ci.yml` | M5-3 (#217: remove the addon before `verify`), M5-7 (#221: the LFS fetch, answer (a)) | coordinate with #176's pipeline v2 and #170's tasks, which also edit `.github/` |
 | `docs/ARCHITECTURE.md` | §6 by each voice issue as built; §4.5 and §10 by M5-4; §4.3 by M5-4b; §4.7 by M5-5 to M5-7; §5 and §9.7 by M5-1; §1's rows by M5-5 (E46 (a)) | rewrite only the issue's own sections; in §6's "Designed for M5" each issue rewrites only its own sub-bullet (M5-1 the cutoff and the distance invariant, M5-2 the codec boundary, the gate and the jitter buffer, M5-3 the addon and CI, M5-5 playback, the ears and the buses, M5-6 capture and the gate's modes, M5-7 occlusion; the no-indicator bullet stays as written), so wave 1's three merges do not conflict |
 
@@ -539,7 +545,7 @@ boundary). Every number marked so is a placeholder, "not a decision".
 | E44 | Wire budgets and the measurement | (a) no wire change in M5; M5-4 measures headlessly with bots; a batched row (M5-4b) only past 2 ms per 20 ms of relay time or 4.5 Mbit/s at 81 streams; (b) batch now; (c) no measurement | (a): batching changes the protocol and the leak test for a cost nobody has measured since M1's unexplained 111 to 167 µs. Under (c) the first 10-player playtest finds the host's main thread, which also runs the ticks and the claims, at half a core for voice | (a), the M5 manager session (#134) |
 | E45 | The leak test for M5 | (a) the distance invariant, apart from `VoiceRule.hears`, in `LeakCheck` and `ScenarioInvariants`, with a scenario of bots talking beyond the radius; the bots talk in spurts at 50 frames a second; client tests for the dead, the downed and the ears, each seen failing on a planted widening; (b) the routing subset check alone | (a). Today a `RoundVoice` that lets everyone hear everyone passes the subset check, because `view_of` reads the same rule (§5 of ARCHITECTURE: the invariants that do not trust the declarations) | (a), the M5 manager session (#134) |
 | E46 (the engineer's: a boundary) | Which of `client/` and `voice/` uses the other | (a) `client/` uses `voice/`; `voice/` uses nothing outside itself (the engine, the addon by name); §1's rows say so; (b) §1 as written: `voice/` may use `net/` and `client/` playback, so `voice/` drives players on `client/`'s avatars | (a): the players hang on `client/`'s avatars and follow `client/`'s rules (the life fold, the ears, the phase), so `client/` decides what to play and `voice/` stays plumbing that a test drives without a scene. Under (b) `voice/` reads the life fold and the avatars, and the rendering rules of §3 live in two folders | (a), the engineer; §1's rows change in M5-5 (#219) |
-| E47 | Debug tooling for the humans' voice tests | (a) in debug builds: the F3 overlay's Voice section (own: gate, peak, frame age, encode µs; per speaker, by an index of first arrival with no peer id or name: queue, prebuffer, late, lost, FEC, underruns, decode µs; the host: relayed, dropped, over budget, relay µs); a test tone as a microphone source and "mute this window", neither saved; (b) launch flags per instance through `host --clients` | (a): no runner change while #170's tasks edit `tools/`, and three windows on one PC still have one microphone (the spike's tone client) and one pair of headphones | (a), the M5 manager session (#134) |
+| E47 | Debug tooling for the humans' voice tests | (a) in debug builds: the F3 overlay's Voice section (own: gate, peak, frame age, encode µs; per speaker, by an index of first arrival with no peer id or name: queue, prebuffer, late, lost, FEC, underruns, decode µs; the host: relayed, dropped, over budget, relay µs); a test tone as a microphone source and "mute this window", neither saved; (b) launch flags per instance through `host --clients` | (a): no new launch flags while #170's tasks edit `tools/`, and three windows on one PC still have one microphone (the spike's tone client) and one pair of headphones. The one runner change kept: `hostjoin.start` sets `PRIME_INSTANCE` per window, so each window keeps its own settings file (§1.7; the design first claimed the runner already did) | (a), the M5 manager session (#134); amended by the review of PR #194 (the `PRIME_INSTANCE` line, M5-6 after #185 and #188) |
 
 **Stop-and-ask items:**
 - **The addon** (the voice ADR's "What follows"): adding TwoVoIP v6.5 to `addons/` (M5-3), downloaded by the engineer
