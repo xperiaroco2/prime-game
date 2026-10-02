@@ -1,0 +1,50 @@
+### phase Implement
+### agent implement:#7
+opts {"label":"implement:#7","phase":"Implement","effort":"high","schema":{"type":"object","properties":{"verify_green":{"type":"boolean"},"verify_tail":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"commits":{"type":"array","items":{"type":"string"}},"complete":{"type":"boolean"},"left":{"type":"array","items":{"type":"string"}},"summary":{"type":"string"},"decisions":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"provisional_content":{"type":"array","items":{"type":"string"}},"proposed_issues":{"type":"array","items":{"type":"string"}}},"required":["verify_green","complete","summary","changed_paths"]}}
+You are a task agent of prime-game, run unattended by the manager session through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).
+- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch core/7-x, PR base main; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
+- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close or reopen an issue (humans close issues), edit the body of #30, `gh pr merge`.
+- Do not run a command you expect to prompt (a delete, reset, rebase or branch delete outside your worktree and task branch; an edit of any path under .claude/ or addons/ unless the session runs in bypass): a prompt blocks the run until the human returns. List such a step in the handoff for the human instead.
+- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main`); never an interactive rebase without that variable. Both are free in your own worktree.
+- No Godot windows: headless runs only; a screenshot only through `tools\run.cmd shot` (off-screen).
+- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder a7/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or D:/prime-game/.claude/worktrees/7/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.
+- Write files with LF line endings (Python: newline="" or bytes). The content API classes are GameRole and RuleEffect (never Role or Effect).
+- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it. Write options with a recommendation under "Needs the engineer" (PR and handoff) and continue with the recommended one if it can be reverted. A placeholder number you must add is marked "not a decision".
+- Files in content/ and levels/ are provisional under docs/decisions/2026-09-29-mvp-content-built-by-the-engineer.md: the engineer approves them in the PR; the PR says so and names them.
+- The engineer's answers in issue and PR comments override older text, including these notes.
+- Commits: small Conventional Commits, one logical change each, message from a file (`git commit -F`), each ending with the attribution line your system reminder gives for commits; a PR body ends with the line it gives for pull requests.
+
+Task: GitHub issue #7 (t). Effort: high. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.
+
+An earlier attempt may have got part of the way (a resumed run): first run `git log --oneline origin/main..HEAD` and `git status` in the worktree, and continue from that state; uncommitted files there are that attempt's work.
+
+Read: `gh issue view 7 --comments`; the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names; the CLAUDE.md of every area it touches and .claude/rules/; the code it builds on and its tests.
+
+Task notes from the manager:
+n
+
+Plan, then implement every acceptance criterion. Unit tests in tests/unit/ mirroring core/, each rule driven by commands through a seeded Match and asserted on the events and on view_of; a part's unit test never loads content/ or levels/ (ARCHITECTURE §9.6). Where you fix a guard, see its test fail without the code first. If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish `git fetch` and check whether it reached origin/main; if it did, rebase on it inside your worktree and use it.
+
+Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.
+
+`tools\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree's run at the same time (GdUnit4 temp files under user://, a busy port), run it once more before debugging.
+
+Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.
+
+Return the structured result. changed_paths: `git diff --name-only origin/main...HEAD`. verify_tail: the lines from "verify summary" to the end.
+### returned
+{
+ "n": 7,
+ "impl": {
+  "verify_green": false,
+  "complete": false,
+  "summary": "s",
+  "changed_paths": [
+   "core/x.gd"
+  ]
+ },
+ "reviews": [],
+ "pub": null,
+ "stopped": "verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes"
+}
+### error null

@@ -228,13 +228,36 @@ Rules for every workflow run:
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
   same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
-  rules (skipped where Node is missing).
-- **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about 150;
-  every agent writes temporary files only under its issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to
-  five agents, over the `small` guideline, so the kickoff approves that and the stage's budget once, confirmed by
-  the human's yes to the manager's restatement (§7). Code tasks wait for the engineer's review of the stage's
-  design PR; before launching anything, the manager lists the runs another session may still own (issues In
-  progress with no PR, fresh worktree commits, a rebase in progress) and asks.
+  rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it).
+- **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
+  optional `issue-task` args, all off by default, so a launch or a resume with the earlier args gets the earlier
+  agents byte for byte (`tools/runner/tests/workflow_snapshots/` holds their prompts and options for representative
+  arg sets). `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized
+  in the PR (+2 agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's
+  production code with `tools\run.cmd mutants` (#184), each in a scratch worktree; a survived mutant is a finding,
+  and the publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not
+  resume (+1; none for a design task or a diff without `core/ server/ net/ client/ voice/` code). `second_review:
+  true`: a second `netcode-security-reviewer` with an attacker's lens wherever the netcode review is routed (+1).
+  `skeptic: true` or a number: a read-only agent tries to refute each blocker or major finding before the publisher
+  (a number caps the agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the
+  scenarios the notes name), a scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code
+  reviewer reads the PNGs, and the rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per
+  role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish);
+  `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
+  default names a model (the model-guard ADR). A missing `mutants` or `playcheck` on the task's branch is reported
+  in the result and the PR, and the run goes on. `pr-rebase` takes `second_review`, `skeptic`, `efforts` and
+  `models` (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or
+  major, no fix agent runs and the result's `note` asks the manager to list the refuted findings with their reasons
+  in the PR body. The kickoff's approved agent count must cover the options the manager will pass; each script's
+  `whenToUse` and args comment give the counts, the roles and their fallbacks.
+- **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
+  150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
+  about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
+  issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to five agents (more with the v2 options above), over
+  the `small` guideline, so the kickoff approves that and the stage's budget once, confirmed by the human's yes to
+  the manager's restatement (§7). Code tasks wait for the engineer's review of the stage's design PR; before
+  launching anything, the manager lists the runs another session may still own (issues In progress with no PR, fresh
+  worktree commits, a rebase in progress) and asks.
 - **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>`
   from `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base
   release/m<k>`). The manager merges a task PR into it once CI is green, the fresh reviews left no open blocker or

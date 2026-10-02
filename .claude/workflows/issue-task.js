@@ -1,10 +1,10 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?}',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, efforts and models add none.',
   phases: [
-    { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes' },
-    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed' },
+    { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
+    { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major)' },
     { title: 'Publish', detail: 'fix findings, verify, publish, PR, CI, handoff, board' },
   ],
 }
@@ -25,6 +25,35 @@ export const meta = {
 //   effort   the implementer's effort: default 'high', 'xhigh' for a design task
 //   plan     the plan issue whose body no agent edits (default 30)
 //   manager  who runs this, for the agents' first line (default 'the manager session')
+// Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
+// by default. With none of them every agent's prompt, label, phase, schema and options are byte-identical to the
+// script before v2 (tools/runner/tests/test_workflows.py snapshots them), so other managers' launches and resumes are
+// unchanged. The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+//   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
+//                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents
+//   test_review   true: after the reviews one agent plants 3 to 5 mutants in the diff's production code with
+//                 `tools\run.cmd mutants` (P7, #184), each in a scratch worktree; a survived mutant is a finding, and
+//                 the publisher stops and reports when `mutants` exits 2. Missing on the task's branch: reported in
+//                 the result and the PR, and the run goes on. +1 agent (none for a design task, or a diff with no
+//                 path under core/ server/ net/ client/ voice/)
+//   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
+//                 is routed (core/ server/ net/ client/ tests/harness/ or a design task). +1 agent there
+//   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
+//                 publisher (true: every one; a number: at most that many, the rest go to the publisher unchecked);
+//                 a refuted finding is listed in the PR with the reason. +1 agent per finding checked
+//   visual        true (the playcheck scenarios the notes name), or a scenario name or a list of them: the
+//                 implementer runs `tools\run.cmd playcheck <scenario>` (P9, #186) and returns the PNGs, the code
+//                 reviewer reads them, and the rules line on Godot windows also allows playcheck. Missing on the
+//                 task's branch: reported in the result and the PR. +0 agents
+//   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
+//                 falls back to today's default), plan (falls back to implement's), plan_review, review, netcode,
+//                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'). review
+//                 covers the code reviewer and is the fallback of plan_review, netcode, skeptic and (after netcode)
+//                 second_review. An agentType reviewer gets an effort only when one is set; otherwise its agent
+//                 file's applies, as before v2. +0 agents
+//   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
+//                 (plan falls back to implement, none to a default). No default names a model (the model-guard ADR
+//                 and its amendment A: the manager passes one per launch where the kickoff allows it). +0 agents
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
 // and earlier results, and each prompt tells its agent to check what an earlier attempt already did).
 
@@ -45,13 +74,71 @@ const SCRATCH = `a${N}`
 const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
 const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 
+// The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
+// kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'efforts', 'models']
+const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
+if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
+const flag = k => {
+  if (A[k] !== undefined && A[k] !== null && typeof A[k] !== 'boolean') throw new Error(`issue-task: args.${k} must be true or false`)
+  return A[k] === true
+}
+const PLAN_REVIEW = flag('plan_review')
+const TEST_REVIEW = flag('test_review') && !DESIGN
+if (flag('test_review') && DESIGN) log(`#${N}: test_review skipped: a design task changes no production code`)
+const SECOND_REVIEW = flag('second_review')
+if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
+  throw new Error('issue-task: args.skeptic must be true, false or the most findings to check (a positive integer)')
+}
+// true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
+const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
+const V = A.visual
+const SCENES = V === true
+  ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'
+  : typeof V === 'string' && V !== '' ? `\`${V}\``
+  : Array.isArray(V) && V.length && V.every(s => typeof s === 'string' && s !== '') ? V.map(s => `\`${s}\``).join(', ')
+  : null
+if (SCENES === null && V !== undefined && V !== null && V !== false) throw new Error('issue-task: args.visual must be true, a playcheck scenario name or a list of them')
+const VISUAL = SCENES !== null
+const ROLES = ['implement', 'plan', 'plan_review', 'review', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish']
+// The roles a role falls back to, in order, when this launch sets nothing for it.
+const CHAIN = {
+  implement: ['implement'], plan: ['plan', 'implement'], plan_review: ['plan_review', 'review'], review: ['review'],
+  netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'], godot: ['godot'],
+  test_review: ['test_review'], skeptic: ['skeptic', 'review'], publish: ['publish'],
+}
+const perRole = (k, values) => {
+  const m = A[k]
+  if (m === undefined || m === null) return {}
+  if (typeof m !== 'object' || Array.isArray(m)) throw new Error(`issue-task: args.${k} must be an object {role: value}; roles: ${ROLES.join(', ')}`)
+  for (const [role, v] of Object.entries(m)) {
+    if (!ROLES.includes(role)) throw new Error(`issue-task: args.${k}.${role}: no such role; roles: ${ROLES.join(', ')}`)
+    if (typeof v !== 'string' || v === '' || (values && !values.includes(v))) throw new Error(`issue-task: args.${k}.${role} must be ${values ? values.join(', ') : 'a model name'}`)
+  }
+  return m
+}
+const EFFORTS = perRole('efforts', ['low', 'medium', 'high', 'xhigh', 'max'])
+const MODELS = perRole('models', null)
+const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
+// Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
+// and a model are appended only where this launch sets them for the role.
+const withModel = (o, role) => (set(MODELS, role) === undefined ? o : { ...o, model: set(MODELS, role) })
+const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
+const IMPL_EFFORT = EFFORTS.implement || A.effort || (DESIGN ? 'xhigh' : 'high')
+const PLAN_EFFORT = EFFORTS.plan || IMPL_EFFORT
+const TEST_EFFORT = EFFORTS.test_review || 'high'
+const PUB_EFFORT = EFFORTS.publish || 'high'
+const SERIOUS = /blocker|major/i
+
 const RULES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'} through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).`,
   `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR base ${BASE}; the manager already ran \`start\`, never run it again). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\` (PowerShell), and use absolute paths under ${WT} for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.`,
   `- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through \`tools\\run.cmd publish\`), close or reopen an issue (humans close issues), edit the body of #${PLAN}, \`gh pr merge\`.`,
   '- Do not run a command you expect to prompt (a delete, reset, rebase or branch delete outside your worktree and task branch; an edit of any path under .claude/ or addons/ unless the session runs in bypass): a prompt blocks the run until the human returns. List such a step in the handoff for the human instead.',
   `- Never use \`git stash\` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later \`git reset --soft HEAD~1\`. To fold a fix into an earlier commit: \`git commit --fixup=<sha>\`, then \`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/${BASE}\` (Git Bash; in PowerShell \`$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/${BASE}\`); never an interactive rebase without that variable. Both are free in your own worktree.`,
-  '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen).',
+  VISUAL
+    ? '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or `tools\\run.cmd playcheck` (both off-screen).'
+    : '- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen).',
   `- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder ${SCRATCH}/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or ${WT}/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.`,
   '- Write files with LF line endings (Python: newline="" or bytes). The content API classes are GameRole and RuleEffect (never Role or Effect).',
   '- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it. Write options with a recommendation under "Needs the engineer" (PR and handoff) and continue with the recommended one if it can be reverted. A placeholder number you must add is marked "not a decision".',
@@ -116,6 +203,52 @@ const PUB = {
   },
   required: ['published', 'handoff_posted'],
 }
+// The pipeline v2 schemas.
+const STRINGS = { type: 'array', items: { type: 'string' } }
+const PLAN_SCHEMA = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string' }, criteria: STRINGS, files: STRINGS, interfaces: STRINGS, tests: STRINGS, docs: STRINGS,
+    risks: STRINGS, questions: STRINGS, steps: STRINGS,
+  },
+  required: ['summary', 'criteria', 'files', 'tests'],
+}
+const PLAYCHECK = {
+  type: 'object',
+  properties: {
+    available: { type: 'boolean' }, scenarios: STRINGS, exit_codes: { type: 'array', items: { type: 'number' } },
+    pngs: STRINGS, notes: { type: 'string' },
+  },
+  required: ['available', 'pngs'],
+}
+const IMPL_SCHEMA = VISUAL ? { ...IMPL, properties: { ...IMPL.properties, playcheck: PLAYCHECK }, required: [...IMPL.required, 'playcheck'] } : IMPL
+const TEST_REVIEW_SCHEMA = {
+  type: 'object',
+  properties: {
+    available: { type: 'boolean' },
+    exit_2: { type: 'boolean' },
+    mutants: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          file: { type: 'string' }, line: { type: 'number' }, original: { type: 'string' }, replacement: { type: 'string' },
+          tests: STRINGS, result: { type: 'string', enum: ['killed', 'survived', 'error', 'equivalent'] },
+          failing_tests: STRINGS, exit_code: { type: 'number' },
+        },
+        required: ['file', 'result'],
+      },
+    },
+    findings: REVIEW.properties.findings,
+    notes: { type: 'string' },
+  },
+  required: ['available', 'exit_2', 'findings'],
+}
+const SKEPTIC_SCHEMA = {
+  type: 'object',
+  properties: { refuted: { type: 'boolean' }, reason: { type: 'string' }, evidence: { type: 'string' } },
+  required: ['refuted', 'reason'],
+}
 
 // The default test expectations follow the task branch's area (`<area>/<n>-<slug>`, from `start`); args.testing
 // overrides them.
@@ -127,6 +260,7 @@ const TESTING = {
 }
 TESTING.server = TESTING.net
 const TESTS = A.testing || `${TESTING[AREA] || 'Tests under tests/unit/ or tests/integration/ mirroring the folders you change.'} Where you fix a guard, see its test fail without the code first.`
+const READING = A.reading || 'the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names; the CLAUDE.md of every area it touches and .claude/rules/; the code it builds on and its tests'
 
 const WORK = DESIGN
   ? [
@@ -136,24 +270,58 @@ const WORK = DESIGN
   : `Plan, then implement every acceptance criterion. ${TESTS} If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish \`git fetch\` and check whether it reached origin/${BASE}; if it did, rebase on it inside your worktree and use it.`
 
 phase('Implement')
+// plan_review: a plan agent, then a fresh critique of its plan; the implementer builds with both.
+let planned = null
+if (PLAN_REVIEW) {
+  const plan = await agent([
+    RULES,
+    `Task: plan GitHub issue #${N} (${A.title}) before it is built (plan_review). Effort: ${PLAN_EFFORT}. Budget: at most about 80 tool calls. Plan only: create, edit or commit nothing (no plan file in the repo: the plan is your structured result) and run no verify. A fresh reviewer critiques your plan next, then an implementer builds from both.`,
+    `An earlier attempt may have got part of the way: run \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and plan from that state.`,
+    `Read: \`gh issue view ${N} --comments\`; ${READING}.`,
+    `Task notes from the manager:\n${A.notes}`,
+    A.coord ? `Parallel work:\n${A.coord}` : '',
+    DESIGN ? 'This is a DESIGN task (documents only): plan the documents, their sections, the options each choice needs and the proposed issue split if the issue asks for one.' : `The tests the task needs: ${TESTS}`,
+    'The plan: how the change meets each acceptance criterion (criteria); each file to create or change and what changes in it (files); the classes, functions, signals, wire rows and args it adds or changes (interfaces); each test, what it asserts and which one fails first (tests); the docs and ARCHITECTURE rows to update (docs); what could go wrong and what the change must not break (risks); open questions, each with the recommended answer (questions); the commits in order (steps).',
+    'Return the structured result.',
+  ].filter(Boolean).join('\n\n'), withModel({ label: `plan:#${N}`, phase: 'Implement', effort: PLAN_EFFORT, schema: PLAN_SCHEMA }, 'plan'))
+  if (!plan) throw new Error(`#${N}: the plan agent returned nothing; resume this run with the same args`)
+  const critique = await agent([
+    `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
+    `Critique read-only a PLAN written before anything was built (plan_review); an implementer builds from it next, with your critique. Read the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs and handoffs it links, docs/ARCHITECTURE.md, root CLAUDE.md, the area CLAUDE.md files and the code the plan names. Budget: at most about 40 tool calls. Edit nothing.`,
+    A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
+    `The plan: ${JSON.stringify(plan)}`,
+    'Find what would make the built change wrong or need rework: an acceptance criterion missed or misread; an invariant broken (host authority, per-peer filtering, pure core/, mechanics as data); information reaching a peer that is not entitled to it (events, snapshots, view_of, what a client renders); an interface that clashes with the code on the base or with the parallel work; tests that would pass whatever the code does, or no test that fails first; a doc, ARCHITECTURE row or ADR the change needs; a choice reserved for the engineer that the plan makes. Report findings with severity (blocker, major, minor, nit), the file or plan item, the problem and a concrete change to the plan. Blocker or major: building the plan as written would be wrong or need rework. No findings is a valid answer.',
+  ].filter(Boolean).join('\n\n'), asReviewer({ label: `review:plan:#${N}`, phase: 'Implement', agentType: 'code-reviewer', schema: REVIEW }, 'plan_review'))
+  if (!critique) throw new Error(`#${N}: the plan's reviewer returned nothing; resume this run with the same args`)
+  planned = { plan, critique }
+  log(`#${N}: planned; the critique found ${(critique.findings || []).length} finding(s)`)
+}
+
 const impl = await agent([
   RULES,
-  `Task: GitHub issue #${N} (${A.title}). Effort: ${A.effort || (DESIGN ? 'xhigh' : 'high')}. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.`,
+  `Task: GitHub issue #${N} (${A.title}). Effort: ${IMPL_EFFORT}. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.`,
   `An earlier attempt may have got part of the way (a resumed run): first run \`git log --oneline origin/${BASE}..HEAD\` and \`git status\` in the worktree, and continue from that state; uncommitted files there are that attempt's work.`,
-  `Read: \`gh issue view ${N} --comments\`; ${A.reading || 'the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names; the CLAUDE.md of every area it touches and .claude/rules/; the code it builds on and its tests'}.`,
+  `Read: \`gh issue view ${N} --comments\`; ${READING}.`,
   `Task notes from the manager:\n${A.notes}`,
   A.coord ? `Parallel work:\n${A.coord}` : '',
   WORK,
+  planned ? `Plan review (plan_review): a plan agent planned this task and a fresh reviewer critiqued the plan; neither changed the worktree. Build from the plan, changed where the critique is right: settle each blocker and major point before you build, and say in decisions how you settled each critique finding, or why it is wrong.\n\nThe plan: ${JSON.stringify(planned.plan)}\n\nThe critique: ${JSON.stringify(planned.critique)}` : '',
   'Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.',
   '`tools\\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree\'s run at the same time (GdUnit4 temp files under user://, a busy port), run it once more before debugging.',
+  VISUAL ? `Visual check (visual): once verify is green, run \`tools\\run.cmd playcheck <scenario>\` in the worktree for each of ${SCENES}, one call per scenario (off-screen windows like \`shot\`; the PNGs land under tools/out/playcheck/<scenario>/). Read each PNG (Read shows images) and fix what is wrong before you finish. Return in playcheck the scenarios, the exit codes and each PNG's absolute path. If the command is missing on this branch (P9, #186, not merged into its base yet), return playcheck.available false with that in notes: the run goes on without screenshots.` : '',
   'Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.',
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end.`,
-].filter(Boolean).join('\n\n'), { label: `implement:#${N}`, phase: 'Implement', effort: A.effort || (DESIGN ? 'xhigh' : 'high'), schema: IMPL })
+].filter(Boolean).join('\n\n'), withModel({ label: `implement:#${N}`, phase: 'Implement', effort: IMPL_EFFORT, schema: IMPL_SCHEMA }, 'implement'))
 
 if (!impl) throw new Error(`#${N}: the implementer returned nothing (died or was skipped); resume this run with the same args`)
 log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.changed_paths || []).length} paths`)
+// visual: what the implementer's playcheck run gave; a missing command or a missing report is reported, not fatal.
+const shots = VISUAL ? (impl.playcheck || { available: false, pngs: [], notes: 'the implementer reported no playcheck run' }) : null
 
 let reviews = []
+let testReview = null
+let testReviewSkipped = ''
+let skeptic = null
 if (impl.verify_green) {
   // Only a green implementer is reviewed; a red one stops below.
   phase('Review')
@@ -173,15 +341,24 @@ if (impl.verify_green) {
   const codeFocus = DESIGN
     ? '\n\nFocus: consistency with the code on main (real payloads, public APIs, tables), with the accepted ADRs and with ARCHITECTURE elsewhere; Godot 4.7.2 APIs named exist (tools/out/godot-api/4.7.2/extension_api.json); a proposed issue split is complete and ordered; every engineer decision is marked as such.'
     : ''
+  const visualFocus = !VISUAL ? ''
+    : shots.available && (shots.pngs || []).length
+      ? `\n\nVisual check (visual): the implementer's \`tools\\run.cmd playcheck\` screenshots: ${shots.pngs.join(', ')}. Read each PNG (Read shows images) and compare it with what the issue asks for: the wrong camera or player, a HUD or menu that is missing, misplaced or shows another player's state, text cut off or overlapping. Each such problem is a finding, with the PNG's path as its file.`
+      : `\n\nVisual check (visual): no playcheck screenshots (${shots.notes || 'none returned'}). That is not a finding of yours: the publisher reports it.`
   const labels = ['code-reviewer']
-  const thunks = [() => agent(base + codeFocus, { label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW })]
+  const thunks = [() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
   if (netcode) {
     labels.push('netcode-security-reviewer')
-    thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay.', { label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }))
+    thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay.', asReviewer({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
   }
   if (godot) {
     labels.push('godot-api-checker')
-    thunks.push(() => agent(base, { label: `review:godot-api:#${N}`, phase: 'Review', agentType: 'godot-api-checker', schema: REVIEW }))
+    thunks.push(() => agent(base, asReviewer({ label: `review:godot-api:#${N}`, phase: 'Review', agentType: 'godot-api-checker', schema: REVIEW }, 'godot')))
+  }
+  // second_review: a second netcode review where leaks matter, with another lens (and, per launch, another model).
+  if (netcode && SECOND_REVIEW) {
+    labels.push('second netcode-security-reviewer')
+    thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers events, audiences, snapshots, view_of and rejection reasons. Take the attacker\'s side instead: (1) a modified client: for each intent, field and message the change adds or reads, what a client could send that the host accepts (out-of-range or non-finite values, the wrong phase, another peer\'s ids, replays, floods past the budgets); (2) a curious player: follow each new or changed piece of state from core/ to every peer\'s wire, logs, audio and screen, the host\'s own client included (it gets the same filtered view), and the debug-only paths in a release build; (3) the tests: would the information-leak test (tests/harness/) or a unit test fail if this change leaked or trusted the client? A gap there is a finding.', asReviewer({ label: `review:netcode-second:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
   }
   const results = await parallel(thunks)
   // Every routed reviewer must answer: a dropped netcode review on a core/ change is not a clean review. A resume
@@ -190,6 +367,51 @@ if (impl.verify_green) {
   if (missing.length) throw new Error(`#${N}: reviewer(s) ${missing.join(', ')} returned nothing; resume this run with the same args`)
   reviews = results
   log(`#${N}: ${reviews.length} reviews, ${reviews.reduce((s, r) => s + (r.findings || []).length, 0)} findings`)
+
+  // test_review: planted faults the branch's tests must catch, each in a scratch worktree (never the task's tree).
+  // The mutants go only into production code: a diff with none of it (tooling, content, docs) gets no test review.
+  if (TEST_REVIEW && paths.length && !paths.some(p => /^(core|server|net|client|voice)\//.test(p))) {
+    testReviewSkipped = 'no changed path is production code (core/, server/, net/, client/, voice/)'
+    log(`#${N}: test_review skipped: ${testReviewSkipped}`)
+  } else if (TEST_REVIEW) {
+    testReview = await agent([
+      RULES,
+      `Task: the test review of issue #${N} (${A.title}) (test_review): show whether the branch's tests fail when its production code is wrong. Effort: ${TEST_EFFORT}. Budget: at most about 60 tool calls. Edit, commit or revert nothing in the worktree: \`tools\\run.cmd mutants\` plants each fault in its own scratch worktree under tools/out/mutants/, never in yours.`,
+      [
+        'Steps:',
+        '1. `tools\\run.cmd mutants --help` in the worktree. If the command does not exist on this branch (P7, #184, not merged into its base yet), return at once: available false, exit_2 false, no findings, the reason in notes. The run goes on without a test review.',
+        `2. Read \`git -C ${WTB} diff origin/${BASE}...HEAD\` and the reviews below. Pick 3 to 5 mutants on lines the diff adds or changes in production code (core/, server/, net/, client/, voice/; never tests/, tools/, docs/, content/ or levels/): each a small fault a real bug could make (a flipped condition, an off-by-one, a dropped check or filter, a wrong recipient, a skipped event), with the test paths that should catch it. No production code in the diff: return available true, no mutants, the reason in notes.`,
+        `3. Write each spec (its format: \`tools\\run.cmd mutants --help\`) under ${SCRATCH}/ of your scratchpad and run ONE mutant per \`tools\\run.cmd mutants <spec.json>\` call (a foreground call dies at 600 s), or start it in the background and wait for it. Exit 0: the run completed; 1: an invalid spec (fix it and run again); 2: its scratch worktree could not be removed: run no more mutants, set exit_2 true and put what \`git worktree list\` shows in notes.`,
+        '4. Each survived mutant is a finding: major when the fault breaks an acceptance criterion or an invariant (a leak, an unvalidated intent, a wrong rule) and no test caught it, else minor; the file and line of the mutant, the problem, and as the fix the test that would kill it. A mutant that changes no behaviour is equivalent, not a finding. At the end confirm that `git status` in the worktree is unchanged.',
+      ].join('\n'),
+      `The implementer reported: ${JSON.stringify(impl)}`,
+      `Fresh reviewers found: ${JSON.stringify(reviews)}`,
+      'Return the structured result: every mutant you ran in mutants, each with its result (killed, survived, error or equivalent) and exit code.',
+    ].join('\n\n'), withModel({ label: `test-review:#${N}`, phase: 'Review', effort: TEST_EFFORT, schema: TEST_REVIEW_SCHEMA }, 'test_review'))
+    if (!testReview) throw new Error(`#${N}: the test reviewer returned nothing; resume this run with the same args`)
+    log(`#${N}: test review ${testReview.available ? `${(testReview.mutants || []).length} mutants, ${(testReview.findings || []).length} findings` : 'not run: `mutants` is missing on the branch'}${testReview.exit_2 ? '; mutants EXITED 2' : ''}`)
+  }
+
+  // skeptic: one read-only agent per blocker or major finding tries to refute it before the publisher fixes it.
+  if (SKEPTICS) {
+    const serious = []
+    reviews.forEach((r, i) => (r.findings || []).forEach(f => { if (SERIOUS.test(f.severity)) serious.push({ from: labels[i], finding: f }) }))
+    if (testReview) (testReview.findings || []).forEach(f => { if (SERIOUS.test(f.severity)) serious.push({ from: 'test review', finding: f }) })
+    const checked = serious.slice(0, SKEPTICS)
+    skeptic = { refuted: [], stood: [], unchecked: serious.slice(SKEPTICS) }
+    if (skeptic.unchecked.length) log(`#${N}: ${skeptic.unchecked.length} blocker or major finding(s) over the skeptic limit of ${SKEPTICS} go to the publisher unchecked`)
+    if (checked.length) {
+      const verdicts = await parallel(checked.map(s => () => agent([
+        `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
+        'A skeptic\'s read-only check of ONE review finding (skeptic), before the publisher fixes it. Budget: at most about 30 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
+        `The finding, from the ${s.from}: ${JSON.stringify(s.finding)}`,
+        `Try to refute it: read the code, the tests and the docs it names, the issue and its comments (\`gh issue view ${N} --comments\`), and decide whether it is wrong: the code already handles it, it misreads the code or the issue, it contradicts an accepted ADR or the engineer's answers, or the fault cannot happen. refuted true only with evidence (file:line, or a command and its output); uncertain, or right in part: refuted false. A finding about an acceptance criterion, an invariant or a leak is refuted only when the code is shown to meet it.`,
+      ].join('\n\n'), asReviewer({ label: `skeptic:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: SKEPTIC_SCHEMA }, 'skeptic'))))
+      if (verdicts.some(v => !v)) throw new Error(`#${N}: a skeptic returned nothing; resume this run with the same args`)
+      checked.forEach((s, k) => (verdicts[k].refuted ? skeptic.refuted : skeptic.stood).push({ ...s, reason: verdicts[k].reason, evidence: verdicts[k].evidence || '' }))
+    }
+    log(`#${N}: skeptics refuted ${skeptic.refuted.length} of ${checked.length} blocker or major finding(s)`)
+  }
 }
 
 // A red implementer stops the run here: no fresh agent has read the final code, so nothing may be published
@@ -197,28 +419,64 @@ if (impl.verify_green) {
 // the cached red result); the implementer continues from the worktree's commits.
 if (!impl.verify_green) {
   log(`#${N}: verify RED after the implementer; nothing reviewed or published`)
-  return { n: N, impl, reviews: [], pub: null, stopped: 'verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes' }
+  return { n: N, impl, reviews: [], pub: null, stopped: 'verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes', ...(planned ? { plan: planned } : {}) }
 }
 
 phase('Publish')
-const pub = await agent([
-  RULES,
-  `Task: publish issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: high. Budget: at most about 150 tool calls.`,
-  `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
-  `The implementer reported: ${JSON.stringify(impl)}`,
-  `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. \`tools\\run.cmd verify\` until green (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
-  [
-    'Then follow .claude/skills/finish-task/SKILL.md from its docs step: "Publish now?" is answered yes; the reviews above replace its review step; skip agents-check.',
-    `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, verify), then publish again${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (redundant since #113: publish does this itself; harmless)`}.`,
-    `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md: \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
-    `- \`gh pr checks <pr> --watch\`. Red: fix, verify, publish again; at most two rounds, then report what is still red.`,
-    `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
-    `- \`tools\\run.cmd board move ${N} in-review\`.`,
-  ].join('\n'),
-  `Task notes from the manager (for the PR's merge order and the handoff):\n${A.notes}${A.coord ? '\n\n' + A.coord : ''}`,
-  'Return the structured result.',
-].join('\n\n'), { label: `publish:#${N}`, phase: 'Publish', effort: 'high', schema: PUB })
+// test_review: a `mutants` run that exited 2 left its scratch worktree behind; the publisher stops and reports it.
+const MUTANTS_STOP = `If a \`tools\\run.cmd mutants\` run exits 2 (its scratch worktree could not be removed), stop: publish nothing, fix nothing more, post a comment on #${N} (\`gh issue comment ${N} --body-file <file under ${SCRATCH}/>\`: Done / Stopped: mutants exited 2, with the leftover worktree's path from \`git worktree list\` / Needs the engineer: remove it), and return published false and stopped_by_mutants true with that step under human_steps.`
+const stoppedByMutants = testReview && testReview.exit_2 === true
+// The publisher's schema gains stopped_by_mutants only where its prompt can stop on mutants, so a default run's
+// schema stays byte-identical.
+const PUB_SCHEMA = testReview && testReview.available ? { ...PUB, properties: { ...PUB.properties, stopped_by_mutants: { type: 'boolean' } } } : PUB
+const pub = stoppedByMutants
+  ? await agent([
+    RULES,
+    `Task: report a stopped run of issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${PUB_EFFORT}. Budget: at most about 30 tool calls.`,
+    `The test review (test_review) reported: ${JSON.stringify(testReview)}`,
+    `${MUTANTS_STOP} Check \`git status\` in the worktree first: it must show no planted fault.`,
+    'Return the structured result.',
+  ].join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
+  : await agent([
+    RULES,
+    `Task: publish issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${PUB_EFFORT}. Budget: at most about 150 tool calls.`,
+    `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
+    `The implementer reported: ${JSON.stringify(impl)}`,
+    `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. \`tools\\run.cmd verify\` until green (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
+    planned ? `The plan and its critique (plan_review): ${JSON.stringify(planned)}\n\nIn the PR, under "Plan review": the plan in a few lines, then each critique finding and what the build did with it (the implementer's decisions say how it settled each).` : '',
+    testReviewSkipped ? `The test review (test_review) was skipped: ${testReviewSkipped}. Say so in the PR's verification section.`
+      : !testReview ? ''
+      : testReview.available
+        ? `The test review (test_review; \`tools\\run.cmd mutants\` planted each fault in a scratch worktree): ${JSON.stringify(testReview)}\n\nIts findings count like the reviewers': fix each survived mutant with a test that kills it, then run that mutant again (one per call, or in the background: a foreground call dies at 600 s) to show it killed. In the PR, a table of the mutants: file:line, the fault, killed / survived / equivalent, and the test that kills it now. ${MUTANTS_STOP}`
+        : `The test review did not run: \`tools\\run.cmd mutants\` is missing on this branch (P7, #184, not merged into its base yet): ${testReview.notes || 'no notes'}. Say so in the PR's verification section and in the handoff.`,
+    skeptic && skeptic.refuted.length + skeptic.stood.length + skeptic.unchecked.length
+      ? `Skeptics tried to refute each blocker and major finding (skeptic): ${JSON.stringify(skeptic)}\n\nA refuted finding is not fixed unless you find the skeptic wrong: the PR's findings table lists it as refuted, with the skeptic's reason. The findings that stood, and those over the limit (unchecked), are fixed as usual.`
+      : '',
+    !VISUAL ? ''
+      : shots.available && (shots.pngs || []).length
+        ? `Visual check (visual): the implementer's playcheck run: ${JSON.stringify(shots)}\n\nIf a fix changes what a scenario shows, run \`tools\\run.cmd playcheck <scenario>\` again. In the PR's Screenshots section list each PNG's path for the engineer to drag in (gh cannot upload images), and add that under human_steps.`
+        : `Visual check (visual): no screenshots: ${shots.notes || 'the implementer returned none'} (\`tools\\run.cmd playcheck\` is P9, #186). Say so in the PR's Screenshots and verification sections.`,
+    [
+      'Then follow .claude/skills/finish-task/SKILL.md from its docs step: "Publish now?" is answered yes; the reviews above replace its review step; skip agents-check.',
+      `- \`${PUBLISH}\`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with \`git ls-remote origin\` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (\`git rebase origin/${BASE}\`, resolve keeping both sides' intent, \`git rebase --continue\`, verify), then publish again${BASE === 'main' ? '' : ` after \`git config branch.${A.branch}.primeBaseTip $(git merge-base HEAD origin/${BASE})\` (redundant since #113: publish does this itself; harmless)`}.`,
+      `- PR: \`gh pr create --base ${BASE} --title "<conventional title>" --body-file <file under ${SCRATCH}/>\` from .github/pull_request_template.md: \`Closes #${N}\` when every acceptance criterion is met (else \`Part of #${N}\` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").${DESIGN ? ' The proposed issues as titles, one line each.' : ''}`,
+      `- \`gh pr checks <pr> --watch\`. Red: fix, verify, publish again; at most two rounds, then report what is still red.`,
+      `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
+      `- \`tools\\run.cmd board move ${N} in-review\`.`,
+    ].join('\n'),
+    `Task notes from the manager (for the PR's merge order and the handoff):\n${A.notes}${A.coord ? '\n\n' + A.coord : ''}`,
+    'Return the structured result.',
+  ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
-return { n: N, impl, reviews, pub }
+const out = { n: N, impl, reviews, pub }
+if (planned) out.plan = planned
+if (TEST_REVIEW) out.test_review = testReviewSkipped ? { skipped: testReviewSkipped } : testReview
+if (SKEPTICS) out.skeptic = skeptic
+if (VISUAL) out.visual = shots
+// A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
+if (stoppedByMutants || pub.stopped_by_mutants === true) {
+  out.stopped = `tools\\run.cmd mutants exited 2 ${stoppedByMutants ? 'in the test review' : 'in a rerun by the publisher'}: its scratch worktree could not be removed; nothing published (see the comment on the issue). Once the engineer removes the leftover worktree, relaunch issue-task (not a resume: a resume replays the cached exit 2) with the stop in notes`
+}
+return out
