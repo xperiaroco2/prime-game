@@ -447,6 +447,22 @@ class SemanticTest(unittest.TestCase):
         self.assertEqual(([o.symbol.name for o in row.overlaps], row.notes), (["main"], []))
         self.assertEqual(row.cells()[1], "overlap: `main`")
 
+    def test_an_appended_default_stays_an_overlap_where_the_other_side_patches_the_function(self) -> None:
+        # A stand-in for gdunit.main with the old arguments (test_verify.py's side_effect fakes, an exact
+        # assert_called_once_with) breaks once #210's own callers pass `shards`: only a direct call still binds.
+        a = self.side("#210", {"tools/runner/gdunit.py": GDUNIT_210})
+        patching = self.side("#212", {
+            "tools/runner/tests/test_x.py": "from unittest import mock\n\nfrom runner import gdunit\n\n\n"
+            "def test() -> None:\n    with mock.patch.object(gdunit, \"main\", side_effect=lambda paths, run_import: 0):\n"
+            "        pass\n",
+        })  # fmt: skip
+        found = merge.both_ways(a, patching)
+        self.assertEqual([(o.symbol.name, o.note) for o in found], [("main", False)])
+        self.assertEqual([(u.path, u.line) for u in found[0].named], [("tools/runner/tests/test_x.py", 7)])
+        row = merge.Row.of("#210 + #212", [], found)
+        self.assertEqual((row.cells()[1], row.notes), ("overlap: `main`", []))
+        self.assertTrue(merge.describe(found[0]).endswith("; patched by name at tools/runner/tests/test_x.py:7"))
+
     def test_a_textual_conflict_names_the_file(self) -> None:
         self.side("#1", {"core/match/notes.gd": "extends Node\n"})
         self.side("#2", {"core/match/notes.gd": "extends Object\n"})

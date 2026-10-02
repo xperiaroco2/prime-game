@@ -20,7 +20,8 @@ Godot: each PR onto its base tip, and each pair of PRs into the same base.
   file; a line that declares the name is no use. A symbol match is a lead, not a proof: `--trial` settles it.
   A `func` / `def` that only appended parameters with defaults (every old call still binds: `gdunit.main` gaining
   `shards=None` in #210, which #200 called) is a note, not an overlap; a parameter removed, renamed, retyped or
-  reordered, or a new one without a default, stays an overlap (#207).
+  reordered, or a new one without a default, stays an overlap (#207), and so does one a .py use patches by name
+  (`mock.patch.object(gdunit, "main", ...)`: a stand-in with the old arguments breaks once callers pass the new one).
 - The "onto base" check compares the PR with what its base gained since the PR's fork (another PR merged meanwhile).
 - Across bases (#207): each checked PR with every open PR that finally lands in another base (`main`,
   `release/m<k>`; a PR stacked on one of its own track lands in that one's), compared only when both change one
@@ -821,11 +822,14 @@ class Overlap:
     owner: str  # the side that removed or changed it
     user: str  # the side whose added lines use it
     uses: list[Use]
+    # The .py uses that name the symbol in a string (`mock.patch.object(gdunit, "main", ...)`): a stand-in that
+    # asserts the exact arguments or takes the old ones breaks once the owner's callers pass the new parameter.
+    named: list[Use] = field(default_factory=list)
 
     @property
     def note(self) -> bool:
-        """A compatible signature change (Symbol.compatible): reported, but no overlap."""
-        return self.symbol.compatible
+        """A compatible signature change (Symbol.compatible) that no use patches by name: reported, but no overlap."""
+        return self.symbol.compatible and not self.named
 
 
 def overlaps(a: Change, b: Change) -> list[Overlap]:
@@ -844,7 +848,9 @@ def overlaps(a: Change, b: Change) -> list[Overlap]:
             uses = [u for u in uses if _python_use(symbol, u, b)]
         uses = sorted(set(uses), key=lambda u: (u.path, u.line))
         if uses:
-            found.append(Overlap(symbol, a.label, b.label, uses))
+            strings = set(b.literals.get(symbol.name, [])) if symbol.compatible else set()
+            named = [u for u in uses if u in strings and u.path.endswith(".py")]
+            found.append(Overlap(symbol, a.label, b.label, uses, named))
     return found
 
 
@@ -857,7 +863,10 @@ def describe(overlap: Overlap, limit: int = 3) -> str:
     where = f"{s.path}:{s.line}" if s.line else s.path
     shown = ", ".join(f"{u.path}:{u.line}" for u in overlap.uses[:limit])
     more = f" (+{len(overlap.uses) - limit} more)" if len(overlap.uses) > limit else ""
-    return f"{s.describe()} by {overlap.owner} at {where}; used by {overlap.user} at {shown}{more}"
+    patched = ""
+    if overlap.named:
+        patched = f"; patched by name at {', '.join(f'{u.path}:{u.line}' for u in overlap.named[:limit])}"
+    return f"{s.describe()} by {overlap.owner} at {where}; used by {overlap.user} at {shown}{more}{patched}"
 
 
 # --- merge-check ------------------------------------------------------------------------------------------------------
