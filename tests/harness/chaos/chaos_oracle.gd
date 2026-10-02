@@ -23,6 +23,10 @@ const EMPTY_HAND := &"empty_hand"
 const NOTHING_TO_SWAP := &"nothing_to_swap"
 const NOT_CHANNELING := &"not_channeling"
 const NOT_DOWNED := &"not_downed"
+const OUT_OF_REACH := &"out_of_reach"
+## The base mode's InReach of PickUp (§9.4: 2 m from the actor's last accepted feet to the item's
+## rest position), checked after ItemOnGround and before InSight.
+const PICK_UP_REACH_M := 2.0
 ## The base mode's allowlist (§3.2): phase -> intent -> who may send it (From bits).
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
@@ -51,20 +55,22 @@ const ACCEPTS: Dictionary[StringName, Dictionary] = {
 
 ## The reason the host must reject `intent` (with `args`) from `peer` with, or SILENT; `phase` is
 ## the phase it is applied in, `player` the sender's state (null for a newcomer), `match_id` the
-## current match's id.
+## current match's id, `state` the match the intent meets (its items and the other players; null:
+## no item exists and the sender is the only player).
 static func answer(
 	intent: StringName,
 	args: Dictionary,
 	peer: int,
 	phase: StringName,
 	player: PlayerState,
-	match_id: int
+	match_id: int,
+	state: MatchState = null
 ) -> StringName:
 	if not accepts(intent, peer, phase, player):
 		# A refused MoveClaim is dropped (E15); everything else is not_accepted (§3.1). A chaos
 		# peer never sends a Hello as a newcomer (that would be its join).
 		return SILENT if intent == Intents.MOVE_CLAIM else RejectReasons.NOT_ACCEPTED
-	return _rule(intent, args, peer, player, match_id)
+	return _rule(intent, args, peer, player, match_id, state)
 
 
 ## Whether the phase's allowlist takes `intent` from `peer` (§3.1, §3.2).
@@ -89,7 +95,12 @@ static func accepts(intent: StringName, peer: int, phase: StringName, player: Pl
 
 ## The answer of an intent the allowlist took, for what a chaos peer sends (§4.1).
 static func _rule(
-	intent: StringName, args: Dictionary, peer: int, player: PlayerState, match_id: int
+	intent: StringName,
+	args: Dictionary,
+	peer: int,
+	player: PlayerState,
+	match_id: int,
+	state: MatchState
 ) -> StringName:
 	var answer_now := RejectReasons.NOTHING_TO_DO
 	match intent:
@@ -98,7 +109,7 @@ static func _rule(
 		Intents.LOAD_ACK:
 			answer_now = SILENT if args.get("match_id") != match_id else RejectReasons.UNCHANGED
 		Intents.PICK_UP:
-			answer_now = UNAVAILABLE if args.get("item") == NO_ITEM else &"?"
+			answer_now = _pick_up(args.get("item", -1) as int, player, state)
 		Intents.PUT_DOWN:
 			answer_now = EMPTY_HAND if player.held_item < 0 else &"?"
 		Intents.USE:
@@ -112,3 +123,16 @@ static func _rule(
 			answer_now = NOT_DOWNED if args.get("target") == peer else &"?"
 	# "?": an input the chaos peers never send in that state; the check reports it.
 	return answer_now
+
+
+## PickUp's conditions in their order (§9.4): ItemOnGround (`unavailable`), then InReach from the
+## sender's last accepted feet (`out_of_reach`). An item on the ground within reach is "?": the
+## chaos peers name only items that rest far from them, so a pick-up it could take is a race the
+## check reports, never an answer.
+static func _pick_up(id: int, player: PlayerState, state: MatchState) -> StringName:
+	var item: ItemState = state.items.get(id) if state != null else null
+	if item == null or item.where != ItemState.Where.GROUND:
+		return UNAVAILABLE
+	if player.position.distance_to(item.position) > PICK_UP_REACH_M:
+		return OUT_OF_REACH
+	return &"?"

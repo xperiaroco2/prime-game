@@ -92,6 +92,33 @@ func test_the_oracle_answers_from_the_base_modes_table() -> void:
 	assert_bool(ChaosOracle.accepts(&"MoveClaim", 4, &"round", downed)).is_true()
 
 
+func test_the_oracle_answers_a_pick_up_by_the_items_place_and_the_senders_reach() -> void:
+	var state := MatchState.new(1)
+	var me := state.add_player(4, "Player4")
+	me.position = Vector3(1.0, 0.0, 1.0)
+	var knife := load("res://content/items/knife.tres") as ItemKind
+	state.items[0] = ItemState.new(0, knife, Vector3(12.0, 0.0, 1.0))
+	state.items[1] = ItemState.new(1, knife, Vector3(2.0, 0.0, 1.0))
+	state.items[2] = ItemState.new(2, knife, Vector3(30.0, 0.0, 1.0))
+	state.items[2].where = ItemState.Where.HAND
+	state.items[2].holder = 2
+	var cases: Array[Array] = [
+		[0, &"out_of_reach"],
+		[1, &"?"],
+		[2, &"unavailable"],
+		[ChaosOracle.NO_ITEM, &"unavailable"],
+	]
+	for case: Array in cases:
+		var args := {"item": case[0]}
+		var answer := ChaosOracle.answer(&"PickUp", args, 4, &"round", me, 0, state)
+		assert_str(str(answer)).override_failure_message("%s" % [case]).is_equal(str(case[1]))
+	# Within reach of the sender's position (the host's, not a claimed one) a pick-up could be
+	# taken: the oracle has no answer, so the run reports it as a race.
+	me.position = Vector3(11.0, 0.0, 1.0)
+	var near := ChaosOracle.answer(&"PickUp", {"item": 0}, 4, &"round", me, 0, state)
+	assert_str(str(near)).is_equal("?")
+
+
 func test_the_host_counts_are_exempt_for_the_two_chaos_peers_only() -> void:
 	var run := ChaosRun.new()
 	run.ledger = RejectLedger.new()

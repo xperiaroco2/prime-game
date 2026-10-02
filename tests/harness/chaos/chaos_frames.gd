@@ -40,7 +40,9 @@ enum Shape {
 
 ## The hostile MoveClaims. STALE_TICK repeats a client tick the host already has: dropped, or, as
 ## the first claim of a new baseline, checked as one tick and corrected (§7.1; both allowed).
-enum Claim { TELEPORT, SPEED, FUTURE_TICK, JUMPS, OTHER_EPOCH, STALE_TICK }
+## NEAR_ITEM claims the position it is given (an item resting far away, ahead of a PickUp of it):
+## not one of the random shapes (RANDOM_CLAIMS), its caller picks the item.
+enum Claim { TELEPORT, SPEED, FUTURE_TICK, JUMPS, OTHER_EPOCH, STALE_TICK, NEAR_ITEM }
 
 ## The chaos intents' seqs start here: an honest client's own seqs stay far below, so a Rejected
 ## names which intent it answers.
@@ -55,6 +57,8 @@ const SPEED_M := 6.0
 ## How far past its last claim a "future" client tick goes: past MAX_TICK_CREDIT (200 ticks).
 const FUTURE_TICKS := 5000
 ## Kinds no row of the table has (0 is the transport's ADMIT, never a client's).
+## The Claim shapes a chaos peer draws at random: the ones before NEAR_ITEM.
+const RANDOM_CLAIMS := Claim.NEAR_ITEM
 const UNASSIGNED: Array[int] = [0, 14, 19, 23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255]
 ## MoveClaim's layout (§4.3): the first float of position, velocity and facing, and the flags.
 const CLAIM_FLOATS_AT := 8
@@ -124,7 +128,8 @@ static func malformed(
 
 
 ## A hostile MoveClaim of `shape` from a player standing at `at` in `epoch`, whose last claim
-## carried `last_tick` and `jumps`; `index` makes its tag unique.
+## carried `last_tick`; `index` makes its tag unique. NEAR_ITEM claims `at` itself, which its
+## caller sets to a point far from where the player stands.
 static func claim(
 	shape: Claim, schema: WireSchema, epoch: int, last_tick: int, at: Vector3, index: int
 ) -> Packet:
@@ -135,6 +140,8 @@ static func claim(
 	match shape:
 		Claim.SPEED:
 			position = at + Vector3(0.0, 0.0, SPEED_M)
+		Claim.NEAR_ITEM:
+			position = at
 		Claim.FUTURE_TICK:
 			tick = last_tick + FUTURE_TICKS
 		Claim.JUMPS:

@@ -102,14 +102,19 @@ static func summary(run: ChaosRun) -> String:
 	var checked := 0
 	for peer: int in run.checked:
 		checked += run.checked[peer]
+	var reasons: Dictionary[String, int] = {}
+	for answer: String in run.hostile_rejected:
+		var reason := answer.get_slice(" ", 1)
+		reasons[reason] = reasons.get(reason, 0) + 1
 	return (
 		(
-			"  %d chaos commands answered as ARCHITECTURE says, %d Rejected to the hostile;"
+			"  %d chaos commands answered as ARCHITECTURE says, %d Rejected to the hostile %s;"
 			+ " the host's rejects: hostile %s, malformed peer %s"
 		)
 		% [
 			checked,
 			run.hostile_rejected.size(),
+			reasons,
 			run.ledger.named(run.hostile_peer()),
 			run.ledger.named(run.malformed.peer),
 		]

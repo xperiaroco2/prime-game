@@ -339,7 +339,7 @@ func _check_intent(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 	var player := game.state.player(command.peer)
 	var phase := game.phase_id()
 	var want := ChaosOracle.answer(
-		command.kind, command.args, command.peer, phase, player, game.state.match_id()
+		command.kind, command.args, command.peer, phase, player, game.state.match_id(), game.state
 	)
 	var good := slice.is_empty() if want == ChaosOracle.SILENT else slice.size() == 1
 	if good and want != ChaosOracle.SILENT:

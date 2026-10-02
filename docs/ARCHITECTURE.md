@@ -1142,7 +1142,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
      action): exactly `Rejected(seq, reason)` to the sender, nothing else emitted, no reject counted, the reason
      `ChaosOracle`'s, written from §3.2's table, not from the code: `not_accepted` for the wrong phase or life
      state, `unchanged`, `unavailable`, `empty_hand`, `nothing_to_do`, `nothing_to_swap`, `not_channeling`,
-     `not_downed`, and no reply to a `LoadAck` of another match;
+     `not_downed`, `out_of_reach` (a `PickUp` of an item resting more than 8 m away, half of them right after a
+     claim that teleports the hostile next to it: reach is measured from the host's last accepted position, §7.1,
+     §9.4), and no reply to a `LoadAck` of another match;
   5. hostile `MoveClaim`s (a teleport, a speed over the cap, a client tick past the credit, jumps 65535, another
      epoch, a client tick that does not rise; NaN and infinity are class 1 on the wire): a `Correction` (its epoch
      plus one, the old position) to the sender alone when the phase takes its claims and the epoch is its own,
@@ -1176,7 +1178,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
     (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
     malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
-    forced crew, now a dissident) and on the `BAD_PAYLOAD` counts. Tests: `tests/unit/net/transport/
+    forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always passing (`--long`) failed
+    class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
     chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
     `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
     claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).

@@ -12,8 +12,12 @@ extends RefCounted
 ## - its synthetic voice in every phase and life state (frames the leak test can read), and one
 ##   burst past the voice bucket in the round and one past the reliable-intent bucket in the
 ##   countdown (§4.5: dropped and counted, no reply, no disconnect).
+## - PickUps of items that rest far from it (out_of_reach, §9.4), some right after a claim that
+##   teleports it next to the item, which the host corrects: reach is measured from the host's
+##   last accepted position, never the claimed one (§7.1).
 ## Never an intent the rules could accept: SetReady only to the flag it has, GiveUp only outside the
-## round or when dead, no PickUp of an item that exists, nothing a race could turn into an action.
+## round or when dead, PickUp only of an item that does not exist or rests FAR_M away, nothing a
+## race could turn into an action.
 
 ## Of each frame, the chance it sends something.
 const ACT_CHANCE := 0.4
@@ -22,6 +26,12 @@ const MALFORMED_CAP := 40
 ## The bursts: past the intents bucket (100) and the voice bucket (500) of PeerBudget.
 const BURST_INTENTS := 130
 const BURST_VOICE := 530
+## How far an item it names in a PickUp rests from it at least: past the pick-up's 2 m and past
+## the over-speed claim's SPEED_M, with a margin; only a carried item moves, and that one is
+## unavailable.
+const FAR_M := 8.0
+## Of the PickUps of a far item, the share sent right after a claim next to it.
+const NEAR_CLAIM_CHANCE := 0.5
 ## Its chaos voice frames count from here (LeakCheck.voice_frame's counter), apart from its bot's.
 const VOICE_COUNTER := 500_000
 
@@ -80,7 +90,7 @@ func act(now_usec: int, claimed: bool) -> void:
 		return
 	var roll := rng.randf()
 	if roll < 0.45:
-		_refused(phase, life)
+		_refused(phase, life, claimed)
 	elif roll < 0.65:
 		if not claimed:
 			_claim()
@@ -97,8 +107,9 @@ func _is_ready() -> bool:
 
 
 ## A well-formed intent the rules refuse in `phase` for `life`, as its own client knows them; a
-## copy of it now and then (a duplicate), with a fresh, repeated or lower seq.
-func _refused(phase: StringName, life: ClientModel.Life) -> void:
+## copy of it now and then (a duplicate), with a fresh, repeated or lower seq. `claimed`: a
+## MoveClaim already goes out in this frame.
+func _refused(phase: StringName, life: ClientModel.Life, claimed: bool) -> void:
 	var choices: Array[StringName] = [
 		Intents.SET_READY,
 		Intents.CHANGE_SETTINGS,
@@ -117,7 +128,11 @@ func _refused(phase: StringName, life: ClientModel.Life) -> void:
 		choices.append(Intents.GIVE_UP)
 	var intent := choices[rng.randi_range(0, choices.size() - 1)]
 	var seq := _seq_for(intent)
-	var packet := ChaosFrames.message(_schema, intent, _args_of(intent), seq)
+	var args := _args_of(intent)
+	var item: int = args.get("item", ChaosOracle.NO_ITEM)
+	if item != ChaosOracle.NO_ITEM and not claimed and rng.randf() < NEAR_CLAIM_CHANCE:
+		_claim_at(ChaosFrames.Claim.NEAR_ITEM, _client.model.items[item].position)
+	var packet := ChaosFrames.message(_schema, intent, args, seq)
 	_send(packet)
 	if rng.randf() < 0.15:
 		_send(packet)
@@ -133,7 +148,7 @@ func _args_of(intent: StringName) -> Dictionary:
 		Intents.LOAD_ACK:
 			args = {"match_id": 1000 + rng.randi_range(0, 999)}
 		Intents.PICK_UP:
-			args = {"item": ChaosOracle.NO_ITEM}
+			args = {"item": _far_item()}
 		Intents.PUT_DOWN, Intents.USE:
 			args = {"facing": Vector3.FORWARD}
 		Intents.RAISE:
@@ -163,9 +178,26 @@ func _fresh_seq() -> int:
 	return seq
 
 
+## An item resting at least FAR_M from it, as its client knows the items, or NO_ITEM (half of the
+## time, and when none is that far).
+func _far_item() -> int:
+	var far: Array[int] = []
+	for id: int in _client.model.items:
+		var item: ClientModel.Item = _client.model.items[id]
+		var resting := item.holder == ClientModel.NO_HOLDER and not item.delivered
+		if resting and item.position.distance_to(_bot.position) > FAR_M:
+			far.append(id)
+	if far.is_empty() or rng.randf() < 0.5:
+		return ChaosOracle.NO_ITEM
+	return far[rng.randi_range(0, far.size() - 1)]
+
+
 func _claim() -> void:
-	var shape := rng.randi_range(0, ChaosFrames.Claim.size() - 1) as ChaosFrames.Claim
-	var at := _bot.position
+	var shape := rng.randi_range(0, ChaosFrames.RANDOM_CLAIMS - 1) as ChaosFrames.Claim
+	_claim_at(shape, _bot.position)
+
+
+func _claim_at(shape: ChaosFrames.Claim, at: Vector3) -> void:
 	var packet := ChaosFrames.claim(
 		shape, _schema, _client.model.epoch, maxi(_client.last_claim_tick(), 0), at, _claims
 	)
