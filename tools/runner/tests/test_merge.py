@@ -580,6 +580,27 @@ class CommandTest(unittest.TestCase):
                 self.assertIn("CI is not green", str(caught.exception))
         self.assertEqual((self.repo.remote("release/m1"), self.verified), (tip, []))
 
+    def test_refuses_a_moved_head_and_a_base_that_has_it(self) -> None:
+        branch = self.task(7, {"core/a.gd": "extends Node\n"})
+        tip = self.repo.remote("release/m1")
+        _git(self.repo.work, "switch", "-q", branch)
+        self.repo.commit({"core/a.gd": "extends Object\n"}, "pushed after GitHub's view")
+        self.repo.push(branch)  # the head on origin moves; gh still reports the old headRefOid
+        _git(self.repo.work, "switch", "-q", "main")
+        with self.assertRaises(Failure) as caught:
+            merge.merge(7, base="release/m1")
+        self.assertIn("it moved", str(caught.exception))
+        self.assertEqual((self.repo.remote("release/m1"), self.verified), (tip, []))
+        # GitHub still shows #7 open although the base already holds its head (a merge by hand GitHub has not seen).
+        self.gh.prs[7]["headRefOid"] = self.repo.remote(branch)
+        self.repo.push(f"{self.gh.prs[7]['headRefOid']}:refs/heads/release/m1")
+        tip = self.repo.remote("release/m1")
+        with mock.patch.object(self.gh, "view", lambda n: dict(self.gh.prs[n])), self.assertRaises(Failure) as caught:
+            merge.merge(7, base="release/m1")
+        self.assertIn("already has #7's head", str(caught.exception))
+        self.assertEqual((self.repo.remote("release/m1"), self.verified), (tip, []))
+        self.assertEqual(self.scratch_left(), [])
+
     def test_refuses_a_task_checkout_here_or_as_the_current_folder(self) -> None:
         self.task(7, {"core/a.gd": "extends Node\n"})
         _git(self.repo.work, "switch", "-q", "core/7-task")
