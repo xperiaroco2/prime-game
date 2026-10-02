@@ -152,6 +152,15 @@ static func sprint_available(player: PlayerState, rules: PlayerRules) -> bool:
 	return _sprint_state(player.life, true, player.sprinting, player.stamina, rules)
 
 
+## The player's ledger as it is: commit() puts it back (a refused jump claim, MovementRule).
+static func snapshot(player: PlayerState) -> Settlement:
+	var result := Settlement.new()
+	result.stamina = player.stamina
+	result.sprinting = player.sprinting
+	result.settled_tick = player.stamina_settled_tick
+	return result
+
+
 ## Spends `amount` thousandths (a jump, a hit).
 static func spend(player: PlayerState, amount: int) -> void:
 	player.stamina = maxi(0, player.stamina - amount)

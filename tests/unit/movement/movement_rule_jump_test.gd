@@ -93,8 +93,9 @@ func test_a_second_jump_in_the_air_is_corrected() -> void:
 	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, UP * 0.3, FixtureMoves.jumped(game, P1))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	# 90000 after the first jump, then two ticks of regeneration, and no second cost.
-	assert_int(game.state.player(P1).stamina).is_equal(91500)
+	# 90000 after the first jump, then the accepted claim's tick of regeneration, and no second
+	# cost: the refused claim settles nothing (#155), its tick is the next claim's.
+	assert_int(game.state.player(P1).stamina).is_equal(90750)
 
 
 func test_a_jump_needs_its_full_cost_settled_up_to_now() -> void:
@@ -103,10 +104,11 @@ func test_a_jump_needs_its_full_cost_settled_up_to_now() -> void:
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	player.stamina = 9000
 	var seen := FixtureMoves.corrections(game, P1).size()
-	# Settled first: one tick of regeneration gives 9750, short of the jump's 10000.
+	# Settled first: one tick of regeneration gives 9750, short of the jump's 10000. The refused
+	# claim settles nothing (#155): its tick is the next claim's.
 	FixtureMoves.step(game, P1, UP * 0.1, FixtureMoves.jumped(game, P1))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	assert_int(player.stamina).is_equal(9750)
+	assert_int(player.stamina).is_equal(9000)
 	# One more tick passed: 10500 covers it, and 500 is left.
 	FixtureMoves.step(game, P1, UP * 0.1, FixtureMoves.jumped(game, P1))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
@@ -114,6 +116,29 @@ func test_a_jump_needs_its_full_cost_settled_up_to_now() -> void:
 	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()
 	assert_int(last.stamina).is_equal(500)
 	assert_bool(last.sprint_available).is_false()
+
+
+func test_a_refused_jump_claim_leaves_the_ledger_at_the_last_accepted_claim() -> void:
+	# #155: a jump claim's ticks are settled for its cost check; refused for its travel, it settles
+	# nothing, so the stamina stays the number after the last accepted claim, the one SelfStatus
+	# names, and the next claim settles the refused one's ticks once.
+	var game := _round()
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var accepted := player.claim_tick
+	player.stamina = 50000
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureModes.run_ticks(game, 2)
+	FixtureMoves.step(game, P1, Vector3(3, 0.1, 0), FixtureMoves.jumped(game, P1))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_int(player.stamina).is_equal(50000)
+	assert_int(MovementRule.settled_claim_tick(game.state, player)).is_equal(accepted)
+	for status: SelfStatusEvent in FixtureMoves.statuses(game, P1):
+		assert_int(status.stamina).is_not_equal(52250)
+	# The next claim covers the refused one's three ticks and its own: four of regeneration.
+	FixtureMoves.step(game, P1, Vector3(0.1, 0, 0))
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_int(player.stamina).is_equal(53000)
 
 
 func test_a_jump_claim_pays_for_the_sprint_it_covers() -> void:
@@ -412,11 +437,12 @@ func test_stamina_for_fewer_than_the_counted_jumps_is_corrected() -> void:
 	player.stamina = 27000
 	var seen := FixtureMoves.corrections(game, P1).size()
 	# A claim of three jumps over three ticks, settled first: three ticks of regeneration give
-	# 29250, short of three jumps' 30000.
+	# 29250, short of three jumps' 30000. The refused claim settles nothing (#155): its ticks are
+	# the next claim's.
 	FixtureModes.run_ticks(game, 2)
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 3}))
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
-	assert_int(player.stamina).is_equal(29250)
+	assert_int(player.stamina).is_equal(27000)
 	assert_int(FixtureMoves.jumps_of(game, P1)).is_equal(0)
 	# In the new epoch, two jumps (20000) are covered by 30000.
 	FixtureMoves.step(game, P1, UP * 0.1, _air({"jumps": 2}))

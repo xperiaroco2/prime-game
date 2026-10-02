@@ -226,16 +226,22 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		StaminaLedger.settle_ahead(player, ctx.state.player_rules, ctx.tick)
 		_correct(ctx, player, motion)
 		return
+	var ledger := StaminaLedger.snapshot(player)
 	var checked := _check(ctx, player, motion, claim, covered, fresh)
 	if checked == null:
+		# A refused claim settles nothing, though a jump claim's check committed its ticks: they are
+		# the next claim's, which covers them from the last accepted claim, the one SelfStatus names
+		# (#155), so the stamina it reports is the number after that claim.
+		StaminaLedger.commit(player, ledger)
 		_correct(ctx, player, motion)
 		return
 	_accept(ctx, player, motion, claim, checked)
 
 
-## Runs the checks after the tick rate's; null when one fails. May settle stamina up to now, which
-## applies only ticks that have passed (§9.2). `fresh`: the claim starts a client-tick baseline,
-## so `covered` is 1 whatever span of client ticks it really covers.
+## Runs the checks after the tick rate's; null when one fails. A jump claim's check settles stamina
+## up to now, which applies only ticks that have passed (§9.2), and apply() puts it back when a
+## check fails. `fresh`: the claim starts a client-tick baseline, so `covered` is 1 whatever span of
+## client ticks it really covers.
 static func _check(
 	ctx: MatchContext, player: PlayerState, motion: Motion, claim: Claim, covered: int, fresh: bool
 ) -> Checked:
@@ -265,6 +271,7 @@ static func _check(
 	if jumped:
 		# The claim's own ticks are settled with its own flags, so a sprint before the jump is paid;
 		# then any ticks up to now with the last claim's (settle_ahead), before the cost is checked.
+		# Committed here for the check; apply() puts the ledger back if the claim is refused.
 		StaminaLedger.commit(player, checked.settled)
 		StaminaLedger.settle_ahead(player, rules, ctx.tick)
 		var take_off := _floor_under(ctx.world, player.position, rules)
