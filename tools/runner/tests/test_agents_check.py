@@ -203,9 +203,9 @@ class UserModelsTest(unittest.TestCase):
 
 
 def names_outside(text: str, outside: list[str]) -> list[str]:
-    """The families of `outside` that the text names as a word; a path ending in .md (a link to the model-guard ADR,
-    whose file name holds one) is not a name."""
-    text = re.sub(r"[\w./-]+\.md\b", " ", text.lower())
+    """The families of `outside` that the text names as a word; the model-guard ADR's file name (a link to it holds
+    one) is not a name, any other path that holds one is."""
+    text = re.sub(r"2026-09-28-model-guard-no-\w+-in-shared-config\.md", " ", text.lower())
     return [f for f in outside if re.search(rf"\b{f}\b", text)]
 
 
@@ -217,6 +217,11 @@ class SharedFilesTest(unittest.TestCase):
         self.assertEqual(names_outside(f"the second review runs on {OUTSIDE.capitalize()}.", [OUTSIDE]), [OUTSIDE])
         link = f"[ADR](../../../docs/decisions/2026-09-28-model-guard-no-{OUTSIDE}-in-shared-config.md)"
         self.assertEqual(names_outside(f"the guard ({link})", [OUTSIDE]), [])
+
+    def test_a_link_to_another_file_named_after_the_model_is_still_a_name(self) -> None:
+        for path in (f".claude/agents/{OUTSIDE}-reviewer.md", f"docs/{OUTSIDE}.md"):
+            with self.subTest(path=path):
+                self.assertEqual(names_outside(f"see [the agent]({path})", [OUTSIDE]), [OUTSIDE])
 
     def test_no_shared_instruction_file_names_a_model_outside_the_shared_list(self) -> None:
         shared = {agents_check.family(m) for m in agents_check.allowed_models()}
