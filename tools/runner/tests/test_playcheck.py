@@ -421,6 +421,18 @@ class RunTest(unittest.TestCase):
         self.run_scenario({})
         self.assertFalse(old.exists())
 
+    def test_a_folder_it_cannot_clear_fails_before_anything_starts(self) -> None:
+        old = self.tmp / "out" / "probe" / "old.png"
+        old.parent.mkdir(parents=True)
+        old.write_bytes(shot.PNG_MAGIC)
+        with mock.patch.object(playcheck.shutil, "rmtree"), mock.patch.object(hostjoin, "supervise") as supervise:
+            with self.assertRaises(Failure) as caught:
+                self.run_scenario({})
+        self.assertIn("cannot clear", str(caught.exception))
+        self.assertIn("close any program holding its files", str(caught.exception))
+        supervise.assert_not_called()
+        self.assertTrue(old.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

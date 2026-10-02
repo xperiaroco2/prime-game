@@ -510,10 +510,17 @@ def report(scenario: Scenario, parts: list[hostjoin.Part], out: Path) -> int:
     return 1 if failed else 0
 
 
+def clear(folder: Path) -> None:
+    """Removes `folder` of an earlier run, so none of its files passes for this run's."""
+    shutil.rmtree(folder, ignore_errors=True)
+    if folder.exists():
+        raise Failure(f"cannot clear {shown(folder)}: close any program holding its files (a PNG viewer), then rerun")
+
+
 def run_one(scenario: Scenario, exe: str, seconds: int, port: int) -> int:
     say(f"playcheck {scenario.name}: {scenario.windows} window(s) and {scenario.players - scenario.windows} bot(s)")
     out = OUT_DIR / scenario.name
-    shutil.rmtree(out, ignore_errors=True)
+    clear(out)
     (out / "peers").mkdir(parents=True)
     plan_path = out / "plan.json"
     plan_path.write_text(json.dumps(plan(scenario, out), indent=2) + "\n", encoding="utf-8")
