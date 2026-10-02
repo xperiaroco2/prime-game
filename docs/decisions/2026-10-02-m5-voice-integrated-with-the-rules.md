@@ -243,7 +243,9 @@ the ears and are muffled by occlusion (§1.6).
 **The engineer's step** (a stop-and-ask, the voice ADR's "What follows"): download TwoVoIP **v6.5**, check its SHA-256,
 copy the `.gdextension`, its `.uid`, its license and the Windows libraries into `addons/twovoip/`, and run `check` (the
 commands are in §6). `addons/**` stays out of LFS, so the libraries are plain git files like GdUnit4's. The agent in
-M5-3 then commits them and runs the round trip (§1.3) and `verify`. v6.6 or later only after
+M5-3 then commits them and runs the round trip (§1.3) and `verify`, and writes `docs/credits/twovoip.md` (author,
+source URL, v6.5, the license, and the licenses of the bundled Opus and RNNoise libraries the archive names) and
+regenerates `CREDITS.md` with `tools\run.cmd credits`, as GdUnit4 did (`docs/credits/gdunit4.md`). v6.6 or later only after
 goatchurchprime/two-voip-godot-4#107 is fixed and `check` passes with it.
 
 **What Godot prints on Linux when it loads a `.gdextension`** (from the 4.7.2 source above; the addon PR's CI run on its
