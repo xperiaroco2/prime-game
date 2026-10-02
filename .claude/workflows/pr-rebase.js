@@ -1,7 +1,7 @@
 export const meta = {
   name: 'pr-rebase',
   description: 'Bring one open prime-game PR up to date with its base after a semantic conflict: rebase and reconcile, verify, publish; fresh review; fix only if blocker or major',
-  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, efforts?, models?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (at most 3, or its number); efforts and models add none.',
+  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, efforts?, models?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); efforts and models add none.',
   phases: [
     { title: 'Rebase', detail: 'one agent in the task worktree' },
     { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/client/tests/harness changed (optional: a second netcode review, a skeptic per blocker or major)' },
@@ -26,9 +26,10 @@ export const meta = {
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
-//                 Fix phase, at most 3 (or that number); a refuted finding is not sent to the fix agent but listed
-//                 in the PR body with the reason (by the fix agent, or by the manager when every one was refuted:
-//                 the result says so). +1 agent per finding checked
+//                 Fix phase (true: every one; a number: at most that many, the rest go to the fix unchecked); a
+//                 refuted finding is not sent to the fix agent but listed in the PR body with the reason (by the fix
+//                 agent, or by the manager when every one was refuted: the result's note says so). +1 agent per
+//                 finding checked
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: rebase (default 'high'), review,
 //                 netcode, second_review, skeptic, fix (default 'high'). review covers the code reviewer and is the
 //                 fallback of netcode, skeptic and (after netcode) second_review. A reviewer gets an effort only when
@@ -62,7 +63,8 @@ const SECOND_REVIEW = A.second_review === true
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
   throw new Error('pr-rebase: args.skeptic must be true, false or the most findings to check (a positive integer)')
 }
-const SKEPTICS = A.skeptic === true ? 3 : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
+// true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
+const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
 const ROLES = ['rebase', 'review', 'netcode', 'second_review', 'skeptic', 'fix']
 // The roles a role falls back to, in order, when this launch sets nothing for it.
 const CHAIN = {

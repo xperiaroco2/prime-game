@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (at most 3, or its number); visual, efforts and models add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, efforts and models add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major)' },
@@ -38,8 +38,8 @@ export const meta = {
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed (core/ server/ net/ client/ tests/harness/ or a design task). +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
-//                 publisher, at most 3 (or that number); the rest go to the publisher unchecked; a refuted finding
-//                 is listed in the PR with the reason. +1 agent per finding checked
+//                 publisher (true: every one; a number: at most that many, the rest go to the publisher unchecked);
+//                 a refuted finding is listed in the PR with the reason. +1 agent per finding checked
 //   visual        true (the playcheck scenarios the notes name), or a scenario name or a list of them: the
 //                 implementer runs `tools\run.cmd playcheck <scenario>` (P9, #186) and returns the PNGs, the code
 //                 reviewer reads them, and the rules line on Godot windows also allows playcheck. Missing on the
@@ -89,7 +89,8 @@ const SECOND_REVIEW = flag('second_review')
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
   throw new Error('issue-task: args.skeptic must be true, false or the most findings to check (a positive integer)')
 }
-const SKEPTICS = A.skeptic === true ? 3 : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
+// true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
+const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
 const V = A.visual
 const SCENES = V === true
   ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'

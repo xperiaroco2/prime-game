@@ -237,7 +237,7 @@ Rules for every workflow run:
   code with `tools\run.cmd mutants` (#184), each in a scratch worktree; a survived mutant is a finding, and the
   publisher stops and reports when `mutants` exits 2 (+1). `second_review: true`: a second `netcode-security-reviewer`
   with an attacker's lens wherever the netcode review is routed (+1). `skeptic: true` or a number: a read-only agent
-  tries to refute each blocker or major finding before the publisher, at most 3 or that number; refuted ones are
+  tries to refute each blocker or major finding before the publisher (a number caps the agents); refuted ones are
   listed in the PR with the reason (+1 each). `visual: true` (the scenarios the notes name), a scenario or a list:
   the implementer runs `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the rule on Godot
   windows also allows `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review, review,

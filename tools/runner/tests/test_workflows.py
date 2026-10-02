@@ -587,8 +587,16 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", skeptic=True), dict(core, queues={"skeptic": [stands, None]})),
             ("pr-rebase.js", dict(ARGS, skeptic=True), dict(core, queues={"skeptic": [refuted, refuted]})),
             ("pr-rebase.js", dict(ARGS, skeptic=True), dict(core, queues={"skeptic": [refuted, stands]})),
+            # true checks every blocker or major (the issue's criterion), however many there are.
+            ("issue-task.js", dict(ARGS, branch="core/7-x", skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR, MAJOR, MINOR]}),
+            ("pr-rebase.js", dict(ARGS, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR, MAJOR, MINOR]}),
         ]
-        three, two, none, dead, all_refuted, one_stands = run_jobs(jobs)
+        three, two, none, dead, all_refuted, one_stands, six, four = run_jobs(jobs)
+        self.assertEqual(len(calls(six, "skeptic")), 6)
+        self.assertEqual(six["returned"]["skeptic"]["unchecked"], [])
+        self.assertEqual(len(calls(four, "skeptic")), 4)
+        self.assertEqual(four["returned"]["skeptic"]["unchecked"], [])
+        self.assertFalse(any("skeptic limit" in e["message"] for r in (six, four) for e in r["events"] if e["kind"] == "log"))
         skeptics = calls(three, "skeptic")
         self.assertEqual(len(skeptics), 3)
         for event in skeptics:
