@@ -865,10 +865,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   share them. The operating system frees a slot's lock when its process ends however it ends, so a killed run's slot
   is taken over at once (the next run names it: "left by a run that ended without releasing it"). While every slot
   is held the run prints every minute which worktrees, branches and pids hold them. The wait is bounded (default
-  WAIT_PLACEHOLDER s): an agent's foreground shell call dies at 600 s, and the wait plus a run must end before it; after the
+  150 s): an agent's foreground shell call dies at 600 s, and the wait plus a run must end before it; after the
   wait the run goes ahead without a slot, with `OVER THE LIMIT` in its output, its summary's last line and its
-  record (`over`). A slot never skips or weakens a step. N is NPLACEHOLDER, from measurements on the engineer's PC (the PR of
-  #185). `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR`
+  record (`over`). A slot never skips or weakens a step. N is 2, measured on the engineer's PC with #182's shards
+  (the PR of #185): one or two runs at once took 315 to 386 s each, three 431 to 441 s, four 452 s; two runs of 4
+  shards and 4 selftest workers fill the 16 logical CPUs, while a third or fourth makes every run a third longer (no
+  room left for a wait in a 600 s call) and `test` red more often (freeze, stall, enet and bots-enet stayed green).
+  `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR`
   override the defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot. The record's `slot`
   is {`slot`, `of`, `waited`, `over`, `reclaimed`}, its `seconds` leave the wait out, and the summary's last line
   adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over the
