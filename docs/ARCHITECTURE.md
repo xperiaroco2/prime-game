@@ -1741,9 +1741,9 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
   - **Capture and the gate** (E36, E37, E38, D11): the 4.7 `AudioServer` input API, the Windows default device at
     the first start and then the one the player picked, each opened under an "opening" mark that keeps a device that
     froze the game closed at the next start (Godot 4.7.2 freezes on a microphone of more than two channels, #22);
-    every 20 ms chunk encoded, a frame sent only while the gate is open, with 2 frames of pre-roll. Three modes (D11, the engineer's answer):
-    voice activity by default (a threshold set with a meter, and a hangover), push-to-talk held on V (`voice_talk`),
-    or Off (the microphone closed). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
+    every 20 ms chunk encoded, a frame sent only while the gate is open, with up to 2 frames of pre-roll (captured
+    and never sent: no frame goes out twice). Three modes (D11, the engineer's answer): voice activity by default (a
+    threshold set with a meter, and a hangover), push-to-talk held on V (`voice_talk`), or Off (the microphone closed). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
     hears nobody. No echo cancellation: under voice activity loudspeakers echo, so the Voice tab advises headphones.
     20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
   - **The jitter buffer** (E39): per speaker on the listener, by the renumbered seq (continuous across silence); a
