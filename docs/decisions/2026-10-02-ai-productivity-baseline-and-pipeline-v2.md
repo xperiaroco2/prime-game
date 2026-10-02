@@ -303,20 +303,22 @@ until about 21:00 UTC), so P3 and P6 go early.
 | 1 | P1 `metrics`: the baseline as a runner command | tooling, M | no | none | `cli.py`; AGENT_WORKFLOW §11 command list; root CLAUDE.md commands table |
 | 1 | P2 `verify` in two lanes, selftest in worker processes, a verify history record | tooling, M | no | none | `verify.py`; AGENT_WORKFLOW §11 CI paragraph |
 | 2 | P3 `issue-task` v2: optional plan review, test review, second review, skeptic, visual, efforts and models | tooling, L | yes | none to build (managers enable `test_review` after P7 and `visual` after P9) | `.claude/workflows/`; `test_workflows.py`; AGENT_WORKFLOW §7.1 workflow paragraph |
-| 2 | P4 `merge-check` and `merge` | tooling, L | no | P1 (`cli.py`) | `merge.py`; AGENT_WORKFLOW §7.1 git-flow bullet |
-| 2 or 3 | P5 an own `user://` per worktree, GdUnit4 in shards | tooling, M to L | no | P2 | `gdunit.py`, `common.py`; AGENT_WORKFLOW §11 |
+| 2 | P4 `merge-check` and `merge` | tooling, L | no | P1 (`cli.py`) | `merge.py`, `cli.py`; AGENT_WORKFLOW §7.1 git-flow bullet |
+| 2 or 3 | P5 an own `user://` per worktree, GdUnit4 in shards | tooling, M to L | no | P2 | `gdunit.py`, `common.py`; AGENT_WORKFLOW §11 test paragraph |
 | 3 | P6 the orchestrate-stage skill and AGENT_WORKFLOW for pipeline v2 | tooling, M | yes | P1, P3; P4 (stacks on P4's branch if still open); N1, N2 answered | the skill; AGENT_WORKFLOW §7.1 |
-| 3 | P7 `mutants`: plant one fault, run the named tests, restore | tooling, S to M | no | P1 (`cli.py`) | `mutants.py`, `cli.py` |
-| 4 | P8 at most N verify runs at once on the PC | tooling, S | no | P2, P5 | `verify.py`, `common.py` |
-| 4 | P9 `playcheck`: scripted off-screen client runs with screenshots | tooling, L | no | P1; #167 (for the #168 and #169 scenarios) | `playcheck.py`, `tools/playcheck/` |
-| 4 | P10 `perf`: 10 bots, tick time and snapshot sizes | tooling, M | no | P1 | `perf.py`, `tests/harness/perf/` |
+| 3 | P7 `mutants`: plant one fault, run the named tests, restore | tooling, S to M | no | P1 (`cli.py`) | `mutants.py`, `cli.py`; AGENT_WORKFLOW §11 command list |
+| 4 | P8 at most N verify runs at once on the PC | tooling, S | no | P2, P5 | `verify.py`, `common.py`; AGENT_WORKFLOW §11 CI paragraph |
+| 4 | P9 `playcheck`: scripted off-screen client runs with screenshots | tooling, L | no | P1; #167 (for the #168 and #169 scenarios) | `playcheck.py`, `cli.py`, `tools/playcheck/` |
+| 5 | P10 `perf`: 10 bots, tick time and snapshot sizes | tooling, M | no | P1 | `perf.py`, `cli.py`, `tests/harness/perf/` |
 | 5 | P11 chaos bots against the host (dropped first) | net, L | no | P2 | `tests/harness/chaos/`, `bots.py`, one `verify` step |
 | 5 | P12 night jobs: the nightly CI run and one audit lens | tooling, M | yes | N3; P10 and P11 for their jobs (it starts with the flaky-test repeats) | `.github/workflows/nightly.yml`, a `night-audit` skill |
 
-The order follows leverage: what speeds up or measures every later task first (P1, P2), then the workflow and the
-merge flow the other tracks will use (P3, P4), then the rest. Cost: about $15 to $30 list a task, about $250 to $350
-for the twelve (6 to 8% of a Max 20x week) plus the manager, within the track's 20 to 25%. Drop order: P11, then the
-per-wave report in P6, then audit lenses beyond one in P12.
+Within a wave at most one task edits `tools/runner/cli.py` or `tools/runner/verify.py`, and each task owns a different
+paragraph of `docs/AGENT_WORKFLOW.md`; waves 4 and 5 assume the M4 manager has finished (otherwise the third task
+waits). The order follows leverage: what speeds up or measures every later task first (P1, P2), then the workflow
+and the merge flow the other tracks will use (P3, P4), then the rest. Cost: about $15 to $30 list a task, about
+$250 to $350 for the twelve (6 to 8% of a Max 20x week) plus the manager, within the track's 20 to 25%. Drop order:
+P11, then the per-wave report in P6, then audit lenses beyond one in P12.
 
 ## Amendment draft A: the model guard (to `2026-09-28-model-guard-no-fable-in-shared-config.md`), Needs the engineer
 Proposed text, added under its Decision if N1 is (b):
