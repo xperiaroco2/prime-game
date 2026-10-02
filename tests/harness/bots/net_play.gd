@@ -60,8 +60,11 @@ func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
 	stamina.follow_claims()
 	_stamina[bot.number] = stamina
 	client.claim_sent.connect(
-		func(covered: int, sprint: bool, moved_itself: bool) -> void:
-			stamina.settle_claim(covered, sprint, moved_itself, bot.downed)
+		func(epoch: int, tick: int, covered: int, sprint: bool, moved: bool) -> void:
+			stamina.settle_claim(epoch, tick, covered, sprint, moved, bot.downed)
+	)
+	client.corrected.connect(
+		func(_position: Vector3, _velocity: Vector3) -> void: stamina.forget_unclaimed_jumps()
 	)
 	return client
 
@@ -120,7 +123,12 @@ func _on_event(event_name: StringName, fields: Dictionary, bot: ScenarioBot) -> 
 	if bot.gone:
 		return
 	if event_name == &"SelfStatus":
-		_stamina[bot.number].follow_status(fields["stamina"] as int)
+		_stamina[bot.number].follow_status(
+			fields["stamina"] as int,
+			fields["sprint_available"] as bool,
+			fields["claim_tick"] as int,
+			clients[bot.number].model.epoch
+		)
 	var problem := bot.receive(event_name, fields)
 	if not problem.is_empty():
 		_fail_step(bot, problem)

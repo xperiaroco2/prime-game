@@ -18,7 +18,8 @@ extends CharacterBody3D
 ## the facing (E22, at most MAX_PITCH up or down), the sprint state, whether it gave movement input
 ## and whether it stands, and `count_jump` at a jump; the session latches the sprint state and the
 ## movement input over a claim's steps (#155). Its PredictedStamina then settles by the claims
-## (`claim_sent`) and follows each SelfStatus without giving back the ticks in flight (E24, #155).
+## (`claim_sent`) and follows each SelfStatus from the claim it names, without giving back the
+## ticks in flight (E24, #155).
 ## The game teleports it at Welcome and at each Correction.
 ##
 ## The movement numbers (speeds, jump height, capsule, eye and step height, stamina) are the
@@ -155,6 +156,7 @@ func attach(client: ClientSession) -> void:
 	session = client
 	client.event_received.connect(_on_session_event)
 	client.claim_sent.connect(_on_claim_sent)
+	client.corrected.connect(_on_corrected)
 	_follow_claims()
 
 
@@ -333,14 +335,26 @@ func _claim() -> void:
 func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
 	var predicted := stamina as PredictedStamina
 	if event_name == &"SelfStatus" and predicted != null:
-		predicted.follow_status(fields["stamina"] as int)
+		predicted.follow_status(
+			fields["stamina"] as int,
+			fields["sprint_available"] as bool,
+			fields["claim_tick"] as int,
+			session.model.epoch
+		)
 
 
 ## A claim went out: the predicted stamina settles its ticks as the host will.
-func _on_claim_sent(covered: int, sprint: bool, moved_itself: bool) -> void:
+func _on_claim_sent(epoch: int, tick: int, covered: int, sprint: bool, moved_itself: bool) -> void:
 	var predicted := stamina as PredictedStamina
 	if predicted != null:
-		predicted.settle_claim(covered, sprint, moved_itself, is_downed())
+		predicted.settle_claim(epoch, tick, covered, sprint, moved_itself, is_downed())
+
+
+## A new epoch (a Correction or a placement): the jumps since the last claim are never claimed.
+func _on_corrected(_position: Vector3, _velocity: Vector3) -> void:
+	var predicted := stamina as PredictedStamina
+	if predicted != null:
+		predicted.forget_unclaimed_jumps()
 
 
 ## On the network, a PredictedStamina settles by the claims.

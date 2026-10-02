@@ -18,23 +18,23 @@ extends StaminaSource
 ##   the sprint state and regenerate as usual, since they spend none (M4-2's crawl check).
 ##
 ## On the network (#155, follow_claims()) the ticks are the claims': the host's ledger settles each
-## MoveClaim's covered ticks with that claim's flags, which the session latches over its steps
-## (ClientSession.claim_sent), so the prediction settles the same ticks with the same flags
-## (settle_claim) instead of cutting the steps' time itself, and pays a claim's jumps after its
-## ticks, as the host does. A SelfStatus then answers a claim sent some ticks ago, and the claims
-## since are still in flight: follow_status keeps the prediction when the host's number is one it
-## predicted after one of its last claims (the host agrees so far; a number only one claim left
-## gives the round trip in claims), and otherwise (a cost the client does not predict, a hit, a
-## respawn, a claim the host dropped) takes the host's number and settles again on top of it as
-## many of the newest claims as that round trip says are in flight. Setting each SelfStatus as it
-## arrives (set_status) would give back the ticks still in flight: a sprinter whose stamina ran out
-## would sprint on for a round trip, more than the host's one tick of allowance covers, and the
-## host would correct them.
+## MoveClaim's covered ticks with the flags its masks give each tick, which are that claim's
+## latched flags (ClientSession.claim_sent), so the prediction settles the same ticks with the same
+## flags (settle_claim) instead of cutting the steps' time itself, and pays a claim's jumps after
+## its ticks, as the host does. A SelfStatus answers a claim sent some ticks ago and names its
+## client tick (none, -1, before the first claim since a placement): follow_status takes the
+## host's number and sprint availability, and settles again on top of them exactly the claims
+## after that one (with none, the claims of the current epoch), which are still in flight. So a
+## cost the client does not predict (a hit, a jump the host refused) or a tick the host could not
+## settle is taken in at once, and the ticks in flight are never given back: a client that set each
+## SelfStatus as it arrived (set_status) would sprint on for a round trip after its stamina ran
+## out, and the host would correct it.
 
 const TICK_SECONDS := 1.0 / Ticks.RATE
 ## Float rounding of 1/60 s steps must not lose a tick.
 const _CARRY_SLACK := 1e-6
-## The claims follow_status remembers: well over a round trip at 20 Hz (1.6 s).
+## The claims follow_status remembers: well over a round trip at 20 Hz (1.6 s). A SelfStatus naming
+## an older claim has every remembered one settled again.
 const HISTORY := 32
 
 ## Thousandths of a point (§3.3), like SelfStatus.
@@ -53,23 +53,20 @@ var _by_claims := false
 var _sprinting := false
 ## Thousandths the jumps since the last claim cost, paid after its ticks (by claims only).
 var _jumps_due := 0
-## The last HISTORY claims settled, oldest first, and how many of the newest ones the host had not
-## answered yet when it was last seen to agree (by claims only).
+## The last HISTORY claims settled, oldest first (by claims only).
 var _claims: Array[SettledClaim] = []
-var _in_flight := 1
 
 
-## One settled claim, for follow_status: what it covered and claimed, and the numbers before and
-## after it.
+## One settled claim, for follow_status: when it went and what it covered and claimed.
 class SettledClaim:
 	extends RefCounted
+	var epoch := 0
+	var tick := 0
 	var covered := 0
 	var sprint := false
 	var moved_itself := false
 	var downed := false
 	var jumps_cost := 0
-	var sprinting_before := false
-	var stamina_after := 0
 
 
 func _init(rules: PlayerRules) -> void:
@@ -104,17 +101,21 @@ func is_sprinting() -> bool:
 	return _sprinting
 
 
-## A MoveClaim went out (ClientSession.claim_sent): its `covered` ticks are settled with its
-## latched `sprint` flag and `moved_itself`, as the host's ledger settles them, then the jumps
-## since the last claim are paid. `downed`: the player's life when it was sent.
-func settle_claim(covered: int, sprint: bool, moved_itself: bool, downed: bool) -> void:
+## A MoveClaim of `epoch` at client tick `tick` went out (ClientSession.claim_sent): its `covered`
+## ticks are settled with its latched `sprint` flag and `moved_itself`, as the host's ledger
+## settles them, then the jumps since the last claim are paid. `downed`: the player's life when
+## it was sent.
+func settle_claim(
+	epoch: int, tick: int, covered: int, sprint: bool, moved_itself: bool, downed: bool
+) -> void:
 	var claim := SettledClaim.new()
+	claim.epoch = epoch
+	claim.tick = tick
 	claim.covered = covered
 	claim.sprint = sprint
 	claim.moved_itself = moved_itself
 	claim.downed = downed
 	claim.jumps_cost = _jumps_due
-	claim.sprinting_before = _sprinting
 	_jumps_due = 0
 	_settle(claim)
 	_claims.append(claim)
@@ -122,32 +123,28 @@ func settle_claim(covered: int, sprint: bool, moved_itself: bool, downed: bool) 
 		_claims.pop_front()
 
 
-## The host's number from a SelfStatus (thousandths), by claims: kept when it is what this
-## predicted after one of the claims it remembers, else taken, with the claims the host has not
-## answered settled again on top of it (the class comment).
-func follow_status(thousandths: int) -> void:
+## A SelfStatus (thousandths, sprint available), by claims: the host's numbers after its claim of
+## client tick `claim_tick` (-1: none since its placement), with the claims after it (with none,
+## those of the client's current `epoch`) settled again on top (the class comment). Sprint
+## available is the host's sprint state wherever that decides the next tick (stamina between 0
+## and the start), so the claims settle on from the host's state, not the prediction's.
+func follow_status(thousandths: int, available: bool, claim_tick: int, epoch: int) -> void:
 	if not _by_claims:
 		set_status(thousandths)
 		return
-	var host := clampi(thousandths, 0, _most)
-	for age: int in _claims.size():
-		var index := _claims.size() - 1 - age
-		if _claims[index].stamina_after != host:
-			continue
-		# SelfStatus goes out only when it changes, so it answers the first claim that left this
-		# number. Where the claim before left it too (stamina full, or flat), that claim is
-		# unknown and the round trip learnt at the last clear match is kept.
-		if index > 0 and _claims[index - 1].stamina_after != host:
-			_in_flight = age
-		return
-	var replay := mini(_in_flight, _claims.size())
-	var first := _claims.size() - replay
-	stamina = host
-	if first < _claims.size():
-		_sprinting = _claims[first].sprinting_before
+	var first := _claims.size()
+	while first > 0 and _in_flight(_claims[first - 1], claim_tick, epoch):
+		first -= 1
+	stamina = clampi(thousandths, 0, _most)
+	_sprinting = available
 	for i: int in range(first, _claims.size()):
-		_claims[i].sprinting_before = _sprinting
 		_settle(_claims[i])
+
+
+## The jumps since the last claim will never be claimed: the session adopted a new epoch (a
+## Correction or a placement), whose claims count jumps from 0, so the host never charges them.
+func forget_unclaimed_jumps() -> void:
+	_jumps_due = 0
 
 
 func can_sprint(was_sprinting: bool, downed: bool) -> bool:
@@ -185,8 +182,17 @@ func get_stamina() -> float:
 	return maxi(0, stamina - _jumps_due) / float(Ticks.THOUSANDTHS)
 
 
-## Settles `claim` from the current numbers with the ledger's rule (StaminaLedger.simulate), and
-## records what it left.
+## Whether `claim` was still in flight when the host sent a SelfStatus naming `claim_tick`: sent
+## after that claim, or, when it names none, in the client's current `epoch` (since its placement;
+## an older epoch's claims were settled before it, or dropped).
+static func _in_flight(claim: SettledClaim, claim_tick: int, epoch: int) -> bool:
+	if claim_tick >= 0:
+		return claim.tick > claim_tick
+	return claim.epoch == epoch
+
+
+## Settles `claim` from the current numbers with the ledger's rule (StaminaLedger.simulate_ticks,
+## every tick with the claim's flags).
 func _settle(claim: SettledClaim) -> void:
 	for i: int in claim.covered:
 		_sprinting = _sprint_state(claim.sprint, _sprinting, claim.downed)
@@ -195,7 +201,6 @@ func _settle(claim: SettledClaim) -> void:
 		else:
 			stamina = mini(_most, stamina + _regen)
 	stamina = maxi(0, stamina - claim.jumps_cost)
-	claim.stamina_after = stamina
 
 
 ## StaminaLedger's sprint state of a tick: sprint held by a living player, started at

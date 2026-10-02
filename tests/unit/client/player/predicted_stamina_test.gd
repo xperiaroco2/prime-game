@@ -4,11 +4,13 @@ extends GdUnitTestSuite
 ## prediction holds exactly the ledger's thousandths, sprinting until empty, regenerating, holding
 ## sprint without moving and jumping. It follows each SelfStatus, gates sprint and jump by its own
 ## number (Q7), and the downed are never limited. Settled by the claims (#155), it holds the
-## ledger's number after every claim, pays a claim's jumps after its ticks, keeps its prediction
-## when a SelfStatus answers an older claim, and settles the claims in flight again on top of a
-## number it did not predict.
+## ledger's number after every claim, pays a claim's jumps after its ticks, and takes each
+## SelfStatus with every claim after the one it names settled again on top (with none, the claims
+## of the current epoch), from the host's sprint state.
 
 const STEP := 1.0 / 60.0
+## The epoch every claim of the by-claims tests goes in, unless a test places the player.
+const EPOCH := 1
 
 var _rules := FixtureModes.player_rules()
 
@@ -117,7 +119,7 @@ func test_by_claims_it_holds_the_ledgers_number_and_state_after_every_claim() ->
 		var covered: int = claim[0]
 		tick += covered
 		player.life = PlayerState.Life.DOWNED if claim[3] else PlayerState.Life.ALIVE
-		stamina.settle_claim(covered, claim[1] as bool, claim[2] as bool, claim[3] as bool)
+		stamina.settle_claim(1, tick, covered, claim[1] as bool, claim[2] as bool, claim[3] as bool)
 		StaminaLedger.settle(player, _rules, tick, claim[1] as bool, claim[2] as bool)
 		(
 			assert_int(stamina.stamina)
@@ -148,98 +150,140 @@ func test_by_claims_steps_spend_nothing_and_a_jump_is_paid_after_the_claims_tick
 	stamina.set_status(full)
 	# A standing tick regenerates up to the maximum first, then the jump is paid: full less its cost.
 	var player := _ledger_player(full)
-	stamina.settle_claim(1, false, false, false)
+	stamina.settle_claim(1, 1, 1, false, false, false)
 	StaminaLedger.settle(player, _rules, 1, false, false)
 	StaminaLedger.spend(player, cost)
 	assert_int(stamina.stamina).is_equal(player.stamina)
 	assert_float(stamina.get_stamina()).is_equal(player.stamina / float(Ticks.THOUSANDTHS))
 
 
-func test_by_claims_a_self_status_of_an_older_claim_keeps_the_prediction() -> void:
+func test_by_claims_a_self_status_of_an_older_claim_keeps_the_claims_after_it() -> void:
 	var stamina := PredictedStamina.new(_rules)
 	stamina.follow_claims()
 	# The first SelfStatus, before any claim, is taken as it is.
-	stamina.follow_status(60000)
+	stamina.follow_status(60000, true, -1, EPOCH)
+	assert_int(stamina.stamina).is_equal(60000)
 	var after: Array[int] = []
-	for i: int in 5:
-		stamina.settle_claim(1, true, true, false)
+	for tick: int in range(1, 6):
+		stamina.settle_claim(EPOCH, tick, 1, true, true, false)
 		after.append(stamina.stamina)
 	# The host answered the third claim; the fourth and fifth are in flight.
-	stamina.follow_status(after[2])
+	stamina.follow_status(after[2], true, 3, EPOCH)
 	assert_int(stamina.stamina).is_equal(after[4])
-	stamina.follow_status(after[4])
+	stamina.follow_status(after[4], true, 5, EPOCH)
 	assert_int(stamina.stamina).is_equal(after[4])
+	assert_bool(stamina.is_sprinting()).is_true()
 
 
 func test_by_claims_a_number_it_did_not_predict_is_taken_with_the_claims_in_flight() -> void:
 	var stamina := PredictedStamina.new(_rules)
 	stamina.follow_claims()
-	stamina.follow_status(60000)
+	stamina.follow_status(60000, true, -1, EPOCH)
 	var player := _ledger_player(60000)
-	var tick := 0
-	var after: Array[int] = []
-	for i: int in 5:
-		stamina.settle_claim(1, true, true, false)
-		after.append(stamina.stamina)
-	# Two claims in flight when the third's answer came; then a sixth claim.
-	stamina.follow_status(after[2])
-	stamina.settle_claim(1, true, true, false)
+	for tick: int in range(1, 7):
+		stamina.settle_claim(EPOCH, tick, 1, true, true, false)
 	# The host's answer to the fourth claim carries a cost the client did not predict (a swing):
 	# the fifth and the sixth are still in flight, and are settled again on top of it.
-	for i: int in 4:
-		tick += 1
-		StaminaLedger.settle(player, _rules, tick, true, true)
+	StaminaLedger.settle(player, _rules, 4, true, true)
 	StaminaLedger.spend(player, 10000)
-	stamina.follow_status(player.stamina)
-	for i: int in 2:
-		tick += 1
-		StaminaLedger.settle(player, _rules, tick, true, true)
+	stamina.follow_status(player.stamina, _available(player), 4, EPOCH)
+	StaminaLedger.settle(player, _rules, 6, true, true)
 	assert_int(stamina.stamina).is_equal(player.stamina)
 	assert_bool(stamina.is_sprinting()).is_equal(player.sprinting)
-	# The next answer, to the fifth claim, is one it predicted again.
-	var settled := stamina.stamina
-	stamina.settle_claim(1, true, true, false)
-	tick += 1
-	StaminaLedger.settle(player, _rules, tick, true, true)
-	assert_int(stamina.stamina).is_equal(player.stamina)
-	stamina.follow_status(settled - Ticks.per_tick(_rules.sprint_cost_per_s))
-	assert_int(stamina.stamina).is_equal(player.stamina)
+	# The next answer, to the fifth claim, agrees: nothing changes.
+	var predicted := stamina.stamina
+	var fifth := _ledger_player(60000)
+	StaminaLedger.settle(fifth, _rules, 4, true, true)
+	StaminaLedger.spend(fifth, 10000)
+	StaminaLedger.settle(fifth, _rules, 5, true, true)
+	stamina.follow_status(fifth.stamina, _available(fifth), 5, EPOCH)
+	assert_int(stamina.stamina).is_equal(predicted)
 
 
-## Reviewers of #155: a status that reached full stamina matched the newest claim and set the
-## round trip to 0, so an unpredicted cost early in the next sprint gave back its claims in flight.
-func test_by_claims_a_number_many_claims_left_keeps_the_round_trip_it_learnt() -> void:
+## The fresh netcode review of #155: an answer that matched no prediction had only as many claims
+## settled again as the last clear match had in flight (one here); with more in flight under
+## jitter the client predicted more stamina than the host's and sprinted past the host's zero.
+func test_by_claims_every_claim_after_the_one_a_status_names_is_settled_again() -> void:
 	var stamina := PredictedStamina.new(_rules)
 	stamina.follow_claims()
-	var after: Array[int] = []
-	for i: int in 2:
-		stamina.settle_claim(1, false, false, false)
-	for i: int in 5:
-		stamina.settle_claim(1, true, true, false)
-		after.append(stamina.stamina)
-	# Two claims in flight: learnt from a number only one claim left.
-	stamina.follow_status(after[2])
-	# Back to full, which many claims leave: the host's answer tells no round trip.
-	for i: int in 12:
-		stamina.settle_claim(1, false, false, false)
-	assert_int(stamina.stamina).is_equal(Ticks.thousandths(_rules.stamina))
-	stamina.follow_status(stamina.stamina)
-	# A sprint from full; the answer to its first claim carries a cost the client did not
-	# predict, with two claims in flight.
-	for i: int in 3:
-		stamina.settle_claim(1, true, true, false)
-	var player := _ledger_player(Ticks.thousandths(_rules.stamina))
-	StaminaLedger.settle(player, _rules, 1, true, true)
+	var player := _ledger_player(30000)
+	stamina.follow_status(30000, true, -1, EPOCH)
+	for tick: int in range(1, 4):
+		stamina.settle_claim(EPOCH, tick, 1, true, true, false)
+	# An answer to the second claim, one claim in flight, as the host's ledger has it.
+	StaminaLedger.settle(player, _rules, 2, true, true)
+	stamina.follow_status(player.stamina, _available(player), 2, EPOCH)
+	for tick: int in range(4, 10):
+		stamina.settle_claim(EPOCH, tick, 1, true, true, false)
+	# The answer to the fourth claim carries a cost the client did not predict; five claims are in
+	# flight, and all of them spend.
+	StaminaLedger.settle(player, _rules, 4, true, true)
 	StaminaLedger.spend(player, 10000)
-	stamina.follow_status(player.stamina)
-	StaminaLedger.settle(player, _rules, 3, true, true)
+	stamina.follow_status(player.stamina, _available(player), 4, EPOCH)
+	StaminaLedger.settle(player, _rules, 9, true, true)
 	assert_int(stamina.stamina).is_equal(player.stamina)
 	assert_bool(stamina.is_sprinting()).is_equal(player.sprinting)
+	assert_bool(stamina.can_sprint(stamina.is_sprinting(), false)).is_equal(
+		StaminaLedger.sprint_available(player, _rules)
+	)
+
+
+func test_by_claims_a_status_naming_an_older_claim_than_it_remembers_settles_them_all() -> void:
+	var stamina := PredictedStamina.new(_rules)
+	stamina.follow_claims()
+	for tick: int in range(1, PredictedStamina.HISTORY + 11):
+		stamina.settle_claim(EPOCH, tick, 1, true, true, false)
+	var player := _ledger_player(Ticks.thousandths(_rules.stamina))
+	stamina.follow_status(player.stamina, true, 3, EPOCH)
+	StaminaLedger.settle(player, _rules, PredictedStamina.HISTORY, true, true)
+	assert_int(stamina.stamina).is_equal(player.stamina)
+
+
+func test_by_claims_a_status_naming_no_claim_keeps_the_claims_of_the_current_epoch() -> void:
+	# A placement: the host settled the old epoch's claims, or dropped those in flight, and its
+	# number answers none of the new one's yet.
+	var stamina := PredictedStamina.new(_rules)
+	stamina.follow_claims()
+	for tick: int in range(1, 5):
+		stamina.settle_claim(EPOCH, tick, 1, true, true, false)
+	for tick: int in range(5, 7):
+		stamina.settle_claim(EPOCH + 1, tick, 1, true, true, false)
+	var player := _ledger_player(50000)
+	stamina.follow_status(player.stamina, true, -1, EPOCH + 1)
+	StaminaLedger.settle(player, _rules, 2, true, true)
+	assert_int(stamina.stamina).is_equal(player.stamina)
+
+
+func test_by_claims_the_hosts_sprint_state_is_where_the_claims_settle_on_from() -> void:
+	# 10 points, below the 20 that start a sprint: the host's ledger is not in the sprint state
+	# (the client thought it was), so the claims in flight that hold sprint walk and regenerate.
+	var stamina := PredictedStamina.new(_rules)
+	stamina.follow_claims()
+	for tick: int in range(1, 4):
+		stamina.settle_claim(EPOCH, tick, 1, true, true, false)
+	var player := _ledger_player(10000)
+	stamina.follow_status(player.stamina, false, 1, EPOCH)
+	StaminaLedger.settle(player, _rules, 2, true, true)
+	assert_bool(player.sprinting).is_false()
+	assert_int(stamina.stamina).is_equal(player.stamina)
+	assert_bool(stamina.is_sprinting()).is_false()
+
+
+func test_by_claims_jumps_a_new_epoch_leaves_unclaimed_are_forgotten() -> void:
+	# The session counts jumps from 0 again at a Correction: the host never charges those.
+	var stamina := PredictedStamina.new(_rules)
+	stamina.follow_claims()
+	var full := Ticks.thousandths(_rules.stamina)
+	stamina.report(STEP, false, true, false)
+	assert_float(stamina.get_stamina()).is_less(full / float(Ticks.THOUSANDTHS))
+	stamina.forget_unclaimed_jumps()
+	stamina.settle_claim(EPOCH, 1, 1, false, false, false)
+	assert_int(stamina.stamina).is_equal(full)
 
 
 func test_off_the_network_a_self_status_is_taken_as_it_is() -> void:
 	var stamina := PredictedStamina.new(_rules)
-	stamina.follow_status(12345)
+	stamina.follow_status(12345, true, -1, EPOCH)
 	assert_int(stamina.stamina).is_equal(12345)
 	assert_bool(stamina.follows_claims()).is_false()
 
@@ -269,6 +313,11 @@ func _assert_matches_the_ledger(ticks: int, held: bool, moving: bool, from := -1
 		went_empty = went_empty or player.stamina == 0
 	if held and moving and from < 0:
 		assert_bool(went_empty).is_true()
+
+
+## What the host's SelfStatus says of sprint for `player` (StaminaLedger.sprint_available).
+func _available(player: PlayerState) -> bool:
+	return StaminaLedger.sprint_available(player, _rules)
 
 
 func _ledger_player(thousandths: int) -> PlayerState:
