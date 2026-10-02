@@ -46,6 +46,9 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   a freed scene would take the `HostNode` and the session with it.
 - Spectating is built on the dead player's own client from the public snapshot. The target is drawn with the
   client's own seeded generator and never sent; there is no target HUD, health, stamina, role or private event.
+  Of the target, the spectator's HUD shows only "Spectating <name>" and its (public) hand and belt items, and of the
+  spectator none of its own slots or numbers; from a living target's eyes its body and the item views at it are hidden, and its hand item
+  shows in the spectate camera's first-person hand, as on its own screen (#168).
 - The downed camera stays at or below the standing eye height above the body and never passes through the level,
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view
   joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
