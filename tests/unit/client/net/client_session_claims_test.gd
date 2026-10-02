@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## client's own copy of the mode) does not accept MoveClaim from it. A claim reports the sprint
 ## state and the movement input if any step since the last claim had them (#155), its masks repeat
 ## them for each of the last 32 client ticks, and claim_sent tells its epoch and tick, the ticks it
-## covers, its flags and whether it moved, as the host's stamina counts them.
+## covers, its flags and whether it moved, as the host's stamina counts them. set_facing changes
+## only the next claim's facing (#191).
 
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
 ## One client tick at 20 Hz, in microseconds.
@@ -64,6 +65,22 @@ func test_the_claim_carries_the_movers_motion() -> void:
 	assert_vector(claim["position"] as Vector3).is_equal(at)
 	assert_vector(claim["velocity"] as Vector3).is_equal(Vector3(4, 0, 0))
 	assert_vector(claim["facing"] as Vector3).is_equal(Vector3.RIGHT)
+	assert_bool(claim["sprint"] as bool).is_true()
+	assert_bool(claim["moving"] as bool).is_true()
+	assert_bool(claim["on_floor"] as bool).is_false()
+
+
+func test_set_facing_changes_only_the_next_claims_facing() -> void:
+	# A mover turned outside its physics step (a respawn looks level, #191).
+	_harness.welcome()
+	var at := Vector3(1.5, 0.25, -3)
+	_harness.session.set_motion(at, Vector3(4, 0, 0), Vector3.UP, true, true, false)
+	_harness.session.set_facing(Vector3.LEFT)
+	_harness.pump(TICK_USEC)
+	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	assert_vector(claim["facing"] as Vector3).is_equal(Vector3.LEFT)
+	assert_vector(claim["position"] as Vector3).is_equal(at)
+	assert_vector(claim["velocity"] as Vector3).is_equal(Vector3(4, 0, 0))
 	assert_bool(claim["sprint"] as bool).is_true()
 	assert_bool(claim["moving"] as bool).is_true()
 	assert_bool(claim["on_floor"] as bool).is_false()
