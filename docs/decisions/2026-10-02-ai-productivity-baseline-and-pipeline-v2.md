@@ -236,9 +236,16 @@ Opus 5.5's (input $10, output $50 per million).
 
 How it is chosen without naming it in a shared file: the engineer adds it to `availableModels` in his own
 `~/.claude/settings.json` (user scope; the lists merge across non-managed scopes, code.claude.com/docs/en/settings);
-the kickoff names where it is used; the manager passes it per launch through `models` (item 4 (f)). The shared
-settings, agents, workflows, skills, rules, runner, CI and CLAUDE.md files never name it; `agents-check` keeps
-proving which model served each agent.
+the kickoff names where it is used; the manager passes it per launch through `models` (item 4 (f)). No shared
+config, agent, workflow default, skill, rule, CI file or CLAUDE.md file names it. The runner's model-family table
+already does on main (`tools/runner/agents_check.py`, `FAMILIES`) and stays the one exception in `tools/`.
+
+`agents-check` must change with it. On main it reads `availableModels` only from the shared `.claude/settings.json`,
+and a model outside that list that served the agent it was requested for is a FAIL ("the model guard failed";
+`tests/test_agents_check.py` asserts it). Under (b) every intended launch would turn it red. So, if N1 is (b), P6
+makes `agents-check` also read the user-scope `availableModels` (`~/.claude/settings.json`), merged the way Claude
+Code merges them, and accept a model from that list when requested equals served; a model in neither list that was
+served stays a FAIL, and a runner test covers both cases.
 
 ### 6. Night jobs (**Needs the engineer**, N3)
 | option | the failure it prevents | cost | |
@@ -288,7 +295,8 @@ a change to them lands between the other managers' waves.
 ### Needs the engineer (one package)
 1. **N1, the model policy** (amendment A): (a) none; (b) per launch for designs, second reviews of core/, server/,
    net/, tests/harness/ PRs, audits and twice-red tasks, at most half of the weekly window across tracks;
-   (c) also managers; (d) everywhere. **Recommended (b).**
+   (c) also managers; (d) everywhere. **Recommended (b)**, with `agents-check` reading the user-scope list (P6) and
+   the runner's model-family table, which already names the model on main, as the one exception in `tools/`.
 2. **N2, the git flow of parallel tracks** (amendment B): (a) as today; (b) a release branch per track; (c) every PR
    into `main`; (d) (b) for night tracks and (c) for day tracks, with a `main` sync each wave and a closing PR at
    least every three days. **Recommended (d).**
@@ -312,7 +320,7 @@ until about 21:00 UTC), so P3 and P6 go early.
 | 2 | P3 `issue-task` v2: optional plan review, test review, second review, skeptic, visual, efforts and models | tooling, L | yes | none to build (managers enable `test_review` after P7 and `visual` after P9) | `.claude/workflows/`; `test_workflows.py`; AGENT_WORKFLOW §7.1 workflow paragraph |
 | 2 | P4 `merge-check` and `merge` | tooling, L | no | P1 (`cli.py`) | `merge.py`, `cli.py`; AGENT_WORKFLOW §7.1 git-flow bullet |
 | 2 or 3 | P5 an own `user://` per worktree, GdUnit4 in shards | tooling, M to L | no | P2 | `gdunit.py`, `common.py`; AGENT_WORKFLOW §11 test paragraph |
-| 3 | P6 the orchestrate-stage skill and AGENT_WORKFLOW for pipeline v2 | tooling, M | yes | P1, P3; P4 (stacks on P4's branch if still open); N1, N2 answered | the skill; AGENT_WORKFLOW §7.1 |
+| 3 | P6 the orchestrate-stage skill and AGENT_WORKFLOW for pipeline v2 | tooling, M | yes | P1, P3; P4 (stacks on P4's branch if still open); N1, N2 answered | the skill; AGENT_WORKFLOW §7.1; `agents_check.py` if N1 is (b) |
 | 3 | P7 `mutants`: plant one fault, run the named tests, restore | tooling, S to M | no | P1 (`cli.py`) | `mutants.py`, `cli.py`; AGENT_WORKFLOW §11 command list |
 | 4 | P8 at most N verify runs at once on the PC | tooling, S | no | P2, P5 | `verify.py`, `common.py`; AGENT_WORKFLOW §11 CI paragraph |
 | 4 | P9 `playcheck`: scripted off-screen client runs with screenshots | tooling, L | no | P1; #167 (for the #168 and #169 scenarios) | `playcheck.py`, `cli.py`, `tools/playcheck/` |
@@ -337,9 +345,11 @@ Proposed text, added under its Decision if N1 is (b):
   server/, net/ or tests/harness/, audits, and a task that went red twice. Budget: at most half of the weekly Fable
   window across all tracks; each wave comment reports its use from get_usage.
 - Fable may be named in ADRs and in issue and PR comments (kickoffs, launch arguments in the handover data, usage
-  reports). It stays out of `.claude/` (settings, agents, workflows, skills, rules), `tools/`, `.github/`, every
-  CLAUDE.md file and any workflow argument's default.
-- Usage credits stay off or capped (unchanged); `agents-check` proves which model served each agent (unchanged).
+  reports). It stays out of `.claude/` (settings, agents, workflows, skills, rules), `.github/`, every CLAUDE.md
+  file and any workflow argument's default; in `tools/` only the runner's model-family table names it (as on main).
+- Usage credits stay off or capped (unchanged). `agents-check` proves which model served each agent: it reads the
+  shared and the user-scope `availableModels`, accepts a model from the user list when the requested model served,
+  and still fails a model in neither list that served.
 
 ## Amendment draft B: release branches (to `2026-10-01-release-branch-per-milestone.md`), Needs the engineer
 Proposed text, replacing "There is no `staging` branch and one milestone runs at a time" if N2 is (d):
