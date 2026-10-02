@@ -1680,8 +1680,8 @@ Rejected ways of expressing it (per field, per content part, filtering in `serve
 
 capture → gate → encode (Opus) → routing decision per speaker and listener (`core/` rules, applied by the host's
 `server/`) → listener → jitter buffer → decode → `AudioStreamPlayer3D` on the speaker's avatar → the listener's ears.
-- Routing inputs: distance, walls (occlusion), life (the voice invariant below), items such as radios, role
-  abilities. Dead chat and meetings, in the brief, are gone (vision revision 1).
+- Routing inputs: distance, life (the voice invariant below), later items such as radios and role abilities; walls
+  muffle on the listener (the M5 ADR's D13 (a)) and enter the routing only under D13 (b). Dead chat and meetings, in the brief, are gone (vision revision 1).
 - **Decided by the M1 spike** ([voice ADR](decisions/2026-09-29-voice-approach.md): **go**; numbers in #15
   and #16):
   - Codec: TwoVoIP (`two-voip-godot-4`) **v6.5** on Windows with Godot 4.7.2: 48 kHz mono, 20 ms frames,
