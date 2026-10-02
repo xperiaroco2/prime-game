@@ -32,7 +32,8 @@ printed in a tool result (deduplicated per agent), with its per-step seconds. Un
 - **fresh tokens**: input, cache writes and output, without cache reads.
 - **API list $**: each agent's tokens at its model's API list price (Opus 5.5: input $4, 5-minute cache write $5,
   cache read $0.20, output $20 per million; Sonnet 5.5: $2, $2.50, $0.20, $10; Haiku 4.5: $1, $1.25, $0.10, $5;
-  platform.claude.com pricing, read 2026-10-02). A weight that adds the four kinds of tokens and the models in one
+  platform.claude.com pricing, read 2026-10-02; Opus 5.5's cache read is 0.05 of its input price, the other models'
+  0.1, as the page's footnote says). A weight that adds the four kinds of tokens and the models in one
   number, not money spent: the plan's own weights are not published.
 
 **Calibration to the weekly limit.** On Max 5x about 0.44M final context took 1% of the weekly limit (#134,
@@ -72,7 +73,7 @@ Three of the 66 runs never finished, all three in M2.
 
 **Local `verify` by step (seconds, medians of the printed summaries)**
 
-| | runs | red | doctor | lint | check | test | enet | freeze | stall | bots | bots-enet | game | selftest | total (median / max) |
+| | runs | red | doctor | lint | check | test | enet | freeze | stall | bots | bots-enet | game (release/m4 only) | selftest | total (median / max) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | M3 | 49 | 4 | 1 | 19 | 14 | 122 | 1 | 15 | 22 | 8 | 19 | | 164 | 355 / 464 |
 | M4 | 48 | 10 | 1 | 23 | 17 | 144 | 1 | 15 | 22 | 10 | 47 | 4 | 199 | 489 / 632 |
@@ -343,8 +344,8 @@ a change to them lands between the other managers' waves.
 
 ### The proposed issues (in full in the handoff on #171)
 Waves of at most two tasks while the M4 manager runs, three after; a task that needs an unmerged PR waits for the
-engineer's merge unless "stacks" is said. Tasks that edit `.claude/` run only while the engineer is present (today
-until about 21:00 UTC), so P3 and P6 go early.
+engineer's merge unless "stacks" is said. Tasks that edit `.claude/` run only while the engineer is present (stated in
+the kickoff), so P3 and P6 go early.
 
 | wave | issue | area, size | `.claude/` | depends on (waits for the merge unless "stacks") | shared files it owns in its wave |
 |---|---|---|---|---|---|
