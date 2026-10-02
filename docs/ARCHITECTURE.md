@@ -871,7 +871,8 @@ log to `user://replays/` when the session ends (never after each match) and keep
 seed, from which every later match's seed is derived (§3.3), so a log written after match 1 would let the host's human
 or agent, debugging mid-playtest, replay it and read every role of match 2; the bots runner writes a failed scenario's
 log next to its report, so `Match.replay` reproduces the failure with the same build and content (3f adds `CommandLog`'s
-reading back). The log holds the seed: it stays on the host's disk and is never sent (§5).
+reading back). The log holds the seed: it stays on the host's disk and is never sent (§5). A host started from a task
+worktree writes into that worktree's own `user://` (#182, `docs/AGENT_WORKFLOW.md` §11), not the main checkout's.
 
 **A failed deal is fatal** (the engineer's answer on #90, item 2, 2026-09-30). `core/` has no guard for a deal that
 cannot complete: a `Delivery` deal that could not place its packages or circles logs a match error
