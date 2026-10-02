@@ -20,6 +20,8 @@ var settings_box := VBoxContainer.new()
 var read_only_label := Label.new()
 var shortfalls_label := Label.new()
 
+## Whether the settings take a change now: a read-only control that still changes sends nothing.
+var _may_change := false
 var _numbers: Dictionary[StringName, SpinBox] = {}
 ## Setting id -> task type id -> its check box.
 var _bans: Dictionary[StringName, Dictionary] = {}
@@ -57,9 +59,7 @@ func set_mode(mode: GameMode) -> void:
 			box.min_value = spec.min_value
 			box.max_value = spec.max_value
 			box.value = spec.default_value
-			box.value_changed.connect(
-				func(value: float) -> void: setting_changed.emit(id, int(value))
-			)
+			box.value_changed.connect(func(value: float) -> void: _send(id, int(value)))
 			_numbers[id] = box
 			settings_box.add_child(UiParts.labelled(spec.display_name, box))
 			continue
@@ -68,7 +68,7 @@ func set_mode(mode: GameMode) -> void:
 		for task: TaskType in mode.task_types:
 			var check := CheckBox.new()
 			check.text = task.display_name
-			check.toggled.connect(func(_on: bool) -> void: setting_changed.emit(id, _banned(id)))
+			check.toggled.connect(func(_on: bool) -> void: _send(id, _banned(id)))
 			boxes[task.id] = check
 			settings_box.add_child(check)
 		_bans[id] = boxes
@@ -83,6 +83,7 @@ func refresh(model: ClientModel, host_tick: int, may_change: bool) -> void:
 	ready_button.set_pressed_no_signal(is_ready)
 	ready_button.text = "Ready (press again to cancel)" if is_ready else "Ready"
 	countdown_label.text = countdown_text(model, host_tick)
+	_may_change = may_change
 	read_only_label.visible = not may_change
 	shortfalls_label.visible = not model.shortfalls.is_empty()
 	shortfalls_label.text = "\n".join(model.shortfalls)
@@ -135,6 +136,11 @@ func settings_editable() -> bool:
 			if not (boxes[task] as CheckBox).disabled:
 				return true
 	return false
+
+
+func _send(id: StringName, value: Variant) -> void:
+	if _may_change:
+		setting_changed.emit(id, value)
 
 
 func _banned(id: StringName) -> PackedStringArray:

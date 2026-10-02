@@ -41,6 +41,25 @@ func test_the_lobby_tab_lets_the_host_change_the_settings_and_others_read_them()
 	assert_array(sent).is_equal([[&"match_duration", 3]])
 
 
+func test_a_read_only_lobby_tab_sends_no_setting() -> void:
+	# A guest's read-only control that still changes (a SpinBox's arrows or wheel) sends nothing.
+	var mode := load(MODE) as GameMode
+	var panel: LobbyPanel = auto_free(LobbyPanel.new())
+	add_child(panel)
+	panel.set_mode(mode)
+	var sent: Array = []
+	panel.setting_changed.connect(
+		func(id: StringName, value: Variant) -> void: sent.append([id, value])
+	)
+	panel.refresh(Preview.fake_model(mode, false), -1, false)
+	var boxes := panel.settings_box.find_children("*", "SpinBox", true, false)
+	(boxes[0] as SpinBox).value = 3
+	var checks := panel.settings_box.find_children("*", "CheckBox", true, false)
+	assert_bool(checks.is_empty()).is_false()
+	(checks[0] as CheckBox).button_pressed = not (checks[0] as CheckBox).button_pressed
+	assert_array(sent).is_empty()
+
+
 func test_the_end_screen_names_the_side_by_its_display_name_only() -> void:
 	var mode := load(MODE) as GameMode
 	assert_str(EndScreen.winner_text(&"crew", mode)).is_equal(
