@@ -17,7 +17,8 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
     players <n>             every player, 1 to MAX_PLAYERS: the windows, then the bots
     windows <n>             1 to MAX_WINDOWS: window 1 hosts, the others join it
     bots <file.tres>        a BotScenario (repo-relative or res://) whose scripts play the players after the windows;
-                            required when players > windows. Its own roles, settings and clock stay empty
+                            required when players > windows. Its `bots` counts every player, so it equals
+                            `players`; its own roles, settings and clock stay empty
     role <player> <id>      ForceRole, sent by window 1 once every player is in its roster (debug builds, E17)
     setting <id> <int>      ChangeSettings, sent by window 1 then
     clock <seconds>         ForceClock (the match clock's length), sent by window 1 then
@@ -144,6 +145,9 @@ class _Parser:
         self.player_refs: list[tuple[int, int]] = []
         # The line of each `window <n>`.
         self.sections: dict[int, int] = {}
+        # The line of `bots <file.tres>`, and that BotScenario's `bots`.
+        self.bots_line = 0
+        self.bots_count = 0
 
     def fail(self, why: str, line: int | None = None) -> Failure:
         return Failure(f"{self.scenario.name}{SUFFIX}:{line or self.line}: {why}")
@@ -189,6 +193,7 @@ class _Parser:
             s.windows = self.number(args[0], "windows", 1, MAX_WINDOWS)
         elif key == "bots" and len(args) == 1:
             s.bots = bots_res(args[0], self.fail)
+            self.bots_line, self.bots_count = self.line, bots_count(s.bots)
         elif key == "role" and len(args) == 2:
             player = self.player(args[0])
             if not ID_RE.fullmatch(args[1]):
@@ -300,6 +305,12 @@ class _Parser:
             raise self.fail(f"players {s.windows + 1} to {s.players} need `bots <file.tres>`", 1)
         if s.players == s.windows and s.bots:
             raise self.fail("`bots` plays the players after the windows, and there are none", 1)
+        if s.bots and self.bots_count != s.players:
+            raise self.fail(
+                f"bots: {s.bots.removeprefix('res://')} has bots = {self.bots_count}, but players is {s.players} "
+                "(a BotScenario's bots counts every player, the windows too)",
+                self.bots_line,
+            )
         for line, number in self.player_refs:
             if number > s.players:
                 raise self.fail(f"player {number}: the scenario has {s.players}", line)
@@ -343,6 +354,14 @@ def bots_res(text: str, fail: Callable[[str], Failure]) -> str:
     if not (ROOT / rel_path).is_file():
         raise fail(f"bots: {rel_path} not found")
     return f"res://{rel_path}"
+
+
+def bots_count(res: str) -> int:
+    """The `bots` of a BotScenario .tres (its [resource] section; BotScenario's default 1 when the line is absent)."""
+    text = (ROOT / res.removeprefix("res://")).read_text(encoding="utf-8")
+    found = re.search(r"^\[resource\]\s*$(.*)", text, re.MULTILINE | re.DOTALL)
+    count = re.search(r"^bots = ([0-9]+)\s*$", found.group(1) if found else "", re.MULTILINE)
+    return int(count.group(1)) if count else 1
 
 
 def parse(text: str, name: str) -> Scenario:

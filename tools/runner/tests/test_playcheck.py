@@ -120,6 +120,8 @@ class ParserTest(unittest.TestCase):
             ("players 2\nwindows 3\nwindow 1\nshot a", 1, "windows 3 is more than players 2"),
             ("players 3\nwindows 2\nwindow 1\nshot a", 1, "players 3 to 3 need `bots <file.tres>`"),
             (f"players 2\nwindows 2\nbots {BOTS}\nwindow 1\nshot a", 1, "there are none"),
+            (f"players 2\nwindows 1\nbots {BOTS}\nwindow 1\nshot a", 3, f"{BOTS} has bots = 3, but players is 2"),
+            (f"players 4\nwindows 2\nbots {BOTS}\nwindow 1\nshot a", 3, "has bots = 3, but players is 4"),
             ("players 2\nwindows 4", 2, "windows must be a whole number from 1 to 3"),
             ("players 11", 1, "players must be a whole number from 1 to 10"),
             ("players 2\nwindows 2\nbots content/nothing.tres", 3, "bots: content/nothing.tres not found"),
@@ -177,6 +179,17 @@ class ParserTest(unittest.TestCase):
                 self.assertTrue(s.shots())
                 if s.bots:
                     self.assertTrue((ROOT / s.bots.removeprefix("res://")).is_file())
+
+    def test_a_botscenarios_bots_is_read_from_its_resource_section_default_1(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sub = '[sub_resource type="Resource" id="x"]\nbots = 9\n\n'
+            (root / "five.tres").write_text(f"[gd_resource]\n\n{sub}[resource]\nmode = 1\nbots = 5\n", encoding="utf-8")
+            (root / "none.tres").write_text(f"[gd_resource]\n\n{sub}[resource]\nmode = 1\n", encoding="utf-8")
+            with mock.patch.object(playcheck, "ROOT", root):
+                self.assertEqual(playcheck.bots_count("res://five.tres"), 5)
+                self.assertEqual(playcheck.bots_count("res://none.tres"), 1)
+        self.assertEqual(playcheck.bots_count(f"res://{BOTS}"), 3)
 
     def test_an_unknown_scenario_lists_the_ones_there_are(self) -> None:
         with self.assertRaises(Failure) as caught:
