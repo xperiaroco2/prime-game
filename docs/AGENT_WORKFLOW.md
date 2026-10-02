@@ -777,7 +777,7 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`; `summary.json` (every suite:
   tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
-  run (it crashed or timed out) counts neither way.
+  run (it crashed or timed out) or skipped in it counts neither way.
 - **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite
   action `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job
   is one job in `nightly.yml` (checkout, the setup, one runner command, an upload); the job `report` lists them all

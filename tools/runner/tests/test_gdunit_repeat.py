@@ -80,6 +80,17 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual([r["status"] for r in summary["runs"]], ["passed", "FAILED", "passed"])  # type: ignore[index, union-attr]
         self.assertEqual([r["tests"] for r in summary["runs"]], [1, 0, 1])  # type: ignore[index, union-attr]
 
+    def test_a_skipped_run_counts_neither_way(self) -> None:
+        summary = gdunit.summarize(
+            [
+                outcome(1, {self.A: "failed", self.B: "skipped"}, "FAILED"),
+                outcome(2, {self.A: "skipped", self.B: "passed"}),
+                outcome(3, {self.A: "failed", self.B: "failed"}, "FAILED"),
+            ]
+        )
+        self.assertEqual(summary["failed_every_run"], [self.A])
+        self.assertEqual(summary["flaky"], [{"test": self.B, "failed_in_runs": [3]}])
+
     def test_the_markdown_lists_flaky_tests_and_only_the_suites_with_a_failure(self) -> None:
         text = gdunit.summary_markdown(
             gdunit.summarize(

@@ -196,7 +196,7 @@ def case_results(path: Path) -> dict[str, str]:
 
 def summarize(outcomes: list[RunOutcome]) -> dict[str, object]:
     """Runs, suites and tests compared across the runs. A test is flaky when it passed in one run and failed in
-    another; a test missing from a run (the run crashed or timed out) counts neither way."""
+    another; a test missing from a run (the run crashed or timed out) or skipped in it counts neither way."""
     runs = [
         {
             "run": o.run,
@@ -210,7 +210,7 @@ def summarize(outcomes: list[RunOutcome]) -> dict[str, object]:
     tests = sorted({key for o in outcomes for key in o.cases})
     flaky, every = [], []
     for key in tests:
-        seen = [(o.run, o.cases[key]) for o in outcomes if key in o.cases]
+        seen = [(o.run, o.cases[key]) for o in outcomes if o.cases.get(key, SKIPPED) != SKIPPED]
         failed_in = [run for run, status in seen if status == FAILED]
         if failed_in and any(status == PASSED for _, status in seen):
             flaky.append({"test": key, "failed_in_runs": failed_in})
