@@ -18,8 +18,10 @@ const WATCHED_FRAMES := 90
 ## Frames of the target's own camera recorded before the spectate camera is compared with them:
 ## more than the interpolation delay.
 const DELAY_FRAMES := 30
-## How close the spectate camera comes to a pose the target's own camera had: within one physics
-## frame's walk and turn of the target (it walks about 7 cm and turns 1.7 degrees a frame).
+## How close the spectate camera comes to the path of the target's own camera: in metres from the
+## nearest segment between two consecutive recorded poses (the target walks about 7 cm a frame, so
+## a pose drawn between two physics frames lies on that segment, whatever the render tick's phase),
+## and in radians from the look of that segment's nearer end (it turns 1.7 degrees a frame).
 const RETRACE_M := 0.01
 const RETRACE_RAD := 0.05
 ## The respawn of the suite that waits for it, in seconds.
@@ -92,15 +94,16 @@ func test_the_spectate_camera_retraces_the_targets_own_camera() -> void:
 			continue
 		var got := life.spectate_camera().global_transform
 		var nearest := truth[0]
-		for was: Transform3D in truth:
-			if was.origin.distance_to(got.origin) < nearest.origin.distance_to(got.origin):
-				nearest = was
+		var gap := INF
+		for k: int in range(1, truth.size()):
+			var a := truth[k - 1]
+			var b := truth[k]
+			var on := Geometry3D.get_closest_point_to_segment(got.origin, a.origin, b.origin)
+			if on.distance_to(got.origin) < gap:
+				gap = on.distance_to(got.origin)
+				nearest = a if on.distance_to(a.origin) <= on.distance_to(b.origin) else b
 		var where := "frame %d: camera %s, the target's nearest %s" % [i, got, nearest]
-		(
-			assert_float(nearest.origin.distance_to(got.origin))
-			. override_failure_message(where)
-			. is_less(RETRACE_M)
-		)
+		assert_float(gap).override_failure_message(where).is_less(RETRACE_M)
 		var off := (-nearest.basis.z).angle_to(-got.basis.z)
 		assert_float(off).override_failure_message(where).is_less(RETRACE_RAD)
 	walker.move_input = Vector2.ZERO
