@@ -647,6 +647,32 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
   `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
   project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
+- **`mutants <spec.json> [--seconds N]` [applied]** (#184; item 4 (b) of the
+  [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), the tool of `issue-task`'s
+  `test_review`): shows that a change's tests fail when its code is wrong. Each mutant of the spec names a tracked
+  `file` under `core/ server/ net/ client/ voice/`, the 1-based `line` on which `original` (exact text, which must
+  start there once) begins, its `replacement`, and the `tests` (files or folders under `tests/`) that should catch it;
+  `mutants --help` prints the format. It refuses a dirty worktree (the mutants run HEAD) and runs nothing on an
+  invalid spec. A run never writes the task's tree, so a run killed half-way (a 600 s Bash limit, a stopped
+  workflow) cannot leave a planted fault for the publisher to commit: it makes the scratch worktree
+  `tools/out/mutants/tree-<checkout folder>` (`git worktree add --detach` of HEAD; a start first removes one a killed
+  run left), copies the checkout's `.godot` import cache and its files' modification times in (Godot then rechecks
+  nothing: the import takes about 7.5 s, 10 to 11 s afresh), imports it once, runs every named test once without a
+  mutant (a red baseline makes every mutant an `error`), then plants each mutant there, runs its tests (`test` without
+  the import) and restores the file: `killed` (a named test failed; they are listed), `survived` (a finding, not a
+  failure) or `error` (the mutant does not compile, `--seconds` (default 300) ran out, or the tests could not judge;
+  the reason and the log). At the end it removes the scratch worktree, also after an exception, and confirms the
+  task's `git status` unchanged. A lock in `tools/out/mutants/` allows one run per checkout (the OS releases it when
+  a run is killed). The table is printed and written to `tools/out/mutants/<spec name>.md` after every mutant, with
+  each test run's output and Godot's log in `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever
+  the results; 1: an invalid spec, or a run that could not start or finish (a dirty tree, another run, a failed
+  import), nothing left behind; 2: the scratch worktree could not be removed or the task's tree changed: run no more
+  mutants and tell the human (`git worktree list` shows it; the next run removes it first). One mutant per call takes
+  about 17 to 19 s with small suites (setup about 9 s, baseline and mutant about 4 s each); several, or tests that
+  name all of `tests/` (two full runs: 596 s while other worktrees verified), go in the background, and their report
+  file shows the progress. The runner's own git commands are not the session's shell
+  commands, so the guard judges only `tools\run.cmd mutants <spec>`, which passes from a task worktree and the main
+  checkout; a hand-typed `git worktree remove` of the scratch tree asks (§8.2).
 - **`host` and `join` [applied]** (3i, #103; windows since #149; `docs/ARCHITECTURE.md` §4.6 and §4.7, the M4 ADR's
   E20): the game over ENet. `host [--port P] [--clients N] [--local] [--seconds S]` hosts on every interface, or on
   127.0.0.1 only with `--local` (no firewall prompt), and with `--clients N` (up to 7) starts N clients that join it
@@ -717,10 +743,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `normalize`, `shot`, `run`,
-  `agents-check`, `credits`, `host`, `join`, `bots`, `metrics` (all three above), and `hook` (for Claude Code only).
-  Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
-  launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
-  PowerShell) the runner takes the machine paths from the Claude settings (§2).
+  `agents-check`, `credits`, `host`, `join`, `bots`, `metrics`, `mutants` (the last five above), and `hook` (for
+  Claude Code only). Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash`
+  on PATH is the WSL launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude
+  Code session (a human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
