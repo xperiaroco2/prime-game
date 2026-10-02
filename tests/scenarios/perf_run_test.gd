@@ -38,6 +38,26 @@ func test_two_runs_on_the_simulated_clock_carry_the_same_bytes() -> void:
 	assert_bool(first.to_dict()["events_per_tick"] == second.to_dict()["events_per_tick"]).is_true()
 
 
+## The night job's match walks (PerfScenario's spokes, the default leg count): walking bots end
+## their legs and the match by time up, and two runs still carry the same bytes.
+func test_walking_bots_play_to_the_end_and_two_runs_carry_the_same_bytes() -> void:
+	var first := _play(3, 12, -1)
+	var second := _play(3, 12, -1)
+	assert_array(Array(first.failures)).is_empty()
+	assert_array(first.ends).contains_exactly([&"dissidents"])
+	assert_array(Array(second.failures)).is_empty()
+	# Two legs on a 12 s round: out to OUTER_M, back to INNER_M on each bot's own spoke, a walk
+	# ending within StepWalkTo's stop_m of its point.
+	var stop_m := StepWalkTo.new().stop_m
+	for bot: ScenarioBot in first.bots:
+		var flat := Vector2(bot.position.x, bot.position.z)
+		assert_float(flat.length()).is_between(
+			PerfScenario.INNER_M, PerfScenario.INNER_M + stop_m + 0.01
+		)
+	assert_bool(first.meter.to_dict() == second.meter.to_dict()).is_true()
+	assert_bool(first.to_dict()["events_per_tick"] == second.to_dict()["events_per_tick"]).is_true()
+
+
 func test_the_meter_counts_frame_bytes_per_peer_and_tick_and_skips_the_own_client() -> void:
 	var schema := WireSchema.game(true)
 	var meter := WireMeter.new(schema)
@@ -83,8 +103,8 @@ func test_the_metered_transport_counts_only_what_it_sent() -> void:
 	host.close()
 
 
-func _play(bots: int, seconds: int) -> PerfRun:
-	var run := PerfRun.new(PerfScenario.build(bots, seconds, 0))
+func _play(bots: int, seconds: int, legs := 0) -> PerfRun:
+	var run := PerfRun.new(PerfScenario.build(bots, seconds, legs))
 	assert_bool(run.start()).is_true()
 	while not run.done():
 		run.frame()
