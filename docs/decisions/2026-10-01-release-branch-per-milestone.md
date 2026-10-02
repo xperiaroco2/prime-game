@@ -1,6 +1,7 @@
 # A release branch per milestone: the manager merges task PRs, humans merge the milestone into main
 
-- **Status:** Accepted
+- **Status:** Accepted; one Decision bullet added 2026-10-02 (a tooling track beside a milestone, the engineer's
+  answer N2, #183)
 - **Date:** 2026-10-01
 - **Deciders:** the engineer (chat with the M3 manager session, 2026-10-01; recorded on #96)
 
@@ -37,6 +38,13 @@ GitHub retargets to `main` when its parent's branch is deleted.
 - **Issues stay open** until that PR merges: GitHub's `Closes #n` fires only on a merge into the default branch, and
   agents never close issues. After the merge into `main` a human closes the stage's issues (the manager lists them).
 - There is no `staging` branch and one milestone runs at a time.
+- **A tooling track beside the milestone** (the engineer's answer N2, 2026-10-02, to the
+  [pipeline v2 ADR](2026-10-02-ai-productivity-baseline-and-pipeline-v2.md); the one exception to "Nothing reaches
+  `main` any other way"): the AI productivity track (#170) may run beside a milestone with its PRs straight into
+  `main`, each merged by the engineer, never by an agent. When `main` gets a change the milestone should take in,
+  that track's manager says so on the milestone's plan issue; at a wave boundary the milestone's manager merges
+  `origin/main` into `release/m<k>`, runs `verify` on the merged tree and pushes the merge commit by hash, as for a
+  task PR (`tools\run.cmd merge --sync-main --base release/m<k>`, #181).
 
 ## Alternatives
 - **Humans merge every task PR** (the 2026-09-28 rule unchanged): the stage stalls at night wherever a task needs

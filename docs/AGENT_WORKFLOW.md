@@ -145,14 +145,23 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
 
 - **Model guard [applied]:** `"availableModels": ["opus", "sonnet", "haiku"]` in the shared settings. A request for
   another model falls back with a warning. Fable appears in no shared file
-  ([ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)). 👤 Both humans keep **usage credits off**
-  or set a spend cap: the only hard stop on money.
+  ([ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)). Its amendment A (the engineer's answer N1
+  (b), 2026-10-02): the engineer may add Fable to `availableModels` in his own `~/.claude/settings.json` (the lists
+  merge across non-managed scopes), and a manager passes it per launch through a workflow's `models` argument, only
+  where the kickoff allows it (stage designs, second reviews of PRs that touch `core/ server/ net/ tests/harness/`,
+  audits, a task red twice), within at most half of its weekly window across tracks, reported per wave. It stays out
+  of `.claude/`, `.github/`, every CLAUDE.md and every workflow default (`test_agents_check.py` and
+  `test_workflows.py` assert it). 👤 Both humans keep **usage credits off** or set a spend cap: the only hard stop on
+  money.
 - **Routing check [applied]:** each subagent transcript under
   `~/.claude/projects/D--prime-game/<session>/subagents/agent-*.jsonl` records the model that actually served it,
   and `agent-*.meta.json` next to it the `agentType` and any requested `model`. `tools\run.cmd agents-check`
-  (this session; `--all` for every session of the checkout and its worktrees) asserts the model **family**, not exact
-  IDs: the requested model, else the agent file's `model:`. A request outside `availableModels` must be served by
-  another family (the model guard). `finish-task` runs it after the reviews.
+  (this session; `--all` for every session of the main checkout and its worktrees, from any of them) asserts the model
+  **family**, not exact IDs: the requested model, else the agent file's `model:`. `availableModels` is the shared list
+  merged with the user-scope one (#183). A request from the user list is ok when it served and listed as "fell back"
+  when another family served it; a request in neither list must be served by another family (the model guard).
+  Workflow agents' transcripts (`<session>/subagents/workflows/`) are not read yet. `finish-task` runs it after the
+  reviews.
 - A new `.claude/agents/` directory is only seen by sessions started after it exists.
 
 ## 6. Skills [applied]
@@ -246,8 +255,9 @@ Rules for every workflow run:
   reviewer reads the PNGs, and the rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per
   role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish);
   `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
-  default names a model (the model-guard ADR). A missing `mutants` or `playcheck` on the task's branch is reported
-  in the result and the PR, and the run goes on. `pr-rebase` takes `second_review`, `skeptic`, `efforts` and
+  default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
+  where the kickoff allows it (its amendment A, §5). A missing `mutants` or `playcheck` on the task's branch is
+  reported in the result and the PR, and the run goes on. `pr-rebase` takes `second_review`, `skeptic`, `efforts` and
   `models` (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or
   major, no fix agent runs and the result's `note` asks the manager to list the refuted findings with their reasons
   in the PR body. The kickoff's approved agent count must cover the options the manager will pass; each script's
@@ -288,10 +298,24 @@ Rules for every workflow run:
   `gh pr merge` stays denied (the `main` rulesets ask only for a PR and green checks, so it would let any agent merge
   into `main`). The stage ends with one PR from `release/m<k>` into `main`, which a human reviews and merges; the
   stage's issues stay open until then (`Closes` fires only on the default branch) and a human closes them.
-- **The human:** writes the kickoff (template in the skill), reviews and merges the stage's PR into `main`, answers
-  the numbered "Needs the engineer" questions, and runs the housekeeping (`worktree-done`, closing issues). The
-  manager reports on the plan issue after each wave and stops with a comment when nothing more can run without the
-  human.
+- **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7,
+  the engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170)
+  sends its PRs straight into `main`, each merged by the engineer (the release-branch ADR's tooling-track bullet; how
+  a milestone takes `main` in: Git flow above). At most about six task workflows run at once across all tracks (three
+  per stage). Each kickoff states its budget as a percentage of the weekly limit, and its manager reports its own
+  spend in every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`, plus
+  the stage's running total (`--since <stage start>`): a run counts in the window it started in.
+  Shared files (N5 (c)): `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track
+  (an issue there, landing between the other managers' waves: a mid-wave change breaks their resumes);
+  `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` pairs
+  PRs only within one base, so before such a change merges its manager lists the open PRs into another base that
+  touch the same files (`gh pr list --state open --json number,baseRefName,files`) and names them on that track's
+  plan issue; the overlap then shows in that track's `merge-check` after its next `main` sync. After the engineer
+  merges a change to a shared file, the tooling track's manager says so on each running manager's plan issue.
+- **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
+  reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
+  housekeeping (`worktree-done`, closing issues). The manager reports on the plan issue after each wave and stops
+  with a comment when nothing more can run without the human.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
@@ -827,7 +851,6 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 | Godot MCP server; if needed, prefer an in-game debug autoload plus the bot harness | M4 revisit |
 | GDScript LSP bridge; Context7 (off; if ever used, pin `/websites/godotengine_en_4_7`) | After M2 |
 | Trial the Superpowers plugin, engineer-only, on the M1 throwaway spike | M1, optional |
-| A Fable `code-reviewer-deep` as the engineer's personal opt-in, never in workflows | On demand |
 | Auto permission mode | After the M0 guard tests pass |
 | `tools\run.cmd merge` (agent merges after the human says "merge", with CI and approval checks) | If manual merging becomes friction |
 | The designer's machine: Claude Code version, plan, Python, Node, gh | Her onboarding |
