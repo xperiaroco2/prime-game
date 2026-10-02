@@ -38,6 +38,9 @@ paths:
   `tools/out/gdunit-runs/`, the flaky comparison in its `summary.json` (`docs/AGENT_WORKFLOW.md` §15).
 - Perf matches live in `tests/harness/perf/` and run with `tools\run.cmd perf` (host tick time and bytes per peer
   with 10 bots, compared with the last run; not a `verify` step; `docs/ARCHITECTURE.md` §9.7).
+- Chaos bots live in `tests/harness/chaos/` and run with `tools\run.cmd bots --chaos [--seed N]` (a hostile player
+  and a malformed peer against the host; a failure prints the seed that replays it; the `verify` step `chaos`;
+  `docs/ARCHITECTURE.md` §4.6 "Chaos bots").
 - Agent `test-runner` runs them and returns only failures.
 - A throwaway probe test goes in the gitignored `tests/scratch/`, never beside real tests: run it with
   `tools\run.cmd test tests/scratch/probe_test.gd`, delete it with `rm -r tests/scratch/...` (no prompt). Full
