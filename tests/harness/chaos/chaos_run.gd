@@ -444,7 +444,7 @@ func _check_claim(command: MatchCommand, slice: Array[EmittedEvent]) -> void:
 func _check_after() -> void:
 	super()
 	var label := "malformed peer"
-	failures.append_array(_leaks.check_bot(label, malformed.peer, malformed.view, false))
+	failures.append_array(leaks.check_bot(label, malformed.peer, malformed.view, false))
 	failures.append_array(
 		LeakCheck.check_counters(
 			label, malformed.peer, malformed.transport, malformed.undecodable, one_process
