@@ -337,10 +337,13 @@ class MetricsTest(unittest.TestCase):
 
         def gh(args: list[str]) -> str:
             if args[:2] == ["run", "list"]:
+                self.assertEqual(args[2:4], ["--workflow", "ci.yml"], "only the verify workflow, not a nightly one")
                 return json.dumps(listed)
             if "--log" in args:
                 return log
-            return json.dumps({"jobs": [{"startedAt": "2026-10-02T09:00:05Z", "completedAt": "2026-10-02T09:06:05Z"}]})
+            # Two jobs (verify in two lanes): the run's job time spans both.
+            return json.dumps({"jobs": [{"startedAt": "2026-10-02T09:00:05Z", "completedAt": "2026-10-02T09:04:05Z"},
+                                        {"startedAt": "2026-10-02T09:00:10Z", "completedAt": "2026-10-02T09:06:05Z"}]})
 
         ci = metrics.ci_data(None, metrics.parse_time(UNTIL), 12, gh)
         self.assertEqual((ci["runs"], ci["green"], ci["reruns"]), (2, 1, 1))

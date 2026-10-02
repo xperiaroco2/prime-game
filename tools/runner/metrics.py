@@ -99,6 +99,8 @@ STEP_LINE = re.compile(r"^\s*(passed|FAILED)\s+(\S+(?: tree)?)\s+([\d.]+)s\s*$")
 VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
 # `gh run list --limit`: enough for the project's history so far (149 runs before 2026-10-02 11:00 UTC).
 CI_LIST_LIMIT = 1000
+# The workflow that runs `verify` on every push and PR; other workflows (a nightly run) are left out.
+CI_WORKFLOW = "ci.yml"
 GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to 10 min"), (600, None, "over 10 min"))
 
 
@@ -584,9 +586,10 @@ def _gh(args: list[str]) -> str:
 
 
 def ci_data(since: float | None, until: float, last: int, gh=_gh) -> dict:
-    """CI from GitHub, read-only: every run in the window, and the job and verify steps of the last `last` green."""
+    """CI from GitHub, read-only: every run of CI_WORKFLOW in the window, and the jobs and verify steps of the last
+    `last` green."""
     listed = json.loads(
-        gh(["run", "list", "--limit", str(CI_LIST_LIMIT), "--json",
+        gh(["run", "list", "--workflow", CI_WORKFLOW, "--limit", str(CI_LIST_LIMIT), "--json",
             "databaseId,event,conclusion,createdAt,startedAt,attempt"])
     )
     runs = []
@@ -597,10 +600,12 @@ def ci_data(since: float | None, until: float, last: int, gh=_gh) -> dict:
     green = sorted((r for r in runs if r.get("conclusion") == "success"), key=lambda r: r["createdAt"])[-last:]
     jobs, steps = [], defaultdict(list)
     for r in green:
-        job = (json.loads(gh(["run", "view", str(r["databaseId"]), "--json", "jobs"])).get("jobs") or [{}])[0]
-        a, b = stamp(job.get("startedAt")), stamp(job.get("completedAt"))
-        if a is not None and b is not None:
-            jobs.append(b - a)
+        # The run's jobs from the first start to the last end: every lane if verify is split into several jobs.
+        listed_jobs = json.loads(gh(["run", "view", str(r["databaseId"]), "--json", "jobs"])).get("jobs") or []
+        starts = [t for j in listed_jobs if (t := stamp(j.get("startedAt"))) is not None]
+        ends = [t for j in listed_jobs if (t := stamp(j.get("completedAt"))) is not None]
+        if starts and ends:
+            jobs.append(max(ends) - min(starts))
         log = gh(["run", "view", str(r["databaseId"]), "--log"])
         v = parse_verify("\n".join(re.sub(r"^.*?\dZ ", "", line) for line in log.splitlines()))
         for name, (_, sec) in (v or {}).get("steps", {}).items():
