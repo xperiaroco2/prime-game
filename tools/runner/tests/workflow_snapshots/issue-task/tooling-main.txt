@@ -1,0 +1,106 @@
+### phase Implement
+### agent implement:#7
+opts {"label":"implement:#7","phase":"Implement","effort":"high","schema":{"type":"object","properties":{"verify_green":{"type":"boolean"},"verify_tail":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"commits":{"type":"array","items":{"type":"string"}},"complete":{"type":"boolean"},"left":{"type":"array","items":{"type":"string"}},"summary":{"type":"string"},"decisions":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"provisional_content":{"type":"array","items":{"type":"string"}},"proposed_issues":{"type":"array","items":{"type":"string"}}},"required":["verify_green","complete","summary","changed_paths"]}}
+You are a task agent of prime-game, run unattended by the manager session through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).
+- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch tooling/7-x, PR base main; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
+- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close or reopen an issue (humans close issues), edit the body of #30, `gh pr merge`.
+- Do not run a command you expect to prompt (a delete, reset, rebase or branch delete outside your worktree and task branch; an edit of any path under .claude/ or addons/ unless the session runs in bypass): a prompt blocks the run until the human returns. List such a step in the handoff for the human instead.
+- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main`); never an interactive rebase without that variable. Both are free in your own worktree.
+- No Godot windows: headless runs only; a screenshot only through `tools\run.cmd shot` (off-screen).
+- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder a7/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or D:/prime-game/.claude/worktrees/7/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.
+- Write files with LF line endings (Python: newline="" or bytes). The content API classes are GameRole and RuleEffect (never Role or Effect).
+- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it. Write options with a recommendation under "Needs the engineer" (PR and handoff) and continue with the recommended one if it can be reverted. A placeholder number you must add is marked "not a decision".
+- Files in content/ and levels/ are provisional under docs/decisions/2026-09-29-mvp-content-built-by-the-engineer.md: the engineer approves them in the PR; the PR says so and names them.
+- The engineer's answers in issue and PR comments override older text, including these notes.
+- Commits: small Conventional Commits, one logical change each, message from a file (`git commit -F`), each ending with the attribution line your system reminder gives for commits; a PR body ends with the line it gives for pull requests.
+
+Task: GitHub issue #7 (t). Effort: high. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.
+
+An earlier attempt may have got part of the way (a resumed run): first run `git log --oneline origin/main..HEAD` and `git status` in the worktree, and continue from that state; uncommitted files there are that attempt's work.
+
+Read: `gh issue view 7 --comments`; the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names; the CLAUDE.md of every area it touches and .claude/rules/; the code it builds on and its tests.
+
+Task notes from the manager:
+n
+
+Plan, then implement every acceptance criterion. Runner tests in tools/runner/tests/ (run by `selftest`, part of verify) for every new command, rule or behaviour change. Where you fix a guard, see its test fail without the code first. If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish `git fetch` and check whether it reached origin/main; if it did, rebase on it inside your worktree and use it.
+
+Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.
+
+`tools\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree's run at the same time (GdUnit4 temp files under user://, a busy port), run it once more before debugging.
+
+Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.
+
+Return the structured result. changed_paths: `git diff --name-only origin/main...HEAD`. verify_tail: the lines from "verify summary" to the end.
+### phase Review
+### agent review:code:#7
+opts {"label":"review:code:#7","phase":"Review","agentType":"code-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]}}
+Issue #7 (t). Branch tooling/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/main. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
+
+Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), docs/ARCHITECTURE.md, the ADRs the issue links, root CLAUDE.md and the area CLAUDE.md files. Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
+
+The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["tools/runner/start.py","docs/AGENT_WORKFLOW.md"]}
+
+Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
+### phase Publish
+### agent publish:#7
+opts {"label":"publish:#7","phase":"Publish","effort":"high","schema":{"type":"object","properties":{"published":{"type":"boolean"},"pr_number":{"type":"number"},"pr_url":{"type":"string"},"ci_green":{"type":"boolean"},"handoff_posted":{"type":"boolean"},"board_in_review":{"type":"boolean"},"closes_issue":{"type":"boolean"},"fixed":{"type":"array","items":{"type":"string"}},"not_fixed":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"merge_notes":{"type":"string"},"human_steps":{"type":"array","items":{"type":"string"}}},"required":["published","handoff_posted"]}}
+You are a task agent of prime-game, run unattended by the manager session through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).
+- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch tooling/7-x, PR base main; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
+- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close or reopen an issue (humans close issues), edit the body of #30, `gh pr merge`.
+- Do not run a command you expect to prompt (a delete, reset, rebase or branch delete outside your worktree and task branch; an edit of any path under .claude/ or addons/ unless the session runs in bypass): a prompt blocks the run until the human returns. List such a step in the handoff for the human instead.
+- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main`); never an interactive rebase without that variable. Both are free in your own worktree.
+- No Godot windows: headless runs only; a screenshot only through `tools\run.cmd shot` (off-screen).
+- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder a7/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or D:/prime-game/.claude/worktrees/7/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.
+- Write files with LF line endings (Python: newline="" or bytes). The content API classes are GameRole and RuleEffect (never Role or Effect).
+- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it. Write options with a recommendation under "Needs the engineer" (PR and handoff) and continue with the recommended one if it can be reverted. A placeholder number you must add is marked "not a decision".
+- Files in content/ and levels/ are provisional under docs/decisions/2026-09-29-mvp-content-built-by-the-engineer.md: the engineer approves them in the PR; the PR says so and names them.
+- The engineer's answers in issue and PR comments override older text, including these notes.
+- Commits: small Conventional Commits, one logical change each, message from a file (`git commit -F`), each ending with the attribution line your system reminder gives for commits; a PR body ends with the line it gives for pull requests.
+
+Task: publish issue #7 (t) from the worktree D:/prime-game/.claude/worktrees/7, PR base main. Effort: high. Budget: at most about 150 tool calls.
+
+An earlier attempt may have got part of the way (a resumed run): check `gh pr list --head tooling/7-x --state all`, the issue's latest comments and `git status` before doing anything twice.
+
+The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["tools/runner/start.py","docs/AGENT_WORKFLOW.md"]}
+
+Fresh reviewers found: [{"reviewer":"r","verdict":"ok","findings":[]}]
+
+Fix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. `tools\run.cmd verify` until green (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #7 (Done / Red and why / Needs the engineer) and return published false.
+
+Then follow .claude/skills/finish-task/SKILL.md from its docs step: "Publish now?" is answered yes; the reviews above replace its review step; skip agents-check.
+- `tools\run.cmd publish`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with `git ls-remote origin` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (`git rebase origin/main`, resolve keeping both sides' intent, `git rebase --continue`, verify), then publish again.
+- PR: `gh pr create --base main --title "<conventional title>" --body-file <file under a7/>` from .github/pull_request_template.md: `Closes #7` when every acceptance criterion is met (else `Part of #7` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").
+- `gh pr checks <pr> --watch`. Red: fix, verify, publish again; at most two rounds, then report what is still red.
+- The handoff comment on #7 (`gh issue comment 7 --body-file <file>`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer.
+- `tools\run.cmd board move 7 in-review`.
+
+Task notes from the manager (for the PR's merge order and the handoff):
+n
+
+Return the structured result.
+### returned
+{
+ "n": 7,
+ "impl": {
+  "verify_green": true,
+  "complete": true,
+  "summary": "s",
+  "changed_paths": [
+   "tools/runner/start.py",
+   "docs/AGENT_WORKFLOW.md"
+  ]
+ },
+ "reviews": [
+  {
+   "reviewer": "r",
+   "verdict": "ok",
+   "findings": []
+  }
+ ],
+ "pub": {
+  "published": true,
+  "handoff_posted": true
+ }
+}
+### error null

@@ -49,7 +49,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `lint [--fix] [paths]` | gdformat and gdlint on files or folders; with none, all GDScript plus CLAUDE.md budgets and rule/agent frontmatter |
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths]` | GdUnit4 headless; judged by exit code and `results.xml`; orphan nodes fail |
-| `verify` | Everything CI runs, in the same order: the definition-of-done gate |
+| `verify` | Everything CI runs: `doctor`, then a Python and a Godot lane at once; the definition-of-done gate |
 | `start <n> [--base P] [--here] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (the branch of a parent's open PR), for the engineer in its worktree, assign, board In progress (skill `start-task`) |
 | `publish [--base B]` | Rebases the task branch on its PR base (else `start --base`, else main), runs `verify`, pushes with a lease |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
@@ -58,7 +58,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `host [--port P] [--clients N] [--local] [--seconds S] [--headless]` / `join <address> [--port P] [--seconds S] [--headless]` | The game over ENet in windows (tiled on one PC); `--headless`: M3's session printing roster, phase and counters. Yours stay headless (`CLAUDECODE`); never `--windows`. Checks: `--local --seconds` |
 | `credits` | Writes `CREDITS.md` from `docs/credits/`; `check` fails on an LFS asset without an entry |
 | `bots [scenario ...] [--instances N] [--seconds S]` | Bot scenarios through the host and client sessions, and the information-leak test; `--instances N` (N > 1): one scenario over ENet, a process per bot |
-| `agents-check` / `worktree-done <n> [--pushed]` | Subagents ran on their models / remove a merged (or pushed spike) task's worktree |
+| `agents-check` / `metrics [--since T] [--until T] [--compact]` / `worktree-done <n> [--pushed]` | Subagents ran on their models / time and API list $ per task workflow from the transcripts / remove a merged (or pushed spike) task's worktree |
 | `selftest` / `pins [--get X]` / `permissions [--before R]` | The runner's own tests / pinned tool versions / transcripts replayed through the permission rules and the guard |
 
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.

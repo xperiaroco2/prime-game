@@ -29,6 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("test", help="GdUnit4 tests, headless")
     p.add_argument("paths", nargs="*", help="test files or directories (default: res://tests)")
+    p.add_argument(
+        "--repeat", type=int, metavar="N", help="N runs in a row with a per-suite comparison (the nightly flaky job)"
+    )
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
     sub.add_parser("selftest", help="unit tests of the runner itself")
@@ -108,6 +111,25 @@ def build_parser() -> argparse.ArgumentParser:
     scope.add_argument("--session", help="session id (default: this Claude Code session, else all)")
     scope.add_argument("--all", action="store_true", help="every session of this checkout")
 
+    p = sub.add_parser(
+        "metrics", help="time, tokens and API list $ of the task workflows, from this checkout's transcripts"
+    )
+    p.add_argument(
+        "--session",
+        nargs="+",
+        action="extend",
+        default=[],
+        metavar="ID[=LABEL]",
+        help="only these sessions (an id or its prefix; =LABEL names its rows, default the first 8 characters)",
+    )
+    p.add_argument("--since", help="ISO 8601 time: only runs that started at or after it (a wave's start)")
+    p.add_argument("--until", help="ISO 8601 time: only runs whose last line is before it (default now)")
+    p.add_argument(
+        "--ci", type=int, default=0, metavar="N", help="also CI from gh: the jobs and steps of the last N green runs"
+    )
+    p.add_argument("--out", help="folder for metrics.md and metrics.json (default tools/out/metrics)")
+    p.add_argument("--compact", action="store_true", help="print only the summary of at most ten lines (wave comments)")
+
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
 
@@ -158,6 +180,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "test":
             from . import gdunit
 
+            if args.repeat is not None:
+                return gdunit.repeat(args.repeat, paths=args.paths or None)
             return gdunit.main(paths=args.paths or None)
         if args.command == "verify":
             from . import verify
@@ -241,6 +265,12 @@ def main(argv: list[str] | None = None) -> int:
             from . import agents_check
 
             return agents_check.main(session=args.session, all_sessions=args.all)
+        if args.command == "metrics":
+            from . import metrics
+
+            return metrics.main(
+                args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact
+            )
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0

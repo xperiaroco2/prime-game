@@ -1,0 +1,94 @@
+# Night jobs (docs/AGENT_WORKFLOW.md §15): long deterministic runs on GitHub's free Linux runners while nobody works.
+# Each night job is one job below that sets up the toolchain like CI (.github/actions/setup-toolchain), runs one
+# runner command and uploads its reports. `report` lists every night job in `needs` and, when one of them fails,
+# comments with the run link on the standing "Night jobs" issue (creating it the first time).
+# Adding a night job (perf by #187, the long chaos run by #188): copy the `flaky` job, change its command, artifact
+# name and timeout, and add its id to `report`'s `needs`.
+# Scheduled runs use the latest commit on main and start late at busy times; GitHub disables the schedule of a public
+# repository after 60 days without activity (docs.github.com, "Events that trigger workflows").
+name: Nightly
+
+on:
+  schedule:
+    # 01:17 UTC every night (04:17 in Kyiv in summer time, 03:17 in winter time): off the hour, which GitHub delays
+    # most, and well before the audit lens on the engineer's PC (Daily 06:00 local) reads the results.
+    - cron: "17 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  flaky:
+    name: flaky (GdUnit4 three times)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      # No LFS content, as in CI.
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - uses: ./.github/actions/setup-toolchain
+
+      - name: doctor
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
+
+      # Every run is kept (tools/out/gdunit-runs/run-<i>/) and compared per suite and per test (summary.json, .md).
+      - name: GdUnit4 three times
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh test --repeat 3
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f tools/out/gdunit-runs/summary.md ]; then
+            cat tools/out/gdunit-runs/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the per-run reports and logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nightly-flaky
+          path: |
+            tools/out/gdunit-runs
+            tools/out/logs
+          if-no-files-found: ignore
+          retention-days: 30
+
+  report:
+    name: report on the Night jobs issue
+    needs: [flaky]
+    # A failed or timed-out night job; a skipped one is not news.
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TITLE: Night jobs
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      NEEDS: ${{ toJSON(needs) }}
+    steps:
+      - name: Comment with the run link
+        run: |
+          number=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title \
+            --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty")
+          if [ -z "$number" ]; then
+            body="The standing issue of the night jobs (docs/AGENT_WORKFLOW.md §15). The nightly workflow
+          (.github/workflows/nightly.yml) comments here with the run link when a night job fails, and the night-audit
+          skill posts its summary here each night. Keep it open: once it is closed, the next failure opens a new one."
+            url=$(gh issue create --title "$TITLE" --label area:tooling --body "$body")
+            number=${url##*/}
+          fi
+          jobs=$(echo "$NEEDS" | jq -r 'to_entries[] | "- `\(.key)`: \(.value.result)"')
+          printf 'Nightly run failed: %s\n\nCommit %s on %s (%s).\n\n%s\n\nReports: the artifacts of the run (per job); the flaky job writes its per-suite comparison to the run summary.\n' \
+            "$RUN_URL" "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_EVENT_NAME" "$jobs" > comment.md
+          gh issue comment "$number" --body-file comment.md
