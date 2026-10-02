@@ -99,19 +99,35 @@ class FreshnessTest(unittest.TestCase):
         (self.root / "tools/out/shot.png").write_bytes(b"x")  # under a .gdignore: Godot skips the folder
         self.assertEqual(check.freshness(self.root).why, "")
 
-    def test_the_import_records_when_it_started_or_a_later_change_it_was_told_of(self) -> None:
+    def test_the_import_records_when_it_started(self) -> None:
         (self.root / ".godot").mkdir()
         before = time.time()
         with mock.patch.object(common, "ROOT", self.root), \
                 mock.patch.object(check, "godot", return_value=Result(0, "", False, 0.1)):  # fmt: skip
             check.run_import("x")
-            stamp = check.stamp_time(self.root)
-            assert stamp is not None
-            self.assertGreaterEqual(stamp, before)
-            self.assertLessEqual(stamp, time.time())
-            # A file dated in the future would make every later launch import again: the stamp takes its time.
-            check.run_import("x", seen=before + 3600)
-            self.assertEqual(check.stamp_time(self.root), before + 3600)
+        stamp = check.stamp_time(self.root)
+        assert stamp is not None
+        self.assertGreaterEqual(stamp, before)
+        self.assertLessEqual(stamp, time.time())
+
+    def test_a_file_dated_in_the_future_never_moves_the_stamp_past_the_import(self) -> None:
+        """Review of #174: a stamp an hour ahead reported every real change of that hour (a `git switch`, a new
+        class_name script) as `current`. The stamp stays at the import's end; the file makes each launch import."""
+        (self.root / ".godot").mkdir()
+        (self.root / "alpha.gd.uid").write_text("uid://b1\n", encoding="ascii")
+        age(self.root / "alpha.gd.uid", -3600)  # copied with its original time, from a machine whose clock is ahead
+        with mock.patch.object(common, "ROOT", self.root), \
+                mock.patch.object(check, "godot", return_value=Result(0, "", False, 0.1)):  # fmt: skip
+            check.run_import("x")
+        stamp = check.stamp_time(self.root)
+        assert stamp is not None
+        self.assertLessEqual(stamp, time.time())
+        (self.root / check.CLASS_CACHE).write_text("list=[]\n", encoding="utf-8")
+        state = check.freshness(self.root)
+        self.assertRegex(state.why, r"^res://alpha\.gd\.uid is dated \d+s in the future, so every launch imports")
+        self.assertIn("(touch alpha.gd.uid)", state.why)
+        age(self.root / "alpha.gd.uid", 60)  # touched (here: dated before the import)
+        self.assertEqual(check.freshness(self.root).why, "")
 
     def test_what_the_import_writes_itself_does_not_make_the_next_launch_import_again(self) -> None:
         def fake_godot(*_args: object, **_kwargs: object) -> Result:
@@ -127,7 +143,11 @@ class FreshnessTest(unittest.TestCase):
             check.run_import("x")
         self.assertEqual(check.freshness(self.root).why, "")
         (self.root / "beta.gd").write_text(BETA, encoding="utf-8")  # a change after the import still counts
-        age(self.root / "beta.gd", -5)  # NTFS keeps a coarse clock: no tie with the .import file's time
+        # NTFS keeps a coarse clock: no tie with the stamp, and not in the future either (that is a warning)
+        stamp = check.stamp_time(self.root)
+        assert stamp is not None
+        os.utime(self.root / "beta.gd", (stamp + 0.001, stamp + 0.001))
+        time.sleep(0.02)
         self.assertIn("res://beta.gd changed", check.freshness(self.root).why)
 
     def test_the_stamp_keeps_the_exact_time(self) -> None:
@@ -175,9 +195,17 @@ class EnsureImportTest(unittest.TestCase):
         said = self.ensure(root, run_import)
         self.assertIn("import: res://beta.gd changed after the last import; importing the project first", said)
         self.assertIn("import: done in ", said)
-        run_import.assert_called_once()
-        self.assertEqual(run_import.call_args.args, ("run-import",))
-        self.assertAlmostEqual(run_import.call_args.kwargs["seen"], (root / "beta.gd").stat().st_mtime, places=3)
+        run_import.assert_called_once_with("run-import")
+
+    def test_a_file_dated_in_the_future_is_a_warning_and_still_imports(self) -> None:
+        root = project(self.parent)
+        imported(root, at=time.time())
+        age(root / "alpha.gd", -3600)
+        run_import = mock.MagicMock()
+        said = self.ensure(root, run_import)
+        self.assertRegex(said, r"  warn  import: res://alpha\.gd is dated \d+s in the future")
+        self.assertIn("(touch alpha.gd); importing the project first", said)
+        run_import.assert_called_once_with("run-import")
 
     def test_in_a_linked_worktree_the_import_sees_the_override(self) -> None:
         """#182 gives a linked worktree its own user:// through override.cfg: it is written before the walk and the

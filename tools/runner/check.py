@@ -165,17 +165,28 @@ def freshness(root: Path | None = None) -> Freshness:
     stamp = stamp_time(root)
     if stamp is None:
         return Freshness(f"no {STAMP} (the last import was not the runner's)", newest, where, count)
+    ahead = newest - time.time()
+    if ahead > 0:
+        # Clock skew, or a file copied or extracted with its original time: the stamp never takes a future time
+        # (run_import), so this file makes every launch import, loudly, until it is touched.
+        return Freshness(
+            f"res://{where} is dated {ahead:.0f}s in the future, so every launch imports until it is touched"
+            f" (touch {where})",
+            newest,
+            where,
+            count,
+        )
     if newest > stamp:
         return Freshness(f"res://{where} changed after the last import", newest, where, count)
     return Freshness("", newest, where, count)
 
 
-def run_import(label: str = "import", *, seen: float = 0.0) -> list[str]:
+def run_import(label: str = "import") -> list[str]:
     """Headless import: builds the class cache and .uid files. Exits 0 even on script errors.
 
     Returns the UID problems it printed; raises Failure only when the import itself broke. Records in STAMP when it
-    started, or a later time: `seen` (the newest change the caller saw: a file dated in the future), or the newest
-    file the import wrote itself (WRITTEN_BY_IMPORT).
+    started, or the newest file the import wrote itself (WRITTEN_BY_IMPORT) if that is later, but never a time after
+    the import ended: a stamp in the future would report every real change before that time as `current`.
     """
     started = time.time()
     for attempt in (1, 2):
@@ -188,7 +199,7 @@ def run_import(label: str = "import", *, seen: float = 0.0) -> list[str]:
             raise Failure(f"godot --import exited {res.rc} twice (log: tools/out/logs/{label}.log)")
         warn(f"godot --import exited {res.rc}; retrying once")
     written = newest_change(common.ROOT, WRITTEN_BY_IMPORT)[0]
-    write_stamp(common.ROOT, max(started, seen, written))
+    write_stamp(common.ROOT, min(max(started, written), time.time()))
     return [line.strip() for line in res.lines if IMPORT_UID_PATTERNS.search(line)]
 
 
@@ -209,8 +220,11 @@ def ensure_import() -> None:
     if not state.why:
         say(f"        import: current ({state.files} project files unchanged since the last import, {looked:.2f}s)")
         return
-    say(f"        import: {state.why}; importing the project first")
-    run_import("run-import", seen=state.newest)
+    if state.newest > time.time():
+        warn(f"import: {state.why}; importing the project first")
+    else:
+        say(f"        import: {state.why}; importing the project first")
+    run_import("run-import")
     say(f"        import: done in {time.monotonic() - started:.1f}s")
 
 
