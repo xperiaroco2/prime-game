@@ -819,7 +819,8 @@ or later):
    sessions (never bypass), and the strongest model the picker offers (N1 (b): an audit is one of its per-launch
    uses; no shared file names it). Below it: the folder `D:\prime-game`, and the **worktree** toggle on (the skill
    stops without a worktree of its own).
-4. **Schedule** **Daily** at 05:00 (after the 01:17 UTC nightly run, which is 04:17 in Kyiv in summer time); save.
+4. **Schedule** **Daily** at 06:00: the 01:17 UTC nightly run starts at 04:17 in Kyiv in summer time, may start
+   late, and may take up to its 45-minute timeout, so its results are in by then; save.
 5. Settings → **Desktop app** → **General** → **Keep computer awake** on (a closed laptop lid still sleeps).
 6. On the task's page, **Run now** once while at the PC; answer each permission prompt with "always allow" (later
    runs approve the same tools; the page lists them under **Always allowed**). Expect one summary comment on the
