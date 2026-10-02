@@ -188,7 +188,7 @@ class TempAppDataTest(unittest.TestCase):
 
             def test_it(self) -> None:
                 seen["in the test"] = os.environ[var]
-                seen["real"] = type(self).real_app_data  # type: ignore[attr-defined]
+                seen["real"] = type(self).outer_app_data  # type: ignore[attr-defined]
                 seen["folder"] = type(self).app_data  # type: ignore[attr-defined]
 
         @starts_godot
@@ -330,16 +330,17 @@ class RealUserDirTest(unittest.TestCase):
                 seen[label] = found
             self.assertEqual(len(set(seen.values())), 3)
 
-    def test_a_godot_started_without_an_app_data_variable_leaves_the_real_folder_alone(self) -> None:
+    def test_a_godot_started_without_an_app_data_variable_leaves_the_outer_folder_alone(self) -> None:
         # What the other Godot-starting runner tests do (#233): their throwaway worktree's user:// goes to the class's
-        # temporary app-data folder (verify.starts_godot), never to the real one, where it would stay for good.
+        # temporary app-data folder (verify.starts_godot), never to the outer one (the real one, or selftest's
+        # stand-in), where it would stay for good.
         if common.app_data_var() is None:
             self.skipTest("no per-process user:// on this OS")
-        real = type(self).real_app_data  # type: ignore[attr-defined]
+        outer = type(self).outer_app_data  # type: ignore[attr-defined]
         temp = type(self).app_data  # type: ignore[attr-defined]
         self.assertIsNotNone(temp)
-        self.assertNotEqual(os.path.normcase(str(temp)), os.path.normcase(str(real)))
-        users = Path(real) / ("godot" if common.IS_LINUX else "Godot") / "app_userdata" if real else None
+        self.assertNotEqual(os.path.normcase(str(temp)), os.path.normcase(str(outer)))
+        users = Path(outer) / ("godot" if common.IS_LINUX else "Godot") / "app_userdata" if outer else None
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             worktree = checkout(Path(tmp), "182", linked=True)
             (worktree / "probe.gd").write_text(PROBE, encoding="utf-8")
@@ -352,7 +353,7 @@ class RealUserDirTest(unittest.TestCase):
             found = os.path.normcase(os.path.normpath(match.group(1).strip()))
             self.assertEqual(found, os.path.normcase(os.path.normpath(temp / common.user_dir_name(worktree))))
             self.assertTrue((temp / common.user_dir_name(worktree)).is_dir())
-        self.assertFalse(users is not None and (users / name).exists(), f"{name} reached the real app-data folder")
+        self.assertFalse(users is not None and (users / name).exists(), f"{name} reached {users}")
 
     def test_saving_project_settings_in_a_worktree_copies_the_override_and_check_sees_it(self) -> None:
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:

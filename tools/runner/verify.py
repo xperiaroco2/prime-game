@@ -384,12 +384,13 @@ def selftest_workers(cpus: int | None = None) -> int:
 def starts_godot(cls: type[unittest.TestCase]) -> type[unittest.TestCase]:
     """Marks a runner test class that starts Godot: it runs in the Godot lane, after `check`, serially. Its tests run
     with the app-data variable pointed at a temporary folder of the class's own (common.temp_app_data, #233), so no
-    Godot they start adds a folder to the real app-data folder, whose path stays in `cls.real_app_data`."""
+    Godot they start adds a folder to the real app-data folder. `cls.app_data` is that folder, `cls.outer_app_data`
+    the one the class would have used without it (the real one, or selftest's stand-in)."""
     cls.starts_godot = True  # type: ignore[attr-defined]
     own = cls.__dict__.get("setUpClass")
 
     def set_up_class(klass: type[unittest.TestCase]) -> None:
-        klass.real_app_data = app_data_dir()  # type: ignore[attr-defined]
+        klass.outer_app_data = app_data_dir()  # type: ignore[attr-defined]
         klass.app_data = klass.enterClassContext(temp_app_data())  # type: ignore[attr-defined]
         if isinstance(own, classmethod):
             own.__func__(klass)
@@ -571,14 +572,25 @@ def selftest(group: str = "all") -> int:
     tests = discover()
     groups = ("python", "godot") if group == "all" else (group,)
     workers = {name: 1 if name == "godot" else selftest_workers() for name in groups}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(groups)) as threads:
-        futures = {
-            name: threads.submit(_run_group, name, [t for t in tests if group_of(t) == name], workers[name])
-            for name in groups
-        }
-        done = {name: future.result() for name, future in futures.items()}
+    # Every worker inherits a stand-in app-data folder: a test that writes to the app-data folder outside a
+    # @starts_godot class (which has its own) would have written to the real one, and fails the run (#233).
+    with temp_app_data(prefix="prime-selftest-app-data-") as stand_in:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(groups)) as threads:
+            futures = {
+                name: threads.submit(_run_group, name, [t for t in tests if group_of(t) == name], workers[name])
+                for name in groups
+            }
+            done = {name: future.result() for name, future in futures.items()}
+        reached = app_data_written(stand_in)
     entries = {name: found for name, (found, _seconds) in done.items()}
     passed = all([_report(name, entries[name], workers[name], done[name][1]) for name in groups])
+    if reached:
+        bad(
+            f"runner tests wrote to the app-data folder, which outside selftest is the real one: {', '.join(reached)}",
+            "Mark a test class that starts Godot with @starts_godot (verify.starts_godot): it gives the class a "
+            "temporary app-data folder of its own. Any other test points the app-data variable at a temporary folder.",
+        )
+        passed = False
     if group == "all":
         reference = {t.id(): statically_skipped(t) for t in tests}
         problems, line = count_check(reference, entries["python"] + entries["godot"])
@@ -588,6 +600,15 @@ def selftest(group: str = "all") -> int:
         passed = passed and not problems
     say(f"selftest: {'passed' if passed else 'FAILED'}")
     return 0 if passed else 1
+
+
+def app_data_written(folder: Path | None, limit: int = 5) -> list[str]:
+    """What the runner tests wrote to selftest's stand-in app-data folder (its files, at most `limit` named, as paths
+    relative to it): nothing, when every test that starts Godot carries @starts_godot."""
+    if folder is None or not folder.is_dir():
+        return []
+    files = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
+    return files[:limit] + ([f"and {len(files) - limit} more files"] if len(files) > limit else [])
 
 
 def count_check(reference: dict[str, bool], entries: list[dict[str, object]]) -> tuple[list[str], str]:
