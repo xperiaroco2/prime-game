@@ -471,7 +471,13 @@ class SelftestTest(unittest.TestCase):
                         marked.add(f"{path.stem}.{node.name}")
         self.assertEqual(marked, needs)
         self.assertEqual(
-            needs, {"test_godot_tools.RealNormalizeTest", "test_hostjoin.RealSessionTest", "test_launch.RealRunTest"}
+            needs,
+            {
+                "test_godot_tools.RealNormalizeTest",
+                "test_hostjoin.RealSessionTest",
+                "test_launch.RealRunTest",
+                "test_user_dir.RealUserDirTest",
+            },
         )
         found = {".".join(t.id().split(".")[2:4]) for t in verify.discover() if verify.group_of(t) == "godot"}
         self.assertEqual(found, needs)

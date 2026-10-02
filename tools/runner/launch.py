@@ -23,6 +23,7 @@ from .common import (
     bad,
     check_godot_version,
     ensure_out,
+    ensure_user_dir,
     ok,
     rel,
     require_godot,
@@ -182,6 +183,7 @@ def gui_exe() -> str:
     if not Path(gui).is_file():
         raise Failure(f"GODOT_GUI_BIN points to a missing file: {gui} (env in ~/.claude/settings.json)")
     check_godot_version(gui, "GODOT_GUI_BIN")
+    ensure_user_dir()  # require_godot does it for the console exe
     return gui
 
 
