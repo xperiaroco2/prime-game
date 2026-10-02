@@ -160,8 +160,12 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
   **family**, not exact IDs: the requested model, else the agent file's `model:`. `availableModels` is the shared list
   merged with the user-scope one (#183). A request from the user list is ok when it served and listed as "fell back"
   when another family served it; a request in neither list must be served by another family (the model guard).
-  Workflow agents' transcripts (`<session>/subagents/workflows/`) are not read yet. `finish-task` runs it after the
-  reviews.
+  Workflow agents (`<session>/subagents/workflows/wf_*/agent-*.jsonl` and `.meta.json`, #206) get the same verdicts,
+  printed with their label and run: a default launch's meta file has no `model` (a reviewer is judged by its agent
+  file, an implementer or publisher, `agentType` `workflow-subagent`, inherits the session's model and is only
+  listed); a `models` launch is read from `model`, as the Agent tool records it, and any other meta key that names a
+  model fails until the reader learns it. After a launch that passes `models`, `agents-check` in the manager's
+  session checks it. `finish-task` runs it after the reviews.
 - A new `.claude/agents/` directory is only seen by sessions started after it exists.
 
 ## 6. Skills [applied]
