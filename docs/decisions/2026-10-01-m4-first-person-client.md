@@ -84,7 +84,8 @@ The input actions (D6 (a); every existing action keeps its key in `project.godot
 | Give up, while downed | hold G for 1 s (`give_up`, a placeholder) | `GiveUp()` |
 | Task screen | hold Tab (`task_screen`) | nothing |
 | Next and previous spectate target, while dead | left and right mouse buttons | nothing: the target never leaves the client |
-| Menu (Leave, Quit); frees the mouse | Esc | `ClientSession.leave()` on Leave |
+| Menu (tabs: Resume, Lobby, Leave, Quit); frees the mouse, Esc again captures it (#169) | Esc | `ClientSession.leave()` on Leave |
+| Ready, in the lobby with no menu (#169) | F (`ready`, a placeholder) | `SetReady(not ready)`, as the Lobby tab's toggle |
 | Debug overlay (debug builds only) | F3 | nothing |
 
 The **debug overlay** (invariant 8: debug builds only, local) shows the own client's count of `Correction`s, the

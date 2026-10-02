@@ -1162,7 +1162,7 @@ lives for the whole process:
 | `HostNode` | on a host only: steps `HostSession` (§4.5) at `process_physics_priority` -100 |
 | `SessionNode` | steps the `ClientSession` at priority -90 |
 | `World` | a `Node3D`: `Level` (the lobby or the map instance), the views of stations, items and bodies, `Avatars` (a `RemotePlayerBody` per other player) and `Player` (the local `PlayerController` and its cameras) |
-| `Ui` | a `CanvasLayer`: the main menu, the lobby panel, the loading screen, the HUD, the task screen, the end screen, messages |
+| `Ui` | a `CanvasLayer`: the main menu, the lobby HUD, the loading screen, the HUD, the task screen, the end screen, the Esc menu, messages |
 
 Levels are swapped under `World`. Nothing calls `SceneTree.change_scene_to_*`: it removes the current scene at once
 and frees it at the end of the frame (4.7.2), so a `HostNode` inside it would close the session (`_exit_tree`) and
@@ -1197,7 +1197,7 @@ host's own player sees only what its `ClientSession` decoded.
 |---|---|---|---|
 | no session | main menu: address, port, Host, Join, Quit, and why the last session ended | none | none |
 | connecting, no `Welcome` yet | "Connecting to <address>", Cancel | none | none |
-| Lobby, Countdown | lobby panel: the roster with ready flags, Ready, the countdown; on the host the settings and their shortfalls | the mode's `lobby_level` | walks and claims |
+| Lobby, Countdown | lobby HUD: the keys' hint, the roster with ready flags, the countdown; Ready and the settings in the Esc menu's Lobby tab (#169) | the mode's `lobby_level` | walks and claims |
 | Loading | loading screen: who has loaded (`PlayerLoaded`) | the map, once `map_loaded` | frozen (Loading accepts no claim) |
 | Round | HUD; the task screen while Tab is held | the map | by its life (below) |
 | End | end screen: black, "The <side's display name> won"; the host's Back to lobby | the map, not drawn | frozen |
@@ -1211,13 +1211,21 @@ host's own player sees only what its `ClientSession` decoded.
 - **Placement:** `Welcome`'s spot teleports the local player on `ClientSession.welcomed`, from
   `model.spots[own_peer]` (`Welcome` fires no `corrected`), and every `Correction` (a placement, a knockdown, a
   respawn, a failed check) through `ClientSession.corrected`.
-- **The lobby panel:** Ready sends `SetReady`; on the host one control per `SettingSpec` of the client's own mode (its
+- **The lobby** (#169): the player walks it like the round, with the lobby HUD in a corner (the keys' hint "Esc: menu
+  · F: ready", the roster with ready flags, the countdown) and nothing to click. The Esc menu's Lobby tab has the
+  roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
+  Ready sends `SetReady`; one control per `SettingSpec` of the client's own mode (its
   display name, a whole number within its bounds, or check boxes for the banned task types) sends `ChangeSettings`
-  with that setting only; the demands and shortfalls come from `SettingsChanged`. The countdown and the match clock
-  show `end_tick` minus the estimated host tick (Movement, below).
+  with that setting only; the demands and shortfalls come from `SettingsChanged`. Everyone sees the settings; only
+  the host changes them, and only in a phase that accepts its `ChangeSettings` (the lobby, not the countdown).
+  The countdown and the match clock show `end_tick` minus the estimated host tick (Movement, below).
 - **The end screen** shows the winning side's `SideSpec.display_name` from the client's own mode and nothing else
   (§3.2: no names, no roles).
-- **Leaving:** Esc opens Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
+- **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and in the lobby
+  and the round captures the mouse again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
+  Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where there is one, else on Resume.
+  Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
+- **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
   window does the same (`SceneTree.auto_accept_quit` off, `NOTIFICATION_WM_CLOSE_REQUEST` handled).
 - **Every end shows why.** On `ClientSession.ended` or `HostSession.ended`, `Game` frees the sessions, the level and
@@ -1247,7 +1255,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `host_node.gd`) and on `._session`, HostNode's private field.
 - The countdown showed `end_tick` minus the newest snapshot's tick until M4-7's estimate replaced it; the local
   player stands still (no physics step) outside the lobby and the round.
-- The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`); loading and the end
+- The mouse is freed whenever a screen other than the round shows (`GameFlow.frees_pointer`; since #169 the lobby
+  keeps it too); loading and the end
   read no device input, and under the Esc menu the held keys are cleared. Welcome and each `Correction` place the
   player through `PlayerController.teleport()`.
 - Every end goes through one function: the `HostNode` leaves the tree (closing the session), the client leaves, the
@@ -1500,6 +1509,28 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
   ADR's §6), and a human picks the CC0 sounds.
 
+**Built in #169 (an M4 follow-up of the one-PC playtest)**, one Esc menu with tabs:
+- `client/ui/`: `EscMenuState` (pure: open or closed, the tabs per screen, the selected tab, the host's questions
+  before Leave and Quit, who may change the settings: the host, while the phase's `PhaseSpec` accepts its
+  `ChangeSettings`), `EscMenu` (draws it: the tab buttons, a scrolling page on the right), `LobbyPanel` (now the
+  Lobby tab's page; read-only settings for everyone but the host) and `LobbyHud` (the lobby's corner: the hint, the
+  roster, the countdown; it ignores the mouse). The theme gains `EscBody`, `EscTabs`, `EscTab` and `EscPage`.
+- `client/app/`: `Game` handles Esc in `_input` and the `ready` key in `_unhandled_input` (the lobby screen, no Esc
+  menu): `toggle_ready()` sends the Ready toggle's `SetReady` with the own flag flipped. `GameFlow.frees_pointer` no
+  longer frees the mouse in the lobby. `MousePointer` captures and frees it through `Input.mouse_mode`; headless
+  Godot keeps no mouse mode (it reads visible whatever was set, probed on 4.7.2), so tests give `Game` one that
+  remembers. The input action `ready` (F, a placeholder) is in `project.godot`.
+- Tests: `tests/unit/client/ui/esc_menu_state_test.gd`, `screens_test.gd` (the menu's pages, the host's question, the
+  read-only settings), `game_flow_test.gd`, `input_actions_test.gd`, and
+  `tests/integration/client/app/esc_menu_input_test.gd`: a host's `Game` alone over the loopback, with keys sent
+  through `Input.parse_input_event` (headless, it reaches `_input`, `_unhandled_input` and the action states): one
+  Esc opens the Lobby tab with the mouse free, another closes it and captures the mouse, W held under the menu is
+  released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
+  with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
+  `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|resume|leave|quit>_preview.tscn`.
+- Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
+  playtest.
+
 **What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
 the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
@@ -1539,7 +1570,8 @@ both stopped through the stop file with exit 0 and no engine error line (about 5
 sprinting, jumping and climbing steps through a `ClientSession` over a `LoopbackHub` to a `HostSession` on a fixture
 level is corrected 0 times; the downed camera against a fixture wall never rises above eye height or passes the wall,
 and an item visible from the arm's end but not from the pivot is hidden;
-the two-client push runs over the loopback with the interpolation delay. Input and UI cannot run headless: every
+the two-client push runs over the loopback with the interpolation delay. Key events can run headless through
+`Input.parse_input_event` (#169); the mouse mode and the look of the UI cannot: every
 screen and view gets a `shot` of its preview scene in `client/dev/`, and the playtests of the ADR's §6 check the
 rest.
 
