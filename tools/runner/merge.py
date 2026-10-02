@@ -20,7 +20,7 @@ Godot: each PR onto its base tip, and each pair of PRs into the same base.
   file; a line that declares the name is no use. A symbol match is a lead, not a proof: `--trial` settles it.
 - The "onto base" check compares the PR with what its base gained since the PR's fork (another PR merged meanwhile).
 It prints one Markdown table per base (paste it into a wave comment or a PR) and each overlap with the symbol and
-file:line on both sides; exit 1 on any conflict or overlap.
+file:line on both sides; exit 1 on any conflict or overlap, or a PR it could not check (its base is gone from origin).
 
 `merge-check --trial <pr>... [--base B]`: the base (default: the first PR's) plus the PRs merged in order with
 `--no-ff` in a scratch detached worktree under `tools/out/merge/`, then that tree's own `verify`; it reports and
@@ -863,7 +863,13 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
         groups.setdefault(pr.base, []).append(pr)
     ok(f"{len(found)} open PRs: " + ", ".join(f"{b} ({len(p)})" for b, p in groups.items()))
     conflicts = overlapping = total = 0
+    unchecked: list[str] = []
     for name, prs in groups.items():
+        if not _sha(f"refs/remotes/{REMOTE}/{name}"):
+            unchecked += [p.label for p in prs]
+            warn(f"{REMOTE}/{name} is gone (a merged parent?): {', '.join(p.label for p in prs)} not checked; "
+                 f"retarget them (gh pr edit <pr> --base <its base>) and run merge-check again")  # fmt: skip
+            continue
         rows = check_group(name, prs)
         report(name, prs, rows)
         total += len(rows)
@@ -871,7 +877,9 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
         overlapping += sum(1 for r in rows if r.overlaps)
     say()
     verdict = f"{conflicts} textual conflicts and {overlapping} overlaps in {total} checks"
-    if conflicts or overlapping:
+    if unchecked:
+        verdict += f"; not checked: {', '.join(unchecked)}"
+    if conflicts or overlapping or unchecked:
         say(f"merge-check: {verdict}. Order the merges so the side that removes or changes a symbol goes first and "
             "the other is rebased on it, or run merge-check --trial <pr>... to see whether verify stays green.")
         return 1

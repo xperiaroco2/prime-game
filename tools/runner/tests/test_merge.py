@@ -453,6 +453,13 @@ class CommandTest(unittest.TestCase):
         self.assertEqual(merge.check([154]), 1)
         self.assertIn("| #154 onto release/m1 (1 commits since its fork) | clean | overlap: `ghost_speed_factor` |",
                       "\n".join(self.printed))  # fmt: skip
+        # A child PR whose parent branch is gone is named and skipped (not clean), not a crash of the whole check.
+        self.gh.add(160, "core/154-task", "core/153-gone")
+        self.printed.clear()
+        self.assertEqual(merge.check([160]), 1)
+        self.assertTrue(any("origin/core/153-gone is gone" in line for line in self.printed))
+        self.assertTrue(self.printed[-1].startswith("merge-check: 0 textual conflicts and 0 overlaps in 0 checks; "
+                                                    "not checked: #160."))  # fmt: skip
 
     def test_trial_merges_in_order_verifies_and_removes_the_worktree(self) -> None:
         self.task(1, {"core/a.gd": "extends Node\n"})
