@@ -161,7 +161,7 @@ class ShotTest(unittest.TestCase):
                     mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"):  # fmt: skip
                 self.assertEqual(shot.main(PROBE, out=str(png)), 0)
             self.ensure_import.assert_called_once_with()
-            failing =Result(1, "SHOT error cannot load res://x.tscn\n", False, 0.0)
+            failing = Result(1, "SHOT error cannot load res://x.tscn\n", False, 0.0)
             with mock.patch.object(shot, "has_display", return_value=True), \
                     mock.patch.object(shot, "godot", return_value=failing), mock.patch.object(shot, "say"):  # fmt: skip
                 with self.assertRaises(Failure) as caught:
