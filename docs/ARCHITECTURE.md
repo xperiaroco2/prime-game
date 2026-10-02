@@ -13,8 +13,8 @@
 | `core/` | Pure rules: match state machine, intent validation rules (movement checks included), win conditions, who is entitled to each event and entity (§5), voice routing rules, content-API primitives. `RefCounted` only; no Nodes, scenes, networking or audio | nothing outside `core/` | engineer |
 | `server/` | Host logic: wraps `core/`, checks the sender, format and rate of intents, builds one message per recipient from `core/`'s entitlement, answers `core/`'s geometric questions (`WorldQuery`, §7.1) | `core/`, the `net/` abstraction | engineer |
 | `net/` | Transport abstraction (ENet first), message schemas, serialization, sync | nothing game-specific | engineer |
-| `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers) | engineer |
-| `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | `net/`, `client/` playback | engineer |
+| `client/` | Scenes, player controller, UI, camera, audio playback, dev console | the filtered view it receives; `net/` to send intents; `core/`'s content definitions and constants (its own copy of the mode: which maps exist, which phase accepts which intent), never `core/` state (`Match`, `MatchState`, `view_of`; [ADR](decisions/2026-09-30-wire-format-and-host-session.md), review answers); `voice/`'s plumbing (E46 (a), [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)) | engineer |
+| `voice/` | Capture, Opus encode and decode, jitter buffer, playback plumbing | nothing outside `voice/` but the engine and the TwoVoIP addon by class name (E46 (a)): no `client/`, `net/` or `core/` state, no `ClientSession` or `ClientModel`; `client/` decides what is played | engineer |
 | `content/` | Game modes, roles, abilities, items, sabotages, task types and win conditions as `Resource`s built from content-API parts (§9); bot scenarios (§9.7), whose data classes are part of the content API | the content API only | designer |
 | `levels/` | Maps from reusable room, prop, interactable and task-station sub-scenes | the content API only | designer |
 | `tools/`, `tests/` | Task runner, checks, bot harness; unit, integration and bot-match tests | everything (tests) | engineer |
@@ -1678,10 +1678,11 @@ Rejected ways of expressing it (per field, per content part, filtering in `serve
 
 ## 6. Voice pipeline
 
-capture → encode (Opus) → routing decision per speaker and listener (`core/` rules, applied by the host's
-`server/`) → listener → decode → jitter buffer → `AudioStreamPlayer3D` on the speaker's avatar.
-- Routing inputs: distance, walls (occlusion), life (the voice invariant below), items such as radios, role
-  abilities. Dead chat and meetings, in the brief, are gone (vision revision 1).
+capture → gate → encode (Opus) → routing decision per speaker and listener (`core/` rules, applied by the host's
+`server/`) → listener → jitter buffer → decode → `AudioStreamPlayer3D` on the speaker's avatar → the listener's ears.
+- Routing inputs: distance, life (the voice invariant below), later items such as radios and role abilities. Walls
+  do not enter the routing: they muffle on the listener (the M5 ADR's D13 (a), the engineer's answer). Dead chat and
+  meetings, in the brief, are gone (vision revision 1).
 - **Decided by the M1 spike** ([voice ADR](decisions/2026-09-29-voice-approach.md): **go**; numbers in #15
   and #16):
   - Codec: TwoVoIP (`two-voip-godot-4`) **v6.5** on Windows with Godot 4.7.2: 48 kHz mono, 20 ms frames,
@@ -1710,10 +1711,12 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
 - **Routing per phase in the base mode** (#32; radii in the [MVP rules](decisions/2026-09-29-mvp-rules.md)). The mode's
   data names each phase's rule (§3.1), so a new mode's rule is one more rule, not a change to the loop.
 
-  | Phase | Who hears whom | |---|---| | Lobby, Countdown | every pair within the voice radius | | Loading | nobody: the
-  old scene's positions are gone, and the phase lasts seconds | | Round | the living hear the living within the voice
-  radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed or the dead,
-  and the dead hear nobody | | End | nobody: the game is frozen |
+  | Phase | Who hears whom |
+  |---|---|
+  | Lobby, Countdown | every pair within the voice radius |
+  | Loading | nobody: the old scene's positions are gone, and the phase lasts seconds |
+  | Round | the living hear the living within the voice radius; a downed player hears the living within it, measured from where it lies; nobody hears the downed or the dead, and the dead hear nobody |
+  | End | nobody: the game is frozen |
 
   A player who left hears nobody and is heard by nobody.
 - **The voice invariant** (vision revision 1; built in M4-1, #137): nobody hears a downed or dead player, under
@@ -1727,8 +1730,49 @@ capture → encode (Opus) → routing decision per speaker and listener (`core/`
   `distance_to(...) <= cutoff`, which the engineer listened to and accepted); 3D also matches the listener's fade.
   A horizontal radius (a player on the floor above heard like one beside) stays a possible later change. M4-1
   removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voice/`.
-- *Open (M5):* occlusion, radios, push-to-talk or voice activity, echo cancellation, and
-  lowering the device latency (options in the ADR).
+- **Designed for M5** (#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), accepted on
+  2026-10-02: E34 to E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221).
+  The lessons above, answered:
+  - **The codec boundary** (E34): `voice/`'s `VoiceCodec`, `VoiceEncoder` and `VoicePlayback`; `TwoVoipCodec` reaches
+    the addon only through `ClassDB` by class name, so every script parses without it, and without it voice is
+    unavailable and the game runs. Tests never load the addon or open a microphone: a fake codec
+    (`tests/fixtures/voice/`) and the pure `VoiceGate` and `VoiceJitter`. CI removes `addons/twovoip/` before
+    `verify`, because Godot prints an `ERROR:` line on Linux for a `.gdextension` it cannot load (E35, the ADR §2).
+  - **Capture and the gate** (E36, E37, E38, D11): the 4.7 `AudioServer` input API, the Windows default device at
+    the first start and then the one the player picked, each opened under an "opening" mark that keeps a device that
+    froze the game closed at the next start (Godot 4.7.2 freezes on a microphone of more than two channels, #22);
+    every 20 ms chunk encoded, a frame sent only while the gate is open, with up to 2 frames of pre-roll (captured
+    and never sent: no frame goes out twice). Three modes (D11, the engineer's answer): voice activity by default (a
+    threshold set with a meter, and a hangover), push-to-talk held on V (`voice_talk`), or Off (the microphone closed). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
+    hears nobody. No echo cancellation: under voice activity loudspeakers echo, so the Voice tab advises headphones.
+    20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
+  - **The jitter buffer** (E39): per speaker on the listener, by the renumbered seq (continuous across silence); a
+    single loss decoded with FEC or concealed; playback starts at a prebuffer adapted at each start from a 2 s window
+    of arrivals (40 to 120 ms, placeholders) and stops when the queue runs dry; a speaker who must not be heard any
+    more is faded over 50 ms and flushed.
+  - **Playback and the ears** (E40, E41, D12): one `AudioStreamPlayer3D` per remote speaker on its
+    `RemotePlayerBody`, bus Voice, `ATTENUATION_DISABLED` with `max_distance` the phase's `VoiceRule.hearing_radius_m()`
+    read from the client's own mode, so the linear fade ends at the host's cutoff. An `AudioListener3D` (the ears) at
+    the own eye, at the own body when downed, at a spectated target's eye or body; world sounds measure their range
+    from the ears too. The client plays only frames the host sent, none while its own player is dead, and flushes a
+    speaker who goes down, dies or leaves (the ADR §3 is the review checklist).
+  - **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
+    Master, in code; four sliders, Master, Voice, Effects and Music (0, 0, −6 and −14 dB by default: placeholders), no
+    ducking, saved per window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the
+    microphone, the mode and the threshold, set in the Esc menu's Voice tab. `host --clients N`'s windows get their
+    `PRIME_INSTANCE` from `hostjoin.start` (a runner change M5-6 makes; today only `launch.launch` sets it).
+  - **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
+    speaker. No screen lists who is talking, and nothing tells a speaker who hears them: the host's relay counters on
+    F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later
+    through a mouth animation with the masks of #73 (after the MVP).
+  - **Occlusion** (E42, D13 (a)): on the listener only, one ray from the ears per audible speaker per physics
+    frame and one per world sound, muffling what is behind the level; the host keeps routing by distance. Beyond one
+    ray is what drops first.
+  - **The wire** (E44): unchanged in M5. M5-4 measures the host's relay time and upload headlessly with bots; a
+    batched row only if 81 streams take over 2 ms per 20 ms or 4.5 Mbit/s (placeholders). The leak test gains a
+    distance invariant written apart from `VoiceRule.hears` (E45).
+  - Not in M5: radios and role abilities (M7+), echo cancellation (players are advised headphones), a talking
+    indicator (#73's mouth animation, later), lowering the device latency (the voice ADR's advice to players).
 
 ## 7. Movement
 
@@ -2961,7 +3005,11 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
-| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M3 or M5 |
-| Voice integration: occlusion, radios, push-to-talk or voice activity, echo cancellation, device latency | M5 |
+| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M5-4 measures both headlessly with bots; a batched voice row (M5-4b) only past the thresholds of E44 ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)) |
+| Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
+| Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows say so |
+| LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled: (a), the engineer, 2026-10-02: CI fetches LFS content, cached by the list of LFS files; added by M5-7 (#221) with the CC0 sounds of #144 and #145 |
+| Who is talking, shown in the world (D14 of the M5 ADR: no talking indicator in M5) | a mouth animation with the masks of #73, after the MVP |
+| Radios, abilities and items that change voice; echo cancellation; lowering the device latency | M7+; echo cancellation only if playtests ask (players are advised headphones, the voice ADR) |
 | Internet play without a VPN (NAT traversal): Steam networking vs WebRTC with a signaling server | M6 ADR |
 | The M4 client's choices E18 to E33 and the designer's D4 to D10, the level conventions included ([ADR](decisions/2026-10-01-m4-first-person-client.md), §4.7) | Settled: every recommendation, E32 (b) and D10 (b) included (PR #136) |
