@@ -9,6 +9,14 @@ extends RefCounted
 ##
 ## The owner calls step(now_usec) every frame with a clock in microseconds, like HostSession: the
 ## transport is polled there, and signals fire from it.
+##
+## A MoveClaim covers every physics step of the mover since the claim before it, so it reports
+## the sprint state and movement input if any of those steps had them, not only the last one
+## (#155): the claim of the tick in which a sprinter lets go still says it sprinted and pays for
+## that tick, as the host's ledger charges it. Its masks (`sprint_ticks`, `moved_ticks`) repeat
+## those flags for each of the last MASK_TICKS client ticks, bit i for client tick client_tick - i,
+## every tick a claim covered taking that claim's flags: the LATEST lane delivers only the newest
+## claim of a poll, and the host still settles each tick of the ones it superseded as sent.
 
 ## The session is over for this client, for `reason`: the reason of a Rejected before Welcome
 ## (wrong_version, wrong_content, full, joins_closed...), of a Disconnecting (load_deadline), or
@@ -25,6 +33,13 @@ signal voice_received(speaker: int, tick: int, opus: PackedByteArray)
 ## Every decoded snapshot, after the model folded it, older ones included (SnapshotBuffer keeps
 ## them by host tick, §4.7): the host tick it was taken at and its avatars (peer -> fields).
 signal snapshot_received(tick: int, avatars: Dictionary)
+## A MoveClaim went out: its epoch and client tick, the client ticks the host settles for it
+## (`covered`: 1 for the first claim after the Welcome or a placement, which the host takes as one
+## tick), its latched sprint flag, and whether it moved itself as the host's stamina counts it
+## (movement input and horizontal travel from the last claim's position beyond MOVE_EPSILON).
+## PredictedStamina settles the same ticks with the same flags, and the SelfStatus that names this
+## claim's tick answers it (#155).
+signal claim_sent(epoch: int, tick: int, covered: int, sprint: bool, moved_itself: bool)
 
 const HOST_LOST := &"host_lost"
 const CONNECT_FAILED := &"connect_failed"
@@ -41,6 +56,11 @@ const MAX_JUMPS := 0xFFFF
 ## that Correction counts in `placements`, not in `corrections`. A new rule that places a player
 ## and sends a Correction adds its event here.
 const PLACING_EVENTS: Array[StringName] = [&"PlayersPlaced", &"KnockedDown", &"Respawned"]
+## Horizontal travel in one claim that counts as moving, for stamina: the host's
+## `MovementRule.MOVE_EPSILON`.
+const MOVE_EPSILON := 0.0001
+## The client ticks a claim's masks describe: `MovementRule.MASK_TICKS`, the wire's u32.
+const MASK_TICKS := 32
 
 ## The record of every decoded message, for the bots and the leak test; off by default (a real
 ## client does not need it, and a 10-minute match holds 12000 snapshots), like Match.keep_history.
@@ -75,8 +95,18 @@ var _jumps := 0
 var _position := Vector3.ZERO
 var _velocity := Vector3.ZERO
 var _facing := Vector3.FORWARD
+## The sprint state and the movement input of any step set_motion reported since the last claim.
 var _sprint := false
 var _moving := false
+## The last claim's masks: bit i says whether client tick last_claim_tick() - i had the sprint
+## state (_sprint_history), or the player's own movement (_moved_history), by the claim covering it.
+var _sprint_history := 0
+var _moved_history := 0
+## Where the last claim went, or where the host put the client (Welcome, a Correction): the next
+## claim's travel is measured from it, as the host measures from its last accepted position.
+var _claimed_position := Vector3.ZERO
+## The next claim is the first after the Welcome or a placement: the host counts it as one tick.
+var _fresh := true
 var _on_floor := true
 ## The map being loaded and the match it is for; empty when nothing loads.
 var _loading := ""
@@ -142,7 +172,9 @@ func last_claim_tick() -> int:
 	return _last_claim_tick
 
 
-## What the next MoveClaims say, from the mover (the player controller or a bot's).
+## What the next MoveClaim says, from the mover (the player controller or a bot's), once per
+## physics step: the last call's position, velocity, facing and floor, and the sprint state and
+## movement input if any call since the last claim had them (#155).
 func set_motion(
 	position: Vector3,
 	velocity: Vector3,
@@ -154,8 +186,8 @@ func set_motion(
 	_position = position
 	_velocity = velocity
 	_facing = facing
-	_sprint = sprint
-	_moving = moving
+	_sprint = _sprint or sprint
+	_moving = _moving or moving
 	_on_floor = on_floor
 
 
@@ -271,6 +303,7 @@ func _on_event(event_name: StringName, fields: Dictionary) -> void:
 		&"Welcome":
 			_welcomed = true
 			view.peer = model.own_peer
+			_fresh = true
 			_adopt(fields["spot"] as Vector3, Vector3.ZERO)
 			welcomed.emit(model.own_peer)
 		&"Correction":
@@ -294,6 +327,7 @@ func _count_correction(_position: Vector3, _velocity: Vector3) -> void:
 	if _placement_due:
 		_placement_due = false
 		placements += 1
+		_fresh = true
 	else:
 		corrections += 1
 
@@ -309,11 +343,15 @@ func _note_placement(event_name: StringName, fields: Dictionary) -> void:
 		_placement_due = true
 
 
-## A new epoch (Welcome, Correction): its claims count jumps from 0 and start where the host put it.
+## A new epoch (Welcome, Correction): its claims count jumps from 0 and start where the host put it,
+## and the steps before it no longer count for the next claim's flags.
 func _adopt(position: Vector3, velocity: Vector3) -> void:
 	_jumps = 0
 	_position = position
 	_velocity = velocity
+	_claimed_position = position
+	_sprint = false
+	_moving = false
 
 
 ## One MoveClaim per client tick, and only while the phase accepts one from this client.
@@ -323,6 +361,12 @@ func _claim(now_usec: int) -> void:
 	var tick := client_tick(now_usec)
 	if tick <= _last_claim_tick:
 		return
+	var covered := 1 if _fresh or _last_claim_tick < 0 else tick - _last_claim_tick
+	var travel := Vector2(_position.x - _claimed_position.x, _position.z - _claimed_position.z)
+	var moved_itself := _moving and travel.length() > MOVE_EPSILON
+	var since := MASK_TICKS if _last_claim_tick < 0 else tick - _last_claim_tick
+	var sprint_ticks := _shifted(_sprint_history, since, _sprint)
+	var moved_ticks := _shifted(_moved_history, since, moved_itself)
 	var claim := {
 		"epoch": model.epoch,
 		"client_tick": tick,
@@ -333,9 +377,29 @@ func _claim(now_usec: int) -> void:
 		"moving": _moving,
 		"on_floor": _on_floor,
 		"jumps": _jumps,
+		"sprint_ticks": sprint_ticks,
+		"moved_ticks": moved_ticks,
 	}
-	if _send(WireMessage.new(Intents.MOVE_CLAIM, claim)) == OK:
-		_last_claim_tick = tick
+	if _send(WireMessage.new(Intents.MOVE_CLAIM, claim)) != OK:
+		return
+	var sprint := _sprint
+	_last_claim_tick = tick
+	_claimed_position = _position
+	_sprint_history = sprint_ticks
+	_moved_history = moved_ticks
+	_fresh = false
+	_sprint = false
+	_moving = false
+	claim_sent.emit(model.epoch, tick, covered, sprint, moved_itself)
+
+
+## `mask` moved on by `ticks` client ticks, each of which takes `flag`, cut to MASK_TICKS bits.
+static func _shifted(mask: int, ticks: int, flag: bool) -> int:
+	var all := (1 << MASK_TICKS) - 1
+	if ticks >= MASK_TICKS:
+		return all if flag else 0
+	var added := (1 << ticks) - 1 if flag else 0
+	return ((mask << ticks) | added) & all
 
 
 ## Whether the client sends MoveClaims now (its own copy of the phase and its own life).

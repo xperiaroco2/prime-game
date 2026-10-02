@@ -379,7 +379,8 @@ is entitled to (§5). The fields each intent carries, with their Variant types, 
 list below in code: the rules read `MatchCommand.args` only through it (`MatchCommand.field` and its typed getters,
 which read a field the intent does not declare as absent; `Match` records each such read as a match error in
 `diagnostics`, which the tests and the bots runner see), and 3d checks the wire table against it (§4.4). A
-`MoveClaim`'s `jumps` outside the wire's u16 is malformed in core itself (`MovementRule.MAX_JUMPS`).
+`MoveClaim`'s `jumps` outside the wire's u16, or a mask outside its u32, is malformed in core itself
+(`MovementRule.MAX_JUMPS`, `MAX_MASK`).
 
 | Intent | Who, in which phase | The host validates |
 |---|---|---|
@@ -387,7 +388,7 @@ which read a field the intent does not declare as absent; `Match` records each s
 | `SetReady(ready)` | any player; Lobby (true or false), Countdown (false only: true is `not_accepted`) | `ready` is a bool, or `bad_args`; that it changes the player's state, or `unchanged` |
 | `ChangeSettings(settings, map)` | the host (peer 1) only; Lobby only | `settings` names only the settings that change; each is a declared setting (`unknown_setting`) with a value of its kind (§9.1; else `unknown_setting`): an int within its bounds (`out_of_bounds`), or for `banned_task_types` an array of the mode's task type ids (another id: `out_of_bounds`), which replaces the set. Then the settings as they would be must suit the deal: `tasks` at most the task types not banned, and at least one type not banned (`out_of_bounds`; #79, placeholder rules). The optional `map` is one of the mode's maps (`unknown_map`). All or nothing. Whether they fit the map is checked at `all_ready` |
 | `LoadAck(match_id)` | each player of the frozen roster, once; Loading | the current match id (the match's index in the session): an ack of another match is dropped silently; a second ack is `unchanged` |
-| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor)` | living players in Lobby, Countdown and Round; the downed in Round (the crawl, §7.1); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `moving`: the player gave movement input, which sprint stamina counts (§7.1). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
+| `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (the crawl, §7.1); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
 | `PickUp(item)` | a living player; Round | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1, M4-5) |
 | `PutDown(facing)` | a living player with an item in hand; Round | nothing from the client but the facing: the host computes the placement (§7.1). Only the hand item: a belt item alone is `empty_hand` |
 | `Use(facing)` | a living player; Round | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (an empty hand, or a package in the MVP). The knife's rule: its minimum interval since this player's last hit, whatever weapon that was; stamina of at least the hit's cost; the host picks the targets (§7.1) |
@@ -432,7 +433,7 @@ wire schemas of the events and the snapshot are §4.3.
 | `TaskProgress` | subtasks done, subtasks in total, over every task of the match | everyone | the deal, after the task types dealt and their `TaskState`s (so the HUD shows the total from the start); a subtask is done |
 | `Swung` | peer, facing (the zone's horizontal direction, a unit vector or zero when it has none: of the `Use`'s facing, or the last accepted claim's when the `Use` had no finite, non-zero one) | everyone | a valid `Use` of a knife (`Strike`), whether or not it touched anyone; before any `Damaged` |
 | `Damaged` | amount, your health (thousandths, §3.3); no attacker | the victim | a hit on them |
-| `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available | that player | on change, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`) |
+| `SelfStatus` | health and stamina (thousandths, §3.3), whether sprint is available, and the client tick of the last `MoveClaim` the host settled for that player in its epoch (-1: none since its placement; #155) | that player | on change of the numbers, at most once per tick: at the end of the tick, with its final numbers (`SelfStatusFeed`); a new claim tick alone sends none |
 | `KnockedDown` | peer, where it lies (the floor below its last accepted position) | everyone, the downed player included | health reaches 0 (`LifeRules.knock_down`, M4-2); no attacker or cause. It tells the attacker its hit knocked down: an accepted exception to "no hit confirmation" (vision revision 1) |
 | `Died` | peer, body position | everyone, the dead player included | a downed player's knockdown time runs out (`LifeTicks`, M4-2) or it gives up (`GiveUp`, M4-4); no event names a killer or a cause. The body stays until its player respawns or leaves |
 | `RaiseStarted` | raiser, target | everyone | a `Raise` is accepted (M4-4): the target's knockdown pauses and it is held in place |
@@ -515,7 +516,7 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 2 | `SetReady` | RELIABLE | `seq: u32`, `ready: bool` | 5; 5 |
 | 3 | `ChangeSettings` | RELIABLE | `seq: u32`; `settings: map<id, setting>`, where a setting is `u8` 0 then `s32` (a whole number), or `u8` 1 then `list<id>` (a set of task types, which replaces the set); `has_map: bool`, then `map: path` when true (the args hold `map` only then) | 20 for one number; 2048 |
 | 4 | `LoadAck` | RELIABLE | `seq: u32`, `match_id: u32` | 8; 8 |
-| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`; other bits 0), `jumps: u16` (below) | 47; 47 |
+| 5 | `MoveClaim` | LATEST | `epoch: u32`, `client_tick: u32`, `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `sprint`, 2 `moving`, 4 `on_floor`; other bits 0), `jumps: u16` (below), `sprint_ticks: u32`, `moved_ticks: u32` (bit i: client tick `client_tick - i`, #155) | 55; 55 |
 | 6 | `PickUp` | RELIABLE | `seq: u32`, `item: item` | 6; 6 |
 | 7 | `PutDown` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
 | 8 | `Use` | RELIABLE | `seq: u32`, `facing: vec3` | 16; 16 |
@@ -563,7 +564,7 @@ directive has no row, because it reaches no peer.
 | 51 | `TaskProgress` | `done: u16`, `total: u16` | 4; 4 |
 | 52 | `Swung` | `peer: peer`, `facing: vec3` | 16; 16 |
 | 53 | `Damaged` | `amount: s32`, `health: s32` (thousandths, §3.3) | 8; 8 |
-| 54 | `SelfStatus` | `health: s32`, `stamina: s32`, `sprint_available: bool` | 9; 9 |
+| 54 | `SelfStatus` | `health: s32`, `stamina: s32`, `sprint_available: bool`, `claim_tick: s64` (a client tick, a u32, or -1 for none; #155) | 17; 17 |
 | 55 | `Died` | `peer: peer`, `position: vec3` | 16; 16 |
 | 56 | `Correction` | `epoch: u32`, `position: vec3`, `velocity: vec3` | 28; 28 |
 | 57 | `MatchEnded` | `side: id` (the winning `SideSpec`'s id; audience *everyone*, 2h) | 11; 33 |
@@ -600,9 +601,10 @@ The rules of the table:
   It was 2 when M4-6 (#142) added `Disconnecting` (58), 3 when M4-2 (#138) added `KnockedDown` (59) and
   renamed the avatar's flag `downed`, 4 when M4-3 (#139) added `Respawned` (60), the avatar's flag
   `invulnerable` and the debug row `ForceClock` (25), 5 when M4-4 (#140) added `Raise`, `StopRaise` and
-  `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), and is 6 since M4-5 (#141)
+  `GiveUp` (10 to 12) and `RaiseStarted`, `RaiseStopped` and `Revived` (61 to 63), 6 when M4-5 (#141)
   added `Swap` (13), `Swapped` (64) and `TaskState` (65), `ItemPickedUp`'s `belted` and the avatar's
-  `belt_item`; M4's protocol PRs each set
+  `belt_item`, and is 7 since #155 added `MoveClaim`'s `sprint_ticks` and `moved_ticks` and `SelfStatus`'s
+  `claim_tick`; M4's protocol PRs each set
   it to their base's plus one at the rebase before the merge (the M4 ADR §4).
 - **The content** (E1). `Hello.content` is the content hash: the game mode's (`ContentHash.of`, §3.3) combined with
   `FileAccess.get_sha256` of every level file the mode names (the lobby and the maps). `ContentHash` covers scripts
@@ -644,10 +646,11 @@ The rules of the table:
   covered: `Correction`); a fall within an epoch is `Correction`. `jumps` replaces `jumped` (3e). Prevents: the LATEST
   merge keeps the newest claim of a burst, a jump in an older one is lost, and the player is corrected to the ground
   for a jump the host never saw. Accepted: a merged burst grants one jump height, because the take-off points of the
-  merged claims are lost, so a player who climbed and jumped during a host freeze may be corrected once; and the covered
-  ticks are settled with the newest claim's sprint and movement flags, so a sprint during a freeze may go unpaid.
+  merged claims are lost, so a player who climbed and jumped during a host freeze may be corrected once. The covered
+  ticks are settled with the flags `sprint_ticks` and `moved_ticks` give each of them (#155), which hold the last
+  32 client ticks (1.6 s); a covered tick older than that, after a longer freeze, takes the oldest bit.
 - **Sizes.** The host sends each remote player a snapshot per tick: about 430 bytes on the wire with 10 players, so
-  9 × 20 × 430 ≈ 0.6 Mbit/s of upload. A client's claims are about 1.8 KB/s with headers. A payload over its cap is never
+  9 × 20 × 430 ≈ 0.6 Mbit/s of upload. A client's claims are about 2 KB/s with headers. A payload over its cap is never
   truncated: the encoder refuses it and logs an error (a bug in `core/`, the content or the table). 3d's tests: every
   mode in `content/` passes `WireBudget` (above); a payload built with 32-character ids, a 255-byte map path and the
   longest shortfall of each kind encodes within its cap or is refused by `WireBudget` first; and a synthetic mode at
@@ -1286,8 +1289,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `client/player/player_tuning.tres` keeps only client feel (the push factors, the view's easing). Prevents: a walk
   speed changed in `base_mode.tres` but not in `player_tuning.tres`, and every claim corrected.
 - **Stamina** (E24): `PredictedStamina`, which replaced `LocalStamina` (the client's only copy of
-  `StaminaLedger`'s rule), predicts between `SelfStatus` updates and takes each one's numbers as it arrives; the HUD shows
-  the prediction, and sprint and jump are gated by it.
+  `StaminaLedger`'s rule), predicts between `SelfStatus` updates; the HUD shows the prediction, and sprint and jump
+  are gated by it. On the network it settles claim by claim and follows each `SelfStatus` from the claim it names,
+  without giving back the ticks in flight (#155, §7.1 Speed).
 - **Remote players** (E23): `SnapshotBuffer` (pure, unit-tested) keeps the newest snapshots by host tick, estimates
   the host tick from a sliding window of arrivals (not an all-time maximum, §7's lesson), and gives each remote
   player's position and facing, interpolated linearly, and its newest velocity, used only to pick an animation, so a
@@ -1311,9 +1315,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 **Built in M4-7 (#143)**, movement on the network:
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
   `ClientSession`, ends every physics step with `set_motion` (the camera's look vector as the facing) and
-  `count_jump` at a jump, and sets its `PredictedStamina` from each `SelfStatus`; `PlayerTuning` holds the push
-  factors and the view's easing only. `RemotePlayerBody` takes its capsule and eye height from the rules, turns the
-  body by the yaw and the head (a visor) by the pitch, and is a `StaticBody3D` (above).
+  `count_jump` at a jump, and has its `PredictedStamina` settle each claim and follow each `SelfStatus` (#155,
+  §7.1 Speed); `PlayerTuning` holds the push factors and the view's easing only. `RemotePlayerBody` takes its
+  capsule and eye height from the rules, turns the body by the yaw and the head (a visor) by the pitch, and is a
+  `StaticBody3D` (above).
 - `client/world/`: `SnapshotBuffer` (pure) and `AvatarViews`, which draws from it at -80, snaps the players a
   `PlayersPlaced` names (no blend across a tick within one of the event's estimated tick, since events and
   snapshots travel on different lanes), forgets the poses at `LoadMatch` and gives the estimated host tick
@@ -1765,7 +1770,8 @@ The local player's controller (#46, `client/player/`):
 - Stamina is behind `StaminaSource`: the controller asks before a sprint or a jump and reports each physics step;
   a step counts as moving only while the player gives movement input, so a push is free (§7.1 Stamina).
   `PredictedStamina` (M4-7, E24) predicts with `core/`'s rule (`StaminaLedger`, 2d) in thousandths per 20 Hz tick,
-  the only copy of it on the client, and takes each `SelfStatus`'s number as it arrives.
+  the only copy of it on the client, and follows each `SelfStatus`: off the network as it arrives, on it claim by
+  claim from the claim the status names (#155, §7.1 Speed).
 - A downed player (`PlayerController.life` DOWNED, set by `set_life`; M4-9) crawls as the host's crawl check
   allows (§7.1 The crawl, M4-2): the living's capsule (left standing, as the host's floor checks expect, under a
   lying mesh), gravity, floor, steps and slopes at `PlayerRules.crawl_speed_mps`, with no sprint and no jump;
@@ -1807,12 +1813,14 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 - **Positions.** `core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
   range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
   claiming to stand next to what it wants to grab.
-- **Stamina** belongs to `core/` (only the living sprint; the downed regenerate, see The crawl below). The client predicts its own from the published
-  numbers to draw the HUD and gate Shift, and follows `SelfStatus`. `core/` keeps a ledger per player: the host tick up
-  to which stamina is settled. A claim settles the ticks it covers (its client-tick delta, never past the current host
-  tick): a covered tick in the sprint state in which the player gave movement input and moved horizontally costs 1/20 of
-  the per-second cost, and every other covered tick regenerates. Only the player's own movement counts (the engineer's
-  decision of 2026-09-30, #46): a pushed player holding sprint without movement input pays nothing for the push.
+- **Stamina** belongs to `core/` (only the living sprint; the downed regenerate, see The crawl below). The client
+  predicts its own from the published numbers to draw the HUD and gate Shift, and follows `SelfStatus` (on the
+  network claim by claim, #155: below). `core/` keeps a ledger per player: the host tick up to which stamina is
+  settled. A claim settles the ticks it covers (its client-tick delta, never past the current host tick), each with
+  the flags its masks give that tick (#155, Speed below): a covered tick in the sprint state in which the player gave
+  movement input and moved horizontally costs 1/20 of the per-second cost, and every other covered tick regenerates.
+  Only the player's own movement counts (the engineer's decision of 2026-09-30, #46): a pushed player holding sprint
+  without movement input pays nothing for the push.
   `PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina
   (`StaminaLedger`, 2d) counts the same way: a claim says whether movement input was held (`moving`). Before a
   jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint state and movement-input
@@ -1852,23 +1860,72 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
     is corrected and the next claim starts a new client-tick baseline (credit not refilled), so a client whose ticks
     ran ahead of a stalled host's is corrected once, not on every later claim. A placement (§3.2)
     restarts the credit and the client-tick baseline, and settles the ticks since the last claim as standing still.
-  - Speed: per covered tick the state's speed (a tick not settled yet takes the state the next tick would have;
-    a living player's claim without movement input gets the walk speed, since only input pays for sprint),
+  - Speed: per covered tick the state's speed, each tick with its own flags (below; a tick past the host's clock,
+    which the ledger cannot settle yet, is run on from the settled ones for the speed alone; a living player's tick
+    without its own movement gets the walk speed, since only movement pays for sprint),
     for the living plus `sprint_speed` for at most `PUSH_TICKS` (10) covered ticks while another living player's
     last accepted position is within `MovementRule.push_reach()` of the claim's path (Pushing apart below; #76);
     for the downed the crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M`
     (0.05 m) per claim, or
     for the crawl `CRAWL_SLACK_FRACTION` (a tenth) of its own travel plus 1 mm: 0.05 m is a whole tick of the
     crawl, so a fixed slack would let a client claiming every tick crawl at twice the speed.
-    The sprint's last tick (#76): after a claim that moved itself in the sprint state, one covered tick more may go
-    at sprint speed, not charged. A claim sends the flags of the client's last physics step, so the claim of the
-    tick a sprinter lets go in says no input after most of a sprint tick of travel; and a client learns a tick late
-    that its stamina ran out (the bots sprint while `SelfStatus` says `sprint_available`). The push allowance hid
-    both until #76 granted it only near a living player, and two bot scenarios were corrected. Accepted: a modified
-    client alternating claims with and without input, or with and without the sprint flag, sprints every other
-    tick for -250 thousandths of stamina per two ticks against an honest sprint's -2000, about eight times the
-    endurance. #155 proposes latching the flags over a claim's interval on the client, which would let the host
-    drop this tick.
+    No tick of sprint goes uncharged (#155). From #76 to #155 the host granted "the sprint's last tick", one covered
+    tick more at sprint speed after a sprinting claim, which a modified client alternating its flags turned into
+    about eight times the sprint endurance. #155 replaced it with exact data, so three honest cases pass without it:
+    - **The claim that stops a sprint.** A claim covers the 3 physics steps (60 Hz) since the one before, and
+      `ClientSession` latches its `sprint` and `moving` flags over them: each says whether any of those steps had
+      the sprint state or movement input, not only the last one. So the claim of the tick a sprinter lets go in
+      still says it sprinted, pays for that tick and is allowed its travel. A `Correction` drops the steps before
+      it.
+    - **A claim merged at a sprint's end.** The LATEST lane delivers only the newest claim of a poll (§4), so over
+      a jittery link (or after a freeze, #70) the walk's claim after a release reaches the host with the sprint's
+      last claims folded into it. `MoveClaim`'s masks `sprint_ticks` and `moved_ticks` repeat the latched flags
+      per client tick, bit i for client tick `client_tick - i`, every tick a claim covered taking that claim's
+      flags; the host settles each covered tick with its bits (`StaminaLedger.simulate_ticks`) and grants sprint
+      speed for exactly the ticks in the sprint state with the player's own movement, which it charges. A covered
+      tick older than the 32 bits takes bit 31; bits older than the covered ticks count for nothing. A claim
+      without masks, which only `core/`'s own callers send (the in-process scenario runner, unit tests), gives
+      every covered tick its `sprint` and `moving` flags. A client that claims sprint for ticks its stamina does
+      not cover is still corrected by the ledger.
+    - **Stamina running out.** A `SelfStatus` answers a claim some ticks old (a round trip), so a client that set
+      each one as it arrived got back the ticks still in flight and sprinted on for a round trip after its stamina
+      ran out. On the network `PredictedStamina` settles by the claims instead (`ClientSession.claim_sent`: the
+      claim's epoch and client tick, the ticks it covers, its latched sprint flag, and whether it moved itself
+      from the last claim's position): the ledger's rule, the same ticks with the same flags, a claim's jumps paid
+      after its ticks. Each `SelfStatus` names the client tick of the last claim the host settled (`claim_tick`,
+      -1 for none since a placement); `follow_status` takes the host's number and sprint availability (which is
+      the host's sprint state wherever that decides the next tick) and settles again exactly the claims after
+      that one (with none, the claims of the current epoch), of the last 32 it remembers. A refused claim
+      settles nothing on the host (`MovementRule.apply` puts back the ledger a jump claim's check committed), and
+      the next claim covers its ticks. A claim after the named one from an older epoch than the client's was
+      refused or dropped as stale, so it is settled again without its jumps: events share one ordered reliable
+      channel, so a status that arrives after a `Correction` was sent after it. So a cost it does not predict (a
+      hit), a refused jump or a tick the host could not settle yet is taken in with the next status, and nothing
+      in flight is given back. The jumps since the last claim are forgotten when the session adopts a new epoch,
+      whose claims count jumps from 0. The network bots sprint by the same prediction (`NetPlay`).
+      Accepted, until a later `SelfStatus` (no guard test met a `Correction` from these):
+      - A claim whose ticks reach past the host's clock when it arrives (it overtook the host's ticks, at an
+        epoch's start or when the delay shrinks) has those ticks left unsettled, so the client may predict a tick
+        of regeneration more than the host has.
+      - Before a jump or a `StaminaCost` the host settles the ticks past the last claim with its flags
+        (`settle_ahead`), up to the ledger's lag behind the client (about the one-way delay in ticks); the next
+        claim settles only the ticks left, while the client settles all of them again on top of a status that
+        names the last claim. A second jump or a sprint restart right at its cost may then be corrected. No guard
+        test jumps under jitter; the fix, if needed, is a count of those ticks in `SelfStatus`.
+      - After a refused first claim of an epoch (none accepted since its placement) or a claim past its credit,
+        the host takes the next claim as one tick, while the client counts it from its last claim.
+    Tests: `tests/unit/movement/movement_rule_masks_test.gd` (merged claims at a sprint's end, bits the stamina
+    does not cover, flags against masks, old bits, malformed masks), `tests/unit/movement/movement_rule_test.gd`
+    (the two tests that pinned the allowance, rewritten with the engineer's approval, and the release that walks
+    on), `tests/unit/stamina/stamina_ledger_test.gd` (`simulate_ticks`), `tests/unit/stamina/self_status_feed_test.gd`
+    (`claim_tick`), `tests/unit/client/net/client_session_claims_test.gd` (the latch, the masks, `claim_sent`),
+    `tests/unit/client/player/predicted_stamina_test.gd` (claim by claim against `StaminaLedger`, `follow_status`),
+    `tests/integration/client/player/player_network_sprint_test.gd` (the real controller over the loopback lets go
+    of sprint, or of every key, at each step of a claim's tick, sprints until stamina runs out, and holds sprint
+    through running out and back, with no delay, with every packet held back four physics frames each way, and
+    with 1 to 9 frames of jitter in order, each jitter test checking that the host merged claims; and three claims
+    held and merged while it lets go of sprint: 0 Corrections), and the bot scenarios `crew_delivers_every_package`
+    and `dissidents_win_by_the_clock`, in one process and over ENet.
   - Height, from the last landing's floor (a claim on the floor with a `WorldQuery` floor within step height plus
     `STEP_CLEARANCE` below its feet, which a ledge crossing needs; `FLOOR_PROBE_M` above the feet is where the query
     starts): after an accepted jump, the jump height
@@ -2648,16 +2705,18 @@ the dead, a swap stopping a raise, only the hand item used); `tests/unit/content
 mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_with_a_full_belt` (§9.7).
 
 #### Sprint (not a part in v0)
-What it does: the `sprint` flag of `MoveClaim`, settled by the movement rule for every tick a claim covers (§7.1),
-with the numbers in `PlayerRules`: 7 m/s, 20 per second, from 20. A tick costs only when the claim's `moving` flag
-says the player gave movement input and it moved horizontally. The downed never sprint: they crawl at 1 m/s (§7.1
+What it does: the `sprint` flag of `MoveClaim` and its per-tick mask `sprint_ticks` (#155), settled by the movement
+rule for every tick a claim covers (§7.1), with the numbers in `PlayerRules`: 7 m/s, 20 per second, from 20. A tick
+costs only when the claim's `moving` flag and `moved_ticks` say the player gave movement input and it moved
+horizontally. The downed never sprint: they crawl at 1 m/s (§7.1
 The crawl, M4-2).
 Why not a part: a rule fires once per trigger, while sprint cost and speed apply to every covered tick of a
 continuous claim. A mechanic that changes movement (a faster role, a slowing item) needs a movement modifier that the
 movement rule reads: a new kind, v1 (§10).
 Visible to: the player's own stamina in `SelfStatus`; speed is public through positions.
-Status: designed in #33; built in 2d (#60): `MovementRule` and `StaminaLedger`. Tests:
-`tests/unit/movement/movement_rule_test.gd`, `tests/unit/stamina/stamina_ledger_test.gd`.
+Status: designed in #33; built in 2d (#60): `MovementRule` and `StaminaLedger`; per-tick masks in #155. Tests:
+`tests/unit/movement/movement_rule_test.gd`, `tests/unit/movement/movement_rule_masks_test.gd`,
+`tests/unit/stamina/stamina_ledger_test.gd`.
 
 #### Jump (not a part in v0)
 What it does: the `jumps` count of `MoveClaim` (3e; `jumped` until then), accepted as in §7.1 with the numbers in
@@ -2776,8 +2835,9 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   earlier step was acknowledged at once, and the `LoadAck` step then fails, saying so. A `Join` refused in Loading
   cannot be scripted in the core runner: `server/` refuses it at the transport, so the step fails.
 - `WalkTo` claims one host tick of travel per tick (client ticks rising by one), at sprint speed only while the
-  last `SelfStatus` says sprint is available (a downed bot never: it crawls), and stops exactly `stop_m` short. A dead
-  bot claims nothing at all, standing or walking (M4-2).
+  last `SelfStatus` says sprint is available in the core runner, and over the network while the bot's own
+  `PredictedStamina`, settled by its claims, says so (#155; a downed bot never: it crawls), and stops exactly
+  `stop_m` short. A dead bot claims nothing at all, standing or walking (M4-2).
   `Jump` claims a jump where the bot stands, on the floor: the bot's jump count in its epoch plus one (3e; D3 (a),
   the designer's answer on #96: the step names what a player does, not the count the wire carries). The setup's forced roles go in one `ForceRole` per bot
   right after the joins at the start, and its settings in one `ChangeSettings` from bot 1 after them.

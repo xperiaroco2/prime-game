@@ -2,7 +2,10 @@ extends GdUnitTestSuite
 ## ClientSession's MoveClaims (ARCHITECTURE §4.3, E2): one per client tick (20 Hz of its own clock)
 ## with its epoch, the client tick and the jumps counted in that epoch, reset at each new epoch; a
 ## Correction's position adopted; none before Welcome, and none in a phase whose allowlist (the
-## client's own copy of the mode) does not accept MoveClaim from it.
+## client's own copy of the mode) does not accept MoveClaim from it. A claim reports the sprint
+## state and the movement input if any step since the last claim had them (#155), its masks repeat
+## them for each of the last 32 client ticks, and claim_sent tells its epoch and tick, the ticks it
+## covers, its flags and whether it moved, as the host's stamina counts them.
 
 const Harness := preload("res://tests/unit/client/net/client_session_harness.gd")
 ## One client tick at 20 Hz, in microseconds.
@@ -204,3 +207,134 @@ func test_a_claim_holds_exactly_the_fields_core_declares() -> void:
 	assert_array(claim.keys()).contains_exactly_in_any_order(declared.keys())
 	for field: String in declared:
 		assert_int(typeof(claim[field])).is_equal(declared[field] as int)
+
+
+func test_a_claim_says_sprint_and_moving_if_any_step_since_the_last_claim_did() -> void:
+	_harness.welcome()
+	_harness.pump(TICK_USEC)
+	var at := Vector3(1, 0, 2)
+	# Three physics steps in one claim's tick: a sprint, a walk that let go of sprint, a stop.
+	_harness.session.set_motion(
+		at + Vector3(0.12, 0, 0), Vector3.ZERO, Vector3.RIGHT, true, true, true
+	)
+	_harness.session.set_motion(
+		at + Vector3(0.2, 0, 0), Vector3.ZERO, Vector3.RIGHT, false, true, true
+	)
+	_harness.session.set_motion(
+		at + Vector3(0.2, 0, 0), Vector3.ZERO, Vector3.RIGHT, false, false, true
+	)
+	_harness.pump(TICK_USEC)
+	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	assert_bool(claim["sprint"] as bool).is_true()
+	assert_bool(claim["moving"] as bool).is_true()
+	assert_vector(claim["position"] as Vector3).is_equal(at + Vector3(0.2, 0, 0))
+	# The next claim covers only the steps after it: standing still.
+	_harness.session.set_motion(
+		at + Vector3(0.2, 0, 0), Vector3.ZERO, Vector3.RIGHT, false, false, true
+	)
+	_harness.pump(TICK_USEC)
+	var next := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	assert_bool(next["sprint"] as bool).is_false()
+	assert_bool(next["moving"] as bool).is_false()
+
+
+func test_claim_sent_tells_the_covered_ticks_the_flags_and_whether_it_moved() -> void:
+	var told: Array[Array] = []
+	_harness.session.claim_sent.connect(
+		func(epoch: int, tick: int, covered: int, sprint: bool, moved: bool) -> void:
+			told.append([covered, sprint, moved])
+			assert_int(epoch).is_equal(_harness.session.model.epoch)
+			assert_int(tick).is_equal(_harness.session.last_claim_tick())
+	)
+	var welcome := _harness.welcome()
+	# The first claim after the Welcome counts as one tick, as the host's fresh claim does.
+	assert_array(told).contains_exactly([[1, false, false]])
+	var at := welcome.spot + Vector3(0.3, 0, 0)
+	_harness.session.set_motion(at, Vector3.ZERO, Vector3.RIGHT, true, true, true)
+	_harness.pump(TICK_USEC)
+	assert_array(told[-1]).is_equal([1, true, true])
+	# Movement input without travel (against a wall) moved nothing.
+	_harness.session.set_motion(at, Vector3.ZERO, Vector3.RIGHT, true, true, true)
+	_harness.pump(TICK_USEC)
+	assert_array(told[-1]).is_equal([1, true, false])
+	# Travel without input (a push) is not the player's own movement either.
+	_harness.session.set_motion(
+		at + Vector3.FORWARD, Vector3.ZERO, Vector3.RIGHT, false, false, true
+	)
+	_harness.pump(TICK_USEC)
+	assert_array(told[-1]).is_equal([1, false, false])
+	# A frozen client's next claim covers the whole freeze.
+	_harness.pump(5000000)
+	assert_int(told[-1][0] as int).is_equal(100)
+
+
+func test_a_correction_drops_the_steps_before_it_and_a_placement_restarts_the_count() -> void:
+	var told: Array[Array] = []
+	_harness.session.claim_sent.connect(
+		func(epoch: int, _tick: int, covered: int, sprint: bool, moved: bool) -> void:
+			told.append([epoch, covered, sprint, moved])
+	)
+	_harness.welcome(&"lobby", 1)
+	_harness.pump(TICK_USEC)
+	# Steps that sprinted, then the host's Correction before the next claim: the claim from where
+	# the host put it says nothing of them.
+	var placed := Vector3(7, 0, 7)
+	_harness.session.set_motion(Vector3(9, 0, 9), Vector3.ZERO, Vector3.RIGHT, true, true, true)
+	_harness.send(CorrectionEvent.new(_harness.peer, 2, placed, Vector3.ZERO))
+	_harness.pump(TICK_USEC * 2)
+	var claim := _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields
+	assert_bool(claim["sprint"] as bool).is_false()
+	assert_bool(claim["moving"] as bool).is_false()
+	assert_array(told[-1]).is_equal([2, 2, false, false])
+	# A placement: the host restarts its client-tick baseline, so the next claim is one tick.
+	var spots: Dictionary[int, Vector3] = {_harness.peer: placed}
+	_harness.send(PlayersPlacedEvent.new(spots))
+	_harness.send(CorrectionEvent.new(_harness.peer, 3, placed, Vector3.ZERO))
+	_harness.pump(TICK_USEC * 3)
+	assert_int(_harness.session.placements).is_equal(1)
+	assert_array(told[-1]).is_equal([3, 1, false, false])
+
+
+func test_the_masks_give_each_client_tick_the_flags_of_the_claim_that_covered_it() -> void:
+	var at := _harness.welcome().spot
+	# A sprint tick, a tick standing still holding sprint, a walk tick, then two ticks in one claim
+	# (a hitch) sprinting.
+	_claim_step(at + Vector3(0.3, 0, 0), true, true, 1)
+	_claim_step(at + Vector3(0.3, 0, 0), true, true, 1)
+	_claim_step(at + Vector3(0.5, 0, 0), false, true, 1)
+	var claim := _claim_step(at + Vector3(1.1, 0, 0), true, true, 2)
+	# Oldest to newest from bit 5: the Welcome's claim, sprint, standing, walk, two sprinted ticks.
+	assert_int(claim["sprint_ticks"] as int).is_equal(0b011011)
+	assert_int(claim["moved_ticks"] as int).is_equal(0b010111)
+	# A frozen client's claim covers more ticks than the masks hold: all take its flags.
+	claim = _claim_step(at + Vector3(1.1, 0, 0), true, false, 40)
+	assert_int(claim["sprint_ticks"] as int).is_equal(0xFFFFFFFF)
+	assert_int(claim["moved_ticks"] as int).is_equal(0)
+
+
+func test_a_correction_keeps_the_masks_of_the_claims_before_it() -> void:
+	# The host's next claim covers the ticks of the refused claim and of those in flight: it
+	# settles them by the masks, as the predicted stamina settles those claims.
+	var at := _harness.welcome(&"lobby", 1).spot
+	_claim_step(at + Vector3(0.3, 0, 0), true, true, 1)
+	_harness.send(CorrectionEvent.new(_harness.peer, 2, at, Vector3.ZERO))
+	_harness.pump()
+	var claim := _claim_step(at + Vector3(0.2, 0, 0), false, true, 1)
+	assert_int((claim["sprint_ticks"] as int) & 0b11).is_equal(0b10)
+	assert_int((claim["moved_ticks"] as int) & 0b11).is_equal(0b11)
+
+
+func test_the_move_epsilon_and_the_mask_ticks_are_the_hosts() -> void:
+	# claim_sent's moved_itself must be what MovementRule counts, or the predicted stamina drifts.
+	assert_float(ClientSession.MOVE_EPSILON).is_equal(MovementRule.MOVE_EPSILON)
+	assert_float(PlayerController.MOVE_EPSILON).is_equal(MovementRule.MOVE_EPSILON)
+	# The masks' width must be the host's, or its oldest-bit rule reads long claims differently.
+	assert_int(ClientSession.MASK_TICKS).is_equal(MovementRule.MASK_TICKS)
+
+
+## One claim's tick: a step at `to` with `sprint` and `moving`, then the clock `ticks` client ticks
+## on, which sends the claim; returns its fields.
+func _claim_step(to: Vector3, sprint: bool, moving: bool, ticks: int) -> Dictionary:
+	_harness.session.set_motion(to, Vector3.ZERO, Vector3.RIGHT, sprint, moving, true)
+	_harness.pump(TICK_USEC * ticks)
+	return _harness.sent_named(Intents.MOVE_CLAIM)[-1].fields

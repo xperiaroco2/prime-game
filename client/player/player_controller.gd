@@ -16,8 +16,11 @@ extends CharacterBody3D
 ## On the network (M4-7) every physics step ends with what it claims: `attach()`ed to a
 ## ClientSession, it calls `set_motion` with its position, velocity, the camera's 3D look vector as
 ## the facing (E22, at most MAX_PITCH up or down), the sprint state, whether it gave movement input
-## and whether it stands, and `count_jump` at a jump; each SelfStatus sets the predicted stamina
-## (E24). The game teleports it at Welcome and at each Correction.
+## and whether it stands, and `count_jump` at a jump; the session latches the sprint state and the
+## movement input over a claim's steps (#155). Its PredictedStamina then settles by the claims
+## (`claim_sent`) and follows each SelfStatus from the claim it names, without giving back the
+## ticks in flight (E24, #155).
+## The game teleports it at Welcome and at each Correction.
 ##
 ## The movement numbers (speeds, jump height, capsule, eye and step height, stamina) are the
 ## client's own copy of the mode's PlayerRules, `rules`, set before the controller enters the tree
@@ -147,10 +150,14 @@ func set_rules(value: PlayerRules) -> void:
 		_apply_rules()
 
 
-## Claims to `client` from the next physics step on, and follows its SelfStatus.
+## Claims to `client` from the next physics step on, settles its stamina by the claims and follows
+## its SelfStatus.
 func attach(client: ClientSession) -> void:
 	session = client
 	client.event_received.connect(_on_session_event)
+	client.claim_sent.connect(_on_claim_sent)
+	client.corrected.connect(_on_corrected)
+	_follow_claims()
 
 
 ## The camera's look as a unit vector: the claim's facing (E22).
@@ -235,6 +242,7 @@ func hand_view() -> FirstPersonHand:
 func _apply_rules() -> void:
 	if stamina == null:
 		stamina = PredictedStamina.new(rules)
+		_follow_claims()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = rules.capsule_radius_m
 	capsule.height = rules.capsule_height_m
@@ -327,7 +335,33 @@ func _claim() -> void:
 func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
 	var predicted := stamina as PredictedStamina
 	if event_name == &"SelfStatus" and predicted != null:
-		predicted.set_status(fields["stamina"] as int)
+		predicted.follow_status(
+			fields["stamina"] as int,
+			fields["sprint_available"] as bool,
+			fields["claim_tick"] as int,
+			session.model.epoch
+		)
+
+
+## A claim went out: the predicted stamina settles its ticks as the host will.
+func _on_claim_sent(epoch: int, tick: int, covered: int, sprint: bool, moved_itself: bool) -> void:
+	var predicted := stamina as PredictedStamina
+	if predicted != null:
+		predicted.settle_claim(epoch, tick, covered, sprint, moved_itself, is_downed())
+
+
+## A new epoch (a Correction or a placement): the jumps since the last claim are never claimed.
+func _on_corrected(_position: Vector3, _velocity: Vector3) -> void:
+	var predicted := stamina as PredictedStamina
+	if predicted != null:
+		predicted.forget_unclaimed_jumps()
+
+
+## On the network, a PredictedStamina settles by the claims.
+func _follow_claims() -> void:
+	var predicted := stamina as PredictedStamina
+	if predicted != null and session != null:
+		predicted.follow_claims()
 
 
 ## Metres per second on the ground this step: the living walk or sprint, the downed crawl.

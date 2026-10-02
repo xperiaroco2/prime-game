@@ -2,6 +2,9 @@
 
 - **Status:** Accepted. Every E and D item took its recommendation: E18 to E31 (a), E32 (b), E33 (a), D4 to D9 (a),
   D10 (b) (the engineer's answers, recorded on PR #136)
+- **Amended 2026-10-02 (issue #155):** E24's "set to each `SelfStatus` as it arrives" holds off the network only. On
+  the network the client predicts stamina claim by claim and follows each `SelfStatus` from the claim it names
+  (`ARCHITECTURE.md` §4.7 and §7.1 Speed); the E24 row below keeps the original decision
 - **Date:** 2026-10-01
 - **Deciders:** designed by the agent in #125 (the M4 design, under the M4 manager session, #134). The engineer, in
   chat with the M4 manager session on 2026-10-01: E31 to E33, and the designer's D4 to D10 by relay

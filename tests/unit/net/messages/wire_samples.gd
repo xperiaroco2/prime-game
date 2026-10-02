@@ -61,7 +61,10 @@ static func events() -> Dictionary[String, Array]:
 	found["TaskProgressEvent"] = [TaskProgressEvent.new(2, 0xFFFF)]
 	found["SwungEvent"] = [SwungEvent.new(2, Vector3(0.6, 0, -0.8))]
 	found["DamagedEvent"] = [DamagedEvent.new(2, 250, -0x80000000)]
-	found["SelfStatusEvent"] = [SelfStatusEvent.new(2, 1000, 0x7FFFFFFF, false)]
+	found["SelfStatusEvent"] = [
+		SelfStatusEvent.new(2, 1000, 0x7FFFFFFF, false),
+		SelfStatusEvent.new(2, 0, 0, true, 0xFFFFFFFF),
+	]
 	found["DiedEvent"] = [DiedEvent.new(2, Vector3(4, 0, 4))]
 	found["KnockedDownEvent"] = [KnockedDownEvent.new(0xFFFE, Vector3(-2, 0.5, 3))]
 	found["RespawnedEvent"] = [RespawnedEvent.new(0x7FFFFFFF, Vector3(20, 0, -22))]
@@ -211,6 +214,8 @@ static func _claim() -> Dictionary:
 		"moving": false,
 		"on_floor": true,
 		"jumps": 0xFFFF,
+		"sprint_ticks": 0xFFFFFFFF,
+		"moved_ticks": 0,
 	}
 
 

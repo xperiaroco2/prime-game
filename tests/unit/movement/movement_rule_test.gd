@@ -133,9 +133,10 @@ func test_sprint_speed_needs_the_sprint_state() -> void:
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
 
 
-func test_the_tick_after_a_sprint_ran_out_may_still_go_at_sprint_speed() -> void:
-	# The client learns that its stamina ran out a tick late (the bots sprint while SelfStatus
-	# says sprint_available): one claim more at sprint speed passes, a second is corrected.
+func test_the_tick_after_a_sprint_ran_out_goes_at_walk_speed() -> void:
+	# No tick of sprint beyond the stamina (#155): the client predicts its own and stops
+	# sprinting with the tick its stamina ran out in. A claim right after it that still goes at
+	# sprint speed is corrected; a walk tick passes.
 	var game := FixtureMoves.in_round([P1])
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
@@ -144,26 +145,50 @@ func test_the_tick_after_a_sprint_ran_out_may_still_go_at_sprint_speed() -> void
 	var seen := FixtureMoves.corrections(game, P1).size()
 	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
 	assert_int(player.stamina).is_equal(0)
-	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
-	assert_bool(player.sprinting).is_false()
+	var at := player.position
 	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
+	var found := FixtureMoves.corrections(game, P1)
+	assert_int(found.size()).is_equal(seen + 1)
+	assert_vector(found[found.size() - 1].position).is_equal(at)
+	FixtureMoves.step(game, P1, EAST * 0.22, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_bool(player.sprinting).is_false()
+	assert_vector(player.position).is_equal(at + EAST * 0.22)
 
 
-func test_the_claim_that_stops_a_sprint_may_carry_a_tick_of_it() -> void:
-	# A claim sends the flags of the client's last physics step: a sprinter who lets go within
-	# the tick claims no input and no sprint, with most of a sprint tick of travel. One such claim
-	# passes; a second without input is held to the walk again.
+func test_the_claim_that_stops_a_sprint_needs_its_latched_flags() -> void:
+	# A sprinter who lets go within a claim's tick moved most of a sprint tick: the client latches
+	# the flags over the claim's steps (#155), so that claim says sprint and movement input and
+	# passes. The same travel in a claim without them, the flags of its last step alone, is held to
+	# the walk and corrected.
 	var game := FixtureMoves.in_round([P1])
 	var player := game.state.player(P1)
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
 	var seen := FixtureMoves.corrections(game, P1).size()
-	FixtureMoves.step(game, P1, EAST * 0.34)
+	FixtureMoves.step(game, P1, EAST * 0.34, FixtureMoves.sprinting())
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	var at := player.position
 	FixtureMoves.step(game, P1, EAST * 0.34)
+	var found := FixtureMoves.corrections(game, P1)
+	assert_int(found.size()).is_equal(seen + 1)
+	assert_vector(found[found.size() - 1].position).is_equal(at)
+
+
+func test_a_claim_that_lets_go_of_sprint_but_walks_on_needs_its_sprint_flag() -> void:
+	# Two physics steps of sprint and one of walk (7 + 7 + 4.5 m/s over 1/60 s: 0.308 m) are past
+	# the walk's 0.275 m: the claim passes with its latched sprint flag and is corrected without it.
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	FixtureMoves.step(game, P1, EAST * 0.35, FixtureMoves.sprinting())
+	var seen := FixtureMoves.corrections(game, P1).size()
+	FixtureMoves.step(game, P1, EAST * 0.308, FixtureMoves.sprinting())
+	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen)
+	FixtureMoves.step(game, P1, EAST * 0.308, {"moving": true})
 	assert_int(FixtureMoves.corrections(game, P1).size()).is_equal(seen + 1)
+	assert_bool(player.sprinting).is_true()
 
 
 func test_speed_is_measured_over_the_clients_own_tick_delta() -> void:

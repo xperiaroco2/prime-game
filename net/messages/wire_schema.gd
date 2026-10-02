@@ -12,7 +12,7 @@ extends RefCounted
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it.
-const VERSION := 6
+const VERSION := 7
 
 ## Frozen rows (§4.3): any client can send its version and read Rejected(wrong_version).
 const HELLO := 1
@@ -196,7 +196,7 @@ static func _intents() -> Array[WireRow]:
 			&"MoveClaim",
 			NetKindTable.Direction.CLIENT_TO_HOST,
 			NetKindTable.Lane.LATEST,
-			47,
+			55,
 			[
 				_u32("epoch"),
 				_u32("client_tick"),
@@ -205,6 +205,8 @@ static func _intents() -> Array[WireRow]:
 				_vec3("facing"),
 				WireField.bits(claim_flags),
 				_u16("jumps"),
+				_u32("sprint_ticks"),
+				_u32("moved_ticks"),
 			]
 		),
 		_up(6, &"PickUp", 6, [_seq(), _of("item", WireField.Type.ITEM)]),
@@ -327,7 +329,17 @@ static func _events() -> Array[WireRow]:
 		_down(51, &"TaskProgress", 4, [_u16("done"), _u16("total")]),
 		_down(52, &"Swung", 16, [_peer("peer"), _vec3("facing")]),
 		_down(53, &"Damaged", 8, [_s32("amount"), _s32("health")]),
-		_down(54, &"SelfStatus", 9, [_s32("health"), _s32("stamina"), _bool("sprint_available")]),
+		_down(
+			54,
+			&"SelfStatus",
+			17,
+			[
+				_s32("health"),
+				_s32("stamina"),
+				_bool("sprint_available"),
+				_of("claim_tick", WireField.Type.S64),
+			]
+		),
 		_down(55, &"Died", 16, [_peer("peer"), _vec3("position")]),
 		_down(56, &"Correction", 28, [_u32("epoch"), _vec3("position"), _vec3("velocity")]),
 		_down(57, &"MatchEnded", 33, [_id("side")]),
