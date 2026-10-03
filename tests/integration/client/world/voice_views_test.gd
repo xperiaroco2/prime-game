@@ -115,6 +115,21 @@ func test_the_own_death_records_the_flush_of_a_speaker_not_heard_yet() -> void:
 	assert_int(_voices.speaker_of(OTHER).jitter.received).is_equal(3)
 
 
+func test_frames_reaching_a_fading_speaker_count_as_dropped_not_played() -> void:
+	var speaker := await _talking()
+	_world.ears_at = Vector3(0, 0, 20)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_bool(speaker.fading()).is_true()
+	# Back within the cutoff while the fade still runs: the fade discards them, so none played.
+	_world.ears_at = Vector3.ZERO
+	var played := _voices.played
+	var dropped := _voices.dropped
+	_world.speak(TALKER, 3, 20)
+	assert_int(_voices.played).is_equal(played)
+	assert_int(_voices.dropped).is_equal(dropped + 3)
+
+
 func test_a_phase_that_hears_nobody_flushes_every_speaker_and_the_cutoff_follows_the_phase(
 ) -> void:
 	var speaker := await _talking()

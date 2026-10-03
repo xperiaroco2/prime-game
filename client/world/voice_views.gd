@@ -114,7 +114,8 @@ func on_voice(speaker: int, seq: int, tick: int, opus: PackedByteArray) -> void:
 		dropped += 1
 		return
 	var player := _speaker_for(speaker)
-	if player == null:
+	# A fading speaker discards what it is given (VoiceJitter.push()): not counted as played.
+	if player == null or player.fading():
 		dropped += 1
 		return
 	if not _index.has(speaker):
