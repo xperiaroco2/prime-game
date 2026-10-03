@@ -1,6 +1,10 @@
 extends Node
 ## A preview of the debug overlay (F3) for `tools\run.cmd shot` (the M4 ADR's §6): the host's view,
 ## with made-up numbers over a grey backdrop. Dev only: nothing here reaches the game.
+## `in_round` shows it during a Round: the relay's counters give way to their note, and the voice
+## lines (the own voice, two speakers) come into view (debug_overlay_voice_preview.tscn).
+
+@export var in_round := false
 
 
 func _ready() -> void:
@@ -35,9 +39,9 @@ func _ready() -> void:
 		&"other_up_bytes": 26865,
 		&"other_up_datagrams": 1709,
 	}
-	var lobby := PhaseSpec.new()
-	lobby.phase_class = LobbyPhase
-	overlay.show_relay(relay, lobby)
+	var phase := PhaseSpec.new()
+	phase.phase_class = RoundPhase if in_round else LobbyPhase
+	overlay.show_relay(relay, phase)
 	# The own voice and two voices played, by index of first arrival (M5-5, M5-6).
 	overlay.show_own_voice(true, true, 0.21, 23000, 412)
 	var first := VoiceSpeaker.Stats.new()

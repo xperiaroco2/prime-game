@@ -21,6 +21,8 @@ const CIRCLE_COLOUR := Color(0.95, 0.75, 0.2)
 @export var esc_tab := EscMenuState.Tab.LOBBY
 ## The Esc menu over the round instead of the lobby (no Lobby tab there).
 @export var esc_in_round := false
+## The Voice tab (M5-6) as without the voice addon.
+@export var voice_unavailable := false
 
 
 func _ready() -> void:
@@ -60,6 +62,7 @@ func _ready() -> void:
 			if esc_tab != EscMenuState.Tab.RESUME:
 				# Pressing Resume would close the menu: in the round it is the tab Esc opens on.
 				ui.esc.press(esc_tab)
+			ui.esc.voice.show_facts(fake_voice(not voice_unavailable))
 		Preview.ROUND, Preview.TASKS:
 			fold_round(model, true)
 			ui.show_screen(GameFlow.Screen.ROUND)
@@ -69,6 +72,22 @@ func _ready() -> void:
 			local.hint = "E: pick up Knife"
 			ui.refresh_round(model, mode, 100, local)
 	ui.refresh(model, mode, 100, hosting)
+
+
+## The Voice tab's facts (M5-6): two microphones besides the Windows default, a headset picked,
+## voice activity at the default threshold with the meter over it, and the debug tools.
+static func fake_voice(available: bool) -> VoicePanel.Shown:
+	var shown := VoicePanel.Shown.new()
+	shown.available = available
+	shown.devices = PackedStringArray(
+		[VoiceMicrophone.DEFAULT_DEVICE, "Headset Microphone (USB)", "Microphone Array (Realtek)"]
+	)
+	shown.device = "Headset Microphone (USB)"
+	shown.peak = 0.23
+	for bus: StringName in UserSettings.VOLUMES:
+		shown.volumes[bus] = UserSettings.default_db(bus)
+	shown.debug = true
+	return shown
 
 
 ## A lobby of three, the own player peer 1 (the host) or peer 2, with one shortfall.
