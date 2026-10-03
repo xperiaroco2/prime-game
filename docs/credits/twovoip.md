@@ -1,12 +1,13 @@
 # TwoVoIP
 
 - **Files:** `addons/twovoip/**`
-- **Author:** goatchurchprime (GitHub) and the project's contributors
+- **Author:** Julian Todd (goatchurchprime), K. S. Ernest (iFire) Lee, Gordon MacPherson and Marc Weber (the
+  copyright holders in the license)
 - **Source:** https://github.com/goatchurchprime/two-voip-godot-4 (release v6.5, `TwoVoIP.zip`, SHA-256
   `811ac96d4b75314f90855e3136f9939f7a4bc4a01e51850640cff967afc20fc7`; v6.6 crashes on import,
   goatchurchprime/two-voip-godot-4#107)
-- **License:** MIT, as the source repository states it; not checked against the license text, which the v6.5 release
-  archive does not ship (no license file is committed with the addon)
+- **License:** MIT (`addons/twovoip/LICENSE`: the source repository's `LICENSE` at tag v6.5, which the release
+  archive does not ship; added by the engineer on 2026-10-03)
 - **Bundled libraries:** the release archive names none and ships no license text for them. The Windows libraries'
   strings show Opus, RNNoise (the `DENOISER_RNNOISE` option) and Speex (the `DENOISER_SPEEX` option) built in. Their
   upstream licenses, not checked against the copies in v6.5's build: Opus (https://opus-codec.org) BSD 3-Clause,
