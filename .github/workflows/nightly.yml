@@ -118,8 +118,8 @@ jobs:
 
       - uses: ./.github/actions/setup-toolchain
 
-      # From M5 on, CI runs without the TwoVoIP extension (release/m5's ci.yml says why, after its M5 voice ADR §2,
-      # E35 (a)). On a ref without the addon this does nothing.
+      # Without the TwoVoIP extension, as in CI from M5 on (its ci.yml says why; the M5 voice ADR §2, E35 (a),
+      # docs/decisions/2026-10-02-m5-voice-integrated-with-the-rules.md). On a ref without the addon this does nothing.
       - name: Remove the TwoVoIP extension
         run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
@@ -184,8 +184,8 @@ jobs:
 
       - uses: ./.github/actions/setup-toolchain
 
-      # From M5 on, CI runs without the TwoVoIP extension (release/m5's ci.yml says why, after its M5 voice ADR §2,
-      # E35 (a)). On a ref without the addon this does nothing.
+      # Without the TwoVoIP extension, as in CI from M5 on (its ci.yml says why; the M5 voice ADR §2, E35 (a),
+      # docs/decisions/2026-10-02-m5-voice-integrated-with-the-rules.md). On a ref without the addon this does nothing.
       - name: Remove the TwoVoIP extension
         run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
@@ -269,8 +269,8 @@ jobs:
 
       - uses: ./.github/actions/setup-toolchain
 
-      # From M5 on, CI runs without the TwoVoIP extension (release/m5's ci.yml says why, after its M5 voice ADR §2,
-      # E35 (a)). On a ref without the addon this does nothing.
+      # Without the TwoVoIP extension, as in CI from M5 on (its ci.yml says why; the M5 voice ADR §2, E35 (a),
+      # docs/decisions/2026-10-02-m5-voice-integrated-with-the-rules.md). On a ref without the addon this does nothing.
       - name: Remove the TwoVoIP extension
         run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
