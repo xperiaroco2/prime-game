@@ -3,11 +3,14 @@ extends GdUnitTestSuite
 ## snapshot gets a RemotePlayerBody at SnapshotBuffer's pose, the yaw on the body and the pitch on
 ## the head; a vertical facing keeps the turn and gives no NaN; a player the model drops goes; a
 ## PlayersPlaced snaps; a LoadMatch forgets the poses; the estimated host tick never runs backwards;
-## a player the model knows as downed is on the downed layer, where no push searches (§7.1).
+## a player the model knows as downed is on the downed layer, where no push searches (§7.1); a
+## body the model drops leaves the physics space in that frame, before the local player's push
+## search (#242).
 
 const PEER := 2
 const TICK_USEC := 50000
 const FRAME_USEC := 16667
+const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
 
 var _views: AvatarViews
 var _model: ClientModel
@@ -149,6 +152,53 @@ func test_the_host_tick_never_runs_backwards() -> void:
 	assert_int(_views.host_tick()).is_equal(raw)
 
 
+func test_a_body_the_model_drops_leaves_the_physics_space_in_that_frame() -> void:
+	# A queued node stays in the tree, and its body in the physics space, until the frame's end:
+	# the local player's push search (priority 0) runs after AvatarViews (-80) in the same frame.
+	var spot := Vector3(2, 0, 0)
+	_snapshot(1, spot, Vector3.FORWARD)
+	await _drawn()
+	var found: Array[int] = []
+	var search := Step.new(0, func() -> void: found.append(_living_at(spot)), false)
+	auto_free(search)
+	add_child(search)
+	await _drawn()
+	# The search sees a drawn body.
+	assert_array(found).is_not_empty()
+	assert_int(found.back()).is_equal(1)
+	found.clear()
+	# The session folds a new map (LoadMatch) or the lobby, which forget the avatars.
+	var fold := Step.new(SessionNode.PHYSICS_PRIORITY, _model.clear_match, true)
+	auto_free(fold)
+	add_child(fold)
+	await _drawn()
+	assert_int(_views.count()).is_equal(0)
+	assert_array(found).is_not_empty()
+	assert_bool(found.has(1)).is_false()
+
+
+func test_a_player_placed_in_the_frame_the_others_go_is_not_pushed_by_their_bodies() -> void:
+	# End -> Lobby: one host step brings PhaseChanged, which forgets the avatars, and the
+	# placement's Correction, which teleports the local player, here onto another player's last
+	# round spot (the greybox lobby and round markers share coordinates).
+	var world := PlayerTestWorld.new()
+	auto_free(world)
+	add_child(world)
+	var player := world.add_player(Vector3(-3, 0, 0))
+	var spot := Vector3(2, 0, 0)
+	_snapshot(1, spot, Vector3.FORWARD)
+	await world.frames(10)
+	assert_vector(_views.body_of(PEER).global_position).is_equal_approx(spot, Vector3.ONE * 1e-3)
+	var place := func() -> void:
+		_model.clear_match()
+		player.teleport(Transform3D(player.global_basis, spot))
+	var placement := Step.new(SessionNode.PHYSICS_PRIORITY, place, true)
+	auto_free(placement)
+	add_child(placement)
+	await world.frames(3)
+	assert_float(world.horizontal_distance(player.global_position, spot)).is_less(1e-3)
+
+
 ## Waits until AvatarViews has run once more (physics_frame comes before the nodes' step).
 func _drawn() -> void:
 	await get_tree().physics_frame
@@ -176,3 +226,33 @@ func _ray_hits_at(height: float) -> int:
 	var from := Vector3(-3.0, height, 0.0)
 	var query := PhysicsRayQueryParameters3D.create(from, Vector3(3.0, height, 0.0), 0xFFFFFFFF)
 	return 0 if space.intersect_ray(query).is_empty() else 1
+
+
+## 1 when a shape query on the living layer, as the push search's, finds a body at `at`; else 0.
+func _living_at(at: Vector3) -> int:
+	var sphere := SphereShape3D.new()
+	sphere.radius = 0.2
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = sphere
+	query.transform = Transform3D(Basis.IDENTITY, at + Vector3.UP * 0.9)
+	query.collision_mask = PhysicsLayers.LIVING
+	var space := _views.get_world_3d().direct_space_state
+	return 0 if space.intersect_shape(query).is_empty() else 1
+
+
+## Calls `action` in each physics step at `priority`, or in the first one only (`once`).
+class Step:
+	extends Node
+
+	var _action: Callable
+	var _once: bool
+
+	func _init(priority: int, action: Callable, once: bool) -> void:
+		process_physics_priority = priority
+		_action = action
+		_once = once
+
+	func _physics_process(_delta: float) -> void:
+		_action.call()
+		if _once:
+			set_physics_process(false)
