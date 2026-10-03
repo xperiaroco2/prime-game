@@ -328,7 +328,11 @@ Rules for every workflow run:
 - **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
   reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
   housekeeping (`worktree-done`, closing issues). The manager reports on the plan issue after each wave and stops
-  with a comment when nothing more can run without the human. Each command the human must run (a workflow's
+  with a comment when nothing more can run without the human. While it waits (a run of its own in flight, or a stop
+  with a context over about 150k and no once-a-day handover due, #279) it keeps its 1-hour prompt cache warm with
+  one background `sleep 3000` re-armed on each cheap wake, for at most about 12 hours of the human's absence (the
+  skill's §7, #305), and `metrics` reports each manager session's cache re-writes after a gap over 1 hour by what
+  held when the gap began (a timer, a run, a stop). Each command the human must run (a workflow's
   `human_steps`, housekeeping) goes into the chat itself, one runnable PowerShell block per command
   ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan issue may list it too. The
   publishing agents return `human_steps` as `{why, command}` pairs, each command one PowerShell line that starts
