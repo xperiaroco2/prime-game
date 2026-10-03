@@ -103,3 +103,18 @@ func test_the_voice_lines_number_each_speaker_and_name_no_one() -> void:
 	assert_bool(overlay.voice_label.visible).is_true()
 	overlay.show_voice([])
 	assert_bool(overlay.voice_label.visible).is_false()
+
+
+func test_the_own_voice_line_shows_the_gate_peak_age_and_encode_time() -> void:
+	# E47: the own gate, peak, frame age at encoding and encode µs (debug builds only).
+	assert_str(DebugOverlay.own_voice_text(false, false, 0.0, 0, 0)).contains("closed")
+	var text := DebugOverlay.own_voice_text(true, true, 0.5, 21400, 340)
+	assert_str(text).contains("gate open").contains("peak 0.500 (-6 dBFS)")
+	assert_str(text).contains("frame age 21 ms").contains("encode 340 us")
+	assert_str(DebugOverlay.own_voice_text(true, false, 0.0, 0, 0)).contains("gate closed")
+	assert_str(DebugOverlay.own_voice_text(true, false, 0.0, 0, 0)).contains("-inf dBFS")
+	var overlay: DebugOverlay = auto_free(DebugOverlay.new())
+	assert_bool(overlay.own_voice_label.visible).is_false()
+	overlay.show_own_voice(true, true, 0.5, 21400, 340)
+	assert_bool(overlay.own_voice_label.visible).is_true()
+	assert_str(overlay.own_voice_label.text).is_equal(text)

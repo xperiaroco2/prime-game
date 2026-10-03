@@ -12,14 +12,18 @@ extends PanelContainer
 ## started, only in the Lobby, the Countdown and End (shows_relay): live during a Round they would
 ## tell the host's player how many hear them (the M5 ADR §3 item 11).
 ##
-## Below them, one line per voice this client plays (M5-5, E47; show_voice()): by an index in
-## order of first arrival, never a peer id or a name (the M5 ADR §3 item 10).
+## Below them, the own voice (M5-6, E47; show_own_voice()): whether the gate sends, the microphone's
+## peak, the age of the latest chunk when it was read and its encode time; then one line per voice
+## this client plays (M5-5, E47; show_voice()): by an index in order of first arrival, never a peer
+## id or a name (the M5 ADR §3 item 10).
 
 const RELAY_HIDDEN := "host voice: shown in the lobby, the countdown and the end"
 
 var label := Label.new()
 ## The host's voice relay counters, or the note that hides them; empty on a client.
 var relay_label := Label.new()
+## The own voice's line (show_own_voice()).
+var own_voice_label := Label.new()
 ## The per-speaker voice lines (show_voice()).
 var voice_label := Label.new()
 
@@ -37,6 +41,9 @@ func _init() -> void:
 	var lines := VBoxContainer.new()
 	lines.add_child(label)
 	lines.add_child(relay_label)
+	own_voice_label.theme_type_variation = &"DebugText"
+	own_voice_label.visible = false
+	lines.add_child(own_voice_label)
 	voice_label.theme_type_variation = &"DebugText"
 	voice_label.visible = false
 	lines.add_child(voice_label)
@@ -114,6 +121,34 @@ static func relay_text(counters: Dictionary[StringName, int], shown: bool) -> St
 	for key: StringName in names:
 		lines.append("  %s: %d" % [key, counters[key]])
 	return "\n".join(lines)
+
+
+## Shows the own voice's line; `open` false while no microphone is open (no session included).
+func show_own_voice(
+	open: bool, gate_open: bool, peak: float, frame_age_usec: int, encode_usec: int
+) -> void:
+	own_voice_label.text = own_voice_text(open, gate_open, peak, frame_age_usec, encode_usec)
+	own_voice_label.visible = true
+
+
+## The own voice's line (pure, for the tests): the gate, the peak (linear and in dBFS), the latest
+## chunk's age when it was read and its encode time; or that the microphone is closed.
+static func own_voice_text(
+	open: bool, gate_open: bool, peak: float, frame_age_usec: int, encode_usec: int
+) -> String:
+	if not open:
+		return "own voice: microphone closed"
+	var dbfs := linear_to_db(peak) if peak > 0.0 else -INF
+	return (
+		"own voice: gate %s, peak %.3f (%s dBFS), frame age %d ms, encode %d us"
+		% [
+			"open" if gate_open else "closed",
+			peak,
+			"-inf" if is_inf(dbfs) else "%d" % roundi(dbfs),
+			roundi(frame_age_usec / 1000.0),
+			encode_usec
+		]
+	)
 
 
 ## Shows one line per speaker played, or nothing when none is.

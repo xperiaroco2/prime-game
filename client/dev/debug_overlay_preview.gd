@@ -38,3 +38,22 @@ func _ready() -> void:
 	var lobby := PhaseSpec.new()
 	lobby.phase_class = LobbyPhase
 	overlay.show_relay(relay, lobby)
+	# The own voice and two voices played, by index of first arrival (M5-5, M5-6).
+	overlay.show_own_voice(true, true, 0.21, 23000, 412)
+	var first := VoiceSpeaker.Stats.new()
+	first.index = 1
+	first.queue_ms = 60
+	first.prebuffer_ms = 40
+	first.received = 1520
+	first.late = 3
+	first.lost = 2
+	first.concealed = 2
+	first.decode_us = 38
+	var second := VoiceSpeaker.Stats.new()
+	second.index = 2
+	second.queue_ms = 80
+	second.prebuffer_ms = 60
+	second.received = 640
+	second.underruns = 1
+	second.decode_us = 41
+	overlay.show_voice([first, second])
