@@ -172,8 +172,12 @@ Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not
 `skeptic` (`refuted`, `stood`, `unchecked`) and `visual` (the PNGs: the engineer drags them into the PR)). Merge it
 into the release branch when the gate in §5 holds (on the tooling track: run `merge-check` and ask the engineer),
 and tell the human what you merged and in which order; explain each "Needs the engineer" item in plain words: a
-concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". Then
-fill the free slot.
+concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". Copy
+every command of `human_steps` into the chat itself, never only a pointer ("the command is in PR #235's body"): fetch
+a command a step only points to, then one fenced PowerShell block per command, starting with `cd` to its absolute
+folder, run or previewed by you first (root `CLAUDE.md`, "Talking to the humans"). The PR and the wave comment may
+carry it too. Then fill the free slot.
+<!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
 
 When something failed (never resume a run whose result has `stopped`: a resume replays the stop):
 - `stopped` (the implementer ended red) or `pub.published` false: say so on the plan issue and in chat, then launch
@@ -269,8 +273,8 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 ## 6. Reporting and keeping slots busy
 - After each wave, a comment on the plan issue: merged PRs (each `merge` `wave:` line), decisions recorded (with
   links), in progress, order from here, batched questions (numbered, recommendations), housekeeping for a human:
-  `worktree-done` lines (§8) and the issues to close once `release/m<k>` is merged into `main` (auto-close does not
-  fire from the release branch and agents never close issues). Never edit the plan issue's body.
+  `worktree-done` lines (§8: also in the chat) and the issues to close once `release/m<k>` is merged into `main`
+  (auto-close does not fire from the release branch and agents never close issues). Never edit the plan issue's body.
 - **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
   <your session id> --compact` in a text block (at most ten lines: time and API list $ per task and in total, the %
   of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
@@ -314,12 +318,20 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 - When the human is needed (a PR to merge, questions, a stop), end your turn with a short summary and send a
   PushNotification. It is suppressed while the human is active in the session, and the desktop app only flashes its
   icon while its window is in use; a PowerShell toast tests whether Windows notifications work at all.
-- Merged tasks' worktrees: list `tools\run.cmd worktree-done <n>` (from `D:\prime-game`) for the human in the
-  wave comment, to run once `release/m<k>` is merged into `main` (on the tooling track: once the engineer merged the
-  task's PR); a worktree whose branch never reached main but whose work did (merged into a parent) says so. Your
-  `release-m<k>` worktree goes too, but `worktree-done` takes only an issue number: give the human `cd
-  D:\prime-game; git worktree remove .claude/worktrees/release-m<k>; git branch -d release/m<k>`, to run after the
-  closing PR has merged into `main`.
+- Merged tasks' worktrees: give the human `tools\run.cmd worktree-done <n>` (from `D:\prime-game`), to run once
+  `release/m<k>` is merged into `main` (on the tooling track: once the engineer merged the task's PR); a worktree
+  whose branch never reached main but whose work did (merged into a parent) says so. Your `release-m<k>` worktree
+  goes too, but `worktree-done` takes only an issue number: give the human `git worktree remove
+  .claude/worktrees/release-m<k>` and `git branch -d release/m<k>` (from `D:\prime-game`), to run after the closing
+  PR has merged into `main`.
+- Every housekeeping command, like every command of `human_steps` (§4), goes into the chat when it is due, one fenced
+  PowerShell block per command, starting with `cd D:\prime-game` (or the folder it runs in), for example:
+  ```powershell
+  cd D:\prime-game; tools\run.cmd worktree-done 42
+  ```
+  Where running it yourself would do the human's step or prompt, preview it instead (`git worktree list` shows the
+  worktree is there; `--dry-run` where the command has one). The wave comment may list it too, never instead.
+<!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
 
 ## 9. Gotchas
 
