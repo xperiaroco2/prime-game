@@ -860,7 +860,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (`Input.action_press`), `button <text>` (the one visible, enabled Button with that text takes the focus and gets
   `ui_accept`'s key; none or several fail the step), `frames N` and `shot <name>`. A text wait asserts a short, stable
   part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario edit,
-  and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). The windows sit
+  and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
+  (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit
   at `shot`'s off-screen position with the dummy audio driver, never headless. The game gets a pointer that only
   remembers, and playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse
   (`use`, spectate cycling) is out of its reach. PNGs: `tools/out/playcheck/<scenario>/<shot>.png` (`gh` cannot

@@ -9,8 +9,9 @@ draws nothing), started by tools/playcheck/playcheck_window.gd with the command 
 --host --local) and its local clients (--join=127.0.0.1); the players after them are bots, one headless process of
 tests/harness/playcheck/playcheck_bots_main.gd that plays the scripts of a BotScenario over ENet. Each window runs
 its own steps. A wait reads only that window's own client: its ClientSession and ClientModel (the host's own client
-included), its Esc menu and its pointer; never HostSession, the match or core/ (invariant 2), so a window that draws
-before its filtered event arrived is not hidden by a wait on the host's state. PNGs go to
+included), its Esc menu and its pointer, and what its Ui and current camera draw (#275); never HostSession, the match
+or core/ (invariant 2), so a window that draws before its filtered event arrived is not hidden by a wait on the
+host's state. PNGs go to
 tools/out/playcheck/<scenario>/<shot>.png; logs to tools/out/logs/playcheck/<scenario>/.
 
 The scenario file: one line each, `#` starts a comment. The header comes first:
@@ -54,7 +55,9 @@ a text to wait for or a button's text holds none.
 
 The fields are read from the window's own Ui (GameUi) and current camera only, never HostSession, the match or core/
 (invariant 2); playcheck_window.gd's GameView has the same keys as FIELDS (a test holds them equal). Assert short,
-stable parts with `has`/`lacks`: the HUD's wording is greybox (#150) and will change.
+stable parts with `has`/`lacks`: the HUD's wording is greybox (#150) and will change. A hidden field reads as "", so
+`lacks` (and `wait shown <field> off`) holds at once while the field is hidden: put a `has` or `wait shown <field> on`
+on the same field before it.
 
 A run fails on a step that times out or cannot run (its window prints the step's line and what it saw, saves
 failed-window-<n>.png and exits 1), an engine error line or a non-zero exit of any process, a window that did not
