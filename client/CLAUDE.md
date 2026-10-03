@@ -81,7 +81,8 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
 - Logic that can live outside a scene should (the flow, snapshot interpolation, stamina prediction, spectate
   targets, countdowns, HUD texts), so it can be unit-tested headless in `tests/unit/client/`.
 - Physics runs headless: the controller through a `ClientSession` over a `LoopbackHub` to a `HostSession`, and the
-  downed camera against a wall, go in `tests/integration/client/`.
+  downed camera against a wall, go in `tests/integration/client/`. Each of several `Game`s in one test gets a
+  `SubViewport` with `own_world_3d` (`net_pair.gd`): in one world the others' remote bodies push its player (#238).
 - Key events do run headless: `Input.parse_input_event(event)` then `Input.flush_buffered_events()` reaches
   `_input`, `_unhandled_input` and the action states (#169's `esc_menu_input_test.gd`); release every key a test
   holds. The mouse mode does not (headless keeps none): give `Game` a `MousePointer` that remembers. How the UI
