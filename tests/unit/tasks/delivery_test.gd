@@ -302,6 +302,32 @@ func test_a_delivered_package_cannot_be_picked_up_and_shows_as_locked() -> void:
 	assert_array(game.view_of(P1).events_named(&"PackageDelivered")).has_size(1)
 
 
+func test_a_delivered_package_that_rests_again_is_not_delivered_twice() -> void:
+	# Only a package of an undone subtask is delivered. No part moves a delivered (locked) package
+	# today; should a later one put it on the ground again (set by hand here), its item_rested
+	# finds its subtask done and does nothing.
+	var game := FixtureDeliveryModes.in_round(FixtureDeliveryModes.basic(2), [P1, P2])
+	var task := FixtureDeliveryModes.task_of(game)
+	var package := FixtureDeliveryModes.package_of(game, task, 0)
+	var circle := FixtureDeliveryModes.circle_of(game, task, 0)
+	FixtureDeliveryModes.carry_to(game, P1, package, circle.position)
+	assert_int(package.where).is_equal(ItemState.Where.LOCKED)
+	var notes := FixtureModes.notes(game)
+	package.where = ItemState.Where.GROUND
+	var seen := game.view_of(P2).events.size()
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	Items.raise_rested(ctx, package, Items.PUT_DOWN)
+	assert_int(package.where).is_equal(ItemState.Where.GROUND)
+	assert_array(game.view_of(P2).events.slice(seen)).is_empty()
+	assert_int(task.state.done_count()).is_equal(1)
+	assert_array(FixtureModes.notes(game)).is_equal(notes)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_a_replay_deals_and_delivers_the_same() -> void:
 	# One package spawns inside its own circle: the replay must deal it there and deliver it.
 	var found := FixtureModes.layouts()
