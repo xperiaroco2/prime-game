@@ -115,7 +115,7 @@ func test_a_flushed_speaker_is_silent_within_the_fade_while_frames_keep_coming()
 			silent_at = Time.get_ticks_msec() - flushed_at
 		elif peak > SILENT_DB and silent_at >= 0:
 			loud_after += 1
-	assert_int(silent_at).is_between(0, VoiceJitter.FADE_USEC / 1000 + MIX_SLACK_MS)
+	assert_int(silent_at).is_between(0, roundi(VoiceJitter.FADE_USEC / 1000.0) + MIX_SLACK_MS)
 	assert_int(loud_after).is_equal(0)
 	assert_bool(faded).is_true()
 	assert_bool(_world.voices.speaker_of(TALKER).is_active()).is_false()
