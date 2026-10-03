@@ -66,7 +66,9 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
     (§7.1, §9.4);
   - a **transition table** of rows *from phase, outcome → to phase, actions*.
 - An intent the phase's allowlist does not name, or from a sender it does not name, is rejected (`not_accepted`;
-  the senders are a newcomer, any player, the living, the downed or the host). Two exceptions (3e, #97; §4.3): a refused
+  the senders are a newcomer, any player, the living, the downed or the host; a player who left, still on the roster in
+  Round and End, is refused under every one, and the dead only take the host's session controls; tests:
+  `tests/unit/match/match_test.gd` and `match_accepts_test.gd`). Two exceptions (3e, #97; §4.3): a refused
   `MoveClaim` is dropped without `Rejected` (E15), and a refused `Hello` from a peer that is not a player gets
   `joins_closed`, with `DisconnectPeer` when it is a newcomer (E14). An accepted intent goes to the phase class, or to the
   content part that handles it (an action such as pick up or a throw #37; §9.2: the rule of the
@@ -1772,7 +1774,9 @@ off-screen windows at the named steps of a scripted run, and the playtests of th
   voice routing (who hears whom). `Match.view_of(peer)` returns that peer's events in order, its snapshot for every
   tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The per-tick
   snapshots and speakers are recorded only with `Match.keep_history` on (off by default: about 1 GiB for 10 players
-  over 10 minutes); the tests and the leak test turn it on, a real host does not. The M3 leak test
+  over 10 minutes); the tests and the leak test turn it on, a real host does not. `snapshot_for(peer)`, what `server/`
+  sends each tick, is empty for anyone but a present player, and in a phase that sends no snapshots
+  (`tests/unit/match/view_of_test.gd`). The M3 leak test
   compares what each bot actually decoded (voice frames included) with `view_of` of its peer; anything received that
   `view_of` does not hold is a leak (§4.6: the events exactly, the snapshots' avatars and the voice frames as
   subsets).
