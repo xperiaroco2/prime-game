@@ -44,9 +44,11 @@ var frames_run := 0
 var out_dir := ""
 ## The command log written for a failed scenario, or "".
 var replay_path := ""
+## The leak test over the host's match, fed by the observer (record_tick after every tick); null
+## before the start's call.
+var leaks: LeakCheck
 
 var _invariants: ScenarioInvariants
-var _leaks: LeakCheck
 
 
 func _init(bot_scenario: BotScenario) -> void:
@@ -182,14 +184,20 @@ func _on_call(at_tick: int, command: MatchCommand, slice: Array[EmittedEvent]) -
 		game = session.game
 		game.keep_history = true
 		_invariants = ScenarioInvariants.new(game, scenario, peers)
-		_leaks = LeakCheck.new(game)
-	for problem: String in _invariants.check_call(command, slice):
+		leaks = LeakCheck.new(game)
+	for problem: String in _check_invariants(command, slice):
 		failures.append("invariant at tick %d: %s" % [at_tick, problem])
 	for emitted: EmittedEvent in slice:
 		if emitted.event.event_name() == MATCH_ENDED:
 			ends.append(StringName(str(emitted.event.to_dict().get("side", ""))))
 	if command == null:
-		_leaks.record_tick(at_tick)
+		leaks.record_tick(at_tick)
+
+
+## The broken §5 invariants of one Match call (ScenarioInvariants.check_call). A test's runner
+## overrides it to see a planted leak caught by LeakCheck alone.
+func _check_invariants(command: MatchCommand, slice: Array[EmittedEvent]) -> PackedStringArray:
+	return _invariants.check_call(command, slice)
 
 
 func _check_after() -> void:
@@ -198,14 +206,14 @@ func _check_after() -> void:
 	for line: String in game.diagnostics:
 		if line.begins_with("error:"):
 			failures.append("match %s" % line)
-	_leaks.set_seeds(_invariants.seeds())
+	leaks.set_seeds(_invariants.seeds())
 	var views: Dictionary[String, DecodedView] = {}
 	for bot: ScenarioBot in bots:
 		var client: BotClient = clients.get(bot.number)
 		if client == null:
 			continue
 		var label := "bot %d" % bot.number
-		failures.append_array(_leaks.check_bot(label, bot.peer, client.view, bot.gone))
+		failures.append_array(leaks.check_bot(label, bot.peer, client.view, bot.gone))
 		failures.append_array(
 			LeakCheck.check_counters(
 				label, bot.peer, client.transport(), client.bad_payloads, one_process
@@ -214,11 +222,11 @@ func _check_after() -> void:
 		if bot.peer == 0:
 			continue
 		if one_process:
-			failures.append_array(_leaks.check_voice_streams(label, bot.peer, client.view))
+			failures.append_array(leaks.check_voice_streams(label, bot.peer, client.view))
 		views[label] = client.view
-	failures.append_array(_leaks.check_tasks(views))
+	failures.append_array(leaks.check_tasks(views))
 	for watcher: BotWatcher in [lurker, refused]:
-		failures.append_array(_leaks.check_watcher(watcher))
+		failures.append_array(leaks.check_watcher(watcher))
 		failures.append_array(
 			LeakCheck.check_counters(
 				watcher.label, watcher.peer, watcher.transport, watcher.undecodable, one_process

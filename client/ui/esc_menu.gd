@@ -1,8 +1,9 @@
 class_name EscMenu
 extends Control
 ## Esc's menu (ARCHITECTURE §4.7, #169): the tabs on the left (Resume; Lobby in the lobby and the
-## countdown; Leave; Quit) and the selected tab's page on the right. The Lobby tab is LobbyPanel:
-## the roster, Ready and the match settings (the host's to change, read-only for everyone else).
+## countdown; Voice; Leave; Quit) and the selected tab's page on the right. The Lobby tab is
+## LobbyPanel: the roster, Ready and the match settings (the host's to change, read-only for
+## everyone else). The Voice tab is VoicePanel (M5-6), which the game feeds and listens to.
 ## On the host, Leave and Quit end the session for every player, so their tabs ask first; closing
 ## the window asks the same. What it shows and does is EscMenuState's; this draws it.
 
@@ -13,6 +14,7 @@ signal quit_requested
 const TAB_NAMES: Dictionary[EscMenuState.Tab, String] = {
 	EscMenuState.Tab.RESUME: "Resume",
 	EscMenuState.Tab.LOBBY: "Lobby",
+	EscMenuState.Tab.VOICE: "Voice",
 	EscMenuState.Tab.LEAVE: "Leave",
 	EscMenuState.Tab.QUIT: "Quit",
 }
@@ -23,6 +25,7 @@ const PAGE_SIZE := Vector2(460, 440)
 
 var state := EscMenuState.new()
 var lobby := LobbyPanel.new()
+var voice := VoicePanel.new()
 var tab_buttons: Dictionary[EscMenuState.Tab, Button] = {}
 var resume_page := VBoxContainer.new()
 var confirm_box := VBoxContainer.new()
@@ -61,6 +64,8 @@ func _init() -> void:
 	stack.add_child(resume_page)
 	lobby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stack.add_child(lobby)
+	voice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stack.add_child(voice)
 	confirm_box.theme_type_variation = &"EscPage"
 	warning_label.text = HOST_WARNING
 	warning_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -133,6 +138,8 @@ func page() -> Control:
 	match state.selected:
 		EscMenuState.Tab.LOBBY:
 			return lobby
+		EscMenuState.Tab.VOICE:
+			return voice
 		EscMenuState.Tab.LEAVE, EscMenuState.Tab.QUIT:
 			return confirm_box
 	return resume_page
@@ -156,7 +163,7 @@ func _sync() -> void:
 		button.visible = state.has_tab(tab)
 		button.set_pressed_no_signal(state.selected == tab)
 	var shown := page()
-	for each: Control in [resume_page, lobby, confirm_box]:
+	for each: Control in [resume_page, lobby, voice, confirm_box]:
 		each.visible = each == shown
 	if state.asking():
 		var what := TAB_NAMES[state.selected]

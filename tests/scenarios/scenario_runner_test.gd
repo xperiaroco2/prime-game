@@ -4,6 +4,7 @@ extends GdUnitTestSuite
 ## something. Scenarios built in code.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
+const VOICE_BEYOND := "res://content/scenarios/voice_beyond_the_radius.tres"
 
 
 func test_a_target_the_bot_cannot_know_fails() -> void:
@@ -171,6 +172,81 @@ func test_the_invariants_catch_a_break_of_the_voice_invariant() -> void:
 	assert_str(found).not_contains("downed peer 1002 hears 1,")
 
 
+func test_the_invariants_catch_a_voice_beyond_the_phase_s_hearing_radius() -> void:
+	# The distance invariant (§5, E45), apart from the voice rule: peer 1 at the origin in the
+	# lobby, whose hearing radius is 8 m. The control first: a speaker exactly 8 m away passes.
+	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], [], []]))
+	assert_array(Array(runner.failures)).is_empty()
+	var leaky := LeakyMatch.new(runner.game)
+	assert_str(leaky.phase_id()).is_equal("lobby")
+	var players := leaky.state.players
+	players[1].position = Vector3.ZERO
+	players[1002].position = Vector3(8, 0, 0)
+	players[1003].position = Vector3(6, 6, 0)
+	leaky.heard_by = {
+		1: PackedInt32Array([1002]), 1002: PackedInt32Array(), 1003: PackedInt32Array()
+	}
+	var invariants := ScenarioInvariants.new(leaky, runner.scenario)
+	assert_array(Array(invariants.check_tick())).is_empty()
+	# In 3D: 6 m across and 6 m up is 8.485 m.
+	leaky.heard_by[1] = PackedInt32Array([1002, 1003])
+	var found := "\n".join(invariants.check_tick())
+	assert_str(found).contains(
+		"peer 1 hears 1003 from 8.485 m, beyond the phase's hearing radius of 8.000 m"
+	)
+	assert_str(found).not_contains("hears 1002")
+	players[1002].position = Vector3(8.01, 0, 0)
+	assert_str("\n".join(invariants.check_tick())).contains("peer 1 hears 1002 from 8.010 m")
+	# A phase whose hearing radius is 0 hears nobody, however close.
+	leaky.phase = &"loading"
+	players[1002].position = Vector3(0.5, 0, 0)
+	leaky.heard_by[1] = PackedInt32Array([1002])
+	assert_str("\n".join(invariants.check_tick())).contains(
+		"peer 1 hears 1002 in a phase whose hearing radius is 0"
+	)
+
+
+func test_a_round_voice_past_its_radius_fails_voice_beyond_the_radius() -> void:
+	# M5-1's planted leak in the core runner: the round's rule hears every present living speaker
+	# at any distance, and the distance invariant fails the scenario once the bots stand apart;
+	# without the plant it passes (scenarios_test).
+	var scenario := (load(VOICE_BEYOND) as BotScenario).duplicate() as BotScenario
+	scenario.mode = FixtureRoundVoicePastItsRadius.planted_in(scenario.mode)
+	var found := _text(ScenarioRunner.play(scenario))
+	assert_str(found).contains("tick ").contains(": peer 1 hears 1002 from ")
+	assert_str(found).contains("beyond the phase's hearing radius of 8.000 m")
+
+
+func test_the_distance_invariant_compares_as_voice_rule_within_does_at_the_edge() -> void:
+	# The same comparison as VoiceRule.within, the distance squared against the radius squared, so
+	# a pair a few float steps either side of 8 m gets the routing's verdict, never another one.
+	var game := FixtureVoiceMatch.in_lobby(SilentVoice.new(), [1, 2])
+	var ear := game.state.player(1)
+	var mouth := game.state.player(2)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 215
+	var verdicts: Dictionary[bool, int] = {true: 0, false: 0}
+	for i in 400:
+		ear.position = Vector3(
+			rng.randf_range(-20, 20), rng.randf_range(0, 3), rng.randf_range(-20, 20)
+		)
+		var direction := (
+			Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1))
+			. normalized()
+		)
+		mouth.position = ear.position + direction * (8.0 + rng.randf_range(-0.00002, 0.00002))
+		var routed := VoiceRule.within(game.state, 1, 2, 8.0)
+		var problem := ScenarioInvariants.distance_problem(ear.position, mouth.position, 8.0)
+		(
+			assert_bool(problem.is_empty())
+			. override_failure_message("%s to %s: %s" % [ear.position, mouth.position, problem])
+			. is_equal(routed)
+		)
+		verdicts[routed] += 1
+	assert_int(verdicts[true]).is_greater(0)
+	assert_int(verdicts[false]).is_greater(0)
+
+
 func test_the_invariants_catch_an_event_that_reaches_the_dead_and_not_every_living_peer() -> void:
 	var runner := ScenarioRunner.play(_scenario([[StepReady.new()], [], []]))
 	assert_array(Array(runner.failures)).is_empty()
@@ -268,17 +344,25 @@ func test_fields_name_players_by_bot_number() -> void:
 	)
 
 
-## A match whose snapshots and voice routing show what a test plants, over another match's state.
+## A match whose snapshots and voice routing show what a test plants, over another match's state
+## and phase.
 class LeakyMatch:
 	extends Match
 	var avatars: Dictionary = {}
 	var speakers := PackedInt32Array()
 	## Listener -> its speakers; a listener not here hears `speakers`.
 	var heard_by: Dictionary[int, PackedInt32Array] = {}
+	## The phase it reports, or the played match's when empty.
+	var phase := &""
+	var _played: Match
 
 	func _init(played: Match) -> void:
 		super(played.mode, 1, FlatWorldQuery.new(), {})
 		state = played.state
+		_played = played
+
+	func phase_id() -> StringName:
+		return phase if not phase.is_empty() else _played.phase_id()
 
 	func snapshot_for(_peer: int) -> Dictionary:
 		return {"avatars": avatars}

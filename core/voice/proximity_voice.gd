@@ -16,6 +16,10 @@ func hears(state: MatchState, listener: int, speaker: int) -> bool:
 	return within(state, listener, speaker, radius_m)
 
 
+func hearing_radius_m() -> float:
+	return radius_m
+
+
 func check(_mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
 	append_found(found, [radius_out_of_bounds("radius_m", radius_m)])

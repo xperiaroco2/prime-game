@@ -127,3 +127,49 @@ func test_a_downed_player_is_never_in_the_sprint_state_and_regenerates() -> void
 	assert_bool(downed.sprinting).is_false()
 	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()
 	assert_bool(last.sprint_available).is_false()
+
+
+func test_a_claims_ticks_are_settled_each_with_its_own_flags() -> void:
+	# simulate_ticks (#155): oldest first, a sprint tick, a held tick without movement (the sprint
+	# state lasts, nothing spent), a sprint tick, a tick without sprint (the state ends).
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	FixtureModes.run_ticks(game, 4)
+	player.stamina = 20000
+	var now := game.ticked_through()
+	var held: Array[bool] = [true, true, true, false]
+	var moved: Array[bool] = [true, false, true, true]
+	var settled := StaminaLedger.simulate_ticks(
+		game.state.player(P1), _rules(game), now, held, moved
+	)
+	assert_int(settled.ticks).is_equal(4)
+	assert_int(settled.fast_ticks).is_equal(2)
+	assert_int(settled.stamina).is_equal(20000 - 1000 + 750 - 1000 + 750)
+	assert_bool(settled.sprinting).is_false()
+	assert_int(settled.settled_tick).is_equal(now)
+	assert_int(player.stamina).is_equal(20000)
+
+
+func test_ticks_past_the_host_tick_are_counted_for_speed_but_not_settled() -> void:
+	# Two of three ticks fit before the host's clock: the third is run on for fast_ticks only, and
+	# with no stamina left after the second it gets no sprint speed.
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	FixtureModes.run_ticks(game, 1)
+	player.stamina = 2000
+	player.sprinting = true
+	var now := player.stamina_settled_tick + 2
+	var held: Array[bool] = [true, true, true]
+	var moved: Array[bool] = [true, true, true]
+	var settled := StaminaLedger.simulate_ticks(player, _rules(game), now, held, moved)
+	assert_int(settled.ticks).is_equal(2)
+	assert_int(settled.stamina).is_equal(0)
+	assert_bool(settled.sprinting).is_true()
+	assert_int(settled.settled_tick).is_equal(now)
+	assert_int(settled.fast_ticks).is_equal(2)
+
+
+func _rules(game: Match) -> PlayerRules:
+	return game.state.player_rules

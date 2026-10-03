@@ -1,10 +1,18 @@
 extends GdUnitTestSuite
 ## The game (client/app/game.tscn, ARCHITECTURE §4.7) headless through a whole loop: a host and
-## two clients, three Game roots in one tree, each in a physics world of its own, over a
-## LoopbackHub on a simulated clock, go through the lobby, Ready, the countdown, loading, the
-## round, time up, the end screen and back to the lobby, then a client leaves and the host closes.
-## Each Game is driven through the methods its screens call (headless runs have no input); the
-## screens themselves are `shot`.
+## two clients, three Game roots in one tree over a LoopbackHub on a simulated clock, go through
+## the lobby, Ready, the countdown, loading, the round, time up, the end screen and back to the
+## lobby, then a client leaves and the host closes. Each Game is driven through the methods its
+## screens call (headless runs have no input); the screens themselves are `shot`.
+##
+## Each Game sits in a SubViewport with its own World3D, as on three machines (like NetPair): in
+## one shared physics space each player stood inside the body another game drew of it and was
+## pushed off its spot (#225, #238).
+##
+## The sessions fold the host's messages in physics steps, and under load several steps run in
+## one idle frame before Game._process shows the screen, so every wait for a screen also waits for
+## the Game to show it (#225). The player's step and input flags follow the phase from the physics
+## step that folds it: a loop with no Game._process from the lobby on proves it (#241).
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7300
@@ -68,12 +76,9 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	for game: Game in games:
 		assert_int(game.level_kind()).is_equal(PhaseSpec.Level.MAP)
 		assert_bool(game.mode.maps.has(game.level().scene_file_path)).is_true()
+		assert_bool(game.player().reads_device_input).is_true()
 	# Loading placed everyone with a Correction: the player stands where it said.
 	_assert_at_the_last_correction(games)
-	# The round's screen lets the player read the keys again.
-	await _drawn()
-	for game: Game in games:
-		assert_bool(game.player().reads_device_input).is_true()
 	# The others are shown at the newest snapshot's positions.
 	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
 	# With no input everyone still stands there half a second later, the others' bodies drawn
@@ -81,9 +86,16 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	for i in HOLD_FRAMES:
 		await get_tree().physics_frame
 	_assert_at_the_last_correction(games)
-	# Time up: the end screen names the winning side by its display name.
+	# Time up, with no Game._process (as when physics steps run ahead of it under load, #225): the
+	# model reaches the end screen, nothing has shown it yet, and a wait for it does not stop there.
+	for game: Game in games:
+		game.set_process(false)
+	assert_bool(await _until(games, _models_on.bind(games, S.END))).is_true()
+	assert_bool(_all_on(games, S.END, 3)).is_false()
+	for game: Game in games:
+		game.set_process(true)
+	# The end screen names the winning side by its display name.
 	assert_bool(await _until(games, _all_on.bind(games, S.END, 3))).is_true()
-	await _drawn()
 	for game: Game in games:
 		var winner := game.mode.find_side(game.client().model.winner)
 		assert_object(winner).is_not_null()
@@ -116,6 +128,60 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	await get_tree().process_frame
 
 
+func test_physics_steps_alone_stop_the_player_at_each_frozen_phase() -> void:
+	# From the lobby on no Game._process runs, as when physics steps run ahead of it under load
+	# (#225's method): the frozen state and the input flags follow each phase from the physics step
+	# that folds it (#241). Before, a player walking in the countdown kept walking (and falling,
+	# with no level) through Loading, and on past the round's placement.
+	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 5)])
+	var one := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 5)])
+	var two := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 5)])
+	var games: Array[Game] = [host, one, two]
+	for game: Game in games:
+		game.device_input = false
+		_corrections[game] = []
+		game.client().corrected.connect(_on_corrected.bind(game))
+	assert_bool(await _until(games, _all_on.bind(games, S.LOBBY, 3))).is_true()
+	host.change_setting(&"match_duration", 1)
+	assert_bool(await _until(games, _setting_is.bind(games, &"match_duration", 1))).is_true()
+	for game: Game in games:
+		game.set_process(false)
+		game.player().move_input = Vector2(0, 1)
+		game.set_ready(true)
+	var found: Dictionary[Game, Vector3] = {}
+	var stepped: Dictionary[Game, int] = {}
+	var watch := _round_watching_loading.bind(games, found, stepped)
+	assert_bool(await _until(games, watch)).is_true()
+	assert_int(found.size()).is_equal(games.size())
+	assert_int(stepped.size()).is_equal(0)
+	# The round's placement: everyone stands where it said.
+	_assert_at_the_last_correction(games)
+	# Time up; then the host's Back to lobby, still with no Game._process. End -> Lobby drops the
+	# others' bodies and places everyone in one host step, and the greybox lobby's markers share
+	# the round's coordinates: the player, stepping again from the next physics step, is pushed off
+	# its lobby Correction neither by a dropped body still in the space (#242) nor by another
+	# player drawn at its round spot from the round's snapshots behind the interpolation delay
+	# (seen in about half the runs before AvatarViews forgot them, as the spots are random).
+	assert_bool(await _until(games, _models_on.bind(games, S.END))).is_true()
+	for game: Game in games:
+		assert_bool(game.player().is_physics_processing()).is_false()
+		assert_bool(game.player().reads_device_input).is_false()
+	host.return_to_lobby()
+	assert_bool(await _until(games, _models_on.bind(games, S.LOBBY))).is_true()
+	# Three steps with the clock held, so a stale pose would stay drawn; then the others again.
+	for frame in 3:
+		await get_tree().physics_frame
+	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
+	for game: Game in games:
+		assert_bool(game.player().is_physics_processing()).is_true()
+	_assert_at_the_last_correction(games)
+	for game: Game in games:
+		assert_int(game.client().corrections).is_equal(0)
+		game.set_process(true)
+	host.leave()
+	await get_tree().process_frame
+
+
 func test_a_join_nobody_answers_returns_to_the_menu_with_the_reason() -> void:
 	var lonely := _game(["--join=127.0.0.1", "--port=%d" % (PORT + 1)])
 	assert_bool(await _until([lonely], func() -> bool: return lonely.client() == null)).is_true()
@@ -144,25 +210,50 @@ func test_a_port_alone_fills_the_menu_and_the_tree_gets_its_quit_back() -> void:
 	assert_int(game.screen()).is_equal(S.MENU)
 	assert_int(game.ui.menu.port()).is_equal(PORT + 3)
 	assert_bool(get_tree().auto_accept_quit).is_false()
-	remove_child(game.get_parent())
+	game.get_parent().remove_child(game)
 	assert_bool(get_tree().auto_accept_quit).is_true()
 
 
-## A Game in a SubViewport with a physics world of its own, as on its own machine (net_pair.gd
-## does the same): in one shared world each Game's RemotePlayerBody of another player would stand
-## inside that player's own PlayerController, and the push would slide every player off its spot.
+func test_the_game_makes_the_buses_and_its_voices_under_the_world() -> void:
+	var game := _game([])
+	for bus: StringName in [AudioBuses.VOICE, AudioBuses.EFFECTS, AudioBuses.MUSIC]:
+		assert_int(AudioBuses.index_of(bus)).is_greater(0)
+	assert_object(game.voices().get_parent()).is_same(game.get_node(^"World"))
+	# The addon's codec by default: unavailable where the addon is absent, and then nothing plays.
+	assert_object(game.voice_codec).is_instanceof(TwoVoipCodec)
+	assert_object(game.life().ears()).is_not_null()
+
+
+func test_a_session_end_forgets_the_voices_flushes() -> void:
+	# Host ticks start again at 0 in the next session and the host is always peer 1: a flush kept
+	# from this session would mute it there until the new ticks passed the old one.
+	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 4)])
+	var welcomed := func() -> bool: return host.client().model.own_peer != 0
+	assert_bool(await _until([host], welcomed)).is_true()
+	var voices := host.voices()
+	voices.on_snapshot(500, {})
+	voices.fade(2)
+	assert_int(voices.flushed_at(2)).is_equal(500)
+	host.leave()
+	assert_object(host.client()).is_null()
+	assert_int(voices.flushed_at(2)).is_equal(-1)
+	assert_object(voices.model).is_null()
+	await get_tree().process_frame
+
+
 func _game(args: Array[String]) -> Game:
-	var viewport := SubViewport.new()
-	viewport.own_world_3d = true
-	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	add_child(viewport)
-	auto_free(viewport)
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
 	game.make_transport = _transport
-	viewport.add_child(game)
+	var machine := SubViewport.new()
+	machine.own_world_3d = true
+	machine.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	machine.add_child(game)
+	add_child(machine)
+	auto_free(game)
+	auto_free(machine)
 	return game
 
 
@@ -195,22 +286,40 @@ func _until(_games: Array[Game], done: Callable) -> bool:
 	return done.call()
 
 
-## Waits until every Game has run its _process since the state `_until` saw: the screens' labels
-## and buttons and the player's reads_device_input are written there, once a frame. Under load
-## several physics frames run inside one idle frame, before its _process, and process_frame is
-## emitted before that frame's _process: the second one comes after a _process that saw the state.
-func _drawn() -> void:
-	await get_tree().process_frame
-	await get_tree().process_frame
-
-
+## Every game is on `screen` with `players` in its roster, and its Game._process has shown that
+## screen: the screens' texts change only there (the player's flags follow each event, #241).
 func _all_on(games: Array[Game], screen: S, players: int) -> bool:
 	for game: Game in games:
-		if game.client() == null or game.screen() != screen:
+		if game.client() == null or game.screen() != screen or game.ui.screen != screen:
 			return false
 		if game.client().model.roster.size() != players:
 			return false
 	return true
+
+
+## Every game's model is on `screen`, whether or not its Game has shown it yet.
+func _models_on(games: Array[Game], screen: S) -> bool:
+	for game: Game in games:
+		if game.client() == null or game.screen() != screen:
+			return false
+	return true
+
+
+## Every game's model is on the round. Until then each game whose model is in Loading counts in
+## `stepped` every physics frame its player still steps or stands off where Loading found it
+## (`found`), checked at the start of each physics frame, after the steps of the frame before.
+func _round_watching_loading(
+	games: Array[Game], found: Dictionary[Game, Vector3], stepped: Dictionary[Game, int]
+) -> bool:
+	for game: Game in games:
+		if game.client() == null or game.screen() != S.LOADING:
+			continue
+		var player := game.player()
+		if not found.has(game):
+			found[game] = player.global_position
+		if player.is_physics_processing() or player.global_position != found[game]:
+			stepped[game] = stepped.get(game, 0) + 1
+	return _models_on(games, S.ROUND)
 
 
 func _setting_is(games: Array[Game], id: StringName, value: int) -> bool:

@@ -1,11 +1,16 @@
 class_name WorldSounds
 extends Node3D
 ## Plays M4's placeholder world sounds (ARCHITECTURE §4.7; the M4 ADR's D9, E33 (a); M4-8): for
-## each event SoundChooser picks within the hearing range of the listener's camera, a one-shot
-## AudioStreamPlayer3D at its place, with `max_distance` the same range, freed when it ends.
+## each event SoundChooser picks within the hearing range of the ears (E40's amendment of E33:
+## the current AudioListener3D, LifeView's Ears), a one-shot AudioStreamPlayer3D at its place on
+## the Effects bus (D15), with `max_distance` the same range, freed when it ends.
+## As it starts, one ray from the ears to the sound's aim (SoundChooser.SWING_AIM_M or ITEM_AIM_M
+## above it) against the world layer of the client's own level (the M5 ADR §1.6, E42 (a), D13 (a);
+## M5-7): behind the level it plays muffled (Muffle: 8 dB quieter, on the muffled Effects bus's
+## low-pass), and stays so to its end (0.15 s).
 ##
 ## The sounds are short blips built in code (no asset, nothing downloaded): placeholders, until
-## CC0 sounds are picked with their docs/credits/ entries (D9, a human step).
+## the engineer's CC0 files arrive with their docs/credits/ entries (D9; #144).
 
 ## Samples per second of the generated blips.
 const MIX_RATE := 22050
@@ -15,12 +20,15 @@ var model: ClientModel
 var avatars: AvatarViews
 ## The local player: where the own swing is.
 var player: PlayerController
-## The listener's position; the viewport's current camera unless a test sets one. Called with no
-## arguments, returns a Vector3, or null for no listener (no sound).
+## The listener's position: the viewport's current AudioListener3D (the ears), else its current
+## camera, unless a test sets one. Called with no arguments, returns a Vector3, or null for no
+## listener (no sound).
 var listener := Callable()
 
 var _streams: Dictionary[StringName, AudioStreamWAV] = {}
 var _played := 0
+var _rays := 0
+var _muffled := 0
 
 
 func _init() -> void:
@@ -36,7 +44,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if listener.is_valid():
 		heard_from = listener.call()
 	else:
-		heard_from = _camera_position()
+		heard_from = _ears_position()
 	if not heard_from is Vector3:
 		return
 	var sound := SoundChooser.choose(event_name, fields, model, position_of, heard_from as Vector3)
@@ -46,6 +54,10 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	sound_player.name = "Sound%d" % _played
 	sound_player.stream = _streams[sound.id]
 	sound_player.max_distance = SoundChooser.HEARING_RANGE_M
+	var muffle := Muffle.new()
+	muffle.follow(_blocked(heard_from as Vector3, sound.aim), 0.0)
+	sound_player.volume_db = muffle.volume_db()
+	sound_player.bus = muffle.bus_for(AudioBuses.EFFECTS)
 	sound_player.position = sound.position
 	sound_player.finished.connect(sound_player.queue_free)
 	add_child(sound_player)
@@ -56,6 +68,16 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 ## How many sounds were started (tests).
 func played() -> int:
 	return _played
+
+
+## How many rays were cast, one per sound started (tests).
+func rays() -> int:
+	return _rays
+
+
+## How many of the sounds started were muffled (tests).
+func muffled() -> int:
+	return _muffled
 
 
 ## Where `peer` is as this client draws it: the local player, or another player's body; null when
@@ -97,8 +119,25 @@ static func blip(id: StringName) -> AudioStreamWAV:
 	return stream
 
 
-func _camera_position() -> Variant:
-	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+## The one ray from the ears `from` to the sound's aim `to`; outside the tree nothing is in the way.
+func _blocked(from: Vector3, to: Vector3) -> bool:
+	if not is_inside_tree():
+		return false
+	_rays += 1
+	var blocked := Muffle.blocked(get_world_3d().direct_space_state, from, to)
+	if blocked:
+		_muffled += 1
+	return blocked
+
+
+## The current AudioListener3D's position (the ears), else the current camera's, else null.
+func _ears_position() -> Variant:
+	if not is_inside_tree():
+		return null
+	var ears := get_viewport().get_audio_listener_3d()
+	if ears != null:
+		return ears.global_position
+	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return null
 	return camera.global_position

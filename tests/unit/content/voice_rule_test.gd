@@ -86,5 +86,41 @@ func test_the_invariant_holds_on_every_tick_as_life_states_change() -> void:
 	assert_int(checked).is_greater(0)
 
 
+func test_the_base_class_hears_nobody_and_its_hearing_radius_is_0() -> void:
+	# E41: the client's cutoff for a rule that routes nobody.
+	var game := FixtureVoiceMatch.in_round(VoiceRule.new(), PEERS)
+	for peer: int in PEERS:
+		FixtureVoiceMatch.put(game, peer, Vector3.ZERO)
+	for peer: int in PEERS:
+		assert_array(FixtureVoiceMatch.tick_and_hear(game, peer)).is_empty()
+	var rule := game.mode.find_phase(game.phase_id()).voice_rule
+	assert_float(rule.hearing_radius_m()).is_equal(0.0)
+	assert_float(VoiceRule.radius_of(rule)).is_equal(0.0)
+
+
+func test_a_phase_with_no_voice_rule_hears_nobody_and_its_radius_is_0() -> void:
+	# VoiceRule.radius_of(null): the one helper the client and the leak test read (E41).
+	var mode := FixtureVoiceMatch.mode(null, FixtureEveryoneHears.new())
+	var game := FixtureModes.started(mode, PEERS)
+	for peer: int in PEERS:
+		FixtureVoiceMatch.put(game, peer, Vector3.ZERO)
+	assert_str(game.phase_id()).is_equal("lobby")
+	for peer: int in PEERS:
+		assert_array(FixtureVoiceMatch.tick_and_hear(game, peer)).is_empty()
+		assert_bool(game.view_of(peer).speakers.has(game.ticked_through())).is_true()
+	assert_object(game.mode.find_phase(game.phase_id()).voice_rule).is_null()
+	assert_float(VoiceRule.radius_of(null)).is_equal(0.0)
+
+
+func test_radius_of_reads_the_rule_s_own_hearing_radius() -> void:
+	var near := ProximityVoice.new()
+	near.radius_m = 12.5
+	var round_voice := RoundVoice.new()
+	round_voice.living_m = 3.25
+	assert_float(VoiceRule.radius_of(near)).is_equal(12.5)
+	assert_float(VoiceRule.radius_of(round_voice)).is_equal(3.25)
+	assert_float(VoiceRule.radius_of(SilentVoice.new())).is_equal(0.0)
+
+
 func _in_round() -> Match:
 	return FixtureVoiceMatch.in_round(FixtureEveryoneHears.new(), PEERS)

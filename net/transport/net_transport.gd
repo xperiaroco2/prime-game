@@ -62,6 +62,13 @@ var _inbox: Array[Inbound] = []
 var _first_pending_reject_ms := -1
 ## Counts closes, so a drain notices a handler that closed and hosted or joined again.
 var _session := 0
+## What send() handed to in-process links other than the host's own client since the last
+## take_upload(): frame bytes and frames, plain ints. take_upload() returns them as a Vector2i,
+## whose ints are 32-bit: right while a caller takes them every tick, as a debug build's
+## HostSession does around its sends (a tick's upload is far below 2^31 bytes; RelayMeter keeps
+## the 64-bit totals). Untaken (a release build) they grow as plain ints and never wrap.
+var _upload_bytes := 0
+var _upload_frames := 0
 
 
 class Inbound:
@@ -143,12 +150,18 @@ func send(to_peer: int, kind: int, payload: PackedByteArray) -> Error:
 	var lane := _kinds.lane_of(kind)
 	if from_host and _links.has(to_peer):
 		_links[to_peer]._push_packet(HOST_ID, bytes, lane)
+		if to_peer != HOST_ID:
+			_upload_bytes += bytes.size()
+			_upload_frames += 1
 		return OK
 	if not from_host and _link_host != null:
 		var host_side := _link_host.get_ref() as NetTransport
 		if host_side == null:
 			return ERR_CONNECTION_ERROR
 		host_side._push_packet(_own_id, bytes, lane)
+		if _own_id != HOST_ID:
+			_upload_bytes += bytes.size()
+			_upload_frames += 1
 		return OK
 	return _backend_send(to_peer, bytes, lane)
 
@@ -229,6 +242,18 @@ func receive_bytes(
 	var frame := _decoded(from_peer, bytes, channel, mode)
 	if frame != null:
 		packet_received.emit(from_peer, frame.kind, frame.payload)
+
+
+## What this side sent towards other machines since the last call, as (bytes, datagrams), and
+## counting starts again (the host's debug counters, ARCHITECTURE §4.5, E47). ENet: its host's
+## statistics (ENetConnection.pop_statistic), ENet's headers and its own acknowledgements and pings
+## included, IP and UDP not; the loopback: the frames sent to linked peers, a stand-in for tests,
+## one datagram each. The host's own client's link never counts: it never reaches a network.
+func take_upload() -> Vector2i:
+	var found := Vector2i(_upload_bytes, _upload_frames)
+	_upload_bytes = 0
+	_upload_frames = 0
+	return found
 
 
 ## Counts a message that the layer above dropped after the transport passed it (server/'s

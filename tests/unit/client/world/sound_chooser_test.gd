@@ -21,6 +21,8 @@ func test_a_swing_plays_at_the_swinger_within_the_range() -> void:
 	assert_object(sound).is_not_null()
 	assert_str(String(sound.id)).is_equal(String(SoundChooser.SWING))
 	assert_that(sound.position).is_equal(Vector3(3, 0, 4))
+	# The occlusion ray aims at about the swinger's chest, not its feet (M5-7).
+	assert_that(sound.aim).is_equal(Vector3(3, SoundChooser.SWING_AIM_M, 4))
 	# A swinger the client draws nowhere makes no sound.
 	assert_object(_choose(&"Swung", {"peer": 9, "facing": Vector3.FORWARD}, Vector3.ZERO)).is_null()
 
@@ -30,6 +32,7 @@ func test_a_pickup_plays_where_the_item_lay() -> void:
 	var sound := _choose(&"ItemPickedUp", {"peer": 2, "item": 5}, Vector3(0, 0, 4))
 	assert_str(String(sound.id)).is_equal(String(SoundChooser.PICK_UP))
 	assert_that(sound.position).is_equal(Vector3(0, 0, 10))
+	assert_that(sound.aim).is_equal(Vector3(0, SoundChooser.ITEM_AIM_M, 10))
 	assert_object(_choose(&"ItemPickedUp", {"peer": 2, "item": 77}, Vector3.ZERO)).is_null()
 
 
@@ -39,6 +42,7 @@ func test_a_put_down_plays_at_its_position() -> void:
 	var sound := _choose(&"ItemPlaced", fields, Vector3.ZERO)
 	assert_str(String(sound.id)).is_equal(String(SoundChooser.PUT_DOWN))
 	assert_that(sound.position).is_equal(at)
+	assert_that(sound.aim).is_equal(at + Vector3.UP * SoundChooser.ITEM_AIM_M)
 
 
 func test_nothing_plays_beyond_the_hearing_range() -> void:

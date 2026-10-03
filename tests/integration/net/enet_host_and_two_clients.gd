@@ -10,7 +10,8 @@ extends SceneTree
 ## the forged peer id -5 (a negative target means "everyone but 5" to ENet) and must be turned
 ## away. A second in-process client joins and the host disconnects it (disconnect_peer): the host
 ## sees peer_left once, the client host_lost. The host sends every peer (its own client too) one
-## message per lane carrying that peer's id; each peer checks the id and echoes it. The host starts
+## message per lane carrying that peer's id (the first ones' upload counted at once, take_upload);
+## each peer checks the id and echoes it. The host starts
 ## refusing joins and proves it with a third ENet client in its own process. Client 3 leaves when
 ## told to. The host closes; client 2 and the host's own client see host_lost. No packet may be
 ## rejected anywhere: that also checks the lanes' channels and modes against real ENet.
@@ -182,8 +183,7 @@ func _host_step() -> void:
 				_host.set_refuse_new_connections(true)
 				print("NET host all joined %s; refusing new joins" % _peer_of_instance)
 				_phase = "ping"
-				for peer_id: int in _peer_of_instance.values():
-					_host.send(peer_id, TALK, ("ping %d" % peer_id).to_utf8_buffer())
+				_send_first_pings()
 		"ping":
 			_resend_unreliable_pings()
 			if _echoed.size() == 3 * LANES.size():
@@ -207,6 +207,30 @@ func _host_step() -> void:
 				_polls_after_lost += 1
 				if _polls_after_lost >= POLLS_AFTER_LOST:
 					_finish_host()
+
+
+## One reliable ping to every peer. Godot's put_packet flushes, so take_upload() right after holds
+## each remote ping's frame in a datagram of its own (ENet's headers on top), and the own client's
+## nothing (ARCHITECTURE §4.5, the host's counters).
+func _send_first_pings() -> void:
+	_host.take_upload()
+	var remote_bytes := 0
+	for peer_id: int in _peer_of_instance.values():
+		var payload := ("ping %d" % peer_id).to_utf8_buffer()
+		_host.send(peer_id, TALK, payload)
+		if peer_id != NetTransport.HOST_ID:
+			remote_bytes += payload.size() + NetFrame.HEADER_BYTES
+	var upload := _host.take_upload()
+	var remote := _peer_of_instance.size() - 1
+	if upload.y < remote or upload.x < remote_bytes:
+		_fail(
+			(
+				"the pings' upload was %d B in %d datagrams, expected at least %d B in %d"
+				% [upload.x, upload.y, remote_bytes, remote]
+			)
+		)
+		return
+	print("NET host the first pings went out as %d B in %d datagrams" % [upload.x, upload.y])
 
 
 func _resend_unreliable_pings() -> void:

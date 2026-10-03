@@ -91,6 +91,7 @@ class Fixture(unittest.TestCase):
         for patch in patches:
             patch.start()
             self.addCleanup(patch.stop)
+        self.addCleanup(gdunit.take_last_run)  # no run's record outlives its test (a worker runs many tests)
 
     def fake_godot(self, args: list[str], *, timeout: float, log: str, echo: bool = False,
                    env: dict[str, str] | None = None, on_start: Any = None) -> common.Result:  # fmt: skip
@@ -107,9 +108,11 @@ class Fixture(unittest.TestCase):
         # GdUnit4 reports no suite that has no test case (a base class).
         suites = [f for f in files if SUITES.get(f) and f not in how.get("drop", ())]
         report = self.root / args[args.index("-rd") + 1].removeprefix("res://") / "report_1"
-        report.mkdir(parents=True)
-        (report / "results.xml").write_text(results_xml(suites, how.get("fail", ""), self.seconds), encoding="utf-8")
-        return common.Result(how.get("rc", 0), how.get("out", ""), False, 2.0)
+        if not how.get("crash"):  # a crashed process writes no results.xml
+            report.mkdir(parents=True)
+            text = results_xml(suites, how.get("fail", ""), self.seconds)
+            (report / "results.xml").write_text(text, encoding="utf-8")
+        return common.Result(how.get("rc", 0), how.get("out", ""), how.get("timed_out", False), 2.0)
 
     def run_test(self, **kwargs: Any) -> tuple[int, str]:
         out = io.StringIO()
@@ -200,6 +203,106 @@ class ShardRunTest(Fixture):
         self.assertIn("(this checkout has no times yet)", source)
         self.siblings = ""
         self.assertEqual(gdunit.read_times(), ({}, "no times yet: every suite counts the same"))
+
+
+class HistoryRecordTest(Fixture):
+    """What a run leaves for verify's history record (#273): each process's exit and seconds, the failing tests."""
+
+    def last_run(self, **kwargs: Any) -> tuple[int, str, dict[str, Any]]:
+        rc, text = self.run_test(**kwargs)
+        record = gdunit.take_last_run()
+        assert record is not None, text
+        self.assertIsNone(gdunit.take_last_run(), "taken once")
+        return rc, text, record
+
+    def test_a_green_run_records_each_shard_and_no_tests(self) -> None:
+        rc, _text, record = self.last_run(shards=2)
+        self.assertEqual(rc, 0)
+        shards = [{"shard": 1, "rc": 0, "seconds": 2.0}, {"shard": 2, "rc": 0, "seconds": 2.0}]
+        self.assertEqual(record, {"shards": shards})
+
+    def test_a_red_shard_records_its_failing_tests_with_the_first_line_of_the_failure(self) -> None:
+        self.behaviour[2] = {"rc": 100, "fail": "res://tests/unit/a_test.gd"}
+        self.seconds = {"res://tests/unit/a_test.gd": 9.0}
+        (self.root / "tools" / "out" / "logs").mkdir(parents=True)
+        times = {"suites": {**dict.fromkeys(SUITES, 1.0), "res://tests/integration/c_test.gd": 20.0}}
+        (self.root / "tools" / "out" / "logs" / "gdunit-times.json").write_text(json.dumps(times), encoding="utf-8")
+        rc, _text, record = self.last_run(shards=2)
+        self.assertEqual(rc, 1)
+        self.assertEqual([(s["shard"], s["rc"]) for s in record["shards"]], [(1, 0), (2, 100)])
+        self.assertEqual(record["failed_tests"], [{"test": "a_test::test_one", "message": "Expecting: 1 but was 2"}])
+
+    def test_a_crashed_shard_records_its_exit_code_without_results(self) -> None:
+        self.behaviour[2] = {"rc": 3221225477, "crash": True}
+        rc, text, record = self.last_run(shards=2)
+        self.assertEqual(rc, 1)
+        self.assertIn("shard 2: GdUnit4 crashed or exited unexpectedly (exit 3221225477)", text)
+        self.assertEqual(record["shards"][1], {"shard": 2, "rc": 3221225477, "seconds": 2.0, "results": False})
+        self.assertEqual(record["shards"][0], {"shard": 1, "rc": 0, "seconds": 2.0})
+        self.assertNotIn("failed_tests", record)
+
+    def test_a_timed_out_shard_says_so(self) -> None:
+        self.behaviour[1] = {"rc": -1, "crash": True, "timed_out": True}
+        rc, _text, record = self.last_run(shards=2)
+        self.assertEqual(rc, 1)
+        self.assertEqual(record["shards"][0], {"shard": 1, "rc": -1, "seconds": 2.0, "timed_out": True,
+                                               "results": False})  # fmt: skip
+
+    def test_orphans_are_recorded_as_such_with_the_suite_and_test_names(self) -> None:
+        log = "Run Test Suite: res://tests/unit/b_test.gd\n  res://tests/unit/b_test.gd > test_b PASSED\n"
+        self.behaviour[2] = {"rc": 101, "out": log + "WARNING: Detected 2 possible orphan nodes.\n"}
+        rc, _text, record = self.last_run(shards=2)
+        self.assertEqual(rc, 1)
+        self.assertEqual(record["failed_tests"], [{"test": "b_test::test_b", "orphans": 2}])
+        self.assertEqual(record["shards"][1]["rc"], 101)
+
+    def test_a_one_process_run_records_its_process_as_shard_1(self) -> None:
+        self.behaviour[0] = {"rc": 100, "fail": "res://tests/unit/a_test.gd"}
+        rc, _text, record = self.last_run(paths=["tests/unit"])
+        self.assertEqual(rc, 1)
+        self.assertEqual(record["shards"], [{"shard": 1, "rc": 100, "seconds": 2.0}])
+        self.assertEqual([t["test"] for t in record["failed_tests"]], ["a_test::test_one"])
+
+    def test_the_record_is_capped(self) -> None:
+        many = [{"test": f"s::test_{i}", "message": "x"} for i in range(gdunit.RECORD_CAP + 5)]
+        gdunit._remember([], many)
+        record = gdunit.take_last_run()
+        assert record is not None
+        self.assertEqual(len(record["failed_tests"]), gdunit.RECORD_CAP)
+        self.assertEqual(record["failed_tests_more"], 5)
+        clipped = gdunit.clip("Expecting:\n" + "x" * 1000)
+        self.assertEqual(len(clipped), gdunit.MESSAGE_CAP)
+        self.assertTrue(clipped.startswith("Expecting: xxx") and clipped.endswith("..."))
+
+    def test_a_failure_without_a_body_keeps_its_message(self) -> None:
+        path = self.root / "r.xml"
+        path.write_text('<testsuites><testsuite name="s"><testcase name="t" classname="s">'
+                        '<error message="ERROR: res://tests/s.gd:3" type="ABORT"/></testcase></testsuite></testsuites>',
+                        encoding="utf-8")  # fmt: skip
+        self.assertEqual(gdunit.failed_cases(path), [{"test": "s::t", "message": "ERROR: res://tests/s.gd:3"}])
+        self.assertEqual(gdunit.failed_cases(self.root / "missing.xml"), [])
+
+    def test_a_failure_over_several_lines_is_one_line_without_its_stack(self) -> None:
+        # As GdUnit4 6.2.1 writes it (the #273 probe's results.xml).
+        path = self.root / "r.xml"
+        path.write_text(
+            '<testsuites><testsuite name="p_test"><testcase name="test_x" classname="p_test">'
+            '<failure message="FAILED: res://tests/scratch/p_test.gd:9" type="FAILURE"><![CDATA[\n'
+            "Expecting:\n 3\n but was\n 2\n\tat 'test_x' in res://tests/scratch/p_test.gd:9\n]]></failure>"
+            "</testcase></testsuite></testsuites>",
+            encoding="utf-8",
+        )
+        self.assertEqual(gdunit.failed_cases(path), [{"test": "p_test::test_x", "message": "Expecting: 3 but was 2"}])
+
+    def test_a_test_with_several_failed_asserts_takes_one_entry_with_its_first(self) -> None:
+        path = self.root / "r.xml"
+        path.write_text('<testsuites><testsuite name="s">'
+                        '<testcase name="t" classname="s"><failure message="a">first</failure>'
+                        '<failure message="b">second</failure><error message="c">third</error></testcase>'
+                        '<testcase name="u" classname="s"><failure message="d">other</failure></testcase>'
+                        "</testsuite></testsuites>", encoding="utf-8")  # fmt: skip
+        self.assertEqual(gdunit.failed_cases(path), [{"test": "s::t", "message": "first"},
+                                                     {"test": "s::u", "message": "other"}])  # fmt: skip
 
 
 class OneProcessTest(Fixture):

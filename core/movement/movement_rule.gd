@@ -12,8 +12,9 @@ extends RefCounted
 ## client tick, so a client sending its physics frame count would run out of credit at once.
 ##
 ## The checks, in order:
-## - Well formed: an int client tick, finite position, velocity and facing (NaN or inf fail), and
-##   an int jump count within the wire's u16 (0 to MAX_JUMPS).
+## - Well formed: an int client tick, finite position, velocity and facing (NaN or inf fail), an
+##   int jump count within the wire's u16 (0 to MAX_JUMPS), and masks, when given, ints within the
+##   wire's u32 (0 to MAX_MASK).
 ##   A negative client tick is dropped when below the baseline, like any tick that does not rise,
 ##   and corrected when there is none: a negative claim_tick means "no baseline yet".
 ## - The client tick rises at a bounded rate: a player earns one tick of credit per host tick, keeps
@@ -36,13 +37,16 @@ extends RefCounted
 ##   and the client's physics at 60 Hz, so a landing and a jump can fall in one claim. The
 ##   take-off is the higher of that floor and the last feet, so the peak stays bounded.
 ## - Horizontal speed over the client's tick delta: per covered tick the state's speed (for the
-##   living sprint in the sprint state with movement input, else walk; for the downed the crawl
-##   speed, with no sprint), plus, for the living only, sprint speed for being pushed (§7.1
-##   "Pushing apart", proposed for M4) for at most PUSH_TICKS covered ticks, while another living
-##   player's last accepted position is within push_reach() of the claim's path, plus a tick of
-##   sprinting per host tick its claims were lost (the downed push nobody and nobody pushes them),
-##   plus DISTANCE_SLACK_M. After a claim that sprinted by its own input, one covered tick more
-##   may go at sprint speed: the sprint's last tick, which the claim's flags may no longer show.
+##   living sprint in the sprint state with the player's own movement, else walk; for the downed
+##   the crawl speed, with no sprint), plus, for the living only, sprint speed for being pushed
+##   (§7.1 "Pushing apart", proposed for M4) for at most PUSH_TICKS covered ticks, while another
+##   living player's last accepted position is within push_reach() of the claim's path, plus a
+##   tick of sprinting per host tick its claims were lost (the downed push nobody and nobody
+##   pushes them), plus DISTANCE_SLACK_M. Each covered tick takes its own flags from the claim's
+##   masks (`sprint_ticks`, `moved_ticks`: bit i is client tick client_tick - i, #155), so a claim
+##   the LATEST lane merged with older ones still says which of their ticks were sprinted; the
+##   ledger then grants and charges exactly those it has the stamina for (a claim without masks,
+##   which only core's own callers send, gives every covered tick its `sprint` and `moving` flags).
 ##   The crawl's slack is CRAWL_SLACK_FRACTION of its own travel (+ the float slack) instead: a
 ##   fixed slack per claim would let a client sending one-tick claims crawl at twice the speed.
 ##   The host never checks or corrects overlap between players.
@@ -59,8 +63,9 @@ extends RefCounted
 ## - Held in place (M4-4): while a raise runs on a downed player (Channels.holding), a claim
 ##   farther than HOLD_SLACK_M from where the raise started is corrected (the engineer's answer 8
 ##   on PR #133), so a raise restarted again and again cannot carry a downed player along.
-## Then the claim settles its covered ticks of stamina (StaminaLedger), an accepted jump pays its
-## cost, and the player's SelfStatus is touched (sent at the end of the tick).
+## Then the claim settles its covered ticks of stamina, each with its masks' flags
+## (StaminaLedger.simulate_ticks), an accepted jump pays its cost, and the player's SelfStatus is
+## touched (sent at the end of the tick, naming this claim's client tick as the last settled).
 ##
 ## The facing is a claim relayed to everyone in the snapshots (the M4 ADR §3, Host trust), and an
 ## honest one can be degenerate (a bot falling straight down claims (0, -1, 0)): the accepted
@@ -104,6 +109,10 @@ const MAX_PITCH_DEG := 89.0
 ## The highest jump count a claim may carry: the wire's `jumps: u16` (§4.3). Core checks it itself
 ## (invariant 1), so a count that skipped the codec cannot overflow the stamina cost.
 const MAX_JUMPS := 0xFFFF
+## The client ticks a claim's masks describe (the wire's u32): a covered tick older than that takes
+## the oldest bit, as the client's own claim covering a stall gives all its ticks one flag (#155).
+const MASK_TICKS := 32
+const MAX_MASK := 0xFFFFFFFF
 ## The push allowance's reach (#76): a living player is granted it only while another living
 ## player's last accepted position lies within PUSH_REACH_RADII capsule radii (two capsules
 ## touching) plus PUSH_LAG_S of sprinting of the claim's path. The lag: the pushed client moves
@@ -154,9 +163,15 @@ class Claim:
 	var position := Vector3.ZERO
 	var velocity := Vector3.ZERO
 	var facing := Vector3.FORWARD
+	## The sprint state in a step of the claim's own interval (latched): what follows the claim
+	## is settled with it (settle_ahead).
 	var sprint := false
-	## The player gave movement input.
+	## The player gave movement input in a step of the claim's own interval (latched).
 	var moving := false
+	## Bit i: client tick client_tick - i had the sprint state (sprint_ticks), or the player's
+	## own movement (moved_ticks); MAX_MASK or 0 from the flags when the command has none.
+	var sprint_ticks := 0
+	var moved_ticks := 0
 	## The client's jump count in the epoch (E2).
 	var jumps := 0
 	var on_floor := false
@@ -211,16 +226,22 @@ func apply(ctx: MatchContext, command: MatchCommand) -> void:
 		StaminaLedger.settle_ahead(player, ctx.state.player_rules, ctx.tick)
 		_correct(ctx, player, motion)
 		return
+	var ledger := StaminaLedger.snapshot(player)
 	var checked := _check(ctx, player, motion, claim, covered, fresh)
 	if checked == null:
+		# A refused claim settles nothing, though a jump claim's check committed its ticks: they are
+		# the next claim's, which covers them from the last accepted claim, the one SelfStatus names
+		# (#155), so the stamina it reports is the number after that claim.
+		StaminaLedger.commit(player, ledger)
 		_correct(ctx, player, motion)
 		return
 	_accept(ctx, player, motion, claim, checked)
 
 
-## Runs the checks after the tick rate's; null when one fails. May settle stamina up to now, which
-## applies only ticks that have passed (§9.2). `fresh`: the claim starts a client-tick baseline,
-## so `covered` is 1 whatever span of client ticks it really covers.
+## Runs the checks after the tick rate's; null when one fails. A jump claim's check settles stamina
+## up to now, which applies only ticks that have passed (§9.2), and apply() puts it back when a
+## check fails. `fresh`: the claim starts a client-tick baseline, so `covered` is 1 whatever span of
+## client ticks it really covers.
 static func _check(
 	ctx: MatchContext, player: PlayerState, motion: Motion, claim: Claim, covered: int, fresh: bool
 ) -> Checked:
@@ -233,11 +254,7 @@ static func _check(
 	checked.moved_itself = claim.moving and checked.travel > MOVE_EPSILON
 	if held_against(ctx.state, player, claim.position):
 		return null
-	# Read before a jump commits this claim's settlement.
-	var sprint_tail := player.sprinting and player.moving
-	checked.settled = StaminaLedger.simulate(
-		player, rules, ctx.tick, claim.sprint, checked.moved_itself, covered
-	)
+	checked.settled = _settle_covered(player, rules, ctx.tick, claim, covered, checked.travel)
 	checked.new_jumps = claim.jumps - motion.jumps
 	if checked.new_jumps < 0:
 		# A count that falls within an epoch is no honest client's.
@@ -254,6 +271,7 @@ static func _check(
 	if jumped:
 		# The claim's own ticks are settled with its own flags, so a sprint before the jump is paid;
 		# then any ticks up to now with the last claim's (settle_ahead), before the cost is checked.
+		# Committed here for the check; apply() puts the ledger back if the claim is refused.
 		StaminaLedger.commit(player, checked.settled)
 		StaminaLedger.settle_ahead(player, rules, ctx.tick)
 		var take_off := _floor_under(ctx.world, player.position, rules)
@@ -265,9 +283,7 @@ static func _check(
 	var pushed := (
 		player.is_alive() and _near_living_player(ctx.state, player, claim.position, ctx.tick)
 	)
-	var allowed := _allowed_travel(
-		player, rules, covered, checked.settled, claim.moving, pushed, sprint_tail
-	)
+	var allowed := _allowed_travel(player, rules, covered, checked.settled, pushed)
 	if checked.travel > allowed:
 		return null
 	var jumping := jumped or motion.jumping
@@ -313,17 +329,31 @@ static func _accept(
 	player.moving = checked.moved_itself
 
 
-## The horizontal metres a claim covering `covered` client ticks may travel. `moving`: the claim
-## gave movement input; `pushed`: another living player is near enough to push this one;
-## `sprint_tail`: the last accepted claim moved itself in the sprint state.
+## The stamina settlement of a claim's `covered` ticks, oldest first, each with the flags its masks
+## give it (Claim.sprint_ticks, moved_ticks): a tick moved itself only when the claim travelled
+## more than MOVE_EPSILON (`travel`), as the claim-wide flag counts it. Ticks older than the masks
+## take the oldest bit.
+static func _settle_covered(
+	player: PlayerState, rules: PlayerRules, now: int, claim: Claim, covered: int, travel: float
+) -> StaminaLedger.Settlement:
+	var travelled := travel > MOVE_EPSILON
+	var sprint_held: Array[bool] = []
+	var moved: Array[bool] = []
+	for j in covered:
+		var bit := mini(covered - 1 - j, MASK_TICKS - 1)
+		sprint_held.append((claim.sprint_ticks >> bit) & 1 == 1)
+		moved.append(travelled and (claim.moved_ticks >> bit) & 1 == 1)
+	return StaminaLedger.simulate_ticks(player, rules, now, sprint_held, moved)
+
+
+## The horizontal metres a claim covering `covered` client ticks may travel. `settled`: its ticks'
+## settlement (_settle_covered); `pushed`: another living player is near enough to push this one.
 static func _allowed_travel(
 	player: PlayerState,
 	rules: PlayerRules,
 	covered: int,
 	settled: StaminaLedger.Settlement,
-	moving: bool,
-	pushed: bool,
-	sprint_tail: bool
+	pushed: bool
 ) -> float:
 	var metres_per_tick := 1.0 / Ticks.RATE
 	if player.life == PlayerState.Life.DOWNED:
@@ -331,23 +361,12 @@ static func _allowed_travel(
 		# proportion (plus the float slack positions need) rather than a fixed one per claim.
 		var crawl := covered * rules.crawl_speed_mps * metres_per_tick
 		return crawl * (1.0 + CRAWL_SLACK_FRACTION) + HEIGHT_SLACK_M
-	# Ticks the claim covers beyond what could be settled now take the state a next tick has.
-	var sprint_ticks := settled.sprint_ticks
-	if settled.next_sprinting:
-		sprint_ticks += covered - settled.ticks
-	if not moving:
-		# Sprint speed of its own only with the movement input that pays for it: without input a
-		# living player coasts (walk speed covers the client's deceleration) or is pushed, and
-		# holding sprint then would buy speed for free.
-		sprint_ticks = 0
-	if sprint_tail:
-		# The sprint's last tick (#76): a claim sends the flags of the client's last physics step,
-		# so one that lets go of the input within the tick claims none after most of a sprint
-		# tick, and a client learns a tick late that its stamina ran out. One covered tick more
-		# at sprint speed, after a claim that sprinted by its own input; the push allowance
-		# covered both before #76. Not charged, and a held sprint without input gets it once.
-		# #155 (latching the flags on the client) would let the host drop it.
-		sprint_ticks = mini(covered, sprint_ticks + 1)
+	# Sprint speed for exactly the covered ticks that the masks say sprinted by the player's own
+	# movement and that the ledger had the stamina for, counted on past what could be settled now
+	# (#155): without movement a living player coasts (walk speed covers the client's
+	# deceleration) or is pushed, and holding sprint then would buy speed for free. No tick more:
+	# the sprint's last tick of #76 is gone, since the masks carry it.
+	var sprint_ticks := mini(settled.fast_ticks, covered)
 	var walk_ticks := covered - sprint_ticks
 	var travel := (
 		(sprint_ticks * rules.sprint_speed_mps + walk_ticks * rules.walk_speed_mps)
@@ -396,6 +415,22 @@ static func _near_living_player(
 		if (at - path * along).length() <= reach:
 			return true
 	return false
+
+
+## The client tick of `player`'s last claim accepted in its current epoch, or -1 when there was none
+## since its last placement (SelfStatus's claim_tick, #155). A placement (PlacePlayers, a knockdown,
+## a respawn) starts an epoch whose first claim restarts the client-tick baseline
+## (_after_placement), and the claims of the old one in flight are dropped as stale, so a claim
+## before it answers nothing of the new epoch; a refused claim's Correction keeps the last one,
+## from which the next claim covers its ticks.
+static func settled_claim_tick(state: MatchState, player: PlayerState) -> int:
+	var table := (
+		state.part_state(PART_KEY, func() -> RefCounted: return MotionTable.new()) as MotionTable
+	)
+	var motion: Motion = table.by_peer.get(player.peer)
+	if motion == null or motion.epoch != player.epoch:
+		return -1
+	return player.claim_tick
 
 
 ## Whether a running raise holds `player` in place (Channels.holding) and a claim at `to` would
@@ -523,9 +558,25 @@ static func _read(command: MatchCommand) -> Claim:
 		return null
 	claim.sprint = command.get_bool("sprint")
 	claim.moving = command.get_bool("moving")
+	var sprint_ticks: Variant = command.field("sprint_ticks")
+	var moved_ticks: Variant = command.field("moved_ticks")
+	if not (_mask_or_none(sprint_ticks) and _mask_or_none(moved_ticks)):
+		return null
+	claim.sprint_ticks = sprint_ticks as int if sprint_ticks != null else _mask_of(claim.sprint)
+	claim.moved_ticks = moved_ticks as int if moved_ticks != null else _mask_of(claim.moving)
 	claim.jumps = jumps
 	claim.on_floor = command.get_bool("on_floor")
 	return claim
+
+
+## Whether a claim's mask field is absent or an int within the wire's u32.
+static func _mask_or_none(value: Variant) -> bool:
+	return value == null or (value is int and value >= 0 and value <= MAX_MASK)
+
+
+## The mask of a claim that sends none: every tick with its flag.
+static func _mask_of(flag: bool) -> int:
+	return MAX_MASK if flag else 0
 
 
 static func _motion(state: MatchState, peer: int) -> Motion:

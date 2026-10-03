@@ -3,17 +3,19 @@ extends GdUnitTestSuite
 ## player walks, sprints, jumps and climbs steps on a fixture level, claiming through its
 ## ClientSession over a LoopbackHub to the host's HostSession, which checks every claim
 ## (MovementRule) against its own copy of the level. Honest play is corrected 0 times; a teleport
-## the test forces on the controller (a refused claim) is corrected once, and play goes on without
-## another. The host's own placement at the round's start is one placement and no correction, the
-## claims of the old epoch still in flight draw none, and the placed joiner snaps on the host's
-## screen. The host sees the joiner where it walked, through the snapshots and SnapshotBuffer. A
-## downed joiner crawls from the KnockedDown on (Game's own life fold) and its crawl (M4-2's crawl
-## check) is corrected 0 times: on flat floor, on a clock that stands still and then jumps (the
-## claims count physics steps, SessionNode), and up the steps.
+## the test forces on the controller (a refused claim) is corrected once, keeping the player's look
+## (#191), and play goes on without another. The host's own placement at the round's start is one
+## placement and no correction, the claims of the old epoch still in flight draw none, and the
+## placed joiner snaps on the host's screen. The host sees the joiner where it walked, through the
+## snapshots and SnapshotBuffer. A downed joiner crawls from the KnockedDown on (Game's own life
+## fold) and its crawl (M4-2's crawl check) is corrected 0 times: on flat floor, on a clock that
+## stands still and then jumps (the claims count physics steps, SessionNode), and up the steps.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The top of the fixture's stairs.
 const TOP_Y := 1.2
+## The most process frames _until() waits.
+const UNTIL_FRAMES := 120
 
 var _pair: NetPair
 
@@ -72,6 +74,10 @@ func test_a_refused_teleport_is_corrected_once_and_play_goes_on() -> void:
 	assert_bool(await _pair.start()).is_true()
 	var player := _pair.client.player()
 	var session := _pair.client.client()
+	# A look up and aside, which the Correction keeps (#191: only the own respawn levels it).
+	player.look(0.5, -0.6)
+	await _pair.frames(2)
+	var yaw := player.rotation.y
 	var stood := player.global_position
 	# The test puts the controller 5 m away at once: no walk covers that in a tick.
 	player.teleport(Transform3D(player.global_basis, stood + Vector3(5.0, 0.0, 0.0)))
@@ -83,6 +89,9 @@ func test_a_refused_teleport_is_corrected_once_and_play_goes_on() -> void:
 	# The Correction put it back where the host last accepted it.
 	await _pair.frames(1)
 	assert_vector(player.global_position).is_equal_approx(stood, Vector3.ONE * 0.05)
+	assert_float(player.get_camera().get_parent_node_3d().rotation.x).is_equal_approx(-0.6, 0.0001)
+	assert_float(angle_difference(player.rotation.y, yaw)).is_equal_approx(0.0, 0.0001)
+	player.look(-0.5, 0.0)
 	# Play goes on under the new epoch: walking and a jump draw no further Correction.
 	player.move_input = Vector2(0.0, -1.0)
 	player.jump_requested = true
@@ -186,6 +195,36 @@ func test_the_debug_overlay_shows_each_side_its_numbers() -> void:
 	assert_str(hosting).contains("corrections: 0")
 	assert_str(hosting).contains("host:")
 	await _pair.stop()
+
+
+## The host's voice relay counters (the M5 ADR §3 item 11, M5-4): totals in the Lobby on the
+## host's overlay only, and none during the Round, where they would tell the host's player how many
+## hear them.
+func test_the_host_s_relay_counters_show_in_the_lobby_and_never_in_the_round() -> void:
+	assert_bool(await _pair.start()).is_true()
+	for game: Game in [_pair.host, _pair.client]:
+		game.overlay().visible = true
+	var hosting := _pair.host.overlay().relay_label
+	# Game fills the overlay in its per-frame update: wait for one, bounded (#222's flake).
+	await _until(func() -> bool: return not hosting.text.is_empty())
+	assert_bool(hosting.visible).is_true()
+	assert_str(hosting.text).contains("host voice (session totals):")
+	assert_str(hosting.text).contains("voice_sent: ")
+	assert_bool(_pair.client.overlay().relay_label.visible).is_false()
+	assert_bool(await _pair.to_round()).is_true()
+	await _until(func() -> bool: return hosting.text == DebugOverlay.RELAY_HIDDEN)
+	assert_str(hosting.text).is_equal(DebugOverlay.RELAY_HIDDEN)
+	assert_str(_pair.host.overlay().label.text).not_contains("voice_")
+	assert_bool(_pair.client.overlay().relay_label.visible).is_false()
+	await _pair.stop()
+
+
+## Waits process frames until `done` returns true, at most UNTIL_FRAMES.
+func _until(done: Callable) -> void:
+	for _i in UNTIL_FRAMES:
+		if done.call():
+			return
+		await get_tree().process_frame
 
 
 ## The host knocks the joiner down in the round. Game's life fold makes its controller crawl

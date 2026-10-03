@@ -1,7 +1,8 @@
 extends SceneTree
 ## The bots runner's entry (ARCHITECTURE §4.6, §9.7), started by `tools/run.sh bots`:
-## - `bots [scenario ...]`: every scenario in content/scenarios/, or those named, in one headless
-##   process (BotsRunner, simulated clock);
+## - `bots [scenario ...]`: every scenario in content/scenarios/ but the measurements
+##   (BotScenario.measurement, M5-4's voice_load), or those named, in one headless process
+##   (BotsRunner, simulated clock);
 ## - `bots <scenario> --instances N`: one scenario over ENet on 127.0.0.1, one process per bot, on
 ##   the real clock (BotsEnet; PRIME_INSTANCE is the bot).
 ## User arguments: scenario names, and over ENet `--port=<p>` and `--instances=<n>`. Prints one
@@ -133,8 +134,9 @@ func _paths(names: PackedStringArray) -> PackedStringArray:
 	var found := PackedStringArray()
 	if names.is_empty():
 		for file: String in DirAccess.get_files_at(SCENARIOS_DIR):
-			if file.ends_with(".tres"):
-				found.append(SCENARIOS_DIR.path_join(file))
+			var path := SCENARIOS_DIR.path_join(file)
+			if file.ends_with(".tres") and not _is_measurement(path):
+				found.append(path)
 		found.sort()
 		return found
 	for name: String in names:
@@ -144,3 +146,9 @@ func _paths(names: PackedStringArray) -> PackedStringArray:
 			return PackedStringArray()
 		found.append(path)
 	return found
+
+
+## Whether the scenario at `path` is a measurement, played only when named.
+func _is_measurement(path: String) -> bool:
+	var scenario := load(path) as BotScenario
+	return scenario != null and scenario.measurement

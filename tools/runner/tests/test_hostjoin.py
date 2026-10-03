@@ -384,6 +384,17 @@ class SupervisionTest(unittest.TestCase):
         self.assertIn("Ctrl+C, stopping", self.out.getvalue())
         self.assertEqual([p.problem for p in parts], ["", ""], self.out.getvalue())
 
+    def test_each_part_gets_its_own_prime_instance_and_the_runner_environment(self) -> None:
+        # The M5 ADR's E47 as amended (§1.7): each window of `host --clients N` keeps its own settings file.
+        show = 'import os\nprint("instance", os.environ.get("PRIME_INSTANCE"), os.environ.get("PRIME_PROBE"))\n'
+        parts = [fake("host", "host", self.stop), fake("client 2", "client", self.stop)]
+        parts.append(fake("client 3", "client", self.stop))
+        for part in parts:
+            part.cmd[2] = show + part.cmd[2]
+        with mock.patch.dict(os.environ, {"PRIME_PROBE": "kept"}):
+            self.run_parts(parts, seconds=2)
+        self.assertEqual([p.lines[0] for p in parts], [f"instance {n} kept" for n in (1, 2, 3)], self.out.getvalue())
+
     def test_until_ends_the_wait(self) -> None:
         parts = [fake("join", "client", self.stop)]
         began = time.monotonic()

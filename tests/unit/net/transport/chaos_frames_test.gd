@@ -78,6 +78,25 @@ func test_a_hostile_claim_decodes_with_its_tag_and_an_honest_one_has_none() -> v
 	assert_int(ChaosFrames.claim_shape({"velocity": Vector3(4, 0, 0)})).is_equal(-1)
 
 
+func test_a_hostile_claim_carries_an_honest_walkers_masks_at_the_v7_layout() -> void:
+	# Protocol v7 (#155): the masks follow jumps, so the offsets NAN_CLAIM, INF_CLAIM and FLAG_BITS
+	# break stay those of the first float and the flags.
+	var packet := ChaosFrames.claim(ChaosFrames.Claim.SPEED, _schema, 2, 9, Vector3(1, 0, 2), 4)
+	var payload := packet.bytes.slice(NetFrame.HEADER_BYTES)
+	var kind := _schema.kind_of(&"MoveClaim")
+	assert_int(payload.size()).is_equal(_schema.row(kind).cap)
+	var fields := _schema.decode(kind, payload).fields
+	assert_int(fields["sprint_ticks"] as int).is_equal(0)
+	# The wire row's u32 maximum, written out: a change of MovementRule.MAX_MASK shows here.
+	assert_int(fields["moved_ticks"] as int).is_equal(0xFFFFFFFF)
+	assert_float(payload.decode_float(ChaosFrames.CLAIM_FLOATS_AT)).is_equal(1.0)
+	var last_float := ChaosFrames.CLAIM_FLOATS_AT + 4 * (ChaosFrames.CLAIM_FLOATS - 1)
+	# The harness writes facing Vector3.FORWARD, so the last float is its z.
+	assert_float(payload.decode_float(last_float)).is_equal(Vector3.FORWARD.z)
+	# The flags byte: moving and on_floor set, sprint clear (sprint, moving, on_floor from bit 0).
+	assert_int(payload[ChaosFrames.CLAIM_FLAGS_AT]).is_equal(0b110)
+
+
 func test_everything_a_chaos_transport_sends_is_in_its_outbox_in_order() -> void:
 	var set_ready := ChaosFrames.message(_schema, &"SetReady", {"ready": true}, 5)
 	var payload := set_ready.bytes.slice(NetFrame.HEADER_BYTES)

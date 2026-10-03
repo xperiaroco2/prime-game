@@ -15,6 +15,11 @@ extends RefCounted
 ## - Per tick, no peer's snapshot holds a dead player's avatar (the dead have none). The voice
 ##   invariant (§6): no peer's speakers include a downed or dead speaker; a downed peer hears only
 ##   living speakers; a dead peer's speakers are empty.
+## - The distance invariant (§5, E45): per tick, every speaker a peer hears stands within the
+##   phase's hearing radius (VoiceRule.radius_of the mode's rule for the phase), between the two
+##   last accepted positions in 3D, compared as VoiceRule.within compares them, so a pair at the
+##   edge passes; a phase whose radius is 0 hears nobody. Written apart from the rule's hears and
+##   speakers_of: a rule that routes past its own radius fails here though view_of agrees with it.
 ## - Nothing reaches only the dead: every event a dead peer receives is either for it alone (an
 ##   event for one peer, FOR_ONE or a one-peer declaration, naming it) or also reaches every living
 ##   peer present then.
@@ -126,6 +131,7 @@ func check_event(emitted: EmittedEvent) -> PackedStringArray:
 func check_tick() -> PackedStringArray:
 	var found := PackedStringArray()
 	var state := _game.state
+	var radius := phase_radius(_game)
 	for peer: int in state.present_peers():
 		var snapshot := _game.snapshot_for(peer)
 		var avatars: Dictionary = snapshot.get("avatars", {})
@@ -137,7 +143,9 @@ func check_tick() -> PackedStringArray:
 			for field: Variant in avatar:
 				if not AVATAR_FIELDS.has(str(field)):
 					found.append("peer %d's snapshot shows %s of peer %d" % [peer, field, other])
-		found.append_array(_check_voice(peer))
+		var speakers := _game.speakers_for(peer)
+		found.append_array(_check_voice(peer, speakers))
+		found.append_array(_check_distance(peer, speakers, radius))
 		for other: int in avatars:
 			if _life_of(other) == PlayerState.Life.DEAD:
 				found.append("peer %d sees dead %d in its snapshot" % [peer, other])
@@ -169,11 +177,10 @@ func _check_dead_recipients(emitted: EmittedEvent) -> PackedStringArray:
 	return found
 
 
-## The voice invariant's broken parts for `peer`'s speakers this tick (§6), from the life states
-## alone, never the voice rule.
-func _check_voice(peer: int) -> PackedStringArray:
+## The voice invariant's broken parts for `peer`'s `speakers` this tick (§6), from the life
+## states alone, never the voice rule.
+func _check_voice(peer: int, speakers: PackedInt32Array) -> PackedStringArray:
 	var found := PackedStringArray()
-	var speakers := _game.speakers_for(peer)
 	var life := _life_of(peer)
 	if life == PlayerState.Life.DEAD and not speakers.is_empty():
 		found.append("dead peer %d hears %s" % [peer, speakers])
@@ -186,6 +193,44 @@ func _check_voice(peer: int) -> PackedStringArray:
 		if life == PlayerState.Life.DOWNED and mouth != PlayerState.Life.ALIVE:
 			found.append("downed peer %d hears %d, who is not living" % [peer, speaker])
 	return found
+
+
+## The distance invariant's broken parts for `peer`'s `speakers` this tick, against the phase's
+## hearing radius `radius`, from the last accepted positions alone, never the voice rule.
+func _check_distance(peer: int, speakers: PackedInt32Array, radius: float) -> PackedStringArray:
+	var found := PackedStringArray()
+	var state := _game.state
+	for speaker: int in speakers:
+		var ear := state.player(peer)
+		var mouth := state.player(speaker)
+		if ear == null or mouth == null:
+			found.append("peer %d hears %d, and one of them is not a player" % [peer, speaker])
+			continue
+		var problem := distance_problem(ear.position, mouth.position, radius)
+		if not problem.is_empty():
+			found.append("peer %d hears %d %s" % [peer, speaker, problem])
+	return found
+
+
+## The hearing radius of `game`'s current phase: VoiceRule.radius_of the voice rule the mode's data
+## names for it (0 with none), the number the client fades to silence at (E41).
+static func phase_radius(game: Match) -> float:
+	var spec := game.mode.find_phase(game.phase_id())
+	return VoiceRule.radius_of(spec.voice_rule if spec != null else null)
+
+
+## Why a voice between a listener at `ear` and a speaker at `mouth` breaks the distance invariant
+## under the hearing radius `radius_m`, or "" when it does not. The comparison is
+## VoiceRule.within's, written again here (`distance_squared_to(...) <= r * r` from the listener),
+## so a pair exactly at the edge passes and a change to within does not change this check; a
+## radius of 0 hears nobody.
+static func distance_problem(ear: Vector3, mouth: Vector3, radius_m: float) -> String:
+	if radius_m <= 0.0:
+		return "in a phase whose hearing radius is 0"
+	var squared := ear.distance_squared_to(mouth)
+	if squared <= radius_m * radius_m:
+		return ""
+	return "from %.3f m, beyond the phase's hearing radius of %.3f m" % [sqrt(squared), radius_m]
 
 
 ## The life state of `peer`, LEFT for a peer that is not a player.

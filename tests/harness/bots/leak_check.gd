@@ -22,6 +22,13 @@ extends RefCounted
 ##   recipients, which each bot's decoded events are checked against), so nothing reaches only the
 ##   dead; no decoded message holds a seed; the bots present for a whole match decode the same
 ##   task events (check_tasks).
+## - The distance invariant (§5, E45), apart from the voice rule's hears and speakers_of: no bot
+##   decodes a frame of a speaker farther away than the hearing radius of the phase at the frame's
+##   tick (VoiceRule.radius_of), between the two players' last accepted positions after that tick
+##   (record_tick), in 3D, compared as VoiceRule.within compares them
+##   (ScenarioInvariants.distance_problem); under a radius of 0 it decodes none. The relay routes
+##   the frames it stamps with tick t by the routing refreshed right after tick t (§4.5), from the
+##   same state, so a bot at the edge gives no false failure.
 ## - A connected peer that is not a player (check_watcher) decodes at most a Rejected, none unless
 ##   it sent a Hello, and never a Snapshot or a VoiceDown. The lurker is still connected unless
 ##   core/ disconnected it on entering Loading (its DisconnectPeer at the tick of a LoadMatch: the
@@ -51,10 +58,12 @@ const FOR_ONE: Array[StringName] = [
 const TASK_EVENTS: Array[StringName] = [
 	&"StationPlaced", &"ItemSpawned", &"PackageDelivered", &"TaskState", &"TaskProgress"
 ]
-## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then counter % FILL_SPAN
-## bytes of FILL, so frames vary in length.
+## A synthetic voice frame: the speaker's peer id and a counter (u32 each), then FILL bytes up to
+## a length of MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1), so frames vary
+## in length like Opus speech at 24 kbit/s (the M5 ADR §4: a mean near 45 B).
 const FRAME_HEAD := 8
-const FILL_SPAN := 7
+const MIN_FRAME_BYTES := 30
+const MAX_FRAME_BYTES := 60
 const FILL := 0xA5
 ## At most this many problems are listed per bot.
 const MAX_LISTED := 5
@@ -67,6 +76,10 @@ var _seeds: Array[int] = []
 var _alive_at: Dictionary[int, PackedInt32Array] = {}
 var _downed_at: Dictionary[int, PackedInt32Array] = {}
 var _dead_at: Dictionary[int, PackedInt32Array] = {}
+## Tick -> each present player's last accepted position after that tick (peer -> Vector3), and the
+## hearing radius of the phase then.
+var _positions_at: Dictionary[int, Dictionary] = {}
+var _radius_at: Dictionary[int, float] = {}
 ## MatchEvent instance id -> every player's role when it was emitted (Teammates only).
 var _roles_at: Dictionary[int, Dictionary] = {}
 
@@ -78,7 +91,7 @@ func _init(game: Match) -> void:
 ## The bytes of a synthetic voice frame of `peer`, its `counter`-th.
 static func voice_frame(peer: int, counter: int) -> PackedByteArray:
 	var frame := PackedByteArray()
-	frame.resize(FRAME_HEAD + counter % FILL_SPAN)
+	frame.resize(MIN_FRAME_BYTES + counter % (MAX_FRAME_BYTES - MIN_FRAME_BYTES + 1))
 	frame.fill(FILL)
 	frame.encode_u32(0, peer)
 	frame.encode_u32(4, counter)
@@ -98,13 +111,16 @@ static func frame_problem(speaker: int, frame: PackedByteArray) -> String:
 	return ""
 
 
-## Called after every Match.tick call (HostSession's observer): who is alive, downed and dead.
+## Called after every Match.tick call (HostSession's observer): who is alive, downed and dead,
+## where each present player's last accepted position is, and the phase's hearing radius.
 func record_tick(at_tick: int) -> void:
 	var alive := PackedInt32Array()
 	var downed := PackedInt32Array()
 	var dead := PackedInt32Array()
+	var positions: Dictionary[int, Vector3] = {}
 	var state := _game.state
 	for peer: int in state.present_peers():
+		positions[peer] = state.players[peer].position
 		match state.players[peer].life:
 			PlayerState.Life.ALIVE:
 				alive.append(peer)
@@ -115,6 +131,16 @@ func record_tick(at_tick: int) -> void:
 	_alive_at[at_tick] = alive
 	_downed_at[at_tick] = downed
 	_dead_at[at_tick] = dead
+	_positions_at[at_tick] = positions
+	_radius_at[at_tick] = ScenarioInvariants.phase_radius(_game)
+
+
+## Each present player's last accepted position after `at_tick`, as record_tick saw it; empty for
+## a tick it did not record.
+func positions_at(at_tick: int) -> Dictionary[int, Vector3]:
+	var found: Dictionary[int, Vector3] = {}
+	found.assign(_positions_at.get(at_tick, {}) as Dictionary)
+	return found
 
 
 ## The seeds no message may hold (ScenarioInvariants.seeds()).
@@ -411,6 +437,9 @@ func _check_voice(
 				"voice of %d under tick %d, which view_of does not allow" % [speaker, at_tick]
 			)
 		found.append_array(_voice_invariant(peer, speaker, at_tick))
+		var far := _distance_problem(peer, speaker, at_tick)
+		if not far.is_empty():
+			found.append(far)
 		for frame: PackedByteArray in decoded.frames(speaker, at_tick):
 			var problem := frame_problem(speaker, frame)
 			if not problem.is_empty():
@@ -433,6 +462,27 @@ func _voice_invariant(peer: int, speaker: int, at_tick: int) -> PackedStringArra
 	if dead.has(peer):
 		found.append("dead, it heard %d at tick %d" % [speaker, at_tick])
 	return found
+
+
+## Why `peer` decoding `speaker`'s frame under `at_tick` breaks the distance invariant, or "":
+## from the positions and the radius record_tick saw after that tick, never the voice rule or
+## view_of.
+func _distance_problem(peer: int, speaker: int, at_tick: int) -> String:
+	if not _positions_at.has(at_tick):
+		return "it heard %d under tick %d, whose positions were never recorded" % [speaker, at_tick]
+	var positions: Dictionary = _positions_at[at_tick]
+	for player: int in [peer, speaker]:
+		if not positions.has(player):
+			return (
+				"it heard %d under tick %d, when %d was not a present player"
+				% [speaker, at_tick, player]
+			)
+	var problem := ScenarioInvariants.distance_problem(
+		positions[peer] as Vector3, positions[speaker] as Vector3, _radius_at[at_tick]
+	)
+	if problem.is_empty():
+		return ""
+	return "it heard %d at tick %d %s" % [speaker, at_tick, problem]
 
 
 func _check_seeds(decoded: DecodedView, found: PackedStringArray) -> void:

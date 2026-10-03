@@ -4,8 +4,10 @@ extends RefCounted
 ## that changes a player's health, stamina or sprint availability touches that player (the
 ## movement rule, StaminaCost, later the knife's Strike); at the end of every tick Match flushes:
 ## each touched player whose status differs from the last one it was sent gets one SelfStatus,
-## with the tick's final numbers. The first touch after a join or ResetMatch always sends one,
-## because the record of what was sent lives in the per-part state, which ResetMatch clears.
+## with the tick's final numbers and the client tick of its last settled claim (#155), which alone
+## sends none: a client's prediction of an unchanged number needs no word. The first touch after
+## a join or ResetMatch always sends one, because the record of what was sent lives in the
+## per-part state, which ResetMatch clears.
 
 ## Its key in MatchState's per-part state (§9.1).
 const PART_KEY := &"self_status"
@@ -44,7 +46,8 @@ static func flush(ctx: MatchContext) -> void:
 		if feed.sent.get(peer, []) == status:
 			continue
 		feed.sent[peer] = status
-		ctx.emit(SelfStatusEvent.new(peer, player.health, player.stamina, available))
+		var claimed := MovementRule.settled_claim_tick(ctx.state, player)
+		ctx.emit(SelfStatusEvent.new(peer, player.health, player.stamina, available, claimed))
 
 
 static func _feed(state: MatchState) -> FeedState:
