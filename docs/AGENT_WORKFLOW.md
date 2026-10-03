@@ -1015,7 +1015,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   or none), CRLF, and on Windows the Git Bash form `/c/...` of a path; a Git Bash-only path such as `/tmp` is not
   visible to Windows Python, and the missing-log line says so. A log that has not grown for 10 minutes points at a
   background task that died (no marker is ever written): check it. CI: `timeout 240 gh pr checks <pr> --watch
-  --interval 30; echo rc=$?` in the Bash tool (in PowerShell `timeout` is Windows' own program), repeated while rc is
+  --interval 30; echo rc=$?` in the Bash tool with the tool's timeout at 300000 (its default 120000 would cut the
+  240 s short; in PowerShell `timeout` is Windows' own program), repeated while rc is
   124 (the timeout) or 8 (pending); rc 1 with "no checks reported" means the run has not registered yet. `wait
   --verified` (no log) exits 0 when the newest record of `tools/out/logs/verify-history.jsonl` passed at HEAD with
   a clean tree (`tree` set) and the tree is still clean, else 1 with the reason: a publisher then skips its

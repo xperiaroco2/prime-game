@@ -810,7 +810,8 @@ class PipelineV2Test(unittest.TestCase):
                         "No tool call blocks longer than 240 s",
                         "never only with the tool's timeout",
                         "never start the job again",
-                        "timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?",
+                        "timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with the "
+                        "tool's timeout set to 300000",
                         "while rc is 124 or 8",
                         "no checks reported",
                         "`wait: no log` or `wait: --max` line is wait's own error",
