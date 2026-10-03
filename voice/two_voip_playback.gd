@@ -5,8 +5,9 @@ extends VoicePlayback
 ## `push_opus_packet(packet, 0, fec)` (v6.5 returns nothing), `queue_length_frames()`,
 ## `available_space_frames()`, and `mark_end_opus_stream(on)`, which the spike called with false to
 ## hold a fresh playback until its prebuffer filled and with true to play it. flush() stops and
-## plays the player again for a fresh playback, as the spike shows no call that empties the queue
-## (M5-3's round trip checks it).
+## plays the player again for a fresh playback, as v6.5's playback has no call that empties the
+## queue; M5-3's round trip saw it leave nothing queued. v6.5 has no in-band FEC: a push with
+## `conceal` is Opus concealment (the same round trip's probe).
 
 ## The encoder's rate, one source for the adapter.
 const OPUS_RATE := TwoVoipEncoder.OPUS_RATE
