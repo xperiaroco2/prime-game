@@ -424,7 +424,7 @@ func test_a_button_step_is_an_action_the_window_performs() -> void:
 	var button := {"line": 7, "text": "button Resume", "do": "button", "label": "Resume"}
 	var steps := _steps([button], FakeView.new())
 	assert_dict(steps.advance(0)).is_equal(button)
-	steps.fail("no visible button 'Resume'; the window shows []")
+	steps.fail(Steps.button_problem([], "Resume"))
 	assert_str(steps.failure).is_equal(
 		"step 1 (line 7: button Resume): no visible button 'Resume'; the window shows []"
 	)
