@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The game (client/app/game.tscn, ARCHITECTURE §4.7) headless through a whole loop: a host and
-## two clients, three Game roots in one tree over a LoopbackHub on a simulated clock, go through
-## the lobby, Ready, the countdown, loading, the round, time up, the end screen and back to the
-## lobby, then a client leaves and the host closes. Each Game is driven through the methods its
-## screens call (headless runs have no input); the screens themselves are `shot`.
+## two clients, three Game roots in one tree, each in a physics world of its own, over a
+## LoopbackHub on a simulated clock, go through the lobby, Ready, the countdown, loading, the
+## round, time up, the end screen and back to the lobby, then a client leaves and the host closes.
+## Each Game is driven through the methods its screens call (headless runs have no input); the
+## screens themselves are `shot`.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7300
@@ -11,6 +12,8 @@ const PORT := 7300
 ## takes 240 frames.
 const STEP_USEC := 250000
 const MAX_FRAMES := 600
+## Physics frames the players stand without input in the round: half a second at 60 Hz.
+const HOLD_FRAMES := 30
 
 const S := GameFlow.Screen
 
@@ -73,6 +76,11 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 		assert_bool(game.player().reads_device_input).is_true()
 	# The others are shown at the newest snapshot's positions.
 	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
+	# With no input everyone still stands there half a second later, the others' bodies drawn
+	# around it (each Game has a physics world of its own, #238). The clock stands still.
+	for i in HOLD_FRAMES:
+		await get_tree().physics_frame
+	_assert_at_the_last_correction(games)
 	# Time up: the end screen names the winning side by its display name.
 	assert_bool(await _until(games, _all_on.bind(games, S.END, 3))).is_true()
 	await _drawn()
@@ -136,18 +144,25 @@ func test_a_port_alone_fills_the_menu_and_the_tree_gets_its_quit_back() -> void:
 	assert_int(game.screen()).is_equal(S.MENU)
 	assert_int(game.ui.menu.port()).is_equal(PORT + 3)
 	assert_bool(get_tree().auto_accept_quit).is_false()
-	remove_child(game)
+	remove_child(game.get_parent())
 	assert_bool(get_tree().auto_accept_quit).is_true()
 
 
+## A Game in a SubViewport with a physics world of its own, as on its own machine (net_pair.gd
+## does the same): in one shared world each Game's RemotePlayerBody of another player would stand
+## inside that player's own PlayerController, and the push would slide every player off its spot.
 func _game(args: Array[String]) -> Game:
+	var viewport := SubViewport.new()
+	viewport.own_world_3d = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(viewport)
+	auto_free(viewport)
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
 	game.make_transport = _transport
-	add_child(game)
-	auto_free(game)
+	viewport.add_child(game)
 	return game
 
 
