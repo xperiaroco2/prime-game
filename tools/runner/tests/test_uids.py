@@ -126,6 +126,19 @@ class UidLintTest(unittest.TestCase):
             ],
         )
 
+    def test_import_uid_copied_into_scratch_still_fails(self) -> None:
+        # A copied texture with its .import file claims the original's uid; the scratch claims share one parser with
+        # the project's (claims()), so this kind of claim reaches both.
+        write(self.root, "art/icon.png.import", '[remap]\n\nimporter="texture"\nuid="uid://bicon00000001"\n')
+        write(self.root, "tests/scratch/icon.png.import", '[remap]\n\nimporter="texture"\nuid="uid://bicon00000001"\n')
+        self.assertEqual(
+            uids.lint(self.root).errors,
+            [
+                "duplicate uid://bicon00000001: res://art/icon.png, res://tests/scratch/icon.png"
+                " (never copy a uid or a .uid file)"
+            ],
+        )
+
     def test_real_scene_never_resolves_to_a_scratch_file(self) -> None:
         # A uid only a scratch file claims is unknown to the project: the probe goes when it is deleted.
         probe_uid = "uid://bprobe0000001"

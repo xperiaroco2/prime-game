@@ -61,22 +61,34 @@ def in_scratch(root: Path, path: Path) -> bool:
     return path.relative_to(root).as_posix().startswith(SCRATCH + "/")
 
 
-def scratch_uids(root: Path, path: Path) -> list[tuple[str, str]]:
-    """The uids a scratch file claims, as (uid, res:// path of the owner) the way Godot's import registers them; a
-    sidecar or .import file claims for the file it belongs to, an orphan or malformed sidecar for nothing."""
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def claims(root: Path, path: Path) -> tuple[list[tuple[str, str]], list[str]]:
+    """The uids one file claims, as (uid, res:// path of the owner) the way Godot's import registers them, and the
+    errors of the file itself. A sidecar or .import file claims for the file it belongs to; an orphan or malformed
+    sidecar claims nothing. One parser for project and scratch files, so a new kind of claim reaches both."""
     suffix = path.suffix
-    if suffix not in (".tscn", ".tres", ".uid", ".import"):
-        return []
-    text = path.read_text(encoding="utf-8", errors="replace")
     if suffix in (".tscn", ".tres"):
-        match = HEADER_RE.search(text)
-        return [(match.group(1), _res(root, path))] if match else []
-    target = path.with_suffix("")
+        match = HEADER_RE.search(_read(path))
+        return ([(match.group(1), _res(root, path))] if match else []), []
     if suffix == ".import":
-        match = IMPORT_UID_RE.search(text)
-        return [(match.group(1), _res(root, target))] if match else []
-    value = text.strip()
-    return [(value, _res(root, target))] if SIDECAR_RE.match(value) and target.exists() else []
+        match = IMPORT_UID_RE.search(_read(path))
+        return ([(match.group(1), _res(root, path.with_suffix("")))] if match else []), []
+    if suffix == ".uid":
+        target = path.with_suffix("")
+        value = _read(path).strip()
+        if not SIDECAR_RE.match(value):
+            return [], [f"{_res(root, path)}: malformed uid sidecar '{value}'"]
+        if not target.exists():
+            return [], [f"{_res(root, path)}: sidecar without its file {_res(root, target)}"]
+        return [(value, _res(root, target))], []
+    if suffix in (".gd", ".gdshader"):
+        sidecar = path.with_name(path.name + ".uid")
+        if not sidecar.exists():
+            return [], [f"{_res(root, path)}: missing {sidecar.name} (run `check` once, then commit the new .uid file)"]
+    return [], []
 
 
 def lint(root: Path) -> Report:
@@ -85,43 +97,19 @@ def lint(root: Path) -> Report:
     owners: dict[str, list[str]] = {}
     in_probes: dict[str, list[str]] = {}
 
-    def own(uid: str, res_path: str) -> None:
-        owners.setdefault(uid, []).append(res_path)
-
     texts: dict[Path, str] = {}
     for path in files:
+        claimed, errors = claims(root, path)
         if in_scratch(root, path):
-            for uid, owner in scratch_uids(root, path):
+            # A probe's own errors fail nothing; its claims still count against project uids (module docstring).
+            for uid, owner in claimed:
                 in_probes.setdefault(uid, []).append(owner)
             continue
-        suffix = path.suffix
-        if suffix in (".tscn", ".tres"):
-            text = path.read_text(encoding="utf-8", errors="replace")
-            texts[path] = text
-            match = HEADER_RE.search(text)
-            if match:
-                own(match.group(1), _res(root, path))
-        elif suffix == ".uid":
-            target = path.with_suffix("")
-            value = path.read_text(encoding="utf-8", errors="replace").strip()
-            if not SIDECAR_RE.match(value):
-                report.errors.append(f"{_res(root, path)}: malformed uid sidecar '{value}'")
-                continue
-            if not target.exists():
-                report.errors.append(f"{_res(root, path)}: sidecar without its file {_res(root, target)}")
-                continue
-            own(value, _res(root, target))
-        elif suffix == ".import":
-            text = path.read_text(encoding="utf-8", errors="replace")
-            match = IMPORT_UID_RE.search(text)
-            if match:
-                own(match.group(1), _res(root, path.with_suffix("")))
-        elif suffix in (".gd", ".gdshader"):
-            sidecar = path.with_name(path.name + ".uid")
-            if not sidecar.exists():
-                report.errors.append(
-                    f"{_res(root, path)}: missing {sidecar.name} (run `check` once, then commit the new .uid file)"
-                )
+        report.errors.extend(errors)
+        for uid, owner in claimed:
+            owners.setdefault(uid, []).append(owner)
+        if path.suffix in (".tscn", ".tres"):
+            texts[path] = _read(path)
 
     for uid, paths in sorted(owners.items()):
         claimed = paths + in_probes.get(uid, [])
