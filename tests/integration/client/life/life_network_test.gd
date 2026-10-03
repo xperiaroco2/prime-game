@@ -11,7 +11,8 @@ extends GdUnitTestSuite
 ##   the camera above the host's body when the host goes down, and respawns at a marker in first
 ##   person, invulnerable on the host's screen, its body gone; never a Correction;
 ## - a respawned joiner looks level with the yaw it had while downed, whatever it did downed or
-##   dead (mouse motion while dead turns nothing), from the first claim after the respawn (#191).
+##   dead (mouse motion while dead turns nothing), from the first claim after the respawn (#191);
+##   the host's living player, who sees that respawn too, keeps its own look.
 
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The fixture's respawn markers (steps_room.tscn).
@@ -180,6 +181,10 @@ func test_a_respawned_player_looks_level_with_the_yaw_it_had() -> void:
 	await _pair.frames(5)
 	var yaw := player.rotation.y
 	assert_float(_pitch(player)).is_equal_approx(1.0, 0.001)
+	# The host's living player looks up and aside: another player's respawn keeps that look.
+	var watcher := _pair.host.player()
+	watcher.look(0.3, 0.6)
+	var watcher_yaw := watcher.rotation.y
 	_pair.client.life().give_up()
 	var dead := func() -> bool: return session.model.life_of(joiner) == ClientModel.Life.DEAD
 	assert_bool(await _until(dead)).is_true()
@@ -228,6 +233,10 @@ func test_a_respawned_player_looks_level_with_the_yaw_it_had() -> void:
 	var seen := _pair.host.avatars().body_of(joiner)
 	assert_object(seen).is_not_null()
 	assert_float(seen.head().rotation.x).is_equal_approx(0.0, 0.001)
+	# The host's own client saw the joiner's Respawned too: its living player keeps its look.
+	assert_float(_pitch(watcher)).is_equal_approx(0.6, 0.0001)
+	assert_float(angle_difference(watcher.rotation.y, watcher_yaw)).is_equal_approx(0.0, 0.0001)
+	assert_float(watcher.look_vector().y).is_greater(0.5)
 	assert_int(session.corrections).is_equal(0)
 	await _pair.stop()
 
