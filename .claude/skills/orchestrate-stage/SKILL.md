@@ -313,9 +313,8 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   is closed, and launch `issue-task` afresh with those args; the implementer finds earlier commits and uncommitted
   files through `git status`, the publisher an existing PR through `gh pr list`.
 - A plan limit: with `autoContinueAtUsageLimit` on, a workflow's agents wait for the reset and continue on their
-  own; otherwise they fail and you resume after the reset. While you wait (a limit, a long run, a merge), set a
-  timer with a background `sleep <seconds>` (Bash, `run_in_background`); it wakes you when it exits. A finished
-  workflow wakes you anyway.
+  own; otherwise they fail and you resume after the reset. While you wait (a limit, a long run, a merge), the
+  keep-alive below is your only timer: a longer wait re-arms it on each wake. A finished workflow wakes you anyway.
 - **Keep the prompt cache warm while you wait** (#305). Your session runs on the 1-hour prompt cache: the first call
   after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens (§9). The keep-alive is **one**
   timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000: the default background timeout
