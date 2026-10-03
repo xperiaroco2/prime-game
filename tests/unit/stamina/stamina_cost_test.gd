@@ -44,6 +44,26 @@ func test_it_settles_the_idle_ticks_first() -> void:
 	assert_int(player.stamina).is_equal(2500)
 
 
+func test_a_refused_use_still_sends_the_actor_the_stamina_it_settled() -> void:
+	var game := FixtureModes.in_round(_mode([_cost(25)]), [P1, P2])
+	var player := game.state.player(P1)
+	FixtureMoves.claim(game, P1, player.position)
+	player.stamina = 0
+	FixtureModes.run_ticks(game, 10)
+	var seen := FixtureMoves.statuses(game, P1).size()
+	var before := player.stamina
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([StaminaCost.TIRED])
+	# The check settled the idle ticks: the stamina changed, so the actor hears of it at the end
+	# of the tick, though nothing was paid.
+	assert_int(player.stamina).is_not_equal(before)
+	FixtureModes.run_ticks(game, 1)
+	var statuses := FixtureMoves.statuses(game, P1)
+	assert_int(statuses.size()).is_equal(seen + 1)
+	assert_int(statuses.back().stamina).is_equal(player.stamina)
+	assert_array(FixtureMoves.statuses(game, P2)).is_empty()
+
+
 func test_a_rule_refused_by_a_later_condition_pays_no_stamina() -> void:
 	var conditions: Array[Condition] = [_cost(25), FixtureCost.of(&"uses", 0)]
 	var game := FixtureModes.in_round(_mode(conditions), [P1])
