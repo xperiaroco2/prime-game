@@ -144,10 +144,11 @@ func test_a_swap_refused_for_a_two_handed_item_stops_nothing() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
-## A round of FixtureItemModes.basic() whose mode's Use (from the living, with an empty hand)
-## starts `effect` (a FixtureChannel of 1 s when null), under ChannelFree and "peer 0's counter
-## `halt` below 1" (checked every tick); `cooldown`: also a Cooldown of 5 s; `swap`: the mode has
-## the base mode's Swap (FixtureItemModes.swapping). Round lists ChannelTicks.
+## A round of FixtureItemModes.basic() whose mode's Use (from the living, when the hand item has
+## no Use of its own) starts `effect` (a FixtureChannel of 1 s when null), under ChannelFree and
+## "peer 0's counter `halt` below 1" (checked every tick); `cooldown`: also a Cooldown of 5 s;
+## `swap`: the mode has the base mode's Swap (FixtureItemModes.swapping). Round lists
+## ChannelTicks.
 func _round(cooldown: bool = false, effect: ChannelEffect = null, swap: bool = false) -> Match:
 	var mode := FixtureItemModes.basic()
 	if swap:
