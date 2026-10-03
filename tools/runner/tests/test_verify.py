@@ -37,6 +37,7 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
         return mock.MagicMock(side_effect=called)
 
     stack = contextlib.ExitStack()
+    stack.enter_context(mock.patch.object(verify.gdunit, "LAST_RUN", None))  # no earlier test run's record
     for target, attribute, name in (
         (verify.doctor, "main", "doctor"),
         (verify.lint, "main", "lint"),
@@ -303,6 +304,92 @@ class LaneTest(unittest.TestCase):
         self.assertEqual((marks["check"], marks["enet"], marks["test"]), (1, 1, 0))
         self.assertIn("FAIL  no Godot", out.getvalue())
         self.assertIn("RuntimeError: bug", out.getvalue())
+
+
+# A red `bots-enet` as `bots.main` prints it over ENet (the #284 case): the FAIL line, then each instance's report.
+BOTS_ENET_OUT = """bots
+  ok    bots_main #1: exit 0 in 41.0s, no engine errors (log: tools/out/logs/run/bots_main-1.log)
+  FAIL  bots_main #2: exited 1 (log: tools/out/logs/run/bots_main-2.log)
+run: FAILED (1 of 3)
+  #2 BOTS dissident_kills_the_crew: FAILED (seed 7) 41.2s
+  #2   a Correction outside a placement (epoch 3, at (1.5, 0, -2)): an honest bot is never corrected
+  #2   command log (Match.replay with ReplayFiles.read): user://x.log
+"""
+
+
+class HistoryDetailTest(unittest.TestCase):
+    """What the history record keeps of a red step (#273): `test`'s processes and failing tests, every red step's
+    first failure line; a green step keeps its four fields (and `test` its processes)."""
+
+    def test_the_test_steps_processes_and_failing_tests_reach_the_record_through_the_lane(self) -> None:
+        detail = {"shards": [{"shard": 1, "rc": 0, "seconds": 80.0},
+                             {"shard": 2, "rc": 3221225477, "seconds": 12.5, "results": False}],
+                  "failed_tests": [{"test": "a_test::test_one", "message": "Expecting: 1 but was 2"}]}  # fmt: skip
+
+        def red_test(**_kwargs: object) -> int:
+            verify.gdunit.LAST_RUN = detail  # what gdunit.main leaves
+            common.bad("shard 2: GdUnit4 crashed or exited unexpectedly (exit 3221225477); log: x.log")
+            return 1
+
+        with stub_steps(), mock.patch.object(verify.gdunit, "main", side_effect=red_test):
+            rc, _text, record = Verify(self).run(inline_lane)
+        self.assertEqual(rc, 1)
+        steps = {s["name"]: s for s in record["steps"]}  # type: ignore[union-attr]
+        self.assertEqual(steps["test"], {
+            "name": "test", "lane": "godot", "status": "FAILED", "seconds": steps["test"]["seconds"], **detail,
+            "failure": "shard 2: GdUnit4 crashed or exited unexpectedly (exit 3221225477); log: x.log"})  # fmt: skip
+        self.assertEqual(set(steps["enet"]), {"name", "lane", "status", "seconds"})
+        self.assertIsNone(verify.gdunit.LAST_RUN, "taken by the lane")
+
+    def test_a_mark_carries_the_detail_and_a_broken_detail_is_left_out(self) -> None:
+        steps: list[verify.StepRun] = []
+        reader = verify.LaneReader("godot", ("test", "enet"), steps.append)
+        reader.feed(f'{verify.MARK}{{"step": "test", "rc": 0, "seconds": 1, "detail": {{"shards": []}}}}\n')
+        reader.feed(f'{verify.MARK}{{"step": "enet", "rc": 0, "seconds": 1, "detail": [1]}}\n')
+        self.assertEqual([s.detail for s in steps], [{"shards": []}, {}])
+
+    def test_only_the_test_step_has_a_detail(self) -> None:
+        with (
+            stub_steps(),
+            mock.patch.object(verify.gdunit, "take_last_run", return_value={"shards": []}) as taken,
+            contextlib.redirect_stdout(io.StringIO()) as out,
+        ):
+            verify.lane_main("godot")
+        marks = [json.loads(line[len(verify.MARK) :]) for line in out.getvalue().splitlines()
+                 if line.startswith(verify.MARK)]  # fmt: skip
+        self.assertEqual([m["step"] for m in marks if "detail" in m], ["test"])
+        taken.assert_called_once()
+
+    def test_a_red_steps_first_failure_line(self) -> None:
+        enet = ("  FAIL  enet_host_and_two_clients #1: exited 1 (log: tools/out/logs/run/x-1.log)\n"
+                "        -> ERROR: NET instance 1 FAIL: no Welcome within 10 s\n"
+                "        ->    at: push_error (core/variant/variant_utility.cpp:1024)\n")  # fmt: skip
+        one_process = ("BOTS refusals: FAILED (seed 1) 2.0s\n  the host accepted a vote of a downed player\n"
+                       "  FAIL  bots_main #1: exited 1 (log: tools/out/logs/run/bots_main-1.log)\n")  # fmt: skip
+        cases = {
+            BOTS_ENET_OUT: "bots_main #2: exited 1 (log: tools/out/logs/run/bots_main-2.log) | a Correction outside a "
+            "placement (epoch 3, at (1.5, 0, -2)): an honest bot is never corrected",
+            enet: "enet_host_and_two_clients #1: exited 1 (log: tools/out/logs/run/x-1.log) | "
+            "ERROR: NET instance 1 FAIL: no Welcome within 10 s",
+            one_process: "bots_main #1: exited 1 (log: tools/out/logs/run/bots_main-1.log) | "
+            "the host accepted a vote of a downed player",
+            "CHAOS seed 188001: FAILED (timeout, 900 ms)\n": "CHAOS seed 188001: FAILED (timeout, 900 ms)",
+            "selftest\n  FAIL  runner.tests.test_x.T.test_y: AssertionError: 1 != 2\n        Traceback\n":
+                "runner.tests.test_x.T.test_y: AssertionError: 1 != 2",
+            "lint\nsomething went wrong\nlint: FAILED\n\n": "lint: FAILED",
+            "": "",
+        }  # fmt: skip
+        for output, line in cases.items():
+            with self.subTest(output=output[:30]):
+                self.assertEqual(verify.first_failure(output), line)
+        long = verify.first_failure("  FAIL  " + "x" * 1000)
+        self.assertEqual(len(long), verify.gdunit.MESSAGE_CAP)
+
+    def test_a_red_step_without_any_output_has_no_failure_field(self) -> None:
+        record = verify.step_record(verify.StepRun("game", "godot", "FAILED", 1.0, ""))
+        self.assertEqual(record, {"name": "game", "lane": "godot", "status": "FAILED", "seconds": 1.0})
+        green = verify.step_record(verify.StepRun("game", "godot", "passed", 1.0, "  FAIL  not read when green\n"))
+        self.assertNotIn("failure", green)
 
 
 class SlotTest(unittest.TestCase):
