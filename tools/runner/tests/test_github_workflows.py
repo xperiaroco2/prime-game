@@ -1,14 +1,21 @@
 """The GitHub Actions files (docs/AGENT_WORKFLOW.md §11 CI and §15 Night jobs), parsed and checked before GitHub
 runs them: a new scheduled workflow cannot be tried on a task branch (workflow_dispatch needs the file on the default
 branch, docs.github.com "Events that trigger workflows"), so its first run is the night after the merge; once it is
-there, `gh workflow run <file> --ref <branch>` runs the branch's version.
+there, `gh workflow run <file> --ref <branch>` runs the branch's version. The bash of nightly.yml's own logic runs
+here under Git Bash (or bash), with stubs for gh and the runner.
 
 PyYAML comes with the pinned gdtoolkit (its dependency), so it is there wherever `verify` runs; without it the tests
 skip.
 """
 
+import json
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
+
+from runner.common import git_bash
 
 try:
     import yaml
@@ -170,6 +177,112 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertIn(last, keep)
         self.assertLess(names.index("The last night's report"), names.index("perf"))
         self.assertLess(names.index("perf"), names.index("Keep this report for the next night"))
+
+
+# A stub of gh for the `refs` step: canned output instead of GitHub's API (and of gh's --jq, which it skips). Each
+# call goes to $GH_CALLS.
+FAKE_GH = """gh() {
+  echo "$*" >> "$GH_CALLS"
+  [ -z "$FAKE_FAIL" ] || return 1
+  case "$*" in
+    *git/matching-refs/heads/release/*) printf '%s' "$FAKE_RELEASES" ;;
+    *repos/o/r/commits/*) printf '%s\\n' "$FAKE_SHA" ;;
+    *) echo "unexpected: gh $*" >&2; return 2 ;;
+  esac
+}
+"""
+MAIN_SHA = "a" * 40
+
+
+@unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
+class NightlyScriptsTest(unittest.TestCase):
+    """The bash of nightly.yml's steps, run as GitHub runs a `run:` (bash --noprofile --norc -eo pipefail)."""
+
+    def script(self, job: str, name: str) -> str:
+        steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"][job]["steps"]
+        return next(step["run"] for step in steps if step.get("name") == name)
+
+    def bash(self, text: str, cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+        bash = git_bash()
+        self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the workflow's scripts")
+        path = cwd / "step.sh"
+        path.write_bytes(text.encode("utf-8"))
+        return subprocess.run(
+            [str(bash), "--noprofile", "--norc", "-eo", "pipefail", path.as_posix()],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env={**os.environ, **env},
+            timeout=60,
+        )
+
+    def refs(self, input_ref: str = "", releases: str = "", sha: str = "", fail: bool = False) -> dict:
+        """Runs the `refs` step; returns its exit code, outputs, stdout and gh calls."""
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            output, summary, calls = where / "output", where / "summary", where / "calls"
+            for path in (output, summary, calls):
+                path.write_bytes(b"")
+            env = {
+                "GITHUB_REPOSITORY": "o/r",
+                "GITHUB_REF_NAME": "main",
+                "GITHUB_SHA": MAIN_SHA,
+                "GITHUB_OUTPUT": output.as_posix(),
+                "GITHUB_STEP_SUMMARY": summary.as_posix(),
+                "GH_CALLS": calls.as_posix(),
+                "INPUT_REF": input_ref,
+                "FAKE_RELEASES": releases,
+                "FAKE_SHA": sha,
+                "FAKE_FAIL": "1" if fail else "",
+            }
+            res = self.bash(FAKE_GH + self.script("refs", "The run's ref and the newest release branch"), where, env)
+            outputs = dict(line.split("=", 1) for line in output.read_text(encoding="utf-8").splitlines() if line)
+            return {
+                "code": res.returncode,
+                "stdout": res.stdout,
+                "outputs": outputs,
+                "matrix": json.loads(outputs["matrix"])["include"] if "matrix" in outputs else None,
+                "calls": calls.read_text(encoding="utf-8"),
+            }
+
+    def test_without_a_release_branch_the_runs_ref_runs_alone(self) -> None:
+        got = self.refs()
+        self.assertEqual(got["code"], 0, got["stdout"])
+        self.assertEqual(got["matrix"], [{"ref": "main", "sha": MAIN_SHA, "slug": "main"}])
+        self.assertEqual(got["outputs"]["list"], "`main` at aaaaaaa")
+
+    def test_the_newest_release_branch_by_version_joins_the_runs_ref(self) -> None:
+        releases = "".join(f"release/{name} {name[1:] * 20}\n" for name in ("m9", "m10", "m5"))
+        got = self.refs(releases=releases)
+        self.assertEqual(got["code"], 0, got["stdout"])
+        self.assertEqual(
+            got["matrix"],
+            [
+                {"ref": "main", "sha": MAIN_SHA, "slug": "main"},
+                {"ref": "release/m10", "sha": "10" * 20, "slug": "release-m10"},
+            ],
+        )
+        self.assertEqual(got["outputs"]["list"], "`main` at aaaaaaa, `release/m10` at 1010101")
+
+    def test_a_release_branch_at_the_runs_commit_runs_once(self) -> None:
+        got = self.refs(releases=f"release/m5 {'5' * 40}\nrelease/m6 {MAIN_SHA}\n")
+        self.assertEqual(got["code"], 0, got["stdout"])
+        self.assertEqual(got["matrix"], [{"ref": "main", "sha": MAIN_SHA, "slug": "main"}])
+
+    def test_a_dispatch_ref_runs_alone_at_its_commit(self) -> None:
+        got = self.refs(input_ref="release/m5", releases=f"release/m6 {'6' * 40}\n", sha="b" * 40)
+        self.assertEqual(got["code"], 0, got["stdout"])
+        self.assertEqual(got["matrix"], [{"ref": "release/m5", "sha": "b" * 40, "slug": "release-m5"}])
+        self.assertIn("repos/o/r/commits/release%2Fm5", got["calls"])
+        self.assertNotIn("matching-refs", got["calls"])
+
+    def test_a_ref_with_another_character_or_a_failed_api_call_fails_clearly(self) -> None:
+        for case in ({"input_ref": 'x";y'}, {"fail": True}, {"input_ref": "release/m5", "fail": True}):
+            got = self.refs(**case)
+            self.assertNotEqual(got["code"], 0, case)
+            self.assertIn("::error::", got["stdout"], case)
+            self.assertIsNone(got["matrix"], case)
 
 
 if __name__ == "__main__":
