@@ -99,6 +99,17 @@ func test_a_target_must_overlap_the_attacker_vertically() -> void:
 	assert_int(game.state.player(P2).health).is_equal(HALF)
 
 
+func test_the_vertical_overlap_includes_its_bound() -> void:
+	# A capsule height exact in binary, so a target stands exactly one full height above the
+	# attacker (1.8 m is not exact as a float32 position) and still overlaps it.
+	var mode := FixtureCombatModes.basic()
+	mode.player_rules.capsule_height_m = 2.0
+	var game := _armed([P1, P2], mode)
+	FixtureItemModes.stand(game, P2, Vector3(0, 2, 1))
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+
+
 func test_a_wall_between_blocks_the_hit_and_a_low_one_does_not() -> void:
 	var world := FlatWorldQuery.new().add_wall(AABB(Vector3(-2, 0, 0.5), Vector3(4, 3, 0.1)))
 	var game := _armed([P1, P2], null, world)
@@ -133,6 +144,25 @@ func test_every_living_player_in_the_zone_is_hit_in_peer_id_order_but_the_downed
 	# No victim learns of the other's damage.
 	assert_array(FixtureCombatModes.received(game, P1, &"Damaged")).is_empty()
 	assert_array(FixtureCombatModes.received(game, P4, &"Damaged")).is_empty()
+
+
+func test_the_downed_and_the_dead_are_no_targets_and_no_rule_error() -> void:
+	var game := _armed([P1, P2, P3, P4])
+	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1.4))
+	FixtureItemModes.stand(game, P3, Vector3(0.1, 0, 0.7))
+	FixtureItemModes.stand(game, P4, Vector3(-0.1, 0, 0.9))
+	game.state.player(P3).life = PlayerState.Life.DOWNED
+	game.state.player(P4).life = PlayerState.Life.DEAD
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	var knife := FixtureCombatModes.strike(30.0, 1.5, 50)
+	assert_array(knife.targets(ctx, game.state.player(P1), NORTH)).is_equal([P2])
+	FixtureCombatModes.use(game, P1, NORTH)
+	assert_int(game.state.player(P2).health).is_equal(HALF)
+	# Skipped by the strike, not handed to the life rule, which would log a rule error.
+	assert_array(Array(game.diagnostics)).is_empty()
 
 
 func test_an_invulnerable_player_is_skipped_before_any_damaged_until_its_tick_comes() -> void:

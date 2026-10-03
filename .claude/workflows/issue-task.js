@@ -199,10 +199,13 @@ const PUB = {
     not_fixed: { type: 'array', items: { type: 'string' } },
     needs_engineer: { type: 'array', items: { type: 'string' } },
     merge_notes: { type: 'string' },
-    human_steps: { type: 'array', items: { type: 'string' } },
+    human_steps: { type: 'array', items: { type: 'object', properties: { why: { type: 'string' }, command: { type: 'string' } }, required: ['why', 'command'] } },
   },
   required: ['published', 'handoff_posted'],
 }
+// human_steps (#266): each step the engineer takes himself comes back with its whole command, which the manager copies
+// into the chat as is (root CLAUDE.md, "Talking to the humans"; docs/interventions/2026-10-03-engineer-commands-in-the-chat.md).
+const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
 // The pipeline v2 schemas.
 const STRINGS = { type: 'array', items: { type: 'string' } }
 const PLAN_SCHEMA = {
@@ -435,6 +438,7 @@ const pub = stoppedByMutants
     `Task: report a stopped run of issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${PUB_EFFORT}. Budget: at most about 30 tool calls.`,
     `The test review (test_review) reported: ${JSON.stringify(testReview)}`,
     `${MUTANTS_STOP} Check \`git status\` in the worktree first: it must show no planted fault.`,
+    HUMAN_STEPS,
     'Return the structured result.',
   ].join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
   : await agent([
@@ -465,6 +469,7 @@ const pub = stoppedByMutants
       `- \`tools\\run.cmd board move ${N} in-review\`.`,
     ].join('\n'),
     `Task notes from the manager (for the PR's merge order and the handoff):\n${A.notes}${A.coord ? '\n\n' + A.coord : ''}`,
+    HUMAN_STEPS,
     'Return the structured result.',
   ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
 

@@ -24,7 +24,8 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "tools" / "out"
 LOGS = OUT / "logs"
 # The gitignored folder for temporary files that must live under res:// (a probe test). The guard lets its deletes
-# pass; full lint, check and test runs skip it, a run that names a path in it covers that path.
+# pass; full lint, check and test runs skip it, a run that names a path in it covers that path. Godot still imports
+# it, so check's UID lint counts one thing there: a uid a file in it shares with a project file (uids.py, #264).
 SCRATCH = "tests/scratch"
 IS_WINDOWS = os.name == "nt"
 IS_LINUX = sys.platform.startswith("linux")

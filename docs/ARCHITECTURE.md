@@ -66,7 +66,9 @@ in the [MVP rules](decisions/2026-09-29-mvp-rules.md), and the numbers are place
     (§7.1, §9.4);
   - a **transition table** of rows *from phase, outcome → to phase, actions*.
 - An intent the phase's allowlist does not name, or from a sender it does not name, is rejected (`not_accepted`;
-  the senders are a newcomer, any player, the living, the downed or the host). Two exceptions (3e, #97; §4.3): a refused
+  the senders are a newcomer, any player, the living, the downed or the host; a player who left, still on the roster in
+  Round and End, is refused under every one, and the dead only take the host's session controls; tests:
+  `tests/unit/match/match_test.gd` and `match_accepts_test.gd`). Two exceptions (3e, #97; §4.3): a refused
   `MoveClaim` is dropped without `Rejected` (E15), and a refused `Hello` from a peer that is not a player gets
   `joins_closed`, with `DisconnectPeer` when it is a newcomer (E14). An accepted intent goes to the phase class, or to the
   content part that handles it (an action such as pick up or a throw #37; §9.2: the rule of the
@@ -1458,10 +1460,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Tests: `tests/unit/client/app/` (`GameFlow`, `LaunchOptions`, `EndReasons`, and E18's source test, seen failing
   on a planted `_host._session.game` in `game.gd` and a `HostNode` named in `client/ui/`),
   `tests/unit/client/ui/screens_test.gd`, and `tests/integration/client/app/game_loop_test.gd`: three `Game` roots,
-  each in a `SubViewport` with its own `World3D` (in one physics space each player stood inside the body another
-  game drew of it and was pushed off its spot, #225), over a `LoopbackHub` on a simulated clock through the lobby,
-  the host's setting, Ready, the countdown, loading, the round, time up, the end screen and back, a client's Leave
-  and the host's close (about 5 s), and the same loop with no `Game._process` from the lobby on (#241, above).
+  each in a `SubViewport` with its own `World3D` as `net_pair.gd`'s are (in one physics space each player stood
+  inside the body another game drew of it and was pushed off its spot, #225 and #238), over a `LoopbackHub` on a
+  simulated clock through the lobby, the host's setting, Ready, the countdown, loading, the round (which holds the
+  players still for half a second), time up, the end screen and back, a client's Leave and the host's close (about
+  5 s), and the same loop with no `Game._process` from the lobby on (#241, above).
   The screens' `shot`s: `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
 - The runner's windows for `host` and `join` (E20) came with #149, the rest of M4-6: below.
 
@@ -2020,7 +2023,9 @@ off-screen windows at the named steps of a scripted run, and the playtests of th
   voice routing (who hears whom). `Match.view_of(peer)` returns that peer's events in order, its snapshot for every
   tick, and the speakers it may hear per tick: everything an honest client of that peer can know. The per-tick
   snapshots and speakers are recorded only with `Match.keep_history` on (off by default: about 1 GiB for 10 players
-  over 10 minutes); the tests and the leak test turn it on, a real host does not. The M3 leak test
+  over 10 minutes); the tests and the leak test turn it on, a real host does not. `snapshot_for(peer)`, what `server/`
+  sends each tick, is empty for anyone but a present player, and in a phase that sends no snapshots
+  (`tests/unit/match/view_of_test.gd`). The M3 leak test
   compares what each bot actually decoded (voice frames included) with `view_of` of its peer; anything received that
   `view_of` does not hold is a leak (§4.6: the events exactly, the snapshots' avatars and the voice frames as
   subsets).
@@ -2734,9 +2739,12 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   `Rejected` with that condition's reason; for a fact, nothing happens. Every condition has `negate: bool` (false); a
   negated condition rejects with `not_allowed`. A **cost** is a condition that is also paid (stamina, a cooldown,
   later a use): all conditions and costs are checked first, then every cost is paid in order, then the effects run,
-  so a refused intent pays nothing. Between the checks and the costs, an **action** (a rule on an intent) that
-  passed stops its actor's running channel (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses,
-  swaps (M4-5) or lets go of E stops its raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
+  so a refused intent pays nothing. A reaction runs for no player (actor 0): a cost that reads the actor's player
+  state (`Cooldown`, `StaminaCost`) refuses there, so a reaction with one never runs its effects, records no cooldown
+  and charges nobody (#201; `tests/unit/combat/costs_in_reactions_test.gd`). Between the checks and the costs, an
+  **action** (a rule on an intent) that passed stops its actor's running channel (`Channels.interrupt`, M4-4): a
+  raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its raise, and a refused intent stops
+  nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
 - **Effects** (*what happens*) run in order. An effect changes `MatchState` only through `core/`'s own rules (life,
   items, stamina), emits events, raises facts, and may report an outcome (`ReportOutcome`, §3.1).
 - **A fact is handled at once, depth first.** When an effect raises one, the rules on it run (the mode's reactions,
@@ -3190,7 +3198,9 @@ the life rule (`core/life/`), and the rule in `knife.tres` with `Use` from the l
 (provisional under the MVP content ADR, for the engineer's approval).
 Tests: `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
 strike and a downed player's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order,
-who learns what), `tests/unit/combat/cooldown_test.gd`, `tests/unit/life/life_rules_test.gd` (every life
+who learns what, the downed and the dead skipped), `tests/unit/combat/cooldown_test.gd`,
+`tests/unit/combat/costs_in_reactions_test.gd` (a cost in a mode reaction refuses actor 0, #201),
+`tests/unit/stamina/stamina_cost_test.gd`, `tests/unit/life/life_rules_test.gd` (every life
 transition, the crawl, the dead, the §3.4 order; M4-2), `tests/unit/life/respawn_test.gd` (the respawn at a free
 marker or any, its events, invulnerability that strikes skip and nothing ends early, the avatar's flag; M4-3),
 `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
@@ -3266,9 +3276,10 @@ Produces: `RaiseStarted`, `RaiseStopped` (no cause), `Revived`; a give-up's `Die
 Visible to: everyone (§4.2); a raise is as public as the two avatars. A raise stopped by a hit confirms that hit to
 the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `busy`, `out_of_reach`, `blocked`,
 `not_channeling`, and `not_accepted` from the phase. The raiser may hold the package (answer 4).
-Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`; the
-base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios `crew_revives_the_downed` and
-`raise_stopped_then_given_up` (§9.7).
+Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
+`tests/unit/channel/absent_target_test.gd` (`TargetInReach`, `TargetInSight` and `InSight` refuse a target that is
+not there); the base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios
+`crew_revives_the_downed` and `raise_stopped_then_given_up` (§9.7).
 
 #### Swap (action)
 What it does (vision revision 1, Two hands; M4-5, #141): exchanges the hand and belt items, either of which may be
@@ -3279,7 +3290,8 @@ Produces: `Swapped`; it stops the swapper's raise (`RaiseStopped`), as every app
 Visible to: everyone; a refusal (`nothing_to_swap`, `two_handed`) only the sender. A mode rule: its public events
 reveal no role.
 Status: built in M4-5 (#141). Tests: `tests/unit/items/swap_hands_test.gd` (the swap, its refusals, the downed and
-the dead, a swap stopping a raise, only the hand item used); `tests/unit/content/item_intents_test.gd` (the base
+the dead, a swap stopping a raise, only the hand item used); `tests/unit/channel/channels_test.gd` (a swap refused
+by `HandNotTwoHanded` stops no channel); `tests/unit/content/item_intents_test.gd` (the base
 mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_with_a_full_belt` (§9.7).
 
 #### Sprint (not a part in v0)
