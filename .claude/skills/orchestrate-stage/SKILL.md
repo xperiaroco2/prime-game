@@ -105,9 +105,11 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
 8. **Files shared across tracks** (the engineer's answer N5 (c); AGENT_WORKFLOW §7.1 "Parallel tracks"):
    `.claude/workflows/` and this skill change only through the tooling track (#170): an issue there, landing between
    the other managers' waves, since a change in the middle of a wave breaks their resumes (§7). A task of yours may
-   change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` pairs
-   PRs only within one base, so before such a PR merges, list the open PRs into another base that touch the same
-   files (`gh pr list --state open --json number,baseRefName,files`) and name them on that track's plan issue.
+   change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` also
+   pairs your PRs with every open PR into another base when both change a shared file (`tools/`, `.claude/`,
+   `.github/`, `docs/AGENT_WORKFLOW.md`; its table "across bases", #207). A flagged pair: name it on that track's
+   plan issue; the PR into `main` merges first (a human merges it), the milestone takes `main` in
+   (`merge --sync-main`, §5) and its PR is rebased on that before it merges (what you do meanwhile: §5).
 
 ## 3. Launching a task
 1. `tools\run.cmd start <n> --base release/m<k>` (plain `start <n>` on the tooling track; `--base <parent branch>`,
@@ -204,13 +206,19 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   the merged tree (`merge` checks CI and runs that `verify`).
 - **Before every merge: `tools\run.cmd merge-check --base release/m<k>`** (seconds, no Godot): each open PR onto
   its base tip and each pair into it, textually and by symbols (what one side removes or changes and the other's
-  added lines use); a Markdown table for the wave comment; exit 1 on a conflict, an overlap or a PR it could not
-  check. An overlap is a lead, not a proof. When it flags the PR you are about to merge, either merge the side that
-  changes the symbol first and send the other to `pr-rebase` (inline for a docs or test-list conflict, below), or
-  first run `tools\run.cmd merge-check --trial <pr> <pr>... --base release/m<k>` with `run_in_background` (the base
-  plus the PRs merged in that order in a scratch worktree, then `verify`): green, merge in that order; red, merge the
-  first and send the later PR to `pr-rebase` with the trial's log in `why`. A chain you merge in one go gets a trial
-  too.
+  added lines use; a signature that only appends parameters with defaults is a note), plus the pairs across bases
+  that change a shared file (§2.8); Markdown tables for the wave comment; exit 1 on a conflict, an overlap or a PR
+  it could not check. An overlap is a lead, not a proof. When it flags the PR you are about to merge, either merge
+  the side that changes the symbol first and send the other to `pr-rebase` (inline for a docs or test-list
+  conflict, below), or first run `tools\run.cmd merge-check --trial <pr> <pr>... --base release/m<k>` with
+  `run_in_background` (the base plus the PRs merged in that order in a scratch worktree, then `verify`): green,
+  merge in that order; red, merge the first and send the later PR to `pr-rebase` with the trial's log in `why`. A
+  chain you merge in one go gets a trial too.
+- **Flagged across bases** (your PR and an open PR into `main`, §2.8): you cannot merge the `main` side (only humans
+  merge into `main`) and `--trial` takes one base, so hold that one PR and merge the rest of the wave. Name the pair
+  on your plan issue and under "Needs the engineer" in the wave comment (a merge of the `main` PR first). Once it is
+  on `main`: `merge --sync-main`, then the held PR to `pr-rebase` (inline for a docs conflict), then merge it. If
+  the `main` PR is still open when everything else of the stage is merged, the engineer chooses the order.
 - **The merge:** `tools\run.cmd merge <pr> --base release/m<k>` with `run_in_background` (12 to 14 minutes on this
   PC: a fresh import plus the whole suite). It refuses `main`, any base outside `release/*` and a task's checkout;
   a PR a human already merged is only fetched (the engineer merged #107 himself); otherwise it checks CI, merges
@@ -321,8 +329,8 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   "Could not resolve hostname github.com" is transient: `git ls-remote origin`, then again.
 - Intermediate commits after a rebase may not compile (the fix lands at the tip): bisect by PR; merge commits keep
   PRs as units.
-- Two verify runs at once in different worktrees can collide (GdUnit4 files under `user://`, a busy port): the
-  agents rerun once before debugging.
+- Two verify runs at once in different worktrees can collide (a busy ENet port, a timeout under CPU load; GdUnit4's
+  `user://` files too, until #182 gave each worktree and shard its own): the agents rerun once before debugging.
 - Agents see the human's mid-turn messages relayed; they ignore requests outside their task. Tell the human that a
   message meant for you should go to your session, not to a running workflow.
 - Numbers: about 20 workflows in one day; 25 to 60 minutes and 450k to 900k subagent tokens per task workflow.

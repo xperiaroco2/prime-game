@@ -40,7 +40,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .common import IS_WINDOWS, ROOT, Failure, bad, ok, run, say, warn
+from .common import IS_WINDOWS, ROOT, Failure, bad, ok, project_name, remove_own_user_dir, run, say, user_dir_of, warn
 
 # Where mutants may go: production code only (never tests/, tools/, docs/, content/ or levels/).
 PRODUCTION = ("core", "server", "net", "client", "voice")
@@ -366,9 +366,20 @@ def _rmtree(path: Path) -> None:
         shutil.rmtree(path, onerror=retry)
 
 
+def _trees(root: Path, folder: Path) -> dict[str, str]:
+    """The scratch worktrees in folder, registered or a `tree-*` folder, by normalized path."""
+    found = {_norm(p): p for p in registered(root, folder)}
+    if folder.is_dir():  # folders only: the report of a spec named tree-x.json is the file tree-x.md
+        found.update({_norm(p): p.as_posix() for p in folder.glob(TREE_PREFIX + "*") if p.is_dir()})
+    return found
+
+
 def remove_trees(root: Path) -> list[str]:
-    """Remove every scratch worktree in tools/out/mutants/ (registered, or a `tree-*` folder); return what is left."""
+    """Remove every scratch worktree in tools/out/mutants/ (registered, or a `tree-*` folder) and the user:// folder
+    its Godot runs made in the app-data folder (#233); return what is left."""
     folder = root / MUTANTS_DIR
+    # The project's name comes from the checkout: a leftover tree may have lost its project.godot.
+    users = {key: user_dir_of(Path(path), project_name(root)) for key, path in _trees(root, folder).items()}
     for path in registered(root, folder):
         run(["git", "worktree", "remove", "--force", path], timeout=GIT_SECONDS, cwd=root)
     if folder.is_dir():
@@ -382,9 +393,10 @@ def remove_trees(root: Path) -> list[str]:
     for path in registered(root, folder):
         if not Path(path).exists():
             run(["git", "worktree", "remove", "--force", path], timeout=GIT_SECONDS, cwd=root)
-    left = {_norm(p): p for p in registered(root, folder)}
-    if folder.is_dir():  # folders only: the report of a spec named tree-x.json is the file tree-x.md
-        left.update({_norm(p): p.as_posix() for p in folder.glob(TREE_PREFIX + "*") if p.is_dir()})
+    left = _trees(root, folder)
+    for key, user in users.items():
+        if key not in left and user is not None and remove_own_user_dir(user):  # a tree that stays keeps its own
+            ok(f"removed the user:// folder {user.name}")
     return sorted(left.values())
 
 

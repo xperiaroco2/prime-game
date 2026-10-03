@@ -7,11 +7,14 @@ import os
 import re
 import shutil
 import signal
+import site
 import subprocess
 import sys
+import tempfile
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -286,14 +289,15 @@ def project_name(root: Path | None = None) -> str:
     return match.group(1) if match and match.group(1) else "PrimeGame"
 
 
-def user_dir_name(root: Path | None = None) -> str:
+def user_dir_name(root: Path | None = None, project: str | None = None) -> str:
     """A worktree's custom_user_dir_name: beside Godot's default folder, called after the project, the worktree's
-    folder and a hash of its path (two clones may both have a worktree "182")."""
+    folder and a hash of its path (two clones may both have a worktree "182"). `project` names the project when the
+    worktree's own project.godot is gone (worktree-done after a removal); by default it is read from `root`."""
     root = root or ROOT
     folder = re.sub(r"[^A-Za-z0-9._-]", "-", root.name) or "worktree"
     digest = hashlib.sha1(os.path.normcase(str(root.resolve())).encode("utf-8")).hexdigest()[:6]
     # Godot's own folder name: "godot" on Linux, "Godot" elsewhere (OS::get_godot_dir_name).
-    return f"{'godot' if IS_LINUX else 'Godot'}/app_userdata/{project_name(root)}-{folder}-{digest}"
+    return f"{'godot' if IS_LINUX else 'Godot'}/app_userdata/{project or project_name(root)}-{folder}-{digest}"
 
 
 def override_text(root: Path | None = None) -> str:
@@ -360,6 +364,84 @@ def app_data_var() -> str | None:
     if IS_LINUX:
         return "XDG_DATA_HOME"
     return None
+
+
+# --- the real app-data folder stays clean (#233) ----------------------------------------------------------------------
+# A worktree's user:// folder outlives the worktree. Every run of `merge`, `merge-check --trial` and `mutants` (a
+# scratch worktree) and every `selftest` (the throwaway projects of the runner tests that start Godot) left one in the
+# real app-data folder: 62 by 2026-10-02 22:30 UTC, a new PrimeGame-182-<hash> with each verify. Now a scratch
+# worktree takes its folder with it (remove_own_user_dir), and a runner test that starts Godot runs with the app-data
+# variable pointed at a temporary folder (temp_app_data, through verify.starts_godot).
+USER_DIR_RE = re.compile(r".+-[0-9a-f]{6}")
+
+
+def user_dir_of(root: Path, project: str | None = None) -> Path | None:
+    """Where the linked worktree at `root` keeps its user:// on this machine, also once git no longer lists it or its
+    folder is gone (then `project` names the project). None on an OS the runner does not know."""
+    base = app_data_dir()
+    return None if base is None else base / user_dir_name(root, project)
+
+
+def remove_folder(path: Path, attempts: int = 5, pause: float = 0.5) -> bool:
+    """Delete a folder, retrying a few times: on Windows a Godot that has just exited can hold a file a moment
+    longer. True when it is gone; a warning when it stays."""
+    for attempt in range(attempts):
+        try:
+            shutil.rmtree(path)
+            return True
+        except FileNotFoundError:
+            return True
+        except OSError as exc:
+            if attempt == attempts - 1:
+                warn(f"kept {path} ({exc.strerror or exc}): a program may still have it open; delete it later")
+                return False
+            time.sleep(pause)
+    return not path.exists()
+
+
+def remove_own_user_dir(folder: Path | None) -> bool:
+    """Delete a removed worktree's own user:// folder (a missing one is fine): only a `<project>-<folder>-<6 hex>`
+    folder in app_userdata/ of the app-data folder, never Godot's default `<project>` folder (the main checkout's: the
+    humans' settings and saves) nor this checkout's own. True when it removed one (the caller says so)."""
+    if folder is None or not folder.is_dir():
+        return False
+    base = app_data_dir()
+    own = user_dir_of(ROOT) if is_linked_worktree(ROOT) else None
+    godot = "godot" if IS_LINUX else "Godot"
+    if (
+        base is None
+        or os.path.normcase(str(folder.parent)) != os.path.normcase(str(base / godot / "app_userdata"))
+        or not USER_DIR_RE.fullmatch(folder.name)
+        or (own is not None and os.path.normcase(str(folder)) == os.path.normcase(str(own)))
+    ):
+        warn(f"kept {folder}: not a removed worktree's own user:// folder")
+        return False
+    return remove_folder(folder)
+
+
+@contextmanager
+def temp_app_data(prefix: str = "prime-app-data-") -> Iterator[Path | None]:
+    """Point this process's app-data variable, and so the user:// of every Godot it starts from now on (and Godot's
+    editor settings), at a fresh temporary folder; afterwards restore the variable and delete the folder. Runner tests
+    that start Godot run inside one (verify.starts_godot). PYTHONUSERBASE keeps a Python child's user site-packages
+    where they are (on Windows they live under APPDATA). Yields None, changing nothing, on an OS without one."""
+    var = app_data_var()
+    if var is None:
+        yield None
+        return
+    folder = Path(tempfile.mkdtemp(prefix=prefix)).resolve()
+    saved = {name: os.environ.get(name) for name in (var, "PYTHONUSERBASE")}
+    os.environ.setdefault("PYTHONUSERBASE", site.getuserbase())
+    os.environ[var] = str(folder)
+    try:
+        yield folder
+    finally:
+        for name, value in saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        remove_folder(folder)
 
 
 def git(*args: str, timeout: float = 60) -> Result:

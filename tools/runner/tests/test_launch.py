@@ -150,7 +150,7 @@ class ErrorScanAndExitCodeTest(unittest.TestCase):
                 return next(results)
 
             with mock.patch.object(launch, "run", fake_run), mock.patch.object(launch, "require_godot", return_value="g"), \
-                    mock.patch.object(launch, "import_if_missing"), mock.patch.object(launch, "LOGS", Path(tmp)), \
+                    mock.patch.object(launch, "ensure_import"), mock.patch.object(launch, "LOGS", Path(tmp)), \
                     mock.patch.object(launch, "say"), \
                     mock.patch.object(launch, "ok"), mock.patch.object(launch, "bad"):  # fmt: skip
                 self.assertEqual(launch.main(PROBE, headless=True, instances=2), 1)

@@ -48,9 +48,10 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
   non-managed scopes (managed settings, which would replace the list, are not modelled). A model from the user list
   that served is ok; one that another family served fell back and is listed, not judged, so the verification run
   below stays green after the engineer adds Fable to his list. It reads the main checkout's transcripts from any
-  worktree, but not workflow agents' (`<session>/subagents/workflows/`), so a `models` launch inside a workflow is not
-  checked by it yet. `tools/runner/tests/test_agents_check.py` also asserts that no tracked file under `.claude/` or
-  `.github/` and no CLAUDE.md names a model outside the shared list.
+  worktree, and since #206 also workflow agents' (`<session>/subagents/workflows/`), so a `models` launch inside a
+  workflow is checked with the same verdicts (its meta file is expected to record the request as `model`; another key
+  that names a model fails until the reader learns it). `tools/runner/tests/test_agents_check.py` also asserts that
+  no tracked file under `.claude/` or `.github/` and no CLAUDE.md names a model outside the shared list.
 - **Verified 2026-09-28:** an Agent call with `model: fable` (its meta file records `"model":"fable"`) was served by
   `claude-opus-5-5` according to its transcript. A control run without the guard was not done, because it would
   spend Fable.

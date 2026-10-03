@@ -91,7 +91,11 @@ def build_parser() -> argparse.ArgumentParser:
     # Merge safety (#181): checks across open PRs, and a manager's merge into a release branch.
     p = sub.add_parser("merge-check", help="open PRs onto their base and pairwise: textual conflicts, symbol overlaps")
     p.add_argument("prs", nargs="*", type=int, help="PR numbers (default: every open PR, grouped by base)")
-    p.add_argument("--base", help="only the PRs into this base; with --trial, the base to merge onto")
+    p.add_argument(
+        "--base",
+        help="only the PRs into this base (and their pairs across bases on shared files); with --trial, the base to "
+        "merge onto",
+    )
     p.add_argument(
         "--trial", action="store_true", help="merge the PRs in order onto the base in a scratch worktree, then verify"
     )
@@ -157,7 +161,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
 
-    p = sub.add_parser("agents-check", help="assert each subagent was served by the model family it asked for")
+    p = sub.add_parser(
+        "agents-check", help="assert each subagent and workflow agent was served by the model family it asked for"
+    )
     scope = p.add_mutually_exclusive_group()
     scope.add_argument("--session", help="session id (default: this Claude Code session, else all)")
     scope.add_argument("--all", action="store_true", help="every session of this checkout")

@@ -124,6 +124,12 @@ class RealNormalizeTest(unittest.TestCase):
 
 
 class ShotTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # The import before a launch (#174) has its own tests (test_import_freshness.py); here it never runs Godot.
+        patcher = mock.patch.object(shot, "ensure_import")
+        self.ensure_import = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_command_is_windowed_and_off_screen(self) -> None:
         cmd = shot.command(f"res://{PROBE}", Path("out.png"), "640x360", 5)
         self.assertNotIn("--headless", cmd)
@@ -154,6 +160,7 @@ class ShotTest(unittest.TestCase):
             with mock.patch.object(shot, "has_display", return_value=True), mock.patch.object(shot, "godot", fake_godot), \
                     mock.patch.object(shot, "say"), mock.patch.object(shot, "ok"):  # fmt: skip
                 self.assertEqual(shot.main(PROBE, out=str(png)), 0)
+            self.ensure_import.assert_called_once_with()
             failing = Result(1, "SHOT error cannot load res://x.tscn\n", False, 0.0)
             with mock.patch.object(shot, "has_display", return_value=True), \
                     mock.patch.object(shot, "godot", return_value=failing), mock.patch.object(shot, "say"):  # fmt: skip

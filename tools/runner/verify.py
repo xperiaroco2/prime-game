@@ -14,6 +14,7 @@ serial `verify` before #179) with each lane's wall time; each run appends a reco
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import json
 import multiprocessing
 import os
@@ -32,8 +33,24 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import bots, check, doctor, gdunit, hostjoin, launch, lint
-from .common import LOGS, ROOT, Failure, bad, ensure_out, git, git_status, group_kwargs, kill_tree, ok, say, warn
+from . import bots, check, doctor, gdunit, hostjoin, launch, lint, slots
+from .common import (
+    IS_CI,
+    LOGS,
+    ROOT,
+    Failure,
+    app_data_dir,
+    bad,
+    ensure_out,
+    git,
+    git_status,
+    group_kwargs,
+    kill_tree,
+    ok,
+    say,
+    temp_app_data,
+    warn,
+)
 
 # The headless ENet run (#40): a host with its own client and two clients, one process each, on 127.0.0.1 only.
 ENET_RUN = "tests/integration/net/enet_host_and_two_clients.gd"
@@ -355,10 +372,11 @@ def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = N
 # --- selftest ---------------------------------------------------------------------------------------------------
 
 # The Python lane runs beside the Godot lane's timing-sensitive freeze and stall runs, and on the engineer's PC beside
-# up to four other worktrees' verify runs (8 cores, 16 logical CPUs). Its runner tests therefore take at most a
-# quarter of the logical CPUs (half the physical cores: 4 there, 1 on CI's 4-vCPU runner), which still ends the lane
-# long before the Godot lane reaches freeze (on the PC with four other runs going, 2026-10-02: the Python lane about
-# 125 to 150 s, the Godot lane's check, selftest-godot and test alone about 370 s).
+# another worktree's verify run (slots.DEFAULT_COUNT, #185) and the other sessions' work (8 cores, 16 logical CPUs).
+# Its runner tests therefore take at most a quarter of the logical CPUs (half the physical cores: 4 there, 1 on CI's
+# 4-vCPU runner), which still ends the lane long before the Godot lane reaches freeze (measured on the PC with four
+# other runs going, 2026-10-02, before the verify slots: the Python lane about 125 to 150 s, the Godot lane's check,
+# selftest-godot and test alone about 370 s).
 WORKER_SHARE = 4
 
 
@@ -367,8 +385,22 @@ def selftest_workers(cpus: int | None = None) -> int:
 
 
 def starts_godot(cls: type[unittest.TestCase]) -> type[unittest.TestCase]:
-    """Marks a runner test class that starts Godot: it runs in the Godot lane, after `check`, serially."""
+    """Marks a runner test class that starts Godot: it runs in the Godot lane, after `check`, serially. Its tests run
+    with the app-data variable pointed at a temporary folder of the class's own (common.temp_app_data, #233), so no
+    Godot they start adds a folder to the real app-data folder. `cls.app_data` is that folder, `cls.outer_app_data`
+    the one the class would have used without it (the real one, or selftest's stand-in)."""
     cls.starts_godot = True  # type: ignore[attr-defined]
+    own = cls.__dict__.get("setUpClass")
+
+    def set_up_class(klass: type[unittest.TestCase]) -> None:
+        klass.outer_app_data = app_data_dir()  # type: ignore[attr-defined]
+        klass.app_data = klass.enterClassContext(temp_app_data())  # type: ignore[attr-defined]
+        if isinstance(own, classmethod):
+            own.__func__(klass)
+        else:
+            super(cls, klass).setUpClass()  # type: ignore[misc]
+
+    cls.setUpClass = classmethod(set_up_class)  # type: ignore[assignment,method-assign]
     return cls
 
 
@@ -543,14 +575,25 @@ def selftest(group: str = "all") -> int:
     tests = discover()
     groups = ("python", "godot") if group == "all" else (group,)
     workers = {name: 1 if name == "godot" else selftest_workers() for name in groups}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(groups)) as threads:
-        futures = {
-            name: threads.submit(_run_group, name, [t for t in tests if group_of(t) == name], workers[name])
-            for name in groups
-        }
-        done = {name: future.result() for name, future in futures.items()}
+    # Every worker inherits a stand-in app-data folder: a test that writes to the app-data folder outside a
+    # @starts_godot class (which has its own) would have written to the real one, and fails the run (#233).
+    with temp_app_data(prefix="prime-selftest-app-data-") as stand_in:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(groups)) as threads:
+            futures = {
+                name: threads.submit(_run_group, name, [t for t in tests if group_of(t) == name], workers[name])
+                for name in groups
+            }
+            done = {name: future.result() for name, future in futures.items()}
+        reached = app_data_written(stand_in)
     entries = {name: found for name, (found, _seconds) in done.items()}
     passed = all([_report(name, entries[name], workers[name], done[name][1]) for name in groups])
+    if reached:
+        bad(
+            f"runner tests wrote to the app-data folder, which outside selftest is the real one: {', '.join(reached)}",
+            "Mark a test class that starts Godot with @starts_godot (verify.starts_godot): it gives the class a "
+            "temporary app-data folder of its own. Any other test points the app-data variable at a temporary folder.",
+        )
+        passed = False
     if group == "all":
         reference = {t.id(): statically_skipped(t) for t in tests}
         problems, line = count_check(reference, entries["python"] + entries["godot"])
@@ -560,6 +603,21 @@ def selftest(group: str = "all") -> int:
         passed = passed and not problems
     say(f"selftest: {'passed' if passed else 'FAILED'}")
     return 0 if passed else 1
+
+
+def app_data_written(folder: Path | None, limit: int = 5) -> list[str]:
+    """What the runner tests wrote to selftest's stand-in app-data folder (its files, and each user:// folder in Godot's
+    app_userdata/ that has none, because a leaked folder is the harm even when empty; at most `limit` named, as paths
+    relative to it): nothing, when every test that starts Godot carries @starts_godot."""
+    if folder is None or not folder.is_dir():
+        return []
+    written = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
+    for godot in (p for p in folder.iterdir() if p.name in ("Godot", "godot")):  # by listing: Windows ignores case
+        user_dirs = godot / "app_userdata"
+        for user in sorted(user_dirs.iterdir()) if user_dirs.is_dir() else []:
+            if user.is_dir() and not any(p.is_file() for p in user.rglob("*")):
+                written.append(user.relative_to(folder).as_posix() + "/")
+    return written[:limit] + ([f"and {len(written) - limit} more"] if len(written) > limit else [])
 
 
 def count_check(reference: dict[str, bool], entries: list[dict[str, object]]) -> tuple[list[str], str]:
@@ -648,10 +706,17 @@ def append_history(record: dict[str, object]) -> None:
         warn(f"could not append to {HISTORY}: {exc}")
 
 
+def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
+    """The machine-wide verify slots this run waits on (#185), or None and why: none on CI, none inside a verify."""
+    me: dict[str, object] = {"worktree": ROOT.as_posix(), "branch": facts.get("branch")}
+    return slots.for_verify(me, ci=IS_CI, inside=bool(os.environ.get(INSIDE_VAR)), say=say)
+
+
 def main(run_lane: RunLane = run_lane_process) -> int:
     started = time.monotonic()
     start_time = datetime.now(UTC)
     before = git_status()
+    facts = git_facts(clean=not before)
     run_id = uuid.uuid4().hex
     os.environ[RUN_ID_VAR] = run_id  # the lane processes inherit it; their selftest results carry it
     runs: dict[str, StepRun] = {}
@@ -662,18 +727,26 @@ def main(run_lane: RunLane = run_lane_process) -> int:
     runs["doctor"] = StepRun("doctor", "main", "passed" if rc == 0 else "FAILED", time.monotonic() - t0)
     extra: list[StepRun] = []
     count_line, counts = "", {}
+    taken: slots.Taken | None = None
+    slot_line = ""
     if rc == 0:  # a wrong environment makes every later step meaningless
-        described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in LANES.items())
-        say(f"verify: two lanes at once ({described}); each step's output follows whole when it ends")
-        say()
-        printing = threading.Lock()
+        pool, why = slot_pool(facts)
+        slot_line = f"slot: {why}" if pool is None else ""
+        with pool.held() if pool is not None else contextlib.nullcontext() as taken:
+            if taken is not None:
+                slot_line = taken.summary()
+                say(f"verify: {slot_line}")
+            described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in LANES.items())
+            say(f"verify: two lanes at once ({described}); each step's output follows whole when it ends")
+            say()
+            printing = threading.Lock()
 
-        def emit(step: StepRun) -> None:
-            with printing:
-                runs[step.name] = step
-                _print_step(step)
+            def emit(step: StepRun) -> None:
+                with printing:
+                    runs[step.name] = step
+                    _print_step(step)
 
-        walls = run_lanes(run_lane, emit, printing)
+            walls = run_lanes(run_lane, emit, printing)
         for lane, names in LANES.items():
             for name in names:
                 runs.setdefault(name, StepRun(name, lane, "FAILED", 0.0))  # its lane never reported it
@@ -695,14 +768,19 @@ def main(run_lane: RunLane = run_lane_process) -> int:
             + f"; {os.cpu_count()} CPUs, selftest on {selftest_workers()} worker processes")  # fmt: skip
     if count_line:
         say(f"  {count_line}")
+    if slot_line:
+        say(f"  {slot_line}")
     failed = any(step.status != "passed" for step in ordered) or len(runs) < len(STEP_ORDER)
-    seconds = time.monotonic() - started
-    say(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s")
+    waited = taken.waited if taken is not None else 0.0
+    seconds = time.monotonic() - started - waited  # the run itself; the wait is its own field
+    after = f" (after {waited:.1f}s waiting for a verify slot)" if taken is not None else ""
+    over = "; it ran OVER THE LIMIT of verify slots" if taken is not None and taken.over else ""
+    say(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s{after}{over}")
     append_history(
         {
             "start": start_time.isoformat(timespec="seconds").replace("+00:00", "Z"),
             "worktree": ROOT.as_posix(),
-            **git_facts(clean=not before),
+            **facts,
             "status": "FAILED" if failed else "passed",
             "seconds": round(seconds, 1),
             "steps": [
@@ -712,6 +790,7 @@ def main(run_lane: RunLane = run_lane_process) -> int:
             "cpus": os.cpu_count(),
             "workers": selftest_workers(),
             "selftest": counts,
+            "slot": taken.record() if taken is not None else None,
         }
     )
     return 1 if failed else 0
