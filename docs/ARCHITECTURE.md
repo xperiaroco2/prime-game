@@ -1821,29 +1821,34 @@ a follow-up on #144 and #145):
   100 ms, gives the player's offset (−8 dB at 1) and its bus (muffled from 0.75 on the way in to 0.25 on the way
   out, so a ray flickering at an edge does not flip it), and jumps to the ray's answer at a speaker's first audible
   frame after a silence. `Muffle.blocked()` is the one ray, `SightHider.sees` on the world layer (a hit within 0.1 m
-  of the sound does not count: the floor under a put-down package).
+  of the ray's end does not count).
   `VoiceViews` casts it each physics frame for each audible speaker (active, not fading, within `max_distance`;
   `rays` counts them) from the ears to the mouth, and sets the speaker's `extra_db` and bus; `WorldSounds` casts it
-  once per sound as it starts (`rays()`, `muffled()`).
+  once per sound as it starts (`rays()`, `muffled()`), to the sound's `aim`: 1 m above a swinger's feet (about the
+  chest) or 0.3 m above an item, placeholders, since a ray to a point on a floor, step or table reaches it only from
+  above (a curb in front of the feet, or ears below the swinger's step, would muffle a sound in plain view).
 - `client/audio/`: `AudioBuses` adds `VoiceMuffled` and `EffectsMuffled`, each made after and sending to its clear
   bus (its slider still applies) with one `AudioEffectLowPassFilter` at 1 kHz. `voice/`'s `VoiceSpeaker` adds its
   owner's `extra_db` (never above 0) to the fade's volume.
-- The mechanism, measured headless under the Dummy driver (a looping 400 Hz or 3 kHz tone on an
-  `ATTENUATION_DISABLED` player with an 8 m `max_distance`, at 0.5, 2 and 6 m): the player's own
+- The mechanism, measured headless under the Dummy driver by a probe not kept in the repo (a looping 400 Hz or
+  3 kHz tone on an `ATTENUATION_DISABLED` player with an 8 m `max_distance`, at 0.5, 2 and 6 m): the player's own
   `attenuation_filter_cutoff_hz` (1 kHz) with `volume_db` −8 lowered 400 Hz by 7.7, 8.6 and 12.7 dB and 3 kHz by
   39 to 43 dB, since Godot's attenuation filter is a high shelf whose depth follows the distance fade and
   `volume_db`; a bus low-pass at 1 kHz with −8 dB lowered 400 Hz by 9.3 dB and 3 kHz by 28 dB at every distance. So
   the dullness is the bus's and the 8 dB the player's own `volume_db`, which eases per speaker (a shared bus
-  cannot). Through `VoiceViews` behind a fixture wall at 3 m: 400 Hz 9.2 dB lower, 3 kHz 36 dB.
+  cannot). Through `VoiceViews` behind a fixture wall at 3 m (`voice_views_audio_test.gd` prints it): 400 Hz 9.2 dB
+  lower, 3 kHz 36 dB.
 - Tests: `tests/unit/client/world/muffle_test.gd`; `tests/integration/client/world/voice_views_muffle_test.gd` (a
   wall between muffles from the first audible frame, one aside does not; boxes on the LIVING and DOWNED layers and a
   remote player's body on the line muffle nothing; one ray per audible speaker per physics frame, none for the
-  silent or past the cutoff; eased in and back out; a speaker heard again starts at its ray's answer; seen failing
-  with the ray removed, with a ray that also sees the players' layers, and with an ease that never goes back);
+  silent or past the cutoff; eased in and back out; a speaker heard again starts at its ray's answer; a railing below
+  the mouth muffles nothing; a body freed without `PlayerLeft` takes its muffle along; seen failing with the ray
+  removed, with a ray that also sees the players' layers, and with an ease that never goes back);
   `voice_views_audio_test.gd` (the Voice bus behind a fixture wall: quieter at 400 Hz and much duller at 3 kHz; seen
   failing without the ray and without the muffled bus); `world_sounds_test.gd` (muffled behind a wall, clear in the
-  open, one ray per sound, no ray out of range, capsules and the floor muffle nothing; seen failing without the
-  ray); `voice_speaker_test.gd` (`extra_db` adds to the fade, never louder); `audio_buses_test.gd`.
+  open, one ray per sound, no ray out of range, capsules muffle nothing, nor do the floor under a package and a curb
+  in front of it, while a wall just in front of the ears does; seen failing without the ray and with the ray aimed
+  at the sound's position); `voice_speaker_test.gd` (`extra_db` adds to the fade, never louder); `audio_buses_test.gd`.
 - Not headless: how the muffle sounds (8 dB and 1 kHz are placeholders, the bus switch within the ease, a door
   jamb's edge): the listening test of the M5 ADR's §6.
 
@@ -2125,12 +2130,12 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later
     through a mouth animation with the masks of #73 (after the MVP).
   - **Occlusion** (E42, D13 (a); **built in M5-7**, #221): on the listener only, one ray from the ears per audible
-    speaker per physics frame (to its mouth) and one per world sound as it starts, against the world layer of the
-    client's own level, never a player's capsule; the host keeps routing by distance. Behind the level a voice or a
-    world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or Effects bus, a
-    low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers and dulls
-    what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless measurement
-    (§4.7's "Built in M5-7"). Beyond one ray (several rays, thickness, portals) is not built.
+    speaker per physics frame (to its mouth) and one per world sound as it starts (to a point above it), against the
+    world layer of the client's own level, never a player's capsule; the host keeps routing by distance. Behind the
+    level a voice or a world sound is 8 dB quieter (the player's own `volume_db`) and duller (the muffled Voice or
+    Effects bus, a low-pass at 1 kHz), both placeholders; a voice's muffle eases over 100 ms. The muffle only lowers
+    and dulls what already plays. The bus for the dullness, not the player's own attenuation filter, by a headless
+    measurement (§4.7's "Built in M5-7"). Beyond one ray (several rays, thickness, portals) is not built.
   - **The wire** (E44; **measured in M5-4**, #218, and again after #245): unchanged in M5 so far. The leak test gained a
     distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and
     upload with `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m
