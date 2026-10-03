@@ -109,6 +109,11 @@ var avatars: Dictionary = {}
 var health := -1
 var stamina := -1
 var sprint_available := false
+## Goes up at every fold after which the own player may not have been heard for a while: the
+## phase changed, or its own life left living. VoiceSender compares it between its steps, so a
+## knockdown and a revive (or Round, End, Lobby) folded between two of them still mark what waits
+## in the microphone as recorded unheard (#241).
+var silencings := 0
 
 var _mode: GameMode
 
@@ -166,6 +171,14 @@ func phase_spec() -> PhaseSpec:
 
 ## Folds one decoded event into the model.
 func fold(event_name: StringName, fields: Dictionary) -> void:
+	var phase_before := phase
+	var living_before := life_of(own_peer) == Life.ALIVE
+	_fold_event(event_name, fields)
+	if phase != phase_before or (living_before and life_of(own_peer) != Life.ALIVE):
+		silencings += 1
+
+
+func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 	match event_name:
 		&"Welcome":
 			_welcome(fields)

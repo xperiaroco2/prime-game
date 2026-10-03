@@ -8,8 +8,10 @@ extends Node
 ## The contract (the manager's review of PR #234, item 5): every chunk is drained and fed in the
 ## frame it arrives, also while `may_speak` is false, with that frame's `may_speak`. So a backlog
 ## recorded while downed, dead or in a silent phase goes through the gate as unspeakable and
-## empties its pre-roll, and never goes out after a revive. What waits in the device in the frame
-## may_speak turns true was recorded before it, and counts as unspeakable too (step()).
+## empties its pre-roll, and never goes out after a revive. What Godot has handed over in the frame
+## may_speak turns true (or after the own model's `silencings` moved) counts as unspeakable too
+## (step()): recorded before the change but for the audio of that frame after the fold, dropped with
+## it; the driver's own buffer (under one chunk) may still hold a little from before.
 ##
 ## `may_speak` (may_speak_of()) is client/'s decision, never voice/'s: the own life fold is living
 ## and the client's own copy of the mode hears someone in the current phase (VoiceRule.radius_of >
@@ -53,8 +55,11 @@ var sent := 0
 var _encoder: VoiceEncoder
 ## may_speak at the last step(); a fresh capture holds nothing recorded before, so it starts true.
 var _could_speak := true
-## Frames still waiting that were recorded before may_speak last turned true.
+## Frames still waiting that were recorded before may_speak last turned true (or `silencings` last
+## moved).
 var _stale_frames := 0
+## The own model's `silencings` at the last step(); -1 for none (no model, or a new one).
+var _silencings := -1
 
 
 func _init() -> void:
@@ -66,6 +71,7 @@ func setup(client: ClientSession, game_mode: GameMode) -> void:
 	model = client.model
 	mode = game_mode
 	send = client.send_voice
+	_silencings = -1
 
 
 ## Forgets the session (it ended). The microphone stays as the settings have it.
@@ -73,6 +79,7 @@ func reset() -> void:
 	model = null
 	mode = null
 	send = Callable()
+	_silencings = -1
 
 
 ## Opens `device` (VoiceMicrophone.DEFAULT_DEVICE for the Windows default) and a fresh encoder at
@@ -90,6 +97,7 @@ func open(device: String, denoise: bool) -> bool:
 	_encoder = codec.new_encoder()
 	_could_speak = true
 	_stale_frames = 0
+	_silencings = model.silencings if model != null else -1
 	var why := "the voice codec made no encoder"
 	if _encoder != null:
 		why = _encoder.start(capture.rate(), denoise and capture.microphone.is_device())
@@ -145,17 +153,22 @@ func _process(_delta: float) -> void:
 ## may_speak and talk key; what the gate lets out is sent.
 ##
 ## In the frame where may_speak turns true (a revive or a phase that hears someone, folded by the
-## session's physics step at the start of this frame), every frame then waiting in the device was
-## recorded before the player could be heard: those chunks are fed as unspeakable too, however long
-## the frame was (a hitch, a level load). A frame with no whole chunk while unspeakable still
-## empties the pre-roll.
+## session's physics step at the start of this frame), every frame Godot has handed over by then
+## was recorded before the player could be heard (but for this frame's audio after the fold):
+## those chunks are fed as unspeakable too, however long the frame was (a hitch, a level load).
+## The same holds whenever the own model's `silencings` moved since the last step, though
+## may_speak is true at both: a knockdown and its revive, or Round, End and Lobby, all folded
+## between two steps (a hang longer than a revive, #241); not sampled once a frame, it is read
+## from the model. A frame with no whole chunk while unspeakable still empties the pre-roll.
 func step() -> void:
 	if not is_open():
 		return
 	var speak := may_speak()
-	if speak and not _could_speak:
+	var silencings := model.silencings if model != null else -1
+	if (speak and not _could_speak) or silencings != _silencings:
 		_stale_frames = capture.microphone.frames_available()
 	_could_speak = speak
+	_silencings = silencings
 	var chunks := capture.read(_encoder.chunk_frames())
 	if chunks.is_empty():
 		if not speak:

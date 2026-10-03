@@ -8,7 +8,9 @@ extends Node3D
 ## model's life fold says its player is living, lies while it says downed (M4-9), and wears the
 ## invulnerable shell while the newest snapshot's avatar has the flag. Every body is in
 ## SightHider's group: the downed camera hides those out of the body's eye's sight. A placement
-## (PlayersPlaced) snaps the players it names; a new map (LoadMatch) forgets the poses. A body whose
+## (PlayersPlaced) snaps the players it names; a new map (LoadMatch) and a phase on another level
+## (End -> Lobby) forget the poses: drawn behind the interpolation delay, the round's would stand
+## a player at its round spot in the lobby and push whoever was placed there (#241). A body whose
 ## player the model drops (a new map, the lobby, a leave, a death) leaves the tree at once and is
 ## freed after: a queued node stays in the physics space until the end of the physics frame
 ## (4.7.2), and the local player's push search runs later in that frame (#242).
@@ -29,6 +31,9 @@ var _bodies: Dictionary[int, RemotePlayerBody] = {}
 var _drawn_at := -1.0
 ## The highest host_tick() given so far: it never runs backwards; -1 before.
 var _given_tick := -1
+## The level of the model's phase when last seen (each physics frame and each PhaseChanged): a
+## PhaseChanged to another level forgets the poses; -1 before the first look.
+var _level := -1
 
 
 func _init() -> void:
@@ -76,6 +81,7 @@ func clear() -> void:
 	_bodies.clear()
 	_drawn_at = -1.0
 	_given_tick = -1
+	_level = -1
 
 
 ## The session's events that move the others without a snapshot telling it (connected by the
@@ -86,6 +92,11 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	match event_name:
 		&"LoadMatch":
 			buffer.clear()
+		&"PhaseChanged":
+			var level := _level_now()
+			if _level >= 0 and level != _level:
+				buffer.clear()
+			_level = level
 		&"PlayersPlaced":
 			var tick := maxi(0, host_tick())
 			var spots: Dictionary = fields["spots"]
@@ -96,6 +107,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 func _physics_process(_delta: float) -> void:
 	if model == null or buffer == null:
 		return
+	_level = _level_now()
 	for peer: int in _bodies.keys():
 		if not model.avatars.has(peer):
 			_drop(_bodies[peer])
@@ -128,3 +140,9 @@ func _physics_process(_delta: float) -> void:
 func _drop(body: RemotePlayerBody) -> void:
 	remove_child(body)
 	body.queue_free()
+
+
+## The level the model's current phase plays on; NONE without one.
+func _level_now() -> int:
+	var spec := model.phase_spec() if model != null else null
+	return spec.level if spec != null else PhaseSpec.Level.NONE

@@ -2,10 +2,11 @@ extends GdUnitTestSuite
 ## AvatarViews (ARCHITECTURE §4.7): at physics priority -80 each other player of the model's newest
 ## snapshot gets a RemotePlayerBody at SnapshotBuffer's pose, the yaw on the body and the pitch on
 ## the head; a vertical facing keeps the turn and gives no NaN; a player the model drops goes; a
-## PlayersPlaced snaps; a LoadMatch forgets the poses; the estimated host tick never runs backwards;
-## a player the model knows as downed is on the downed layer, where no push searches (§7.1); a
-## body the model drops leaves the physics space in that frame, before the local player's push
-## search (#242), and clear() takes every body out of the tree the same way.
+## PlayersPlaced snaps; a LoadMatch and a phase on another level (End -> Lobby, #241) forget the
+## poses; the estimated host tick never runs backwards; a player the model knows as downed is on
+## the downed layer, where no push searches (§7.1); a body the model drops leaves the physics
+## space in that frame, before the local player's push search (#242), and clear() takes every
+## body out of the tree the same way.
 
 const PEER := 2
 const TICK_USEC := 50000
@@ -215,6 +216,38 @@ func test_a_player_placed_in_the_frame_the_others_go_is_not_pushed_by_their_bodi
 	add_child(placement)
 	await world.frames(3)
 	assert_float(world.horizontal_distance(player.global_position, spot)).is_less(1e-3)
+
+
+func test_entering_the_lobby_from_the_map_forgets_the_round_poses() -> void:
+	# End -> Lobby (#241): the next snapshot draws the player again, but the round's snapshots stay
+	# behind the interpolation delay. Drawn from them, it stood at its round spot for that delay,
+	# where the greybox lobby can put another player (its markers share the round's coordinates),
+	# and pushed that player off its lobby Correction.
+	var round_spot := Vector3(2, 0, 0)
+	var lobby_spot := Vector3(-4, 0, 0)
+	_model.phase = &"end"
+	for tick: int in range(1, 6):
+		_snapshot(tick, round_spot, Vector3.FORWARD)
+	await _drawn()
+	assert_vector(_views.body_of(PEER).global_position).is_equal_approx(
+		round_spot, Vector3.ONE * 1e-3
+	)
+	# The row's placement comes before the phase it enters (Match._transition).
+	_views.on_event(&"PlayersPlaced", {"spots": {PEER: lobby_spot}})
+	_model.fold(&"PhaseChanged", {"phase": &"lobby", "end_tick": -1})
+	_views.on_event(&"PhaseChanged", {"phase": &"lobby", "end_tick": -1})
+	_snapshot(6, lobby_spot, Vector3.FORWARD)
+	for frame: int in 4:
+		_now += FRAME_USEC
+		await get_tree().physics_frame
+		assert_int(_living_at(round_spot)).is_equal(0)
+	assert_vector(_views.body_of(PEER).global_position).is_equal_approx(
+		lobby_spot, Vector3.ONE * 1e-3
+	)
+	# A phase on the same level forgets nothing: the lobby's countdown keeps the lobby's poses.
+	_model.fold(&"PhaseChanged", {"phase": &"countdown", "end_tick": 100})
+	_views.on_event(&"PhaseChanged", {"phase": &"countdown", "end_tick": 100})
+	assert_int(_views.buffer.newest_tick()).is_equal(6)
 
 
 ## Waits until AvatarViews has run once more (physics_frame comes before the nodes' step).
