@@ -8,6 +8,9 @@ PyYAML comes with the pinned gdtoolkit (its dependency), so it is there wherever
 skip.
 """
 
+import argparse
+import contextlib
+import io
 import json
 import os
 import subprocess
@@ -15,6 +18,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from runner import cli
 from runner.common import git_bash
 
 try:
@@ -283,6 +287,54 @@ class NightlyScriptsTest(unittest.TestCase):
             self.assertNotEqual(got["code"], 0, case)
             self.assertIn("::error::", got["stdout"], case)
             self.assertIsNone(got["matrix"], case)
+
+    def check_options(self, calls: str, helps: dict[str, str]) -> subprocess.CompletedProcess[str]:
+        """Runs a night job's options check against a runner stub that prints the given --help texts."""
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            (where / "tools").mkdir()
+            for command, text in helps.items():
+                (where / "tools" / f"help-{command}.txt").write_bytes(text.encode("utf-8"))
+            run = where / "tools" / "run.sh"
+            run.write_bytes(b'#!/usr/bin/env bash\n[ "$2" = --help ] && cat "$(dirname "$0")/help-$1.txt"\n')
+            run.chmod(0o755)
+            return self.bash(self.script(calls[0], calls[1]), where, {"CALLS": calls[2], "REF": "release/m0"})
+
+    def real_help(self, command: str) -> str:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            cli.build_parser().parse_args([command, "--help"])
+        return out.getvalue()
+
+    def jobs_calls(self) -> list[tuple[str, str, str]]:
+        jobs = load(GITHUB / "workflows" / "nightly.yml")["jobs"]
+        check = "The ref's runner has the job's options"
+        return [
+            (name, check, step["env"]["CALLS"])
+            for name, job in jobs.items()
+            for step in job.get("steps", [])
+            if step.get("name") == check
+        ]
+
+    def test_the_options_check_passes_on_this_runner(self) -> None:
+        calls = self.jobs_calls()
+        self.assertEqual({name for name, _, _ in calls}, {"flaky", "perf", "chaos"})
+        for call in calls:
+            command = call[2].split()[0]
+            res = self.check_options(call, {command: self.real_help(command)})
+            self.assertEqual(res.returncode, 0, f"{call}: {res.stdout}{res.stderr}")
+
+    def test_the_options_check_fails_on_a_runner_that_names_an_option_only_in_help_text(self) -> None:
+        # An older runner's `bots`: no --chaos, but its other options' help texts begin with "--chaos:".
+        old = argparse.ArgumentParser(prog="run bots")
+        for option in ("--seed", "--runs"):
+            old.add_argument(option, help="--chaos: a number")
+        for option in ("--long", "--enet"):
+            old.add_argument(option, action="store_true", help="--chaos: a switch")
+        chaos = next(call for call in self.jobs_calls() if call[0] == "chaos")
+        res = self.check_options(chaos, {"bots": old.format_help()})
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("::error::The runner of release/m0 has no 'bots --chaos'", res.stdout)
 
 
 if __name__ == "__main__":

@@ -124,14 +124,17 @@ jobs:
         run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
       # The runner command and options this job calls: a ref whose runner is older than this file fails here, naming
-      # what it lacks, instead of running something else.
+      # what it lacks, instead of running something else. An option counts only on its own line of argparse's help
+      # ("  --long  ...", "  -s, --shards K"), not where another option's help text mentions it ("--chaos: ...").
       - name: The ref's runner has the job's options
         env:
           CALLS: test --repeat
         run: |
           read -r command options <<< "$CALLS"
+          help=$(tools/run.sh "$command" --help 2>&1) || true
           for option in $options; do
-            if ! tools/run.sh "$command" --help 2>&1 | grep -q -- "$option"; then
+            if ! grep -qE -- "^  (-[A-Za-z0-9], )*$option( |,|\$)" <<< "$help"; then
+              echo "$help"
               echo "::error::The runner of $REF has no '$command $option': this job needs a newer tools/runner there."
               exit 1
             fi
@@ -187,14 +190,17 @@ jobs:
         run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
       # The runner command and options this job calls: a ref whose runner is older than this file fails here, naming
-      # what it lacks, instead of running something else.
+      # what it lacks, instead of running something else. An option counts only on its own line of argparse's help
+      # ("  --long  ...", "  -s, --shards K"), not where another option's help text mentions it ("--chaos: ...").
       - name: The ref's runner has the job's options
         env:
           CALLS: perf --baseline
         run: |
           read -r command options <<< "$CALLS"
+          help=$(tools/run.sh "$command" --help 2>&1) || true
           for option in $options; do
-            if ! tools/run.sh "$command" --help 2>&1 | grep -q -- "$option"; then
+            if ! grep -qE -- "^  (-[A-Za-z0-9], )*$option( |,|\$)" <<< "$help"; then
+              echo "$help"
               echo "::error::The runner of $REF has no '$command $option': this job needs a newer tools/runner there."
               exit 1
             fi
@@ -269,14 +275,17 @@ jobs:
         run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
       # The runner command and options this job calls: a ref whose runner is older than this file fails here, naming
-      # what it lacks, instead of running something else.
+      # what it lacks, instead of running something else. An option counts only on its own line of argparse's help
+      # ("  --long  ...", "  -s, --shards K"), not where another option's help text mentions it ("--chaos: ...").
       - name: The ref's runner has the job's options
         env:
           CALLS: bots --chaos --long --runs --enet
         run: |
           read -r command options <<< "$CALLS"
+          help=$(tools/run.sh "$command" --help 2>&1) || true
           for option in $options; do
-            if ! tools/run.sh "$command" --help 2>&1 | grep -q -- "$option"; then
+            if ! grep -qE -- "^  (-[A-Za-z0-9], )*$option( |,|\$)" <<< "$help"; then
+              echo "$help"
               echo "::error::The runner of $REF has no '$command $option': this job needs a newer tools/runner there."
               exit 1
             fi
