@@ -311,7 +311,13 @@ func _button(text: String) -> void:
 	if not why.is_empty():
 		_steps.fail(why)
 		return
-	Steps.buttons_named(buttons, text)[0].grab_focus()
+	var target := Steps.buttons_named(buttons, text)[0]
+	target.grab_focus()
+	# A Button with focus_mode FOCUS_NONE keeps the focus where it was (a warning only), so
+	# ui_accept would press whatever control has it.
+	if not target.has_focus():
+		_steps.fail("button '%s' cannot take the focus (its focus_mode)" % text)
+		return
 	await _press(&"ui_accept")
 
 
