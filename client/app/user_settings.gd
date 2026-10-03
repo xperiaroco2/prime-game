@@ -102,7 +102,7 @@ func read() -> Error:
 	for each: Mode in MODE_NAMES:
 		if MODE_NAMES[each] == mode_name:
 			mode = each
-	threshold = _number(file.get_value("voice", "threshold", -1.0), VoiceGate.DEFAULT_THRESHOLD)
+	threshold = _number(file.get_value("voice", "threshold", NAN), VoiceGate.DEFAULT_THRESHOLD)
 	denoise = file.get_value("voice", "denoise", true) == true
 	opening = str(file.get_value("voice", "opening", ""))
 	for bus: StringName in VOLUMES:

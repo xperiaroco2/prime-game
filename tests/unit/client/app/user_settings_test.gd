@@ -79,6 +79,15 @@ func test_a_damaged_or_partial_file_falls_back_to_the_defaults() -> void:
 	assert_float(settings.volume_db(&"Effects")).is_equal(-6.0)
 
 
+func test_a_missing_threshold_reads_back_the_default() -> void:
+	var file := ConfigFile.new()
+	file.set_value("voice", "mode", "push_to_talk")
+	file.save(PATH)
+	var settings := UserSettings.new(PATH)
+	assert_int(settings.read()).is_equal(OK)
+	assert_float(settings.threshold).is_equal(VoiceGate.DEFAULT_THRESHOLD)
+
+
 func test_the_threshold_never_reaches_digital_silence() -> void:
 	# The manager's review of PR #234 (item 4): at or below 0 a silent player streams.
 	var settings := UserSettings.new(PATH)
