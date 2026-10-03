@@ -1864,7 +1864,8 @@ a follow-up on #144 and #145):
   changes; which microphone opens, the mark and the modes are §6's.
 - `client/app/`: `UserSettings` (`user://settings.cfg`, or `settings_<n>.cfg` for `PRIME_INSTANCE` n > 1: the
   microphone, the mode, the threshold, RNNoise, the four volumes, the mark; written on each change). `Game` reads this
-  window's file unless a test sets `settings`, wires the tab, gives the sender each session, counts the talk key
+  window's file unless a test sets `settings` (with `read_command_line` off, as in tests and playcheck, the settings
+  stay in memory and touch no file), wires the tab, gives the sender each session, counts the talk key
   (`voice_talk`, V) only without the Esc menu, and closes the microphone on exit. `project.godot`: `voice_talk` and
   `audio/driver/enable_input`.
 - `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
@@ -2136,7 +2137,9 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous
       codec and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with
       that frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a
-      revive; what leaves goes through `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold
+      revive. In the frame `may_speak` turns true, what waits in the device was recorded before it and is fed as
+      unspeakable too, however long that frame was; a frame with no chunk while unspeakable still empties the
+      pre-roll. What leaves goes through `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold
       living and `VoiceRule.radius_of` of the current phase > 0 in the client's own mode, never `Match` or
       `MatchState` (the E18 boundary test scans `res://client` and `res://voice`). Nothing in silence, nothing while
       downed or dead, nothing in a phase whose rule hears nobody, nothing in Off or with no device open.
