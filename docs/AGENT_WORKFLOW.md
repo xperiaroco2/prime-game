@@ -111,7 +111,8 @@ does (#159). Setup:
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots` and `bots-enet`, §11).
+   matches too (`bots` and `bots-enet`, §11). A workflow agent or subagent (a 5-minute prompt cache) runs it in the
+   background and polls it with `wait` in calls of at most 240 s (§11, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
    can leak) or `tests/harness/` (the information-leak test) changed; plus
@@ -119,7 +120,9 @@ does (#159). Setup:
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
 4. One question: **"Publish now? (push + PR + handoff comment)"**.
 5. `tools\run.cmd publish`: rebase on the open PR's base (else the `start --base` parent, else `origin/main`), re-run
-   `verify`, push the task branch with a lease (§8.3).
+   `verify`, push the task branch with a lease (§8.3). Under `bounded_waits` (§7.1) the publishing agents of
+   `issue-task` and `pr-rebase` run no standalone `verify` before `publish` when `tools\run.cmd wait --verified` exits
+   0 (the newest verify passed at HEAD with a clean tree), since `publish` runs it anyway.
 6. Open the PR from the template: `Closes #42`, summary, verification commands and output, `shot` screenshots for
    visual changes, docs updated yes/no, `--reviewer <other human>` if the other owner's paths are touched.
 7. Handoff comment on the issue (done / left / decisions / gotchas); board item → **In review** via the runner.
@@ -262,8 +265,12 @@ Rules for every workflow run:
   `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
   default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
   where the kickoff allows it (its amendment A, §5). A missing `mutants` or `playcheck` on the task's branch is
-  reported in the result and the PR, and the run goes on. `pr-rebase` takes `second_review`, `skeptic`, `efforts` and
-  `models` (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or
+  reported in the result and the PR, and the run goes on. `bounded_waits: true` (#303; `issue-task` and `pr-rebase`,
+  +0): each agent that runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it
+  replaces, with the exact background launch, `wait` and CI commands of §11 "Bounded waits" (its publishing agents
+  also skip a standalone verify that `wait --verified` shows done). The root CLAUDE.md rule reaches every workflow
+  agent without it once on main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`,
+  `bounded_waits`, `efforts` and `models` (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every blocker or
   major, no fix agent runs and the result's `note` asks the manager to list the refuted findings with their reasons
   in the PR body. The kickoff's approved agent count must cover the options the manager will pass; each script's
   `whenToUse` and args comment give the counts, the roles and their fallbacks.
@@ -912,7 +919,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
-  `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`, `merge` (§7.1),
+  `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`, `merge` (§7.1),
   `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`, `mutants`,
   `playcheck`, `perf` (the last eight above), `permissions` (§8.1), and `hook` (for Claude Code only).
   Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
@@ -984,6 +991,38 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
   (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
   branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
+- **Bounded waits: `wait <log> [--max S]` and `wait --verified` [applied]** (#303; #302's token research): a workflow
+  agent or subagent writes its prompt cache with a 5-minute lifetime (a main or manager session has 1 hour), so a
+  tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54
+  that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly
+  all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
+  300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
+  shell's `timeout` or `wait --max`, never only with the tool's own timeout. It starts the job in the Bash tool with
+  `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
+  run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
+  the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
+  `tools/run.sh wait <log>` (PowerShell: `tools\run.cmd wait <log>`) with the tool's timeout at 300000, since the
+  default 120000 would cut a 240 s wait short. `wait` polls every 3 s for at most S seconds (default 240, 1 to 270;
+  else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
+  `exit=<n>`: the marker is the job's final write, a line still being written (no newline yet) is never read, and a
+  bare `exit=0` in a step's output is no result. Then it prints the summary (from the last `verify summary` line,
+  which `publish` prints too, else the last 20 lines) and `wait: <log> finished: exit=<n> (whole log: <path>)`, and
+  exits n. Not finished: one line, `wait: still running after S s (<path>: <k> lines, last written <t> s ago); call
+  wait again, never start the job again`, and 124; the job runs on (a second `verify` in one worktree would fight
+  the first over `tools/out/` and the slots). No log after a 10 s grace (the background shell may not have created
+  it yet), or a log deleted during the wait: `wait: no log at <path> ...` and 2. Every line `wait` writes itself
+  starts with `wait: `, which tells its own 2 from a job's (`mutants` exits 2 too). It reads UTF-16 and UTF-8 (BOM
+  or none), CRLF, and on Windows the Git Bash form `/c/...` of a path; a Git Bash-only path such as `/tmp` is not
+  visible to Windows Python, and the missing-log line says so. A log that has not grown for 10 minutes points at a
+  background task that died (no marker is ever written): check it. CI: `timeout 240 gh pr checks <pr> --watch
+  --interval 30; echo rc=$?` in the Bash tool (in PowerShell `timeout` is Windows' own program), repeated while rc is
+  124 (the timeout) or 8 (pending); rc 1 with "no checks reported" means the run has not registered yet. `wait
+  --verified` (no log) exits 0 when the newest record of `tools/out/logs/verify-history.jsonl` passed at HEAD with
+  a clean tree (`tree` set) and the tree is still clean, else 1 with the reason: a publisher then skips its
+  standalone `verify`, since `publish` runs one. On a branch whose base predates `wait`, the agents run these
+  commands in the foreground as before. Tests: `tools/runner/tests/test_wait.py` (a fake clock; the launch line and
+  `wait` through Git Bash, cmd and PowerShell 5.1; the commands pass the permission model outside bypass). The rule
+  is one Shell bullet of root CLAUDE.md, the commands are `bounded_waits` (§7.1).
 - **An own `user://` per worktree [applied]** (#182): Godot names `user://` after the project, so every checkout of
   "PrimeGame" shared one folder, and two worktrees' `test` runs cleared each other's GdUnit4 files in `user://tmp`.
   Before every Godot start (`require_godot`, and a windowed `run`) the runner writes a gitignored `override.cfg` into
