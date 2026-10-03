@@ -394,7 +394,7 @@ func _send_voice() -> void:
 		began = Time.get_ticks_usec()
 	var kind := _voice_down.kind
 	for out: VoiceRelay.Outgoing in _relay.flush(game.ticked_through()):
-		# Encoded once per frame, for its first reachable listener; each gets a copy with its seq.
+		# Encoded once per frame, when a listener is reachable; each gets a copy with its own seq.
 		var encoded := PackedByteArray()
 		for i in out.listeners.size():
 			var listener := out.listeners[i]

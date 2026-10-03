@@ -785,7 +785,7 @@ playback are M5.
 
 The send path encodes each frame once (#245, M5-4b's first step, no wire change): `VoiceRelay.flush` gives one
 `Outgoing` per frame with its listeners in peer-id order and each one's stream seq; `HostSession` encodes the frame's
-`VoiceDown` for its first reachable listener and sends every reachable listener a copy with its own seq written at the
+`VoiceDown` once (if any listener is reachable) and sends every reachable listener a copy with its own seq written at the
 offset the schema gives (`VoiceDownEncoder`, `WireRow.fixed_offset`: the fixed sizes of the fields before it), byte for
 byte what `WireSchema.encode` gives for that listener's `VoiceDown`. A row change that moves the seq behind a field of
 varying size, or widens it, makes every copy a full encoding (slower, never corrupt) and fails
