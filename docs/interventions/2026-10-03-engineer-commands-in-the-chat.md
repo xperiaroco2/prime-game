@@ -39,3 +39,6 @@
   an example block), and §6's wave-comment list ("also in the chat").
 - `docs/AGENT_WORKFLOW.md` §7.1, "The human".
 - `.claude/skills/finish-task/SKILL.md` step 8, "Tell the human": the `worktree-done` command as its own block.
+- `.claude/workflows/issue-task.js` and `pr-rebase.js` (#266): every agent that publishes returns `human_steps` as
+  `{why, command}` pairs, each command one PowerShell line starting with `cd <absolute folder>;`, run or previewed
+  first; the orchestrate-stage skill §4 copies each command as is.
