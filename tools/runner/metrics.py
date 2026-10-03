@@ -40,7 +40,8 @@ Manager cache re-writes (#305): a session's own API call after an idle gap over 
 cache's lifetime) that wrote most of its context to the cache again. Each is put in one bucket by what held when the
 gap began: a keep-alive timer armed (a Bash or PowerShell call with `run_in_background` whose whole command is a
 `sleep`, optionally followed by an `echo`; armed from its line until the task notification naming its tool-use id, or
-until its seconds or its timeout ran out), else a workflow run of the session in flight, else a stop.
+until its seconds or its timeout ran out; one armed before --since counts while it is still armed), else a workflow
+run of the session in flight, else a stop.
 """
 
 from __future__ import annotations
@@ -321,6 +322,21 @@ def parse_verify(text: str) -> dict | None:
     return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over}
 
 
+def timer_seconds(block: object) -> float | None:
+    """A tool_use block's keep-alive seconds (TIMER, run in the background), capped by its timeout; else None."""
+    if not isinstance(block, dict) or block.get("type") != "tool_use" or not block.get("id"):
+        return None
+    inp = block.get("input") if isinstance(block.get("input"), dict) else {}
+    if block.get("name") not in ("Bash", "PowerShell") or inp.get("run_in_background") is not True:
+        return None
+    timer = TIMER.fullmatch(str(inp.get("command", "")))
+    if not timer:
+        return None
+    limit = inp.get("timeout")
+    limit_s = limit / 1000 if isinstance(limit, (int, float)) and limit > 0 else None
+    return min(float(timer.group(1)), limit_s or BACKGROUND_TIMEOUT)
+
+
 def read_agent(path: Path, since: float | None = None, until: float | None = None) -> dict:
     """One transcript: usage deduplicated by message id, tool calls with their wall time, verify summaries.
 
@@ -345,13 +361,21 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             if d.get("type") == "custom-title" and d.get("customTitle"):
                 title = str(d["customTitle"])
             t = stamp(d.get("timestamp"))
-            if t is None or (until is not None and t >= until) or (since is not None and t < since):
+            if t is None or (until is not None and t >= until):
                 continue
-            stamps.append(t)
             if "<task-notification>" in line:  # a queue-operation line or a user message, whichever comes first
                 for tid in NOTIFIED.findall(line):
                     woken.setdefault(tid, t)
             m = d.get("message")
+            if since is not None and t < since:
+                # Before the window only its keep-alive timers count: one may still be armed when a gap in it begins.
+                if d.get("type") == "assistant" and isinstance(m, dict) and m.get("model") != "<synthetic>":
+                    for b in m.get("content") or []:
+                        secs = timer_seconds(b)
+                        if secs is not None and b["id"] not in timers:
+                            timers[b["id"]] = (t, secs)
+                continue
+            stamps.append(t)
             if not isinstance(m, dict):
                 continue
             if d.get("type") == "assistant":
@@ -376,11 +400,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                     if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id"):
                         inp = b.get("input") if isinstance(b.get("input"), dict) else {}
                         cmd = str(inp.get("command", "")) if b.get("name") in ("Bash", "PowerShell") else ""
-                        timer = TIMER.fullmatch(cmd) if inp.get("run_in_background") is True else None
-                        if timer and b["id"] not in timers:
-                            limit = inp.get("timeout")
-                            limit_s = limit / 1000 if isinstance(limit, (int, float)) and limit > 0 else None
-                            timers[b["id"]] = (t, min(float(timer.group(1)), limit_s or BACKGROUND_TIMEOUT))
+                        secs = timer_seconds(b)
+                        if secs is not None and b["id"] not in timers:
+                            timers[b["id"]] = (t, secs)
                         uses[b["id"]] = {
                             "name": b.get("name"),
                             "t0": t,
@@ -414,6 +436,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
          write_premium(usage[b]), usd_of(usage[b])["usd_cache_write"], first_seen[a])
         for a, b in zip(order, order[1:])
     ]
+    armed = sorted((t0, woken.get(tid, t0 + secs)) for tid, (t0, secs) in timers.items())
     calls = list(uses.values())
     seen, unique = set(), []
     for v in verifies:
@@ -435,8 +458,10 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "unpriced": unpriced,
         "last_ctx": last_ctx,
         "gaps": gaps,
-        # Keep-alive timers as (armed, ended): ended at the notification, else when its seconds ran out.
-        "timers": sorted((t0, woken.get(tid, t0 + secs)) for tid, (t0, secs) in timers.items()),
+        # Keep-alive timers as (armed, ended): ended at the notification, else when its seconds ran out. One armed
+        # before the window is kept while it is still armed in it; "timers_armed" counts those armed in the window.
+        "timers": [(a, b) for a, b in armed if since is None or b > since],
+        "timers_armed": sum(1 for t0, _secs in timers.values() if since is None or t0 >= since),
         "tool_calls": len(calls),
         "kinds": dict(kinds),
         "kind_counts": Counter(c["kind"] for c in calls),
@@ -1169,7 +1194,7 @@ def rewrite_rows(sessions: list[dict], runs: list[dict]) -> list[dict]:
         for kind in REWRITE_KINDS:
             sel = [f for f in found if f["while"] == kind]
             row[kind] = {"rewrites": len(sel), "usd": sum(f["usd"] for f in sel)}
-        rows.append(row | {"timers": len(man["timers"]), "last_ctx": man["last_ctx"], "found": found})
+        rows.append(row | {"timers": man["timers_armed"], "last_ctx": man["last_ctx"], "found": found})
     return rows
 
 

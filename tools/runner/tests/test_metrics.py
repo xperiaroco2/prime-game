@@ -675,6 +675,15 @@ class ManagerRewriteTest(unittest.TestCase):
         self.assertEqual([(round((a - t0) / 60, 1), round((b - t0) / 60, 1)) for a, b in manager["timers"]],
                          [(1.0, 31.0)], "min(its 3000 seconds, the 1800-second default timeout)")  # fmt: skip
 
+    def test_a_timer_armed_before_the_window_still_holds_in_it(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        since = metrics.parse_time(at(1.5))
+        data = metrics.collect([self.lone_timer()], {"44444444": "L"}, since, until)
+        _md, record, _compact = metrics.build(data, [], None, since, until)
+        row = record["manager_rewrites"][0]
+        self.assertEqual([f["while"] for f in row["found"]], ["timer"], "k5 was armed when the gap began")
+        self.assertEqual(row["timers"], 0, "the count is of the timers armed in the window")
+
 
 class ProjectKeyTest(unittest.TestCase):
     def test_the_key_is_the_main_checkouts_from_any_worktree(self) -> None:
