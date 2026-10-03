@@ -29,13 +29,13 @@ func test_a_stamina_cost_refuses_a_reaction_and_charges_nobody() -> void:
 	var cost := FixtureCombatModes.stamina_cost(FixtureCombatModes.STAMINA_COST)
 	var mode := _reacting([cost])
 	var game := FixtureModes.in_round(mode, PEERS)
-	var before: Dictionary[int, int] = {}
+	var stamina_before: Dictionary[int, int] = {}
 	for peer: int in PEERS:
-		before[peer] = game.state.player(peer).stamina
+		stamina_before[peer] = game.state.player(peer).stamina
 	_end_the_clock(game)
 	_assert_refused(game)
 	for peer: int in PEERS:
-		assert_int(game.state.player(peer).stamina).is_equal(before[peer])
+		assert_int(game.state.player(peer).stamina).is_equal(stamina_before[peer])
 
 
 ## A round of FixtureModes.basic() with `conditions` on its clock_ended reaction, run until the

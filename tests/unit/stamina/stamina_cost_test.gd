@@ -51,12 +51,12 @@ func test_a_refused_use_still_sends_the_actor_the_stamina_it_settled() -> void:
 	player.stamina = 0
 	FixtureModes.run_ticks(game, 10)
 	var seen := FixtureMoves.statuses(game, P1).size()
-	var before := player.stamina
+	var settled_before := player.stamina
 	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
 	assert_array(FixtureModes.rejections(game, P1)).is_equal([StaminaCost.TIRED])
 	# The check settled the idle ticks: the stamina changed, so the actor hears of it at the end
 	# of the tick, though nothing was paid.
-	assert_int(player.stamina).is_not_equal(before)
+	assert_int(player.stamina).is_not_equal(settled_before)
 	FixtureModes.run_ticks(game, 1)
 	var statuses := FixtureMoves.statuses(game, P1)
 	assert_int(statuses.size()).is_equal(seen + 1)
