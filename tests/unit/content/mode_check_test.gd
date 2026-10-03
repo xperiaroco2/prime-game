@@ -215,6 +215,16 @@ func test_a_negated_cost_in_a_reaction_is_reported_once() -> void:
 	)
 
 
+func test_a_cost_that_does_not_say_is_refused_and_named_by_its_base() -> void:
+	# Cost.reads_actor_state defaults to true, so a cost that forgets to say is refused at load;
+	# one without a class_name is named by the class it extends.
+	var mode := _reacting_on_the_clock([CostWithNoName.new()])
+	var errors := Array(ModeCheck.run(mode).errors)
+	assert_array(errors).has_size(1)
+	var named := "the reaction on clock_ended of the mode holds the cost a Cost with no class_name,"
+	assert_str(str(errors[0])).starts_with("mode.reactions[1]: " + named)
+
+
 func test_a_reaction_may_hold_a_cost_that_reads_no_player_state() -> void:
 	# FixtureCost reads only MatchState's counters, which have a row for peer 0 too.
 	_expect_none(_reacting_on_the_clock([FixtureCost.of(&"uses", 1)]))
@@ -224,7 +234,9 @@ func test_a_reaction_may_hold_a_cost_that_reads_no_player_state() -> void:
 
 func test_every_cost_in_core_reads_the_actors_player_state() -> void:
 	# The costs of core/ and whether a reaction may hold them (Cost.reads_actor_state). A new cost
-	# in core/ fails this test until it is listed here and in ARCHITECTURE §9.2.
+	# in core/ fails this test until it is listed here and in ARCHITECTURE §9.2. It finds costs by
+	# class_name, as every core/ part has one (§9.4); one without keeps the default and is refused
+	# (test_a_cost_that_does_not_say_is_refused_and_named_by_its_base).
 	var expected: Dictionary[StringName, bool] = {&"Cooldown": true, &"StaminaCost": true}
 	var found: Dictionary[StringName, bool] = {}
 	for entry: Dictionary in ProjectSettings.get_global_class_list():
@@ -466,6 +478,11 @@ static func _global_base(class_id: StringName) -> StringName:
 		if entry["class"] == class_id:
 			return entry["base"]
 	return &""
+
+
+## A cost with no class_name and no say on reads_actor_state, so it keeps the default (true).
+class CostWithNoName:
+	extends Cost
 
 
 ## A tick system that declares the outcome `overtime`.

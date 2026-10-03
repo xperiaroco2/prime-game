@@ -150,18 +150,19 @@ func _check_reaction_costs(mode: GameMode) -> void:
 							+ " reads the actor's player state: a reaction runs for no player"
 							+ " (actor 0), so the cost always refuses and the reaction never runs"
 						)
-						% [index, rule.trigger, where, _class_of(condition)]
+						% [index, rule.trigger, where, _class_of(condition as Cost)]
 					)
 				)
 
 
-## The global class name of `part`'s script, or its file when it has none.
-static func _class_of(part: Resource) -> String:
-	var script := part.get_script() as Script
-	if script == null:
-		return part.get_class()
+## The global class name of `cost`'s script; for a script without a class_name (an inner class),
+## "a <the class it extends> with no class_name".
+static func _class_of(cost: Cost) -> String:
+	var script := cost.get_script() as Script
 	var name := script.get_global_name()
-	return String(name) if not name.is_empty() else script.resource_path
+	if not name.is_empty():
+		return String(name)
+	return "a %s with no class_name" % script.get_base_script().get_global_name()
 
 
 func _check_owner(
