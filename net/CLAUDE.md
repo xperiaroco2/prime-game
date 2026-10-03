@@ -17,8 +17,9 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   payload cap), `NetRejects` (counts and the summary line; `server/` adds its drops with `count_rejected`), and the
   `packet_rejected(peer, reason)` signal per reject. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
 - `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
-  it), `WireRow`, `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the
-  fields, `seq` and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
+  it), `WireRow` (`fixed_offset`: where a fixed-size field starts, so a caller patches it in place without a byte
+  index), `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the fields, `seq`
+  and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
   `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), from the mode's parts the caller passes;
   it hashes the level files and every scene and resource they reach, scripts left out (#118).
 

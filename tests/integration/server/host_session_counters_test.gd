@@ -84,3 +84,24 @@ func test_a_backlog_s_old_part_and_frames_over_the_voice_bucket_are_counted() ->
 	assert_int(_h.session.over_budget).is_equal(1)
 	# The live part (HostNode.counters(), shown on F3 in a Round too) leaves the voice frame out.
 	assert_int(_h.session.over_budget_but_voice()).is_equal(0)
+
+
+func test_host_node_s_live_over_budget_leaves_out_the_voice_frames() -> void:
+	# One peer over its intent bucket with a SetReady and over its voice bucket with a VoiceUp.
+	_h = Harness.new()
+	var second := _h.join()
+	assert_bool(_h.welcome_all()).is_true()
+	# Long enough for its Hello's intent to refill: both buckets are full.
+	_h.pump_seconds(1.0)
+	for i in int(PeerBudget.INTENTS) + 1:
+		second.send_intent(Intents.SET_READY, {"ready": i % 2 == 0})
+	for i in int(PeerBudget.VOICE_FRAMES) + 1:
+		second.send_voice(PackedByteArray([i & 0xFF]))
+	_h.pump()
+	assert_int(_h.session.over_budget).is_equal(2)
+	assert_int(_h.session.over_budget_but_voice()).is_equal(1)
+	assert_int(_h.session.voice_over_budget).is_equal(1)
+	# What the F3 overlay shows at any time, a Round included (the M5 ADR §3 item 11).
+	var node: HostNode = auto_free(HostNode.new(_h.session))
+	assert_int(node.counters()[&"over_budget"]).is_equal(1)
+	assert_int(node.relay_counters()[&"voice_over_budget"]).is_equal(1)

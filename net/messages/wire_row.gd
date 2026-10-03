@@ -39,6 +39,30 @@ func max_size() -> int:
 	return total
 
 
+## The payload field named `field_name` (a wire-only slot never), or null.
+func field_named(field_name: String) -> WireField:
+	for field: WireField in fields:
+		if field.slot == WireField.Slot.FIELD and field.name == field_name:
+			return field
+	return null
+
+
+## Where the field named `field_name` starts in every payload of this row: the sum of the fixed
+## sizes of the fields before it. -1 when it is no payload field of a fixed size, or a field
+## before it varies in size. Lets a caller patch that field in an encoded payload without a byte
+## index of its own (the host's voice relay writes each listener's seq, VoiceDownEncoder).
+func fixed_offset(field_name: String) -> int:
+	var at := 0
+	for field: WireField in fields:
+		var size := field.fixed_size()
+		if field.slot == WireField.Slot.FIELD and field.name == field_name:
+			return at if size > 0 else -1
+		if size < 0:
+			return -1
+		at += size
+	return -1
+
+
 ## Every name a payload of this row may hold (the wire-only fields left out).
 func field_names() -> PackedStringArray:
 	var found := PackedStringArray()
