@@ -654,6 +654,27 @@ class ManagerRewriteTest(unittest.TestCase):
         self.assertEqual([f["while"] for f in row["found"]], ["stop"], "the gap before 221.5 began before --since")
         self.assertEqual(row["timers"], 1)
 
+    def lone_timer(self) -> Path:
+        """A second manager whose only timer has no timeout and never sends a notification."""
+        other = Path(self.tmp.name) / "lone" / "projects" / "D--prime-game"
+        h = usage(inp=1, write=200_000, out=10, write_1h=200_000)
+        write_lines(other / "44444444-0000-0000-0000-000000000000.jsonl", [
+            assistant(0, "n1", h),
+            assistant(1, "n2", usage(inp=1, read=200_000), tool=background("k5", "sleep 3000", timeout=None)),
+            tool_result(1.1, "k5", "Command running in background"),
+            assistant(2, "n3", usage(inp=1, read=200_000)),
+            # 98 minutes idle from minute 2, while k5 was armed (minutes 1 to 31).
+            assistant(100, "n4", h),
+        ])  # fmt: skip
+        return other
+
+    def test_a_timer_with_no_timeout_ends_after_the_default_30_minutes(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        manager = metrics.collect([self.lone_timer()], {"44444444": "L"}, None, until)["sessions"][0]["manager"]
+        t0 = metrics.parse_time(at(0))
+        self.assertEqual([(round((a - t0) / 60, 1), round((b - t0) / 60, 1)) for a, b in manager["timers"]],
+                         [(1.0, 31.0)], "min(its 3000 seconds, the 1800-second default timeout)")  # fmt: skip
+
 
 class ProjectKeyTest(unittest.TestCase):
     def test_the_key_is_the_main_checkouts_from_any_worktree(self) -> None:
