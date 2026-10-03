@@ -107,7 +107,10 @@ class UidLintTest(unittest.TestCase):
             "tests/scratch/probe.tscn",
             f'[gd_scene format=3]\n\n[ext_resource type="Resource" uid="{B_UID}" path="res://content/a.tres" id="1"]\n',
         )
-        self.assertEqual(uids.lint(self.root).errors, [])
+        report = uids.lint(self.root)
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.uids[B_UID], "res://content/b.tres")
+        self.assertFalse([path for path in report.uids.values() if path.startswith("res://tests/scratch/")])
 
     def test_uid_copied_into_scratch_still_fails(self) -> None:
         # Godot still imports tests/scratch/: whichever file it scans last owns a duplicate uid, so a real reference
