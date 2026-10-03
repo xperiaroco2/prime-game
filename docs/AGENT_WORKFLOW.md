@@ -853,8 +853,14 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `BotScenario`'s scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup
   window 1 sends as the host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps:
   `wait phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`,
-  Esc menu and pointer, never `HostSession`, the match or `core/` (invariant 2); `press <action>` (its key through
-  `Input.parse_input_event`), `hold`/`release` (`Input.action_press`), `frames N` and `shot <name>`. The windows sit
+  Esc menu and pointer, never `HostSession`, the match or `core/` (invariant 2); `wait text <field> is|has|lacks
+  <text>` and `wait shown <field> on|off` (#275), what its own Ui and current camera draw (the fields: `FIELDS` in
+  `tools/runner/playcheck.py`, the same keys as the window's `GameView`; whitespace runs count as one space, a hidden
+  field reads as ""); `press <action>` (its key through `Input.parse_input_event`), `hold`/`release`
+  (`Input.action_press`), `button <text>` (the one visible, enabled Button with that text takes the focus and gets
+  `ui_accept`'s key; none or several fail the step), `frames N` and `shot <name>`. A text wait asserts a short, stable
+  part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario edit,
+  and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). The windows sit
   at `shot`'s off-screen position with the dummy audio driver, never headless. The game gets a pointer that only
   remembers, and playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse
   (`use`, spectate cycling) is out of its reach. PNGs: `tools/out/playcheck/<scenario>/<shot>.png` (`gh` cannot
