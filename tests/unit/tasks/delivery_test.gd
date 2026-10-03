@@ -315,12 +315,7 @@ func test_a_delivered_package_that_rests_again_is_not_delivered_twice() -> void:
 	var notes := FixtureModes.notes(game)
 	package.where = ItemState.Where.GROUND
 	var seen := game.view_of(P2).events.size()
-	var ctx := MatchContext.new(game)
-	ctx.state = game.state
-	ctx.mode = game.mode
-	ctx.world = FlatWorldQuery.new()
-	ctx.tick = game.ticked_through() + 1
-	Items.raise_rested(ctx, package, Items.PUT_DOWN)
+	Items.raise_rested(_context(game), package, Items.PUT_DOWN)
 	assert_int(package.where).is_equal(ItemState.Where.GROUND)
 	assert_array(game.view_of(P2).events.slice(seen)).is_empty()
 	assert_int(task.state.done_count()).is_equal(1)
@@ -340,3 +335,13 @@ func test_a_replay_deals_and_delivers_the_same() -> void:
 	assert_array(Array(replayed.diagnostics)).is_empty()
 	assert_array(FixtureModes.describe(replayed)).is_equal(FixtureModes.describe(game))
 	assert_int(replayed.state.items[1].where).is_equal(ItemState.Where.LOCKED)
+
+
+## A context of `game`'s next host tick, as a part called from the loop gets it.
+func _context(game: Match) -> MatchContext:
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	return ctx
