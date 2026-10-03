@@ -4,6 +4,14 @@ extends GdUnitTestSuite
 ## the lobby, Ready, the countdown, loading, the round, time up, the end screen and back to the
 ## lobby, then a client leaves and the host closes. Each Game is driven through the methods its
 ## screens call (headless runs have no input); the screens themselves are `shot`.
+##
+## Each Game sits in a SubViewport with its own World3D, as on three machines (like NetPair): in
+## one shared physics space each player stood inside the body another game drew of it and was
+## pushed off its spot (#225).
+##
+## The sessions fold the host's messages in physics steps, and under load several steps run in
+## one idle frame before Game._process shows the screen, so every wait for a screen also waits for
+## the Game to show it (#225).
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7300
@@ -70,7 +78,15 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	_assert_at_the_last_correction(games)
 	# The others are shown at the newest snapshot's positions.
 	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
-	# Time up: the end screen names the winning side by its display name.
+	# Time up, with no Game._process (as when physics steps run ahead of it under load, #225): the
+	# model reaches the end screen, nothing has shown it yet, and a wait for it does not stop there.
+	for game: Game in games:
+		game.set_process(false)
+	assert_bool(await _until(games, _models_on.bind(games, S.END))).is_true()
+	assert_bool(_all_on(games, S.END, 3)).is_false()
+	for game: Game in games:
+		game.set_process(true)
+	# The end screen names the winning side by its display name.
 	assert_bool(await _until(games, _all_on.bind(games, S.END, 3))).is_true()
 	for game: Game in games:
 		var winner := game.mode.find_side(game.client().model.winner)
@@ -132,7 +148,7 @@ func test_a_port_alone_fills_the_menu_and_the_tree_gets_its_quit_back() -> void:
 	assert_int(game.screen()).is_equal(S.MENU)
 	assert_int(game.ui.menu.port()).is_equal(PORT + 3)
 	assert_bool(get_tree().auto_accept_quit).is_false()
-	remove_child(game)
+	game.get_parent().remove_child(game)
 	assert_bool(get_tree().auto_accept_quit).is_true()
 
 
@@ -142,8 +158,13 @@ func _game(args: Array[String]) -> Game:
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
 	game.make_transport = _transport
-	add_child(game)
+	var machine := SubViewport.new()
+	machine.own_world_3d = true
+	machine.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	machine.add_child(game)
+	add_child(machine)
 	auto_free(game)
+	auto_free(machine)
 	return game
 
 
@@ -176,11 +197,21 @@ func _until(_games: Array[Game], done: Callable) -> bool:
 	return done.call()
 
 
+## Every game is on `screen` with `players` in its roster, and its Game._process has shown that
+## screen: the screens' texts and the player's input flags change only there.
 func _all_on(games: Array[Game], screen: S, players: int) -> bool:
 	for game: Game in games:
-		if game.client() == null or game.screen() != screen:
+		if game.client() == null or game.screen() != screen or game.ui.screen != screen:
 			return false
 		if game.client().model.roster.size() != players:
+			return false
+	return true
+
+
+## Every game's model is on `screen`, whether or not its Game has shown it yet.
+func _models_on(games: Array[Game], screen: S) -> bool:
+	for game: Game in games:
+		if game.client() == null or game.screen() != screen:
 			return false
 	return true
 
