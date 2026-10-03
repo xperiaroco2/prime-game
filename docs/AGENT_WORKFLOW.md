@@ -100,7 +100,7 @@ does (#159). Setup:
    session (`--here` when the human says it is idle). Work in the worktree: a session opened in that folder, or,
    for a task session whose shell starts in the main checkout, `cd <worktree> && ...` (Git Bash) or
    `Set-Location <worktree>; ...` (PowerShell) at the start of every command. `tools\run.cmd worktree-done <n>`
-   removes the worktree once its branch is merged
+   removes the worktree, and its own `user://` folder (§11), once its branch is merged
    ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose branch is
    never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it from the
    main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is inside the
@@ -160,8 +160,13 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
   **family**, not exact IDs: the requested model, else the agent file's `model:`. `availableModels` is the shared list
   merged with the user-scope one (#183). A request from the user list is ok when it served and listed as "fell back"
   when another family served it; a request in neither list must be served by another family (the model guard).
-  Workflow agents' transcripts (`<session>/subagents/workflows/`) are not read yet. `finish-task` runs it after the
-  reviews.
+  Workflow agents (`<session>/subagents/workflows/wf_*/agent-*.jsonl` and `.meta.json`, #206) get the same verdicts,
+  printed with their label and run: a default launch's meta file has no `model` (a reviewer is judged by its agent
+  file, an implementer or publisher, `agentType` `workflow-subagent`, inherits the session's model and is only
+  listed, unless a model in neither list served it: a failure); a `models` launch is read from `model`, as the Agent
+  tool records it, and any other meta key that names a model, at any depth (`request.model`), fails until the reader
+  learns it. After a launch that passes `models`, `agents-check` in the manager's session checks it. `finish-task`
+  runs it after the reviews.
 - A new `.claude/agents/` directory is only seen by sessions started after it exists.
 
 ## 6. Skills [applied]
@@ -275,7 +280,9 @@ Rules for every workflow run:
   release/m<k>`). Before each merge the manager runs `tools\run.cmd merge-check` (#181): every open PR onto its
   base tip and each pair into the same base, textually (`git merge-tree --write-tree`) and by symbols (what one side
   removes, renames or changes, used by the other side's added lines: GDScript and runner Python members and
-  signatures, wire rows and fields, `.tres` fields, deleted files); seconds, no Godot; a Markdown table per base for
+  signatures, wire rows and fields, `.tres` fields, deleted files; a signature that only appends parameters with
+  defaults is a note, not an overlap, #207); and, across bases, each PR with every open PR into another base when both
+  change a shared file (Parallel tracks below); seconds, no Godot; a Markdown table per base and one across bases for
   the wave comment, each overlap with file:line on both sides, exit 1 on a conflict, an overlap or a PR it could not
   check (its base gone from origin). On an overlap it
   merges the side that changes the symbol first and has the other rebased (`pr-rebase`), or first runs
@@ -307,11 +314,15 @@ Rules for every workflow run:
   the stage's running total (`--since <stage start>`): a run counts in the window it started in.
   Shared files (N5 (c)): `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track
   (an issue there, landing between the other managers' waves: a mid-wave change breaks their resumes);
-  `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` pairs
-  PRs only within one base, so before such a change merges its manager lists the open PRs into another base that
-  touch the same files (`gh pr list --state open --json number,baseRefName,files`) and names them on that track's
-  plan issue; the overlap then shows in that track's `merge-check` after its next `main` sync. After the engineer
-  merges a change to a shared file, the tooling track's manager says so on each running manager's plan issue.
+  `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` also
+  pairs each PR with every open PR into another base (a PR stacked on one of its own track counts as its track's) when
+  both change a shared file (`tools/`, `.claude/`, `.github/`, this file): the textual conflicts in the files both
+  change and the same symbol check, in a table "across bases" that names both bases (#207); the other cross-base
+  pairs it names as not compared. A flagged pair: its manager names it on the other track's plan issue; the PR into
+  `main` merges first (a human merges it; the milestone's manager holds its own PR meanwhile, merges the rest of the
+  wave and lists the pair under "Needs the engineer"), the milestone takes `main` in (`merge --sync-main`) and its
+  PR is rebased on that (`pr-rebase`) before it merges. After the engineer merges a change to a shared file, the
+  tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
   reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
   housekeeping (`worktree-done`, closing issues). The manager reports on the plan issue after each wave and stops
@@ -687,8 +698,26 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   audio driver (`--display-driver headless`). Fails when an instance exits non-zero, times out or prints an
   `ERROR:` / `SCRIPT ERROR:` line (Godot exits 0 after both), and names the instance and its first error lines. A
   scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
-  `--headless` (never a window while a human uses the machine). The first run in a fresh worktree imports the
-  project; after adding scripts or assets run `check` first. `tools/run/probe.gd` is its smoke test.
+  `--headless` (never a window while a human uses the machine). It imports the project first when the import is not
+  current (the next item). `tools/run/probe.gd` is its smoke test.
+- **The import before a launch [applied]** (#174): `host`, `join`, `run` (and through it `perf` and `bots`),
+  `playcheck`, `shot` and `verify`'s `game` step import the project before they start Godot when a file Godot sees
+  changed after the last import through the runner, since only an import rebuilds the global class cache (a game
+  started after a `git switch` that brought a new `class_name` printed `Identifier "MousePointer" not declared` in
+  the engineer's playtest). No `check` is needed after a `git switch`, a pull or new scripts or assets. One line
+  says which: `import: current (1489 project files unchanged since the last import, 0.03s)`, or
+  `import: res://client/app/game.gd changed after the last import; importing the project first`, then
+  `import: done in 11.3s`. Every import through the runner (`check`, `test`, `mutants`, these and the `.gd` post-edit
+  hook's) records when it started in `.godot/runner_import.stamp`, or the time of the newest `.uid` or `.import` file
+  it wrote itself, never a time after the import ended; the
+  test compares the modification times of the files Godot sees (no hidden folders, none with a `.gdignore`, no
+  Markdown, Python or shell scripts) with it: git gives every file a switch, pull or rebase writes the time it
+  arrived. Measured on the engineer's PC: 0.03 to 0.04 s for the test, against 9.9 s for a quick import that
+  finds nothing to do (11.3 s after one changed script, 17.7 s after a `git switch`), so the import is not always
+  on. A file dated in the future (clock skew, or copied with its original time) makes every launch import, with a
+  `warn` line that names it: `touch` it. An import by the editor is not recorded: the next
+  launch through the runner imports once. A linked worktree's `override.cfg` (#182) is written before the test and
+  the import, so the import uses the worktree's own `user://`.
 - **`mutants <spec.json> [--seconds N]` [applied]** (#184; item 4 (b) of the
   [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), the tool of `issue-task`'s
   `test_review`): shows that a change's tests fail when its code is wrong. Each mutant of the spec names a tracked
@@ -704,11 +733,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   mutant (a red baseline makes every mutant an `error`), then plants each mutant there, runs its tests (`test` without
   the import) and restores the file: `killed` (a named test failed; they are listed), `survived` (a finding, not a
   failure) or `error` (the mutant does not compile, `--seconds` (default 300) ran out, or the tests could not judge;
-  the reason and the log). At the end it removes the scratch worktree, also after an exception, and confirms the
-  task's `git status` unchanged. A lock in `tools/out/mutants/` allows one run per checkout (the OS releases it when
-  a run is killed). The table is printed and written to `tools/out/mutants/<spec name>.md` after every mutant, with
-  each test run's output and Godot's log in `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever
-  the results; 1: an invalid spec, or a run that could not start or finish (a dirty tree, another run, a failed
+  the reason and the log). At the end it removes the scratch worktree (and its `user://` folder, §11), also after an
+  exception, and confirms the task's `git status` unchanged. A lock in `tools/out/mutants/` allows one run per
+  checkout (the OS releases it when a run is killed). The table is printed and written to
+  `tools/out/mutants/<spec name>.md` after every mutant, with each test run's output and Godot's log in
+  `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever the results; 1: an invalid spec, or a run that could not start or finish (a dirty tree, another run, a failed
   import), nothing left behind; 2: the scratch worktree could not be removed or the task's tree changed: run no more
   mutants and tell the human (`git worktree list` shows it; the next run removes it first). One mutant per call takes
   about 17 to 19 s with small suites (setup about 9 s, baseline and mutant about 4 s each); several, or tests that
@@ -906,8 +935,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   checkout and a clone (CI, a cloud session) have a `.git` folder and get no file: the humans' settings and saves stay
   in Godot's default `%APPDATA%\Godot\app_userdata\PrimeGame`. An export gets that default folder too: it packs a
   non-resource file only when a preset's include filter names it (there is no preset yet), and an exported game reads
-  an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is left alone, with a warning. A
-  removed worktree's folder stays behind in `%APPDATA%\Godot\app_userdata\` (Godot's logs, a few replays). Saving
+  an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is left alone, with a warning.
+  `worktree-done <n>` deletes the removed worktree's folder (#202) once `git worktree remove` succeeded, or when it
+  finishes a removal left half done, and says so in one line; never the default `PrimeGame` folder or another
+  worktree's (a missing folder is fine; one a Godot still holds open stays, with a warning). Saving
   project settings in a worktree's editor (`ProjectSettings.save()`) copies both keys into `project.godot` (probed on
   4.7.2), which would move every checkout's and export's `user://`: `check` fails on them; delete the two lines.
 - **`test` in shards [applied]** (#182): `test` with no paths runs the suites in K GdUnit4 processes at once, K =
@@ -924,6 +955,24 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
   declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
   processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
+- **The real app-data folder stays clean [applied]** (#233): a worktree's `user://` folder outlives the worktree,
+  and by 2026-10-02 22:30 UTC 62 such folders had piled up in `%APPDATA%\Godot\app_userdata\`, a new one with every
+  `selftest` and every scratch worktree. Each source and its fix (found by listing a temporary app-data folder before
+  and after one `selftest` and one `merge-check --trial`): the runner tests that start Godot in a throwaway project
+  (`RealUserDirTest`'s settings save made `PrimeGame-182-<hash>`, `RealNormalizeTest` the folder `n` and Godot's
+  editor settings, `RealRunTest` the folder `r`; PR #224's `RealStaleCacheTest` wrote into the main checkout's own
+  `PrimeGame` folder) run in a class marked `@starts_godot`, which now points `APPDATA`
+  (Linux: `XDG_DATA_HOME`) at a temporary folder of the class's own and deletes it after the class
+  (`common.temp_app_data`; `PYTHONUSERBASE` keeps a Python child's user site-packages); `selftest` gives its
+  workers a stand-in app-data folder and fails, naming the files and any empty `user://` folder, when a test wrote to
+  it (one that starts Godot outside a `@starts_godot` class: outside `selftest` that would have been the real folder;
+  only `selftest` has this check, so a direct `python -m unittest` run still writes there). The scratch worktrees of
+  `merge` and `merge-check --trial` (`PrimeGame-<label>-<random>-<hash>`: a new path, so a new folder, every run) and
+  of `mutants` (`PrimeGame-tree-<checkout>-<hash>`) delete the folder their Godot runs made when they remove the tree
+  (`common.remove_own_user_dir`: only a `<project>-<folder>-<6 hex>` folder in `app_userdata/`, never the default
+  `PrimeGame` folder nor the running checkout's own; one a Godot still holds stays, with a warning; a tree that could
+  not be removed keeps its folder). The folders left before the fix are a human's one-time cleanup (the PR of #233
+  lists them).
 - **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
   from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
   `docs.godotengine.org/en/4.7/`.

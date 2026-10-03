@@ -238,8 +238,9 @@ them already. A change the designer agrees to may be made by the engineer's agen
   ```
   After M4: `git worktree remove D:\prime-game\.claude\worktrees\playtest-m4`, run from `D:\prime-game`. A human
   runs these: they change the main checkout's worktree list, so no agent creates the playtest worktree. #149 (the
-  rest of M4-6) checked the `host` and `join` commands below against the runner, headless in its own worktree; a
-  fresh worktree has no `.godot/`, and the runner imports the project at its first run.
+  rest of M4-6) checked the `host` and `join` commands below against the runner, headless in its own worktree. No
+  `check` after the switch: `host`, `join` and `run` import the project first whenever a file changed since the last
+  import (a fresh worktree, or a switch that brought new `class_name` scripts; #174), and say so in one line.
 - **The one-PC windowed playtest** (a human; after M4-7, again after M4-8 and M4-9), on the engineer's PC, in the
   playtest worktree:
   ```powershell

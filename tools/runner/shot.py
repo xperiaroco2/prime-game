@@ -11,6 +11,7 @@ import os
 import re
 from pathlib import Path
 
+from .check import ensure_import
 from .common import IS_CI, IS_WINDOWS, OUT, ROOT, Failure, ensure_out, godot, ok, say
 
 SCRIPT = "res://tools/shot/shot.gd"
@@ -49,6 +50,7 @@ def main(scene: str, out: str | None = None, size: str = "1280x720", frames: int
         raise Failure("--frames must be between 1 and 600")
     res_path = scene_res(scene)
     ensure_out()
+    ensure_import()
     png = Path(out).resolve() if out else OUT / "shots" / f"{Path(res_path).stem}.png"
     png.parent.mkdir(parents=True, exist_ok=True)
     if png.exists():

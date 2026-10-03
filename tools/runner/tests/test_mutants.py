@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import check, cli, gdunit, guard, mutants, permissions
+from runner import check, cli, common, gdunit, guard, mutants, permissions
 from runner.common import ROOT
 from runner.mutants import ERROR, KILLED, SURVIVED, Outcome
 from runner.tests.test_githooks import _rmtree
@@ -68,9 +68,26 @@ class RepoCase(unittest.TestCase):
             mock.patch.object(mutants, "import_step", side_effect=self.imports.append),
             mock.patch.object(mutants, "test_step", side_effect=self.fake_test),
             mock.patch("sys.stdout", self.out),
+            # The scratch tree's user:// folder goes to a temporary app-data folder, never the real one (#233).
+            mock.patch.dict(os.environ, {common.app_data_var() or "PRIME_NO_APP_DATA": str(self.tmp / "data")}),
         ):
             patch.start()
             self.addCleanup(patch.stop)
+        data = common.app_data_dir()
+        self.users = data / ("godot" if common.IS_LINUX else "Godot") / "app_userdata" if data else None
+        if self.users is not None:  # the main checkout's default folder, which no removal may touch
+            (self.users / "PrimeGame" / "logs").mkdir(parents=True)
+
+    def user_dirs(self) -> list[str]:
+        """The folders in the (temporary) app-data folder's app_userdata/."""
+        return sorted(p.name for p in self.users.iterdir()) if self.users is not None else []
+
+    def plant_user_dir(self, tree: Path) -> None:
+        """What a Godot run in the scratch tree makes: its own user:// folder (common.ensure_user_dir)."""
+        user = common.user_dir_of(tree, "PrimeGame")
+        if user is not None:
+            (user / "logs").mkdir(parents=True, exist_ok=True)
+            (user / "logs" / "godot.log").write_text("log\n", encoding="utf-8")
 
     def write(self, name: str, text: str) -> None:
         path = self.work / name
@@ -80,6 +97,7 @@ class RepoCase(unittest.TestCase):
     def fake_test(self, tree: Path, paths: list[str], seconds: float) -> Outcome:
         """A suite that catches `> 10` but not `true`; it records what it saw in both trees."""
         planted = (tree / "core" / "cooldown.gd").read_text(encoding="utf-8")
+        self.plant_user_dir(tree)
         self.calls.append(
             {
                 "tree": tree,
@@ -103,8 +121,9 @@ class RepoCase(unittest.TestCase):
         return mutants.main(self.spec(*entries), root=self.work)
 
     def assert_clean_end(self) -> None:
-        """No scratch worktree left, registered or on disk, and the task's tree is HEAD, unchanged."""
+        """No scratch worktree left (registered, on disk or its user:// folder); the task's tree is HEAD, unchanged."""
         listed = git(self.work, "worktree", "list", "--porcelain")
+        self.assertEqual(self.user_dirs(), ["PrimeGame"] if self.users is not None else [])
         self.assertEqual(listed.count("worktree "), 1, listed)
         folder = self.work / "tools" / "out" / "mutants"
         self.assertEqual([p.name for p in folder.glob("tree-*") if p.is_dir()], [])
@@ -163,6 +182,10 @@ class RunTest(RepoCase):
         gone = self.work / "tools" / "out" / "mutants" / "tree-gone"
         git(self.work, "worktree", "add", "-q", "--detach", str(gone), "HEAD")
         _rmtree(gone)
+        for tree in (self.tree, old, gone):  # each one's user:// folder too
+            self.plant_user_dir(tree)
+        if self.users is not None:
+            self.assertEqual(len(self.user_dirs()), 4)
         # The report of a spec named tree-x.json is a file, never a leftover.
         report = self.work / "tools" / "out" / "mutants" / "tree-x.md"
         report.write_text("an earlier report\n", encoding="utf-8")

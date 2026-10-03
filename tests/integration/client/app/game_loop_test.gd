@@ -65,13 +65,17 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	for game: Game in games:
 		assert_int(game.level_kind()).is_equal(PhaseSpec.Level.MAP)
 		assert_bool(game.mode.maps.has(game.level().scene_file_path)).is_true()
-		assert_bool(game.player().reads_device_input).is_true()
 	# Loading placed everyone with a Correction: the player stands where it said.
 	_assert_at_the_last_correction(games)
+	# The round's screen lets the player read the keys again.
+	await _drawn()
+	for game: Game in games:
+		assert_bool(game.player().reads_device_input).is_true()
 	# The others are shown at the newest snapshot's positions.
 	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
 	# Time up: the end screen names the winning side by its display name.
 	assert_bool(await _until(games, _all_on.bind(games, S.END, 3))).is_true()
+	await _drawn()
 	for game: Game in games:
 		var winner := game.mode.find_side(game.client().model.winner)
 		assert_object(winner).is_not_null()
@@ -174,6 +178,15 @@ func _until(_games: Array[Game], done: Callable) -> bool:
 		_now += STEP_USEC
 		await get_tree().physics_frame
 	return done.call()
+
+
+## Waits until every Game has run its _process since the state `_until` saw: the screens' labels
+## and buttons and the player's reads_device_input are written there, once a frame. Under load
+## several physics frames run inside one idle frame, before its _process, and process_frame is
+## emitted before that frame's _process: the second one comes after a _process that saw the state.
+func _drawn() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 
 func _all_on(games: Array[Game], screen: S, players: int) -> bool:

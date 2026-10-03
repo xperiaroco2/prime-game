@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import re
+import time
+from dataclasses import dataclass
+from pathlib import Path
 
-from . import credits, uids
+from . import common, credits, uids
 from .common import ROOT, Failure, bad, ensure_out, git_status, godot, ok, say, warn
 
 # Warnings that must stay at Error (2). Others keep Godot's defaults: Warn is reported, not failed.
@@ -72,11 +76,119 @@ def user_dir_policy() -> list[str]:
     ]
 
 
+# --- is the import current? (#174) -----------------------------------------------------------------
+# Godot rebuilds its global class cache (.godot/global_script_class_cache.cfg), the uid cache and the imported assets
+# only in an import; a game started without one after `git switch` brought a new class_name script printed
+# `Identifier "MousePointer" not declared`. So every import through the runner records when it started, and the
+# commands that start the game (`host`, `join`, `run`, `playcheck`, `perf`, `bots`, `shot`, verify's `game` step)
+# import first when a file Godot sees changed after that (ensure_import below). git writes every file a switch, pull
+# or rebase changes, so its modification time is the moment it arrived (HEAD's commit time adds nothing); a deleted
+# script goes with an edit of what used it.
+STAMP = ".godot/runner_import.stamp"
+CLASS_CACHE = ".godot/global_script_class_cache.cfg"
+# Files Godot neither imports nor loads as a resource: a change to them never needs an import. Anything else counts,
+# so an unknown kind of file costs at most one import more than needed.
+NOT_IMPORTED = frozenset((".md", ".py", ".pyc", ".cmd", ".sh", ".ps1", ".txt", ".log", ".yml", ".yaml", ".html"))
+# What an import itself writes into the project: the .uid file of a new script or shader, the .import file of a new
+# asset. Written during the import, they would otherwise make the next launch import again.
+WRITTEN_BY_IMPORT = (".uid", ".import")
+
+
+@dataclass
+class Freshness:
+    """Why the project needs an import ('' when its import is current), the newest change seen and its file."""
+
+    why: str
+    newest: float
+    newest_path: str
+    files: int
+
+
+def newest_change(root: Path, kinds: tuple[str, ...] = ()) -> tuple[float, str, int]:
+    """(the newest modification time, its repo-relative path, the number of files looked at) over the files Godot
+    sees: hidden files and folders (.git, .godot, .claude) and folders with a .gdignore (tools/out) are skipped, as
+    Godot skips them, and so are the kinds of NOT_IMPORTED. With `kinds` (suffixes), only files of those kinds."""
+    newest, where, count = 0.0, "", 0
+    folders = [root]
+    while folders:
+        folder = folders.pop()
+        try:
+            entries = list(os.scandir(folder))
+        except OSError:
+            continue
+        if any(entry.name == ".gdignore" for entry in entries):
+            continue
+        for entry in entries:
+            if entry.name.startswith("."):
+                continue
+            try:
+                if entry.is_dir(follow_symlinks=False):
+                    folders.append(Path(entry.path))
+                    continue
+                kind = os.path.splitext(entry.name)[1].lower()
+                if kind in NOT_IMPORTED or (kinds and kind not in kinds):
+                    continue
+                mtime = entry.stat().st_mtime
+            except OSError:
+                continue
+            count += 1
+            if mtime > newest:
+                newest, where = mtime, Path(entry.path).relative_to(root).as_posix()
+    return newest, where, count
+
+
+def stamp_time(root: Path) -> float | None:
+    """When the last import through the runner started (None: no import through the runner yet)."""
+    try:
+        return float((root / STAMP).read_text(encoding="ascii").split()[0])
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def write_stamp(root: Path, when: float) -> None:
+    """Record `when` exactly (repr round-trips a float): a rounded value could fall just below the time of a file the
+    import wrote, and the next launch would import again."""
+    path = root / STAMP
+    if path.parent.is_dir():
+        path.write_text(f"{when!r}\n", encoding="ascii", newline="\n")
+
+
+def freshness(root: Path | None = None) -> Freshness:
+    """Whether the project's import is current: its class cache exists, the runner recorded an import, and no file
+    Godot sees changed after that import started."""
+    root = root or common.ROOT
+    newest, where, count = newest_change(root)
+    if not (root / ".godot").is_dir():
+        return Freshness("no .godot/ yet (a fresh checkout or worktree)", newest, where, count)
+    if not (root / CLASS_CACHE).is_file():
+        return Freshness(f"no {CLASS_CACHE}", newest, where, count)
+    stamp = stamp_time(root)
+    if stamp is None:
+        return Freshness(f"no {STAMP} (the last import was not the runner's)", newest, where, count)
+    ahead = newest - time.time()
+    if ahead > 0:
+        # Clock skew, or a file copied or extracted with its original time: the stamp never takes a future time
+        # (run_import), so this file makes every launch import, loudly, until it is touched.
+        return Freshness(
+            f"res://{where} is dated {ahead:.0f}s in the future, so every launch imports until it is touched"
+            f" (touch {where})",
+            newest,
+            where,
+            count,
+        )
+    if newest > stamp:
+        return Freshness(f"res://{where} changed after the last import", newest, where, count)
+    return Freshness("", newest, where, count)
+
+
 def run_import(label: str = "import") -> list[str]:
     """Headless import: builds the class cache and .uid files. Exits 0 even on script errors.
 
-    Returns the UID problems it printed; raises Failure only when the import itself broke.
+    Returns the UID problems it printed; raises Failure only when the import itself broke. Records in STAMP when it
+    started, or the newest file the import wrote itself (WRITTEN_BY_IMPORT) if that is later, but never a time after
+    the import ended: a stamp in the future would report every real change before that time as `current`.
     """
+    started = time.time()
     for attempt in (1, 2):
         res = godot(["--headless", "--import"], timeout=IMPORT_TIMEOUT, log=label)
         if res.timed_out:
@@ -86,7 +198,41 @@ def run_import(label: str = "import") -> list[str]:
         if attempt == 2:
             raise Failure(f"godot --import exited {res.rc} twice (log: tools/out/logs/{label}.log)")
         warn(f"godot --import exited {res.rc}; retrying once")
+    record_import(started)
     return [line.strip() for line in res.lines if IMPORT_UID_PATTERNS.search(line)]
+
+
+def record_import(started: float) -> None:
+    """Record in STAMP an import that started at `started` (time.time()) and has just succeeded: that time, or the
+    newest file the import wrote itself (WRITTEN_BY_IMPORT) if later, never after now. run_import and the post-edit
+    hook's own import (hooks.engine_check) call it."""
+    written = newest_change(common.ROOT, WRITTEN_BY_IMPORT)[0]
+    write_stamp(common.ROOT, min(max(started, written), time.time()))
+
+
+def ensure_import() -> None:
+    """Import the project first when its import is not current (check.freshness, #174), and say so in one line.
+
+    Without it a fresh checkout resolves no resource, and a checkout that `git switch` moved to a commit with a new
+    class_name script fails with `Identifier "…" not declared`. The test costs a walk over the project's files (0.03
+    to 0.04 s over about 1,500 files); an import about 10 s even when nothing changed (both measured for #174 on the
+    engineer's PC), so it runs only when needed. A linked worktree's
+    override.cfg (#182) is written first, as require_godot does before every Godot start: the walk sees it, and the
+    import runs with the worktree's own user://.
+    """
+    common.ensure_user_dir()
+    started = time.monotonic()
+    state = freshness()
+    looked = time.monotonic() - started
+    if not state.why:
+        say(f"        import: current ({state.files} project files unchanged since the last import, {looked:.2f}s)")
+        return
+    if state.newest > time.time():
+        warn(f"import: {state.why}; importing the project first")
+    else:
+        say(f"        import: {state.why}; importing the project first")
+    run_import("run-import")
+    say(f"        import: done in {time.monotonic() - started:.1f}s")
 
 
 def main(files: list[str] | None = None) -> int:

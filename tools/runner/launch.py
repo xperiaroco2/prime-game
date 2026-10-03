@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import shot
+from .check import ensure_import
 from .common import (
     LOGS,
     ROOT,
@@ -192,19 +193,6 @@ def gui_exe() -> str:
     return gui
 
 
-def import_if_missing() -> None:
-    """A fresh checkout or worktree has no .godot/ yet: without the import no resource or class_name resolves.
-
-    Later runs skip it (an import takes seconds); after adding scripts or assets, `check` imports again.
-    """
-    if (ROOT / ".godot").is_dir():
-        return
-    from .check import run_import
-
-    say("        no .godot/ yet (a fresh checkout or worktree): importing the project first")
-    run_import("run-import")
-
-
 def main(
     target: str,
     *,
@@ -230,7 +218,7 @@ def main(
         raise Failure("a window needs a desktop session; add --headless (CI and headless machines)")
     exe = require_godot() if headless else gui_exe()
     ensure_out()
-    import_if_missing()
+    ensure_import()
     cmd = command(
         exe,
         ROOT,
