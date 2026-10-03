@@ -38,7 +38,7 @@ E34 to E47, D11 to D15; its §3 is the review checklist for what the client play
 - Spatialization happens on the receiving client through an `AudioStreamPlayer3D` on the speaker's avatar.
 - The codec sits behind `VoiceCodec`: TwoVoIP (`two-voip-godot-4`) **v6.5**, not v6.6 (it crashes the editor). No
   script names an addon class: `TwoVoipCodec` reaches it only through `ClassDB` by class name, so the project parses
-  and runs where the addon is absent (CI on Linux removes it; voice is then unavailable). Name addon methods as the M1
+  and runs where the addon is absent (CI deletes its `.gdextension`; voice is unavailable). Name addon methods as the M1
   spike used them (`git show origin/voice/16-m1-spike-measure-voice-latency-cpu-cost:spike/voice/<file>`), never from
   memory: the engine's API dump does not hold them. Settings, measurements and lessons:
   `docs/decisions/2026-09-29-voice-approach.md`, `docs/ARCHITECTURE.md` §6.

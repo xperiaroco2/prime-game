@@ -3,8 +3,8 @@ extends SceneTree
 ## TwoVoipCodec's boundary, as the M1 spike's codec_roundtrip.gd did it. On Windows with the addon
 ## in addons/twovoip/ (M5-3, and any PR that changes the codec adapter), headless:
 ##   tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless
-## Without the addon it prints "ROUNDTRIP SKIP" and exits 0. It is not a verify step: CI removes
-## the addon (E35), and tests never load it.
+## Without the addon it prints "ROUNDTRIP SKIP" and exits 0. It is not a verify step: CI deletes
+## the addon's .gdextension (E35), and tests never load it.
 ##
 ## - The round trip: 2 s of a sine, 440 Hz and then 660 Hz from frame LOST on, encoded 20 ms at a
 ##   time (no denoiser: a tone is not speech), decoded into a playback and mixed back; it must keep
@@ -13,8 +13,13 @@ extends SceneTree
 ## - The probe: the same frames with frame LOST missing, decoded from the next packet with
 ##   `conceal` as VoiceJitter asks for it. In the lost frame's last 10 ms, FEC rebuilds the new
 ##   660 Hz from the data the next packet carries, while concealment can only extrapolate the 440 Hz
-##   before the gap. It prints which, for M5-3's PR to record (whether v6.5 turns in-band FEC on is
-##   unknown); it does not fail the run.
+##   before the gap. It prints which and does not fail the run. M5-3 saw CONCEALMENT with
+##   TwoVoipEncoder's settings (ARCHITECTURE §6): FEC here would mean a changed addon or encoder.
+## - The flush: five frames pushed into a real AudioStreamPlayer3D's playback, then
+##   TwoVoipPlayback.flush() (stop, then play again for a fresh playback) must leave none queued.
+##   v6.5 has no call that empties the queue (M5-3). A FAIL here fails the run.
+## - It prints whether the encoder offers get_speech_probability (RNNoise's voice probability, which
+##   voice activity could use instead of the peak); informative only.
 
 const RATE := 48000
 const CHUNKS := 100
@@ -24,14 +29,21 @@ const FREQ_AFTER := 660.0
 const AMP := 0.5
 ## Mixed output skipped at the start (the codec's warm-up), in seconds.
 const WARM_UP := 0.1
+## The decoding stream's queue, in seconds, as the spike set it: the whole 2 s signal is queued
+## before it is mixed, and v6.5's default of 2.0 s holds one audio frame less than 2 s (95999).
+const BUFFER_SECONDS := 3.0
+## Frames pushed before the flush check.
+const FLUSH_PACKETS := 5
 
 
-func _init() -> void:
+func _initialize() -> void:
 	var codec := TwoVoipCodec.new()
 	if not codec.available():
 		print("ROUNDTRIP SKIP: the TwoVoIP addon is not loaded (addons/twovoip/, M5-3)")
 		quit(0)
 		return
+	# The root enters the tree only after _initialize(), and the flush check plays a player in it.
+	await process_frame
 	quit(0 if _run(codec) else 1)
 
 
@@ -46,6 +58,9 @@ func _run(codec: TwoVoipCodec) -> bool:
 	var probed := _decode(codec, packets, LOST)
 	if not probed.is_empty():
 		_probe(clean, probed)
+	ok = _check_flush(codec, packets) and ok
+	var speech := ClassDB.class_has_method(TwoVoipCodec.ENCODER_CLASS, &"get_speech_probability")
+	print("ROUNDTRIP get_speech_probability: ", "offered" if speech else "not offered")
 	print("ROUNDTRIP ", "PASS" if ok else "FAIL")
 	return ok
 
@@ -87,6 +102,7 @@ func _decode(codec: TwoVoipCodec, packets: Array[PackedByteArray], lost: int) ->
 	var stream := codec.new_stream()
 	var raw: AudioStreamPlayback = null
 	if stream != null:
+		stream.call(&"set_buffer_length", BUFFER_SECONDS)
 		raw = stream.instantiate_playback()
 	var playback := TwoVoipPlayback.new(null, TwoVoipCodec.PLAYBACK_CLASS, raw)
 	if not playback.bound():
@@ -107,6 +123,32 @@ func _decode(codec: TwoVoipCodec, packets: Array[PackedByteArray], lost: int) ->
 		return PackedVector2Array()
 	var mix_rate := AudioServer.get_mix_rate()
 	return raw.mix_audio(1.0, int(mix_rate * frames / RATE))
+
+
+## TwoVoipPlayback.flush() on a real player's playback empties its queue.
+func _check_flush(codec: TwoVoipCodec, packets: Array[PackedByteArray]) -> bool:
+	var player := AudioStreamPlayer3D.new()
+	player.stream = codec.new_stream()
+	root.add_child(player)
+	var playback := codec.playback_of(player)
+	var ok := false
+	if playback == null:
+		print("ROUNDTRIP FAIL flush: no playback of a player")
+	else:
+		for i: int in FLUSH_PACKETS:
+			playback.push(packets[i], false)
+		var before := playback.queued_frames()
+		playback.flush()
+		var after := playback.queued_frames()
+		ok = before == FLUSH_PACKETS * TwoVoipEncoder.FRAME_SAMPLES and after == 0
+		print(
+			(
+				"ROUNDTRIP FLUSH %s: %d frames queued, %d after flush() (stop, then play)"
+				% ["ok" if ok else "FAIL", before, after]
+			)
+		)
+	player.free()
+	return ok
 
 
 func _check_round_trip(out: PackedVector2Array) -> bool:
