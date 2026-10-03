@@ -49,6 +49,8 @@ var _flushed_at: Dictionary[int, int] = {}
 var _index: Dictionary[int, int] = {}
 var _newest_tick := -1
 var _cutoff_m := 0.0
+## The phase the cutoff was taken from: a Welcome sets the model's phase without a PhaseChanged.
+var _phase: StringName = &""
 
 
 func _init() -> void:
@@ -68,7 +70,9 @@ func setup(
 	client.voice_received.connect(on_voice)
 	client.event_received.connect(on_event)
 	client.snapshot_received.connect(on_snapshot)
-	_cutoff_m = _phase_radius()
+	_phase = &""
+	_cutoff_m = 0.0
+	_sync_phase()
 
 
 ## Forgets the session (it ended): every speaker flushed and freed, every record dropped.
@@ -80,6 +84,7 @@ func reset() -> void:
 	_newest_tick = -1
 	model = null
 	_cutoff_m = 0.0
+	_phase = &""
 
 
 ## The cutoff now: the current phase's hearing radius from the own mode, 0 for none.
@@ -87,10 +92,12 @@ func cutoff() -> float:
 	return _cutoff_m
 
 
-## The speaker of `peer`, or null.
+## The speaker of `peer`, or null (also once freed with its body).
 func speaker_of(peer: int) -> VoiceSpeaker:
-	var speaker: VoiceSpeaker = _speakers.get(peer)
-	return speaker if is_instance_valid(speaker) else null
+	var speaker: Variant = _speakers.get(peer)
+	if not is_instance_valid(speaker):
+		return null
+	return speaker as VoiceSpeaker
 
 
 ## The newest host tick recorded at `peer`'s latest flush, or -1 before any.
@@ -102,6 +109,7 @@ func flushed_at(peer: int) -> int:
 func on_voice(speaker: int, seq: int, tick: int, opus: PackedByteArray) -> void:
 	received += 1
 	_see_tick(tick)
+	_sync_phase()
 	if not hears(speaker, tick):
 		dropped += 1
 		return
@@ -134,14 +142,8 @@ func hears(speaker: int, tick: int) -> bool:
 func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if model == null:
 		return
+	_sync_phase()
 	match event_name:
-		&"PhaseChanged":
-			_cutoff_m = _phase_radius()
-			if _cutoff_m <= 0.0:
-				flush_all()
-			for peer: int in _speakers:
-				if is_instance_valid(_speakers[peer]):
-					_speakers[peer].set_cutoff(_cutoff_m)
 		&"Died":
 			if fields["peer"] as int == model.own_peer:
 				flush_all()
@@ -211,6 +213,7 @@ func _process(_delta: float) -> void:
 func _physics_process(_delta: float) -> void:
 	if model == null:
 		return
+	_sync_phase()
 	var heard_from: Variant = _ears_position()
 	for peer: int in _speakers.keys():
 		var speaker := speaker_of(peer)
@@ -230,6 +233,8 @@ func _speaker_for(peer: int) -> VoiceSpeaker:
 			return null
 		speaker = VoiceSpeaker.new(codec)
 		speaker.set_cutoff(_cutoff_m)
+		# Freed with its body (the avatar gone, a level swapped): forgotten before anything reads it.
+		speaker.tree_exiting.connect(_forget.bind(peer, speaker))
 		body.mouth_point().add_child(speaker)
 		_speakers[peer] = speaker
 	var heard_from: Variant = _ears_position()
@@ -240,6 +245,26 @@ func _speaker_for(peer: int) -> VoiceSpeaker:
 
 func _within(speaker: VoiceSpeaker, heard_from: Vector3) -> bool:
 	return speaker.global_position.distance_to(heard_from) <= _cutoff_m
+
+
+## The model's phase changed (PhaseChanged, or a Welcome into a phase): the cutoff follows it on
+## every speaker, and a phase that hears nobody flushes them all.
+func _sync_phase() -> void:
+	if model == null or model.phase == _phase:
+		return
+	_phase = model.phase
+	_cutoff_m = _phase_radius()
+	if _cutoff_m <= 0.0:
+		flush_all()
+	for peer: int in _speakers:
+		var speaker := speaker_of(peer)
+		if speaker != null:
+			speaker.set_cutoff(_cutoff_m)
+
+
+func _forget(peer: int, speaker: VoiceSpeaker) -> void:
+	if _speakers.get(peer) == speaker:
+		_speakers.erase(peer)
 
 
 func _record_flush(peer: int) -> void:
@@ -278,4 +303,6 @@ func _ears_position() -> Variant:
 	if not is_inside_tree():
 		return null
 	var listener := get_viewport().get_audio_listener_3d()
-	return listener.global_position if listener != null else null
+	if listener == null:
+		return null
+	return listener.global_position

@@ -171,6 +171,39 @@ func test_the_overlay_lines_number_the_speakers_by_first_arrival() -> void:
 	assert_str(text).not_contains("Player")
 
 
+func test_the_cutoff_follows_the_models_phase_without_a_phase_change() -> void:
+	# A Welcome sets the model's phase with no PhaseChanged: the cutoff must follow it all the same.
+	_world.place({TALKER: Vector3(0, 0, -3)})
+	await _drawn()
+	_world.model.phase = &"loading"
+	_voices.on_event(&"Welcome", {})
+	assert_float(_voices.cutoff()).is_equal(0.0)
+	_world.speak(TALKER, 3, 5)
+	assert_int(_voices.played).is_equal(0)
+	_world.model.phase = &"lobby"
+	_world.speak(TALKER, 3, 6)
+	assert_float(_voices.cutoff()).is_greater(0.0)
+	assert_int(_voices.played).is_equal(3)
+
+
+func test_a_speaker_freed_with_its_body_is_forgotten_and_made_again() -> void:
+	var speaker := await _talking()
+	# The avatar leaves the snapshots: AvatarViews frees the body, and the speaker with it.
+	_world.place({OTHER: Vector3(3, 0, 0)})
+	await _drawn()
+	await _drawn()
+	assert_bool(is_instance_valid(speaker)).is_false()
+	assert_object(_voices.speaker_of(TALKER)).is_null()
+	assert_array(_voices.stats()).is_empty()
+	await _step()
+	_world.place({TALKER: Vector3(0, 0, -3), OTHER: Vector3(3, 0, 0)})
+	await _drawn()
+	_world.speak(TALKER, 3, 90)
+	var again := _voices.speaker_of(TALKER)
+	assert_object(again).is_not_null()
+	assert_int(again.jitter.received).is_equal(3)
+
+
 ## TALKER's body 3 m from the ears, and a spurt of 5 frames at tick 10 started.
 func _talking() -> VoiceSpeaker:
 	_world.place({TALKER: Vector3(0, 0, -3)})

@@ -322,11 +322,11 @@ func _place_ears() -> void:
 	if _is_dead() and model.bodies.has(model.own_peer):
 		own_feet = Transform3D(Basis.IDENTITY, model.bodies[model.own_peer])
 	var target_body := avatars.body_of(_target) if _is_dead() and _target != 0 else null
-	var target := _target if target_body != null else 0
+	var watched := _target if target_body != null else 0
 	var target_feet := target_body.global_transform if target_body != null else Transform3D()
 	var eye := player.get_camera().global_position
 	var at := Ears.point(
-		_own_life(), own_feet, eye, target, _target_life, target_feet, mode.player_rules
+		_own_life(), own_feet, eye, watched, _target_life, target_feet, mode.player_rules
 	)
 	var camera := get_viewport().get_camera_3d()
 	var turned := camera.global_basis if camera != null else Basis.IDENTITY
