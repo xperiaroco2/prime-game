@@ -489,6 +489,28 @@ func test_damage_to_an_invulnerable_player_does_nothing() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_a_death_of_a_player_who_is_not_downed_is_a_rule_error_and_changes_nothing() -> void:
+	# LifeTicks and GiveUp reach die() for the downed only; its own guard keeps a living or a dead
+	# player as it is: no body, no Died, no fact, and a dead player's respawn time kept.
+	var game := _duel()
+	LifeRules.die(_context(game), P2)
+	var living := game.state.player(P2)
+	assert_int(living.life).is_equal(PlayerState.Life.ALIVE)
+	assert_int(living.life_deadline).is_equal(-1)
+	assert_dict(game.state.bodies).is_empty()
+	assert_array(FixtureCombatModes.received(game, P3, &"Died")).is_empty()
+	assert_array(FixtureModes.notes(game)).is_empty()
+	assert_str(";".join(game.diagnostics)).contains("die: player 2 is not downed")
+	_kill(game)
+	var deadline := living.life_deadline
+	FixtureModes.run_ticks(game, 5)
+	LifeRules.die(_context(game), P2)
+	assert_int(living.life).is_equal(PlayerState.Life.DEAD)
+	assert_int(living.life_deadline).is_equal(deadline)
+	assert_array(FixtureCombatModes.received(game, P3, &"Died")).has_size(1)
+	assert_int(";".join(game.diagnostics).count("is not downed")).is_equal(2)
+
+
 ## A round of P1, P2 and P3 in `world`: P1 at the origin with a knife, P2 1 m north, P3 away.
 func _duel(world: WorldQuery = null) -> Match:
 	var game := FixtureCombatModes.in_round(FixtureCombatModes.basic(), [P1, P2, P3], world)
@@ -531,3 +553,13 @@ func _crew_or_dissidents_mode() -> GameMode:
 		FixtureModes.win(&"dissidents", FixtureRoleAllLeft.of(&"crew")),
 	]
 	return mode
+
+
+## A context of `game`'s next host tick, as a part called from the loop gets it.
+func _context(game: Match) -> MatchContext:
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	return ctx
