@@ -12,7 +12,8 @@ extends Resource
 ## acknowledges every LoadMatch at once; the steps StepJoin and StepLoadAck change that for one bot.
 ## Then one script per bot, run at the same time; the expected ends, one per match played, in order;
 ## a time limit for the whole run; the events some bot must never receive; and how the bots'
-## synthetic voice talks (M5-1): in talk spurts by default, or continuously.
+## synthetic voice talks (M5-1): in talk spurts by default, or continuously. A measurement (M5-4's
+## voice_load) runs in the bots runner only when named.
 
 ## How the bots' synthetic voice talks (ARCHITECTURE §4.6): 50 frames a second in talk spurts, a
 ## deterministic pattern per bot, like players whose gate opens while they speak; or every frame,
@@ -48,6 +49,10 @@ const MIN_SEED := 1_000_000
 @export var time_limit_s := 120.0
 @export var never: Array[NeverEvent] = []
 @export var voice := Voice.SPURTS
+## A load measurement (M5-4's voice_load, ARCHITECTURE §9.7): the bots runner plays it only when it
+## is named (`tools\run.cmd bots voice_load --instances 8`), never in its run of every scenario
+## (verify's `bots`), whose time it would multiply. The core runner's suite still plays it.
+@export var measurement := false
 
 
 ## The steps of bot `bot` (1-based), in order; empty when it has no script.
