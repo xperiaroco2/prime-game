@@ -86,6 +86,24 @@ func test_a_refused_action_of_its_actor_stops_nothing() -> void:
 	assert_object(Channels.of_actor(game.state, P1)).is_not_null()
 
 
+func test_a_rule_run_for_a_fact_stops_no_channel_of_its_actor() -> void:
+	# Only an action (a rule on an intent) stops its actor's channel (RuleRunner). In a match a
+	# reaction runs for actor 0, who never channels, so this calls the runner directly with P1.
+	var game := _round()
+	_use(game, P1)
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	ctx.actor = P1
+	ctx.fact = Fact.new(Facts.CLOCK_ENDED)
+	var reaction := Rule.new()
+	reaction.trigger = Facts.CLOCK_ENDED
+	assert_str(String(RuleRunner.run(reaction, ctx))).is_empty()
+	assert_object(Channels.of_actor(game.state, P1)).is_not_null()
+	assert_array(FixtureModes.notes(game)).is_equal(["started 1"])
+
+
 func test_another_players_action_stops_nothing() -> void:
 	var game := _round()
 	var package := FixtureItemModes.lay(game, &"package", HERE)
