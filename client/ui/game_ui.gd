@@ -103,9 +103,13 @@ func refresh_round(
 		tasks.refresh(model, mode)
 
 
-## Opens the Esc menu over the current screen; `model` is the own ClientModel once welcomed.
-func open_esc(hosting: bool, model: ClientModel = null) -> void:
-	esc.open(screen, model, hosting)
+## Opens the Esc menu over `screen_now`, by default the screen drawn last; `model` is the own
+## ClientModel once welcomed. The game passes its live screen: an Esc in the frame the Welcome
+## arrives comes before its _process draws the lobby, and opens on the Lobby tab still (#204).
+func open_esc(
+	hosting: bool, model: ClientModel = null, screen_now: GameFlow.Screen = screen
+) -> void:
+	esc.open(screen_now, model, hosting)
 
 
 func close_esc() -> void:

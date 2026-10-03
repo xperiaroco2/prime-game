@@ -91,6 +91,23 @@ func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	assert_bool(menu.lobby.visible).is_false()
 
 
+func test_the_ui_opens_the_esc_menu_on_the_screen_it_is_given_else_the_one_drawn_last() -> void:
+	# #204: the game passes its live screen, which may be ahead of the one drawn last.
+	var ui: GameUi = auto_free(GameUi.new())
+	ui.show_screen(GameFlow.Screen.CONNECTING)
+	ui.open_esc(false, null, GameFlow.Screen.LOBBY)
+	assert_bool(ui.esc.state.has_tab(EscMenuState.Tab.LOBBY)).is_true()
+	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.LOBBY)
+	ui.close_esc()
+	ui.show_screen(GameFlow.Screen.LOBBY)
+	ui.open_esc(false)
+	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.LOBBY)
+	ui.close_esc()
+	ui.show_screen(GameFlow.Screen.ROUND)
+	ui.open_esc(false)
+	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.RESUME)
+
+
 func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
 	var menu: EscMenu = auto_free(EscMenu.new())
 	add_child(menu)
