@@ -93,8 +93,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("prs", nargs="*", type=int, help="PR numbers (default: every open PR, grouped by base)")
     p.add_argument(
         "--base",
-        help="only the PRs into this base (and their pairs across bases on shared files); with --trial, the base to "
-        "merge onto",
+        help="only the PRs into this base (and their pairs across bases where both change shared files); with "
+        "--trial, the base to merge onto",
     )
     p.add_argument(
         "--trial", action="store_true", help="merge the PRs in order onto the base in a scratch worktree, then verify"

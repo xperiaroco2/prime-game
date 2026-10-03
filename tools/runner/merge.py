@@ -24,10 +24,12 @@ Godot: each PR onto its base tip, and each pair of PRs into the same base.
   (`mock.patch.object(gdunit, "main", ...)`: a stand-in with the old arguments breaks once callers pass the new one).
 - The "onto base" check compares the PR with what its base gained since the PR's fork (another PR merged meanwhile).
 - Across bases (#207): each checked PR with every open PR that finally lands in another base (`main`,
-  `release/m<k>`; a PR stacked on one of its own track lands in that one's), compared only when both change one
+  `release/m<k>`; a PR stacked on one of its own track lands in that one's), compared only when both change a
   shared file (`tools/`, `.claude/`, `.github/`, `docs/AGENT_WORKFLOW.md`: every track may change them, and a
-  milestone takes `main` in at its next wave boundary): the textual conflicts in the files both change, and the same
-  symbol check, each PR measured from its fork with its own base. The other cross-base pairs are named as not
+  milestone takes `main` in at its next wave boundary), the same one or different ones (#231: a signature changed in
+  `tools/runner/x.py` that the other PR calls from `tools/runner/y.py`): the textual conflicts in the files both
+  change (the bases differ elsewhere), and the same symbol check over the whole of each PR, each measured from its
+  fork with its own base. The other cross-base pairs (at most one side changes a shared file) are named as not
   compared. `--base B` checks B's PRs within B and against every other base.
 It prints one Markdown table per base and one across bases (paste them into a wave comment or a PR), each overlap
 with the symbol and file:line on both sides, and the notes; exit 1 on any conflict or overlap, or a PR it could not
@@ -896,13 +898,14 @@ class Row:
     conflicts: list[str]
     overlaps: list[Overlap]
     notes: list[Overlap] = field(default_factory=list)
-    shared: list[str] = field(default_factory=list)  # a pair across bases: the shared files both change
+    # A pair across bases: its "shared files" cell (the shared files both change, else each side's).
+    shared: str = ""
 
     @classmethod
-    def of(cls, check: str, conflicts: list[str], found: list[Overlap], shared: list[str] | None = None) -> Row:
+    def of(cls, check: str, conflicts: list[str], found: list[Overlap], shared: str = "") -> Row:
         """A row from both_ways' result: compatible signature changes go to notes, the rest are overlaps."""
         overlaps = [o for o in found if not o.note]
-        return cls(check, conflicts, overlaps, [o for o in found if o.note], shared or [])
+        return cls(check, conflicts, overlaps, [o for o in found if o.note], shared)
 
     def cells(self) -> tuple[str, str]:
         text = f"conflict: {', '.join(self.conflicts[:6])}" + (" ..." if len(self.conflicts) > 6 else "")
@@ -967,8 +970,9 @@ def check_group(base: str, prs: list[PullRequest], sides: Sides | None = None) -
 # --- across bases (#207) ----------------------------------------------------------------------------------------------
 
 # The files every track may change (AGENT_WORKFLOW §7.1 "Parallel tracks"): a milestone takes `main` in at its next
-# wave boundary (`merge --sync-main`), so a PR into `main` and one into `release/m<k>` that change the same shared file
-# meet there although merge-check never paired them within one base.
+# wave boundary (`merge --sync-main`), so a PR into `main` and one into `release/m<k>` that both change shared files
+# (the same one, or one that uses what the other changes: #231) meet there although merge-check never paired them
+# within one base.
 SHARED_DIRS = ("tools/", ".claude/", ".github/")
 SHARED_FILES = ("docs/AGENT_WORKFLOW.md",)
 
@@ -1022,21 +1026,32 @@ def lands_in(pr: PullRequest, by_head: dict[str, PullRequest]) -> str:
     return root if pr.base == root else f"{root} via {pr.base}"
 
 
+def _files_cell(files: list[str], limit: int) -> str:
+    return ", ".join(files[:limit]) + (f" (+{len(files) - limit} more)" if len(files) > limit else "")
+
+
 def check_cross(
     pairs: list[tuple[PullRequest, PullRequest]], sides: Sides, by_head: dict[str, PullRequest]
 ) -> tuple[list[Row], list[str]]:
-    """The pairs that change the same shared files, textually (the conflicts in files both change) and with the same
-    symbol check as within a base; and the labels of the pairs with no shared file in common."""
+    """The pairs where both PRs change a shared file, the same one or different ones (#231: a signature changed in
+    `tools/runner/x.py` that the other PR calls from `tools/runner/y.py`): textually (only the conflicts in files both
+    change: the two bases differ elsewhere) and with the same symbol check as within a base, over the whole of each
+    PR; and the labels of the pairs where at most one side changes a shared file."""
     rows, apart = [], []
     for a, b in pairs:
         label = f"{a.label} ({lands_in(a, by_head)}) + {b.label} ({lands_in(b, by_head)})"
-        common = sides.touched(a) & sides.touched(b)
-        files = shared(common)
-        if not files:
+        mine, theirs = shared(sides.touched(a)), shared(sides.touched(b))
+        if not mine or not theirs:
             apart.append(label)
             continue
-        conflicts = [path for path in textual(a.oid, b.oid) if path in common]
-        rows.append(Row.of(label, conflicts, both_ways(sides.change(a), sides.change(b)), files))
+        common = sides.touched(a) & sides.touched(b)
+        both = shared(common)
+        if both:
+            cell = _files_cell(both, 4)
+        else:
+            cell = f"{a.label}: {_files_cell(mine, 2)}; {b.label}: {_files_cell(theirs, 2)}"
+        conflicts = [path for path in textual(a.oid, b.oid) if path in common] if common else []
+        rows.append(Row.of(label, conflicts, both_ways(sides.change(a), sides.change(b)), cell))
     return rows, apart
 
 
@@ -1066,19 +1081,18 @@ def report(base: str, prs: list[PullRequest], rows: list[Row]) -> None:
 
 def report_cross(bases: list[str], rows: list[Row], apart: list[str]) -> None:
     say()
-    say(f"### across bases ({', '.join(bases)}): pairs that change the same files under "
-        f"{', '.join(SHARED_DIRS)} or {', '.join(SHARED_FILES)}")  # fmt: skip
+    say(f"### across bases ({', '.join(bases)}): pairs that both change files under "
+        f"{', '.join(SHARED_DIRS)} or {', '.join(SHARED_FILES)} (textual: the files both change)")  # fmt: skip
     if rows:
         say()
         say("| check | shared files | textual | semantic |")
         say("|---|---|---|---|")
         for row in rows:
-            files = ", ".join(row.shared[:4]) + (f" (+{len(row.shared) - 4} more)" if len(row.shared) > 4 else "")
             textual_cell, semantic_cell = row.cells()
-            say(f"| {row.check} | {files} | {textual_cell} | {semantic_cell} |")
+            say(f"| {row.check} | {row.shared} | {textual_cell} | {semantic_cell} |")
     if apart:
         say()
-        say(f"no shared file in common, not compared: {'; '.join(apart)}")
+        say(f"no shared file on both sides, not compared: {'; '.join(apart)}")
     _details(rows)
 
 
