@@ -1363,6 +1363,14 @@ and physics step, which `Game._process` sets, still follow the previous one; not
 can step and claim a few frames into a frozen phase (#241). A test that reads those waits until `game.ui.screen`
 shows the screen it waited for; game_loop_test checks that wait with `Game._process` off (#225).
 
+A `queue_free`d node is freed at the end of the physics frame on 4.7.2, not only of the idle frame (a probe for #242
+freed a body in one physics frame and found it gone in the next, with no idle frame between), but until then it stays
+in the tree and its body in the physics space, where a node at a later priority still finds it. So a view that drops
+a physics body takes it out of the tree first: `AvatarViews` removes a `RemotePlayerBody` whose player the model
+dropped (a new map, the lobby, a leave, a death) before freeing it. Only queued, it pushed the local player off a spot
+the same frame's `Correction` had put it on, by one step at sprint speed (End → Lobby brings `PhaseChanged`, which
+forgets the avatars, and the placement in one host step; the end screen's frozen step hides it today, #241).
+
 **The flow.**
 
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
@@ -1496,7 +1504,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `PlayersPlaced` names (no blend across a tick within one of the event's estimated tick, since events and
   snapshots travel on different lanes), forgets the poses at `LoadMatch` and gives the estimated host tick
   (`host_tick()`) and the delay. A teleport too far for anyone to walk in the time between two snapshots (30 m/s, a
-  placeholder) also snaps.
+  placeholder) also snaps. A body whose player the model drops leaves the tree before it is freed (#242, above).
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
   count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
   (`PLACING_EVENTS`: `PlayersPlaced`, `KnockedDown` and `Respawned` (M4-4); a death and a revive send no
@@ -1508,7 +1516,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Tests: `tests/unit/client/world/snapshot_buffer_test.gd` (jitter, loss, a freeze and its burst, a lasting rise of
   the latency, degenerate facings, placements), `tests/unit/client/player/predicted_stamina_test.gd` (against
   `StaminaLedger` after every tick), `tests/unit/client/net/client_session_snapshots_test.gd`,
-  `tests/unit/client/ui/debug_overlay_test.gd`, `tests/integration/client/world/avatar_views_test.gd`, and over a
+  `tests/unit/client/ui/debug_overlay_test.gd`, `tests/integration/client/world/avatar_views_test.gd` (since #242
+  also: a dropped body leaves the physics space in the frame it is dropped, and a real controller placed onto it in
+  that frame is not pushed; both seen failing with `queue_free` alone, the push by 7/60 m), and over a
   `LoopbackHub` with a `HostSession` (`net_pair.gd`: a host and a joined `Game`, each in a world of its own, on a
   simulated clock, in `tests/fixtures/client/steps_room.tscn`): `player_network_test.gd` (the real controller walks,
   sprints up steps, jumps and walks down with 0 corrections; a teleport the test forces is corrected once; the round's

@@ -72,9 +72,9 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Remote players are drawn from `SnapshotBuffer`'s poses only, never from a claimed velocity, and every head or
   basis built from a remote facing goes through its guard (`SnapshotBuffer.look_angles`): a relayed facing can be
   zero or vertical in honest play. A body placed in `_physics_process` for the push search is a `StaticBody3D` and
-  calls `force_update_transform()` (§4.7: with Jolt a kinematic body's teleport shows only after the step).
-- A new event's fold in `ClientModel` lands in the core PR that adds the event, since the bots need it (E25);
-  client issues read the model.
+  calls `force_update_transform()` (§4.7: with Jolt a kinematic body's teleport shows only after the step); one
+  dropped leaves the tree before `queue_free`, or the push search later in that frame still finds it (#242).
+- A new event's fold in `ClientModel` lands in the core PR adding it (bots need it, E25); client issues read the model.
 - Scenes are single-owner. Build reusable pieces as small sub-scenes; level layout itself is the designer's
   (`levels/`). Hand-written `.tscn` follows `.claude/rules/godot-resources.md`.
 - Visual changes come with a `shot` screenshot in the PR. Dev-only scenes (test rooms, previews) go in
