@@ -78,7 +78,15 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	_assert_at_the_last_correction(games)
 	# The others are shown at the newest snapshot's positions.
 	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
-	# Time up: the end screen names the winning side by its display name.
+	# Time up, with no Game._process (as when physics steps run ahead of it under load, #225): the
+	# model reaches the end screen, nothing has shown it yet, and a wait for it does not stop there.
+	for game: Game in games:
+		game.set_process(false)
+	assert_bool(await _until(games, _models_on.bind(games, S.END))).is_true()
+	assert_bool(_all_on(games, S.END, 3)).is_false()
+	for game: Game in games:
+		game.set_process(true)
+	# The end screen names the winning side by its display name.
 	assert_bool(await _until(games, _all_on.bind(games, S.END, 3))).is_true()
 	for game: Game in games:
 		var winner := game.mode.find_side(game.client().model.winner)
@@ -196,6 +204,14 @@ func _all_on(games: Array[Game], screen: S, players: int) -> bool:
 		if game.client() == null or game.screen() != screen or game.ui.screen != screen:
 			return false
 		if game.client().model.roster.size() != players:
+			return false
+	return true
+
+
+## Every game's model is on `screen`, whether or not its Game has shown it yet.
+func _models_on(games: Array[Game], screen: S) -> bool:
+	for game: Game in games:
+		if game.client() == null or game.screen() != screen:
 			return false
 	return true
 
