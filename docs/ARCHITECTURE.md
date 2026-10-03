@@ -1363,13 +1363,14 @@ and physics step, which `Game._process` sets, still follow the previous one; not
 can step and claim a few frames into a frozen phase (#241). A test that reads those waits until `game.ui.screen`
 shows the screen it waited for; game_loop_test checks that wait with `Game._process` off (#225).
 
-A `queue_free`d node is freed at the end of the physics frame on 4.7.2, not only of the idle frame (a probe for #242
-freed a body in one physics frame and found it gone in the next, with no idle frame between), but until then it stays
-in the tree and its body in the physics space, where a node at a later priority still finds it. So a view that drops
-a physics body takes it out of the tree first: `AvatarViews` removes a `RemotePlayerBody` whose player the model
-dropped (a new map, the lobby, a leave, a death) before freeing it. Only queued, it pushed the local player off a spot
-the same frame's `Correction` had put it on, by one step at sprint speed (End → Lobby brings `PhaseChanged`, which
-forgets the avatars, and the placement in one host step; the end screen's frozen step hides it today, #241).
+A `queue_free`d node stays in the tree, and its body in the physics space, at least until the end of the current physics
+frame, where a node at a later priority still finds it. (On 4.7.2 it was then gone: a probe for #242, not kept since it
+slept, freed a body in one physics frame and found it gone in the next with no idle frame between. Observed, not in the
+docs, and nothing here relies on it.) So a view that drops a physics body takes it out of the tree first: `AvatarViews`
+removes a `RemotePlayerBody` whose player the model dropped (a new map, the lobby, a leave, a death) before freeing it.
+Only queued, it pushed the local player off a spot the same frame's `Correction` had put it on, by one step at sprint
+speed (End → Lobby brings `PhaseChanged`, which forgets the avatars, and the placement in one host step; the end
+screen's frozen step hides it today, #241).
 
 **The flow.**
 
@@ -1518,7 +1519,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `StaminaLedger` after every tick), `tests/unit/client/net/client_session_snapshots_test.gd`,
   `tests/unit/client/ui/debug_overlay_test.gd`, `tests/integration/client/world/avatar_views_test.gd` (since #242
   also: a dropped body leaves the physics space in the frame it is dropped, and a real controller placed onto it in
-  that frame is not pushed; both seen failing with `queue_free` alone, the push by 7/60 m), and over a
+  that frame is not pushed, both seen failing with `queue_free` alone, the push by 7/60 m; `clear()` takes each body
+  out of the tree too), and over a
   `LoopbackHub` with a `HostSession` (`net_pair.gd`: a host and a joined `Game`, each in a world of its own, on a
   simulated clock, in `tests/fixtures/client/steps_room.tscn`): `player_network_test.gd` (the real controller walks,
   sprints up steps, jumps and walks down with 0 corrections; a teleport the test forces is corrected once; the round's

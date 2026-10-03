@@ -122,10 +122,9 @@ func _physics_process(_delta: float) -> void:
 
 
 ## Takes `body` out of the tree, and so out of the physics space, now, then frees it. Only queued,
-## it would stay on the living layer for the rest of the physics frame (4.7.2 frees queued nodes at
-## the end of each physics frame), and the local player's push search (priority 0, after this
-## node's -80) would push the player out of someone who is gone, or off the spot a Correction of
-## the same frame put it on (#242).
+## it would stay on the living layer for at least the rest of the physics frame, and the local
+## player's push search (priority 0, after this node's -80) would push the player out of someone
+## who is gone, or off the spot a Correction of the same frame put it on (#242).
 func _drop(body: RemotePlayerBody) -> void:
 	remove_child(body)
 	body.queue_free()
