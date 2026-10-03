@@ -101,7 +101,7 @@ HUMAN_STEPS_SCHEMA = {
     },
 }
 HUMAN_STEPS_ASK = "human_steps: each step only the engineer can take after you"
-HUMAN_STEPS_ASK_TAIL = "The PR and the handoff may carry the commands too.\n\nReturn the structured result."
+HUMAN_STEPS_ASK_TAIL = "The PR and your comment on the issue may carry the commands too.\n\nReturn the structured result."
 
 # The representative arg sets of the snapshots: (case, args over ARGS, stub). A code task per area, a design task, a
 # stacked base, a release base, every optional v1 arg, no changed paths, a red first agent and (pr-rebase) a fix round.
@@ -270,7 +270,7 @@ class WorkflowTest(unittest.TestCase):
             ("pr-rebase.js", dict(ARGS, **backslashes), core),
         ]
         publishing = ("publish", "rebase", "fix")
-        seen = []
+        seen, asks = [], set()
         for result in run_jobs(jobs):
             self.assertIsNone(result["error"])
             for event in agents(result):
@@ -298,8 +298,12 @@ class WorkflowTest(unittest.TestCase):
                     paragraphs = prompt.split("\n\n")
                     self.assertTrue(paragraphs[-2].startswith(HUMAN_STEPS_ASK), paragraphs[-2][:200])
                     self.assertTrue(paragraphs[-1].startswith("Return the structured result."), paragraphs[-1][:200])
+                    self.assertIn(HUMAN_STEPS_ASK_TAIL, prompt)
+                    asks.add(paragraphs[-2])
         self.assertEqual(sorted(set(seen)), ["fix", "publish", "rebase"])
         self.assertEqual(seen.count("publish"), 2)  # the full publisher and the one that reports a mutants stop
+        # The two workflows cannot share a module, so each carries its own copy of the ask: they must not drift apart.
+        self.assertEqual(len(asks), 1, sorted(asks))
 
     def test_the_leak_test_gets_a_netcode_review(self) -> None:
         # #115 touched only tests/ and tools/: no netcode review was routed, and one run by hand found a major.
