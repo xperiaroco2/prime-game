@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import sessions, start
+from runner import common, sessions, start
 from runner.common import Failure, Result
 from runner.tests.test_githooks import _rmtree
 
@@ -71,7 +71,10 @@ class StartTest(unittest.TestCase):
         self.inside: list[sessions.Session] = []  # sessions whose cwd is a worktree
         self.gh_calls: list[tuple[str, ...]] = []
         self.moves = mock.MagicMock()
+        self.appdata = self.tmp / "appdata"  # a fake %APPDATA%: worktree-done deletes a worktree's user:// there
         for patch in (
+            mock.patch.object(start, "app_data_dir", return_value=self.appdata),
+            mock.patch.object(common, "app_data_dir", return_value=self.appdata),  # common.worktree_user_dir
             mock.patch.object(start, "REPO", self.work),
             mock.patch.object(start, "_gh", side_effect=self.fake_gh),
             mock.patch.object(start.board, "move", self.moves),
@@ -315,6 +318,87 @@ class StartTest(unittest.TestCase):
         with self.assertRaises(Failure) as caught:
             start.worktree_done(42)
         self.assertIn("nothing left over", str(caught.exception))
+
+    def user_dirs(self, tree: Path) -> tuple[Path, Path, Path]:
+        """The worktree's own user:// folder, the main checkout's default one and another worktree's, each with a file."""
+        own = common.worktree_user_dir(tree)
+        assert own is not None
+        folders = (own, own.parent / "PrimeGame", own.parent / "PrimeGame-43-0a1b2c")
+        for folder in folders:
+            (folder / "tmp").mkdir(parents=True)
+            (folder / "tmp" / "f.txt").write_text("x\n", encoding="utf-8")
+        return folders
+
+    def test_worktree_done_deletes_the_worktrees_own_user_dir_and_nothing_else(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")  # merged
+        own, default, other = self.user_dirs(tree)
+        # The folder Godot uses: the custom_user_dir_name in the override.cfg the runner writes into the worktree
+        # (#182), ignored as in the real repo, so git worktree remove still takes the worktree.
+        (self.work / ".git" / "info" / "exclude").write_text("override.cfg\n", encoding="utf-8", newline="\n")
+        cfg = common.ensure_user_dir(tree)
+        assert cfg is not None
+        name = own.relative_to(self.appdata).as_posix()
+        self.assertIn(f'config/custom_user_dir_name="{name}"\n', cfg.read_text(encoding="utf-8"))
+        with mock.patch.object(start, "ok") as said:
+            self.assertEqual(start.worktree_done(42), 0)
+        self.assertFalse(tree.exists())
+        self.assertFalse(own.exists())
+        self.assertTrue((default / "tmp" / "f.txt").is_file())  # the main checkout's user:// survives
+        self.assertTrue((other / "tmp" / "f.txt").is_file())  # and so does another worktree's
+        lines = [c.args[0] for c in said.call_args_list if "user://" in c.args[0]]
+        self.assertEqual(lines, [f"removed the worktree's user:// folder {own}"])
+
+    def test_worktree_done_without_a_user_dir_is_fine(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")  # merged
+        with mock.patch.object(start, "ok") as said:
+            self.assertEqual(start.worktree_done(42), 0)
+        self.assertFalse(tree.exists())
+        self.assertFalse(self.appdata.exists())
+        self.assertFalse([c for c in said.call_args_list if "user://" in c.args[0]])
+        with mock.patch.object(start, "app_data_dir", return_value=None):  # an OS the runner does not know
+            self.assertIsNone(start.own_user_dir(tree))
+
+    def test_worktree_done_leftovers_include_the_user_dir(self) -> None:
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")  # merged
+        own, default, other = self.user_dirs(tree)
+        git(self.work, "worktree", "remove", str(tree))  # removed by hand: the user:// folder stayed
+        git(self.work, "branch", "-D", "core/42-vote-tally")
+        self.assertEqual(start.worktree_done(42), 0)  # the user:// folder was the only leftover
+        self.assertFalse(own.exists())
+        self.assertTrue(default.is_dir())
+        self.assertTrue(other.is_dir())
+        with self.assertRaises(Failure) as caught:
+            start.worktree_done(42)
+        self.assertIn("nothing left over", str(caught.exception))
+
+    def test_worktree_done_leftovers_name_the_user_dir_after_the_live_project(self) -> None:
+        # A renamed project: once the worktree (and its project.godot) is gone, the folder's name still follows
+        # application/config/name, read from the main checkout, not a hardcoded "PrimeGame".
+        self.write("project.godot", '[application]\n\nconfig/name="Renamed"\n')
+        git(self.work, "add", "project.godot")
+        git(self.work, "commit", "-q", "-m", "rename")
+        git(self.work, "push", "-q", "origin", "main")
+        self.assertEqual(start.main(42, worktree=True), 0)
+        tree = self.work / ".claude" / "worktrees" / "42"
+        self.commit_in(tree, "g.txt")
+        git(tree, "push", "-q", "origin", "core/42-vote-tally:main")  # merged
+        own = start.own_user_dir(tree)
+        assert own is not None
+        self.assertTrue(own.name.startswith("Renamed-42-"), own.name)
+        (own / "tmp").mkdir(parents=True)
+        git(self.work, "worktree", "remove", str(tree))  # removed by hand: the user:// folder stayed
+        git(self.work, "branch", "-D", "core/42-vote-tally")
+        self.assertEqual(start.worktree_done(42), 0)
+        self.assertFalse(own.exists())
 
     def test_worktree_done_leftovers_keep_files_and_unmerged_branches(self) -> None:
         git(self.work, "branch", "core/43-merged")  # at origin/main: merged
