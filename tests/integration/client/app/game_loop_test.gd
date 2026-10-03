@@ -4,6 +4,10 @@ extends GdUnitTestSuite
 ## the lobby, Ready, the countdown, loading, the round, time up, the end screen and back to the
 ## lobby, then a client leaves and the host closes. Each Game is driven through the methods its
 ## screens call (headless runs have no input); the screens themselves are `shot`.
+##
+## Each Game sits in a SubViewport with its own World3D, as on three machines (like NetPair): in
+## one shared physics space each player stood inside the body another game drew of it and was
+## pushed off its spot (#225).
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7300
@@ -132,7 +136,7 @@ func test_a_port_alone_fills_the_menu_and_the_tree_gets_its_quit_back() -> void:
 	assert_int(game.screen()).is_equal(S.MENU)
 	assert_int(game.ui.menu.port()).is_equal(PORT + 3)
 	assert_bool(get_tree().auto_accept_quit).is_false()
-	remove_child(game)
+	game.get_parent().remove_child(game)
 	assert_bool(get_tree().auto_accept_quit).is_true()
 
 
@@ -142,8 +146,13 @@ func _game(args: Array[String]) -> Game:
 	game.launch_args = PackedStringArray(args)
 	game.clock = _clock
 	game.make_transport = _transport
-	add_child(game)
+	var machine := SubViewport.new()
+	machine.own_world_3d = true
+	machine.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	machine.add_child(game)
+	add_child(machine)
 	auto_free(game)
+	auto_free(machine)
 	return game
 
 
