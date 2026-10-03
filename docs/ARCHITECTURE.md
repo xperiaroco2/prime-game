@@ -1901,8 +1901,8 @@ over the primary screen's work area (`--position` and `--resolution`, 16:9, belo
 frame; a lone window goes where the system puts it); a windowed host on every interface prints what to type on
 another PC. Each process gets `PRIME_INSTANCE` (1 the host, 2 and on the clients in tile order; M5-6), so each window
 keeps its own settings file. `--windows` opens windows where `CLAUDECODE` is set; agents never pass it. They run
-until Ctrl+C, `--seconds` or every window closed. A window never welcomed into a lobby fails the run with the game's `cannot host`
-or `ended:` line, since the game exits 0 from its menu.
+until Ctrl+C, `--seconds` or every window closed. A window never welcomed into a lobby fails the run with the game's
+`cannot host` or `ended:` line, since the game exits 0 from its menu.
 Tests: `tools/runner/tests/test_hostjoin.py` builds the command lines without starting Godot (the defaults, the
 tiles, `--headless`), and `verify`'s `game` step runs `game.tscn` headless through that command line: a host
 (`--local --no-replay`) and one client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then

@@ -29,8 +29,8 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
   `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
   `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
-- Voice: hearing (M5-5) `world/VoiceViews`, `life/Ears`, `audio/AudioBuses`; muffle (M5-7) `world/Muffle`; speaking
-  (M5-6) `voice/VoiceSender`, `voice/VoiceControl`, `app/UserSettings`; uses `voice/`, not reverse. `dev/`: previews.
+- Voice (M5-5 to M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`, `voice/VoiceSender`,
+  `voice/VoiceControl`, `app/UserSettings`; they use `res://voice/`, never the reverse. `dev/`: dev rooms, previews.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
