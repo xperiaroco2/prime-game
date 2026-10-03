@@ -447,8 +447,10 @@ def relaunched_as(launches: list[Launch], run: Run) -> str | None:
 
 
 def latest_launch(s: Session, n: int, workflow: str | None = None) -> Launch:
-    """The newest launch whose args.n is n (and whose workflow is `workflow`, when given)."""
-    found = [x for x in s.launches if issue_of(x.args) == n and (workflow is None or x.name == workflow)]
+    """The newest launch whose args.n is n (and whose workflow is `workflow`, when given) that started a run; a launch
+    with no run id (the tool rejected its input) only when no launch of n ran."""
+    of_n = [x for x in s.launches if issue_of(x.args) == n and (workflow is None or x.name == workflow)]
+    found = [x for x in of_n if x.run_id] or of_n
     if found:
         return found[-1]
     launched = sorted({i for x in s.launches if (i := issue_of(x.args)) is not None})

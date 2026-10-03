@@ -255,6 +255,14 @@ class WaveTest(unittest.TestCase):
         self.assertIn("a resume of wf_old", handover)
         self.assertIn(f"tools\\run.cmd wave --args 8 --session {old_sid}", handover)
 
+    def test_args_skip_a_rejected_launch(self) -> None:
+        self.p.launch(0, "t1", "wf_a", issue_args(5))
+        self.p.add(assistant(5, "m-bad", [workflow("t2", name="issue-task", args={"n": 5, "bad": True})]),
+                   launched(5, "t2", None, text="Error: the input does not match the schema"))  # fmt: skip
+        _, out, err = self.main(args_issue=5)
+        self.assertEqual(json.loads(out), issue_args(5), "the launch that ran, not the rejected one after it")
+        self.assertIn("run wf_a", err)
+
     def test_running_versus_finished(self) -> None:
         self.p.launch(210, "t1", "wf_open", issue_args(6))  # 11:30, 30 minutes before NOW
         journal(self.p.run_dir("wf_open"), [("k1", "implement:#6", "Implement", {"verify_green": True}),
