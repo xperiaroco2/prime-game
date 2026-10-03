@@ -173,6 +173,17 @@ class ParserTest(unittest.TestCase):
             ("players 2\nwindows 2\nwindow 1\nbutton", 4, "`button` needs the button's text"),
             ("players 2\nwindows 2\nwindow 1\nbutton   # Resume", 4, "`button` needs the button's text"),
             ("players 2\nwindows 2\nwindow 1\nbutton Resume timeout=5", 4, "only a wait takes timeout="),
+            ("players 2\nwindows 2\nwindow 1\naim", 4, "an aim is `aim item <kind>`"),
+            ("players 2\nwindows 2\nwindow 1\naim knife", 4, "an aim is `aim item <kind>`"),
+            ("players 2\nwindows 2\nwindow 1\naim item Knife", 4, "an aim is `aim item <kind>`"),
+            ("players 2\nwindows 2\nwindow 1\naim item knife package", 4, "an aim is"),
+            ("players 2\nwindows 2\nwindow 1\naim off now", 4, "an aim is"),
+            ("players 2\nwindows 2\nwindow 1\naim item knife\nshot a", 4, "window 1 aims and never stops"),
+            ("players 2\nwindows 2\nwindow 1\naim off\nshot a", 4, "window 1 has `aim off` without an `aim item`"),
+            ("players 2\nwindows 2\nwindow 1\naim item a\naim item b\naim off\nshot a", 5, "aims again"),
+            ("players 2\nwindows 2\nwindow 1\naim item a\naim off\naim off\nshot a", 6, "`aim off` without"),
+            ("players 2\nwindows 2\nwindow 2\naim item a\naim off\nwindow 1\naim off\nshot a", 7, "window 1 has `aim off`"),
+            ("players 2\nwindows 2\nwindow 1\naim item a timeout=5", 4, "only a wait takes timeout="),
             ("players 2\nwindows 2\nwindow 1\nwait phase lobby", 1, "at least one `shot`"),
             ("players 2\nwindows 2\nwindow 1\nshot a\nwindow 2\nshot a", 1, "shot names must be unique: a"),
         ]
@@ -209,6 +220,16 @@ class ParserTest(unittest.TestCase):
         # The button's text goes under "label": the step's "text" is its line.
         button = {"line": 8, "text": "button Back to lobby", "do": "button", "label": "Back to lobby"}
         self.assertEqual(first[4].plan(), button)
+
+    def test_aim_item_and_aim_off_become_their_plan_entries_in_pairs(self) -> None:
+        steps = "window 1\naim item knife   # the nearest\nframes 5\naim off\naim item package\naim off\nshot a"
+        first = scenario(with_header(steps)).steps[1]
+        self.assertEqual(first[0].plan(), {"line": 4, "text": "aim item knife", "do": "aim", "kind": "knife"})
+        self.assertEqual(first[2].plan(), {"line": 6, "text": "aim off", "do": "aim", "kind": ""})
+        self.assertEqual([(step.do, step.args.get("kind")) for step in first[3:5]], [("aim", "package"), ("aim", "")])
+        # Each window pairs its own aims.
+        both = scenario(with_header("window 1\naim item knife\naim off\nwindow 2\naim item knife\naim off\nshot a"))
+        self.assertEqual([step.args["kind"] for step in both.steps[2][:2]], ["knife", ""])
 
     def test_every_field_has_a_text_and_a_shown_wait(self) -> None:
         for name in playcheck.FIELDS:
