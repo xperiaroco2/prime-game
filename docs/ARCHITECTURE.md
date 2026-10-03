@@ -1547,11 +1547,12 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   hidden, its hand item in the spectate camera's first-person hand, the views of its hand and belt items at its
   body hidden; the HUD says "Spectating <name>" over those public slots (§4.7, The HUD).
   The dead keep receiving every snapshot (none holds a dead player's avatar): the camera is built from them.
-- **What the dead hear** (V11): no voice (the host routes none); the world's sounds where the camera is (Godot's
-  listener follows the current camera, so positional sounds play around the target); lift music from an
-  `AudioStreamPlayer` that only the dead player's client plays. M4's world sounds are placeholders for `Swung`,
-  `ItemPickedUp` and `ItemPlaced` at their positions.
-- **A hearing range** (E33 (a)): a world sound plays only within about 12 m of the listener's camera (a placeholder,
+- **What the dead hear** (V11): no voice (the host routes none, and the client plays none while dead); the world's
+  sounds around the target (from M5-5 the listener is `Ears`, at the target's eye or its body's head, §6); lift music
+  from an `AudioStreamPlayer` on the Music bus that only the dead player's client plays. M4's world sounds are
+  placeholders for `Swung`, `ItemPickedUp` and `ItemPlaced` at their positions.
+- **A hearing range** (E33 (a), amended by the M5 ADR's E40, confirmed by the engineer): a world sound plays only
+  within about 12 m of the ears (until M5-5, of the listener's camera; a placeholder,
   "not a decision"), for the living, the downed and the dead alike: a pure sound chooser (unit-tested) drops an event
   from farther away, and each `AudioStreamPlayer3D` sets `max_distance`. The events reach everyone with a position,
   so an uncut sound would tell every client through the walls where a package was just put down. Occlusion is M5's.
@@ -1757,7 +1758,30 @@ position, and no name or marker over a player or an item drawn through walls (`n
 public circles only, the destination marker of D10 (b) included); a role named only on its own player's screen
 (a dissident's teammates on theirs); no hit confirmation for
 the attacker beyond the accepted exceptions; hidden information in debug builds only (the debug overlay, F3).
-World sounds play within the hearing range only (E33).
+World sounds play within the hearing range only (E33), measured from the ears (E40). What the client plays of voice
+follows the M5 ADR's checklist (its §3; §6 below).
+
+**Built in M5-5 (#219)**, hearing voice:
+- `client/world/`: `VoiceViews` (`Voices` under `World`, physics priority 8, after `LifeView` placed the ears) plays
+  `ClientSession.voice_received(speaker, seq, tick, opus)` frames through one `VoiceSpeaker` per speaker on its
+  `RemotePlayerBody.mouth_point()` (eye height − 0.1 m, a placeholder), by the rules of §6's "Playback and the ears".
+  `WorldSounds` plays on the Effects bus and measures its range from the viewport's current `AudioListener3D`.
+- `client/life/`: `Ears` (an `AudioListener3D`; `Ears.point()` and `lying_head()` are pure), placed by `LifeView`
+  after the cameras in each physics step, turned with the current camera, current while a session runs. `LiftMusic`
+  plays on the Music bus.
+- `client/audio/`: `AudioBuses` (Voice, Effects, Music), made by `Game._ready`. `Game` gives `VoiceViews` a
+  `TwoVoipCodec` unless a test sets `voice_codec`; without the addon nothing is played and the game runs.
+- `client/ui/`: the debug overlay's voice lines, one per speaker by index of first arrival (`DebugOverlay.voice_text`).
+- Tests: `tests/integration/client/world/voice_views_test.gd` (the rules over a hand-folded model, each seen failing on
+  a plant: the dead check, the flush at the own `Died` and at a `KnockedDown`, the late frame stamped before a
+  knockdown and delivered after it and after a revive, the speaker's life, the ears' distance),
+  `voice_views_audio_test.gd` (the fake codec through real players and the Voice bus under the Dummy driver; seen
+  failing without the flush and without `max_distance`), `tests/integration/client/life/life_ears_test.gd` (seen
+  failing with the ears left at the camera, and with world sounds measured from it),
+  `tests/unit/client/life/ears_test.gd`, `tests/unit/client/audio/audio_buses_test.gd`, the overlay's voice lines in
+  `debug_overlay_test.gd`, and `Game`'s buses and voices in `game_loop_test.gd`.
+- Not headless: how a voice sounds (the direction, the fade to 8 m, no pop at the edge, the downed hearing from the
+  body); the one-PC listening test of the M5 ADR's §6, after M5-6.
 
 **What stays headless:** `HostSession`, `ClientSession`, `ClientModel`, `DecodedView`, the bots runner and the leak
 test, `host` and `join` with `--headless`, and every GdUnit4 suite. A bot loads no scene.
@@ -1976,14 +2000,15 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     frame's. Under the tests' talk (polls 16.7 ms apart) it settles near 40, 59 and 105 ms at 0, 30 and 80 ms of
     jitter, with underruns only before the window has seen the jitter. Frames held 200 ms without starting are
     discarded (`stale`), counted from their arrival or the latest stop, whichever is later, so a spurt held while a
-    burst-filled queue drained still plays its first syllable (M5-5, #219); `fade_out()` lowers `gain()` to 0 over 50 ms, then says flush; `flush()` empties the held
-    frames, and a frame older than the flush arrives late. A stream that restarts at seq 0 gets a new `VoiceJitter`.
-    No queue cap after a burst (the manager's call, until the listening test shows a problem); `VoicePlayback.push`
-    does not check for room either, so its caller (M5-5) checks `free_frames()` first and drops a frame that does
-    not fit. A known limit for the listening test (M5-6, M5-7): a spurt shorter than the prebuffer never starts and
-    is discarded as stale. A voice-activity spurt lasts at least 320 ms (the hangover), so it reaches only a
-    push-to-talk tap: a key held for one chunk sends 3 frames with the pre-roll (60 ms), under the prebuffer once
-    the window has seen more than 40 ms of spread. Every number here is a placeholder, "not a decision".
+    burst-filled queue drained still plays its first syllable (M5-5, #219); `fade_out()` lowers `gain()` to 0 over
+    50 ms, then says flush; `flush()` empties the held frames, and a frame older than the flush arrives late. A stream
+    that restarts at seq 0 gets a new `VoiceJitter`. No queue cap after a burst (the manager's call, until the
+    listening test shows a problem); `VoicePlayback.push` does not check for room either, so its caller (`VoiceSpeaker`,
+    M5-5) checks `free_frames()` first and drops a frame that does not fit. A known limit for the listening test (M5-6,
+    M5-7): a spurt shorter than the prebuffer never starts and is discarded as stale. A voice-activity spurt lasts at
+    least 320 ms (the hangover), so it reaches only a push-to-talk tap: a key held for one chunk sends 3 frames with the
+    pre-roll (60 ms), under the prebuffer once the window has seen more than 40 ms of spread. Every number here is a
+    placeholder, "not a decision".
     Tests (no addon, no microphone): `tests/unit/voice/voice_codec_test.gd`, `voice_gate_test.gd`,
     `voice_jitter_test.gd` and `voice_jitter_timing_test.gd` (through `voice_jitter_sim.gd`, a listener polling at
     60 fps with a playback model), with the fake codec in `tests/fixtures/voice/` (8 kHz µ-law, 160 B per 20 ms,
@@ -2001,17 +2026,36 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     threshold set with a meter, and a hangover), push-to-talk held on V (`voice_talk`), or Off (the microphone closed). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
     hears nobody. No echo cancellation: under voice activity loudspeakers echo, so the Voice tab advises headphones.
     20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
-  - **Playback and the ears** (E40, E41, D12): one `AudioStreamPlayer3D` per remote speaker on its
-    `RemotePlayerBody`, bus Voice, `ATTENUATION_DISABLED` with `max_distance` the phase's `VoiceRule.hearing_radius_m()`
-    read from the client's own mode, so the linear fade ends at the host's cutoff. An `AudioListener3D` (the ears) at
-    the own eye, at the own body when downed, at a spectated target's eye or body; world sounds measure their range
-    from the ears too. The client plays only frames the host sent, none while its own player is dead, and flushes a
-    speaker who goes down, dies or leaves (the ADR §3 is the review checklist).
+  - **Playback and the ears** (E40, E41, D12; **built in M5-5**, #219). `ClientSession.voice_received(speaker, seq,
+    tick, opus)` carries each `VoiceDown`'s seq. `voice/`'s `VoiceSpeaker` is one remote speaker's
+    `AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance`
+    (a cutoff of 0 sets 1 mm, since Godot reads 0 as no limit), with its `VoiceJitter` and the codec's `VoicePlayback`:
+    each frame it decodes what the jitter says (a frame that does not fit the queue is dropped, `overflow`), applies
+    the command, and sets the fade's volume; a fade (50 ms) ends in a flush. `client/`'s `VoiceViews` hangs one per
+    speaker at its `RemotePlayerBody`'s mouth (eye height − 0.1 m, a placeholder), made at its first frame, freed with
+    the body, and gives it `max_distance` = `VoiceRule.radius_of()` of the current phase in the client's own mode,
+    again at each phase change. It plays only `voice_received` frames, and drops every frame: of a speaker with no
+    body, not living (downed, dead), gone from the roster or left, or the own peer; while the own life fold is dead;
+    while the phase's radius is 0; of a speaker farther from the ears than `max_distance`; and stamped at or below the
+    newest host tick (snapshots and frames) recorded at that speaker's latest flush. It fades and flushes a speaker at
+    its `KnockedDown` or `Died`, flushes and frees it at its `PlayerLeft`, flushes every speaker at the own `Died` and
+    on entering a phase whose radius is 0, and fades and flushes a speaker that crosses out of `max_distance` from the
+    ears (checked each physics frame). The ears are `client/life/`'s `Ears`, an `AudioListener3D` that `LifeView`
+    places after the cameras each physics step and turns with the current camera: the own eye (living), the own body's
+    head where it lies (downed: the standing eye carried through `LifeLooks.lying`, near the floor; never the downed
+    camera), a spectated living target's eye, a downed target's head, the own body without a target. Godot measures a
+    3D player's distance from the current `AudioListener3D` but mixes one only while the world has a `Camera3D`
+    (checked on 4.7.2 headless; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's
+    amendment of E33). F3 (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer,
+    frames, late, lost, concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7's "Built
+    in M5-5".
   - **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
-    Master, in code; four sliders, Master, Voice, Effects and Music (0, 0, −6 and −14 dB by default: placeholders), no
-    ducking, saved per window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the
-    microphone, the mode and the threshold, set in the Esc menu's Voice tab. `host --clients N`'s windows get their
-    `PRIME_INSTANCE` from `hostjoin.start` (a runner change M5-6 makes; today only `launch.launch` sets it).
+    Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
+    Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
+    (0, 0, −6 and −14 dB by default: placeholders), no ducking, saved per window in `user://settings.cfg`
+    (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode and the threshold, set in the Esc
+    menu's Voice tab. `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start` (a runner change
+    M5-6 makes; today only `launch.launch` sets it).
   - **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
     speaker. No screen lists who is talking, and nothing tells a speaker who hears them: the host's relay counters on
     F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later

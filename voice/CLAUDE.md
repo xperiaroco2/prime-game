@@ -19,10 +19,14 @@ E34 to E47, D11 to D15; its §3 is the review checklist for what the client play
   pre-roll ring of frames never sent, `may_speak`).
 - `voice_jitter.gd`: `VoiceJitter`, pure, one per speaker on the listener: order, concealment, the adaptive prebuffer,
   start, stop, fade and flush, as `Decode`s and a `Command` for a `VoicePlayback`.
+- `voice_speaker.gd`: `VoiceSpeaker`, one remote speaker's `AudioStreamPlayer3D` (bus Voice, `ATTENUATION_DISABLED`,
+  silent at `max_distance`) with its `VoiceJitter` and playback; `client/`'s `VoiceViews` places it on the avatar's
+  mouth, gives it the cutoff, and fades or flushes it (M5-5).
 - Tests: `tests/unit/voice/` (`voice_codec_test`, `voice_gate_test`, `voice_jitter_test`, `voice_jitter_timing_test`
   through `voice_jitter_sim.gd`, `voice_addon_names_test`; the core/voice rule tests live there too), the fake codec
   and `FixtureVoiceDelivery` in `tests/fixtures/voice/`, the real codec's round trip in
   `tests/integration/voice/twovoip_roundtrip.gd`, and `res://voice` in `tests/unit/client/app/client_boundary_test.gd`.
+  `VoiceSpeaker` through real players and buses: `tests/integration/client/world/voice_views_audio_test.gd`.
 
 ## Rules
 - Plumbing only. Whether a listener hears a speaker, and how, is decided by the routing rules in `core/` and applied
