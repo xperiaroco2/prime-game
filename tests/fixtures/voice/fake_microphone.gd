@@ -12,6 +12,8 @@ var opened_device := ""
 var opens := 0
 var closes := 0
 var is_open := false
+## Called with no arguments as the device opens (a test checks what was saved by then).
+var on_open := Callable()
 
 var _waiting := PackedVector2Array()
 
@@ -23,6 +25,8 @@ func devices() -> PackedStringArray:
 func open(device: String) -> Error:
 	opened_device = device
 	opens += 1
+	if on_open.is_valid():
+		on_open.call()
 	is_open = open_result == OK
 	return open_result
 
