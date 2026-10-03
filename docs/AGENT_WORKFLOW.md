@@ -1010,7 +1010,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   exits n. Not finished: one line, `wait: still running after S s (<path>: <k> lines, last written <t> s ago); call
   wait again, never start the job again`, and 124; the job runs on (a second `verify` in one worktree would fight
   the first over `tools/out/` and the slots). No log after a 10 s grace (the background shell may not have created
-  it yet), or a log deleted during the wait: `wait: no log at <path> ...` and 2. Every line `wait` writes itself
+  it yet), or a log deleted during the wait: `wait: no log at <path> ...` and 2; a log it cannot read (a folder, a
+  locked file): `wait: cannot read <path>: ...` and 2. Every line `wait` writes itself
   starts with `wait: `, which tells its own 2 from a job's (`mutants` exits 2 too). It reads UTF-16 and UTF-8 (BOM
   or none), CRLF, and on Windows the Git Bash form `/c/...` of a path; a Git Bash-only path such as `/tmp` is not
   visible to Windows Python, and the missing-log line says so. A log that has not grown for 10 minutes points at a

@@ -814,7 +814,9 @@ class PipelineV2Test(unittest.TestCase):
                         "tool's timeout set to 300000",
                         "while rc is 124 or 8",
                         "no checks reported",
-                        "`wait: no log` or `wait: --max` line is wait's own error",
+                        "`wait: no log`, `wait: cannot read` or `wait: --max` line is wait's own error",
+                        "mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch "
+                        "worktree could not be removed",
                         "run them in the foreground as before",
                     ):
                         self.assertIn(text, paragraph)
