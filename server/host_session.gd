@@ -111,6 +111,7 @@ var _leaving: Dictionary[int, int] = {}
 ## Peers this session disconnected whose peer_left has not come yet.
 var _disconnected: Dictionary[int, bool] = {}
 var _relay := VoiceRelay.new()
+var _voice_down: VoiceDownEncoder
 ## Debug builds only (E47 as amended): the relay's time and the upload, apart; null in a release
 ## build.
 var _meter: RelayMeter = RelayMeter.new() if _debug else null
@@ -137,6 +138,7 @@ class _Peer:
 func _init(transport: NetTransport, schema: WireSchema = null) -> void:
 	_transport = transport
 	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
+	_voice_down = VoiceDownEncoder.new(_schema)
 	# Bound methods, not lambdas: a lambda capturing self, held by the transport, is a cycle.
 	_transport.peer_joined.connect(_on_peer_joined)
 	_transport.peer_left.connect(_on_peer_left)
@@ -390,21 +392,27 @@ func _send_voice() -> void:
 	if _meter != null:
 		_meter.add_other_upload(_transport.take_upload())
 		began = Time.get_ticks_usec()
+	var kind := _voice_down.kind
 	for out: VoiceRelay.Outgoing in _relay.flush(game.ticked_through()):
-		if not _reachable(out.listener):
-			continue
-		var payload := _schema.encode(out.message)
-		if payload.is_empty():
-			continue
-		var kind := _schema.kind_of(out.message.name)
-		if _meter == null:
-			_send(out.listener, kind, payload)
-			continue
-		var send_began := Time.get_ticks_usec()
-		var sent := _send(out.listener, kind, payload)
-		_meter.send_usec += Time.get_ticks_usec() - send_began
-		if sent == OK:
-			_meter.sent += 1
+		# Encoded once per frame, for its first reachable listener; each gets a copy with its seq.
+		var encoded := PackedByteArray()
+		for i in out.listeners.size():
+			var listener := out.listeners[i]
+			if not _reachable(listener):
+				continue
+			if encoded.is_empty():
+				encoded = _voice_down.encode(out.message)
+				if encoded.is_empty():
+					break  # the codec logged why
+			var payload := _voice_down.with_seq(encoded, out.message, out.seqs[i])
+			if _meter == null:
+				_send(listener, kind, payload)
+				continue
+			var send_began := Time.get_ticks_usec()
+			var sent := _send(listener, kind, payload)
+			_meter.send_usec += Time.get_ticks_usec() - send_began
+			if sent == OK:
+				_meter.sent += 1
 	if _meter != null:
 		_meter.relay_usec += Time.get_ticks_usec() - began
 		_meter.add_voice_upload(_transport.take_upload())

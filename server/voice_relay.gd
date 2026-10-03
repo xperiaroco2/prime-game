@@ -40,14 +40,16 @@ var _next_seq: Dictionary[Vector2i, int] = {}
 var _held: Dictionary[int, Array] = {}
 
 
-## One relayed frame: its listener and its VoiceDown.
+## One relayed frame: its VoiceDown and, in peer-id order, each listener with its own stream's
+## seq. The message holds the first listener's seq; the host encodes it once and writes each
+## listener's seq into a copy (VoiceDownEncoder).
 class Outgoing:
 	extends RefCounted
-	var listener: int
 	var message: WireMessage
+	var listeners := PackedInt32Array()
+	var seqs := PackedInt32Array()
 
-	func _init(to_peer: int, down: WireMessage) -> void:
-		listener = to_peer
+	func _init(down: WireMessage) -> void:
 		message = down
 
 
@@ -94,7 +96,8 @@ func hold(speaker: int, seq: int, opus: PackedByteArray) -> void:
 
 
 ## The VoiceDowns of the frames held in this poll, stamped with `host_tick`: per speaker in
-## peer-id order, its newest frames in its own seq order, each to its listeners in peer-id order.
+## peer-id order, its newest frames in its own seq order, each with its listeners in peer-id order
+## (a frame nobody hears gives none).
 func flush(host_tick: int) -> Array[Outgoing]:
 	var out: Array[Outgoing] = []
 	var speakers: Array[int] = []
@@ -106,15 +109,24 @@ func flush(host_tick: int) -> Array[Outgoing]:
 	for speaker: int in speakers:
 		var newest := _newest(_held[speaker])
 		relayed += newest.size()
+		var hearing := PackedInt32Array()
+		for listener: int in listeners:
+			if routes(listener, speaker):
+				hearing.append(listener)
+		if hearing.is_empty():
+			continue
 		for frame: Array in newest:
-			for listener: int in listeners:
-				if not routes(listener, speaker):
-					continue
+			var seqs := PackedInt32Array()
+			for listener: int in hearing:
 				var key := Vector2i(speaker, listener)
 				var seq: int = _next_seq.get(key, 0)
 				_next_seq[key] = (seq + 1) % SEQ_MODULO
-				var fields := {"speaker": speaker, "seq": seq, "tick": host_tick, "opus": frame[1]}
-				out.append(Outgoing.new(listener, WireMessage.new(VOICE_DOWN, fields)))
+				seqs.append(seq)
+			var fields := {"speaker": speaker, "seq": seqs[0], "tick": host_tick, "opus": frame[1]}
+			var each := Outgoing.new(WireMessage.new(VOICE_DOWN, fields))
+			each.listeners = hearing
+			each.seqs = seqs
+			out.append(each)
 	_held.clear()
 	return out
 
