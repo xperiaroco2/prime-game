@@ -80,20 +80,106 @@ FINALIZE_RE = re.compile(r"^\s*\S+ > finalize\(\)")
 ORPHANS_RE = re.compile(r"Detected (\d+) (?:possible )?orphan nodes")
 
 
-def parse_orphans(log: str) -> list[str]:
-    """Which test or suite hook leaked how many nodes, from a GdUnit4 console log."""
-    suite, subject, found = "?", "?", []
+def orphan_leaks(log: str) -> list[tuple[str, str, int]]:
+    """Each leak of a GdUnit4 console log: (the suite's res:// path, the test or "before()/after()", "" for a leak
+    outside both, and how many nodes)."""
+    suite, test, found = "?", "", []
     for raw in log.splitlines():
         line = ANSI_RE.sub("", raw)
         if match := SUITE_RE.search(line):
-            suite = subject = match.group(1)
+            suite, test = match.group(1), ""
         elif match := TEST_RE.match(line):
-            subject = f"{match.group(1)} > {match.group(2)}"
+            suite, test = match.group(1), match.group(2)
         elif FINALIZE_RE.match(line):
-            subject = f"{suite} > before()/after()"
+            test = "before()/after()"
         elif match := ORPHANS_RE.search(line):
-            found.append(f"{subject}: {match.group(1)} orphan node(s)")
+            found.append((suite, test, int(match.group(1))))
     return found
+
+
+def parse_orphans(log: str) -> list[str]:
+    """Which test or suite hook leaked how many nodes, from a GdUnit4 console log."""
+    return [f"{suite}{f' > {test}' if test else ''}: {count} orphan node(s)" for suite, test, count in orphan_leaks(log)]
+
+
+# --- the history record (#273) ----------------------------------------------------------------------------------
+# What the last `test` run found, for verify's history record (docs/AGENT_WORKFLOW.md §11): each GdUnit4 process's
+# exit code and seconds (shard 1 is the one process of a run without shards), and the tests that failed or leaked
+# nodes, as "<suite>::<test>" in GdUnit4's names. main() sets it; verify's lane takes it after the step. Capped, so the
+# history file stays small: at most RECORD_CAP tests (the rest counted) and MESSAGE_CAP characters per message.
+RECORD_CAP = 20
+MESSAGE_CAP = 240
+LAST_RUN: dict[str, object] | None = None
+
+
+def clip(text: str, cap: int = MESSAGE_CAP) -> str:
+    """One line of at most `cap` characters."""
+    text = " ".join(text.split())
+    return text if len(text) <= cap else text[: cap - 3] + "..."
+
+
+def failed_cases(path: Path) -> list[dict[str, object]]:
+    """Each failure or error of a results.xml: {test: "<suite>::<test>", message: the failure on one line}."""
+    try:
+        root = ET.parse(path).getroot()
+    except (OSError, ET.ParseError):
+        return []
+    found: list[dict[str, object]] = []
+    for case in root.iter("testcase"):
+        for node in [*case.findall("failure"), *case.findall("error")]:
+            # The body is the assertion over several lines ("Expecting:", " 3", " but was", " 2"), then the stack
+            # ("at '<test>' in <file>:<line>"); the message attribute only names the line.
+            lines: list[str] = []
+            for line in (node.text or "").splitlines():
+                if line.strip().startswith("at '"):
+                    break
+                lines += [line.strip()] if line.strip() else []
+            first = " ".join(lines) or node.get("message") or node.tag
+            found.append({"test": f"{case.get('classname', '?')}::{case.get('name', '?')}", "message": clip(first)})
+    return found
+
+
+def leaked_cases(log: str) -> list[dict[str, object]]:
+    """Each orphan leak of a console log: {test: "<suite>::<test or before()/after()>", orphans: nodes}."""
+    return [
+        {"test": f"{Path(suite).stem}::{test or '?'}", "orphans": count} for suite, test, count in orphan_leaks(log)
+    ]
+
+
+def process_record(shard: int, res: Result | None, reports: list[Path], error: str = "") -> dict[str, object]:
+    """One GdUnit4 process: its exit code and seconds; timed_out, a missing results.xml (a crash) and an error that
+    kept it from starting only when they happened."""
+    if res is None:
+        return {"shard": shard, "rc": None, "seconds": 0.0, "error": clip(error)}
+    entry: dict[str, object] = {"shard": shard, "rc": res.rc, "seconds": round(res.seconds, 1)}
+    if res.timed_out:
+        entry["timed_out"] = True
+    if not reports:
+        entry["results"] = False
+    return entry
+
+
+def _failed(res: Result | None, reports: list[Path]) -> list[dict[str, object]]:
+    if res is None:
+        return []
+    return (failed_cases(reports[-1]) if reports else []) + (leaked_cases(res.out) if res.rc == 101 else [])
+
+
+def _remember(processes: list[dict[str, object]], failed: list[dict[str, object]]) -> None:
+    global LAST_RUN
+    record: dict[str, object] = {"shards": processes}
+    if failed:
+        record["failed_tests"] = failed[:RECORD_CAP]
+        if len(failed) > RECORD_CAP:
+            record["failed_tests_more"] = len(failed) - RECORD_CAP
+    LAST_RUN = record
+
+
+def take_last_run() -> dict[str, object] | None:
+    """The last run's record (above), once: the next call returns None until another run."""
+    global LAST_RUN
+    record, LAST_RUN = LAST_RUN, None
+    return record
 
 
 def default_suites(tests_dir: Path) -> list[str]:
@@ -115,6 +201,8 @@ def default_suites(tests_dir: Path) -> list[str]:
 def main(paths: list[str] | None = None, run_import: bool = True, shards: int | None = None) -> int:
     """`test`: with no paths, the suites in several GdUnit4 processes at once (the shards below); with paths, or
     with one shard, one process as before #182. `shards` is `--shards K` (1: one process)."""
+    global LAST_RUN
+    LAST_RUN = None
     say("test")
     ensure_out()
     tests_dir = ROOT / "tests"
@@ -131,9 +219,10 @@ def main(paths: list[str] | None = None, run_import: bool = True, shards: int | 
     failed = run_shards(selectors(paths, tests_dir), count, why) if count > 1 else None
     if failed is None:
         res = godot(_args(paths, tests_dir), timeout=TIMEOUT, log="test")
+        reports = _reports()
+        _remember([process_record(1, res, reports)], _failed(res, reports))
         if res.timed_out:
             raise Failure(f"tests timed out after {TIMEOUT}s (log: tools/out/logs/test.log)")
-        reports = _reports()
         failed = _judge(res.rc, res.out, reports, "tools/out/logs/test.log")
         record_times(reports[-1:])
     say("test: FAILED" if failed else "test: passed")
@@ -579,6 +668,12 @@ def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
     """Each shard judged as a one-process run is, then the merged results.xml against the one-process scan."""
     failed = False
     reports: list[Path] = []
+    processes, failures = [], []
+    for shard in runs:
+        found = sorted(shard.report_dir.glob("report_*/results.xml"))
+        processes.append(process_record(shard.index, shard.result, found, shard.error))
+        failures += _failed(shard.result, found)
+    _remember(processes, failures)
     for shard in runs:
         label, log = f"shard {shard.index}", f"tools/out/logs/{shard.log}.log"
         found = sorted(shard.report_dir.glob("report_*/results.xml"))
