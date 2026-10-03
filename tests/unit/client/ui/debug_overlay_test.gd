@@ -19,19 +19,14 @@ func test_a_client_shows_its_own_numbers() -> void:
 
 func test_the_host_adds_its_session_counters_by_name() -> void:
 	var counters: Dictionary[StringName, int] = {
-		&"voice_dropped": 3, &"over_budget": 0, &"malformed_disconnects": 0, &"bad_payloads": 1
+		&"over_budget": 3, &"malformed_disconnects": 0, &"bad_payloads": 1
 	}
 	var lines := DebugOverlay.text(0, 1, 10, 100.0, counters).split("\n")
 	var host := lines.find("host:")
 	assert_int(host).is_greater(0)
 	var listed := Array(lines.slice(host + 1))
 	assert_array(listed).is_equal(
-		[
-			"  bad_payloads: 1",
-			"  malformed_disconnects: 0",
-			"  over_budget: 0",
-			"  voice_dropped: 3"
-		]
+		["  bad_payloads: 1", "  malformed_disconnects: 0", "  over_budget: 3"]
 	)
 
 
