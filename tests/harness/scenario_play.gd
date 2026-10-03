@@ -185,6 +185,9 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		bot.gone = true
 		_leave(bot)
 		result = Result.DONE
+	elif step is StepTalk:
+		bot.talking = (step as StepTalk).talking
+		result = Result.DONE
 	else:
 		result = _check(bot, step, elapsed)
 	return result

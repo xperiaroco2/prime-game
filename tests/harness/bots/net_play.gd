@@ -12,7 +12,8 @@ extends ScenarioPlay
 ## the runner's clock, in talk spurts unless the scenario says continuously (BotVoice), each
 ## holding its peer id and a counter (LeakCheck.voice_frame), so a listener checks that the relay
 ## changed no frame and named the right speaker. It talks in every phase and life state, like a
-## modified client: the host must route none of it where nobody hears it (§6).
+## modified client: the host must route none of it where nobody hears it (§6); only a Talk step
+## silences it (M5-4's voice_load).
 ##
 ## Bot 1 is the host's own client: it sends the setup's forced roles (one ForceRole per bot, on the
 ## debug kind, E17), once it knows the peer ids of every bot that joins at the start, then the
@@ -253,7 +254,8 @@ func _answer_load(bot: ScenarioBot, match_id: int, skip: bool) -> void:
 		clients[bot.number].send_load_ack(match_id)
 
 
-## Its synthetic voice frames due since the last frame (BotVoice), once the bot is a player.
+## Its synthetic voice frames due since the last frame (BotVoice), once the bot is a player and
+## while it talks (a Talk step).
 func _speak(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
 	if bot.gone or not bot.joined or client == null or client.is_ended():
@@ -261,6 +263,8 @@ func _speak(bot: ScenarioBot) -> void:
 	var now_frame := BotVoice.frame_at(now_usec)
 	var last: int = _voice_frame.get(bot.number, now_frame - 1)
 	_voice_frame[bot.number] = now_frame
+	if not bot.talking:
+		return
 	for _frame: int in BotVoice.frames_due(bot.number, last, now_frame, scenario.voice):
 		var counter: int = _voice_count.get(bot.number, 0)
 		if client.send_voice(LeakCheck.voice_frame(bot.peer, counter)) != OK:

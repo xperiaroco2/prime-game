@@ -552,6 +552,31 @@ func test_a_round_voice_past_its_radius_fails_on_the_distance_invariant_alone() 
 	# The same scenario without the plant passes (the test above).
 
 
+func test_a_talk_step_silences_a_bot_and_another_lets_it_talk_again() -> void:
+	# M5-4's voice_load needs bots that stop talking: bot 2 is silent for 2 s of its 4, bot 1
+	# talks all along (both continuously, 2 m apart in the lobby, so each hears the other).
+	var silent := StepTalk.new()
+	silent.talking = false
+	var scenario := _scenario([[_wait(4.5)], [silent, _wait(2.0), StepTalk.new(), _wait(2.0)]])
+	scenario.voice = BotScenario.Voice.CONTINUOUS
+	var runner := BotsRunner.play(scenario)
+	assert_array(Array(runner.failures)).is_empty()
+	var from_one := _frames_from(runner.clients[2].view, runner.peers.peer_of(1))
+	var from_two := _frames_from(runner.clients[1].view, runner.peers.peer_of(2))
+	assert_int(from_two).is_greater(BotVoice.FRAME_USEC / 1000)
+	assert_int(from_two).is_less(from_one * 6 / 10)
+	# Its first frame comes after the silence: no frame under the first 2 s of host ticks.
+	var first := -1
+	for key: Vector2i in runner.clients[1].view.voice:
+		if key.x == runner.peers.peer_of(2) and (first < 0 or key.y < first):
+			first = key.y
+	var heard_first := -1
+	for key: Vector2i in runner.clients[2].view.voice:
+		if key.x == runner.peers.peer_of(1) and (heard_first < 0 or key.y < heard_first):
+			heard_first = key.y
+	assert_int(first - heard_first).is_greater_equal(Ticks.from_seconds(1.5))
+
+
 ## A bots runner that leaves the §5 invariants out, so a planted leak meets LeakCheck alone.
 class LeakCheckOnly:
 	extends BotsRunner
@@ -637,6 +662,21 @@ func _scenario(scripts: Array) -> BotScenario:
 		made.append(script)
 	scenario.scripts = made
 	return scenario
+
+
+func _wait(seconds: float) -> StepWait:
+	var step := StepWait.new()
+	step.seconds = seconds
+	return step
+
+
+## How many voice frames of `speaker` the view decoded.
+static func _frames_from(view: DecodedView, speaker: int) -> int:
+	var count := 0
+	for key: Vector2i in view.voice:
+		if key.x == speaker:
+			count += view.frames(speaker, key.y).size()
+	return count
 
 
 func _round() -> StepWaitFor:
