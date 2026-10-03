@@ -31,8 +31,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
   `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
   `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
-- Voice (M5-5): `world/VoiceViews` (what plays, on whose avatar), `life/Ears` (the listener), `audio/AudioBuses`.
-  `client/` uses `voice/` (`VoiceCodec`, `VoiceSpeaker`); `voice/` uses nothing of `client/` (E46 (a)).
+- Voice (M5-5): `world/VoiceViews`, `life/Ears` (the listener), `audio/AudioBuses`; uses `voice/`, never the reverse.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
@@ -56,12 +55,10 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
 - A world sound (bus Effects) plays only within the hearing range of the ears (E33; the ears since E40: never the
   downed camera); a fading sound with no cut-off tells everyone, through walls, where a package was put down.
-- Voice (the M5 ADR §3): only `ClientSession.voice_received` frames play, on the speaker's `RemotePlayerBody`; nothing
-  while the own life is dead (all flushed at the own `Died`), in a phase whose rule hears nobody (all flushed on
-  entering it), of a speaker not living or gone (faded and flushed at the event) or past `max_distance` from the ears.
-  These checks run on every frame, and a speaker's frames stamped at or below the tick recorded at its flush are
-  dropped (late frames: ENet orders nothing across lanes). `max_distance` is `VoiceRule.radius_of()` of the own mode's
-  phase (E41), never a copied number. No talking indicator (D14); F3's voice lines number speakers, naming no one.
+- Voice (the M5 ADR §3): only `voice_received` frames play, on the speaker's `RemotePlayerBody`, checked per frame:
+  none while the own life is dead, in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
+  from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.
+  `max_distance` is the own mode's `VoiceRule.radius_of()` (E41). No talking indicator (D14); F3 names no one.
 - Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`): a type
   variation per look, no `add_theme_*_override`, `Color(...)` or font size in a screen's code; a source test holds it.
   Wording and looks stay greybox placeholders until the UI milestone (#150).
