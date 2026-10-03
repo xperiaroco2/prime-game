@@ -47,6 +47,23 @@ func test_a_stamina_cost_refuses_a_reaction_and_charges_nobody() -> void:
 		assert_int(game.state.player(peer).stamina).is_equal(stamina_before[peer])
 
 
+func test_a_cost_that_reads_no_player_state_runs_the_reaction_and_pays_for_peer_0() -> void:
+	# The case the mode check allows (Cost.reads_actor_state false): FixtureCost reads and counts
+	# in MatchState's counters, which have a row for peer 0, so the reaction passes and pays.
+	var mode := _reacting()
+	var conditions: Array[Condition] = [FixtureCost.of(&"uses", 1)]
+	mode.reactions[0].conditions = conditions
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+	var game := FixtureModes.in_round(mode, PEERS)
+	_end_the_clock(game)
+	assert_array(FixtureModes.notes(game)).contains([REACTED])
+	for peer: int in PEERS:
+		assert_array(_reactions_seen(game, peer)).has_size(1)
+		assert_int(game.state.counter(peer, &"uses")).is_equal(0)
+	assert_int(game.state.counter(0, &"uses")).is_equal(1)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## FixtureModes.basic() whose reaction on clock_ended holds no condition and notes REACTED to
 ## everyone. The mode check accepts it.
 func _reacting() -> GameMode:
