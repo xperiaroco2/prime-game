@@ -2222,8 +2222,10 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   `Rejected` with that condition's reason; for a fact, nothing happens. Every condition has `negate: bool` (false); a
   negated condition rejects with `not_allowed`. A **cost** is a condition that is also paid (stamina, a cooldown,
   later a use): all conditions and costs are checked first, then every cost is paid in order, then the effects run,
-  so a refused intent pays nothing. Between the checks and the costs, an **action** (a rule on an intent) that
-  passed stops its actor's running channel (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses,
+  so a refused intent pays nothing. A reaction runs for no player (actor 0): a cost that reads the actor's player
+  state (`Cooldown`, `StaminaCost`) refuses there, so a reaction with one never runs its effects, records no cooldown
+  and charges nobody (#201; `tests/unit/combat/costs_in_reactions_test.gd`). Between the checks and the costs, an
+  **action** (a rule on an intent) that passed stops its actor's running channel (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses,
   swaps (M4-5) or lets go of E stops its raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
 - **Effects** (*what happens*) run in order. An effect changes `MatchState` only through `core/`'s own rules (life,
   items, stamina), emits events, raises facts, and may report an outcome (`ReportOutcome`, §3.1).
@@ -2672,7 +2674,9 @@ the life rule (`core/life/`), and the rule in `knife.tres` with `Use` from the l
 (provisional under the MVP content ADR, for the engineer's approval).
 Tests: `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a base-mode round where the living
 strike and a downed player's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order,
-who learns what), `tests/unit/combat/cooldown_test.gd`, `tests/unit/life/life_rules_test.gd` (every life
+who learns what, the downed and the dead skipped), `tests/unit/combat/cooldown_test.gd`,
+`tests/unit/combat/costs_in_reactions_test.gd` (a cost in a mode reaction refuses actor 0, #201),
+`tests/unit/stamina/stamina_cost_test.gd`, `tests/unit/life/life_rules_test.gd` (every life
 transition, the crawl, the dead, the §3.4 order; M4-2), `tests/unit/life/respawn_test.gd` (the respawn at a free
 marker or any, its events, invulnerability that strikes skip and nothing ends early, the avatar's flag; M4-3),
 `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
@@ -2748,7 +2752,9 @@ Produces: `RaiseStarted`, `RaiseStopped` (no cause), `Revived`; a give-up's `Die
 Visible to: everyone (§4.2); a raise is as public as the two avatars. A raise stopped by a hit confirms that hit to
 the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `busy`, `out_of_reach`, `blocked`,
 `not_channeling`, and `not_accepted` from the phase. The raiser may hold the package (answer 4).
-Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`; the
+Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
+`tests/unit/channel/absent_target_test.gd` (`TargetInReach`, `TargetInSight` and `InSight` refuse a target that is
+not there); the
 base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios `crew_revives_the_downed` and
 `raise_stopped_then_given_up` (§9.7).
 
@@ -2761,7 +2767,8 @@ Produces: `Swapped`; it stops the swapper's raise (`RaiseStopped`), as every app
 Visible to: everyone; a refusal (`nothing_to_swap`, `two_handed`) only the sender. A mode rule: its public events
 reveal no role.
 Status: built in M4-5 (#141). Tests: `tests/unit/items/swap_hands_test.gd` (the swap, its refusals, the downed and
-the dead, a swap stopping a raise, only the hand item used); `tests/unit/content/item_intents_test.gd` (the base
+the dead, a swap stopping a raise, only the hand item used); `tests/unit/channel/channels_test.gd` (a swap refused
+by `HandNotTwoHanded` stops no channel); `tests/unit/content/item_intents_test.gd` (the base
 mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_with_a_full_belt` (§9.7).
 
 #### Sprint (not a part in v0)
