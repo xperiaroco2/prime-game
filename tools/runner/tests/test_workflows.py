@@ -289,7 +289,10 @@ class WorkflowTest(unittest.TestCase):
                     self.assertIn("`cd D:\\prime-game\\.claude\\worktrees\\7;` for your worktree", prompt)
                     self.assertIn("never `&&`", prompt)
                     self.assertIn('never a pointer such as "the command in the PR body"', prompt)
-                    self.assertIn("Run it yourself from that folder first, or preview it", prompt)
+                    # A human step is one the agent must not take: it previews the command, runs only a read-only one.
+                    self.assertIn("Preview it from that folder first", prompt)
+                    self.assertIn("never one that does his step, changes `D:\\prime-game` or prompts", prompt)
+                    self.assertNotIn("Run it yourself", prompt)
                     self.assertIn('A step without a command (a click in GitHub, a decision) has command ""', prompt)
                     # The ask is its own paragraph right before the result's, so every earlier line stays as it was.
                     paragraphs = prompt.split("\n\n")
