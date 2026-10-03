@@ -110,7 +110,8 @@ func step(now: int) -> void:
 		refused.poll()
 		_read_peer_files()
 		if now >= _next_window_usec:
-			_next_window_usec += RELAY_WINDOW_S * USEC_PER_SECOND
+			# From now: after a stall longer than a window, one window covers it, not catch-ups.
+			_next_window_usec = now + RELAY_WINDOW_S * USEC_PER_SECOND
 			_print_relay_window()
 	step_clients()
 	var bot := bots[0]
