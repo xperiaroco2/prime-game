@@ -128,7 +128,7 @@ func _check_rules(mode: GameMode) -> void:
 
 ## A reaction runs for no player (actor 0, which has no PlayerState; §9.2): a cost that reads the
 ## actor's player state (Cost.reads_actor_state: Cooldown, StaminaCost) always refuses there, so
-## the reaction would silently never run its effects (#283).
+## the reaction would silently never run its effects (#283). A negated cost is not: it passes.
 func _check_reaction_costs(mode: GameMode) -> void:
 	var where := "mode %s" % mode.resource_path if not mode.resource_path.is_empty() else "the mode"
 	for index: int in mode.reactions.size():
@@ -136,7 +136,13 @@ func _check_reaction_costs(mode: GameMode) -> void:
 		if rule == null:
 			continue
 		for condition: Condition in rule.conditions:
-			if condition is Cost and (condition as Cost).reads_actor_state():
+			# A negated cost passes for actor 0 and is never paid: _check_owner's "negates a cost"
+			# covers it, and the reaction would run.
+			if (
+				condition is Cost
+				and not condition.negate
+				and (condition as Cost).reads_actor_state()
+			):
 				errors.append(
 					(
 						(

@@ -204,6 +204,17 @@ func test_the_refused_reaction_names_the_modes_file_and_each_cost() -> void:
 	assert_str(errors[1]).contains(where + " holds the cost StaminaCost,")
 
 
+func test_a_negated_cost_in_a_reaction_is_reported_once() -> void:
+	# A negated Cooldown passes for actor 0 and is never paid (Rule.costs skips it), so the reaction
+	# would run: only the "negates a cost" error applies, not the never-runs one.
+	var cooldown := FixtureCombatModes.cooldown(&"hit", FixtureCombatModes.COOLDOWN_S)
+	cooldown.negate = true
+	var mode := _reacting_on_the_clock([cooldown])
+	assert_array(Array(ModeCheck.run(mode).errors)).contains_exactly(
+		["mode.reactions: rule clock_ended negates a cost"]
+	)
+
+
 func test_a_reaction_may_hold_a_cost_that_reads_no_player_state() -> void:
 	# FixtureCost reads only MatchState's counters, which have a row for peer 0 too.
 	_expect_none(_reacting_on_the_clock([FixtureCost.of(&"uses", 1)]))
