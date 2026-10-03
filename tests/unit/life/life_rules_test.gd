@@ -494,19 +494,19 @@ func test_a_death_of_a_player_who_is_not_downed_is_a_rule_error_and_changes_noth
 	# player as it is: no body, no Died, no fact, and a dead player's respawn time kept.
 	var game := _duel()
 	LifeRules.die(_context(game), P2)
-	var living := game.state.player(P2)
-	assert_int(living.life).is_equal(PlayerState.Life.ALIVE)
-	assert_int(living.life_deadline).is_equal(-1)
+	var victim := game.state.player(P2)
+	assert_int(victim.life).is_equal(PlayerState.Life.ALIVE)
+	assert_int(victim.life_deadline).is_equal(-1)
 	assert_dict(game.state.bodies).is_empty()
 	assert_array(FixtureCombatModes.received(game, P3, &"Died")).is_empty()
 	assert_array(FixtureModes.notes(game)).is_empty()
 	assert_str(";".join(game.diagnostics)).contains("die: player 2 is not downed")
 	_kill(game)
-	var deadline := living.life_deadline
+	var deadline := victim.life_deadline
 	FixtureModes.run_ticks(game, 5)
 	LifeRules.die(_context(game), P2)
-	assert_int(living.life).is_equal(PlayerState.Life.DEAD)
-	assert_int(living.life_deadline).is_equal(deadline)
+	assert_int(victim.life).is_equal(PlayerState.Life.DEAD)
+	assert_int(victim.life_deadline).is_equal(deadline)
 	assert_array(FixtureCombatModes.received(game, P3, &"Died")).has_size(1)
 	assert_int(";".join(game.diagnostics).count("is not downed")).is_equal(2)
 
