@@ -447,10 +447,11 @@ commands, by the repository they name (issue #68, a read of another repository m
   `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*`, or one before `-prune -o`, is none).
 - **`tests/scratch/`** is for temporary files that must be under `res://` (a probe test). It is gitignored but not
   gdignored, so `tools\run.cmd test tests/scratch/<file>` and `check res://tests/scratch/<file>` run what is there;
-  full `check`, `test` and `lint` runs leave it out, so a half-written probe never turns `verify` red. Godot still
-  imports it: no `class_name` and no copied `.tscn`/`.tres` uid there (the UID lint fails on a copy). Never create
-  a link or junction there: the guard judges a delete by its text path, and PowerShell 5.1 `Remove-Item -Recurse`
-  on a junction deletes what it points to.
+  full `check` (its UID lint too, #264), `test` and `lint` runs leave it out, so a half-written probe or a leftover
+  `.gd.uid` never turns `verify` red. Godot still imports it: no `class_name` and no uid copied from a project file
+  there (a `.tscn`/`.tres` header, or a suite's `.gd.uid` copied with it): Godot gives the uid to whichever file it
+  scans last, so the import and the UID lint both fail on a copy. Never create a link or junction there: the guard
+  judges a delete by its text path, and PowerShell 5.1 `Remove-Item -Recurse` on a junction deletes what it points to.
 - **`git reset`** asks with `--hard`, `--merge` or `--keep`, or when it moves the branch to another commit
   (`git reset HEAD~1`, `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere in the project
   but the own worktree, `tools/out/` included; `-C`, `--git-dir` and `--work-tree` name that repository. Unstaging passes: `git reset`, `git reset -q`, `git reset -- <paths>`,
