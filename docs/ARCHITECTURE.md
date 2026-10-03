@@ -938,7 +938,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     (`TICK_LEAD`) a jump after the first claim would overrun (M4-9's netcode review). The client
     tick counts `Ticks.RATE` ticks from the first step; a step sends at
     most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
-    (`set_motion`, `count_jump`) and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
+    (`set_motion`, `count_jump`; `set_facing` for a turn outside its physics step, the respawn's level look, #191)
+    and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
     reset the jump count and put the claims at the host's position.
   - A client claims when its own copy of the current phase accepts `MoveClaim` from it: a player, living or downed
     by its own life fold, and the host's own player as peer 1 (`AcceptSpec.From`); never while dead, whatever the
@@ -1328,7 +1329,8 @@ host's own player sees only what its `ClientSession` decoded.
   thread it shares with `HostSession`, and the next step's catch-up covers it (§4.5).
 - **Placement:** `Welcome`'s spot teleports the local player on `ClientSession.welcomed`, from
   `model.spots[own_peer]` (`Welcome` fires no `corrected`), and every `Correction` (a placement, a knockdown, a
-  respawn, a failed check) through `ClientSession.corrected`.
+  respawn, a failed check) through `ClientSession.corrected`. A teleport keeps the body's yaw and the head's pitch;
+  only the own `Respawned` levels the look (#191, below).
 - **The lobby** (#169): the player walks it like the round, with the lobby HUD in a corner (the keys' hint "Esc: menu
   · F: ready", the roster with ready flags, the countdown) and nothing to click. The Esc menu's Lobby tab has the
   roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
@@ -1392,7 +1394,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 **Movement on the network.**
 - **Claims:** every physics step the controller calls `set_motion` (its position and velocity; as the facing, the
   camera's 3D look vector, at most 89° up or down; whether it sprints, gives movement input and stands on the floor)
-  and `count_jump` at a jump; `ClientSession` sends one claim per 20 Hz client tick (§4.6). The facing's pitch needs
+  and `count_jump` at a jump, and `set_facing` when it turns outside the step (the respawn's level look, #191);
+  `ClientSession` sends one claim per 20 Hz client tick (§4.6). The facing's pitch needs
   no wire or `core/` change (E22): `Strike.horizontal`, `Swung` and `PutDownInFront` flatten it, and `MovementRule`
   only requires it finite; the snapshot's avatar then carries it, for remote heads and the spectate camera. Snapshots
   stay at 20 Hz, since the spectate camera is built from them. A relayed facing can be degenerate even in honest play
@@ -1474,7 +1477,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   |---|---|---|---|---|
   | Living | walks, sprints, jumps, pushes (§7.1) | first person, the hand item in view | all (the ADR's controls) | health, stamina, hand, belt, a package's destination, task progress, clock, own role |
   | Downed | crawls, keeps its items; holds still and claims no displacement from a `RaiseStarted` naming it until `RaiseStopped` or `Revived` (the host corrects any, answer 8) | third person above the body | crawl, look, give up | the knockdown countdown (paused while raised), who raises them |
-  | Dead | off: no avatar, no claims | the spectate camera | next and previous target | the respawn countdown; "Spectating <name>" and the target's hand and belt items (#168); nothing else of the target's |
+  | Dead | off: no avatar, no claims, no look (#191) | the spectate camera | next and previous target | the respawn countdown; "Spectating <name>" and the target's hand and belt items (#168); nothing else of the target's |
 
 - **The downed camera** (answer 9 (a)): a `SpringArm3D` whose pivot is on the body at the mode's standing eye height
   (`PlayerRules.eye_height_m`), pointing back along the look, never above its pivot (the arm's pitch is clamped to
@@ -1513,8 +1516,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   from farther away, and each `AudioStreamPlayer3D` sets `max_distance`. The events reach everyone with a position,
   so an uncut sound would tell every client through the walls where a package was just put down. Occlusion is M5's.
 - **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
-  again; the spectate camera and the lift music stop. After `Revived` the controller stands up where it lay, in first
-  person; a revive sends no `Correction` (M4-4: the raise held the downed player where the host has it).
+  again, looking level (head pitch 0) with the yaw it had, as at the round's start (the engineer's answer on #191:
+  the markers carry no facing); the spectate camera and the lift music stop. After `Revived` the controller stands
+  up where it lay, in first person; a revive sends no `Correction` (M4-4: the raise held the downed player where
+  the host has it).
 - **Others:** a `RemotePlayerBody` shows its facing (a head that turns and nods), the hand item at a hand attach
   point, the belt item at a belt attach point, a two-handed package held in front, the downed pose and its layer, and
   invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.
@@ -1683,6 +1688,26 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   living targets of a hand-folded model, and the one it leaves is drawn with its items again). The `shot`:
   `client/dev/spectate_preview.tscn`.
 - Not headless: the feel of spectating; the engineer repeats the spectating part of the one-PC playtest.
+
+**Built in #191**, the player looked up after a respawn (an M5 filler):
+- `client/player/player_controller.gd`: the own `Respawned` (the controller's session events) calls
+  `look_level()`: the head's pitch 0, the body's yaw kept (the engineer's answer on #191, no protocol change), and
+  `ClientSession.set_facing` (new: the next `MoveClaim`'s facing, nothing else of `set_motion`'s report) with that
+  look, since the first claim after the respawn can go out in the same session step as its `Correction`, before
+  the controller steps again; so other players see a level head from the first claim. A `Correction` alone (a
+  refused claim, a placement, a knockdown) and a revive keep the look. `look()` does nothing while dead or left:
+  before, mouse motion while spectating still turned the hidden body and tilted its head (the controller reads
+  the mouse while `Game` only stops its physics step), up to 89°, which the respawn kept, as it kept a downed
+  player's look up. `LifeView` is unchanged: the downed camera follows the downed look, the camera above the own
+  body keeps the look at death, and spectating reads the target's interpolated pose only.
+- Tests: `life_network_test.gd` (the downed joiner turns and looks up, gives up, moves the mouse while dead
+  without effect, and respawns level with the downed yaw: its camera's forward horizontal, the facing at the
+  respawn's `Correction` and in the first claim after it level, and a level head on the host's screen; seen
+  failing first; its raise test now also keeps the look through the knockdown's `Correction` and the revive),
+  `player_network_test.gd` (a refused claim's `Correction` keeps the look), `player_controller_downed_test.gd`
+  (the dead and the left neither turn nor tilt; `look_level()`), `client_session_claims_test.gd` (`set_facing`).
+- Not headless: the mouse itself (headless keeps no mouse mode, so the tests call `look()`, which the mouse's
+  `_unhandled_input` calls); the respawn part of the one-PC playtest.
 
 **What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;

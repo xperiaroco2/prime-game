@@ -20,7 +20,8 @@ extends CharacterBody3D
 ## movement input over a claim's steps (#155). Its PredictedStamina then settles by the claims
 ## (`claim_sent`) and follows each SelfStatus from the claim it names, without giving back the
 ## ticks in flight (E24, #155).
-## The game teleports it at Welcome and at each Correction.
+## The game teleports it at Welcome and at each Correction, keeping its look; the own Respawned
+## alone levels the head and keeps the yaw (look_level, #191). The dead do not look around.
 ##
 ## The movement numbers (speeds, jump height, capsule, eye and step height, stamina) are the
 ## client's own copy of the mode's PlayerRules, `rules`, set before the controller enters the tree
@@ -174,10 +175,23 @@ static func jump_velocity(height: float, gravity: float, delta: float) -> float:
 	return sqrt(2.0 * gravity * height) - gravity * delta * 0.5
 
 
-## Turns the body by `yaw` and tilts the head by `pitch`, both in radians.
+## Turns the body by `yaw` and tilts the head by `pitch`, both in radians. The dead have no body to
+## turn: mouse motion while spectating does nothing, so the respawn does not start from it (#191).
 func look(yaw: float, pitch: float) -> void:
+	if not (is_living() or is_downed()):
+		return
 	rotate_y(yaw)
 	_head.rotation.x = clampf(_head.rotation.x + pitch, -MAX_PITCH, MAX_PITCH)
+
+
+## Levels the head (pitch 0) and keeps the body's yaw, as the own Respawned has it (the engineer's
+## answer on #191: straight ahead, as at the round's start; the respawn marker's facing never
+## reaches the client). The session's next MoveClaim carries the level facing at once: it may go
+## out in the same session step as the respawn's Correction, before this body's next physics step.
+func look_level() -> void:
+	_head.rotation.x = 0.0
+	if session != null:
+		session.set_facing(look_vector())
 
 
 ## Switches the body to `value`'s: the living and the downed collide with the level only (the
@@ -333,6 +347,11 @@ func _claim() -> void:
 
 
 func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
+	# Only the own respawn levels the look: a Correction alone (a refused claim, a placement, a
+	# knockdown) and a revive keep it.
+	if event_name == &"Respawned" and (fields["peer"] as int) == session.model.own_peer:
+		look_level()
+		return
 	var predicted := stamina as PredictedStamina
 	if event_name == &"SelfStatus" and predicted != null:
 		predicted.follow_status(

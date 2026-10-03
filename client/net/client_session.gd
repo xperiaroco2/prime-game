@@ -191,6 +191,12 @@ func set_motion(
 	_on_floor = on_floor
 
 
+## What the next MoveClaim says as the facing, when the mover turned outside its physics step
+## (a respawn looks level, #191); the rest of set_motion's report stays.
+func set_facing(facing: Vector3) -> void:
+	_facing = facing
+
+
 ## The mover jumped: the claims' count of jumps in this epoch rises (E2).
 func count_jump() -> void:
 	_jumps = mini(_jumps + 1, MAX_JUMPS)
