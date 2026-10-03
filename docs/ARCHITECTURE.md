@@ -1405,7 +1405,8 @@ screen's frozen step hides it today, #241).
   (§3.2: no names, no roles).
 - **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and in the lobby
   and the round captures the mouse again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
-  Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where there is one, else on Resume.
+  Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
+  there is one, else on Resume.
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
@@ -1852,6 +1853,37 @@ a follow-up on #144 and #145):
 - Not headless: how the muffle sounds (8 dB and 1 kHz are placeholders, the bus switch within the ease, a door
   jamb's edge): the listening test of the M5 ADR's §6.
 
+**Built in M5-6 (#220)**, speaking (§6's "Capture and the gate"):
+- `voice/`: `VoiceCapture` (the device list, the chosen device opened, every whole 20 ms chunk at the device's rate
+  with its age, errors in words, the "opening" mark through `mark_changed`) over a `VoiceMicrophone` (the machine's,
+  through 4.7's `AudioServer` input API; `VoiceToneMicrophone`, the debug test tone; the tests' `FakeMicrophone`).
+- `client/voice/`: `VoiceSender` (a node under `Game`) drains the capture each frame, encodes every chunk, feeds each
+  to `VoiceGate` with that frame's `may_speak` and talk key, and sends what leaves through `ClientSession.send_voice`;
+  `may_speak_of(model, mode)` is the own life fold living and `VoiceRule.radius_of` of the current phase > 0 in the
+  client's own mode. `VoiceControl` applies `UserSettings` to the sender and the buses and takes the Voice tab's
+  changes; which microphone opens, the mark and the modes are §6's.
+- `client/app/`: `UserSettings` (`user://settings.cfg`, or `settings_<n>.cfg` for `PRIME_INSTANCE` n > 1: the
+  microphone, the mode, the threshold, RNNoise, the four volumes, the mark; written on each change). `Game` reads this
+  window's file unless a test sets `settings` (with `read_command_line` off, as in tests and playcheck, the settings
+  stay in memory and touch no file), wires the tab, gives the sender each session, counts the talk key
+  (`voice_talk`, V) only without the Esc menu, and closes the microphone on exit. `project.godot`: `voice_talk` and
+  `audio/driver/enable_input`.
+- `client/ui/`: `VoicePanel`, the Esc menu's Voice tab in every screen (`EscMenuState.Tab.VOICE`, last in the enum so
+  the previews' saved numbers hold); the lobby HUD's hint until a microphone is picked; the debug overlay's own voice
+  line (`DebugOverlay.own_voice_text`: gate, peak, frame age, encode µs). No talking indicator (D14).
+- Tests: `tests/unit/voice/voice_capture_test.gd`, `voice_gate_test.gd` (an empty frame while closed empties the
+  pre-roll; the threshold clamped above 0; each seen failing first), `tests/unit/client/voice/voice_sender_test.gd`
+  (seen failing on a planted widening: no life check, no drain while unspeakable), `voice_control_test.gd` (the mark
+  in the file before the device opens, seen failing with it emitted after),
+  `tests/unit/client/app/user_settings_test.gd`, `tests/unit/client/ui/voice_panel_test.gd`, the Voice tab in
+  `esc_menu_state_test.gd`, the own voice line in `debug_overlay_test.gd`,
+  `tests/integration/client/app/game_voice_test.gd` (the saved settings applied, the tab's changes saved, a word into
+  a client's fake microphone delivered at the host), `input_actions_test.gd`, and the runner's `PRIME_INSTANCE` per
+  window in `tools/runner/tests/test_hostjoin.py`. `shot`: `client/dev/esc_voice_preview.tscn`,
+  `debug_overlay_voice_preview.tscn`.
+- Not headless: a real microphone (headless runs open none: the Dummy driver captures nothing), the #22 laptop's
+  windowed start with input enabled (the M5 ADR §6), and the one-PC and two-machine listening tests.
+
 **What stays headless:** `HostSession`, `ClientSession`, `ClientModel`, `DecodedView`, the bots runner and the leak
 test, `host` and `join` with `--headless`, and every GdUnit4 suite. A bot loads no scene.
 
@@ -1867,9 +1899,10 @@ opens them, since the runner reads each process's lines (the host's `session: ho
 that prints `session: cannot host` stays at its menu and gets none). A host and its `--clients` are tiled in a grid
 over the primary screen's work area (`--position` and `--resolution`, 16:9, below each title bar and inside its
 frame; a lone window goes where the system puts it); a windowed host on every interface prints what to type on
-another PC. `--windows` opens windows where `CLAUDECODE` is set; agents never pass it. They run until Ctrl+C,
-`--seconds` or every window closed. A window never welcomed into a lobby fails the run with the game's `cannot host`
-or `ended:` line, since the game exits 0 from its menu.
+another PC. Each process gets `PRIME_INSTANCE` (1 the host, 2 and on the clients in tile order; M5-6), so each window
+keeps its own settings file. `--windows` opens windows where `CLAUDECODE` is set; agents never pass it. They run
+until Ctrl+C, `--seconds` or every window closed. A window never welcomed into a lobby fails the run with the game's
+`cannot host` or `ended:` line, since the game exits 0 from its menu.
 Tests: `tools/runner/tests/test_hostjoin.py` builds the command lines without starting Godot (the defaults, the
 tiles, `--headless`), and `verify`'s `game` step runs `game.tscn` headless through that command line: a host
 (`--local --no-replay`) and one client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then
@@ -2049,11 +2082,13 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     addon every script parses, voice is unavailable and the game runs.
     `VoiceGate` is pure: `feed(chunk, frame, may_speak, talk_held)` returns the frames to send, oldest first. Voice
     activity (the default) opens while the raw chunk's peak is over `threshold` (0.1) and for a hangover of 300 ms
-    after; push-to-talk opens while `talk_held`; Off is the capture's state (M5-6). On opening, up to 2 frames of
+    after; push-to-talk opens while `talk_held`; Off is a closed capture (M5-6). On opening, up to 2 frames of
     pre-roll go first; the ring fills only while the gate is closed, so it holds only frames never sent and a gate
     closed for one chunk sends no frame twice. `may_speak` false (`client/` decides it) closes the gate and empties
     the ring, so no frame captured before it turns true again goes out. An empty frame (a failed encode) is never
-    sent nor kept for the pre-roll, though its chunk counts for the hangover.
+    sent nor kept for the pre-roll, though its chunk counts for the hangover; while the gate is closed it empties the
+    ring, so audio from before an outage never goes out as pre-roll (M5-6). `threshold` is clamped to 0.01 (−40 dBFS,
+    a placeholder) to 1: at or below 0 the gate would open on digital silence and a silent player would stream.
     `VoiceJitter` is pure, one per speaker on the listener: `push(seq, tick, frame, arrival_usec)`, then once a frame
     `update(queued_usec, now_usec)` returns the `Decode`s and `command()` says start, stop or flush. It orders by
     the renumbered u16 seq (unwrapped), drops duplicates and frames older than the next due (`late`), waits for a
@@ -2087,14 +2122,35 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     (`tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless`; SKIP without the addon; not a
     `verify` step). CI removes `addons/twovoip/` before `verify`, because Godot prints an `ERROR:` line on Linux for
     a `.gdextension` it cannot load (E35, the ADR §2; M5-3).
-  - **Capture and the gate** (E36, E37, E38, D11): the 4.7 `AudioServer` input API, the Windows default device at
-    the first start and then the one the player picked, each opened under an "opening" mark that keeps a device that
-    froze the game closed at the next start (Godot 4.7.2 freezes on a microphone of more than two channels, #22);
-    every 20 ms chunk encoded, a frame sent only while the gate is open, with up to 2 frames of pre-roll (captured
-    and never sent: no frame goes out twice). Three modes (D11, the engineer's answer): voice activity by default (a
-    threshold set with a meter, and a hangover), push-to-talk held on V (`voice_talk`), or Off (the microphone closed). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
-    hears nobody. No echo cancellation: under voice activity loudspeakers echo, so the Voice tab advises headphones.
-    20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
+  - **Capture and the gate** (E36 as amended, E37, E38, D11; **built in M5-6**, #220; files and tests in §4.7):
+    - The microphone: `voice/`'s `VoiceCapture` over 4.7's `AudioServer` input API (`audio/driver/enable_input` on in
+      `project.godot`); each frame every whole 20 ms chunk at the device's rate, with its age. Which device opens
+      (`client/voice/`'s `VoiceControl`): none without the codec (voice unavailable, the Voice tab says so), none in
+      Off, none in a headless run (the Dummy driver captures nothing, and headless sessions must write no mark); else
+      the picked device, or before any pick the Windows default, so voice activity works without the menu.
+    - The "opening" mark (#22: Godot 4.7.2 freezes on a microphone of more than two channels and cannot tell the
+      count beforehand): `VoiceCapture.mark_changed` names the device before it opens and `VoiceControl` writes it to
+      the settings file at once; the first second of samples, a clean close or a refusal clears it. A mark found at
+      the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
+      microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
+      microphone privacy) show in the Voice tab.
+    - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous
+      codec and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with
+      that frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a
+      revive. In the frame `may_speak` turns true, what waits in the device was recorded before it and is fed as
+      unspeakable too, however long that frame was; a frame with no chunk while unspeakable still empties the
+      pre-roll. What leaves goes through `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold
+      living and `VoiceRule.radius_of` of the current phase > 0 in the client's own mode, never `Match` or
+      `MatchState` (the E18 boundary test scans `res://client` and `res://voice`). Nothing in silence, nothing while
+      downed or dead, nothing in a phase whose rule hears nobody, nothing in Off or with no device open.
+    - Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
+      with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
+      counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
+      Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
+      voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
+      In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither
+      saved. F3 shows the own gate, peak, frame age and encode µs.
+    - 20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
   - **Playback and the ears** (E40, E41, D12; **built in M5-5**, #219). `ClientSession.voice_received(speaker, seq,
     tick, opus)` carries each `VoiceDown`'s seq. `voice/`'s `VoiceSpeaker` is one remote speaker's
     `AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance` (a
@@ -2121,10 +2177,11 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
   - **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
     Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
     Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
-    (0, 0, −6 and −14 dB by default: placeholders), no ducking, saved per window in `user://settings.cfg`
-    (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode and the threshold, set in the Esc
-    menu's Voice tab. `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start` (a runner change
-    M5-6 makes; today only `launch.launch` sets it).
+    (0, 0, −6 and −14 dB by default: placeholders; −60 to +6 dB, the bottom mutes the bus), no ducking, saved per
+    window in `user://settings.cfg` (`settings_<n>.cfg` for `PRIME_INSTANCE` n > 1) with the microphone, the mode,
+    the threshold, RNNoise and the mark, set in the Esc menu's Voice tab (**built in M5-6**: `UserSettings`,
+    `VoiceControl`, `VoicePanel`). `host --clients N`'s windows get their `PRIME_INSTANCE` from `hostjoin.start`
+    (M5-6), as `run --instances` and `bots --instances` do from `launch.launch`.
   - **No talking indicator in M5** (D14, the engineer's answer): no own transmit icon on the HUD, no icon over a
     speaker. No screen lists who is talking, and nothing tells a speaker who hears them: the host's relay counters on
     F3 (debug builds) never show live during a Round, only in the Lobby, the Countdown and End. Who talks shows later

@@ -27,6 +27,11 @@ extends Node
 ## Voice (M5-5): AudioBuses makes the Voice, Effects and Music buses at start; `Voices`
 ## (VoiceViews) plays the voices this client hears on the speakers' avatars through `voice_codec`,
 ## heard from LifeView's Ears; a debug build's overlay lists them by index of first arrival.
+##
+## Speaking (M5-6): `VoiceSender` sends the own microphone through the gate into the own session;
+## `VoiceControl` applies this window's UserSettings (the microphone, the mode, the threshold,
+## RNNoise, the volumes, the "opening" mark) and the Esc menu's Voice tab changes them; the lobby
+## hints at the tab until a microphone is picked; F3 shows the own gate, peak, age and encode time.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
@@ -55,6 +60,9 @@ var pointer := MousePointer.new()
 ## The voice codec: TwoVoIP's (unavailable without the addon, then no voice plays) unless a test
 ## sets one before _ready.
 var voice_codec: VoiceCodec
+## The player's settings on this machine: this window's file (UserSettings.for_this_window()),
+## or in memory with `read_command_line` off, unless a test sets one before _ready.
+var settings: UserSettings
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -70,6 +78,10 @@ var _bodies := BodyViews.new()
 var _life := LifeView.new()
 var _items := ItemWorld.new()
 var _voices := VoiceViews.new()
+var _sender := VoiceSender.new()
+var _voice_control: VoiceControl
+## The Esc menu showed the Voice tab last frame: the device list is read again when it opens.
+var _voice_tab_shown := false
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -115,9 +127,11 @@ func _ready() -> void:
 		ui.menu.port_box.value = options.port
 
 
-## The tree outlives this root in tests: give it back the quit it had.
+## The tree outlives this root in tests: give it back the quit it had. The microphone closes
+## cleanly, which also clears an "opening" mark that has not settled yet.
 func _exit_tree() -> void:
 	get_tree().auto_accept_quit = true
+	_sender.close()
 
 
 ## Hosts a session on `port`, listening on `bind` (every interface unless "127.0.0.1"); false,
@@ -268,6 +282,16 @@ func voices() -> VoiceViews:
 	return _voices
 
 
+## The own voice's sender (M5-6).
+func sender() -> VoiceSender:
+	return _sender
+
+
+## The voice settings applied (M5-6).
+func voice_control() -> VoiceControl:
+	return _voice_control
+
+
 func _process(_delta: float) -> void:
 	_check_runner()
 	var now := screen()
@@ -284,6 +308,7 @@ func _process(_delta: float) -> void:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
 		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
 	_refresh_overlay()
+	_refresh_voice()
 	if _player != null:
 		# The dead have no body to move: it stands still until its Respawned (M4-9).
 		_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
@@ -503,6 +528,7 @@ func _end_session(reason: StringName) -> void:
 	_bodies.clear()
 	_items.reset()
 	_voices.reset()
+	_sender.reset()
 	_clear_level()
 	if _player != null:
 		_player.queue_free()
@@ -532,22 +558,63 @@ func _refresh_overlay() -> void:
 	_overlay.show_relay(relay, _client.model.phase_spec())
 
 
-## The overlay's voice lines: one per speaker played, by index of first arrival (E47).
+## The overlay's voice lines: the own voice, then one per speaker played, by index of first
+## arrival (E47).
 func _refresh_voice_overlay() -> void:
+	_overlay.show_own_voice(
+		_sender.is_open(),
+		_sender.gate.is_open(),
+		_sender.peak,
+		_sender.frame_age_usec,
+		_sender.encode_usec
+	)
 	_overlay.show_voice(_voices.stats())
 
 
-## The buses (D15) and the voices' node under World.
+## The buses (D15), the voices' node under World, and the own voice: the sender, this window's
+## settings applied, and the Voice tab wired to them.
 func _ready_voice() -> void:
 	AudioBuses.ensure()
 	if voice_codec == null:
 		voice_codec = TwoVoipCodec.new()
 	_world.add_child(_voices)
+	if settings == null:
+		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
+		# player's file in user:// would set the process's buses and take an opening mark.
+		settings = UserSettings.for_this_window() if read_command_line else UserSettings.new()
+	_sender.codec = voice_codec
+	add_child(_sender)
+	_voice_control = VoiceControl.new(settings, _sender)
+	var panel := ui.esc.voice
+	panel.device_picked.connect(_voice_control.pick_device)
+	panel.mode_picked.connect(_voice_control.set_mode)
+	panel.threshold_changed.connect(_voice_control.set_threshold)
+	panel.denoise_toggled.connect(_voice_control.set_denoise)
+	panel.volume_changed.connect(_voice_control.set_volume)
+	panel.tone_toggled.connect(_voice_control.set_tone)
+	panel.mute_toggled.connect(_voice_control.set_muted)
+	_voice_control.start()
 
 
-## The voices follow the new session's ClientSession, model and avatars.
+## The voices follow the new session's ClientSession, model and avatars; the own voice speaks
+## into it.
 func _setup_voice() -> void:
 	_voices.setup(_client, mode, _avatars, voice_codec)
+	_sender.setup(_client, mode)
+
+
+## Each frame: the talk key counts only without the Esc menu; an open Voice tab shows the settings
+## and the microphone's level (the device list read again as it opens); the lobby's hint.
+func _refresh_voice() -> void:
+	_sender.reads_device_input = device_input
+	_sender.listening = not ui.esc_open()
+	var tab := ui.esc_open() and ui.esc.state.selected == EscMenuState.Tab.VOICE
+	if tab and not _voice_tab_shown:
+		_voice_control.refresh_devices()
+	_voice_tab_shown = tab
+	if tab:
+		ui.esc.voice.show_facts(_voice_control.facts())
+	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
 
 
 func _show_menu(reason: StringName, detail := "") -> void:

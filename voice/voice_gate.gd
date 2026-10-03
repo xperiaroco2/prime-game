@@ -31,10 +31,18 @@ const PREROLL := 2
 ## The default voice-activity threshold, a peak of 0.1 (about -20 dBFS): a placeholder, "not a
 ## decision"; the Voice tab's slider sets it (M5-6).
 const DEFAULT_THRESHOLD := 0.1
+## The lowest threshold, a peak of 0.01 (-40 dBFS; a placeholder, "not a decision"): at or below 0
+## the gate would open on digital silence, and a silent player would stream where they stand.
+const MIN_THRESHOLD := 0.01
+## The highest threshold: a full-scale peak.
+const MAX_THRESHOLD := 1.0
 
 var mode := Mode.VOICE_ACTIVITY
-## The peak over which voice activity opens the gate, in sample units (0 to 1).
-var threshold := DEFAULT_THRESHOLD
+## The peak over which voice activity opens the gate, in sample units, kept within MIN_THRESHOLD
+## and MAX_THRESHOLD.
+var threshold := DEFAULT_THRESHOLD:
+	set(value):
+		threshold = clamp_threshold(value)
 ## The latest chunk's peak, for the Voice tab's meter.
 var last_peak := 0.0
 
@@ -48,7 +56,8 @@ var _ring: Array[PackedByteArray] = []
 ## when the gate opens, `frame` while it stays open. `chunk` is the raw microphone chunk `frame`
 ## was encoded from. An empty `frame` (VoiceEncoder.encode failed) is never sent nor kept for the
 ## pre-roll; its chunk still counts for the gate and the hangover, and a gate it would open opens
-## with the next frame.
+## with the next frame. While the gate is closed it empties the ring: the frames before an outage
+## are stale and never go out as pre-roll.
 func feed(
 	chunk: PackedVector2Array, frame: PackedByteArray, may_speak: bool, talk_held: bool
 ) -> Array[PackedByteArray]:
@@ -62,6 +71,9 @@ func feed(
 	var wants := _wants_open(talk_held)
 	if frame.is_empty():
 		_open = _open and wants
+		if not _open:
+			# An outage: what the ring holds is from before it and never goes out as pre-roll.
+			_ring.clear()
 		return out
 	if not wants:
 		_open = false
@@ -87,6 +99,13 @@ func set_mode(new_mode: Mode) -> void:
 	mode = new_mode
 	_open = false
 	_hangover = 0
+
+
+## `value` within MIN_THRESHOLD and MAX_THRESHOLD; NaN gives the default.
+static func clamp_threshold(value: float) -> float:
+	if is_nan(value):
+		return DEFAULT_THRESHOLD
+	return clampf(value, MIN_THRESHOLD, MAX_THRESHOLD)
 
 
 ## The largest absolute sample of either channel in `chunk`.

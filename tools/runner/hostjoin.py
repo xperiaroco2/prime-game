@@ -252,8 +252,11 @@ def lan_hint(hosting_line: str) -> None:
 _echo_lock = threading.Lock()
 
 
-def start(part: Part, *, cwd: Path = ROOT) -> None:
-    """Start the process in its own process group (Ctrl+C reaches only the runner) and echo its lines live."""
+def start(part: Part, *, cwd: Path = ROOT, instance: int = 1) -> None:
+    """Start the process in its own process group (Ctrl+C reaches only the runner) and echo its lines live.
+
+    `instance` is its PRIME_INSTANCE (1 the host, 2 and on the clients in tile order), so each window keeps its own
+    settings file (the M5 ADR's E47 as amended, §1.7)."""
     kwargs: dict[str, object] = {}
     if IS_WINDOWS:
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
@@ -266,6 +269,7 @@ def start(part: Part, *, cwd: Path = ROOT) -> None:
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            env={**os.environ, launch.INSTANCE_ENV: str(instance)},
             **kwargs,  # type: ignore[arg-type]
         )
     except FileNotFoundError as exc:
@@ -314,8 +318,8 @@ def supervise(
             if hosting and on_hosting is not None:
                 on_hosting(hosting)
             if parts[0].running and not _cannot_host(parts[0]):
-                for part in parts[1:]:
-                    start(part, cwd=cwd)
+                for number, part in enumerate(parts[1:], start=2):
+                    start(part, cwd=cwd, instance=number)
         while any(part.running for part in parts):
             if seconds is not None and time.monotonic() - started >= seconds:
                 say(f"session: {seconds}s passed, stopping")

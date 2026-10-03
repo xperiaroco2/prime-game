@@ -117,12 +117,11 @@ func test_an_empty_frame_is_never_sent_nor_kept_for_the_pre_roll() -> void:
 	var empty := PackedByteArray()
 	gate.feed(_chunk(QUIET), _frame(0), true, false)
 	gate.feed(_chunk(QUIET), _frame(1), true, false)
-	assert_array(gate.feed(_chunk(QUIET), empty, true, false)).is_empty()
-	# A loud chunk with an empty frame opens nothing yet: the pre-roll waits for a real frame.
+	gate.feed(_chunk(QUIET), _frame(2), true, false)
+	# A loud chunk with an empty frame opens nothing yet: the pre-roll waits for a real frame,
+	# and the frames before the outage are dropped from it (the next test).
 	assert_array(gate.feed(_sine(LOUD), empty, true, false)).is_empty()
-	assert_array(Array(_ids(gate.feed(_sine(LOUD), _frame(4), true, false)))).contains_exactly(
-		[0, 1, 4]
-	)
+	assert_array(Array(_ids(gate.feed(_sine(LOUD), _frame(4), true, false)))).contains_exactly([4])
 	assert_array(gate.feed(_sine(LOUD), empty, true, false)).is_empty()
 	assert_bool(gate.is_open()).is_true()
 	# An empty frame in the hangover uses up its chunk of it.
@@ -131,11 +130,11 @@ func test_an_empty_frame_is_never_sent_nor_kept_for_the_pre_roll() -> void:
 		var frame := empty if i == 6 else _frame(i)
 		tail.append_array(_ids(gate.feed(_chunk(QUIET), frame, true, false)))
 	assert_array(Array(tail)).contains_exactly(range(7, 6 + VoiceGate.HANGOVER_FRAMES))
-	# Push-to-talk alike.
+	# Push-to-talk alike: closed after the mode switch, the empty frame empties the ring.
 	gate.set_mode(VoiceGate.Mode.PUSH_TO_TALK)
 	assert_array(gate.feed(_chunk(QUIET), empty, true, true)).is_empty()
 	assert_array(Array(_ids(gate.feed(_chunk(QUIET), _frame(30), true, true)))).contains_exactly(
-		[21, 22, 30]
+		[30]
 	)
 
 
@@ -206,6 +205,22 @@ func test_no_frame_captured_before_may_speak_turns_true_opens_voice_activity() -
 	assert_array(Array(opening)).contains_exactly([3])
 
 
+func test_an_empty_frame_while_closed_empties_the_pre_roll() -> void:
+	# The manager's review of PR #234 (item 3): a failed encode is an outage. The frames before
+	# it are stale, so they never go out as the pre-roll of the next opening.
+	var empty := PackedByteArray()
+	for talk_held: bool in [false, true]:
+		var gate := VoiceGate.new()
+		if talk_held:
+			gate.set_mode(VoiceGate.Mode.PUSH_TO_TALK)
+		gate.feed(_chunk(QUIET), _frame(0), true, false)
+		gate.feed(_chunk(QUIET), _frame(1), true, false)
+		assert_array(gate.feed(_chunk(QUIET), empty, true, false)).is_empty()
+		var level := LOUD if not talk_held else QUIET
+		var opening := _ids(gate.feed(_sine(level), _frame(3), true, talk_held))
+		assert_array(Array(opening)).contains_exactly([3])
+
+
 func test_switching_the_mode_closes_the_gate_and_ends_the_hangover() -> void:
 	var gate := VoiceGate.new()
 	gate.feed(_sine(LOUD), _frame(0), true, false)
@@ -223,6 +238,22 @@ func test_the_threshold_is_settable() -> void:
 	assert_array(Array(_ids(gate.feed(_sine(LOUD), _frame(1), true, false)))).contains_exactly(
 		[0, 1]
 	)
+
+
+func test_the_threshold_stays_above_digital_silence() -> void:
+	# The manager's review of PR #234 (item 4): at or below 0 the gate opens on digital silence,
+	# and a silent player streams.
+	var gate := VoiceGate.new()
+	for low: float in [0.0, -0.5, VoiceGate.MIN_THRESHOLD * 0.5, NAN]:
+		gate.threshold = low
+		assert_float(gate.threshold).is_greater_equal(VoiceGate.MIN_THRESHOLD)
+		var sent := PackedInt32Array()
+		for i: int in 20:
+			sent.append_array(_ids(gate.feed(_chunk(QUIET), _frame(i), true, false)))
+		assert_array(Array(sent)).is_empty()
+	gate.threshold = 2.0
+	assert_float(gate.threshold).is_equal(VoiceGate.MAX_THRESHOLD)
+	assert_float(VoiceGate.MIN_THRESHOLD).is_greater(0.0)
 
 
 func test_the_level_is_the_peak_of_either_channel() -> void:
