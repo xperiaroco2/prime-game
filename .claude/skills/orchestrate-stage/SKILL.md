@@ -256,12 +256,12 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
   `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review, netcode, second_review,
   skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4
-  agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read; `steps` says which
-  side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one fresh relaunch with
-  `reb.problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every blocker and major,
-  so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr> --json body -q
-  .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix agent that
-  changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
+  agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read;
+  `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one
+  fresh relaunch with `reb.problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every
+  blocker and major, so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr>
+  --json body -q .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix
+  agent that changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
 - **A main-based track** (the tooling track, #170): you merge nothing. Before you ask the engineer to merge, run
   `tools\run.cmd merge-check --base main` and name the safe order in chat and in the wave comment; a flagged overlap
   gets a `--trial` or a `pr-rebase` first, as above. A PR that changes a shared file follows §2.8. After the

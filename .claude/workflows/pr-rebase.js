@@ -33,7 +33,7 @@ export const meta = {
 //   bounded_waits true: the rebase and fix agents run verify and publish in the background and poll them with
 //                 `tools\run.cmd wait` (#303), wait on CI in calls of at most 240 s, and skip a standalone verify
 //                 that `wait --verified` shows done, as in issue-task.js. +0 agents
-//   efforts      {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: rebase (default 'high'), review,
+//   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: rebase (default 'high'), review,
 //                 netcode, second_review, skeptic, fix (default 'high'). review covers the code reviewer and is the
 //                 fallback of netcode, skeptic and (after netcode) second_review. A reviewer gets an effort only when
 //                 one is set; otherwise its agent file's applies, as before v2. +0 agents
