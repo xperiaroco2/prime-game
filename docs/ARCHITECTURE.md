@@ -2028,27 +2028,27 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
   - **Playback and the ears** (E40, E41, D12; **built in M5-5**, #219). `ClientSession.voice_received(speaker, seq,
     tick, opus)` carries each `VoiceDown`'s seq. `voice/`'s `VoiceSpeaker` is one remote speaker's
-    `AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance`
-    (a cutoff of 0 sets 1 mm, since Godot reads 0 as no limit), with its `VoiceJitter` and the codec's `VoicePlayback`:
-    each frame it decodes what the jitter says (a frame that does not fit the queue is dropped, `overflow`), applies
-    the command, and sets the fade's volume; a fade (50 ms) ends in a flush. `client/`'s `VoiceViews` hangs one per
-    speaker at its `RemotePlayerBody`'s mouth (eye height − 0.1 m, a placeholder), made at its first frame, freed with
-    the body, and gives it `max_distance` = `VoiceRule.radius_of()` of the current phase in the client's own mode,
-    again at each phase change. It plays only `voice_received` frames, and drops every frame: of a speaker with no
-    body, not living (downed, dead), gone from the roster or left, or the own peer; while the own life fold is dead;
-    while the phase's radius is 0; of a speaker farther from the ears than `max_distance`; and stamped at or below the
-    newest host tick (snapshots and frames) recorded at that speaker's latest flush. It fades and flushes a speaker at
-    its `KnockedDown` or `Died`, flushes and frees it at its `PlayerLeft`, flushes every speaker at the own `Died` and
-    on entering a phase whose radius is 0, and fades and flushes a speaker that crosses out of `max_distance` from the
-    ears (checked each physics frame). The ears are `client/life/`'s `Ears`, an `AudioListener3D` that `LifeView`
-    places after the cameras each physics step and turns with the current camera: the own eye (living), the own body's
-    head where it lies (downed: the standing eye carried through `LifeLooks.lying`, near the floor; never the downed
-    camera), a spectated living target's eye, a downed target's head, the own body without a target. Godot measures a
-    3D player's distance from the current `AudioListener3D` but mixes one only while the world has a `Camera3D`
-    (checked on 4.7.2 headless; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's
-    amendment of E33). F3 (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer,
-    frames, late, lost, concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7's "Built
-    in M5-5".
+    `AudioStreamPlayer3D`, bus Voice, `ATTENUATION_DISABLED`, so Godot fades it linearly to silence at `max_distance` (a
+    cutoff of 0 sets 1 mm, since Godot reads 0 as no limit), with its `VoiceJitter` and the codec's `VoicePlayback`:
+    each frame it decodes what the jitter says (a frame that does not fit the queue is dropped, `overflow`), applies the
+    command, and sets the fade's volume; a fade (50 ms) ends in a flush. `client/`'s `VoiceViews` hangs one per speaker
+    at its `RemotePlayerBody`'s mouth (eye height − 0.1 m, a placeholder), made at its first frame, freed with the body,
+    and gives it `max_distance` = `VoiceRule.radius_of()` of the current phase in the client's own mode, again whenever
+    the model's phase changes (a `PhaseChanged`, or a `Welcome` into a phase). It plays only `voice_received` frames,
+    and drops every frame: of a speaker with no body, not living (downed, dead), gone from the roster or left, or the
+    own peer; while the own life fold is dead; while the phase's radius is 0; of a speaker farther from the ears than
+    `max_distance`; and stamped at or below the newest host tick (snapshots and frames) recorded at that speaker's
+    latest flush. It fades and flushes a speaker at its `KnockedDown` or `Died`, flushes and frees it at its
+    `PlayerLeft`, flushes every speaker at the own `Died` and on entering a phase whose radius is 0, and fades and
+    flushes a speaker that crosses out of `max_distance` from the ears (checked each physics frame). The ears are
+    `client/life/`'s `Ears`, an `AudioListener3D` that `LifeView` places after the cameras each physics step and turns
+    with the current camera: the own eye (living), the own body's head where it lies (downed: the standing eye carried
+    through `LifeLooks.lying`, near the floor; never the downed camera), a spectated living target's eye, a downed
+    target's head, the own body without a target. Godot measures a 3D player's distance from the current
+    `AudioListener3D` but mixes one only while the world has a `Camera3D` (checked on 4.7.2 headless; the game always
+    has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3 (debug builds) lists each
+    speaker by an index of first arrival with its queue, prebuffer, frames, late, lost, concealed, stale, underruns,
+    overflow and decode µs; no peer id or name. Tests: §4.7's "Built in M5-5".
   - **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
     Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
     Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music
