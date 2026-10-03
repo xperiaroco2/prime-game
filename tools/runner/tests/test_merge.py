@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, guard, merge, permissions
+from runner import cli, common, guard, merge, permissions
 from runner.common import ROOT, Failure, Result
 from runner.tests.test_githooks import _rmtree
 
@@ -524,6 +524,7 @@ class CommandTest(unittest.TestCase):
         )  # fmt: skip
         self.gh = FakeGitHub(self.repo)
         self.verified: list[set[str]] = []
+        self.user_dirs: list[Path] = []
         self.verify_rc = 0
         self.printed: list[str] = []
         for patch in (
@@ -537,6 +538,8 @@ class CommandTest(unittest.TestCase):
             mock.patch.object(merge, "ok", lambda text: self.printed.append(text)),
             mock.patch.object(merge, "bad", lambda text, fix="": self.printed.append(text)),
             mock.patch.object(merge, "warn", lambda text: self.printed.append(text)),
+            # The scratch worktrees' user:// folders go to a temporary app-data folder, never the real one (#233).
+            mock.patch.dict(os.environ, {common.app_data_var() or "PRIME_NO_APP_DATA": str(self.repo.tmp / "data")}),
         ):
             patch.start()
             self.addCleanup(patch.stop)
@@ -544,6 +547,11 @@ class CommandTest(unittest.TestCase):
     def fake_verify(self, path: Path, log: str) -> Result:
         files = {p.relative_to(path).as_posix() for p in path.rglob("*") if p.is_file() and ".git" not in p.parts}
         self.verified.append(files)
+        user = common.worktree_user_dir(path)  # what the merged tree's Godot runs make
+        if user is not None:
+            (user / "logs").mkdir(parents=True)
+            (user / "logs" / "godot.log").write_text("session: stopped\n", encoding="utf-8")
+            self.user_dirs.append(user)
         for report in (f"tools/out/logs/{log}.log", "tools/out/gdunit/results.xml"):
             (path / report).parent.mkdir(parents=True, exist_ok=True)
             (path / report).write_text(f"{log}: {self.verify_rc}\n", encoding="utf-8", newline="\n")
@@ -566,6 +574,10 @@ class CommandTest(unittest.TestCase):
 
     def scratch_left(self) -> list[Path]:
         return list((self.repo.tmp / "out" / "merge").glob("*"))
+
+    def user_dirs_left(self) -> list[Path]:
+        """The scratch worktrees' user:// folders still in the (temporary) app-data folder."""
+        return [user for user in self.user_dirs if user.exists()]
 
     # merge-check
 
@@ -688,9 +700,18 @@ class CommandTest(unittest.TestCase):
     def test_trial_merges_in_order_verifies_and_removes_the_worktree(self) -> None:
         self.task(1, {"core/a.gd": "extends Node\n"})
         self.task(2, {"core/b.gd": "extends Node\n"})
+        data = common.app_data_dir()
+        godot = "godot" if common.IS_LINUX else "Godot"
+        default = data / godot / "app_userdata" / "PrimeGame" if data else None  # the main checkout's: it stays
+        if default is not None:
+            default.mkdir(parents=True)
         self.assertEqual(merge.check([1, 2], trial=True), 0)
         self.assertTrue({"core/a.gd", "core/b.gd"} <= self.verified[0])
         self.assertEqual(self.scratch_left(), [])
+        if common.app_data_var() is not None:
+            self.assertEqual(len(self.user_dirs), 1)
+        self.assertEqual(self.user_dirs_left(), [])  # its user:// folder went with the scratch worktree (#233)
+        self.assertTrue(default is None or default.is_dir())
         self.assertEqual(_git(self.repo.work, "worktree", "list").count("\n"), 0)  # only the checkout itself
         self.assertEqual(self.kept("merge-trial"), {})  # a green verify keeps nothing
         self.verify_rc = 1
@@ -698,6 +719,18 @@ class CommandTest(unittest.TestCase):
         self.assertEqual(self.scratch_left(), [])
         reports = {"logs/merge-trial.log": "merge-trial: 1\n", "gdunit/results.xml": "merge-trial: 1\n"}
         self.assertEqual(self.kept("merge-trial"), reports)
+        self.assertEqual(self.user_dirs_left(), [])  # also after a red verify
+
+    def test_a_scratch_worktree_that_stays_keeps_its_user_dir(self) -> None:
+        # As mutants does: the folder goes only with the tree, so a tree finished by hand makes no second one.
+        self.task(1, {"core/a.gd": "extends Node\n"})
+        with mock.patch.object(merge, "_remove", lambda path: None):  # a program still has the tree open
+            self.assertEqual(merge.check([1], trial=True), 0)
+        left = self.scratch_left()
+        self.assertEqual(len(left), 1)
+        self.assertEqual(self.user_dirs_left(), self.user_dirs)
+        merge._remove(left[0])
+        self.assertEqual(self.scratch_left(), [])
 
     def test_trial_stops_at_a_conflict_and_removes_the_worktree(self) -> None:
         self.task(1, {"core/a.gd": "extends Node\n"})
@@ -721,6 +754,7 @@ class CommandTest(unittest.TestCase):
         self.assertEqual(message, f"Merge pull request #7 from owner/{branch}\n\nfeat: task 7")
         self.assertIn("core/a.gd", self.verified[0])
         self.assertEqual(self.scratch_left(), [])
+        self.assertEqual(self.user_dirs_left(), [])
         self.assertTrue(self.printed[-1].startswith(f"wave: merged #7 ({branch}) into release/m1 as {merged[:12]}"))
 
     def test_a_failed_gh_after_the_push_still_exits_0_with_the_wave_line(self) -> None:

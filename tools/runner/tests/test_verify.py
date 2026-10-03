@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from unittest import mock
 
-from runner import verify
+from runner import common, verify
 from runner.common import ROOT, Failure
 
 GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"]
@@ -391,13 +391,24 @@ class T(unittest.TestCase):
 GROUP_FIXTURE = '''
 import os
 import unittest
+from pathlib import Path
 
+from runner.common import app_data_dir
 from runner.verify import starts_godot
+
+
+def godot_writes_its_user_dir(name):
+    """What a Godot start does: a folder in app_userdata/ of the app-data folder it was given."""
+    base = app_data_dir()
+    if base is not None:
+        (base / "Godot" / "app_userdata" / name / "logs").mkdir(parents=True, exist_ok=True)
+        (base / "Godot" / "app_userdata" / name / "logs" / "godot.log").write_text("x", encoding="utf-8")
 
 
 class NoGodot(unittest.TestCase):
     def test_one(self):
-        pass
+        if os.environ.get("SELFTEST_FIXTURE_LEAK"):
+            godot_writes_its_user_dir("PrimeGame-182-abcdef")
 
     def test_two(self):
         if os.environ.get("SELFTEST_FIXTURE_FAIL"):
@@ -407,12 +418,14 @@ class NoGodot(unittest.TestCase):
 @starts_godot
 class WithGodot(unittest.TestCase):
     def test_three(self):
-        pass
+        godot_writes_its_user_dir("PrimeGame-182-fedcba")
 '''
 
 
 class SelftestTest(unittest.TestCase):
-    def selftest_on_fixture(self, group: str, fail: bool = False) -> tuple[int, dict[str, object] | None, str]:
+    def selftest_on_fixture(
+        self, group: str, fail: bool = False, leak: bool = False
+    ) -> tuple[int, dict[str, object] | None, str]:
         """selftest(group) over GROUP_FIXTURE in temp logs; its rc, its results record and its printed text."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -423,7 +436,15 @@ class SelftestTest(unittest.TestCase):
         self.addCleanup(sys.modules.pop, name, None)
         tests = list(verify._flatten(unittest.defaultTestLoader.loadTestsFromName(name)))
         logs = Path(tmp.name) / "logs"
-        env = {verify.RUN_ID_VAR: "run-1", **({"SELFTEST_FIXTURE_FAIL": "1"} if fail else {})}
+        env = {
+            verify.RUN_ID_VAR: "run-1",
+            **({"SELFTEST_FIXTURE_FAIL": "1"} if fail else {}),
+            **({"SELFTEST_FIXTURE_LEAK": "1"} if leak else {}),
+        }
+        # This process's app-data folder, as selftest finds it: the real one outside a test, so a temporary one here.
+        var = common.app_data_var()
+        if var is not None:
+            env[var] = str(Path(tmp.name) / "outer")
         with (
             mock.patch.dict(os.environ, env),
             mock.patch.object(verify, "discover", return_value=tests),
@@ -458,6 +479,44 @@ class SelftestTest(unittest.TestCase):
         self.assertEqual(sorted(str(e["outcome"]) for e in tests), ["failed", "passed"])
         self.assertIn("AssertionError: asked to", text)
         self.assertIn("selftest: FAILED", text)
+
+    def test_a_test_that_writes_to_the_app_data_folder_outside_a_godot_class_fails_the_run(self) -> None:
+        # #233: selftest's workers get a stand-in app-data folder; a @starts_godot class writes to its own instead.
+        if common.app_data_var() is None:
+            self.skipTest("no app-data variable on this OS")
+        for group in ("python", "godot"):
+            rc, _record, text = self.selftest_on_fixture(group)
+            self.assertEqual(rc, 0, text)
+            self.assertNotIn("wrote to the app-data folder", text)
+        rc, _record, text = self.selftest_on_fixture("python", leak=True)
+        self.assertEqual(rc, 1, text)
+        self.assertIn(
+            "runner tests wrote to the app-data folder, which outside selftest is the real one: "
+            "Godot/app_userdata/PrimeGame-182-abcdef/logs/godot.log",
+            text,
+        )
+        self.assertIn("selftest: FAILED", text)
+
+    def test_app_data_written_names_at_most_a_few_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            self.assertEqual(verify.app_data_written(None), [])
+            self.assertEqual(verify.app_data_written(folder), [])
+            (folder / "Godot").mkdir()  # an empty folder is no write
+            self.assertEqual(verify.app_data_written(folder), [])
+            for n in range(7):
+                (folder / "Godot" / f"f{n}.txt").write_text("x", encoding="utf-8")
+            self.assertEqual(verify.app_data_written(folder, limit=2), ["Godot/f0.txt", "Godot/f1.txt", "and 5 more"])
+
+    def test_app_data_written_names_an_empty_user_dir_folder(self) -> None:
+        # Godot makes the user:// folder before it writes any file into it: an empty one is still a leak.
+        for godot in ("Godot", "godot"):
+            with self.subTest(godot), tempfile.TemporaryDirectory() as tmp:
+                folder = Path(tmp)
+                (folder / godot / "app_userdata").mkdir(parents=True)
+                self.assertEqual(verify.app_data_written(folder), [])
+                (folder / godot / "app_userdata" / "PrimeGame-182-abcdef").mkdir()
+                self.assertEqual(verify.app_data_written(folder), [f"{godot}/app_userdata/PrimeGame-182-abcdef/"])
 
     def test_the_godot_group_is_every_class_that_needs_godot(self) -> None:
         # A class whose skip asks for godot_bin() starts Godot: it must carry @starts_godot, and only such a class.
