@@ -11,12 +11,17 @@ extends PanelContainer
 ## the voice and snapshot upload; HostNode.relay_counters, M5-4) as totals since the session
 ## started, only in the Lobby, the Countdown and End (shows_relay): live during a Round they would
 ## tell the host's player how many hear them (the M5 ADR §3 item 11).
+##
+## Below them, one line per voice this client plays (M5-5, E47; show_voice()): by an index in
+## order of first arrival, never a peer id or a name (the M5 ADR §3 item 10).
 
 const RELAY_HIDDEN := "host voice: shown in the lobby, the countdown and the end"
 
 var label := Label.new()
 ## The host's voice relay counters, or the note that hides them; empty on a client.
 var relay_label := Label.new()
+## The per-speaker voice lines (show_voice()).
+var voice_label := Label.new()
 
 
 func _init() -> void:
@@ -32,6 +37,9 @@ func _init() -> void:
 	var lines := VBoxContainer.new()
 	lines.add_child(label)
 	lines.add_child(relay_label)
+	voice_label.theme_type_variation = &"DebugText"
+	voice_label.visible = false
+	lines.add_child(voice_label)
 	margin.add_child(lines)
 	add_child(margin)
 
@@ -105,4 +113,33 @@ static func relay_text(counters: Dictionary[StringName, int], shown: bool) -> St
 	names.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 	for key: StringName in names:
 		lines.append("  %s: %d" % [key, counters[key]])
+	return "\n".join(lines)
+
+
+## Shows one line per speaker played, or nothing when none is.
+func show_voice(speakers: Array[VoiceSpeaker.Stats]) -> void:
+	voice_label.text = voice_text(speakers)
+	voice_label.visible = not voice_label.text.is_empty()
+
+
+## The per-speaker voice lines (pure, for the tests): each by its index of first arrival, with its
+## queue, prebuffer, frames received, late, lost, concealed (FEC or concealment), stale, underruns,
+## overflow and decode time; empty for no speaker.
+static func voice_text(speakers: Array[VoiceSpeaker.Stats]) -> String:
+	if speakers.is_empty():
+		return ""
+	var lines := PackedStringArray(["voice (by first arrival):"])
+	for s: VoiceSpeaker.Stats in speakers:
+		lines.append(
+			(
+				"  #%d queue %d ms, prebuffer %d ms, frames %d, late %d, lost %d, concealed %d,"
+				% [s.index, s.queue_ms, s.prebuffer_ms, s.received, s.late, s.lost, s.concealed]
+			)
+		)
+		lines.append(
+			(
+				"     stale %d, underruns %d, overflow %d, decode %d us"
+				% [s.stale, s.underruns, s.overflow, s.decode_us]
+			)
+		)
 	return "\n".join(lines)

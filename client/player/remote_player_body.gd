@@ -31,6 +31,9 @@ const VISOR_AHEAD := 0.25
 const HAND_POINT := Vector3(0.45, 0.95, -0.15)
 const BELT_POINT := Vector3(-0.48, 0.85, 0.0)
 const CARRY_POINT := Vector3(0.0, 0.8, -0.72)
+## The mouth, below the eyes (the M5 ADR §1.5: a placeholder, "not a decision"): this player's
+## VoiceSpeaker hangs there (M5-5), and the muffle's ray aims at it (M5-7).
+const MOUTH_BELOW_EYE_M := 0.1
 
 ## The client's own copy of the mode's PlayerRules: the capsule and the eyes. Applied at once
 ## when set in the tree.
@@ -47,6 +50,7 @@ var _watched := false
 var _hand_point := Node3D.new()
 var _belt_point := Node3D.new()
 var _carry_point := Node3D.new()
+var _mouth_point := Node3D.new()
 
 @onready var _shape: CollisionShape3D = $CollisionShape3D
 @onready var _mesh: MeshInstance3D = $Mesh
@@ -168,6 +172,13 @@ func carry_point() -> Node3D:
 	return _carry_point
 
 
+## This player's mouth, MOUTH_BELOW_EYE_M below the standing eyes: its voice plays from here (the
+## M5 ADR §1.5). It stays with the standing pose: nobody hears a downed player (the voice
+## invariant).
+func mouth_point() -> Node3D:
+	return _mouth_point
+
+
 func _add_attach_points() -> void:
 	_hand_point.name = "HandPoint"
 	_hand_point.position = HAND_POINT
@@ -175,7 +186,8 @@ func _add_attach_points() -> void:
 	_belt_point.position = BELT_POINT
 	_carry_point.name = "CarryPoint"
 	_carry_point.position = CARRY_POINT
-	for point: Node3D in [_hand_point, _belt_point, _carry_point]:
+	_mouth_point.name = "MouthPoint"
+	for point: Node3D in [_hand_point, _belt_point, _carry_point, _mouth_point]:
 		add_child(point)
 
 
@@ -188,6 +200,7 @@ func _apply_rules() -> void:
 	_shell.mesh = LifeLooks.shell(rules)
 	_show_looks()
 	_head.position = Vector3(0.0, rules.eye_height_m, 0.0)
+	_mouth_point.position = Vector3(0.0, rules.eye_height_m - MOUTH_BELOW_EYE_M, 0.0)
 	var visor_mesh := BoxMesh.new()
 	visor_mesh.size = VISOR_SIZE
 	var dark := StandardMaterial3D.new()

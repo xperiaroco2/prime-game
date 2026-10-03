@@ -206,6 +206,34 @@ func test_a_stale_held_frame_is_discarded_before_the_next_spurt() -> void:
 	assert_bool(out[0].conceal).is_false()
 
 
+func test_a_spurt_held_behind_a_long_run_is_not_stale_at_the_restart() -> void:
+	# The manager's review of PR #234: the next spurt's first frame waits while a burst-filled
+	# queue drains for longer than STALE_USEC; its staleness counts from the stop, not from its
+	# arrival, so the first syllable still plays.
+	var jitter := VoiceJitter.new()
+	# A spurt arriving on time, so the prebuffer stays at its minimum.
+	for seq: int in 5:
+		jitter.push(seq, 0, Sim.frame_of(seq), seq * Sim.FRAME_USEC)
+	assert_int(jitter.update(0, 80000).size()).is_equal(5)
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.START)
+	jitter.push(5, 10, Sim.frame_of(5), 90000)
+	var at := 90000
+	while at <= 90000 + 2 * VoiceJitter.STALE_USEC:
+		assert_array(jitter.update(300000, at)).is_empty()
+		at += Sim.STEP_USEC
+	assert_array(jitter.update(0, at)).is_empty()
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.STOP)
+	jitter.push(6, 10, Sim.frame_of(6), at)
+	jitter.push(7, 10, Sim.frame_of(7), at)
+	var out := jitter.update(0, at + Sim.STEP_USEC)
+	assert_int(jitter.command()).is_equal(VoiceJitter.Command.START)
+	var seqs: Array[int] = []
+	for decode: VoiceJitter.Decode in out:
+		seqs.append(decode.seq)
+	assert_array(seqs).contains_exactly([5, 6, 7])
+	assert_int(jitter.stale).is_equal(0)
+
+
 func test_flush_empties_the_held_frames_and_leaves_the_old_seqs_behind() -> void:
 	var jitter := VoiceJitter.new()
 	for seq: int in 3:

@@ -17,6 +17,9 @@ extends Node3D
 ##   downed one through the DownedCamera above its body, and with no target the DownedCamera
 ##   stays above the own body. Nothing about the target is sent. The lift music plays.
 ## - Respawned: first person again where the Correction put the player; the music stops.
+## - The ears (M5-5, E40): an Ears listener made current and placed after the cameras in every
+##   physics step by the own life: the own eye, the own body's head while downed, the target's eye
+##   or body's head while spectating (_place_ears()).
 ##
 ## Cameras are placed in the physics step at PHYSICS_PRIORITY: after the avatars (-80) and the
 ## local player (0) moved, before SightHider (10) casts from the pivot.
@@ -56,6 +59,7 @@ var _spectate_camera := Camera3D.new()
 var _spectate_hand := FirstPersonHand.new()
 var _hider := SightHider.new()
 var _music := LiftMusic.new()
+var _ears := Ears.new()
 var _view := View.FIRST_PERSON
 var _target := 0
 var _target_life := ClientModel.Life.ALIVE
@@ -87,6 +91,8 @@ func _init() -> void:
 	add_child(_spectate_camera)
 	add_child(_hider)
 	add_child(_music)
+	_ears.name = "Ears"
+	add_child(_ears)
 
 
 ## Follows `client`'s model and events, with `game_mode`'s numbers, until reset().
@@ -112,6 +118,7 @@ func reset() -> void:
 	_target = 0
 	_raise_wanted = false
 	_raise_peer = 0
+	_release_ears()
 
 
 ## The reach of the mode's raise (its TargetInReach), from the feet as the host measures it; 0
@@ -156,6 +163,11 @@ func hider() -> SightHider:
 
 func music() -> LiftMusic:
 	return _music
+
+
+## The listener every voice and world sound is heard from (E40).
+func ears() -> Ears:
+	return _ears
 
 
 ## What the life panel shows now, at the estimated host tick `tick`.
@@ -298,6 +310,35 @@ func _physics_process(_delta: float) -> void:
 			_last_look = SnapshotBuffer.look_angles(player.look_vector(), Vector2.ZERO)
 			_target = 0
 			_show(View.FIRST_PERSON)
+	_place_ears()
+
+
+## Puts the ears where the own life hears from (Ears.point()), turned with the current camera,
+## and makes them current. Runs after the cameras were placed in this step.
+func _place_ears() -> void:
+	if not player.is_inside_tree():
+		return
+	var own_feet := player.global_transform
+	if _is_dead() and model.bodies.has(model.own_peer):
+		own_feet = Transform3D(Basis.IDENTITY, model.bodies[model.own_peer])
+	var target_body := avatars.body_of(_target) if _is_dead() and _target != 0 else null
+	var watched := _target if target_body != null else 0
+	var target_feet := target_body.global_transform if target_body != null else Transform3D()
+	var eye := player.get_camera().global_position
+	var at := Ears.point(
+		_own_life(), own_feet, eye, watched, _target_life, target_feet, mode.player_rules
+	)
+	var camera := get_viewport().get_camera_3d()
+	var turned := camera.global_basis if camera != null else Basis.IDENTITY
+	_ears.global_transform = Transform3D(turned, at)
+	if not _ears.is_current():
+		_ears.make_current()
+
+
+## The session ended: the ears are no longer the listener.
+func _release_ears() -> void:
+	if _ears.is_inside_tree() and _ears.is_current():
+		_ears.clear_current()
 
 
 ## The dead's camera: keeps or replaces the target, then watches it.

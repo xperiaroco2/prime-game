@@ -1,7 +1,8 @@
 class_name LiftMusic
 extends AudioStreamPlayer
 ## The dead's lift music (ARCHITECTURE §4.7 What the dead hear, V11; the M4 ADR's D9): a
-## non-positional player that only the dead player's own client plays, from Died to Respawned. The
+## non-positional player on the Music bus (D15; its quiet is the bus's default, AudioBuses) that
+## only the dead player's own client plays, from Died to Respawned. The
 ## stream is a placeholder generated here, a slow, quiet arpeggio of sine tones in a loop, until a
 ## CC0 track with its docs/credits/ entry replaces it (a human picks it): set `stream` to that track
 ## and drop placeholder_stream().
@@ -10,14 +11,13 @@ const RATE := 11025
 ## The arpeggio's notes in hertz (A minor, C major, D minor, E major), one per NOTE_S.
 const NOTES: Array[float] = [220.0, 261.63, 329.63, 261.63, 293.66, 349.23, 329.63, 415.30]
 const NOTE_S := 0.5
-## Peak amplitude of a note, of the 16-bit range, and the quiet the player plays it at.
+## Peak amplitude of a note, of the 16-bit range.
 const AMPLITUDE := 0.25
-const VOLUME_DB := -14.0
 
 
 func _init() -> void:
 	name = "LiftMusic"
-	volume_db = VOLUME_DB
+	bus = AudioBuses.MUSIC
 
 
 ## Starts the music (its placeholder stream made at the first start) unless it plays.

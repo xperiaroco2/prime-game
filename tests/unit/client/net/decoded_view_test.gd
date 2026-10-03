@@ -113,9 +113,10 @@ func test_the_model_folds_settings_and_placements_as_decoded() -> void:
 
 func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	_harness.welcome()
-	var heard: Array[int] = []
+	var heard: Array[Vector3i] = []
 	_harness.session.voice_received.connect(
-		func(speaker: int, _tick: int, _opus: PackedByteArray) -> void: heard.append(speaker)
+		func(speaker: int, seq: int, tick: int, _opus: PackedByteArray) -> void:
+			heard.append(Vector3i(speaker, seq, tick))
 	)
 	_harness.send_message(_voice(1, 0, 20, PackedByteArray([1])))
 	_harness.send_message(_voice(1, 1, 20, PackedByteArray([2, 2])))
@@ -132,7 +133,10 @@ func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	var speakers := view.speakers()
 	assert_array(speakers[20]).is_equal(PackedInt32Array([1, 3]))
 	assert_array(speakers[21]).is_equal(PackedInt32Array([3]))
-	assert_array(heard).contains_exactly([1, 1, 3, 3])
+	# The signal carries each VoiceDown's speaker, seq and tick (M5-5: VoiceJitter orders by seq).
+	assert_array(heard).contains_exactly(
+		[Vector3i(1, 0, 20), Vector3i(1, 1, 20), Vector3i(3, 0, 20), Vector3i(3, 1, 21)]
+	)
 
 
 func test_a_payload_that_does_not_decode_is_counted_and_dropped() -> void:

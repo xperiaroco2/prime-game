@@ -29,7 +29,10 @@ signal event_received(event_name: StringName, fields: Dictionary)
 signal corrected(position: Vector3, velocity: Vector3)
 ## A map the host asked for was loaded: its owner instantiates it now, before LoadAck goes out.
 signal map_loaded(path: String, scene: PackedScene)
-signal voice_received(speaker: int, tick: int, opus: PackedByteArray)
+## A VoiceDown: the speaker, the stream's seq (u16, renumbered by the host per speaker and
+## listener, running on across talk spurts), the host tick it was relayed at, and the frame.
+## VoiceViews (client/world/) plays only these (the M5 ADR §3 item 1).
+signal voice_received(speaker: int, seq: int, tick: int, opus: PackedByteArray)
 ## Every decoded snapshot, after the model folded it, older ones included (SnapshotBuffer keeps
 ## them by host tick, §4.7): the host tick it was taken at and its avatars (peer -> fields).
 signal snapshot_received(tick: int, avatars: Dictionary)
@@ -291,6 +294,7 @@ func _on_packet(_from_peer: int, kind: int, payload: PackedByteArray) -> void:
 	elif message.name == DecodedView.VOICE_DOWN:
 		voice_received.emit(
 			message.fields["speaker"] as int,
+			message.fields["seq"] as int,
 			message.fields["tick"] as int,
 			message.fields["opus"] as PackedByteArray
 		)

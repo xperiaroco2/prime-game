@@ -77,3 +77,29 @@ func test_the_relay_label_shows_what_the_phase_allows() -> void:
 	var none: Dictionary[StringName, int] = {}
 	overlay.show_relay(none, mode.find_phase(&"lobby"))
 	assert_bool(overlay.relay_label.visible).is_false()
+
+
+func test_the_voice_lines_number_each_speaker_and_name_no_one() -> void:
+	assert_str(DebugOverlay.voice_text([])).is_empty()
+	var first := VoiceSpeaker.Stats.new()
+	first.index = 1
+	first.queue_ms = 60
+	first.prebuffer_ms = 40
+	first.received = 120
+	first.late = 2
+	first.lost = 1
+	first.concealed = 3
+	first.underruns = 4
+	first.decode_us = 35
+	var second := VoiceSpeaker.Stats.new()
+	second.index = 2
+	var text := DebugOverlay.voice_text([first, second])
+	assert_str(text).contains("#1 queue 60 ms, prebuffer 40 ms, frames 120, late 2, lost 1")
+	assert_str(text).contains("concealed 3").contains("underruns 4").contains("decode 35 us")
+	assert_str(text).contains("#2 queue 0 ms")
+	assert_str(text).not_contains("peer")
+	var overlay: DebugOverlay = auto_free(DebugOverlay.new())
+	overlay.show_voice([first])
+	assert_bool(overlay.voice_label.visible).is_true()
+	overlay.show_voice([])
+	assert_bool(overlay.voice_label.visible).is_false()
