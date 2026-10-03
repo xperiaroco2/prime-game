@@ -473,6 +473,42 @@ func test_a_raise_running_when_the_round_ends_stops_before_the_phase_changes() -
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_a_stop_gives_no_deadline_to_a_downed_player_whose_knockdown_it_did_not_pause() -> void:
+	# Through a match every knockdown has a deadline; RaiseDowned's own guard keeps a stop from
+	# inventing one for a downed player whose knockdown never ran (life_deadline -1, set by hand).
+	var game := _downed()
+	var downed := game.state.player(P2)
+	downed.life_deadline = -1
+	var ctx := _context(game)
+	var channel := _raise_channel()
+	channel.effect.started(ctx, channel)
+	assert_int(downed.knockdown_left).is_equal(-1)
+	channel.effect.stopped(ctx, channel)
+	assert_int(downed.life_deadline).is_equal(-1)
+	assert_int(downed.knockdown_left).is_equal(-1)
+	assert_int(downed.life).is_equal(PlayerState.Life.DOWNED)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_stop_restarts_the_knockdown_only_of_a_player_still_downed() -> void:
+	# Every life change stops the raise first (LifeRules), so its target is still downed when it
+	# stops; RaiseDowned's own guard keeps a player who is not (left, set by hand) from getting a
+	# deadline, which LifeTicks would report as a rule error.
+	var game := _downed()
+	var downed := game.state.player(P2)
+	var ctx := _context(game)
+	var channel := _raise_channel()
+	channel.effect.started(ctx, channel)
+	assert_int(downed.knockdown_left).is_greater(0)
+	downed.life = PlayerState.Life.LEFT
+	channel.effect.stopped(ctx, channel)
+	assert_int(downed.life_deadline).is_equal(-1)
+	assert_int(downed.knockdown_left).is_equal(-1)
+	FixtureModes.run_ticks(game, KNOCKDOWN_TICKS + 1)
+	assert_int(downed.life).is_equal(PlayerState.Life.LEFT)
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 ## P1 (armed at the origin) knocks P2 down at LIES with two hits the cooldown apart; P3 stands at
 ## RAISER, 1.5 m from P2. Returns the match before the second hit's tick runs.
 func _downed(world: WorldQuery = null, peers: Array[int] = [P1, P2, P3]) -> Match:
@@ -493,3 +529,24 @@ func _assert_stopped_once(game: Match) -> void:
 	assert_dict(stopped[0].to_dict()).is_equal({"raiser": P3, "target": P2})
 	assert_object(Channels.of_actor(game.state, P3)).is_null()
 	assert_int(game.state.player(P2).knockdown_left).is_equal(-1)
+
+
+## A context of `game`'s next host tick, as a part called from the loop gets it.
+func _context(game: Match) -> MatchContext:
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	return ctx
+
+
+## P3's raise of P2 with the fixture's RaiseDowned, not started: the effect is called directly.
+func _raise_channel() -> Channel:
+	var rule := FixtureCombatModes.raise_rule()
+	var channel := Channel.new()
+	channel.effect = rule.effects[0] as RaiseDowned
+	channel.rule = rule
+	channel.actor = P3
+	channel.target = P2
+	return channel
