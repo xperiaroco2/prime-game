@@ -288,6 +288,9 @@ func test_empty_entries_and_missing_parts() -> void:
 	mode.actions.append(null)
 	_expect(mode, "mode.actions has an empty entry")
 	mode = FixtureModes.basic()
+	mode.reactions.append(null)
+	_expect(mode, "mode.reactions has an empty entry")
+	mode = FixtureModes.basic()
 	mode.first_phase = &""
 	_expect(mode, "first_phase  is not a phase of the mode")
 	mode = FixtureModes.basic()
