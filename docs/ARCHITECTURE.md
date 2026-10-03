@@ -1442,7 +1442,8 @@ the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`.
 - **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and in the lobby
   and the round captures the mouse again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
-  there is one, else on Resume.
+  there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
+  an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
@@ -1770,8 +1771,12 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
   with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
   `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|resume|leave|quit>_preview.tscn`.
+  #204 adds an Esc pressed from the `welcomed` signal, before any `_process` drew the lobby: the Lobby tab (seen
+  failing without the fix, also under a slow `_process`); `screens_test.gd` holds `GameUi.open_esc`'s `screen_now`.
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
-  playtest.
+  playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
+  as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
+  tab shows.
 
 **Built in #168**, the follow-up of the one-PC playtest on `release/m4` (PR #167):
 - The spectate camera: the playtest saw it "at another point than the target's eyes". Headless it has no offset:
