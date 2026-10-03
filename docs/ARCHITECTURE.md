@@ -792,8 +792,10 @@ varying size, or widens it, makes every copy a full encoding (slower, never corr
 `voice_down_encoder_test`. Tests: `tests/unit/server/voice_relay_test.gd`, `voice_down_encoder_test.gd` (every copy
 against the codec for several speakers, ticks, frame sizes and seqs, and through `VoiceRelay` across the u16 wrap;
 seen failing on a planted wrong offset), `tests/unit/net/messages/wire_schema_test.gd` (the offsets),
-`tests/integration/server/host_session_voice_test.gd` and the leak test in `bots`, `bots-enet` and `bots --chaos`
-(§4.6).
+`tests/integration/server/host_session_voice_test.gd` (also a listener after one that is unreachable while the relay
+still routes it: its own stream's seq, seen failing when every copy took the first listener's seq or was sent
+unpatched; no public path makes such a listener today, so the test marks it by hand) and the leak test in `bots`,
+`bots-enet` and `bots --chaos` (§4.6).
 
 **Rate limits and malformed packets** (E7; the numbers are placeholders, "not a decision"). The accident they bound:
 a client bug sends an intent every frame; every command, and every `WorldQuery` answer it causes, stays in the command
