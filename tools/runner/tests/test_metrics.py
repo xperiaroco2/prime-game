@@ -440,7 +440,7 @@ class MetricsTest(unittest.TestCase):
 
     def test_the_percent_of_the_week_and_its_bracket(self) -> None:
         # The calibration reading (#304): $1,690 list, 40% of it cache reads, was 66% of the week; every way of
-        # counting the cache reads lands on it.
+        # counting the cache reads lands within a point of it.
         week = metrics.week_percent(1690.0, 676.0)
         self.assertAlmostEqual(week["percent"], 1690.0 / 25.5)
         self.assertAlmostEqual(week["bracket"][0], (1690.0 - 676.0) / 15.3, msg="the limit ignores cache reads")

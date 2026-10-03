@@ -78,7 +78,8 @@ WEEK_PERCENT_USD = 25.5
 # The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at: far from it, the bracket is the better figure.
 WEEK_READ_SHARE = 0.4
 # Whether the weekly limit counts cache reads, and at what weight w, is not measured yet (#307): the bracket gives
-# (list $ without cache reads + w x cache-read $) / k(w) at w = 0 and 0.5, each k fitted to the same 66% reading.
+# (list $ without cache reads + w x cache-read $) / k(w) at w = 0 and 0.5, k(w) from #302's fit over the readings
+# (15.3 / 17.8 / 20.3, 25.3 at w = 1).
 WEEK_BRACKET = ((0.0, 15.3), (0.5, 20.3))
 
 ROLES = {
