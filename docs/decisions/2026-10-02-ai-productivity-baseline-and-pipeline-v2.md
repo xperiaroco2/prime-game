@@ -4,6 +4,9 @@
   amendment A accepted (applied by #183), amendment B rejected (the release-branch ADR stays; one line on the
   tooling-track exception, #183). The technical choices below are the manager's under the engineer's delegation
   (#134, 2026-10-01 14:02 UTC). The proposed issues are #178 to #189 (P1 to P12).
+- **Amended 2026-10-04 (#304):** the calibration to the weekly limit. 1% of a Max 20x week is about $25.5 API list
+  (measured in #302), not the 4x figure first given here; every % of the week below reads 1.7x too low (the amendment
+  under "Calibration to the weekly limit" gives the corrected figures).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
@@ -38,9 +41,26 @@ printed in a tool result (deduplicated per agent), with its per-step seconds. Un
   number, not money spent: the plan's own weights are not published.
 
 **Calibration to the weekly limit.** On Max 5x about 0.44M final context took 1% of the weekly limit (#134,
-2026-10-02); M4's subagents cost $25 list per 1M final context, so 1% of a **Max 20x** week is about **$44 list**.
-M4 (subagents $307 plus its manager $59) is then about 8.3%, as the engineer estimated (8 to 9%); a median M4 task
-($24) is about 0.55% and a median M3 task ($14) about 0.3%.
+2026-10-02); M4's subagents cost $25 list per 1M final context, so 1% of a **Max 20x** week, taken as 4x Max 5x's,
+was put at 4 x $11 list (amended 2026-10-04, #304: it is about **$25.5 list**, see below). At that first figure M4
+(subagents $307 plus its manager $59) was about 8.3%, as the engineer estimated (8 to 9%); a median M4 task ($24) about
+0.55% and a median M3 task ($14) about 0.3%.
+
+**Amended 2026-10-04 (#304; measured in #302, phase 2, the report on #302 of 2026-10-04).** The weekly counter restarted
+at the plan change: get_usage read 96% (Max 5x) at 2026-10-02 10:28 UTC, 0% at 10:53 with the same reset time, and 66%
+at 2026-10-03 20:54 UTC. The API list $ of the engineer's Claude Code sessions (every checkout: the tracks, the art and
+the UI sessions) from 2026-10-02 10:28 to 2026-10-03 20:54 UTC (34.4 hours) is $1,689.9, cache reads about 40% of it:
+- 1% of a Max 20x week is about **$25.6 of full list $** (1,689.9 / 66; a least-squares fit over the readings gives
+  25.2); `metrics` uses **$25.5** (`WEEK_PERCENT_USD`).
+- Without cache reads it is **$15.3 per 1%** (1,012.1 / 66), the right rate only if the limit ignores cache reads.
+  Whether and how much it counts them (a weight w) is not measured: the weekly fit prefers w = 0, the 5-hour counter
+  suggests 0.3 to 0.75; #307 measures it. Until then `metrics` prints beside each % a bracket, (list $ without cache
+  reads + w x cache-read $) / k(w) for w = 0 and 0.5, k = 15.3 and 20.3.
+- The Max 20x weekly limit is therefore **2.1 to 2.2x Max 5x's, not 4x** (the 5-hour limit is about 3.9x).
+
+The % of the week this ADR gives at the first figure read 1.7x too low. At $25.5: M4 (subagents and manager, $366)
+about 14.4%; a median M4 task ($24) about 0.94% and a median M3 task ($14) about 0.55%; the twelve proposed tasks
+($250 to $350) about 10 to 14% of a week; a night audit lens ($10) about 0.4%. The text below keeps its first figures.
 
 ### The baseline (66 runs: 48 finished `issue-task` runs, 6 resumed ones, 1 unfinished, 4 `pr-rebase`, 7 others)
 
@@ -151,7 +171,8 @@ managers budget in (final context), which understates the cost of long agents.
 Principles for every item: each change is measured against this baseline with P1's `metrics`; no check is weakened,
 skipped or removed (root `CLAUDE.md`); every new workflow argument is optional and today's behaviour is its default,
 so other managers' launches and resumes stay the same; a change to a shared file lands between the other tracks'
-waves. Costs are API list $ per task unless said otherwise (1% of a Max 20x week is about $44). Items 1 to 4 ask
+waves. Costs are API list $ per task unless said otherwise (1% of a Max 20x week is about $25.5, amended 2026-10-04;
+the % figures below use the first figure, see "Calibration to the weekly limit"). Items 1 to 4 ask
 nothing of the humans beyond reviewing and merging their PRs; items 5 to 7 change how the humans work and are
 marked for the engineer.
 

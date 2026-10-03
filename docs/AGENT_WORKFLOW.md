@@ -870,12 +870,18 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
   as N, and the `test` shards that did not end with exit 0, #273), review findings by reviewer (a task's blockers and
   majors count only its diff reviewers', as in the baseline), the prompt cache after waits, manager sessions with their
-  % of a Max 20x week ($44 list per 1%, the ADR's calibration), and the other runs; `--ci N` adds CI from `gh` (the runs
-  of `ci.yml` in the window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its
-  summary of at most ten lines (time and API list $ per task and in total, the % of the week, the `verify` medians): the
-  manager pastes `metrics --since <wave start> --compact` into each wave comment. API list $ is a weight (one price
-  table in `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so
-  is an empty window, which also writes an empty report over an older one.
+  % of a Max 20x week, and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the window, and the jobs
+  and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten lines (time and API
+  list $ per task and in total, the % of the week, the `verify` medians): the manager pastes
+  `metrics --since <wave start> --compact` into each wave comment. The % of the week is at $25.5 list per 1% (#304: 66%
+  at 2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change; the pipeline v2 ADR's
+  amendment), with a bracket beside it: the limit counting cache reads at 0 to 50% ((list $ without cache reads, plus 0
+  or 0.5 times the cache-read $) / $15.3 or $20.3), until #307 measures that weight. The $25.5 was fitted where cache
+  reads were 40% of list $: the compact line prints the report's own share, and far from 40% the bracket is the better
+  figure. It covers only this checkout's sessions (the main checkout and its worktrees) that ran a workflow or that
+  `--session` names; the weekly counter counts every session of the account. API list $ is a weight (one price table in
+  `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
+  empty window, which also writes an empty report over an older one.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
   windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw
   before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`),

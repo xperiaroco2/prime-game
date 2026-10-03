@@ -431,10 +431,38 @@ class MetricsTest(unittest.TestCase):
         self.assertLessEqual(len(compact), 10)
         self.assertTrue(compact[0].startswith("metrics, the first transcript to 2026-10-02T11:00:00Z: 1 finished"))
         self.assertIn("#5 18 min $", compact[1])
-        self.assertTrue(any("% of a Max 20x week ($44 per 1%)" in line for line in compact))
+        # The fixture's cache reads are 1% of its list $, far from the 40% the rate was fitted at: the line says so.
+        self.assertIn("% of a Max 20x week: 0.6% at $25.5 per 1% (fit at 40% cache reads, here 1%); 1.0 to 0.7% if the "
+                      "limit counts cache reads at 0 to 50%", compact)  # fmt: skip
         self.assertTrue(any(line.startswith("local verify (agents): 1 runs, 1 red, median 271 s") for line in compact))
         self.assertEqual(compact[-1], "CI: 3 runs in the window; last 2 green: job 6.5 min median, verify 385 s")
         self.assertIn("## CI (GitHub Actions)", md)
+
+    def test_the_percent_of_the_week_and_its_bracket(self) -> None:
+        # The calibration reading (#304): $1,690 list, 40% of it cache reads, was 66% of the week; every way of
+        # counting the cache reads lands within a point of it.
+        week = metrics.week_percent(1690.0, 676.0)
+        self.assertAlmostEqual(week["percent"], 1690.0 / 25.5)
+        self.assertAlmostEqual(week["bracket"][0], (1690.0 - 676.0) / 15.3, msg="the limit ignores cache reads")
+        self.assertAlmostEqual(week["bracket"][1], (1690.0 - 676.0 + 0.5 * 676.0) / 20.3, msg="it counts them half")
+        self.assertEqual([round(v) for v in (week["percent"], *week["bracket"])], [66, 66, 67])
+        # The fixture: $14.99 list, $0.21 of it cache reads (Sonnet's 1M at $0.20 and Opus's 56.2k at $0.20 per 1M).
+        md, record, _compact = self.build()
+        read = 0.20 + (1000 + 1000 + 20000 + 20100 + 5000 + 8000 + 100 + 1000) * 0.20 / 1e6
+        self.assertAlmostEqual(record["week"]["read_usd"], read)
+        spent = record["week"]["usd"]
+        self.assertAlmostEqual(spent, sum(r["usd"] for r in record["runs"]) + 0.00868 + 0.0006)
+        self.assertAlmostEqual(record["week"]["percent"], spent / 25.5)
+        self.assertAlmostEqual(record["week"]["bracket"][0], (spent - read) / 15.3)
+        self.assertAlmostEqual(record["week"]["bracket"][1], (spent - read + 0.5 * read) / 20.3)
+        session = record["sessions"][0]
+        self.assertEqual((session["week_percent"], session["week_bracket"]), (record["week"]["percent"],
+                                                                              record["week"]["bracket"]))
+        text = "\n".join(md)
+        self.assertIn("| 1 | $0.00 | 3 | $15 | 2.03M | 0.6% (1.0 to 0.7%) |", text)
+        self.assertIn("at $25.5 list per 1%, fitted where cache reads were 40% of list $ (far from that share the "
+                      "bracket is the better figure); in brackets, the limit counting cache reads at 0 to 50% "
+                      "((list $ without cache reads + 0 or 0.5 x cache-read $) / $15.3 or $20.3).", text)  # fmt: skip
 
     def test_ci_from_gh(self) -> None:
         listed = [

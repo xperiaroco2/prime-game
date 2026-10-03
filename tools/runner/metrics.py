@@ -71,9 +71,16 @@ PRICES = {
     "claude-haiku-4-5": (1.0, 1.25, 2.0, 0.10, 5.0),
 }
 USD_KEYS = ("usd_input", "usd_cache_write", "usd_cache_read", "usd_output")
-# 1% of a Max 20x week in API list $: on Max 5x about 0.44M final context took 1% of the week (#134, 2026-10-02) and
-# M4's subagents cost $25 list per 1M final context, so 1% of the 4x larger week is about $44 (the ADR's calibration).
-WEEK_PERCENT_USD = 44.0
+# 1% of a Max 20x week in API list $ (#304, measured in #302): Max 20x; 66% at 2026-10-03 20:54 UTC = $1,690 list since
+# the counter restarted at the plan change (2026-10-02 about 10:30 UTC); cache reads are 40% of list $. The ADR's
+# first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x.
+WEEK_PERCENT_USD = 25.5
+# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at: far from it, the bracket is the better figure.
+WEEK_READ_SHARE = 0.4
+# Whether the weekly limit counts cache reads, and at what weight w, is not measured yet (#307): the bracket gives
+# (list $ without cache reads + w x cache-read $) / k(w) at w = 0 and 0.5, k(w) from #302's fit over the readings
+# (15.3 / 17.8 / 20.3, 25.3 at w = 1).
+WEEK_BRACKET = ((0.0, 15.3), (0.5, 20.3))
 
 ROLES = {
     "implement": "implementer",
@@ -219,6 +226,27 @@ def fresh(t: dict) -> float:
 
 def usd(t: dict) -> float:
     return sum(t.get(k, 0) for k in USD_KEYS)
+
+
+def week_percent(spent: float, read: float) -> dict:
+    """% of a Max 20x week for `spent` API list $ of which `read` is cache reads: at WEEK_PERCENT_USD, and the
+    bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 0 and at 50%)."""
+    return {"percent": spent / WEEK_PERCENT_USD, "bracket": [(spent - read + w * read) / k for w, k in WEEK_BRACKET]}
+
+
+def week_rate() -> str:
+    """The conversion, for a report's note on its % of the week."""
+    (w0, k0), (w1, k1) = WEEK_BRACKET
+    return (f"${WEEK_PERCENT_USD} list per 1%, fitted where cache reads were {WEEK_READ_SHARE:.0%} of list $ (far from "
+            f"that share the bracket is the better figure); in brackets, the limit counting cache reads at "
+            f"{w0 * 100:g} to {w1:.0%} ((list $ without cache reads + {w0:g} or {w1:g} x cache-read $) / "
+            f"${k0} or ${k1})")
+
+
+def fmt_week(week: dict) -> str:
+    """'6.3% (5.8 to 6.1%)': the % at WEEK_PERCENT_USD, then the bracket."""
+    lo, hi = week["bracket"]
+    return f"{week['percent']:.1f}% ({lo:.1f} to {hi:.1f}%)"
 
 
 # --- transcripts --------------------------------------------------------------------------------------------------
@@ -761,6 +789,15 @@ def run_usd(r: dict) -> float:
     return sum(usd(x["data"]["tokens"]) for x in r["agents"] if x["data"])
 
 
+def total_week(counted: list[dict], managers: list[dict]) -> dict:
+    """Every counted run and every manager's own lines and hand-run subagents: API list $, its cache reads and the %
+    of a Max 20x week (week_percent)."""
+    spent = sum(run_usd(r) for r in counted) + sum(m["manager_usd"] + m["hand_usd"] for m in managers)
+    read = sum(x["data"]["tokens"].get("usd_cache_read", 0) for r in counted for x in r["agents"] if x["data"])
+    read += sum(m["manager_read_usd"] + m["hand_read_usd"] for m in managers)
+    return {"usd": spent, "read_usd": read, **week_percent(spent, read)}
+
+
 def build(
     data: dict, history: list[dict], ci: dict | None, since: float | None, until: float
 ) -> tuple[list[str], dict, list[str]]:
@@ -790,11 +827,13 @@ def build(
     md += other_section(counted)
     if ci is not None:
         md += ci_section(ci)
-    compact = compact_lines(tasks, counted, by_row, history, ci, managers, window)
+    week = total_week(counted, managers)
+    compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window)
     record = {
         "since": iso(since) or None,
         "until": iso(until),
         "sessions": managers,
+        "week": week,
         "stages": stages,
         "tasks": tasks,
         "runs": [{k: v for k, v in r.items() if k != "agents"} | {"usd": run_usd(r)} for r in counted],
@@ -1031,16 +1070,21 @@ def manager_rows(counted: list[dict], sessions: list[dict]) -> list[dict]:
         man = s["manager"] or {}
         mtok = man.get("tokens") or {}
         hand_usd = sum(usd(h["data"]["tokens"]) for h in s["hand"])
+        hand_read = sum(h["data"]["tokens"].get("usd_cache_read", 0) for h in s["hand"])
         sub = [x["data"] for r in counted if r["sid"] == s["id"] for x in r["agents"] if x["data"]]
         sub_tok: Counter = Counter()
         for d in sub:
             sub_tok.update(d["tokens"])
         spent = usd(mtok) + hand_usd + usd(sub_tok)
+        read = mtok.get("usd_cache_read", 0) + hand_read + sub_tok.get("usd_cache_read", 0)
+        week = week_percent(spent, read)
         managers.append({
             "session": s["id"], "label": s["label"], "title": s["title"], "model": man.get("model"),
-            "manager_usd": usd(mtok), "manager_fresh": fresh(mtok), "hand": len(s["hand"]), "hand_usd": hand_usd,
+            "manager_usd": usd(mtok), "manager_read_usd": mtok.get("usd_cache_read", 0), "manager_fresh": fresh(mtok),
+            "hand": len(s["hand"]), "hand_usd": hand_usd, "hand_read_usd": hand_read,
             "runs": sum(1 for r in counted if r["sid"] == s["id"]), "subagent_usd": usd(sub_tok),
-            "subagent_ctx": sum(d["last_ctx"] for d in sub), "week_percent": spent / WEEK_PERCENT_USD,
+            "subagent_ctx": sum(d["last_ctx"] for d in sub), "read_usd": read,
+            "week_percent": week["percent"], "week_bracket": week["bracket"],
         })
     return managers
 
@@ -1051,12 +1095,11 @@ def manager_section(managers: list[dict], other_sessions: int) -> list[str]:
     rows = [
         [m["label"], m["title"] or "", fmt_usd(m["manager_usd"]), fmt_tok(m["manager_fresh"]), m["model"] or "",
          m["hand"], fmt_usd(m["hand_usd"]), m["runs"], fmt_usd(m["subagent_usd"]), fmt_tok(m["subagent_ctx"]),
-         f"{m['week_percent']:.1f}%"]
+         fmt_week({"percent": m["week_percent"], "bracket": m["week_bracket"]})]
         for m in managers
     ]
     md = ["## Manager sessions (their own lines and hand-run subagents in the window)", "", table(head, rows), "",
-          f"% of a Max 20x week: manager, hand-run and workflow subagents together at ${WEEK_PERCENT_USD:.0f} list per "
-          "1% (the ADR's calibration).", ""]
+          f"% of a Max 20x week: manager, hand-run and workflow subagents together at {week_rate()}.", ""]
     if other_sessions:
         md += [f"{other_sessions} other sessions of this checkout ran no workflow or have nothing in the window "
                "(name one with --session to see it).", ""]
@@ -1092,7 +1135,7 @@ def ci_section(ci: dict) -> list[str]:
 
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
-    managers: list[dict], window: str,
+    managers: list[dict], week: dict, window: str,
 ) -> list[str]:
     """At most ten lines for a wave comment: time and API list $ per task and in total, the % of the week, verify."""
     other = [r for r in counted if r["kind"] != "issue-task" or not r["finished"]]
@@ -1110,8 +1153,13 @@ def compact_lines(
     man_usd = sum(m["manager_usd"] + m["hand_usd"] for m in managers)
     spent = task_usd + other_usd + man_usd
     lines.append(f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
-                 f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}, {spent / WEEK_PERCENT_USD:.1f}% of a "
-                 f"Max 20x week (${WEEK_PERCENT_USD:.0f} per 1%)")
+                 f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
+    (w0, _k0), (w1, _k1) = WEEK_BRACKET
+    lo, hi = week["bracket"]
+    share = week["read_usd"] / week["usd"] if week["usd"] else 0.0
+    lines.append(f"% of a Max 20x week: {week['percent']:.1f}% at ${WEEK_PERCENT_USD} per 1% (fit at "
+                 f"{WEEK_READ_SHARE:.0%} cache reads, here {share:.0%}); {lo:.1f} to {hi:.1f}% if the limit counts "
+                 f"cache reads at {w0 * 100:g} to {w1:.0%}")
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
