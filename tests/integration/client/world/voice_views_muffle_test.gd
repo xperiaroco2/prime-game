@@ -2,10 +2,11 @@ extends GdUnitTestSuite
 ## VoiceViews' occlusion (the M5 ADR §1.6 and §3 item 8, E42 (a), D13 (a); M5-7) against fixture
 ## walls in the listener's own physics space: one ray per audible speaker per physics frame from
 ## the ears to the mouth, on the world layer only (a box on the LIVING or DOWNED layer, as a
-## player's capsule is, muffles nothing); a hit muffles (8 dB on the speaker, the muffled Voice
-## bus), eased in and back out over 100 ms; a speaker heard again after a silence starts at its
-## ray's answer; the muffle never drops a frame. The voices' clock stays still, so the frames held
-## keep each speaker audible; the physics frames are the engine's.
+## player's capsule is, muffles nothing, nor does a railing below the mouth); a hit muffles (8 dB
+## on the speaker, the muffled Voice bus), eased in and back out over 100 ms; a speaker heard
+## again after a silence starts at its ray's answer; the muffle never drops a frame. The voices'
+## clock stays still, so the frames held keep each speaker audible; the physics frames are the
+## engine's.
 
 const World := preload("res://tests/integration/client/world/voice_test_world.gd")
 const TALKER := World.TALKER
@@ -58,6 +59,20 @@ func test_a_speaker_in_the_open_is_not_muffled() -> void:
 	# The wall stands aside, not between.
 	_world.add_box(Vector3(3, 1.5, -1.5), WALL_SIZE)
 	var speaker := await _talking({TALKER: Vector3(0, 0, -3)})
+	assert_float(_voices.muffle_of(TALKER).amount).is_equal(0.0)
+	assert_float(speaker.extra_db).is_equal(0.0)
+	assert_str(String(speaker.bus)).is_equal(String(AudioBuses.VOICE))
+
+
+func test_a_railing_below_the_mouth_muffles_nothing() -> void:
+	# A waist-high railing between: it hides the talker's feet from the ears, not its mouth, where
+	# the ray aims.
+	_world.add_box(Vector3(0, 0.5, -1.5), Vector3(4, 1.0, 0.2))
+	var speaker := await _talking({TALKER: Vector3(0, 0, -3)})
+	var space := _world.get_world_3d().direct_space_state
+	var feet := _world.avatars.body_of(TALKER).global_position
+	assert_bool(Muffle.blocked(space, EARS, feet)).is_true()
+	await _physics(3)
 	assert_float(_voices.muffle_of(TALKER).amount).is_equal(0.0)
 	assert_float(speaker.extra_db).is_equal(0.0)
 	assert_str(String(speaker.bus)).is_equal(String(AudioBuses.VOICE))
