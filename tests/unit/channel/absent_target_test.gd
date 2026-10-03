@@ -5,6 +5,8 @@ extends GdUnitTestSuite
 ## TargetDowned or ItemOnGround before them, which refuse first), so its own guard decides: a
 ## target that does not exist is out of reach or out of sight, never in it. The refusal goes to the
 ## sender alone and the rule's effect does not run.
+## Parked in tests/unit/channel/ only because #274 owned tests/unit/life/ and tests/unit/items/
+## when #271 added it: it belongs there, beside the conditions' own suites.
 
 const P1 := 1
 const P2 := 2
@@ -40,7 +42,8 @@ func test_the_same_rules_pass_for_a_target_who_is_there() -> void:
 func test_in_sight_refuses_an_item_that_is_not_there() -> void:
 	var mode := FixtureItemModes.basic()
 	var effects: Array[RuleEffect] = [FixtureNote.of(RAN)]
-	mode.actions[0] = FixtureModes.rule(Intents.PICK_UP, [InSight.new()], effects)
+	var conditions: Array[Condition] = [InSight.new()]
+	_replace_rule(mode, Intents.PICK_UP, conditions, effects)
 	var game := FixtureItemModes.in_round(mode, [P1, P2])
 	FixtureItemModes.stand(game, P1, Vector3.ZERO)
 	FixtureModes.send(game, Intents.PICK_UP, P1, {"item": NO_ITEM})
@@ -58,14 +61,25 @@ func _raising_with(condition: Condition) -> Match:
 	var mode := FixtureCombatModes.raising()
 	var effects: Array[RuleEffect] = [FixtureNote.of(RAN)]
 	var conditions: Array[Condition] = [condition]
-	for i in mode.actions.size():
-		if mode.actions[i].trigger == Intents.RAISE:
-			mode.actions[i] = FixtureModes.rule(Intents.RAISE, conditions, effects)
+	_replace_rule(mode, Intents.RAISE, conditions, effects)
 	var game := FixtureCombatModes.in_round(mode, [P1, P2])
 	assert_array(Array(game.refusals)).is_empty()
 	FixtureItemModes.stand(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, Vector3(0, 0, 1))
 	return game
+
+
+## Replaces the mode's action on `trigger` (which must be there) with one of `conditions` and
+## `effects`.
+func _replace_rule(
+	mode: GameMode, trigger: StringName, conditions: Array[Condition], effects: Array[RuleEffect]
+) -> void:
+	var replaced := 0
+	for i in mode.actions.size():
+		if mode.actions[i].trigger == trigger:
+			mode.actions[i] = FixtureModes.rule(trigger, conditions, effects)
+			replaced += 1
+	assert_int(replaced).is_equal(1)
 
 
 func _assert_refused(game: Match, reason: StringName) -> void:
