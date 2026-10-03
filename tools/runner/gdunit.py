@@ -119,14 +119,15 @@ def clip(text: str, cap: int = MESSAGE_CAP) -> str:
 
 
 def failed_cases(path: Path) -> list[dict[str, object]]:
-    """Each failure or error of a results.xml: {test: "<suite>::<test>", message: the failure on one line}."""
+    """Each failed test of a results.xml: {test: "<suite>::<test>", message: its first failure on one line}. A test
+    with several failed asserts takes one entry, so it never pushes other tests past RECORD_CAP."""
     try:
         root = ET.parse(path).getroot()
     except (OSError, ET.ParseError):
         return []
     found: list[dict[str, object]] = []
     for case in root.iter("testcase"):
-        for node in [*case.findall("failure"), *case.findall("error")]:
+        for node in [child for child in case if child.tag in ("failure", "error")][:1]:
             # The body is the assertion over several lines ("Expecting:", " 3", " but was", " 2"), then the stack
             # ("at '<test>' in <file>:<line>"); the message attribute only names the line.
             lines: list[str] = []

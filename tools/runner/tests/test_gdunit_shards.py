@@ -294,6 +294,16 @@ class HistoryRecordTest(Fixture):
         )
         self.assertEqual(gdunit.failed_cases(path), [{"test": "p_test::test_x", "message": "Expecting: 3 but was 2"}])
 
+    def test_a_test_with_several_failed_asserts_takes_one_entry_with_its_first(self) -> None:
+        path = self.root / "r.xml"
+        path.write_text('<testsuites><testsuite name="s">'
+                        '<testcase name="t" classname="s"><failure message="a">first</failure>'
+                        '<failure message="b">second</failure><error message="c">third</error></testcase>'
+                        '<testcase name="u" classname="s"><failure message="d">other</failure></testcase>'
+                        "</testsuite></testsuites>", encoding="utf-8")  # fmt: skip
+        self.assertEqual(gdunit.failed_cases(path), [{"test": "s::t", "message": "first"},
+                                                     {"test": "s::u", "message": "other"}])  # fmt: skip
+
 
 class OneProcessTest(Fixture):
     def test_named_paths_run_in_one_process_as_before(self) -> None:
