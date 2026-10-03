@@ -99,6 +99,22 @@ func test_a_dying_speaker_is_faded_and_flushed() -> void:
 	assert_int(speaker.jitter.received).is_equal(heard)
 
 
+func test_the_own_death_records_the_flush_of_a_speaker_not_heard_yet() -> void:
+	# OTHER has a body but no frame yet, so no speaker: its frames stamped before the own death and
+	# delivered after the respawn never play all the same (the M5 ADR §3 item 3).
+	_world.place({TALKER: Vector3(0, 0, -3), OTHER: Vector3(2, 0, -3)})
+	await _drawn()
+	_world.speak(TALKER, 3, 10)
+	assert_object(_voices.speaker_of(OTHER)).is_null()
+	_world.event(&"Died", {"peer": OWN, "position": Vector3.ZERO})
+	assert_int(_voices.flushed_at(OTHER)).is_equal(10)
+	_world.event(&"Respawned", {"peer": OWN, "position": Vector3.ZERO})
+	_world.speak(OTHER, 3, 10)
+	assert_object(_voices.speaker_of(OTHER)).is_null()
+	_world.speak(OTHER, 3, 11)
+	assert_int(_voices.speaker_of(OTHER).jitter.received).is_equal(3)
+
+
 func test_a_phase_that_hears_nobody_flushes_every_speaker_and_the_cutoff_follows_the_phase(
 ) -> void:
 	var speaker := await _talking()

@@ -172,8 +172,14 @@ func fade(peer: int) -> void:
 		speaker.fade_out(now_usec())
 
 
-## Flushes every speaker at once, recording the tick for each.
+## Flushes every speaker at once, recording the tick for every other peer in the roster, also one
+## with no speaker yet (its first frames may still be on the way) or whose speaker went with its
+## body.
 func flush_all() -> void:
+	if model != null:
+		for peer: int in model.roster:
+			if peer != model.own_peer:
+				_record_flush(peer)
 	for peer: int in _speakers.keys():
 		_record_flush(peer)
 		var speaker := speaker_of(peer)
