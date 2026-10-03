@@ -874,9 +874,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
   as N, and the `test` shards that did not end with exit 0, #273), review findings by reviewer (a task's blockers and
   majors count only its diff reviewers', as in the baseline), the prompt cache after waits, manager sessions with their
-  % of a Max 20x week, and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the window, and the jobs
-  and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten lines (time and API
-  list $ per task and in total, the % of the week, the `verify` medians): the manager pastes
+  % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list
+  $, by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its
+  last call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in
+  the window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at
+  most ten lines (time and API list $ per task and in total, the % of the week, the `verify` medians): the manager
+  pastes
   `metrics --since <wave start> --compact` into each wave comment. The % of the week is at $25.5 list per 1% (#304: 66%
   at 2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change; the pipeline v2 ADR's
   amendment), with a bracket beside it: the limit counting cache reads at 0 to 50% ((list $ without cache reads, plus 0
