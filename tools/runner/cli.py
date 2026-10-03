@@ -187,6 +187,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", help="folder for metrics.md and metrics.json (default tools/out/metrics)")
     p.add_argument("--compact", action="store_true", help="print only the summary of at most ten lines (wave comments)")
 
+    p = sub.add_parser(
+        "wave",
+        help="a manager's runs and handover args from its transcript and the journals (a wave comment's body; "
+        "posts nothing)",
+    )
+    what = p.add_mutually_exclusive_group(required=True)
+    what.add_argument("--since", help="ISO 8601 time: write the wave comment's body, with the runs finished since it")
+    what.add_argument("--args", type=int, metavar="N", help="print the args of issue N's latest launch as JSON")
+    p.add_argument("--session", help="the manager session's id or its prefix (default: this Claude Code session)")
+    p.add_argument("--workflow", metavar="NAME", help="--args: only launches of this workflow (issue-task, pr-rebase)")
+    p.add_argument(
+        "--out", help="the body's file (default tools/out/wave/wave-<session8>.md); with --args, also the JSON's"
+    )
+
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
 
@@ -356,6 +370,12 @@ def main(argv: list[str] | None = None) -> int:
 
             return metrics.main(
                 args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact
+            )
+        if args.command == "wave":
+            from . import wave
+
+            return wave.main(
+                session=args.session, since=args.since, args_issue=args.args, out=args.out, workflow=args.workflow
             )
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
