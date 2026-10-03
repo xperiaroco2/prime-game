@@ -87,6 +87,9 @@ func apply_microphone() -> void:
 func pick_device(device: String) -> void:
 	settings.device = device
 	froze = ""
+	# A pick that opens nothing (Off, no codec) must not leave the old mark for the next start; a
+	# device that opens sets its own mark (mark_changed).
+	settings.opening = ""
 	settings.write()
 	sender.close()
 	apply_microphone()

@@ -67,6 +67,24 @@ func test_a_mark_left_by_a_frozen_start_keeps_the_microphone_closed_until_a_pick
 	assert_str(_saved().device).is_equal("Microphone Array")
 
 
+func test_a_pick_that_opens_nothing_still_clears_the_mark() -> void:
+	var settings := UserSettings.new(PATH)
+	settings.opening = "Microphone Array"
+	settings.mode = UserSettings.Mode.OFF
+	var control := _control(settings)
+	var mic := _mic(control)
+	control.start()
+	control.pick_device("Headset Microphone")
+	assert_int(mic.opens).is_equal(0)
+	assert_str(_saved().opening).is_empty()
+	# The next start opens the pick once voice is on again.
+	var again := _control(_saved())
+	var again_mic := _mic(again)
+	again.start()
+	again.set_mode(UserSettings.Mode.VOICE_ACTIVITY)
+	assert_str(again_mic.opened_device).is_equal("Headset Microphone")
+
+
 func test_off_closes_only_the_own_microphone_and_is_saved() -> void:
 	var control := _control(UserSettings.new(PATH))
 	var mic := _mic(control)
