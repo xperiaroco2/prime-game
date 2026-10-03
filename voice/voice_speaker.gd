@@ -8,7 +8,8 @@ extends AudioStreamPlayer3D
 ## frames the host sent, gives it the phase's cutoff and fades or flushes it: the speaker itself
 ## never reads the phase, the life fold or a session (E46 (a): voice/ uses nothing outside
 ## itself). Godot measures the distance from the current AudioListener3D (the ears), and mixes a
-## 3D player only while the world has a Camera3D (checked on 4.7.2 headless).
+## 3D player only while the world has a Camera3D (observed on 4.7.2 headless, not in the docs;
+## voice_views_audio_test's far camera).
 ##
 ## A fade (fade_out()) lowers the player's volume to silence over VoiceJitter.FADE_USEC, then the
 ## jitter says FLUSH and the playback's queue is emptied, so the audio already queued does not

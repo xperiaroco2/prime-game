@@ -1774,12 +1774,15 @@ follows the M5 ADR's checklist (its §3; §6 below).
 - `client/ui/`: the debug overlay's voice lines, one per speaker by index of first arrival (`DebugOverlay.voice_text`).
 - Tests: `tests/integration/client/world/voice_views_test.gd` (the rules over a hand-folded model, each seen failing on
   a plant: the dead check, the flush at the own `Died` and at a `KnockedDown`, the late frame stamped before a
-  knockdown and delivered after it and after a revive, the speaker's life, the ears' distance),
+  knockdown and delivered after it and after a revive, the speaker's life, the ears' distance; a downed listener
+  still hearing the living, the own death recording the flush of a peer with no speaker yet),
   `voice_views_audio_test.gd` (the fake codec through real players and the Voice bus under the Dummy driver; seen
   failing without the flush and without `max_distance`), `tests/integration/client/life/life_ears_test.gd` (seen
-  failing with the ears left at the camera, and with world sounds measured from it),
-  `tests/unit/client/life/ears_test.gd`, `tests/unit/client/audio/audio_buses_test.gd`, the overlay's voice lines in
-  `debug_overlay_test.gd`, and `Game`'s buses and voices in `game_loop_test.gd`.
+  failing with the ears left at the camera or unturned, a dead player's ears off its body, and world sounds measured
+  from the camera), `tests/integration/voice/voice_speaker_test.gd` (a frame that does not fit the playback dropped
+  and counted), `tests/unit/client/life/ears_test.gd`, `tests/unit/client/audio/audio_buses_test.gd`, the overlay's
+  voice lines in `debug_overlay_test.gd`, and `Game`'s buses, voices and their reset at a session's end in
+  `game_loop_test.gd`.
 - Not headless: how a voice sounds (the direction, the fade to 8 m, no pop at the edge, the downed hearing from the
   body); the one-PC listening test of the M5 ADR's §6, after M5-6.
 
@@ -2045,10 +2048,10 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     with the current camera: the own eye (living), the own body's head where it lies (downed: the standing eye carried
     through `LifeLooks.lying`, near the floor; never the downed camera), a spectated living target's eye, a downed
     target's head, the own body without a target. Godot measures a 3D player's distance from the current
-    `AudioListener3D` but mixes one only while the world has a `Camera3D` (checked on 4.7.2 headless; the game always
-    has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3 (debug builds) lists each
-    speaker by an index of first arrival with its queue, prebuffer, frames, late, lost, concealed, stale, underruns,
-    overflow and decode µs; no peer id or name. Tests: §4.7's "Built in M5-5".
+    `AudioListener3D` but mixes one only while the world has a `Camera3D` (observed on 4.7.2 headless, not in the
+    docs; the game always has one). `WorldSounds` measures its 12 m from the ears too (E40's amendment of E33). F3
+    (debug builds) lists each speaker by an index of first arrival with its queue, prebuffer, frames, late, lost,
+    concealed, stale, underruns, overflow and decode µs; no peer id or name. Tests: §4.7's "Built in M5-5".
   - **Buses and the mix** (E43, D15): `AudioBuses` makes Voice, Effects (the world sounds) and Music, sending to
     Master, in code (**built in M5-5**: `AudioBuses.ensure()` at `Game._ready`, each bus once; the world sounds on
     Effects, the lift music on Music, its −14 dB now the bus default); four sliders, Master, Voice, Effects and Music

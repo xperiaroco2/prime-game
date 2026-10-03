@@ -92,8 +92,8 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Several `Game`s in one test each go in a `SubViewport` with `own_world_3d` (one physics space pushes each player
   off its spot), and a wait for a screen also waits for `game.ui.screen` to show it: `Game._process` sets the
   screens and the player's input flags, and under load several physics steps run before it (#225).
-- Audio mixes headless (the Dummy driver; the fake codec, real players and buses, the bus peak): a 3D player mixes
-  only while the world has a `Camera3D`, and the meter updates in bursts, so wait with a bound, never a fixed sleep.
+- Audio mixes headless in real time (Dummy driver, fake codec, real players and buses, bus peak), a 3D player only with
+  a `Camera3D` in the world (observed on 4.7.2, not in the docs): bounded real-time waits there await tests.md's OK.
 - Key events do run headless: `Input.parse_input_event(event)` then `Input.flush_buffered_events()` reaches
   `_input`, `_unhandled_input` and the action states (#169's `esc_menu_input_test.gd`); release every key a test
   holds. The mouse mode does not (headless keeps none): give `Game` a `MousePointer` that remembers. How the UI
