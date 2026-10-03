@@ -111,6 +111,21 @@ func test_the_debug_tools_show_only_in_a_debug_build() -> void:
 	assert_bool(panel.mute_check.button_pressed).is_false()
 
 
+## Picking the microphone the list already shows is a pick: the Windows default before any pick
+## (it ends the lobby hint) and a device whose opening froze the game (it clears the #22 mark).
+func test_picking_the_shown_microphone_again_is_a_pick() -> void:
+	var panel: VoicePanel = auto_free(VoicePanel.new())
+	add_child(panel)
+	panel.device_picked.connect(func(device: String) -> void: _got.append(device))
+	var shown := _shown()
+	shown.device = ""
+	panel.show_facts(shown)
+	assert_int(panel.device_button.selected).is_equal(0)
+	# The way a click in the list reaches the button.
+	panel.device_button.get_popup().index_pressed.emit(0)
+	assert_array(_got).contains_exactly([VoiceMicrophone.DEFAULT_DEVICE])
+
+
 func test_each_change_sends_its_signal_and_showing_sends_none() -> void:
 	var panel: VoicePanel = auto_free(VoicePanel.new())
 	# A Range out of the tree sends no value_changed.

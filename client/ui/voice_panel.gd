@@ -97,6 +97,9 @@ func _init() -> void:
 	notice_label.theme_type_variation = &"Shortfalls"
 	add_child(notice_label)
 	add_child(microphone_box)
+	# Choosing the item already shown counts: the Windows default before any pick, or a device
+	# whose opening froze the game, is picked by choosing it again.
+	device_button.allow_reselect = true
 	device_button.item_selected.connect(_on_device)
 	microphone_box.add_child(UiParts.labelled("Microphone", device_button))
 	for mode: UserSettings.Mode in MODE_NAMES:
