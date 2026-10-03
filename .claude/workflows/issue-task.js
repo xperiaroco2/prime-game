@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, efforts?, models?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, efforts and models add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, bounded_waits, efforts and models add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major)' },
@@ -45,6 +45,10 @@ export const meta = {
 //                 implementer runs `tools\run.cmd playcheck <scenario>` (P9, #186) and returns the PNGs, the code
 //                 reviewer reads them, and the rules line on Godot windows also allows playcheck. Missing on the
 //                 task's branch: reported in the result and the PR. +0 agents
+//   bounded_waits true: the implementer, the test reviewer and the full publisher run verify, publish and mutants in
+//                 the background and poll them with `tools\run.cmd wait` (#303), and wait on CI in calls of at most
+//                 240 s, so no tool call outlasts their 5-minute prompt cache; the publisher skips a standalone
+//                 verify that `wait --verified` shows done. Without `wait` on the branch: the foreground. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
 //                 falls back to today's default), plan (falls back to implement's), plan_review, review, netcode,
 //                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'). review
@@ -76,7 +80,7 @@ const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BAS
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
 // kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'efforts', 'models']
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
 const flag = k => {
@@ -92,6 +96,7 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 }
 // true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
+const BOUNDED = flag('bounded_waits')
 const V = A.visual
 const SCENES = V === true
   ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'
@@ -206,6 +211,16 @@ const PUB = {
 // human_steps (#266): each step the engineer takes himself comes back with its whole command, which the manager copies
 // into the chat as is (root CLAUDE.md, "Talking to the humans"; docs/interventions/2026-10-03-engineer-commands-in-the-chat.md).
 const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
+// bounded_waits (#303): one paragraph for each agent that runs verify, publish, mutants or a CI watch, placed after the
+// steps it replaces. pr-rebase.js carries the same text (test_workflows.py compares the two).
+const waits = publishes => [
+  'Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 240 s: bound it with the shell\'s `timeout` or `wait --max`, never only with the tool\'s timeout.',
+  `- Start each one in the Bash tool with run_in_background true (timeout 3600000 for mutants), with a NEW log under ${SCRATCH}/ of your scratchpad for each run (verify-1.log, verify-2.log, publish-1.log, ...): \`cd ${WTB} && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>\` (<command>: \`verify\`, \`publish\` with the arguments given above, or \`mutants <spec.json>\`).`,
+  `- Then wait in separate calls of \`cd ${WTB} && tools/run.sh wait <log>\` in the Bash tool (in PowerShell \`tools\\run.cmd wait <log>\`), with the tool's timeout set to 300000 (its default of 120000 cuts a 240 s wait short). Exit 124 with a \`wait: still running\` line: call wait again, and never start the job again while it runs. Any other exit is the job's own, its summary printed above a \`wait: ... finished: exit=<n>\` line (verify and publish: 0 is green; mutants: its codes as above). Exit 2 with a \`wait: no log\` or \`wait: --max\` line is wait's own error (check the log path), never mutants' exit 2. A log that has not grown for 10 minutes: check the background task.`,
+  `- CI: \`cd ${WTB} && timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?\` in the Bash tool (in PowerShell \`timeout\` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red.`,
+  publishes ? '- Before `publish`, run `tools/run.sh wait --verified`: exit 0 (the newest verify passed at HEAD with a clean tree) means no standalone `verify` first, because `publish` runs `verify` itself; after any new commit, verify as before.' : '',
+  '- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.',
+].filter(Boolean).join('\n')
 // The pipeline v2 schemas.
 const STRINGS = { type: 'array', items: { type: 'string' } }
 const PLAN_SCHEMA = {
@@ -311,6 +326,7 @@ const impl = await agent([
   planned ? `Plan review (plan_review): a plan agent planned this task and a fresh reviewer critiqued the plan; neither changed the worktree. Build from the plan, changed where the critique is right: settle each blocker and major point before you build, and say in decisions how you settled each critique finding, or why it is wrong.\n\nThe plan: ${JSON.stringify(planned.plan)}\n\nThe critique: ${JSON.stringify(planned.critique)}` : '',
   'Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.',
   '`tools\\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree\'s run at the same time (a busy ENet port, a timeout under CPU load), run it once more before debugging.',
+  BOUNDED ? waits(false) : '',
   VISUAL ? `Visual check (visual): once verify is green, run \`tools\\run.cmd playcheck <scenario>\` in the worktree for each of ${SCENES}, one call per scenario (off-screen windows like \`shot\`; the PNGs land under tools/out/playcheck/<scenario>/). Read each PNG (Read shows images) and fix what is wrong before you finish. Return in playcheck the scenarios, the exit codes and each PNG's absolute path. If the command is missing on this branch (P9, #186, not merged into its base yet), return playcheck.available false with that in notes: the run goes on without screenshots.` : '',
   'Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.',
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`. verify_tail: the lines from "verify summary" to the end.`,
@@ -387,6 +403,7 @@ if (impl.verify_green) {
         `3. Write each spec (its format: \`tools\\run.cmd mutants --help\`) under ${SCRATCH}/ of your scratchpad. The rules \`mutants\` enforces: a mutant may not touch a \`class_name\` or \`extends\` line (the scratch tree is imported once, before the mutants), and its \`original\` must start exactly once on its 1-based \`line\`. Run ONE mutant per \`tools\\run.cmd mutants <spec.json>\` call (a foreground call dies at 600 s), or start it in the background and wait for it. Each test run (the baseline's and the mutant's) times out after \`--seconds\` (default 300), and a timeout makes the mutant error. Exit 0: the run completed, whatever the results; 1: an invalid spec or a run that could not start or finish (a dirty worktree, another mutants run in the same checkout, a failed import, a crash): fix the spec, else report the FAIL lines in notes; 2: its scratch worktree could not be removed, or the task's \`git status\` changed during the run: run no more mutants, set exit_2 true and put what \`git worktree list\` and \`git status\` show in notes.`,
         '4. Each survived mutant is a finding: major when the fault breaks an acceptance criterion or an invariant (a leak, an unvalidated intent, a wrong rule) and no test caught it, else minor; the file and line of the mutant, the problem, and as the fix the test that would kill it. A mutant that changes no behaviour is equivalent, not a finding. At the end confirm that `git status` in the worktree is unchanged.',
       ].join('\n'),
+      ...(BOUNDED ? [waits(false)] : []),
       `The implementer reported: ${JSON.stringify(impl)}`,
       `Fresh reviewers found: ${JSON.stringify(reviews)}`,
       'Return the structured result: every mutant you ran in mutants, each with its result (killed, survived, error or equivalent) and exit code. A mutant that a stopped run lists as `not run` is reported as error, with why in notes.',
@@ -468,6 +485,7 @@ const pub = stoppedByMutants
       `- The handoff comment on #${N} (\`gh issue comment ${N} --body-file <file>\`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer${DESIGN ? ', and the proposed issues in full' : ''}.`,
       `- \`tools\\run.cmd board move ${N} in-review\`.`,
     ].join('\n'),
+    BOUNDED ? waits(true) : '',
     `Task notes from the manager (for the PR's merge order and the handoff):\n${A.notes}${A.coord ? '\n\n' + A.coord : ''}`,
     HUMAN_STEPS,
     'Return the structured result.',

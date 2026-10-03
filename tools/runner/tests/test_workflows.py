@@ -500,6 +500,7 @@ class PipelineV2Test(unittest.TestCase):
             {"skeptic": "yes"},
             {"skeptic": 0.5},
             {"second_review": "true"},
+            {"bounded_waits": "yes"},
         )
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
@@ -757,11 +758,90 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("`spectate`", calls(unreported, "implement")[0]["prompt"])
         self.assertIn("the implementer reported no playcheck run", calls(unreported, "publish")[0]["prompt"])
 
+    def test_bounded_waits_adds_one_paragraph_to_each_agent_that_waits(self) -> None:
+        # #303: a tool call that blocks over 5 minutes (verify, publish, mutants, CI) costs the agent's whole context
+        # again. With the arg, each agent that runs one gets one paragraph more, after the steps it replaces; without
+        # it every prompt is today's (the snapshots), so a resume or another manager's launch is unchanged.
+        core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
+        design = {"paths": ["docs/x.md"], "findings": [MAJOR]}
+        pairs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), core),
+            ("pr-rebase.js", dict(ARGS), core),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [stuck]})),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True, skeptic=True), design),
+        ]
+        jobs = []
+        for name, args, stub in pairs:
+            jobs += [(name, args, stub), (name, dict(args, bounded_waits=True), stub)]
+            jobs.append((name, dict(args, bounded_waits=False), stub))
+        results = run_jobs(jobs)
+        waiting, publishing = ("implement", "test-review", "publish", "rebase", "fix"), ("publish", "rebase", "fix")
+        extra = {}
+        for k, (name, _, _) in enumerate(pairs):
+            off, on, false = results[3 * k : 3 * k + 3]
+            for result in (off, on, false):
+                self.assertIsNone(result["error"])
+            self.assertEqual(render(false), render(off), "bounded_waits false is the default")
+            self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(off)])
+            stopped = k == 2  # the publisher that only reports a mutants stop runs no long command
+            for before, after in zip(agents(off), agents(on)):
+                label = before["label"]
+                with self.subTest(case=k, agent=label):
+                    self.assertEqual(after["opts"], before["opts"])
+                    if not label.startswith(waiting) or (stopped and label.startswith("publish")):
+                        self.assertEqual(after["prompt"], before["prompt"])
+                        continue
+                    old, new = before["prompt"].split("\n\n"), after["prompt"].split("\n\n")
+                    self.assertEqual(len(new), len(old) + 1)
+                    i = next(i for i, (a, b) in enumerate(zip(old + [None], new)) if a != b)
+                    paragraph = new[i]
+                    self.assertEqual(new[:i] + new[i + 1 :], old, "removing the paragraph gives today's prompt")
+                    self.assertTrue(paragraph.startswith("Bounded waits (bounded_waits): this replaces how"), paragraph[:120])
+                    scratch = "r8" if name == "pr-rebase.js" else "a7"
+                    for text in (
+                        "every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt",
+                        "run_in_background",
+                        f"under {scratch}/ of your scratchpad",
+                        'cd /d/prime-game/.claude/worktrees/7 && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>',
+                        "tools/run.sh wait <log>",
+                        "`tools\\run.cmd wait <log>`",
+                        "300000",
+                        "No tool call blocks longer than 240 s",
+                        "never only with the tool's timeout",
+                        "never start the job again",
+                        "timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?",
+                        "while rc is 124 or 8",
+                        "no checks reported",
+                        "`wait: no log` or `wait: --max` line is wait's own error",
+                        "run them in the foreground as before",
+                    ):
+                        self.assertIn(text, paragraph)
+                    # It comes after every step it replaces, so the last word on CI and verify is the bounded one.
+                    for j, text in enumerate(new):
+                        if j != i and ("gh pr checks" in text or "run.cmd verify" in text):
+                            self.assertLess(j, i, text[:120])
+                    kind = "publishing" if label.startswith(publishing) else "other"
+                    if kind == "publishing":
+                        self.assertIn("`tools/run.sh wait --verified`", paragraph)
+                        self.assertIn("`publish` runs `verify` itself", paragraph)
+                        self.assertTrue(new[-2].startswith(HUMAN_STEPS_ASK), new[-2][:80])
+                    else:
+                        self.assertNotIn("wait --verified", paragraph)
+                    extra.setdefault((name, kind), set()).add(paragraph.replace(scratch + "/", "<s>/"))
+        # One paragraph per kind, and the two scripts cannot share a module: their copies must not drift apart.
+        self.assertEqual(len(extra[("issue-task.js", "publishing")]), 1)
+        self.assertEqual(extra[("issue-task.js", "publishing")], extra[("pr-rebase.js", "publishing")])
+        self.assertEqual(len(extra[("issue-task.js", "other")]), 1)
+
     def test_meta_and_the_args_comment_name_each_v2_arg(self) -> None:
         # A manager states the agent count in its kickoff from these lines.
         for name, names in (
-            ("issue-task.js", ("plan_review", "test_review", "second_review", "skeptic", "visual", "efforts", "models")),
-            ("pr-rebase.js", ("second_review", "skeptic", "efforts", "models")),
+            (
+                "issue-task.js",
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models"),
+            ),
+            ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models")),
         ):
             text = (WORKFLOWS / name).read_text(encoding="utf-8")
             when = next(line for line in text.splitlines() if line.strip().startswith("whenToUse:"))
