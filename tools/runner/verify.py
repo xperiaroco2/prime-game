@@ -14,6 +14,7 @@ serial `verify` before #179) with each lane's wall time; each run appends a reco
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import json
 import multiprocessing
 import os
@@ -32,8 +33,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import bots, check, doctor, gdunit, hostjoin, launch, lint
+from . import bots, check, doctor, gdunit, hostjoin, launch, lint, slots
 from .common import (
+    IS_CI,
     LOGS,
     ROOT,
     Failure,
@@ -370,10 +372,11 @@ def run_lanes(run_lane: RunLane, emit: Emit, printing: threading.Lock | None = N
 # --- selftest ---------------------------------------------------------------------------------------------------
 
 # The Python lane runs beside the Godot lane's timing-sensitive freeze and stall runs, and on the engineer's PC beside
-# up to four other worktrees' verify runs (8 cores, 16 logical CPUs). Its runner tests therefore take at most a
-# quarter of the logical CPUs (half the physical cores: 4 there, 1 on CI's 4-vCPU runner), which still ends the lane
-# long before the Godot lane reaches freeze (on the PC with four other runs going, 2026-10-02: the Python lane about
-# 125 to 150 s, the Godot lane's check, selftest-godot and test alone about 370 s).
+# another worktree's verify run (slots.DEFAULT_COUNT, #185) and the other sessions' work (8 cores, 16 logical CPUs).
+# Its runner tests therefore take at most a quarter of the logical CPUs (half the physical cores: 4 there, 1 on CI's
+# 4-vCPU runner), which still ends the lane long before the Godot lane reaches freeze (measured on the PC with four
+# other runs going, 2026-10-02, before the verify slots: the Python lane about 125 to 150 s, the Godot lane's check,
+# selftest-godot and test alone about 370 s).
 WORKER_SHARE = 4
 
 
@@ -703,10 +706,17 @@ def append_history(record: dict[str, object]) -> None:
         warn(f"could not append to {HISTORY}: {exc}")
 
 
+def slot_pool(facts: dict[str, str | None]) -> tuple[slots.Pool | None, str]:
+    """The machine-wide verify slots this run waits on (#185), or None and why: none on CI, none inside a verify."""
+    me: dict[str, object] = {"worktree": ROOT.as_posix(), "branch": facts.get("branch")}
+    return slots.for_verify(me, ci=IS_CI, inside=bool(os.environ.get(INSIDE_VAR)), say=say)
+
+
 def main(run_lane: RunLane = run_lane_process) -> int:
     started = time.monotonic()
     start_time = datetime.now(UTC)
     before = git_status()
+    facts = git_facts(clean=not before)
     run_id = uuid.uuid4().hex
     os.environ[RUN_ID_VAR] = run_id  # the lane processes inherit it; their selftest results carry it
     runs: dict[str, StepRun] = {}
@@ -717,18 +727,26 @@ def main(run_lane: RunLane = run_lane_process) -> int:
     runs["doctor"] = StepRun("doctor", "main", "passed" if rc == 0 else "FAILED", time.monotonic() - t0)
     extra: list[StepRun] = []
     count_line, counts = "", {}
+    taken: slots.Taken | None = None
+    slot_line = ""
     if rc == 0:  # a wrong environment makes every later step meaningless
-        described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in LANES.items())
-        say(f"verify: two lanes at once ({described}); each step's output follows whole when it ends")
-        say()
-        printing = threading.Lock()
+        pool, why = slot_pool(facts)
+        slot_line = f"slot: {why}" if pool is None else ""
+        with pool.held() if pool is not None else contextlib.nullcontext() as taken:
+            if taken is not None:
+                slot_line = taken.summary()
+                say(f"verify: {slot_line}")
+            described = "; ".join(f"{lane}: {', '.join(names)}" for lane, names in LANES.items())
+            say(f"verify: two lanes at once ({described}); each step's output follows whole when it ends")
+            say()
+            printing = threading.Lock()
 
-        def emit(step: StepRun) -> None:
-            with printing:
-                runs[step.name] = step
-                _print_step(step)
+            def emit(step: StepRun) -> None:
+                with printing:
+                    runs[step.name] = step
+                    _print_step(step)
 
-        walls = run_lanes(run_lane, emit, printing)
+            walls = run_lanes(run_lane, emit, printing)
         for lane, names in LANES.items():
             for name in names:
                 runs.setdefault(name, StepRun(name, lane, "FAILED", 0.0))  # its lane never reported it
@@ -750,14 +768,19 @@ def main(run_lane: RunLane = run_lane_process) -> int:
             + f"; {os.cpu_count()} CPUs, selftest on {selftest_workers()} worker processes")  # fmt: skip
     if count_line:
         say(f"  {count_line}")
+    if slot_line:
+        say(f"  {slot_line}")
     failed = any(step.status != "passed" for step in ordered) or len(runs) < len(STEP_ORDER)
-    seconds = time.monotonic() - started
-    say(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s")
+    waited = taken.waited if taken is not None else 0.0
+    seconds = time.monotonic() - started - waited  # the run itself; the wait is its own field
+    after = f" (after {waited:.1f}s waiting for a verify slot)" if taken is not None else ""
+    over = "; it ran OVER THE LIMIT of verify slots" if taken is not None and taken.over else ""
+    say(f"verify: {'FAILED' if failed else 'passed'} in {seconds:.1f}s{after}{over}")
     append_history(
         {
             "start": start_time.isoformat(timespec="seconds").replace("+00:00", "Z"),
             "worktree": ROOT.as_posix(),
-            **git_facts(clean=not before),
+            **facts,
             "status": "FAILED" if failed else "passed",
             "seconds": round(seconds, 1),
             "steps": [
@@ -767,6 +790,7 @@ def main(run_lane: RunLane = run_lane_process) -> int:
             "cpus": os.cpu_count(),
             "workers": selftest_workers(),
             "selftest": counts,
+            "slot": taken.record() if taken is not None else None,
         }
     )
     return 1 if failed else 0
