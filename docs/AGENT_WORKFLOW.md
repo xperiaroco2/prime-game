@@ -1067,9 +1067,9 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 
 | What | Where and when | Report |
 |---|---|---|
-| `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, a free Linux runner, the latest `main` commit; 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`) | The run's summary page and artifact `nightly-flaky`; on a failure a comment with the run link on the "Night jobs" issue |
-| `nightly.yml`, job `perf`: `tools/run.sh perf` (10 bots over the loopback, a 60 s round) with `--baseline` the last successful night's report | The same run | The run's summary page and artifact `nightly-perf`; changes beyond the threshold are listed there, never a failure; a failed match comments like `flaky` |
-| `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
+| `nightly.yml`, job `flaky`: `tools/run.sh test --repeat 3` | GitHub Actions, free Linux runners, once per ref of the night: the latest `main` commit and the newest remote `release/*` branch (#272); 01:17 UTC every night (`schedule`), or by hand (`workflow_dispatch`, optionally one ref alone) | The run's summary page and an artifact per ref, `nightly-flaky-<ref>` (`/` as `-`: `nightly-flaky-main`, `nightly-flaky-release-m5`); on a failure a comment with the run link on the "Night jobs" issue naming each job's ref |
+| `nightly.yml`, job `perf`: `tools/run.sh perf` (10 bots over the loopback, a 60 s round) with `--baseline` the same ref's last successful night's report | The same run, per ref | The run's summary page and artifact `nightly-perf-<ref>`; changes beyond the threshold are listed there, never a failure; a failed match comments like `flaky` |
+| `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos-<ref>` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
 - **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run; any failed run fails it.
@@ -1077,20 +1077,33 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
   run (it crashed or timed out) or skipped in it counts neither way.
-- **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite
-  action `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job
-  is one job in `nightly.yml` (checkout, the setup, one runner command, an upload); the job `report` lists them all
-  in `needs` and comments when one failed or timed out, creating the "Night jobs" issue (`area:tooling`) the first
-  time. `report` alone gets `issues: write`; the rest has `contents: read`. `perf` (#187) keeps its report for the
-  next night in an `actions/cache` entry (`tools/out/perf-last/last.json`, a new key per run restored by its prefix,
+- **Which refs** (#272): the job `refs` picks them at run time: the run's own ref (`main` on the schedule) and the
+  newest remote `release/*` branch by version order (`release/m10` after `release/m9`; none: `main` alone; one at
+  `main`'s commit: once), each resolved to one commit for all its jobs. `workflow_dispatch` with the input `ref` (a
+  branch, tag or commit) runs that ref alone. The schedule always runs `main`'s `nightly.yml`, but each job checks
+  out its ref's commit, so a release ref runs its own setup action, `tools/run.sh` and tests (a release's extra
+  suites get the same nights as `main`). A step first asks the ref's runner (`--help`) for the options the job
+  calls: an older runner fails there, naming what it lacks. Every job also removes the TwoVoIP extension as M5's
+  CI does (`rm -f`, so nothing on a ref without it). The refs' jobs run side by side (`fail-fast: false`); each
+  ref adds its jobs' runner minutes (`main`'s three took about 16 on 2026-10-03), free in this public repository.
+- **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite action
+  `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job is one job
+  in `nightly.yml`, a matrix over the refs (checkout of the ref, the setup, the options check, one runner command, an
+  upload); the job `report` lists them and `refs` in `needs` and comments when one failed or timed out, creating the
+  "Night jobs" issue (`area:tooling`) the first time; its comment lists every job of every ref with its conclusion (the
+  job names hold the refs). `report` alone gets `issues: write` and `actions: read` (the run's job list); the rest has
+  `contents: read`. `perf` (#187) keeps its report for the next night of the same ref in an `actions/cache` entry
+  (`tools/out/perf-last/last.json`, key `nightly-perf:<ref>:<run id>` restored by the prefix `nightly-perf:<ref>:`,
   saved only when the job passed), which needs no permission beyond `contents: read`; the long chaos run is the job
-  `chaos` (#188). `tools/runner/tests/test_github_workflows.py` parses every workflow and action and
-  checks the triggers, permissions, the shared setup, `needs`, and that no action beyond the four CI already uses
-  appears (a new one is the engineer's call).
+  `chaos` (#188). `tools/runner/tests/test_github_workflows.py` parses every workflow and action and checks the
+  triggers, permissions, the shared setup, `needs`, the refs' matrix and artifact names, and that no action beyond the
+  four CI already uses appears (a new one is the engineer's call); it also runs the bash of the `refs` step and of the
+  options check with stubs for gh and the runner.
 - **GitHub's limits** (docs.github.com, "Events that trigger workflows", read 2026-10-02): a scheduled run uses the
   latest commit on the default branch and may start late at busy times; in a public repository the schedule is
   disabled after 60 days without activity (Actions → Nightly → Enable workflow); `workflow_dispatch` works only once
-  the file is on the default branch, so a task branch cannot try it: the first run is by hand after the merge.
+  the file is on the default branch, so a new workflow's first run is by hand after the merge; since then
+  `gh workflow run nightly.yml --ref <task branch>` runs the task branch's version of the file.
 - **Desktop's limits** (code.claude.com/docs/en/desktop-scheduled-tasks, read 2026-10-02): a local task runs only
   while the Desktop app is open and the PC awake; a sleeping PC skips the run, and on wake Desktop starts one
   catch-up run for the latest missed time of the last seven days (the skill stops if that day's summary exists). A
@@ -1103,12 +1116,14 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 **Reading the reports.**
 - A comment on the "Night jobs" issue from the nightly workflow: open its run link. The summary page shows "GdUnit4,
   3 runs": each run's status, **flaky tests** (an issue to fix the test or the race; never skip or delete it without
-  the engineer's approval), **failed in every run** (a regression on `main`: fix first), and the suites with a
-  failure. The artifact `nightly-flaky` holds each run's HTML report, `summary.json` and the logs.
+  the engineer's approval), **failed in every run** (a regression on that ref: fix first), and the suites with a
+  failure, once per ref (the job's name holds it). The artifact `nightly-flaky-<ref>` holds each run's HTML report,
+  `summary.json` and the logs. A failure on a release ref alone is the release's own (fix it on `release/m<k>`).
 - The perf job's section of the summary page: its numbers with the wire budgets' headroom, and the metrics that
   moved by more than the threshold against the last night. A jump in the host step or the bytes per peer after a
   merge is worth an issue (timings on a shared runner are noisy: look for a move that stays); the artifact
-  `nightly-perf` holds the report JSON and the run's log.
+  `nightly-perf-<ref>` holds the report JSON and the run's log. The first night after #272's merge compares `main` with
+  nothing (its cache key now holds the ref), and a new release branch's first night likewise.
 - A night-audit summary (one a night, first line `night-audit <lens>, <date>, origin/main <sha>`): what it checked,
   the issues it opened, and what the skeptic refuted or could not decide (those are not issues). Its issues:
   `gh issue list --search "\"Found by: night-audit\" in:body"`. A wrong one is closed by a human (label `invalid`).
@@ -1116,7 +1131,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 **The engineer's one-time setup 👤** (checked against the Desktop docs above on 2026-10-02; Claude Desktop 1.1.5368
 or later):
 1. After the merge, start the first nightly run by hand and check it:
-   `cd D:\prime-game; gh workflow run nightly.yml --ref main`, then `gh run list --workflow nightly.yml --limit 1`.
+   `cd D:\prime-game; gh workflow run nightly.yml --ref main`, then `gh run list --workflow nightly.yml --limit 1`
+   (`-f ref=release/m5` added: that ref alone).
 2. In Claude Desktop, **Code** tab: **Routines** in the sidebar (or in the sidebar's **More** menu), **New
    routine**, **Local**.
 3. **Name** `night-audit`; **Description** "One audit lens a night (AGENT_WORKFLOW §15)"; **Instructions**

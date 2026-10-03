@@ -1,13 +1,25 @@
 """The GitHub Actions files (docs/AGENT_WORKFLOW.md §11 CI and §15 Night jobs), parsed and checked before GitHub
-runs them: a scheduled workflow cannot be tried on a task branch (workflow_dispatch needs the file on the default
-branch, docs.github.com "Events that trigger workflows"), so its first run is the night after the merge.
+runs them: a new scheduled workflow cannot be tried on a task branch (workflow_dispatch needs the file on the default
+branch, docs.github.com "Events that trigger workflows"), so its first run is the night after the merge; once it is
+there, `gh workflow run <file> --ref <branch>` runs the branch's version. The bash of nightly.yml's own logic runs
+here under Git Bash (or bash), with stubs for gh and the runner.
 
 PyYAML comes with the pinned gdtoolkit (its dependency), so it is there wherever `verify` runs; without it the tests
 skip.
 """
 
+import argparse
+import contextlib
+import io
+import json
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
+
+from runner import cli
+from runner.common import git_bash
 
 try:
     import yaml
@@ -85,11 +97,29 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(rest, ["*", "*", "*"], "once a night")
         self.assertTrue(0 <= int(hour) <= 5 and minute != "0", "a night hour UTC, off the hour")
         self.assertEqual(data["permissions"], {"contents": "read"})
+        # #272: by hand, optionally one ref alone.
+        ref = data["on"]["workflow_dispatch"]["inputs"]["ref"]
+        self.assertEqual((ref["type"], ref["required"], ref["default"]), ("string", False, ""))
+
+    def test_the_refs_job_picks_the_runs_ref_and_the_newest_release_branch(self) -> None:
+        # #272: the schedule runs main's file, so the release ref is found at run time and checked out by each job.
+        jobs = load(GITHUB / "workflows" / "nightly.yml")["jobs"]
+        refs = jobs["refs"]
+        self.assertNotIn("permissions", refs, "the workflow's contents: read is enough")
+        self.assertNotIn("needs", refs)
+        self.assertEqual(set(refs["outputs"]), {"matrix", "list"})
+        self.assertEqual(refs["env"]["INPUT_REF"], "${{ inputs.ref }}")
+        script = "".join(step.get("run", "") for step in refs["steps"])
+        self.assertIn("matching-refs/heads/release/", script)
+        self.assertIn("sort -V", script)
+        for name in ("$INPUT_REF", "$GITHUB_REF_NAME", "$GITHUB_SHA", "$GITHUB_OUTPUT", "::error::"):
+            self.assertIn(name, script)
 
     def test_every_night_job_sets_up_like_ci_and_the_report_job_waits_for_all_of_them(self) -> None:
         jobs = load(GITHUB / "workflows" / "nightly.yml")["jobs"]
         self.assertIn("flaky", jobs)
-        night = [name for name in jobs if name != "report"]
+        night = [name for name in jobs if name not in ("refs", "report")]
+        artifacts = []
         for name in night:
             job = jobs[name]
             self.assertIn("timeout-minutes", job, name)
@@ -97,6 +127,26 @@ class GithubWorkflowsTest(unittest.TestCase):
             uses = [step.get("uses", "") for step in job["steps"]]
             self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP], name)
             self.assertIn("actions/upload-artifact@v7", uses, f"{name}: uploads its reports")
+            # #272: once per ref of the night, each ref's own commit, its artifacts named with the ref.
+            self.assertEqual(job["needs"], "refs", name)
+            self.assertEqual(job["strategy"]["matrix"], "${{ fromJSON(needs.refs.outputs.matrix) }}", name)
+            self.assertIs(job["strategy"]["fail-fast"], False, f"{name}: one ref's failure keeps the other's run")
+            self.assertIn("${{ matrix.ref }}", job["name"], name)
+            self.assertEqual(job["steps"][0]["with"]["ref"], "${{ matrix.sha }}", name)
+            upload = next(step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7")
+            self.assertTrue(upload["with"]["name"].endswith("-${{ matrix.slug }}"), name)
+            artifacts.append(upload["with"]["name"])
+            # The ref's runner is asked for the job's options before anything runs on it.
+            names = [step.get("name", "") for step in job["steps"]]
+            check = names.index("The ref's runner has the job's options")
+            self.assertIn("--help", job["steps"][check]["run"], name)
+            self.assertLess(check, names.index("doctor"), name)
+            command, *options = job["steps"][check]["env"]["CALLS"].split()
+            later = "".join(step.get("run", "") for step in job["steps"][check + 1 :])
+            self.assertIn(f"tools/run.sh {command} ", later, name)
+            for option in options:
+                self.assertIn(option, later, f"{name}: checks {option}, which it calls")
+        self.assertEqual(len(set(artifacts)), len(artifacts), "one artifact name per job")
         runs = [step.get("run", "") for step in jobs["flaky"]["steps"]]
         self.assertTrue(any("tools/run.sh test --repeat 3" in run for run in runs))
         self.assertIn("perf", jobs)
@@ -104,21 +154,25 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertTrue(any("tools/run.sh bots --chaos --long --runs" in run for run in chaos))
         self.assertTrue(any("tools/run.sh bots --chaos --long --enet" in run for run in chaos))
         report = jobs["report"]
-        self.assertEqual(sorted(report["needs"]), sorted(night))
-        self.assertEqual(report["permissions"], {"contents": "read", "issues": "write"})
+        self.assertEqual(sorted(report["needs"]), sorted(night + ["refs"]))
+        # actions: read lists the run's jobs, whose names hold their refs (#272).
+        self.assertEqual(report["permissions"], {"actions": "read", "contents": "read", "issues": "write"})
         self.assertIn("failure", report["if"])
         script = "".join(step.get("run", "") for step in report["steps"])
-        for command in ("gh issue list", "gh issue create", "gh issue comment"):
+        for command in ("gh issue list", "gh issue create", "gh issue comment", "/actions/runs/$GITHUB_RUN_ID/jobs"):
             self.assertIn(command, script)
         self.assertEqual(report["env"]["TITLE"], "Night jobs")
+        self.assertEqual(report["env"]["REFS"], "${{ needs.refs.outputs.list }}")
 
     def test_perf_compares_with_the_last_nights_report_kept_in_the_cache(self) -> None:
         steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["perf"]["steps"]
         names = [step.get("name", step.get("uses", "")) for step in steps]
         cache = next(step for step in steps if step.get("uses") == "actions/cache@v6")["with"]
-        # A new key every run, so each successful night saves its report; the prefix restores the newest.
+        # A new key every run, so each successful night saves its report; the prefix restores the newest of the same
+        # ref (#272), ended by ":", which no ref name holds.
         self.assertIn("${{ github.run_id }}", cache["key"])
         self.assertTrue(cache["key"].startswith(cache["restore-keys"]))
+        self.assertTrue(cache["restore-keys"].endswith(":${{ matrix.ref }}:"))
         last = cache["path"] + "/last.json"
         run = next(step["run"] for step in steps if "tools/run.sh perf" in step.get("run", ""))
         self.assertIn(f"--baseline {last}", run)
@@ -127,6 +181,160 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertIn(last, keep)
         self.assertLess(names.index("The last night's report"), names.index("perf"))
         self.assertLess(names.index("perf"), names.index("Keep this report for the next night"))
+
+
+# A stub of gh for the `refs` step: canned output instead of GitHub's API (and of gh's --jq, which it skips). Each
+# call goes to $GH_CALLS.
+FAKE_GH = """gh() {
+  echo "$*" >> "$GH_CALLS"
+  [ -z "$FAKE_FAIL" ] || return 1
+  case "$*" in
+    *git/matching-refs/heads/release/*) printf '%s' "$FAKE_RELEASES" ;;
+    *repos/o/r/commits/*) printf '%s\\n' "$FAKE_SHA" ;;
+    *) echo "unexpected: gh $*" >&2; return 2 ;;
+  esac
+}
+"""
+MAIN_SHA = "a" * 40
+
+
+@unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
+class NightlyScriptsTest(unittest.TestCase):
+    """The bash of nightly.yml's steps, run as GitHub runs a `run:` (bash --noprofile --norc -eo pipefail)."""
+
+    def script(self, job: str, name: str) -> str:
+        steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"][job]["steps"]
+        return next(step["run"] for step in steps if step.get("name") == name)
+
+    def bash(self, text: str, cwd: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+        bash = git_bash()
+        self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the workflow's scripts")
+        path = cwd / "step.sh"
+        path.write_bytes(text.encode("utf-8"))
+        return subprocess.run(
+            [str(bash), "--noprofile", "--norc", "-eo", "pipefail", path.as_posix()],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env={**os.environ, **env},
+            timeout=60,
+        )
+
+    def refs(self, input_ref: str = "", releases: str = "", sha: str = "", fail: bool = False) -> dict:
+        """Runs the `refs` step; returns its exit code, outputs, stdout and gh calls."""
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            output, summary, calls = where / "output", where / "summary", where / "calls"
+            for path in (output, summary, calls):
+                path.write_bytes(b"")
+            env = {
+                "GITHUB_REPOSITORY": "o/r",
+                "GITHUB_REF_NAME": "main",
+                "GITHUB_SHA": MAIN_SHA,
+                "GITHUB_OUTPUT": output.as_posix(),
+                "GITHUB_STEP_SUMMARY": summary.as_posix(),
+                "GH_CALLS": calls.as_posix(),
+                "INPUT_REF": input_ref,
+                "FAKE_RELEASES": releases,
+                "FAKE_SHA": sha,
+                "FAKE_FAIL": "1" if fail else "",
+            }
+            res = self.bash(FAKE_GH + self.script("refs", "The run's ref and the newest release branch"), where, env)
+            outputs = dict(line.split("=", 1) for line in output.read_text(encoding="utf-8").splitlines() if line)
+            return {
+                "code": res.returncode,
+                "stdout": res.stdout,
+                "outputs": outputs,
+                "matrix": json.loads(outputs["matrix"])["include"] if "matrix" in outputs else None,
+                "calls": calls.read_text(encoding="utf-8"),
+            }
+
+    def test_without_a_release_branch_the_runs_ref_runs_alone(self) -> None:
+        got = self.refs()
+        self.assertEqual(got["code"], 0, got["stdout"])
+        self.assertEqual(got["matrix"], [{"ref": "main", "sha": MAIN_SHA, "slug": "main"}])
+        self.assertEqual(got["outputs"]["list"], "`main` at aaaaaaa")
+
+    def test_the_newest_release_branch_by_version_joins_the_runs_ref(self) -> None:
+        releases = "".join(f"release/{name} {name[1:] * 20}\n" for name in ("m9", "m10", "m5"))
+        got = self.refs(releases=releases)
+        self.assertEqual(got["code"], 0, got["stdout"])
+        self.assertEqual(
+            got["matrix"],
+            [
+                {"ref": "main", "sha": MAIN_SHA, "slug": "main"},
+                {"ref": "release/m10", "sha": "10" * 20, "slug": "release-m10"},
+            ],
+        )
+        self.assertEqual(got["outputs"]["list"], "`main` at aaaaaaa, `release/m10` at 1010101")
+
+    def test_a_release_branch_at_the_runs_commit_runs_once(self) -> None:
+        got = self.refs(releases=f"release/m5 {'5' * 40}\nrelease/m6 {MAIN_SHA}\n")
+        self.assertEqual(got["code"], 0, got["stdout"])
+        self.assertEqual(got["matrix"], [{"ref": "main", "sha": MAIN_SHA, "slug": "main"}])
+
+    def test_a_dispatch_ref_runs_alone_at_its_commit(self) -> None:
+        got = self.refs(input_ref="release/m5", releases=f"release/m6 {'6' * 40}\n", sha="b" * 40)
+        self.assertEqual(got["code"], 0, got["stdout"])
+        self.assertEqual(got["matrix"], [{"ref": "release/m5", "sha": "b" * 40, "slug": "release-m5"}])
+        self.assertIn("repos/o/r/commits/release%2Fm5", got["calls"])
+        self.assertNotIn("matching-refs", got["calls"])
+
+    def test_a_ref_with_another_character_or_a_failed_api_call_fails_clearly(self) -> None:
+        for case in ({"input_ref": 'x";y'}, {"fail": True}, {"input_ref": "release/m5", "fail": True}):
+            got = self.refs(**case)
+            self.assertNotEqual(got["code"], 0, case)
+            self.assertIn("::error::", got["stdout"], case)
+            self.assertIsNone(got["matrix"], case)
+
+    def check_options(self, calls: str, helps: dict[str, str]) -> subprocess.CompletedProcess[str]:
+        """Runs a night job's options check against a runner stub that prints the given --help texts."""
+        with tempfile.TemporaryDirectory() as tmp:
+            where = Path(tmp)
+            (where / "tools").mkdir()
+            for command, text in helps.items():
+                (where / "tools" / f"help-{command}.txt").write_bytes(text.encode("utf-8"))
+            run = where / "tools" / "run.sh"
+            run.write_bytes(b'#!/usr/bin/env bash\n[ "$2" = --help ] && cat "$(dirname "$0")/help-$1.txt"\n')
+            run.chmod(0o755)
+            return self.bash(self.script(calls[0], calls[1]), where, {"CALLS": calls[2], "REF": "release/m0"})
+
+    def real_help(self, command: str) -> str:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            cli.build_parser().parse_args([command, "--help"])
+        return out.getvalue()
+
+    def jobs_calls(self) -> list[tuple[str, str, str]]:
+        jobs = load(GITHUB / "workflows" / "nightly.yml")["jobs"]
+        check = "The ref's runner has the job's options"
+        return [
+            (name, check, step["env"]["CALLS"])
+            for name, job in jobs.items()
+            for step in job.get("steps", [])
+            if step.get("name") == check
+        ]
+
+    def test_the_options_check_passes_on_this_runner(self) -> None:
+        calls = self.jobs_calls()
+        self.assertEqual({name for name, _, _ in calls}, {"flaky", "perf", "chaos"})
+        for call in calls:
+            command = call[2].split()[0]
+            res = self.check_options(call, {command: self.real_help(command)})
+            self.assertEqual(res.returncode, 0, f"{call}: {res.stdout}{res.stderr}")
+
+    def test_the_options_check_fails_on_a_runner_that_names_an_option_only_in_help_text(self) -> None:
+        # An older runner's `bots`: no --chaos, but its other options' help texts begin with "--chaos:".
+        old = argparse.ArgumentParser(prog="run bots")
+        for option in ("--seed", "--runs"):
+            old.add_argument(option, help="--chaos: a number")
+        for option in ("--long", "--enet"):
+            old.add_argument(option, action="store_true", help="--chaos: a switch")
+        chaos = next(call for call in self.jobs_calls() if call[0] == "chaos")
+        res = self.check_options(chaos, {"bots": old.format_help()})
+        self.assertNotEqual(res.returncode, 0)
+        self.assertIn("::error::The runner of release/m0 has no 'bots --chaos'", res.stdout)
 
 
 if __name__ == "__main__":
