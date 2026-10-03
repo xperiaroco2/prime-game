@@ -147,6 +147,16 @@ func test_a_frame_with_no_chunk_while_unspeakable_empties_the_pre_roll() -> void
 	assert_int(_sent.size()).is_equal(1)
 
 
+func test_may_speak_needs_the_own_peer_in_the_roster() -> void:
+	_model.phase = &"round"
+	assert_bool(VoiceSender.may_speak_of(_model, _mode)).is_true()
+	_model.roster.erase(OWN)
+	assert_bool(VoiceSender.may_speak_of(_model, _mode)).is_false()
+	_model.roster[OWN] = ClientModel.Member.new()
+	_model.own_peer = 3
+	assert_bool(VoiceSender.may_speak_of(_model, _mode)).is_false()
+
+
 func test_a_phase_that_hears_nobody_sends_nothing_and_keeps_nothing() -> void:
 	var sender := _sender()
 	var mic := sender.capture.microphone as FakeMicrophone
