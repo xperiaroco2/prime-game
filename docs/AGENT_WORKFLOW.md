@@ -1069,19 +1069,19 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   calls: an older runner fails there, naming what it lacks. Every job also removes the TwoVoIP extension as M5's
   CI does (`rm -f`, so nothing on a ref without it). The refs' jobs run side by side (`fail-fast: false`); each
   ref adds its jobs' runner minutes (`main`'s three took about 16 on 2026-10-03), free in this public repository.
-- **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite
-  action `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job
-  is one job in `nightly.yml`, a matrix over the refs (checkout of the ref, the setup, the options check, one runner
-  command, an upload); the job `report` lists them and `refs` in `needs` and comments when one failed or timed
-  out, creating the "Night jobs" issue (`area:tooling`) the first time; its comment lists every job of every ref
-  with its conclusion (the job names hold the refs). `report` alone
-  gets `issues: write` and `actions: read` (the run's job list); the rest has `contents: read`. `perf` (#187) keeps
-  its report for the next night of the same ref in an `actions/cache` entry (`tools/out/perf-last/last.json`, key
-  `nightly-perf:<ref>:<run id>` restored by the prefix `nightly-perf:<ref>:`, saved only when the job passed), which
-  needs no permission beyond `contents: read`; the long chaos run is the job `chaos` (#188).
-  `tools/runner/tests/test_github_workflows.py` parses every workflow and action and checks the triggers,
-  permissions, the shared setup, `needs`, the refs' matrix and artifact names, and that no action beyond the four
-  CI already uses appears (a new one is the engineer's call).
+- **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite action
+  `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job is one job
+  in `nightly.yml`, a matrix over the refs (checkout of the ref, the setup, the options check, one runner command, an
+  upload); the job `report` lists them and `refs` in `needs` and comments when one failed or timed out, creating the
+  "Night jobs" issue (`area:tooling`) the first time; its comment lists every job of every ref with its conclusion (the
+  job names hold the refs). `report` alone gets `issues: write` and `actions: read` (the run's job list); the rest has
+  `contents: read`. `perf` (#187) keeps its report for the next night of the same ref in an `actions/cache` entry
+  (`tools/out/perf-last/last.json`, key `nightly-perf:<ref>:<run id>` restored by the prefix `nightly-perf:<ref>:`,
+  saved only when the job passed), which needs no permission beyond `contents: read`; the long chaos run is the job
+  `chaos` (#188). `tools/runner/tests/test_github_workflows.py` parses every workflow and action and checks the
+  triggers, permissions, the shared setup, `needs`, the refs' matrix and artifact names, and that no action beyond the
+  four CI already uses appears (a new one is the engineer's call); it also runs the bash of the `refs` step and of the
+  options check with stubs for gh and the runner.
 - **GitHub's limits** (docs.github.com, "Events that trigger workflows", read 2026-10-02): a scheduled run uses the
   latest commit on the default branch and may start late at busy times; in a public repository the schedule is
   disabled after 60 days without activity (Actions → Nightly → Enable workflow); `workflow_dispatch` works only once
