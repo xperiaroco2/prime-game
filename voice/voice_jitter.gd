@@ -200,6 +200,11 @@ func fade_out(now_usec: int) -> void:
 		_pending.clear()
 
 
+## Whether a fade runs: fade_out() was called and the FLUSH it leads to has not come yet.
+func fading() -> bool:
+	return _fade_start >= 0
+
+
 ## The playback's gain at `now_usec`: 1, or falling to 0 during a fade.
 func gain(now_usec: int) -> float:
 	if _fade_start < 0:
