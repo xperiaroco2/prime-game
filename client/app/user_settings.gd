@@ -33,7 +33,7 @@ const VOLUMES: Array[StringName] = [
 	AudioBuses.MASTER, AudioBuses.VOICE, AudioBuses.EFFECTS, AudioBuses.MUSIC
 ]
 
-## The file, under user://.
+## The file, under user://; "" keeps the settings in memory only (read() and write() touch no file).
 var path := ""
 ## The microphone the player picked (VoiceMicrophone.DEFAULT_DEVICE for the Windows default), or ""
 ## before any pick: the Windows default opens then (E36 as amended).
@@ -92,6 +92,8 @@ func set_volume_db(bus: StringName, db: float) -> void:
 ## Reads the file; a missing file keeps the defaults, and so does any value that is missing or
 ## out of place (an unknown mode, a threshold out of bounds is clamped).
 func read() -> Error:
+	if path.is_empty():
+		return ERR_FILE_NOT_FOUND
 	var file := ConfigFile.new()
 	var code := file.load(path)
 	if code != OK:
@@ -112,6 +114,8 @@ func read() -> Error:
 
 ## Writes every setting to the file.
 func write() -> Error:
+	if path.is_empty():
+		return OK
 	var file := ConfigFile.new()
 	file.set_value("voice", "device", device)
 	file.set_value("voice", "mode", MODE_NAMES[mode])

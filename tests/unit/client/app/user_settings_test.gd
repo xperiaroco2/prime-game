@@ -79,6 +79,14 @@ func test_a_damaged_or_partial_file_falls_back_to_the_defaults() -> void:
 	assert_float(settings.volume_db(&"Effects")).is_equal(-6.0)
 
 
+func test_settings_with_no_path_stay_in_memory() -> void:
+	var settings := UserSettings.new()
+	settings.mode = UserSettings.Mode.OFF
+	assert_int(settings.write()).is_equal(OK)
+	assert_int(settings.read()).is_equal(ERR_FILE_NOT_FOUND)
+	assert_int(settings.mode).is_equal(UserSettings.Mode.OFF)
+
+
 func test_a_missing_threshold_reads_back_the_default() -> void:
 	var file := ConfigFile.new()
 	file.set_value("voice", "mode", "push_to_talk")

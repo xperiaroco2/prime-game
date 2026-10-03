@@ -33,6 +33,23 @@ func after_test() -> void:
 		AudioServer.set_bus_mute(index, false)
 
 
+## A Game with no command line (a test, a playcheck window) never reads nor writes the player's
+## settings file: the developer's own volumes must not reach the buses of a test run.
+func test_a_game_with_no_command_line_keeps_its_settings_in_memory() -> void:
+	var game := GAME.instantiate() as Game
+	game.read_command_line = false
+	game.voice_codec = FakeVoiceCodec.new()
+	var machine := SubViewport.new()
+	machine.own_world_3d = true
+	machine.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	machine.add_child(game)
+	add_child(machine)
+	auto_free(game)
+	auto_free(machine)
+	assert_str(game.settings.path).is_empty()
+	await get_tree().process_frame
+
+
 func test_the_saved_settings_apply_and_the_voice_tab_changes_them() -> void:
 	var saved := UserSettings.new(PATHS[0])
 	saved.mode = UserSettings.Mode.PUSH_TO_TALK

@@ -60,8 +60,8 @@ var pointer := MousePointer.new()
 ## The voice codec: TwoVoIP's (unavailable without the addon, then no voice plays) unless a test
 ## sets one before _ready.
 var voice_codec: VoiceCodec
-## The player's settings on this machine: this window's file (UserSettings.for_this_window())
-## unless a test sets one before _ready.
+## The player's settings on this machine: this window's file (UserSettings.for_this_window()),
+## or in memory with `read_command_line` off, unless a test sets one before _ready.
 var settings: UserSettings
 
 var _schema := WireSchema.game(OS.is_debug_build())
@@ -579,7 +579,9 @@ func _ready_voice() -> void:
 		voice_codec = TwoVoipCodec.new()
 	_world.add_child(_voices)
 	if settings == null:
-		settings = UserSettings.for_this_window()
+		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
+		# player's file in user:// would set the process's buses and take an opening mark.
+		settings = UserSettings.for_this_window() if read_command_line else UserSettings.new()
 	_sender.codec = voice_codec
 	add_child(_sender)
 	_voice_control = VoiceControl.new(settings, _sender)
