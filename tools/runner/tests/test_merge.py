@@ -117,6 +117,24 @@ class _Quiet:
 '''
 
 
+# #210 gave `gdunit.main` the parameter `shards` with a default; #200 (mutants) still called it the old way.
+GDUNIT = '''"""`test`, cut down."""
+
+
+def main(paths: list[str] | None = None, run_import: bool = True) -> int:
+    """`test`."""
+    return 0 if run_import else len(paths or [])
+'''
+GDUNIT_210 = GDUNIT.replace("run_import: bool = True)", "run_import: bool = True, shards: int | None = None)")
+MUTANTS_200 = {
+    "tools/runner/mutants.py": "from . import gdunit\n\n\ndef step(paths: list[str]) -> int:\n"
+    "    return gdunit.main(paths=paths, run_import=False)\n",
+    "tools/runner/tests/test_mutants.py": "import inspect\nimport unittest\n\nfrom runner import gdunit\n\n\n"
+    "class StepTest(unittest.TestCase):\n    def test_step(self) -> None:\n"
+    '        self.assertIn("run_import", inspect.signature(gdunit.main).parameters)\n',
+}
+
+
 def _git(where: Path, *args: str) -> str:
     res = subprocess.run(
         ["git", *args], cwd=where, capture_output=True, text=True, encoding="utf-8", timeout=120,
@@ -232,6 +250,34 @@ class DeclarationsTest(unittest.TestCase):
         self.assertEqual(sig("func f(a: int = 1) -> void:\n\tpass\n"), sig("func f(a: int = 2) -> void:\n\tpass\n"))
         self.assertNotEqual(sig("func f(a: int) -> void:\n\tpass\n"), sig("func f(a: int, b: int) -> void:\n\tpass\n"))
 
+    def test_only_parameters_with_defaults_appended_keep_old_calls_binding(self) -> None:
+        def gd(params: str, tail: str = " -> int") -> str:
+            return merge.declarations(f"func f({params}){tail}:\n\treturn 0\n")[0].signature
+
+        def py(params: str) -> str:
+            return merge.declarations(f"def f({params}) -> int:\n    return 0\n", python=True)[0].signature
+
+        old = gd("a: int, b := 1")
+        for name, new, binds in (
+            ("one appended with a default", gd("a: int, b := 1, c: String = \"\""), True),
+            ("two appended with defaults", gd("a: int, b := 1, c := 2, d := 3"), True),
+            ("appended without a default", gd("a: int, b := 1, c: int"), False),
+            ("one removed", gd("a: int"), False),
+            ("one renamed", gd("a: int, bb := 1"), False),
+            ("reordered", gd("b := 1, a: int"), False),
+            ("retyped", gd("a: float, b := 1"), False),
+            ("a default dropped", gd("a: int, b: int"), False),
+            ("inserted before an old one, with a default", gd("a: int, c := 0, b := 1"), False),
+            ("the return type changed", gd("a: int, b := 1, c := 2", " -> float"), False),
+            ("static", "static " + gd("a: int, b := 1, c := 2"), False),
+        ):
+            with self.subTest(name):
+                self.assertEqual(merge.appends_defaults(old, new), binds, (old, new))
+        self.assertFalse(merge.appends_defaults(old, old))  # no change is no compatible change
+        self.assertTrue(merge.appends_defaults(py("self, x"), py("self, x, *args, y=0, **kwargs")))
+        self.assertFalse(merge.appends_defaults(py("self, x"), py("self, x, *, y")))  # a required keyword
+        self.assertTrue(merge.appends_defaults(gd(""), gd("a := 0")))
+
     def test_python_members_not_locals(self) -> None:
         text = (
             '"""Doc with def fake(): inside."""\nimport os\nTIMEOUT = 5\nREPO: object = None\n\n\n'
@@ -279,7 +325,7 @@ class SemanticTest(unittest.TestCase):
                 "client/player/player_controller.gd": CONTROLLER, "net/messages/wire_schema.gd": WIRE_SCHEMA,
                 "core/match/notes.gd": "extends RefCounted\n\nvar _cache := {}\n\n\nfunc note() -> void:\n"
                 "\tvar tally := 0\n\tprint(tally)\n",
-                "tools/runner/verify.py": RUNNER_VERIFY,
+                "tools/runner/verify.py": RUNNER_VERIFY, "tools/runner/gdunit.py": GDUNIT,
             },
         )  # fmt: skip
         self.base = self.repo.base
@@ -383,6 +429,40 @@ class SemanticTest(unittest.TestCase):
                       ("tools/runner/tests/test_x.py", 11)],
         })  # fmt: skip
 
+    def test_210_appended_a_default_parameter_that_200_did_not_pass_a_note(self) -> None:
+        # #207: merge-check flagged `gdunit.main` gaining `shards=None` (#210) against #200's calls that still bind.
+        a = self.side("#210", {"tools/runner/gdunit.py": GDUNIT_210})
+        b = self.side("#200", MUTANTS_200)
+        found = merge.both_ways(a, b)
+        self.assertEqual([(o.symbol.name, o.owner, o.note) for o in found], [("main", "#210", True)])
+        self.assertEqual([(u.path, u.line) for u in found[0].uses],
+                         [("tools/runner/mutants.py", 5), ("tools/runner/tests/test_mutants.py", 9)])  # fmt: skip
+        row = merge.Row.of("#200 + #210", [], found)
+        self.assertEqual((row.overlaps, row.cells()), ([], ("clean", "clean; note: `main`")))
+        self.assertIn("old calls still bind", merge.describe(found[0]))
+        # A new parameter without a default breaks those calls: an overlap again.
+        required = self.side("#211", {"tools/runner/gdunit.py": GDUNIT.replace("run_import: bool = True)",
+                                                                             "run_import: bool = True, shards: int)")})  # fmt: skip
+        row = merge.Row.of("#200 + #211", [], merge.both_ways(required, b))
+        self.assertEqual(([o.symbol.name for o in row.overlaps], row.notes), (["main"], []))
+        self.assertEqual(row.cells()[1], "overlap: `main`")
+
+    def test_an_appended_default_stays_an_overlap_where_the_other_side_patches_the_function(self) -> None:
+        # A stand-in for gdunit.main with the old arguments (test_verify.py's side_effect fakes, an exact
+        # assert_called_once_with) breaks once #210's own callers pass `shards`: only a direct call still binds.
+        a = self.side("#210", {"tools/runner/gdunit.py": GDUNIT_210})
+        patching = self.side("#212", {
+            "tools/runner/tests/test_x.py": "from unittest import mock\n\nfrom runner import gdunit\n\n\n"
+            "def test() -> None:\n    with mock.patch.object(gdunit, \"main\", side_effect=lambda paths, run_import: 0):\n"
+            "        pass\n",
+        })  # fmt: skip
+        found = merge.both_ways(a, patching)
+        self.assertEqual([(o.symbol.name, o.note) for o in found], [("main", False)])
+        self.assertEqual([(u.path, u.line) for u in found[0].named], [("tools/runner/tests/test_x.py", 7)])
+        row = merge.Row.of("#210 + #212", [], found)
+        self.assertEqual((row.cells()[1], row.notes), ("overlap: `main`", []))
+        self.assertTrue(merge.describe(found[0]).endswith("; patched by name at tools/runner/tests/test_x.py:7"))
+
     def test_a_textual_conflict_names_the_file(self) -> None:
         self.side("#1", {"core/match/notes.gd": "extends Node\n"})
         self.side("#2", {"core/match/notes.gd": "extends Object\n"})
@@ -436,8 +516,12 @@ class CommandTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.repo = Repo(
-            self, {"core/content/player_rules.gd": PLAYER_RULES, "client/player/player_controller.gd": CONTROLLER}
-        )
+            self,
+            {
+                "core/content/player_rules.gd": PLAYER_RULES, "client/player/player_controller.gd": CONTROLLER,
+                "tools/runner/gdunit.py": GDUNIT,
+            },
+        )  # fmt: skip
         self.gh = FakeGitHub(self.repo)
         self.verified: list[set[str]] = []
         self.verify_rc = 0
@@ -526,6 +610,80 @@ class CommandTest(unittest.TestCase):
         self.assertTrue(any("origin/core/153-gone is gone" in line for line in self.printed))
         self.assertTrue(self.printed[-1].startswith("merge-check: 0 textual conflicts and 0 overlaps in 0 checks; "
                                                     "not checked: #160."))  # fmt: skip
+
+    def test_a_compatible_signature_change_is_a_note_and_no_overlap(self) -> None:
+        self.task(200, MUTANTS_200, base="main")
+        self.task(210, {"tools/runner/gdunit.py": GDUNIT_210}, base="main")
+        self.assertEqual(merge.check([], base="main"), 0)
+        text = "\n".join(self.printed)
+        self.assertIn("| #200 + #210 | clean | clean; note: `main` |", text)
+        self.assertIn("- note: `main` (def, changed (paths:list[str]|None=, run_import:bool=)->int -> "
+                      "(paths:list[str]|None=, run_import:bool=, shards:int|None=)->int; old calls still bind) by #210 "
+                      "at tools/runner/gdunit.py:4; used by #200 at tools/runner/mutants.py:5", text)  # fmt: skip
+        self.assertIn("merge-check: clean (0 textual conflicts and 0 overlaps in 3 checks)", text)
+
+    def test_merge_check_pairs_prs_across_bases_that_change_the_same_shared_files(self) -> None:
+        # #301 into main renames a parameter of gdunit.main, which #302 into release/m1 calls in the same file; #302
+        # and #304 (main) both create docs/AGENT_WORKFLOW.md; #303 changes only core/; #305 is stacked on #302.
+        renamed = GDUNIT.replace("run_import: bool", "import_first: bool")
+        self.task(301, {"tools/runner/gdunit.py": renamed}, base="main")
+        calls = GDUNIT + "\n\ndef again(paths: list[str]) -> int:\n    return main(paths, run_import=False)\n"
+        self.task(302, {"tools/runner/gdunit.py": calls, "docs/AGENT_WORKFLOW.md": "# Workflow\n\nm1\n"})
+        self.task(303, {"core/other.gd": "extends Node\n"})
+        self.task(304, {"docs/AGENT_WORKFLOW.md": "# Workflow\n\nmain\n"}, base="main")
+        self.task(305, {"tools/x.py": "X = 1\n"}, base="core/302-task")
+        self.assertEqual(merge.check([]), 1)
+        text = "\n".join(self.printed)
+        self.assertIn("### across bases (main, release/m1): pairs that change the same files under tools/, .claude/, "
+                      ".github/ or docs/AGENT_WORKFLOW.md", text)  # fmt: skip
+        self.assertIn("| check | shared files | textual | semantic |", text)
+        self.assertIn("| #301 (main) + #302 (release/m1) | tools/runner/gdunit.py | clean | overlap: `main` |", text)
+        self.assertIn("| #302 (release/m1) + #304 (main) | docs/AGENT_WORKFLOW.md | conflict: docs/AGENT_WORKFLOW.md "
+                      "| clean |", text)  # fmt: skip
+        self.assertIn("no shared file in common, not compared: #301 (main) + #303 (release/m1); #301 (main) + "
+                      "#305 (release/m1 via core/302-task); #303 (release/m1) + #304 (main); #304 (main) + "
+                      "#305 (release/m1 via core/302-task)", text)  # fmt: skip
+        self.assertNotIn("#302 (release/m1) + #305", text)  # stacked on #302: the same track, within its own base
+        self.assertIn("`main` (def, changed (paths:list[str]|None=, run_import:bool=)->int -> (paths:list[str]|None=, "
+                      "import_first:bool=)->int) by #301 at tools/runner/gdunit.py:4; used by #302 at "
+                      "tools/runner/gdunit.py:10", text)  # fmt: skip
+        # The per-base tables stay as they were: 3 checks into main, 3 into release/m1, 1 onto core/302-task.
+        self.assertIn("| #301 + #304 | clean | clean |", text)
+        self.assertIn("| #302 + #303 | clean | clean |", text)
+        self.assertIn("merge-check: 1 textual conflicts and 1 overlaps in 9 checks.", text)
+        self.assertIn("Across bases: name the pair on both tracks' plan issues", text)
+        # One base checked: its PRs with every open PR into another base.
+        self.printed.clear()
+        self.assertEqual(merge.check([], base="main"), 1)
+        self.assertIn("merge-check: 1 textual conflicts and 1 overlaps in 5 checks.", "\n".join(self.printed))
+        # A PR with no shared file: its base's checks, and every cross-base pair named as not compared.
+        self.printed.clear()
+        self.assertEqual(merge.check([303]), 0)
+        text = "\n".join(self.printed)
+        self.assertIn("no shared file in common, not compared: #301 (main) + #303 (release/m1); #303 (release/m1) + "
+                      "#304 (main)", text)  # fmt: skip
+        self.assertNotIn("| check | shared files |", text)
+        self.assertIn("merge-check: clean (0 textual conflicts and 0 overlaps in 1 checks)", text)
+
+    def test_a_stage_pr_under_review_does_not_hide_its_fix_ups_from_the_check_across_bases(self) -> None:
+        # The stage's PR #400 (release/m1 into main) is open while the human reviews it. #401, a fix-up into
+        # release/m1, still lands in release/m1 and is paired with #402 into main; it is no partner of #400 itself.
+        self.repo.branch("stage", "origin/release/m1")
+        stage = self.repo.commit({"core/stage.gd": "extends Node\n"}, "stage work")
+        self.repo.push("stage:refs/heads/release/m1")
+        _git(self.repo.work, "switch", "-q", "main")
+        _git(self.repo.work, "fetch", "-q", "origin")
+        self.gh.add(400, "release/m1", "main", headRefOid=stage)
+        calls = GDUNIT + "\n\ndef again(paths: list[str]) -> int:\n    return main(paths, run_import=False)\n"
+        self.task(401, {"tools/runner/gdunit.py": calls})
+        self.task(402, {"tools/runner/gdunit.py": GDUNIT.replace("run_import: bool", "import_first: bool")}, "main")
+        self.assertEqual(merge.check([]), 1)
+        text = "\n".join(self.printed)
+        self.assertIn("### across bases (main, release/m1)", text)
+        self.assertIn("| #401 (release/m1) + #402 (main) | tools/runner/gdunit.py | clean | overlap: `main` |", text)
+        self.assertNotIn("#400 (main) + #401", text)
+        self.assertNotIn("#401 (release/m1) + #400", text)
+        self.assertIn("| #400 + #402 | clean | clean |", text)  # both land in main: the per-base table
 
     def test_trial_merges_in_order_verifies_and_removes_the_worktree(self) -> None:
         self.task(1, {"core/a.gd": "extends Node\n"})

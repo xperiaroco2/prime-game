@@ -18,9 +18,20 @@ Godot: each PR onto its base tip, and each pair of PRs into the same base.
   `"downed"`, `mock.patch.object(m, "name")`). A wire row or field matches only a string literal (fields travel as
   dictionary keys, and `position` is everywhere as an identifier); a name starting with `_` matches only in its own
   file; a line that declares the name is no use. A symbol match is a lead, not a proof: `--trial` settles it.
+  A `func` / `def` that only appended parameters with defaults (every old call still binds: `gdunit.main` gaining
+  `shards=None` in #210, which #200 called) is a note, not an overlap; a parameter removed, renamed, retyped or
+  reordered, or a new one without a default, stays an overlap (#207), and so does one a .py use patches by name
+  (`mock.patch.object(gdunit, "main", ...)`: a stand-in with the old arguments breaks once callers pass the new one).
 - The "onto base" check compares the PR with what its base gained since the PR's fork (another PR merged meanwhile).
-It prints one Markdown table per base (paste it into a wave comment or a PR) and each overlap with the symbol and
-file:line on both sides; exit 1 on any conflict or overlap, or a PR it could not check (its base is gone from origin).
+- Across bases (#207): each checked PR with every open PR that finally lands in another base (`main`,
+  `release/m<k>`; a PR stacked on one of its own track lands in that one's), compared only when both change one
+  shared file (`tools/`, `.claude/`, `.github/`, `docs/AGENT_WORKFLOW.md`: every track may change them, and a
+  milestone takes `main` in at its next wave boundary): the textual conflicts in the files both change, and the same
+  symbol check, each PR measured from its fork with its own base. The other cross-base pairs are named as not
+  compared. `--base B` checks B's PRs within B and against every other base.
+It prints one Markdown table per base and one across bases (paste them into a wave comment or a PR), each overlap
+with the symbol and file:line on both sides, and the notes; exit 1 on any conflict or overlap, or a PR it could not
+check (its base is gone from origin).
 
 `merge-check --trial <pr>... [--base B]`: the base (default: the first PR's) plus the PRs merged in order with
 `--no-ff` in a scratch detached worktree under `tools/out/merge/`, then that tree's own `verify`; it reports and
@@ -335,6 +346,26 @@ def _signature(header: str, name: str) -> str:
     return f"{static}({', '.join(params)})" + ("->" + re.sub(r"\s+", "", returns.group(1)) if returns else "")
 
 
+SIGNATURE_RE = re.compile(r"^(static )?\((.*)\)(->.*)?$")
+
+
+def appends_defaults(old: str, new: str) -> bool:
+    """Whether the `_signature` new keeps old's parameters (names, types, defaults), `static` and return type, and
+    only appends parameters with a default (or Python's `*args`, `**kwargs`, a bare `*`): every call that bound
+    before still binds. A parameter removed, renamed, retyped or reordered, or a new one without a default, is not."""
+    before, after = SIGNATURE_RE.match(old), SIGNATURE_RE.match(new)
+    if not before or not after or before.group(1, 3) != after.group(1, 3):
+        return False
+    old_params = before.group(2).split(", ") if before.group(2) else []
+    new_params = after.group(2).split(", ") if after.group(2) else []
+    added = new_params[len(old_params) :]
+    return (
+        bool(added)
+        and new_params[: len(old_params)] == old_params
+        and all(p.endswith("=") or p.startswith("*") for p in added)
+    )
+
+
 @dataclass(frozen=True)
 class Decl:
     name: str
@@ -497,9 +528,12 @@ class Symbol:
     # (or `<module>, "<name>"` in a patch) or after `from ...<module> import <name>`; a .gd file never does.
     module: str = ""
     home: tuple[str, ...] = ()
+    # A `func` / `def` that only gained parameters with defaults after its old ones: every old call still binds, so a
+    # use of it is a note, not an overlap (#207: `gdunit.main` gained `shards=None` in #210; #200 called it).
+    compatible: bool = False
 
     def describe(self) -> str:
-        return f"`{self.name}` ({self.kind}, {self.change})"
+        return f"`{self.name}` ({self.kind}, {self.change}{'; old calls still bind' if self.compatible else ''})"
 
 
 @dataclass(frozen=True)
@@ -670,7 +704,9 @@ def _code_symbols(f: FileDiff, old: str, new_decls: list[Decl], classes: set[str
         elif now is None:
             found.append(Symbol(d.name, d.kind, "removed", f.old or "", d.line, own))
         elif d.signature != now.signature and d.kind in ("func", "signal", "def"):
-            found.append(Symbol(d.name, d.kind, f"changed {d.signature} -> {now.signature}", f.new, now.line, own))
+            compatible = d.kind != "signal" and appends_defaults(d.signature, now.signature)
+            what = f"changed {d.signature} -> {now.signature}"
+            found.append(Symbol(d.name, d.kind, what, f.new, now.line, own, compatible=compatible))
         if python and not d.scope and len(found) > count:
             found[-1] = replace(found[-1], module=module, home=home)
     return found
@@ -786,6 +822,14 @@ class Overlap:
     owner: str  # the side that removed or changed it
     user: str  # the side whose added lines use it
     uses: list[Use]
+    # The .py uses that name the symbol in a string (`mock.patch.object(gdunit, "main", ...)`): a stand-in that
+    # asserts the exact arguments or takes the old ones breaks once the owner's callers pass the new parameter.
+    named: list[Use] = field(default_factory=list)
+
+    @property
+    def note(self) -> bool:
+        """A compatible signature change (Symbol.compatible) that no use patches by name: reported, but no overlap."""
+        return self.symbol.compatible and not self.named
 
 
 def overlaps(a: Change, b: Change) -> list[Overlap]:
@@ -804,7 +848,9 @@ def overlaps(a: Change, b: Change) -> list[Overlap]:
             uses = [u for u in uses if _python_use(symbol, u, b)]
         uses = sorted(set(uses), key=lambda u: (u.path, u.line))
         if uses:
-            found.append(Overlap(symbol, a.label, b.label, uses))
+            strings = set(b.literals.get(symbol.name, [])) if symbol.compatible else set()
+            named = [u for u in uses if u in strings and u.path.endswith(".py")]
+            found.append(Overlap(symbol, a.label, b.label, uses, named))
     return found
 
 
@@ -817,10 +863,18 @@ def describe(overlap: Overlap, limit: int = 3) -> str:
     where = f"{s.path}:{s.line}" if s.line else s.path
     shown = ", ".join(f"{u.path}:{u.line}" for u in overlap.uses[:limit])
     more = f" (+{len(overlap.uses) - limit} more)" if len(overlap.uses) > limit else ""
-    return f"{s.describe()} by {overlap.owner} at {where}; used by {overlap.user} at {shown}{more}"
+    patched = ""
+    if overlap.named:
+        patched = f"; patched by name at {', '.join(f'{u.path}:{u.line}' for u in overlap.named[:limit])}"
+    return f"{s.describe()} by {overlap.owner} at {where}; used by {overlap.user} at {shown}{more}{patched}"
 
 
 # --- merge-check ------------------------------------------------------------------------------------------------------
+
+
+def _names(found: list[Overlap]) -> str:
+    names = sorted({f"`{o.symbol.name}`" for o in found})
+    return ", ".join(names[:6]) + (" ..." if len(names) > 6 else "")
 
 
 @dataclass
@@ -828,36 +882,160 @@ class Row:
     check: str
     conflicts: list[str]
     overlaps: list[Overlap]
+    notes: list[Overlap] = field(default_factory=list)
+    shared: list[str] = field(default_factory=list)  # a pair across bases: the shared files both change
+
+    @classmethod
+    def of(cls, check: str, conflicts: list[str], found: list[Overlap], shared: list[str] | None = None) -> Row:
+        """A row from both_ways' result: compatible signature changes go to notes, the rest are overlaps."""
+        overlaps = [o for o in found if not o.note]
+        return cls(check, conflicts, overlaps, [o for o in found if o.note], shared or [])
 
     def cells(self) -> tuple[str, str]:
         text = f"conflict: {', '.join(self.conflicts[:6])}" + (" ..." if len(self.conflicts) > 6 else "")
-        names = sorted({f"`{o.symbol.name}`" for o in self.overlaps})
-        sem = f"overlap: {', '.join(names[:6])}" + (" ..." if len(names) > 6 else "")
-        return (text if self.conflicts else "clean"), (sem if self.overlaps else "clean")
+        sem = f"overlap: {_names(self.overlaps)}" if self.overlaps else "clean"
+        if self.notes:
+            sem += f"; note: {_names(self.notes)}"
+        return (text if self.conflicts else "clean"), sem
 
 
-def check_group(base: str, prs: list[PullRequest]) -> list[Row]:
+class Sides:
+    """Each PR measured from its fork with its own base (`origin/<base>`), each computed once: the fork, the paths it
+    changes (both names of a rename) and its Change. The per-base check and the check across bases share them."""
+
+    def __init__(self) -> None:
+        self.forks: dict[int, str] = {}
+        self.paths: dict[int, set[str]] = {}
+        self.changes: dict[int, Change] = {}
+
+    def fork(self, pr: PullRequest) -> str:
+        if pr.number not in self.forks:
+            tip = _sha(f"refs/remotes/{REMOTE}/{pr.base}")
+            if not tip:
+                raise Failure(f"{REMOTE}/{pr.base} not found after the fetch")
+            self.forks[pr.number] = _out("merge-base", tip, pr.oid).strip()
+        return self.forks[pr.number]
+
+    def touched(self, pr: PullRequest) -> set[str]:
+        if pr.number not in self.paths:
+            out = _out("-c", "core.quotePath=false", "diff", "--name-only", "--no-renames", self.fork(pr), pr.oid, "--")
+            self.paths[pr.number] = {line for line in out.split("\n") if line}
+        return self.paths[pr.number]
+
+    def change(self, pr: PullRequest) -> Change:
+        if pr.number not in self.changes:
+            self.changes[pr.number] = build_change(pr.label, self.fork(pr), pr.oid)
+        return self.changes[pr.number]
+
+
+def check_group(base: str, prs: list[PullRequest], sides: Sides | None = None) -> list[Row]:
     """Each PR onto the tip of origin/<base>, then each pair, textually and semantically."""
+    sides = sides or Sides()
     tip = _sha(f"refs/remotes/{REMOTE}/{base}")
     if not tip:
         raise Failure(f"{REMOTE}/{base} not found after the fetch")
-    forks = {pr.number: _out("merge-base", tip, pr.oid).strip() for pr in prs}
-    changes = {pr.number: build_change(pr.label, forks[pr.number], pr.oid) for pr in prs}
     since: dict[str, Change] = {}
     rows = []
     for pr in prs:
-        fork = forks[pr.number]
+        fork = sides.fork(pr)
         if fork not in since:
             since[fork] = build_change(base, fork, tip)
         behind = ""
         if fork != tip:
             behind = f" ({_out('rev-list', '--count', fork + '..' + tip).strip()} commits since its fork)"
-        semantic = both_ways(changes[pr.number], since[fork])
-        rows.append(Row(f"{pr.label} onto {base}{behind}", textual(tip, pr.oid), semantic))
+        semantic = both_ways(sides.change(pr), since[fork])
+        rows.append(Row.of(f"{pr.label} onto {base}{behind}", textual(tip, pr.oid), semantic))
     for a, b in itertools.combinations(prs, 2):
-        semantic = both_ways(changes[a.number], changes[b.number])
-        rows.append(Row(f"{a.label} + {b.label}", textual(a.oid, b.oid), semantic))
+        semantic = both_ways(sides.change(a), sides.change(b))
+        rows.append(Row.of(f"{a.label} + {b.label}", textual(a.oid, b.oid), semantic))
     return rows
+
+
+# --- across bases (#207) ----------------------------------------------------------------------------------------------
+
+# The files every track may change (AGENT_WORKFLOW §7.1 "Parallel tracks"): a milestone takes `main` in at its next
+# wave boundary (`merge --sync-main`), so a PR into `main` and one into `release/m<k>` that change the same shared file
+# meet there although merge-check never paired them within one base.
+SHARED_DIRS = ("tools/", ".claude/", ".github/")
+SHARED_FILES = ("docs/AGENT_WORKFLOW.md",)
+
+
+def shared(paths: set[str]) -> list[str]:
+    return sorted(p for p in paths if p.startswith(SHARED_DIRS) or p in SHARED_FILES)
+
+
+def long_lived(branch: str) -> bool:
+    return branch == "main" or branch.startswith("release/")
+
+
+def stacked_on(pr: PullRequest, by_head: dict[str, PullRequest]) -> list[str]:
+    """The bases a PR is stacked through: its base, then the base of the open PR whose head that is, and so on."""
+    seen, chain = {pr.number}, [pr.base]
+    while chain[-1] in by_head and by_head[chain[-1]].number not in seen:
+        seen.add(by_head[chain[-1]].number)
+        chain.append(by_head[chain[-1]].base)
+    return chain
+
+
+def root_base(pr: PullRequest, by_head: dict[str, PullRequest]) -> str:
+    """The base a PR finally lands in: through the open PRs it is stacked on (a base that is another open PR's head)
+    to the first long-lived branch (`main`, `release/m<k>`). A stage's own PR (`release/m<k>` into `main`, open while
+    the human reviews it) is no stack: a fix-up PR into `release/m<k>` still lands in `release/m<k>`."""
+    chain = stacked_on(pr, by_head)
+    return next((base for base in chain if long_lived(base)), chain[-1])
+
+
+def cross_pairs(prs: list[PullRequest], everyone: list[PullRequest]) -> list[tuple[PullRequest, PullRequest]]:
+    """Each checked PR with every open PR that finally lands in another base, each pair once, by PR number. A PR
+    stacked on another one (a task PR on its parent, a fix-up into `release/m<k>` on the stage's PR) is no partner of
+    it: the one contains the other's base."""
+    by_head = {p.head: p for p in everyone}
+    roots = {p.number: root_base(p, by_head) for p in [*everyone, *prs]}
+    chains = {p.number: set(stacked_on(p, by_head)) for p in [*everyone, *prs]}
+    pairs: dict[tuple[int, int], tuple[PullRequest, PullRequest]] = {}
+    for a in prs:
+        for b in everyone:
+            if a.head in chains[b.number] or b.head in chains[a.number]:
+                continue
+            if roots[a.number] != roots[b.number]:
+                first, second = sorted((a, b), key=lambda p: p.number)
+                pairs[(first.number, second.number)] = (first, second)
+    return [pairs[key] for key in sorted(pairs)]
+
+
+def lands_in(pr: PullRequest, by_head: dict[str, PullRequest]) -> str:
+    """`release/m1`, or `release/m1 via core/302-task` for a PR stacked on another one."""
+    root = root_base(pr, by_head)
+    return root if pr.base == root else f"{root} via {pr.base}"
+
+
+def check_cross(
+    pairs: list[tuple[PullRequest, PullRequest]], sides: Sides, by_head: dict[str, PullRequest]
+) -> tuple[list[Row], list[str]]:
+    """The pairs that change the same shared files, textually (the conflicts in files both change) and with the same
+    symbol check as within a base; and the labels of the pairs with no shared file in common."""
+    rows, apart = [], []
+    for a, b in pairs:
+        label = f"{a.label} ({lands_in(a, by_head)}) + {b.label} ({lands_in(b, by_head)})"
+        common = sides.touched(a) & sides.touched(b)
+        files = shared(common)
+        if not files:
+            apart.append(label)
+            continue
+        conflicts = [path for path in textual(a.oid, b.oid) if path in common]
+        rows.append(Row.of(label, conflicts, both_ways(sides.change(a), sides.change(b)), files))
+    return rows, apart
+
+
+def _details(rows: list[Row]) -> None:
+    for row in rows:
+        if row.overlaps or row.notes:
+            say()
+            say(f"{row.check}:")
+            for each in row.overlaps:
+                say(f"- {describe(each)}")
+            for each in row.notes:
+                say(f"- note: {describe(each)}")
 
 
 def report(base: str, prs: list[PullRequest], rows: list[Row]) -> None:
@@ -870,12 +1048,25 @@ def report(base: str, prs: list[PullRequest], rows: list[Row]) -> None:
     for row in rows:
         textual_cell, semantic_cell = row.cells()
         say(f"| {row.check} | {textual_cell} | {semantic_cell} |")
-    for row in rows:
-        if row.overlaps:
-            say()
-            say(f"{row.check}:")
-            for each in row.overlaps:
-                say(f"- {describe(each)}")
+    _details(rows)
+
+
+def report_cross(bases: list[str], rows: list[Row], apart: list[str]) -> None:
+    say()
+    say(f"### across bases ({', '.join(bases)}): pairs that change the same files under "
+        f"{', '.join(SHARED_DIRS)} or {', '.join(SHARED_FILES)}")  # fmt: skip
+    if rows:
+        say()
+        say("| check | shared files | textual | semantic |")
+        say("|---|---|---|---|")
+        for row in rows:
+            files = ", ".join(row.shared[:4]) + (f" (+{len(row.shared) - 4} more)" if len(row.shared) > 4 else "")
+            textual_cell, semantic_cell = row.cells()
+            say(f"| {row.check} | {files} | {textual_cell} | {semantic_cell} |")
+    if apart:
+        say()
+        say(f"no shared file in common, not compared: {'; '.join(apart)}")
+    _details(rows)
 
 
 def check(numbers: list[int], base: str | None = None, trial: bool = False) -> int:
@@ -883,7 +1074,7 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
     if trial:
         return run_trial(numbers, base)
     fetch()
-    found = open_prs()
+    found = everyone = open_prs()
     if numbers:
         known = {pr.number: pr for pr in found}
         missing = [n for n in numbers if n not in known]
@@ -903,6 +1094,7 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
         ensure_head(pr)
         groups.setdefault(pr.base, []).append(pr)
     ok(f"{len(found)} open PRs: " + ", ".join(f"{b} ({len(p)})" for b, p in groups.items()))
+    sides = Sides()
     conflicts = overlapping = total = 0
     unchecked: list[str] = []
     for name, prs in groups.items():
@@ -911,11 +1103,26 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
             warn(f"{REMOTE}/{name} is gone (a merged parent?): {', '.join(p.label for p in prs)} not checked; "
                  f"retarget them (gh pr edit <pr> --base <its base>) and run merge-check again")  # fmt: skip
             continue
-        rows = check_group(name, prs)
+        rows = check_group(name, prs, sides)
         report(name, prs, rows)
         total += len(rows)
         conflicts += sum(1 for r in rows if r.conflicts)
         overlapping += sum(1 for r in rows if r.overlaps)
+    # Across bases: the checked PRs whose base is on origin, with every open PR into another base that is.
+    present = {name for name in {pr.base for pr in everyone} if _sha(f"refs/remotes/{REMOTE}/{name}")}
+    pairs = cross_pairs([pr for pr in found if pr.base in present], [pr for pr in everyone if pr.base in present])
+    crossed = False
+    if pairs:
+        checked = {pr.number for pr in found}
+        for pr in {p.number: p for pair in pairs for p in pair if p.number not in checked}.values():
+            ensure_head(pr)
+        by_head = {pr.head: pr for pr in everyone}
+        rows, apart = check_cross(pairs, sides, by_head)
+        report_cross(sorted({root_base(pr, by_head) for pair in pairs for pr in pair}), rows, apart)
+        total += len(rows)
+        conflicts += sum(1 for r in rows if r.conflicts)
+        overlapping += sum(1 for r in rows if r.overlaps)
+        crossed = any(r.conflicts or r.overlaps for r in rows)
     say()
     verdict = f"{conflicts} textual conflicts and {overlapping} overlaps in {total} checks"
     if unchecked:
@@ -923,6 +1130,11 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
     if conflicts or overlapping or unchecked:
         say(f"merge-check: {verdict}. Order the merges so the side that removes or changes a symbol goes first and "
             "the other is rebased on it, or run merge-check --trial <pr>... to see whether verify stays green.")
+        if crossed:
+            say("Across bases: name the pair on both tracks' plan issues; the PR into main merges first (a human "
+                "merges it: hold the milestone's PR, merge the rest of the wave and list the pair under \"Needs the "
+                "engineer\"), the milestone takes main in (merge --sync-main) and its PR is rebased on that before it "
+                "merges.")  # fmt: skip
         return 1
     say(f"merge-check: clean ({verdict})")
     return 0
