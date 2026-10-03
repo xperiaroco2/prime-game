@@ -98,6 +98,8 @@ func test_a_missing_threshold_reads_back_the_default() -> void:
 
 func test_a_saved_threshold_outlives_a_change_of_the_default() -> void:
 	# #286 moved only the default (0.1 to 0.05): a file saved at the old default keeps 0.1.
+	# A default back at 0.1 would make this test check nothing: fail then instead.
+	assert_bool(absf(VoiceGate.DEFAULT_THRESHOLD - 0.1) > 0.0001).is_true()
 	var file := ConfigFile.new()
 	file.set_value("voice", "threshold", 0.1)
 	file.save(PATH)
