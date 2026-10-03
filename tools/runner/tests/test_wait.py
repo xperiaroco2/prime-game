@@ -187,6 +187,19 @@ class WaitTest(unittest.TestCase):
         self.assertTrue(out[0].startswith("wait: "), out)
         self.assertIn("disappeared", out[0])
 
+    def test_an_unreadable_log_is_waits_own_2_never_a_traceback(self) -> None:
+        # A folder passed by mistake (Windows reads it as a PermissionError) or a locked log: never Python's exit 1,
+        # which an agent would read as a red job.
+        rc, out = self.run_wait(240, log=str(self.tmp))
+        self.assertEqual(rc, wait.MISSING)
+        self.assertEqual(len(out), 1, out)
+        self.assertTrue(out[0].startswith("wait: cannot read "), out[0])
+        self.write(VERIFY_START)
+        with mock.patch.object(Path, "read_bytes", side_effect=PermissionError(13, "locked")):
+            rc, out = self.run_wait(240)
+        self.assertEqual(rc, wait.MISSING)
+        self.assertTrue(out[0].startswith("wait: cannot read "), out)
+
     def test_max_over_270_or_under_1_is_refused(self) -> None:
         self.write(GREEN_SUMMARY + ["exit=0"])
         for value in ("300", "271", "0", "-5"):

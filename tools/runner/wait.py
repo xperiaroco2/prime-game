@@ -10,7 +10,8 @@ and polls it with `wait`, one tool call of at most S seconds each (default 240).
 LAST complete non-empty line of the log is `exit=<n>`: the marker is the job's final write, a half-written line (no
 newline yet) is never read, and a bare `exit=0` line in the job's own output is not mistaken for the end. Then `wait`
 prints the job's summary (from verify's last "verify summary" line, which publish prints too; otherwise the last
-TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line and 124. No log: 2.
+TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line and 124. No log, or one it
+cannot read: 2.
 
 Every line `wait` writes itself starts with "wait: ", so a job's own exit 2 or 124 is told apart by that line. It
 reads only: it never writes, deletes or starts anything (a timeout leaves the job running).
@@ -33,7 +34,7 @@ from .common import say
 DEFAULT_MAX = 240  # a poll every 4 minutes keeps a 5-minute cache warm with a margin for the model's own call
 MAX_ALLOWED = 270
 STILL_RUNNING = 124  # as coreutils' `timeout`
-MISSING = 2  # no log, or a bad --max (argparse's own errors are 2 too)
+MISSING = 2  # no log, an unreadable one, or a bad --max (argparse's own errors are 2 too)
 POLL_SECONDS = 3.0
 APPEAR_GRACE = 10.0  # the background shell may not have created the log yet when the first wait starts
 TAIL_LINES = 20
@@ -145,7 +146,11 @@ def main(
     deadline = start + max_seconds
     seen = False
     while True:
-        lines = read_lines(path)
+        try:
+            lines = read_lines(path)
+        except OSError as error:  # a folder by mistake, a locked log: wait's own 2, never a traceback's 1
+            say(f"wait: cannot read {path}: {error.strerror or error}")
+            return MISSING
         if lines is None:
             if seen:
                 say(f"wait: {path} disappeared during the wait (deleted, or another log name?)")
