@@ -97,6 +97,17 @@ func test_a_facing_without_a_horizontal_direction_puts_it_at_the_feet() -> void:
 		assert_array(Array(game.diagnostics)).is_empty()
 
 
+func test_a_facing_a_hair_off_straight_down_still_puts_it_at_the_feet() -> void:
+	# A horizontal part within float noise (is_zero_approx) is no direction: normalising it would
+	# throw the item its full distance in an arbitrary direction.
+	var game := _holding(FlatWorldQuery.new(), Vector3(2, 0, 2))
+	FixtureItemModes.put_down(game, P1, Vector3(0.000001, -1, 0.000001))
+	assert_int(game.state.items[1].where).is_equal(ItemState.Where.GROUND)
+	assert_array(game.view_of(P2).events_named(&"ItemPlaced")).has_size(1)
+	assert_vector(game.state.items[1].position).is_equal(Vector3(2, 0, 2))
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
 func test_the_distance_comes_from_the_rule() -> void:
 	var mode := FixtureItemModes.basic()
 	(mode.actions[1].effects[0] as PutDownInFront).distance_m = 2.5
