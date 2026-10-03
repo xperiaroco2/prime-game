@@ -785,9 +785,9 @@ playback are M5.
 
 The send path encodes each frame once (#245, M5-4b's first step, no wire change): `VoiceRelay.flush` gives one
 `Outgoing` per frame with its listeners in peer-id order and each one's stream seq; `HostSession` encodes the frame's
-`VoiceDown` once (if any listener is reachable) and sends every reachable listener a copy with its own seq written at the
-offset the schema gives (`VoiceDownEncoder`, `WireRow.fixed_offset`: the fixed sizes of the fields before it), byte for
-byte what `WireSchema.encode` gives for that listener's `VoiceDown`. A row change that moves the seq behind a field of
+`VoiceDown` once (if any listener is reachable) and sends every reachable listener a copy with its own seq written at
+the offset the schema gives (`VoiceDownEncoder`, `WireRow.fixed_offset`: the fixed sizes of the fields before it),
+byte for byte what `WireSchema.encode` gives for that listener's `VoiceDown`. A row change that moves the seq behind a field of
 varying size, or widens it, makes every copy a full encoding (slower, never corrupt) and fails
 `voice_down_encoder_test`. Tests: `tests/unit/server/voice_relay_test.gd`, `voice_down_encoder_test.gd` (every copy
 against the codec for several speakers, ticks, frame sizes and seqs, and through `VoiceRelay` across the u16 wrap;
@@ -2081,8 +2081,8 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
   - **Occlusion** (E42, D13 (a)): on the listener only, one ray from the ears per audible speaker per physics
     frame and one per world sound, muffling what is behind the level; the host keeps routing by distance. Beyond one
     ray is what drops first.
-  - **The wire** (E44; **measured in M5-4**, #218, and again after #245): unchanged in M5 so far. The leak test gained a distance invariant
-    written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and upload with
+  - **The wire** (E44; **measured in M5-4**, #218, and again after #245): unchanged in M5 so far. The leak test
+    gained a distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and upload with
     `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m in the
     lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
     engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores,
@@ -2104,13 +2104,15 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     #245 measured again with the same command on the same PC on 2026-10-03, three runs before the change and three
     after, alternating, with about 10 Godot processes of other worktrees running (upper bounds again; the figures
     are the five full windows with everyone talking). Before: 2.9 to 3.3 ms per 20 ms, 52 to 60 µs per send (16 to
-    18 µs inside the transport's `send`). After, at a comparable load (the transport's part 14 to 15.5 µs): 1.31 to
-    1.41 ms per 20 ms, 23.5 to 26 µs per send; the host's own part of a send (all but the transport's `send`) fell
+    18 µs inside the transport's `send`). After, at a comparable load (the transport's part 14 to 15.5 µs): about
+    1.3 to 1.4 ms per 20 ms, 23.5 to 26 µs per send; the host's own part of a send (all but the transport's `send`) fell
     from about 37 µs to about 10 (one encoding per frame, M5-4's probe's 43 µs shared by 7 listeners, about 6 µs of
-    each send; the copy, the seq and the bookkeeping the rest). One run after the change under a heavier load (the transport's part 21 to 25 µs) took 2.0
-    to 2.3 ms, 35 to 41 µs per send. With 2 talkers: 0.83 to 1.0 ms before, 0.38 to 0.44 ms after. The upload is
+    each send; the copy, the seq and the bookkeeping the rest). One run after the change under a heavier load (the
+    transport's part 21 to 25 µs) took 2.0 to 2.3 ms, 35 to 41 µs per send. With 2 talkers: 0.83 to 1.0 ms before, 0.38 to 0.44 ms after. The upload is
     unchanged (the same bytes): 2.29 Mbit/s. Scaled to 81 streams (90 sends per 20 ms): about 4.7 to 5.4 ms before,
-    **about 2.1 to 2.3 ms after**, still just over E44's 2 ms, and 3.2 to 3.6 ms under the heavier load. About 60%
+    **about 2.1 to 2.3 ms after**, and 3.2 to 3.6 ms under the heavier load: not shown to be under E44's 2 ms,
+    though the comparable-load range starts only about 0.1 ms over it and every figure is an upper bound, so the
+    true cost may be under; a rerun of the same command on a quiet machine settles whether M5-4b is needed. About 60%
     of what is left is the transport's `send` per datagram, which only fewer datagrams cut: M5-4b's batched row (one
     `VoiceDown` per listener per poll holding every frame it hears, a protocol change) would send about 11
     datagrams per 20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the
@@ -3385,7 +3387,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
-| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6 "The wire"): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds), still just over 2 ms, about 60% of it the transport's send per datagram. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4), which E44's rule now asks for; #245's recommendation is to open it, unless the engineer counts 2.1 to 2.3 ms on a shared PC as within the placeholder's margin |
+| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6 "The wire"): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. #245 then encoded each frame's `VoiceDown` once with the seq patched per listener (no wire change, the manager's decision under #134): 23.5 to 26 µs per send, about 2.1 to 2.3 ms per 20 ms at 81 streams (upper bounds, not shown to be under 2 ms), about 60% of it the transport's send per datagram. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4). #245's figures are upper bounds about 0.1 to 0.3 ms over E44's 2 ms, so they do not show the relay under 2 ms, nor that it is over; #245's recommendation is to rerun `tools\run.cmd bots voice_load --instances 8` on a quiet machine first and open M5-4b if it is still over 2 ms (E44's rule), unless the engineer opens it at once or counts the margin as within the placeholder |
 | Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
 | Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows say so |
 | LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled: (a), the engineer, 2026-10-02: CI fetches LFS content, cached by the list of LFS files; added by M5-7 (#221) with the CC0 sounds of #144 and #145 |
