@@ -28,8 +28,9 @@ paths:
 - Under load one idle frame runs several physics frames (up to `Engine.max_physics_steps_per_frame`, 8 here)
   before its `_process`, and `process_frame` is emitted before that `_process`. So a fixed count of physics frames
   proves nothing about what a `_process` writes (a label, a button, `Game`'s per-frame flags): after the state it
-  follows, `await get_tree().process_frame` twice (#222). To see such a test fail, a probe in `tests/scratch/` extends the suite and adds a node whose `_process`
-  calls `OS.delay_msec(120)`.
+  follows, `await get_tree().process_frame` twice (#222). To see such a test fail, copy the suite into
+  `tests/scratch/` and add in its `before_test()` a node whose `_process` calls `OS.delay_msec(120)`; a script that
+  only `extends` the suite runs none of its tests (GdUnit4 runs a script's own `test_` functions only, #238).
 - Headless runs have no `InputEvent`s: UI and input need `shot`, `playcheck` (off-screen, keys only) and a playtest.
 - A bug fix starts with a test that fails for the bug; run it and see it fail before the fix.
 
