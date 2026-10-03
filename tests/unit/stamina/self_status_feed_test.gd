@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
 ## SelfStatusFeed (ARCHITECTURE §4.2, §7.1): SelfStatus to that player only, on change, at most once
-## per tick with the tick's final numbers, and again after ResetMatch.
+## per tick with the tick's final numbers and the client tick of the last claim settled (#155), and
+## again after ResetMatch.
 
 const P1 := 1
 const P2 := 2
@@ -9,11 +10,12 @@ const NORTH := Vector3(0, 0, 1)
 
 func test_it_goes_only_to_that_player() -> void:
 	var game := FixtureMoves.in_round([P1, P2])
+	var tick := game.ticked_through() + 1
 	FixtureMoves.step(game, P1, Vector3.ZERO)
 	var statuses := FixtureMoves.statuses(game, P1)
 	assert_int(statuses.size()).is_equal(1)
 	assert_dict(statuses[0].to_dict()).is_equal(
-		{"health": 100000, "stamina": 100000, "sprint_available": true}
+		{"health": 100000, "stamina": 100000, "sprint_available": true, "claim_tick": tick}
 	)
 	assert_array(FixtureMoves.statuses(game, P2)).is_empty()
 
@@ -70,3 +72,36 @@ func test_it_is_sent_again_after_reset_match() -> void:
 	var statuses := FixtureMoves.statuses(game, P1)
 	assert_int(statuses.size()).is_equal(2)
 	assert_int(statuses.back().stamina).is_equal(100000)
+
+
+func test_it_names_the_last_claim_settled_in_its_tick() -> void:
+	# Two claims in one tick (a LATEST merge sends one, a jittery link two): the SelfStatus at the
+	# tick's end answers the second, whose client tick it names (#155).
+	var game := FixtureMoves.in_round([P1])
+	var player := game.state.player(P1)
+	FixtureMoves.step(game, P1, Vector3.ZERO)
+	var tick := player.claim_tick
+	var start := player.position
+	FixtureMoves.claim(game, P1, start + NORTH * 0.3, FixtureMoves.sprinting())
+	var second := {"client_tick": tick + 2}
+	second.merge(FixtureMoves.sprinting())
+	FixtureMoves.claim(game, P1, start + NORTH * 0.6, second)
+	FixtureModes.run_ticks(game, 1)
+	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()
+	assert_int(last.claim_tick).is_equal(tick + 2)
+	# The second claim's tick is past the host's clock, so the ledger settles only the first's.
+	assert_int(last.stamina).is_equal(99000)
+
+
+func test_it_names_no_claim_before_the_first_of_the_epoch() -> void:
+	# A cost paid before the first claim since the placement: the stamina answers no claim.
+	var mode := FixtureModes.basic()
+	var cost := StaminaCost.new()
+	cost.amount = 25
+	mode.actions[0].conditions = [cost]
+	var game := FixtureModes.in_round(mode, [P1])
+	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD})
+	FixtureModes.run_ticks(game, 1)
+	var last: SelfStatusEvent = FixtureMoves.statuses(game, P1).back()
+	assert_int(last.stamina).is_equal(75000)
+	assert_int(last.claim_tick).is_equal(-1)

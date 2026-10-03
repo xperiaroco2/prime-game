@@ -8,7 +8,7 @@ extends ContentPart
 ## Distances are between the players' last accepted positions (§7.1), in 3D, and a radius
 ## includes its edge, as the M1 spike's routing measured them (#15, `distance_to(...) <= cutoff`,
 ## accepted by the engineer): the listener's AudioStreamPlayer3D fades by 3D distance to the same
-## cutoff (§6).
+## cutoff (§6), hearing_radius_m(), which the client reads from its own mode (E41).
 
 ## The bounds of every voice radius, in metres (§9.4).
 const MIN_RADIUS_M := 0.5
@@ -19,6 +19,21 @@ const MAX_RADIUS_M := 100.0
 ## downed listener (speakers_of), never for a player who left or is dead.
 func hears(_state: MatchState, _listener: int, _speaker: int) -> bool:
 	return false
+
+
+## The farthest this rule routes a voice, in metres, between the last accepted positions in 3D
+## (a radius includes its edge); 0 when it routes nobody. The client's cutoff: a voice fades to
+## silence there (E41, D12), so a rule must never route a speaker farther away, and the leak
+## test's distance invariant checks every frame against it (§5, E45). This base class is silent.
+func hearing_radius_m() -> float:
+	return 0.0
+
+
+## The hearing radius of a phase whose voice rule is `rule`: 0 for a phase with no voice rule,
+## which hears nobody (Match.speakers_for). The one helper that the client's cutoff, its sender
+## and the leak test read (E41).
+static func radius_of(rule: VoiceRule) -> float:
+	return rule.hearing_radius_m() if rule != null else 0.0
 
 
 ## The speakers `listener` hears now, in peer-id order. The voice invariant (§6, vision revision

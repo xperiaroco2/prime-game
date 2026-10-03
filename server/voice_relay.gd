@@ -26,6 +26,9 @@ const VOICE_DOWN := &"VoiceDown"
 
 ## Frames dropped as an old part of a backlog (over NEWEST_PER_POLL in one poll).
 var dropped := 0
+## Frames of present players passed on by flush() (the newest NEWEST_PER_POLL per poll), whether
+## anyone hears them or not (RelayMeter).
+var relayed := 0
 
 ## Listener -> the speakers it may hear: every present player has an entry.
 var _routes: Dictionary[int, PackedInt32Array] = {}
@@ -37,14 +40,16 @@ var _next_seq: Dictionary[Vector2i, int] = {}
 var _held: Dictionary[int, Array] = {}
 
 
-## One relayed frame: its listener and its VoiceDown.
+## One relayed frame: its VoiceDown and, in peer-id order, each listener with its own stream's
+## seq. The message holds the first listener's seq; the host encodes it once and writes each
+## listener's seq into a copy (VoiceDownEncoder).
 class Outgoing:
 	extends RefCounted
-	var listener: int
 	var message: WireMessage
+	var listeners := PackedInt32Array()
+	var seqs := PackedInt32Array()
 
-	func _init(to_peer: int, down: WireMessage) -> void:
-		listener = to_peer
+	func _init(down: WireMessage) -> void:
 		message = down
 
 
@@ -75,6 +80,11 @@ func routes(listener: int, speaker: int) -> bool:
 	return _routes.has(speaker) and _routes.has(listener) and _routes[listener].has(speaker)
 
 
+## Whether a frame waits for flush().
+func has_held() -> bool:
+	return not _held.is_empty()
+
+
 ## Holds one VoiceUp of `speaker` until flush(); dropped at once from a peer that is not a present
 ## player.
 func hold(speaker: int, seq: int, opus: PackedByteArray) -> void:
@@ -86,7 +96,8 @@ func hold(speaker: int, seq: int, opus: PackedByteArray) -> void:
 
 
 ## The VoiceDowns of the frames held in this poll, stamped with `host_tick`: per speaker in
-## peer-id order, its newest frames in its own seq order, each to its listeners in peer-id order.
+## peer-id order, its newest frames in its own seq order, each with its listeners in peer-id order
+## (a frame nobody hears gives none).
 func flush(host_tick: int) -> Array[Outgoing]:
 	var out: Array[Outgoing] = []
 	var speakers: Array[int] = []
@@ -96,15 +107,26 @@ func flush(host_tick: int) -> Array[Outgoing]:
 	listeners.assign(_routes.keys())
 	listeners.sort()
 	for speaker: int in speakers:
-		for frame: Array in _newest(_held[speaker]):
-			for listener: int in listeners:
-				if not routes(listener, speaker):
-					continue
+		var newest := _newest(_held[speaker])
+		relayed += newest.size()
+		var hearing := PackedInt32Array()
+		for listener: int in listeners:
+			if routes(listener, speaker):
+				hearing.append(listener)
+		if hearing.is_empty():
+			continue
+		for frame: Array in newest:
+			var seqs := PackedInt32Array()
+			for listener: int in hearing:
 				var key := Vector2i(speaker, listener)
 				var seq: int = _next_seq.get(key, 0)
 				_next_seq[key] = (seq + 1) % SEQ_MODULO
-				var fields := {"speaker": speaker, "seq": seq, "tick": host_tick, "opus": frame[1]}
-				out.append(Outgoing.new(listener, WireMessage.new(VOICE_DOWN, fields)))
+				seqs.append(seq)
+			var fields := {"speaker": speaker, "seq": seqs[0], "tick": host_tick, "opus": frame[1]}
+			var each := Outgoing.new(WireMessage.new(VOICE_DOWN, fields))
+			each.listeners = hearing
+			each.seqs = seqs
+			out.append(each)
 	_held.clear()
 	return out
 

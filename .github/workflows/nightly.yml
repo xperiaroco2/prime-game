@@ -36,6 +36,10 @@ jobs:
 
       - uses: ./.github/actions/setup-toolchain
 
+      # Without the TwoVoIP extension, as in CI (ci.yml says why; the M5 ADR §2, E35 (a)).
+      - name: Remove the TwoVoIP extension
+        run: rm addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
+
       - name: doctor
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
 
@@ -72,6 +76,10 @@ jobs:
           lfs: false
 
       - uses: ./.github/actions/setup-toolchain
+
+      # Without the TwoVoIP extension, as in CI (ci.yml says why; the M5 ADR §2, E35 (a)).
+      - name: Remove the TwoVoIP extension
+        run: rm addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
       - name: doctor
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
@@ -128,6 +136,10 @@ jobs:
           lfs: false
 
       - uses: ./.github/actions/setup-toolchain
+
+      # Without the TwoVoIP extension, as in CI (ci.yml says why; the M5 ADR §2, E35 (a)).
+      - name: Remove the TwoVoIP extension
+        run: rm addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
       - name: doctor
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick

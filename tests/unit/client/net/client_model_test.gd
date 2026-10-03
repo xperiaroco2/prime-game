@@ -253,6 +253,26 @@ func test_a_raise_is_folded_from_its_start_to_its_stop() -> void:
 	assert_int(_model.life_of(OWN)).is_equal(ClientModel.Life.DOWNED)
 
 
+func test_silencings_count_each_phase_change_and_each_time_the_own_life_leaves_living() -> void:
+	# #241: VoiceSender compares the count between its steps, so a cycle folded between two of them
+	# is not missed. Another player's life, a revive and a respawn count nothing.
+	_to_round()
+	var count := _model.silencings
+	_fold(KnockedDownEvent.new(1, Vector3(6, 0, 6)))
+	_fold(RaiseStartedEvent.new(5, OWN))
+	assert_int(_model.silencings).is_equal(count)
+	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))
+	assert_int(_model.silencings).is_equal(count + 1)
+	_fold(RevivedEvent.new(OWN))
+	assert_int(_model.silencings).is_equal(count + 1)
+	_fold(DiedEvent.new(OWN, Vector3(6, 0, 6)))
+	_fold(RespawnedEvent.new(OWN, Vector3(-14, 0, 5)))
+	assert_int(_model.silencings).is_equal(count + 2)
+	_fold(PhaseChangedEvent.new(&"end", -1))
+	_fold(PhaseChangedEvent.new(&"lobby", -1))
+	assert_int(_model.silencings).is_equal(count + 4)
+
+
 func test_a_revive_ends_the_raise_and_makes_the_player_living() -> void:
 	_to_round()
 	_fold(KnockedDownEvent.new(OWN, Vector3(6, 0, 6)))

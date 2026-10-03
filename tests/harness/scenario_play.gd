@@ -7,7 +7,8 @@ extends RefCounted
 ## runner names players through its own ScenarioPeers.
 ##
 ## A runner calls _act(bot, at_tick) for every bot once per tick of its clock, and supplies the
-## hooks below (_send, _connect, _claim, _travel_ticks, _jump, _leave, _answer_load, _stand).
+## hooks below (_send, _connect, _claim, _travel_ticks, _sprint_available, _jump, _leave,
+## _answer_load, _stand).
 ##
 ## Fails, naming the bot, its step and its last events (with the seed): a step that sends an
 ## intent and gets a Rejected it did not expect, or succeeds when it expected one; a target the bot
@@ -184,6 +185,9 @@ func _run_step(bot: ScenarioBot, step: ScenarioStep, at_tick: int) -> Result:
 		bot.gone = true
 		_leave(bot)
 		result = Result.DONE
+	elif step is StepTalk:
+		bot.talking = (step as StepTalk).talking
+		result = Result.DONE
 	else:
 		result = _check(bot, step, elapsed)
 	return result
@@ -290,7 +294,7 @@ func _walk(bot: ScenarioBot, step: StepWalkTo) -> Result:
 		return Result.WAITING
 	var rules := scenario.mode.player_rules
 	# The downed crawl: the crawl speed, never a sprint.
-	var sprinting := step.sprint and not bot.downed and bot.sprint_available
+	var sprinting := step.sprint and not bot.downed and _sprint_available(bot)
 	var speed := rules.sprint_speed_mps if sprinting else rules.walk_speed_mps
 	if bot.downed:
 		speed = rules.crawl_speed_mps
@@ -537,6 +541,13 @@ func _claim(_bot: ScenarioBot, _to: Vector3, _velocity: Vector3, _sprint: bool) 
 ## client ticks since its last move over the network.
 func _travel_ticks(_bot: ScenarioBot) -> int:
 	return 1
+
+
+## Whether the bot's next claim of travel would be in the sprint state if it held sprint: in the
+## core runner the last SelfStatus says so (it answers the bot's claim of the tick before); a
+## network bot predicts it from its own stamina (NetPlay, #155).
+func _sprint_available(bot: ScenarioBot) -> bool:
+	return bot.sprint_available
 
 
 ## The bot jumps where it stands: one more jump in its epoch.

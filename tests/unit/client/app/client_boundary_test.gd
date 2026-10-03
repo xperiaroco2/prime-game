@@ -6,10 +6,27 @@ extends GdUnitTestSuite
 ## case-sensitive and word-bounded, so SnapshotBuffer and DecodedView.snapshots pass. A path into
 ## server/ (a preload of host_session.gd) is matched in the raw source, strings included, and
 ## HostNode's private `_session` is forbidden as a member read.
+##
+## voice/ (E46 of the M5 ADR, the M5 ADR §1.2) is held to the same forbidden names and uses nothing
+## outside itself: no class or path of core/, server/, net/, client/, content/, levels/ or tests/,
+## so it never reads the life fold, the phase, ClientSession or core state; client/ decides what
+## voice/ is told (may_speak, max_distance).
 
 const CLIENT := "res://client"
 const APP := "res://client/app"
 const SERVER := "res://server/"
+const VOICE := "res://voice"
+## The folders voice/ may not use (E46), by class or by path.
+const NOT_FOR_VOICE := [
+	"res://core/",
+	"res://server/",
+	"res://net/",
+	"res://client/",
+	"res://content/",
+	"res://levels/",
+	"res://tests/",
+]
+const NOT_FOR_VOICE_PATH := "res://(core|server|net|client|content|levels|tests)/[A-Za-z0-9_./]*"
 ## The façade client/app/ may name (E18), by class or by path.
 const FACADE := &"HostNode"
 const FACADE_PATH := "res://server/host_node.gd"
@@ -29,6 +46,47 @@ func test_no_client_file_reads_the_host_or_core_state() -> void:
 		for problem: String in problems(FileAccess.get_file_as_string(path)):
 			found.append("%s: %s" % [path, problem])
 	assert_array(found).is_empty()
+
+
+func test_no_voice_file_reads_the_host_or_core_state() -> void:
+	var found := PackedStringArray()
+	var files := _client_files(VOICE)
+	assert_bool(files.has(VOICE.path_join("voice_gate.gd"))).is_true()
+	for path: String in files:
+		for problem: String in problems(FileAccess.get_file_as_string(path)):
+			found.append("%s: %s" % [path, problem])
+	assert_array(found).is_empty()
+
+
+func test_voice_uses_nothing_outside_itself() -> void:
+	var outside := _classes_under(NOT_FOR_VOICE)
+	assert_bool(outside.has(&"ClientSession")).is_true()
+	assert_bool(outside.has(&"MatchState")).is_true()
+	var found := PackedStringArray()
+	for path: String in _client_files(VOICE):
+		for problem: String in voice_problems(FileAccess.get_file_as_string(path), outside):
+			found.append("%s: %s" % [path, problem])
+	assert_array(found).is_empty()
+
+
+func test_it_rejects_a_planted_read_in_voice() -> void:
+	var outside := _classes_under(NOT_FOR_VOICE)
+	# The planted failures of E46: a ClientSession parameter, the life view, the client's
+	# snapshots, a preload from net/, and core state.
+	var planted := "func _speak(session: ClientSession) -> void:\n\tpass"
+	assert_array(voice_problems(planted, outside)).has_size(1)
+	assert_array(voice_problems("var life: LifeView = null", outside)).has_size(1)
+	assert_array(voice_problems("var tick := SnapshotBuffer.new()", outside)).has_size(1)
+	assert_array(voice_problems('const W := preload("res://net/wire.gd")', outside)).has_size(1)
+	assert_array(problems("var m: MatchState")).has_size(1)
+	# Its own classes, engine classes, and mentions in comments and strings pass.
+	var allowed := (
+		"var gate := VoiceGate.new()\n"
+		+ "var player: AudioStreamPlayer3D\n"
+		+ "# ClientSession decides may_speak\n"
+		+ 'var name := &"ClientSession"\n'
+	)
+	assert_array(voice_problems(allowed, outside)).is_empty()
 
 
 func test_only_client_app_names_server_and_only_its_facade() -> void:
@@ -98,6 +156,19 @@ static func path_problems(source: String, in_app: bool) -> PackedStringArray:
 	return found
 
 
+## What voice/ may not use in `source`: a class of `outside` (after strip()) or a path into the
+## folders it may not use (in the raw source, strings included).
+static func voice_problems(source: String, outside: Array[StringName]) -> PackedStringArray:
+	var found := PackedStringArray()
+	var code := strip(source)
+	for outside_class: StringName in outside:
+		if RegEx.create_from_string("\\b%s\\b" % outside_class).search(code) != null:
+			found.append("names %s" % outside_class)
+	for hit: RegExMatch in RegEx.create_from_string(NOT_FOR_VOICE_PATH).search_all(source):
+		found.append("names %s" % hit.get_string())
+	return found
+
+
 ## `source` with every comment and every string literal (quoted, triple-quoted, StringName and
 ## NodePath alike) replaced by a space, so only code is matched.
 static func strip(source: String) -> String:
@@ -136,8 +207,15 @@ static func _client_files(dir: String) -> PackedStringArray:
 
 ## The global class names declared in server/.
 static func _server_classes() -> Array[StringName]:
+	return _classes_under([SERVER])
+
+
+## The global class names declared under any of `dirs`.
+static func _classes_under(dirs: Array) -> Array[StringName]:
 	var found: Array[StringName] = []
 	for entry: Dictionary in ProjectSettings.get_global_class_list():
-		if str(entry["path"]).begins_with(SERVER):
-			found.append(StringName(str(entry["class"])))
+		var path := str(entry["path"])
+		for dir: String in dirs:
+			if path.begins_with(dir):
+				found.append(StringName(str(entry["class"])))
 	return found

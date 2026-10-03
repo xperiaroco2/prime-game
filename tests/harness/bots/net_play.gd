@@ -4,9 +4,16 @@ extends ScenarioPlay
 ## (the ClientSession every client runs) and learns only from what it decoded, as (name, fields).
 ## Its mover is honest: it moves its position toward the target at the walk or sprint speed of the
 ## mode's PlayerRules, one client tick of travel per client tick, and its ClientSession claims it
-## every client tick, counts its jumps and adopts every Correction. Its voice is synthetic: one
-## frame per client tick holding its peer id and a counter (LeakCheck.voice_frame), so a listener
-## checks that the relay changed no frame and named the right speaker.
+## every client tick, counts its jumps and adopts every Correction. It sprints while its own
+## PredictedStamina, settled by its claims and following its SelfStatus as a player's controller
+## does, says the next claim would be in the sprint state: a SelfStatus answers a claim some ticks
+## old, and a bot that sprinted on its `sprint_available` would claim a sprint tick its stamina no
+## longer pays for, which the host corrects (#155). Its voice is synthetic: one frame per 20 ms of
+## the runner's clock, in talk spurts unless the scenario says continuously (BotVoice), each
+## holding its peer id and a counter (LeakCheck.voice_frame), so a listener checks that the relay
+## changed no frame and named the right speaker. It talks in every phase and life state, like a
+## modified client: the host must route none of it where nobody hears it (§6); only a Talk step
+## silences it (M5-4's voice_load).
 ##
 ## Bot 1 is the host's own client: it sends the setup's forced roles (one ForceRole per bot, on the
 ## debug kind, E17), once it knows the peer ids of every bot that joins at the start, then the
@@ -31,13 +38,16 @@ var ends_from_bots := false
 ## move, and dropped while the bot is dead, so the first walk after standing or a respawn covers one
 ## client tick.
 var _moved_tick: Dictionary[int, int] = {}
-## Bot number -> the client tick of its last voice frame, and frames sent.
-var _voice_tick: Dictionary[int, int] = {}
+## Bot number -> the last 20 ms frame of the runner's clock its voice went through, and the frames
+## it sent.
+var _voice_frame: Dictionary[int, int] = {}
 var _voice_count: Dictionary[int, int] = {}
 var _facing_of: Dictionary[int, Vector3] = {}
 var _snapshot_seen: Dictionary[int, int] = {}
 ## The bots whose ForceRole bot 1 sent; the settings went.
 var _forced: Dictionary[int, bool] = {}
+## Bot number -> its stamina as its client predicts it.
+var _stamina: Dictionary[int, PredictedStamina] = {}
 var _settings_sent := false
 
 
@@ -50,6 +60,16 @@ func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
 	client.event_received.connect(_on_event.bind(bot))
 	transport.connected.connect(_on_connected.bind(bot))
 	clients[bot.number] = client
+	var stamina := PredictedStamina.new(scenario.mode.player_rules)
+	stamina.follow_claims()
+	_stamina[bot.number] = stamina
+	client.claim_sent.connect(
+		func(epoch: int, tick: int, covered: int, sprint: bool, moved: bool) -> void:
+			stamina.settle_claim(epoch, tick, covered, sprint, moved, bot.downed)
+	)
+	client.corrected.connect(
+		func(_position: Vector3, _velocity: Vector3) -> void: stamina.forget_unclaimed_jumps()
+	)
 	return client
 
 
@@ -106,6 +126,13 @@ func _peer_known(_bot: ScenarioBot) -> void:
 func _on_event(event_name: StringName, fields: Dictionary, bot: ScenarioBot) -> void:
 	if bot.gone:
 		return
+	if event_name == &"SelfStatus":
+		_stamina[bot.number].follow_status(
+			fields["stamina"] as int,
+			fields["sprint_available"] as bool,
+			fields["claim_tick"] as int,
+			clients[bot.number].model.epoch
+		)
 	var problem := bot.receive(event_name, fields)
 	if not problem.is_empty():
 		_fail_step(bot, problem)
@@ -207,9 +234,15 @@ func _stand(bot: ScenarioBot) -> void:
 	client.set_motion(bot.position, Vector3.ZERO, facing, false, false, true)
 
 
+func _sprint_available(bot: ScenarioBot) -> bool:
+	var stamina := _stamina[bot.number]
+	return stamina.can_sprint(stamina.is_sprinting(), bot.downed)
+
+
 func _jump(bot: ScenarioBot) -> void:
 	bot.jumps += 1
 	clients[bot.number].count_jump()
+	_stamina[bot.number].report(0.0, false, true, bot.downed)
 
 
 func _leave(bot: ScenarioBot) -> void:
@@ -221,15 +254,19 @@ func _answer_load(bot: ScenarioBot, match_id: int, skip: bool) -> void:
 		clients[bot.number].send_load_ack(match_id)
 
 
-## One synthetic voice frame per client tick, once the bot is a player.
+## Its synthetic voice frames due since the last frame (BotVoice), once the bot is a player and
+## while it talks (a Talk step).
 func _speak(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
 	if bot.gone or not bot.joined or client == null or client.is_ended():
 		return
-	var now_tick := client.client_tick(now_usec)
-	if now_tick <= _voice_tick.get(bot.number, -1):
+	var now_frame := BotVoice.frame_at(now_usec)
+	var last: int = _voice_frame.get(bot.number, now_frame - 1)
+	_voice_frame[bot.number] = now_frame
+	if not bot.talking:
 		return
-	_voice_tick[bot.number] = now_tick
-	var counter: int = _voice_count.get(bot.number, 0)
-	if client.send_voice(LeakCheck.voice_frame(bot.peer, counter)) == OK:
+	for _frame: int in BotVoice.frames_due(bot.number, last, now_frame, scenario.voice):
+		var counter: int = _voice_count.get(bot.number, 0)
+		if client.send_voice(LeakCheck.voice_frame(bot.peer, counter)) != OK:
+			return
 		_voice_count[bot.number] = counter + 1

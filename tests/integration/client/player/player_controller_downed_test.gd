@@ -4,8 +4,8 @@ extends GdUnitTestSuite
 ## gravity, floor, steps, slopes and walls at `crawl_speed_mps`, with no sprint and no jump, and its
 ## stamina regenerates as usual. It passes through players (the engineer's correction of
 ## 2026-09-30, #46: the downed do not fly). It lies down (its mesh; the capsule stays standing),
-## and a raise holds it still (M4-9). A dead player has no body. Forward is -Z. Each test builds
-## its own small world.
+## and a raise holds it still (M4-9). A dead player has no body and does not look around, and
+## look_level() levels a respawned head (#191). Forward is -Z. Each test builds its own small world.
 
 const SPEED_TOLERANCE := 0.05
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
@@ -274,6 +274,30 @@ func test_the_dead_never_move_however_they_are_driven() -> void:
 	assert_vector(player.global_position).is_equal(Vector3(0.0, 1.0, 0.0))
 
 
+func test_the_downed_look_around_and_the_dead_neither_turn_nor_tilt_the_head() -> void:
+	# #191: the dead have no avatar; mouse motion while spectating tilted the hidden head.
+	var player := _world.add_downed(Vector3.ZERO)
+	player.look(0.5, 0.3)
+	assert_float(player.rotation.y).is_equal_approx(0.5, 0.0001)
+	assert_float(_pitch(player)).is_equal_approx(0.3, 0.0001)
+	for life: ClientModel.Life in [ClientModel.Life.DEAD, ClientModel.Life.LEFT]:
+		player.life = life
+		player.look(0.9, 0.8)
+		assert_float(player.rotation.y).is_equal_approx(0.5, 0.0001)
+		assert_float(_pitch(player)).is_equal_approx(0.3, 0.0001)
+
+
+func test_look_level_levels_the_head_and_keeps_the_yaw() -> void:
+	# A respawn's look (the engineer's answer on #191): level, the yaw kept.
+	var player := _world.add_player(Vector3.ZERO)
+	player.look(-1.2, -0.7)
+	player.look_level()
+	assert_float(_pitch(player)).is_equal_approx(0.0, 0.0001)
+	assert_float(player.rotation.y).is_equal_approx(-1.2, 0.0001)
+	var ahead := Vector3(sin(1.2), 0.0, -cos(1.2))
+	assert_vector(player.look_vector()).is_equal_approx(ahead, Vector3.ONE * 0.0001)
+
+
 func test_a_held_downed_player_stands_still_while_asked_to_crawl() -> void:
 	# A raise holds the downed in place (M4-4): every claim is where it lay.
 	var player := _world.add_downed(Vector3.ZERO)
@@ -290,3 +314,8 @@ func test_a_held_downed_player_stands_still_while_asked_to_crawl() -> void:
 	player.held = false
 	await _world.frames(30)
 	assert_float(player.global_position.z).is_less(lay.z - 0.3)
+
+
+## The head's pitch of `player`'s first-person view, in radians (up is positive).
+func _pitch(player: PlayerController) -> float:
+	return player.get_camera().get_parent_node_3d().rotation.x

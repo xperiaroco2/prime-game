@@ -61,10 +61,16 @@ const FUTURE_TICKS := 5000
 ## The Claim shapes a chaos peer draws at random: the ones before NEAR_ITEM.
 const RANDOM_CLAIMS := Claim.NEAR_ITEM
 const UNASSIGNED: Array[int] = [0, 14, 19, 23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255]
-## MoveClaim's layout (§4.3): the first float of position, velocity and facing, and the flags.
+## MoveClaim's layout (§4.3, protocol v7): the first float of position, velocity and facing, and
+## the flags (jumps, sprint_ticks and moved_ticks follow them).
 const CLAIM_FLOATS_AT := 8
 const CLAIM_FLOATS := 9
 const CLAIM_FLAGS_AT := 44
+## A hostile claim's per-tick masks (#155): no tick sprinted (sprint_ticks 0) and every tick moved
+## by the player itself, as ClientSession sends them for a player that walked each tick. A claim
+## that sends no masks gets the same from its flags (MovementRule), so each Claim shape means what
+## it meant before the masks.
+const HONEST_MOVED_TICKS := MovementRule.MAX_MASK
 
 
 ## One packet a chaos peer sends, with what the host must make of it.
@@ -164,6 +170,8 @@ static func claim(
 		"moving": true,
 		"on_floor": true,
 		"jumps": jumps,
+		"sprint_ticks": 0,
+		"moved_ticks": HONEST_MOVED_TICKS,
 	}
 	var packet := message(schema, Intents.MOVE_CLAIM, fields)
 	packet.label = "claim %s" % Claim.find_key(shape)

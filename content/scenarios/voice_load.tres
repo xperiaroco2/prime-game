@@ -1,0 +1,138 @@
+[gd_resource type="Resource" script_class="BotScenario" format=3 uid="uid://bnxihuagydud5"]
+
+[ext_resource type="Resource" uid="uid://dryjm86grpgfq" path="res://content/modes/base_mode.tres" id="1_mode"]
+[ext_resource type="Script" uid="uid://bfvque0y35url" path="res://core/content/scenario/never_event.gd" id="2_1fp4s"]
+[ext_resource type="Script" uid="uid://bp1druqyiso45" path="res://core/content/scenario/bot_scenario.gd" id="2_scenario"]
+[ext_resource type="Script" uid="uid://c5j3aub6g5wj2" path="res://core/content/scenario/bot_script.gd" id="3_script"]
+[ext_resource type="Script" uid="uid://sgkyia4thnyt" path="res://core/content/scenario/scenario_step.gd" id="4_step"]
+[ext_resource type="Script" uid="uid://tngk1rx2h3gs" path="res://core/content/scenario/step_walk_to.gd" id="5_walk_to"]
+[ext_resource type="Script" uid="uid://cwir1gwfkdanc" path="res://core/content/scenario/scenario_target.gd" id="6_target"]
+[ext_resource type="Script" uid="uid://dal72uy8rrs65" path="res://core/content/scenario/step_wait.gd" id="7_wait"]
+[ext_resource type="Script" uid="uid://c72yq3m7njc5g" path="res://core/content/scenario/step_talk.gd" id="8_talk"]
+
+[sub_resource type="Resource" id="Target_1"]
+script = ExtResource("6_target")
+point = Vector3(3, 0, 4)
+
+[sub_resource type="Resource" id="Walk_1"]
+script = ExtResource("5_walk_to")
+target = SubResource("Target_1")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="All_talk"]
+script = ExtResource("7_wait")
+seconds = 30.0
+
+[sub_resource type="Resource" id="Silent"]
+script = ExtResource("8_talk")
+talking = false
+
+[sub_resource type="Resource" id="Two_talk"]
+script = ExtResource("7_wait")
+seconds = 30.0
+
+[sub_resource type="Resource" id="Script_1"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_1"), SubResource("All_talk"), SubResource("Silent"), SubResource("Two_talk")])
+
+[sub_resource type="Resource" id="Target_2"]
+script = ExtResource("6_target")
+point = Vector3(2.121, 0, 6.121)
+
+[sub_resource type="Resource" id="Walk_2"]
+script = ExtResource("5_walk_to")
+target = SubResource("Target_2")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Script_2"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_2"), SubResource("All_talk"), SubResource("Two_talk")])
+
+[sub_resource type="Resource" id="Target_3"]
+script = ExtResource("6_target")
+point = Vector3(0, 0, 7)
+
+[sub_resource type="Resource" id="Walk_3"]
+script = ExtResource("5_walk_to")
+target = SubResource("Target_3")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Script_3"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_3"), SubResource("All_talk"), SubResource("Two_talk")])
+
+[sub_resource type="Resource" id="Target_4"]
+script = ExtResource("6_target")
+point = Vector3(-2.121, 0, 6.121)
+
+[sub_resource type="Resource" id="Walk_4"]
+script = ExtResource("5_walk_to")
+target = SubResource("Target_4")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Script_4"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_4"), SubResource("All_talk"), SubResource("Silent"), SubResource("Two_talk")])
+
+[sub_resource type="Resource" id="Target_5"]
+script = ExtResource("6_target")
+point = Vector3(-3, 0, 4)
+
+[sub_resource type="Resource" id="Walk_5"]
+script = ExtResource("5_walk_to")
+target = SubResource("Target_5")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Script_5"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_5"), SubResource("All_talk"), SubResource("Silent"), SubResource("Two_talk")])
+
+[sub_resource type="Resource" id="Target_6"]
+script = ExtResource("6_target")
+point = Vector3(-2.121, 0, 1.879)
+
+[sub_resource type="Resource" id="Walk_6"]
+script = ExtResource("5_walk_to")
+target = SubResource("Target_6")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Script_6"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_6"), SubResource("All_talk"), SubResource("Silent"), SubResource("Two_talk")])
+
+[sub_resource type="Resource" id="Target_7"]
+script = ExtResource("6_target")
+point = Vector3(0, 0, 1)
+
+[sub_resource type="Resource" id="Walk_7"]
+script = ExtResource("5_walk_to")
+target = SubResource("Target_7")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Script_7"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_7"), SubResource("All_talk"), SubResource("Silent"), SubResource("Two_talk")])
+
+[sub_resource type="Resource" id="Target_8"]
+script = ExtResource("6_target")
+point = Vector3(2.121, 0, 1.879)
+
+[sub_resource type="Resource" id="Walk_8"]
+script = ExtResource("5_walk_to")
+target = SubResource("Target_8")
+stop_m = 0.2
+
+[sub_resource type="Resource" id="Script_8"]
+script = ExtResource("3_script")
+steps = Array[ExtResource("4_step")]([SubResource("Walk_8"), SubResource("All_talk"), SubResource("Silent"), SubResource("Two_talk")])
+
+[resource]
+script = ExtResource("2_scenario")
+mode = ExtResource("1_mode")
+session_seed = 518000000001
+bots = 8
+scripts = Array[ExtResource("3_script")]([SubResource("Script_1"), SubResource("Script_2"), SubResource("Script_3"), SubResource("Script_4"), SubResource("Script_5"), SubResource("Script_6"), SubResource("Script_7"), SubResource("Script_8")])
+expected_ends = Array[StringName]([&"none"])
+time_limit_s = 90.0
+voice = 1
+measurement = true

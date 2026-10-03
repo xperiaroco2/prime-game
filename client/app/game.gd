@@ -23,6 +23,15 @@ extends Node
 ##
 ## Items (M4-8): `Items` (ItemWorld) draws the items, the circles and the destination marker, sends
 ## the item keys and plays the world sounds; the Ui's HUD and task screen show the round.
+##
+## Voice (M5-5): AudioBuses makes the Voice, Effects and Music buses at start; `Voices`
+## (VoiceViews) plays the voices this client hears on the speakers' avatars through `voice_codec`,
+## heard from LifeView's Ears; a debug build's overlay lists them by index of first arrival.
+##
+## Speaking (M5-6): `VoiceSender` sends the own microphone through the gate into the own session;
+## `VoiceControl` applies this window's UserSettings (the microphone, the mode, the threshold,
+## RNNoise, the volumes, the "opening" mark) and the Esc menu's Voice tab changes them; the lobby
+## hints at the tab until a microphone is picked; F3 shows the own gate, peak, age and encode time.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
@@ -48,6 +57,12 @@ var device_input := true
 ## The mouse pointer the game captures and frees: Input's unless a test sets one (headless keeps no
 ## mouse mode).
 var pointer := MousePointer.new()
+## The voice codec: TwoVoIP's (unavailable without the addon, then no voice plays) unless a test
+## sets one before _ready.
+var voice_codec: VoiceCodec
+## The player's settings on this machine: this window's file (UserSettings.for_this_window()),
+## or in memory with `read_command_line` off, unless a test sets one before _ready.
+var settings: UserSettings
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -62,6 +77,11 @@ var _level_kind := PhaseSpec.Level.NONE
 var _bodies := BodyViews.new()
 var _life := LifeView.new()
 var _items := ItemWorld.new()
+var _voices := VoiceViews.new()
+var _sender := VoiceSender.new()
+var _voice_control: VoiceControl
+## The Esc menu showed the Voice tab last frame: the device list is read again when it opens.
+var _voice_tab_shown := false
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -89,6 +109,7 @@ func _ready() -> void:
 	_world.add_child(_bodies)
 	_world.add_child(_life)
 	_world.add_child(_items)
+	_ready_voice()
 	if OS.is_debug_build():
 		_overlay = DebugOverlay.new()
 		_overlay.name = "DebugOverlay"
@@ -106,9 +127,11 @@ func _ready() -> void:
 		ui.menu.port_box.value = options.port
 
 
-## The tree outlives this root in tests: give it back the quit it had.
+## The tree outlives this root in tests: give it back the quit it had. The microphone closes
+## cleanly, which also clears an "opening" mark that has not settled yet.
 func _exit_tree() -> void:
 	get_tree().auto_accept_quit = true
+	_sender.close()
 
 
 ## Hosts a session on `port`, listening on `bind` (every interface unless "127.0.0.1"); false,
@@ -254,6 +277,21 @@ func overlay() -> DebugOverlay:
 	return _overlay
 
 
+## The voices this client plays (M5-5).
+func voices() -> VoiceViews:
+	return _voices
+
+
+## The own voice's sender (M5-6).
+func sender() -> VoiceSender:
+	return _sender
+
+
+## The voice settings applied (M5-6).
+func voice_control() -> VoiceControl:
+	return _voice_control
+
+
 func _process(_delta: float) -> void:
 	_check_runner()
 	var now := screen()
@@ -270,20 +308,8 @@ func _process(_delta: float) -> void:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
 		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
 	_refresh_overlay()
-	if _player != null:
-		# The dead have no body to move: it stands still until its Respawned (M4-9).
-		_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
-		var listening := not GameFlow.frozen(now) and not ui.esc_open()
-		_player.reads_device_input = device_input and listening
-		_life.reads_device_input = device_input
-		_life.listening = listening and now == GameFlow.Screen.ROUND
-		_items.interactions.reads_device_input = device_input
-		_items.interactions.listening = listening and now == GameFlow.Screen.ROUND
-		if not listening:
-			# Nothing reads the keys now: W held when Esc opened must not keep walking.
-			_player.move_input = Vector2.ZERO
-			_player.sprint_held = false
-			_player.jump_requested = false
+	_refresh_voice()
+	_apply_player_flags(now)
 
 
 func _input(event: InputEvent) -> void:
@@ -317,6 +343,29 @@ func _notification(what: int) -> void:
 		ui.esc.ask_quit(screen(), _welcomed_model())
 	else:
 		quit()
+
+
+## The local player's physics step and input flags for `now`: it steps only on a screen that is not
+## frozen and while it has a body (the dead stand still until their Respawned, M4-9), and the keys
+## count only there with no Esc menu. Game._process applies them every frame (the Esc menu), and
+## _on_event as soon as the session folds an event in its physics step (#241): under load several
+## physics steps run before the next _process, and the player must neither step nor claim after
+## the phase turns frozen (Loading, End), nor wait for _process to walk again.
+func _apply_player_flags(now: GameFlow.Screen) -> void:
+	if _player == null:
+		return
+	_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
+	var listening := not GameFlow.frozen(now) and not ui.esc_open()
+	_player.reads_device_input = device_input and listening
+	_life.reads_device_input = device_input
+	_life.listening = listening and now == GameFlow.Screen.ROUND
+	_items.interactions.reads_device_input = device_input
+	_items.interactions.listening = listening and now == GameFlow.Screen.ROUND
+	if not listening:
+		# Nothing reads the keys now: W held when Esc opened must not keep walking.
+		_player.move_input = Vector2.ZERO
+		_player.sprint_held = false
+		_player.jump_requested = false
 
 
 func _player_dead() -> bool:
@@ -372,6 +421,7 @@ func _start_client(transport: NetTransport) -> void:
 	_life.setup(_client, mode, _avatars)
 	_items.setup(_client, mode, _avatars)
 	_life.items = _items.items
+	_setup_voice()
 
 
 func _on_welcomed(own_peer: int) -> void:
@@ -408,17 +458,21 @@ func _on_map_loaded(_path: String, scene: PackedScene) -> void:
 	_set_level(scene.instantiate(), PhaseSpec.Level.MAP)
 
 
+## Every event, in the session's physics step: the level of a new phase, the own life, and the
+## player's flags for the screen the model is on now (a phase, the winner and the own death all
+## change them, #241).
 func _on_event(event_name: StringName, _fields: Dictionary) -> void:
 	if event_name == &"PhaseChanged":
 		_sync_level()
 	_sync_life()
+	_apply_player_flags(screen())
 
 
 ## The own player's body follows its own life fold (M4-9): it crawls while downed (a KnockedDown
-## naming it), has no body while dead (Died; the physics step stops in _process, so it neither
-## walks nor claims until its Respawned), and walks again once living (Revived, Respawned, a new
-## match, the lobby). Only a change switches the body, since switching stops it. A raise naming it
-## holds it still (`held`).
+## naming it), has no body while dead (Died; _apply_player_flags stops the physics step, so it
+## neither walks nor claims until its Respawned), and walks again once living (Revived, Respawned,
+## a new match, the lobby). Only a change switches the body, since switching stops it. A raise
+## naming it holds it still (`held`).
 func _sync_life() -> void:
 	if _player == null:
 		return
@@ -487,6 +541,8 @@ func _end_session(reason: StringName) -> void:
 	_bodies.model = null
 	_bodies.clear()
 	_items.reset()
+	_voices.reset()
+	_sender.reset()
 	_clear_level()
 	if _player != null:
 		_player.queue_free()
@@ -495,19 +551,84 @@ func _end_session(reason: StringName) -> void:
 	_ending = false
 
 
-## The overlay's numbers, while it shows: the own client's, and on the host the session's counters.
+## The overlay's numbers, while it shows: the own client's, and on the host the session's counters
+## and, outside a Round, the voice relay's (DebugOverlay.shows_relay).
 func _refresh_overlay() -> void:
 	if _overlay == null or not _overlay.visible:
 		return
 	var counters: Dictionary[StringName, int] = {}
+	_refresh_voice_overlay()
 	if _client == null:
 		_overlay.show_numbers(-1, -1, -1, 0.0, counters)
+		_overlay.show_relay(counters, null)
 		return
+	var relay: Dictionary[StringName, int] = {}
 	if _host != null:
 		counters = _host.counters()
+		relay = _host.relay_counters()
 	_overlay.show_numbers(
 		_client.corrections, _client.placements, _avatars.host_tick(), _avatars.delay_ms(), counters
 	)
+	_overlay.show_relay(relay, _client.model.phase_spec())
+
+
+## The overlay's voice lines: the own voice, then one per speaker played, by index of first
+## arrival (E47).
+func _refresh_voice_overlay() -> void:
+	_overlay.show_own_voice(
+		_sender.is_open(),
+		_sender.gate.is_open(),
+		_sender.peak,
+		_sender.frame_age_usec,
+		_sender.encode_usec
+	)
+	_overlay.show_voice(_voices.stats())
+
+
+## The buses (D15), the voices' node under World, and the own voice: the sender, this window's
+## settings applied, and the Voice tab wired to them.
+func _ready_voice() -> void:
+	AudioBuses.ensure()
+	if voice_codec == null:
+		voice_codec = TwoVoipCodec.new()
+	_world.add_child(_voices)
+	if settings == null:
+		# A Game with no command line (a test, a playcheck window) keeps its settings in memory: the
+		# player's file in user:// would set the process's buses and take an opening mark.
+		settings = UserSettings.for_this_window() if read_command_line else UserSettings.new()
+	_sender.codec = voice_codec
+	add_child(_sender)
+	_voice_control = VoiceControl.new(settings, _sender)
+	var panel := ui.esc.voice
+	panel.device_picked.connect(_voice_control.pick_device)
+	panel.mode_picked.connect(_voice_control.set_mode)
+	panel.threshold_changed.connect(_voice_control.set_threshold)
+	panel.denoise_toggled.connect(_voice_control.set_denoise)
+	panel.volume_changed.connect(_voice_control.set_volume)
+	panel.tone_toggled.connect(_voice_control.set_tone)
+	panel.mute_toggled.connect(_voice_control.set_muted)
+	_voice_control.start()
+
+
+## The voices follow the new session's ClientSession, model and avatars; the own voice speaks
+## into it.
+func _setup_voice() -> void:
+	_voices.setup(_client, mode, _avatars, voice_codec)
+	_sender.setup(_client, mode)
+
+
+## Each frame: the talk key counts only without the Esc menu; an open Voice tab shows the settings
+## and the microphone's level (the device list read again as it opens); the lobby's hint.
+func _refresh_voice() -> void:
+	_sender.reads_device_input = device_input
+	_sender.listening = not ui.esc_open()
+	var tab := ui.esc_open() and ui.esc.state.selected == EscMenuState.Tab.VOICE
+	if tab and not _voice_tab_shown:
+		_voice_control.refresh_devices()
+	_voice_tab_shown = tab
+	if tab:
+		ui.esc.voice.show_facts(_voice_control.facts())
+	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
 
 
 func _show_menu(reason: StringName, detail := "") -> void:

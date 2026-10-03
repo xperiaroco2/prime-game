@@ -37,6 +37,8 @@ var connected := false
 var joined := false
 ## It left, or the host disconnected it: it acts and receives no more.
 var gone := false
+## Its synthetic voice sends frames (a network runner's, BotVoice); a Talk step turns it off or on.
+var talking := true
 ## Every event it received, in order: name and fields (the event's to_dict()).
 var events: Array[WireMessage] = []
 

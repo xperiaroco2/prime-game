@@ -104,5 +104,7 @@ func _teleport(epoch: int, spot: Vector3) -> WireMessage:
 		"moving": true,
 		"on_floor": true,
 		"jumps": 0,
+		"sprint_ticks": 0,
+		"moved_ticks": ChaosFrames.HONEST_MOVED_TICKS,
 	}
 	return WireMessage.new(&"MoveClaim", fields)

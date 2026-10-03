@@ -19,6 +19,7 @@ const ACTIONS: Array[StringName] = [
 	&"swap",
 	&"task_screen",
 	&"ready",
+	&"voice_talk",
 ]
 
 
@@ -85,6 +86,21 @@ func test_swap_is_x_and_the_task_screen_is_tab() -> void:
 			if key != null:
 				keys.append(key.physical_keycode)
 		assert_array(keys).contains([pair[1]])
+
+
+func test_push_to_talk_is_held_on_v() -> void:
+	# The M5 ADR's D11: push-to-talk, an option beside voice activity, is held on V.
+	var keys: Array[Key] = []
+	for event: InputEvent in InputMap.action_get_events(&"voice_talk"):
+		var key := event as InputEventKey
+		if key != null:
+			keys.append(key.physical_keycode)
+	assert_array(keys).contains([KEY_V])
+
+
+func test_the_microphone_input_is_enabled() -> void:
+	# The M5 ADR §1.1 (E36): the 4.7 microphone API reads nothing unless input is enabled.
+	assert_bool(ProjectSettings.get_setting("audio/driver/enable_input", false) as bool).is_true()
 
 
 func test_the_downed_have_no_fly_down_action() -> void:

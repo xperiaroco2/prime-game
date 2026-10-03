@@ -756,7 +756,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   E20): the game over ENet. `host [--port P] [--clients N] [--local] [--seconds S]` hosts on every interface, or on
   127.0.0.1 only with `--local` (no firewall prompt), and with `--clients N` (up to 7) starts N clients that join it
   on 127.0.0.1 once it hosts. `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a
-  placeholder ("not a decision").
+  placeholder ("not a decision"). Each process gets `PRIME_INSTANCE` (1 the host, 2 and on the clients in tile order),
+  so each window keeps its own settings file (`user://settings.cfg`, `settings_2.cfg`, ...; the M5 ADR §1.7).
   - **Windows** (the default for a human): each process is the game, `client/app/game.tscn`, started with the
     command line `LaunchOptions` reads (`--host [--local]` or `--join=<address>`, `--port=`, the stop and alive files
     below), so it skips the menu and goes straight to the lobby. A host and its `--clients` are tiled over the primary

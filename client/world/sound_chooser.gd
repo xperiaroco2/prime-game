@@ -4,9 +4,11 @@ extends RefCounted
 ## the M4 ADR's §3 item 10, E33 (a), D9; M4-8), pure. `Swung`, `ItemPickedUp` and `ItemPlaced`
 ## reach everyone with a position: a sound with no cut-off would tell every client, through the
 ## walls, where a package was just put down or a fight goes on. So a sound plays only within
-## HEARING_RANGE_M of the listener's camera (the living's own, the downed camera, the spectate
-## camera alike), and nothing at all for an event from farther away; each player also sets
-## `AudioStreamPlayer3D.max_distance` to it. Occlusion is M5's.
+## HEARING_RANGE_M of the ears (E40's amendment of E33, the engineer's: the own eye, the own body's
+## head while downed, the spectated target's eye or body; LifeView's Ears), and nothing at all for
+## an event from farther away; each player also sets `AudioStreamPlayer3D.max_distance` to it.
+## Occlusion muffles, never cuts: WorldSounds casts one ray to a chosen sound's `aim` as it starts
+## (M5-7).
 ##
 ## Where each one plays:
 ## - Swung: at the swinger: the local player for the own swing, else its interpolated pose;
@@ -15,21 +17,30 @@ extends RefCounted
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
+## How far above where it plays the occlusion ray aims (M5-7). A swing plays at the swinger's feet
+## and an item on what it lies on: a ray to a point on a floor, a step or a table reaches it only
+## from above, so ears below that surface, or a curb in front of the feet, would muffle a sound in
+## plain view. A swing aims at about a standing player's chest, an item a hand above its surface.
+## Placeholders, "not a decision".
+const SWING_AIM_M := 1.0
+const ITEM_AIM_M := 0.3
 
 const SWING := &"swing"
 const PICK_UP := &"pick_up"
 const PUT_DOWN := &"put_down"
 
 
-## One sound to play.
+## One sound to play: where it plays, and where the occlusion ray aims (`lift` above it).
 class Sound:
 	extends RefCounted
 	var id: StringName
 	var position := Vector3.ZERO
+	var aim := Vector3.ZERO
 
-	func _init(sound_id: StringName, at: Vector3) -> void:
+	func _init(sound_id: StringName, at: Vector3, lift: float) -> void:
 		id = sound_id
 		position = at
+		aim = at + Vector3.UP * lift
 
 
 ## The sound for event `event_name` (already folded into `model`) within `hearing_m` of
@@ -57,12 +68,12 @@ static func source(
 	match event_name:
 		&"Swung":
 			var at: Variant = position_of.call(fields["peer"] as int)
-			return Sound.new(SWING, at as Vector3) if at is Vector3 else null
+			return Sound.new(SWING, at as Vector3, SWING_AIM_M) if at is Vector3 else null
 		&"ItemPickedUp":
 			var item: ClientModel.Item = model.items.get(fields["item"] as int)
-			return Sound.new(PICK_UP, item.position) if item != null else null
+			return Sound.new(PICK_UP, item.position, ITEM_AIM_M) if item != null else null
 		&"ItemPlaced":
-			return Sound.new(PUT_DOWN, fields["position"] as Vector3)
+			return Sound.new(PUT_DOWN, fields["position"] as Vector3, ITEM_AIM_M)
 	return null
 
 

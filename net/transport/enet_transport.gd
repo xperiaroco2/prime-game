@@ -116,6 +116,19 @@ func _backend_send(to_peer: int, bytes: PackedByteArray, lane: NetKindTable.Lane
 	return _peer.put_packet(bytes)
 
 
+## ENet's statistics on top of the links' (only the host's own client, which never counts). Godot
+## 4.7.2's put_packet flushes, so each send is one datagram at once: a caller that takes the
+## upload before and after its sends gets their bytes and datagrams alone.
+func take_upload() -> Vector2i:
+	var found := super()
+	if _peer == null or _peer.get_host() == null:
+		return found
+	var connection := _peer.get_host()
+	var sent_bytes := roundi(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA))
+	var sent_packets := roundi(connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_PACKETS))
+	return found + Vector2i(sent_bytes, sent_packets)
+
+
 func _backend_close() -> void:
 	var peer := _peer
 	_peer = null  # the ENet signal handlers ignore anything from now on

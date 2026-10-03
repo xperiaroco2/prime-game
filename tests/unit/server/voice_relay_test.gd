@@ -24,6 +24,15 @@ func test_a_frame_from_a_peer_that_is_not_a_present_player_is_dropped() -> void:
 	assert_int(relay.dropped).is_equal(0)
 
 
+func test_a_frame_nobody_hears_is_relayed_but_gives_no_voice_down() -> void:
+	var relay := VoiceRelay.new()
+	relay.refresh(_table({1: [], 2: [3], 3: []}), {})
+	relay.hold(1, 0, PackedByteArray([1]))
+	relay.hold(3, 0, PackedByteArray([3]))
+	assert_array(_describe(relay.flush(4))).is_equal(["3>2 seq 0 tick 4 03"])
+	assert_int(relay.relayed).is_equal(2)
+
+
 func test_each_stream_counts_its_own_seq() -> void:
 	var relay := VoiceRelay.new()
 	relay.refresh(_table({1: [2, 3], 2: [3], 3: [2]}), {})
@@ -86,22 +95,28 @@ func _table(entries: Dictionary) -> Dictionary[int, PackedInt32Array]:
 	return table
 
 
+## One line per listener of each frame: speaker>listener, that stream's seq, the tick, the bytes.
 func _describe(out: Array[VoiceRelay.Outgoing]) -> Array[String]:
 	var found: Array[String] = []
 	for each: VoiceRelay.Outgoing in out:
 		var fields := each.message.fields
 		var opus: PackedByteArray = fields["opus"]
-		assert_int(fields["speaker"] as int).is_not_equal(each.listener)
-		found.append(
-			(
-				"%d>%d seq %d tick %d %s"
-				% [
-					fields["speaker"],
-					each.listener,
-					fields["seq"],
-					fields["tick"],
-					opus.hex_encode()
-				]
+		assert_int(each.listeners.size()).is_greater(0)
+		assert_int(each.seqs.size()).is_equal(each.listeners.size())
+		# The message holds the first listener's seq.
+		assert_int(fields["seq"] as int).is_equal(each.seqs[0])
+		for i in each.listeners.size():
+			assert_int(fields["speaker"] as int).is_not_equal(each.listeners[i])
+			found.append(
+				(
+					"%d>%d seq %d tick %d %s"
+					% [
+						fields["speaker"],
+						each.listeners[i],
+						each.seqs[i],
+						fields["tick"],
+						opus.hex_encode()
+					]
+				)
 			)
-		)
 	return found

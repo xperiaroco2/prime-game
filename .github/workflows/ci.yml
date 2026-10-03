@@ -36,6 +36,13 @@ jobs:
           key: gdunit-times-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: gdunit-times-
 
+      # CI on Linux runs without the TwoVoIP addon (docs/decisions/2026-10-02-m5-voice-integrated-with-the-rules.md
+      # §2, E35 (a)): only its Windows libraries are committed, and Godot prints an ERROR: line for a .gdextension it
+      # cannot load. Removing the .gdextension (and its .uid) is enough for Godot to load nothing; the inert libraries
+      # stay, so the credits check still finds the files docs/credits/twovoip.md names. Voice is then unavailable (E34).
+      - name: Remove the TwoVoIP extension
+        run: rm addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
+
       - name: verify
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify
 
