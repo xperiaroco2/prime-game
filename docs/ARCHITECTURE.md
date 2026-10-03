@@ -2110,7 +2110,7 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     defaulting to TwoVoIP's, so a test passes a missing class and sees it unavailable on any machine. Without the
     addon every script parses, voice is unavailable and the game runs.
     `VoiceGate` is pure: `feed(chunk, frame, may_speak, talk_held)` returns the frames to send, oldest first. Voice
-    activity (the default) opens while the raw chunk's peak is over `threshold` (0.1) and for a hangover of 300 ms
+    activity (the default) opens while the raw chunk's peak is over `threshold` (0.05) and for a hangover of 300 ms
     after; push-to-talk opens while `talk_held`; Off is a closed capture (M5-6). On opening, up to 2 frames of
     pre-roll go first; the ring fills only while the gate is closed, so it holds only frames never sent and a gate
     closed for one chunk sends no frame twice. `may_speak` false (`client/` decides it) closes the gate and empties
