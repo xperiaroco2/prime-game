@@ -786,16 +786,16 @@ playback are M5.
 The send path encodes each frame once (#245, M5-4b's first step, no wire change): `VoiceRelay.flush` gives one
 `Outgoing` per frame with its listeners in peer-id order and each one's stream seq; `HostSession` encodes the frame's
 `VoiceDown` once (if any listener is reachable) and sends every reachable listener a copy with its own seq written at
-the offset the schema gives (`VoiceDownEncoder`, `WireRow.fixed_offset`: the fixed sizes of the fields before it),
-byte for byte what `WireSchema.encode` gives for that listener's `VoiceDown`. A row change that moves the seq behind a field of
-varying size, or widens it, makes every copy a full encoding (slower, never corrupt) and fails
+the offset the schema gives (`VoiceDownEncoder`, `WireRow.fixed_offset`: the fixed sizes of the fields before it), byte
+for byte what `WireSchema.encode` gives for that listener's `VoiceDown`. A row change that moves the seq behind a field
+of varying size, or widens it, makes every copy a full encoding (slower, never corrupt) and fails
 `voice_down_encoder_test`. Tests: `tests/unit/server/voice_relay_test.gd`, `voice_down_encoder_test.gd` (every copy
-against the codec for several speakers, ticks, frame sizes and seqs, and through `VoiceRelay` across the u16 wrap;
-seen failing on a planted wrong offset), `tests/unit/net/messages/wire_schema_test.gd` (the offsets),
+against the codec for several speakers, ticks, frame sizes and seqs, and through `VoiceRelay` across the u16 wrap; seen
+failing on a planted wrong offset), `tests/unit/net/messages/wire_schema_test.gd` (the offsets),
 `tests/integration/server/host_session_voice_test.gd` (also a listener after one that is unreachable while the relay
-still routes it: its own stream's seq, seen failing when every copy took the first listener's seq or was sent
-unpatched; no public path makes such a listener today, so the test marks it by hand) and the leak test in `bots`,
-`bots-enet` and `bots --chaos` (§4.6).
+still routes it: its own stream's seq, seen failing when every copy took the first listener's seq or was sent unpatched;
+no public path makes such a listener today, so the test marks it by hand) and the leak test in `bots`, `bots-enet` and
+`bots --chaos` (§4.6).
 
 **Rate limits and malformed packets** (E7; the numbers are placeholders, "not a decision"). The accident they bound:
 a client bug sends an intent every frame; every command, and every `WorldQuery` answer it causes, stays in the command
@@ -2081,43 +2081,43 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
   - **Occlusion** (E42, D13 (a)): on the listener only, one ray from the ears per audible speaker per physics
     frame and one per world sound, muffling what is behind the level; the host keeps routing by distance. Beyond one
     ray is what drops first.
-  - **The wire** (E44; **measured in M5-4**, #218, and again after #245): unchanged in M5 so far. The leak test
-    gained a distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and upload with
-    `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m in the
-    lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
-    engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores,
-    so every time is an upper bound. With everyone talking: 56 `VoiceDown`s per 20 ms, 49 of them on the wire (49
-    datagrams per 20 ms; 7 go to the host's own client over the loopback); the relay took 3.0 to 3.5 ms per 20 ms,
-    54 to 62 µs per send, of which 16.5 to 19 µs inside the transport's `send` (ENet's `put_packet`, which flushes
-    one datagram), an average over all 56 sends with the 7 loopback ones to the host's own client included (ENet's
-    alone about 19 to 22 µs if those cost nothing); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame), 0.40 of
-    snapshots and 0.01 of the rest, 2.29 Mbit/s. With 2 talkers: 14 sends per 20 ms (12 on the wire), 0.8 to 1.0 ms,
-    0.87 Mbit/s. A second run under a heavier load of other worktrees took 190 to 270 µs per send and dropped
-    backlogs. Scaled to 10 players (90 sends per 20 ms, 81 on the wire): about 4.9 to 5.6 ms per 20 ms of relay time
-    (25 to 28% of a core), **over E44's 2 ms**; the upload about 3.1 Mbit/s of voice and 0.65 of snapshots (each
-    snapshot holding 9 avatars, not 7), about 3.8 Mbit/s, under E44's 4.5 and the voice ADR's 5 Mbit/s (about 4.5
-    with every frame at speech's 67 B peak). The send is not most of the cost: a throwaway probe in one process
-    (debug build, 10 speakers heard by 9 each) spent about 43 µs encoding each `VoiceDown` through `WireSchema` and
-    9 µs in `VoiceRelay.flush`, per message, though only its 2-byte seq differs between a frame's listeners. So the
-    measurement crosses E44's time threshold and asks for M5-4b; the manager's decision (delegated, #134) was to
-    encode each frame once first (#245, §4.5 "Voice relay").
+  - **The wire** (E44; **measured in M5-4**, #218, and again after #245): unchanged in M5 so far. The leak test gained a
+    distance invariant written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and
+    upload with `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m
+    in the lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
+    engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores, so
+    every time is an upper bound. With everyone talking: 56 `VoiceDown`s per 20 ms, 49 of them on the wire (49 datagrams
+    per 20 ms; 7 go to the host's own client over the loopback); the relay took 3.0 to 3.5 ms per 20 ms, 54 to 62 µs per
+    send, of which 16.5 to 19 µs inside the transport's `send` (ENet's `put_packet`, which flushes one datagram), an
+    average over all 56 sends with the 7 loopback ones to the host's own client included (ENet's alone about 19 to 22 µs
+    if those cost nothing); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame),
+    0.40 of snapshots and 0.01 of the rest, 2.29 Mbit/s. With 2 talkers: 14 sends per 20 ms (12 on the wire), 0.8 to 1.0
+    ms, 0.87 Mbit/s. A second run under a heavier load of other worktrees took 190 to 270 µs per send and dropped
+    backlogs. Scaled to 10 players (90 sends per 20 ms, 81 on the wire): about 4.9 to 5.6 ms per 20 ms of relay time (25
+    to 28% of a core), **over E44's 2 ms**; the upload about 3.1 Mbit/s of voice and 0.65 of snapshots (each snapshot
+    holding 9 avatars, not 7), about 3.8 Mbit/s, under E44's 4.5 and the voice ADR's 5 Mbit/s (about 4.5 with every
+    frame at speech's 67 B peak). The send is not most of the cost: a throwaway probe in one process (debug build, 10
+    speakers heard by 9 each) spent about 43 µs encoding each `VoiceDown` through `WireSchema` and 9 µs in
+    `VoiceRelay.flush`, per message, though only its 2-byte seq differs between a frame's listeners. So the measurement
+    crosses E44's time threshold and asks for M5-4b; the manager's decision (delegated, #134) was to encode each frame
+    once first (#245, §4.5 "Voice relay").
     #245 measured again with the same command on the same PC on 2026-10-03, three runs before the change and three
-    after, alternating, with about 10 Godot processes of other worktrees running (upper bounds again; the figures
-    are the five full windows with everyone talking). Before: 2.9 to 3.3 ms per 20 ms, 52 to 60 µs per send (16 to
-    18 µs inside the transport's `send`). After, at a comparable load (the transport's part 14 to 15.5 µs): about
-    1.3 to 1.4 ms per 20 ms, 23.5 to 26 µs per send; the host's own part of a send (all but the transport's `send`) fell
-    from about 37 µs to about 10 (one encoding per frame, M5-4's probe's 43 µs shared by 7 listeners, about 6 µs of
-    each send; the copy, the seq and the bookkeeping the rest). One run after the change under a heavier load (the
-    transport's part 21 to 25 µs) took 2.0 to 2.3 ms, 35 to 41 µs per send. With 2 talkers: 0.83 to 1.0 ms before, 0.38 to 0.44 ms after. The upload is
-    unchanged (the same bytes): 2.29 Mbit/s. Scaled to 81 streams (90 sends per 20 ms): about 4.7 to 5.4 ms before,
-    **about 2.1 to 2.3 ms after**, and 3.2 to 3.6 ms under the heavier load: not shown to be under E44's 2 ms,
-    though the comparable-load range starts only about 0.1 ms over it and every figure is an upper bound, so the
-    true cost may be under; a rerun of the same command on a quiet machine settles whether M5-4b is needed. About 60%
-    of what is left is the transport's `send` per datagram, which only fewer datagrams cut: M5-4b's batched row (one
-    `VoiceDown` per listener per poll holding every frame it hears, a protocol change) would send about 11
-    datagrams per 20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the
-    transport's 1.3 ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured).
-    Whether to open it is the engineer's (§10).
+    after, alternating, with about 10 Godot processes of other worktrees running (upper bounds again; the figures are
+    the five full windows with everyone talking). Before: 2.9 to 3.3 ms per 20 ms, 52 to 60 µs per send (16 to 18 µs
+    inside the transport's `send`). After, at a comparable load (the transport's part 14 to 15.5 µs): about 1.3 to 1.4
+    ms per 20 ms, 23.5 to 26 µs per send; the host's own part of a send (all but the transport's `send`) fell from about
+    37 µs to about 10 (one encoding per frame, M5-4's probe's 43 µs shared by 7 listeners, about 6 µs of each send; the
+    copy, the seq and the bookkeeping the rest). One run after the change under a heavier load (the transport's part 21
+    to 25 µs) took 2.0 to 2.3 ms, 35 to 41 µs per send. With 2 talkers: 0.83 to 1.0 ms before, 0.38 to 0.44 ms after.
+    The upload is unchanged (the same bytes): 2.29 Mbit/s. Scaled to 81 streams (90 sends per 20 ms): about 4.7 to 5.4
+    ms before, **about 2.1 to 2.3 ms after**, and 3.2 to 3.6 ms under the heavier load: not shown to be under E44's 2
+    ms, though the comparable-load range starts only about 0.1 ms over it and every figure is an upper bound, so the
+    true cost may be under; a rerun of the same command on a quiet machine settles whether M5-4b is needed. About 60% of
+    what is left is the transport's `send` per datagram, which only fewer datagrams cut: M5-4b's batched row (one
+    `VoiceDown` per listener per poll holding every frame it hears, a protocol change) would send about 11 datagrams per
+    20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the transport's 1.3
+    ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). Whether to open it is
+    the engineer's (§10).
   - **The cutoff and the distance invariant** (E41, E45; **built in M5-1**, #215): every voice rule answers
     `hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
     included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
