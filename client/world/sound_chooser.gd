@@ -4,9 +4,10 @@ extends RefCounted
 ## the M4 ADR's §3 item 10, E33 (a), D9; M4-8), pure. `Swung`, `ItemPickedUp` and `ItemPlaced`
 ## reach everyone with a position: a sound with no cut-off would tell every client, through the
 ## walls, where a package was just put down or a fight goes on. So a sound plays only within
-## HEARING_RANGE_M of the listener's camera (the living's own, the downed camera, the spectate
-## camera alike), and nothing at all for an event from farther away; each player also sets
-## `AudioStreamPlayer3D.max_distance` to it. Occlusion is M5's.
+## HEARING_RANGE_M of the ears (E40's amendment of E33, the engineer's: the own eye, the own body's
+## head while downed, the spectated target's eye or body; LifeView's Ears), and nothing at all for
+## an event from farther away; each player also sets `AudioStreamPlayer3D.max_distance` to it.
+## Occlusion is M5-7's.
 ##
 ## Where each one plays:
 ## - Swung: at the swinger: the local player for the own swing, else its interpolated pose;
