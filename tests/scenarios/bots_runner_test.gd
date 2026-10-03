@@ -489,7 +489,7 @@ func test_disconnecting_reaches_only_the_dropped_player_and_a_misdeclared_one_is
 
 
 func test_bots_10_m_apart_decode_nothing_of_each_other_and_within_8_m_both_decode() -> void:
-	# voice_beyond_the_radius (M5-1): in the round bot 1 stands about 10 m south of bot 2, both
+	# voice_beyond_the_radius (M5-1): in the round bot 1 stands about 10 m from bot 2 (-z and +z), both
 	# talking, then bot 2 walks within 8 m. The distance invariant held on every frame (no failure);
 	# here, the legs happened: seconds of round ticks beyond the radius, and frames of each other
 	# decoded in the round, every one within it, a second of them after the bots last stood apart.
