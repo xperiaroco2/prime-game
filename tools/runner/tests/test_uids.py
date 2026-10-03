@@ -76,6 +76,87 @@ class UidLintTest(unittest.TestCase):
         write(self.root, "scripts/new.gd", "extends Node\n")
         self.assertTrue(any("missing new.gd.uid" in e for e in uids.lint(self.root).errors))
 
+    def test_orphan_sidecar_fails(self) -> None:
+        write(self.root, "scripts/gone.gd.uid", "uid://bgone000000001\n")
+        errors = uids.lint(self.root).errors
+        self.assertEqual(errors, ["res://scripts/gone.gd.uid: sidecar without its file res://scripts/gone.gd"])
+
+    def test_orphan_sidecar_in_scratch_passes(self) -> None:
+        # #264: a probe deleted without its .gd.uid; `test` and `lint` leave tests/scratch/ out, so does this lint.
+        write(self.root, "tests/scratch/x.gd.uid", "uid://bscratch00001\n")
+        self.assertEqual(uids.lint(self.root).errors, [])
+
+    def test_scratch_files_are_not_checked_themselves(self) -> None:
+        # A half-written probe: a script whose sidecar the next import writes, a malformed sidecar, a scene with a
+        # stale uid. None of it is committed, and Godot falls back to path= for an unknown uid.
+        write(self.root, "tests/scratch/probe_test.gd", "extends Node\n")
+        write(self.root, "tests/scratch/half.gd.uid", "not a uid\n")
+        write(self.root, "tests/scratch/half.gd", "extends Node\n")
+        write(
+            self.root,
+            "tests/scratch/probe.tscn",
+            '[gd_scene format=3]\n\n'
+            '[ext_resource type="Resource" uid="uid://bunknown00001" path="res://content/a.tres" id="1"]\n',
+        )
+        self.assertEqual(uids.lint(self.root).errors, [])
+
+    def test_scratch_reference_does_not_own_or_resolve_uids(self) -> None:
+        # A scratch scene that points a real uid at another path is the probe's own business, not a lint error.
+        write(
+            self.root,
+            "tests/scratch/probe.tscn",
+            f'[gd_scene format=3]\n\n[ext_resource type="Resource" uid="{B_UID}" path="res://content/a.tres" id="1"]\n',
+        )
+        report = uids.lint(self.root)
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.uids[B_UID], "res://content/b.tres")
+        self.assertFalse([path for path in report.uids.values() if path.startswith("res://tests/scratch/")])
+
+    def test_uid_copied_into_scratch_still_fails(self) -> None:
+        # Godot still imports tests/scratch/: whichever file it scans last owns a duplicate uid, so a real reference
+        # could load the probe's copy. A copied .tres or a copied sidecar there stays a duplicate.
+        write(self.root, "tests/scratch/a_copy.tres", f'[gd_resource type="Resource" format=3 uid="{A_UID}"]\n')
+        write(self.root, "tests/scratch/item_copy.gd", "extends Resource\n")
+        write(self.root, "tests/scratch/item_copy.gd.uid", SCRIPT_UID + "\n")
+        errors = uids.lint(self.root).errors
+        self.assertEqual(
+            errors,
+            [
+                f"duplicate {A_UID}: res://content/a.tres, res://tests/scratch/a_copy.tres"
+                " (never copy a uid or a .uid file)",
+                f"duplicate {SCRIPT_UID}: res://scripts/item.gd, res://tests/scratch/item_copy.gd"
+                " (never copy a uid or a .uid file)",
+            ],
+        )
+
+    def test_import_uid_copied_into_scratch_still_fails(self) -> None:
+        # A copied texture with its .import file claims the original's uid; the scratch claims share one parser with
+        # the project's (claims()), so this kind of claim reaches both.
+        write(self.root, "art/icon.png.import", '[remap]\n\nimporter="texture"\nuid="uid://bicon00000001"\n')
+        write(self.root, "tests/scratch/icon.png.import", '[remap]\n\nimporter="texture"\nuid="uid://bicon00000001"\n')
+        self.assertEqual(
+            uids.lint(self.root).errors,
+            [
+                "duplicate uid://bicon00000001: res://art/icon.png, res://tests/scratch/icon.png"
+                " (never copy a uid or a .uid file)"
+            ],
+        )
+
+    def test_real_scene_never_resolves_to_a_scratch_file(self) -> None:
+        # A uid only a scratch file claims is unknown to the project: the probe goes when it is deleted.
+        probe_uid = "uid://bprobe0000001"
+        write(self.root, "tests/scratch/probe.tres", f'[gd_resource type="Resource" format=3 uid="{probe_uid}"]\n')
+        self.scene(probe_uid, "res://tests/scratch/probe.tres")
+        errors = uids.lint(self.root).errors
+        self.assertEqual(len(errors), 1)
+        self.assertIn("is unknown", errors[0])
+
+    def test_scratch_name_elsewhere_is_checked(self) -> None:
+        # Only the folder tests/scratch/ is left out, not every folder called scratch.
+        write(self.root, "content/scratch/gone.gd.uid", "uid://bgone000000001\n")
+        write(self.root, "tests/scratchy/gone.gd.uid", "uid://bgone000000002\n")
+        self.assertEqual(len(uids.lint(self.root).errors), 2)
+
     def test_gdignored_folder_is_skipped(self) -> None:
         write(self.root, "docs/.gdignore", "")
         write(self.root, "docs/old.gd", "extends Node\n")
