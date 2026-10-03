@@ -16,6 +16,7 @@ naming the files it wrote), review the diff, commit it with the change, and run 
 import difflib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -854,6 +855,29 @@ class PipelineV2Test(unittest.TestCase):
                 for arg in names:
                     self.assertIn(f"{arg}?", when)
                     self.assertRegex(comment, rf"//   {arg} ")
+
+
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+
+
+class ReviewerEffortTest(unittest.TestCase):
+    """The workflows pass an agentType reviewer no effort unless a launch's `efforts` names its role, so the agent file's
+    own `effort` applies; without one the reviewer inherits the manager session's effort (xhigh before #308)."""
+
+    def test_every_routed_reviewer_sets_its_own_effort(self) -> None:
+        from runner.instructions import parse
+
+        routed = set()
+        for name in ("issue-task.js", "pr-rebase.js"):
+            routed |= set(re.findall(r"agentType: '([a-z-]+)'", (WORKFLOWS / name).read_text(encoding="utf-8")))
+        self.assertTrue(routed, "no agentType found in the workflows: the pattern no longer matches them")
+        for agent in sorted(routed):
+            fields = parse((ROOT / ".claude" / "agents" / f"{agent}.md").read_text(encoding="utf-8")).fields
+            with self.subTest(agent=agent):
+                self.assertIn(fields.get("effort"), EFFORTS, "no effort: the reviewer inherits the manager's")
+                # Today's level for every reviewer (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended
+                # 2026-10-04 by #308).
+                self.assertEqual(fields.get("effort"), "high")
 
 
 class NodeOnCiTest(unittest.TestCase):

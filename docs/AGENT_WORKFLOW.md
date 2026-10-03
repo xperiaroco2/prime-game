@@ -140,7 +140,7 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
 
 | Agent | Job | Model |
 |---|---|---|
-| `godot-api-checker` | Check changes against the pinned Godot 4.7.2 API; flag Godot 3 idioms. Sources: `check`, the engine API dump, `docs.godotengine.org/en/4.7/` only | `sonnet` |
+| `godot-api-checker` | Check changes against the pinned Godot 4.7.2 API; flag Godot 3 idioms. Sources: `check`, the engine API dump, `docs.godotengine.org/en/4.7/` only | `sonnet`, effort high |
 | `test-runner` | Run test / lint / check / bots via the runner; return only failures | `haiku` |
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, `ARCHITECTURE.md` and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions | `opus`, effort high |
