@@ -146,7 +146,7 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
   options next, jargon last. Before designing enforcement against a human behaviour, ask how the humans work.
 <!-- see docs/interventions/2026-09-28-engineer-plain-explanations.md -->
 - A command for a human goes in the chat itself, one fenced PowerShell block each (a PR or issue may add it, never
-  instead), `cd` to its absolute folder first (your worktree: their terminal is in main). Run or preview it yourself.
+  instead), starting with `cd` to its absolute folder (your worktree, not the main checkout). Run or preview it first.
 <!-- see docs/interventions/2026-09-29-engineer-commands-say-where.md -->
 <!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
 
