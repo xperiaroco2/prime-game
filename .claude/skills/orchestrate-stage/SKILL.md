@@ -395,8 +395,8 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   `tools/run.sh`.
 - **An older `issue-task.js` logs and ignores the v2 args**: a launch from a main checkout that was not pulled runs
   without the reviews they add. Check the prerequisite in §1 first.
-- **Numbers** (M4, the pipeline v2 ADR's baseline): about 82 minutes, $24 API list and 0.55% of a Max 20x week per
-  task; a stage's budget in % starts from them.
+- **Numbers** (M4, the pipeline v2 ADR's baseline): about 82 minutes, $24 API list and 0.94% of a Max 20x week per
+  task ($25.5 per 1%, #304); a stage's budget in % starts from them.
 
 ## 10. Kickoff template
 The human copies it, fills the placeholders and sends it, in English or in their own language. Moving state (which
