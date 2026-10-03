@@ -837,7 +837,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review` and `skeptic`; any other is "other"),
   local `verify` by step with its verify-slot wait and runs over the limit (#185) (from the summaries agents printed,
   the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify`
-  writes it, #179), review findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the
+  writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its
+  numbers as N, and the `test` shards that did not end with exit 0, #273), review findings by reviewer (a task's blockers and majors count only its diff reviewers', as in the
   baseline), the prompt cache after waits, manager sessions with their % of a Max 20x week ($44 list per 1%, the ADR's
   calibration), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the window, and the jobs and
   `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten lines (time and API list
@@ -894,7 +895,15 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
   `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
   at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
-  `selftest` (run, skipped) and `slot` (below; null without one). **Verify slots (#185):** on a PC, after `doctor`,
+  `selftest` (run, skipped) and `slot` (below; null without one). Since #273 a red step adds `failure`, its first
+  `FAIL` line with the reason under it when the output has one (the first engine error line, or the first line under
+  a `BOTS`/`CHAOS` FAILED header, such as `bots-enet`'s "a Correction outside a placement", #284); the `test` step adds
+  `shards` (each GdUnit4 process's `shard`, `rc` and `seconds`, plus `results: false` when it wrote no
+  `results.xml`, such as a crash's 3221225477, `timed_out` and an `error` that kept it from starting; shard 1 is the
+  one process of a run without shards) and, when red, `failed_tests` (`test` as `<suite>::<test>`, with the failure's
+  `message` on one line, or `orphans` for a leak) and `failed_tests_more` past 20. A message is cut at 240
+  characters, so a red record stays about 1 KB; `metrics` lists the red runs' failing tests, first failure lines and
+  shard exits. **Verify slots (#185):** on a PC, after `doctor`,
   `verify` takes one of N machine-wide slots for its lanes, so the tracks' runs queue instead of starving each other
   (and `freeze` and `stall`): a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots` (elsewhere
   `~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The
