@@ -9,7 +9,9 @@ extends RefCounted
 ## that draws before its filtered event arrives is not hidden by the host's state. A wait that does
 ## not hold within its `timeout_s` fails the run, naming the step's line and what the window saw.
 ## Every step but a wait or `frames` is an action the window performs in the frame advance()
-## returns it (press, hold, release, button, shot, the host's setup).
+## returns it (press, hold, release, button, aim, shot, the host's setup). From `aim item <kind>`
+## until `aim off` the window turns its own player each frame by aim_turn() toward the item
+## nearest_resting() picks from its own ClientModel (#276).
 
 enum Status { RUNNING, DONE, FAILED }
 
@@ -19,6 +21,8 @@ const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target"]
 ## The waits that read the window itself, not its model: they hold before a Welcome and after the
 ## session ended too (`wait screen menu` after a Leave or a host close).
 const WINDOW_WAITS: Array[String] = ["screen", "esc", "pointer", "text", "shown"]
+## Squared lengths below this count as none in aim_turn() (a target at the eye, straight up).
+const AIM_EPSILON := 1e-8
 
 static var _whitespace := RegEx.create_from_string("\\s+")
 
@@ -258,6 +262,41 @@ static func button_problem(buttons: Array[Button], text: String) -> String:
 	for button: Button in buttons:
 		texts.append("'%s'" % collapse(button.text))
 	return "no visible button '%s'; the window shows [%s]" % [text, ", ".join(texts)]
+
+
+## The id of the item of `kind` nearest to `from` that rests (no holder, not delivered) in `model`,
+## the window's own ClientModel (item positions are public); -1 when none does.
+static func nearest_resting(model: ClientModel, kind: StringName, from: Vector3) -> int:
+	var best := -1
+	var best_sq := INF
+	for id: int in model.items:
+		var item := model.items[id]
+		if item.kind != kind or item.holder != ClientModel.NO_HOLDER or item.delivered:
+			continue
+		var distance_sq := from.distance_squared_to(item.position)
+		if distance_sq < best_sq or (distance_sq == best_sq and id < best):
+			best = id
+			best_sq = distance_sq
+	return best
+
+
+## The turn PlayerController.look(yaw, pitch) takes, in radians, so that the camera at `eye`,
+## looking along the unit `look`, looks at `target`: the body turns about the vertical (yaw, the
+## shorter way round) and the head tilts (pitch, up positive; look() clamps it). Straight above or
+## below the eye, or at the eye, it keeps the yaw.
+static func aim_turn(look: Vector3, eye: Vector3, target: Vector3) -> Vector2:
+	var to := target - eye
+	if to.length_squared() < AIM_EPSILON:
+		return Vector2.ZERO
+	var wanted := to.normalized()
+	var yaw := 0.0
+	var flat_wanted := Vector2(wanted.x, wanted.z)
+	var flat_look := Vector2(look.x, look.z)
+	if flat_wanted.length_squared() > AIM_EPSILON and flat_look.length_squared() > AIM_EPSILON:
+		# Facing yaw θ looks along (-sin θ, 0, -cos θ), Godot's forward being -Z.
+		yaw = wrapf(atan2(-wanted.x, -wanted.z) - atan2(-look.x, -look.z), -PI, PI)
+	var pitch := asin(clampf(wanted.y, -1.0, 1.0)) - asin(clampf(look.y, -1.0, 1.0))
+	return Vector2(yaw, pitch)
 
 
 ## A plan's whole number (JSON numbers arrive as floats; a dictionary key as text).

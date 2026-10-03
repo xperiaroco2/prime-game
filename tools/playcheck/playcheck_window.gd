@@ -13,7 +13,9 @@ extends SceneTree
 ## or core/ (invariant 2), on the host's window too. It never captures the real mouse: the game gets
 ## a pointer that remembers what it asked for, playcheck presses keys only (a click would capture
 ## the mouse; `button` focuses a Button and presses ui_accept's key), and a mouse mode set anyway
-## is set back and fails the run.
+## is set back and fails the run. With no mouse look, `aim item <kind>` turns the window's own
+## local player (Game.player(), through PlayerController.look) toward the nearest resting item of
+## that kind its own ClientModel places, every frame until `aim off` (#276).
 ##
 ## It writes its peer id to <peers>/peer-<n> once welcomed (the bots read it to name it); window 1
 ## reads the others' to send the setup (ForceRole names a peer). Prints PLAYCHECK at step <n> (line
@@ -178,6 +180,8 @@ var _steps: Steps
 var _window := 0
 var _out := ""
 var _held: Array[StringName] = []
+## The item kind an `aim item` step turns the own player toward each frame; empty after `aim off`.
+var _aim_kind: StringName = &""
 var _wrote_peer := false
 var _ended := false
 
@@ -246,6 +250,7 @@ func _run() -> void:
 		for action: StringName in _held:
 			# A focus change releases every pressed action; a hold lasts until its release step.
 			Input.action_press(action)
+		_aim()
 		var step := _steps.advance(Time.get_ticks_msec())
 		if not step.is_empty():
 			await _act(step)
@@ -269,6 +274,9 @@ func _act(step: Dictionary) -> void:
 			Input.action_release(action)
 		"button":
 			await _button(str(step.get("label", "")))
+		"aim":
+			_aim_kind = StringName(str(step.get("kind", "")))
+			_aim()
 		"shot":
 			await _shot(str(step.get("path", "")))
 		"setup":
@@ -319,6 +327,28 @@ func _button(text: String) -> void:
 		_steps.fail("button '%s' cannot take the focus (its focus_mode)" % text)
 		return
 	await _press(&"ui_accept")
+
+
+## While an `aim item <kind>` is in force: turns this window's own local player (Game.player(),
+## never another's body) to face the middle of the nearest item of that kind resting in its own
+## ClientModel, through PlayerController.look as mouse motion would. Nothing to face (no player,
+## no such item, or a dead player that look() ignores): it turns nothing, and the next wait times
+## out with what the window saw.
+func _aim() -> void:
+	if _aim_kind.is_empty():
+		return
+	var player := _game.player()
+	var model := _view.model()
+	if player == null or model == null or not player.is_inside_tree():
+		return
+	var eye := player.get_camera().global_position
+	var id := Steps.nearest_resting(model, _aim_kind, eye)
+	if id < 0:
+		return
+	var item := model.items[id]
+	var target := ItemView.centre_of(item.kind, item.position)
+	var turn := Steps.aim_turn(player.look_vector(), eye, target)
+	player.look(turn.x, turn.y)
 
 
 func _has_action(action: StringName) -> bool:
@@ -393,6 +423,7 @@ func _fail_with_shot() -> void:
 	for action: StringName in _held:
 		Input.action_release(action)
 	_held.clear()
+	_aim_kind = &""
 	var why := _steps.failure
 	var path := _out.path_join("failed-window-%d.png" % _window)
 	if not _out.is_empty() and await _shot(path):
