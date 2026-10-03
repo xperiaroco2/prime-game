@@ -38,3 +38,4 @@
 - `.claude/skills/orchestrate-stage/SKILL.md` §4 "On each completion" and §8 "Notifications and housekeeping" (with
   an example block), and §6's wave-comment list ("also in the chat").
 - `docs/AGENT_WORKFLOW.md` §7.1, "The human".
+- `.claude/skills/finish-task/SKILL.md` step 8, "Tell the human": the `worktree-done` command as its own block.
