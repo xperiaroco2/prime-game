@@ -18,18 +18,20 @@ func test_a_player_who_left_is_refused_where_every_player_is_accepted() -> void:
 	var game := FixtureModes.in_round(mode, [P1, P2])
 	for peer: int in [P1, P2]:
 		game.state.player(peer).life = PlayerState.Life.LEFT
-	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 5)
-	FixtureModes.send(game, Intents.USE, P1, {"facing": Vector3.FORWARD}, 6)
+	# Each is refused, and the refusal reaches nobody: a peer who left is told nothing (§5).
+	for peer: int in [P2, P1]:
+		FixtureModes.send(game, Intents.USE, peer, {"facing": Vector3.FORWARD}, 5 + peer)
+		var last := game.emitted()[game.emitted().size() - 1]
+		assert_object(last.event).is_instanceof(RejectedEvent)
+		assert_int((last.event as RejectedEvent).peer).is_equal(peer)
+		assert_str((last.event as RejectedEvent).reason).is_equal("not_accepted")
+		assert_array(Array(last.recipients)).is_empty()
 	assert_array(FixtureModes.notes(game)).not_contains(["used"])
 	for peer: int in [P1, P2]:
 		assert_array(game.view_of(peer).events_named(&"FixtureNote")).is_empty()
-	# Each is refused, and the refusal reaches nobody: a peer who left is told nothing (§5).
-	var last := game.emitted()[game.emitted().size() - 1]
-	assert_str((last.event as RejectedEvent).reason).is_equal("not_accepted")
-	assert_array(Array(last.recipients)).is_empty()
 	# The control: the same phase takes it from a present player.
 	game.state.player(P2).life = PlayerState.Life.ALIVE
-	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 7)
+	FixtureModes.send(game, Intents.USE, P2, {"facing": Vector3.FORWARD}, 8)
 	assert_array(FixtureModes.notes(game)).contains(["used"])
 
 
