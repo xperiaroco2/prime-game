@@ -4,9 +4,9 @@ extends GdUnitTestSuite
 ## the ears to the mouth, on the world layer only (a box on the LIVING or DOWNED layer, as a
 ## player's capsule is, muffles nothing, nor does a railing below the mouth); a hit muffles (8 dB
 ## on the speaker, the muffled Voice bus), eased in and back out over 100 ms; a speaker heard
-## again after a silence starts at its ray's answer; the muffle never drops a frame. The voices'
-## clock stays still, so the frames held keep each speaker audible; the physics frames are the
-## engine's.
+## again after a silence starts at its ray's answer, and a speaker freed with its body takes its
+## muffle along; the muffle never drops a frame. The voices' clock stays still, so the frames held
+## keep each speaker audible; the physics frames are the engine's.
 
 const World := preload("res://tests/integration/client/world/voice_test_world.gd")
 const TALKER := World.TALKER
@@ -170,6 +170,24 @@ func test_a_speaker_freed_with_its_body_takes_its_muffle_along() -> void:
 	assert_object(_voices.muffle_of(TALKER)).is_null()
 	_voices.reset()
 	assert_object(_voices.muffle_of(OTHER)).is_null()
+
+
+func test_a_body_freed_without_player_left_takes_its_muffle_along() -> void:
+	# The bodies go (a level swapped): the speaker goes with its body, and its muffle with it.
+	var wall := _world.add_box(WALL_AT, WALL_SIZE)
+	await _talking({TALKER: Vector3(0, 0, -3)})
+	assert_float(_voices.muffle_of(TALKER).amount).is_equal(1.0)
+	_world.avatars.clear()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_object(_voices.speaker_of(TALKER)).is_null()
+	assert_object(_voices.muffle_of(TALKER)).is_null()
+	# A new body in the open starts clear at its first audible frame, not eased from behind the wall.
+	wall.free()
+	await _physics(2)
+	var speaker := await _talking({TALKER: Vector3(0, 0, -3)})
+	assert_float(_voices.muffle_of(TALKER).amount).is_equal(0.0)
+	assert_str(String(speaker.bus)).is_equal(String(AudioBuses.VOICE))
 
 
 ## The talkers' bodies at `at`, each with HELD frames at tick 10, after two physics frames (each
