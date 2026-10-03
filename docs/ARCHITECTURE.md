@@ -2712,20 +2712,18 @@ part is usable in data once its row or entry names the PR that built it. Every n
   `LevelLayout` (§9.6), and hand both to `Match`. The command log records the layouts and the mode's hash, so a
   replay needs no level (§3.3).
 - **Checked on load**, in two parts. `Match` refuses a mode with errors, listing them all.
-  - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does
-    not declare; an outcome a phase can report without a row (§3.1); a phase whose rules can knock a player down but
-    that lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`)
-    but lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action
-    (a reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
-    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction holding a cost that reads
-    the actor's player state (`Cost.reads_actor_state`: `Cooldown`, `StaminaCost`), which always refuses there
-    (§9.2, #283); an accepted intent that neither the phase class nor any rule handles; two rules on one trigger
-    in one owner; a number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every
-    `id`, `side`, `spawn_tag` and `tag` a part holds, and every
-    condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), the designer's answer on
-    #96). A unit test
-    (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
-    (`ModeCheck`).
+  - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does not
+    declare; an outcome a phase can report without a row (§3.1); a phase whose rules can knock a player down but that
+    lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`) but
+    lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action (a
+    reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
+    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction holding a cost that reads the
+    actor's player state (`Cost.reads_actor_state`: `Cooldown`, `StaminaCost`), which always refuses there (§9.2, #283);
+    an accepted intent that neither the phase class nor any rule handles; two rules on one trigger in one owner; a
+    number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
+    `spawn_tag` and `tag` a part holds, and every condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9`
+    and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
+    every mode in `content/modes/` and runs this part (`ModeCheck`).
   - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks; a
     marker with two tags; a lobby with fewer `lobby_player` markers than the mode's maximum of players; a level
     without a layout. `Match` runs this part (`LayoutCheck`, 2b) on creation, with the tags each row's actions
