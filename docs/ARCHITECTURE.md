@@ -2717,9 +2717,11 @@ part is usable in data once its row or entry names the PR that built it. Every n
     that lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`)
     but lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action
     (a reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
-    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); an accepted intent that neither
-    the phase class nor any rule handles; two rules on one trigger in one owner; a number outside its part's
-    bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
+    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction holding a cost that reads
+    the actor's player state (`Cost.reads_actor_state`: `Cooldown`, `StaminaCost`), which always refuses there
+    (§9.2, #283); an accepted intent that neither the phase class nor any rule handles; two rules on one trigger
+    in one owner; a number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every
+    `id`, `side`, `spawn_tag` and `tag` a part holds, and every
     condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), the designer's answer on
     #96). A unit test
     (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
@@ -2751,11 +2753,15 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   negated condition rejects with `not_allowed`. A **cost** is a condition that is also paid (stamina, a cooldown,
   later a use): all conditions and costs are checked first, then every cost is paid in order, then the effects run,
   so a refused intent pays nothing. A reaction runs for no player (actor 0): a cost that reads the actor's player
-  state (`Cooldown`, `StaminaCost`) refuses there, so a reaction with one never runs its effects, records no cooldown
-  and charges nobody (#201; `tests/unit/combat/costs_in_reactions_test.gd`). Between the checks and the costs, an
-  **action** (a rule on an intent) that passed stops its actor's running channel (`Channels.interrupt`, M4-4): a
-  raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its raise, and a refused intent stops
-  nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
+  state (`Cooldown`, `StaminaCost`) refuses there, so a reaction with one would never run its effects, record no
+  cooldown and charge nobody (#201; `tests/unit/combat/costs_in_reactions_test.gd`). The mode check therefore refuses
+  such a reaction at load, naming the mode, the fact, the rule's index and the cost's class (#283;
+  `tests/unit/content/mode_check_test.gd`). A cost says whether it reads that state (`Cost.reads_actor_state`, true
+  unless the class says otherwise): in `core/` both `Cooldown` and `StaminaCost` do, so no cost of `core/` is allowed
+  in a reaction yet; one that reads only match-wide state (a counter, as the tests' `FixtureCost`) would be. Between
+  the checks and the costs, an **action** (a rule on an intent) that passed stops its actor's running channel
+  (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its
+  raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
 - **Effects** (*what happens*) run in order. An effect changes `MatchState` only through `core/`'s own rules (life,
   items, stamina), emits events, raises facts, and may report an outcome (`ReportOutcome`, §3.1).
 - **A fact is handled at once, depth first.** When an effect raises one, the rules on it run (the mode's reactions,
