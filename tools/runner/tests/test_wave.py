@@ -243,6 +243,18 @@ class WaveTest(unittest.TestCase):
         self.p.launch(30, "t2", "wf_p", {"n": 5, "pr": 12, "why": "x"}, name="pr-rebase")
         self.assertIsNone(self.runs()["wf_a"].relaunched_as, "a pr-rebase of #5 is not a relaunch of its issue-task")
 
+    def test_a_resume_of_another_sessions_run_points_at_its_args(self) -> None:
+        old_sid = "40774c17-aaaa-bbbb-cccc-000000000002"
+        old_dir = self.p.dir / old_sid / "subagents" / "workflows" / "wf_old"
+        journal(old_dir, [("k1", "implement:#8", "Implement", None)])
+        self.p.launch(0, "t1", "wf_old", None, resumeFromRunId="wf_old")
+        self.p.lines[-1]["toolUseResult"]["transcriptDir"] = str(old_dir)
+        body = self.p.body()
+        handover = body.split("## Handover data")[1].split("---")[0]
+        self.assertNotIn("no args were passed", handover)
+        self.assertIn("a resume of wf_old", handover)
+        self.assertIn(f"tools\\run.cmd wave --args 8 --session {old_sid}", handover)
+
     def test_running_versus_finished(self) -> None:
         self.p.launch(210, "t1", "wf_open", issue_args(6))  # 11:30, 30 minutes before NOW
         journal(self.p.run_dir("wf_open"), [("k1", "implement:#6", "Implement", {"verify_green": True}),

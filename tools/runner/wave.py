@@ -589,10 +589,27 @@ def running_section(w: Wave) -> list[str]:
             "session died never finishes here, so a large value means stale.", ""]  # fmt: skip
 
 
+def launching_session(r: Run, s: Session) -> str | None:
+    """The session whose folder holds the run (<folder>/<sid>/subagents/workflows/<runId>), when it is not this one."""
+    d = r.latest.run_dir
+    if d and d.parent.name == "workflows" and d.parent.parent.name == "subagents" and d.parents[2].name != s.sid:
+        return d.parents[2].name
+    return None
+
+
 def handover_block(r: Run, s: Session) -> list[str]:
     title = f' "{s.title}"' if s.title else ""
     head = f"<details><summary>{issue_cell(r)} {r.name} args ({r.run_id}; session {s.sid[:8]}{title})</summary>"
     if r.args is None:
+        resumed = r.latest.resume_from
+        if resumed and not any(x.run_id == resumed and not x.resume_from for x in s.launches):
+            old = launching_session(r, s) or "<the session that launched it>"
+            n = r.issue if r.issue is not None else "<n>"
+            return [
+                f"{issue_cell(r)} {r.name} ({r.run_id}): a resume of {resumed} with no args of its own, which "
+                f"another session launched; its args: `tools\\run.cmd wave --args {n} --session {old}`.",
+                "",
+            ]
         return [f"{issue_cell(r)} {r.name} ({r.run_id}): no args were passed.", ""]
     return [head, "", *fence(json.dumps(r.args, indent=1, ensure_ascii=False), "json"), "</details>", ""]
 
