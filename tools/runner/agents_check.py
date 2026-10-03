@@ -4,8 +4,8 @@ Claude Code writes each subagent's transcript to
 ~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl, with agent-<id>.meta.json next to it. The meta file
 holds `agentType` and, when the caller asked for one, `model`; every assistant line of the transcript holds the model
 that actually answered. The expected family is the caller's `model`, else the `model:` of the project agent in
-.claude/agents/<agentType>.md; a subagent with neither inherits the session's model and is only listed. Families, not
-exact IDs, are compared.
+.claude/agents/<agentType>.md; a subagent with neither inherits the session's model and is only listed, unless a
+model in neither availableModels list served it (a failure, as below). Families, not exact IDs, are compared.
 
 `availableModels` is the shared list (.claude/settings.json) plus the user-scope one (settings.json in the config
 folder: ~/.claude, or CLAUDE_CONFIG_DIR), merged as Claude Code merges lists across non-managed scopes
@@ -18,8 +18,16 @@ from before the user list held it would otherwise keep `--all` red). A requested
 what served it (the model guard); a broken user settings file is a failure that names it.
 
 The folders read are the main checkout's and its .claude/worktrees/* sessions' (the main checkout is found as `metrics`
-finds it, from git's common dir), so a run from a worktree reads what a run from the main checkout reads. Workflow
-agents' transcripts (<session>/subagents/workflows/wf_*/) are not read.
+finds it, from git's common dir), so a run from a worktree reads what a run from the main checkout reads.
+
+Workflow agents (#206) are read too, with the same verdicts: <session>/subagents/workflows/wf_*/agent-<id>.jsonl and
+its .meta.json, the layout `metrics` reads (whose meta reader this module reuses). A default launch's meta file holds
+`agentType` (a project agent such as code-reviewer, judged by its file's `model:`; else `workflow-subagent`, which
+inherits the session's model), `description` (the workflow's label, such as review:code:#188), `workflowPhase`,
+`spawnDepth`, `requestShape` and `requestNonInteractive`, and no model.
+A launch that passes `models` is expected to record the requested model as `model`, as the Agent tool's meta file
+does; until such a launch has shown it, any other meta key that names a model (`MODEL_KEY_RE`, at any depth, such as
+`request.model`) fails, so a different key cannot pass silently as an unrequested model.
 """
 
 from __future__ import annotations
@@ -36,6 +44,8 @@ from .common import ROOT, Failure, bad, ok, say, skip
 
 FAMILY_RE = re.compile(r"^claude-([a-z]+)-")
 FAMILIES = ("opus", "sonnet", "haiku", "fable")
+# A meta key that may hold a requested model under a name this module does not read (`model` is read).
+MODEL_KEY_RE = re.compile(r"model", re.IGNORECASE)
 
 
 @dataclass
@@ -45,6 +55,9 @@ class Transcript:
     agent_type: str
     requested: str | None
     served: set[str]
+    run: str | None = None  # the workflow run's folder (wf_*), None for a hand-run subagent
+    label: str = ""  # a workflow agent's label (the meta file's description)
+    unread_keys: tuple[str, ...] = ()  # meta keys (dotted paths) other than `model` that name a model
 
 
 def config_dir() -> Path:
@@ -72,32 +85,65 @@ def family(model: str) -> str | None:
     return match.group(1) if match and match.group(1) in FAMILIES else None
 
 
-def read(folder: Path, session: str | None) -> list[Transcript]:
+def served_models(path: Path) -> set[str]:
+    """Every model that answered in a transcript: the `model` of its assistant lines."""
+    served = set()
+    with path.open(encoding="utf-8", errors="replace") as lines:
+        for line in lines:
+            if '"assistant"' not in line:  # most lines of a long transcript are tool results: skip their parse
+                continue
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(entry, dict):
+                continue
+            message = entry.get("message")
+            if entry.get("type") == "assistant" and isinstance(message, dict) and message.get("model"):
+                served.add(str(message["model"]))
+    return served
+
+
+def model_keys(value: object, prefix: str = "") -> list[str]:
+    """Dotted paths of the keys at any depth of a meta file that may name a model, except the top-level `model`."""
     found = []
-    pattern = f"{session}/subagents/agent-*.jsonl" if session else "*/subagents/agent-*.jsonl"
-    for path in sorted(folder.glob(pattern)):
-        meta_path = path.with_name(path.name.removesuffix(".jsonl") + ".meta.json")
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.is_file() else {}
-        except ValueError:
-            meta = {}
-        served = set()
-        with path.open(encoding="utf-8") as lines:
-            for line in lines:
-                try:
-                    entry = json.loads(line)
-                except ValueError:
-                    continue
-                message = entry.get("message")
-                if entry.get("type") == "assistant" and isinstance(message, dict) and message.get("model"):
-                    served.add(str(message["model"]))
+    if isinstance(value, dict):
+        for key, item in value.items():
+            path = f"{prefix}{key}"
+            if path != "model" and MODEL_KEY_RE.search(str(key)):
+                found.append(path)
+            found += model_keys(item, f"{path}.")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found += model_keys(item, f"{prefix}{index}.")
+    return found
+
+
+def read(folder: Path, session: str | None) -> list[Transcript]:
+    """The hand-run subagents and the workflow agents of one project folder (`session`: only that session's)."""
+    from . import metrics  # here, not at the top: metrics imports this module
+
+    found = []
+    prefix = session or "*"
+    paths = [
+        *folder.glob(f"{prefix}/subagents/agent-*.jsonl"),
+        *folder.glob(f"{prefix}/subagents/workflows/wf_*/agent-*.jsonl"),
+    ]
+    for path in sorted(paths):
+        parts = path.relative_to(folder).parts  # (session, "subagents", [ "workflows", run, ] file)
+        workflow = len(parts) == 5
+        meta = metrics.read_meta(path)
+        requested = meta.get("model")
         found.append(
             Transcript(
-                session=path.parent.parent.name,
+                session=parts[0],
                 agent_id=path.stem.removeprefix("agent-"),
                 agent_type=str(meta.get("agentType", "?")),
-                requested=meta.get("model"),
-                served=served,
+                requested=str(requested) if requested else None,
+                served=served_models(path),
+                run=parts[3] if workflow else None,
+                label=str(meta.get("description", "")) if workflow else "",
+                unread_keys=tuple(sorted(model_keys(meta))),
             )
         )
     return found
@@ -138,6 +184,11 @@ def judge(t: Transcript, agents: dict[str, str], allowed: list[str], user: Seque
     """('ok' | 'FAIL' | 'skip', explanation). `allowed`: the shared availableModels; `user`: the user-scope one."""
     families = {family(m) for m in t.served} - {None}
     served = ", ".join(sorted(t.served)) or "nothing"
+    if t.unread_keys:
+        return "FAIL", (
+            f"its meta file holds {', '.join(t.unread_keys)}, which may name a requested model under a key "
+            "agents-check does not read (it reads `model`): teach tools/runner/agents_check.py that key"
+        )
     if not families:
         return "skip", f"no model answered ({served})"
     source = "requested"
@@ -145,6 +196,14 @@ def judge(t: Transcript, agents: dict[str, str], allowed: list[str], user: Seque
     if expected is None and t.agent_type in agents and agents[t.agent_type] != "inherit":
         expected, source = agents[t.agent_type], f".claude/agents/{t.agent_type}.md"
     if expected is None:
+        # No request and no agent file: whatever served it must still be in a list (the model guard), else a
+        # `models` override recorded under no key at all would pass as an inherited model.
+        outside = families - {family(m) for m in (*allowed, *user)}
+        if (allowed or user) and outside:
+            return "FAIL", (
+                f"inherits, yet served {served}, outside availableModels (shared and user scope): "
+                "the model guard failed"
+            )
         return "skip", f"inherits the session model; served {served}"
     want = family(expected)
     if want is None:
@@ -182,23 +241,30 @@ def main(
     # The main checkout's folders and its worktrees' sessions, from any worktree, as metrics reads them (#178).
     folders = project_dirs(metrics.main_checkout(root), config)
     transcripts = [t for folder in folders for t in read(folder, None if all_sessions else session)]
-    judged = failed = 0
+    judged = failed = in_workflows = 0
     for t in transcripts:
         verdict, why = judge(t, agents, allowed, user)
-        label = f"{t.agent_type} (agent {t.agent_id[:10]}, session {t.session[:8]}): {why}"
+        where = f"agent {t.agent_id[:10]}, session {t.session[:8]}"
+        if t.run:
+            where = f"{t.label or '?'}, agent {t.agent_id[:10]}, workflow {t.run}, session {t.session[:8]}"
+        label = f"{t.agent_type} ({where}): {why}"
         if verdict == "ok":
             ok(label)
-            judged += 1
         elif verdict == "FAIL":
             bad(label)
-            judged += 1
             failed += 1
         else:
             skip(label)
+            continue
+        judged += 1
+        in_workflows += t.run is not None
     if judged == 0:
         raise Failure(
             f"no subagent transcript with an expected model in {scope}. Run a project subagent (for example "
             "test-runner) first, or pass --all."
         )
-    say(f"agents-check: {'FAILED' if failed else 'passed'} ({judged} checked, {failed} wrong)")
+    say(
+        f"agents-check: {'FAILED' if failed else 'passed'} ({judged} checked, {in_workflows} of them in workflows; "
+        f"{failed} wrong)"
+    )
     return 1 if failed else 0
