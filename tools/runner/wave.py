@@ -27,6 +27,9 @@ Rules:
 - a finished run is flagged "relaunch fresh, never resume" when its outcome (the publisher's result, else the
   pr-rebase fix's, else the rebase's) has published false, a publisher has stopped_by_mutants, issue-task stopped on
   a red implementer, a pr-rebase rebase is red or unpublished, or the notification's result says "stopped".
+- Handover data holds the args of each running run, and of each finished run since --since that failed, was killed or
+  stopped, unless a later launch took its place: a resume of it, or a later launch of the same issue and workflow under
+  another run id (a fresh relaunch; shown as "relaunched as <run>").
 Read-only: it writes only its --out file (default tools/out/wave/wave-<sid8>.md; with --args only an --out given),
 runs no gh and launches nothing. Sections are separate functions returning Markdown lines (SECTIONS), so a follow-up
 (#278) adds sections without touching these.
@@ -119,6 +122,7 @@ class Run:
     kind: str
     stopped: str | None = None
     resumed_as: str | None = None
+    relaunched_as: str | None = None
 
     @property
     def latest(self) -> Launch:
@@ -422,7 +426,24 @@ def build_runs(s: Session) -> list[Run]:
         if finished:
             run.stopped = stopped_reason(info, outcome, latest.notice)
         runs.append(run)
+    for run in runs:
+        if not run.resumed_as:
+            run.relaunched_as = relaunched_as(s.launches, run)
     return runs
+
+
+def relaunched_as(launches: list[Launch], run: Run) -> str | None:
+    """The run id of the newest later launch of the same issue and workflow under another run id (a fresh relaunch,
+    or a resume of another run of it): that launch took this run's place."""
+    if run.issue is None:
+        return None
+    last = max(i for i, x in enumerate(launches) if any(x is y for y in run.launches))
+    later = [
+        x.run_id
+        for x in launches[last + 1 :]
+        if x.run_id and x.run_id != run.run_id and x.name == run.name and issue_of(x.args) == run.issue
+    ]
+    return later[-1] if later else None
 
 
 def latest_launch(s: Session, n: int, workflow: str | None = None) -> Launch:
@@ -486,6 +507,8 @@ def status_cell(r: Run) -> str:
         text += f": {notice.summary[:150]}"
     if r.resumed_as:
         text += f" (resumed as {r.resumed_as})"
+    if r.relaunched_as:
+        text += f" (relaunched as {r.relaunched_as})"
     return text
 
 
@@ -579,7 +602,11 @@ def handover_section(w: Wave) -> list[str]:
     running = [r for r in w.runs if not r.finished]
     for r in running:
         md += handover_block(r, w.session)
-    again = [r for r in finished_since(w) if (r.stopped or r.status in ("failed", "killed")) and not r.resumed_as]
+    again = [
+        r
+        for r in finished_since(w)
+        if (r.stopped or r.status in ("failed", "killed")) and not r.resumed_as and not r.relaunched_as
+    ]
     if again:
         md += ["### Finished runs that need a resume or a fresh relaunch", ""]
         for r in again:

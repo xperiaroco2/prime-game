@@ -221,6 +221,28 @@ class WaveTest(unittest.TestCase):
         self.assertEqual(json.loads(out), issue_args(7))
         self.assertIn("run wf_r2", err)
 
+    def test_a_fresh_relaunch_replaces_a_stopped_run(self) -> None:
+        self.p.launch(0, "t1", "wf_a", issue_args(5), notice="completed", notice_at=20)
+        journal(self.p.run_dir("wf_a"), [("k1", "implement:#5", "Implement", {"verify_green": False})])
+        self.p.launch(30, "t2", "wf_b", issue_args(5, notes="again"))
+        journal(self.p.run_dir("wf_b"), [("k2", "implement:#5", "Implement", None)])
+        runs = self.runs()
+        self.assertEqual(runs["wf_a"].relaunched_as, "wf_b")
+        self.assertFalse(runs["wf_b"].finished)
+        body = self.p.body()
+        self.assertIn("relaunched as wf_b", self.row(body, "wf_a"))
+        self.assertIn("wf_b", self.row(body.split("## Running")[1], "wf_b"))
+        handover = body.split("## Handover data")[1]
+        self.assertNotIn("Finished runs that need a resume", handover, "its fresh relaunch already runs")
+        self.assertNotIn("wf_a;", handover)
+        self.assertIn("wf_b;", handover)
+
+    def test_a_relaunch_of_another_workflow_replaces_nothing(self) -> None:
+        self.p.launch(0, "t1", "wf_a", issue_args(5), notice="completed", notice_at=20)
+        journal(self.p.run_dir("wf_a"), [("k1", "implement:#5", "Implement", {"verify_green": False})])
+        self.p.launch(30, "t2", "wf_p", {"n": 5, "pr": 12, "why": "x"}, name="pr-rebase")
+        self.assertIsNone(self.runs()["wf_a"].relaunched_as, "a pr-rebase of #5 is not a relaunch of its issue-task")
+
     def test_running_versus_finished(self) -> None:
         self.p.launch(210, "t1", "wf_open", issue_args(6))  # 11:30, 30 minutes before NOW
         journal(self.p.run_dir("wf_open"), [("k1", "implement:#6", "Implement", {"verify_green": True}),

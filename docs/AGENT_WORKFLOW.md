@@ -837,8 +837,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   stopped; other workflows, such as a read-only scouting run, are listed by their name with no issue), the running
   runs (title, worktree, branch, base, the agent working now: each `started` with no `result`, and the minutes since
   the launch and since the newest write to the run's journal or agent transcripts, which tell a live run from one
-  whose session died), the handover args of each running run and of each failed, killed or stopped one (the args
-  exactly as passed, `indent=1`, `ensure_ascii=False`; a resume without args inherits its run's), and a footer (the
+  whose session died), the handover args of each running run and of each failed, killed or stopped one that no later
+  launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`, `ensure_ascii=False`; a
+  resume without args inherits its run's), and a footer (the
   session's age, its last call's context, the mean API list $ per call of its first and last 20 calls, and any
   records it skipped). A run is finished when its latest launch has a notification or its journal reached the
   script's end (issue-task: a publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a
