@@ -71,6 +71,30 @@ func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab
 	await get_tree().process_frame
 
 
+func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobby_tab() -> void:
+	# #204: the Welcome folds in the session's physics step and Game._process draws the lobby
+	# after it, so an Esc in between found the UI still on Connecting and opened on Resume.
+	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 3)])
+	game.pointer = FakePointer.new()
+	var drawn_at_esc: Array[GameFlow.Screen] = []
+	game.client().welcomed.connect(
+		func(_own: int) -> void:
+			drawn_at_esc.append(game.ui.screen)
+			_press(KEY_ESCAPE)
+	)
+	assert_bool(await _until(func() -> bool: return game.screen() == S.LOBBY)).is_true()
+	# The Esc came before any _process drew the lobby (Connecting, or the menu if no _process ran
+	# yet under load): the frame of the Welcome.
+	assert_int(drawn_at_esc.size()).is_equal(1)
+	assert_int(drawn_at_esc[0]).is_not_equal(S.LOBBY)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
+	assert_array(_visible_buttons(game.ui)).contains(["Resume", "Lobby", "Ready"])
+	game.leave()
+	await get_tree().process_frame
+
+
 func test_under_the_menu_held_keys_are_released_and_gameplay_keys_ignored() -> void:
 	var game := await _lobby_game(PORT + 1)
 	var player := game.player()
