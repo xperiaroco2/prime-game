@@ -76,7 +76,7 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
 - In the Bash tool `\\` arrives as `\`, even inside single quotes and quoted heredocs (`"\\r"` became a CR).
   Write code that contains backslashes to a file with the Write tool, then run the file.
 - `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
-- A long-lived session waiting with a big context keeps its cache warm: background `sleep 3000` (orchestrate-stage §7).
+- A long-lived waiting session keeps its cache warm: background `sleep 3000`, `timeout` 3300000 (orchestrate-stage §7).
 - Push an explicit task branch only (`git push -u origin <branch>`, or `publish`; a stage's manager also fast-forwards
   `release/m<k>`, DoD 5). Never `main`, no force push by hand (the pre-push hook blocks both): rebased, only `publish`.
 - No `git stash` (one stash for all worktrees): set work aside with a WIP commit, later `git reset --soft HEAD~1`;
