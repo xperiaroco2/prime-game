@@ -88,7 +88,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   downed camera against a wall, go in `tests/integration/client/`.
 - Several `Game`s in one test each go in a `SubViewport` with `own_world_3d` (one physics space pushes each player
   off its spot), and a wait for a screen also waits for `game.ui.screen` to show it: `Game._process` sets the
-  screens and the player's input flags, and under load several physics steps run before it (#225).
+  screens, and under load several physics steps run before it (#225); the player's flags follow each event (#241).
 - Audio mixes headless in real time (Dummy driver, fake codec, real players and buses, bus peak), a 3D player only with
   a `Camera3D` in the world (observed on 4.7.2, not in the docs): bounded real-time waits there await tests.md's OK.
 - Key events do run headless: `Input.parse_input_event(event)` then `Input.flush_buffered_events()` reaches

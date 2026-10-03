@@ -1352,16 +1352,21 @@ host's own player sees only what its `ClientSession` decoded.
 | Priority | Node | What it does |
 |---|---|---|
 | -100 | `HostNode`, on a host | `HostSession.step` (§4.5); its messages to the own client are read in this frame |
-| -90 | `SessionNode` | `ClientSession.step`: poll, decode, fold into `ClientModel`, fire the signals (a `Correction` teleports the player before it moves), advance a map load, send the `MoveClaim` due |
+| -90 | `SessionNode` | `ClientSession.step`: poll, decode, fold into `ClientModel`, fire the signals (a `Correction` teleports the player before it moves; at each event `Game` sets the player's physics step and input flags for the screen the model is on, #241), advance a map load, send the `MoveClaim` due |
 | -80 | `Avatars` | place every remote body at its interpolated pose, so the local push search sees this frame's capsules (static bodies placed with `force_update_transform()`, below) |
 | 0 | `Player` | read input, move, then `set_motion` for the next claim (one physics frame, 1/60 s, old when it is sent) |
 | `_process` | the views, the cameras, `Ui` | draw from `ClientModel` and the interpolated poses |
 
 Under load or after a hitch Godot runs several physics frames in one idle frame. Between them `ClientModel` and
-`Game.screen()` can already be on the next phase while the screens, their texts and the local player's input flags
-and physics step, which `Game._process` sets, still follow the previous one; nothing is drawn in between, but a player
-can step and claim a few frames into a frozen phase (#241). A test that reads those waits until `game.ui.screen`
-shows the screen it waited for; game_loop_test checks that wait with `Game._process` off (#225).
+`Game.screen()` can already be on the next phase while the screens and their texts, which `Game._process` sets, still
+follow the previous one; nothing is drawn in between. A test that reads those waits until `game.ui.screen` shows the
+screen it waited for; game_loop_test checks that wait with `Game._process` off (#225). The local player's physics step
+and input flags (`Game._apply_player_flags`) follow the model at once: `Game._on_event` applies them at every event the
+session folds, in its physics step, and `_process` again every frame (the Esc menu), so after a hitch the player
+neither steps nor claims into Loading or End, nor waits for `_process` to walk again (#241). A step turned off there
+stops the player in that physics frame; one turned on steps it from the next (observed on 4.7.2, not in the docs).
+game_loop_test plays a loop with no `Game._process` from the lobby on and sees no step in Loading, everyone at the
+round's and the lobby's `Correction`s and no `Correction` of a refused claim.
 
 A `queue_free`d node stays in the tree, and its body in the physics space, at least until the end of the current physics
 frame, where a node at a later priority still finds it. (On 4.7.2 it was then gone: a probe for #242, not kept since it
@@ -1369,8 +1374,12 @@ slept, freed a body in one physics frame and found it gone in the next with no i
 docs, and nothing here relies on it.) So a view that drops a physics body takes it out of the tree first: `AvatarViews`
 removes a `RemotePlayerBody` whose player the model dropped (a new map, the lobby, a leave, a death) before freeing it.
 Only queued, it pushed the local player off a spot the same frame's `Correction` had put it on, by one step at sprint
-speed (End → Lobby brings `PhaseChanged`, which forgets the avatars, and the placement in one host step; the end
-screen's frozen step hides it today, #241).
+speed (End → Lobby brings `PhaseChanged`, which forgets the avatars, and the placement in one host step). Since #241
+the player steps again only from the physics frame after that `PhaseChanged`, when the body is gone, so the game test
+cannot see this one: `avatar_views_test.gd` guards it. The game test did see another: the next lobby snapshot drew
+the others again from the round's poses behind the interpolation delay, at their round spots, where the greybox lobby
+(its markers share the round's coordinates) may have placed the local player, pushed 0.35 m. So `AvatarViews` forgets
+the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`.
 
 **The flow.**
 
@@ -1452,8 +1461,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   each in a `SubViewport` with its own `World3D` (in one physics space each player stood inside the body another
   game drew of it and was pushed off its spot, #225), over a `LoopbackHub` on a simulated clock through the lobby,
   the host's setting, Ready, the countdown, loading, the round, time up, the end screen and back, a client's Leave
-  and the host's close (about 5 s). The screens' `shot`s: `client/dev/<screen>_preview.tscn` (`screen_preview.gd`,
-  a fake `ClientModel`).
+  and the host's close (about 5 s), and the same loop with no `Game._process` from the lobby on (#241, above).
+  The screens' `shot`s: `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
 - The runner's windows for `host` and `join` (E20) came with #149, the rest of M4-6: below.
 
 **Movement on the network.**
@@ -1504,7 +1513,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `StaticBody3D` (above).
 - `client/world/`: `SnapshotBuffer` (pure) and `AvatarViews`, which draws from it at -80, snaps the players a
   `PlayersPlaced` names (no blend across a tick within one of the event's estimated tick, since events and
-  snapshots travel on different lanes), forgets the poses at `LoadMatch` and gives the estimated host tick
+  snapshots travel on different lanes), forgets the poses at `LoadMatch` and at a `PhaseChanged` to another level
+(End → Lobby, #241) and gives the estimated host tick
   (`host_tick()`) and the delay. A teleport too far for anyone to walk in the time between two snapshots (30 m/s, a
   placeholder) also snaps. A body whose player the model drops leaves the tree before it is freed (#242, above).
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
@@ -1860,8 +1870,10 @@ a follow-up on #144 and #145):
 - `client/voice/`: `VoiceSender` (a node under `Game`) drains the capture each frame, encodes every chunk, feeds each
   to `VoiceGate` with that frame's `may_speak` and talk key, and sends what leaves through `ClientSession.send_voice`;
   `may_speak_of(model, mode)` is the own life fold living and `VoiceRule.radius_of` of the current phase > 0 in the
-  client's own mode. `VoiceControl` applies `UserSettings` to the sender and the buses and takes the Voice tab's
-  changes; which microphone opens, the mark and the modes are §6's.
+  client's own mode. What waits when `may_speak` turns true, or after `ClientModel.silencings` (each phase change,
+  each time the own life leaves living) moved since its last step, goes as unspeakable (§6, #241). `VoiceControl`
+  applies `UserSettings` to the sender and the buses and takes the Voice tab's changes; which microphone opens, the
+  mark and the modes are §6's.
 - `client/app/`: `UserSettings` (`user://settings.cfg`, or `settings_<n>.cfg` for `PRIME_INSTANCE` n > 1: the
   microphone, the mode, the threshold, RNNoise, the four volumes, the mark; written on each change). `Game` reads this
   window's file unless a test sets `settings` (with `read_command_line` off, as in tests and playcheck, the settings
@@ -1873,7 +1885,9 @@ a follow-up on #144 and #145):
   line (`DebugOverlay.own_voice_text`: gate, peak, frame age, encode µs). No talking indicator (D14).
 - Tests: `tests/unit/voice/voice_capture_test.gd`, `voice_gate_test.gd` (an empty frame while closed empties the
   pre-roll; the threshold clamped above 0; each seen failing first), `tests/unit/client/voice/voice_sender_test.gd`
-  (seen failing on a planted widening: no life check, no drain while unspeakable), `voice_control_test.gd` (the mark
+  (seen failing on a planted widening: no life check, no drain while unspeakable; and, #241, a knockdown and its
+  revive, or Round, End and Lobby, folded between two steps, seen sending their backlog before `silencings`), the
+  count in `tests/unit/client/net/client_model_test.gd`, `voice_control_test.gd` (the mark
   in the file before the device opens, seen failing with it emitted after),
   `tests/unit/client/app/user_settings_test.gd`, `tests/unit/client/ui/voice_panel_test.gd`, the Voice tab in
   `esc_menu_state_test.gd`, the own voice line in `debug_overlay_test.gd`,
