@@ -14,6 +14,8 @@ extends GdUnitTestSuite
 const NetPair := preload("res://tests/integration/client/player/net_pair.gd")
 ## The top of the fixture's stairs.
 const TOP_Y := 1.2
+## The most process frames _until() waits.
+const UNTIL_FRAMES := 120
 
 var _pair: NetPair
 
@@ -190,6 +192,36 @@ func test_the_debug_overlay_shows_each_side_its_numbers() -> void:
 	assert_str(hosting).contains("corrections: 0")
 	assert_str(hosting).contains("host:")
 	await _pair.stop()
+
+
+## The host's voice relay counters (the M5 ADR §3 item 11, M5-4): totals in the Lobby on the
+## host's overlay only, and none during the Round, where they would tell the host's player how many
+## hear them.
+func test_the_host_s_relay_counters_show_in_the_lobby_and_never_in_the_round() -> void:
+	assert_bool(await _pair.start()).is_true()
+	for game: Game in [_pair.host, _pair.client]:
+		game.overlay().visible = true
+	var hosting := _pair.host.overlay().relay_label
+	# Game fills the overlay in its per-frame update: wait for one, bounded (#222's flake).
+	await _until(func() -> bool: return not hosting.text.is_empty())
+	assert_bool(hosting.visible).is_true()
+	assert_str(hosting.text).contains("host voice (session totals):")
+	assert_str(hosting.text).contains("voice_sent: ")
+	assert_bool(_pair.client.overlay().relay_label.visible).is_false()
+	assert_bool(await _pair.to_round()).is_true()
+	await _until(func() -> bool: return hosting.text == DebugOverlay.RELAY_HIDDEN)
+	assert_str(hosting.text).is_equal(DebugOverlay.RELAY_HIDDEN)
+	assert_str(_pair.host.overlay().label.text).not_contains("voice_")
+	assert_bool(_pair.client.overlay().relay_label.visible).is_false()
+	await _pair.stop()
+
+
+## Waits process frames until `done` returns true, at most UNTIL_FRAMES.
+func _until(done: Callable) -> void:
+	for _i in UNTIL_FRAMES:
+		if done.call():
+			return
+		await get_tree().process_frame
 
 
 ## The host knocks the joiner down in the round. Game's life fold makes its controller crawl

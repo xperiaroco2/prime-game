@@ -3,11 +3,20 @@ extends PanelContainer
 ## The debug overlay (the M4 ADR's §2; F3, debug builds only, invariant 8): the own client's count
 ## of Corrections of refused claims and, apart, of placements (a placement or a death sends one
 ## too), the estimated host tick and the interpolation delay, and on the host the session's
-## counters (budgets, malformed messages, voice). The playtests read it, above all for #76's
-## tuning: honest play gets no correction, only placements. The game creates it in debug builds
-## only and feeds it while it shows; it reads nothing itself.
+## counters (budgets, malformed messages). The playtests read it, above all for #76's tuning:
+## honest play gets no correction, only placements. The game creates it in debug builds only and
+## feeds it while it shows; it reads nothing itself.
+##
+## On the host, apart, the voice relay's counters (relayed, sent, dropped, over budget, relay µs,
+## the voice and snapshot upload; HostNode.relay_counters, M5-4) as totals since the session
+## started, only in the Lobby, the Countdown and End (shows_relay): live during a Round they would
+## tell the host's player how many hear them (the M5 ADR §3 item 11).
+
+const RELAY_HIDDEN := "host voice: shown in the lobby, the countdown and the end"
 
 var label := Label.new()
+## The host's voice relay counters, or the note that hides them; empty on a client.
+var relay_label := Label.new()
 
 
 func _init() -> void:
@@ -16,9 +25,14 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
 	position = Vector2(8, 8)
 	label.theme_type_variation = &"DebugText"
+	relay_label.theme_type_variation = &"DebugText"
+	relay_label.visible = false
 	var margin := MarginContainer.new()
 	margin.theme_type_variation = &"DebugMargin"
-	margin.add_child(label)
+	var lines := VBoxContainer.new()
+	lines.add_child(label)
+	lines.add_child(relay_label)
+	margin.add_child(lines)
 	add_child(margin)
 
 
@@ -59,4 +73,36 @@ static func text(
 		names.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
 		for key: StringName in names:
 			lines.append("  %s: %d" % [key, counters[key]])
+	return "\n".join(lines)
+
+
+## Shows the host's voice relay counters for the client's own copy of the current phase (`phase`
+## null before a Welcome); `counters` empty on a client, which shows nothing.
+func show_relay(counters: Dictionary[StringName, int], phase: PhaseSpec) -> void:
+	relay_label.text = relay_text(counters, shows_relay(phase))
+	relay_label.visible = not relay_label.text.is_empty()
+
+
+## Whether the relay's counters may show during `phase`: only while its class is LobbyPhase,
+## CountdownPhase or EndPhase, never with no phase known. Every other phase class hides them, one
+## added later included.
+static func shows_relay(phase: PhaseSpec) -> bool:
+	if phase == null:
+		return false
+	var shown_in: Array[Script] = [LobbyPhase, CountdownPhase, EndPhase]
+	return shown_in.has(phase.phase_class)
+
+
+## The relay's lines (pure, for the tests): by name when `shown`, else only the note; empty with
+## no counters.
+static func relay_text(counters: Dictionary[StringName, int], shown: bool) -> String:
+	if counters.is_empty():
+		return ""
+	if not shown:
+		return RELAY_HIDDEN
+	var lines := PackedStringArray(["host voice (session totals):"])
+	var names := counters.keys()
+	names.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))
+	for key: StringName in names:
+		lines.append("  %s: %d" % [key, counters[key]])
 	return "\n".join(lines)
