@@ -1,12 +1,16 @@
 # Night jobs (docs/AGENT_WORKFLOW.md §15): long deterministic runs on GitHub's free Linux runners while nobody works.
-# Each night job is one job below that sets up the toolchain like CI (.github/actions/setup-toolchain), runs one
-# runner command and uploads its reports. `report` lists every night job in `needs` and, when one of them fails,
-# comments with the run link on the standing "Night jobs" issue (creating it the first time).
-# Adding a night job: copy the `flaky` job, change its command, artifact name and timeout, and add its id to
-# `report`'s `needs`. `perf` (#187) also keeps its report for the next night in a cache. `chaos` (#188) is the long
-# chaos run with random seeds, each printed in its log.
-# Scheduled runs use the latest commit on main and start late at busy times; GitHub disables the schedule of a public
-# repository after 60 days without activity (docs.github.com, "Events that trigger workflows").
+# `refs` picks the refs of the night: the run's own (main, on the schedule) and the newest remote release/* branch
+# (#272), or only the ref given to workflow_dispatch. Each night job is a matrix over them: it checks out the ref's
+# commit, sets up the toolchain like CI (.github/actions/setup-toolchain, the ref's own copy), checks that the ref's
+# runner has the options the job calls, runs one runner command and uploads its reports under a name with the ref.
+# `report` lists `refs` and every night job in `needs` and, when one of them fails, comments with the run link and
+# each job of each ref on the standing "Night jobs" issue (creating it the first time).
+# Adding a night job: copy the `flaky` job, change its command, the options its check needs, its artifact name and
+# timeout, and add its id to `report`'s `needs`. `perf` (#187) also keeps its report for the next night of the same
+# ref in a cache. `chaos` (#188) is the long chaos run with random seeds, each printed in its log.
+# Scheduled runs use this file and the latest commit of main and start late at busy times; a release ref's jobs still
+# run the release's own tools/run.sh and tests. GitHub disables the schedule of a public repository after 60 days
+# without activity (docs.github.com, "Events that trigger workflows").
 name: Nightly
 
 on:
@@ -15,6 +19,12 @@ on:
     # most, and well before the audit lens on the engineer's PC (Daily 06:00 local) reads the results.
     - cron: "17 1 * * *"
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Only this branch, tag or commit (empty: the run's own ref and the newest release/* branch)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -24,17 +34,108 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  refs:
+    name: the refs of the night
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.refs.outputs.matrix }}
+      list: ${{ steps.refs.outputs.list }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INPUT_REF: ${{ inputs.ref }}
+    steps:
+      # Each ref is resolved to a commit once, so its three jobs test the same commit. The newest release branch is
+      # the last by version order (release/m10 after release/m9); none: the run's own ref alone. A ref name is
+      # letters, digits and . _ / - only (so it goes into the JSON as it is); `slug` is the ref with / as -, for
+      # the artifact names.
+      - name: The run's ref and the newest release branch
+        id: refs
+        run: |
+          plain='^[A-Za-z0-9._/-]+$'
+          entries=()
+          list=()
+          add() {
+            entries+=("{\"ref\":\"$1\",\"sha\":\"$2\",\"slug\":\"${1//\//-}\"}")
+            list+=("\`$1\` at ${2:0:7}")
+          }
+          if [ -n "$INPUT_REF" ]; then
+            if [[ ! "$INPUT_REF" =~ $plain ]]; then
+              echo "::error::The ref '$INPUT_REF' holds a character other than letters, digits and . _ / -."
+              exit 1
+            fi
+            if ! sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/${INPUT_REF//\//%2F}" --jq .sha); then
+              echo "::error::No commit for the ref '$INPUT_REF' in $GITHUB_REPOSITORY."
+              exit 1
+            fi
+            add "$INPUT_REF" "$sha"
+          else
+            if [[ ! "$GITHUB_REF_NAME" =~ $plain ]]; then
+              echo "::error::The run's ref '$GITHUB_REF_NAME' holds a character other than letters, digits and . _ / -."
+              exit 1
+            fi
+            add "$GITHUB_REF_NAME" "$GITHUB_SHA"
+            if ! releases=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/heads/release/" \
+                --jq '.[] | (.ref | ltrimstr("refs/heads/")) + " " + .object.sha'); then
+              echo "::error::The release/* branches of $GITHUB_REPOSITORY could not be listed."
+              exit 1
+            fi
+            newest=$(grep -E '^release/[A-Za-z0-9._/-]+ [0-9a-f]+$' <<< "$releases" | sort -V | tail -n 1 || true)
+            if [ -z "$newest" ]; then
+              echo "No remote release/* branch: $GITHUB_REF_NAME alone."
+            else
+              read -r name sha <<< "$newest"
+              if [ "$sha" = "$GITHUB_SHA" ]; then
+                echo "$name is at $GITHUB_REF_NAME's commit: tested once, as $GITHUB_REF_NAME."
+              else
+                add "$name" "$sha"
+              fi
+            fi
+          fi
+          matrix=$(IFS=,; echo "{\"include\":[${entries[*]}]}")
+          joined=$(printf ', %s' "${list[@]}")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "list=${joined:2}" >> "$GITHUB_OUTPUT"
+          echo "Refs of the night: ${joined:2}." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Matrix: $matrix"
+
   flaky:
-    name: flaky (GdUnit4 three times)
+    name: flaky on ${{ matrix.ref }} (GdUnit4 three times)
+    needs: refs
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.refs.outputs.matrix) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      REF: ${{ matrix.ref }}
     steps:
-      # No LFS content, as in CI.
+      # The ref's commit, not this run's: the ref's own tools/run.sh, setup action and tests. No LFS content, as in CI.
       - uses: actions/checkout@v7
         with:
+          ref: ${{ matrix.sha }}
           lfs: false
 
       - uses: ./.github/actions/setup-toolchain
+
+      # From M5 on, CI runs without the TwoVoIP extension (release/m5's ci.yml says why, after its M5 voice ADR §2,
+      # E35 (a)). On a ref without the addon this does nothing.
+      - name: Remove the TwoVoIP extension
+        run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
+
+      # The runner command and options this job calls: a ref whose runner is older than this file fails here, naming
+      # what it lacks, instead of running something else.
+      - name: The ref's runner has the job's options
+        env:
+          CALLS: test --repeat
+        run: |
+          read -r command options <<< "$CALLS"
+          for option in $options; do
+            if ! tools/run.sh "$command" --help 2>&1 | grep -q -- "$option"; then
+              echo "::error::The runner of $REF has no '$command $option': this job needs a newer tools/runner there."
+              exit 1
+            fi
+          done
 
       - name: doctor
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
@@ -54,7 +155,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: nightly-flaky
+          name: nightly-flaky-${{ matrix.slug }}
           path: |
             tools/out/gdunit-runs
             tools/out/logs
@@ -62,29 +163,55 @@ jobs:
           retention-days: 30
 
   perf:
-    name: perf (10 bots, compared with the last night)
+    name: perf on ${{ matrix.ref }} (10 bots, compared with the last night)
+    needs: refs
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.refs.outputs.matrix) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      REF: ${{ matrix.ref }}
     steps:
-      # No LFS content, as in CI.
+      # The ref's commit, not this run's: the ref's own tools/run.sh, setup action and tests. No LFS content, as in CI.
       - uses: actions/checkout@v7
         with:
+          ref: ${{ matrix.sha }}
           lfs: false
 
       - uses: ./.github/actions/setup-toolchain
 
+      # From M5 on, CI runs without the TwoVoIP extension (release/m5's ci.yml says why, after its M5 voice ADR §2,
+      # E35 (a)). On a ref without the addon this does nothing.
+      - name: Remove the TwoVoIP extension
+        run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
+
+      # The runner command and options this job calls: a ref whose runner is older than this file fails here, naming
+      # what it lacks, instead of running something else.
+      - name: The ref's runner has the job's options
+        env:
+          CALLS: perf --baseline
+        run: |
+          read -r command options <<< "$CALLS"
+          for option in $options; do
+            if ! tools/run.sh "$command" --help 2>&1 | grep -q -- "$option"; then
+              echo "::error::The runner of $REF has no '$command $option': this job needs a newer tools/runner there."
+              exit 1
+            fi
+          done
+
       - name: doctor
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
 
-      # The last successful night's report, saved by this step at the end of that night's job (a new key every run,
-      # so each successful run saves; restore-keys takes the newest). The cache needs no permission beyond the
-      # workflow's.
+      # The last successful night's report of the same ref, saved by this step at the end of that night's job (a new
+      # key every run, so each successful run saves; restore-keys takes the newest). A ref name never holds ":", so
+      # one ref's prefix never matches another's keys. The cache needs no permission beyond the workflow's.
       - name: The last night's report
         uses: actions/cache@v6
         with:
           path: tools/out/perf-last
-          key: nightly-perf-${{ github.run_id }}
-          restore-keys: nightly-perf-
+          key: "nightly-perf:${{ matrix.ref }}:${{ github.run_id }}"
+          restore-keys: "nightly-perf:${{ matrix.ref }}:"
 
       # 10 bots over the loopback, a 60 s round; changes beyond the threshold are listed, never a failure.
       - name: perf
@@ -110,7 +237,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: nightly-perf
+          name: nightly-perf-${{ matrix.slug }}
           path: |
             tools/out/perf
             tools/out/logs
@@ -118,16 +245,42 @@ jobs:
           retention-days: 30
 
   chaos:
-    name: chaos (the long run, random seeds)
+    name: chaos on ${{ matrix.ref }} (the long run, random seeds)
+    needs: refs
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.refs.outputs.matrix) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      REF: ${{ matrix.ref }}
     steps:
-      # No LFS content, as in CI.
+      # The ref's commit, not this run's: the ref's own tools/run.sh, setup action and tests. No LFS content, as in CI.
       - uses: actions/checkout@v7
         with:
+          ref: ${{ matrix.sha }}
           lfs: false
 
       - uses: ./.github/actions/setup-toolchain
+
+      # From M5 on, CI runs without the TwoVoIP extension (release/m5's ci.yml says why, after its M5 voice ADR §2,
+      # E35 (a)). On a ref without the addon this does nothing.
+      - name: Remove the TwoVoIP extension
+        run: rm -f addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
+
+      # The runner command and options this job calls: a ref whose runner is older than this file fails here, naming
+      # what it lacks, instead of running something else.
+      - name: The ref's runner has the job's options
+        env:
+          CALLS: bots --chaos --long --runs --enet
+        run: |
+          read -r command options <<< "$CALLS"
+          for option in $options; do
+            if ! tools/run.sh "$command" --help 2>&1 | grep -q -- "$option"; then
+              echo "::error::The runner of $REF has no '$command $option': this job needs a newer tools/runner there."
+              exit 1
+            fi
+          done
 
       - name: doctor
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
@@ -155,19 +308,21 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: nightly-chaos
+          name: nightly-chaos-${{ matrix.slug }}
           path: tools/out/logs
           if-no-files-found: ignore
           retention-days: 30
 
   report:
     name: report on the Night jobs issue
-    needs: [flaky, perf, chaos]
-    # A failed or timed-out night job; a skipped one is not news.
+    needs: [refs, flaky, perf, chaos]
+    # A failed or timed-out night job of any ref, or no refs at all; a skipped one is not news. A matrix job's result
+    # in `needs` is one for all its refs: the run's job list names the ref of each.
     if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
+      actions: read
       contents: read
       issues: write
     env:
@@ -176,6 +331,7 @@ jobs:
       TITLE: Night jobs
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       NEEDS: ${{ toJSON(needs) }}
+      REFS: ${{ needs.refs.outputs.list }}
     steps:
       - name: Comment with the run link
         run: |
@@ -188,7 +344,18 @@ jobs:
             url=$(gh issue create --title "$TITLE" --label area:tooling --body "$body")
             number=${url##*/}
           fi
-          jobs=$(echo "$NEEDS" | jq -r 'to_entries[] | "- `\(.key)`: \(.value.result)"')
-          printf 'Nightly run failed: %s\n\nCommit %s on %s (%s).\n\n%s\n\nReports: the artifacts of the run (per job); the flaky job writes its per-suite comparison and perf its numbers to the run summary.\n' \
-            "$RUN_URL" "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_EVENT_NAME" "$jobs" > comment.md
+          # Each job of each ref with its conclusion (a night job's name holds its ref); if the list cannot be read,
+          # the result of each job id from `needs`, which names no ref.
+          if ! jobs=$(gh api --paginate "repos/$GH_REPO/actions/runs/$GITHUB_RUN_ID/jobs" --jq '.jobs[]
+              | select(.name != "report on the Night jobs issue") | "- `\(.name)`: \(.conclusion // .status)"'); then
+            jobs=$(echo "$NEEDS" | jq -r 'to_entries[] | "- `\(.key)`: \(.value.result)"')
+          fi
+          {
+            printf 'Nightly run failed: %s\n\n' "$RUN_URL"
+            printf 'Refs: %s. Workflow commit %s on %s (%s).\n\n' \
+              "${REFS:-none (the job \`refs\` failed)}" "$GITHUB_SHA" "$GITHUB_REF_NAME" "$GITHUB_EVENT_NAME"
+            printf '%s\n\n' "$jobs"
+            printf 'Reports: the artifacts of the run, one per job and ref (`nightly-<job>-<ref, / as ->`); the flaky '
+            printf 'job writes its per-suite comparison and perf its numbers to the run summary.\n'
+          } > comment.md
           gh issue comment "$number" --body-file comment.md

@@ -1,6 +1,7 @@
 """The GitHub Actions files (docs/AGENT_WORKFLOW.md §11 CI and §15 Night jobs), parsed and checked before GitHub
-runs them: a scheduled workflow cannot be tried on a task branch (workflow_dispatch needs the file on the default
-branch, docs.github.com "Events that trigger workflows"), so its first run is the night after the merge.
+runs them: a new scheduled workflow cannot be tried on a task branch (workflow_dispatch needs the file on the default
+branch, docs.github.com "Events that trigger workflows"), so its first run is the night after the merge; once it is
+there, `gh workflow run <file> --ref <branch>` runs the branch's version.
 
 PyYAML comes with the pinned gdtoolkit (its dependency), so it is there wherever `verify` runs; without it the tests
 skip.
@@ -85,11 +86,29 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(rest, ["*", "*", "*"], "once a night")
         self.assertTrue(0 <= int(hour) <= 5 and minute != "0", "a night hour UTC, off the hour")
         self.assertEqual(data["permissions"], {"contents": "read"})
+        # #272: by hand, optionally one ref alone.
+        ref = data["on"]["workflow_dispatch"]["inputs"]["ref"]
+        self.assertEqual((ref["type"], ref["required"], ref["default"]), ("string", False, ""))
+
+    def test_the_refs_job_picks_the_runs_ref_and_the_newest_release_branch(self) -> None:
+        # #272: the schedule runs main's file, so the release ref is found at run time and checked out by each job.
+        jobs = load(GITHUB / "workflows" / "nightly.yml")["jobs"]
+        refs = jobs["refs"]
+        self.assertNotIn("permissions", refs, "the workflow's contents: read is enough")
+        self.assertNotIn("needs", refs)
+        self.assertEqual(set(refs["outputs"]), {"matrix", "list"})
+        self.assertEqual(refs["env"]["INPUT_REF"], "${{ inputs.ref }}")
+        script = "".join(step.get("run", "") for step in refs["steps"])
+        self.assertIn("matching-refs/heads/release/", script)
+        self.assertIn("sort -V", script)
+        for name in ("$INPUT_REF", "$GITHUB_REF_NAME", "$GITHUB_SHA", "$GITHUB_OUTPUT", "::error::"):
+            self.assertIn(name, script)
 
     def test_every_night_job_sets_up_like_ci_and_the_report_job_waits_for_all_of_them(self) -> None:
         jobs = load(GITHUB / "workflows" / "nightly.yml")["jobs"]
         self.assertIn("flaky", jobs)
-        night = [name for name in jobs if name != "report"]
+        night = [name for name in jobs if name not in ("refs", "report")]
+        artifacts = []
         for name in night:
             job = jobs[name]
             self.assertIn("timeout-minutes", job, name)
@@ -97,6 +116,26 @@ class GithubWorkflowsTest(unittest.TestCase):
             uses = [step.get("uses", "") for step in job["steps"]]
             self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP], name)
             self.assertIn("actions/upload-artifact@v7", uses, f"{name}: uploads its reports")
+            # #272: once per ref of the night, each ref's own commit, its artifacts named with the ref.
+            self.assertEqual(job["needs"], "refs", name)
+            self.assertEqual(job["strategy"]["matrix"], "${{ fromJSON(needs.refs.outputs.matrix) }}", name)
+            self.assertIs(job["strategy"]["fail-fast"], False, f"{name}: one ref's failure keeps the other's run")
+            self.assertIn("${{ matrix.ref }}", job["name"], name)
+            self.assertEqual(job["steps"][0]["with"]["ref"], "${{ matrix.sha }}", name)
+            upload = next(step for step in job["steps"] if step.get("uses") == "actions/upload-artifact@v7")
+            self.assertTrue(upload["with"]["name"].endswith("-${{ matrix.slug }}"), name)
+            artifacts.append(upload["with"]["name"])
+            # The ref's runner is asked for the job's options before anything runs on it.
+            names = [step.get("name", "") for step in job["steps"]]
+            check = names.index("The ref's runner has the job's options")
+            self.assertIn("--help", job["steps"][check]["run"], name)
+            self.assertLess(check, names.index("doctor"), name)
+            command, *options = job["steps"][check]["env"]["CALLS"].split()
+            later = "".join(step.get("run", "") for step in job["steps"][check + 1 :])
+            self.assertIn(f"tools/run.sh {command} ", later, name)
+            for option in options:
+                self.assertIn(option, later, f"{name}: checks {option}, which it calls")
+        self.assertEqual(len(set(artifacts)), len(artifacts), "one artifact name per job")
         runs = [step.get("run", "") for step in jobs["flaky"]["steps"]]
         self.assertTrue(any("tools/run.sh test --repeat 3" in run for run in runs))
         self.assertIn("perf", jobs)
@@ -104,21 +143,25 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertTrue(any("tools/run.sh bots --chaos --long --runs" in run for run in chaos))
         self.assertTrue(any("tools/run.sh bots --chaos --long --enet" in run for run in chaos))
         report = jobs["report"]
-        self.assertEqual(sorted(report["needs"]), sorted(night))
-        self.assertEqual(report["permissions"], {"contents": "read", "issues": "write"})
+        self.assertEqual(sorted(report["needs"]), sorted(night + ["refs"]))
+        # actions: read lists the run's jobs, whose names hold their refs (#272).
+        self.assertEqual(report["permissions"], {"actions": "read", "contents": "read", "issues": "write"})
         self.assertIn("failure", report["if"])
         script = "".join(step.get("run", "") for step in report["steps"])
-        for command in ("gh issue list", "gh issue create", "gh issue comment"):
+        for command in ("gh issue list", "gh issue create", "gh issue comment", "/actions/runs/$GITHUB_RUN_ID/jobs"):
             self.assertIn(command, script)
         self.assertEqual(report["env"]["TITLE"], "Night jobs")
+        self.assertEqual(report["env"]["REFS"], "${{ needs.refs.outputs.list }}")
 
     def test_perf_compares_with_the_last_nights_report_kept_in_the_cache(self) -> None:
         steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["perf"]["steps"]
         names = [step.get("name", step.get("uses", "")) for step in steps]
         cache = next(step for step in steps if step.get("uses") == "actions/cache@v6")["with"]
-        # A new key every run, so each successful night saves its report; the prefix restores the newest.
+        # A new key every run, so each successful night saves its report; the prefix restores the newest of the same
+        # ref (#272), ended by ":", which no ref name holds.
         self.assertIn("${{ github.run_id }}", cache["key"])
         self.assertTrue(cache["key"].startswith(cache["restore-keys"]))
+        self.assertTrue(cache["restore-keys"].endswith(":${{ matrix.ref }}:"))
         last = cache["path"] + "/last.json"
         run = next(step["run"] for step in steps if "tools/run.sh perf" in step.get("run", ""))
         self.assertIn(f"--baseline {last}", run)
