@@ -309,20 +309,7 @@ func _process(_delta: float) -> void:
 		ui.refresh_round(_client.model, mode, _avatars.host_tick(), _hud_local())
 	_refresh_overlay()
 	_refresh_voice()
-	if _player != null:
-		# The dead have no body to move: it stands still until its Respawned (M4-9).
-		_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
-		var listening := not GameFlow.frozen(now) and not ui.esc_open()
-		_player.reads_device_input = device_input and listening
-		_life.reads_device_input = device_input
-		_life.listening = listening and now == GameFlow.Screen.ROUND
-		_items.interactions.reads_device_input = device_input
-		_items.interactions.listening = listening and now == GameFlow.Screen.ROUND
-		if not listening:
-			# Nothing reads the keys now: W held when Esc opened must not keep walking.
-			_player.move_input = Vector2.ZERO
-			_player.sprint_held = false
-			_player.jump_requested = false
+	_apply_player_flags(now)
 
 
 func _input(event: InputEvent) -> void:
@@ -356,6 +343,29 @@ func _notification(what: int) -> void:
 		ui.esc.ask_quit(screen(), _welcomed_model())
 	else:
 		quit()
+
+
+## The local player's physics step and input flags for `now`: it steps only on a screen that is not
+## frozen and while it has a body (the dead stand still until their Respawned, M4-9), and the keys
+## count only there with no Esc menu. Game._process applies them every frame (the Esc menu), and
+## _on_event as soon as the session folds an event in its physics step (#241): under load several
+## physics steps run before the next _process, and the player must neither step nor claim after
+## the phase turns frozen (Loading, End), nor wait for _process to walk again.
+func _apply_player_flags(now: GameFlow.Screen) -> void:
+	if _player == null:
+		return
+	_player.set_physics_process(not GameFlow.frozen(now) and not _player_dead())
+	var listening := not GameFlow.frozen(now) and not ui.esc_open()
+	_player.reads_device_input = device_input and listening
+	_life.reads_device_input = device_input
+	_life.listening = listening and now == GameFlow.Screen.ROUND
+	_items.interactions.reads_device_input = device_input
+	_items.interactions.listening = listening and now == GameFlow.Screen.ROUND
+	if not listening:
+		# Nothing reads the keys now: W held when Esc opened must not keep walking.
+		_player.move_input = Vector2.ZERO
+		_player.sprint_held = false
+		_player.jump_requested = false
 
 
 func _player_dead() -> bool:
@@ -448,17 +458,21 @@ func _on_map_loaded(_path: String, scene: PackedScene) -> void:
 	_set_level(scene.instantiate(), PhaseSpec.Level.MAP)
 
 
+## Every event, in the session's physics step: the level of a new phase, the own life, and the
+## player's flags for the screen the model is on now (a phase, the winner and the own death all
+## change them, #241).
 func _on_event(event_name: StringName, _fields: Dictionary) -> void:
 	if event_name == &"PhaseChanged":
 		_sync_level()
 	_sync_life()
+	_apply_player_flags(screen())
 
 
 ## The own player's body follows its own life fold (M4-9): it crawls while downed (a KnockedDown
-## naming it), has no body while dead (Died; the physics step stops in _process, so it neither
-## walks nor claims until its Respawned), and walks again once living (Revived, Respawned, a new
-## match, the lobby). Only a change switches the body, since switching stops it. A raise naming it
-## holds it still (`held`).
+## naming it), has no body while dead (Died; _apply_player_flags stops the physics step, so it
+## neither walks nor claims until its Respawned), and walks again once living (Revived, Respawned,
+## a new match, the lobby). Only a change switches the body, since switching stops it. A raise
+## naming it holds it still (`held`).
 func _sync_life() -> void:
 	if _player == null:
 		return
