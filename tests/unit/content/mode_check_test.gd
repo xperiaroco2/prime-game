@@ -165,6 +165,69 @@ func test_a_negated_cost() -> void:
 	_expect(mode, "mode.actions: rule Use negates a cost")
 
 
+func test_a_reaction_holding_a_cost_that_reads_the_actor_is_refused() -> void:
+	# A reaction runs for no player (actor 0, which has no PlayerState), so a Cooldown or a
+	# StaminaCost always refuses there and the reaction would silently never run (#283; the
+	# runtime refusal: tests/unit/combat/costs_in_reactions_test.gd).
+	var costs: Array[Cost] = [
+		FixtureCombatModes.cooldown(&"hit", FixtureCombatModes.COOLDOWN_S),
+		FixtureCombatModes.stamina_cost(FixtureCombatModes.STAMINA_COST),
+	]
+	for cost: Cost in costs:
+		var mode := _reacting_on_the_clock([FixtureCost.of(&"uses", 1), cost])
+		var cost_class := (cost.get_script() as Script).get_global_name()
+		var error := (
+			(
+				"mode.reactions[1]: the reaction on clock_ended of the mode holds the cost %s,"
+				+ " which reads the actor's player state: a reaction runs for no player (actor 0),"
+				+ " so the cost always refuses and the reaction never runs"
+			)
+			% cost_class
+		)
+		assert_array(Array(ModeCheck.run(mode).errors)).contains_exactly([error])
+		# Match refuses the mode, as for every ModeCheck error.
+		var game := FixtureModes.create(mode)
+		assert_array(Array(game.refusals)).contains([error])
+		assert_bool(game.start(0)).is_false()
+		assert_array(game.emitted()).is_empty()
+
+
+func test_the_refused_reaction_names_the_modes_file_and_each_cost() -> void:
+	var cooldown := FixtureCombatModes.cooldown(&"hit", FixtureCombatModes.COOLDOWN_S)
+	var stamina := FixtureCombatModes.stamina_cost(FixtureCombatModes.STAMINA_COST)
+	var mode := _reacting_on_the_clock([cooldown, stamina])
+	mode.resource_path = "res://tests/fixtures/match/reacting_mode.tres"
+	var errors := ModeCheck.run(mode).errors
+	assert_array(Array(errors)).has_size(2)
+	var where := "the reaction on clock_ended of mode res://tests/fixtures/match/reacting_mode.tres"
+	assert_str(errors[0]).contains(where + " holds the cost Cooldown,")
+	assert_str(errors[1]).contains(where + " holds the cost StaminaCost,")
+
+
+func test_a_reaction_may_hold_a_cost_that_reads_no_player_state() -> void:
+	# FixtureCost reads only MatchState's counters, which have a row for peer 0 too.
+	_expect_none(_reacting_on_the_clock([FixtureCost.of(&"uses", 1)]))
+	# The costs refused in a reaction are fine in an action: the knife's Use holds both.
+	_expect_none(FixtureCombatModes.basic())
+
+
+func test_every_cost_in_core_reads_the_actors_player_state() -> void:
+	# The costs of core/ and whether a reaction may hold them (Cost.reads_actor_state). A new cost
+	# in core/ fails this test until it is listed here and in ARCHITECTURE §9.2.
+	var expected: Dictionary[StringName, bool] = {&"Cooldown": true, &"StaminaCost": true}
+	var found: Dictionary[StringName, bool] = {}
+	for entry: Dictionary in ProjectSettings.get_global_class_list():
+		var path: String = entry["path"]
+		var class_id: StringName = entry["class"]
+		if path.begins_with("res://core/") and class_id != &"Cost" and _extends_cost(class_id):
+			var script := load(path) as GDScript
+			var cost := script.new() as Cost
+			found[class_id] = cost.reads_actor_state()
+	assert_dict(found).is_equal(expected)
+	# The base class's default: a cost that does not say reads the actor.
+	assert_bool(Cost.new().reads_actor_state()).is_true()
+
+
 func test_numbers_out_of_bounds() -> void:
 	var mode := FixtureModes.basic()
 	mode.player_rules.health = 0
@@ -360,6 +423,35 @@ func _expect(mode: GameMode, fragment: String) -> void:
 
 func _expect_none(mode: GameMode) -> void:
 	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+
+
+## FixtureModes.basic() with two reactions: one on item_rested that holds nothing, then one on
+## clock_ended (reactions[1]) that holds `conditions` and notes "reacted".
+func _reacting_on_the_clock(conditions: Array[Condition]) -> GameMode:
+	var mode := FixtureModes.basic()
+	var note: Array[RuleEffect] = [FixtureNote.of("reacted")]
+	mode.reactions = [
+		FixtureModes.rule(Facts.ITEM_RESTED, [], []),
+		FixtureModes.rule(Facts.CLOCK_ENDED, conditions, note),
+	]
+	return mode
+
+
+## Whether the global class `class_id` is Cost or extends it.
+static func _extends_cost(class_id: StringName) -> bool:
+	var current := class_id
+	while not current.is_empty():
+		if current == &"Cost":
+			return true
+		current = _global_base(current)
+	return false
+
+
+static func _global_base(class_id: StringName) -> StringName:
+	for entry: Dictionary in ProjectSettings.get_global_class_list():
+		if entry["class"] == class_id:
+			return entry["base"]
+	return &""
 
 
 ## A tick system that declares the outcome `overtime`.

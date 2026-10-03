@@ -13,6 +13,8 @@ extends RefCounted
 ## no ChannelTicks, so the channel would never complete and a raise would pause a knockdown for
 ## good (M4-4); a ChannelEffect outside an action (a reaction, a row's actions), which has no player
 ## to run it, or in a rule that lacks a condition the effect requires (RaiseDowned: TargetDowned);
+## a reaction holding a cost that reads the actor's player state (Cost.reads_actor_state:
+## Cooldown, StaminaCost), which always refuses actor 0, so the reaction would never run (#283);
 ## two rules on one trigger in one owner; a number outside its part's bounds; an id
 ## outside the wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect
 ## whose event goes to everyone, which reveals the actor's role (§9.2); in a mode with a channel,
@@ -121,6 +123,39 @@ func _check_rules(mode: GameMode) -> void:
 	for kind: ItemKind in mode.item_kinds:
 		if kind != null:
 			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false)
+	_check_reaction_costs(mode)
+
+
+## A reaction runs for no player (actor 0, which has no PlayerState; §9.2): a cost that reads the
+## actor's player state (Cost.reads_actor_state: Cooldown, StaminaCost) always refuses there, so
+## the reaction would silently never run its effects (#283).
+func _check_reaction_costs(mode: GameMode) -> void:
+	var where := "mode %s" % mode.resource_path if not mode.resource_path.is_empty() else "the mode"
+	for index: int in mode.reactions.size():
+		var rule := mode.reactions[index]
+		if rule == null:
+			continue
+		for condition: Condition in rule.conditions:
+			if condition is Cost and (condition as Cost).reads_actor_state():
+				errors.append(
+					(
+						(
+							"mode.reactions[%d]: the reaction on %s of %s holds the cost %s, which"
+							+ " reads the actor's player state: a reaction runs for no player"
+							+ " (actor 0), so the cost always refuses and the reaction never runs"
+						)
+						% [index, rule.trigger, where, _class_of(condition)]
+					)
+				)
+
+
+## The global class name of `part`'s script, or its file when it has none.
+static func _class_of(part: Resource) -> String:
+	var script := part.get_script() as Script
+	if script == null:
+		return part.get_class()
+	var name := script.get_global_name()
+	return String(name) if not name.is_empty() else script.resource_path
 
 
 func _check_owner(
