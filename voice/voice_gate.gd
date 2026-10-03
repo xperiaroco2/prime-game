@@ -28,9 +28,10 @@ const HANGOVER_MS := 300
 const HANGOVER_FRAMES := 15
 ## Frames sent before the one that opens the gate.
 const PREROLL := 2
-## The default voice-activity threshold, a peak of 0.1 (about -20 dBFS): a placeholder, "not a
-## decision"; the Voice tab's slider sets it (M5-6).
-const DEFAULT_THRESHOLD := 0.1
+## The default voice-activity threshold, a peak of 0.05 (about -26 dBFS; the engineer's playtest,
+## 2026-10-03, #286: words were lost at 0.1): a placeholder, "not a decision"; the Voice tab's
+## slider sets it (M5-6), and a saved threshold keeps its value.
+const DEFAULT_THRESHOLD := 0.05
 ## The lowest threshold, a peak of 0.01 (-40 dBFS; a placeholder, "not a decision"): at or below 0
 ## the gate would open on digital silence, and a silent player would stream where they stand.
 const MIN_THRESHOLD := 0.01
