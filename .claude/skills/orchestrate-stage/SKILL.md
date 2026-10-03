@@ -176,7 +176,10 @@ concrete scenario of what goes wrong, the options, your recommendation, numbered
 every command of `human_steps` into the chat itself, never only a pointer ("the command is in PR #235's body"): fetch
 a command a step only points to, then one fenced PowerShell block per command, starting with `cd` to its absolute
 folder, run or previewed by you first (root `CLAUDE.md`, "Talking to the humans"). The PR and the wave comment may
-carry it too. Then fill the free slot.
+carry it too. Each `human_steps` item (also `reb.human_steps` and `fix.human_steps` of a `pr-rebase` run) is
+`{why, command}`: `command` is that one PowerShell line, which you check starts with `cd <absolute folder>;` and
+copy as is under its `why`; an empty `command` is a click or a decision you tell in plain words; a plain string (a
+run launched before #266) you handle as above. Then fill the free slot.
 <!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
 
 When something failed (never resume a run whose result has `stopped`: a resume replays the stop):
