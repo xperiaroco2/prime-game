@@ -579,7 +579,7 @@ def handover_section(w: Wave) -> list[str]:
     running = [r for r in w.runs if not r.finished]
     for r in running:
         md += handover_block(r, w.session)
-    again = [r for r in finished_since(w) if r.stopped or r.status in ("failed", "killed")]
+    again = [r for r in finished_since(w) if (r.stopped or r.status in ("failed", "killed")) and not r.resumed_as]
     if again:
         md += ["### Finished runs that need a resume or a fresh relaunch", ""]
         for r in again:
