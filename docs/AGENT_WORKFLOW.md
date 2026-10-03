@@ -821,6 +821,35 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to
   pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
   with a release host's cost.
+- **`wave --since T | --args <n> [--workflow NAME] [--session ID] [--out FILE]` [applied]** (#277; round 2 of the AI
+  productivity track, a cheaper manager): a manager session's workflow runs and their handover data, read-only from
+  its transcript and the journals, so status gathering and wave reports cost the manager one command. Sources: the
+  manager's `<session>.jsonl` in one pass (each Workflow call's input `{name or scriptPath or script, args,
+  resumeFromRunId}`, paired by `tool_use_id` with its result's `toolUseResult` `{runId, taskId, workflowName}` or the
+  "Run ID: wf_..." in its text; each task notification, from its queue `enqueue` record or its user record, paired by
+  `<tool-use-id>`; the API calls and the title) and each run's `journal.jsonl` through `metrics.read_run`. A
+  notification's `<result>` is cut at about 8 kB, so PR, CI, published, not fixed, needs engineer and human steps come
+  only from the journal (the publisher's result, else the pr-rebase fix's, else the rebase's; human steps from every
+  agent, each once); the notification gives the status (completed, failed, killed) and whether its result says
+  `"stopped"`. `--since T` writes a wave comment's body (default `tools/out/wave/wave-<session8>.md`, UTF-8; it prints
+  the path) with four sections, each a function in `wave.py`'s `SECTIONS` (#278 adds more): the runs finished since T
+  (a "relaunch fresh, never resume" flag when the outcome has published false, a publisher stopped on `mutants`
+  exit 2, issue-task stopped on a red implementer, a pr-rebase rebase is red or unpublished, or the result says
+  stopped; other workflows, such as a read-only scouting run, are listed by their name with no issue), the running
+  runs (title, worktree, branch, base, the agent working now: each `started` with no `result`, and the minutes since
+  the launch and since the newest write to the run's journal or agent transcripts, which tell a live run from one
+  whose session died), the handover args of each running run and of each failed, killed or stopped one that no later
+  launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`, `ensure_ascii=False`; a
+  resume without args inherits its run's), and a footer (the
+  session's age, its last call's context, the mean API list $ per call of its first and last 20 calls, and any
+  records it skipped). A run is finished when its latest launch has a notification or its journal reached the
+  script's end (issue-task: a publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a
+  red or unpublished rebase, or every reviewer answered with no blocker or major left to fix). `--args <n>` prints
+  only the JSON of issue n's newest launch on stdout (the run, workflow and time on stderr; `--workflow issue-task`
+  or `pr-rebase` picks one; `--out` also saves it, best for Cyrillic from PowerShell 5.1) and exits 1 when n has
+  none. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It writes only its `--out` file, runs
+  no `gh` and launches nothing. The orchestrate-stage skill moves onto it, replacing its `args-<n>.json` files, in
+  #279.
 - **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact]` [applied]** (#178;
   item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose baseline
   it reproduces): time, tokens and API list $ of the task workflows, read-only from the Claude Code transcripts. It
@@ -878,11 +907,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`, `merge` (§7.1),
-  `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `metrics`, `mutants`, `playcheck`,
-  `perf` (the last seven above), `permissions` (§8.1), and `hook` (for Claude Code only). Pins and pass/fail rules:
-  [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git Bash;
-  `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
-  runner takes the machine paths from the Claude settings (§2).
+  `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`, `mutants`,
+  `playcheck`, `perf` (the last eight above), `permissions` (§8.1), and `hook` (for Claude Code only).
+  Pins and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
+  launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a
+  human's PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
