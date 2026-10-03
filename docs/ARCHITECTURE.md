@@ -2225,8 +2225,9 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   so a refused intent pays nothing. A reaction runs for no player (actor 0): a cost that reads the actor's player
   state (`Cooldown`, `StaminaCost`) refuses there, so a reaction with one never runs its effects, records no cooldown
   and charges nobody (#201; `tests/unit/combat/costs_in_reactions_test.gd`). Between the checks and the costs, an
-  **action** (a rule on an intent) that passed stops its actor's running channel (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses,
-  swaps (M4-5) or lets go of E stops its raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
+  **action** (a rule on an intent) that passed stops its actor's running channel (`Channels.interrupt`, M4-4): a
+  raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its raise, and a refused intent stops
+  nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
 - **Effects** (*what happens*) run in order. An effect changes `MatchState` only through `core/`'s own rules (life,
   items, stamina), emits events, raises facts, and may report an outcome (`ReportOutcome`, §3.1).
 - **A fact is handled at once, depth first.** When an effect raises one, the rules on it run (the mode's reactions,
@@ -2754,9 +2755,8 @@ the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `bu
 `not_channeling`, and `not_accepted` from the phase. The raiser may hold the package (answer 4).
 Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
 `tests/unit/channel/absent_target_test.gd` (`TargetInReach`, `TargetInSight` and `InSight` refuse a target that is
-not there); the
-base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios `crew_revives_the_downed` and
-`raise_stopped_then_given_up` (§9.7).
+not there); the base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios
+`crew_revives_the_downed` and `raise_stopped_then_given_up` (§9.7).
 
 #### Swap (action)
 What it does (vision revision 1, Two hands; M4-5, #141): exchanges the hand and belt items, either of which may be
