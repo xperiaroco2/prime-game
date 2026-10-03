@@ -63,7 +63,10 @@ var _first_pending_reject_ms := -1
 ## Counts closes, so a drain notices a handler that closed and hosted or joined again.
 var _session := 0
 ## What send() handed to in-process links other than the host's own client since the last
-## take_upload(): frame bytes and frames, plain ints (64-bit) however long nobody takes them.
+## take_upload(): frame bytes and frames, plain ints. take_upload() returns them as a Vector2i,
+## whose ints are 32-bit: right while a caller takes them every tick, as a debug build's
+## HostSession does around its sends (a tick's upload is far below 2^31 bytes; RelayMeter keeps
+## the 64-bit totals). Untaken (a release build) they grow as plain ints and never wrap.
 var _upload_bytes := 0
 var _upload_frames := 0
 
