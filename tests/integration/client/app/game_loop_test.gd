@@ -280,7 +280,7 @@ func _until(_games: Array[Game], done: Callable) -> bool:
 
 
 ## Every game is on `screen` with `players` in its roster, and its Game._process has shown that
-## screen: the screens' texts and the player's input flags change only there.
+## screen: the screens' texts change only there (the player's flags follow each event, #241).
 func _all_on(games: Array[Game], screen: S, players: int) -> bool:
 	for game: Game in games:
 		if game.client() == null or game.screen() != screen or game.ui.screen != screen:
