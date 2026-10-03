@@ -7,7 +7,7 @@ extends RefCounted
 ## HEARING_RANGE_M of the ears (E40's amendment of E33, the engineer's: the own eye, the own body's
 ## head while downed, the spectated target's eye or body; LifeView's Ears), and nothing at all for
 ## an event from farther away; each player also sets `AudioStreamPlayer3D.max_distance` to it.
-## Occlusion is M5-7's.
+## Occlusion muffles, never cuts: WorldSounds casts one ray to a chosen sound as it starts (M5-7).
 ##
 ## Where each one plays:
 ## - Swung: at the swinger: the local player for the own swing, else its interpolated pose;

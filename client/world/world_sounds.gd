@@ -4,9 +4,12 @@ extends Node3D
 ## each event SoundChooser picks within the hearing range of the ears (E40's amendment of E33:
 ## the current AudioListener3D, LifeView's Ears), a one-shot AudioStreamPlayer3D at its place on
 ## the Effects bus (D15), with `max_distance` the same range, freed when it ends.
+## As it starts, one ray from the ears to the sound against the world layer of the client's own
+## level (the M5 ADR §1.6, E42 (a), D13 (a); M5-7): behind the level it plays muffled (Muffle:
+## 8 dB quieter, on the muffled Effects bus's low-pass), and stays so to its end (0.15 s).
 ##
 ## The sounds are short blips built in code (no asset, nothing downloaded): placeholders, until
-## CC0 sounds are picked with their docs/credits/ entries (D9, a human step).
+## the engineer's CC0 files arrive with their docs/credits/ entries (D9; #144).
 
 ## Samples per second of the generated blips.
 const MIX_RATE := 22050
@@ -23,6 +26,8 @@ var listener := Callable()
 
 var _streams: Dictionary[StringName, AudioStreamWAV] = {}
 var _played := 0
+var _rays := 0
+var _muffled := 0
 
 
 func _init() -> void:
@@ -48,7 +53,10 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	sound_player.name = "Sound%d" % _played
 	sound_player.stream = _streams[sound.id]
 	sound_player.max_distance = SoundChooser.HEARING_RANGE_M
-	sound_player.bus = AudioBuses.EFFECTS
+	var muffle := Muffle.new()
+	muffle.follow(_blocked(heard_from as Vector3, sound.position), 0.0)
+	sound_player.volume_db = muffle.volume_db()
+	sound_player.bus = muffle.bus_for(AudioBuses.EFFECTS)
 	sound_player.position = sound.position
 	sound_player.finished.connect(sound_player.queue_free)
 	add_child(sound_player)
@@ -59,6 +67,16 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 ## How many sounds were started (tests).
 func played() -> int:
 	return _played
+
+
+## How many rays were cast, one per sound started (tests).
+func rays() -> int:
+	return _rays
+
+
+## How many of the sounds started were muffled (tests).
+func muffled() -> int:
+	return _muffled
 
 
 ## Where `peer` is as this client draws it: the local player, or another player's body; null when
@@ -98,6 +116,17 @@ static func blip(id: StringName) -> AudioStreamWAV:
 	stream.mix_rate = MIX_RATE
 	stream.data = data
 	return stream
+
+
+## The one ray from the ears `from` to the sound at `to`; outside the tree nothing is in the way.
+func _blocked(from: Vector3, to: Vector3) -> bool:
+	if not is_inside_tree():
+		return false
+	_rays += 1
+	var blocked := Muffle.blocked(get_world_3d().direct_space_state, from, to)
+	if blocked:
+		_muffled += 1
+	return blocked
 
 
 ## The current AudioListener3D's position (the ears), else the current camera's, else null.
