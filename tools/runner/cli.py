@@ -41,6 +41,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
     sub.add_parser("selftest", help="unit tests of the runner itself")
+    p = sub.add_parser(
+        "wait",
+        help="wait at most S s for a background job's last line exit=<n>: its summary and exit code; "
+        "else 124 (still running); 2: no log",
+    )
+    p.add_argument(
+        "log", nargs="?", help="the job's log: its output, then the line exit=<n> (docs/AGENT_WORKFLOW.md §11)"
+    )
+    p.add_argument(
+        "--verified",
+        action="store_true",
+        help="no log: 0 when the newest verify passed at HEAD with a clean tree (publish needs no verify before it)",
+    )
+    p.add_argument("--max", type=int, default=240, metavar="S", help="seconds to wait, 1 to 270 (default 240)")
     p = sub.add_parser("bots", help="bot scenarios through the network layers and the information-leak test")
     p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
     p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
@@ -265,6 +279,13 @@ def main(argv: list[str] | None = None) -> int:
             from . import verify
 
             return verify.selftest()
+        if args.command == "wait":
+            from . import wait
+
+            if args.verified == (args.log is not None):
+                print("wait: give a log, or --verified alone", flush=True)
+                return wait.MISSING  # never 1, which reads like a red job
+            return wait.verified() if args.verified else wait.main(args.log, max_seconds=args.max)
         if args.command == "bots":
             from . import bots
 

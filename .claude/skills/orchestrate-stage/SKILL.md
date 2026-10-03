@@ -141,6 +141,7 @@ workflow the kickoff approved:
 | `second_review: true` | PRs that touch `core/ server/ net/ tests/harness/`, where the kickoff asks for it; with `models.second_review` where it allows a model beyond the shared list there | 1 (60) where the netcode review is routed |
 | `skeptic: <n>` or `true` | design tasks and audits (publishers judged only 8 of 441 findings wrong) | 1 per blocker or major checked (30) |
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
+| `bounded_waits: true` | every `issue-task` and `pr-rebase` launch (no tool call of theirs blocks over 240 s, so their 5-minute cache stays warm), once `wait` (#303) is on the task's base (`git show origin/<base>:tools/runner/wait.py`) | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
 | `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review` | 0 |
 
@@ -253,14 +254,14 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   hand such a case to `pr-rebase` when the human is away.
 - A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
   with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
-  `second_review`, `skeptic`, `efforts` and `models` (roles rebase, review, netcode, second_review, skeptic, fix; the
-  rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4 agents, plus 1 for
-  `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read; `steps` says which
-  side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one fresh relaunch with
-  `reb.problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every blocker and major,
-  so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr> --json body -q
-  .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix agent that
-  changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
+  `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review, netcode, second_review,
+  skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4
+  agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read;
+  `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one
+  fresh relaunch with `reb.problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every
+  blocker and major, so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr>
+  --json body -q .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix
+  agent that changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
 - **A main-based track** (the tooling track, #170): you merge nothing. Before you ask the engineer to merge, run
   `tools\run.cmd merge-check --base main` and name the safe order in chat and in the wave comment; a flagged overlap
   gets a `--trial` or a `pr-rebase` first, as above. A PR that changes a shared file follows §2.8. After the

@@ -49,7 +49,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `lint [--fix] [paths]` | gdformat and gdlint on files or folders; with none, all GDScript plus CLAUDE.md budgets and rule/agent frontmatter |
 | `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
 | `test [paths] [--shards K \| --repeat N]` / `mutants <spec.json>` | GdUnit4 headless (no paths: K processes at once); judged by exit code and `results.xml`; orphan nodes fail; `--repeat`: N runs in a row (flaky hunt) / each fault of the spec (`--help`) planted in a scratch worktree of HEAD, its tests run there; exit 2: tell the human |
-| `verify` | Everything CI runs: `doctor`, then (on a PC in one of 2 machine-wide slots, waiting at most 95 s) a Python and a Godot lane at once; the definition-of-done gate |
+| `verify` / `wait <log>\|--verified [--max S]` | Everything CI runs: `doctor`, then (on a PC in one of 2 machine-wide slots, waiting at most 95 s) a Python and a Godot lane at once; the definition-of-done gate / at most S s (240) for a background job's last line `exit=<n>`: its summary and code, else 124 (still running); 2: no log; `--verified`: 0 when the newest verify passed at HEAD with a clean tree |
 | `start <n> [--base P] [--here] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (the branch of a parent's open PR), for the engineer in its worktree, assign, board In progress (skill `start-task`) |
 | `publish [--base B]` / `merge-check [--base B] [--trial] [<pr>...]` / `merge <pr>\|--sync-main --base release/<x>` | Rebases the task branch on its PR base (else `start --base`, else main), runs `verify`, pushes with a lease / open PRs onto their base and pairwise: textual conflicts and symbol overlaps, exit 1 on either; `--trial`: merged in order in a scratch worktree, then `verify` / a manager's merge into a release branch: `verify` on the merged tree, push by hash (AGENT_WORKFLOW §7.1) |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
@@ -67,21 +67,21 @@ Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`
 PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - No `&&` or `||` in PowerShell: `A; if ($LASTEXITCODE -eq 0) { B }`.
 - PowerShell 5.1 breaks quoted arguments containing spaces for native exes (`gh --jq '.a + " " + .b'`): use Bash.
-- Multi-line commit messages and PR bodies go in a scratchpad file: `git commit -F <file>`,
-  `gh pr create --body-file <file>`. Structured arguments go in files, not inline JSON.
+- Multi-line commit messages, PR bodies and structured arguments go in scratchpad files (`-F`, `--body-file`).
 - Keep file writes and `Remove-Item` in separate commands (the delete guard misreads combined ones).
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->
 - Temporary files go only to your scratchpad or, if they must be under `res://` (a probe test), to the gitignored
   `tests/scratch/`; deleting those never prompts. No other temporary folder in the project.
 - `bash` on PATH is the WSL launcher, not Git Bash. In Git Bash `python` is a Store stub: use `$PYTHON_BIN`.
-- In the Bash tool `\\` arrives as `\`, even inside single quotes and quoted heredocs (`"\\r"` became a CR).
-  Write code that contains backslashes to a file with the Write tool, then run the file.
+- In the Bash tool `\\` arrives as `\`, even in single quotes and heredocs: write such code to a file with Write.
 - `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
 - Push an explicit task branch only (`git push -u origin <branch>`, or `publish`; a stage's manager also fast-forwards
   `release/m<k>`, DoD 5). Never `main`, no force push by hand (the pre-push hook blocks both): rebased, only `publish`.
 - No `git stash` (one stash for all worktrees): set work aside with a WIP commit, later `git reset --soft HEAD~1`;
   fold a fix with `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>`.
 <!-- see docs/interventions/2026-10-01-engineer-night-run-prompts.md -->
+- Workflow agents and subagents: no call blocks over 240 s (their cache lives 5 minutes). Background verify, publish
+  and mutants as `<cmd> > <log> 2>&1; echo "exit=$?" >> <log>`, poll `wait <log>`, never rerun a running one (AGENT_WORKFLOW §11).
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
 - **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot CLAUDE.md`,
