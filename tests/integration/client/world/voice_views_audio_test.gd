@@ -3,8 +3,10 @@ extends GdUnitTestSuite
 ## fake codec's sine through VoiceViews, a VoiceSpeaker at the talker's mouth and the Voice bus.
 ## The Voice bus's peak falls with the distance from the ears, is silent past `max_distance` (D12:
 ## ATTENUATION_DISABLED fades linearly to silence there), and falls silent within the fade after a
-## flush while frames keep arriving. The mixer runs in real time, so each measurement listens for
-## a bounded LISTEN_MS of the real clock and reads the bus's peak once a frame.
+## flush while frames keep arriving; and behind a fixture wall (M5-7, D13 (a)) it is about 8 dB
+## lower at 400 Hz and far lower at 3 kHz (the muffled bus's low-pass), so duller, not only
+## quieter. The mixer runs in real time, so each measurement listens for a bounded LISTEN_MS of the
+## real clock and reads the bus's peak once a frame.
 
 const World := preload("res://tests/integration/client/world/voice_test_world.gd")
 const TALKER := World.TALKER
@@ -20,12 +22,23 @@ const MIX_SLACK_MS := 300
 const AHEAD := 10
 ## A peak at or below this is silence (Godot reports -200 dB for none).
 const SILENT_DB := -100.0
+## The muffle's measurement: a wall 1.5 m ahead of the ears, between them and a talker at 3 m.
+const EARS := Vector3(0, 1.5, 0)
+const WALL_AT := Vector3(0, 1.5, -1.5)
+const WALL_SIZE := Vector3(4, 3, 0.2)
+## A tone well under the low-pass (D13: near 1 kHz) and one well over it.
+const LOW_HZ := 400.0
+const HIGH_HZ := 3000.0
 
 var _world: World
 var _bus := -1
 var _seq := 0
 var _start_ms := 0
 var _base_tick := 100
+## The talker's tone and its phase: a phase carried over frames, so a change of tone does not
+## click.
+var _hz := LOW_HZ
+var _phase := 0.0
 
 
 func before_test() -> void:
@@ -121,15 +134,47 @@ func test_a_flushed_speaker_is_silent_within_the_fade_while_frames_keep_coming()
 	assert_bool(_world.voices.speaker_of(TALKER).is_active()).is_false()
 
 
+func test_a_wall_makes_the_voice_quieter_and_duller() -> void:
+	_world.ears_at = EARS
+	_world.place({TALKER: Vector3(0, 0, -3.0)})
+	await _drawn()
+	# After each change (the tone, the wall) the queued audio, the 100 ms ease and the meter's lag
+	# pass before the peak counts.
+	var settle := SETTLE_MS + MIX_SLACK_MS
+	var open_low := await _listen(LISTEN_MS + settle, settle)
+	_hz = HIGH_HZ
+	var open_high := await _listen(LISTEN_MS + settle, settle)
+	_world.add_box(WALL_AT, WALL_SIZE)
+	var walled_high := await _listen(LISTEN_MS + settle, settle)
+	_hz = LOW_HZ
+	var walled_low := await _listen(LISTEN_MS + settle, settle)
+	assert_float(_world.voices.muffle_of(TALKER).amount).is_equal(1.0)
+	var low_drop := open_low - walled_low
+	var high_drop := open_high - walled_high
+	print(
+		(
+			"muffle: 400 Hz %.1f -> %.1f dB (%.1f), 3 kHz %.1f -> %.1f dB (%.1f)"
+			% [open_low, walled_low, low_drop, open_high, walled_high, high_drop]
+		)
+	)
+	assert_float(walled_low).is_greater(SILENT_DB)
+	# Quieter: D13's 8 dB, with the low-pass's own bit at 400 Hz (measured about 9 in all).
+	assert_float(low_drop).is_between(6.0, 14.0)
+	# Duller: the highs lose far more than the lows (measured 36 against 9 dB). Without the muffled
+	# bus's low-pass, Godot's own distance shelf on the quieter player still gives the highs about
+	# 8 dB more (measured 15.8 against 7.9), so the bound sits above that.
+	assert_float(high_drop - low_drop).is_greater(12.0)
+
+
 ## Feeds TALKER's frames in real time through VoiceViews for `ms`, and returns the Voice bus's
-## loudest peak after SETTLE_MS.
-func _listen(ms: int) -> float:
+## loudest peak after `settle` ms.
+func _listen(ms: int, settle := SETTLE_MS) -> float:
 	var loudest := -200.0
 	var t0 := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - t0 < ms:
 		_feed_views()
 		await get_tree().process_frame
-		if Time.get_ticks_msec() - t0 >= SETTLE_MS:
+		if Time.get_ticks_msec() - t0 >= settle:
 			loudest = maxf(loudest, AudioServer.get_bus_peak_volume_left_db(_bus, 0))
 	return loudest
 
@@ -137,8 +182,18 @@ func _listen(ms: int) -> float:
 ## The frames due by now, AHEAD of real time, as VoiceDowns of TALKER.
 func _feed_views() -> void:
 	while _seq <= _due():
-		_world.voices.on_voice(TALKER, _seq & 0xFFFF, _tick(), World.sine(_seq, 0.5))
+		_world.voices.on_voice(TALKER, _seq & 0xFFFF, _tick(), _tone())
 		_seq += 1
+
+
+## The next fake-codec frame of the talker's tone (`_hz`), its phase carried on.
+func _tone() -> PackedByteArray:
+	var frame := PackedByteArray()
+	frame.resize(FakeVoiceCodec.FRAME_SAMPLES)
+	for i: int in FakeVoiceCodec.FRAME_SAMPLES:
+		frame[i] = FakeMuLaw.encode_sample(0.5 * sin(_phase))
+		_phase = fmod(_phase + TAU * _hz / FakeVoiceCodec.RATE, TAU)
+	return frame
 
 
 func _feed_speaker(speaker: VoiceSpeaker) -> void:

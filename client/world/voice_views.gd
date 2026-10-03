@@ -21,6 +21,13 @@ extends Node
 ## set on every speaker at each phase change; no radius is copied into client tuning.
 ## Arrivals are stamped with `clock` when ClientSession delivers them (once a poll), and each
 ## speaker steps once a frame. Without the codec (the addon absent) nothing is played.
+##
+## Occlusion (the M5 ADR §1.6, E42 (a), D13 (a); M5-7): each physics frame, one ray per audible
+## speaker (playing or about to, not fading, within `max_distance`) from the ears to its mouth
+## against the world layer of the client's own level only (never a player's capsule: they are on
+## the LIVING and DOWNED layers); a hit muffles that speaker (Muffle: 8 dB quieter on its player,
+## the muffled Voice bus's low-pass), eased over 100 ms. The muffle only lowers and dulls what the
+## rules above already play; it never decides whether a frame plays.
 
 ## After LifeView (5) placed the ears in the physics step, before SightHider (10).
 const PHYSICS_PRIORITY := 8
@@ -40,8 +47,12 @@ var clock := Callable()
 var received := 0
 var played := 0
 var dropped := 0
+## Occlusion rays cast, one per audible speaker per physics frame (debug, tests).
+var rays := 0
 
 var _speakers: Dictionary[int, VoiceSpeaker] = {}
+## Peer -> how muffled its speaker is (dropped with the speaker).
+var _muffles: Dictionary[int, Muffle] = {}
 ## Peer -> the newest host tick seen at its latest flush: its frames stamped at or below it are
 ## dropped.
 var _flushed_at: Dictionary[int, int] = {}
@@ -81,6 +92,7 @@ func reset() -> void:
 		_free_speaker(peer)
 	_flushed_at.clear()
 	_index.clear()
+	_muffles.clear()
 	_newest_tick = -1
 	model = null
 	_cutoff_m = 0.0
@@ -98,6 +110,11 @@ func speaker_of(peer: int) -> VoiceSpeaker:
 	if not is_instance_valid(speaker):
 		return null
 	return speaker as VoiceSpeaker
+
+
+## How muffled `peer`'s speaker is, or null before its first audible physics frame.
+func muffle_of(peer: int) -> Muffle:
+	return _muffles.get(peer)
 
 
 ## The newest host tick recorded at `peer`'s latest flush, or -1 before any.
@@ -216,18 +233,47 @@ func _process(_delta: float) -> void:
 		speaker.step(now)
 
 
-## A speaker past the cutoff from the ears is faded and flushed.
-func _physics_process(_delta: float) -> void:
+## A speaker past the cutoff from the ears is faded and flushed; every other audible one casts
+## its ray and follows its muffle.
+func _physics_process(delta: float) -> void:
 	if model == null:
 		return
 	_sync_phase()
 	var heard_from: Variant = _ears_position()
 	for peer: int in _speakers.keys():
 		var speaker := speaker_of(peer)
-		if speaker == null or speaker.fading() or not speaker.is_active():
+		if speaker == null:
+			continue
+		if speaker.fading() or not speaker.is_active():
+			_rest(peer)
 			continue
 		if not heard_from is Vector3 or not _within(speaker, heard_from as Vector3):
 			fade(peer)
+			_rest(peer)
+			continue
+		_muffle(peer, speaker, heard_from as Vector3, delta)
+
+
+## One ray from the ears to `speaker`'s mouth: its muffle follows the answer.
+func _muffle(peer: int, speaker: VoiceSpeaker, heard_from: Vector3, delta: float) -> void:
+	var muffle: Muffle = _muffles.get(peer)
+	if muffle == null:
+		muffle = Muffle.new()
+		_muffles[peer] = muffle
+	rays += 1
+	var space := get_viewport().find_world_3d().direct_space_state
+	muffle.follow(Muffle.blocked(space, heard_from, speaker.global_position), delta)
+	speaker.extra_db = muffle.volume_db()
+	var bus := muffle.bus_for(AudioBuses.VOICE)
+	if speaker.bus != bus:
+		speaker.bus = bus
+
+
+## `peer`'s speaker casts no ray this frame: its next one sets the muffle without easing.
+func _rest(peer: int) -> void:
+	var muffle: Muffle = _muffles.get(peer)
+	if muffle != null:
+		muffle.rest()
 
 
 ## The speaker of `peer` on its body, made at its first frame; null without a body, or when the
@@ -272,6 +318,7 @@ func _sync_phase() -> void:
 func _forget(peer: int, speaker: VoiceSpeaker) -> void:
 	if _speakers.get(peer) == speaker:
 		_speakers.erase(peer)
+		_muffles.erase(peer)
 
 
 func _record_flush(peer: int) -> void:
@@ -290,6 +337,7 @@ func _free_speaker(peer: int) -> void:
 		speaker.flush_now()
 		speaker.queue_free()
 	_speakers.erase(peer)
+	_muffles.erase(peer)
 
 
 func _own_dead() -> bool:
