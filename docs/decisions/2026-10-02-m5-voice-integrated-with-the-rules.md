@@ -247,10 +247,10 @@ muffles that speaker (quieter and duller: D13's numbers), eased over 100 ms so a
 range stays. **Amended as built in M5-7** (#221, PR #249; recorded by #241): the ray aims above the sound's position,
 `SoundChooser.SWING_AIM_M` (1 m) above a swinger's feet and `ITEM_AIM_M` (0.3 m) above an item, placeholders, "not a
 decision": a ray to a point on a floor, a step or a table reaches it only from above, so ears below that surface would
-muffle a sound in plain view. Do not aim it back at the position. How the muffle is made, the player's own `attenuation_filter_cutoff_hz` and `volume_db` or a muffled bus
-with an `AudioEffectLowPassFilter`, the PR decides by a headless measurement of the Voice bus's peak under the Dummy
-driver, which mixes (#15). **Drop first** if the budget runs out: anything beyond this one ray (several rays,
-thickness, portals) is not built.
+muffle a sound in plain view. Do not aim it back at the position. How the muffle is made, the player's own
+`attenuation_filter_cutoff_hz` and `volume_db` or a muffled bus with an `AudioEffectLowPassFilter`, the PR decides by a
+headless measurement of the Voice bus's peak under the Dummy driver, which mixes (#15). **Drop first** if the budget
+runs out: anything beyond this one ray (several rays, thickness, portals) is not built.
 
 **1.7 Buses, settings and the Voice tab** (E43, D15). `client/audio/` `AudioBuses` makes the buses Voice, Effects and
 Music, sending to Master, when the game starts (tests make them the same way): voice players on Voice, `WorldSounds` on

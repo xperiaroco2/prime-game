@@ -1514,9 +1514,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/world/`: `SnapshotBuffer` (pure) and `AvatarViews`, which draws from it at -80, snaps the players a
   `PlayersPlaced` names (no blend across a tick within one of the event's estimated tick, since events and
   snapshots travel on different lanes), forgets the poses at `LoadMatch` and at a `PhaseChanged` to another level
-(End → Lobby, #241) and gives the estimated host tick
-  (`host_tick()`) and the delay. A teleport too far for anyone to walk in the time between two snapshots (30 m/s, a
-  placeholder) also snaps. A body whose player the model drops leaves the tree before it is freed (#242, above).
+  (End → Lobby, #241) and gives the estimated host tick (`host_tick()`) and the delay. A teleport too far for anyone
+  to walk in the time between two snapshots (30 m/s, a placeholder) also snaps. A body whose player the model drops
+  leaves the tree before it is freed (#242, above).
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
   count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
   (`PLACING_EVENTS`: `PlayersPlaced`, `KnockedDown` and `Respawned` (M4-4); a death and a revive send no
@@ -2148,19 +2148,20 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
       the start keeps the microphone closed, with a line naming #22 and advising a headset, until the player picks a
       microphone (even the same one), so the #22 laptop freezes at most once. Errors (a device gone, Windows'
       microphone privacy) show in the Voice tab.
-    - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous
-      codec and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with
-      that frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a
-      revive. In the frame `may_speak` turns true, and at any step after the own `ClientModel.silencings` moved (it
-      goes up at each phase change and each time the own life leaves living, so a knockdown and its revive, or Round,
-      End and Lobby, folded between two steps by a hang are not missed, #241), what Godot has handed over by then is
-      fed as unspeakable too, however long that frame was. It was recorded before the change, except the audio
-      between the fold and the sender's step in that frame, which is dropped with it (as at a change between two
-      phases that both hear); the driver's own buffer, under one chunk, may still hold a little from before the
-      change, which goes out as speakable. A frame with no chunk while unspeakable still empties the pre-roll. What leaves goes through `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold
-      living and `VoiceRule.radius_of` of the current phase > 0 in the client's own mode, never `Match` or
-      `MatchState` (the E18 boundary test scans `res://client` and `res://voice`). Nothing in silence, nothing while
-      downed or dead, nothing in a phase whose rule hears nobody, nothing in Off or with no device open.
+    - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous codec
+      and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with that
+      frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a revive. In
+      the frame `may_speak` turns true, and at any step after the own `ClientModel.silencings` moved (it goes up at each
+      phase change and each time the own life leaves living, so a knockdown and its revive, or Round, End and Lobby,
+      folded between two steps by a hang are not missed, #241), what Godot has handed over by then is fed as unspeakable
+      too, however long that frame was. It was recorded before the change, except the audio between the fold and the
+      sender's step in that frame, which is dropped with it (as at a change between two phases that both hear); the
+      driver's own buffer, under one chunk, may still hold a little from before the change, which goes out as speakable.
+      A frame with no chunk while unspeakable still empties the pre-roll. What leaves goes through
+      `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold living and `VoiceRule.radius_of` of the
+      current phase > 0 in the client's own mode, never `Match` or `MatchState` (the E18 boundary test scans
+      `res://client` and `res://voice`). Nothing in silence, nothing while downed or dead, nothing in a phase whose rule
+      hears nobody, nothing in Off or with no device open.
     - Three modes (D11, the engineer's answer): voice activity by default (the threshold slider, never below 0.01,
       with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
       counted only with no Esc menu), or Off, which closes only the own microphone: the others stay audible and the
