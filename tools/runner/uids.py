@@ -3,6 +3,12 @@
 Godot resolves an ext_resource by its uid first and silently ignores `path=` when the uid belongs to
 another file, so a copied uid quietly points a scene at the wrong resource. This lint catches that and
 the other UID mistakes an agent can make while hand-writing .tscn/.tres files.
+
+The gitignored probe folder tests/scratch/ (common.SCRATCH) is left out as `test` and `lint` leave it out (#264): an
+orphan or malformed sidecar, a script without one, or a stale ext_resource uid there is never committed, so it fails
+nothing. One thing still counts: Godot imports the folder, and when two files claim one uid the one it scans last owns
+it, so every reference by that uid can load the probe's copy. A uid a scratch file shares with a project file therefore
+stays a duplicate error. A scratch file owns no uid for the project: a real scene that names one is `unknown`.
 """
 
 from __future__ import annotations
@@ -10,6 +16,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from .common import SCRATCH
 
 HEADER_RE = re.compile(r'^\[gd_(?:scene|resource)\b[^\]]*\buid="(uid://[a-z0-9]+)"', re.MULTILINE)
 EXT_RE = re.compile(r"^\[ext_resource\b([^\]]*)\]", re.MULTILINE)
@@ -48,16 +56,44 @@ def project_files(root: Path) -> list[Path]:
     return found
 
 
+def in_scratch(root: Path, path: Path) -> bool:
+    """True for a file under the probe folder tests/scratch/ (common.SCRATCH)."""
+    return path.relative_to(root).as_posix().startswith(SCRATCH + "/")
+
+
+def scratch_uids(root: Path, path: Path) -> list[tuple[str, str]]:
+    """The uids a scratch file claims, as (uid, res:// path of the owner) the way Godot's import registers them; a
+    sidecar or .import file claims for the file it belongs to, an orphan or malformed sidecar for nothing."""
+    suffix = path.suffix
+    if suffix not in (".tscn", ".tres", ".uid", ".import"):
+        return []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if suffix in (".tscn", ".tres"):
+        match = HEADER_RE.search(text)
+        return [(match.group(1), _res(root, path))] if match else []
+    target = path.with_suffix("")
+    if suffix == ".import":
+        match = IMPORT_UID_RE.search(text)
+        return [(match.group(1), _res(root, target))] if match else []
+    value = text.strip()
+    return [(value, _res(root, target))] if SIDECAR_RE.match(value) and target.exists() else []
+
+
 def lint(root: Path) -> Report:
     report = Report()
     files = project_files(root)
     owners: dict[str, list[str]] = {}
+    in_probes: dict[str, list[str]] = {}
 
     def own(uid: str, res_path: str) -> None:
         owners.setdefault(uid, []).append(res_path)
 
     texts: dict[Path, str] = {}
     for path in files:
+        if in_scratch(root, path):
+            for uid, owner in scratch_uids(root, path):
+                in_probes.setdefault(uid, []).append(owner)
+            continue
         suffix = path.suffix
         if suffix in (".tscn", ".tres"):
             text = path.read_text(encoding="utf-8", errors="replace")
@@ -88,8 +124,9 @@ def lint(root: Path) -> Report:
                 )
 
     for uid, paths in sorted(owners.items()):
-        if len(paths) > 1:
-            report.errors.append(f"duplicate {uid}: {', '.join(sorted(paths))} (never copy a uid or a .uid file)")
+        claimed = paths + in_probes.get(uid, [])
+        if len(claimed) > 1:
+            report.errors.append(f"duplicate {uid}: {', '.join(sorted(claimed))} (never copy a uid or a .uid file)")
         report.uids[uid] = paths[0]
 
     for path, text in texts.items():
