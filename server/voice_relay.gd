@@ -26,6 +26,9 @@ const VOICE_DOWN := &"VoiceDown"
 
 ## Frames dropped as an old part of a backlog (over NEWEST_PER_POLL in one poll).
 var dropped := 0
+## Frames of present players passed on by flush() (the newest NEWEST_PER_POLL per poll), whether
+## anyone hears them or not (RelayMeter).
+var relayed := 0
 
 ## Listener -> the speakers it may hear: every present player has an entry.
 var _routes: Dictionary[int, PackedInt32Array] = {}
@@ -75,6 +78,11 @@ func routes(listener: int, speaker: int) -> bool:
 	return _routes.has(speaker) and _routes.has(listener) and _routes[listener].has(speaker)
 
 
+## Whether a frame waits for flush().
+func has_held() -> bool:
+	return not _held.is_empty()
+
+
 ## Holds one VoiceUp of `speaker` until flush(); dropped at once from a peer that is not a present
 ## player.
 func hold(speaker: int, seq: int, opus: PackedByteArray) -> void:
@@ -96,7 +104,9 @@ func flush(host_tick: int) -> Array[Outgoing]:
 	listeners.assign(_routes.keys())
 	listeners.sort()
 	for speaker: int in speakers:
-		for frame: Array in _newest(_held[speaker]):
+		var newest := _newest(_held[speaker])
+		relayed += newest.size()
+		for frame: Array in newest:
 			for listener: int in listeners:
 				if not routes(listener, speaker):
 					continue

@@ -39,10 +39,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   runs the own `ClientSession` on it. `HostNode` steps it from `_physics_process`, also while paused; start it with
   `HostNode.now_usec()` and never reparent the node (leaving the tree closes the session). For the game `HostNode`
   is the façade (§4.7, E18): `HostNode.host(transport, mode, port)` builds and starts a private session, and the game
-  uses only `is_running()`, `own_client`, `errors`, `end_reason`, `ended`, `counters()` (debug builds), `skip_replay()`
-  and `close()`; `tools/` and the tests hand a `HostSession` to `HostNode.new` instead. Parts: `PeerBudget`,
-  `VoiceRelay`, `ReplayFiles`. Its observer (debug builds) gets `(at_tick, command, slice)` after every `Match` call,
-  catch-up ticks included: the bots runner's hook, never a reason to change `HostSession` for 3h.
+  uses only `is_running()`, `own_client`, `errors`, `end_reason`, `ended`, `counters()` and `relay_counters()`
+  (debug builds), `skip_replay()` and `close()`; `tools/` and the tests hand a `HostSession` to `HostNode.new`
+  instead. Parts: `PeerBudget`, `VoiceRelay`, `RelayMeter`, `ReplayFiles`. Its observer (debug builds) gets
+  `(at_tick, command, slice)` per `Match` call, catch-ups too: the bots runner's hook, no reason to change `HostSession`.
 - Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
   behind for good after a freeze. Each physics step, in order: apply commands left from an earlier step at the next
   tick, then run the ticks a freeze skipped with no commands; refill the per-peer budgets; poll; apply the queued
@@ -78,6 +78,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   before that call's events are delivered (the engineer's answer on #90): a deal that could not place its tasks would
   start a round that the crew wins at once. Key on no phase or outcome id: those are the mode's data.
 - The session seed comes from `Crypto.generate_random_bytes`. The seed and the command log never leave the host.
+- `RelayMeter`'s counters: debug builds only, never shown live in a Round (§4.5 "The host's counters").
 
 ## Boundaries
 - `server/` may use `core/` and the `net/` transport abstraction; it never calls a concrete transport (ENet, Steam,

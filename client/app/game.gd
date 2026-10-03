@@ -495,19 +495,24 @@ func _end_session(reason: StringName) -> void:
 	_ending = false
 
 
-## The overlay's numbers, while it shows: the own client's, and on the host the session's counters.
+## The overlay's numbers, while it shows: the own client's, and on the host the session's counters
+## and, outside a Round, the voice relay's (DebugOverlay.shows_relay).
 func _refresh_overlay() -> void:
 	if _overlay == null or not _overlay.visible:
 		return
 	var counters: Dictionary[StringName, int] = {}
 	if _client == null:
 		_overlay.show_numbers(-1, -1, -1, 0.0, counters)
+		_overlay.show_relay(counters, null)
 		return
+	var relay: Dictionary[StringName, int] = {}
 	if _host != null:
 		counters = _host.counters()
+		relay = _host.relay_counters()
 	_overlay.show_numbers(
 		_client.corrections, _client.placements, _avatars.host_tick(), _avatars.delay_ms(), counters
 	)
+	_overlay.show_relay(relay, _client.model.phase_spec())
 
 
 func _show_menu(reason: StringName, detail := "") -> void:

@@ -21,13 +21,13 @@ fields = {
 "phase": "round"
 }
 
-[sub_resource type="Resource" id="Target_south"]
+[sub_resource type="Resource" id="Target_minus_z"]
 script = ExtResource("8_target")
 point = Vector3(0, 0, -5.2)
 
-[sub_resource type="Resource" id="B1_walk_south"]
+[sub_resource type="Resource" id="B1_walk_minus_z"]
 script = ExtResource("7_walk_to")
-target = SubResource("Target_south")
+target = SubResource("Target_minus_z")
 stop_m = 0.2
 
 [sub_resource type="Resource" id="B1_talk"]
@@ -36,15 +36,15 @@ seconds = 14.0
 
 [sub_resource type="Resource" id="B1_script"]
 script = ExtResource("3_script")
-steps = Array[ExtResource("4_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B1_walk_south"), SubResource("B1_talk")])
+steps = Array[ExtResource("4_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B1_walk_minus_z"), SubResource("B1_talk")])
 
-[sub_resource type="Resource" id="Target_north"]
+[sub_resource type="Resource" id="Target_plus_z"]
 script = ExtResource("8_target")
 point = Vector3(0, 0, 5.2)
 
-[sub_resource type="Resource" id="B2_walk_north"]
+[sub_resource type="Resource" id="B2_walk_plus_z"]
 script = ExtResource("7_walk_to")
-target = SubResource("Target_north")
+target = SubResource("Target_plus_z")
 stop_m = 0.2
 
 [sub_resource type="Resource" id="B2_talk_apart"]
@@ -66,7 +66,7 @@ seconds = 5.0
 
 [sub_resource type="Resource" id="B2_script"]
 script = ExtResource("3_script")
-steps = Array[ExtResource("4_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B2_walk_north"), SubResource("B2_talk_apart"), SubResource("B2_walk_near"), SubResource("B2_talk_near")])
+steps = Array[ExtResource("4_step")]([SubResource("Ready"), SubResource("Wait_round"), SubResource("B2_walk_plus_z"), SubResource("B2_talk_apart"), SubResource("B2_walk_near"), SubResource("B2_talk_near")])
 
 [resource]
 script = ExtResource("2_scenario")

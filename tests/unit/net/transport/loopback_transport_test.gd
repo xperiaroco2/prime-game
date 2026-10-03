@@ -131,6 +131,27 @@ func test_messages_travel_both_ways() -> void:
 	assert_array(own_rec.packets).is_equal(["1:%d:dd" % STATE])
 
 
+func test_the_upload_counts_frames_to_linked_peers_but_never_the_own_client() -> void:
+	var host := _host()
+	var own := LoopbackTransport.own_client_of(host)
+	var client := _client()
+	_poll([host, own, client])
+	assert_int(host.send(2, EVENT, PackedByteArray([1, 2]))).is_equal(OK)
+	assert_int(host.send(2, VOICE, PackedByteArray([3]))).is_equal(OK)
+	assert_int(host.send(1, STATE, PackedByteArray([4, 5, 6]))).is_equal(OK)
+	assert_int(own.send(1, VOICE, PackedByteArray([7]))).is_equal(OK)
+	assert_int(client.send(1, INTENT, PackedByteArray([8]))).is_equal(OK)
+	# Frames: the payload plus NetFrame's header, one datagram each; the own client's link is free.
+	var header := NetFrame.HEADER_BYTES
+	assert_that(host.take_upload()).is_equal(Vector2i(2 + header + 1 + header, 2))
+	assert_that(host.take_upload()).is_equal(Vector2i.ZERO)
+	assert_that(own.take_upload()).is_equal(Vector2i.ZERO)
+	assert_that(client.take_upload()).is_equal(Vector2i(1 + header, 1))
+	# A refused send counts nothing.
+	assert_int(host.send(9, EVENT, PackedByteArray([1]))).is_equal(ERR_DOES_NOT_EXIST)
+	assert_that(host.take_upload()).is_equal(Vector2i.ZERO)
+
+
 func test_a_message_reaches_only_its_peer() -> void:
 	var host := _host()
 	var own := LoopbackTransport.own_client_of(host)

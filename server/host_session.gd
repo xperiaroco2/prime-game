@@ -89,6 +89,8 @@ var over_budget := 0
 var bad_payloads := 0
 ## Peers disconnected for malformed messages.
 var malformed_disconnects := 0
+## Of over_budget, the VoiceUp frames over a speaker's voice bucket.
+var voice_over_budget := 0
 
 var _transport: NetTransport
 var _schema: WireSchema
@@ -109,6 +111,9 @@ var _leaving: Dictionary[int, int] = {}
 ## Peers this session disconnected whose peer_left has not come yet.
 var _disconnected: Dictionary[int, bool] = {}
 var _relay := VoiceRelay.new()
+## Debug builds only (E47 as amended): the relay's time and the upload, apart; null in a release
+## build.
+var _meter: RelayMeter = RelayMeter.new() if _debug else null
 ## An end asked for inside the poll, carried out right after it.
 var _end_after_poll: StringName = &""
 
@@ -215,6 +220,23 @@ func is_running() -> bool:
 ## The frames the voice relay dropped as the old part of a backlog.
 func voice_dropped() -> int:
 	return _relay.dropped
+
+
+## Of over_budget, the messages that are no voice frames: the part the F3 overlay may show at any
+## time (HostNode.counters()). The voice frames over budget are among the relay's counters, which it
+## never shows live during a Round (the M5 ADR §3 item 11, E47).
+func over_budget_but_voice() -> int:
+	return over_budget - voice_over_budget
+
+
+## Debug builds only (E47 as amended; ARCHITECTURE §4.5 "The host's counters"): the voice relay's
+## counters and the upload since the session started (RelayMeter.to_dict); empty in a release
+## build. Never for a live display during a Round (the M5 ADR §3 item 11).
+func relay_counters() -> Dictionary[StringName, int]:
+	if _meter == null or not _started:
+		var none: Dictionary[StringName, int] = {}
+		return none
+	return _meter.to_dict(_relay, voice_over_budget, _now_usec - _start_usec)
 
 
 ## One physics frame of the session at `now_usec` (the order in the class comment).
@@ -342,6 +364,8 @@ func _carry_out(directive: MatchEvent) -> void:
 
 
 func _send_snapshots(at_tick: int) -> void:
+	if _meter != null:
+		_meter.add_other_upload(_transport.take_upload())
 	var kind := _schema.kind_of(SNAPSHOT)
 	var present := game.state.present_peers()
 	present.sort()
@@ -353,17 +377,37 @@ func _send_snapshots(at_tick: int) -> void:
 			continue
 		var fields := {"tick": at_tick, "avatars": snapshot["avatars"]}
 		var payload := _schema.encode(WireMessage.new(SNAPSHOT, fields))
-		if not payload.is_empty():
-			_send(peer, kind, payload)
+		if not payload.is_empty() and _send(peer, kind, payload) == OK and _meter != null:
+			_meter.snapshots += 1
+	if _meter != null:
+		_meter.add_snapshot_upload(_transport.take_upload())
 
 
 func _send_voice() -> void:
+	if not _relay.has_held():
+		return
+	var began := 0
+	if _meter != null:
+		_meter.add_other_upload(_transport.take_upload())
+		began = Time.get_ticks_usec()
 	for out: VoiceRelay.Outgoing in _relay.flush(game.ticked_through()):
 		if not _reachable(out.listener):
 			continue
 		var payload := _schema.encode(out.message)
-		if not payload.is_empty():
-			_send(out.listener, _schema.kind_of(out.message.name), payload)
+		if payload.is_empty():
+			continue
+		var kind := _schema.kind_of(out.message.name)
+		if _meter == null:
+			_send(out.listener, kind, payload)
+			continue
+		var send_began := Time.get_ticks_usec()
+		var sent := _send(out.listener, kind, payload)
+		_meter.send_usec += Time.get_ticks_usec() - send_began
+		if sent == OK:
+			_meter.sent += 1
+	if _meter != null:
+		_meter.relay_usec += Time.get_ticks_usec() - began
+		_meter.add_voice_upload(_transport.take_upload())
 
 
 ## The routing table after a Match.tick call (§4.5 Voice relay): speakers_for every present player.
@@ -396,11 +440,12 @@ func _reachable(peer: int) -> bool:
 	return not _disconnected.has(peer) and not _leaving.has(peer)
 
 
-func _send(peer: int, kind: int, payload: PackedByteArray) -> void:
+func _send(peer: int, kind: int, payload: PackedByteArray) -> Error:
 	var sent := _transport.send(peer, kind, payload)
 	# A peer that is gone between the transport's word and core/'s is expected, not an error.
 	if sent != OK and sent != ERR_DOES_NOT_EXIST:
 		push_error("host: cannot send kind %d to peer %d: %s" % [kind, peer, error_string(sent)])
+	return sent
 
 
 func _disconnect(peer: int) -> void:
@@ -446,6 +491,8 @@ func _on_packet(peer: int, kind: int, payload: PackedByteArray) -> void:
 		return
 	if peer != NetTransport.HOST_ID and not _within_budget(info, row, payload.size()):
 		over_budget += 1
+		if row.lane == NetKindTable.Lane.VOICE:
+			voice_over_budget += 1
 		_transport.count_rejected(peer, NetRejects.Reason.OVER_BUDGET)
 		return
 	# A debug kind from anyone but peer 1 in a debug build is malformed and never decoded (E17).
