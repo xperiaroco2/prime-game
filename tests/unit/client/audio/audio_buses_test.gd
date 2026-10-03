@@ -48,3 +48,25 @@ func test_each_sound_plays_on_its_bus() -> void:
 	var players := sounds.find_children("*", "AudioStreamPlayer3D", false, false)
 	assert_int(players.size()).is_equal(1)
 	assert_str(String((players[0] as AudioStreamPlayer3D).bus)).is_equal("Effects")
+
+
+func test_voice_and_effects_each_have_a_muffled_bus_with_the_low_pass() -> void:
+	AudioBuses.ensure()
+	var count := AudioServer.bus_count
+	for muffled: StringName in [AudioBuses.VOICE_MUFFLED, AudioBuses.EFFECTS_MUFFLED]:
+		var index := AudioBuses.index_of(muffled)
+		var clear: StringName = AudioBuses.MUFFLED[muffled]
+		# Sends to its clear bus, so that bus's slider applies; made after it, as a send needs.
+		assert_str(String(AudioServer.get_bus_send(index))).is_equal(String(clear))
+		assert_int(index).is_greater(AudioBuses.index_of(clear))
+		assert_float(AudioServer.get_bus_volume_db(index)).is_equal(0.0)
+		assert_int(AudioServer.get_bus_effect_count(index)).is_equal(1)
+		var low_pass := AudioServer.get_bus_effect(index, 0) as AudioEffectLowPassFilter
+		assert_object(low_pass).is_not_null()
+		assert_float(low_pass.cutoff_hz).is_equal(AudioBuses.LOW_PASS_HZ)
+		assert_bool(AudioServer.is_bus_effect_enabled(index, 0)).is_true()
+		assert_str(String(AudioBuses.muffled_of(clear))).is_equal(String(muffled))
+	assert_float(AudioBuses.LOW_PASS_HZ).is_equal(1000.0)
+	assert_str(String(AudioBuses.muffled_of(AudioBuses.MUSIC))).is_equal("Music")
+	AudioBuses.ensure()
+	assert_int(AudioServer.bus_count).is_equal(count)
