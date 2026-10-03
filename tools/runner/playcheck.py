@@ -49,6 +49,11 @@ Then a section per window, `window <n>`, and its steps, run in order:
                                          (whitespace as in `wait text`): it takes the focus (grab_focus) and gets
                                          ui_accept's key as `press` gives it; no mouse event, so nothing captures
                                          the mouse. None, or more than one, fails the step
+    aim item <kind> / aim off            from `aim item` until `aim off` (each aim needs one), every frame the
+                                         window turns its own local player (PlayerController.look) to face the
+                                         middle of the nearest item of <kind> resting in its own ClientModel
+                                         (no holder; item positions are public); with none, it turns nothing.
+                                         The mouse is never captured, so this is the only way to face something
     shot <name>                          the window's viewport as <name>.png ([a-z0-9_], unique in the scenario)
 A wait takes `timeout=<seconds>` as its last word to override the default. A `#` in a line starts its comment, so
 a text to wait for or a button's text holds none.
@@ -297,10 +302,12 @@ class _Parser:
                 raise self.fail("`button` needs the button's text, such as `button Resume`")
             # Not "text": the plan's step has the line's text under that key.
             made = {"label": " ".join(args)}
+        elif verb == "aim":
+            made = {"kind": self.aim(args)}
         elif verb in ("frames", "shot", *ACTIONS):
             raise self.fail(f"`{verb}` takes one word")
         else:
-            raise self.fail(f"unknown step `{verb}` (wait, frames, press, hold, release, button, shot)")
+            raise self.fail(f"unknown step `{verb}` (wait, frames, press, hold, release, button, aim, shot)")
         self.scenario.steps[self.window].append(Step(self.line, text, verb, made))
 
     def wait(self, args: list[str]) -> dict[str, object]:
@@ -344,6 +351,14 @@ class _Parser:
                 "`wait text <field> is|has|lacks <text ...>` or `wait shown <field> on|off`"
             )
         return made
+
+    def aim(self, args: list[str]) -> str:
+        """The item kind of `aim item <kind>`, or "" for `aim off`."""
+        if args == ["off"]:
+            return ""
+        if len(args) == 2 and args[0] == "item" and ID_RE.fullmatch(args[1]):
+            return args[1]
+        raise self.fail("an aim is `aim item <kind>` (an item kind's id, such as `aim item knife`) or `aim off`")
 
     def field(self, rest: list[str], what: str) -> str:
         """The field a `wait text` or `wait shown` names; a mistake lists the fields there are."""
@@ -392,9 +407,19 @@ class _Parser:
                 raise self.fail(f"window {number}: the scenario has {s.windows}", line)
         for number, steps in s.steps.items():
             held: dict[str, int] = {}
+            # The line of the `aim item` in force; 0 while the window aims at nothing.
+            aiming = 0
             for step in steps:
                 if step.args.get("timeout_s") is None and step.do == "wait":
                     step.args["timeout_s"] = s.timeout
+                if step.do == "aim" and step.args["kind"]:
+                    if aiming:
+                        raise self.fail(f"window {number} aims again before `aim off` (line {aiming})", step.line)
+                    aiming = step.line
+                elif step.do == "aim":
+                    if not aiming:
+                        raise self.fail(f"window {number} has `aim off` without an `aim item` before it", step.line)
+                    aiming = 0
                 action = str(step.args.get("action", ""))
                 if step.do == "hold":
                     if action in held:
@@ -405,6 +430,8 @@ class _Parser:
                         raise self.fail(f"window {number} releases {action}, which it does not hold", step.line)
             for action, line in held.items():
                 raise self.fail(f"window {number} holds {action} and never releases it", line)
+            if aiming:
+                raise self.fail(f"window {number} aims and never stops: `aim off` ends an `aim item`", aiming)
         names = s.shots()
         if not names:
             raise self.fail("a scenario saves at least one `shot`", 1)
