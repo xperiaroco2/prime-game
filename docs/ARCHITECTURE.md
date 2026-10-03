@@ -2713,18 +2713,18 @@ part is usable in data once its row or entry names the PR that built it. Every n
   `LevelLayout` (§9.6), and hand both to `Match`. The command log records the layouts and the mode's hash, so a
   replay needs no level (§3.3).
 - **Checked on load**, in two parts. `Match` refuses a mode with errors, listing them all.
-  - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does
-    not declare; an outcome a phase can report without a row (§3.1); a phase whose rules can knock a player down but
-    that lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`)
-    but lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action
-    (a reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
-    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); an accepted intent that neither
-    the phase class nor any rule handles; two rules on one trigger in one owner; a number outside its part's
-    bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`, `spawn_tag` and `tag` a part holds, and every
-    condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9` and `_` (D1 (a), the designer's answer on
-    #96). A unit test
-    (2a, `tests/unit/content/content_modes_test.gd`) loads every mode in `content/modes/` and runs this part
-    (`ModeCheck`).
+  - *The mode alone:* a phase, outcome, intent, setting, role, side or item kind that a part names but the mode does not
+    declare; an outcome a phase can report without a row (§3.1); a phase whose rules can knock a player down but that
+    lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`) but
+    lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action (a
+    reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
+    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction holding a cost that reads the
+    actor's player state (`Cost.reads_actor_state`: `Cooldown`, `StaminaCost`), which always refuses there (§9.2, #283);
+    an accepted intent that neither the phase class nor any rule handles; two rules on one trigger in one owner; a
+    number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
+    `spawn_tag` and `tag` a part holds, and every condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9`
+    and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
+    every mode in `content/modes/` and runs this part (`ModeCheck`).
   - *With the layouts* that `server/` or a test hands in: a spawn tag that a part places on and a map lacks; a
     marker with two tags; a lobby with fewer `lobby_player` markers than the mode's maximum of players; a level
     without a layout. `Match` runs this part (`LayoutCheck`, 2b) on creation, with the tags each row's actions
@@ -2752,11 +2752,15 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   negated condition rejects with `not_allowed`. A **cost** is a condition that is also paid (stamina, a cooldown,
   later a use): all conditions and costs are checked first, then every cost is paid in order, then the effects run,
   so a refused intent pays nothing. A reaction runs for no player (actor 0): a cost that reads the actor's player
-  state (`Cooldown`, `StaminaCost`) refuses there, so a reaction with one never runs its effects, records no cooldown
-  and charges nobody (#201; `tests/unit/combat/costs_in_reactions_test.gd`). Between the checks and the costs, an
-  **action** (a rule on an intent) that passed stops its actor's running channel (`Channels.interrupt`, M4-4): a
-  raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its raise, and a refused intent stops
-  nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
+  state (`Cooldown`, `StaminaCost`) refuses there, so a reaction with one would never run its effects, record no
+  cooldown and charge nobody (#201; `tests/unit/combat/costs_in_reactions_test.gd`). The mode check therefore refuses
+  such a reaction at load, naming the mode, the fact, the rule's index and the cost's class (#283;
+  `tests/unit/content/mode_check_test.gd`). A cost says whether it reads that state (`Cost.reads_actor_state`, true
+  unless the class says otherwise): in `core/` both `Cooldown` and `StaminaCost` do, so no cost of `core/` is allowed
+  in a reaction yet; one that reads only match-wide state (a counter, as the tests' `FixtureCost`) would be. Between
+  the checks and the costs, an **action** (a rule on an intent) that passed stops its actor's running channel
+  (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its
+  raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
 - **Effects** (*what happens*) run in order. An effect changes `MatchState` only through `core/`'s own rules (life,
   items, stamina), emits events, raises facts, and may report an outcome (`ReportOutcome`, §3.1).
 - **A fact is handled at once, depth first.** When an effect raises one, the rules on it run (the mode's reactions,
@@ -2966,8 +2970,8 @@ phase classes come in the task each row names.
 | `AllSubtasksDone` | every task is done (`Tasks.all_done`): a task with no subtasks is done, and with no tasks it holds (the engineer's rule of 2026-09-30, #79) | none | (facts only) | 2h (#64, `core/win/all_subtasks_done.gd`) |
 | `NoneAlive` | no player of the side is present: each has left (M4-2: the downed and the dead still count; the name stays from "no crew alive"). A player's side is its role's; a player without a role of the mode is on no side, and with no player of the side it holds (the base mode's deal always leaves at least one crew member). It reads every player's role, which is hidden, but only as a win condition, whose `won` reaches no peer (§9.2) | `side` (a side of the mode) | (facts only) | 2h (#64, `core/win/none_alive.gd`) |
 | `ClockEnded` | the match clock has reached its end (`MatchState.clock_ended`, set when `Match` raises `clock_ended`); before `StartClock` there is no end | none | (facts only) | 2h (#64, `core/win/clock_ended.gd`) |
-| `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | 2g (#63, `core/combat/cooldown.gd`) |
-| `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor, at the end of the tick) | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | 2d (#60) |
+| `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it. Not in a mode reaction: the mode check refuses it there, since a reaction's actor 0 has no player state (§9.2, #283) | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | 2g (#63, `core/combat/cooldown.gd`) |
+| `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor, at the end of the tick). Not in a mode reaction: the mode check refuses it there, since a reaction's actor 0 has no player state (§9.2, #283) | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | 2d (#60) |
 | `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | M4-4 (#140, `core/life/target_downed.gd`) |
 | `TargetInReach` | the target lies within `reach_m` of the actor: both last accepted positions, their feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode's raise 2) | `out_of_reach` | M4-4 (#140) |
 | `TargetInSight` | the line from the actor's eye (`Items.eye_of`) to just above the target's feet (`Items.lifted`) is clear (§7.1), as `InSight` for an item | none | `blocked` | M4-4 (#140) |
