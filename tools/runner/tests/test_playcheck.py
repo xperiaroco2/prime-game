@@ -252,6 +252,8 @@ class ParserTest(unittest.TestCase):
         names = playcheck.available()
         self.assertIn("esc_menu", names)
         self.assertIn("spectate", names)
+        self.assertIn("items", names)
+        self.assertIn("end", names)
         for name in names:
             with self.subTest(name=name):
                 s = playcheck.load(name)

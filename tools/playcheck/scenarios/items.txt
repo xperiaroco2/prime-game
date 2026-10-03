@@ -1,0 +1,53 @@
+# Items in the own player's hand (M4-8, #276) in the game's real windows. Window 1 hosts and is
+# forced to be crew, window 2 joins as the dissident; four knives lie on the greybox floor. Window
+# 1 starts with an empty Hand and Belt, faces the nearest knife (`aim item knife`: the mouse is
+# never captured, so this is how a window turns) and walks to it until its pick-up hint shows,
+# picks it up (E) and sees it in its first-person hand; swaps it to the belt (the hand empty) and
+# back, then puts it down. Window 2 sees its own role.
+# The text waits read short parts of the greybox wording (#150), never whole sentences.
+players 2
+windows 2
+role 1 crew
+role 2 dissident
+setting knives 4
+
+window 1
+wait phase lobby
+press ready
+wait screen round timeout=60
+wait text hud.role is Role: Engineer
+wait text hud.hand is Hand: empty
+wait text hud.belt is Belt: empty
+wait shown hand.item off
+shot round_hud_empty
+# Picking up: face the nearest knife, walk until the crosshair's hint offers it.
+aim item knife
+hold move_forward
+wait text hud.hint has pick up Knife timeout=30
+release move_forward
+press interact
+aim off
+wait text hud.hand is Hand: Knife
+wait text hand.item is knife
+frames 30
+shot knife_in_hand
+# The swap key moves it to the belt, the hand empty, and back.
+press swap
+wait text hud.belt is Belt: Knife
+wait text hud.hand is Hand: empty
+wait shown hand.item off
+shot knife_on_belt
+press swap
+wait text hud.hand is Hand: Knife
+press put_down
+wait text hud.hand is Hand: empty
+wait text hud.belt is Belt: empty
+shot knife_put_down
+
+window 2
+wait phase lobby
+press ready
+wait screen round timeout=60
+wait text hud.role is Role: Dissident
+frames 30
+shot round_dissident_hud
