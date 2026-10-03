@@ -601,7 +601,7 @@ def launching_session(r: Run, s: Session) -> str | None:
 
 def handover_block(r: Run, s: Session) -> list[str]:
     title = f' "{s.title}"' if s.title else ""
-    head = f"<details><summary>{issue_cell(r)} {r.name} args ({r.run_id}; session {s.sid[:8]}{title})</summary>"
+    head = f"<details><summary>{issue_cell(r)} {r.name} args ({r.run_id}; session {s.sid}{title})</summary>"
     if r.args is None:
         resumed = r.latest.resume_from
         if resumed and not any(x.run_id == resumed and not x.resume_from for x in s.launches):
@@ -713,7 +713,7 @@ def main(
         text = json.dumps(launch.args, indent=1, ensure_ascii=False) + "\n"
         how = "passed" if launch.passed_args else f"inherited from {launch.resume_from}"
         print(f"wave: #{args_issue} {launch.name} args ({how}) of run {launch.run_id or '(no run id)'}, launched "
-              f"{metrics.iso(launch.time)} in session {sid[:8]}", file=sys.stderr)  # fmt: skip
+              f"{metrics.iso(launch.time)} in session {sid}", file=sys.stderr)  # fmt: skip
         if out:
             write_text(Path(out), text)
             print(f"wave: wrote {out}", file=sys.stderr)

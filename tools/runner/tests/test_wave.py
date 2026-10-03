@@ -235,7 +235,7 @@ class WaveTest(unittest.TestCase):
         handover = body.split("## Handover data")[1]
         self.assertNotIn("Finished runs that need a resume", handover, "its fresh relaunch already runs")
         self.assertNotIn("wf_a;", handover)
-        self.assertIn("wf_b;", handover)
+        self.assertIn(f"wf_b; session {SID} ", handover, "the owning session's full id")
 
     def test_a_relaunch_of_another_workflow_replaces_nothing(self) -> None:
         self.p.launch(0, "t1", "wf_a", issue_args(5), notice="completed", notice_at=20)
