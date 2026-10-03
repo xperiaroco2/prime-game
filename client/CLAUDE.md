@@ -8,8 +8,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - The windowed game: the main menu, hosting and joining, the lobby, loading, the round and the end screen, in one
   persistent main scene that swaps levels under itself (§4.7).
 - The first-person player controller, its cameras (first person, the downed camera, the spectate camera of the dead)
-  and interactions; the local player's movement is client-side.
-- Interpolation of remote players from the snapshots `net/` delivers.
+  and interactions; the local player's movement is client-side; remote players are interpolated from snapshots.
 - UI: lobby, HUD, the Tab task screen (no map for now), end screen, the Esc menu with tabs (#169).
 - Audio: each remote speaker's voice on its avatar (M5), M4's placeholder world sounds, the dead's lift music.
 - The dev console and debug commands (spawn bots, force role, skip phase, show hidden info) for solo testing.
@@ -21,9 +20,8 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   default; bots and the leak test turn it on).
 - `player/`: `PlayerController` (#46; it claims to the `ClientSession` it is `attach()`ed to, M4-7; its `life`
   and `held`, M4-9), `RemotePlayerBody`, `PlayerTuning`, `PredictedStamina`, `LifeLooks` (D8's greybox looks).
-- `dev/`: dev rooms and the preview scenes that `shot` draws.
-- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `EscMenuState` (pure), `EscMenu`, its Lobby tab
-  `LobbyPanel` and the lobby's `LobbyHud`.
+- The Esc menu (#169): `app/`'s `MousePointer`; `ui/`'s `EscMenuState` (pure), `EscMenu`, its tabs `LobbyPanel` and
+  `VoicePanel` (M5-6), and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
   there). `ui/`: the screens under `GameUi`, built in code, the HUD and the task screen (M4-8), and the shared
@@ -31,7 +29,8 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
   `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
   `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
-- Voice (M5-5, M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`; uses `voice/`, not reverse.
+- Voice: hearing (M5-5) `world/VoiceViews`, `life/Ears`, `audio/AudioBuses`; muffle (M5-7) `world/Muffle`; speaking
+  (M5-6) `voice/VoiceSender`, `voice/VoiceControl`, `app/UserSettings`; uses `voice/`, not reverse. `dev/`: previews.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
@@ -58,7 +57,8 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - Voice (the M5 ADR §3): only `voice_received` frames play, on the speaker's `RemotePlayerBody`, checked per frame:
   none while the own life is dead, in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
   from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.
-  `max_distance` is the own mode's `VoiceRule.radius_of()` (E41). No talking indicator (D14); F3 names no one.
+  `max_distance`, and the sender's `may_speak` (the own life living, radius > 0; every chunk fed each frame, also
+  while false), come from the own mode's `VoiceRule.radius_of()` (E41). No talking indicator (D14); F3 names no one.
 - Screens are styled only through the shared theme (`GameUi.THEME`, `client/ui/theme/game_theme.tres`): a type
   variation per look, no `add_theme_*_override`, `Color(...)` or font size in a screen's code; a source test holds it.
   Wording and looks stay greybox placeholders until the UI milestone (#150).
