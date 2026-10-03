@@ -164,12 +164,16 @@ func test_a_speaker_heard_again_after_a_silence_starts_at_its_rays_answer() -> v
 
 func test_a_speaker_freed_with_its_body_takes_its_muffle_along() -> void:
 	_world.add_box(WALL_AT, WALL_SIZE)
-	await _talking({TALKER: Vector3(0, 0, -3)})
+	var speaker := await _talking({TALKER: Vector3(0, 0, -3)})
 	assert_object(_voices.muffle_of(TALKER)).is_not_null()
 	_world.event(&"PlayerLeft", {"peer": TALKER})
 	assert_object(_voices.muffle_of(TALKER)).is_null()
 	_voices.reset()
 	assert_object(_voices.muffle_of(OTHER)).is_null()
+	# The speaker is gone by the next idle frame: the test ends with nothing left queued.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(is_instance_valid(speaker)).is_false()
 
 
 func test_a_body_freed_without_player_left_takes_its_muffle_along() -> void:
