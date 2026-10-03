@@ -148,3 +148,16 @@ func test_a_mode_without_a_loading_deadline_is_refused() -> void:
 	var errors := Array(ModeCheck.run(mode).errors)
 	assert_array(errors).has_size(1)
 	assert_str(str(errors[0])).contains("missing setting deadline_seconds")
+
+
+func test_an_empty_roster_never_moves_on() -> void:
+	# The host is never dropped, so the roster is never empty; if every player still left (the
+	# host's own PeerLeft included), Loading reports no `all_loaded` for nobody.
+	var game := FixtureBaseMode.in_loading([P1, P2])
+	FixtureBaseMode.load_ack(game, P2)
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	FixtureModes.send(game, Intents.PEER_LEFT, P1)
+	assert_array(game.state.peers()).is_empty()
+	assert_str(game.phase_id()).is_equal("loading")
+	FixtureModes.run_ticks(game, DEADLINE_TICKS + 5)
+	assert_str(game.phase_id()).is_equal("loading")
