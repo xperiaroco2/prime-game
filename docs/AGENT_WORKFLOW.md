@@ -209,6 +209,7 @@ and wait for the designer's review.
 | Foundation stages with no mid-task human input: M0 execution, core architecture and content-API design before M2, project-wide audits | xhigh + `ultracode` in that one prompt; one workflow per stage; human review between stages |
 | Everyday `core/ server/ net/ voice/` work, and **all tooling** (`tools/`, runner, hooks, CI) | high |
 | Docs, content data, routine fixes; the designer's default | medium |
+| Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it in the session settings) |
 
 Rules for every workflow run:
 - **Size guideline `small` (fewer than 5 agents)** [applied: `workflowSizeGuideline` in shared settings].
@@ -261,18 +262,21 @@ Rules for every workflow run:
   (a number caps the agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the
   scenarios the notes name), a scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code
   reviewer reads the PNGs, and the rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per
-  role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish);
-  `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
-  default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
-  where the kickoff allows it (its amendment A, §5). A missing `mutants` or `playcheck` on the task's branch is
-  reported in the result and the PR, and the run goes on. `bounded_waits: true` (#303; `issue-task` and `pr-rebase`,
-  +0): each agent that runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it
-  replaces, with the exact background launch, `wait` and CI commands of §11 "Bounded waits" (its publishing agents also
-  skip a standalone verify that `wait --verified` shows done). The root CLAUDE.md rule reaches every workflow agent
-  without it once on main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`,
-  `efforts` and `models` (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every
-  blocker or major, no fix agent runs and the result's `note` asks the manager to list the refuted findings with their
-  reasons in the PR body. The kickoff's approved agent count must cover the options the manager will pass; each script's
+  role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish,
+  publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is
+  set, and no default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's
+  `models`, where the kickoff allows it (its amendment A, §5). `publish_clean` (#308, a one-wave trial; falls back to
+  `publish`) is the full publisher of a run with no blocker or major left open after the reviews, the test review
+  and the skeptics, never of a design task; the result's `publish_clean` says whether it applied. A missing
+  `mutants` or `playcheck` on the task's branch is reported in the result and the PR, and the run goes on.
+  `bounded_waits: true` (#303; `issue-task` and `pr-rebase`, +0): each agent that runs `verify`, `publish`, `mutants`
+  or a CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI
+  commands of §11 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows
+  done). The root CLAUDE.md rule reaches every workflow agent without it once on main; the arg adds the commands.
+  `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review,
+  netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix agent runs and the
+  result's `note` asks the manager to list the refuted findings with their reasons in the PR body. The kickoff's
+  approved agent count must cover the options the manager will pass; each script's
   `whenToUse` and args comment give the counts, the roles and their fallbacks.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic

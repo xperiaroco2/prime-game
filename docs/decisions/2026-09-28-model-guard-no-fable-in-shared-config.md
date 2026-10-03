@@ -1,6 +1,7 @@
 # Model guard; reviewers on Opus, not Fable
 
-- **Status:** Accepted; amended 2026-10-02 by amendment A (the engineer's answer N1 (b), #183)
+- **Status:** Accepted; amended 2026-10-02 by amendment A (the engineer's answer N1 (b), #183); amended 2026-10-04
+  (#308: `godot-api-checker`'s effort, the publisher trial under amendment A)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -11,7 +12,7 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
 ## Decision
 - Shared `.claude/settings.json` sets `"availableModels": ["opus", "sonnet", "haiku"]`. A request for any other model
   falls back with a warning.
-- Subagent models: `godot-api-checker` sonnet, `test-runner` haiku, `code-reviewer` and `netcode-security-reviewer`
+- Subagent models: `godot-api-checker` sonnet (effort high since #308), `test-runner` haiku, `code-reviewer` and `netcode-security-reviewer`
   **opus with effort high**. This deliberately deviates from "strongest".
 - Fable appears in no shared file, except as amendment A says. Each human keeps usage credits off or sets a spend
   cap.
@@ -35,6 +36,13 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
   - Usage credits stay off or capped (unchanged). `agents-check` proves which model served each agent: it reads the
     shared and the user-scope `availableModels`, accepts a model from the user list when the requested model served,
     and still fails a model in neither list that served.
+  - **2026-10-04 (#308; #302 decision 3, option (c)):** a model from the shared list (Sonnet) may go into a launch's
+    `models` without a kickoff allowance, since this amendment restricts only models beyond that list. The first such
+    use is the one-wave publisher trial: `issue-task` applies `models.publish_clean` only to the full publisher of a
+    run with no blocker or major open, never to a design task. The manager passes it on the non-design launches of one
+    wave only, then reports on #302, and the engineer keeps or drops it
+    ([effort ADR](2026-09-28-effort-and-workflow-bounds.md), amendment of 2026-10-04). No script, default or agent file
+    names the model; the workflow tests still assert it.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.
