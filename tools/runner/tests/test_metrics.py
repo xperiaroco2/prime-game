@@ -379,6 +379,50 @@ class MetricsTest(unittest.TestCase):
         md, record, compact = self.build(history=found)
         self.assertEqual(len(record["verifies"]["history file"]), 2)
         self.assertTrue(any(line.startswith("local verify (history file): 2 runs, 1 red") for line in compact))
+        # Records older than #273 carry no failing tests or failure lines: nothing to list, and no error.
+        self.assertEqual([(v["failed_tests"], v["step_failures"], v["shard_exits"]) for v in found], [([], [], [])] * 2)
+        self.assertNotIn("Failing tests of red runs", "\n".join(md))
+
+    def test_the_failing_tests_and_first_failure_lines_of_red_runs(self) -> None:
+        path = self.root / "verify-history.jsonl"
+        crashed = {"shard": 2, "rc": 3221225477, "seconds": 12.5, "results": False}
+
+        def red(minute: int, tests: list[dict], shard2: dict, bots: str | None = None) -> dict:
+            steps = [{"name": "lint", "status": "passed", "seconds": 20},
+                     {"name": "test", "status": "FAILED", "seconds": 90, "failure": f"shard 2: exit {shard2['rc']}",
+                      "shards": [{"shard": 1, "rc": 0, "seconds": 80}, shard2], "failed_tests": tests}]  # fmt: skip
+            if bots:
+                steps.append({"name": "bots-enet", "status": "FAILED", "seconds": 48, "failure": bots})
+            return {"start": f"2026-10-02T09:{minute:02d}:00Z", "worktree": "a", "seconds": 250, "steps": steps}
+
+        one = {"test": "a_test::test_one", "message": "Expecting: 1 but was 2"}
+        leak = {"test": "b_test::test_b", "orphans": 2}
+        correction = "bots_main #{} | a Correction outside a placement (epoch {}, at (1.5, 0, -2))"
+        write_lines(path, [
+            red(1, [one], {"shard": 2, "rc": 100, "seconds": 70}, correction.format(2, 3)),
+            red(2, [one, leak], {"shard": 2, "rc": 101, "seconds": 70}),
+            red(3, [], crashed, correction.format(3, 41)),
+            # A green run: its shards ended with exit 0 and name no tests.
+            {"start": "2026-10-02T09:04:00Z", "worktree": "a", "seconds": 240,
+             "steps": [{"name": "test", "status": "passed", "seconds": 90,
+                        "shards": [{"shard": 1, "rc": 0, "seconds": 80}, {"shard": 2, "rc": 0, "seconds": 75}]}]},
+        ])  # fmt: skip
+        found = metrics.read_history([path], None, metrics.parse_time(UNTIL))
+        self.assertEqual([v["failed_tests"] for v in found], [[one["test"]], [one["test"], leak["test"]], [], []])
+        self.assertEqual(found[2]["shard_exits"], ["exit 3221225477 without results.xml"])
+        md, record, _compact = self.build(history=found)
+        text = "\n".join(md)
+        self.assertIn("| `a_test::test_one` | 2 |", text)
+        self.assertIn("| `b_test::test_b` | 1 |", text)
+        self.assertIn("| bots-enet | bots_main #N \\| a Correction outside a placement (epoch N, at (N, N, -N)) | 2 |",
+                      text)  # fmt: skip
+        self.assertIn("| test | shard N: exit N | 3 |", text)
+        self.assertIn("exit 100 1, exit 101 1, exit 3221225477 without results.xml 1.", text)
+        self.assertEqual(record["verifies"]["history file"][1]["failed_tests"], [one["test"], leak["test"]])
+        self.assertEqual(metrics.numbers_as_n("shard 2: GdUnit4 crashed (exit 3221225501); log: test-shard2.log"),
+                         "shard N: GdUnit4 crashed (exit N); log: test-shard2.log")  # fmt: skip
+        self.assertEqual(metrics.numbers_as_n("shard 12: probe_273_fail_test::test_2_steps (log: test-shard12.log)"),
+                         "shard N: probe_273_fail_test::test_2_steps (log: test-shard12.log)")  # fmt: skip
 
     def test_the_compact_summary(self) -> None:
         ci = {"runs": 3, "by_outcome": {"push success": 3}, "reruns": 0, "queue_s": 0.0, "green": 2,

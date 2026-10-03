@@ -19,6 +19,7 @@ import json
 import multiprocessing
 import os
 import random
+import re
 import socket
 import subprocess
 import sys
@@ -29,7 +30,7 @@ import unittest
 import uuid
 from collections import Counter
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -226,6 +227,7 @@ class StepRun:
     status: str  # "passed" or "FAILED"
     seconds: float
     output: str = ""
+    detail: dict[str, object] = field(default_factory=dict)  # the step's own fields of the history record
 
 
 Emit = Callable[[StepRun], None]
@@ -240,8 +242,18 @@ def lane_main(lane: str) -> int:
         seconds = time.monotonic() - started
         say()
         sys.stdout.flush()
-        print(MARK + json.dumps({"step": name, "rc": rc, "seconds": round(seconds, 1)}), flush=True)
+        mark: dict[str, object] = {"step": name, "rc": rc, "seconds": round(seconds, 1)}
+        detail = step_detail(name)
+        if detail:
+            mark["detail"] = detail
+        print(MARK + json.dumps(mark), flush=True)
     return 0
+
+
+def step_detail(name: str) -> dict[str, object] | None:
+    """A step's own fields of the history record, taken in the lane process right after it ran: `test`'s GdUnit4
+    processes and failing tests (gdunit.take_last_run, #273)."""
+    return gdunit.take_last_run() if name == "test" else None
 
 
 class LaneReader:
@@ -257,6 +269,7 @@ class LaneReader:
         try:
             data = json.loads(line[len(MARK) :]) if line.startswith(MARK) else None
             name, rc, seconds = str(data["step"]), data["rc"], float(data["seconds"])
+            detail = data.get("detail")
         except (TypeError, ValueError, KeyError):  # not a mark (or a broken one): part of the step's output
             self.lines.append(line)
             return
@@ -264,7 +277,9 @@ class LaneReader:
             self.lines.append(line)
             return
         self.waiting.remove(name)
-        self.emit(StepRun(name, self.lane, "passed" if rc == 0 else "FAILED", seconds, "".join(self.lines)))
+        status = "passed" if rc == 0 else "FAILED"
+        own = detail if isinstance(detail, dict) else {}
+        self.emit(StepRun(name, self.lane, status, seconds, "".join(self.lines), own))
         self.lines = []
 
     def close(self, why: str) -> None:
@@ -697,6 +712,48 @@ def git_facts(clean: bool) -> dict[str, str | None]:
     }
 
 
+# A red step's first failure line (#273): its first `FAIL` line, with the reason that line points at when the output
+# holds one (the first engine error line, or the first line under a bots or chaos run's FAILED header, such as
+# "a Correction outside a placement ..."), clipped like the failing tests' messages. Without a FAIL line: the reason,
+# else the output's last line. A reason is looked for only in the steps that run the game itself: a runner test's
+# traceback or a lint message can hold an indented "ERROR: " line that is not the cause.
+FAIL_LINE = "  FAIL  "
+REASON_STEPS = frozenset({"check", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"})
+RUN_FAILED_RE = re.compile(r"^(?:BOTS|CHAOS)\b.*\bFAILED\b")
+# What the runner puts before a Godot line it repeats: an indent, `-> ` (a FAIL line's detail) and `#<instance> `
+# (bots.show_failures over ENet).
+INSTANCE_RE = re.compile(r"^\s*(?:-> )?(?:#\d+ )?")
+INSTANCE_ONLY_RE = re.compile(r"^\s*#\d+ ")
+
+
+def first_failure(step: str, output: str) -> str:
+    lines = [gdunit.ANSI_RE.sub("", line).rstrip() for line in output.splitlines()]
+    head = next((line[len(FAIL_LINE) :].strip() for line in lines if line.startswith(FAIL_LINE)), "")
+    reason = ""
+    for index, line in enumerate(lines if step in REASON_STEPS else ()):
+        text = INSTANCE_RE.sub("", line, count=1)
+        if launch.ERROR_RE.match(text):
+            reason = text
+        elif RUN_FAILED_RE.match(text):
+            under = INSTANCE_ONLY_RE.sub("", lines[index + 1], count=1) if index + 1 < len(lines) else ""
+            reason = under.strip() if under.startswith("  ") and under.strip() else text
+        if reason:
+            break
+    if head and reason and reason not in head:
+        return gdunit.clip(f"{head} | {reason}")
+    return gdunit.clip(head or reason or next((line for line in reversed(lines) if line.strip()), ""))
+
+
+def step_record(step: StepRun) -> dict[str, object]:
+    """A step in the history record: name, lane, status and seconds; its own fields (`test`: shards, failing tests);
+    and when it is red, its first failure line."""
+    record: dict[str, object] = {"name": step.name, "lane": step.lane, "status": step.status,
+                                 "seconds": round(step.seconds, 1), **step.detail}  # fmt: skip
+    if step.status != "passed" and (line := first_failure(step.name, step.output)):
+        record["failure"] = line
+    return record
+
+
 def append_history(record: dict[str, object]) -> None:
     try:
         ensure_out()
@@ -783,9 +840,7 @@ def main(run_lane: RunLane = run_lane_process) -> int:
             **facts,
             "status": "FAILED" if failed else "passed",
             "seconds": round(seconds, 1),
-            "steps": [
-                {"name": s.name, "lane": s.lane, "status": s.status, "seconds": round(s.seconds, 1)} for s in ordered
-            ],
+            "steps": [step_record(s) for s in ordered],
             "lanes": {lane: round(wall, 1) for lane, wall in walls.items()},
             "cpus": os.cpu_count(),
             "workers": selftest_workers(),
