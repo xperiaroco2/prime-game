@@ -34,7 +34,6 @@ func test_a_quiet_word_opens_the_default_gate() -> void:
 	var opening := _ids(gate.feed(_sine(0.07), _frame(0), true, false))
 	assert_array(Array(opening)).contains_exactly([0])
 	assert_bool(gate.is_open()).is_true()
-	assert_float(VoiceGate.DEFAULT_THRESHOLD).is_greater_equal(VoiceGate.MIN_THRESHOLD)
 
 
 func test_a_sine_opens_voice_activity_with_the_pre_roll_first() -> void:
@@ -264,6 +263,10 @@ func test_the_threshold_stays_above_digital_silence() -> void:
 	gate.threshold = 2.0
 	assert_float(gate.threshold).is_equal(VoiceGate.MAX_THRESHOLD)
 	assert_float(VoiceGate.MIN_THRESHOLD).is_greater(0.0)
+	# The default is set without the clamping setter, so its bounds are checked here.
+	assert_float(VoiceGate.DEFAULT_THRESHOLD).is_between(
+		VoiceGate.MIN_THRESHOLD, VoiceGate.MAX_THRESHOLD
+	)
 
 
 func test_the_level_is_the_peak_of_either_channel() -> void:
