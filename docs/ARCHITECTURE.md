@@ -1968,13 +1968,15 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     decodes the next packet held with `conceal` (FEC or concealment) and skips the rest of a longer run (`lost`);
     a frame missing across a stop is skipped. It starts when the queue and the frames held reach the prebuffer and
     stops when the queue runs dry with nothing held; a held frame whose host tick is more than 2 past the last
-    decoded frame's is the next spurt, never decoded into a run still playing, so each spurt starts under its own
-    prebuffer. The prebuffer is chosen at each start: the largest spread of
+    decoded frame's is the next spurt, never decoded into a run still playing, so a spurt after a pause of more than
+    2 ticks starts under its own prebuffer (a spurt that only the late-arrival rule below sees plays on in the run
+    still playing). The prebuffer is chosen at each start: the largest spread of
     arrival offsets within one talk spurt over the last 2 s of frames, plus 20 ms, within 40 to 120 ms; a spurt
     starts when a frame arrives more than 60 ms after its due time or its host tick is more than 2 past the newest
     frame's. Under the tests' talk (polls 16.7 ms apart) it settles near 40, 59 and 105 ms at 0, 30 and 80 ms of
     jitter, with underruns only before the window has seen the jitter. Frames held 200 ms without starting are
-    discarded (`stale`); `fade_out()` lowers `gain()` to 0 over 50 ms, then says flush; `flush()` empties the held
+    discarded (`stale`), counted from their arrival or the latest stop, whichever is later, so a spurt held while a
+    burst-filled queue drained still plays its first syllable (M5-5, #219); `fade_out()` lowers `gain()` to 0 over 50 ms, then says flush; `flush()` empties the held
     frames, and a frame older than the flush arrives late. A stream that restarts at seq 0 gets a new `VoiceJitter`.
     No queue cap after a burst (the manager's call, until the listening test shows a problem); `VoicePlayback.push`
     does not check for room either, so its caller (M5-5) checks `free_frames()` first and drops a frame that does

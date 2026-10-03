@@ -13,10 +13,13 @@ extends RefCounted
 ## - Start and stop: playback starts when the queue and the frames held reach the prebuffer, and
 ##   stops when the queue runs dry with nothing held: a talk spurt ended, or an underrun. The next
 ##   frame starts again under a fresh prebuffer. A held frame whose host tick is more than
-##   SPURT_TICKS past the last decoded frame's begins a new spurt: it is not decoded into a run
-##   still playing, which runs dry and stops first, so every spurt starts under its own prebuffer.
-##   Frames held without starting for STALE_USEC are discarded (`stale`), so old speech never
-##   plays in front of the speaker's next spurt.
+##   SPURT_TICKS past the last decoded frame's is not decoded into a run still playing, which runs
+##   dry and stops first: a spurt after a pause of more than SPURT_TICKS ticks starts under its own
+##   prebuffer. Only the tick jump splits a run here; a spurt that only the late-arrival rule
+##   below sees (a pause within SPURT_TICKS ticks) plays on in the run still playing.
+##   Frames held without starting for STALE_USEC are discarded (`stale`), counted from their
+##   arrival or from the latest stop, whichever is later (a spurt held while a long queue drained
+##   is not stale at the restart), so old speech never plays in front of the speaker's next spurt.
 ## - The adaptive prebuffer: at each start, the largest spread of the arrival offsets within one
 ##   talk spurt over the last WINDOW_USEC of frames, plus a frame, within MIN_PREBUFFER_USEC and
 ##   MAX_PREBUFFER_USEC. A frame's offset is its arrival against its spurt's first frame's arrival
@@ -101,6 +104,8 @@ var _has_updated := false
 var _step := FRAME_USEC
 ## When fade_out() was called, or -1.
 var _fade_start := -1
+## When the latest run stopped: frames held while it played count as held from then.
+var _stopped_at := 0
 
 
 ## One decoded slot: `frame` decoded as is, or with `conceal` the slot before it.
@@ -175,6 +180,7 @@ func update(queued_usec: int, now_usec: int) -> Array[Decode]:
 	if was_running and queued_usec <= 0:
 		if out.is_empty():
 			running = false
+			_stopped_at = now_usec
 			_command = Command.STOP
 		else:
 			underruns += 1
@@ -218,11 +224,12 @@ func pending_frames() -> int:
 	return _pending.size()
 
 
-## Discards stale frames, then starts if the queue and the frames held reach the prebuffer.
+## Discards stale frames (held STALE_USEC since their arrival or the latest stop), then
+## starts if the queue and the frames held reach the prebuffer.
 func _try_start(queued_usec: int, now_usec: int) -> bool:
 	for seq: int in _pending.keys():
-		var arrival: int = _pending[seq][2]
-		if now_usec - arrival > STALE_USEC:
+		var held_since := maxi(_pending[seq][2] as int, _stopped_at)
+		if now_usec - held_since > STALE_USEC:
 			_pending.erase(seq)
 			stale += 1
 	if _pending.is_empty():
