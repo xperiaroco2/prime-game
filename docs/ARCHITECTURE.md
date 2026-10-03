@@ -938,7 +938,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     (`TICK_LEAD`) a jump after the first claim would overrun (M4-9's netcode review). The client
     tick counts `Ticks.RATE` ticks from the first step; a step sends at
     most one claim, so after a freeze one claim carries the newest client tick. The mover gives the claim's motion
-    (`set_motion`, `count_jump`) and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
+    (`set_motion`, `count_jump`; `set_facing` for a turn outside its physics step, the respawn's level look, #191)
+    and adopts each `Correction` (the `corrected` signal); `Welcome` and `Correction`
     reset the jump count and put the claims at the host's position.
   - A client claims when its own copy of the current phase accepts `MoveClaim` from it: a player, living or downed
     by its own life fold, and the host's own player as peer 1 (`AcceptSpec.From`); never while dead, whatever the
@@ -1357,7 +1358,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 **Movement on the network.**
 - **Claims:** every physics step the controller calls `set_motion` (its position and velocity; as the facing, the
   camera's 3D look vector, at most 89° up or down; whether it sprints, gives movement input and stands on the floor)
-  and `count_jump` at a jump; `ClientSession` sends one claim per 20 Hz client tick (§4.6). The facing's pitch needs
+  and `count_jump` at a jump, and `set_facing` when it turns outside the step (the respawn's level look, #191);
+  `ClientSession` sends one claim per 20 Hz client tick (§4.6). The facing's pitch needs
   no wire or `core/` change (E22): `Strike.horizontal`, `Swung` and `PutDownInFront` flatten it, and `MovementRule`
   only requires it finite; the snapshot's avatar then carries it, for remote heads and the spectate camera. Snapshots
   stay at 20 Hz, since the spectate camera is built from them. A relayed facing can be degenerate even in honest play
@@ -1479,8 +1481,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   so an uncut sound would tell every client through the walls where a package was just put down. Occlusion is M5's.
 - **Respawn:** `Respawned` of the own player and its `Correction` put the controller at the marker in first person
   again, looking level (head pitch 0) with the yaw it had, as at the round's start (the engineer's answer on #191:
-  the markers carry no facing); the spectate camera and the lift music stop. After `Revived` the controller stands up where it lay, in first
-  person; a revive sends no `Correction` (M4-4: the raise held the downed player where the host has it).
+  the markers carry no facing); the spectate camera and the lift music stop. After `Revived` the controller stands
+  up where it lay, in first person; a revive sends no `Correction` (M4-4: the raise held the downed player where
+  the host has it).
 - **Others:** a `RemotePlayerBody` shows its facing (a head that turns and nods), the hand item at a hand attach
   point, the belt item at a belt attach point, a two-handed package held in front, the downed pose and its layer, and
   invulnerability (the avatar's flag). A body (`Died`) is a view of its own, removed at `Respawned` or `PlayerLeft`.
