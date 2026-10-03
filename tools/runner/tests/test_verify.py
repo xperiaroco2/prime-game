@@ -366,23 +366,26 @@ class HistoryDetailTest(unittest.TestCase):
                 "        ->    at: push_error (core/variant/variant_utility.cpp:1024)\n")  # fmt: skip
         one_process = ("BOTS refusals: FAILED (seed 1) 2.0s\n  the host accepted a vote of a downed player\n"
                        "  FAIL  bots_main #1: exited 1 (log: tools/out/logs/run/bots_main-1.log)\n")  # fmt: skip
-        cases = {
-            BOTS_ENET_OUT: "bots_main #2: exited 1 (log: tools/out/logs/run/bots_main-2.log) | a Correction outside a "
-            "placement (epoch 3, at (1.5, 0, -2)): an honest bot is never corrected",
-            enet: "enet_host_and_two_clients #1: exited 1 (log: tools/out/logs/run/x-1.log) | "
-            "ERROR: NET instance 1 FAIL: no Welcome within 10 s",
-            one_process: "bots_main #1: exited 1 (log: tools/out/logs/run/bots_main-1.log) | "
-            "the host accepted a vote of a downed player",
-            "CHAOS seed 188001: FAILED (timeout, 900 ms)\n": "CHAOS seed 188001: FAILED (timeout, 900 ms)",
-            "selftest\n  FAIL  runner.tests.test_x.T.test_y: AssertionError: 1 != 2\n        Traceback\n":
-                "runner.tests.test_x.T.test_y: AssertionError: 1 != 2",
-            "lint\nsomething went wrong\nlint: FAILED\n\n": "lint: FAILED",
-            "": "",
-        }  # fmt: skip
-        for output, line in cases.items():
-            with self.subTest(output=output[:30]):
-                self.assertEqual(verify.first_failure(output), line)
-        long = verify.first_failure("  FAIL  " + "x" * 1000)
+        # A runner test's traceback can echo an engine-like line; only the steps that run the game look for a reason.
+        traceback = ("selftest\n  FAIL  runner.tests.test_x.T.test_y: AssertionError: 1 != 2\n"
+                     "        ERROR: a fixture line the test echoed\n")  # fmt: skip
+        cases = [
+            ("bots-enet", BOTS_ENET_OUT, "bots_main #2: exited 1 (log: tools/out/logs/run/bots_main-2.log) | a "
+             "Correction outside a placement (epoch 3, at (1.5, 0, -2)): an honest bot is never corrected"),
+            ("enet", enet, "enet_host_and_two_clients #1: exited 1 (log: tools/out/logs/run/x-1.log) | "
+             "ERROR: NET instance 1 FAIL: no Welcome within 10 s"),
+            ("bots", one_process, "bots_main #1: exited 1 (log: tools/out/logs/run/bots_main-1.log) | "
+             "the host accepted a vote of a downed player"),
+            ("chaos", "CHAOS seed 188001: FAILED (timeout, 900 ms)\n", "CHAOS seed 188001: FAILED (timeout, 900 ms)"),
+            ("selftest", traceback, "runner.tests.test_x.T.test_y: AssertionError: 1 != 2"),
+            ("selftest-godot", traceback, "runner.tests.test_x.T.test_y: AssertionError: 1 != 2"),
+            ("lint", "lint\n  ERROR: not an engine line\nlint: FAILED\n\n", "lint: FAILED"),
+            ("game", "", ""),
+        ]  # fmt: skip
+        for step, output, line in cases:
+            with self.subTest(step=step):
+                self.assertEqual(verify.first_failure(step, output), line)
+        long = verify.first_failure("test", "  FAIL  " + "x" * 1000)
         self.assertEqual(len(long), verify.gdunit.MESSAGE_CAP)
 
     def test_a_red_step_without_any_output_has_no_failure_field(self) -> None:

@@ -896,7 +896,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
   at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
   `selftest` (run, skipped) and `slot` (below; null without one). Since #273 a red step adds `failure`, its first
-  `FAIL` line with the reason under it when the output has one (the first engine error line, or the first line under
+  `FAIL` line with the reason under it when a step that runs the game (`check`, `enet` to `game`) printed one (the
+  first engine error line, or the first line under
   a `BOTS`/`CHAOS` FAILED header, such as `bots-enet`'s "a Correction outside a placement", #284); the `test` step adds
   `shards` (each GdUnit4 process's `shard`, `rc` and `seconds`, plus `results: false` when it wrote no
   `results.xml`, such as a crash's 3221225477, `timed_out` and an `error` that kept it from starting; shard 1 is the

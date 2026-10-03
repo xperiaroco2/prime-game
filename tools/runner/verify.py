@@ -715,8 +715,10 @@ def git_facts(clean: bool) -> dict[str, str | None]:
 # A red step's first failure line (#273): its first `FAIL` line, with the reason that line points at when the output
 # holds one (the first engine error line, or the first line under a bots or chaos run's FAILED header, such as
 # "a Correction outside a placement ..."), clipped like the failing tests' messages. Without a FAIL line: the reason,
-# else the output's last line.
+# else the output's last line. A reason is looked for only in the steps that run the game itself: a runner test's
+# traceback or a lint message can hold an indented "ERROR: " line that is not the cause.
 FAIL_LINE = "  FAIL  "
+REASON_STEPS = frozenset({"check", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"})
 RUN_FAILED_RE = re.compile(r"^(?:BOTS|CHAOS)\b.*\bFAILED\b")
 # What the runner puts before a Godot line it repeats: an indent, `-> ` (a FAIL line's detail) and `#<instance> `
 # (bots.show_failures over ENet).
@@ -724,11 +726,11 @@ INSTANCE_RE = re.compile(r"^\s*(?:-> )?(?:#\d+ )?")
 INSTANCE_ONLY_RE = re.compile(r"^\s*#\d+ ")
 
 
-def first_failure(output: str) -> str:
+def first_failure(step: str, output: str) -> str:
     lines = [gdunit.ANSI_RE.sub("", line).rstrip() for line in output.splitlines()]
     head = next((line[len(FAIL_LINE) :].strip() for line in lines if line.startswith(FAIL_LINE)), "")
     reason = ""
-    for index, line in enumerate(lines):
+    for index, line in enumerate(lines if step in REASON_STEPS else ()):
         text = INSTANCE_RE.sub("", line, count=1)
         if launch.ERROR_RE.match(text):
             reason = text
@@ -747,7 +749,7 @@ def step_record(step: StepRun) -> dict[str, object]:
     and when it is red, its first failure line."""
     record: dict[str, object] = {"name": step.name, "lane": step.lane, "status": step.status,
                                  "seconds": round(step.seconds, 1), **step.detail}  # fmt: skip
-    if step.status != "passed" and (line := first_failure(step.output)):
+    if step.status != "passed" and (line := first_failure(step.name, step.output)):
         record["failure"] = line
     return record
 
