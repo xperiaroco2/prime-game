@@ -85,17 +85,37 @@ func test_the_dead_hear_from_a_living_targets_eye_then_from_its_body_when_it_goe
 	assert_vector(_life.ears().global_position).is_equal_approx(eye, Vector3.ONE * 1e-3)
 	_model.lives[TARGET] = ClientModel.Life.DOWNED
 	await _drawn()
-	# A target going down is replaced by a new first target; with none left, the own body.
+	# The only other player, so it stays the target from the downed pool: its body's head.
+	assert_int(_life.target()).is_equal(TARGET)
 	var body := _avatars.body_of(TARGET)
-	var heard := _life.ears().global_position
-	if _life.target() == TARGET:
-		var head := Ears.lying_head(body.global_transform, _mode.player_rules)
-		assert_vector(heard).is_equal_approx(head, Vector3.ONE * 1e-3)
-	else:
-		var own := Ears.lying_head(
-			Transform3D(Basis.IDENTITY, Vector3(0, 0, 5)), _mode.player_rules
-		)
-		assert_vector(heard).is_equal_approx(own, Vector3.ONE * 1e-3)
+	var head := Ears.lying_head(body.global_transform, _mode.player_rules)
+	assert_vector(_life.ears().global_position).is_equal_approx(head, Vector3.ONE * 1e-3)
+
+
+func test_the_dead_with_no_target_hear_from_their_own_body_not_the_controller() -> void:
+	# Nobody else: no target. The body lies where it died, away from the controller, which is turned.
+	_model.roster.erase(TARGET)
+	_player.look(1.2, 0.0)
+	_model.lives[OWN] = ClientModel.Life.DEAD
+	_model.bodies[OWN] = Vector3(3, 0, -2)
+	_player.life = ClientModel.Life.DEAD
+	await _drawn()
+	assert_int(_life.target()).is_equal(0)
+	var own := Ears.lying_head(Transform3D(Basis.IDENTITY, Vector3(3, 0, -2)), _mode.player_rules)
+	assert_vector(_life.ears().global_position).is_equal_approx(own, Vector3.ONE * 1e-3)
+
+
+func test_the_ears_turn_with_the_current_camera_living_and_downed() -> void:
+	# Left and right match the screen: a sound on the screen's left is heard on the left.
+	_player.look(PI / 2.0, 0.3)
+	await _drawn()
+	_assert_ears_turned_with_the_camera()
+	_model.lives[OWN] = ClientModel.Life.DOWNED
+	_player.life = ClientModel.Life.DOWNED
+	_player.look(-0.7, 0.0)
+	await _drawn()
+	assert_object(get_viewport().get_camera_3d()).is_same(_life.downed_camera().camera())
+	_assert_ears_turned_with_the_camera()
 
 
 func test_the_ears_are_let_go_when_the_session_ends() -> void:
@@ -122,6 +142,14 @@ func test_world_sounds_measure_from_the_ears() -> void:
 	assert_float(at.distance_to(camera)).is_greater(SoundChooser.HEARING_RANGE_M)
 	sounds.on_event(&"ItemPlaced", {"item": 5, "position": at, "cause": &"put_down"})
 	assert_int(sounds.played()).is_equal(1)
+
+
+func _assert_ears_turned_with_the_camera() -> void:
+	var camera := get_viewport().get_camera_3d().global_basis
+	var ears := _life.ears().global_basis
+	assert_float(camera.x.dot(Vector3.RIGHT)).is_less(0.9)
+	for axis: int in 3:
+		assert_vector(ears[axis]).is_equal_approx(camera[axis], Vector3.ONE * 1e-3)
 
 
 func _others_at(at: Vector3) -> void:
