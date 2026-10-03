@@ -341,10 +341,12 @@ func test_text_has_and_lacks_time_out_and_then_hold_when_the_text_changes() -> v
 	for wait: Dictionary in [
 		_text("esc.tabs", "has", "Voice", 1.0), _text("esc.tabs", "lacks", "Lobby", 1.0)
 	]:
-		var steps := _steps([wait], view)
-		steps.advance(0)
-		steps.advance(1000)
-		assert_str(steps.failure).ends_with("the window saw esc.tabs 'Resume, Lobby, Leave, Quit'")
+		var failing := _steps([wait], view)
+		failing.advance(0)
+		failing.advance(1000)
+		assert_str(failing.failure).ends_with(
+			"the window saw esc.tabs 'Resume, Lobby, Leave, Quit'"
+		)
 	view.texts["esc.tabs"] = "Resume, Voice, Leave, Quit"
 	var steps := _steps(
 		[_text("esc.tabs", "has", "Voice", 1.0), _text("esc.tabs", "lacks", "Lobby", 1.0)], view
