@@ -196,6 +196,10 @@ func test_a_speaker_who_leaves_is_flushed_and_freed() -> void:
 	var dropped := _voices.dropped
 	_world.speak(TALKER, 3, 99)
 	assert_int(_voices.dropped).is_equal(dropped + 3)
+	# Out of the tree and only queued, it would outlive the test: an orphan on CI's Linux (#249).
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(is_instance_valid(speaker)).is_false()
 
 
 func test_the_own_peer_and_an_unavailable_codec_play_nothing() -> void:
