@@ -1312,8 +1312,9 @@ host's own player sees only what its `ClientSession` decoded.
 
 Under load or after a hitch Godot runs several physics frames in one idle frame. Between them `ClientModel` and
 `Game.screen()` can already be on the next phase while the screens, their texts and the local player's input flags
-and physics step, which `Game._process` sets, still follow the previous one; nothing is drawn in between. A test that
-reads those waits until `game.ui.screen` shows the screen it waited for (#225).
+and physics step, which `Game._process` sets, still follow the previous one; nothing is drawn in between, but a player
+can step and claim a few frames into a frozen phase (#241). A test that reads those waits until `game.ui.screen`
+shows the screen it waited for; game_loop_test checks that wait with `Game._process` off (#225).
 
 **The flow.**
 
