@@ -3,8 +3,8 @@ extends SceneTree
 ## TwoVoipCodec's boundary, as the M1 spike's codec_roundtrip.gd did it. On Windows with the addon
 ## in addons/twovoip/ (M5-3, and any PR that changes the codec adapter), headless:
 ##   tools\run.cmd run tests/integration/voice/twovoip_roundtrip.gd --headless
-## Without the addon it prints "ROUNDTRIP SKIP" and exits 0. It is not a verify step: CI removes
-## the addon (E35), and tests never load it.
+## Without the addon it prints "ROUNDTRIP SKIP" and exits 0. It is not a verify step: CI deletes
+## the addon's .gdextension (E35), and tests never load it.
 ##
 ## - The round trip: 2 s of a sine, 440 Hz and then 660 Hz from frame LOST on, encoded 20 ms at a
 ##   time (no denoiser: a tone is not speech), decoded into a playback and mixed back; it must keep
@@ -13,8 +13,8 @@ extends SceneTree
 ## - The probe: the same frames with frame LOST missing, decoded from the next packet with
 ##   `conceal` as VoiceJitter asks for it. In the lost frame's last 10 ms, FEC rebuilds the new
 ##   660 Hz from the data the next packet carries, while concealment can only extrapolate the 440 Hz
-##   before the gap. It prints which, for M5-3's PR to record (whether v6.5 turns in-band FEC on is
-##   unknown); it does not fail the run.
+##   before the gap. It prints which and does not fail the run. M5-3 saw CONCEALMENT with
+##   TwoVoipEncoder's settings (ARCHITECTURE §6): FEC here would mean a changed addon or encoder.
 ## - The flush: five frames pushed into a real AudioStreamPlayer3D's playback, then
 ##   TwoVoipPlayback.flush() (stop, then play again for a fresh playback) must leave none queued.
 ##   v6.5 has no call that empties the queue (M5-3). A FAIL here fails the run.
