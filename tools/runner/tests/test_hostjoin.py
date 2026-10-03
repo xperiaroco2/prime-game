@@ -143,7 +143,7 @@ class WindowsTest(unittest.TestCase):
             (hostjoin, "write_logs", mock.MagicMock()),
             (hostjoin, "report", mock.MagicMock(return_value=0)),
             (hostjoin, "screen_area", mock.MagicMock(return_value=AREA)),
-            (hostjoin.launch, "import_if_missing", mock.MagicMock()),
+            (hostjoin.launch, "ensure_import", mock.MagicMock()),
             (hostjoin.shot, "has_display", mock.MagicMock(return_value=True)),
         ):
             patcher = mock.patch.object(target, name, value)
@@ -295,7 +295,7 @@ class GameCheckTest(unittest.TestCase):
             mock.patch.object(verify, "free_udp_port", return_value=23459),
             mock.patch.object(hostjoin, "require_godot", return_value="godot"),
             mock.patch.object(hostjoin, "ensure_out"),
-            mock.patch.object(hostjoin.launch, "import_if_missing"),
+            mock.patch.object(hostjoin.launch, "ensure_import"),
             mock.patch.object(hostjoin, "supervise", supervise),
             mock.patch.object(hostjoin, "write_logs"),
             mock.patch.object(hostjoin, "report", return_value=0),

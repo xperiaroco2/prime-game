@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from unittest import mock
 
-from runner import verify
+from runner import common, slots, verify
 from runner.common import ROOT, Failure
 
 GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"]
@@ -102,9 +102,11 @@ class Verify:
         doctor: int = 0,
         status: object = None,
         counted: tuple[list[str], str] = ([], "runner tests: 2 run and 0 skipped of 2; a serial run: 2 run of 2"),
+        pool: slots.Pool | None = None,
     ) -> tuple[int, str, dict[str, object]]:
         out = io.StringIO()
         with (
+            mock.patch.object(verify, "slot_pool", return_value=(pool, "no limit (a test)")) as self.slot_pool,
             mock.patch.object(verify.doctor, "main", return_value=doctor),
             mock.patch.object(verify, "git_status", side_effect=status if status is not None else [set(), set()]),
             mock.patch.object(
@@ -255,8 +257,9 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(
             set(record),
             {"start", "worktree", "branch", "head", "tree", "runner", "status", "seconds", "steps", "lanes", "cpus",
-             "workers", "selftest"},  # fmt: skip
+             "workers", "selftest", "slot"},  # fmt: skip
         )
+        self.assertIsNone(record["slot"])  # no slot pool: CI, or a verify inside a verify
         self.assertRegex(str(record["start"]), r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
         self.assertEqual(record["worktree"], ROOT.as_posix())
         self.assertEqual((record["branch"], record["tree"], record["runner"]), ("b", "t", "r"))
@@ -300,6 +303,90 @@ class LaneTest(unittest.TestCase):
         self.assertEqual((marks["check"], marks["enet"], marks["test"]), (1, 1, 0))
         self.assertIn("FAIL  no Godot", out.getvalue())
         self.assertIn("RuntimeError: bug", out.getvalue())
+
+
+class SlotTest(unittest.TestCase):
+    """verify takes one of the machine-wide slots (#185) after doctor, for its lanes, and records the wait."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.where = Path(tmp.name)
+        self.said: list[str] = []
+
+    def pool(self, count: int = 1, max_wait: float = 0.0, name: str = "this") -> slots.Pool:
+        pool = slots.Pool(self.where, count, max_wait, me={"worktree": f"D:/wt/{name}"}, say=self.said.append)
+        self.addCleanup(pool.release)
+        return pool
+
+    def test_the_lanes_run_in_a_slot_that_is_released_afterwards(self) -> None:
+        held: list[bool] = []
+
+        def run_lane(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            held.append(self.pool(name="probe").try_take() is None)  # the slot is taken while the lanes run
+            fake_lane()(lane, names, emit)
+
+        rc, text, record = Verify(self).run(run_lane, pool=self.pool())
+        self.assertEqual((rc, held), (0, [True, True]))
+        self.assertEqual(record["slot"], {"slot": 1, "of": 1, "waited": 0.0, "over": False, "reclaimed": 0})
+        self.assertIn("  slot: 1 of 1, waited 0.0s for a verify slot", text.splitlines())
+        end = r"^verify: passed in [\d.]+s \(after [\d.]+s waiting for a verify slot\)$"
+        self.assertRegex(text.splitlines()[-1], end)
+        self.assertEqual(self.pool(name="next").acquire().slot, 1)
+
+    def test_a_red_or_crashed_run_releases_its_slot(self) -> None:
+        def crash(lane: str, names: tuple[str, ...], emit: verify.Emit) -> None:
+            raise RuntimeError("the lane crashed")
+
+        for run_lane in (fake_lane({"freeze": "FAILED"}), crash):
+            with self.subTest(run_lane=run_lane), contextlib.redirect_stdout(io.StringIO()):
+                rc, _text, _record = Verify(self).run(run_lane, pool=self.pool())
+                self.assertEqual(rc, 1)
+                after = self.pool(name="next")
+                self.assertEqual(after.try_take(), (1, None))  # free, and not left behind as a stale holder
+                after.release()
+
+    def test_a_run_past_the_longest_wait_runs_every_step_over_the_limit_and_says_so(self) -> None:
+        self.pool(name="busy").acquire()
+        ran: list[str] = []
+        with stub_steps(ran):
+            rc, text, record = Verify(self).run(inline_lane, pool=self.pool(max_wait=0.0))
+        self.assertEqual(rc, 0)  # over the limit is a warning, never a skipped or failed step
+        self.assertEqual(sorted(ran), sorted(set(verify.STEP_ORDER) - {"doctor"}))
+        self.assertEqual(record["slot"], {"slot": None, "of": 1, "waited": 0.0, "over": True, "reclaimed": 0})
+        self.assertIn("ran over the limit", text)
+        self.assertIn("D:/wt/busy", text)
+        self.assertIn("OVER THE LIMIT", text.splitlines()[-1])
+        self.assertTrue(any("OVER THE LIMIT" in line for line in self.said), self.said)
+
+    def test_the_run_time_leaves_the_wait_out(self) -> None:
+        pool = self.pool()
+        pool.acquire = mock.MagicMock(return_value=slots.Taken(1, 1, 120.0))  # type: ignore[method-assign]
+        _rc, text, record = Verify(self).run(fake_lane(), pool=pool)
+        self.assertEqual(record["slot"]["waited"], 120.0)  # type: ignore[index]
+        self.assertLess(float(str(record["seconds"])), 60.0)
+        self.assertIn("(after 120.0s waiting for a verify slot)", text.splitlines()[-1])
+
+    def test_a_red_doctor_takes_no_slot(self) -> None:
+        harness = Verify(self)
+        _rc, _text, record = harness.run(mock.MagicMock(), doctor=1, pool=self.pool())
+        harness.slot_pool.assert_not_called()
+        self.assertIsNone(record["slot"])
+
+    def test_no_slot_inside_a_verify_or_on_ci(self) -> None:
+        facts = {"branch": "b"}
+        with mock.patch.dict(os.environ, {verify.INSIDE_VAR: "1"}):
+            self.assertIsNone(verify.slot_pool(facts)[0])
+        with mock.patch.dict(os.environ), mock.patch.object(verify, "IS_CI", True):
+            os.environ.pop(verify.INSIDE_VAR, None)
+            self.assertEqual(verify.slot_pool(facts), (None, "no limit on CI"))
+        with mock.patch.dict(os.environ, {slots.DIR_VAR: str(self.where), slots.COUNT_VAR: "3"}):
+            os.environ.pop(verify.INSIDE_VAR, None)
+            with mock.patch.object(verify, "IS_CI", False):
+                pool, _why = verify.slot_pool(facts)
+        assert pool is not None
+        me = {"worktree": ROOT.as_posix(), "branch": "b"}
+        self.assertEqual((pool.count, pool.where, pool.me), (3, self.where, me))
 
 
 class LaneProcessTest(unittest.TestCase):
@@ -391,13 +478,24 @@ class T(unittest.TestCase):
 GROUP_FIXTURE = '''
 import os
 import unittest
+from pathlib import Path
 
+from runner.common import app_data_dir
 from runner.verify import starts_godot
+
+
+def godot_writes_its_user_dir(name):
+    """What a Godot start does: a folder in app_userdata/ of the app-data folder it was given."""
+    base = app_data_dir()
+    if base is not None:
+        (base / "Godot" / "app_userdata" / name / "logs").mkdir(parents=True, exist_ok=True)
+        (base / "Godot" / "app_userdata" / name / "logs" / "godot.log").write_text("x", encoding="utf-8")
 
 
 class NoGodot(unittest.TestCase):
     def test_one(self):
-        pass
+        if os.environ.get("SELFTEST_FIXTURE_LEAK"):
+            godot_writes_its_user_dir("PrimeGame-182-abcdef")
 
     def test_two(self):
         if os.environ.get("SELFTEST_FIXTURE_FAIL"):
@@ -407,12 +505,14 @@ class NoGodot(unittest.TestCase):
 @starts_godot
 class WithGodot(unittest.TestCase):
     def test_three(self):
-        pass
+        godot_writes_its_user_dir("PrimeGame-182-fedcba")
 '''
 
 
 class SelftestTest(unittest.TestCase):
-    def selftest_on_fixture(self, group: str, fail: bool = False) -> tuple[int, dict[str, object] | None, str]:
+    def selftest_on_fixture(
+        self, group: str, fail: bool = False, leak: bool = False
+    ) -> tuple[int, dict[str, object] | None, str]:
         """selftest(group) over GROUP_FIXTURE in temp logs; its rc, its results record and its printed text."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
@@ -423,7 +523,15 @@ class SelftestTest(unittest.TestCase):
         self.addCleanup(sys.modules.pop, name, None)
         tests = list(verify._flatten(unittest.defaultTestLoader.loadTestsFromName(name)))
         logs = Path(tmp.name) / "logs"
-        env = {verify.RUN_ID_VAR: "run-1", **({"SELFTEST_FIXTURE_FAIL": "1"} if fail else {})}
+        env = {
+            verify.RUN_ID_VAR: "run-1",
+            **({"SELFTEST_FIXTURE_FAIL": "1"} if fail else {}),
+            **({"SELFTEST_FIXTURE_LEAK": "1"} if leak else {}),
+        }
+        # This process's app-data folder, as selftest finds it: the real one outside a test, so a temporary one here.
+        var = common.app_data_var()
+        if var is not None:
+            env[var] = str(Path(tmp.name) / "outer")
         with (
             mock.patch.dict(os.environ, env),
             mock.patch.object(verify, "discover", return_value=tests),
@@ -459,6 +567,44 @@ class SelftestTest(unittest.TestCase):
         self.assertIn("AssertionError: asked to", text)
         self.assertIn("selftest: FAILED", text)
 
+    def test_a_test_that_writes_to_the_app_data_folder_outside_a_godot_class_fails_the_run(self) -> None:
+        # #233: selftest's workers get a stand-in app-data folder; a @starts_godot class writes to its own instead.
+        if common.app_data_var() is None:
+            self.skipTest("no app-data variable on this OS")
+        for group in ("python", "godot"):
+            rc, _record, text = self.selftest_on_fixture(group)
+            self.assertEqual(rc, 0, text)
+            self.assertNotIn("wrote to the app-data folder", text)
+        rc, _record, text = self.selftest_on_fixture("python", leak=True)
+        self.assertEqual(rc, 1, text)
+        self.assertIn(
+            "runner tests wrote to the app-data folder, which outside selftest is the real one: "
+            "Godot/app_userdata/PrimeGame-182-abcdef/logs/godot.log",
+            text,
+        )
+        self.assertIn("selftest: FAILED", text)
+
+    def test_app_data_written_names_at_most_a_few_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            self.assertEqual(verify.app_data_written(None), [])
+            self.assertEqual(verify.app_data_written(folder), [])
+            (folder / "Godot").mkdir()  # an empty folder is no write
+            self.assertEqual(verify.app_data_written(folder), [])
+            for n in range(7):
+                (folder / "Godot" / f"f{n}.txt").write_text("x", encoding="utf-8")
+            self.assertEqual(verify.app_data_written(folder, limit=2), ["Godot/f0.txt", "Godot/f1.txt", "and 5 more"])
+
+    def test_app_data_written_names_an_empty_user_dir_folder(self) -> None:
+        # Godot makes the user:// folder before it writes any file into it: an empty one is still a leak.
+        for godot in ("Godot", "godot"):
+            with self.subTest(godot), tempfile.TemporaryDirectory() as tmp:
+                folder = Path(tmp)
+                (folder / godot / "app_userdata").mkdir(parents=True)
+                self.assertEqual(verify.app_data_written(folder), [])
+                (folder / godot / "app_userdata" / "PrimeGame-182-abcdef").mkdir()
+                self.assertEqual(verify.app_data_written(folder), [f"{godot}/app_userdata/PrimeGame-182-abcdef/"])
+
     def test_the_godot_group_is_every_class_that_needs_godot(self) -> None:
         # A class whose skip asks for godot_bin() starts Godot: it must carry @starts_godot, and only such a class.
         needs, marked = set(), set()
@@ -476,6 +622,7 @@ class SelftestTest(unittest.TestCase):
             {
                 "test_godot_tools.RealNormalizeTest",
                 "test_hostjoin.RealSessionTest",
+                "test_import_freshness.RealStaleCacheTest",
                 "test_launch.RealRunTest",
                 "test_user_dir.RealUserDirTest",
             },

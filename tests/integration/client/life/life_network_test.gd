@@ -134,8 +134,10 @@ func test_the_dead_stay_dead_spectate_and_respawn_in_first_person() -> void:
 	assert_vector(camera_at).is_equal_approx(eye, Vector3.ONE * 0.01)
 	var shown := life.hud(float(_pair.client.avatars().host_tick()))
 	assert_str(shown.title).is_equal("Dead")
-	# The HUD names the target, and shows none of the spectator's own numbers (#168).
-	await _pair.frames(1)
+	# The HUD names the target, and shows none of the spectator's own numbers (#168). Game._process
+	# writes the HUD: the second process_frame comes after a _process that saw the death (#222).
+	await get_tree().process_frame
+	await get_tree().process_frame
 	var hud := _pair.client.ui.hud
 	assert_str(hud.spectating_label.text).is_equal("Spectating Player1")
 	assert_bool(hud.spectating_label.visible).is_true()

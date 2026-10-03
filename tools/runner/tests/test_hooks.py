@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import unittest.mock
 from pathlib import Path
@@ -155,6 +156,29 @@ class PostEditTest(unittest.TestCase):
         errors, warnings = hooks.engine_lines(Result(1, out, False, 0.0))
         self.assertEqual(errors, ['core/x.gd:4: Parse Error: Expected expression after "=".'])
         self.assertEqual(warnings, ["core/y.gd:9: The local variable is unused (UNUSED_VARIABLE)"])
+
+    def test_the_import_after_a_failed_check_is_recorded_for_the_next_launch(self) -> None:
+        """The hook imports when a new class_name is not in the class cache yet; like every import through the runner
+        it records the stamp, so the next `run` or `host` reports `import: current` instead of importing again."""
+        from runner import check, common
+
+        failing = "CHECK error res://core/x.gd:3: Identifier \"Beta\" not declared.\nCHECK summary files=1 errors=1\n"
+        passing = "CHECK summary files=1 errors=0 warnings=0\n"
+        replies = [Result(1, failing, False, 0.1), Result(0, "", False, 0.1), Result(0, passing, False, 0.1)]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".godot").mkdir()
+            (root / check.CLASS_CACHE).write_text("list=[]\n", encoding="utf-8")
+            (root / "x.gd").write_text("extends RefCounted\n", encoding="utf-8")
+            started = time.time()
+            with unittest.mock.patch.object(common, "ROOT", root), \
+                    unittest.mock.patch.object(common, "godot", side_effect=replies) as godot:  # fmt: skip
+                self.assertEqual(hooks.engine_check("res://core/x.gd"), ([], []))
+            self.assertEqual(godot.call_args_list[1].args[0], ["--headless", "--import"])
+            stamp = check.stamp_time(root)
+            assert stamp is not None
+            self.assertGreaterEqual(stamp, started)
+            self.assertEqual(check.freshness(root).why, "")
 
 
 class GitFilesTest(unittest.TestCase):

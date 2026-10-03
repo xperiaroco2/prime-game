@@ -454,7 +454,7 @@ def _run(
     # The console exe in windows too: it opens the window and relays the lines the runner reads (HOSTING).
     exe = require_godot()
     ensure_out()
-    launch.import_if_missing()
+    launch.ensure_import()
     if windows:
         set_game_commands(parts, exe, headless=False)
     else:
@@ -528,7 +528,7 @@ def game_check(port: int, *, seconds: int = GAME_CHECK_SECONDS) -> int:
     say("game")
     exe = require_godot()
     ensure_out()
-    launch.import_if_missing()
+    launch.ensure_import()
     stop = stop_file()
     parts = host_parts(port, 1, local=True, stop=stop)
     parts[0].user_args.append(NO_REPLAY)

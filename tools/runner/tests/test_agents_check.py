@@ -99,6 +99,95 @@ def transcript(folder: Path, agent_id: str, meta: dict, served: str) -> None:
     (folder / f"agent-{agent_id}.meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
+# Workflow agents' meta files as Claude Code writes them for a default launch (keys and values copied from the
+# 2026-10-02 runs: a project reviewer and an implementer, which has no agent file and inherits the session's model).
+def workflow_meta(agent_type: str, label: str, phase: str, **extra: str) -> dict:
+    return {
+        "agentType": agent_type,
+        "description": label,
+        "workflowPhase": phase,
+        "spawnDepth": 1,
+        "requestShape": "foreground",
+        "requestNonInteractive": True,
+        **extra,
+    }
+
+
+class WorkflowReadTest(unittest.TestCase):
+    """#206: workflow agents (<session>/subagents/workflows/wf_*/agent-*.jsonl) are read beside hand-run ones."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.folder = Path(tmp.name)
+        transcript(self.folder / "s1" / "subagents", "h1", {"agentType": "test-runner"}, "claude-haiku-4-5-20251001")
+        run = self.folder / "s1" / "subagents" / "workflows" / "wf_0407695f-d88"
+        transcript(run, "w1", workflow_meta("code-reviewer", "review:code:#188", "Review"), "claude-opus-5-5")
+        transcript(run, "w2", workflow_meta("workflow-subagent", "implement:#188", "Implement"), "claude-opus-5-5")
+        # A launch that passes `models` (issue-task's agent({model})): recorded as `model`, like the Agent tool's.
+        transcript(
+            run, "w3", workflow_meta("netcode-security-reviewer", "review:netcode-2:#188", "Review", model="sonnet"),
+            "claude-sonnet-5-5",
+        )
+        (run / "journal.jsonl").write_text('{"type":"launched"}\n', encoding="utf-8")
+        other = self.folder / "s2" / "subagents" / "workflows" / "wf_1a525aa7-7c9"
+        transcript(other, "w4", workflow_meta("code-reviewer", "review:code:#181", "Review"), "claude-opus-5-5")
+
+    def test_reads_hand_run_and_workflow_agents(self) -> None:
+        found = {x.agent_id: x for x in agents_check.read(self.folder, None)}
+        self.assertEqual(sorted(found), ["h1", "w1", "w2", "w3", "w4"])
+        h1, w1, w3, w4 = found["h1"], found["w1"], found["w3"], found["w4"]
+        self.assertEqual((h1.session, h1.run, h1.label), ("s1", None, ""))
+        self.assertEqual((w1.session, w1.run, w1.label), ("s1", "wf_0407695f-d88", "review:code:#188"))
+        self.assertEqual((w1.agent_type, w1.requested, w1.served), ("code-reviewer", None, {"claude-opus-5-5"}))
+        self.assertEqual((w3.requested, w3.served), ("sonnet", {"claude-sonnet-5-5"}))
+        self.assertEqual((w4.session, w4.run), ("s2", "wf_1a525aa7-7c9"))
+        self.assertEqual([x.unread_keys for x in found.values()], [()] * 5)
+
+    def test_a_session_filter_keeps_that_sessions_workflow_agents(self) -> None:
+        self.assertEqual(sorted(x.agent_id for x in agents_check.read(self.folder, "s2")), ["w4"])
+        self.assertEqual(sorted(x.agent_id for x in agents_check.read(self.folder, "s1")), ["h1", "w1", "w2", "w3"])
+
+    def test_default_launches_are_judged_by_their_agent_file_or_inherit(self) -> None:
+        found = {x.agent_id: x for x in agents_check.read(self.folder, None)}
+        self.assertEqual(agents_check.judge(found["w1"], AGENTS, ALLOWED)[0], "ok")
+        self.assertEqual(agents_check.judge(found["w2"], AGENTS, ALLOWED)[0], "skip")  # workflow-subagent inherits
+        verdict, why = agents_check.judge(found["w3"], AGENTS, ALLOWED)
+        self.assertEqual((verdict, why.split(",")[0]), ("ok", "requested sonnet"))  # the request beats the file's opus
+
+    def test_a_meta_key_that_may_name_a_model_under_another_name_fails(self) -> None:
+        run = self.folder / "s1" / "subagents" / "workflows" / "wf_0407695f-d88"
+        meta = workflow_meta("code-reviewer", "review:code:#188", "Review", requestedModel="sonnet")
+        transcript(run, "w5", meta, "claude-opus-5-5")
+        w5 = next(x for x in agents_check.read(self.folder, "s1") if x.agent_id == "w5")
+        self.assertEqual(w5.unread_keys, ("requestedModel",))
+        verdict, why = agents_check.judge(w5, AGENTS, ALLOWED)
+        self.assertEqual(verdict, "FAIL")
+        self.assertIn("requestedModel", why)
+
+    def test_a_nested_meta_key_that_may_name_a_model_fails(self) -> None:
+        run = self.folder / "s1" / "subagents" / "workflows" / "wf_0407695f-d88"
+        meta = workflow_meta("workflow-subagent", "implement:#188", "Implement")
+        meta["request"] = {"model": "sonnet", "tools": [{"name": "x", "defaultModel": "haiku"}]}
+        transcript(run, "w5", meta, "claude-opus-5-5")
+        w5 = next(x for x in agents_check.read(self.folder, "s1") if x.agent_id == "w5")
+        self.assertEqual(w5.unread_keys, ("request.model", "request.tools.0.defaultModel"))
+        verdict, why = agents_check.judge(w5, AGENTS, ALLOWED)
+        self.assertEqual(verdict, "FAIL")
+        self.assertIn("request.model", why)
+
+    def test_odd_lines_and_a_broken_meta_file_are_skipped(self) -> None:
+        run = self.folder / "s3" / "subagents" / "workflows" / "wf_x"
+        run.mkdir(parents=True)
+        lines = ['["assistant"]', '"assistant"', "{not json, assistant", json.dumps(
+            {"type": "assistant", "message": {"model": "claude-haiku-4-5-20251001"}}
+        )]
+        (run / "agent-w6.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        (run / "agent-w6.meta.json").write_text("{", encoding="utf-8")
+        (w6,) = agents_check.read(self.folder, "s3")
+        self.assertEqual((w6.agent_type, w6.requested, w6.served), ("?", None, {"claude-haiku-4-5-20251001"}))
+
+
 class MainTest(unittest.TestCase):
     """main() end to end on a temporary repository with a worktree and a temporary Claude config folder."""
 
@@ -108,6 +197,10 @@ class MainTest(unittest.TestCase):
         self.main = Path(tmp.name).resolve() / "game"
         (self.main / ".claude").mkdir(parents=True)
         (self.main / ".claude" / "settings.json").write_text(json.dumps({"availableModels": ALLOWED}), encoding="utf-8")
+        (self.main / ".claude" / "agents").mkdir()
+        (self.main / ".claude" / "agents" / "code-reviewer.md").write_text(
+            "---\nname: code-reviewer\ndescription: x\nmodel: opus\n---\nReview.\n", encoding="utf-8"
+        )
         subprocess.run([*GIT, "init", "-q"], cwd=self.main, check=True)
         subprocess.run([*GIT, "add", "."], cwd=self.main, check=True)
         subprocess.run([*GIT, "commit", "-q", "-m", "x"], cwd=self.main, check=True)
@@ -133,6 +226,47 @@ class MainTest(unittest.TestCase):
         self.assertEqual(agents_check.main(all_sessions=True, root=self.worktree, config=self.config), 0)
         user_settings.unlink()
         self.assertEqual(agents_check.main(all_sessions=True, root=self.worktree, config=self.config), 1)
+
+    def verdicts(self) -> dict[str, str]:
+        """{agent id: ok | FAIL | skip} of the last main() run, from its printed lines."""
+        found = {}
+        for verdict, printer in (("ok", agents_check.ok), ("FAIL", agents_check.bad), ("skip", agents_check.skip)):
+            for call in printer.call_args_list:
+                found[re.search(r"agent (\w+)", call.args[0]).group(1)] = verdict
+        return found
+
+    def test_workflow_agents_get_the_same_verdicts(self) -> None:
+        """#206: shared list, user-scope list, fell back and neither list, for agents of a workflow run."""
+        run = self.subagents / "workflows" / "wf_1"
+        served_outside = f"claude-{OUTSIDE}-5-1"
+        cases = {
+            "w1": (workflow_meta("code-reviewer", "review:code:#7", "Review"), "claude-opus-5-5", "ok"),
+            "w2": (workflow_meta("code-reviewer", "review:code:#8", "Review"), "claude-sonnet-5-5", "FAIL"),
+            "w3": (workflow_meta("workflow-subagent", "implement:#7", "Implement"), "claude-opus-5-5", "skip"),
+            "w4": (workflow_meta("code-reviewer", "review:2:#7", "Review", model="sonnet"), "claude-sonnet-5-5", "ok"),
+            "w5": (workflow_meta("code-reviewer", "review:2:#8", "Review", model=OUTSIDE), served_outside, "ok"),
+            "w6": (workflow_meta("code-reviewer", "review:2:#9", "Review", model=OUTSIDE), "claude-opus-5-5", "skip"),
+        }
+        for agent_id, (meta, served, _) in cases.items():
+            transcript(run, agent_id, meta, served)
+        (self.config / "settings.json").write_text(json.dumps({"availableModels": [OUTSIDE]}), encoding="utf-8")
+        self.assertEqual(agents_check.main(all_sessions=True, root=self.worktree, config=self.config), 1)
+        got = self.verdicts()
+        self.assertEqual({k: got[k] for k in cases}, {k: v[2] for k, v in cases.items()})
+        self.assertEqual(got["a1"], "ok")  # the hand-run agent is still read
+        printed = " ".join(c.args[0] for c in agents_check.bad.call_args_list)
+        self.assertIn("review:code:#8", printed)
+        self.assertIn("workflow wf_1", printed)
+        summary = agents_check.say.call_args_list[-1].args[0]
+        self.assertIn("5 checked, 4 of them in workflows; 1 wrong", summary)
+
+    def test_a_workflow_agent_served_by_a_model_in_neither_list_fails(self) -> None:
+        run = self.subagents / "workflows" / "wf_2"
+        meta = workflow_meta("code-reviewer", "review:2:#7", "Review", model=OUTSIDE)
+        transcript(run, "w1", meta, f"claude-{OUTSIDE}-5-1")
+        self.assertEqual(agents_check.main(all_sessions=True, root=self.worktree, config=self.config), 1)
+        self.assertEqual(self.verdicts()["w1"], "FAIL")
+        self.assertIn("the model guard failed", agents_check.bad.call_args.args[0])
 
 
 # The example of a model outside the shared list, taken from the family table so no test adds its name.
@@ -164,6 +298,18 @@ class UserScopeJudgeTest(unittest.TestCase):
         verdict, why = self.judge({"claude-opus-5-5"}, OUTSIDE, [OUTSIDE])
         self.assertEqual(verdict, "skip")
         self.assertIn("fell back", why)
+
+    def test_an_inherited_model_in_neither_list_that_served_fails(self) -> None:
+        # A workflow-subagent (no agent file) overridden by `models` with no key in its meta file: still guarded.
+        inherited = t("workflow-subagent", {f"claude-{OUTSIDE}-5-1"})
+        for user in ([], ["sonnet"]):
+            with self.subTest(user=user):
+                verdict, why = agents_check.judge(inherited, AGENTS, ALLOWED, user=user)
+                self.assertEqual(verdict, "FAIL")
+                self.assertIn("the model guard failed", why)
+        self.assertEqual(agents_check.judge(inherited, AGENTS, ALLOWED, user=[OUTSIDE])[0], "skip")
+        self.assertEqual(agents_check.judge(t("workflow-subagent", {"claude-opus-5-5"}), AGENTS, ALLOWED)[0], "skip")
+        self.assertEqual(agents_check.judge(inherited, AGENTS, [])[0], "skip")  # no availableModels: no guard
 
     def test_the_user_list_changes_nothing_for_shared_models(self) -> None:
         self.assertEqual(self.judge({"claude-opus-5-5"}, "sonnet", ["sonnet", OUTSIDE])[0], "FAIL")

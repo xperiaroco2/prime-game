@@ -548,7 +548,7 @@ def main(names: list[str] | None = None, seconds: int | None = None) -> int:
         raise Failure(f"no scenarios in {rel(SCENARIOS)}")
     exe = require_godot()
     ensure_out()
-    launch.import_if_missing()
+    launch.ensure_import()
     from .verify import free_udp_port
 
     failed = sum(run_one(scenario, exe, seconds, free_udp_port()) for scenario in scenarios)

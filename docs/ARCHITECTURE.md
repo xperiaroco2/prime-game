@@ -1922,6 +1922,20 @@ tiles, `--headless`), and `verify`'s `game` step runs `game.tscn` headless throu
 (`--local --no-replay`) and one client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then
 both stopped through the stop file with exit 0 and no engine error line (about 5 s).
 
+**The import before a launch (#174).** Only an import rebuilds Godot's global class cache, the uid cache and the
+imported assets, so a game started after a `git switch` that brought a new `class_name` script failed to parse
+(`Identifier "MousePointer" not declared`, the engineer's playtest). `check.ensure_import()` runs before Godot starts
+in `host`, `join`, `run` (and through it `perf` and `bots`), `playcheck`, `shot` and `verify`'s `game` step: it
+imports when there is no class cache, no record of an import through the runner (`.godot/runner_import.stamp`, which
+every `check.run_import` and the post-edit hook's import write through `check.record_import`, never later than
+the import's end), or a file Godot sees is newer than that record, and prints one line either way; a file dated in the
+future is a warning that names it, and every launch imports until it is touched.
+The test walks the project (no hidden folders, none with a `.gdignore`, no Markdown or Python) in 0.03 to 0.04 s
+against about 10 s for a quick import that finds nothing to do. A linked worktree's `override.cfg` is written first.
+Tests: `tools/runner/tests/test_import_freshness.py` (the test over throwaway folders, the stamp, the override
+before the import, each command's order of finding Godot, importing and starting it, and, with the pinned Godot, a
+`class_name` script added after the import: the game fails without the import and `run` imports first and passes).
+
 **`playcheck`: scripted windows with screenshots (#186)**, the AI productivity design's P9
 (`docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`, item 8), for the UI and camera bugs that
 only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of

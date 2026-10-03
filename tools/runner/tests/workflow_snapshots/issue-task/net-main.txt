@@ -27,7 +27,7 @@ Plan, then implement every acceptance criterion. GdUnit4 tests under tests/unit/
 
 Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.
 
-`tools\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree's run at the same time (GdUnit4 temp files under user://, a busy port), run it once more before debugging.
+`tools\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree's run at the same time (a busy ENet port, a timeout under CPU load), run it once more before debugging.
 
 Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.
 

@@ -183,6 +183,9 @@ func test_the_debug_overlay_shows_each_side_its_numbers() -> void:
 	for game: Game in [_pair.host, _pair.client]:
 		game.overlay().visible = true
 	await _pair.frames(3)
+	# Physics steps can all run inside one idle frame, and process_frame is emitted before that
+	# frame's _process: the second one comes after a Game._process that saw the overlay visible.
+	await get_tree().process_frame
 	await get_tree().process_frame
 	var joined := _pair.client.overlay().label.text
 	assert_str(joined).contains("corrections: 0")
