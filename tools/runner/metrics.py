@@ -75,6 +75,8 @@ USD_KEYS = ("usd_input", "usd_cache_write", "usd_cache_read", "usd_output")
 # the counter restarted at the plan change (2026-10-02 about 10:30 UTC); cache reads are 40% of list $. The ADR's
 # first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x.
 WEEK_PERCENT_USD = 25.5
+# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at: far from it, the bracket is the better figure.
+WEEK_READ_SHARE = 0.4
 # Whether the weekly limit counts cache reads, and at what weight w, is not measured yet (#307): the bracket gives
 # (list $ without cache reads + w x cache-read $) / k(w) at w = 0 and 0.5, each k fitted to the same 66% reading.
 WEEK_BRACKET = ((0.0, 15.3), (0.5, 20.3))
@@ -234,8 +236,10 @@ def week_percent(spent: float, read: float) -> dict:
 def week_rate() -> str:
     """The conversion, for a report's note on its % of the week."""
     (w0, k0), (w1, k1) = WEEK_BRACKET
-    return (f"${WEEK_PERCENT_USD} list per 1%; in brackets, the limit counting cache reads at {w0 * 100:g} to {w1:.0%} "
-            f"((list $ without cache reads + {w0:g} or {w1:g} x cache-read $) / ${k0} or ${k1})")
+    return (f"${WEEK_PERCENT_USD} list per 1%, fitted where cache reads were {WEEK_READ_SHARE:.0%} of list $ (far from "
+            f"that share the bracket is the better figure); in brackets, the limit counting cache reads at "
+            f"{w0 * 100:g} to {w1:.0%} ((list $ without cache reads + {w0:g} or {w1:g} x cache-read $) / "
+            f"${k0} or ${k1})")
 
 
 def fmt_week(week: dict) -> str:
@@ -1151,8 +1155,10 @@ def compact_lines(
                  f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
     (w0, _k0), (w1, _k1) = WEEK_BRACKET
     lo, hi = week["bracket"]
-    lines.append(f"% of a Max 20x week: {week['percent']:.1f}% at ${WEEK_PERCENT_USD} per 1%; {lo:.1f} to {hi:.1f}% "
-                 f"if the limit counts cache reads at {w0 * 100:g} to {w1:.0%}")
+    share = week["read_usd"] / week["usd"] if week["usd"] else 0.0
+    lines.append(f"% of a Max 20x week: {week['percent']:.1f}% at ${WEEK_PERCENT_USD} per 1% (fit at "
+                 f"{WEEK_READ_SHARE:.0%} cache reads, here {share:.0%}); {lo:.1f} to {hi:.1f}% if the limit counts "
+                 f"cache reads at {w0 * 100:g} to {w1:.0%}")
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
