@@ -41,8 +41,8 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   is the façade (§4.7, E18): `HostNode.host(transport, mode, port)` builds and starts a private session, and the game
   uses only `is_running()`, `own_client`, `errors`, `end_reason`, `ended`, `counters()` and `relay_counters()`
   (debug builds), `skip_replay()` and `close()`; `tools/` and the tests hand a `HostSession` to `HostNode.new`
-  instead. Parts: `PeerBudget`, `VoiceRelay`, `RelayMeter`, `ReplayFiles`. Its observer (debug builds) gets
-  `(at_tick, command, slice)` per `Match` call, catch-ups too: the bots runner's hook, no reason to change `HostSession`.
+  instead. Parts: `PeerBudget`, `VoiceRelay`, `VoiceDownEncoder`, `RelayMeter`, `ReplayFiles`. Its observer (debug
+  builds) gets `(at_tick, command, slice)` per `Match` call, catch-ups too: the bots runner's hook, not a change here.
 - Host ticks come from the host's clock (`Time.get_ticks_usec()`), never from a count of physics frames, which falls
   behind for good after a freeze. Each physics step, in order: apply commands left from an earlier step at the next
   tick, then run the ticks a freeze skipped with no commands; refill the per-peer budgets; poll; apply the queued
@@ -58,10 +58,10 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
 - Snapshots: only for a tick run in this step (never for catch-up ticks), to present players, after that tick's
   events; an empty `snapshot_for` sends nothing. Unreliable messages go only to players: a player has sent its
   `Hello`, so nothing overtakes the transport's `ADMIT`.
-- Voice: relay a `VoiceUp` at once, along the routing table refreshed after every tick, as a `VoiceDown` with the
-  stream's own seq (per speaker and listener; never the speaker's) and `ticked_through()`. Never decode Opus. Drop
-  frames from a peer that is not a present player; after a freeze relay only the newest few per speaker. On
-  `peer_left(p)` drop p from the relay at once, as speaker and listener: ids are reused.
+- Voice: relay a `VoiceUp` at once, along the routing refreshed after every tick, as a `VoiceDown` with the stream's
+  own seq (per speaker and listener, never the speaker's) and `ticked_through()`, encoded once per frame, each
+  listener's seq patched into a copy (`VoiceDownEncoder`). Never decode Opus. Only present players speak; after a
+  freeze relay only the newest few per speaker. On `peer_left(p)` drop p as speaker and listener at once (ids reused).
 - Budgets per peer (voice frames, reliable intents, bytes of the rest) are refilled for the host time elapsed, before
   the poll; a message over one is dropped before decoding and counted, and nobody is disconnected for its rate. A
   peer that keeps sending malformed messages is disconnected with one log line (the threshold: §4.5). A `Rejected`
