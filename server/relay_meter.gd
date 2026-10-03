@@ -19,11 +19,33 @@ var relay_usec := 0
 var send_usec := 0
 ## Snapshot messages the transport took.
 var snapshots := 0
-## (bytes, datagrams) sent towards other machines during the voice sends, the snapshot sends, and
-## at any other time.
-var voice_upload := Vector2i.ZERO
-var snapshot_upload := Vector2i.ZERO
-var other_upload := Vector2i.ZERO
+## Bytes and datagrams sent towards other machines during the voice sends, the snapshot sends, and
+## at any other time. Plain ints (64-bit): a Vector2i holds 32-bit ints, and the voice bytes of
+## 10 players talking pass 2^31 in about two hours of one session.
+var voice_up_bytes := 0
+var voice_up_datagrams := 0
+var snapshot_up_bytes := 0
+var snapshot_up_datagrams := 0
+var other_up_bytes := 0
+var other_up_datagrams := 0
+
+
+## Adds one NetTransport.take_upload() (bytes, datagrams) to the voice sends' part.
+func add_voice_upload(taken: Vector2i) -> void:
+	voice_up_bytes += taken.x
+	voice_up_datagrams += taken.y
+
+
+## Adds one NetTransport.take_upload() (bytes, datagrams) to the snapshot sends' part.
+func add_snapshot_upload(taken: Vector2i) -> void:
+	snapshot_up_bytes += taken.x
+	snapshot_up_datagrams += taken.y
+
+
+## Adds one NetTransport.take_upload() (bytes, datagrams) to the part sent at any other time.
+func add_other_upload(taken: Vector2i) -> void:
+	other_up_bytes += taken.x
+	other_up_datagrams += taken.y
 
 
 ## The counters by name, with the relay's own (relayed, dropped), the voice frames over budget and
@@ -39,12 +61,12 @@ func to_dict(relay: VoiceRelay, over_budget: int, session_usec: int) -> Dictiona
 		&"voice_over_budget": over_budget,
 		&"voice_relay_usec": relay_usec,
 		&"voice_send_usec": send_usec,
-		&"voice_up_bytes": voice_upload.x,
-		&"voice_up_datagrams": voice_upload.y,
+		&"voice_up_bytes": voice_up_bytes,
+		&"voice_up_datagrams": voice_up_datagrams,
 		&"snapshots_sent": snapshots,
-		&"snapshot_up_bytes": snapshot_upload.x,
-		&"snapshot_up_datagrams": snapshot_upload.y,
-		&"other_up_bytes": other_upload.x,
-		&"other_up_datagrams": other_upload.y,
+		&"snapshot_up_bytes": snapshot_up_bytes,
+		&"snapshot_up_datagrams": snapshot_up_datagrams,
+		&"other_up_bytes": other_up_bytes,
+		&"other_up_datagrams": other_up_datagrams,
 	}
 	return found

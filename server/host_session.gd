@@ -358,7 +358,7 @@ func _carry_out(directive: MatchEvent) -> void:
 
 func _send_snapshots(at_tick: int) -> void:
 	if _meter != null:
-		_meter.other_upload += _transport.take_upload()
+		_meter.add_other_upload(_transport.take_upload())
 	var kind := _schema.kind_of(SNAPSHOT)
 	var present := game.state.present_peers()
 	present.sort()
@@ -373,7 +373,7 @@ func _send_snapshots(at_tick: int) -> void:
 		if not payload.is_empty() and _send(peer, kind, payload) == OK and _meter != null:
 			_meter.snapshots += 1
 	if _meter != null:
-		_meter.snapshot_upload += _transport.take_upload()
+		_meter.add_snapshot_upload(_transport.take_upload())
 
 
 func _send_voice() -> void:
@@ -381,7 +381,7 @@ func _send_voice() -> void:
 		return
 	var began := 0
 	if _meter != null:
-		_meter.other_upload += _transport.take_upload()
+		_meter.add_other_upload(_transport.take_upload())
 		began = Time.get_ticks_usec()
 	for out: VoiceRelay.Outgoing in _relay.flush(game.ticked_through()):
 		if not _reachable(out.listener):
@@ -400,7 +400,7 @@ func _send_voice() -> void:
 			_meter.sent += 1
 	if _meter != null:
 		_meter.relay_usec += Time.get_ticks_usec() - began
-		_meter.voice_upload += _transport.take_upload()
+		_meter.add_voice_upload(_transport.take_upload())
 
 
 ## The routing table after a Match.tick call (§4.5 Voice relay): speakers_for every present player.
