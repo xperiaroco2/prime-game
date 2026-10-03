@@ -2067,8 +2067,8 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     how much the speaker sent to others.
   - Replace the fixed 60 ms prebuffer with an adaptive one: over Wi-Fi the playback queue doubled to 75 ms.
   - After a listener leaves the cutoff, the audio already queued still plays at the last gain: flush or fade it.
-  - Check whether TwoVoIP enables Opus in-band FEC; `decode_fec` may only conceal a lost frame. (v6.5 does not:
-    M5-3's round trip, below.)
+  - Check whether TwoVoIP enables Opus in-band FEC; `decode_fec` may only conceal a lost frame. (v6.5 with our
+    settings does not: M5-3's round trip, below.)
   - Measure the host's per-send ENet cost with many listeners. In the spike, relaying one frame to one listener,
     ENet send included, cost 111–167 µs against 10 µs without the send, unexplained. At 81 sends per 20 ms that
     would be ~40 % of one core.
@@ -2164,9 +2164,11 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     archive's dates. After a local delete of the `.gdextension`, `run` still loads it and fails on the `ERROR:` line
     until `check` imports. The round trip on Windows with v6.5 (M5-3): the encoder, the stream and the
     playback work by class name with the M1 spike's method names, which v6.5's `ClassDB` lists as the spike used
-    them; a 440 Hz sine comes back at 439.5 Hz and its full level (rms 0.354). **No in-band FEC:** a frame decoded
-    from the next packet with `conceal` is Opus concealment (the probe's lost frame keeps the 440 Hz before the gap,
-    with no trace of the 660 Hz after it), so `VoiceJitter`'s `conceal` conceals. The encoder offers
+    them; a 440 Hz sine comes back at 439.5 Hz and its full level (rms 0.354). **No in-band FEC seen:** with
+    `TwoVoipEncoder`'s settings a frame decoded from the next packet with `conceal` is Opus concealment (the probe's
+    lost frame keeps the 440 Hz before the gap, with no trace of the 660 Hz after it), and v6.5's `ClassDB` lists no
+    setter for in-band FEC or the expected packet loss on `TwovoipOpusEncoder` (a listing in M5-3's PR), so
+    `VoiceJitter`'s `conceal` conceals. The encoder offers
     `get_speech_probability()` (and `get_peak()`, `get_rms()`; `DENOISER_SPEEX` besides RNNoise). `flush()` (stop,
     then play: v6.5's playback has no call that empties its queue) leaves nothing queued. `AudioStreamOpus` queues
     2.0 s by default (one audio frame less than 2 s: the round trip sets 3.0 s, as the spike did).
