@@ -66,6 +66,34 @@ func test_a_fixed_rows_cap_is_its_size_at_the_maxima() -> void:
 			assert_int(each.cap).override_failure_message(message).is_equal(each.max_size())
 
 
+func test_a_field_s_fixed_offset_counts_the_fixed_sizes_before_it() -> void:
+	var schema := WireSchema.game(true)
+	var down := schema.row_named(&"VoiceDown")
+	# speaker (a peer, 4 bytes), seq (u16), tick (4 bytes), then the Opus bytes.
+	assert_int(down.fixed_offset("speaker")).is_equal(0)
+	assert_int(down.fixed_offset("seq")).is_equal(4)
+	assert_int(down.fixed_offset("tick")).is_equal(6)
+	assert_int(down.fixed_offset("opus")).is_equal(-1)
+	assert_int(down.fixed_offset("listener")).is_equal(-1)
+	assert_int(down.field_named("seq").type).is_equal(WireField.Type.U16)
+	assert_object(down.field_named("listener")).is_null()
+	# A wire-only slot takes its bytes but is no payload field: Raise is seq (u32), then target.
+	var raise := schema.row_named(&"Raise")
+	assert_int(raise.fixed_offset("target")).is_equal(4)
+	assert_int(raise.fixed_offset("seq")).is_equal(-1)
+	assert_object(raise.field_named("seq")).is_null()
+	# Behind a field whose size varies, no offset holds for every payload.
+	var probe := WireRow.new(
+		200,
+		&"Probe",
+		NetKindTable.Direction.HOST_TO_CLIENT,
+		NetKindTable.Lane.RELIABLE,
+		64,
+		[WireField.id("name"), WireField.of("count", WireField.Type.U16)]
+	)
+	assert_int(probe.fixed_offset("count")).is_equal(-1)
+
+
 func test_content_sized_rows_are_the_ones_wire_budget_checks() -> void:
 	var sized: Array[StringName] = []
 	for each: WireRow in WireSchema.game(true).rows():

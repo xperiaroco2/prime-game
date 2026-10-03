@@ -297,6 +297,14 @@ func keys() -> PackedStringArray:
 	return PackedStringArray([name])
 
 
+## The bytes this field takes whatever its value (a number, a bool, a float, a vector, a colour or
+## a set of flags); -1 when its size depends on its value.
+func fixed_size() -> int:
+	if type in NUMBERS or type in [Type.BOOL, Type.F32, Type.VEC3, Type.COLOUR, Type.FLAGS]:
+		return FIXED_SIZES[type]
+	return -1
+
+
 ## The most bytes this field can take at the wire's maxima.
 func max_size() -> int:
 	if FIXED_SIZES.has(type):
