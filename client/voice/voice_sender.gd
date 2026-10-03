@@ -8,7 +8,8 @@ extends Node
 ## The contract (the manager's review of PR #234, item 5): every chunk is drained and fed in the
 ## frame it arrives, also while `may_speak` is false, with that frame's `may_speak`. So a backlog
 ## recorded while downed, dead or in a silent phase goes through the gate as unspeakable and
-## empties its pre-roll, and never goes out after a revive.
+## empties its pre-roll, and never goes out after a revive. What waits in the device in the frame
+## may_speak turns true was recorded before it, and counts as unspeakable too (step()).
 ##
 ## `may_speak` (may_speak_of()) is client/'s decision, never voice/'s: the own life fold is living
 ## and the client's own copy of the mode hears someone in the current phase (VoiceRule.radius_of >
@@ -50,6 +51,10 @@ var encode_usec := 0
 var sent := 0
 
 var _encoder: VoiceEncoder
+## may_speak at the last step(); a fresh capture holds nothing recorded before, so it starts true.
+var _could_speak := true
+## Frames still waiting that were recorded before may_speak last turned true.
+var _stale_frames := 0
 
 
 func _init() -> void:
@@ -83,6 +88,8 @@ func open(device: String, denoise: bool) -> bool:
 		error = capture.error
 		return false
 	_encoder = codec.new_encoder()
+	_could_speak = true
+	_stale_frames = 0
 	var why := "the voice codec made no encoder"
 	if _encoder != null:
 		why = _encoder.start(capture.rate(), denoise and capture.microphone.is_device())
@@ -136,20 +143,35 @@ func _process(_delta: float) -> void:
 
 ## One frame: every chunk captured since the last, encoded and fed to the gate with this frame's
 ## may_speak and talk key; what the gate lets out is sent.
+##
+## In the frame where may_speak turns true (a revive or a phase that hears someone, folded by the
+## session's physics step at the start of this frame), every frame then waiting in the device was
+## recorded before the player could be heard: those chunks are fed as unspeakable too, however long
+## the frame was (a hitch, a level load). A frame with no whole chunk while unspeakable still
+## empties the pre-roll.
 func step() -> void:
 	if not is_open():
 		return
+	var speak := may_speak()
+	if speak and not _could_speak:
+		_stale_frames = capture.microphone.frames_available()
+	_could_speak = speak
 	var chunks := capture.read(_encoder.chunk_frames())
 	if chunks.is_empty():
+		if not speak:
+			var shown := gate.last_peak
+			gate.feed(PackedVector2Array(), PackedByteArray(), false, false)
+			gate.last_peak = shown
 		return
-	var speak := may_speak()
 	var held := _talk_held()
 	for chunk: VoiceCapture.Chunk in chunks:
+		var fresh := speak and _stale_frames <= 0
+		_stale_frames = maxi(_stale_frames - chunk.frames.size(), 0)
 		var began := Time.get_ticks_usec()
 		var frame := _encoder.encode(chunk.frames)
 		encode_usec = Time.get_ticks_usec() - began
 		frame_age_usec = chunk.age_usec
-		for out: PackedByteArray in gate.feed(chunk.frames, frame, speak, held):
+		for out: PackedByteArray in gate.feed(chunk.frames, frame, fresh, held):
 			if send.is_valid() and send.call(out) == OK:
 				sent += 1
 	peak = gate.last_peak

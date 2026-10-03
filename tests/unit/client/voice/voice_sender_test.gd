@@ -94,6 +94,59 @@ func test_every_chunk_is_drained_and_fed_while_may_speak_is_false() -> void:
 	assert_int(_sent.size()).is_equal(1)
 
 
+func test_a_backlog_recorded_before_a_revive_is_not_sent_after_a_long_frame() -> void:
+	var sender := _sender()
+	var mic := sender.capture.microphone as FakeMicrophone
+	_model.phase = &"round"
+	_model.lives[OWN] = ClientModel.Life.DOWNED
+	sender.step()
+	# A 300 ms hitch: fifteen chunks of a downed whisper wait when the revive is folded, at the start
+	# of the same frame that drains them.
+	mic.capture_chunks(15, LOUD)
+	_model.lives.erase(OWN)
+	sender.step()
+	assert_int(mic.frames_available()).is_equal(0)
+	assert_array(_sent).is_empty()
+	# Speech after the revive goes out, with no pre-roll from before it.
+	mic.capture_chunks(1, LOUD)
+	sender.step()
+	assert_int(_sent.size()).is_equal(1)
+
+
+func test_a_backlog_recorded_in_loading_does_not_open_the_round() -> void:
+	var sender := _sender()
+	var mic := sender.capture.microphone as FakeMicrophone
+	_model.phase = &"loading"
+	sender.step()
+	# Half a chunk more than ten: the part chunk is recorded before the Round too.
+	mic.capture(10 * int(mic.rate / 50.0) + int(mic.rate / 100.0), LOUD)
+	_model.phase = &"round"
+	sender.step()
+	assert_array(_sent).is_empty()
+	mic.capture(int(mic.rate / 100.0), LOUD)
+	sender.step()
+	assert_array(_sent).is_empty()
+	mic.capture_chunks(1, LOUD)
+	sender.step()
+	assert_int(_sent.size()).is_equal(1)
+
+
+func test_a_frame_with_no_chunk_while_unspeakable_empties_the_pre_roll() -> void:
+	var sender := _sender()
+	var mic := sender.capture.microphone as FakeMicrophone
+	_model.phase = &"round"
+	# Two quiet chunks wait in the pre-roll; then the device delivers nothing while downed.
+	mic.capture_chunks(VoiceGate.PREROLL, QUIET)
+	sender.step()
+	_model.lives[OWN] = ClientModel.Life.DOWNED
+	sender.step()
+	_model.lives.erase(OWN)
+	sender.step()
+	mic.capture_chunks(1, LOUD)
+	sender.step()
+	assert_int(_sent.size()).is_equal(1)
+
+
 func test_a_phase_that_hears_nobody_sends_nothing_and_keeps_nothing() -> void:
 	var sender := _sender()
 	var mic := sender.capture.microphone as FakeMicrophone
@@ -101,7 +154,9 @@ func test_a_phase_that_hears_nobody_sends_nothing_and_keeps_nothing() -> void:
 	mic.capture_chunks(5, LOUD)
 	sender.step()
 	assert_array(_sent).is_empty()
+	# The Round's first frame; what waits then was recorded in Loading (the backlog tests above).
 	_model.phase = &"round"
+	sender.step()
 	mic.capture_chunks(1, LOUD)
 	sender.step()
 	assert_int(_sent.size()).is_equal(1)
