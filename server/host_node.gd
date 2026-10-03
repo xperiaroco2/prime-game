@@ -7,9 +7,9 @@ extends Node
 ##
 ## The game's narrow handle on the host (§4.7, the M4 ADR's E18): host() builds and starts the
 ## session and keeps it private. The game reads only own_client, errors, end_reason, ended and a
-## debug build's counters(), and calls close(), so the host's own player sees nothing but what its
-## ClientSession decoded. tools/ and the tests that need more use HostSession itself, and hand it
-## to HostNode.new.
+## debug build's counters() and relay_counters(), and calls close(), so the host's own player sees
+## nothing but what its ClientSession decoded. tools/ and the tests that need more use HostSession
+## itself, and hand it to HostNode.new.
 ##
 ## Start the session with HostNode.now_usec() (HostSession.start's now_usec): the session counts
 ## host ticks from it, so any other clock makes the first step catch up the difference at once.
@@ -79,8 +79,8 @@ func skip_replay() -> void:
 		_session.replay_dir = ""
 
 
-## Debug builds only (invariant 8): the session's counters for the debug overlay; empty in a
-## release build.
+## Debug builds only (invariant 8): the session's counters of budgets and malformed messages for
+## the debug overlay, which may show them at any time; empty in a release build.
 func counters() -> Dictionary[StringName, int]:
 	var found: Dictionary[StringName, int] = {}
 	if not OS.is_debug_build() or _session == null:
@@ -88,8 +88,17 @@ func counters() -> Dictionary[StringName, int]:
 	found[&"over_budget"] = _session.over_budget
 	found[&"bad_payloads"] = _session.bad_payloads
 	found[&"malformed_disconnects"] = _session.malformed_disconnects
-	found[&"voice_dropped"] = _session.voice_dropped()
 	return found
+
+
+## Debug builds only (E47 as amended): the voice relay's counters and the upload since the session
+## started (HostSession.relay_counters); empty in a release build. The overlay never shows them
+## during a Round (the M5 ADR §3 item 11, DebugOverlay.shows_relay).
+func relay_counters() -> Dictionary[StringName, int]:
+	if not OS.is_debug_build() or _session == null:
+		var none: Dictionary[StringName, int] = {}
+		return none
+	return _session.relay_counters()
 
 
 ## Ends the session (the host leaves or quits): every client sees host_lost.

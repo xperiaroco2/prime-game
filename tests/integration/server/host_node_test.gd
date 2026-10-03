@@ -48,7 +48,29 @@ func test_the_facade_reports_a_refused_start_and_a_debug_build_counters() -> voi
 	assert_str(String(first.end_reason)).is_empty()
 	assert_bool(OS.is_debug_build()).is_true()
 	assert_array(first.counters().keys()).contains_exactly_in_any_order(
-		[&"over_budget", &"bad_payloads", &"malformed_disconnects", &"voice_dropped"]
+		[&"over_budget", &"bad_payloads", &"malformed_disconnects"]
+	)
+	# The relay's counters apart, which the overlay hides during a Round (the M5 ADR §3 item 11).
+	(
+		assert_array(first.relay_counters().keys())
+		. contains_exactly_in_any_order(
+			[
+				&"session_ms",
+				&"voice_relayed",
+				&"voice_sent",
+				&"voice_dropped",
+				&"voice_over_budget",
+				&"voice_relay_usec",
+				&"voice_send_usec",
+				&"voice_up_bytes",
+				&"voice_up_datagrams",
+				&"snapshots_sent",
+				&"snapshot_up_bytes",
+				&"snapshot_up_datagrams",
+				&"other_up_bytes",
+				&"other_up_datagrams",
+			]
+		)
 	)
 	# The port is taken: the second start is refused and says why.
 	var second: HostNode = auto_free(
