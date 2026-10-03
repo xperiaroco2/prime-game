@@ -152,6 +152,16 @@ func test_a_port_alone_fills_the_menu_and_the_tree_gets_its_quit_back() -> void:
 	assert_bool(get_tree().auto_accept_quit).is_true()
 
 
+func test_the_game_makes_the_buses_and_its_voices_under_the_world() -> void:
+	var game := _game([])
+	for bus: StringName in [AudioBuses.VOICE, AudioBuses.EFFECTS, AudioBuses.MUSIC]:
+		assert_int(AudioBuses.index_of(bus)).is_greater(0)
+	assert_object(game.voices().get_parent()).is_same(game.get_node(^"World"))
+	# The addon's codec by default: unavailable where the addon is absent, and then nothing plays.
+	assert_object(game.voice_codec).is_instanceof(TwoVoipCodec)
+	assert_object(game.life().ears()).is_not_null()
+
+
 func _game(args: Array[String]) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false

@@ -23,6 +23,10 @@ extends Node
 ##
 ## Items (M4-8): `Items` (ItemWorld) draws the items, the circles and the destination marker, sends
 ## the item keys and plays the world sounds; the Ui's HUD and task screen show the round.
+##
+## Voice (M5-5): AudioBuses makes the Voice, Effects and Music buses at start; `Voices`
+## (VoiceViews) plays the voices this client hears on the speakers' avatars through `voice_codec`,
+## heard from LifeView's Ears; a debug build's overlay lists them by index of first arrival.
 
 const MODE_PATH := "res://content/modes/base_mode.tres"
 const PLAYER := preload("res://client/player/player.tscn")
@@ -48,6 +52,9 @@ var device_input := true
 ## The mouse pointer the game captures and frees: Input's unless a test sets one (headless keeps no
 ## mouse mode).
 var pointer := MousePointer.new()
+## The voice codec: TwoVoIP's (unavailable without the addon, then no voice plays) unless a test
+## sets one before _ready.
+var voice_codec: VoiceCodec
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -62,6 +69,7 @@ var _level_kind := PhaseSpec.Level.NONE
 var _bodies := BodyViews.new()
 var _life := LifeView.new()
 var _items := ItemWorld.new()
+var _voices := VoiceViews.new()
 var _ending := false
 var _last_stop_check_ms := 0
 var _screen := GameFlow.Screen.MENU
@@ -89,6 +97,7 @@ func _ready() -> void:
 	_world.add_child(_bodies)
 	_world.add_child(_life)
 	_world.add_child(_items)
+	_ready_voice()
 	if OS.is_debug_build():
 		_overlay = DebugOverlay.new()
 		_overlay.name = "DebugOverlay"
@@ -254,6 +263,11 @@ func overlay() -> DebugOverlay:
 	return _overlay
 
 
+## The voices this client plays (M5-5).
+func voices() -> VoiceViews:
+	return _voices
+
+
 func _process(_delta: float) -> void:
 	_check_runner()
 	var now := screen()
@@ -372,6 +386,7 @@ func _start_client(transport: NetTransport) -> void:
 	_life.setup(_client, mode, _avatars)
 	_items.setup(_client, mode, _avatars)
 	_life.items = _items.items
+	_setup_voice()
 
 
 func _on_welcomed(own_peer: int) -> void:
@@ -487,6 +502,7 @@ func _end_session(reason: StringName) -> void:
 	_bodies.model = null
 	_bodies.clear()
 	_items.reset()
+	_voices.reset()
 	_clear_level()
 	if _player != null:
 		_player.queue_free()
@@ -501,6 +517,7 @@ func _refresh_overlay() -> void:
 	if _overlay == null or not _overlay.visible:
 		return
 	var counters: Dictionary[StringName, int] = {}
+	_refresh_voice_overlay()
 	if _client == null:
 		_overlay.show_numbers(-1, -1, -1, 0.0, counters)
 		_overlay.show_relay(counters, null)
@@ -513,6 +530,24 @@ func _refresh_overlay() -> void:
 		_client.corrections, _client.placements, _avatars.host_tick(), _avatars.delay_ms(), counters
 	)
 	_overlay.show_relay(relay, _client.model.phase_spec())
+
+
+## The overlay's voice lines: one per speaker played, by index of first arrival (E47).
+func _refresh_voice_overlay() -> void:
+	_overlay.show_voice(_voices.stats())
+
+
+## The buses (D15) and the voices' node under World.
+func _ready_voice() -> void:
+	AudioBuses.ensure()
+	if voice_codec == null:
+		voice_codec = TwoVoipCodec.new()
+	_world.add_child(_voices)
+
+
+## The voices follow the new session's ClientSession, model and avatars.
+func _setup_voice() -> void:
+	_voices.setup(_client, mode, _avatars, voice_codec)
 
 
 func _show_menu(reason: StringName, detail := "") -> void:
