@@ -46,10 +46,10 @@ was put at 4 x $11 list (amended 2026-10-04, #304: it is about **$25.5 list**, s
 (subagents $307 plus its manager $59) was about 8.3%, as the engineer estimated (8 to 9%); a median M4 task ($24) about
 0.55% and a median M3 task ($14) about 0.3%.
 
-**Amended 2026-10-04 (#304; measured in #302, phase 2, the report on #302 of 2026-10-04).** The weekly counter
-restarted at the plan change: get_usage read 96% (Max 5x) at 2026-10-02 10:28 UTC, 0% at 10:53 with the same reset
-time, and 66% at 2026-10-03 20:54 UTC. The API list $ of the engineer's Claude Code sessions (every checkout: the
-tracks, the art and the UI sessions) from 10:28 to 20:54 is $1,689.9, cache reads about 40% of it:
+**Amended 2026-10-04 (#304; measured in #302, phase 2, the report on #302 of 2026-10-04).** The weekly counter restarted
+at the plan change: get_usage read 96% (Max 5x) at 2026-10-02 10:28 UTC, 0% at 10:53 with the same reset time, and 66%
+at 2026-10-03 20:54 UTC. The API list $ of the engineer's Claude Code sessions (every checkout: the tracks, the art and
+the UI sessions) from 2026-10-02 10:28 to 2026-10-03 20:54 UTC (34.4 hours) is $1,689.9, cache reads about 40% of it:
 - 1% of a Max 20x week is about **$25.6 of full list $** (1,689.9 / 66; a least-squares fit over the readings gives
   25.2); `metrics` uses **$25.5** (`WEEK_PERCENT_USD`).
 - Without cache reads it is **$15.3 per 1%** (1,012.1 / 66), the right rate only if the limit ignores cache reads.
