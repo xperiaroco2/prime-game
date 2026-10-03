@@ -33,12 +33,28 @@ Then a section per window, `window <n>`, and its steps, run in order:
                                          that names a player (peer, raiser, target) holds the player's number
     wait esc open|closed                 its Esc menu
     wait pointer free|captured           its pointer as the game asked for it (playcheck never captures the mouse)
+    wait text <field> is|has|lacks <text ...>
+                                         what the window draws in a field (FIELDS): `is` the whole text, `has` a
+                                         part of it, `lacks` not a part of it. Runs of whitespace (the roster's
+                                         two spaces, a line break) count as one space on both sides, and a hidden
+                                         field reads as ""
+    wait shown <field> on|off            whether the field's Control is visible in the tree (hand.item: an item in
+                                         the first-person hand)
     frames <n>                           n rendered frames, 1 to MAX_FRAMES
     press <action>                       the action's key pressed, released the next frame
                                          (Input.parse_input_event); keys only, never a mouse button
     hold <action> / release <action>     Input.action_press until the release (each hold needs one)
+    button <text ...>                    the one visible, enabled Button in the window's Ui whose text is <text>
+                                         (whitespace as in `wait text`): it takes the focus (grab_focus) and gets
+                                         ui_accept's key as `press` gives it; no mouse event, so nothing captures
+                                         the mouse. None, or more than one, fails the step
     shot <name>                          the window's viewport as <name>.png ([a-z0-9_], unique in the scenario)
-A wait takes `timeout=<seconds>` as its last word to override the default.
+A wait takes `timeout=<seconds>` as its last word to override the default. A `#` in a line starts its comment, so
+a text to wait for or a button's text holds none.
+
+The fields are read from the window's own Ui (GameUi) and current camera only, never HostSession, the match or core/
+(invariant 2); playcheck_window.gd's GameView has the same keys as FIELDS (a test holds them equal). Assert short,
+stable parts with `has`/`lacks`: the HUD's wording is greybox (#150) and will change.
 
 A run fails on a step that times out or cannot run (its window prints the step's line and what it saw, saves
 failed-window-<n>.png and exits 1), an engine error line or a non-zero exit of any process, a window that did not
@@ -92,6 +108,35 @@ SCREENS = ("menu", "connecting", "lobby", "loading", "round", "end")
 # The event fields that name a player (ScenarioPlay.PLAYER_FIELDS): the scenario writes the player's number.
 PLAYER_FIELDS = ("peer", "raiser", "target")
 ACTIONS = ("press", "hold", "release")
+# What `wait text` and `wait shown` read, the keys of playcheck_window.gd's GameView: the round's Hud labels, the
+# LifePanel (title_label, lines_label, bar_label: its bar's visibility), the LobbyHud, the EndScreen, the visible Esc
+# tabs' texts joined with ", ", and the kind of the item in the FirstPersonHand under the current camera.
+FIELDS = (
+    "hud.role",
+    "hud.teammates",
+    "hud.clock",
+    "hud.progress",
+    "hud.health",
+    "hud.stamina",
+    "hud.hand",
+    "hud.belt",
+    "hud.spectating",
+    "hud.destination",
+    "hud.hint",
+    "hud.crosshair",
+    "life.title",
+    "life.lines",
+    "life.bar",
+    "lobby.hint",
+    "lobby.roster",
+    "lobby.countdown",
+    "end.winner",
+    "end.back",
+    "esc.tabs",
+    "hand.item",
+)
+TEXT_OPS = ("is", "has", "lacks")
+FIELDS_ARE = f"; the fields are {', '.join(FIELDS)}"
 
 
 @dataclass
@@ -244,10 +289,15 @@ class _Parser:
             if not NAME_RE.fullmatch(args[0]):
                 raise self.fail(f"a shot's name is [a-z0-9_], not {args[0]!r}")
             made = {"name": args[0]}
+        elif verb == "button":
+            if not args:
+                raise self.fail("`button` needs the button's text, such as `button Resume`")
+            # Not "text": the plan's step has the line's text under that key.
+            made = {"label": " ".join(args)}
         elif verb in ("frames", "shot", *ACTIONS):
             raise self.fail(f"`{verb}` takes one word")
         else:
-            raise self.fail(f"unknown step `{verb}` (wait, frames, press, hold, release, shot)")
+            raise self.fail(f"unknown step `{verb}` (wait, frames, press, hold, release, button, shot)")
         self.scenario.steps[self.window].append(Step(self.line, text, verb, made))
 
     def wait(self, args: list[str]) -> dict[str, object]:
@@ -271,13 +321,33 @@ class _Parser:
             made["value"] = rest[0] == "open"
         elif what == "pointer" and len(rest) == 1 and rest[0] in ("free", "captured"):
             made["value"] = rest[0] == "captured"
+        elif what == "text":
+            made.update(field=self.field(rest, "text"))
+            if len(rest) < 2 or rest[1] not in TEXT_OPS:
+                raise self.fail(f"a text wait is `wait text <field> is|has|lacks <text ...>`{FIELDS_ARE}")
+            if len(rest) < 3:
+                raise self.fail(f"`wait text {rest[0]} {rest[1]}` needs the text to look for{FIELDS_ARE}")
+            made.update(op=rest[1], value=" ".join(rest[2:]))
+        elif what == "shown":
+            made.update(field=self.field(rest, "shown"))
+            if len(rest) != 2 or rest[1] not in ("on", "off"):
+                raise self.fail(f"a shown wait is `wait shown <field> on|off`{FIELDS_ARE}")
+            made["value"] = rest[1] == "on"
         else:
             raise self.fail(
                 "a wait is `wait phase <id>`, `wait screen <" + "|".join(SCREENS) + ">`, `wait life [<player>] <"
                 + "|".join(LIVES) + ">`, `wait ready [<player>] on|off`, `wait players <n>`, "
-                "`wait event <Event> [field=value ...]`, `wait esc open|closed` or `wait pointer free|captured`"
+                "`wait event <Event> [field=value ...]`, `wait esc open|closed`, `wait pointer free|captured`, "
+                "`wait text <field> is|has|lacks <text ...>` or `wait shown <field> on|off`"
             )
         return made
+
+    def field(self, rest: list[str], what: str) -> str:
+        """The field a `wait text` or `wait shown` names; a mistake lists the fields there are."""
+        if not rest or rest[0] not in FIELDS:
+            named = f"no field {rest[0]!r}" if rest else "no field"
+            raise self.fail(f"`wait {what}` has {named}{FIELDS_ARE}")
+        return rest[0]
 
     def fields(self, words: list[str]) -> dict[str, object]:
         found: dict[str, object] = {}

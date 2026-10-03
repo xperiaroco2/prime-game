@@ -1,5 +1,6 @@
-"""`playcheck`: the scenario parser, the plan, the processes' command lines, and runs that pass, fail a step, time
-out, print an engine error or miss a PNG, each stopping every process it started.
+"""`playcheck`: the scenario parser, the plan, the fields of `wait text` and `wait shown` (FIELDS equals the keys of
+playcheck_window.gd's GameView), the processes' command lines, and runs that pass, fail a step, time out, print an
+engine error or miss a PNG, each stopping every process it started.
 
 The runs start small Python processes in place of the game's windows and the bots; nothing here opens a window or
 starts Godot (`playcheck` needs a desktop session and never runs on CI). The window's own step timeouts are tested in
@@ -8,6 +9,7 @@ GDScript: tests/unit/tools/playcheck_steps_test.gd.
 
 import io
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -159,6 +161,18 @@ class ParserTest(unittest.TestCase):
             ("players 2\nwindows 2\nwindow 1\nhold g\nhold g\nrelease g\nshot a", 5, "holds g twice"),
             ("players 2\nwindows 2\nwindow 1\nrelease g\nshot a", 4, "releases g, which it does not hold"),
             ("players 2\nwindows 2\nwindow 2\nhold g\nwindow 1\nrelease g\nshot a", 4, "window 2 holds g and never"),
+            ("players 2\nwindows 2\nwindow 1\nwait text hud.nope has a", 4, "`wait text` has no field 'hud.nope'"),
+            ("players 2\nwindows 2\nwindow 1\nwait text", 4, "`wait text` has no field; the fields are hud.role,"),
+            ("players 2\nwindows 2\nwindow 1\nwait text hud.hand equals a", 4, "is|has|lacks <text ...>`; the fields"),
+            ("players 2\nwindows 2\nwindow 1\nwait text hud.hand", 4, "is|has|lacks <text ...>`; the fields"),
+            ("players 2\nwindows 2\nwindow 1\nwait text hud.hand has", 4, "`wait text hud.hand has` needs the text"),
+            ("players 2\nwindows 2\nwindow 1\nwait text hud.hand is timeout=5", 4, "needs the text"),
+            ("players 2\nwindows 2\nwindow 1\nwait shown hud.hand yes", 4, "`wait shown <field> on|off`; the"),
+            ("players 2\nwindows 2\nwindow 1\nwait shown hud.hand on off", 4, "`wait shown <field> on|off`"),
+            ("players 2\nwindows 2\nwindow 1\nwait shown Hud.hand on", 4, "`wait shown` has no field 'Hud.hand'"),
+            ("players 2\nwindows 2\nwindow 1\nbutton", 4, "`button` needs the button's text"),
+            ("players 2\nwindows 2\nwindow 1\nbutton   # Resume", 4, "`button` needs the button's text"),
+            ("players 2\nwindows 2\nwindow 1\nbutton Resume timeout=5", 4, "only a wait takes timeout="),
             ("players 2\nwindows 2\nwindow 1\nwait phase lobby", 1, "at least one `shot`"),
             ("players 2\nwindows 2\nwindow 1\nshot a\nwindow 2\nshot a", 1, "shot names must be unique: a"),
         ]
@@ -168,6 +182,50 @@ class ParserTest(unittest.TestCase):
                     scenario(text, "bad")
                 self.assertTrue(str(caught.exception).startswith(f"bad.txt:{line}: "), str(caught.exception))
                 self.assertIn(why, str(caught.exception))
+
+    def test_text_shown_and_button_become_their_plan_entries(self) -> None:
+        steps = (
+            "window 1\n"
+            "wait text lobby.roster has (host,   you)  ready timeout=9\n"
+            "wait text esc.tabs lacks Lobby\n"
+            "wait text hud.hand is Hand: Knife\n"
+            "wait shown hud.crosshair off\n"
+            "button Back  to lobby   # the end screen's\n"
+            "shot a"
+        )
+        first = scenario(with_header(steps)).steps[1]
+        roster = {"what": "text", "field": "lobby.roster", "op": "has", "value": "(host, you) ready", "timeout_s": 9.0}
+        self.assertEqual(first[0].args, roster)
+        self.assertEqual(first[0].text, "wait text lobby.roster has (host, you) ready timeout=9")
+        self.assertEqual(
+            (first[1].args["field"], first[1].args["op"], first[1].args["value"]), ("esc.tabs", "lacks", "Lobby")
+        )
+        self.assertEqual((first[2].args["op"], first[2].args["value"]), ("is", "Hand: Knife"))
+        self.assertEqual(first[2].args["timeout_s"], playcheck.DEFAULT_TIMEOUT)
+        self.assertEqual(
+            first[3].args,
+            {"what": "shown", "field": "hud.crosshair", "value": False, "timeout_s": playcheck.DEFAULT_TIMEOUT},
+        )
+        # The button's text goes under "label": the step's "text" is its line.
+        button = {"line": 8, "text": "button Back to lobby", "do": "button", "label": "Back to lobby"}
+        self.assertEqual(first[4].plan(), button)
+
+    def test_every_field_has_a_text_and_a_shown_wait(self) -> None:
+        for name in playcheck.FIELDS:
+            for wait in (f"wait text {name} has x", f"wait text {name} lacks x y", f"wait shown {name} on"):
+                with self.subTest(wait=wait):
+                    parsed = scenario(with_header(f"window 1\n{wait}\nshot a")).steps[1][0]
+                    self.assertEqual(parsed.args["field"], name)
+
+    def test_the_fields_are_the_keys_of_the_windows_game_view(self) -> None:
+        window = (ROOT / "tools" / "playcheck" / "playcheck_window.gd").read_text(encoding="utf-8")
+        view = re.search(r"^class GameView:\n(.*?)^\S", window, re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(view, "no class GameView in playcheck_window.gd")
+        assert view is not None
+        keys = re.findall(r'^\t+"([a-z]+\.[a-z]+)":', view.group(1), re.MULTILINE)
+        self.assertEqual(len(keys), len(set(keys)), f"a key twice in GameView: {sorted(keys)}")
+        self.assertEqual(sorted(keys), sorted(playcheck.FIELDS))
+        self.assertEqual(len(playcheck.FIELDS), len(set(playcheck.FIELDS)))
 
     def test_every_scenario_in_the_folder_parses_and_its_bots_file_exists(self) -> None:
         names = playcheck.available()

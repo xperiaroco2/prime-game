@@ -4,11 +4,12 @@ extends RefCounted
 ## advanced once per frame by tools/playcheck/playcheck_window.gd.
 ##
 ## A wait reads only the window's View: its own ClientSession and ClientModel (the host's own
-## client included), its Esc menu and its pointer; never HostSession, the match or core/
-## (invariant 2), so a window that draws before its filtered event arrives is not hidden by the
-## host's state. A wait that does not hold within its `timeout_s` fails the run, naming the step's
-## line and what the window saw. Every step but a wait or `frames` is an action the window performs
-## in the frame advance() returns it (press, hold, release, shot, the host's setup).
+## client included), its Esc menu, its pointer and what its Ui and camera draw (#275: the fields of
+## `wait text` and `wait shown`); never HostSession, the match or core/ (invariant 2), so a window
+## that draws before its filtered event arrives is not hidden by the host's state. A wait that does
+## not hold within its `timeout_s` fails the run, naming the step's line and what the window saw.
+## Every step but a wait or `frames` is an action the window performs in the frame advance()
+## returns it (press, hold, release, button, shot, the host's setup).
 
 enum Status { RUNNING, DONE, FAILED }
 
@@ -17,7 +18,9 @@ enum Status { RUNNING, DONE, FAILED }
 const PLAYER_FIELDS: Array[String] = ["peer", "raiser", "target"]
 ## The waits that read the window itself, not its model: they hold before a Welcome and after the
 ## session ended too (`wait screen menu` after a Leave or a host close).
-const WINDOW_WAITS: Array[String] = ["screen", "esc", "pointer"]
+const WINDOW_WAITS: Array[String] = ["screen", "esc", "pointer", "text", "shown"]
+
+static var _whitespace := RegEx.create_from_string("\\s+")
 
 
 ## What a window's waits read. playcheck_window.gd reads its Game; a test fakes it.
@@ -65,6 +68,14 @@ class View:
 	## What the window has instead of a Welcome, for a timeout's message.
 	func unwelcomed() -> String:
 		return "no Welcome yet"
+
+	## The text a field (playcheck.py's FIELDS) holds, shown or not.
+	func field_text(_field: String) -> String:
+		return ""
+
+	## Whether the field's Control is visible in the tree (hand.item: an item in the hand).
+	func field_shown(_field: String) -> bool:
+		return false
 
 
 var steps: Array[Dictionary] = []
@@ -183,9 +194,70 @@ func _holds(step: Dictionary) -> bool:
 			holds = view.esc_open() == flag(value)
 		"pointer":
 			holds = view.pointer_captured() == flag(value)
+		"text":
+			var seen := drawn(str(step.get("field", "")))
+			holds = text_holds(str(step.get("op", "")), seen, str(value))
+		"shown":
+			holds = view.field_shown(str(step.get("field", ""))) == flag(value)
 		_:
 			fail("unknown wait '%s'" % step.get("what", ""))
 	return holds
+
+
+## What the window draws in `field`: its text with each run of whitespace one space, "" while
+## hidden.
+func drawn(field: String) -> String:
+	return collapse(view.field_text(field)) if view.field_shown(field) else ""
+
+
+## `text` with each run of whitespace (two spaces, a line break) one space, none at either end.
+static func collapse(text: String) -> String:
+	return _whitespace.sub(text, " ", true).strip_edges()
+
+
+## Whether `seen` is (`is`), contains (`has`) or does not contain (`lacks`) `want`, collapsed.
+static func text_holds(op: String, seen: String, want: String) -> bool:
+	var wanted := collapse(want)
+	match op:
+		"is":
+			return seen == wanted
+		"has":
+			return seen.contains(wanted)
+		"lacks":
+			return not seen.contains(wanted)
+	return false
+
+
+## The visible, enabled Buttons under `ui` (what a `button` step picks from), in tree order.
+static func visible_buttons(ui: Node) -> Array[Button]:
+	var found: Array[Button] = []
+	for node: Node in ui.find_children("*", "Button", true, false):
+		var button := node as Button
+		if button.is_visible_in_tree() and not button.disabled:
+			found.append(button)
+	return found
+
+
+## Those of `buttons` whose text is `text` (whitespace collapsed).
+static func buttons_named(buttons: Array[Button], text: String) -> Array[Button]:
+	var named: Array[Button] = []
+	for button: Button in buttons:
+		if collapse(button.text) == collapse(text):
+			named.append(button)
+	return named
+
+
+## Why a `button <text>` step cannot press among `buttons`: none or several; "" for exactly one.
+static func button_problem(buttons: Array[Button], text: String) -> String:
+	var named := buttons_named(buttons, text)
+	if named.size() == 1:
+		return ""
+	if named.size() > 1:
+		return "%d buttons '%s'" % [named.size(), text]
+	var texts := PackedStringArray()
+	for button: Button in buttons:
+		texts.append("'%s'" % collapse(button.text))
+	return "no visible button '%s'; the window shows [%s]" % [text, ", ".join(texts)]
 
 
 ## A plan's whole number (JSON numbers arrive as floats; a dictionary key as text).
@@ -284,4 +356,10 @@ func _saw(step: Dictionary) -> String:
 			seen = "the Esc menu %s" % ("open" if view.esc_open() else "closed")
 		"pointer":
 			seen = "the pointer %s" % ("captured" if view.pointer_captured() else "free")
+		"text":
+			var field := str(step.get("field", ""))
+			seen = "%s '%s'" % [field, drawn(field)]
+		"shown":
+			var field := str(step.get("field", ""))
+			seen = "%s %s" % [field, "shown" if view.field_shown(field) else "hidden"]
 	return seen

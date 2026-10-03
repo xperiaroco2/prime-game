@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 ## The steps of a playcheck window (tools/playcheck/playcheck_steps.gd, #186): waits that pass at
 ## once or time out at their timeout and not before, frames, actions, the host's setup and event
-## matching through player numbers, over a fake View and a fake clock (no window, no sleep). The
-## plan comes from tools/runner/playcheck.py (its parser: tools/runner/tests/test_playcheck.py).
+## matching through player numbers, over a fake View and a fake clock (no window, no sleep); what
+## the window draws (`wait text`, `wait shown`) and the `button` step's choice (#275). The plan
+## comes from tools/runner/playcheck.py (its parser: tools/runner/tests/test_playcheck.py).
 
 const Steps := preload("res://tools/playcheck/playcheck_steps.gd")
 
@@ -18,6 +19,15 @@ class FakeView:
 	var received: Array[Array] = []
 	var screen_now := "lobby"
 	var esc_now := false
+	## What each field holds; one missing is "" and hidden.
+	var texts: Dictionary[String, String] = {}
+	var hidden: Array[String] = []
+
+	func field_text(field: String) -> String:
+		return texts.get(field, "")
+
+	func field_shown(field: String) -> bool:
+		return texts.has(field) and not hidden.has(field)
 
 	func welcomed() -> bool:
 		return is_welcomed
@@ -61,6 +71,31 @@ func _wait(what: String, value: Variant, timeout_s := 2.0, line := 5) -> Diction
 		"do": "wait",
 		"what": what,
 		"value": value,
+		"timeout_s": timeout_s
+	}
+
+
+func _text(field: String, op: String, value: String, timeout_s := 2.0) -> Dictionary:
+	return {
+		"line": 9,
+		"text": "wait text %s %s %s" % [field, op, value],
+		"do": "wait",
+		"what": "text",
+		"field": field,
+		"op": op,
+		"value": value,
+		"timeout_s": timeout_s
+	}
+
+
+func _shown(field: String, on: bool, timeout_s := 2.0) -> Dictionary:
+	return {
+		"line": 9,
+		"text": "wait shown %s %s" % [field, "on" if on else "off"],
+		"do": "wait",
+		"what": "shown",
+		"field": field,
+		"value": on,
 		"timeout_s": timeout_s
 	}
 
@@ -269,3 +304,160 @@ func test_each_started_step_is_reported_once() -> void:
 	steps.advance(0)
 	steps.advance(10)
 	assert_array(started).contains_exactly([0, 1])
+
+
+func test_text_is_has_and_lacks_hold_on_what_the_window_draws() -> void:
+	var view := FakeView.new()
+	view.texts["hud.hand"] = "Hand: Knife"
+	var plan: Array[Dictionary] = [
+		_text("hud.hand", "is", "Hand: Knife"),
+		_text("hud.hand", "has", "Knife"),
+		_text("hud.hand", "lacks", "empty"),
+	]
+	var steps := _steps(plan, view)
+	steps.advance(0)
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+
+
+func test_text_is_times_out_naming_the_field_and_the_text_the_window_had() -> void:
+	var view := FakeView.new()
+	view.texts["hud.hand"] = "Hand: empty"
+	var steps := _steps([_text("hud.hand", "is", "Hand: Knife", 1.0)], view)
+	steps.advance(0)
+	steps.advance(999)
+	assert_int(steps.status).is_equal(Steps.Status.RUNNING)
+	steps.advance(1000)
+	assert_str(steps.failure).is_equal(
+		(
+			"step 1 (line 9: wait text hud.hand is Hand: Knife): timed out after 1.0 s; the window"
+			+ " saw hud.hand 'Hand: empty'"
+		)
+	)
+
+
+func test_text_has_and_lacks_time_out_and_then_hold_when_the_text_changes() -> void:
+	var view := FakeView.new()
+	view.texts["esc.tabs"] = "Resume, Lobby, Leave, Quit"
+	for wait: Dictionary in [
+		_text("esc.tabs", "has", "Voice", 1.0), _text("esc.tabs", "lacks", "Lobby", 1.0)
+	]:
+		var steps := _steps([wait], view)
+		steps.advance(0)
+		steps.advance(1000)
+		assert_str(steps.failure).ends_with("the window saw esc.tabs 'Resume, Lobby, Leave, Quit'")
+	view.texts["esc.tabs"] = "Resume, Voice, Leave, Quit"
+	var steps := _steps(
+		[_text("esc.tabs", "has", "Voice", 1.0), _text("esc.tabs", "lacks", "Lobby", 1.0)], view
+	)
+	steps.advance(0)
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+
+
+func test_text_collapses_each_run_of_whitespace_to_one_space() -> void:
+	var view := FakeView.new()
+	view.texts["lobby.roster"] = " Ann (host, you)  ready\nBo  not\tready "
+	var plan: Array[Dictionary] = [
+		_text("lobby.roster", "is", "Ann (host, you) ready Bo not ready"),
+		_text("lobby.roster", "has", "(host, you) ready"),
+		_text("lobby.roster", "has", "ready  Bo"),
+		_text("lobby.roster", "lacks", "you)  not"),
+	]
+	var steps := _steps(plan, view)
+	steps.advance(0)
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+	assert_str(Steps.collapse("  a \n\n b\t c  ")).is_equal("a b c")
+
+
+func test_a_hidden_field_reads_as_empty() -> void:
+	var view := FakeView.new()
+	view.texts["life.title"] = "Dead"
+	view.hidden.append("life.title")
+	var steps := _steps([_text("life.title", "lacks", "Dead")], view)
+	steps.advance(0)
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+	steps = _steps([_text("life.title", "has", "Dead", 1.0)], view)
+	steps.advance(0)
+	steps.advance(1000)
+	assert_str(steps.failure).ends_with("the window saw life.title ''")
+	assert_str(steps.drawn("life.title")).is_empty()
+	view.hidden.clear()
+	assert_str(steps.drawn("life.title")).is_equal("Dead")
+
+
+func test_shown_on_and_off_hold_and_time_out_naming_what_the_window_showed() -> void:
+	var view := FakeView.new()
+	view.texts["hud.crosshair"] = "+"
+	var steps := _steps([_shown("hud.crosshair", true), _shown("hud.health", false)], view)
+	steps.advance(0)
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+	steps = _steps([_shown("hud.crosshair", false, 1.0)], view)
+	steps.advance(0)
+	steps.advance(1000)
+	assert_str(steps.failure).is_equal(
+		(
+			"step 1 (line 9: wait shown hud.crosshair off): timed out after 1.0 s; the window saw"
+			+ " hud.crosshair shown"
+		)
+	)
+	steps = _steps([_shown("hud.health", true, 1.0)], view)
+	steps.advance(0)
+	steps.advance(1000)
+	assert_str(steps.failure).ends_with("the window saw hud.health hidden")
+	view.hidden.append("hud.crosshair")
+	steps = _steps([_shown("hud.crosshair", false)], view)
+	steps.advance(0)
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+
+
+func test_text_and_shown_read_the_window_without_a_session() -> void:
+	var view := EndedView.new()
+	view.is_welcomed = false
+	view.texts["end.winner"] = "The match is over"
+	var steps := _steps([_text("end.winner", "has", "over"), _shown("end.winner", true)], view)
+	steps.advance(0)
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+
+
+func test_a_button_step_is_an_action_the_window_performs() -> void:
+	var button := {"line": 7, "text": "button Resume", "do": "button", "label": "Resume"}
+	var steps := _steps([button], FakeView.new())
+	assert_dict(steps.advance(0)).is_equal(button)
+	steps.fail("no visible button 'Resume'; the window shows []")
+	assert_str(steps.failure).is_equal(
+		"step 1 (line 7: button Resume): no visible button 'Resume'; the window shows []"
+	)
+
+
+func test_a_button_is_the_one_visible_enabled_button_with_that_text() -> void:
+	var ui := auto_free(VBoxContainer.new()) as VBoxContainer
+	add_child(ui)
+	var hidden_box := VBoxContainer.new()
+	hidden_box.visible = false
+	ui.add_child(hidden_box)
+	for made: Array in [
+		[ui, "Resume", false],
+		[hidden_box, "Lobby", false],
+		[ui, "Leave", true],
+		[ui, "Yes", false],
+		[ui, "Yes", false],
+		[ui, "Back  to\nlobby", false],
+	]:
+		var each := Button.new()
+		each.text = str(made[1])
+		each.disabled = made[2]
+		(made[0] as Node).add_child(each)
+	var buttons := Steps.visible_buttons(ui)
+	assert_int(buttons.size()).is_equal(4)
+	assert_str(Steps.button_problem(buttons, "Resume")).is_empty()
+	assert_str(Steps.buttons_named(buttons, "Resume")[0].text).is_equal("Resume")
+	assert_str(Steps.button_problem(buttons, "Back to lobby")).is_empty()
+	assert_str(Steps.button_problem(buttons, "Yes")).is_equal("2 buttons 'Yes'")
+	var shows := "the window shows ['Resume', 'Yes', 'Yes', 'Back to lobby']"
+	# Hidden (in a hidden parent) or disabled: not a button the step may press.
+	assert_str(Steps.button_problem(buttons, "Lobby")).is_equal(
+		"no visible button 'Lobby'; " + shows
+	)
+	assert_str(Steps.button_problem(buttons, "Leave")).is_equal(
+		"no visible button 'Leave'; " + shows
+	)
+	assert_str(Steps.button_problem(buttons, "Resum")).starts_with("no visible button 'Resum';")

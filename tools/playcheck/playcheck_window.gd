@@ -8,10 +8,12 @@ extends SceneTree
 ##       -- --plan=<plan.json> --window=<n> <LaunchOptions' arguments: --host --local or --join=...>
 ##
 ## It reads the game only through its own client (Game.client(): the ClientSession and its
-## ClientModel), its screen, Esc menu and pointer, as any window does; never HostSession, the match
+## ClientModel), its screen, Esc menu and pointer, and what its Ui and current camera draw (the
+## fields of `wait text` and `wait shown`, #275), as any window does; never HostSession, the match
 ## or core/ (invariant 2), on the host's window too. It never captures the real mouse: the game gets
 ## a pointer that remembers what it asked for, playcheck presses keys only (a click would capture
-## the mouse), and a mouse mode set anyway is set back and fails the run.
+## the mouse; `button` focuses a Button and presses ui_accept's key), and a mouse mode set anyway
+## is set back and fails the run.
 ##
 ## It writes its peer id to <peers>/peer-<n> once welcomed (the bots read it to name it); window 1
 ## reads the others' to send the setup (ForceRole names a peer). Prints PLAYCHECK at step <n> (line
@@ -101,6 +103,73 @@ class GameView:
 
 	func events() -> Array[Array]:
 		return received
+
+	func field_text(field: String) -> String:
+		return str(_field(field)[0])
+
+	func field_shown(field: String) -> bool:
+		var shown: bool = _field(field)[1]
+		return shown
+
+	## [text, shown] of a field, read from this window's Ui and current camera only; the keys here
+	## and in _labels() are tools/runner/playcheck.py's FIELDS (its test holds them equal).
+	func _field(field: String) -> Array:
+		var ui := game.ui
+		var labels := _labels()
+		var found: Array = ["", false]
+		if labels.has(field):
+			found = [labels[field].text, labels[field].is_visible_in_tree()]
+		match field:
+			"life.bar":
+				found = [ui.life.bar_label.text, ui.life.bar.is_visible_in_tree()]
+			"end.back":
+				found = [ui.end.back_button.text, ui.end.back_button.is_visible_in_tree()]
+			"esc.tabs":
+				var names := PackedStringArray()
+				for button: Button in ui.esc.tab_buttons.values():
+					if button.is_visible_in_tree():
+						names.append(button.text)
+				found = [", ".join(names), ui.esc.is_visible_in_tree()]
+			"hand.item":
+				var hand := _hand()
+				var kind := hand.shown_kind() if hand != null else &""
+				found = [kind, hand != null and hand.is_visible_in_tree() and not kind.is_empty()]
+		return found
+
+	## The fields that are one Label each: its text, shown while it is visible in the tree.
+	func _labels() -> Dictionary[String, Label]:
+		var ui := game.ui
+		return {
+			"hud.role": ui.hud.role_label,
+			"hud.teammates": ui.hud.teammates_label,
+			"hud.clock": ui.hud.clock_label,
+			"hud.progress": ui.hud.progress_label,
+			"hud.health": ui.hud.health_label,
+			"hud.stamina": ui.hud.stamina_label,
+			"hud.hand": ui.hud.hand_label,
+			"hud.belt": ui.hud.belt_label,
+			"hud.spectating": ui.hud.spectating_label,
+			"hud.destination": ui.hud.destination_label,
+			"hud.hint": ui.hud.hint_label,
+			"hud.crosshair": ui.hud.crosshair,
+			"life.title": ui.life.title_label,
+			"life.lines": ui.life.lines_label,
+			"lobby.hint": ui.lobby_hud.hint_label,
+			"lobby.roster": ui.lobby_hud.roster_label,
+			"lobby.countdown": ui.lobby_hud.countdown_label,
+			"end.winner": ui.end.winner_label,
+		}
+
+	## The FirstPersonHand under the current camera: the own player's, or the spectated target's
+	## (LifeView's spectate camera).
+	func _hand() -> FirstPersonHand:
+		var camera := game.get_viewport().get_camera_3d()
+		if camera == null:
+			return null
+		for child: Node in camera.get_children():
+			if child is FirstPersonHand:
+				return child as FirstPersonHand
+		return null
 
 
 var _game: Game
@@ -198,6 +267,8 @@ func _act(step: Dictionary) -> void:
 		"release":
 			_held.erase(action)
 			Input.action_release(action)
+		"button":
+			await _button(str(step.get("label", "")))
 		"shot":
 			await _shot(str(step.get("path", "")))
 		"setup":
@@ -230,6 +301,18 @@ func _press(action: StringName) -> void:
 	up.pressed = false
 	Input.parse_input_event(up)
 	Input.flush_buffered_events()
+
+
+## The one visible, enabled Button of the Ui whose text is `text` takes the focus and gets
+## ui_accept's key as `press` gives it: no mouse event, so nothing captures the mouse.
+func _button(text: String) -> void:
+	var buttons := Steps.visible_buttons(_game.ui)
+	var why := Steps.button_problem(buttons, text)
+	if not why.is_empty():
+		_steps.fail(why)
+		return
+	Steps.buttons_named(buttons, text)[0].grab_focus()
+	await _press(&"ui_accept")
 
 
 func _has_action(action: StringName) -> bool:
