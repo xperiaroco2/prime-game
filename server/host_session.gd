@@ -222,6 +222,13 @@ func voice_dropped() -> int:
 	return _relay.dropped
 
 
+## Of over_budget, the messages that are no voice frames: the part the F3 overlay may show at any
+## time (HostNode.counters()). The voice frames over budget are among the relay's counters, which it
+## never shows live during a Round (the M5 ADR §3 item 11, E47).
+func over_budget_but_voice() -> int:
+	return over_budget - voice_over_budget
+
+
 ## Debug builds only (E47 as amended; ARCHITECTURE §4.5 "The host's counters"): the voice relay's
 ## counters and the upload since the session started (RelayMeter.to_dict); empty in a release
 ## build. Never for a live display during a Round (the M5 ADR §3 item 11).

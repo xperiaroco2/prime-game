@@ -82,3 +82,5 @@ func test_a_backlog_s_old_part_and_frames_over_the_voice_bucket_are_counted() ->
 	assert_int(counted[&"voice_sent"]).is_equal(VoiceRelay.NEWEST_PER_POLL)
 	assert_int(counted[&"voice_over_budget"]).is_equal(1)
 	assert_int(_h.session.over_budget).is_equal(1)
+	# The live part (HostNode.counters(), shown on F3 in a Round too) leaves the voice frame out.
+	assert_int(_h.session.over_budget_but_voice()).is_equal(0)

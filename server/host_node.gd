@@ -80,12 +80,14 @@ func skip_replay() -> void:
 
 
 ## Debug builds only (invariant 8): the session's counters of budgets and malformed messages for
-## the debug overlay, which may show them at any time; empty in a release build.
+## the debug overlay, which may show them at any time; empty in a release build. Its over_budget
+## leaves out the voice frames over budget, which only relay_counters() gives (the M5 ADR §3 item
+## 11: never live during a Round).
 func counters() -> Dictionary[StringName, int]:
 	var found: Dictionary[StringName, int] = {}
 	if not OS.is_debug_build() or _session == null:
 		return found
-	found[&"over_budget"] = _session.over_budget
+	found[&"over_budget"] = _session.over_budget_but_voice()
 	found[&"bad_payloads"] = _session.bad_payloads
 	found[&"malformed_disconnects"] = _session.malformed_disconnects
 	return found

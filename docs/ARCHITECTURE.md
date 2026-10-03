@@ -810,7 +810,8 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
 
 **The host's counters** (debug builds only; the M5 ADR's E47 as amended, its §3 item 11 and §4; built in M5-4,
 #218). `HostNode.counters()` gives the budgets' and the codec's counts (`over_budget`, `bad_payloads`,
-`malformed_disconnects`), which the F3 overlay may show at any time. The voice relay's are apart:
+`malformed_disconnects`), which the F3 overlay may show at any time; its `over_budget` leaves out the voice frames
+over budget (`HostSession.over_budget_but_voice()`), which only the relay's counters give. The voice relay's are apart:
 `HostSession.relay_counters()` (and `HostNode.relay_counters()`) gives, as totals since the session started,
 `voice_relayed` (frames of present players the relay passed on, after the newest 5 per poll, heard or not),
 `voice_sent` (`VoiceDown`s the transport took), `voice_dropped` (a backlog's old part), `voice_over_budget` (of
