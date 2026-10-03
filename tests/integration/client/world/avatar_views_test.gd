@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## PlayersPlaced snaps; a LoadMatch forgets the poses; the estimated host tick never runs backwards;
 ## a player the model knows as downed is on the downed layer, where no push searches (§7.1); a
 ## body the model drops leaves the physics space in that frame, before the local player's push
-## search (#242).
+## search (#242), and clear() takes every body out of the tree the same way.
 
 const PEER := 2
 const TICK_USEC := 50000
@@ -150,6 +150,24 @@ func test_the_host_tick_never_runs_backwards() -> void:
 	# Cleared views (a session ended) give the estimate again.
 	_views.clear()
 	assert_int(_views.host_tick()).is_equal(raw)
+
+
+func test_clear_takes_every_body_out_of_the_tree_before_it_is_freed() -> void:
+	# A session's end (or a level swap) clears the views: like a drop, each body leaves the tree,
+	# and so the physics space, at once instead of at the frame's end (#242).
+	_snapshot(1, Vector3(2, 0, 0), Vector3.FORWARD)
+	await _drawn()
+	var body := _views.body_of(PEER)
+	assert_object(body).is_not_null()
+	_views.clear()
+	assert_int(_views.count()).is_equal(0)
+	assert_object(_views.body_of(PEER)).is_null()
+	assert_bool(body.is_inside_tree()).is_false()
+	assert_bool(body.is_queued_for_deletion()).is_true()
+	# Out of the tree it is still freed, at the frame's end.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_bool(is_instance_valid(body)).is_false()
 
 
 func test_a_body_the_model_drops_leaves_the_physics_space_in_that_frame() -> void:
