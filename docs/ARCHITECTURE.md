@@ -1949,7 +1949,14 @@ window runs under `tools/playcheck/playcheck_window.gd`, a `SceneTree` script un
 with its `LaunchOptions` arguments and runs that window's steps (`playcheck_steps.gd`). A wait reads only the
 window's own `Game.client()` (its `ClientSession` and `ClientModel`), its screen, Esc menu and pointer, never
 `HostSession`, the match or `core/`, on the host's window too (invariant 2), so a window that draws before its
-filtered event arrived fails its wait instead of being covered by the host's state. Keys go in through
+filtered event arrived fails its wait instead of being covered by the host's state. `wait text <field>
+is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window draws: the `Hud`'s labels, the
+`LifePanel`, the `LobbyHud`, the `EndScreen`, the visible Esc tabs and the kind in the `FirstPersonHand` under
+`get_viewport().get_camera_3d()` (the own hand, or the spectated target's), from its own `GameUi` and camera only;
+the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
+them equal). Whitespace runs count as one space and a hidden field reads as "", and scenarios assert short `has` and
+`lacks` parts of the greybox wording (#150). `button <text>` gives the one visible, enabled `Button` of the Ui with
+that text the focus and `ui_accept`'s key, so no mouse event captures the mouse. Keys go in through
 `Input.parse_input_event`, holds through `Input.action_press`, screenshots through
 `Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
 off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
@@ -1960,10 +1967,13 @@ client once every player is in its roster; peer ids travel as `peer-<n>` files, 
 it. Usage: `docs/AGENT_WORKFLOW.md` §11.
 Tests: `tools/runner/tests/test_playcheck.py` (the scenario parser and its errors, the plan, the command lines, and
 runs of stand-in processes that pass, time out, fail a step, print an engine error or miss a PNG, each stopping
-every process) and `tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at
-once or fails at its timeout and not before, with its line and what the window saw; frames; events matched once
-through player numbers; the setup). The scenarios `esc_menu` (#169) and `spectate` (#168) are its own checks, run on
-a desktop.
+every process; the text, shown and button grammar and `FIELDS` against `GameView`'s keys) and
+`tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at once or fails at its
+timeout and not before, with its line and what the window saw; frames; events matched once through player numbers;
+the setup; `is`/`has`/`lacks`, collapsed whitespace, a hidden field read as "", shown on and off; the `button` step's
+one visible, enabled button or its failure). The scenarios `esc_menu` (#169) and `spectate` (#168) are its own
+checks, run on a desktop; since #275 they assert the Esc tabs, the lobby roster and countdown, the life panel, the
+spectator HUD and the knife in the first-person hand besides their PNGs.
 
 **Tests.** The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
 `SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
@@ -1974,7 +1984,8 @@ and an item visible from the arm's end but not from the pivot is hidden;
 the two-client push runs over the loopback with the interpolation delay. Key events can run headless through
 `Input.parse_input_event` (#169); the mouse mode and the look of the UI cannot: every
 screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck` (#186) screenshots the real game in
-off-screen windows at the named steps of a scripted run, and the playtests of the ADR's §6 check the rest.
+off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
+ADR's §6 check the rest.
 
 ## 5. Per-peer information filtering
 

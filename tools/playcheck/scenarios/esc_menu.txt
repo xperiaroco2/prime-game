@@ -3,7 +3,8 @@
 # Lobby tab, with the settings the host may change and the guest sees read-only, and the pointer
 # freed. Esc again closes it and captures the pointer again (as the game asks; playcheck never
 # captures the real mouse). F under the menu readies nobody; F in the lobby readies its player.
-# In the round the menu has Resume, Leave and Quit and no Lobby tab.
+# In the round the menu has Resume, Leave and Quit and no Lobby tab; its Resume button closes it.
+# The text waits read short parts of the greybox wording (#150), never whole sentences.
 players 2
 windows 2
 
@@ -15,6 +16,8 @@ shot lobby_host
 press ui_cancel
 wait esc open
 wait pointer free
+wait text esc.tabs has Lobby
+wait text esc.tabs has Resume
 frames 5
 shot esc_lobby_tab_host
 press ui_cancel
@@ -23,16 +26,22 @@ wait pointer captured
 press ready
 wait ready on
 wait ready 2 on
+wait text lobby.roster has (host, you) ready
+wait text lobby.roster lacks not ready
+wait text lobby.countdown has Starting in
 frames 10
 shot lobby_both_ready
 wait screen round timeout=60
 frames 30
 press ui_cancel
 wait esc open
+wait text esc.tabs lacks Lobby
+wait text esc.tabs has Resume
 frames 5
 shot esc_round_host
-press ui_cancel
+button Resume
 wait esc closed
+wait pointer captured
 
 window 2
 wait phase lobby
@@ -48,6 +57,7 @@ shot esc_lobby_tab_guest
 press ready
 frames 60
 wait ready off
+wait text lobby.roster has (you) not ready
 press ui_cancel
 wait esc closed
 press ready
