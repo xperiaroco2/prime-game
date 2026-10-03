@@ -8,6 +8,10 @@ extends GdUnitTestSuite
 ## Each Game sits in a SubViewport with its own World3D, as on three machines (like NetPair): in
 ## one shared physics space each player stood inside the body another game drew of it and was
 ## pushed off its spot (#225).
+##
+## The sessions fold the host's messages in physics steps, and under load several steps run in
+## one idle frame before Game._process shows the screen, so every wait for a screen also waits for
+## the Game to show it (#225).
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7300
@@ -185,9 +189,11 @@ func _until(_games: Array[Game], done: Callable) -> bool:
 	return done.call()
 
 
+## Every game is on `screen` with `players` in its roster, and its Game._process has shown that
+## screen: the screens' texts and the player's input flags change only there.
 func _all_on(games: Array[Game], screen: S, players: int) -> bool:
 	for game: Game in games:
-		if game.client() == null or game.screen() != screen:
+		if game.client() == null or game.screen() != screen or game.ui.screen != screen:
 			return false
 		if game.client().model.roster.size() != players:
 			return false
