@@ -64,8 +64,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.
 
 ## Shell
-PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
-- No `&&` or `||` in PowerShell: `A; if ($LASTEXITCODE -eq 0) { B }`.
+PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 0) { B }`); the Bash tool is Git Bash.
 - PowerShell 5.1 breaks quoted arguments containing spaces for native exes (`gh --jq '.a + " " + .b'`): use Bash.
 - Multi-line commit messages, PR bodies and structured arguments go in scratchpad files (`-F`, `--body-file`).
 - Keep file writes and `Remove-Item` in separate commands (the delete guard misreads combined ones).
@@ -75,6 +74,7 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - `bash` on PATH is the WSL launcher, not Git Bash. In Git Bash `python` is a Store stub: use `$PYTHON_BIN`.
 - In the Bash tool `\\` arrives as `\`, even in single quotes and heredocs: write such code to a file with Write.
 - `.cmd` files are CRLF and never read `%ERRORLEVEL%` inside a `( )` block.
+- A long-lived waiting session keeps its cache warm: background `sleep 3000`, `timeout` 3300000 (orchestrate-stage §7).
 - Push an explicit task branch only (`git push -u origin <branch>`, or `publish`; a stage's manager also fast-forwards
   `release/m<k>`, DoD 5). Never `main`, no force push by hand (the pre-push hook blocks both): rebased, only `publish`.
 - No `git stash` (one stash for all worktrees): set work aside with a WIP commit, later `git reset --soft HEAD~1`;

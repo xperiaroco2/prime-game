@@ -95,9 +95,10 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    && git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
    both in the first wave comment.
 6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree, the
-   args file), the queue, ownership splits, merge order, open questions, the stage's and the current wave's start
-   times. Keep it current: it survives compaction. Keep each task's args in `manager/args-<n>.json`. The
-   scratchpad is per session, so every wave comment also carries what a successor needs (§6).
+   args file), the queue, ownership splits, merge order, open questions, the session's, the stage's and the current
+   wave's start times, and the keep-alive timer and wake count (§7). Keep it current: it survives compaction. Keep
+   each task's args in `manager/args-<n>.json`. The scratchpad is per session, so every wave comment also carries
+   what a successor needs (§6).
 7. Find the files that tasks running in parallel will all touch (mode `.tres` files, `docs/ARCHITECTURE.md`,
    registries, event folders) and split ownership **up front**: who owns which class, which task creates which
    shared class (same path and class name if two may create it), whose deal places what. Otherwise add/add
@@ -294,7 +295,8 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   the runId and the args as a JSON block. A successor session (§7) relaunches from that, not from your scratchpad.
 - Keep every slot busy: when the next task waits for a merge, start what does not depend on it (a task's
   independent part with a "fetch and check whether X is on origin/release/m<k>" step, fillers, the next milestone's
-  design task). When nothing more can run without merges or a design review, say so in a plan-issue comment and stop.
+  design task). When nothing more can run without merges or a design review, say so in a plan-issue comment and stop
+  (§7: a keep-alive timer or a handover).
 - Tasks that edit `.claude/` (any path) or `addons/` prompt unless the session runs in bypass: run them only while
   the human is present.
 
@@ -312,9 +314,29 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   is closed, and launch `issue-task` afresh with those args; the implementer finds earlier commits and uncommitted
   files through `git status`, the publisher an existing PR through `gh pr list`.
 - A plan limit: with `autoContinueAtUsageLimit` on, a workflow's agents wait for the reset and continue on their
-  own; otherwise they fail and you resume after the reset. While you wait (a limit, a long run, a merge), set a
-  timer with a background `sleep <seconds>` (Bash, `run_in_background`); it wakes you when it exits. A finished
-  workflow wakes you anyway.
+  own; otherwise they fail and you resume after the reset. While you wait (a limit, a long run, a merge), the
+  keep-alive below is your only timer: a longer wait re-arms it on each wake. A finished workflow wakes you anyway.
+- **Keep the prompt cache warm while you wait** (#305). Your session runs on the 1-hour prompt cache: the first call
+  after an idle gap over 1 hour writes the whole context again at $8 per 1M tokens (§9). The keep-alive is **one**
+  timer, a background `sleep 3000` (Bash, `run_in_background`, `timeout` 3300000: the default background timeout
+  of 30 minutes would end it early). Arm it when you end a turn with a run of your own in flight, or when you stop
+  for the human (§6, §8) with your context over about 150k (any manager past its first wave) and no handover due.
+  At most one at a time: while one is armed (its task id and arm time in the state file), arm no other; it fires
+  before the cache your latest call refreshed expires. None after a handover or once the human ends the session.
+- **A wake is a cheap turn.** Re-read nothing but the state file's keep-alive lines (the session's start, the
+  timer, the wake count): not this skill, not the plan issue. Read at most one status line, and only for what can
+  change without waking you (a PR the engineer merged: `gh pr list --state merged --limit 3 --json
+  number,mergedAt`); a finished run and a message from the human wake you anyway. Then re-arm and end the turn with
+  no message to the human and no PushNotification, unless that line needs them. Count the wakes in a row in the
+  state file (a message from the human resets the count); after 14 (about 12 hours of their absence) arm no more:
+  hand over if one is due, else stop.
+- **The keep-alive and the fresh manager once a day (#279) together**, decided in this order at the end of each
+  turn and on each wake: (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes
+  none: the run's end still wakes you). (2) No run in flight and a handover due (the session over 12 hours old or
+  its context over 500k; `tools\run.cmd wave` prints both, #277): hand over (#279) and arm nothing, since a fresh
+  session costs less than keeping a big context warm. (3) No run in flight, no handover due, the context over
+  about 150k: arm the timer. (4) Otherwise arm nothing. A session that passes 12 hours while it waits hands over
+  on its next wake.
 - "продовжуй" after any break: re-read the live state first (`gh pr list`, the plan issue's latest comments, each
   running run), then the state file, then continue.
 
@@ -398,6 +420,14 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   without the reviews they add. Check the prerequisite in §1 first.
 - **Numbers** (M4, the pipeline v2 ADR's baseline): about 82 minutes, $24 API list and 0.94% of a Max 20x week per
   task ($25.5 per 1%, #304); a stage's budget in % starts from them.
+
+### 2026-10-04 (the Token efficiency track, #302)
+- **Idle re-writes** (#302's report of 2026-10-04, the managers since the plan change): 24 calls after a gap over 1
+  hour wrote 0.15 to 0.93M tokens each again, $89.8 list: 11 while their own workflow ran ($38.8), 13 at human
+  breaks of 1.0 to 13.5 hours ($51.0). A wake reads the context once ($0.20 per 1M on Opus 5.5: $0.10 at 500k) and
+  writes a few hundred tokens; a re-write costs $8 per 1M ($4 at 500k), so 14 wakes (12 hours) cost less than one.
+  The keep-alive of §7 saves a net 5.7 limit points at cache-read weight 0 (2.9 at full weight). `metrics` reports
+  each manager session's re-writes by what held when the gap began: with a timer armed it should be 0.
 
 ## 10. Kickoff template
 The human copies it, fills the placeholders and sends it, in English or in their own language. Moving state (which

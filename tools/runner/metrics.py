@@ -35,6 +35,13 @@ the `test` step `shards` (each GdUnit4 process's `rc` and `seconds`) and, when r
 `message` or `orphans`}): the verify section counts the red runs' failing tests, first failure lines and shard exits;
 an older record without them still counts as before. `--ci N` adds CI from `gh` (read-only): every run in the
 window and the job and `verify` step times of the last N green runs.
+
+Manager cache re-writes (#305): a session's own API call after an idle gap over 1 hour (REWRITE_GAP, the 1-hour prompt
+cache's lifetime) that wrote most of its context to the cache again. Each is put in one bucket by what held when the
+gap began: a keep-alive timer armed (a Bash or PowerShell call with `run_in_background` whose whole command is a
+`sleep`, optionally followed by an `echo`; armed from its line until the task notification naming its tool-use id, or
+until its seconds or its timeout ran out; one armed before --since counts while it is still armed), else a workflow
+run of the session in flight, else a stop.
 """
 
 from __future__ import annotations
@@ -128,6 +135,17 @@ CI_LIST_LIMIT = 1000
 # The workflow that runs `verify` on every push and PR; other workflows (a nightly run) are left out.
 CI_WORKFLOW = "ci.yml"
 GAP_BUCKETS = ((0, 60, "under 1 min"), (60, 300, "1 to 5 min"), (300, 600, "5 to 10 min"), (600, None, "over 10 min"))
+# A manager's cache re-write (#305): its call after an idle gap over the 1-hour prompt cache's lifetime.
+REWRITE_GAP = 3600
+# What held when such a gap began, in the order the first that holds wins (module docstring).
+REWRITE_KINDS = ("timer", "run", "stop")
+# A keep-alive timer: a background shell call that only sleeps (an `echo` after it allowed), in Bash or PowerShell.
+TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:(?:;|&&)\s*echo\b.*)?",
+                   re.IGNORECASE | re.DOTALL)  # fmt: skip
+# A background task's notification names the tool call that started it.
+NOTIFIED = re.compile(r"<tool-use-id>([^<\s]+)</tool-use-id>")
+# Claude Code stops a background command after its `timeout`, 30 minutes when none is given.
+BACKGROUND_TIMEOUT = 1800
 
 
 # --- time and formatting ------------------------------------------------------------------------------------------
@@ -304,6 +322,21 @@ def parse_verify(text: str) -> dict | None:
     return {"steps": steps, "total": total_s, "status": status, "wait": wait, "over": over}
 
 
+def timer_seconds(block: object) -> float | None:
+    """A tool_use block's keep-alive seconds (TIMER, run in the background), capped by its timeout; else None."""
+    if not isinstance(block, dict) or block.get("type") != "tool_use" or not block.get("id"):
+        return None
+    inp = block.get("input") if isinstance(block.get("input"), dict) else {}
+    if block.get("name") not in ("Bash", "PowerShell") or inp.get("run_in_background") is not True:
+        return None
+    timer = TIMER.fullmatch(str(inp.get("command", "")))
+    if not timer:
+        return None
+    limit = inp.get("timeout")
+    limit_s = limit / 1000 if isinstance(limit, (int, float)) and limit > 0 else None
+    return min(float(timer.group(1)), limit_s or BACKGROUND_TIMEOUT)
+
+
 def read_agent(path: Path, since: float | None = None, until: float | None = None) -> dict:
     """One transcript: usage deduplicated by message id, tool calls with their wall time, verify summaries.
 
@@ -315,6 +348,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     model, effort, title = None, None, None
     last_ctx = 0
     verifies: list[dict] = []
+    timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
+    woken: dict[str, float] = {}  # a background task's tool-use id: when its notification came
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -326,10 +361,21 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             if d.get("type") == "custom-title" and d.get("customTitle"):
                 title = str(d["customTitle"])
             t = stamp(d.get("timestamp"))
-            if t is None or (until is not None and t >= until) or (since is not None and t < since):
+            if t is None or (until is not None and t >= until):
+                continue
+            if "<task-notification>" in line:  # a queue-operation line or a user message, whichever comes first
+                for tid in NOTIFIED.findall(line):
+                    woken.setdefault(tid, t)
+            m = d.get("message")
+            if since is not None and t < since:
+                # Before the window only its keep-alive timers count: one may still be armed when a gap in it begins.
+                if d.get("type") == "assistant" and isinstance(m, dict) and m.get("model") != "<synthetic>":
+                    for b in m.get("content") or []:
+                        secs = timer_seconds(b)
+                        if secs is not None and b["id"] not in timers:
+                            timers[b["id"]] = (t, secs)
                 continue
             stamps.append(t)
-            m = d.get("message")
             if not isinstance(m, dict):
                 continue
             if d.get("type") == "assistant":
@@ -354,6 +400,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                     if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id"):
                         inp = b.get("input") if isinstance(b.get("input"), dict) else {}
                         cmd = str(inp.get("command", "")) if b.get("name") in ("Bash", "PowerShell") else ""
+                        secs = timer_seconds(b)
+                        if secs is not None and b["id"] not in timers:
+                            timers[b["id"]] = (t, secs)
                         uses[b["id"]] = {
                             "name": b.get("name"),
                             "t0": t,
@@ -380,11 +429,14 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         if not price_of(u["model"])[1] and total(u):
             unpriced.add(str(u["model"]))
     order = sorted(first_seen, key=lambda k: first_seen[k])
+    # Per call after the first: (seconds since the previous call, cache write, cache read, the write's premium over a
+    # read, the write's API list $, the previous call's time).
     gaps = [
         (first_seen[b] - first_seen[a], usage[b]["cache_creation_input_tokens"], usage[b]["cache_read_input_tokens"],
-         write_premium(usage[b]))
+         write_premium(usage[b]), usd_of(usage[b])["usd_cache_write"], first_seen[a])
         for a, b in zip(order, order[1:])
     ]
+    armed = sorted((t0, woken.get(tid, t0 + secs)) for tid, (t0, secs) in timers.items())
     calls = list(uses.values())
     seen, unique = set(), []
     for v in verifies:
@@ -406,6 +458,10 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "unpriced": unpriced,
         "last_ctx": last_ctx,
         "gaps": gaps,
+        # Keep-alive timers as (armed, ended): ended at the notification, else when its seconds ran out. One armed
+        # before the window is kept while it is still armed in it; "timers_armed" counts those armed in the window.
+        "timers": [(a, b) for a, b in armed if since is None or b > since],
+        "timers_armed": sum(1 for t0, _secs in timers.values() if since is None or t0 >= since),
         "tool_calls": len(calls),
         "kinds": dict(kinds),
         "kind_counts": Counter(c["kind"] for c in calls),
@@ -824,6 +880,8 @@ def build(
     md += cache_section(counted)
     managers = manager_rows(counted, data["sessions"])
     md += manager_section(managers, data["other_sessions"])
+    rewrites = rewrite_rows(data["sessions"], data["runs"])
+    md += rewrite_section(rewrites)
     md += other_section(counted)
     if ci is not None:
         md += ci_section(ci)
@@ -841,6 +899,7 @@ def build(
             k: [{**v, "steps": {s: list(x) for s, x in v["steps"].items()}} for v in lst] for k, lst in by_row.items()
         },
         "ci": ci,
+        "manager_rewrites": rewrites,
         "compact": compact,
     }
     return md, record, compact
@@ -1104,6 +1163,57 @@ def manager_section(managers: list[dict], other_sessions: int) -> list[str]:
         md += [f"{other_sessions} other sessions of this checkout ran no workflow or have nothing in the window "
                "(name one with --session to see it).", ""]
     return md
+
+
+def rewrite_kind(began: float, timers: list[tuple[float, float]], runs: list[dict]) -> str:
+    """What held when a manager's idle gap began (REWRITE_KINDS): a keep-alive timer, a run of its own, neither."""
+    if any(armed <= began < ended for armed, ended in timers):
+        return "timer"
+    if any(r["start"] <= began < r["end"] for r in runs):
+        return "run"
+    return "stop"
+
+
+def rewrite_rows(sessions: list[dict], runs: list[dict]) -> list[dict]:
+    """Per session with own API calls in the window: its cache re-writes after an idle gap over REWRITE_GAP (#305),
+    by what held when the gap began, its keep-alive timers and its last call's context."""
+    rows = []
+    for s in sessions:
+        man = s["manager"]
+        if not man or not man["api_calls"]:
+            continue
+        own = [r for r in runs if r["sid"] == s["id"] and r["start"] is not None and r["end"] is not None]
+        found = [
+            {"at": iso(g[5] + g[0]), "idle_hours": g[0] / 3600, "tokens": g[1], "usd": g[4],
+             "while": rewrite_kind(g[5], man["timers"], own)}
+            for g in man["gaps"]
+            if g[0] > REWRITE_GAP and g[1] > 0.5 * (g[1] + g[2])
+        ]
+        row = {"session": s["id"], "label": s["label"], "rewrites": len(found),
+               "tokens": sum(f["tokens"] for f in found), "usd": sum(f["usd"] for f in found)}
+        for kind in REWRITE_KINDS:
+            sel = [f for f in found if f["while"] == kind]
+            row[kind] = {"rewrites": len(sel), "usd": sum(f["usd"] for f in sel)}
+        rows.append(row | {"timers": man["timers_armed"], "last_ctx": man["last_ctx"], "found": found})
+    return rows
+
+
+def rewrite_section(rows: list[dict]) -> list[str]:
+    if not rows:
+        return []
+    head = ["session", "re-writes", "tokens re-written", "API list $", "a keep-alive timer armed",
+            "a run of its own in flight", "neither (a stop)", "keep-alive timers", "context of its last call"]
+    body = [
+        [r["label"], r["rewrites"], fmt_tok(r["tokens"]), fmt_usd(r["usd"]),
+         *(f"{r[k]['rewrites']} ({fmt_usd(r[k]['usd'])})" for k in REWRITE_KINDS), r["timers"], fmt_tok(r["last_ctx"])]
+        for r in rows
+    ]
+    return ["## Manager cache re-writes after an idle gap over 1 hour (#305)", "", table(head, body), "",
+            "A re-write is a session's own API call after over 1 hour without one that wrote most of its context to "
+            "the cache again (at the 1-hour cache write price: $8 per 1M tokens on Opus 5.5). Each counts once, in "
+            "the first column that held when the gap began: a keep-alive timer armed (a background `sleep`; the "
+            "orchestrate-stage skill, §7), which should stay 0; a workflow run of the session in flight; else a stop "
+            "for the human.", ""]  # fmt: skip
 
 
 def other_section(counted: list[dict]) -> list[str]:

@@ -554,6 +554,137 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual((args.ci, args.compact, args.out), (12, True, None))
 
 
+def background(tool_id: str, command: str, name: str = "Bash", timeout: int | None = 3_300_000) -> dict:
+    inp: dict = {"command": command, "run_in_background": True}
+    if timeout is not None:
+        inp["timeout"] = timeout
+    return {"id": tool_id, "name": name, "input": inp}
+
+
+def notification(minutes: float, tool_id: str) -> dict:
+    """A background task's end, as Claude Code queues it for the session."""
+    content = (f"<task-notification>\n<task-id>x{tool_id}</task-id>\n<tool-use-id>{tool_id}</tool-use-id>\n"
+               "<status>completed</status>\n</task-notification>")  # fmt: skip
+    return {"type": "queue-operation", "operation": "enqueue", "timestamp": at(minutes), "content": content}
+
+
+class ManagerRewriteTest(unittest.TestCase):
+    """#305: a manager's cache re-writes after an idle gap over 1 hour, by what held when the gap began."""
+
+    SID = "33333333-0000-0000-0000-000000000000"
+    UNTIL = "2026-10-02T18:00:00Z"
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name) / "projects" / "D--prime-game"
+        run = self.dir / self.SID / "subagents" / "workflows" / "wf_run"
+        Fixture.run(run, [("k-i", "a-i", "implement:#12", "Implement", {"verify_green": True}, [
+            assistant(4, "w1", usage(inp=1, write=100)),
+            assistant(100, "w2", usage(inp=1, read=100)),
+        ])])
+
+        def h(write: int = 0, read: int = 0) -> dict:  # the manager's calls write 1-hour cache entries
+            return usage(inp=1, write=write, read=read, out=10, write_1h=write)
+
+        write_lines(self.dir / f"{self.SID}.jsonl", [
+            assistant(0, "m1", h(write=200_000)),
+            assistant(5, "m2", h(read=200_000)),
+            # 75 minutes idle while its run (minutes 4 to 100) works: a re-write with a run in flight.
+            assistant(80, "m3", h(write=210_000)),
+            assistant(81, "m4", h(read=210_000), tool=background("k1", "sleep 3000")),
+            tool_result(81.2, "k1", "Command running in background"),
+            assistant(81.5, "m5", h(read=210_000)),
+            notification(131, "k1"),
+            # The timer woke it after 50 minutes: the cache was still warm; it re-arms.
+            assistant(131.1, "m6", h(read=210_000), tool=background("k2", 'sleep 3000; echo "keep-alive"')),
+            tool_result(131.3, "k2", "Command running in background"),
+            assistant(131.5, "m7", h(read=210_000)),
+            # k2 never wakes it (the sleep died with no notification): 90 minutes idle with a timer armed.
+            assistant(221.5, "m8", h(write=220_000)),
+            # Not a timer: the sleep is part of another command.
+            assistant(222, "m9", h(read=220_000), tool=background("k3", "sleep 30; gh pr checks 9 --watch")),
+            tool_result(222.1, "k3", "Command running in background"),
+            notification(223, "k3"),
+            assistant(223.5, "m10", h(read=220_000)),
+            # 120 minutes idle at a stop for the human, nothing armed.
+            assistant(343.5, "m11", h(write=230_000)),
+            assistant(344, "m12", h(read=230_000),
+                      tool=background("k4", "Start-Sleep -Seconds 3000", name="PowerShell", timeout=None)),
+            tool_result(344.1, "k4", "Command running in background"),
+            notification(374, "k4"),  # its default 30-minute timeout stopped it: it still woke the session
+            assistant(374.2, "m13", h(read=230_000)),
+            # Over an hour idle, but the cache held (a read): not a re-write.
+            assistant(440, "m14", h(read=230_000, write=1000)),
+            # A re-write after under an hour: not one of these.
+            assistant(490, "m15", h(write=240_000)),
+        ])
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_timers_are_armed_until_their_notification_or_their_seconds(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        manager = metrics.collect([self.dir], {}, None, until)["sessions"][0]["manager"]
+        t0 = metrics.parse_time(at(0))
+        self.assertEqual([(round((a - t0) / 60, 1), round((b - t0) / 60, 1)) for a, b in manager["timers"]],
+                         [(81.0, 131.0), (131.1, 181.1), (344.0, 374.0)])  # fmt: skip
+
+    def test_the_rewrites_by_what_held_when_the_gap_began(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        md, record, _compact = metrics.build(metrics.collect([self.dir], {}, None, until), [], None, None, until)
+        row = record["manager_rewrites"][0]
+        self.assertEqual((row["label"], row["rewrites"], row["tokens"]), ("33333333", 3, 660_000))
+        self.assertAlmostEqual(row["usd"], 660_000 * 8.0 / 1e6, msg="1-hour cache writes at Opus 5.5's $8 per 1M")
+        self.assertEqual([(f["while"], f["tokens"], round(f["idle_hours"], 2)) for f in row["found"]],
+                         [("run", 210_000, 1.25), ("timer", 220_000, 1.5), ("stop", 230_000, 2.0)])  # fmt: skip
+        self.assertEqual(row["found"][0]["at"], "2026-10-02T09:20:00Z")
+        self.assertEqual({k: row[k]["rewrites"] for k in metrics.REWRITE_KINDS}, {"timer": 1, "run": 1, "stop": 1})
+        self.assertAlmostEqual(row["timer"]["usd"], 220_000 * 8.0 / 1e6)
+        self.assertEqual((row["timers"], row["last_ctx"]), (3, 1 + 240_000 + 10))
+        text = "\n".join(md)
+        self.assertIn("## Manager cache re-writes after an idle gap over 1 hour (#305)", text)
+        self.assertIn("| 33333333 | 3 | 0.66M | $5.28 | 1 ($1.76) | 1 ($1.68) | 1 ($1.84) | 3 | 0.24M |", text)
+
+    def test_a_window_counts_only_its_own_gaps(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        since = metrics.parse_time(at(200))
+        data = metrics.collect([self.dir], {self.SID[:8]: "M"}, since, until)
+        _md, record, _compact = metrics.build(data, [], None, since, until)
+        row = record["manager_rewrites"][0]
+        self.assertEqual([f["while"] for f in row["found"]], ["stop"], "the gap before 221.5 began before --since")
+        self.assertEqual(row["timers"], 1)
+
+    def lone_timer(self) -> Path:
+        """A second manager whose only timer has no timeout and never sends a notification."""
+        other = Path(self.tmp.name) / "lone" / "projects" / "D--prime-game"
+        h = usage(inp=1, write=200_000, out=10, write_1h=200_000)
+        write_lines(other / "44444444-0000-0000-0000-000000000000.jsonl", [
+            assistant(0, "n1", h),
+            assistant(1, "n2", usage(inp=1, read=200_000), tool=background("k5", "sleep 3000", timeout=None)),
+            tool_result(1.1, "k5", "Command running in background"),
+            assistant(2, "n3", usage(inp=1, read=200_000)),
+            # 98 minutes idle from minute 2, while k5 was armed (minutes 1 to 31).
+            assistant(100, "n4", h),
+        ])  # fmt: skip
+        return other
+
+    def test_a_timer_with_no_timeout_ends_after_the_default_30_minutes(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        manager = metrics.collect([self.lone_timer()], {"44444444": "L"}, None, until)["sessions"][0]["manager"]
+        t0 = metrics.parse_time(at(0))
+        self.assertEqual([(round((a - t0) / 60, 1), round((b - t0) / 60, 1)) for a, b in manager["timers"]],
+                         [(1.0, 31.0)], "min(its 3000 seconds, the 1800-second default timeout)")  # fmt: skip
+
+    def test_a_timer_armed_before_the_window_still_holds_in_it(self) -> None:
+        until = metrics.parse_time(self.UNTIL)
+        since = metrics.parse_time(at(1.5))
+        data = metrics.collect([self.lone_timer()], {"44444444": "L"}, since, until)
+        _md, record, _compact = metrics.build(data, [], None, since, until)
+        row = record["manager_rewrites"][0]
+        self.assertEqual([f["while"] for f in row["found"]], ["timer"], "k5 was armed when the gap began")
+        self.assertEqual(row["timers"], 0, "the count is of the timers armed in the window")
+
+
 class ProjectKeyTest(unittest.TestCase):
     def test_the_key_is_the_main_checkouts_from_any_worktree(self) -> None:
         self.assertEqual(metrics.project_key(Path("D:/prime-game")), metrics.project_key(Path("D:\\prime-game")))
