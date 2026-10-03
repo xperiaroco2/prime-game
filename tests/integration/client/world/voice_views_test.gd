@@ -99,6 +99,20 @@ func test_a_dying_speaker_is_faded_and_flushed() -> void:
 	assert_int(speaker.jitter.received).is_equal(heard)
 
 
+func test_a_downed_listener_still_hears_the_living_and_its_knockdown_flushes_nobody() -> void:
+	# Vision revision 1: the downed hear the living, from where they lie.
+	var speaker := await _talking()
+	_world.event(&"KnockedDown", {"peer": OWN, "position": Vector3.ZERO})
+	assert_bool(speaker.fading()).is_false()
+	assert_bool(speaker.is_active()).is_true()
+	assert_int(_voices.flushed_at(TALKER)).is_equal(-1)
+	var heard := speaker.jitter.received
+	var played := _voices.played
+	_world.speak(TALKER, 3, 20)
+	assert_int(speaker.jitter.received).is_equal(heard + 3)
+	assert_int(_voices.played).is_equal(played + 3)
+
+
 func test_the_own_death_records_the_flush_of_a_speaker_not_heard_yet() -> void:
 	# OTHER has a body but no frame yet, so no speaker: its frames stamped before the own death and
 	# delivered after the respawn never play all the same (the M5 ADR §3 item 3).
@@ -128,6 +142,15 @@ func test_frames_reaching_a_fading_speaker_count_as_dropped_not_played() -> void
 	_world.speak(TALKER, 3, 20)
 	assert_int(_voices.played).is_equal(played)
 	assert_int(_voices.dropped).is_equal(dropped + 3)
+
+
+func test_a_reset_forgets_the_flushes_so_a_new_session_hears_low_ticks() -> void:
+	var speaker := await _talking()
+	_world.event(&"KnockedDown", {"peer": TALKER, "position": Vector3(0, 0, -3)})
+	assert_int(_voices.flushed_at(TALKER)).is_greater_equal(10)
+	_voices.reset()
+	assert_int(_voices.flushed_at(TALKER)).is_equal(-1)
+	assert_bool(is_instance_valid(speaker) and not speaker.is_queued_for_deletion()).is_false()
 
 
 func test_a_phase_that_hears_nobody_flushes_every_speaker_and_the_cutoff_follows_the_phase(
