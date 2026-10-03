@@ -91,6 +91,17 @@ ARGS = {
 STASH_RULE = "Never use `git stash`"
 MAJOR = {"severity": "major", "file": "core/match/vote.gd", "line": 12, "problem": "p1", "fix": "f1"}
 MINOR = {"severity": "minor", "file": "core/match/vote.gd", "line": 30, "problem": "p2", "fix": "f2"}
+# What every agent that publishes returns for the engineer's own steps (#266), and how its prompt asks for it.
+HUMAN_STEPS_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {"why": {"type": "string"}, "command": {"type": "string"}},
+        "required": ["why", "command"],
+    },
+}
+HUMAN_STEPS_ASK = "human_steps: each step only the engineer can take after you"
+HUMAN_STEPS_ASK_TAIL = "The PR and your comment on the issue may carry the commands too.\n\nReturn the structured result."
 
 # The representative arg sets of the snapshots: (case, args over ARGS, stub). A code task per area, a design task, a
 # stacked base, a release base, every optional v1 arg, no changed paths, a red first agent and (pr-rebase) a fix round.
@@ -245,6 +256,54 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(len(publish), 1, [c["label"] for c in calls])
         self.assertIn('"agreed with the designer, relayed by the engineer"', publish[0])
         self.assertIn("@SwiftySinister", publish[0])
+
+    def test_every_publishing_agent_returns_human_steps_as_ready_commands(self) -> None:
+        # #261 and #266: a publisher's human_steps read "run the cleanup command in the PR body", and the manager
+        # relayed the pointer instead of the command. Each agent that publishes now returns {why, command} pairs,
+        # each command one PowerShell line that starts with `cd` to its absolute folder, ready to paste.
+        stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
+        core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        backslashes = {"wt": "D:\\prime-game\\.claude\\worktrees\\7"}
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **backslashes), core),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [stuck]})),
+            ("pr-rebase.js", dict(ARGS, **backslashes), core),
+        ]
+        publishing = ("publish", "rebase", "fix")
+        seen, asks = [], set()
+        for result in run_jobs(jobs):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                label, prompt = event["label"], event["prompt"]
+                steps = options(event)["schema"]["properties"].get("human_steps")
+                with self.subTest(agent=label):
+                    if not label.startswith(publishing):
+                        self.assertIsNone(steps)
+                        self.assertNotIn(HUMAN_STEPS_ASK, prompt)
+                        continue
+                    seen.append(label.split(":")[0])
+                    self.assertEqual(steps, HUMAN_STEPS_SCHEMA)
+                    self.assertIn(HUMAN_STEPS_ASK, prompt)
+                    self.assertIn("ONE PowerShell 5.1 line that starts with `cd <absolute folder>;`", prompt)
+                    self.assertIn("`cd D:\\prime-game;` for the main checkout", prompt)
+                    self.assertIn("`cd D:\\prime-game\\.claude\\worktrees\\7;` for your worktree", prompt)
+                    self.assertIn("never `&&`", prompt)
+                    self.assertIn('never a pointer such as "the command in the PR body"', prompt)
+                    # A human step is one the agent must not take: it previews the command, runs only a read-only one.
+                    self.assertIn("Preview it from that folder first", prompt)
+                    self.assertIn("never one that does his step, changes `D:\\prime-game` or prompts", prompt)
+                    self.assertNotIn("Run it yourself", prompt)
+                    self.assertIn('A step without a command (a click in GitHub, a decision) has command ""', prompt)
+                    # The ask is its own paragraph right before the result's, so every earlier line stays as it was.
+                    paragraphs = prompt.split("\n\n")
+                    self.assertTrue(paragraphs[-2].startswith(HUMAN_STEPS_ASK), paragraphs[-2][:200])
+                    self.assertTrue(paragraphs[-1].startswith("Return the structured result."), paragraphs[-1][:200])
+                    self.assertIn(HUMAN_STEPS_ASK_TAIL, prompt)
+                    asks.add(paragraphs[-2])
+        self.assertEqual(sorted(set(seen)), ["fix", "publish", "rebase"])
+        self.assertEqual(seen.count("publish"), 2)  # the full publisher and the one that reports a mutants stop
+        # The two workflows cannot share a module, so each carries its own copy of the ask: they must not drift apart.
+        self.assertEqual(len(asks), 1, sorted(asks))
 
     def test_the_leak_test_gets_a_netcode_review(self) -> None:
         # #115 touched only tests/ and tools/: no netcode review was routed, and one run by hand found a major.

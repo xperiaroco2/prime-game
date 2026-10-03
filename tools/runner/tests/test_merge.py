@@ -646,15 +646,19 @@ class CommandTest(unittest.TestCase):
         self.task(305, {"tools/x.py": "X = 1\n"}, base="core/302-task")
         self.assertEqual(merge.check([]), 1)
         text = "\n".join(self.printed)
-        self.assertIn("### across bases (main, release/m1): pairs that change the same files under tools/, .claude/, "
+        self.assertIn("### across bases (main, release/m1): pairs that both change files under tools/, .claude/, "
                       ".github/ or docs/AGENT_WORKFLOW.md", text)  # fmt: skip
         self.assertIn("| check | shared files | textual | semantic |", text)
         self.assertIn("| #301 (main) + #302 (release/m1) | tools/runner/gdunit.py | clean | overlap: `main` |", text)
         self.assertIn("| #302 (release/m1) + #304 (main) | docs/AGENT_WORKFLOW.md | conflict: docs/AGENT_WORKFLOW.md "
                       "| clean |", text)  # fmt: skip
-        self.assertIn("no shared file in common, not compared: #301 (main) + #303 (release/m1); #301 (main) + "
-                      "#305 (release/m1 via core/302-task); #303 (release/m1) + #304 (main); #304 (main) + "
-                      "#305 (release/m1 via core/302-task)", text)  # fmt: skip
+        # Different shared files on each side are compared too (#231).
+        self.assertIn("| #301 (main) + #305 (release/m1 via core/302-task) | #301: tools/runner/gdunit.py; #305: "
+                      "tools/x.py | clean | clean |", text)  # fmt: skip
+        self.assertIn("| #304 (main) + #305 (release/m1 via core/302-task) | #304: docs/AGENT_WORKFLOW.md; #305: "
+                      "tools/x.py | clean | clean |", text)  # fmt: skip
+        self.assertIn("no shared file on both sides, not compared: #301 (main) + #303 (release/m1); #303 (release/m1) "
+                      "+ #304 (main)", text)  # fmt: skip
         self.assertNotIn("#302 (release/m1) + #305", text)  # stacked on #302: the same track, within its own base
         self.assertIn("`main` (def, changed (paths:list[str]|None=, run_import:bool=)->int -> (paths:list[str]|None=, "
                       "import_first:bool=)->int) by #301 at tools/runner/gdunit.py:4; used by #302 at "
@@ -662,20 +666,55 @@ class CommandTest(unittest.TestCase):
         # The per-base tables stay as they were: 3 checks into main, 3 into release/m1, 1 onto core/302-task.
         self.assertIn("| #301 + #304 | clean | clean |", text)
         self.assertIn("| #302 + #303 | clean | clean |", text)
-        self.assertIn("merge-check: 1 textual conflicts and 1 overlaps in 9 checks.", text)
+        self.assertIn("merge-check: 1 textual conflicts and 1 overlaps in 11 checks.", text)
         self.assertIn("Across bases: name the pair on both tracks' plan issues", text)
         # One base checked: its PRs with every open PR into another base.
         self.printed.clear()
         self.assertEqual(merge.check([], base="main"), 1)
-        self.assertIn("merge-check: 1 textual conflicts and 1 overlaps in 5 checks.", "\n".join(self.printed))
+        self.assertIn("merge-check: 1 textual conflicts and 1 overlaps in 7 checks.", "\n".join(self.printed))
         # A PR with no shared file: its base's checks, and every cross-base pair named as not compared.
         self.printed.clear()
         self.assertEqual(merge.check([303]), 0)
         text = "\n".join(self.printed)
-        self.assertIn("no shared file in common, not compared: #301 (main) + #303 (release/m1); #303 (release/m1) + "
-                      "#304 (main)", text)  # fmt: skip
+        self.assertIn("no shared file on both sides, not compared: #301 (main) + #303 (release/m1); #303 (release/m1) "
+                      "+ #304 (main)", text)  # fmt: skip
         self.assertNotIn("| check | shared files |", text)
         self.assertIn("merge-check: clean (0 textual conflicts and 0 overlaps in 1 checks)", text)
+
+    def test_merge_check_pairs_prs_across_bases_that_change_different_shared_files(self) -> None:
+        # #231: the #210/#200 shape across bases. #311 into main renames a parameter of gdunit.main in
+        # tools/runner/gdunit.py; #312 into release/m1 calls it from tools/runner/mutants.py, a file #311 never changes.
+        # #313 into main changes a shared file but uses nothing of #312's; #314 into release/m1 changes only core/.
+        self.task(311, {"tools/runner/gdunit.py": GDUNIT.replace("run_import: bool", "import_first: bool")}, "main")
+        self.task(312, MUTANTS_200)
+        self.task(313, {"docs/AGENT_WORKFLOW.md": "# Workflow\n\nmain\n"}, base="main")
+        self.task(314, {"core/other.gd": "extends Node\n"})
+        self.assertEqual(merge.check([]), 1)
+        text = "\n".join(self.printed)
+        self.assertIn("### across bases (main, release/m1): pairs that both change files under tools/, .claude/, "
+                      ".github/ or docs/AGENT_WORKFLOW.md (textual: the files both change)", text)  # fmt: skip
+        self.assertIn("| #311 (main) + #312 (release/m1) | #311: tools/runner/gdunit.py; #312: "
+                      "tools/runner/mutants.py, tools/runner/tests/test_mutants.py | clean | overlap: `main` |",
+                      text)  # fmt: skip
+        self.assertIn("`main` (def, changed (paths:list[str]|None=, run_import:bool=)->int -> (paths:list[str]|None=, "
+                      "import_first:bool=)->int) by #311 at tools/runner/gdunit.py:4; used by #312 at "
+                      "tools/runner/mutants.py:5, tools/runner/tests/test_mutants.py:9", text)  # fmt: skip
+        self.assertIn("| #312 (release/m1) + #313 (main) | #312: tools/runner/mutants.py, "
+                      "tools/runner/tests/test_mutants.py; #313: docs/AGENT_WORKFLOW.md | clean | clean |",
+                      text)  # fmt: skip
+        # Only one side changes a shared file: not compared.
+        self.assertIn("no shared file on both sides, not compared: #311 (main) + #314 (release/m1); #313 (main) + "
+                      "#314 (release/m1)", text)  # fmt: skip
+        self.assertIn("merge-check: 0 textual conflicts and 1 overlaps in 8 checks.", text)
+        # The rename made compatible (a parameter appended with a default): a note across bases, no overlap.
+        self.printed.clear()
+        self.gh.prs.pop(311)
+        self.task(315, {"tools/runner/gdunit.py": GDUNIT_210}, base="main")
+        self.assertEqual(merge.check([312]), 0)
+        text = "\n".join(self.printed)
+        self.assertIn("| #312 (release/m1) + #315 (main) | #312: tools/runner/mutants.py, "
+                      "tools/runner/tests/test_mutants.py; #315: tools/runner/gdunit.py | clean | clean; "
+                      "note: `main` |", text)  # fmt: skip
 
     def test_a_stage_pr_under_review_does_not_hide_its_fix_ups_from_the_check_across_bases(self) -> None:
         # The stage's PR #400 (release/m1 into main) is open while the human reviews it. #401, a fix-up into

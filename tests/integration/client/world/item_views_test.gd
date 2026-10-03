@@ -260,7 +260,12 @@ func _other_at(at: Vector3) -> void:
 	_now += TICK_USEC * 10
 
 
+## Waits until the views have run since the state the test folded: ItemViews places in its
+## _physics_process (two physics frames), CircleViews draws in its _process. Under load several
+## physics frames run inside one idle frame, before its _process, and process_frame is emitted
+## before that frame's _process: the second one comes after a _process that saw the state (#222).
 func _drawn() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+	await get_tree().process_frame
 	await get_tree().process_frame

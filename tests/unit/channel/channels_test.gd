@@ -86,6 +86,24 @@ func test_a_refused_action_of_its_actor_stops_nothing() -> void:
 	assert_object(Channels.of_actor(game.state, P1)).is_not_null()
 
 
+func test_a_rule_run_for_a_fact_stops_no_channel_of_its_actor() -> void:
+	# Only an action (a rule on an intent) stops its actor's channel (RuleRunner). In a match a
+	# reaction runs for actor 0, who never channels, so this calls the runner directly with P1.
+	var game := _round()
+	_use(game, P1)
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.world = FlatWorldQuery.new()
+	ctx.tick = game.ticked_through() + 1
+	ctx.actor = P1
+	ctx.fact = Fact.new(Facts.CLOCK_ENDED)
+	var reaction := Rule.new()
+	reaction.trigger = Facts.CLOCK_ENDED
+	assert_str(String(RuleRunner.run(reaction, ctx))).is_empty()
+	assert_object(Channels.of_actor(game.state, P1)).is_not_null()
+	assert_array(FixtureModes.notes(game)).is_equal(["started 1"])
+
+
 func test_another_players_action_stops_nothing() -> void:
 	var game := _round()
 	var package := FixtureItemModes.lay(game, &"package", HERE)
@@ -116,17 +134,50 @@ func test_a_channel_without_channel_ticks_never_advances_and_reset_match_clears_
 	assert_array(Channels.running(game.state)).is_empty()
 
 
-## A round of FixtureItemModes.basic() whose mode's Use (from the living, with an empty hand)
-## starts a FixtureChannel of 1 s, under ChannelFree and "peer 0's counter `halt` below 1"
-## (checked every tick); `cooldown`: also a Cooldown of 5 s. Round lists ChannelTicks.
-func _round(cooldown: bool = false) -> Match:
+func test_a_channel_ended_in_the_tick_by_an_earlier_ones_end_is_skipped() -> void:
+	var game := _round(false, FixtureStoppingChannel.stopping(1.0))
+	_use(game, P1)
+	_use(game, P2)
+	FixtureModes.run_ticks(game, TICKS)
+	# P1's completes first (actor-id order) and stops P2's, which then neither runs on nor ends
+	# a second time in that tick.
+	assert_array(FixtureModes.notes(game)).is_equal(
+		["started 1", "started 2", "completed 1 after 20", "stopped 2 after 19"]
+	)
+	assert_array(Channels.running(game.state)).is_empty()
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func test_a_swap_refused_for_a_two_handed_item_stops_nothing() -> void:
+	var game := _round(false, null, true)
+	var package := FixtureItemModes.lay(game, &"package", HERE)
+	FixtureItemModes.pick_up(game, P1, package)
+	_use(game, P1)
+	FixtureModes.run_ticks(game, 3)
+	FixtureItemModes.swap(game, P1)
+	assert_array(FixtureModes.rejections(game, P1)).is_equal([HandNotTwoHanded.TWO_HANDED])
+	# Refused by the condition, before the channel stops: not by the swap's own guard after it.
+	assert_object(Channels.of_actor(game.state, P1)).is_not_null()
+	assert_array(FixtureModes.notes(game)).is_equal(["started 1"])
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+## A round of FixtureItemModes.basic() whose mode's Use (from the living, when the hand item has
+## no Use of its own) starts `effect` (a FixtureChannel of 1 s when null), under ChannelFree and
+## "peer 0's counter `halt` below 1" (checked every tick); `cooldown`: also a Cooldown of 5 s;
+## `swap`: the mode has the base mode's Swap (FixtureItemModes.swapping). Round lists
+## ChannelTicks.
+func _round(cooldown: bool = false, effect: ChannelEffect = null, swap: bool = false) -> Match:
 	var mode := FixtureItemModes.basic()
+	if swap:
+		mode = FixtureItemModes.swapping(mode)
 	var halt := FixtureCounterAtLeast.of(&"halt")
 	halt.negate = true
 	var conditions: Array[Condition] = [ChannelFree.new(), halt]
 	if cooldown:
 		conditions.append(FixtureCombatModes.cooldown(&"hold", 5.0))
-	mode.actions.append(FixtureModes.rule(Intents.USE, conditions, [FixtureChannel.of(1.0)]))
+	var channel: ChannelEffect = effect if effect != null else FixtureChannel.of(1.0)
+	mode.actions.append(FixtureModes.rule(Intents.USE, conditions, [channel]))
 	mode.find_phase(&"round").tick_systems.append(ChannelTicks.new())
 	var game := FixtureItemModes.in_round(mode, [P1, P2])
 	FixtureItemModes.stand(game, P1, HERE)

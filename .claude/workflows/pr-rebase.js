@@ -101,6 +101,10 @@ const RULES = [
 
 const REVIEW = { type: 'object', properties: { reviewer: { type: 'string' }, verdict: { type: 'string' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'major', 'minor', 'nit'] }, file: { type: 'string' }, line: { type: 'number' }, problem: { type: 'string' }, fix: { type: 'string' } }, required: ['severity', 'problem'] } } }, required: ['verdict', 'findings'] }
 const SKEPTIC_SCHEMA = { type: 'object', properties: { refuted: { type: 'boolean' }, reason: { type: 'string' }, evidence: { type: 'string' } }, required: ['refuted', 'reason'] }
+// human_steps (#266), as in issue-task.js: each step the engineer takes himself comes back with its whole command, which
+// the manager copies into the chat as is (root CLAUDE.md, "Talking to the humans").
+const HUMAN_STEPS_SCHEMA = { type: 'array', items: { type: 'object', properties: { why: { type: 'string' }, command: { type: 'string' } }, required: ['why', 'command'] } }
+const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
 
 phase('Rebase')
 const reb = await agent([
@@ -115,10 +119,11 @@ const reb = await agent([
     `3. \`tools\\run.cmd verify\` until green; \`${PUBLISH}\` (it can fail right after a rebase that changed tools/runner: run it again).`,
     `4. Update PR #${PR}'s body (\`gh pr edit ${PR} --body-file\`): a "Rebased on ${BASE}" section with the conflicts, how each was resolved and the fixes; keep the rest. \`gh pr checks ${PR} --watch\`, at most two fix rounds. A short comment on #${N}.`,
   ].join('\n'),
+  HUMAN_STEPS,
   `Return the structured result. changed_paths: \`git diff --name-only origin/${BASE}...HEAD\`.`,
 ].join('\n\n'), withModel({
   label: `rebase:#${PR}`, phase: 'Rebase', effort: REB_EFFORT,
-  schema: { type: 'object', properties: { up_to_date: { type: 'boolean' }, verify_green: { type: 'boolean' }, ci_green: { type: 'boolean' }, published: { type: 'boolean' }, old_tip: { type: 'string' }, new_tip: { type: 'string' }, changed_paths: { type: 'array', items: { type: 'string' } }, conflicts: { type: 'array', items: { type: 'string' } }, fixes: { type: 'array', items: { type: 'string' } }, problems: { type: 'array', items: { type: 'string' } } }, required: ['up_to_date', 'verify_green', 'published'] },
+  schema: { type: 'object', properties: { up_to_date: { type: 'boolean' }, verify_green: { type: 'boolean' }, ci_green: { type: 'boolean' }, published: { type: 'boolean' }, old_tip: { type: 'string' }, new_tip: { type: 'string' }, changed_paths: { type: 'array', items: { type: 'string' } }, conflicts: { type: 'array', items: { type: 'string' } }, fixes: { type: 'array', items: { type: 'string' } }, problems: { type: 'array', items: { type: 'string' } }, human_steps: HUMAN_STEPS_SCHEMA }, required: ['up_to_date', 'verify_green', 'published'] },
 }, 'rebase'))
 if (!reb) throw new Error(`#${PR}: the rebase agent returned nothing; resume this run with the same args`)
 // A red or unpublished rebase is not reviewed: the reviewer would read a local state that is not the PR.
@@ -186,10 +191,11 @@ if (toFix.length) {
     `Task: fix the blocker and major findings of a fresh review of PR #${PR}, each with a test where it is a behaviour, plus cheap minor ones. Budget: at most about 100 tool calls. Check \`git log\` and PR #${PR}'s body first (a resumed run may have fixed some). Findings: ${JSON.stringify(reviews)}`,
     skeptic && skeptic.refuted.length ? `Skeptics refuted these blocker or major findings (skeptic): ${JSON.stringify(skeptic.refuted)}\n\nDo not fix a refuted finding unless you find the skeptic wrong; list each with the skeptic's reason in PR #${PR}'s body.` : '',
     `\`tools\\run.cmd verify\` until green, \`${PUBLISH}\`, add the findings and what happened to each to PR #${PR}'s body, \`gh pr checks ${PR} --watch\` (at most two fix rounds).`,
+    HUMAN_STEPS,
     'Return the structured result.',
   ].filter(Boolean).join('\n\n'), withModel({
     label: `fix:#${PR}`, phase: 'Fix', effort: FIX_EFFORT,
-    schema: { type: 'object', properties: { fixed: { type: 'array', items: { type: 'string' } }, not_fixed: { type: 'array', items: { type: 'string' } }, verify_green: { type: 'boolean' }, published: { type: 'boolean' }, ci_green: { type: 'boolean' } }, required: ['fixed', 'verify_green', 'published', 'ci_green'] },
+    schema: { type: 'object', properties: { fixed: { type: 'array', items: { type: 'string' } }, not_fixed: { type: 'array', items: { type: 'string' } }, verify_green: { type: 'boolean' }, published: { type: 'boolean' }, ci_green: { type: 'boolean' }, human_steps: HUMAN_STEPS_SCHEMA }, required: ['fixed', 'verify_green', 'published', 'ci_green'] },
   }, 'fix'))
   if (!fix) throw new Error(`#${PR}: the fix agent returned nothing, so ${toFix.length} blocker/major finding(s) may be unfixed; resume this run with the same args`)
 }

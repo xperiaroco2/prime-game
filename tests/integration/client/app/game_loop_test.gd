@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 ##
 ## Each Game sits in a SubViewport with its own World3D, as on three machines (like NetPair): in
 ## one shared physics space each player stood inside the body another game drew of it and was
-## pushed off its spot (#225).
+## pushed off its spot (#225, #238).
 ##
 ## The sessions fold the host's messages in physics steps, and under load several steps run in
 ## one idle frame before Game._process shows the screen, so every wait for a screen also waits for
@@ -20,6 +20,8 @@ const PORT := 7300
 ## takes 240 frames.
 const STEP_USEC := 250000
 const MAX_FRAMES := 600
+## Physics frames the players stand without input in the round: half a second at 60 Hz.
+const HOLD_FRAMES := 30
 
 const S := GameFlow.Screen
 
@@ -79,6 +81,11 @@ func test_a_host_and_two_clients_play_the_loop_and_back() -> void:
 	_assert_at_the_last_correction(games)
 	# The others are shown at the newest snapshot's positions.
 	assert_bool(await _until(games, _avatars_shown.bind(games, 2))).is_true()
+	# With no input everyone still stands there half a second later, the others' bodies drawn
+	# around it (each Game has a physics world of its own, #238). The clock stands still.
+	for i in HOLD_FRAMES:
+		await get_tree().physics_frame
+	_assert_at_the_last_correction(games)
 	# Time up, with no Game._process (as when physics steps run ahead of it under load, #225): the
 	# model reaches the end screen, nothing has shown it yet, and a wait for it does not stop there.
 	for game: Game in games:

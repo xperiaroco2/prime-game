@@ -165,3 +165,21 @@ func test_the_history_is_kept_only_when_asked() -> void:
 	assert_dict(view.snapshots).is_empty()
 	assert_dict(view.speakers).is_empty()
 	assert_dict(game.snapshot_for(1)).is_not_empty()
+
+
+func test_snapshot_for_gives_a_player_who_left_or_a_newcomer_nothing() -> void:
+	# Match.snapshot_for, what server/ sends each tick, is empty for anyone but a present player:
+	# a player who left, and a connected peer whose Hello was not accepted (§5: a non-player
+	# receives at most a Rejected).
+	var game := FixtureModes.in_round(FixtureModes.basic(), [P1, P2, P3])
+	game.state.player(P2).life = PlayerState.Life.LEFT
+	FixtureModes.send(game, Intents.PEER_CONNECTED, 9)
+	FixtureModes.run_ticks(game, 1)
+	assert_dict(game.snapshot_for(P2)).is_empty()
+	assert_dict(game.snapshot_for(9)).is_empty()
+	# The recorded history follows present_peers(), not snapshot_for: a second guard, kept as a
+	# control that the newcomer's view holds no snapshot either.
+	assert_dict(game.view_of(9).snapshots).is_empty()
+	# The control: a present player's snapshot holds the others present, never who left.
+	var avatars: Dictionary = game.snapshot_for(P1)["avatars"]
+	assert_array(avatars.keys()).is_equal([P3])

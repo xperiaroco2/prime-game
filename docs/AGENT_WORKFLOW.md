@@ -282,10 +282,10 @@ Rules for every workflow run:
   removes, renames or changes, used by the other side's added lines: GDScript and runner Python members and
   signatures, wire rows and fields, `.tres` fields, deleted files; a signature that only appends parameters with
   defaults is a note, not an overlap, #207); and, across bases, each PR with every open PR into another base when both
-  change a shared file (Parallel tracks below); seconds, no Godot; a Markdown table per base and one across bases for
-  the wave comment, each overlap with file:line on both sides, exit 1 on a conflict, an overlap or a PR it could not
-  check (its base gone from origin). On an overlap it
-  merges the side that changes the symbol first and has the other rebased (`pr-rebase`), or first runs
+  change a shared file, the same one or different ones (Parallel tracks below); seconds, no Godot; a Markdown table
+  per base and one across bases for the wave comment, each overlap with file:line on both sides, exit 1 on a
+  conflict, an overlap or a PR it could not check (its base gone from origin). On an overlap it merges the side
+  that changes the symbol first and has the other rebased (`pr-rebase`), or first runs
   `merge-check --trial <pr>...`: the base plus the PRs merged in order in a scratch detached worktree under
   `tools/out/merge/`, that tree's own `verify`, then the worktree removed. The manager merges a task PR once CI is
   green, the fresh reviews left no open blocker or major, and `verify` passes on the merged tree, with
@@ -316,17 +316,23 @@ Rules for every workflow run:
   (an issue there, landing between the other managers' waves: a mid-wave change breaks their resumes);
   `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` also
   pairs each PR with every open PR into another base (a PR stacked on one of its own track counts as its track's) when
-  both change a shared file (`tools/`, `.claude/`, `.github/`, this file): the textual conflicts in the files both
-  change and the same symbol check, in a table "across bases" that names both bases (#207); the other cross-base
-  pairs it names as not compared. A flagged pair: its manager names it on the other track's plan issue; the PR into
-  `main` merges first (a human merges it; the milestone's manager holds its own PR meanwhile, merges the rest of the
-  wave and lists the pair under "Needs the engineer"), the milestone takes `main` in (`merge --sync-main`) and its
-  PR is rebased on that (`pr-rebase`) before it merges. After the engineer merges a change to a shared file, the
+  both change a shared file (`tools/`, `.claude/`, `.github/`, this file), the same one or different ones (a
+  signature changed in `tools/runner/x.py` that the other PR calls from `tools/runner/y.py`, #231): the textual
+  conflicts in the files both change and the same symbol check over each whole PR, in a table "across bases" that
+  names both bases (#207); the pairs where at most one side changes a shared file it names as not compared. A
+  flagged pair: its manager names it on the other track's plan issue; the PR into `main` merges first (a human
+  merges it; the milestone's manager holds its own PR meanwhile, merges the rest of the wave and lists the pair under
+  "Needs the engineer"), the milestone takes `main` in (`merge --sync-main`) and its PR is rebased on that
+  (`pr-rebase`) before it merges. After the engineer merges a change to a shared file, the
   tooling track's manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
   reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
   housekeeping (`worktree-done`, closing issues). The manager reports on the plan issue after each wave and stops
-  with a comment when nothing more can run without the human.
+  with a comment when nothing more can run without the human. Each command the human must run (a workflow's
+  `human_steps`, housekeeping) goes into the chat itself, one runnable PowerShell block per command
+  ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan issue may list it too. The
+  publishing agents return `human_steps` as `{why, command}` pairs, each command one PowerShell line that starts
+  with `cd` to its absolute folder.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
@@ -443,10 +449,11 @@ commands, by the repository they name (issue #68, a read of another repository m
   `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*`, or one before `-prune -o`, is none).
 - **`tests/scratch/`** is for temporary files that must be under `res://` (a probe test). It is gitignored but not
   gdignored, so `tools\run.cmd test tests/scratch/<file>` and `check res://tests/scratch/<file>` run what is there;
-  full `check`, `test` and `lint` runs leave it out, so a half-written probe never turns `verify` red. Godot still
-  imports it: no `class_name` and no copied `.tscn`/`.tres` uid there (the UID lint fails on a copy). Never create
-  a link or junction there: the guard judges a delete by its text path, and PowerShell 5.1 `Remove-Item -Recurse`
-  on a junction deletes what it points to.
+  full `check` (its UID lint too, #264), `test` and `lint` runs leave it out, so a half-written probe or a leftover
+  `.gd.uid` never turns `verify` red. Godot still imports it: no `class_name` and no uid copied from a project file
+  there (a `.tscn`/`.tres` header, or a suite's `.gd.uid` copied with it): Godot gives the uid to whichever file it
+  scans last, so the import and the UID lint both fail on a copy. Never create a link or junction there: the guard
+  judges a delete by its text path, and PowerShell 5.1 `Remove-Item -Recurse` on a junction deletes what it points to.
 - **`git reset`** asks with `--hard`, `--merge` or `--keep`, or when it moves the branch to another commit
   (`git reset HEAD~1`, `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere in the project
   but the own worktree, `tools/out/` included; `-C`, `--git-dir` and `--work-tree` name that repository. Unstaging passes: `git reset`, `git reset -q`, `git reset -- <paths>`,
