@@ -421,6 +421,8 @@ class MetricsTest(unittest.TestCase):
         self.assertEqual(record["verifies"]["history file"][1]["failed_tests"], [one["test"], leak["test"]])
         self.assertEqual(metrics.numbers_as_n("shard 2: GdUnit4 crashed (exit 3221225501); log: test-shard2.log"),
                          "shard N: GdUnit4 crashed (exit N); log: test-shard2.log")  # fmt: skip
+        self.assertEqual(metrics.numbers_as_n("shard 12: probe_273_fail_test::test_2_steps (log: test-shard12.log)"),
+                         "shard N: probe_273_fail_test::test_2_steps (log: test-shard12.log)")  # fmt: skip
 
     def test_the_compact_summary(self) -> None:
         ci = {"runs": 3, "by_outcome": {"push success": 3}, "reruns": 0, "queue_s": 0.0, "green": 2,

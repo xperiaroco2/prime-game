@@ -624,8 +624,9 @@ def add_red_detail(red: dict[str, list], name: str, step: dict) -> None:
 
 def numbers_as_n(text: str) -> str:
     """A failure line with its numbers as N (ports, instances, epochs, positions), so one cause counts as one. Digits
-    after a letter are part of a name and stay ("GdUnit4", "test-shard1.log")."""
-    return re.sub(r"(?<![A-Za-z])\d+(?:\.\d+)?", "N", text)
+    after a letter or an underscore are part of a name and stay whole ("GdUnit4", "test-shard12.log",
+    "probe_273_fail_test")."""
+    return re.sub(r"(?<![A-Za-z_\d])\d+(?:\.\d+)?", "N", text)
 
 
 def red_detail_section(history: list[dict]) -> list[str]:
