@@ -20,6 +20,10 @@ extends NetPlay
 ## exactly. Every bot adds its transport's rejects and its undecodable messages to its failures;
 ## only bot 1, the host's own in-process client, also counts a superseded LATEST message (a remote
 ## bot's real network may bunch two snapshots in one poll).
+##
+## The host prints its voice relay counters (HostSession.relay_counters, ARCHITECTURE §4.5) every
+## RELAY_WINDOW_S seconds of the run and once more at the end with every total (RelayReport): M5-4's
+## measurement reads them from instance 1's log (`bots voice_load --instances 8`).
 
 const ADDRESS := "127.0.0.1"
 const USEC_PER_SECOND := 1000000
@@ -28,6 +32,8 @@ const USEC_PER_SECOND := 1000000
 const MARGIN_S := 10
 const EXTRA_CLIENTS := 3
 const PEERS_FILE := "peers"
+## How often the host prints a window of its relay counters.
+const RELAY_WINDOW_S := 5
 
 ## This process's bot number (PRIME_INSTANCE).
 var instance := 1
@@ -39,6 +45,8 @@ var lurker: BotWatcher
 var refused: BotWatcher
 ## The command log written for a failed scenario, or "".
 var replay_path := ""
+## The host's relay lines printed so far (RelayReport), in order.
+var relay_lines := PackedStringArray()
 
 var _start_usec := 0
 var _invariants: ScenarioInvariants
@@ -46,6 +54,8 @@ var _leaks: LeakCheck
 var _wrote_view := false
 var _finished := false
 var _known_peers := 0
+var _relay_before: Dictionary[StringName, int] = {}
+var _next_window_usec := 0
 
 
 func _init(bot_scenario: BotScenario, this_instance: int, on_port: int, out_dir: String) -> void:
@@ -99,6 +109,9 @@ func step(now: int) -> void:
 		lurker.poll()
 		refused.poll()
 		_read_peer_files()
+		if now >= _next_window_usec:
+			_next_window_usec += RELAY_WINDOW_S * USEC_PER_SECOND
+			_print_relay_window()
 	step_clients()
 	var bot := bots[0]
 	if is_host() or bot.joins_late() or _has_map():
@@ -127,6 +140,8 @@ func done() -> bool:
 func finish() -> void:
 	if is_host() and session != null:
 		if session.is_running():
+			_print_relay_window()
+			_relay_line(RelayReport.totals(_relay_label(), session.relay_counters()))
 			_compare()
 		if not failures.is_empty() and game != null:
 			replay_path = ReplayFiles.write(game.command_log, dir)
@@ -169,9 +184,29 @@ func _start_host(bot: ScenarioBot) -> bool:
 		return false
 	bot.connected = true
 	add_client(bot, session.own_client)
+	_relay_before = session.relay_counters()
+	_next_window_usec = now_usec + RELAY_WINDOW_S * USEC_PER_SECOND
 	lurker = BotWatcher.lurker(_joining(), schema)
 	refused = BotWatcher.refused(_joining(), schema, session.content_hash)
 	return true
+
+
+## The relay counters' window since the last one (RelayReport.window).
+func _print_relay_window() -> void:
+	var now := session.relay_counters()
+	var line := RelayReport.window(_relay_label(), _relay_before, now)
+	_relay_before = now
+	if not line.is_empty():
+		_relay_line(line)
+
+
+func _relay_line(line: String) -> void:
+	relay_lines.append(line)
+	print(line)
+
+
+func _relay_label() -> String:
+	return "BOTS %s host relay" % dir.get_file()
 
 
 func _join_host(bot: ScenarioBot) -> String:
