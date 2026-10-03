@@ -10,7 +10,8 @@ extends RefCounted
 ## that held frames; the send time around each VoiceDown's NetTransport.send alone. The upload is
 ## NetTransport.take_upload() taken before and after the voice sends and the snapshot sends, so each
 ## gets what went out during it (Godot's put_packet flushes, one datagram per send); whatever went
-## out in between (events, ENet's acknowledgements and pings, sent while it polls) counts as other.
+## out in between (events, and ENet's acknowledgements and pings sent while it polls) counts as
+## other. An acknowledgement or ping that rides in a datagram a send flushes counts with that send.
 
 ## VoiceDown messages the transport took.
 var sent := 0

@@ -822,8 +822,9 @@ and the upload apart: `voice_up_*`, `snapshot_up_*` and `other_up_*` bytes and d
 `NetTransport.take_upload()`, taken before and after the voice sends and the snapshot sends: `EnetTransport` pops
 ENet's host statistics (`ENetConnection.pop_statistic`, sent data and datagrams, ENet's headers included, IP and UDP
 not), and Godot 4.7.2's `put_packet` flushes, so each send is one datagram at once and each part gets exactly what
-went out during it (events, acknowledgements and pings count as other); the loopback counts the frames sent to
-linked peers, a stand-in for the tests; the host's own client never counts. The F3 overlay shows the relay's
+went out during it (events, and acknowledgements and pings sent while polling, count as other; one that rides in a
+datagram a send flushes counts with that send); the loopback counts the frames sent to linked peers, a stand-in for
+the tests; the host's own client never counts. The F3 overlay shows the relay's
 counters only while the client's own copy of the phase has the class `LobbyPhase`, `CountdownPhase` or `EndPhase`
 (`DebugOverlay.shows_relay`; any other phase class, a later one included, shows only a note): live during a Round they
 would tell the host's player how many hear them (`voice_sent` rising by one per frame says exactly one unseen player
@@ -1401,8 +1402,8 @@ test pins them to `server/`'s). `client/ui/` holds the screens, built in code un
 (`Avatars`, -80) showed a `RemotePlayerBody` per other player at the newest snapshot's position, which M4-7 replaced
 with `SnapshotBuffer`'s poses. What the build pinned:
 - `HostNode` is the façade: `HostNode.host(transport, mode, port)` (and a clock for tests), `is_running()`,
-  `own_client`, `errors`, `end_reason`, `ended`, `counters()` (debug builds only), `skip_replay()` and `close()`; the
-  session is private. The source test also fails on a path into `server/` (a preload; `app/` may name
+  `own_client`, `errors`, `end_reason`, `ended`, `counters()` and `relay_counters()` (debug builds only),
+  `skip_replay()` and `close()`; the session is private. The source test also fails on a path into `server/` (a preload; `app/` may name
   `host_node.gd`) and on `._session`, HostNode's private field.
 - The countdown showed `end_tick` minus the newest snapshot's tick until M4-7's estimate replaced it; the local
   player stands still (no physics step) outside the lobby and the round.
@@ -2016,7 +2017,8 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     so every time is an upper bound. With everyone talking: 56 `VoiceDown`s per 20 ms, 49 of them on the wire (49
     datagrams per 20 ms; 7 go to the host's own client over the loopback); the relay took 3.0 to 3.5 ms per 20 ms,
     54 to 62 µs per send, of which 16.5 to 19 µs inside the transport's `send` (ENet's `put_packet`, which flushes
-    one datagram); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame), 0.40 of
+    one datagram), an average over all 56 sends with the 7 loopback ones to the host's own client included (ENet's
+    alone about 19 to 22 µs if those cost nothing); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame), 0.40 of
     snapshots and 0.01 of the rest, 2.29 Mbit/s. With 2 talkers: 14 sends per 20 ms (12 on the wire), 0.8 to 1.0 ms,
     0.87 Mbit/s. A second run under a heavier load of other worktrees took 190 to 270 µs per send and dropped
     backlogs. Scaled to 10 players (90 sends per 20 ms, 81 on the wire): about 4.9 to 5.6 ms per 20 ms of relay time
@@ -3295,7 +3297,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
-| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6 "The wire"): 16.5 to 19 µs per send inside the transport (ENet's for 49 of 56) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4) as E44 says, or first encoding each frame's `VoiceDown` once with the seq patched per listener (no wire change) and measuring again; M5-4's recommendation is the second, then M5-4b only if still over |
+| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6 "The wire"): 16.5 to 19 µs per send inside the transport (averaged over 56 sends, 7 of them the host's own client's loopback; ENet's alone about 19 to 22 µs) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4) as E44 says, or first encoding each frame's `VoiceDown` once with the seq patched per listener (no wire change) and measuring again; M5-4's recommendation is the second, then M5-4b only if still over |
 | Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
 | Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows say so |
 | LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled: (a), the engineer, 2026-10-02: CI fetches LFS content, cached by the list of LFS files; added by M5-7 (#221) with the CC0 sounds of #144 and #145 |
