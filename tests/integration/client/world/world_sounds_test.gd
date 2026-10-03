@@ -2,8 +2,9 @@ extends GdUnitTestSuite
 ## WorldSounds' occlusion (the M5 ADR §1.6 and §3 item 9, E42 (a), D13 (a); M5-7) against fixture
 ## boxes in its own physics space: each sound started casts exactly one ray from the ears to it;
 ## behind a wall it plays 8 dB quieter on the muffled Effects bus, in the open at full volume on
-## Effects; a box on the LIVING or DOWNED layer (a player's capsule) muffles nothing, nor does the
-## floor under a put-down package; a sound out of range casts no ray and plays nothing.
+## Effects; a box on the LIVING or DOWNED layer (a player's capsule) muffles nothing, nor do the
+## floor under a put-down package and a curb in front of it (the ray aims above the sound); a sound
+## out of range casts no ray and plays nothing.
 
 const EARS := Vector3(0, 1.5, 0)
 const WALL_AT := Vector3(0, 1.5, -1.5)
@@ -69,12 +70,30 @@ func test_each_sound_casts_one_ray_and_a_capsule_muffles_none() -> void:
 
 
 func test_the_floor_under_a_put_down_package_does_not_muffle_it() -> void:
-	# The floor's top at y = 0, the package put down on it.
-	_box(Vector3(0, -0.1, -2), Vector3(10, 0.2, 10))
+	# The floor's top at y = 0, the package put down a little into it far off, so the line to the
+	# sound itself runs into the floor more than SightHider's slack short of it: only the ray's aim
+	# above the sound keeps it clear.
+	_box(Vector3(0, -0.1, -5), Vector3(10, 0.2, 30))
 	await _physics(2)
-	var sound := _put_down(Vector3(0, 0, -3))
+	var at := Vector3(0, -0.03, -10)
+	assert_bool(Muffle.blocked(_world.get_world_3d().direct_space_state, EARS, at)).is_true()
+	var sound := _put_down(at)
 	assert_int(_sounds.rays()).is_equal(1)
+	assert_int(_sounds.muffled()).is_equal(0)
 	assert_str(String(sound.bus)).is_equal(String(AudioBuses.EFFECTS))
+
+
+func test_a_curb_in_front_of_a_sound_on_the_floor_does_not_muffle_it() -> void:
+	# A 0.15 m curb just in front of a sound on the floor 8 m off: it hides the floor point from the
+	# ears, but not the sound (the ray aims above it, as at a swinger's chest).
+	_box(Vector3(0, 0.075, -7.5), Vector3(4, 0.15, 0.1))
+	await _physics(2)
+	var at := Vector3(0, 0, -8)
+	assert_bool(Muffle.blocked(_world.get_world_3d().direct_space_state, EARS, at)).is_true()
+	var sound := _put_down(at)
+	assert_int(_sounds.muffled()).is_equal(0)
+	assert_str(String(sound.bus)).is_equal(String(AudioBuses.EFFECTS))
+	assert_float(sound.volume_db).is_equal(0.0)
 
 
 func test_a_sound_out_of_range_casts_no_ray() -> void:

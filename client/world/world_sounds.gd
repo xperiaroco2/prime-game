@@ -4,9 +4,10 @@ extends Node3D
 ## each event SoundChooser picks within the hearing range of the ears (E40's amendment of E33:
 ## the current AudioListener3D, LifeView's Ears), a one-shot AudioStreamPlayer3D at its place on
 ## the Effects bus (D15), with `max_distance` the same range, freed when it ends.
-## As it starts, one ray from the ears to the sound against the world layer of the client's own
-## level (the M5 ADR §1.6, E42 (a), D13 (a); M5-7): behind the level it plays muffled (Muffle:
-## 8 dB quieter, on the muffled Effects bus's low-pass), and stays so to its end (0.15 s).
+## As it starts, one ray from the ears to the sound's aim (SoundChooser.SWING_AIM_M or ITEM_AIM_M
+## above it) against the world layer of the client's own level (the M5 ADR §1.6, E42 (a), D13 (a);
+## M5-7): behind the level it plays muffled (Muffle: 8 dB quieter, on the muffled Effects bus's
+## low-pass), and stays so to its end (0.15 s).
 ##
 ## The sounds are short blips built in code (no asset, nothing downloaded): placeholders, until
 ## the engineer's CC0 files arrive with their docs/credits/ entries (D9; #144).
@@ -54,7 +55,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 	sound_player.stream = _streams[sound.id]
 	sound_player.max_distance = SoundChooser.HEARING_RANGE_M
 	var muffle := Muffle.new()
-	muffle.follow(_blocked(heard_from as Vector3, sound.position), 0.0)
+	muffle.follow(_blocked(heard_from as Vector3, sound.aim), 0.0)
 	sound_player.volume_db = muffle.volume_db()
 	sound_player.bus = muffle.bus_for(AudioBuses.EFFECTS)
 	sound_player.position = sound.position
@@ -118,7 +119,7 @@ static func blip(id: StringName) -> AudioStreamWAV:
 	return stream
 
 
-## The one ray from the ears `from` to the sound at `to`; outside the tree nothing is in the way.
+## The one ray from the ears `from` to the sound's aim `to`; outside the tree nothing is in the way.
 func _blocked(from: Vector3, to: Vector3) -> bool:
 	if not is_inside_tree():
 		return false
