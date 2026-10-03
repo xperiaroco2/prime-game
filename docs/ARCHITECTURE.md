@@ -2081,7 +2081,8 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
   `Channels.holding`), so no run of claims a hair apart adds up to a move, and a teammate who restarts a raise
   just short of its time again and again keeps a downed package carrier alive (the pause) but cannot carry it
   anywhere; giving up is the way out. A completed raise sends no `Correction`: the player stands where the host has
-  it, and its next claim is checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd`.
+  it, and its next claim is checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd` (also: a
+  stop restarts only a knockdown the raise paused, of a player still downed).
 - **Walls.** The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
   walls for hits, pick-ups and placement, because there an honest client would otherwise stab or grab through a thin
   wall.
@@ -2642,8 +2643,9 @@ a player who left, nothing). `PackageDelivered` names the item and the circle, n
 Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional);
 shared, with the cylinder, in #79. DealTasks (2c, #59) calls its deal, and its packages take only free markers
 (`Items.free_markers`). Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check, no
-private task event), `tests/unit/tasks/delivery_test.gd` (the check and the cylinder),
-`tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
+private task event), `tests/unit/tasks/delivery_test.gd` (the check and the cylinder; a done subtask is never
+delivered again), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its
+palette),
 `tests/unit/content/layout_check_test.gd` (its demands reach the fit check). M4-5 (#141): the description and
 `TaskState` (`delivery_test.gd`, `delivery_deal_test.gd`, `tests/unit/deal/deal_tasks_test.gd`; the description's
 mode check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
@@ -2681,9 +2683,10 @@ Tests: `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a bas
 strike and a downed player's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order,
 who learns what, the downed and the dead skipped), `tests/unit/combat/cooldown_test.gd`,
 `tests/unit/combat/costs_in_reactions_test.gd` (a cost in a mode reaction refuses actor 0, #201),
-`tests/unit/stamina/stamina_cost_test.gd`, `tests/unit/life/life_rules_test.gd` (every life
-transition, the crawl, the dead, the §3.4 order; M4-2), `tests/unit/life/respawn_test.gd` (the respawn at a free
-marker or any, its events, invulnerability that strikes skip and nothing ends early, the avatar's flag; M4-3),
+`tests/unit/stamina/stamina_cost_test.gd`, `tests/unit/life/life_rules_test.gd` (every life transition, the crawl,
+the dead, the §3.4 order, a death of a player who is not downed refused; M4-2), `tests/unit/life/respawn_test.gd`
+(the respawn at a free marker or any, its events, invulnerability that strikes skip and nothing ends early, the
+avatar's flag; M4-3),
 `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
 
 #### Every task done (win condition)
