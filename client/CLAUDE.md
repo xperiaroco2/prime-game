@@ -82,6 +82,9 @@ choices: `docs/decisions/2026-10-01-m4-first-person-client.md` (its §3 is the r
   targets, countdowns, HUD texts), so it can be unit-tested headless in `tests/unit/client/`.
 - Physics runs headless: the controller through a `ClientSession` over a `LoopbackHub` to a `HostSession`, and the
   downed camera against a wall, go in `tests/integration/client/`.
+- Several `Game`s in one test each go in a `SubViewport` with `own_world_3d` (one physics space pushes each player
+  off its spot), and a wait for a screen also waits for `game.ui.screen` to show it: `Game._process` sets the
+  screens and the player's input flags, and under load several physics steps run before it (#225).
 - Key events do run headless: `Input.parse_input_event(event)` then `Input.flush_buffered_events()` reaches
   `_input`, `_unhandled_input` and the action states (#169's `esc_menu_input_test.gd`); release every key a test
   holds. The mouse mode does not (headless keeps none): give `Game` a `MousePointer` that remembers. How the UI

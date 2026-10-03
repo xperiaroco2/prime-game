@@ -1310,6 +1310,11 @@ host's own player sees only what its `ClientSession` decoded.
 | 0 | `Player` | read input, move, then `set_motion` for the next claim (one physics frame, 1/60 s, old when it is sent) |
 | `_process` | the views, the cameras, `Ui` | draw from `ClientModel` and the interpolated poses |
 
+Under load or after a hitch Godot runs several physics frames in one idle frame. Between them `ClientModel` and
+`Game.screen()` can already be on the next phase while the screens, their texts and the local player's input flags
+and physics step, which `Game._process` sets, still follow the previous one; nothing is drawn in between. A test that
+reads those waits until `game.ui.screen` shows the screen it waited for (#225).
+
 **The flow.**
 
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
@@ -1385,10 +1390,12 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   that setting only and are refreshed from `SettingsChanged` without a signal.
 - Tests: `tests/unit/client/app/` (`GameFlow`, `LaunchOptions`, `EndReasons`, and E18's source test, seen failing
   on a planted `_host._session.game` in `game.gd` and a `HostNode` named in `client/ui/`),
-  `tests/unit/client/ui/screens_test.gd`, and `tests/integration/client/app/game_loop_test.gd`: three `Game` roots
-  over a `LoopbackHub` on a simulated clock through the lobby, the host's setting, Ready, the countdown, loading, the
-  round, time up, the end screen and back, a client's Leave and the host's close (about 5 s). The screens' `shot`s:
-  `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
+  `tests/unit/client/ui/screens_test.gd`, and `tests/integration/client/app/game_loop_test.gd`: three `Game` roots,
+  each in a `SubViewport` with its own `World3D` (in one physics space each player stood inside the body another
+  game drew of it and was pushed off its spot, #225), over a `LoopbackHub` on a simulated clock through the lobby,
+  the host's setting, Ready, the countdown, loading, the round, time up, the end screen and back, a client's Leave
+  and the host's close (about 5 s). The screens' `shot`s: `client/dev/<screen>_preview.tscn` (`screen_preview.gd`,
+  a fake `ClientModel`).
 - The runner's windows for `host` and `join` (E20) came with #149, the rest of M4-6: below.
 
 **Movement on the network.**
