@@ -30,7 +30,10 @@ under .claude/worktrees/, adds a row to the verify table when present. Each line
 seconds), `worktree`, `branch`, `steps` (a list of {name, status, seconds} or a map name -> {status, seconds}), and
 `seconds` (the run's wall time without its slot wait; else the sum of the steps) and `slot` (#185: `waited` seconds
 for a machine-wide verify slot, `over` when none was free within the longest wait; null without slots). A printed
-summary carries the same wait in its last line. `--ci N` adds CI from `gh` (read-only): every run in the
+summary carries the same wait in its last line. Since #273 a red step carries `failure` (its first failure line), and
+the `test` step `shards` (each GdUnit4 process's `rc` and `seconds`) and, when red, `failed_tests` ({`test`,
+`message` or `orphans`}): the verify section counts the red runs' failing tests, first failure lines and shard exits;
+an older record without them still counts as before. `--ci N` adds CI from `gh` (read-only): every run in the
 window and the job and `verify` step times of the last N green runs.
 """
 
@@ -111,6 +114,8 @@ VERIFY_END = re.compile(r"verify: (passed|FAILED) in ([\d.]+)s")
 # The end line's slot wait (#185): "(after 45.0s waiting for a verify slot)", and "OVER THE LIMIT" when none was free.
 SLOT_WAIT = re.compile(r"after ([\d.]+)s waiting for a verify slot")
 OVER_LIMIT = "OVER THE LIMIT"
+# The most failing tests and failure lines the verify section lists (#273); the JSON record keeps every run's.
+RED_ROWS = 20
 # `gh run list --limit`: enough for the project's history so far (149 runs before 2026-10-02 11:00 UTC).
 CI_LIST_LIMIT = 1000
 # The workflow that runs `verify` on every push and PR; other workflows (a nightly run) are left out.
@@ -575,10 +580,13 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             else:
                 items = [(s.get("name"), s) for s in raw or [] if isinstance(s, dict)]
             steps = {}
+            red: dict[str, list] = {"failed_tests": [], "step_failures": [], "shard_exits": []}
             for name, step in items:
                 if name and isinstance(step, dict):
                     passed = str(step.get("status", "")).lower() in ("passed", "ok", "pass", "true")
                     steps[str(name)] = ("passed" if passed else "FAILED", float(step.get("seconds") or 0))
+                    if not passed:
+                        add_red_detail(red, str(name), step)
             if not steps:
                 continue
             seconds = rec.get("seconds")
@@ -592,8 +600,52 @@ def read_history(paths: list[Path], since: float | None, until: float) -> list[d
             if key not in seen:
                 seen.add(key)
                 found.append({"steps": steps, "total": total_s, "status": status, "via": "history", "t": start,
-                              "wait": wait, "over": over})  # fmt: skip
+                              "wait": wait, "over": over, **red})  # fmt: skip
     return found
+
+
+def add_red_detail(red: dict[str, list], name: str, step: dict) -> None:
+    """A red step's fields of the history record (#273; an older record has none): the failing tests of `test`
+    ("<suite>::<test>"), the step's first failure line, and each GdUnit4 process that did not end with exit 0."""
+    tests = step.get("failed_tests")
+    for test in tests if isinstance(tests, list) else []:
+        if isinstance(test, dict) and test.get("test"):
+            red["failed_tests"].append(str(test["test"]))
+    if isinstance(step.get("failure"), str) and step["failure"]:
+        red["step_failures"].append((name, step["failure"]))
+    shards = step.get("shards")
+    for shard in shards if isinstance(shards, list) else []:
+        if not isinstance(shard, dict) or (shard.get("rc") == 0 and not shard.get("timed_out")):
+            continue
+        rc = shard.get("rc")
+        label = "did not start" if rc is None else "timed out" if shard.get("timed_out") else f"exit {rc}"
+        red["shard_exits"].append(label + (" without results.xml" if shard.get("results") is False else ""))
+
+
+def numbers_as_n(text: str) -> str:
+    """A failure line with its numbers as N (ports, instances, epochs, positions), so one cause counts as one. Digits
+    after a letter are part of a name and stay ("GdUnit4", "test-shard1.log")."""
+    return re.sub(r"(?<![A-Za-z])\d+(?:\.\d+)?", "N", text)
+
+
+def red_detail_section(history: list[dict]) -> list[str]:
+    """What the red runs of the history file failed on: tests (runs per test), the first failure line of each red
+    step (runs per step and line), and the GdUnit4 processes that did not end with exit 0."""
+    tests = Counter(t for v in history for t in set(v.get("failed_tests", [])))
+    lines = Counter((s, numbers_as_n(m)) for v in history for s, m in set(v.get("step_failures", [])))
+    exits = Counter(e for v in history for e in v.get("shard_exits", []))
+    md: list[str] = []
+    if tests:
+        rows = [[f"`{t}`", n] for t, n in tests.most_common(RED_ROWS)]
+        md += ["Failing tests of red runs (history file):", "", table(["test", "red runs"], rows), ""]
+    if lines:
+        rows = [[s, m.replace("|", "\\|"), n] for (s, m), n in lines.most_common(RED_ROWS)]
+        md += ["First failure line of each red step (history file; numbers as N):", "",
+               table(["step", "first failure line", "runs"], rows), ""]  # fmt: skip
+    if exits:
+        md += ["GdUnit4 processes of `test` that did not end with exit 0 (history file): "
+               + ", ".join(f"{k} {v}" for k, v in exits.most_common()) + ".", ""]  # fmt: skip
+    return md
 
 
 def _gh(args: list[str]) -> str:
@@ -908,6 +960,7 @@ def verify_section(by_row: dict[str, list[dict]]) -> list[str]:
                "and ran anyway.", ""]  # fmt: skip
     if fails:
         md += ["Red steps: " + ", ".join(f"{k} {v}" for k, v in fails.most_common()) + ".", ""]
+    md += red_detail_section(by_row.get("history file", []))
     return md
 
 
