@@ -145,9 +145,10 @@ PowerShell 5.1 is the primary shell; the Bash tool is Git Bash.
 - Explain a decision from a concrete scenario of what goes wrong (which person, agent and machine) in plain words;
   options next, jargon last. Before designing enforcement against a human behaviour, ask how the humans work.
 <!-- see docs/interventions/2026-09-28-engineer-plain-explanations.md -->
-- A command for a human starts with `cd` to the absolute folder it runs in (your worktree, if you use one: their
-  terminal is in the main checkout), in their shell (PowerShell). Run it from there yourself first.
+- A command for a human goes in the chat itself, one fenced PowerShell block each (a PR or issue may add it, never
+  instead), starting with `cd` to its absolute folder (your worktree, not the main checkout). Run or preview it first.
 <!-- see docs/interventions/2026-09-29-engineer-commands-say-where.md -->
+<!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
 
 ## Memory
 Auto memory is personal and machine-local: never put shared rules or task state there. On "запам'ятай" ask

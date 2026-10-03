@@ -74,5 +74,10 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    the child to the parent's base when the parent's branch is deleted on merge; if the child still shows the parent
    as base, `gh pr edit <child> --base <that base>` before merging it. If the task ran in
    a worktree: after the merge, the human archives this session in the app (Windows cannot delete a folder a live
-   session sits in), then `tools\run.cmd worktree-done <n>` from the main checkout (`--pushed` for a spike that is
-   never merged).
+   session sits in), then runs `worktree-done` from the main checkout. Give that command in the chat as its own
+   fenced PowerShell block (root `CLAUDE.md`, "Talking to the humans"), with `cd` to the main checkout's absolute
+   folder (the first line of `git worktree list`), and add `--pushed` for a spike that is never merged:
+   ```powershell
+   cd D:\prime-game; tools\run.cmd worktree-done <n>
+   ```
+   Preview it with `git worktree list` instead of running it: running it would do the human's step.

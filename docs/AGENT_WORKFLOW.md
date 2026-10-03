@@ -328,7 +328,9 @@ Rules for every workflow run:
 - **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
   reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
   housekeeping (`worktree-done`, closing issues). The manager reports on the plan issue after each wave and stops
-  with a comment when nothing more can run without the human.
+  with a comment when nothing more can run without the human. Each command the human must run (a workflow's
+  `human_steps`, housekeeping) goes into the chat itself, one runnable PowerShell block per command
+  ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan issue may list it too.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
