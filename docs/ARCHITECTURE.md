@@ -2725,6 +2725,7 @@ the belt, `ItemPlaced` (swap) and `item_rested` for it, so a package swapped ont
 Visible to: everyone; a refusal (`unavailable`, `out_of_reach`, `blocked`) only the sender. A mode rule: its public
 events reveal no role.
 Status: designed in #33; built in 2e (#61); the belt in M4-5 (#141). Tests: `tests/unit/items/take_into_hand_test.gd`,
+`tests/unit/items/in_sight_test.gd` (`InSight` refuses an item that is not there),
 `tests/unit/content/item_intents_test.gd` (only the living may send it).
 
 #### PutDown (action)
@@ -2758,8 +2759,8 @@ Visible to: everyone (§4.2); a raise is as public as the two avatars. A raise s
 the attacker (the engineer's answer 7 on PR #133). Rejections: `not_downed`, `busy`, `out_of_reach`, `blocked`,
 `not_channeling`, and `not_accepted` from the phase. The raiser may hold the package (answer 4).
 Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/unit/channel/channels_test.gd`,
-`tests/unit/channel/absent_target_test.gd` (`TargetInReach`, `TargetInSight` and `InSight` refuse a target that is
-not there); the base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios
+`tests/unit/life/absent_target_test.gd` (`TargetInReach` and `TargetInSight` refuse a target that is not there);
+the base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios
 `crew_revives_the_downed` and `raise_stopped_then_given_up` (§9.7).
 
 #### Swap (action)

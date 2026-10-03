@@ -1,17 +1,14 @@
 extends GdUnitTestSuite
-## The target conditions when the rule's target is not there (ARCHITECTURE §9.4): TargetInReach and
-## TargetInSight, which read the target player through Channels.target_of, and InSight, which reads
-## the target item through Items.target_of. Each stands alone on its rule here (the base mode puts
-## TargetDowned or ItemOnGround before them, which refuse first), so its own guard decides: a
-## target that does not exist is out of reach or out of sight, never in it. The refusal goes to the
-## sender alone and the rule's effect does not run.
-## Parked in tests/unit/channel/ only because #274 owned tests/unit/life/ and tests/unit/items/
-## when #271 added it: it belongs there, beside the conditions' own suites.
+## The target conditions of core/life/ when the rule's target is not there (ARCHITECTURE §9.4):
+## TargetInReach and TargetInSight, which read the target player through Channels.target_of. Each
+## stands alone on its rule here (the base mode puts TargetDowned before them, which refuses
+## first), so its own guard decides: a target that does not exist is out of reach or out of sight,
+## never in it. The refusal goes to the sender alone and the rule's effect does not run. The item's
+## InSight: tests/unit/items/in_sight_test.gd.
 
 const P1 := 1
 const P2 := 2
 const NOBODY := 99
-const NO_ITEM := 999
 const RAN := "ran"
 
 
@@ -37,22 +34,6 @@ func test_the_same_rules_pass_for_a_target_who_is_there() -> void:
 		FixtureCombatModes.raise(game, P1, P2)
 		assert_array(FixtureModes.rejections(game, P1)).is_empty()
 		assert_array(FixtureModes.notes(game)).contains([RAN])
-
-
-func test_in_sight_refuses_an_item_that_is_not_there() -> void:
-	var mode := FixtureItemModes.basic()
-	var effects: Array[RuleEffect] = [FixtureNote.of(RAN)]
-	var conditions: Array[Condition] = [InSight.new()]
-	_replace_rule(mode, Intents.PICK_UP, conditions, effects)
-	var game := FixtureItemModes.in_round(mode, [P1, P2])
-	FixtureItemModes.stand(game, P1, Vector3.ZERO)
-	FixtureModes.send(game, Intents.PICK_UP, P1, {"item": NO_ITEM})
-	_assert_refused(game, InSight.BLOCKED)
-	# The same rule passes for an item that lies in sight.
-	var tool := FixtureItemModes.lay(game, &"tool", Vector3(0, 0, 1))
-	FixtureItemModes.pick_up(game, P1, tool)
-	assert_array(FixtureModes.rejections(game, P1)).is_equal([InSight.BLOCKED])
-	assert_array(FixtureModes.notes(game)).contains([RAN])
 
 
 ## FixtureCombatModes.raising() whose Raise has `condition` alone and notes RAN to everyone; P1
