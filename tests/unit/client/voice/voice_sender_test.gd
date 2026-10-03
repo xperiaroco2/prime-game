@@ -2,9 +2,11 @@ extends GdUnitTestSuite
 ## VoiceSender (the M5 ADR §1.1 and §1.2, E37; client/voice/): `may_speak` from the own life fold
 ## and the own mode's phase only; every captured chunk drained, encoded and fed every frame, also
 ## while `may_speak` is false, so nothing recorded while downed goes out after a revive (the
-## manager's review of PR #234, item 5); voice activity and push-to-talk; nothing without the codec.
+## manager's review of PR #234, item 5), also when a knockdown and its revive, or Round, End and
+## Lobby, fold between two steps (#241); voice activity and push-to-talk; nothing without the codec.
 ## Through FakeMicrophone and FakeVoiceCodec: no microphone, no addon. A planted widening of each
-## rule (no life check, a skipped drain while unspeakable) was seen failing these tests.
+## rule (no life check, a skipped drain while unspeakable, may_speak sampled once a step) was seen
+## failing these tests.
 
 const MODE := "res://content/modes/base_mode.tres"
 const OWN := 1
@@ -126,6 +128,40 @@ func test_a_backlog_recorded_in_loading_does_not_open_the_round() -> void:
 	mic.capture(int(mic.rate / 100.0), LOUD)
 	sender.step()
 	assert_array(_sent).is_empty()
+	mic.capture_chunks(1, LOUD)
+	sender.step()
+	assert_int(_sent.size()).is_equal(1)
+
+
+func test_a_knockdown_and_revive_folded_between_two_steps_send_nothing_recorded_before() -> void:
+	# A hang longer than a revive (the manager's review of PR #250): both are folded before the next
+	# step, so may_speak is true at both steps; the backlog was recorded while downed.
+	var sender := _sender()
+	var mic := sender.capture.microphone as FakeMicrophone
+	_model.phase = &"round"
+	sender.step()
+	mic.capture_chunks(15, LOUD)
+	_model.fold(&"KnockedDown", {"peer": OWN, "position": Vector3.ZERO})
+	_model.fold(&"Revived", {"peer": OWN})
+	sender.step()
+	assert_int(mic.frames_available()).is_equal(0)
+	assert_int(_sent.size()).is_equal(0)
+	mic.capture_chunks(1, LOUD)
+	sender.step()
+	assert_int(_sent.size()).is_equal(1)
+
+
+func test_round_end_and_lobby_folded_between_two_steps_send_nothing_recorded_before() -> void:
+	# Round -> End -> Lobby in one poll: End hears nobody, and the lobby hears everyone again.
+	var sender := _sender()
+	var mic := sender.capture.microphone as FakeMicrophone
+	_model.phase = &"round"
+	sender.step()
+	mic.capture_chunks(15, LOUD)
+	_model.fold(&"PhaseChanged", {"phase": &"end", "end_tick": -1})
+	_model.fold(&"PhaseChanged", {"phase": &"lobby", "end_tick": -1})
+	sender.step()
+	assert_int(_sent.size()).is_equal(0)
 	mic.capture_chunks(1, LOUD)
 	sender.step()
 	assert_int(_sent.size()).is_equal(1)

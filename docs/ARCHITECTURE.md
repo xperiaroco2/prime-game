@@ -2137,9 +2137,13 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     - The sender: `client/voice/`'s `VoiceSender` drains the capture every frame, encodes every chunk (continuous
       codec and RNNoise state; RNNoise for a microphone only, never the test tone) and feeds each to `VoiceGate` with
       that frame's `may_speak`, also while it is false, so a backlog recorded while downed never goes out after a
-      revive. In the frame `may_speak` turns true, what waits in the device was recorded before it and is fed as
-      unspeakable too, however long that frame was; a frame with no chunk while unspeakable still empties the
-      pre-roll. What leaves goes through `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold
+      revive. In the frame `may_speak` turns true, and at any step after the own `ClientModel.silencings` moved (it
+      goes up at each phase change and each time the own life leaves living, so a knockdown and its revive, or Round,
+      End and Lobby, folded between two steps by a hang are not missed, #241), what Godot has handed over by then is
+      fed as unspeakable too, however long that frame was. It was recorded before the change, except the audio
+      between the fold and the sender's step in that frame, which is dropped with it (as at a change between two
+      phases that both hear); the driver's own buffer, under one chunk, may still hold a little from before the
+      change, which goes out as speakable. A frame with no chunk while unspeakable still empties the pre-roll. What leaves goes through `ClientSession.send_voice`. `may_speak` is `client/`'s: the own life fold
       living and `VoiceRule.radius_of` of the current phase > 0 in the client's own mode, never `Match` or
       `MatchState` (the E18 boundary test scans `res://client` and `res://voice`). Nothing in silence, nothing while
       downed or dead, nothing in a phase whose rule hears nobody, nothing in Off or with no device open.
