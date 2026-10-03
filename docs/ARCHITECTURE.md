@@ -2643,12 +2643,11 @@ a player who left, nothing). `PackageDelivered` names the item and the circle, n
 Status: designed in #33; built in 2f (#62): `core/tasks/delivery.gd`, `content/tasks/delivery.tres` (provisional);
 shared, with the cylinder, in #79. DealTasks (2c, #59) calls its deal, and its packages take only free markers
 (`Items.free_markers`). Tests: `tests/unit/tasks/delivery_deal_test.gd` (the deal, the demands, the mode check, no
-private task event), `tests/unit/tasks/delivery_test.gd` (the check and the cylinder; a done subtask is never
-delivered again), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its
-palette),
+private task event), `tests/unit/tasks/delivery_test.gd` (the check and the cylinder; a done subtask is never delivered
+again), `tests/unit/content/delivery_content_test.gd` (the base mode's task settings, the circle and its palette),
 `tests/unit/content/layout_check_test.gd` (its demands reach the fit check). M4-5 (#141): the description and
-`TaskState` (`delivery_test.gd`, `delivery_deal_test.gd`, `tests/unit/deal/deal_tasks_test.gd`; the description's
-mode check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
+`TaskState` (`delivery_test.gd`, `delivery_deal_test.gd`, `tests/unit/deal/deal_tasks_test.gd`; the description's mode
+check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
 
 #### Package (item kind)
 What it does: the item a Delivery subtask moves; any living player may carry any package.
@@ -2683,11 +2682,10 @@ Tests: `tests/unit/content/content_modes_test.gd` (the rule's numbers, and a bas
 strike and a downed player's `Use` is `not_accepted`), `tests/unit/combat/strike_test.gd` (the zone, sight, order,
 who learns what, the downed and the dead skipped), `tests/unit/combat/cooldown_test.gd`,
 `tests/unit/combat/costs_in_reactions_test.gd` (a cost in a mode reaction refuses actor 0, #201),
-`tests/unit/stamina/stamina_cost_test.gd`, `tests/unit/life/life_rules_test.gd` (every life transition, the crawl,
-the dead, the §3.4 order, a death of a player who is not downed refused; M4-2), `tests/unit/life/respawn_test.gd`
-(the respawn at a free marker or any, its events, invulnerability that strikes skip and nothing ends early, the
-avatar's flag; M4-3),
-`tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
+`tests/unit/stamina/stamina_cost_test.gd`, `tests/unit/life/life_rules_test.gd` (every life transition, the crawl, the
+dead, the §3.4 order, a death of a player who is not downed refused; M4-2), `tests/unit/life/respawn_test.gd` (the
+respawn at a free marker or any, its events, invulnerability that strikes skip and nothing ends early, the avatar's
+flag; M4-3), `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
 
 #### Every task done (win condition)
 What it does: the crew's only win.
