@@ -808,6 +808,31 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   at the threshold and ends the session (3f tests it).
 - The counters join the transport's summary line (at most one per 10 s, §4).
 
+**The host's counters** (debug builds only; the M5 ADR's E47 as amended, its §3 item 11 and §4; built in M5-4,
+#218). `HostNode.counters()` gives the budgets' and the codec's counts (`over_budget`, `bad_payloads`,
+`malformed_disconnects`), which the F3 overlay may show at any time. The voice relay's are apart:
+`HostSession.relay_counters()` (and `HostNode.relay_counters()`) gives, as totals since the session started,
+`voice_relayed` (frames of present players the relay passed on, after the newest 5 per poll, heard or not),
+`voice_sent` (`VoiceDown`s the transport took), `voice_dropped` (a backlog's old part), `voice_over_budget` (of
+`over_budget`, the frames over a speaker's voice bucket), `voice_relay_usec` (`Time.get_ticks_usec` around a poll's
+flush, encoding and sends, in polls that held frames), `voice_send_usec` (around each `VoiceDown`'s `send` alone),
+and the upload apart: `voice_up_*`, `snapshot_up_*` and `other_up_*` bytes and datagrams, with `snapshots_sent` and
+`session_ms`. `RelayMeter` (`server/relay_meter.gd`) keeps them; a release build has none. The upload comes from
+`NetTransport.take_upload()`, taken before and after the voice sends and the snapshot sends: `EnetTransport` pops
+ENet's host statistics (`ENetConnection.pop_statistic`, sent data and datagrams, ENet's headers included, IP and UDP
+not), and Godot 4.7.2's `put_packet` flushes, so each send is one datagram at once and each part gets exactly what
+went out during it (events, acknowledgements and pings count as other); the loopback counts the frames sent to
+linked peers, a stand-in for the tests; the host's own client never counts. The F3 overlay shows the relay's
+counters only while the client's own copy of the phase has the class `LobbyPhase`, `CountdownPhase` or `EndPhase`
+(`DebugOverlay.shows_relay`; any other phase class, a later one included, shows only a note): live during a Round they
+would tell the host's player how many hear them (`voice_sent` rising by one per frame says exactly one unseen player
+is within 8 m). The bots runner's ENet host prints them every 5 s and at the end of its run (`RelayReport`, §4.6).
+Tests: `tests/integration/server/host_session_counters_test.gd`, `host_node_test.gd`,
+`tests/unit/net/transport/loopback_transport_test.gd`, `tests/integration/net/enet_host_and_two_clients.gd` (ENet's
+datagrams counted at once), `tests/unit/client/ui/debug_overlay_test.gd` and
+`tests/integration/client/player/player_network_test.gd` (a host `Game` shows them in the lobby and none in the
+round).
+
 **Loading a level and `LoadAck`.**
 - **Clients**, the host's own included: on `LoadMatch` a client loads the map only if its own copy of the mode lists
   that path (never a path from the wire alone), with `ResourceLoader.load_threaded_request` and a
@@ -1031,14 +1056,19 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     step still left fails (M4-6): so `dropped_at_the_loading_deadline`'s third bot waits for its
     `Disconnecting(load_deadline)`, which arrives just before the disconnect.
 - **The runners** (§9.7; E12):
-  - `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/`, or those named, in one headless
-    process over `LoopbackHub`: a `HostSession` with `keep_history` on, bot 1 its own client, the others loopback
-    clients, all stepped by a simulated clock (60 steps per simulated second) as fast as the machine runs. A
-    10-minute scenario takes seconds and runs the same every time.
+  - `tools\run.cmd bots [scenario ...]` runs every scenario in `content/scenarios/` but the measurements
+    (`BotScenario.measurement`, M5-4's `voice_load`), or those named, in one headless process over `LoopbackHub`: a
+    `HostSession` with `keep_history` on, bot 1 its own client, the others loopback clients, all stepped by a
+    simulated clock (60 steps per simulated second) as fast as the machine runs. A 10-minute scenario takes seconds
+    and runs the same every time.
   - `--instances N` runs one scenario over ENet on 127.0.0.1, on a free port as `verify`'s `enet` step: instance 1
     hosts with bot 1, instances 2 to N run one bot each, on the real clock. Each bot writes its decoded view and its
     peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
-    lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares.
+    lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares. The host prints
+    its relay counters (§4.5 "The host's counters") every 5 s of the run and every total at the end, in instance 1's
+    log (`tools/out/logs/run/bots_main-1.log`): `VoiceDown`s sent per 20 ms, the relay's microseconds per 20 ms and
+    per send, the send alone, and the upload in Mbit/s on the wire (28 B of IP and UDP added per datagram), voice,
+    snapshots and the rest apart (`RelayReport`, M5-4).
   - The one-process `bots` joins `verify` after `freeze` and `stall`, and so CI (every scenario: about 8 s with the six
     MVP scenarios, a few seconds more with M4-3's respawn scenario);
     the ENet run joins it too as `bots-enet`: `dissident_kills_the_crew` with 3 instances took 18 s (2026-10-01).
@@ -1977,9 +2007,24 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
   - **Occlusion** (E42, D13 (a)): on the listener only, one ray from the ears per audible speaker per physics
     frame and one per world sound, muffling what is behind the level; the host keeps routing by distance. Beyond one
     ray is what drops first.
-  - **The wire** (E44): unchanged in M5. M5-4 measures the host's relay time and upload headlessly with bots; a
-    batched row only if 81 streams take over 2 ms per 20 ms or 4.5 Mbit/s (placeholders). The leak test gains a
-    distance invariant written apart from `VoiceRule.hears` (E45).
+  - **The wire** (E44; **measured in M5-4**, #218): unchanged in M5 so far. The leak test gained a distance invariant
+    written apart from `VoiceRule.hears` (E45, M5-1 below). M5-4 measured the host's relay time and upload with
+    `tools\run.cmd bots voice_load --instances 8` (headless; the host's counters, §4.5): 8 bots within 8 m in the
+    lobby, all talking continuously (30 to 60 B frames, 50 a second) for 30 s, then 2 talkers for 30 s, on the
+    engineer's machine on 2026-10-03 with the 8 bot processes and other worktrees' Godot processes sharing its cores,
+    so every time is an upper bound. With everyone talking: 56 `VoiceDown`s per 20 ms, 49 of them on the wire (49
+    datagrams per 20 ms; 7 go to the host's own client over the loopback); the relay took 3.0 to 3.5 ms per 20 ms,
+    54 to 62 µs per send, of which 16.5 to 19 µs inside the transport's `send` (ENet's `put_packet`, which flushes
+    one datagram); the upload was 1.88 Mbit/s of voice (96 B per `VoiceDown` on the wire for a 45 B frame), 0.40 of
+    snapshots and 0.01 of the rest, 2.29 Mbit/s. With 2 talkers: 14 sends per 20 ms (12 on the wire), 0.8 to 1.0 ms,
+    0.87 Mbit/s. A second run under a heavier load of other worktrees took 190 to 270 µs per send and dropped
+    backlogs. Scaled to 10 players (90 sends per 20 ms, 81 on the wire): about 4.9 to 5.6 ms per 20 ms of relay time
+    (25 to 28% of a core), **over E44's 2 ms**; the upload about 3.1 Mbit/s of voice and 0.65 of snapshots (each
+    snapshot holding 9 avatars, not 7), about 3.8 Mbit/s, under E44's 4.5 and the voice ADR's 5 Mbit/s (about 4.5
+    with every frame at speech's 67 B peak). The send is not most of the cost: a throwaway probe in one process
+    (debug build, 10 speakers heard by 9 each) spent about 43 µs encoding each `VoiceDown` through `WireSchema` and
+    9 µs in `VoiceRelay.flush`, per message, though only its 2-byte seq differs between a frame's listeners. So the
+    measurement crosses E44's time threshold and asks for M5-4b; what to build first is the engineer's (§10).
   - **The cutoff and the distance invariant** (E41, E45; **built in M5-1**, #215): every voice rule answers
     `hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
     included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
@@ -3067,7 +3112,9 @@ told. One format runs in two runners.
     scenario can go back to the lobby and play a second match (seed *k*+1, §3.3). A time limit for the whole run;
   - `never`: events that one bot, or every bot, must never receive;
   - `voice` (M5-1, #215): how the bots' synthetic voice talks, in talk spurts (the default, a pattern per bot) or
-    continuously (§4.6).
+    continuously (§4.6); every bot talks from its join until a `Talk` step silences it;
+  - `measurement` (M5-4, #218): a load measurement, which the bots runner plays only when it is named, never in its
+    run of every scenario (`verify`'s `bots`), whose time it would multiply; the core runner's suite still plays it.
 - **Steps** are a closed list, like parts: the engineer adds a step and lists it here. Every step that sends an intent
   takes `expect_rejected` (a reason, empty by default): with it, the step is done when that `Rejected` arrives, and
   fails when the intent succeeds or is refused with another reason. So a scenario can script a downed player's `PickUp`,
@@ -3095,6 +3142,7 @@ told. One format runs in two runners.
 | `StopRaise` | sends `StopRaise`: lets go of E (M4-4) | its `RaiseStopped` arrives (`not_channeling` when no raise runs) |
 | `GiveUp` | the downed bot sends `GiveUp` (M4-4) | its own `Died` arrives |
 | `Swap` | sends `Swap`: exchanges its hand and belt items (M4-5) | its own `Swapped` arrives (`nothing_to_swap`, `two_handed` when refused) |
+| `Talk(talking)` | turns its synthetic voice off, or on again (M5-4); the core runner has no voice and only records it | at once |
 
 As built in 2j (#66; `core/content/scenario/`: `BotScenario`, `BotScript`, `NeverEvent`, `ScenarioTarget`, and
 one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable setup before a run):
@@ -3195,10 +3243,14 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   three, `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
   `dissidents` and `dissidents` (2h's win conditions), M4-5's `crew`, `none`, `crew` and `dissidents`; the other three
   `none`. None of M4-5's runs in `bots-enet`.
-  M5-1 (#215): `voice_beyond_the_radius` (in the round bot 1 walks about 5 m south of the middle and bot 2 about 5 m
-  north, both talking for 5 s some 10 m apart, so neither decodes the other; then bot 2 walks to about 6 m from bot 1
-  and both decode for 5 s; the scenario the distance invariant's plant needs, §4.6), which expects `none`; not a
-  `bots-enet` step (`--instances 2` passed once, 2026-10-03).
+  M5-1 (#215): `voice_beyond_the_radius` (in the round bot 1 walks about 5 m from the middle towards -z and bot 2
+  about 5 m towards +z, both talking for 5 s some 10 m apart, so neither decodes the other; then bot 2 walks to
+  about 6 m from bot 1 and both decode for 5 s; the scenario the distance invariant's plant needs, §4.6), which
+  expects `none`; not a `bots-enet` step (`--instances 2` passed once, 2026-10-03).
+  M5-4 (#218): `voice_load`, a `measurement` (8 bots walk to a circle of 3 m in the lobby, all within its 8 m, talk
+  continuously for 30 s, then all but bots 2 and 3 fall silent with a `Talk` step for 30 s; expects `none`): run
+  with `tools\run.cmd bots voice_load --instances 8`, about 70 s, not a `verify` step (§6 "The wire" has its
+  numbers); in one process it took 84 s.
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each
@@ -3242,7 +3294,7 @@ client (M4). That is the price of any mechanic that shows something new, not a g
 | Lag compensation for hits (§7.1) | after the MVP playtest |
 | Hiding positions behind walls (§5; not wanted now) | only if a human asks |
 | Wire format of the message layer: schemas, encoding, versioning, reliability | designed in #89 (§4.3 to §4.6, E1 to E17 for the engineer); built in M3 (3c to 3i) |
-| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | M5-4 measures both headlessly with bots; a batched voice row (M5-4b) only past the thresholds of E44 ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md)) |
+| The host's per-send ENet cost and upload for voice (ENet between two machines: settled by #21, §4) | Measured by M5-4 (#218, §6 "The wire"): 16.5 to 19 µs per send inside the transport (ENet's for 49 of 56) and 54 to 62 µs per relayed `VoiceDown` in all on one busy PC (upper bounds), about 5 ms per 20 ms at 81 streams, over E44's 2 ms; the upload about 3.8 Mbit/s at 10 players, under 4.5 and 5. Open: M5-4b (a batched voice row, a protocol change, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) §4) as E44 says, or first encoding each frame's `VoiceDown` once with the seq patched per listener (no wire change) and measuring again; M5-4's recommendation is the second, then M5-4b only if still over |
 | Voice integration: capture, the gate (voice activity by default, push-to-talk or Off), the jitter buffer, playback and the ears, occlusion, the buses Voice, Effects and Music ([M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md) E34 to E47 and D11 to D15, §6) | designed in #177, accepted on 2026-10-02 (PR #194); built in M5 (M5-1 to M5-7, #215 to #221) |
 | Which of `client/` and `voice/` uses the other (§1; E46 of the M5 ADR) | Settled: (a), the engineer, 2026-10-02: `client/` uses `voice/`, `voice/` nothing outside itself; §1's rows say so |
 | LFS in CI before the first audio asset outside `addons/` (the [LFS ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)'s open item; a stop-and-ask in the M5 ADR) | Settled: (a), the engineer, 2026-10-02: CI fetches LFS content, cached by the list of LFS files; added by M5-7 (#221) with the CC0 sounds of #144 and #145 |
