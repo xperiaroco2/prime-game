@@ -31,7 +31,7 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
   `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
   `SpectateTargets`, `LifeCountdowns` and `LifeHud`.
-- Voice (M5-5): `world/VoiceViews`, `life/Ears` (the listener), `audio/AudioBuses`; uses `voice/`, never the reverse.
+- Voice (M5-5, M5-7): `world/VoiceViews`, `world/Muffle`, `life/Ears`, `audio/AudioBuses`; uses `voice/`, not reverse.
 
 ## Rules
 - The client knows only what `server/` sent it. Never read `core/` state (`Match`, `MatchState`, `PeerView`,
@@ -53,8 +53,8 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
 - The downed camera stays at or below the standing eye height above the body and never passes through the level,
   and while it is in use no avatar, item or body out of sight of the body's eye is drawn (§4.7): every such view
   joins `SightHider.GROUP`, and nothing else sets those views' `visible`.
-- A world sound (bus Effects) plays only within the hearing range of the ears (E33; the ears since E40: never the
-  downed camera); a fading sound with no cut-off tells everyone, through walls, where a package was put down.
+- A world sound (bus Effects) plays only within the hearing range of the ears (E33, E40: never the downed camera), or
+  all hear through walls where a package went down. The muffle (one ray, world layer only) only lowers and dulls.
 - Voice (the M5 ADR §3): only `voice_received` frames play, on the speaker's `RemotePlayerBody`, checked per frame:
   none while the own life is dead, in a phase hearing nobody, of a speaker not living or gone, past `max_distance`
   from the ears, or stamped at or below the tick of its flush (ENet orders no lanes), each flushed at its event.

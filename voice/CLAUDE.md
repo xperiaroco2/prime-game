@@ -21,7 +21,7 @@ E34 to E47, D11 to D15; its §3 is the review checklist for what the client play
   start, stop, fade and flush, as `Decode`s and a `Command` for a `VoicePlayback`.
 - `voice_speaker.gd`: `VoiceSpeaker`, one remote speaker's `AudioStreamPlayer3D` (bus Voice, `ATTENUATION_DISABLED`,
   silent at `max_distance`) with its `VoiceJitter` and playback; `client/`'s `VoiceViews` places it on the avatar's
-  mouth, gives it the cutoff, and fades or flushes it (M5-5).
+  mouth, gives it the cutoff, and fades or flushes it (M5-5); its `extra_db` (the muffle, M5-7) adds to the fade.
 - Tests: `tests/unit/voice/` (`voice_codec_test`, `voice_gate_test`, `voice_jitter_test`, `voice_jitter_timing_test`
   through `voice_jitter_sim.gd`, `voice_addon_names_test`; the core/voice rule tests live there too), the fake codec
   and `FixtureVoiceDelivery` in `tests/fixtures/voice/`, the real codec's round trip in
