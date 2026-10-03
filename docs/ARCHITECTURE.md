@@ -968,7 +968,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     model then clears a match's facts (items, stations, bodies, loads, role, teammates, tasks, the winner and the
     avatars), as on `LoadMatch`, and keeps the roster and the settings.
   - The decoded view is recorded only with `keep_history` on (off by default, like `Match`'s: 12000 snapshots in a
-    10-minute match); the bots and the leak test turn it on. The model is always kept.
+    10-minute match); the bots and the leak test turn it on. The model is always kept. A decoded voice frame costs
+    about 250 B there (measured with M5-1's 30 to 60 B frames, #215): the four bots of `crew_delivers_every_package`
+    keep about 1 MB over its 25 s, but ten bots each hearing nine talkers for 10 minutes would keep 0.4 to 0.7 GB
+    (talk spurts to continuous), so bot scenarios stay short.
   - `Hello`'s content hash is `ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)`
     (`net/messages/`), which #100's host computes the same way. It takes the mode's parts, not the mode: `net/` names
     no `core/` class (a test pins it). Each level's file and every scene and resource it reaches are hashed (§4.3).
@@ -998,7 +1001,15 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   and only then sends the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band
   is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
   after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
-  listener also checks that the relay changed no frame and named the right speaker.
+  listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
+  like a player's gate (the M5 ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
+  with the peer id and the counter first (`LeakCheck.voice_frame`), in talk spurts by default (`BotVoice`: a spurt of
+  0.8 to 1.7 s, then a silence of 0.3 to 0.9 s, both lengths and the start shifted per bot; placeholders, "not a
+  decision"), so every scenario starts and stops streams; continuously when the scenario's `voice` says so (§9.7),
+  the load M5-4's `voice_load` measures. After a hitch of the clock at most the newest 5 frames go out at once (the
+  relay's newest 5 per poll). It talks in every phase and life state, as a modified client may: the host must route
+  none of it where nobody hears it (§6), which the leak test checks. The perf harness (§9.7) talks the same way, so
+  its voice numbers from before M5-1 (20 frames a second of 8 to 14 B) do not compare with later ones.
   **Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
   claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
   them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
@@ -1034,7 +1045,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     match (the shortest `match_duration`), so it took about 67 s. M4-3 (#139) brought it back under a minute
     without changing what it proves: the scenario forces a 40 s clock (`clock_s`, the debug command `ForceClock`),
     so it still knocks down, kills and ends by time up over ENet, in about 48 s; its 55 s time limit fails a run
-    whose ForceClock was lost (the 1-minute clock).
+    whose ForceClock was lost (the 1-minute clock). With M5-1's voice (50 frames a second in spurts, #215) the
+    one-process run of the 14 scenarios took 34 to 51 s on the engineer's machine while other worktrees ran their
+    checks (25 s before M5-1 on the same busy machine; the runner's limit is 300 s), and `bots-enet` 48 to 49 s
+    (2026-10-03).
   - Over ENet each bot writes its view file when its script is done and it decoded the expected ends (or its
     session ended), and keeps stepping until the host closes; the match goes on meanwhile, so the host compares each
     file's events with `view_of` as a prefix (a leak is still an event `view_of` lacks) that must reach `view_of`'s
@@ -1052,16 +1066,18 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   - snapshots: each decoded snapshot's avatars equal the avatars of `view_of(b).snapshots[tick]`; a tick that `view_of`
     lacks is a leak (a subset check, because LATEST may drop), and so is a second snapshot of one tick
     (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first);
-  - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check);
+  - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check); and, apart
+    from the voice rule, the distance invariant (M5-1, #215, below and §5);
   - what only one process can promise (#115's review): the host sends one snapshot per peer per step and every
     client polls once per step, so no transport of a bot or watcher may count a superseded LATEST message
     (`latest_superseded`); else a snapshot sent *before* the bot's own in the same step would be dropped unseen.
     Over ENet only the host's own in-process bot is held to it (a remote bot's real network may bunch two
-    snapshots in one poll). And each speaker's `VoiceDown` seqs, by tick, run 0, 1, 2, ... without a gap
-    (wrapping at 65536): the relay renumbers per speaker and listener and the loopback loses nothing, so a relay
-    that forwards the speaker's own seq (how long it talked to others) fails. Every runner also fails on a packet
-    its transport rejected or a message that did not decode (over ENet, bot 1's over its whole run), and the
-    one-process runner on a message the host counted over budget or a packet the host's transport rejected;
+    snapshots in one poll). And each speaker's `VoiceDown` seqs, by tick, run 0, 1, 2, ... without a gap (wrapping
+    at 65536), across the silences of the bots' talk spurts too (M5-1): the relay renumbers per speaker and listener
+    and the loopback loses nothing, so a relay that forwards the speaker's own seq (how long it talked to others)
+    fails. Every runner also fails on a packet its transport rejected or a message that did not decode (over ENet,
+    bot 1's over its whole run), and the one-process runner on a message the host counted over budget or a packet
+    the host's transport rejected;
   - peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
     `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
     `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
@@ -1084,12 +1100,20 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     from the list. Proven on #115: `Correction` declared *everyone* failed 5 of 6 scenarios (`refusals` has one
     bot), where the declaration-only check of an earlier commit passed it. A crew bot decodes no `Teammates`; a dissident's `Teammates` names
     that match's dissidents only; no bot decodes a dead player's avatar, or a downed or dead speaker's voice frame, a
-    downed bot hears only the living and a dead bot nobody; every event a bot decodes while dead is for it alone (the
-    subject check) or also reached every living peer present then, so nothing reaches only the dead (M4-2, the
-    recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots present for a
-    whole round decode the same task events; no decoded message has a field that names a seed; a peer that is not a
-    player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker) decodes nothing. `keep_history` costs memory (§5), so scenarios
-    stay short, or 3h compares per tick over a window and drops what it compared.
+    downed bot hears only the living and a dead bot nobody; no bot decodes a frame of a speaker farther away than the
+    hearing radius of the phase at the frame's tick (`VoiceRule.radius_of` the mode's rule for it), between the two
+    last accepted positions after that tick, which `LeakCheck.record_tick` records per tick with the radius, in 3D,
+    compared as `VoiceRule.within` compares them (`ScenarioInvariants.distance_problem`: the distance squared
+    against the radius squared, written again, never a call of the rule), and none under a radius of 0; a tick it
+    never recorded or a speaker that was not present then fails too (the distance invariant, M5-1, #215, E45: the
+    relay stamps a frame with the tick whose routing it used, refreshed right after that tick from the same state,
+    so bots exactly 8 m apart, as the greybox's spawns put them, pass); every event a bot decodes while dead is for
+    it alone (the subject check) or also reached every living peer present then, so nothing reaches only the dead
+    (M4-2, the recipients from `Match.emitted()`, which each bot's decoded events are checked against); the bots
+    present for a whole round decode the same task events; no decoded message has a field that names a seed; a peer
+    that is not a player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker)
+    decodes nothing. `keep_history` costs memory (§5), so scenarios stay short, or 3h compares per tick over a
+    window and drops what it compared.
   - **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
     one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
     catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
@@ -1123,6 +1147,18 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
     now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
     `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
+    **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
+    distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
+    (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
+    hearing 1), and with that check switched off on `LeakCheck` alone for both bots (`it heard 2 at tick 125 from
+    8.130 m`, 67 and 76 frames beyond the radius), with no routing failure: `view_of` reads the same rule; then
+    passed with the plant reverted. The plant stays as a test: `bots_runner_test.gd` plays the scenario under
+    `FixtureRoundVoicePastItsRadius` (ScenarioInvariants fail; with them left out, through the runner's
+    `_check_invariants` hook, LeakCheck fails both bots while `view_of` allows every frame decoded), and
+    `scenario_runner_test.gd` in the core runner. They also see the distance checks fail on a planted frame or
+    routing beyond 8 m, in 3D, under a radius of 0, on a tick never recorded and from a speaker not present, and agree
+    with `VoiceRule.within` a few float steps either side of the edge (a comparison through a 32-bit `distance_to`
+    fails that sweep).
 - **Chaos bots** (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
   P11): invariant 1 (the host validates every intent) against what a modified client can send, in
   `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
@@ -1774,6 +1810,11 @@ off-screen windows at the named steps of a scripted run, and the playtests of th
   assert facts written independently of them: for the whole session, a crew member knows one role, its own, and a
   dissident knows the dissidents' roles only; no snapshot holds a dead player's avatar; the voice invariant (§6): no
   peer gets a downed or dead speaker's voice frame, a downed peer gets only the living's and a dead peer none;
+  the distance invariant (M5-1, #215, E45): no peer gets a frame of a speaker farther away than the phase's hearing
+  radius (`VoiceRule.radius_of`, the client's cutoff, E41) at the frame's tick, between the last accepted positions,
+  in 3D, compared as `VoiceRule.within` does, and none under a radius of 0 (`ScenarioInvariants` per tick on
+  `speakers_for`, `LeakCheck` per decoded frame; seen failing on a `RoundVoice` that ignores its radius, which
+  `view_of` agrees with, §4.6);
   nothing reaches only the dead: every event a dead peer gets is for it alone or also reaches every living peer
   present then (`ScenarioInvariants` and `LeakCheck`, M4-2, each seen failing on a plant in `tests/scenarios/` and
   the first on `bots`, §4.6); nobody gets another player's health, stamina or damage; every player receives the same
@@ -1914,6 +1955,20 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
   - **The wire** (E44): unchanged in M5. M5-4 measures the host's relay time and upload headlessly with bots; a
     batched row only if 81 streams take over 2 ms per 20 ms or 4.5 Mbit/s (placeholders). The leak test gains a
     distance invariant written apart from `VoiceRule.hears` (E45).
+  - **The cutoff and the distance invariant** (E41, E45; **built in M5-1**, #215): every voice rule answers
+    `hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
+    included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
+    `RoundVoice` its `living_m` (§9.4). The static `VoiceRule.radius_of(rule)` gives 0 for a phase with no voice rule;
+    it is the one number the client's fade (`max_distance`, M5-5), its sender's "a phase whose rule hears nobody"
+    (M5-6) and the leak test read for the current phase from their own mode, so no radius is copied anywhere. In the
+    base mode: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. The leak test checks the
+    routing against it apart from the rule (§5): `ScenarioInvariants` per tick on `speakers_for`, `LeakCheck` on every
+    decoded frame from the positions and radius it records per tick, compared as `VoiceRule.within` does, so a rule
+    whose `hears` reaches past its own radius fails though `view_of` agrees with it; the scenario
+    `voice_beyond_the_radius` (§9.7) has bots talking beyond the radius, then within it, in the Round. The bots talk
+    at 50 frames a second in talk spurts (§4.6). Tests: the voice rules' suites in `tests/unit/voice/` and
+    `tests/unit/content/voice_rule_test.gd` (per class, per phase, null), `content_modes_test.gd` (the base mode's
+    radii), `tests/scenarios/bots_runner_test.gd`, `scenario_runner_test.gd` and `bot_voice_test.gd`.
   - Not in M5: radios and role abilities (M7+), echo cancellation (players are advised headphones), a talking
     indicator (#73's mouth animation, later), lowering the device latency (the voice ADR's advice to players).
 
@@ -2623,9 +2678,15 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Loading` | phase class | refuses joins; `LoadMatch`; takes `LoadAck`s (another match's dropped, a second `unchanged`); at the deadline drops who did not confirm, never the host; a leave drops too; reports `all_loaded` | `deadline_seconds` (5 to 600; required, since a missing deadline would drop every client at once) | `LoadMatch`, `PlayerLoaded`, `PlayerLeft` (everyone); `Disconnecting` (the dropped player, M4-6); `RefuseJoins`, `DisconnectPeer` (server) | 2b (#58) |
 | `Round` | phase class | nothing of its own: its intents go to rules, a leave to the life rule (§3.5, `LifeRules.leave`; a newcomer's leave is forgotten); a connection gets `DisconnectPeer` (2b) | none | `DisconnectPeer` (server); a leave: `PlayerLeft` (everyone), `player_left`, the drop's `ItemPlaced` (leave, everyone) and `item_rested` | 2a (#49); the leave 2g (#63) |
 | `End` | phase class | `ReturnToLobby` from the host reports `back`; a leave sets life `left` (§3.5); a connection gets `DisconnectPeer` | none | `PlayerLeft` (everyone); `DisconnectPeer` (server) | 2b (#58) |
-| `Silent` | voice rule | nobody hears anybody | none | the routing per tick (§5) | 2i (#65, `SilentVoice`) |
-| `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6, for every rule): nobody hears the downed or the dead | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`) |
-| `RoundVoice` | voice rule | a living or downed listener hears a living speaker within `living_m`, measured from the listener's last accepted position (where a downed player lies); under the voice invariant nobody hears the downed or the dead, the dead hear nobody, and a player who left hears and is heard by nobody (§6) | `living_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65); the ghost radii removed in M4-1 (#137) |
+| `Silent` | voice rule | nobody hears anybody; its hearing radius is 0 | none | the routing per tick (§5) | 2i (#65, `SilentVoice`); the radius M5-1 (#215) |
+| `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6, for every rule): nobody hears the downed or the dead; its hearing radius is `radius_m` | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`); the radius M5-1 (#215) |
+| `RoundVoice` | voice rule | a living or downed listener hears a living speaker within `living_m`, measured from the listener's last accepted position (where a downed player lies); under the voice invariant nobody hears the downed or the dead, the dead hear nobody, and a player who left hears and is heard by nobody (§6); its hearing radius is `living_m` | `living_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65); the ghost radii removed in M4-1 (#137); the radius M5-1 (#215) |
+
+**A voice rule's hearing radius** (M5-1, #215; E41): every voice rule answers `hearing_radius_m()`, the farthest it
+routes a voice (3D, its edge included), 0 when it routes nobody; `VoiceRule.radius_of(rule)` gives 0 for a phase with
+no voice rule. The client fades a voice to silence there and the leak test fails any frame from farther away (§5,
+§6), so a new voice rule returns the radius its `hears` uses; one that routes past it fails every scenario where
+players stand beyond it.
 
 The match clock itself is not a part: `Match` counts it in phases whose clock runs, after their tick systems
 (§3.3), and raises `clock_ended`.
@@ -2979,7 +3040,9 @@ told. One format runs in two runners.
   - the expected ends, one per match the scenario plays, in order: a winning side, or `none`. `none` passes when every
     script has finished within the time limit and no further `MatchEnded` arrived. Steps may follow an end, so a
     scenario can go back to the lobby and play a second match (seed *k*+1, §3.3). A time limit for the whole run;
-  - `never`: events that one bot, or every bot, must never receive.
+  - `never`: events that one bot, or every bot, must never receive;
+  - `voice` (M5-1, #215): how the bots' synthetic voice talks, in talk spurts (the default, a pattern per bot) or
+    continuously (§4.6).
 - **Steps** are a closed list, like parts: the engineer adds a step and lists it here. Every step that sends an intent
   takes `expect_rejected` (a reason, empty by default): with it, the step is done when that `Rejected` arrives, and
   fails when the intent succeeds or is refused with another reason. So a scenario can script a downed player's `PickUp`,
@@ -3107,6 +3170,10 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   three, `crew_respawns_invulnerable` and M4-4's two expect the ends `crew`, `dissidents`, `dissidents`, `dissidents`,
   `dissidents` and `dissidents` (2h's win conditions), M4-5's `crew`, `none`, `crew` and `dissidents`; the other three
   `none`. None of M4-5's runs in `bots-enet`.
+  M5-1 (#215): `voice_beyond_the_radius` (in the round bot 1 walks about 5 m south of the middle and bot 2 about 5 m
+  north, both talking for 5 s some 10 m apart, so neither decodes the other; then bot 2 walks to about 6 m from bot 1
+  and both decode for 5 s; the scenario the distance invariant's plant needs, §4.6), which expects `none`; not a
+  `bots-enet` step (`--instances 2` passed once, 2026-10-03).
 
 ### 9.8 The extensibility test
 Each later mechanic, on paper, against v0. The test counts classes in `core/`; the last paragraph says what each

@@ -34,6 +34,15 @@ func test_silence_emits_no_event() -> void:
 	assert_int(game.emitted().size()).is_equal(emitted)
 
 
+func test_its_hearing_radius_is_0() -> void:
+	# E41: the client's cutoff in a silent phase, which sends and plays nothing.
+	var game := FixtureVoiceMatch.in_round(SilentVoice.new(), [P1, P2])
+	var rule := game.mode.find_phase(game.phase_id()).voice_rule
+	assert_object(rule).is_instanceof(SilentVoice)
+	assert_float(rule.hearing_radius_m()).is_equal(0.0)
+	assert_float(VoiceRule.radius_of(rule)).is_equal(0.0)
+
+
 func test_a_mode_with_silence_passes_the_mode_check() -> void:
 	var check := ModeCheck.run(FixtureVoiceMatch.mode(SilentVoice.new(), SilentVoice.new()))
 	assert_array(Array(check.errors)).is_empty()

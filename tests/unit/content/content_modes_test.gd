@@ -427,6 +427,19 @@ func test_the_base_mode_names_its_voice_rules_with_their_numbers() -> void:
 	assert_float(round_voice.living_m).is_equal(8.0)
 
 
+func test_the_base_mode_s_hearing_radius_per_phase() -> void:
+	# E41: VoiceRule.radius_of each phase's rule, the client's cutoff and the distance the leak
+	# test checks: 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End.
+	var mode := _base_mode()
+	var want: Dictionary[StringName, float] = {
+		&"lobby": 8.0, &"countdown": 8.0, &"loading": 0.0, &"round": 8.0, &"end": 0.0
+	}
+	var got: Dictionary[StringName, float] = {}
+	for phase: PhaseSpec in mode.phases:
+		got[phase.id] = VoiceRule.radius_of(phase.voice_rule)
+	assert_dict(got).is_equal(want)
+
+
 ## The layouts of the mode's levels, read from the real scenes by the marker reader (2j) with the
 ## flat world of the stage-2 levels (one floor at y = 0), which test_the_levels_are_flat checks.
 func _layouts_for(mode: GameMode) -> Dictionary[String, LevelLayout]:

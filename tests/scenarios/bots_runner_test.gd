@@ -11,6 +11,9 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 const OUT := "user://bots_runner_test"
 const EVENTS_DIR := "res://core/events"
 const DROPPED := "res://content/scenarios/dropped_at_the_loading_deadline.tres"
+const VOICE_BEYOND := "res://content/scenarios/voice_beyond_the_radius.tres"
+## The base mode's hearing radius in the round, in metres (§9.5).
+const ROUND_RADIUS_M := 8.0
 
 
 func after_test() -> void:
@@ -75,7 +78,8 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
 	)
 	assert_array(Array(runner.failures)).is_empty()
-	var leaks := LeakCheck.new(runner.game)
+	# The runner's own leak check, which recorded every tick (positions, life states, radius).
+	var leaks := runner.leaks
 	var own := runner.clients[2].view
 	assert_array(Array(leaks.check_bot("bot 2", 2, own, false))).is_empty()
 	# An event view_of lacks, and a prefix where the whole view is due.
@@ -175,7 +179,7 @@ func test_a_bot_that_decoded_a_dead_avatar_or_voice_or_a_changed_snapshot_is_a_l
 	var own := runner.clients[2].view
 	var at_tick: int = own.snapshots.keys().back()
 	# Peer 1 dead after that tick, bot 2 alive: what the observer would have recorded.
-	var leaks := LeakCheck.new(runner.game)
+	var leaks := runner.leaks
 	runner.game.state.players[1].life = PlayerState.Life.DEAD
 	leaks.record_tick(at_tick)
 	var tampered := _copy(own)
@@ -225,7 +229,7 @@ func test_a_downed_bot_hearing_the_not_living_or_a_dead_bot_hearing_anyone_is_a_
 	# Peer 2 downed and peer 3 dead after that tick, peer 1 alive: what the observer would have
 	# recorded. The control first: bot 2 hearing the living
 	# peer 1 is no leak.
-	var leaks := LeakCheck.new(runner.game)
+	var leaks := runner.leaks
 	runner.game.state.players[2].life = PlayerState.Life.DOWNED
 	runner.game.state.players[3].life = PlayerState.Life.DEAD
 	leaks.record_tick(at_tick)
@@ -243,13 +247,64 @@ func test_a_downed_bot_hearing_the_not_living_or_a_dead_bot_hearing_anyone_is_a_
 	assert_str(found).contains("dead, it heard 1 at tick %d" % at_tick)
 
 
+func test_a_frame_beyond_the_hearing_radius_or_under_a_radius_of_0_is_a_leak() -> void:
+	# The distance invariant in LeakCheck (§5, E45), from the positions and the radius record_tick
+	# saw after the frame's tick, never the voice rule or view_of. Peer 1 at the origin in the
+	# round (8 m); the control first: a frame of a speaker exactly 8 m away is no leak.
+	var runner := BotsRunner.play(
+		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
+	)
+	assert_array(Array(runner.failures)).is_empty()
+	assert_str(runner.game.phase_id()).is_equal("round")
+	var at_tick: int = runner.clients[2].view.snapshots.keys().back()
+	var leaks := runner.leaks
+	var players := runner.game.state.players
+	players[1].position = Vector3.ZERO
+	players[2].position = Vector3(0, 0, 8)
+	leaks.record_tick(at_tick)
+	var heard := DecodedView.new()
+	heard.peer = 2
+	heard.voice[Vector2i(1, at_tick)] = [LeakCheck.voice_frame(1, 0)]
+	assert_str(_text(leaks.check_bot("bot 2", 2, heard, true))).not_contains("it heard 1")
+	players[2].position = Vector3(0, 0, 8.01)
+	leaks.record_tick(at_tick)
+	assert_str(_text(leaks.check_bot("bot 2", 2, heard, true))).contains(
+		"it heard 1 at tick %d from 8.010 m, beyond the phase's hearing radius of 8.000 m" % at_tick
+	)
+	# In 3D: 6 m up and 6 m across is 8.485 m.
+	players[2].position = Vector3(0, 6, 6)
+	leaks.record_tick(at_tick)
+	assert_str(_text(leaks.check_bot("bot 2", 2, heard, true))).contains("from 8.485 m")
+	# A tick the observer never recorded, and a speaker that was not a present player.
+	var unknown := DecodedView.new()
+	unknown.peer = 2
+	unknown.voice[Vector2i(1, at_tick + 100000)] = [LeakCheck.voice_frame(1, 1)]
+	unknown.voice[Vector2i(7, at_tick)] = [LeakCheck.voice_frame(7, 0)]
+	var found := _text(leaks.check_bot("bot 2", 2, unknown, true))
+	assert_str(found).contains(
+		"under tick %d, whose positions were never recorded" % (at_tick + 100000)
+	)
+	assert_str(found).contains(
+		"it heard 7 under tick %d, when 7 was not a present player" % at_tick
+	)
+	# Under a radius of 0 (what the observer records after a tick in End) it hears nobody.
+	var ended := LeakyViews.new(runner.game, runner.game.view_of(2))
+	ended.phase = &"end"
+	var silent := LeakCheck.new(ended)
+	players[2].position = Vector3(0, 0, 1)
+	silent.record_tick(at_tick)
+	assert_str(_text(silent.check_bot("bot 2", 2, heard, true))).contains(
+		"it heard 1 at tick %d in a phase whose hearing radius is 0" % at_tick
+	)
+
+
 func test_a_decoded_seed_is_a_leak() -> void:
 	var runner := BotsRunner.play(
 		_scenario([[StepReady.new(), _round()], [StepReady.new(), _round()]])
 	)
 	assert_array(Array(runner.failures)).is_empty()
 	var seed_value := 123_456_789_012
-	var leaks := LeakCheck.new(runner.game)
+	var leaks := runner.leaks
 	leaks.set_seeds([seed_value])
 	var own := runner.clients[2].view
 	assert_array(Array(leaks.check_bot("bot 2", 2, own, false))).is_empty()
@@ -433,6 +488,80 @@ func test_disconnecting_reaches_only_the_dropped_player_and_a_misdeclared_one_is
 	assert_str(found).contains("decoded Disconnecting of peer %d" % dropped)
 
 
+func test_bots_10_m_apart_decode_nothing_of_each_other_and_within_8_m_both_decode() -> void:
+	# voice_beyond_the_radius (M5-1): in the round bot 1 stands about 10 m south of bot 2, both
+	# talking, then bot 2 walks within 8 m. The distance invariant held on every frame (no failure);
+	# here, the legs happened: seconds of round ticks beyond the radius, and frames of each other
+	# decoded in the round, every one within it, a second of them after the bots last stood apart.
+	var runner := BotsRunner.play(load(VOICE_BEYOND) as BotScenario)
+	assert_array(Array(runner.failures)).is_empty()
+	var round_tick := _round_tick(runner.game)
+	assert_int(round_tick).is_greater(0)
+	var one := runner.peers.peer_of(1)
+	var two := runner.peers.peer_of(2)
+	var apart := 0
+	var last_apart := 0
+	for at_tick in range(round_tick + 1, runner.game.ticked_through() + 1):
+		var positions := runner.leaks.positions_at(at_tick)
+		if positions[one].distance_to(positions[two]) > ROUND_RADIUS_M + 1.0:
+			apart += 1
+			last_apart = at_tick
+	assert_int(apart).is_greater(3 * Ticks.RATE)
+	for listener: int in [1, 2]:
+		var speaker := runner.peers.peer_of(3 - listener)
+		var view := runner.clients[listener].view
+		var heard := 0
+		for key: Vector2i in view.voice:
+			if key.x != speaker or key.y <= round_tick:
+				continue
+			var positions := runner.leaks.positions_at(key.y)
+			var squared := positions[one].distance_squared_to(positions[two])
+			assert_float(squared).is_less_equal(ROUND_RADIUS_M * ROUND_RADIUS_M)
+			if key.y > last_apart:
+				heard += view.frames(speaker, key.y).size()
+		assert_int(heard).override_failure_message("bot %d" % listener).is_greater(Ticks.RATE)
+
+
+func test_a_round_voice_past_its_radius_fails_on_the_distance_invariant_alone() -> void:
+	# M5-1's planted leak: the round's RoundVoice hears every present living speaker at any
+	# distance. ScenarioInvariants fails it per tick; with them left out LeakCheck fails it on
+	# every bot, while the routing subset check passes it (view_of reads the same rule).
+	var scenario := (load(VOICE_BEYOND) as BotScenario).duplicate() as BotScenario
+	scenario.mode = FixtureRoundVoicePastItsRadius.planted_in(scenario.mode)
+	var runner := BotsRunner.play(scenario)
+	var found := _text(runner.failures)
+	assert_str(found).contains("invariant at tick").contains(" hears ")
+	assert_str(found).contains("beyond the phase's hearing radius of 8.000 m")
+	var alone := LeakCheckOnly.new(scenario)
+	alone.run()
+	alone.close()
+	found = _text(alone.failures)
+	for label: String in ["leak: bot 1 (peer", "leak: bot 2 (peer"]:
+		assert_str(found).contains(label)
+	assert_str(found).contains("beyond the phase's hearing radius of 8.000 m")
+	assert_str(found).not_contains("which view_of does not allow")
+	assert_str(found).not_contains("invariant at tick")
+	# Past the listed problems: view_of allows every frame each bot decoded, the far ones too.
+	for listener: int in [1, 2]:
+		var allowed := alone.game.view_of(alone.peers.peer_of(listener)).speakers
+		var decoded := alone.clients[listener].view.voice
+		assert_int(decoded.size()).is_greater(0)
+		for key: Vector2i in decoded:
+			var speakers: PackedInt32Array = allowed.get(key.y, PackedInt32Array())
+			assert_bool(speakers.has(key.x)).override_failure_message(str(key)).is_true()
+	# The same scenario without the plant passes (the test above).
+
+
+## A bots runner that leaves the §5 invariants out, so a planted leak meets LeakCheck alone.
+class LeakCheckOnly:
+	extends BotsRunner
+
+	func _check_invariants(
+		_command: MatchCommand, _slice: Array[EmittedEvent]
+	) -> PackedStringArray:
+		return PackedStringArray()
+
+
 ## A Correction whose class declares no AUDIENCE_KIND.
 class MisdeclaredCorrection:
 	extends MatchEvent
@@ -474,6 +603,8 @@ class LeakyViews:
 	extends Match
 	var planted: PeerView
 	var played: Match
+	## The phase it reports, or the played match's when empty.
+	var phase := &""
 
 	func _init(from: Match, view: PeerView) -> void:
 		super(from.mode, 1, FlatWorldQuery.new(), {})
@@ -483,6 +614,9 @@ class LeakyViews:
 
 	func view_of(_peer: int) -> PeerView:
 		return planted
+
+	func phase_id() -> StringName:
+		return phase if not phase.is_empty() else played.phase_id()
 
 	func emitted() -> Array[EmittedEvent]:
 		return played.emitted()
@@ -530,6 +664,15 @@ static func _decoded(view: PeerView) -> DecodedView:
 	for event: MatchEvent in view.events:
 		decoded.events.append(WireMessage.new(event.event_name(), event.to_dict()))
 	return decoded
+
+
+## The tick at which `game` entered the round (its PhaseChanged to round), or -1.
+static func _round_tick(game: Match) -> int:
+	for emitted: EmittedEvent in game.emitted():
+		var changed := emitted.event as PhaseChangedEvent
+		if changed != null and changed.phase == &"round":
+			return emitted.tick
+	return -1
 
 
 static func _text(found: PackedStringArray) -> String:

@@ -56,6 +56,38 @@ func test_each_phase_routes_the_pairs_of_its_rule_on_every_tick() -> void:
 	assert_int(seen[&"end"]).is_equal(0)
 
 
+func test_each_phase_s_hearing_radius_is_where_its_routing_stops() -> void:
+	# E41: VoiceRule.radius_of the phase's rule, what the client's cutoff and the leak test read:
+	# 8 m in the Lobby, the Countdown and the Round, 0 in Loading and End. In each phase P2 stands
+	# at that radius from P1 and P3 just past it: P2 is heard where the radius is not 0.
+	var game := _started()
+	var radius_in: Dictionary[StringName, float] = {}
+	for peer: int in PEERS:
+		FixtureBaseMode.join(game, peer)
+	_check_radius(game, radius_in)
+	for peer: int in PEERS:
+		FixtureBaseMode.ready(game, peer)
+	assert_str(game.phase_id()).is_equal("countdown")
+	_check_radius(game, radius_in)
+	while game.phase_id() == &"countdown":
+		FixtureModes.run_ticks(game, 1)
+	assert_str(game.phase_id()).is_equal("loading")
+	_check_radius(game, radius_in)
+	for peer: int in PEERS:
+		FixtureBaseMode.load_ack(game, peer)
+	assert_str(game.phase_id()).is_equal("round")
+	_check_radius(game, radius_in)
+	game.state.add_to_counter(0, &"crew_win", 1)
+	FixtureModes.run_ticks(game, 1)
+	game.state.set_counter(0, &"crew_win", 0)
+	assert_str(game.phase_id()).is_equal("end")
+	_check_radius(game, radius_in)
+	var want: Dictionary[StringName, float] = {
+		&"lobby": RADIUS_M, &"countdown": RADIUS_M, &"loading": 0.0, &"round": RADIUS_M, &"end": 0.0
+	}
+	assert_dict(radius_in).is_equal(want)
+
+
 func test_in_the_round_a_downed_player_hears_a_living_player_who_cannot_hear_it() -> void:
 	var game := _in_round()
 	game.state.player(P2).life = PlayerState.Life.DOWNED
@@ -128,6 +160,23 @@ func _mode() -> GameMode:
 	mode.find_phase(&"round").voice_rule = round_voice
 	mode.find_phase(&"end").voice_rule = SilentVoice.new()
 	return mode
+
+
+## Notes the hearing radius of `game`'s phase in `radius_in`, then puts P2 at that radius from P1
+## and P3 just past it for one tick: P1 hears P2 alone where the radius is not 0, else nobody.
+func _check_radius(game: Match, radius_in: Dictionary[StringName, float]) -> void:
+	var phase := game.phase_id()
+	var radius := VoiceRule.radius_of(game.mode.find_phase(phase).voice_rule)
+	radius_in[phase] = radius
+	FixtureVoiceMatch.put(game, P1, Vector3.ZERO)
+	FixtureVoiceMatch.put(game, P2, Vector3(0, 0, radius))
+	FixtureVoiceMatch.put(game, P3, Vector3(radius + 0.01, 0, 0))
+	var heard := FixtureVoiceMatch.tick_and_hear(game, P1)
+	assert_str(game.phase_id()).is_equal(phase)
+	var want := [P2] if radius > 0.0 else []
+	assert_array(heard).override_failure_message("phase %s heard %s" % [phase, heard]).is_equal(
+		want
+	)
 
 
 ## Runs `count` ticks; after each, compares every present peer's recorded speakers with

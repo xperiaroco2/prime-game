@@ -11,7 +11,13 @@ extends Resource
 ## length when it is forced (clock_s, ForceClock, M4-3). By default every bot joins at the start and
 ## acknowledges every LoadMatch at once; the steps StepJoin and StepLoadAck change that for one bot.
 ## Then one script per bot, run at the same time; the expected ends, one per match played, in order;
-## a time limit for the whole run; and the events some bot must never receive.
+## a time limit for the whole run; the events some bot must never receive; and how the bots'
+## synthetic voice talks (M5-1): in talk spurts by default, or continuously.
+
+## How the bots' synthetic voice talks (ARCHITECTURE §4.6): 50 frames a second in talk spurts, a
+## deterministic pattern per bot, like players whose gate opens while they speak; or every frame,
+## the load of everyone talking at once (M5-4's measurement).
+enum Voice { SPURTS, CONTINUOUS }
 
 ## An expected end that is no winning side: passes when every script finished within the time
 ## limit and no further MatchEnded arrived.
@@ -41,6 +47,7 @@ const MIN_SEED := 1_000_000
 ## Seconds of match time for the whole run.
 @export var time_limit_s := 120.0
 @export var never: Array[NeverEvent] = []
+@export var voice := Voice.SPURTS
 
 
 ## The steps of bot `bot` (1-based), in order; empty when it has no script.
@@ -85,6 +92,8 @@ func problems() -> PackedStringArray:
 		found.append("clock_s %d is outside 0 to %d" % [clock_s, 0xFFFF])
 	if time_limit_s <= 0.0:
 		found.append("time_limit_s is not positive")
+	if voice < 0 or voice >= Voice.size():
+		found.append("voice %d is neither SPURTS nor CONTINUOUS" % voice)
 	if session_seed < MIN_SEED:
 		found.append(
 			(

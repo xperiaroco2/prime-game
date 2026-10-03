@@ -80,6 +80,19 @@ func test_a_player_who_left_hears_and_is_heard_by_nobody() -> void:
 	assert_bool(_proximity(8.0).hears(game.state, P1, P3)).is_false()
 
 
+func test_its_hearing_radius_is_radius_m_where_its_routing_stops() -> void:
+	# E41: the client's cutoff is the rule's own radius, the edge of what the host routes.
+	var rule := _proximity(6.5)
+	assert_float(rule.hearing_radius_m()).is_equal(6.5)
+	assert_float(VoiceRule.radius_of(rule)).is_equal(6.5)
+	var game := FixtureVoiceMatch.in_lobby(rule, [P1, P2])
+	FixtureVoiceMatch.put(game, P1, Vector3.ZERO)
+	FixtureVoiceMatch.put(game, P2, Vector3(0, rule.hearing_radius_m(), 0))
+	assert_array(FixtureVoiceMatch.tick_and_hear(game, P1)).is_equal([P2])
+	FixtureVoiceMatch.put(game, P2, Vector3(0, rule.hearing_radius_m() + 0.01, 0))
+	assert_array(FixtureVoiceMatch.tick_and_hear(game, P1)).is_empty()
+
+
 func test_the_radius_must_be_within_its_bounds() -> void:
 	assert_array(_errors_of(_proximity(0.5))).is_empty()
 	assert_array(_errors_of(_proximity(100.0))).is_empty()
