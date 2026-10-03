@@ -1341,7 +1341,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   on a planted `_host._session.game` in `game.gd` and a `HostNode` named in `client/ui/`),
   `tests/unit/client/ui/screens_test.gd`, and `tests/integration/client/app/game_loop_test.gd`: three `Game` roots
   over a `LoopbackHub` on a simulated clock through the lobby, the host's setting, Ready, the countdown, loading, the
-  round, time up, the end screen and back, a client's Leave and the host's close (about 5 s). The screens' `shot`s:
+  round, time up, the end screen and back, a client's Leave and the host's close (about 5 s). Each `Game` sits in a
+  `SubViewport` with a physics world of its own, as `net_pair.gd`'s do: in one shared world each Game's
+  `RemotePlayerBody` of another player stood inside that player's own controller and the push slid every player
+  off its spot (#238); the round holds them still for half a second. The screens' `shot`s:
   `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
 - The runner's windows for `host` and `join` (E20) came with #149, the rest of M4-6: below.
 

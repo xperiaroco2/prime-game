@@ -28,8 +28,9 @@ paths:
 - Under load one idle frame runs several physics frames (up to `Engine.max_physics_steps_per_frame`, 8 here)
   before its `_process`, and `process_frame` is emitted before that `_process`. So a fixed count of physics frames
   proves nothing about what a `_process` writes (a label, a button, `Game`'s per-frame flags): after the state it
-  follows, `await get_tree().process_frame` twice (#222). To see such a test fail, a probe in `tests/scratch/` extends the suite and adds a node whose `_process`
-  calls `OS.delay_msec(120)`.
+  follows, `await get_tree().process_frame` twice (#222). To see such a test fail, copy the suite into
+  `tests/scratch/` and add in its `before_test()` a node whose `_process` calls `OS.delay_msec(120)`; a script that
+  only `extends` the suite runs none of its tests (GdUnit4 runs a script's own `test_` functions only, #238).
 - Headless runs have no `InputEvent`s: UI and input need `shot`, `playcheck` (off-screen, keys only) and a playtest.
 - A bug fix starts with a test that fails for the bug; run it and see it fail before the fix.
 
@@ -48,10 +49,10 @@ paths:
   `docs/ARCHITECTURE.md` §4.6 "Chaos bots").
 - Agent `test-runner` runs them and returns only failures.
 - A throwaway probe test goes in the gitignored `tests/scratch/`, never beside real tests: run it with
-  `tools\run.cmd test tests/scratch/probe_test.gd`, delete it with `rm -r tests/scratch/...` (no prompt). Full
-  `check`, `test` and `lint` runs leave the folder out. No `class_name` there, and no copy of a `.tscn` or `.tres`
-  with its uid: Godot still imports the folder, so both clash with the real file. No link or junction there: a
-  recursive delete through one removes its target.
+  `tools\run.cmd test tests/scratch/probe_test.gd`, delete it with its `.gd.uid` (`rm -r tests/scratch/...`, no
+  prompt): full `test` and `lint` runs leave the folder out, but `check` imports it and its UID lint reads it. No
+  `class_name` there, and no copy of a `.tscn` or `.tres` with its uid: both clash with the real file. No link or
+  junction there: a recursive delete through one removes its target.
 
 ## Never
 - Weaken, skip or delete a test to make it pass without the human's explicit approval. That includes loosening an
