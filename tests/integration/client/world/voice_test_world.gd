@@ -5,7 +5,8 @@ extends Node3D
 ## and the ears at a point a test moves. A Camera3D far away: Godot mixes a 3D player only while
 ## the world has a camera, and measures the distance from the current AudioListener3D (the ears),
 ## which this world adds and makes current at `ears_at`. A suite adds one in `before_test()` and
-## frees it in `after_test()`.
+## frees it in `after_test()`. `add_box()` puts a fixture wall (or a stand-in capsule on another
+## layer) in its physics space, for the occlusion ray (M5-7).
 
 const MODE := "res://content/modes/base_mode.tres"
 const OWN := 1
@@ -100,6 +101,23 @@ func speak(peer: int, count: int, tick: int, amplitude := 0.5) -> void:
 		var seq: int = seqs.get(peer, 0)
 		seqs[peer] = seq + 1
 		voices.on_voice(peer, seq & 0xFFFF, tick, sine(seq, amplitude))
+
+
+## A box of `size` centred at `at` on physics layer `layer` (the level's by default), in this
+## world's space; freed with the world.
+func add_box(at: Vector3, size: Vector3, layer := PhysicsLayers.WORLD) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "Box"
+	body.collision_layer = layer
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	body.position = at
+	add_child(body)
+	return body
 
 
 ## One fake-codec frame (160 µ-law bytes at 8 kHz) of a 400 Hz sine, continuing over seqs.

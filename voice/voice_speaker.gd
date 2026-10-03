@@ -14,6 +14,8 @@ extends AudioStreamPlayer3D
 ## A fade (fade_out()) lowers the player's volume to silence over VoiceJitter.FADE_USEC, then the
 ## jitter says FLUSH and the playback's queue is emptied, so the audio already queued does not
 ## play on (the spike heard it 2.7 m past the cutoff). flush_now() empties it at once.
+## The owner may lower it further by `extra_db` (client/'s occlusion muffle, M5-7) and move it to
+## another bus; the speaker adds `extra_db` to the fade's volume and never decides it.
 
 ## The bus every voice plays on (D15).
 const BUS := &"Voice"
@@ -30,6 +32,8 @@ var overflow := 0
 ## Frames handed to the playback, and the microseconds spent in those pushes (the decodes).
 var decodes := 0
 var decode_usec := 0
+## The owner's volume offset in dB, added to the fade's (0 or below: client/'s muffle).
+var extra_db := 0.0
 
 var _codec: VoiceCodec
 var _playback: VoicePlayback
@@ -113,7 +117,7 @@ func step(now_usec: int) -> void:
 			_playback.set_running(false)
 		VoiceJitter.Command.FLUSH:
 			_playback.flush()
-	volume_db = maxf(linear_to_db(jitter.gain(now_usec)), SILENT_DB)
+	volume_db = maxf(linear_to_db(jitter.gain(now_usec)) + minf(extra_db, 0.0), SILENT_DB)
 
 
 ## Fades the voice out over VoiceJitter.FADE_USEC from `now_usec`, then flushes it; frames
@@ -132,7 +136,7 @@ func flush_now() -> void:
 	jitter.flush()
 	if _playback != null:
 		_playback.flush()
-	volume_db = 0.0
+	volume_db = maxf(minf(extra_db, 0.0), SILENT_DB)
 
 
 ## Whether anything plays or waits to: a run, frames held, or audio queued.
