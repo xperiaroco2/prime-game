@@ -1222,15 +1222,18 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `PRIME_VERIFY_SLOTS_DIR` override the defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
   **Load runs (#388):** an agent that tests something under load on purpose (as #318 and #354 did with 32 hand-written
   busy loops on 16 logical CPUs, which the slots could not see while the other tracks' verify runs went on beside them)
-  runs `load [--loops N] [--seconds S]` (default 2 loops per logical CPU for 600 s; at most 256 loops and 1800 s). It
+  runs `load [--loops N] [--seconds S]` (default 2 loops per logical CPU for 600 s; at most 256 loops and 1140 s). It
   first takes a slot like a verify (the same wait and waiting line), so one verify fewer runs beside it and every
   waiting run names it (`slot 2: load run in <worktree> (...)`; its holder file has `kind: load`); past the wait it
   starts nothing and exits 1 (a load is no gate, and it would push the slotted runs over the limit). Taking a slot
   was chosen over `verify` counting load runs as extra holders: the same operating-system lock frees a killed load's
   slot at once, there is one count to reason about, and nothing else has to find and judge the load's processes. Each
-  loop is its own Python process that stops itself after S seconds, so a killed `load` leaves no load behind; the
-  runner stops any loop that outlives S by 5 s. The agent starts it in the background (a log under its scratch
-  folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with `wait <log>`.
+  loop is its own Python process that ends by itself at most S seconds after it starts, and the runner stops any loop
+  that outlives S by 5 s. A killed `load` frees its slot at once while its loops run out their time without one, so S
+  is at most 1140 s: the 600 s wait, S, the 5 s grace and a 55 s start margin fit the 30-minute default limit of a
+  background command, which therefore never kills a `load`. The agent starts it in the background (a log under its
+  scratch folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with
+  `wait <log>`.
   Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
   The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (and `error` when the slot folder failed: the run
   then goes ahead without a slot, a slot never stops the gate), its `seconds` leave the wait out, and the summary's last

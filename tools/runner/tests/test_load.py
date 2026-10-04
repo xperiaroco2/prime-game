@@ -101,6 +101,13 @@ class ArgsTest(unittest.TestCase):
                 load.check_args(loops, seconds)
         load.check_args(1, load.MAX_SECONDS)
 
+    def test_the_longest_load_after_the_longest_wait_fits_a_background_run(self) -> None:
+        # A runner killed at the background limit frees its slot while its loops run on without one (review of #388).
+        self.assertLessEqual(
+            slots.DEFAULT_WAIT + load.START_MARGIN + load.MAX_SECONDS + load.GRACE, slots.BACKGROUND_LIMIT
+        )
+        self.assertEqual(load.MAX_SECONDS, 1140.0)
+
     def test_bad_arguments_fail_before_any_slot_is_taken(self) -> None:
         asked: list[bool] = []
 

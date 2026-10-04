@@ -8,10 +8,12 @@ waiting run names it ("load run in ..."). Past the longest wait it does not star
 starting it would make the slotted verify runs run over the limit. On CI, or with PRIME_VERIFY_SLOTS=0, it runs
 without a slot.
 
-Each loop is its own Python process that stops itself after the given seconds, so a load whose runner was killed
-(a tool timeout, Ctrl+C) still ends on time; the runner also stops every loop that outlives its time by GRACE. An
-agent starts `load` in the background, waits for its `load: running` line, runs what it tests, and lets the load end
-(or waits for it with `wait <log>`).
+Each loop is its own Python process that ends by itself at most the given seconds after it starts. A killed runner
+(a tool timeout, Ctrl+C) frees its slot at once, while its loops may run out their time without a slot; so the longest
+load (MAX_SECONDS) plus the longest wait for a slot fits Claude Code's default limit for a background command, and a
+load started in the background with that default is never killed by it. The runner also stops every loop that
+outlives its time by GRACE. An agent starts `load` in the background, waits for its `load: running` line, runs what it
+tests, and lets the load end (or waits for it with `wait <log>`).
 """
 
 from __future__ import annotations
@@ -32,11 +34,14 @@ BUSY = "import sys, time\nend = time.monotonic() + float(sys.argv[1])\nwhile tim
 LOOPS_PER_CPU = 2
 MAX_LOOPS = 256
 DEFAULT_SECONDS = 600.0
-# A load is a bounded test aid: at most half an hour, Claude Code's default limit for a background command.
-MAX_SECONDS = slots.BACKGROUND_LIMIT
 # How long past its time a loop may run before the runner stops it, and how often the runner looks.
 GRACE = 5.0
 POLL = 0.5
+# Python's start-up, git and the slot folder before the wait, and starting the loops after it.
+START_MARGIN = 55.0
+# A load is a bounded test aid: the whole wait for a slot, the loops, their grace and the margin fit Claude Code's
+# default limit for a background command (half an hour), so the runner is not killed while its loops still run.
+MAX_SECONDS = slots.BACKGROUND_LIMIT - slots.DEFAULT_WAIT - GRACE - START_MARGIN
 
 Spawn = Callable[[float], "subprocess.Popen[bytes]"]
 

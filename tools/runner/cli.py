@@ -122,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="bounded busy loops to test under load, in a verify slot (waits like verify; none free in time: exit 1)",
     )
     p.add_argument("--loops", type=int, help="busy processes, 1 to 256 (default 2 per logical CPU)")
-    p.add_argument("--seconds", type=float, default=600.0, help="how long they run, up to 1800 (default 600)")
+    p.add_argument("--seconds", type=float, default=600.0, help="how long they run, up to 1140 (default 600)")
 
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
