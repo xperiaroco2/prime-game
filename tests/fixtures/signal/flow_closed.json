@@ -1,0 +1,148 @@
+{
+  "about": "close refuses new joins with the match started; reopen allows them again. A joiner already in the room keeps talking to the host.",
+  "config": {
+    "ice_servers": [],
+    "codes": [
+      "ABCDEF"
+    ]
+  },
+  "steps": [
+    {
+      "open": "host"
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": []
+          }
+        }
+      ]
+    },
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "close",
+        "v": 1
+      },
+      "expect": []
+    },
+    {
+      "open": "j2"
+    },
+    {
+      "from": "j2",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j2",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "the match has started"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "answer",
+        "v": 1,
+        "sdp": "v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "answer",
+            "v": 1,
+            "sdp": "v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=-\r\n",
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "reopen",
+        "v": 1
+      },
+      "expect": []
+    },
+    {
+      "from": "j2",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j2",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 2
+          }
+        }
+      ]
+    }
+  ]
+}

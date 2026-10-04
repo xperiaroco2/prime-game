@@ -1,0 +1,218 @@
+{
+  "about": "A host opens a room, one joiner joins; offer, answer and candidates both ways. The service adds its ICE servers to the room and to the host's offer, never to found.",
+  "config": {
+    "ice_servers": [
+      {
+        "urls": [
+          "stun:stun.cloudflare.com:3478"
+        ]
+      }
+    ],
+    "codes": [
+      "ABCDEF"
+    ]
+  },
+  "steps": [
+    {
+      "open": "host"
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": [
+              {
+                "urls": [
+                  "stun:stun.cloudflare.com:3478"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "offer",
+        "v": 1,
+        "to": 1,
+        "id": 2,
+        "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "offer",
+            "v": 1,
+            "id": 2,
+            "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n",
+            "ice_servers": [
+              {
+                "urls": [
+                  "stun:stun.cloudflare.com:3478"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "answer",
+        "v": 1,
+        "sdp": "v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "answer",
+            "v": 1,
+            "sdp": "v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=-\r\n",
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "candidate",
+        "v": 1,
+        "to": 1,
+        "mid": "0",
+        "index": 0,
+        "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "candidate",
+            "v": 1,
+            "mid": "0",
+            "index": 0,
+            "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "candidate",
+        "v": 1,
+        "mid": "0",
+        "index": 0,
+        "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "candidate",
+            "v": 1,
+            "mid": "0",
+            "index": 0,
+            "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host",
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "candidate",
+        "v": 1,
+        "mid": "0",
+        "index": 0,
+        "cand": ""
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "candidate",
+            "v": 1,
+            "mid": "0",
+            "index": 0,
+            "cand": "",
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "gone": "j1",
+      "expect": []
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "candidate",
+        "v": 1,
+        "to": 1,
+        "mid": "0",
+        "index": 0,
+        "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "no such joiner"
+          }
+        }
+      ]
+    }
+  ]
+}

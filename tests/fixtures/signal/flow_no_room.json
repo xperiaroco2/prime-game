@@ -1,0 +1,119 @@
+{
+  "about": "A code no room holds; a malformed code is a bad message. The socket keeps no role and may join another code.",
+  "config": {
+    "ice_servers": [],
+    "codes": [
+      "ABCDEF"
+    ]
+  },
+  "steps": [
+    {
+      "open": "host"
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": []
+          }
+        }
+      ]
+    },
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ZZZZZZ"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "no such room"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDE0"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "bad message"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "abcdef"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "bad message"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 1
+          }
+        }
+      ]
+    }
+  ]
+}

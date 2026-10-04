@@ -22,6 +22,9 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   and ForceRole's `peer`), `WireReader` (bounds-checked) and `WireWriter`. `WireBudget` is `server/`'s.
   `ContentFingerprint` (3g): the content hash `Hello` carries (§4.3, E1), from the mode's parts the caller passes;
   it hashes the level files and every scene and resource they reach, scripts left out (#118).
+- `signal/`: the signalling protocol (§4.8, M6): `SignalCodec` (messages and checks), `SignalRouter` (the
+  service's rooms and routing, no sockets), `LanSignalling` (the router over ws://) and `Signaller` (the client).
+  The transcripts in `tests/fixtures/signal/` are shared with the Worker (M6-5b): change the rules in both.
 
 ## Rules
 - A new message kind is one row in `WireSchema` (`NetKindTable.game()` is built from it): pick its lane (voice takes
