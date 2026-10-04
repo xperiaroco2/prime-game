@@ -1956,8 +1956,15 @@ is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window
 the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
 them equal). Whitespace runs count as one space and a hidden field reads as "", and scenarios assert short `has` and
 `lacks` parts of the greybox wording (#150). `button <text>` gives the one visible, enabled `Button` of the Ui with
-that text the focus and `ui_accept`'s key, so no mouse event captures the mouse. Keys go in through
-`Input.parse_input_event`, holds through `Input.action_press`, screenshots through
+that text the focus and `ui_accept`'s key, so no mouse event captures the mouse. With no mouse look, `aim item
+<kind>` (until `aim off`, #276) turns the window's own local player and nothing else: each frame it reads the
+nearest item of that kind resting (no holder) in the window's own `ClientModel`, whose positions every client is
+sent, and calls `PlayerController.look` on `Game.player()` to face its middle (`ItemView.centre_of`), as mouse motion
+would. The pick-up hint reads the window's own position and the host's reach check the last one it accepted, so a
+scenario that walks up to an item lets the player settle (`frames`) and waits for the hint again before `press
+interact` (`items.txt`: pressed at once, the pick-up failed intermittently; #319). Keys go in through
+`Input.parse_input_event`, before the frame's `_process`, so actions polled there (`interact`, `swap`, `put_down`)
+see them as just pressed; holds through `Input.action_press`, screenshots through
 `Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
 off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
 that only remembers, so the real mouse is never captured; what needs a captured mouse (`use`, spectate cycling)
@@ -1971,9 +1978,12 @@ every process; the text, shown and button grammar and `FIELDS` against `GameView
 `tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at once or fails at its
 timeout and not before, with its line and what the window saw; frames; events matched once through player numbers;
 the setup; `is`/`has`/`lacks`, collapsed whitespace, a hidden field read as "", shown on and off; the `button` step's
-one visible, enabled button or its failure). The scenarios `esc_menu` (#169) and `spectate` (#168) are its own
-checks, run on a desktop; since #275 they assert the Esc tabs, the lobby roster and countdown, the life panel, the
-spectator HUD and the knife in the first-person hand besides their PNGs.
+one visible, enabled button or its failure; `aim` as an action step, the nearest resting item it picks and the
+turn that makes a real `PlayerController` face a target). The scenarios `esc_menu` (#169), `spectate` (#168),
+`items` and `end` (#276) are its own checks, run on a desktop; since #275 they assert the Esc tabs, the lobby
+roster and countdown, the life panel, the spectator HUD and the knife in the first-person hand besides their PNGs,
+and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner and its
+host-only Back to lobby, the lobby's cleared ready flags after End and a second round.
 
 **Tests.** The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
 `SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
