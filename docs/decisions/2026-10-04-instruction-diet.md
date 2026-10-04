@@ -185,7 +185,7 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 | | option | saving, points per 7 days (w = 0 / w = 0.5, after bounded waits) | migration cost | risk of an agent missing a rule | how lint and docs drift keep working |
 |---|---|---|---|---|---|
 | O1 | **Load root `CLAUDE.md` once** (`claudeMdExcludes` for the worktree's root `CLAUDE.md`) | 0.55 / 0.78 (before #303: 0.90 / 1.04); certain | S: one settings entry, two probes, a runner test, a §3 row | low (see O1) | budgets unchanged; a runner test asserts the pattern; issue E's duplicate count shows no root `CLAUDE.md` twice |
-| O2 | **Read by section**: `section` command, numbered subsections, a lint check for § references, prompts that name sections | about 0.6 to 0.9 / 1.0 to 1.4 (50 to 75% of 1.14 / 1.92 addressable) | M (B) plus S (C); no file moves | low to medium (see O2) | docs have no budget; a new lint check fails a § reference that does not resolve or a duplicate § (a deterministic docs-drift check); the night audit's lens is unchanged |
+| O2 | **Read by section**: `section` command, numbered subsections, a lint check for § references, prompts that name sections | about 0.7 to 1.1 / 1.2 to 1.8: section reads 0.6 to 0.9 / 1.0 to 1.4 (50 to 75% of 1.14 / 1.92 addressable), plus 0.11 to 0.21 / 0.23 to 0.43 from the reading list | M (B) plus S (C); no file moves | low to medium (see O2) | docs have no budget; a new lint check fails a § reference that does not resolve or a duplicate § (a deterministic docs-drift check); the night audit's lens is unchanged |
 | O3 | **Per-area architecture files with an index**: `docs/architecture/<§>-<slug>.md` per group, ARCHITECTURE.md an index keeping every § | about the same as O2 (the file boundary does what `section` does) | L: 654 referring lines, CODEOWNERS, the night-audit lens; a move between waves while no open PR touches ARCHITECTURE | medium (see O3) | O2's § check over the new files; a size budget per file in lint; the night-audit lens and CODEOWNERS paths change |
 | O4 | **Reference tables out of always-loaded files**: root's commands table becomes one line of names plus `tools\run.cmd <command> --help` | 0.38 / 0.55; plus about 18 of root's 150 budget lines freed | S to M | medium (see O4) | lint's root count drops; a runner test checks the names line against `cli.py` both ways and that each command's `--help` says what the row said |
 | O5 | **Lean workflow agent types with role packs** (extends #302's lever 5) | skill listing and MCP instructions 1.60 / 2.49; the tool schemas per #302 (0.8 / 2.3 over its 34.4 hours); role packs about 0.6 / 0.9 more | M to L, and it reverses AGENT_WORKFLOW §5's "every project subagent is read-only" (#302 decision 4) | high for packs, low for lean types alone (see O5) | `instructions.py` learns the `omitClaudeMd` and `skills` agent fields; a pack generator, and lint fails a stale pack |
@@ -210,6 +210,12 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 - Prompts: `issue-task.js` and `pr-rebase.js` give the plan reviewer and the reviewers "the ARCHITECTURE sections the
   change touches", not `docs/ARCHITECTURE.md`. The plan-review prompt stops asking to read root `CLAUDE.md`, which is
   already loaded.
+- The implementer's reading list (`READING` in `issue-task.js`) stops naming "the CLAUDE.md of every area it touches
+  and .claude/rules/". Those files load by path when the agent Reads a file there, which an implementer does before
+  every Edit. Area `CLAUDE.md` files read by a tool cost $17 in the window, 72% of it implementers', and mostly
+  through `cat` or `sed`, which load nothing by path. Implementers' tool reads are 0.21 / 0.43 points per 7 days with
+  bounded waits; 0.11 / 0.23 of that re-reads an area file the same agent also had by path, a certain saving. The
+  rule to re-read the area `CLAUDE.md` after a compaction (AGENT_WORKFLOW §4.3) stays.
 - What it saves: the over-fetch of range reads, the heading searches (one outline call replaces them) and part of the
   whole ADR reads. The ADRs have headings too, so `section` serves them.
 - *Risk:* an agent reads §4.5 and misses a constraint stated in §5. Agents already read ranges (7 whole reads in 4.7
@@ -268,7 +274,7 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
   measurement here replaces its assumed cut.
 - **Bounded waits (#303)** halve the non-read value of everything here, because 47% of the instructions' non-read $
   was re-writes after long waits. The figures above are given after that.
-- **Recommended now (O1, O2, O4): about 1.5 to 1.8 points per 7 days at w = 0 and 2.3 to 2.7 at w = 0.5** at this
+- **Recommended now (O1, O2, O4): about 1.6 to 2.0 points per 7 days at w = 0 and 2.6 to 3.2 at w = 0.5** at this
   week's volume. This week's whole load at that volume is 148 to 152 points per 7 days, so the saving is about 1 to
   2% of it. Nothing a task reads goes away.
 
@@ -338,6 +344,7 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
 - **C:**
   - the plan-review and review prompts name sections, not the whole doc, and no prompt asks to read root `CLAUDE.md`
     again;
+  - `READING` in `issue-task.js` no longer names the area `CLAUDE.md` files and `.claude/rules/` (they load by path);
   - the snapshots change on purpose;
   - one wave later E shows ARCHITECTURE $ per run down, and no review finding traced to a section not read.
 - **D:**
