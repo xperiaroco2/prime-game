@@ -242,6 +242,9 @@ NOT_A_READ = re.compile(
 )
 SHELL_SEARCH = re.compile(r"\b(grep|rg|select-string|findstr)\b", re.IGNORECASE)
 READ_LINE = re.compile(r"^\s*(\d+)\t(.*)$")
+# The file a Grep output line starts with (an absolute or relative path with an extension, then `:` or `-` and a
+# line number, a `:`, or the end of the line).
+GREP_PATH = re.compile(r"^((?:[A-Za-z]:)?[^:\n]*?\.\w+)(?:[:-]\d+[:-]|:|$)")
 GREP_LINE = re.compile(r"^(?:.*?[:-])?(\d+)[:-](.*)$")
 # A line that maps to a section: this long at least, so blank lines and short list items do not.
 SECTION_LINE = 25
@@ -525,7 +528,10 @@ def doc_targets(name: str, inp: dict) -> list[tuple[str, str, str]]:
         return [(rel, "Read", "read")] if doc_what(rel) else []
     if name == "Grep":
         rel = repo_path(inp.get("path"))
-        return [(rel, "Grep", "grep")] if doc_what(rel) else []
+        if doc_what(rel):
+            return [(rel, "Grep", "grep")]
+        folder = grep_folder(inp.get("path"), rel)
+        return [(folder, "Grep", "folder")] if folder is not None else []
     if name not in ("Bash", "PowerShell"):
         return []
     cmd = str(inp.get("command", ""))
@@ -537,11 +543,58 @@ def doc_targets(name: str, inp: dict) -> list[tuple[str, str, str]]:
     return [(rel, how, mode) for rel in shell_docs(cmd) if doc_what(rel)]
 
 
+def grep_folder(path: object, rel: str | None) -> str | None:
+    """The repository folder a Grep searches ("" for the whole checkout, also when it has no path); None for a file
+    or a path outside the repository."""
+    p = str(path or "").replace("\\", "/").rstrip("/")
+    root = bool(re.search(r"(^|/)\.claude/worktrees/[^/]+$", p)) or p.lower() == REPO_ROOT.as_posix().lower()
+    if not p or root:
+        return ""
+    if rel is None and not re.match(r"([A-Za-z]:|/|~)", p):
+        rel = p[2:] if p.startswith("./") else p  # a path relative to the checkout
+    if rel is None or "." in rel.rsplit("/", 1)[-1]:
+        return None
+    return rel
+
+
+def folder_items(folder: str, text: str) -> list[dict]:
+    """A Grep over a folder: each doc its output names, with that file's lines (a `path:line:text` or `path-line-text`
+    line, or a path alone; a line that names none belongs to the file before it). When no file can be told apart in a
+    docs folder, one item of the folder's docs."""
+    if text.lstrip().startswith(("No matches", "No files found")):
+        return []
+    lines: dict[str, list[str]] = {}
+    current = None
+    for line in text.splitlines():
+        if line == "--":
+            continue  # ripgrep's separator between context groups
+        named = GREP_PATH.match(line)
+        if named and " " not in named.group(1):
+            cand = named.group(1).replace("\\", "/")
+            rel = repo_path(cand) or (cand[2:] if cand.startswith("./") else cand)
+            current = rel if doc_what(rel) else None
+        if current:
+            lines.setdefault(current, []).append(line)
+    found = []
+    for rel, rows in lines.items():
+        item = {"what": doc_what(rel), "how": "Grep", "chars": sum(len(x) + 1 for x in rows), "file": rel}
+        if rel in SECTIONED:
+            item |= {"text": "\n".join(rows), "mode": "grep"}
+        found.append(item)
+    other = doc_what(folder.rstrip("/") + "/x.md") if folder else None
+    if not found and other and text.strip():
+        found.append({"what": other, "how": "Grep", "chars": len(text), "file": folder})
+    return found
+
+
 def read_items(targets: list[tuple[str, str, str]], text: str) -> list[dict]:
     """A tool result's doc items: its characters split evenly over the docs it names. A sectioned doc keeps the text
     for the section tables when it is the only one."""
     found = []
     for rel, how, mode in targets:
+        if mode == "folder":
+            found += folder_items(rel, text)
+            continue
         item = {"what": doc_what(rel), "how": how, "chars": len(text) // len(targets), "file": rel}
         if rel in SECTIONED and len(targets) == 1:
             item |= {"text": text, "mode": mode}

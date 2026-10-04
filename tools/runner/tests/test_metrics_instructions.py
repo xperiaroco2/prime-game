@@ -338,7 +338,13 @@ class DocTargetsTest(unittest.TestCase):
             ("Read", {"file_path": str(WT / "core" / "match" / "vote.gd")}, []),
             ("Read", {"file_path": "C:/Users/u/notes.md"}, []),
             ("Grep", {"path": str(WT / "docs" / "ARCHITECTURE.md")}, [("docs/ARCHITECTURE.md", "Grep", "grep")]),
-            ("Grep", {"path": str(ROOT / "docs")}, []),
+            ("Grep", {"path": str(ROOT / "docs")}, [("docs", "Grep", "folder")]),
+            ("Grep", {"path": "docs/decisions/"}, [("docs/decisions", "Grep", "folder")]),
+            ("Grep", {"path": str(WT / "core")}, [("core", "Grep", "folder")]),
+            ("Grep", {"pattern": "x", "glob": "docs/**/*.md"}, [("", "Grep", "folder")]),
+            ("Grep", {"path": str(WT)}, [("", "Grep", "folder")]),
+            ("Grep", {"path": str(WT / "core" / "x.gd")}, []),
+            ("Grep", {"path": "C:/Users/u/elsewhere"}, []),
             ("Bash", {"command": f'grep -n "4.7" D:\\{NAME}\\docs\\ARCHITECTURE.md docs/AGENT_WORKFLOW.md'},
              [("docs/ARCHITECTURE.md", "shell search", "grep"), ("docs/AGENT_WORKFLOW.md", "shell search", "grep")]),
             ("Bash", {"command": "sed -n '/x/p' docs/ARCHITECTURE.md | grep y"},
@@ -364,6 +370,32 @@ class DocTargetsTest(unittest.TestCase):
         items = metrics.read_items(targets, "y" * 10)
         self.assertEqual([(i["what"], i["chars"]) for i in items], [("docs/ARCHITECTURE.md", 5), ("docs/GDD.md", 5)])
         self.assertTrue(all("text" not in i for i in items))
+
+    def test_a_grep_over_a_folder_is_split_by_the_docs_its_output_names(self) -> None:
+        text = "\n".join([
+            f"{WT}/docs/ARCHITECTURE.md:4:The layers line is long enough to be mapped.",
+            f"{WT}/docs/ARCHITECTURE.md-5-context line",
+            "--",
+            "docs/decisions/2026-10-04-x.md:7:an ADR line",
+            "docs/GDD.md:2",
+            "core/match/vote.gd:9:code is none",
+            "continues the code file",
+            "docs/notes.txt",
+        ])  # fmt: skip
+        items = metrics.folder_items("", text)
+        self.assertEqual([(i["what"], i["file"]) for i in items],
+                         [("docs/ARCHITECTURE.md", "docs/ARCHITECTURE.md"), ("ADRs", "docs/decisions/2026-10-04-x.md"),
+                          ("docs/GDD.md", "docs/GDD.md"), ("other docs", "docs/notes.txt")])  # fmt: skip
+        arch = text.splitlines()[:2]
+        self.assertEqual(items[0]["chars"], sum(len(x) + 1 for x in arch))
+        self.assertEqual((items[0]["text"], items[0]["mode"]), ("\n".join(arch), "grep"))
+        self.assertNotIn("text", items[1])
+        # A docs folder whose output names no file keeps one item; no match, or a code folder, none.
+        self.assertEqual([(i["what"], i["chars"]) for i in metrics.folder_items("docs", "some opaque output")],
+                         [("other docs", 18)])  # fmt: skip
+        self.assertEqual(metrics.folder_items("docs", "No matches found"), [])
+        self.assertEqual(metrics.folder_items("core", "some opaque output"), [])
+        self.assertEqual(metrics.read_items([("docs", "Grep", "folder")], "docs/GDD.md")[0]["what"], "docs/GDD.md")
 
     def test_the_section_of_a_grep_line(self) -> None:
         index = {"The layers line is long enough to be mapped.": {"§1"}}
