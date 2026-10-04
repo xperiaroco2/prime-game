@@ -866,7 +866,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
   body is still written and `wave` exits 0. Housekeeping, from `git worktree list --porcelain` in the main checkout: one
   fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-done <n>`; for the manager's
-  `release-m<k>` worktree its `git worktree remove` and `git branch -d`) for each worktree whose branch's PR merged and
+  `release-m<k>` worktree its `git worktree remove` and `git branch -D`) for each worktree whose branch's PR merged and
   whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
   running run of this session there, its HEAD at the merged head and no live Claude session in it; whoever does the
   housekeeping (orchestrate-stage §8) runs those. The section's first line, which the manager lifts into its chat

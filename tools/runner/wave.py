@@ -836,7 +836,9 @@ def housekeeping_of(worktrees: list[Worktree], merged: list[MergedPR], runs: lis
             if wt.n is not None:
                 commands = [f"{cd}tools\\run.cmd worktree-done {wt.n}"]
             else:
-                commands = [f"{cd}git worktree remove .claude/worktrees/{wt.name}", f"{cd}git branch -d {wt.branch}"]
+                # -D, not -d (as start.py's own branch delete): -d compares with the main checkout's local HEAD,
+                # often behind origin/main, and refuses; landing() and the HEAD check above proved the work is on main.
+                commands = [f"{cd}git worktree remove .claude/worktrees/{wt.name}", f"{cd}git branch -D {wt.branch}"]
             live = alive_in(wt.path)
             if live:
                 who = ", ".join(s.describe(now) if hasattr(s, "describe") else str(s) for s in live)
