@@ -196,7 +196,7 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 | O2 | **Read by section**: `section` command, numbered subsections, a lint check for § references, prompts that name sections | about 0.7 to 1.1 / 1.2 to 1.8: section reads 0.6 to 0.9 / 1.0 to 1.4 (50 to 75% of 1.14 / 1.92 addressable), plus 0.11 to 0.21 / 0.23 to 0.43 from the reading list | M (B) plus S (C); no file moves | low to medium (see O2) | docs have no budget; a new lint check fails a § reference that does not resolve or a duplicate § (a deterministic docs-drift check); the night audit's lens is unchanged |
 | O3 | **Per-area architecture files with an index**: `docs/architecture/<§>-<slug>.md` per group, ARCHITECTURE.md an index keeping every § | about the same as O2 (the file boundary does what `section` does) | L: 654 referring lines, CODEOWNERS, the night-audit lens; a move between waves while no open PR touches ARCHITECTURE | medium (see O3) | O2's § check over the new files; a size budget per file in lint; the night-audit lens and CODEOWNERS paths change |
 | O4 | **Reference tables out of always-loaded files**: root's commands table becomes one line of names plus `tools\run.cmd <command> --help` | 0.38 / 0.55; plus about 18 of root's 150 budget lines freed | S to M | medium (see O4) | lint's root count drops; a runner test checks the names line against `cli.py` both ways and that each command's `--help` says what the row said |
-| O5 | **Lean workflow agent types with role packs** (extends #302's lever 5) | skill listing and MCP instructions 1.03 / 1.83 for the implementer and the publisher that F makes lean (1.60 / 2.49 if every general workflow agent type that invokes no skill goes lean); the tool schemas per #302 (0.8 / 2.3 over its 34.4 hours); role packs about 0.6 / 0.9 more | M to L, and it reverses AGENT_WORKFLOW §5's "every project subagent is read-only" (#302 decision 4) | high for packs, low for lean types alone (see O5) | `instructions.py` learns the `omitClaudeMd` and `skills` agent fields; a pack generator, and lint fails a stale pack |
+| O5 | **Lean workflow agent types with role packs** (extends #302's lever 5) | skill listing and MCP instructions 1.03 / 1.83 for the implementer and the publisher that F makes lean (1.60 / 2.49 if every general workflow agent type that invokes no skill goes lean); the tool schemas per #302 (0.8 / 2.3 over its 34.4 hours); role packs about 0.6 / 0.9 more | M to L, and it reverses AGENT_WORKFLOW §5's "every project subagent is read-only" (#302 decision 4) | high for packs, low for lean types alone (see O5) | `instructions.py` exempts the lean writer types from `READ_ONLY` and checks the `omitClaudeMd` and `skills` fields; a pack generator, and lint fails a stale pack |
 
 **O1. Load root `CLAUDE.md` once.** Two probes run before the setting lands:
 - A workflow agent (working directory: the main checkout) Reads a worktree `.gd` file and a `tests/` file. Its
@@ -374,8 +374,10 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
   - the night audit's docs-drift lens needs no change (it already checks commands against `--help`).
 - **F:** #302's E, plus:
   - the lean agents' first call carries no skill listing or MCP instructions;
-  - if N3 (b): a generated role pack, `omitClaudeMd`, a stale-pack lint, and `instructions.py` accepting the new
-    agent fields;
+  - `instructions.py` allows writer agent types: `READ_ONLY` (every agent must disallow Edit and Write) exempts the
+    named lean types. Unknown agent fields already pass;
+  - if N3 (b): a generated role pack, `omitClaudeMd`, a stale-pack lint, and `instructions.py` checking
+    `omitClaudeMd` as a boolean and `skills` as a list of existing skill folders;
   - if N3 (b), before any trial: a probe agent with a pack runs until it compacts, and its transcript shows the pack
     re-attached afterwards (hard rules and invariants in context). If it does not, (b) is dropped. The PR amends the
     instruction budgets ADR;
