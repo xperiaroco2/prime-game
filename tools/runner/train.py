@@ -9,10 +9,10 @@ the order given, with no manager turn between them:
    closing PR merges with `merge <pr> --base main`), a refusal of the gate that neither a publish nor CI changes
    (merge.standing_refusals: a draft, not the engineer's PR or session, an exception, an open "Needs the engineer"),
    no worktree with the head branch checked out (`git worktree list`), or a worktree a live run holds: a verify
-   slot holder there whose process lives, a busy Claude Code session there, a rebase, merge or cherry-pick in
-   progress, uncommitted changes, a HEAD that is not the PR's head (commits nobody published, or the PR moved), or
-   a commit younger than `--recent` minutes (default RECENT_MINUTES; orchestrate-stage §2.2). The train never
-   touches such a worktree.
+   slot holder there whose process lives, a Claude Code session there that is busy or was updated within `--recent`
+   minutes (idle, it may wait for its human), a rebase, merge or cherry-pick in progress, uncommitted changes, a
+   HEAD that is not the PR's head (commits nobody published, or the PR moved), or a commit younger than `--recent`
+   minutes (default RECENT_MINUTES; orchestrate-stage §2.2). The train never touches such a worktree.
 2. The way, printed: `main` already in the head: no publish. A history with merge commits (which `publish`'s rebase
    can trip on): `git merge origin/main` in the worktree, the worktree's own `verify`, a plain fast-forward push of
    the task branch (a conflict is aborted; a red verify undoes the merge commit). Otherwise the worktree's own
@@ -136,9 +136,11 @@ def held(wt: Path, pr: merge.PullRequest, recent_minutes: int) -> str:
         if holder.pid and _same(holder.worktree, wt) and sessions.process_alive(holder.pid):
             return f"a verify holds slot {holder.slot} there (pid {holder.pid}, since {holder.since})"
     me = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    now = time.time()
     for session in sessions.alive_in(wt):
-        if session.status == "busy" and session.session_id != me:
-            return f"the Claude Code session {session.describe(time.time())} works there"
+        recent = recent_minutes > 0 and now - session.updated < recent_minutes * 60  # idle: may wait for its human
+        if (session.status == "busy" or recent) and session.session_id != me:
+            return f"the Claude Code session {session.describe(now)} works there"
     for name, what in GIT_STATES.items():
         where = _wt(wt, "rev-parse", "--git-path", name).out.strip()
         if where and (wt / where).exists():

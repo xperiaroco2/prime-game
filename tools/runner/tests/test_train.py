@@ -4,6 +4,7 @@ FakeGitHub's commit on it."""
 
 import os
 import subprocess
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -384,7 +385,15 @@ class TrainTest(TrainCase):
         # A slot holder elsewhere or a stale holder file (its process is gone) does not hold it.
         self.holders.append(slots.Holder(1, (self.repo.tmp / "elsewhere").as_posix(), "x/1-y", os.getpid(), "?"))
         self.holders.append(slots.Holder(2, wt.as_posix(), "core/30-task", None, "?"))
-        self.live.append(sessions.Session(os.getpid(), "idle one", str(wt), "idle", 0.0, "finished"))
+        # An idle session updated within --recent minutes holds it (it may wait for its human's answer); a stale one
+        # (a finished Desktop session never archived) does not.
+        self.live.append(sessions.Session(os.getpid(), "idle one", str(wt), "idle", time.time() - 60, "waiting"))
+        rc, text = self.train(30, recent=10)
+        self.assertEqual(rc, 1, text)
+        self.assertIn("is held: the Claude Code session 'waiting' (pid ", self.summary()[1])
+        self.assertIn("idle, last update 1 min ago", self.summary()[1])
+        self.assertEqual(self.published, [])
+        self.live[0] = sessions.Session(os.getpid(), "idle one", str(wt), "idle", time.time() - 3600, "finished")
         # A commit younger than --recent holds it; --recent 0 lets the train in.
         rc, text = self.train(30, recent=10)
         self.assertEqual(rc, 1, text)
