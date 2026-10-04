@@ -43,8 +43,9 @@ STALL_BACKLOG_DATAGRAMS = 256 + 64
 UDP_PROBE_BYTES = 32
 # Twice Linux's 208 KB default: room for 512 such datagrams here. tools/cloud/setup.sh raises the default to it.
 RMEM_DEFAULT_FIX = 425984
-# Windows libraries only (the M5 voice ADR §2): CI deletes it, tools/cloud/setup.sh leaves it out of a cloud clone.
+# Windows libraries only (the M5 voice ADR §2): CI deletes both, tools/cloud/setup.sh leaves both out of a cloud clone.
 TWOVOIP_EXTENSION = "addons/twovoip/twovoip.gdextension"
+TWOVOIP_FILES = (TWOVOIP_EXTENSION, TWOVOIP_EXTENSION + ".uid")
 
 
 def _dotted(parts: tuple[int, ...]) -> str:
@@ -251,14 +252,28 @@ class Doctor:
         an `ERROR:` line for its .gdextension, which fails verify's Godot steps minutes later."""
         if not IS_CLOUD or IS_CI:
             return
-        if not (ROOT / TWOVOIP_EXTENSION).exists():
-            ok("TwoVoIP extension left out (a cloud session runs without it, as CI does)")
-            return
-        self.fail(
-            f"{TWOVOIP_EXTENSION} is in the working tree: it has no Linux library, so "
-            "Godot prints an ERROR: line for it and verify fails",
-            "Run: tools/cloud/setup.sh (it leaves the extension out with a sparse checkout; git status stays clean)",
+        fix = (
+            "Run: tools/cloud/setup.sh, or only its last step: git sparse-checkout set --no-cone '/*' "
+            + " ".join(f"'!/{path}'" for path in TWOVOIP_FILES)
+            + " (git still tracks them; git status stays clean)"
         )
+        if (ROOT / TWOVOIP_EXTENSION).exists():
+            self.fail(
+                f"{TWOVOIP_EXTENSION} is in the working tree: it has no Linux library, so Godot prints an ERROR: "
+                "line for it and verify fails",
+                fix,
+            )
+            return
+        # `git ls-files -t` tags a file the sparse checkout leaves out "S"; one deleted by hand, as CI does, is still
+        # "H", and `git add -A` would commit its deletion.
+        tags = run(["git", "ls-files", "-t", "--", *TWOVOIP_FILES], timeout=30, cwd=ROOT).out.split()
+        if tags[0::2] == ["S"] * len(TWOVOIP_FILES):
+            ok("TwoVoIP extension left out (a cloud session runs without it, as CI does)")
+        else:
+            self.fail(
+                "the TwoVoIP extension is deleted, not left out by the sparse checkout: a commit could take the deletion",
+                fix,
+            )
 
     def udp_backlog(self) -> None:
         """Warn early when a default UDP socket on 127.0.0.1 cannot hold the stall step's backlog (Linux only)."""

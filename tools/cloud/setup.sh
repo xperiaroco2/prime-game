@@ -63,15 +63,18 @@ fi
 # worktree brings it back; the sparse patterns hold through all three (tried in #345). Undo: git sparse-checkout
 # disable. tools/runner/doctor.py fails in a cloud session while the .gdextension is in the working tree.
 # --no-cone: cone mode takes folders only, and these are two files. Everything else stays in ('/*').
+# A failure only warns: setup has to exit 0 for the session to start, and doctor names the leftover file.
 sparse=('/*' '!/addons/twovoip/twovoip.gdextension' '!/addons/twovoip/twovoip.gdextension.uid')
-if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
+remote="${CLAUDE_CODE_REMOTE:-}"
+if [ "${remote,,}" != "true" ]; then # any case, as IS_CLOUD in tools/runner/common.py reads it
   echo "note: not a cloud session (CLAUDE_CODE_REMOTE is not true): the TwoVoIP extension stays in the working tree"
 elif [ "$(git -C "$repo" config --bool core.sparseCheckout || true)" = "true" ] &&
   [ "$(git -C "$repo" sparse-checkout list)" != "$(printf '%s\n' "${sparse[@]}")" ]; then
   echo "warning: this clone already has other sparse-checkout patterns; the TwoVoIP extension is left as it is" >&2
-else
-  git -C "$repo" sparse-checkout set --no-cone "${sparse[@]}"
+elif git -C "$repo" sparse-checkout set --no-cone "${sparse[@]}"; then
   echo "TwoVoIP extension left out of the working tree (sparse checkout); git status stays clean"
+else
+  echo "warning: the sparse checkout failed; doctor fails until tools/cloud/setup.sh is run again" >&2
 fi
 
 echo
