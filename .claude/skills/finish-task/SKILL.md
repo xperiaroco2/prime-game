@@ -71,20 +71,18 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    - End the body with the attribution line this session requires.
 7. **Handoff.** `gh issue comment <n> --body-file <file>` with four headings: Done, Left, Decisions, Gotchas, plus
    the PR link. Then `tools\run.cmd board move <n> in-review`.
-8. **Tell the human** the PR link and that CI runs on it. A stage's task PR into `release/m<k>` is merged by its
-   manager session ([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). A PR into `main`: in
-   the engineer's session ask once, "merge it yourself, or shall I merge it through the gate?", and only on the
-   engineer's word for this PR (or this session) run, once CI is green, `cd D:\prime-game; tools\run.cmd merge <pr>
-   --base main --dry-run`, then without `--dry-run` (from the main checkout: it refuses a task's checkout); tell the
-   refusals in plain words. The gate's exceptions and the designer's PRs are merged by a human, with "Create a merge
-   commit". For a stacked PR: GitHub retargets
-   the child to the parent's base when the parent's branch is deleted on merge; if the child still shows the parent
-   as base, `gh pr edit <child> --base <that base>` before merging it. If the task ran in
-   a worktree: after the merge, the human archives this session in the app (Windows cannot delete a folder a live
-   session sits in), then runs `worktree-done` from the main checkout. Give that command in the chat as its own
-   fenced PowerShell block (root `CLAUDE.md`, "Talking to the humans"), with `cd` to the main checkout's absolute
-   folder (the first line of `git worktree list`), and add `--pushed` for a spike that is never merged:
-   ```powershell
-   cd D:\prime-game; tools\run.cmd worktree-done <n>
-   ```
-   Preview it with `git worktree list` instead of running it: running it would do the human's step.
+8. **Tell the human** the PR link and that CI runs on it. A stage's task PR into `release/m<k>` is merged by its manager
+   session ([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). A workflow agent (`issue-task`,
+   `pr-rebase`) stops after telling: its manager merges. A PR into `main` from an interactive solo session: in the
+   engineer's session ask once, "merge it yourself, or shall I merge it through the gate?", and only on the engineer's
+   word for this PR (or this session) run, once CI is green, `cd D:\prime-game; tools\run.cmd merge <pr> --base main
+   --dry-run`, then without `--dry-run` (from the main checkout: it refuses a task's checkout); tell the refusals in
+   plain words. The gate's exceptions and the designer's PRs are merged by a human, with "Create a merge commit". For a
+   stacked PR: GitHub retargets the child to the parent's base when the parent's branch is deleted on merge; if the
+   child still shows the parent as base, `gh pr edit <child> --base <that base>` before merging it. If the task ran in a
+   worktree: after the merge, the human archives this session in the app (Windows cannot delete a folder a live session
+   sits in), then runs `worktree-done` from the main checkout. Give that command in the chat as its own fenced
+   PowerShell block (root `CLAUDE.md`, "Talking to the humans"), with `cd` to the main checkout's absolute folder (the
+   first line of `git worktree list`), and add `--pushed` for a spike that is never merged: ```powershell cd
+   D:\prime-game; tools\run.cmd worktree-done <n> ``` Preview it with `git worktree list` instead of running it: running
+   it would do the human's step.
