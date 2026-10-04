@@ -160,8 +160,7 @@ workflow the kickoff approved:
   covers `second_review`). `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model
   too unless you also set `models.plan: "opus"`. `publish_clean` falls back to `publish` and applies only to the full
   publisher of a run with no blocker or major left open (a skeptic-refuted one is closed), never to a design task;
-  leave `efforts.publish_clean` unset during the trial, so only the model varies. Never as a habit, and never for
-  yourself.
+  leave `efforts.publish_clean` unset during the trial, so only the model varies. Never as a habit or for yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
   reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
   that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
