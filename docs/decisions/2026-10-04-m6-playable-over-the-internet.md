@@ -170,10 +170,11 @@ counter of its LATEST packets. The receiver counts every packet it reads from th
 decoding, as `reliable_received`. In each poll it reads the LATEST channel before the RELIABLE one (a LATEST packet
 sent before a reliable one then comes first, as ENet would deliver it), and delivers a LATEST packet:
 - when `reliable_sent` equals `reliable_received` and `latest_seq` is newer than the last one delivered;
-- held, when `reliable_sent` is ahead (its reliable packet is still on the way: a retransmission, or a thawed
-  backlog whose `PickUp` waits unread behind its 50 claims), until that many reliable packets were read, then judged
-  as above; when 8 are held (a placeholder, "not a decision"), the oldest by `latest_seq` is dropped and counted in
-  `latest_superseded`, which loses only a LATEST packet that a newer one replaces;
+- held, when `reliable_sent` is ahead (its reliable packet is still on the way: a retransmission, or a thawed backlog
+  whose `PickUp` waits unread behind its 50 claims), until that many reliable packets were read, then judged as above;
+  when 8 are held (a placeholder, "not a decision"), the oldest held packet of the arriving one's kind (each direction
+  has one LATEST kind today) is dropped and counted in `latest_superseded`, which loses only a LATEST packet that a
+  newer one of its kind replaces;
 - never, when `reliable_sent` is behind (sent before a reliable packet already delivered) or its seq is not newer.
 
 That is ENet's rule for channel 0 (Context), so the inbox's LATEST merge and every consumer see the order they see
@@ -181,13 +182,14 @@ today. RELIABLE and VOICE carry no header; VOICE keeps M5's tick check for late 
 never delivered, when the peer leaves or is disconnected. A full hold never disconnects: an honest reliable packet can
 wait seconds for SCTP's resend timer, which doubles on each expiry (RFC 9260 §6.3.3). A reliable channel loses nothing,
 so the counts disagree for good only through a bug or the binding dropping packets from a full receive queue (M6-1
-measures its limit): judged after both channels were read in a poll, a packet that has waited "ahead" for the silence
-rule's 20 s (§2.6) is a transport fault, counted in `NetRejects` with its own reason, and the peer is disconnected
-rather than left connected and silently starved. A LATEST packet shorter than the header is a reject too. The header is
-the transport's, below `NetFrame`: `receive_bytes` gets the frame without it. The payload caps are unchanged
-(`MAX_UNRELIABLE_PAYLOAD` counts the payload); 1024 + 3 + 4 bytes must arrive unfragmented over SCTP, which M6-1
-measures, since the cap's basis (ENet's MTU) does not carry over. Steam's unreliable messages arrive out of order too
-(Context), so a later `SteamTransport` reuses `LaneOrder` as it is.
+measures its limit). That is timed per peer, not per packet (held packets come and go every 50 ms): a clock starts when
+the hold turns non-empty and restarts whenever a held packet is released; judged after both channels were read in a
+poll, a clock past the silence rule's 20 s (§2.6) is a transport fault, counted in `NetRejects` with its own reason, and
+the peer is disconnected rather than left connected and silently starved. A LATEST packet shorter than the header is a
+reject too. The header is the transport's, below `NetFrame`: `receive_bytes` gets the frame without it. The payload caps
+are unchanged (`MAX_UNRELIABLE_PAYLOAD` counts the payload); 1024 + 3 + 4 bytes must arrive unfragmented over SCTP,
+which M6-1 measures, since the cap's basis (ENet's MTU) does not carry over. Steam's unreliable messages arrive out of
+order too (Context), so a later `SteamTransport` reuses `LaneOrder` as it is.
 
 #### 2.3 How a friend joins (D19, E51, E52, E55)
 1. **The host** presses Host. The game hosts on the loopback as today, opens the signalling socket and asks for a
@@ -199,9 +201,10 @@ measures, since the cap's basis (ENet's MTU) does not carry over. Steam's unreli
    connection with the ICE servers it got for that joiner (§2.4), and sends an offer through the service; the joiner
    answers; both trickle ICE candidates through it. The joiner applies exactly one offer per join attempt; the host
    applies one answer per offer, and a second one, or one for no offer, closes that connection.
-4. The data channels open; the host sends `ADMIT` on RELIABLE as `EnetTransport` does, carrying the joiner's peer
-   id: the client learns its id there, not from the service, and refuses an id of 1 or less. The client's `connected`
-   fires, then `Hello`, and `JoinRules` decides as today (`wrong_version`, `wrong_content`, `full`).
+4. The data channels open; the host sends `ADMIT` on RELIABLE as `EnetTransport` does, but as a kind-0 frame whose
+   payload is the joiner's peer id (u32): the client learns its id there, not from the service, and refuses an id of 1
+   or less. The client's `connected` fires, then `Hello`, and `JoinRules` decides as today (`wrong_version`,
+   `wrong_content`, `full`).
 5. Entering Loading, `server/` calls `set_refuse_new_connections(true)` as today: the host stops answering joiners
    and tells the service the room is closed, so a code typed now answers "the match has started". Entering the Lobby
    again reopens it. The host leaving closes the room.
@@ -244,10 +247,10 @@ as `wrong_content`, and the message says "another build".
 WebRTC's own keepalives (ICE consent, SCTP heartbeats) run on libdatachannel's threads and never reach GDScript, so a
 frozen or even hung main thread stays "connected" at that level; and our messages alone stop for long stretches (a
 dead player sends no `MoveClaim`, Loading and End send none, the Lobby sends no snapshots). Therefore:
-- **A keepalive:** `poll()` sends each peer exactly `[0, 0, 0]` (`ADMIT`'s bytes) on the VOICE channel
+- **A keepalive:** `poll()` sends each peer exactly `[0, 0, 0]` (the empty kind-0 frame) on the VOICE channel
   (unreliable, outside `LaneOrder`'s count) when nothing went to it for 1 s (a placeholder); the backend consumes it
-  before the inbox, as `ADMIT`, and rejects and counts any other kind-0 packet. It comes from the main thread only, so
-  a hung game stops sending it, as with ENet.
+  before the inbox, as `ADMIT`, and rejects and counts any other kind-0 packet. It comes from the main thread only, so a
+  hung game stops sending it, as with ENet.
 - **The silence rule:** 20 s without any packet from a peer, keepalives included, is a leave (`peer_left` on the host,
   `host_lost` on a client); the backlog is drained before the clock is checked, so a thawed side drops nobody.
   `FAILED` or `CLOSED` is a leave too; `DISCONNECTED` is not (it may recover).
@@ -292,7 +295,7 @@ sender's per-packet overhead and send time; M6-6 measures the relay with `tools\
 ### 5. The leak test and host trust
 | Issue | Checks | Planted leak |
 |---|---|---|
-| M6-3 | `LaneOrder` with reordered, lost, duplicated and wrapped packets: a LATEST packet sent before a delivered reliable one is never delivered; one sent after a reliable one in flight waits for it; a backlog of more than 8 "ahead" packets read before their reliable one in the same poll keeps the peer and delivers the newest after it; a reliable packet 3 s late keeps the peer; a count that disagrees for 20 s disconnects; a short header is rejected | the "behind" rule removed: the test sees the stale claim delivered |
+| M6-3 | `LaneOrder` with reordered, lost, duplicated and wrapped packets: a LATEST packet sent before a delivered reliable one is never delivered; one sent after a reliable one in flight waits for it; a backlog of more than 8 "ahead" packets read before their reliable one in the same poll keeps the peer and delivers the newest after it; a reliable packet 3 s late keeps the peer; a count that disagrees for 20 s while LATEST keeps flowing at 20 Hz disconnects; a short header is rejected | the "behind" rule removed: the test sees the stale claim delivered |
 | M6-4 | over the headless run of a host and two clients: each client receives only its own `Welcome` and its own filtered events | `send(to_peer)` going out on another peer's connection (a swapped id-to-connection map, or a stale entry after a leave) |
 | M6-5a, M6-5b | the service and `LanSignalling` keep roles per socket and forward a joiner's messages only to the host and the host's only to the named joiner: one JSON transcript per forged type (a joiner's `offer`, `candidate` with a `to`, `close`, `reopen`), the same for both | forwarding a joiner's `offer` to another joiner |
 | M6-6 | the bots' matches and the leak test over WebRTC (`bots --transport webrtc`), every check unchanged, plus the order of each peer's RELIABLE and LATEST messages as sent; `bots --chaos --transport webrtc` (the hostile and malformed peers over WebRTC). A test-only fault shim in the backend (debug builds, off by default) delays RELIABLE delivery by 50 ms and drops and duplicates LATEST packets in these runs and the freeze twin, since 127.0.0.1 almost never reorders across channels; one case delays a RELIABLE packet by 3 s while LATEST keeps flowing, and the peer stays | the M6-3 plant again, end to end, caught with the shim on |
