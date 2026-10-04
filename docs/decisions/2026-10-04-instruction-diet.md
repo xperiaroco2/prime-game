@@ -318,7 +318,7 @@ O1 (issue A) is technical and recommended here. The engineer merges it because i
 |---|---|---|---|---|---|
 | 1 | A. Workflow agents load root `CLAUDE.md` once (`claudeMdExcludes`) | S | manager; the engineer merges | none | `.claude/settings.json`, a runner test, AGENT_WORKFLOW §3 |
 | 1 | E. `metrics`: instruction and doc cost per role | M | manager | none; after #314 (both touch `metrics.py`) | `tools/runner/metrics.py`, its tests and fixtures |
-| 2 | B. `section`: a doc's outline and exact sections; numbered subsections; lint checks § references | M | N1 (a) or (c) | none | `tools/runner/section.py` (new), `cli.py`, the lint check, tests, ARCHITECTURE and AGENT_WORKFLOW headings only, one root `CLAUDE.md` row in place |
+| 2 | B. `section`: a doc's outline and exact sections; numbered subsections; lint checks § references | M | N1 (a) or (c) | none; lands between waves, when no open PR touches the heading lines it renames | `tools/runner/section.py` (new), `cli.py`, the lint check, tests, ARCHITECTURE and AGENT_WORKFLOW headings only, one root `CLAUDE.md` row in place |
 | 3 | C. Prompts and the rule read docs by section | S | N1 (a) or (c) | B | `.claude/workflows/issue-task.js`, `pr-rebase.js`, the workflow snapshots, root `CLAUDE.md` one sentence in place |
 | 3 | D. Root `CLAUDE.md`'s commands table becomes a names line plus `--help` | S to M | N2 (a) | none; after C when both are open (both edit root `CLAUDE.md`); lands between waves | `CLAUDE.md`, `cli.py` help texts, a runner test, AGENT_WORKFLOW §3 |
 | after #307 | F. Lean workflow agent types, and role packs if N3 (b) (extends #302's E) | M to L | N3, #302 decision 4 | #307 | `.claude/agents/`, `issue-task.js`, `instructions.py`, a pack generator, AGENT_WORKFLOW §5 |
@@ -356,7 +356,9 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
     `core/combat/strike.gd`), and ADRs use § for their own sections and for KICKOFF. A § with no doc in scope, or
     with a doc other than these two, is reported, not failed, in the first PR;
   - runner tests cover all of it;
-  - the root `CLAUDE.md` row is changed in place, with no net growth.
+  - the root `CLAUDE.md` row is changed in place, with no net growth;
+  - it lands between waves, after `merge-check` shows no open PR touching the heading lines it renames
+    (ARCHITECTURE is the most-edited file: 283 commits in six days).
 - **C:**
   - the plan-review and review prompts name sections, not the whole doc, and no prompt asks to read root `CLAUDE.md`
     again;
