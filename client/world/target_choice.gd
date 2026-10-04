@@ -5,15 +5,29 @@ extends RefCounted
 ## whose look the ray enters, nearer than the first wall along it. The hint and the key then apply
 ## only if the mode's InReach of PickUp holds, measured as the host measures it: from the feet of
 ## the player to where the item lies, not along the ray from the eye 1.6 m higher. So a crate-top
-## item the host would refuse gets no hint, and a floor item it would accept does. The client
-## mirrors the host's OnGround, InReach and (in ItemInteractions) InSight; the host checks
-## everything again (§7.1); this only decides what to offer.
+## item the host would refuse gets no hint, and a floor item it would accept does. The hint stops
+## a margin short of the reach (hint_reach_of, #319): the host measures from the feet of the last
+## claim it accepted, which trail the player's own while walking in. The client mirrors the
+## host's OnGround, InReach and (in ItemInteractions) InSight; the host checks everything again
+## (§7.1); this only decides what to offer.
 
 ## How far the camera's ray looks for an item, in metres: past any reach the host grants, since
 ## the reach is checked from the feet afterwards.
 const RAY_M := 4.0
 ## How close the ray must pass to an item's middle to pick it, in metres (a look, not a rule).
 const PICK_RADIUS_M := 0.3
+## How far short of the host's reach the hint stops, in seconds of walking at the mode's
+## `walk_speed_mps` (#319; a look, not a rule; the number is not a decision). The host measures
+## InReach from the feet of the last MoveClaim it accepted, which trail the feet the hint
+## measures from (§7.1): a claim goes once per client tick (20 Hz, Ticks.RATE) against 60 Hz
+## physics, and it carries the step before it (the session claims at the start of the physics
+## step, before the controller moves). E's PickUp goes before the next claim, so on an even clock
+## the host's feet trail by 1 to 3 steps: one claim interval, 1/20 s. A clock that stalls and
+## then jumps puts 4 steps into a claim interval now and then, so the margin is one claim
+## interval plus one physics step, 1/20 + 1/60 s = 4/60 s: 0.3 m at the base mode's 4.5 m/s,
+## and the hint shows from 1.7 m of its 2 m. Sprinting in (7 m/s) can still outrun it; once the
+## player stands, the host catches up within a claim.
+const HINT_MARGIN_S := 1.0 / 20.0 + 1.0 / 60.0
 
 
 ## The reach of the mode's PickUp (its InReach), in metres from the feet; 0 when the mode has
@@ -27,6 +41,16 @@ static func reach_of(mode: GameMode) -> float:
 			if reach != null:
 				return reach.reach_m
 	return 0.0
+
+
+## The reach the hint and E offer an item within, in metres from the feet: the mode's PickUp
+## reach less the distance walked in HINT_MARGIN_S, so E at the first hint while walking in is
+## not refused `out_of_reach` (#319). Never less than half the reach, so a short reach in a fast
+## mode still offers something; 0 when the mode has no PickUp.
+static func hint_reach_of(mode: GameMode) -> float:
+	var reach := reach_of(mode)
+	var walk := mode.player_rules.walk_speed_mps if mode.player_rules != null else 0.0
+	return maxf(reach - walk * HINT_MARGIN_S, reach / 2.0)
 
 
 ## The item the crosshair is on that passes the host's OnGround and InReach, or -1: the ray from
