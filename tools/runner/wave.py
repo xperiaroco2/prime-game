@@ -30,9 +30,29 @@ Rules:
 - Handover data holds the args of each running run, and of each finished run since --since that failed, was killed or
   stopped, unless a later launch took its place: a resume of it, or a later launch of the same issue and workflow under
   another run id (a fresh relaunch; shown as "relaunched as <run>").
-Read-only: it writes only its --out file (default tools/out/wave/wave-<sid8>.md; with --args only an --out given),
-runs no gh and launches nothing. Sections are separate functions returning Markdown lines (SECTIONS), so a follow-up
-(#278) adds sections without touching these.
+
+The whole wave comment (#278): `--since` also reads, through Sources (tests replace it), each source on its own (one
+that fails shows "Unavailable: <error>" in its section and a warn line; the rest of the body is still written):
+- one `gh pr list --state merged` (MERGED_LIMIT, every base): the PRs merged into --base since --since (gh's merged:>=
+  search is date-only, so the window is filtered by mergedAt here), and for housekeeping the PRs whose work reached
+  main through a release or a parent branch (that branch's own PR into main merged at or after them);
+- `gh pr list --state open`: the PRs into --base and those stacked on them, with a one-word CI cell
+  (statusCheckRollup: red beats pending, else green; none when nothing reported) and mergeStateStatus;
+- merge.check([], base) with its printed lines captured: the verdict always, its tables and details as printed only
+  when it flagged something or failed; --no-merge-check skips it;
+- metrics.collect, read_history and build in memory for this session since --since (and --stage-since): metrics' own
+  compact lines (no metrics file is written; COST_EXTRAS adds lines over metrics' JSON record);
+- `git worktree list --porcelain` in the main checkout, sessions.alive_in and `gh issue list --state open`: a fenced
+  PowerShell block per command for each task worktree (and the manager's release-m<k> worktree) whose work is on
+  main, with no running run of this session there, HEAD at the merged head and no live Claude session in it; a
+  "For you:" line naming only what a live session holds; waits as one-line notes; the issues still open whose PR
+  reached main since --since.
+The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
+safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
+block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
+Read-only: it writes only its --out file(s) (default tools/out/wave/wave-<sid8>.md; with --args only an --out given)
+and posts, edits and launches nothing; merge-check's `git fetch` (and the PR heads it fetches) is its only write, to
+the shared git dir. `--args` reads no source beyond the transcript.
 """
 
 from __future__ import annotations
@@ -57,8 +77,9 @@ RELAUNCH = "relaunch fresh, never resume"
 RUN_ID = re.compile(r"Run ID:\s*(wf_[\w-]+)")
 # "stopped" as a key of the workflow's own result; an escaped \"stopped\" sits inside an agent's string and is not one.
 STOPPED = re.compile(r'(?<!\\)"stopped"\s*:\s*"((?:[^"\\]|\\.)*)')
-# GitHub's limit on a comment body, in characters.
+# GitHub's limit on a comment body, in characters; over SPLIT_LIMIT the handover data moves to the next comments.
 COMMENT_LIMIT = 65536
+SPLIT_LIMIT = 60000
 FOOTER_CALLS = 20
 # A workflow's notification says so in its summary ('Dynamic workflow "…" completed'); the other notifications in a
 # manager's queue (background shells, monitors, its subagents' tasks) are not runs and are passed over.
@@ -706,7 +727,7 @@ def capture_merge_check(check: Callable[[list[int], str], int], base: str) -> Me
     verdict = next((line.strip() for line in reversed(lines) if line.startswith("merge-check:")), "")
     if not verdict:
         last = next((line for line in reversed(lines) if line.strip()), "")
-        verdict = STATUS_PREFIX.sub("", last).strip()
+        verdict = STATUS_PREFIX.sub("", last).strip() or "(merge-check printed nothing)"
     if error is not None:
         verdict = f"merge-check failed: {error}"
     detail = [line for line in lines if not line.startswith("  ok    ")]
@@ -1116,23 +1137,25 @@ def handover_block(r: Run, s: Session) -> list[str]:
     return [head, "", *fence(json.dumps(r.args, indent=1, ensure_ascii=False), "json"), "</details>", ""]
 
 
-def handover_section(w: Wave) -> list[str]:
-    md = ["## Handover data", ""]
-    running = [r for r in w.runs if not r.finished]
-    for r in running:
-        md += handover_block(r, w.session)
+def handover_chunks(w: Wave) -> list[list[str]]:
+    """One block per running run, then one per finished run that needs a resume or a fresh relaunch (the first of
+    those under its heading); the unit a split moves as a whole."""
+    chunks = [handover_block(r, w.session) for r in w.runs if not r.finished]
     again = [
         r
         for r in finished_since(w)
         if (r.stopped or r.status in ("failed", "killed")) and not r.resumed_as and not r.relaunched_as
     ]
-    if again:
-        md += ["### Finished runs that need a resume or a fresh relaunch", ""]
-        for r in again:
-            md += handover_block(r, w.session)
-    if not running and not again:
-        md += ["No run is running.", ""]
-    return md
+    for i, r in enumerate(again):
+        head = ["### Finished runs that need a resume or a fresh relaunch", ""] if i == 0 else []
+        chunks.append([*head, *handover_block(r, w.session)])
+    return chunks
+
+
+def handover_section(w: Wave) -> list[str]:
+    chunks = handover_chunks(w)
+    return ["## Handover data", "", *(line for chunk in chunks for line in chunk), *([] if chunks else
+                                                                                       ["No run is running.", ""])]  # fmt: skip
 
 
 def mean_usd(calls: list[dict]) -> float:
@@ -1159,8 +1182,50 @@ SECTIONS: list[Callable[[Wave], list[str]]] = [
 ]  # fmt: skip
 
 
-def render(w: Wave) -> str:
-    return "\n".join(line for section in SECTIONS for line in section(w)).rstrip("\n") + "\n"
+def render(w: Wave, sections: list[Callable[[Wave], list[str]]] | None = None) -> str:
+    return "\n".join(line for section in sections or SECTIONS for line in section(w)).rstrip("\n") + "\n"
+
+
+def part_path(out: Path, k: int) -> Path:
+    """The k-th comment's file next to out: w.md -> w-2.md."""
+    return out.with_name(f"{out.stem}-{k}{out.suffix}")
+
+
+def render_parts(w: Wave, out: Path) -> list[tuple[Path, str]]:
+    """The body as one file, or, over SPLIT_LIMIT characters, the body with its handover data moved to <out>-2.md,
+    <out>-3.md, ... (each run's block whole, each file at most SPLIT_LIMIT unless one block alone is longer), each
+    posted as the next comment."""
+    body = render(w)
+    chunks = handover_chunks(w)
+    if len(body) <= SPLIT_LIMIT or not chunks:
+        return [(out, body)]
+    groups: list[list[list[str]]] = []
+    size = 0
+    for chunk in chunks:
+        n = sum(len(line) + 1 for line in chunk)
+        if not groups or size + n > SPLIT_LIMIT - 1000:  # room for the part's heading
+            groups.append([])
+            size = 0
+        groups[-1].append(chunk)
+        size += n
+    paths = [part_path(out, k) for k in range(2, len(groups) + 2)]
+    many = len(groups) > 1
+
+    def pointer(_: Wave) -> list[str]:
+        return ["## Handover data", "",
+                f"Moved to the next {len(groups)} comment{'s' if many else ''} ({', '.join(p.name for p in paths)}): the "
+                f"args of {len(chunks)} run{'s' if len(chunks) != 1 else ''}, posted right after this one as "
+                f"{'they are' if many else 'it is'} (this body with them would have {len(body)} characters, over "
+                f"{SPLIT_LIMIT}).", ""]  # fmt: skip
+
+    s = w.session
+    title = f' "{s.title}"' if s.title else ""
+    parts = [(out, render(w, [pointer if f is handover_section else f for f in SECTIONS]))]
+    for k, (path, group) in enumerate(zip(paths, groups), start=2):
+        lines = [f"## Handover data, part {k} of {len(groups) + 1} (session {s.sid}{title})", "",
+                 *(line for chunk in group for line in chunk)]  # fmt: skip
+        parts.append((path, "\n".join(lines).rstrip("\n") + "\n"))
+    return parts
 
 
 # --- the command --------------------------------------------------------------------------------------------------
@@ -1291,16 +1356,24 @@ def main(
     w = Wave(session=s, runs=build_runs(s), since=t_since, now=time.time() if now is None else now,
              base=base or MAIN, plan=plan, title=title, notes=notes_text)  # fmt: skip
     gather(w, sources or Sources(), merge_check, dirs, t_stage)
-    body = render(w)
     if out:
         target = Path(out)
     else:
         ensure_out()
         target = default_out(sid)
-    write_text(target, body)
+    parts = render_parts(w, target)
+    for path, text in parts:
+        write_text(path, text)
     done = finished_since(w)
     say(f"wave: {len(done)} finished since {metrics.iso(t_since)}, {sum(not r.finished for r in w.runs)} running, "
-        f"{sum(r.finished for r in w.runs) - len(done)} finished before; wrote {target}")  # fmt: skip
-    if len(body) > COMMENT_LIMIT:
-        say(f"  warn  the body has {len(body)} characters, over GitHub's comment limit of {COMMENT_LIMIT}")
+        f"{sum(r.finished for r in w.runs) - len(done)} finished before; wrote {', '.join(str(p) for p, _ in parts)} "
+        f"in {time.monotonic() - started:.1f} s")  # fmt: skip
+    for path, text in parts:
+        if len(text) > COMMENT_LIMIT:
+            warn(f"{path.name} has {len(text)} characters, over GitHub's comment limit of {COMMENT_LIMIT}: it cannot be "
+                 "posted as one comment")  # fmt: skip
+    k = len(parts) + 1
+    while part_path(target, k).exists():
+        warn(f"{part_path(target, k)} is from an earlier run of wave, not part of this body")
+        k += 1
     return 0
