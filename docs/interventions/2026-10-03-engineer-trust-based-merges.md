@@ -24,10 +24,11 @@
   reversible steps too.
 
 **Rule adopted.**
-- [Trust-based autonomy: the manager merges into main through a gate](../decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md):
-  `tools\run.cmd merge <pr> --base main` merges through GitHub when its gate passes; the exceptions (the designer's
-  area, the permission and safety files, ADRs) and the designer's PRs stay a human's; the decision tiers (decide and
-  report; decide and tell at once; ask and wait) say what the agent decides alone.
+- [Trust-based autonomy: the manager merges into main through a
+  gate](../decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md): `tools\run.cmd merge <pr> --base main`
+  merges through GitHub when its gate passes; the exceptions (the designer's area, the permission and safety files,
+  ADRs) and the designer's PRs stay a human's; the decision tiers (decide and report; decide and tell at once; ask and
+  wait) say what the agent decides alone.
 
 **Where the rule lives now.**
 - The ADR above, and dated amendments to `2026-09-28-humans-merge-prs.md`, `2026-10-01-release-branch-per-milestone.md`,
