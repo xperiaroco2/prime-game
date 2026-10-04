@@ -141,10 +141,14 @@ COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 # A line of its own (a list marker or bold around the label is fine), with a link to the engineer's words on GitHub.
 APPROVAL_RE = re.compile(r"(?im)^[^\w\n]*Approved by the engineer\W*https://github\.com/\S+")
 ANSWERED_RE = re.compile(r"(?i)\bAnswered\W*https://github\.com/\S+")
-# "Needs the engineer" as a heading, a bold label or a plain line; the section ends at the next heading or bold label.
+# "Needs the engineer" as a heading, a bold label or a plain line. A heading section ends at the next heading of its
+# level or higher; a bold or plain one at the next heading or bold label. Inside, a sub-heading or a bold label is a
+# sub-label: it groups the items below it, or is a question of its own when no item follows. A label that starts with
+# a number ("### 1. ...", "**1. ...**") never ends a section.
 NEEDS_LABEL_RE = re.compile(r"^(?:#{1,6}[ \t]*)?(?:\*\*|__)?Needs the engineer\b(.*)$")
-HEADING_RE = re.compile(r"^#{1,6}\s")
-SECTION_END_RE = re.compile(r"^(?:#{1,6}\s|(?:\*\*|__)[^*_\n]+(?:\*\*|__)\s*:?\s*$)")
+HEADING_RE = re.compile(r"^(#{1,6})\s")
+BOLD_LINE_RE = re.compile(r"^(?:\*\*|__)[^*_\n]+(?:\*\*|__)\s*:?\s*$")
+NUMBERED_LABEL_RE = re.compile(r"^(?:#{1,6}\s+(?:\*\*|__)?|\*\*|__)\s*\d+[.)]?\s")
 ITEM_RE = re.compile(r"^(?:\d+[.)]|[-*+])\s+(.*)$")
 NONE_RE = re.compile(r"(?i)^\W*(?:none|nothing|n/a)\b")
 
@@ -1523,8 +1527,9 @@ def exception_reasons(paths: list[tuple[str, str]], body: str, head: str, design
 
 def open_needs(body: str) -> list[str]:
     """What keeps the "Needs the engineer" sections of a PR body (comments stripped) from being answered: each
-    top-level numbered or bulleted item whose block (up to the next top-level item) has no "Answered: <GitHub link>";
-    a section with text but no items; the phrase with no section to read (fail closed). "None", "nothing" or an empty
+    top-level numbered or bulleted item, or sub-label question (a sub-heading or bold label with no item under it),
+    whose block has no "Answered: <GitHub link>"; a section with text but no items; a bold or plain section that ends
+    at once on a bold label, and the phrase with no section to read (fail closed). "None", "nothing" or an empty
     section pass."""
     lines = strip_comments(body).split("\n")
     problems: list[str] = []
@@ -1536,39 +1541,78 @@ def open_needs(body: str) -> list[str]:
         if not label:
             continue
         found = True
+        heading = HEADING_RE.match(lines[i - 1].strip())
+        level = len(heading.group(1)) if heading else 0
         section = [label.group(1).strip(" \t*_:")]
-        # A heading ends any section; a bold label (`**Merge order**`) only one that did not start as a heading.
-        ends = HEADING_RE if lines[i - 1].lstrip().startswith("#") else SECTION_END_RE
-        while i < len(lines) and not ends.match(lines[i].strip()):
+        while i < len(lines) and not _ends_needs(lines[i].strip(), level):
             section.append(lines[i])
             i += 1
-        intro: list[str] = []
-        items: list[list[str]] = []
-        for line in section:
-            if ITEM_RE.match(line):  # top level: no indentation
-                items.append([line])
-            elif items:
-                items[-1].append(line)
-            elif line.strip():
-                intro.append(line.strip())
-        if not items:
-            text = " ".join(intro)
-            if text and not NONE_RE.match(text):
-                problems.append(
-                    "a \"Needs the engineer\" section with text but no numbered or \"-\" items: write each item on "
-                    "its own line, or \"None\""
-                )
+        if i < len(lines) and not level and not "".join(section).strip() and BOLD_LINE_RE.match(lines[i].strip()):
+            problems.append(
+                f"the \"Needs the engineer\" section ends at once on \"{lines[i].strip()}\": cannot read it; write "
+                "its items as a numbered list, or \"None\""
+            )
             continue
-        for number, block in enumerate(items, 1):
-            if not ANSWERED_RE.search("\n".join(block)):
-                match = ITEM_RE.match(block[0])
-                words = (match.group(1) if match else block[0]).replace("*", "").split()
-                problems.append(f"item {number} (\"{' '.join(words[:8])}\") has no \"Answered: <GitHub link>\"")
+        problems += _unanswered(section)
     if not found and "Needs the engineer" in strip_comments(body):
         problems.append(
             "\"Needs the engineer\" is mentioned but no section starts with it (a heading, a bold label or a line of "
             "its own): cannot read it"
         )
+    return problems
+
+
+def _ends_needs(line: str, level: int) -> bool:
+    """Whether a line ends a "Needs the engineer" section that started as a heading of `level` (0: a bold or plain
+    label)."""
+    if NUMBERED_LABEL_RE.match(line):
+        return False
+    heading = HEADING_RE.match(line)
+    if level:
+        return bool(heading) and len(heading.group(1)) <= level
+    return bool(heading or BOLD_LINE_RE.match(line))
+
+
+def _unanswered(section: list[str]) -> list[str]:
+    """The problems of one section's lines (the label's own rest first): blocks start at a top-level item or a
+    sub-label; a sub-label followed by an item only groups, otherwise it is a question unless it is empty and
+    unnumbered or says "None"."""
+    blocks: list[tuple[str, list[str]]] = []  # ("intro" | "item" | "label", lines)
+    for line in section:
+        if ITEM_RE.match(line):  # top level: no indentation
+            blocks.append(("item", [line]))
+        elif HEADING_RE.match(line.strip()) or BOLD_LINE_RE.match(line.strip()):
+            blocks.append(("label", [line]))
+        elif blocks:
+            blocks[-1][1].append(line)
+        elif line.strip():
+            blocks.append(("intro", [line]))
+    questions: list[list[str]] = []
+    for k, (kind, block) in enumerate(blocks):
+        if kind == "item":
+            questions.append(block)
+        elif kind == "label":
+            text = " ".join(line.strip() for line in block[1:] if line.strip())
+            grouping = k + 1 < len(blocks) and blocks[k + 1][0] == "item"
+            if not grouping and (text or NUMBERED_LABEL_RE.match(block[0].strip())) and not NONE_RE.match(text):
+                questions.append(block)
+    if not questions:
+        text = " ".join(line.strip() for kind, block in blocks if kind == "intro" for line in block if line.strip())
+        if text and not NONE_RE.match(text) and not any(kind == "label" for kind, _ in blocks):
+            return [
+                "a \"Needs the engineer\" section with text but no numbered or \"-\" items: write each item on its own "
+                "line, or \"None\""
+            ]
+        return []
+    problems = []
+    for number, block in enumerate(questions, 1):
+        if not ANSWERED_RE.search("\n".join(block)):
+            first = block[0].strip()
+            match = ITEM_RE.match(first)
+            words = (match.group(1) if match else first.lstrip("#")).replace("*", "").replace("__", "").split()
+            if words and re.fullmatch(r"\d+[.)]?", words[0]) and not match:
+                words = words[1:]
+            problems.append(f"item {number} (\"{' '.join(words[:8])}\") has no \"Answered: <GitHub link>\"")
     return problems
 
 

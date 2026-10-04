@@ -1246,6 +1246,30 @@ class GateTextTest(unittest.TestCase):
         self.assertIn("no section starts with it", merge.open_needs("Listed under Needs the engineer.\n")[0])
         self.assertEqual(len(merge.open_needs("## Needs the engineer\n1. x Answered: https://example.com/1\n")), 1)
 
+    def test_needs_the_engineer_with_sub_labels(self) -> None:
+        # Questions written as sub-headings or bold labels are items: they do not end the section (#300's review).
+        for body in ("## Needs the engineer\n### 1. ADR approval\nPlease check.\n### 2. Pair\nA or B?\n",
+                     "**Needs the engineer**\n**1. ADR approval**\nPlease check.\n**2. Pair**\nA or B?\n",
+                     "## Needs the engineer\n**ADR approval**\nPlease check.\n**Pair**\nA or B?\n## Merge order\nx\n",
+                     "## Needs the engineer\n## 1. ADR approval\nPlease check.\n## 2. Pair\nA or B?\n"):  # fmt: skip
+            with self.subTest(body):
+                problems = merge.open_needs(body)
+                self.assertEqual(len(problems), 2, problems)
+                self.assertIn("item 1 (\"ADR approval\") has no", problems[0])
+                answered = body.replace("Please check.", f"Please check. Answered: {LINK}")
+                self.assertEqual(len(merge.open_needs(answered.replace("A or B?", f"A. Answered: {LINK}"))), 0)
+        # A sub-heading that groups items (a closing PR's "From #153") is no question of its own; its items are.
+        grouped = f"## Needs the engineer\n### From #153\nContext.\n1. One. Answered: {LINK}\n2. Two.\n### From #154\n"
+        problems = merge.open_needs(grouped + f"- Three. Answered: {LINK}\n")
+        self.assertEqual(problems, ["item 2 (\"Two.\") has no \"Answered: <GitHub link>\""])
+        self.assertEqual(merge.open_needs(grouped.replace("2. Two.", f"2. Two. Answered: {LINK}") + "None.\n"), [])
+        # Fail closed: a bold or plain label section that ends at once on another bold label cannot be read.
+        for body in ("**Needs the engineer**\n**ADR approval**\nPlease check.\n",
+                     "Needs the engineer:\n\n**ADR approval**\nPlease check.\n"):  # fmt: skip
+            with self.subTest(body):
+                self.assertIn("cannot read", merge.open_needs(body)[0])
+        self.assertEqual(merge.open_needs("**Needs the engineer:** none\n**Merge order**\nx\n"), [])
+
     def test_exceptions(self) -> None:
         def reasons(path: str, body: str = "", status: str = "M", **kw: bool) -> list[str]:
             return merge.exception_reasons([(status, path)], body, "core/1-x", **kw)
