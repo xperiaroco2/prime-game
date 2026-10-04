@@ -340,7 +340,9 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   open questions, every `human_steps` command still due, the stage's start and `wave`'s handover data (since the
   session start: every failed run not relaunched, not only this wave's). Your "For you:" is the human's single
   step: paste the §10 kickoff with its "Continue from" line into a new session in `D:\prime-game`. Then a
-  PushNotification; stop with no timer and launch nothing more. Never hand over with a run in flight.
+  PushNotification; stop with no timer and launch nothing more. Never hand over with a run in flight. The successor
+  takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is no live run) and the
+  stage's yes as given: it restates the order and goes on without waiting (§1's wait does not apply).
 - **The keep-alive and the handover together**, decided in this order at the end of each turn and on each wake:
   (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes none: the run's end still
   wakes you). (2) No run in flight and a handover due: hand over and arm nothing (a fresh session costs less than a
