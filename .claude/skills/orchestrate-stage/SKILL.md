@@ -51,6 +51,7 @@ One message from the human with `ultracode` in it (template in §10). It must st
 - where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
   second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of
   that model's own weekly window (at most half across all tracks). You stay on the shared models;
+- whether one wave of this stage is the #308 publisher trial (`models.publish_clean`, §3), and which: one wave only;
 - the rules: only humans merge into `main`, you merge task PRs into `release/m<k>` (§5); no agent closes issues;
   each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
   windows only through `shot`; a game rule no ADR settles becomes options under "Needs the engineer"; `content/`
@@ -471,6 +472,7 @@ about <P>% of the weekly limit for the stage (metrics converts API list $ to it)
 once I have said yes to your restatement.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
 PRs, tasks red twice>, at most <Q>% of its own weekly window>; you stay on the shared models.
+Publisher trial (#308): <none | wave <k>: models.publish_clean "sonnet" on its non-design issue-task launches>.
 Rules: only I merge into main; no issue is closed by an agent; each agent only in its worktree; no git stash;
 you never leave your shell inside a worktree; temporary files in scratchpad/a<n>/ or tests/scratch/; Godot
 windows only through shot; a game rule no ADR settles becomes options with a recommendation under "Needs the
