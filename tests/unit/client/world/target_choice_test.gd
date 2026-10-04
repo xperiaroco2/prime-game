@@ -37,6 +37,18 @@ func test_the_hint_stops_short_of_the_reach_by_a_claim_interval_and_a_step_of_wa
 	assert_float(TargetChoice.hint_reach_of(fast)).is_equal_approx(0.25, 1e-5)
 
 
+func test_any_reach_stops_short_by_the_same_walking_margin() -> void:
+	# The raise's hint shares it (#352): any reach less the walk in HINT_MARGIN_S.
+	var base := load(MODE) as GameMode
+	assert_float(TargetChoice.hint_reach(2.0, base)).is_equal_approx(1.7, 1e-5)
+	assert_float(TargetChoice.hint_reach(3.0, base)).is_equal_approx(2.7, 1e-5)
+	assert_float(TargetChoice.hint_reach(0.0, base)).is_equal(0.0)
+	# Never less than half the reach.
+	var fast := FixtureItemModes.basic()
+	fast.player_rules.walk_speed_mps = 20.0
+	assert_float(TargetChoice.hint_reach(1.0, fast)).is_equal_approx(0.5, 1e-5)
+
+
 func test_the_ray_enters_a_sphere_ahead_and_misses_one_behind_or_aside() -> void:
 	var ahead := TargetChoice.enters_at(Vector3.ZERO, Vector3.FORWARD, Vector3(0, 0, -3), 0.5)
 	assert_float(ahead).is_equal_approx(2.5, 1e-5)
