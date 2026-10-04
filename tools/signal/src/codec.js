@@ -324,8 +324,9 @@ export function parseGodotJson(source) {
   return value;
 }
 
-const NUMBER = /^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/;
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
+// Sticky: matched at `lastIndex`, so no token copies the rest of the message.
+const NUMBER = /-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y;
+const IDENTIFIER = /[A-Za-z_][A-Za-z0-9_]*/y;
 const PUNCTUATION = new Set(["{", "}", "[", "]", ":", ","]);
 
 class GodotJsonReader {
@@ -352,16 +353,17 @@ class GodotJsonReader {
     if (character === '"') {
       return { type: "string", value: this.string() };
     }
-    const rest = source.slice(this.at);
     if (character === "-" || (character >= "0" && character <= "9")) {
-      const match = NUMBER.exec(rest);
+      NUMBER.lastIndex = this.at;
+      const match = NUMBER.exec(source);
       if (match === null) {
         throw new SyntaxError("bad number");
       }
       this.at += match[0].length;
-      return { type: "number", value: Number(match[0]) };
+      return { type: "number", value: godotStrtod(match[0]) };
     }
-    const match = IDENTIFIER.exec(rest);
+    IDENTIFIER.lastIndex = this.at;
+    const match = IDENTIFIER.exec(source);
     if (match === null) {
       throw new SyntaxError("unexpected character");
     }
@@ -511,4 +513,95 @@ class GodotJsonReader {
       needComma = true;
     }
   }
+}
+
+// Godot's built_in_strtod (core/string/ustring.cpp), which its JSON reader uses, for a number token
+// NUMBER matched: not a correctly rounded parse. It keeps the first 18 mantissa digits, leading zeros
+// included, gathers them in two 9-digit ints, and scales by a product of 10^(2^k) powers, which
+// overflows to infinity past 10^308 (so 1e-320 is 0). The exponent is a 32-bit int that wraps, and
+// one beyond 511 either way is taken as 511 (Godot prints a warning). Godot does this in C++ ints
+// and doubles; the same steps in JavaScript doubles and int32s give the same bits.
+const POWERS_OF_10 = [10, 100, 1e4, 1e8, 1e16, 1e32, 1e64, 1e128, 1e256];
+const MAX_EXPONENT = 511;
+const MAX_MANTISSA_DIGITS = 18;
+
+export function godotStrtod(text) {
+  let at = 0;
+  const negative = text[at] === "-";
+  if (negative) {
+    at++;
+  }
+  const start = at;
+  let point = -1;
+  let size = 0;
+  for (;; size++) {
+    const character = text[at];
+    if (!(character >= "0" && character <= "9")) {
+      if (character !== "." || point >= 0) {
+        break;
+      }
+      point = size;
+    }
+    at++;
+  }
+  const exponentAt = at;
+  if (point < 0) {
+    point = size;
+  } else {
+    size -= 1;
+  }
+  let fractionExponent;
+  if (size > MAX_MANTISSA_DIGITS) {
+    fractionExponent = point - MAX_MANTISSA_DIGITS;
+    size = MAX_MANTISSA_DIGITS;
+  } else {
+    fractionExponent = point - size;
+  }
+  let p = start;
+  const digit = () => {
+    let character = text[p++];
+    if (character === ".") {
+      character = text[p++];
+    }
+    return character.charCodeAt(0) - 48;
+  };
+  let high = 0;
+  for (; size > 9; size--) {
+    high = 10 * high + digit();
+  }
+  let low = 0;
+  for (; size > 0; size--) {
+    low = 10 * low + digit();
+  }
+  let fraction = 1.0e9 * high + low;
+  let exponent = 0;
+  let exponentNegative = false;
+  p = exponentAt;
+  if (text[p] === "e" || text[p] === "E") {
+    p++;
+    if (text[p] === "-") {
+      exponentNegative = true;
+      p++;
+    } else if (text[p] === "+") {
+      p++;
+    }
+    for (; p < text.length; p++) {
+      exponent = (Math.imul(exponent, 10) + (text.charCodeAt(p) - 48)) | 0;
+    }
+  }
+  exponent = exponentNegative ? (fractionExponent - exponent) | 0 : (fractionExponent + exponent) | 0;
+  // As unsigned, so -(-2^31) is 2^31 and is taken as 511, as Godot's build does.
+  const scaleDown = exponent < 0;
+  let magnitude = scaleDown ? -exponent >>> 0 : exponent;
+  if (magnitude > MAX_EXPONENT) {
+    magnitude = MAX_EXPONENT;
+  }
+  let scale = 1.0;
+  for (let index = 0; magnitude !== 0; magnitude >>>= 1, index++) {
+    if (magnitude & 1) {
+      scale *= POWERS_OF_10[index];
+    }
+  }
+  fraction = scaleDown ? fraction / scale : fraction * scale;
+  return negative ? -fraction : fraction;
 }
