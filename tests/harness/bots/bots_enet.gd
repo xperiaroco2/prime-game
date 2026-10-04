@@ -64,6 +64,7 @@ func _init(bot_scenario: BotScenario, this_instance: int, on_port: int, out_dir:
 	port = on_port
 	dir = out_dir
 	ends_from_bots = instance != 1
+	claims_after_moves = true
 	peers.refresh = _read_peers
 
 

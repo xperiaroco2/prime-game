@@ -53,6 +53,7 @@ var _invariants: ScenarioInvariants
 
 func _init(bot_scenario: BotScenario) -> void:
 	super(bot_scenario, ScenarioPeers.new())
+	claims_after_moves = true
 
 
 ## Plays `bot_scenario` to its end; see `failures`. With `out`, writes the view files there, and a
@@ -136,7 +137,7 @@ func _join_everyone() -> void:
 func _play() -> void:
 	var limit := ceili(scenario.time_limit_s * USEC_PER_SECOND / FRAME_USEC)
 	for frame in limit:
-		now_usec += FRAME_USEC
+		now_usec += _frame_usec(frame)
 		session.step(now_usec)
 		if not session.is_running():
 			failures.append(
@@ -170,6 +171,12 @@ func _joining() -> NetTransport:
 ## The host's transport, not hosting yet: a loopback on the hub.
 func _make_host_transport() -> NetTransport:
 	return LoopbackTransport.new(schema.kind_table(), hub)
+
+
+## How far the simulated clock moves before frame `frame`: FRAME_USEC. A test's runner returns more
+## for a frame to play a stall of the whole process, as a loaded machine gives the ENet runs (#284).
+func _frame_usec(_frame: int) -> int:
+	return FRAME_USEC
 
 
 ## Right after each host step, before the clients step (the chaos run's hook).
