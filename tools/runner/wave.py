@@ -73,6 +73,12 @@ MERGED_FIELDS = "number,title,headRefName,baseRefName,mergedAt,mergeCommit,closi
 OPEN_FIELDS = "number,title,headRefName,baseRefName,isDraft,statusCheckRollup,mergeStateStatus,closingIssuesReferences"
 # The issue of a task branch <area>/<n>-<slug> (merge.TASK_BRANCH_RE's shape).
 TASK_BRANCH = re.compile(r"^[a-z][a-z0-9]*/(\d+)-")
+# The stage window's lines of metrics' compact summary (--stage-since), by their start; when none matches (metrics
+# reworded them), the stage window's whole summary is shown.
+STAGE_LINES = ("total API list $", "% of a Max 20x week")
+# More cost lines, each a function of metrics' JSON record for --since (build's second value); #314's quality line
+# may go here when it is not one of metrics' compact lines already (those flow through unchanged).
+COST_EXTRAS: list[Callable[[dict], list[str]]] = []
 CI_PASS = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 CI_PENDING = {"PENDING", "EXPECTED", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
 
@@ -178,6 +184,17 @@ class MergeCheck:
 
 
 @dataclass
+class Cost:
+    """metrics' compact lines for this session since --since (None: nothing of it in the window), the stage window's
+    total lines (--stage-since) and COST_EXTRAS' lines."""
+
+    window: list[str] | None
+    stage: list[str] | None = None
+    stage_since: float | None = None
+    extra: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Wave:
     """What every section gets. A source's field is None when it was not read and a str (its error) when reading it
     failed; Wave(session, runs, since, now) alone renders every section."""
@@ -193,6 +210,7 @@ class Wave:
     merged: list[MergedPR] | str | None = None  # every base, oldest first
     open_prs: list[OpenPR] | str | None = None  # into base and stacked on those
     merge_check: MergeCheck | None = None
+    cost: Cost | str | None = None
 
 
 class Sources:
@@ -660,6 +678,38 @@ def capture_merge_check(check: Callable[[list[int], str], int], base: str) -> Me
     return MergeCheck(rc, verdict, detail if rc != 0 or error is not None else [], error)
 
 
+# --- cost ---------------------------------------------------------------------------------------------------------
+
+
+def metrics_window(dirs: list[Path], sid: str, since: float, now: float, history: list[Path]) -> tuple[dict, dict,
+                                                                                                         list[str]]:  # fmt: skip
+    """What `metrics --since <since> --session <sid> --compact` computes, in memory (no metrics file is written):
+    (collect's data, build's JSON record, build's compact lines)."""
+    data = metrics.collect(dirs, {sid: None}, since, now)
+    _, record, compact = metrics.build(data, metrics.read_history(history, since, now), None, since, now)
+    return data, record, compact
+
+
+def nothing_in(data: dict) -> bool:
+    """No API call of the session's own, no hand-run subagent and no counted run in the window (collect lists a named
+    session even then, with zero lines)."""
+    own = any(s["manager"] and s["manager"]["api_calls"] for s in data["sessions"])
+    return not own and not any(s["hand"] for s in data["sessions"]) and not any(r["counted"] for r in data["runs"])
+
+
+def cost_of(dirs: list[Path], sid: str, since: float, stage_since: float | None, now: float,
+            history: list[Path]) -> Cost:  # fmt: skip
+    data, record, compact = metrics_window(dirs, sid, since, now, history)
+    cost = Cost(None if nothing_in(data) else compact)
+    if cost.window is not None:
+        cost.extra = [line for extra in COST_EXTRAS for line in extra(record)]
+    if stage_since is not None:
+        stage = metrics_window(dirs, sid, stage_since, now, history)[2]
+        cost.stage = [line for line in stage if line.startswith(STAGE_LINES)] or stage
+        cost.stage_since = stage_since
+    return cost
+
+
 # --- sections -----------------------------------------------------------------------------------------------------
 
 
@@ -801,6 +851,23 @@ def merge_section(w: Wave) -> list[str]:
     return [*md, *(m.detail or [m.verdict]), ""]
 
 
+def cost_section(w: Wave) -> list[str]:
+    md = ["## Cost", ""]
+    state = source_state(w.cost)
+    if state is not None or not isinstance(w.cost, Cost):
+        return md + (state or [])
+    c, sid8 = w.cost, w.session.sid[:8]
+    block: list[str] = []
+    if c.window is None:
+        md += [f"None. Session {sid8} made no API call and counted no run since {metrics.iso(w.since)}.", ""]
+    else:
+        md += [f"`metrics --since {metrics.iso(w.since)} --session {sid8} --compact`:", ""]
+        block += [*c.window, *c.extra]
+    if c.stage is not None:
+        block += [*([""] if block else []), f"stage since {metrics.iso(c.stage_since)}:", *c.stage]
+    return md + (["```text", *block, "```", ""] if block else [])
+
+
 def finished_since(w: Wave) -> list[Run]:
     return [r for r in w.runs if r.finished and (r.finished_at is None or r.finished_at >= w.since)]
 
@@ -920,7 +987,7 @@ def footer_section(w: Wave) -> list[str]:
 
 SECTIONS: list[Callable[[Wave], list[str]]] = [
     header_section, notes_section, merged_section, finished_section, running_section, open_prs_section,
-    merge_section, handover_section, footer_section,
+    merge_section, cost_section, handover_section, footer_section,
 ]  # fmt: skip
 
 
@@ -958,14 +1025,21 @@ def attempt(what: str, read: Callable[[], Any]) -> Any:
         return text
 
 
-def gather(w: Wave, src: Sources, merge_check: bool) -> None:
+def gather(w: Wave, src: Sources, merge_check: bool, dirs: list[Path], stage_since: float | None) -> None:
     """Every source beyond the transcripts, each on its own: one that fails leaves the others."""
+    main = attempt("the main checkout", src.main_checkout)
     w.merged = attempt("merged PRs", lambda: read_merged(src.gh_json))
     w.open_prs = attempt("open PRs", lambda: read_open(src.gh_json, w.base))
     if merge_check:
         w.merge_check = capture_merge_check(src.check, w.base)
     else:
         w.merge_check = MergeCheck(0, "", [], skipped=True)
+
+    def cost() -> Cost:
+        history = src.history(main) if isinstance(main, Path) else []
+        return cost_of(dirs, w.session.sid, w.since, stage_since, w.now, history)
+
+    w.cost = attempt("cost", cost)
 
 
 def read_notes(path: Path) -> str:
@@ -1037,7 +1111,7 @@ def main(
     assert t_since is not None
     w = Wave(session=s, runs=build_runs(s), since=t_since, now=time.time() if now is None else now,
              base=base or MAIN, plan=plan, title=title, notes=notes_text)  # fmt: skip
-    gather(w, sources or Sources(), merge_check)
+    gather(w, sources or Sources(), merge_check, dirs, t_stage)
     body = render(w)
     if out:
         target = Path(out)
