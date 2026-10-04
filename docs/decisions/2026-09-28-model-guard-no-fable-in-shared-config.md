@@ -39,8 +39,8 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
   - **2026-10-04 (#308; #302 decision 3, option (c)):** a model from the shared list (Sonnet) may go into a launch's
     `models` without a kickoff allowance, since this amendment restricts only models beyond that list. The first such
     use is the one-wave publisher trial: `issue-task` applies `models.publish_clean` only to the full publisher of a
-    run with no blocker or major open, never to a design task. The manager passes it on the non-design launches of one
-    wave only, then reports on #302, and the engineer keeps or drops it
+    run with no blocker or major open, never to a design task. The manager passes it on the non-design `issue-task`
+    launches of one wave only, then reports on #302, and the engineer keeps or drops it
     ([effort ADR](2026-09-28-effort-and-workflow-bounds.md), amendment of 2026-10-04). No script, default or agent file
     names the model; the workflow tests still assert it.
 

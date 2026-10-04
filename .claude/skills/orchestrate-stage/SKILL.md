@@ -148,7 +148,7 @@ workflow the kickoff approved:
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
 | `bounded_waits: true` | every `issue-task` and `pr-rebase` launch (no tool call of theirs blocks over 240 s, so their 5-minute cache stays warm), once `wait` (#303) is on the task's base (`git show origin/<base>:tools/runner/wait.py`) | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
-| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and, for the #308 trial only, `publish_clean: "sonnet"` on every non-design launch of the one wave the kickoff names (none after it until the engineer keeps it) | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and, for the #308 trial only, `publish_clean: "sonnet"` on every non-design `issue-task` launch of the one wave the kickoff names (not `pr-rebase`: it has no publisher and rejects the role; none after the wave until the engineer keeps it) | 0 |
 
 - **`models`** follows the script's fallbacks: set only `implement`, `second_review` or (the trial) `publish_clean`,
   never `review` or `netcode` (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode`

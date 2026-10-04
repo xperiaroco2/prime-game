@@ -38,8 +38,9 @@ ultracode run for foundation work and puts small tooling changes at medium.
     list: Sonnet) and applies it only to the full publisher of a run that the reviews, the test review and the
     skeptics left with no blocker or major open: a skeptic-refuted finding is closed, one over the skeptic limit stays
     open, and minors, nits and the plan critique's findings do not count. Never to a design task or a run stopped by
-    `mutants`. The manager passes it on every non-design launch of the one wave the kickoff names, and not after it
-    until the engineer keeps it; a fresh relaunch of a trial run drops it (an Opus publisher, as before).
+    `mutants`. The manager passes it on every non-design `issue-task` launch of the one wave the kickoff names (not
+    on `pr-rebase`, which has no publisher and rejects the role), and not after it until the engineer keeps it; a
+    fresh relaunch of a trial run drops it (an Opus publisher, as before).
   - **How the trial is judged**, per run, from the result's `publish_clean` field (`applied`, `why`, `open`, `model`,
     `effort`): CI red rounds (failed CI runs on the PR's branch before its last green, `gh run list --branch`), the
     publisher's fix rounds and its `fixed` and `not_fixed` lists, and the publisher's $ and output tokens from
