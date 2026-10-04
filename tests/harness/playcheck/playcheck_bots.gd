@@ -6,13 +6,17 @@ extends NetPlay
 ## Player numbers are the scenario's: 1 is the host's window, 2 up to `first - 1` the other
 ## windows, `first` up to BotScenario.bots the bots. Peer ids travel out of band, as over ENet in
 ## `bots --instances` (harmless: they are public in the roster): every window and bot writes
-## peer-<number> into the run's peers folder, and a bot plays only once it knows every player's.
+## peer-<number> into the run's peers folder. The bots play only once every player is in each
+## bot's lobby (NetPlay._lobby_full: its peer id known and its PlayerJoined decoded), and a bot
+## whose join went unanswered joins again (NetPlay._join_again): the runner starts this process
+## beside the windows, and under load window 1 may listen only after a bot's join gave up (#318).
 ## The setup (forced roles, clock, settings) is the scenario file's and window 1 sends it as the
 ## host's own client: a BotScenario here keeps its own empty. The bots stay silent (no synthetic
 ## voice reaches a window) and stand still once their scripts are done; the runner stops them.
 
 const ADDRESS := "127.0.0.1"
 const USEC_PER_SECOND := 1000000
+const PREFIX_BOTS := "PLAYCHECK bots"
 
 var port := 0
 ## The run's peers folder.
@@ -69,7 +73,10 @@ func step(now: int) -> void:
 	@warning_ignore("integer_division")
 	tick_now = (now - _start_usec) * Ticks.RATE / USEC_PER_SECOND
 	step_clients()
-	if _every_peer_known():
+	# Before ended() reads a join that failed in this poll.
+	for bot: ScenarioBot in bots:
+		_join_again(bot)
+	if _may_play():
 		play_frame(tick_now)
 
 
@@ -103,19 +110,28 @@ func finish() -> void:
 
 
 func _join_host(bot: ScenarioBot) -> String:
+	add_client(bot, _joining())
+	return ""
+
+
+func _joining() -> NetTransport:
 	var transport := EnetTransport.new(schema.kind_table())
 	var joined := transport.join(ADDRESS, port)
 	if joined != OK:
 		failures.append("cannot join %s:%d: %s" % [ADDRESS, port, error_string(joined)])
-	add_client(bot, transport)
-	return ""
+	return transport
 
 
-func _every_peer_known() -> bool:
-	for number in range(1, scenario.bots + 1):
-		if peers.peer_of(number) == 0:
+## Every player is in every bot's lobby (each bot knows every player's peer id, and saw it join).
+func _may_play() -> bool:
+	for bot: ScenarioBot in bots:
+		if not _lobby_full(bot):
 			return false
 	return true
+
+
+func _log_label() -> String:
+	return PREFIX_BOTS
 
 
 ## A bot's id, for the windows and window 1's setup.
