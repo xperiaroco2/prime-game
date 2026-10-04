@@ -77,6 +77,30 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP])
         self.assertIn("GODOT_BIN=$HOME/godot/godot tools/run.sh verify", [step.get("run") for step in steps])
 
+    def test_ci_runs_the_runner_on_the_pinned_minimum_python(self) -> None:
+        # #349: the verify job's Python is 3.12, the runner's stated minimum 3.11 (pins.PYTHON_MIN).
+        steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["python-min"]["steps"]
+        runs = [step.get("run", "") for step in steps]
+        setup = [step for step in steps if step.get("uses") == "actions/setup-python@v7"]
+        self.assertEqual(len(setup), 1)
+        self.assertEqual(setup[0]["with"]["python-version"], "${{ steps.pins.outputs.python }}")
+        pins = next(i for i, step in enumerate(steps) if step.get("id") == "pins")
+        self.assertIn("tools/run.sh pins --get python_min", runs[pins])
+        self.assertLess(pins, steps.index(setup[0]))
+        order = [runs.index("python -m compileall -q tools"), runs.index("tools/run.sh selftest --group python")]
+        self.assertEqual(order, sorted(order))
+        self.assertLess(steps.index(setup[0]), order[0])
+        self.assertIn("tools/run.sh pins --get gdtoolkit", runs[pins])
+        # A failing `pins --get` must stop the step, not write an empty version (setup-python would then take 3.12).
+        self.assertNotIn("$(tools/run.sh", "".join(line for line in runs[pins].splitlines() if "echo" in line))
+        # After setup-python, the job checks the interpreter it runs is the pin's, and hands it to tools/run.sh.
+        guard = next(i for i, run in enumerate(runs) if "sys.version_info" in run)
+        self.assertLess(steps.index(setup[0]), guard)
+        self.assertLess(guard, order[0])
+        self.assertIn("${{ steps.pins.outputs.python }}", runs[guard])
+        self.assertIn('PYTHON_BIN=$(command -v python)" >> "$GITHUB_ENV"', runs[guard])
+        self.assertNotIn(SETUP, [step.get("uses") for step in steps], "the shared setup pins Python 3.12")
+
     def test_ci_restores_the_last_gdunit_times_before_verify(self) -> None:
         # `test` balances its shards by them (#182); a fresh CI checkout has none of its own.
         steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]

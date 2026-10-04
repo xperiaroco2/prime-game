@@ -56,3 +56,46 @@ jobs:
             tools/out/logs
           if-no-files-found: ignore
           retention-days: 14
+
+  # The runner on its stated minimum Python (tools/runner/pins.py PYTHON_MIN; the python-task-runner ADR), which the
+  # verify job's 3.12 never runs: 3.12-only code broke verify in a cloud session on 3.11 (#345, #349). Every runner
+  # file must compile there, and the runner tests that start no Godot (verify's Python lane) must pass; no Godot here.
+  python-min:
+    name: runner on the minimum Python
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      # The image's own python3 reads the pin, so the version is written in one place. A plain assignment first: under
+      # `bash -e` a failing `pins --get` stops this step (inside echo it would not, and an empty version would let
+      # setup-python fall back to the image's 3.12).
+      - name: Read the minimum Python
+        id: pins
+        run: |
+          python=$(tools/run.sh pins --get python_min)
+          gdtoolkit=$(tools/run.sh pins --get gdtoolkit)
+          echo "python=$python" >> "$GITHUB_OUTPUT"
+          echo "gdtoolkit=$gdtoolkit" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
+
+      # Every later step runs this interpreter: `python` here, and PYTHON_BIN for tools/run.sh (which would otherwise
+      # take the first python3 on PATH). Its version must be the pin's, or the job proves nothing.
+      - name: Check the Python version
+        run: |
+          echo "PYTHON_BIN=$(command -v python)" >> "$GITHUB_ENV"
+          test "$(python -c 'import sys; print("%d.%d" % sys.version_info[:2])')" = "${{ steps.pins.outputs.python }}"
+
+      - name: Install gdtoolkit
+        run: python -m pip install --disable-pip-version-check "gdtoolkit==${{ steps.pins.outputs.gdtoolkit }}"
+
+      - name: Compile every runner file
+        run: python -m compileall -q tools
+
+      - name: Runner tests that start no Godot
+        run: tools/run.sh selftest --group python
