@@ -292,7 +292,8 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 1. **N1, how agents read ARCHITECTURE and AGENT_WORKFLOW:**
    - (a) section reads (O2: issues B and C);
    - (b) per-area files with an index (B's lint check, then G);
-   - (c) (a) now, and (b) later only if ARCHITECTURE keeps showing up as a conflict in `merge-check`;
+   - (c) (a) now, and (b) later only if ARCHITECTURE keeps showing up as a conflict in `merge-check` (E counts the
+     open-PR pairs per wave that `merge-check` reports overlapping in ARCHITECTURE);
    - (d) neither.
 
    **Recommended (a).** It saves what (b) saves, because tasks read across groups. It needs a fraction of the
@@ -340,7 +341,9 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
   - list $ split into first writes, re-writes and reads;
   - points at w = 0 and 0.5;
   - files loaded twice in one agent;
-  - ARCHITECTURE and AGENT_WORKFLOW $ by §.
+  - ARCHITECTURE and AGENT_WORKFLOW $ by §;
+  - per wave, the open-PR pairs whose `merge-check` output (in the manager's transcripts) names an ARCHITECTURE
+    overlap: N1 (c)'s trigger.
 
   Selftest fixtures cover each part.
 - **B:**
