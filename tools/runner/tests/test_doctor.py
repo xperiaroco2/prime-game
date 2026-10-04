@@ -273,3 +273,23 @@ class ClaudeMdExcludeTest(unittest.TestCase):
         self.assertEqual(failures, 0)
         self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), {"claudeMdExcludes": [self.PATTERN]})
         self.assertFalse((worktree / ".claude" / "settings.local.json").exists())
+
+    def test_a_worktree_named_as_the_main_checkout_is_never_written(self) -> None:
+        """main_checkout falls back to the checkout itself when git fails: from a worktree that is the worktree's own
+        settings.local.json, the one a session started there reads on Windows."""
+        worktree = self.root / ".claude" / "Worktrees" / "7"
+        own = worktree / ".claude" / "settings.local.json"
+        with mock.patch.object(doctor.metrics, "main_checkout", return_value=worktree):
+            failures, out = self.run_check(quick=False, root=worktree)
+            self.assertEqual(failures, 1)
+            self.assertIn(f"cannot find the main checkout from {worktree}", out)
+            failures, out = self.run_check(quick=True, root=worktree)
+            self.assertEqual(failures, 0)
+            self.assertIn("Run the full doctor from the main checkout: tools\\run.cmd doctor", out)
+        self.assertFalse(own.exists())
+        self.assertFalse(self.settings.exists())
+
+    def test_in_worktrees_folder(self) -> None:
+        self.assertTrue(doctor.in_worktrees_folder(Path("D:/prime-game/.claude/worktrees/385")))
+        self.assertFalse(doctor.in_worktrees_folder(Path("D:/prime-game")))
+        self.assertFalse(doctor.in_worktrees_folder(Path("D:/prime-game/worktrees/.claude")))

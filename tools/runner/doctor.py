@@ -158,7 +158,18 @@ class Doctor:
                 "settings.local.json, so the exclude would take its only root CLAUDE.md)"
             )
             return
-        target = metrics.main_checkout(ROOT) / machine_env.LOCAL_SETTINGS
+        main = metrics.main_checkout(ROOT)
+        if in_worktrees_folder(main):
+            # git could not name the main checkout: a worktree's own file is the one a session started there reads on
+            # Windows, so the exclude would take that session's only root CLAUDE.md.
+            text = f"cannot find the main checkout from {ROOT}, so {EXCLUDES_KEY} is left alone"
+            fix = "Run the full doctor from the main checkout: tools\\run.cmd doctor"
+            if quick:
+                warn(f"{text}. {fix}")
+            else:
+                self.fail(text, fix)
+            return
+        target = main / machine_env.LOCAL_SETTINGS
         try:
             state = add_claude_md_exclude(target, write=not quick)
         except (OSError, UnicodeDecodeError, ValueError) as exc:
@@ -352,6 +363,12 @@ class Doctor:
             ok(f"engine API dump generated ({target.relative_to(ROOT).as_posix()})")
         else:
             self.fail("could not generate the engine API dump", "See tools/out/logs/doctor-api-dump.log")
+
+
+def in_worktrees_folder(path: Path) -> bool:
+    """`path` is inside a `.claude/worktrees/` folder: an agent's worktree, never the main checkout."""
+    parts = [part.lower() for part in path.parts]
+    return any(parts[i : i + 2] == [".claude", "worktrees"] for i in range(len(parts) - 1))
 
 
 def add_claude_md_exclude(path: Path, write: bool = True) -> str:
