@@ -40,7 +40,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
-    sub.add_parser("selftest", help="unit tests of the runner itself")
+    p = sub.add_parser("selftest", help="unit tests of the runner itself")
+    p.add_argument(
+        "--group",
+        choices=("all", "python", "godot"),
+        default="all",
+        help="python: only the tests that start no Godot (CI's minimum-Python job, #349); godot: only those that do; "
+        "all (default): both, then the count check",
+    )
     p = sub.add_parser(
         "wait",
         help="wait at most S s for a background job's last line exit=<n>: its summary and exit code; "
@@ -283,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "selftest":
             from . import verify
 
-            return verify.selftest()
+            return verify.selftest(args.group)
         if args.command == "wait":
             from . import wait
 

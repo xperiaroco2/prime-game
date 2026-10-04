@@ -19,7 +19,7 @@ import uuid
 from pathlib import Path
 from unittest import mock
 
-from runner import common, slots, verify
+from runner import cli, common, slots, verify
 from runner.common import ROOT, Failure
 
 GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"]
@@ -892,6 +892,22 @@ class FreePortTest(unittest.TestCase):
             with self.assertRaises(Failure) as caught:
                 verify.free_udp_port(lambda _ports: taken)
         self.assertIn("no free UDP port", str(caught.exception))
+
+
+
+class SelftestCommandTest(unittest.TestCase):
+    """`selftest --group` (#349): CI's minimum-Python job runs only the tests that start no Godot."""
+
+    def test_the_group_reaches_selftest_and_defaults_to_all(self) -> None:
+        with mock.patch.object(verify, "selftest", return_value=0) as run:
+            self.assertEqual(cli.main(["selftest"]), 0)
+            self.assertEqual(cli.main(["selftest", "--group", "python"]), 0)
+            self.assertEqual(cli.main(["selftest", "--group", "godot"]), 0)
+        self.assertEqual(run.call_args_list, [mock.call("all"), mock.call("python"), mock.call("godot")])
+
+    def test_another_group_is_refused(self) -> None:
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            cli.build_parser().parse_args(["selftest", "--group", "unit"])
 
 
 if __name__ == "__main__":
