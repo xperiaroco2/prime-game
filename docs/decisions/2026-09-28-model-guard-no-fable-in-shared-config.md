@@ -12,8 +12,8 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
 ## Decision
 - Shared `.claude/settings.json` sets `"availableModels": ["opus", "sonnet", "haiku"]`. A request for any other model
   falls back with a warning.
-- Subagent models: `godot-api-checker` sonnet (effort high since #308), `test-runner` haiku, `code-reviewer` and `netcode-security-reviewer`
-  **opus with effort high**. This deliberately deviates from "strongest".
+- Subagent models: `godot-api-checker` sonnet (effort high since #308), `test-runner` haiku, `code-reviewer` and
+  `netcode-security-reviewer` **opus with effort high**. This deliberately deviates from "strongest".
 - Fable appears in no shared file, except as amendment A says. Each human keeps usage credits off or sets a spend
   cap.
 - No `Agent(model:fable)` deny rule: it only blocks the per-call parameter and adds nothing on top of
