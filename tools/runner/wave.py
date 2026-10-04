@@ -79,6 +79,7 @@ STAGE_LINES = ("total API list $", "% of a Max 20x week")
 # More cost lines, each a function of metrics' JSON record for --since (build's second value); #314's quality line
 # may go here when it is not one of metrics' compact lines already (those flow through unchanged).
 COST_EXTRAS: list[Callable[[dict], list[str]]] = []
+RELEASE_WORKTREE = re.compile(r"^release-m(\d+)$")
 CI_PASS = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 CI_PENDING = {"PENDING", "EXPECTED", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
 
@@ -195,6 +196,41 @@ class Cost:
 
 
 @dataclass
+class Worktree:
+    path: Path
+    branch: str  # "" when detached
+    head: str
+
+    @property
+    def name(self) -> str:
+        return self.path.name
+
+    @property
+    def n(self) -> int | None:
+        """The issue of a task worktree .claude/worktrees/<n>."""
+        inside = self.path.parent.name == "worktrees" and self.path.parent.parent.name == ".claude"
+        return int(self.name) if inside and self.name.isdigit() else None
+
+    @property
+    def release(self) -> str | None:
+        """The k of a manager's .claude/worktrees/release-m<k> on release/m<k>."""
+        m = RELEASE_WORKTREE.match(self.name)
+        inside = self.path.parent.name == "worktrees" and self.path.parent.parent.name == ".claude"
+        return m.group(1) if inside and m and self.branch == f"release/m{m.group(1)}" else None
+
+
+@dataclass
+class Housekeeping:
+    """What the worktrees and the merged PRs give: blocks to run now, blocks a live session holds, waits and the
+    issues still open whose work reached main since --since."""
+
+    ready: list[tuple[str, list[str]]] = field(default_factory=list)  # (worktree label, commands)
+    held: list[tuple[str, str, list[str]]] = field(default_factory=list)  # (label, the sessions, commands)
+    waiting: list[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Wave:
     """What every section gets. A source's field is None when it was not read and a str (its error) when reading it
     failed; Wave(session, runs, since, now) alone renders every section."""
@@ -211,6 +247,7 @@ class Wave:
     open_prs: list[OpenPR] | str | None = None  # into base and stacked on those
     merge_check: MergeCheck | None = None
     cost: Cost | str | None = None
+    housekeeping: Housekeeping | str | None = None
 
 
 class Sources:
@@ -710,6 +747,99 @@ def cost_of(dirs: list[Path], sid: str, since: float, stage_since: float | None,
     return cost
 
 
+# --- housekeeping -------------------------------------------------------------------------------------------------
+
+
+def parse_worktrees(text: str) -> list[Worktree]:
+    """`git worktree list --porcelain`: blocks of 'worktree <path>', 'HEAD <sha>', 'branch refs/heads/<b>' or
+    'detached', separated by blank lines."""
+    found = []
+    for chunk in re.split(r"\n\s*\n", text.replace("\r\n", "\n")):
+        fields = dict(line.split(" ", 1) if " " in line else (line, "") for line in chunk.strip().splitlines())
+        if fields.get("worktree"):
+            branch = fields.get("branch", "").removeprefix("refs/heads/")
+            found.append(Worktree(Path(fields["worktree"]), branch, fields.get("HEAD", "")))
+    return found
+
+
+def landing(pr: MergedPR, by_head: dict[str, list[MergedPR]], seen: tuple[int, ...] = ()) -> tuple[MergedPR | None,
+                                                                                                   str]:  # fmt: skip
+    """The PR that took pr's work into main (pr itself when its base is main) and MAIN, else None and the branch the
+    work waits in: a release branch or a parent task branch whose own PR into main has not merged since."""
+    if pr.base == MAIN:
+        return pr, MAIN
+    later = [q for q in by_head.get(pr.base, []) if q.merged_at >= pr.merged_at and q.number not in seen]
+    if not later:
+        return None, pr.base
+    return landing(min(later, key=lambda q: q.merged_at), by_head, (*seen, pr.number))
+
+
+def same_path(a: object, b: Path) -> bool:
+    return str(a).replace("\\", "/").rstrip("/").lower() == b.as_posix().rstrip("/").lower()
+
+
+def running_in(wt: Worktree, runs: list[Run]) -> Run | None:
+    """A running run of this session in the worktree: its args.wt is that folder, or args.n its issue."""
+    for r in runs:
+        if not r.finished and ((wt.n is not None and issue_of(r.args) == wt.n) or same_path((r.args or {}).get("wt"),
+                                                                                             wt.path)):  # fmt: skip
+            return r
+    return None
+
+
+def housekeeping_of(worktrees: list[Worktree], merged: list[MergedPR], runs: list[Run], alive_in: Callable[[Path],
+                    list], main: Path, open_issues: set[int], since: float, now: float) -> Housekeeping:  # fmt: skip
+    """Per task worktree (.claude/worktrees/<n>) and manager release worktree (release-m<k>) whose branch has a
+    merged PR: a block when its work is on main, no run of this session works there, its HEAD is the merged head and
+    no live Claude session sits there; held when one does; else a wait. Worktrees with no merged PR are left out."""
+    cd = f"cd {PureWindowsPath(main)}; "
+    by_head: dict[str, list[MergedPR]] = {}
+    for p in merged:
+        by_head.setdefault(p.head, []).append(p)
+    h = Housekeeping()
+    for wt in worktrees:
+        if (wt.n is None and wt.release is None) or not wt.branch or wt.branch not in by_head:
+            continue
+        pr = by_head[wt.branch][-1]  # the newest merged PR of the branch
+        label = f"worktree {wt.name}"
+        top, waits = landing(pr, by_head)
+        run_there = running_in(wt, runs)
+        if top is None:
+            h.waiting.append(f"{label}: PR #{pr.number} merged into {pr.base}; after {waits} reaches main.")
+        elif run_there is not None:
+            h.waiting.append(f"{label}: run {run_there.run_id} still running there.")
+        elif wt.head != pr.head_oid:
+            h.waiting.append(f"{label}: HEAD {wt.head[:10]} moved after PR #{pr.number} merged ({pr.head_oid[:10]}): "
+                             "check before removing.")  # fmt: skip
+        else:
+            if wt.n is not None:
+                commands = [f"{cd}tools\\run.cmd worktree-done {wt.n}"]
+            else:
+                commands = [f"{cd}git worktree remove .claude/worktrees/{wt.name}", f"{cd}git branch -d {wt.branch}"]
+            live = alive_in(wt.path)
+            if live:
+                who = ", ".join(s.describe(now) if hasattr(s, "describe") else str(s) for s in live)
+                h.held.append((label, who, commands))
+            else:
+                h.ready.append((label, commands))
+    issues: dict[int, str] = {}
+    for p in merged:
+        top, _ = landing(p, by_head)
+        if top is not None and top.merged_at >= since:
+            for n in p.issues:
+                if n in open_issues and n not in issues:
+                    issues[n] = f"#{n} (PR #{p.number}" + (f" via {p.base})" if p.base != MAIN else ")")
+    h.issues = [issues[n] for n in sorted(issues)]
+    return h
+
+
+def read_open_issues(gh: Callable[..., Any]) -> set[int]:
+    data = gh("issue", "list", "--state", "open", "--limit", "1000", "--json", "number")
+    if not isinstance(data, list):
+        raise Failure(f"gh issue list: not a list but {type(data).__name__}")
+    return {d["number"] for d in data if isinstance(d, dict) and isinstance(d.get("number"), int)}
+
+
 # --- sections -----------------------------------------------------------------------------------------------------
 
 
@@ -868,6 +998,44 @@ def cost_section(w: Wave) -> list[str]:
     return md + (["```text", *block, "```", ""] if block else [])
 
 
+def powershell(commands: list[str]) -> list[str]:
+    """One fenced PowerShell block per command (root CLAUDE.md: commands for a human)."""
+    return [line for c in commands for line in [*fence(c, "powershell"), ""]]
+
+
+def housekeeping_section(w: Wave) -> list[str]:
+    md = ["## Housekeeping", ""]
+    state = source_state(w.housekeeping)
+    if state is not None or not isinstance(w.housekeeping, Housekeeping):
+        return md + (state or [])
+    h = w.housekeeping
+    if h.held:
+        names = " and ".join(label.removeprefix("worktree ") for label, _, _ in h.held)
+        who = "; ".join(sessions_ for _, sessions_, _ in h.held)
+        plural = len(h.held) > 1
+        md += [f"For you: close the Claude session{'s' if plural else ''} in worktree{'s' if plural else ''} {names} "
+               f"({who}), then run {'their blocks' if plural else 'its block'} below.", ""]  # fmt: skip
+    else:
+        md += ["For you: nothing.", ""]
+    if not (h.ready or h.held or h.waiting or h.issues):
+        return [*md, "None.", ""]
+    if h.ready:
+        md += [f"Ready to remove: {', '.join(label for label, _ in h.ready)} (the work is on main; no run of this "
+               "session and no live Claude session there; HEAD at the merged head). Whoever does the housekeeping "
+               "(orchestrate-stage §8) runs each block:", ""]  # fmt: skip
+        md += [line for _, commands in h.ready for line in powershell(commands)]
+    if h.held:
+        md += ["Held by a live Claude session (worktree-done refuses while one sits there):", ""]
+        for label, who, commands in h.held:
+            md += [f"- {label}: {who}; close it, then:", "", *powershell(commands)]
+    if h.waiting:
+        md += ["Not yet:", "", *(f"- {line}" for line in h.waiting), ""]
+    issues = ", ".join(h.issues) if h.issues else "none"
+    md += [f"Issues still open whose PR reached main since {metrics.iso(w.since)} (close each once its acceptance "
+           f"criteria are met): {issues}.", ""]  # fmt: skip
+    return md
+
+
 def finished_since(w: Wave) -> list[Run]:
     return [r for r in w.runs if r.finished and (r.finished_at is None or r.finished_at >= w.since)]
 
@@ -987,7 +1155,7 @@ def footer_section(w: Wave) -> list[str]:
 
 SECTIONS: list[Callable[[Wave], list[str]]] = [
     header_section, notes_section, merged_section, finished_section, running_section, open_prs_section,
-    merge_section, cost_section, handover_section, footer_section,
+    merge_section, cost_section, housekeeping_section, handover_section, footer_section,
 ]  # fmt: skip
 
 
@@ -1040,6 +1208,17 @@ def gather(w: Wave, src: Sources, merge_check: bool, dirs: list[Path], stage_sin
         return cost_of(dirs, w.session.sid, w.since, stage_since, w.now, history)
 
     w.cost = attempt("cost", cost)
+
+    def housekeeping() -> Housekeeping:
+        if isinstance(main, str):
+            raise Failure(f"the main checkout: {main}")
+        if not isinstance(w.merged, list):
+            raise Failure(f"merged PRs: {w.merged}")
+        worktrees = parse_worktrees(src.worktree_list(main))
+        issues = read_open_issues(src.gh_json)
+        return housekeeping_of(worktrees, w.merged, w.runs, src.alive_in, main, issues, w.since, w.now)
+
+    w.housekeeping = attempt("housekeeping", housekeeping)
 
 
 def read_notes(path: Path) -> str:
