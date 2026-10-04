@@ -250,8 +250,12 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
     compaction"). Implementers average 82 calls and can compact. Whether a preloaded skill is re-attached after
     compaction is not documented or measured, so packs need a probe first: an agent with a pack that compacts must
     still show the pack in its context afterwards. If it does not, packs are off the table.
-  - *Risk:* a pack that misses a hard rule is the one way this design can lose a rule. A generator plus a stale-pack
-    lint keeps the packs from drifting, but not from a wrong tag.
+  - *Risk:* packs are the two ways this design can lose a rule. A pack can miss a hard rule: a generator plus a
+    stale-pack lint keeps the packs from drifting, but not from a wrong tag. And `omitClaudeMd` may also stop the area
+    `CLAUDE.md` files and `.claude/rules/` from loading by path; the docs say only that root and user `CLAUDE.md` are
+    dropped. The area files carry security rules (`server/CLAUDE.md`: the host's client gets the same filtered view
+    and the leak test; `net/CLAUDE.md`: no serializer that bypasses filtering). So a probe checks that they still load;
+    if they do not, a pack also carries the area files of the role's areas, or there is no trial.
 
 ### How the options combine
 - **O1 to O4 against O5.** O1 to O4 remove tokens that enter mid-context (docs read, files loaded by path) or sit in
@@ -347,7 +351,10 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
     agent fields;
   - if N3 (b), before any trial: a probe agent with a pack runs until it compacts, and its transcript shows the pack
     re-attached afterwards (hard rules and invariants in context). If it does not, (b) is dropped. The PR amends the
-    instruction budgets ADR.
+    instruction budgets ADR;
+  - if N3 (b), before any trial: a probe agent with `omitClaudeMd` Reads a `server/` file and a `tests/` file, and
+    its transcript shows `server/CLAUDE.md` and `tests.md` as `nested_memory` loads. If they do not load, the pack
+    also carries the area files of the role's areas, or the trial does not run.
 - **G:**
   - every § resolves through the index;
   - one file per group, under a lint size budget;
