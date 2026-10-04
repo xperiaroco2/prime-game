@@ -22,6 +22,7 @@ revision against the ones in this checkout, and prints the prompts before and af
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 import re
@@ -31,7 +32,7 @@ import types
 from collections import Counter
 from pathlib import Path
 
-from . import guard
+from . import guard, hooks
 
 ROOT = Path(__file__).resolve().parents[2]
 SHELLS = {"Bash": guard.BASH, "PowerShell": guard.POWERSHELL}
@@ -128,7 +129,7 @@ def _read_only(text: str) -> str | None:
 
 def verdict(
     rules: Rules, guard_module: types.ModuleType, tool: str, command: str, cwd: str, root: str, repo: object,
-    bypass: bool = True,
+    bypass: bool = True, cloud: bool = False,
 ) -> tuple[str, str]:  # fmt: skip
     """(PASS, PROMPT or DENIED; why) for one call: the rules first, then the guard (it asks in every mode)."""
     kind, rule = rules.judge(tool, command)
@@ -136,7 +137,9 @@ def verdict(
         return DENIED, f"deny rule {rule}"
     if kind == ASK:
         return PROMPT, f"ask rule {rule}"
-    findings = guard_module.check(command, SHELLS[tool], cwd, root, "", repo)
+    # A cloud session's main checkout on its task branch is its own (#381); a guard from before that takes no cloud.
+    extra = {"cloud": cloud} if "cloud" in inspect.signature(guard_module.check).parameters else {}
+    findings = guard_module.check(command, SHELLS[tool], cwd, root, "", repo, **extra)
     if findings:
         return PROMPT, "guard: " + ", ".join(sorted({f.area for f in findings}))
     if kind == NONE and not bypass:
@@ -206,6 +209,7 @@ def replay(before: tuple[Rules, types.ModuleType], after: tuple[Rules, types.Mod
     root = str(ROOT).replace("\\", "/")
     main = re.sub(r"/\.claude/worktrees/[^/]+$", "", root)
     repo = ReplayRepo(main)
+    cloud = hooks.cloud_session()  # judged as this machine's sessions: a cloud container replays cloud transcripts
     found = calls(folders)
     totals: dict[str, Counter[str]] = {"before": Counter(), "after": Counter()}
     changed: Counter[tuple[str, str, str]] = Counter()
@@ -214,7 +218,7 @@ def replay(before: tuple[Rules, types.ModuleType], after: tuple[Rules, types.Mod
         results = {}
         for name, (rules, module) in (("before", before), ("after", after)):
             try:
-                results[name] = verdict(rules, module, tool, command, cwd, main, repo)
+                results[name] = verdict(rules, module, tool, command, cwd, main, repo, cloud=cloud)
             except Exception as exc:  # noqa: BLE001 - a replay reports crashes instead of stopping
                 crashes += 1
                 results[name] = (PROMPT, f"crash {type(exc).__name__}")

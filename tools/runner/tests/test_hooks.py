@@ -4,6 +4,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -196,9 +197,23 @@ class CloudSessionTest(unittest.TestCase):
                 with unittest.mock.patch.multiple(common, IS_CLOUD=cloud, IS_CI=ci):
                     self.assertEqual(common.cloud_session(), expected)
 
-    def test_the_hook_owns_the_main_checkout_only_in_a_cloud_session_on_a_task_branch(self) -> None:
-        from runner import common
+    def test_the_hook_reads_the_environment_as_common_does(self) -> None:
+        # hooks.cloud_session reads the environment itself (the guard skips importing common): a fresh process per
+        # environment, since common reads it once at import.
+        code = "from runner import common, hooks; print(common.cloud_session(), hooks.cloud_session())"
+        cases = (("true", None), ("TRUE", ""), ("true", "true"), ("true", "1"), ("true", "false"), (None, None))
+        for remote, ci in cases:
+            env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_CODE_REMOTE", "CI")}
+            env.update({k: v for k, v in (("CLAUDE_CODE_REMOTE", remote), ("CI", ci)) if v is not None})
+            with self.subTest(remote=remote, ci=ci):
+                command = [sys.executable, "-c", code]
+                res = subprocess.run(command, cwd=ROOT / "tools", env=env, capture_output=True, text=True, timeout=60)
+                self.assertEqual(res.returncode, 0, res.stderr)
+                common_says, hooks_says = res.stdout.split()
+                self.assertEqual(hooks_says, common_says)
+                self.assertEqual(hooks_says == "True", remote is not None and ci in (None, "", "false"))
 
+    def test_the_hook_owns_the_main_checkout_only_in_a_cloud_session_on_a_task_branch(self) -> None:
         class Repo(guard.NoRepo):
             def __init__(self, root: str, branch: str) -> None:
                 self.name = branch
@@ -207,15 +222,15 @@ class CloudSessionTest(unittest.TestCase):
                 return self.name
 
         call = {"tool_name": "Bash", "tool_input": {"command": "git reset -q --soft HEAD~2"}, "cwd": MAIN}
-        for cloud, ci, branch, asks in (
-            (True, False, "tooling/381-guard-cloud-checkout", False),
-            (True, False, "main", True),
-            (True, True, "tooling/381-guard-cloud-checkout", True),
-            (False, False, "tooling/381-guard-cloud-checkout", True),
+        for remote, ci, branch, asks in (
+            ("true", "", "tooling/381-guard-cloud-checkout", False),
+            ("true", "", "main", True),
+            ("true", "true", "tooling/381-guard-cloud-checkout", True),
+            ("", "", "tooling/381-guard-cloud-checkout", True),
         ):
             with (
-                self.subTest(cloud=cloud, ci=ci, branch=branch),
-                unittest.mock.patch.multiple(common, IS_CLOUD=cloud, IS_CI=ci),
+                self.subTest(remote=remote, ci=ci, branch=branch),
+                unittest.mock.patch.dict(os.environ, {"CLAUDE_CODE_REMOTE": remote, "CI": ci}),
                 unittest.mock.patch.object(hooks, "GitFiles", lambda root, b=branch: Repo(root, b)),
                 unittest.mock.patch("sys.stdout", new_callable=io.StringIO) as out,
             ):
@@ -253,6 +268,18 @@ class GitFilesTest(unittest.TestCase):
             self.assertEqual(files.stash_branches(), ["core/7-x", "main"])
             self.assertTrue({"main", "core/7-x"} <= files.refs())
             self.assertIsNone(files.branch(guard.normalize(str(main / ".claude" / "worktrees" / "9"))))
+            # A rebase stopped on a conflict detaches HEAD; the branch it rebases is still the checkout's (#381).
+            git("checkout", "-q", "--detach", where=worktree)
+            self.assertIsNone(files.branch(guard.normalize(str(worktree))))
+            rev_parse = ["git", "rev-parse", "--absolute-git-dir"]
+            found = subprocess.run(rev_parse, cwd=worktree, check=True, capture_output=True, text=True)
+            admin = Path(found.stdout.strip())
+            for folder in ("rebase-apply", "rebase-merge"):
+                with self.subTest(folder=folder):
+                    (admin / folder).mkdir()
+                    (admin / folder / "head-name").write_text("refs/heads/core/7-x\n", encoding="utf-8")
+                    self.assertEqual(files.branch(guard.normalize(str(worktree))), "core/7-x")
+                    shutil.rmtree(admin / folder)
 
     def test_the_github_repository_comes_from_the_origin_remote(self) -> None:
         with tempfile.TemporaryDirectory(prefix="gitfiles") as tmp:

@@ -465,8 +465,8 @@ stops only for design and other human-reserved decisions and for what reaches be
   stopped every read. The guard asks for it (§8.2). Work-discarding or history-rewriting git (`reset`, `checkout`,
   `switch -f|--discard-changes`, `restore`, `clean`, `rebase`, `stash drop|clear`, `branch -d|-D`, `worktree`, `git -c`)
   and recursive deletes have no text rule since #51 (and #47 for `rm -r` and `git reset`): the guard asks by where they
-  act (§8.2), so they are free in the agent's own worktree and on its task branch, and ask in the main checkout, in
-  another worktree and on another branch.
+  act (§8.2), so they are free in the agent's own worktree and on its task branch, and ask in the main checkout (but
+  a cloud session's on its task branch, #381), in another worktree and on another branch.
 - **Deny:** force pushes; pushes to `main` in any spelling, including a bare `git push`, `git push [-u] origin` with
   no branch and any push naming `HEAD` (always push an explicit branch name); `--no-verify`, remote deletes,
   `--prune`, `--mirror`, `--all`, `git config` on `hooksPath` or `--unset`, `--upload-pack`,
@@ -504,13 +504,18 @@ commands, by the repository they name (issue #68, a read of another repository m
   `git -C` (`cd D:/prime-game/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same
   command asks), unless another live Claude session works in that worktree (`sessions.active_on`): then it owns
   none. On a desktop the main checkout is never owned: the designer's sessions and the engineer's `start --here`
-  sessions keep every prompt. **A cloud session** (§2.1; `common.cloud_session`: `CLAUDE_CODE_REMOTE` true and `CI`
-  unset, the test `doctor` uses) whose working directory is in no worktree owns the main checkout while a task branch
-  (`<area>/<n>-<slug>`, `guard.TASK_BRANCH_RE`) is checked out there (issue #381): the same rules as a worktree on its
-  task branch, with `<n>` taken from that branch. `.git`, `.claude` and `.claude/worktrees` stay outside it, so their
-  deletes and git work in another worktree still ask; on `main`, `release/*`, any other branch or a detached HEAD it
-  asks as on a desktop. The pre-push hook and the push rules (no `main`, no force push by hand) are unchanged. The
-  task branch is known by the worktree's identity: the branch checked out in
+  sessions keep every prompt. **A cloud session** (§2.1; `CLAUDE_CODE_REMOTE` true and not CI, the test `doctor`
+  uses: `common.cloud_session`, which `hooks.cloud_session` mirrors without importing `common`) whose working
+  directory is in no worktree owns the main checkout while a task branch (`<area>/<n>-<slug>`, `guard.TASK_BRANCH_RE`)
+  is checked out there (issue #381): the same rules as a worktree on its task branch, with `<n>` taken from that
+  branch. No worktree folder pins `<n>` there, so any task branch checked out counts, a parent's after a switch too.
+  `.git`, `.claude`, `.claude/worktrees` and any glob that may name them (`.[^.]*`, `*`) stay outside it, and so do
+  `git clean -x|-X|-ff` (ignored files: `.claude/settings.local.json`, the other worktrees as nested repositories) and
+  magic pathspecs (`:(top)x`); git work in another worktree still asks. On `main`, `release/*`, any other branch or a
+  detached HEAD it asks as on a desktop; a rebase stopped on a conflict keeps its branch (`hooks.GitFiles` reads
+  `rebase-merge|rebase-apply/head-name`). The pre-push hook and the push rules (no `main`, no force push by hand) are
+  unchanged. `tools/run.sh permissions` judges the replayed calls as this machine's sessions: a cloud container's
+  replay sees the cloud rule. The task branch is known by the worktree's identity: the branch checked out in
   `.claude/worktrees/<n>` when its name is `<area>/<n>-<slug>`, as `start` makes it. Another branch checked out
   there (a parent, a spike) is not the task's, so work that discards on it asks, whatever an earlier call did; a
   detached HEAD moves no branch and stays free. Its helpers are branches named `<task branch>-x`,
@@ -559,7 +564,8 @@ commands, by the repository they name (issue #68, a read of another repository m
   SHA, `~`, `^`, `origin/x`, `refs/x`, `v1.2`, a task branch `net/40-x`, `main`) and a path otherwise, so
   `git reset feature-x` passes.
 - **Other git that discards work or rewrites history** passes in the own worktree on the task branch, and in a
-  repository outside the project (a clone in the scratchpad); it asks in the main checkout and in another worktree
+  repository outside the project (a clone in the scratchpad); it asks in the main checkout (but a cloud session's on
+  its task branch, above) and in another worktree
   (`-C`, `cd`, `--git-dir`, `--work-tree`, `GIT_DIR`, `GIT_WORK_TREE`; the repository and the working tree are
   judged apart and the worse wins), when a pathspec reaches another checkout (`git checkout -- ../47/core`), and
   after the same command switched away from the task branch (`git checkout main && git reset --hard`, also inside

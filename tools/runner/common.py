@@ -39,6 +39,7 @@ def cloud_session(cloud: bool | None = None, ci: bool | None = None) -> bool:
     guard's cloud checkout (#381) share this test. cloud and ci stand in for IS_CLOUD and IS_CI (doctor's tests)."""
     return (IS_CLOUD if cloud is None else cloud) and not (IS_CI if ci is None else ci)
 
+
 # Directories that hold project GDScript (addons/ is third-party and never linted or checked).
 GD_DIRS = ("core", "server", "net", "client", "voice", "content", "levels", "tools", "tests")
 

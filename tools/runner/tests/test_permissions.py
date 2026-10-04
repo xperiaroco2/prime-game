@@ -204,6 +204,25 @@ class MatcherTest(unittest.TestCase):
         )
 
 
+class CloudReplayTest(unittest.TestCase):
+    """Issue #381: a replay in a cloud container judges its main checkout on a task branch as the session's own."""
+
+    def test_the_guard_judges_the_cloud_checkout_and_an_older_guard_still_runs(self) -> None:
+        class TaskRepo(OwnRepo):
+            def branch(self, checkout: str) -> str | None:
+                return "tooling/381-guard-cloud-checkout"
+
+        def replay(module: object, cloud: bool) -> str:
+            command = "git reset --hard HEAD~1"
+            return permissions.verdict(RULES, module, "Bash", command, MAIN, MAIN, TaskRepo(), cloud=cloud)[0]
+
+        self.assertEqual(replay(guard, cloud=True), permissions.PASS)
+        self.assertEqual(replay(guard, cloud=False), permissions.PROMPT)
+        older = mock.Mock(spec=["check"])
+        older.check = lambda command, shell, cwd, root, home="", repo=None: []  # before #381: no cloud
+        self.assertEqual(replay(older, cloud=True), permissions.PASS)
+
+
 class ReplayCommandTest(unittest.TestCase):
     def test_the_runner_starts_the_replay(self) -> None:
         with mock.patch.object(permissions, "main", return_value=0) as replay:

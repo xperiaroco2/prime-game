@@ -766,6 +766,10 @@ CLOUD_WORK = [
     (B, "cd core && git reset --hard HEAD~1 && rm -rf tmp"),
     (B, "cd /tmp && git -C D:/prime-game reset --soft HEAD~1"),
     (P, "git reset --soft HEAD~2; Remove-Item -Recurse tests\\integration\\tmp"),
+    # Found by the review of #381: a nested shell keeps the cloud session's task branch.
+    (B, "bash -c 'git reset --soft HEAD~1'"),
+    (B, "GIT_SEQUENCE_EDITOR=: bash -c 'git rebase -i --autosquash origin/main'"),
+    (B, "git clean -fd core"),
 ]
 
 # (shell, command) that still asks in a cloud session on its task branch: other checkouts, other branches, the
@@ -793,6 +797,18 @@ CLOUD_BEYOND = [
     (B, "git branch -D tooling/365-other"),
     (B, "git worktree remove D:/prime-game"),
     (B, "git -c core.hooksPath=/dev/null push"),
+    # Found by the review of #381: ignored files (`-x`, `-X`) include .claude/settings.local.json and the other
+    # worktrees, which a second -f removes as nested repositories; a magic pathspec can name them.
+    (B, "git clean -fdx"),
+    (B, "git clean -fdX"),
+    (B, "git clean -ffd"),
+    (B, "git clean -f --force -d"),
+    (B, "git clean -fd ':(top).claude/worktrees'"),
+    # Bash globs Python's fnmatch reads otherwise (`[^...]`, `[[:class:]]`): any glob in the first parts may match.
+    (B, "rm -rf .[^.]*"),
+    (B, "rm -rf .gi[[:lower:]]"),
+    (B, "rm -rf .claude/worktree[[:alpha:]]"),
+    (B, "rm -rf *"),  # bash's `*` skips dotfiles, but the guard does not judge by the shell's options
 ]
 
 
@@ -818,6 +834,14 @@ class CloudCheckoutTest(unittest.TestCase):
         for shell, command in CLOUD_WORK:
             with self.subTest(shell=shell, command=command):
                 self.assertTrue(in_cloud(shell, command, cloud=False), "expected the guard to ask")
+
+    def test_any_task_branch_checked_out_in_the_cloud_checkout_is_the_task(self) -> None:
+        # Accepted in #381: a cloud checkout has no worktree folder to pin the task number, so the branch checked out
+        # decides (a parent's `core/365-x` after a switch too); its own number's other branches stay free.
+        repo = CloudRepo("core/365-parent")
+        self.assertEqual(in_cloud(B, "git reset --hard origin/core/365-parent", repo=repo), [])
+        self.assertEqual(in_cloud(B, "git branch -D core/365-parent-backup", repo=repo), [])
+        self.assertTrue(in_cloud(B, f"git branch -D {CLOUD_TASK}", repo=repo))
 
     def test_a_worktree_in_the_cloud_keeps_its_own_rules(self) -> None:
         own = ROOT + "\\.claude\\worktrees\\51"

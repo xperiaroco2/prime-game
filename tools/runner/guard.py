@@ -38,15 +38,17 @@ two commands by their target (issue #47):
 The session's own worktree is free (issue #51): the worktree `.claude/worktrees/<n>` its working directory is in, or,
 for a session in the main checkout (a manager's task session, whose shell starts there on every call), the first
 worktree its command enters with `cd` or `git -C`. The main checkout is owned only by a cloud session (issue #381:
-`CLAUDE_CODE_REMOTE` true and `CI` unset, common.cloud_session) whose working directory is in no worktree, while a
-task branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, and the repository (`.git`),
-`.claude` and the other worktrees (`.claude/worktrees`) stay outside it. Inside the own worktree (not its folder
-itself) recursive deletes pass. Git commands that discard work or rewrite history (`reset` that discards or
-moves, `checkout`/`restore` of paths, `clean`, forced `checkout`/`switch`, `rebase`, `stash drop|clear`,
-`worktree remove|move`) pass there on the task branch, and in a repository outside the project; they ask in the main
-checkout, in another worktree, after the command switched to another branch, and when their pathspec reaches another
-checkout. Branch changes are judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`,
-`checkout -B`, `switch -C`) or overwriting (`branch -M|-C`) a branch, or rebasing one by name, passes only for the
+`CLAUDE_CODE_REMOTE` true and not CI, common.cloud_session) whose working directory is in no worktree, while a task
+branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, whichever task it is (no worktree
+folder pins it). The repository (`.git`), `.claude` and the other worktrees (`.claude/worktrees`), and any glob that
+may name them, stay outside it; so do `git clean -x|-X|-ff` (ignored files and nested repositories) and magic
+pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive deletes pass. Git commands
+that discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore` of paths, `clean`, forced
+`checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
+repository outside the project; they ask in the main checkout (but a cloud session's, above), in another worktree,
+after the command switched to another branch, and when their pathspec reaches another checkout. Branch changes are
+judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`, `checkout -B`, `switch -C`) or
+overwriting (`branch -M|-C`) a branch, or rebasing one by name, passes only for the
 task branch and its helpers (`<task branch>-x`, `<task branch>/x`); `stash drop|clear` only for entries made on
 them (the stash is shared by every checkout). An interactive rebase that opens a todo editor, `rebase --update-refs`
 and `git -c core.hooksPath=...` always ask; an interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to a
@@ -486,10 +488,12 @@ class Paths:
         self.name_re = re.compile(rf"(?:^|[/\\:\s'\"]){name}(?:[/\\\s'\"]|$)|{TOPLEVEL_TEXT}", re.IGNORECASE)
         # The session's own worktree (issue #51): the one its working directory is in. A session in the main checkout
         # (a manager's task session, whose shell starts there each call) owns the worktree its command first `cd`s
-        # into, or names with `git -C`, unless another live session works there (busy). The main checkout is never
-        # owned.
+        # into, or names with `git -C`, unless another live session works there (busy). The main checkout is owned
+        # only by a cloud session on a task branch (issue #381, Analysis).
         self.own = self.worktree_of(self.cwd)
         self.claim = self.own is None
+        # A cloud session's task branch, when it owns the main checkout (issue #381; set by Analysis).
+        self.task = ""
         self.busy: Callable[[str], bool] = lambda _: False
         # A checkout or switch in this command left the own task branch: later git commands act on another branch.
         self.off_branch = False
@@ -509,6 +513,7 @@ class Paths:
             inner.remember(name, value, [f"{name}={value}"])
             inner.env[name] = inner.vars.get(name)
         inner.oldpwd, inner.own, inner.claim, inner.busy = self.oldpwd, self.own, self.claim, self.busy
+        inner.task = self.task
         inner.off_branch, inner.stash_moved = self.off_branch, self.stash_moved
         return inner
 
@@ -535,15 +540,19 @@ class Paths:
         return path.startswith(self.own + "/") or (root_too and path == self.own)
 
     def shared(self, path: str) -> bool:
-        """A resolved path in the main checkout is, or may match by a glob, the repository (`.git`), `.claude` or
+        """A resolved path in the main checkout is, or may name by a glob, the repository (`.git`), `.claude` or
         `.claude/worktrees`, or is inside one of them: every checkout's, not one session's."""
         if not path.startswith(self.root + "/"):
             return False
         parts = path[len(self.root) + 1 :].split("/")
-        if fnmatch.fnmatchcase(".git", parts[0]):
+
+        def may_be(part: str, name: str) -> bool:
+            # Bash globs that fnmatch reads otherwise (`[^.]`, `[[:lower:]]`): any glob may match.
+            return part == name or any(c in part for c in "*?[")
+
+        if may_be(parts[0], ".git"):
             return True
-        in_claude = fnmatch.fnmatchcase(".claude", parts[0])
-        return in_claude and (len(parts) == 1 or fnmatch.fnmatchcase("worktrees", parts[1]))
+        return may_be(parts[0], ".claude") and (len(parts) == 1 or may_be(parts[1], "worktrees"))
 
     def claim_worktree(self, path: str | None) -> None:
         """A session outside every worktree owns the first worktree its command enters, unless another live session
@@ -1299,10 +1308,9 @@ class Analysis:
         self.repo = repo or NoRepo()
         self.paths.busy = self.repo.busy
         # A cloud session in no worktree owns the main checkout while its task branch is checked out there (#381).
-        self.root_task = ""
         main = self.repo.branch(paths.root) if cloud and paths.own is None else None
         if main and TASK_BRANCH_RE.match(main):
-            paths.own, paths.claim, self.root_task = paths.root, False, main.lower()
+            paths.own, paths.claim, paths.task = paths.root, False, main.lower()
         self.findings: list[Finding] = []
         self.piped_first: dict[int, list[str]] = {}
         # The `VAR=value` prefixes of the simple command being judged (`GIT_DIR=x git reset`).
@@ -1434,8 +1442,8 @@ class Analysis:
     def git(self, args: list[str]) -> None:
         """Judge a git command by where it acts (docs/AGENT_WORKFLOW.md §8.2). Commands that discard work or rewrite
         history pass in the session's own worktree on its task branch and in scratch repositories outside the
-        project; they ask in the main checkout, in another worktree, and on another branch. Writes to the protected
-        paths ask everywhere."""
+        project; they ask in the main checkout (but a cloud session's on its task branch, issue #381), in another
+        worktree, and on another branch. Writes to the protected paths ask everywhere."""
         i, dirs, git_dir, work_tree, configs = 0, [], "", "", []
         while i < len(args) and args[i].startswith("-"):
             name, eq, value = args[i].partition("=")
@@ -1524,7 +1532,7 @@ class Analysis:
         if not self.paths.own:
             return False
         if self.paths.own == self.paths.root:
-            number = re.escape(self.root_task.split("/", 1)[1].split("-", 1)[0])
+            number = re.escape(self.paths.task.split("/", 1)[1].split("-", 1)[0])
         else:
             number = re.escape(self.paths.own.rsplit("/", 1)[-1])
         return bool(re.match(rf"^[^/]+/{number}-", name.lower().removeprefix("refs/heads/")))
@@ -1557,6 +1565,10 @@ class Analysis:
             self.git_finding(shown, f"on another branch ({current}) checked out in the own worktree")
         elif place == OWN and base is not None:
             for spec in pathspecs or []:
+                if spec.startswith(":") and self.paths.own == self.paths.root and spec != ":":
+                    # A magic pathspec (`:(top).claude/worktrees`) may name the shared parts of a cloud checkout.
+                    self.git_finding(shown, f"its path {spec} may reach the shared parts of the main checkout")
+                    return
                 if not spec.startswith((":", "-")) and self.paths.where(spec, base) == ELSEWHERE:
                     self.git_finding(shown, f"its path {spec} is outside this session's own worktree")
                     return
@@ -1649,7 +1661,15 @@ class Analysis:
         """`git clean` deletes untracked files; `-n` / `--dry-run` only lists them."""
         if "--dry-run" in rest or any(re.fullmatch(r"-[a-zA-Z]*n[a-zA-Z]*", a) for a in rest):
             return
-        self.git_discards(["git", "clean", *rest], place, base, _positionals(rest, CLEAN_VALUED))
+        shown = ["git", "clean", *rest]
+        if place == OWN and self.paths.own == self.paths.root:
+            # A cloud session's main checkout (issue #381): ignored files (`-x`, `-X`) include
+            # .claude/settings.local.json and the other worktrees, which a second `-f` removes as nested repositories.
+            short = "".join(a[1:] for a in rest if re.fullmatch(r"-[a-zA-Z]+", a))
+            if {"x", "X"} & set(short) or short.count("f") + rest.count("--force") > 1:
+                self.git_finding(shown, "removes ignored files or nested repositories of the main checkout")
+                return
+        self.git_discards(shown, place, base, _positionals(rest, CLEAN_VALUED))
 
     def git_stash(self, rest: list[str], place: str, base: str | None) -> None:
         """`git stash drop` and `clear`. The stash is shared by every checkout of the repository, so they pass only
