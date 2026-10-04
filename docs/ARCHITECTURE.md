@@ -308,12 +308,19 @@ dissidents, no crew present only once every crew member left, End widens nothing
   `read_latest` delivers a packet whose `reliable_sent` equals that count and whose seq is newer, holds one that is
   ahead until its reliable packet is read (`read_reliable` returns the held frames it releases, which go to the
   inbox right after that reliable packet), and drops one that is behind or not newer. At `HOLD_CAP` (8, a
-  placeholder) held packets the oldest of the arriving one's kind is dropped and counted in `latest_superseded`
-  (`take_superseded`). A per-peer clock starts when the hold turns non-empty and restarts at each release; past
-  `STALL_MS` (20 s, the silence rule), judged after both channels were read (`stalled_peers`), the backend counts
-  `ORDER_STALLED` and disconnects the peer; a full hold alone never disconnects. A LATEST packet shorter than the
-  header is the reject `ORDER_HEADER_SHORT`. `forget(peer)` discards a leaving or disconnected peer's held packets
-  undelivered. The class is pure (the caller passes the time); M6-4 (#370) wires it into `WebRtcTransport`.
+  placeholder) held packets one packet of the arriving one's kind, the arriving one included, is dropped: first the
+  oldest that a newer one waiting for the same reliable packet follows (the inbox's merge would drop it anyway),
+  else the oldest (§2.2's rule; it loses the claim between two reliable packets only with 8 in flight), and with
+  none of that kind held the arriving one. The dropped frame comes back in `Read.superseded`: the backend decodes
+  it without delivering it and counts it in `latest_superseded` when valid, as the inbox does. A per-peer clock
+  starts when the hold turns non-empty and restarts at each release; past `STALL_MS` (20 s, the silence rule),
+  judged after both channels were read, `stalled_peers` names the peer once and forgets it, and the backend counts
+  `ORDER_STALLED` and disconnects it (a client ends as `host_lost`); a full hold alone never disconnects. Rejects:
+  a LATEST packet shorter than the header (`ORDER_HEADER_SHORT`), longer than the header and the longest frame
+  (`TOO_LARGE`), or from a peer it does not know (`UNKNOWN_PEER`). Peers are explicit: `add_peer` when a connection
+  opens, `forget` at once when it leaves or is disconnected, which discards its held packets undelivered, so a
+  late packet never brings an old connection's counts back. `count_reliable_sent` counts only packets the channel
+  accepted. The class is pure (the caller passes the time); M6-4 (#370) wires it into `WebRtcTransport`.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
