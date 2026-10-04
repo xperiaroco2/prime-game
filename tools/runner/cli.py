@@ -38,7 +38,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = _Parser(
         prog="run",
         description="prime-game task runner. Windows: tools\\run.cmd <command>; Git Bash and CI: tools/run.sh "
-        "<command>. Each command's --help says what it does, its options and its exit codes.",
+        "<command>. Each command's --help says what it does and its options; special exit codes where a command "
+        "has them.",
         epilog="Godot, Python and gdtoolkit run only through the runner. Logs: tools/out/logs/; reports: "
         "tools/out/gdunit/.",
     )
