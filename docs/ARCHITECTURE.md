@@ -2125,13 +2125,16 @@ default `LanSignalling`; a `Signaller` dropping and counting in `rejected` what 
 `Signaller.room_found` gives the content hash as the s64 `ContentFingerprint` makes. The
 design's §5 plant, the router forwarding a joiner's `offer` to the joiner it names, failed `forged_offer` in both.
 
-**Decoding cases** (`tests/fixtures/signal/decode/decode_cases.json`, #368): 189 messages from every side with the
+**Decoding cases** (`tests/fixtures/signal/decode/decode_cases.json`, #368): 242 messages from every side with the
 result Godot 4.7.2's `SignalCodec` gives, recorded from it; `signal_codec_test.gd` and the Worker's `codec.test.js` both
 check every one. Godot's JSON parser is not `JSON.parse`: it takes a trailing comma in an object or list, a leading
 zero, `1.`, and a raw tab or line break inside a string, and refuses a lone UTF-16 surrogate escape and a value nested
-deeper than 1024 (the top one at depth 0). The Worker reads JSON with its own parser of those rules, so both answer
-every message alike. A `\u0000` escape passes, but Godot prints a "Unicode parsing error" line for it (not an
-`ERROR:` line); `LanSignalling` serves the LAN only, so it stays.
+deeper than 1024 (the top one at depth 0). Its numbers come from `built_in_strtod`, not a correctly rounded parse: 18
+mantissa digits (leading zeros count, so `0000000000000000001` is 0), a scale built from powers of ten that overflows
+past 1e308 (so `1e-320` is 0), and a wrapping 32-bit exponent taken as at most 511. The Worker reads JSON with its own
+port of those rules, so both answer every message alike. Two inputs make Godot print a line that is not an `ERROR:`
+line, which a LAN peer can repeat: a `\u0000` escape ("Unicode parsing error") and an exponent past 511 ("WARNING:
+Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
 
 **The Worker** (M6-5b, #368; `tools/signal/`, its README is the deploy page): `src/codec.js` and `src/router.js` are
 `SignalCodec` and `SignalRouter` in JavaScript, rule for rule; `src/service.js` is the Durable Object's work, which
@@ -2143,7 +2146,10 @@ every message alike. A `\u0000` escape passes, but Godot prints a "Unicode parsi
   may leave memory, and its constructor runs again on the next event. So the router's whole state is one record per
   socket (role, code, number, candidate counts; a host's record also holds its room), kept in that socket's attachment
   after every change, and the constructor rebuilds the router from the attachments. Socket numbers go on from the
-  highest one held.
+  highest one held. A socket the router is done with says so in its attachment, `gone` (it closed or failed; marked
+  before anything is sent) or `closing`, so no rebuild gives it back a role, even while the runtime still lists it.
+  Joiners a rebuild finds without their host (its socket left while the object was out of memory) hear `the host
+  left` at the next event and are closed after the grace, as the transcripts expect.
 - **Closing after an error** as `LanSignalling` does: a socket the service ends (the host left) is marked closing in its
   attachment and closed 1 s later; it gets nothing more, and its messages and close are no events. A close whose timer
   was lost with the object's memory happens when the object wakes.
@@ -2152,7 +2158,7 @@ every message alike. A `\u0000` escape passes, but Godot prints a "Unicode parsi
   goes in the Worker's secrets, never in `wrangler.toml`.
 - **Tests** (`tools/run.sh signal`, a `verify` step; Node pinned in `pins.py`, no npm package): every transcript
   through the router and through the service over fake sockets and state, each also with the router or the object
-  rebuilt after every step (as after hibernation), the close grace, the configuration, and the decoding cases. The
+  rebuilt after every step (as after hibernation) and with the object rebuilt as a close wakes it, the close grace, the configuration, and the decoding cases. The
   glue in `worker.js` is first tried at deploy, and `tools/signal/smoke.js` checks a running service (it passes
   against a headless `LanSignalling`). The design's §5 plant, the Worker forwarding a joiner's `offer` to another
   joiner, failed `forged_offer` in both suites, then was reverted.

@@ -22,7 +22,8 @@ engineer deploys it. Agents never run `wrangler`.
 
 ## Deploy (the engineer, once, and after each change to `src/`)
 
-You need Node.js 24 LTS (`node --version` prints `v24.…`) and a Cloudflare account. The first `npx wrangler` asks to
+You need Node.js 24 (`node --version` prints `v24.…`; `winget install OpenJS.NodeJS.LTS --version 24.21.0`, the pin in
+`tools/runner/pins.py`) and a Cloudflare account. The first `npx wrangler` asks to
 download Wrangler: answer `y`. `wrangler login` opens the browser to allow Wrangler on your account.
 
 ```powershell
@@ -58,8 +59,11 @@ and checks that a joiner hears "the host left" before its socket closes.
 
 - **One Durable Object for every room** (`SIGNALLING.getByName("signalling")`). The protocol names the room in the
   socket's first message, after the socket is open, and a joiner whose `join` failed may try another code on the
-  same socket, so a socket cannot be sent to a room's own object when it connects. One object is far below the free
-  plan's limits for a few friends' games.
+  same socket, so a socket cannot be sent to a room's own object when it connects. The free plan's duration, 13,000
+  GB-s a day, is about 28 hours a day of one object at 128 MB, so even an object that never hibernated would stay
+  within it; requests (100,000 a day, a WebSocket message counting 1/20) are a few per join.
+- **TURN** is not here yet: M6-10 adds per-joiner credentials, only when a TURN key is configured. Until then every
+  `offer` carries the same `ICE_SERVERS` as `room`.
 - **Hibernation:** the object accepts sockets with the WebSocket Hibernation API, so an idle room costs no duration.
   The object may leave memory while sockets stay open; its constructor then runs again. Everything the router knows
   is in each socket's attachment (its number and the router's record; a host's also holds its room), and the

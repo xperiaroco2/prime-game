@@ -2,8 +2,9 @@
 # Installs the verify toolchain in a Linux cloud container the way CI does (.github/actions/setup-toolchain):
 # the pinned Godot Linux build in ~/godot/godot (SHA-512 checked on every run, linked as `godot` on PATH when
 # /usr/local/bin is writable), the pinned gdtoolkit, and the pinned Node.js in ~/node (SHA-256 checked; the runner
-# takes ~/node/bin/node in a cloud session, since the image's own node comes first on PATH and Claude Code runs on it). Idempotent: a downloaded zip with the right checksum is
-# reused. Usage: tools/cloud/setup.sh (from any folder).
+# takes ~/node/bin/node in a cloud session, since the image's own node comes first on PATH and Claude Code runs on
+# it). Idempotent: a downloaded zip or tarball with the right checksum is reused. Usage: tools/cloud/setup.sh (from
+# any folder).
 # Also raises the default UDP receive buffer when it is below RMEM_DEFAULT_FIX (tools/runner/doctor.py): some
 # container kernels charge about 830 bytes per small datagram, so the 208 KB default held 256 of the 320 datagrams
 # verify's stall step queues (#159).

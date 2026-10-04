@@ -63,8 +63,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   installed too), while CI's `verify` runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on
   3.11, and since #349 CI's job `python-min` keeps the minimum true.
 - **Network access** (what #345's session used): `github.com` with `release-assets.githubusercontent.com`
-  for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit; `nodejs.org` for Node (#368). The session's proxy refuses API calls and
-  feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
+  for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit; `nodejs.org` for Node (#368). The
+  session's proxy refuses API calls and feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
   reads public pages (docs, release pages) for research.
 - **GitHub:** `gh auth status` calls the token invalid, yet `gh api` REST calls on this repository go through the
   session's GitHub proxy (`gh api user`, `gh api repos/{owner}/{repo}/issues/<n>`). GraphQL is refused (HTTP 403), so
