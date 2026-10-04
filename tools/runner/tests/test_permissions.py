@@ -1,6 +1,7 @@
 """The shell permission lists of .claude/settings.json with the guard (docs/AGENT_WORKFLOW.md §8.1): reads of other
 repositories pass in every mode, writes there ask (issue #68); and the model of Claude Code's rule matcher."""
 
+import json
 import re
 import tempfile
 import unittest
@@ -218,11 +219,98 @@ class ReplayFoldersTest(unittest.TestCase):
             self.assertEqual(names, ["D--x", "D--x--claude-worktrees-5", "D--x-art", "D--x-ui"])
 
 
+    def test_since_and_roles(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            session = Path(tmp) / "D--x" / "s1"
+            for path, when in (
+                (session.with_suffix(".jsonl"), "2026-09-28T23:59:00Z"),
+                (session.with_suffix(".jsonl"), "2026-09-29T00:01:00Z"),
+                (session / "subagents" / "agent-a.jsonl", "2026-09-30T10:00:00Z"),
+                (session / "subagents" / "workflows" / "wf_1" / "agent-b.jsonl", "2026-10-01T10:00:00Z"),
+            ):
+                write_transcript(path, [tool_use("u" + when, "git status", when)])
+            found = permissions.calls([Path(tmp) / "D--x"], since="2026-09-29")
+        self.assertEqual(
+            sorted((c.when[:10], c.role, c.command) for c in found),
+            [("2026-09-29", "session", "git status"), ("2026-09-30", "subagent", "git status"),
+             ("2026-10-01", "workflow", "git status")],
+        )  # fmt: skip
+
+
+class ReplayModeTest(unittest.TestCase):
+    def test_default_mode_counts_calls_without_an_allow_rule(self) -> None:
+        both = (RULES, guard)
+        with tempfile.TemporaryDirectory() as tmp:
+            write_transcript(Path(tmp) / "s.jsonl", [tool_use("1", "npm test", "2026-10-01T10:00:00Z")])
+            bypass = permissions.replay(both, both, [Path(tmp)])
+            default = permissions.replay(both, both, [Path(tmp)], bypass=False, listing=True)
+        self.assertIn("after: 0 prompts", bypass)
+        self.assertIn("after: 1 prompts (0 ask rules, 0 guard, 1 no allow rule), 0 denied", default)
+        self.assertIn("prompt [no allow rule: npm] x1 (session 1)", default)
+        self.assertIn("'npm test'", default)
+
+
+class ObservedTest(unittest.TestCase):
+    def test_the_transcripts_record_asks_denials_and_blocks(self) -> None:
+        ask = {"hookSpecificOutput": {"permissionDecision": "ask", "permissionDecisionReason": "git that discards: x"}}
+        entries = [
+            tool_use("a", "git -C D:/x reset --hard", "2026-10-02T10:00:00Z"),
+            {"attachment": {"type": "hook_success", "hookEvent": "PreToolUse", "toolUseID": "a",
+                            "stdout": json.dumps(ask)}, "timestamp": "2026-10-02T10:00:00Z"},
+            tool_result("a", "fatal: ambiguous argument", "2026-10-02T10:01:01Z", error=True),
+            tool_use("b", "git config --get core.hooksPath", "2026-10-02T11:00:00Z"),
+            tool_result("b", "Permission to use Bash with command git config --get core.hooksPath has been denied.",
+                        "2026-10-02T11:00:00Z", error=True),
+            tool_use("c", "sleep 60; cat log", "2026-10-03T12:00:00Z"),
+            tool_result("c", "<tool_use_error>Blocked: sleep 60 followed by: cat log. To wait", "2026-10-03T12:00:00Z",
+                        error=True),
+            tool_use("d", "git status", "2026-10-03T12:00:00Z"),
+            tool_result("d", "grep found: Permission to use Bash with command x has been denied.",
+                        "2026-10-03T12:00:01Z"),
+        ]  # fmt: skip
+        with tempfile.TemporaryDirectory() as tmp:
+            write_transcript(Path(tmp) / "s" / "subagents" / "workflows" / "w" / "agent-x.jsonl", entries)
+            events, skipped = permissions.observed_events([Path(tmp)], RULES, since="2026-10-01")
+            report = permissions.observed([Path(tmp)], RULES)
+        self.assertEqual(skipped, 0)
+        self.assertEqual(
+            sorted((e.kind, e.cause, e.wait, e.ran, e.role, e.when[:10]) for e in events),
+            [("blocked", "Blocked: sleep N", 0.0, False, "workflow", "2026-10-03"),
+             ("deny rule", "Bash(git config *hooksPath*)", 0.0, False, "workflow", "2026-10-02"),
+             ("guard ask", "git that discards", 61.0, True, "workflow", "2026-10-02")],
+        )  # fmt: skip
+        self.assertIn("guard ask [git that discards] x1 (workflow 1) 2026-10-02..2026-10-02; wait 61 s", report)
+
+
+def tool_use(key: str, command: str, when: str, tool: str = "Bash") -> dict[str, object]:
+    content = [{"type": "tool_use", "id": key, "name": tool, "input": {"command": command}}]
+    return {"type": "assistant", "timestamp": when, "cwd": str(ROOT), "message": {"content": content}}
+
+
+def tool_result(key: str, text: str, when: str, error: bool = False) -> dict[str, object]:
+    content = [{"type": "tool_result", "tool_use_id": key, "content": text, "is_error": error}]
+    return {"type": "user", "timestamp": when, "message": {"content": content}}
+
+
+def write_transcript(path: Path, entries: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8", newline="") as handle:
+        handle.writelines(json.dumps(entry) + "\n" for entry in entries)
+
+
 class ReplayCommandTest(unittest.TestCase):
     def test_the_runner_starts_the_replay(self) -> None:
         with mock.patch.object(permissions, "main", return_value=0) as replay:
             self.assertEqual(cli.main(["permissions", "--before", "abc123"]), 0)
-        replay.assert_called_once_with(["--before", "abc123", "--projects", ""])
+        replay.assert_called_once_with(
+            ["--before", "abc123", "--projects", "", "--since", "", "--mode", "bypass"]
+        )
+        with mock.patch.object(permissions, "main", return_value=0) as replay:
+            cli.main(["permissions", "--since", "2026-09-29", "--mode", "default", "--list", "--observed"])
+        replay.assert_called_once_with(
+            ["--before", "origin/main", "--projects", "", "--since", "2026-09-29", "--mode", "default", "--list",
+             "--observed"]
+        )  # fmt: skip
 
 
 if __name__ == "__main__":
