@@ -49,26 +49,22 @@ Focus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapsho
 ### returned
 {
  "pr": 8,
- "reb": {
-  "up_to_date": true,
-  "verify_green": true,
-  "published": true,
-  "changed_paths": [
-   "core/match/vote.gd"
-  ]
- },
+ "n": 7,
+ "published": true,
+ "verify_green": true,
+ "up_to_date": true,
+ "conflicts": 0,
+ "fixes": 0,
+ "human_steps": [],
  "reviews": [
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": []
+   "by": "code-reviewer"
   },
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": []
+   "by": "netcode-security-reviewer"
   }
  ],
- "fix": null
+ "fix": null,
+ "full": "each agent's whole result: the run's journal.jsonl (subagents/workflows/<run id>/ beside the manager's transcript), one line per label"
 }
 ### error null

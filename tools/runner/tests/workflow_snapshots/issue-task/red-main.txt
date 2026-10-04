@@ -37,16 +37,12 @@ Return the structured result. changed_paths: `git diff --name-only origin/main..
 ### returned
 {
  "n": 7,
- "impl": {
-  "verify_green": false,
-  "complete": false,
-  "summary": "s",
-  "changed_paths": [
-   "core/x.gd"
-  ]
- },
+ "stopped": "verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes",
+ "verify_green": false,
+ "complete": false,
+ "summary": "s",
+ "needs_engineer": [],
  "reviews": [],
- "pub": null,
- "stopped": "verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes"
+ "full": "each agent's whole result: the run's journal.jsonl (subagents/workflows/<run id>/ beside the manager's transcript), one line per label"
 }
 ### error null

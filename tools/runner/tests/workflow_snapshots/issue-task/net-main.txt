@@ -108,34 +108,25 @@ Return the structured result.
 ### returned
 {
  "n": 7,
- "impl": {
-  "verify_green": true,
-  "complete": true,
-  "summary": "s",
-  "changed_paths": [
-   "net/protocol/codec.gd"
-  ]
- },
+ "published": true,
+ "verify_green": true,
+ "complete": true,
+ "summary": "s",
+ "needs_engineer": [],
+ "human_steps": [],
+ "not_fixed": [],
+ "fixed": 0,
  "reviews": [
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": []
+   "by": "code-reviewer"
   },
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": []
+   "by": "netcode-security-reviewer"
   },
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": []
+   "by": "godot-api-checker"
   }
  ],
- "pub": {
-  "published": true,
-  "handoff_posted": true
- }
+ "full": "each agent's whole result: the run's journal.jsonl (subagents/workflows/<run id>/ beside the manager's transcript), one line per label"
 }
 ### error null

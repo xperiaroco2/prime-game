@@ -67,61 +67,30 @@ Return the structured result.
 ### returned
 {
  "pr": 8,
- "reb": {
-  "up_to_date": true,
-  "verify_green": true,
-  "published": true,
-  "changed_paths": [
-   "net/protocol/codec.gd"
-  ]
- },
+ "n": 7,
+ "published": true,
+ "ci_green": true,
+ "verify_green": true,
+ "up_to_date": true,
+ "conflicts": 0,
+ "fixes": 0,
+ "human_steps": [],
  "reviews": [
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": [
-    {
-     "severity": "major",
-     "file": "core/match/vote.gd",
-     "line": 12,
-     "problem": "p1",
-     "fix": "f1"
-    },
-    {
-     "severity": "minor",
-     "file": "core/match/vote.gd",
-     "line": 30,
-     "problem": "p2",
-     "fix": "f2"
-    }
-   ]
+   "by": "code-reviewer",
+   "major": 1,
+   "minor": 1
   },
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": [
-    {
-     "severity": "major",
-     "file": "core/match/vote.gd",
-     "line": 12,
-     "problem": "p1",
-     "fix": "f1"
-    },
-    {
-     "severity": "minor",
-     "file": "core/match/vote.gd",
-     "line": 30,
-     "problem": "p2",
-     "fix": "f2"
-    }
-   ]
+   "by": "netcode-security-reviewer",
+   "major": 1,
+   "minor": 1
   }
  ],
  "fix": {
-  "fixed": [],
-  "verify_green": true,
-  "published": true,
-  "ci_green": true
- }
+  "fixed": 0
+ },
+ "not_fixed": [],
+ "full": "each agent's whole result: the run's journal.jsonl (subagents/workflows/<run id>/ beside the manager's transcript), one line per label"
 }
 ### error null
