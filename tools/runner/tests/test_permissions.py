@@ -199,6 +199,30 @@ class MatcherTest(unittest.TestCase):
         self.assertEqual(rules.judge("PowerShell", "get-childitem -Recurse")[0], permissions.ALLOW)
         self.assertEqual(rules.judge("Bash", "Get-ChildItem x")[0], permissions.NONE)
 
+    def test_read_only_set_follows_the_docs(self) -> None:
+        rules = self.rules()
+        for command in ("which git", "du -sh x", "stat f", "diff a b", "find . -name x", "sed -n 1,5p f",
+                        "sort -u f", "timeout 9 grep x f", "git status --short", "git diff origin/main --stat",
+                        "git show HEAD:x", "git rev-parse --git-path hooks", "git worktree list",
+                        "git config --get core.longpaths", "git log --oneline | head -5"):  # fmt: skip
+            with self.subTest(command=command):
+                self.assertEqual(rules.judge("Bash", command)[0], permissions.ALLOW)
+        for command in ("find . -delete", "find . -exec rm {} ;", "find . -fprint f", "sed -i s/a/b/ f",
+                        "sed -i.bak s/a/b/ f", "sed -ni p f", "sed --in-place=x s/a/b/ f", "sed -n 1,5w out f",
+                        "sed s/a/b/w out f", "sort -o f g", "sort --output=f g", "git -C x status", "git -c a=b log",
+                        "git diff --output=f", "git config core.x y", "git worktree remove x", "git stash drop",
+                        "X=1 ls", "npm test"):  # fmt: skip
+            with self.subTest(command=command):
+                self.assertEqual(rules.judge("Bash", command)[0], permissions.NONE)
+
+    def test_a_cd_elsewhere_takes_git_out_of_the_read_only_set(self) -> None:
+        rules = self.rules()
+        here = "D:\\prime-game\\.claude\\worktrees\\5"
+        self.assertEqual(rules.judge("Bash", "cd /d/prime-game/.claude/worktrees/5 && git status", here)[0], "allow")
+        self.assertEqual(rules.judge("Bash", "cd /d/prime-game/.claude/worktrees/6 && git status", here)[0], "none")
+        self.assertEqual(rules.judge("Bash", "cd /d/prime-game/.claude/worktrees/6 && ls", here)[0], "allow")
+        self.assertEqual(rules.unallowed("Bash", "cd /d/x && git status", here), "git status")
+
     def test_bypass_runs_what_no_rule_names(self) -> None:
         rules = self.rules()
         self.assertEqual(permissions.verdict(rules, guard, "Bash", "npm test", str(ROOT), MAIN, OwnRepo())[0], "pass")
