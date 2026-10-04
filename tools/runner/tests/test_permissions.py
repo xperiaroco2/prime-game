@@ -358,6 +358,7 @@ class ObservedTest(unittest.TestCase):
              ("guard ask", "git that discards", 61.0, True, "workflow", "2026-10-02")],
         )  # fmt: skip
         self.assertIn("guard ask [git that discards] x1 (workflow 1) 2026-10-02..2026-10-02; wait 61 s", report)
+        self.assertIn("not here: an ask rule's prompt the human approved", report)
 
 
 def tool_use(key: str, command: str, when: str, tool: str = "Bash") -> dict[str, object]:
