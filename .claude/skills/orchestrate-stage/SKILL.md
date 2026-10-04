@@ -289,18 +289,18 @@ taken in a `main` that has them.
   --json body -q .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix
   agent that changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
 - **Into `main`** (the tooling track, #170, and a milestone's closing PR): `tools\run.cmd merge-check --base main`,
-  then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without `--dry-run`. The gate (AGENT_WORKFLOW
-  §7.1 "Into `main`") refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or
-  session, a head behind `main` (send it to `publish` in its worktree, or `pr-rebase` when its `gate: note:` lines
-  name an overlap, then wait for CI), the exceptions (the designer's area without the relay phrase or the designer's
-  approval; `.claude/settings*.json`, `.claude/githooks/`, the guard; an ADR without "Approved by the engineer:
-  <link>"), an unanswered "Needs the engineer" item. An exception goes into your "For you:" block for the engineer
-  to merge; the rest you fix and run again. Merge one PR at a time: each merge leaves the other open PRs behind
-  `main`. After each, one chat line ("merged #N into main as <sha>"), the `wave:` line in the wave comment, and,
-  when a running milestone needs the change, a note on its plan issue (its manager runs `merge --sync-main`). If
-  `main` breaks after your merge: a revert PR (`git revert -m 1 <merge>` on a task branch), merged through the same
-  gate, and tell the engineer. "стоп мерджі": no more merges into `main` until the engineer lifts it; record the stop
-  on your plan issue and on #170.
+  then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without it. The gate (AGENT_WORKFLOW §7.1)
+  refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or session, a head behind
+  `main` (`publish` in its worktree, or `pr-rebase` when its `gate: note:` lines name an overlap, then CI), the
+  exceptions (the designer's area without the relay phrase or approval; `.claude/settings*.json`, `.claude/githooks/`,
+  the guard; an ADR without "Approved by the engineer: <link>"), an open "Needs the engineer" item. An exception goes
+  into your "For you:" block; the rest you fix and run again. Each merge leaves the other PRs behind `main`: two or
+  more go through `tools\run.cmd merge-train <pr>... --base main` (#387; `--dry-run` first, then in the background,
+  `wait` on its log): per PR in order, publish in its worktree (a red verify retried once), CI, the gate; a PR that
+  fails is skipped with the reason and the train goes on. After each merge: one chat line ("merged #N into main as
+  <sha>"), the `wave:` line in the wave comment, a note on a running milestone's plan issue that needs it (`merge
+  --sync-main`). `main` broken by your merge: a revert PR (`git revert -m 1 <merge>`) through the same gate; tell the
+  engineer. "стоп мерджі": no merges into `main` until the engineer lifts it; record it on your plan issue and #170.
 - **The stage's end.** When every task is merged, open the PR from `release/m<k>` into `main` (`gh pr create --base
   main --head release/m<k>`; M3: #117): a table of the task PRs with their merge commits, every open "Needs the
   engineer" and "Needs the designer" item, and the issues to close after the merge (`Closes` does not fire from the

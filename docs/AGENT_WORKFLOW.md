@@ -395,6 +395,26 @@ Rules for every workflow run:
     revert PR (`git revert -m 1 <merge>` on a task branch), merges it through the same gate and says so. "стоп мерджі"
     from the engineer returns merges into `main` to the engineer until the engineer says otherwise (recorded on the plan
     issue and #170). A solo session merges only where the engineer said so, from the main checkout.
+  - **A list into `main`: `merge-train`** (#387). Each merge leaves the other open PRs behind `main`, so they go in
+    series: on 2026-10-04 the manager drove 9 merges by hand, about 20 minutes each. `tools\run.cmd merge-train <pr>...
+    --base main` (from the main checkout, in the background with a log ending `exit=<n>`, polled with `wait`) takes the
+    PRs in the order given with no manager turn between them. For each: the PR read (every `gh` call bounded); skipped
+    with the reason when not open into `main`, its head is not a task branch, the gate would refuse it whatever a
+    publish does (a draft, not the engineer's PR or session, an exception, an open "Needs the engineer": read by the
+    gate's own code before any verify), no worktree has its branch checked out (`git worktree list`), or a live run
+    holds that worktree (a verify slot holder there, a busy Claude Code session there, a rebase or merge in progress,
+    uncommitted changes, a HEAD that is not the PR's head, or a commit younger than `--recent` minutes, default 10;
+    `--recent 0` once the manager knows the run ended). Then the way, printed: `main` already in the head, no publish;
+    a history with merge commits (which `publish`'s rebase can trip on), `git merge origin/main` in the worktree, its
+    `verify`, a fast-forward push of the task branch (a conflict is aborted, a red verify undoes the merge commit);
+    otherwise the worktree's own `publish`. A red `verify` is retried once and the retry logged (a timeout on a busy
+    PC is the usual cause); a rebase or merge conflict, a second red or any other stop skips the PR. Then CI: GitHub
+    shows the pushed head, and the checks are read from the JSON of `gh pr checks` (its exit code is non-zero both
+    while a check is pending and when one failed): a failed or cancelled check (a new required job too, as "runner on
+    the minimum Python" was) skips at once, all green goes on, no verdict in 40 minutes skips. Then `merge <pr> --base
+    main` (the same code: the gate as above, its `wave:` line). A final `merge-train summary` lists the merged and
+    skipped PRs (exit 0 only when all merged). `--dry-run` prints each PR's worktree and way, or why it would be
+    skipped, and each gate's verdict now, and changes nothing. It never pushes `main` and never merges a gate exception.
 - **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7, the
   engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170) sends
   its PRs straight into `main`, each merged by its manager through the gate (Git flow above, "Into `main`"; how a
@@ -1221,7 +1241,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
   `exit=<n>`: the marker is the job's final write, a line still being written (no newline yet) is never read, and a
   bare `exit=0` in a step's output is no result. Then it prints the summary (from the last `verify summary` line,
-  which `publish` prints too, else the last 20 lines) and `wait: <log> finished: exit=<n> (whole log: <path>)`, and
+  which `publish` prints too, or `merge-train summary`, else the last 20 lines) and `wait: <log> finished: exit=<n> (whole log: <path>)`, and
   exits n. Not finished: one line, `wait: still running after S s (<path>: <k> lines, last written <t> s ago); call
   wait again, never start the job again`, and 124; the job runs on (a second `verify` in one worktree would fight
   the first over `tools/out/` and the slots). No log after a 10 s grace (the background shell may not have created
