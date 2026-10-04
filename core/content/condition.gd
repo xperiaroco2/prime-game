@@ -27,6 +27,16 @@ func gates_on_role() -> bool:
 	return false
 
 
+## True when the condition reads the actor: its PlayerState (`MatchContext.actor_state()`) or
+## anything kept per actor (its hand, its channel). A mode reaction runs, and a win condition is
+## checked, for no player (actor 0), so there such a condition tests no player and its answer
+## never changes; ModeCheck refuses it in both (§9.2, #299). True unless a subclass says
+## otherwise, so a new condition that forgets is refused at load rather than silently never (or
+## always) passing; one that reads only the match, the fact or the rule's target returns false.
+func reads_actor_state() -> bool:
+	return true
+
+
 ## The test itself, without `negate`.
 func _test(_ctx: MatchContext) -> bool:
 	return true

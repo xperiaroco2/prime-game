@@ -7,5 +7,10 @@ extends Condition
 ## hidden. Used by win conditions, which check facts only: it never rejects an intent.
 
 
+## It reads the match's tasks, not the actor: a win condition may hold it.
+func reads_actor_state() -> bool:
+	return false
+
+
 func _test(ctx: MatchContext) -> bool:
 	return Tasks.all_done(ctx.state)
