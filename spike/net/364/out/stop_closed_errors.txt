@@ -1,0 +1,3 @@
+# stop run (stop.txt): engine ERROR lines after CLOSED, counted with grep -c 'channel->isClosed' on the sender's log
+17885
+ERROR: Condition "channel->isClosed()" is true. Returning: FAILED

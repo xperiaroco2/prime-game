@@ -1,0 +1,35 @@
+SPIKE r1    9085 1791146471.331482 freeze 5200 ms (main thread)
+SPIKE r1   14285 1791146476.531764 thaw; pc=2
+SPIKE r1   14285 1791146476.531988 final sent r=91 l=181 v=36531 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=2
+SPIKE r2    1621 1791146463.829320 freeze 5200 ms (main thread)
+SPIKE r2    6821 1791146469.029554 thaw; pc=2
+SPIKE r2    6836 1791146469.044942 first poll after a 5200 ms gap read reliable=53 latest=105 voice=21141
+SPIKE r2   14326 1791146476.534124 final sent r=0 l=0 v=0 got r=91 l=181 v=36531 maxseq r=90 l=180 v=36530 beats_in_order=true pc=5
+SPIKE r1    9078 1791146486.236828 freeze 5200 ms (main thread)
+SPIKE r1   14279 1791146491.437212 thaw; pc=2
+SPIKE r1   14279 1791146491.437349 final sent r=91 l=181 v=36531 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=2
+SPIKE r2    1600 1791146478.732252 freeze 5200 ms (main thread)
+SPIKE r2    6800 1791146483.932592 thaw; pc=2
+SPIKE r2    6815 1791146483.947764 first poll after a 5200 ms gap read reliable=52 latest=104 voice=21141
+SPIKE r2   14309 1791146491.441576 final sent r=0 l=0 v=0 got r=91 l=181 v=36531 maxseq r=90 l=180 v=36530 beats_in_order=true pc=5
+SPIKE r1    9084 1791146501.129443 freeze 5200 ms (main thread)
+SPIKE r1   14284 1791146506.329695 thaw; pc=2
+SPIKE r1   14284 1791146506.329810 final sent r=91 l=181 v=36531 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=2
+SPIKE r2    1655 1791146493.623465 freeze 5200 ms (main thread)
+SPIKE r2    6855 1791146498.823763 thaw; pc=2
+SPIKE r2    6871 1791146498.839344 first poll after a 5200 ms gap read reliable=52 latest=104 voice=21141
+SPIKE r2   14367 1791146506.335458 final sent r=0 l=0 v=0 got r=91 l=181 v=36531 maxseq r=90 l=180 v=36530 beats_in_order=true pc=5
+SPIKE r1    9038 1791146515.955426 freeze 5200 ms (main thread)
+SPIKE r1   14238 1791146521.155657 thaw; pc=2
+SPIKE r1   14238 1791146521.155773 final sent r=91 l=181 v=36531 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=2
+SPIKE r2    1558 1791146508.454691 freeze 5200 ms (main thread)
+SPIKE r2    6758 1791146513.654939 thaw; pc=2
+SPIKE r2    6777 1791146513.673268 first poll after a 5200 ms gap read reliable=52 latest=104 voice=21141
+SPIKE r2   14263 1791146521.159800 final sent r=0 l=0 v=0 got r=91 l=181 v=36531 maxseq r=90 l=180 v=36530 beats_in_order=true pc=5
+SPIKE r1    9086 1791146530.747729 freeze 5200 ms (main thread)
+SPIKE r1   14286 1791146535.948103 thaw; pc=2
+SPIKE r1   14287 1791146535.948308 final sent r=91 l=181 v=36531 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=2
+SPIKE r2    1587 1791146523.245001 freeze 5200 ms (main thread)
+SPIKE r2    6787 1791146528.445264 thaw; pc=2
+SPIKE r2    6803 1791146528.461466 first poll after a 5200 ms gap read reliable=53 latest=105 voice=21141
+SPIKE r2   14297 1791146535.955393 final sent r=0 l=0 v=0 got r=91 l=181 v=36531 maxseq r=90 l=180 v=36530 beats_in_order=true pc=5
