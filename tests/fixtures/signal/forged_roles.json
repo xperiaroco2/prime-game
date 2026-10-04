@@ -1,0 +1,225 @@
+{
+  "about": "Roles are fixed by the first accepted message: a host cannot join or answer, a joiner cannot open, a socket without a role can only open or join, and a host names only its own joiners.",
+  "config": {
+    "ice_servers": [],
+    "codes": [
+      "ABCDEF",
+      "HJKMNP"
+    ]
+  },
+  "steps": [
+    {
+      "open": "host"
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": []
+          }
+        }
+      ]
+    },
+    {
+      "open": "host2"
+    },
+    {
+      "from": "host2",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host2",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "HJKMNP",
+            "ice_servers": []
+          }
+        }
+      ]
+    },
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "HJKMNP"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host2",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "open": "x"
+    },
+    {
+      "from": "x",
+      "send": {
+        "t": "answer",
+        "v": 1,
+        "sdp": "v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "x",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "not allowed"
+          }
+        }
+      ]
+    },
+    {
+      "from": "x",
+      "send": {
+        "t": "candidate",
+        "v": 1,
+        "mid": "0",
+        "index": 0,
+        "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+      },
+      "expect": [
+        {
+          "to": "x",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "not allowed"
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "HJKMNP"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "not allowed"
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "answer",
+        "v": 1,
+        "sdp": "v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "not allowed"
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "offer",
+        "v": 1,
+        "to": 1,
+        "id": 2,
+        "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "no such joiner"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "not allowed"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "not allowed"
+          }
+        }
+      ]
+    }
+  ]
+}

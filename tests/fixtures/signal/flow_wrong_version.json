@@ -1,0 +1,129 @@
+{
+  "about": "Any other or missing \"v\" gets \"update the game\", before the type is looked at; what is not a JSON object is a bad message.",
+  "config": {
+    "ice_servers": [],
+    "codes": [
+      "ABCDEF"
+    ]
+  },
+  "steps": [
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 2,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "update the game"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "update the game"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "whatever",
+        "v": "1"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "update the game"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1.5,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "update the game"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "raw": "[1]",
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "bad message"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "raw": "{\"t\": \"join\", \"v\": 1, \"code\": ",
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "bad message"
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "teleport",
+        "v": 1
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "bad message"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "about": "A joiner's offer naming another joiner: not allowed, and never forwarded to anyone.",
+  "config": {
+    "ice_servers": [],
+    "codes": [
+      "ABCDEF"
+    ]
+  },
+  "steps": [
+    {
+      "open": "host"
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": []
+          }
+        }
+      ]
+    },
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "open": "j2"
+    },
+    {
+      "from": "j2",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j2",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 2
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "offer",
+        "v": 1,
+        "to": 2,
+        "id": 2,
+        "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "error",
+            "v": 1,
+            "why": "not allowed"
+          }
+        }
+      ]
+    }
+  ]
+}
