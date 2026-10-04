@@ -7,8 +7,9 @@
 - **Amended 2026-10-04 (#304):** the calibration to the weekly limit. 1% of a Max 20x week is about $25.5 API list
   (measured in #302), not the 4x figure first given here; every % of the week below reads 1.7x too low (the amendment
   under "Calibration to the weekly limit" gives the corrected figures).
-- **Amended 2026-10-04 (#307):** the limits count cache reads at about 0.75 of their list $ (range 0.6 to 1), measured
-  by a probe; `metrics` brackets each % of the week at that range (the amendment after #304's).
+- **Amended 2026-10-04 (#307):** the 5-hour limit counts cache reads at about 0.75 of their list $ (range 0.6 to 1),
+  measured by a probe and taken to hold for the weekly limit; `metrics` brackets each % of the week at that range (the
+  amendment after #304's).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
@@ -86,9 +87,9 @@ the account.
   points; w = 0 misses by 0.28. Taken here: the weekly limit weighs cache reads as the 5-hour one does. This is a
   reading, not measured separately.
 - **$ per 1% of the week**, k(w), a least-squares fit over the 44 readings to 77%: **$21.5 at w = 0.6, $23.0 at 0.75,
-  $25.5 at 1**. At w = 1, k is full list $, so #304's $25.5 holds. `metrics` keeps its % at $25.5 full list and prints
-  the bracket at w = 0.6 and 1 (`WEEK_BRACKET`). At 40% cache reads the three agree within 1%; at 90% (a run like
-  the probe) the w = 0.6 end is 22% lower.
+  $25.5 at 1**. At w = 1, k is full list $, so #304's $25.5 holds. `metrics` keeps its % at $25.5 full list, which is
+  the bracket's upper end, and prints the bracket at w = 0.6 and 1 (`WEEK_BRACKET`). At 40% cache reads the three
+  agree within 1%; at 86% (the probe's window) the w = 0.6 end is 22% lower.
 - **What it changes.** A list $ of cache reads saved is worth 0.6 to 1 (about 0.75) of a list $ of writes or output
   saved, not about 0. At w = 0.75 (points since the restart, as in #302's report), #302's levers rank:
   - bounded waits 7.9 (built, #303);
