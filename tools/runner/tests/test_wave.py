@@ -61,9 +61,11 @@ def launched(minutes: float, tool_id: str, run_id: str | None, task_id: str = ""
 
 
 def note_text(tool_id: str, task_id: str, status: str = "completed", result: str = "{}", summary: str = "") -> str:
+    # No backslash inside an f-string's braces: Python 3.11, the runner's minimum, cannot parse one.
+    summary = summary or 'Dynamic workflow "issue-task" ' + status
     return (f"<task-notification>\n<task-id>{task_id}</task-id>\n<tool-use-id>{tool_id}</tool-use-id>\n"
             f"<output-file>C:\\tmp\\{task_id}.output</output-file>\n<status>{status}</status>\n"
-            f"<summary>{summary or 'Dynamic workflow \"issue-task\" ' + status}</summary>\n<result>{result}</result>\n"
+            f"<summary>{summary}</summary>\n<result>{result}</result>\n"
             "</task-notification>")  # fmt: skip
 
 

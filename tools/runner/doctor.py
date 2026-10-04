@@ -43,6 +43,9 @@ STALL_BACKLOG_DATAGRAMS = 256 + 64
 UDP_PROBE_BYTES = 32
 # Twice Linux's 208 KB default: room for 512 such datagrams here. tools/cloud/setup.sh raises the default to it.
 RMEM_DEFAULT_FIX = 425984
+# Windows libraries only (the M5 voice ADR §2): CI deletes both, tools/cloud/setup.sh leaves both out of a cloud clone.
+TWOVOIP_EXTENSION = "addons/twovoip/twovoip.gdextension"
+TWOVOIP_FILES = (TWOVOIP_EXTENSION, TWOVOIP_EXTENSION + ".uid")
 
 
 def _dotted(parts: tuple[int, ...]) -> str:
@@ -244,6 +247,38 @@ class Doctor:
             else:
                 ok(text)
 
+    def cloud_twovoip(self) -> None:
+        """A cloud session runs without the Windows-only TwoVoIP extension, as CI does (#345): on Linux Godot prints
+        an `ERROR:` line for its .gdextension, which fails verify's Godot steps minutes later."""
+        if not IS_CLOUD or IS_CI:
+            return
+        fix = (
+            "Run: tools/cloud/setup.sh, or only its last step: git sparse-checkout set --no-cone '/*' "
+            + " ".join(f"'!/{path}'" for path in TWOVOIP_FILES)
+            + " (git still tracks them; git status stays clean)"
+        )
+        if (ROOT / TWOVOIP_EXTENSION).exists():
+            self.fail(
+                f"{TWOVOIP_EXTENSION} is in the working tree: it has no Linux library, so Godot prints an ERROR: "
+                "line for it and verify fails",
+                fix,
+            )
+            return
+        # `git ls-files -t` tags a file the sparse checkout leaves out "S"; one deleted by hand, as CI does, is still
+        # "H", and `git add -A` would commit its deletion. A checkout from before M5 tracks neither: nothing to do.
+        listing = run(["git", "ls-files", "-t", "--", *TWOVOIP_FILES], timeout=30, cwd=ROOT)
+        tags = listing.out.split()[0::2] if listing.rc == 0 else ["?"]
+        if not tags:
+            ok("no TwoVoIP extension in this checkout")
+        elif set(tags) == {"S"}:
+            ok("TwoVoIP extension left out (a cloud session runs without it, as CI does)")
+        else:
+            self.fail(
+                "the TwoVoIP extension is deleted, not left out by the sparse checkout: a commit could take the "
+                "deletion",
+                fix,
+            )
+
     def udp_backlog(self) -> None:
         """Warn early when a default UDP socket on 127.0.0.1 cannot hold the stall step's backlog (Linux only)."""
         if not IS_LINUX:
@@ -314,6 +349,7 @@ def main(quick: bool) -> int:
     doc.addons()
     doc.githooks()  # also in --quick: start-task runs the quick doctor
     doc.udp_backlog()  # also in --quick: verify's doctor step then warns minutes before its stall step fails
+    doc.cloud_twovoip()  # also in --quick: verify stops at its doctor step instead of failing its Godot steps
     if not quick:
         doc.git()
         doc.bash()

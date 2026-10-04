@@ -86,7 +86,8 @@ func test_a_load_left_behind_by_the_session_ending_is_collected() -> void:
 	_harness = Harness.new()
 	_harness.welcome(&"countdown")
 	_harness.send(_load_match(1, Harness.TINY_MAP))
-	_harness.pump()
+	# Not pump(): its step also advances the load, which a busy machine finishes in that frame (#345).
+	_harness.deliver()
 	_harness.session.leave()
 	assert_array(_harness.session.abandoned_loads()).contains_exactly([Harness.TINY_MAP])
 	await _until_collected()

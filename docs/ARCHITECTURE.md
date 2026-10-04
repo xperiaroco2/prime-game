@@ -2201,7 +2201,8 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     else (the helper scripts fail the warnings policy; the release archive ships no license file). Credits:
     `docs/credits/twovoip.md`. Windows `verify` (every agent's, the engineer's, `publish`'s) loads it. CI on Linux
     deletes `twovoip.gdextension` and its `.uid` before `verify` (`.github/workflows/ci.yml`; each night job of
-    `nightly.yml` too, which runs main), because Godot prints an
+    `nightly.yml` too, which runs main), and a cloud session leaves both out of its clone with a sparse checkout
+    (`tools/cloud/setup.sh`, #345, AGENT_WORKFLOW §2.1), because Godot prints an
     `ERROR:` line for a `.gdextension` it cannot load; with no `.gdextension` Godot loads nothing and voice is
     unavailable (E34). The libraries stay as inert files: deleting the whole folder fails `check`'s credits step,
     since `docs/credits/twovoip.md`'s glob would match no file. A checkout's `.godot/extension_list.cfg` lists the

@@ -13,6 +13,7 @@ const FRAME_USEC := 16667
 var schema := WireSchema.game(true)
 var hub := LoopbackHub.new()
 var host := LoopbackTransport.new(schema.kind_table(), hub)
+var client := LoopbackTransport.new(schema.kind_table(), hub)
 var mode := FixtureBaseMode.mode()
 var session: ClientSession
 ## The client's peer id on the hub.
@@ -34,7 +35,6 @@ func _init(load_levels := true) -> void:
 	# would hold the lambda, a cycle that leaks both.
 	host.peer_joined.connect(_on_peer_joined)
 	host.packet_received.connect(_on_host_packet)
-	var client := LoopbackTransport.new(schema.kind_table(), hub)
 	client.join("127.0.0.1", PORT)
 	session = ClientSession.new(client, mode, schema)
 	session.keep_history = true
@@ -49,6 +49,13 @@ func pump(usec := FRAME_USEC) -> void:
 	host.poll()
 	session.step(now)
 	host.poll()
+
+
+## The host's messages reach the session with no step: a threaded load a LoadMatch starts is still
+## waited for, however fast the loader thread is (a step would advance it in the same frame).
+func deliver() -> void:
+	host.poll()
+	client.poll()
 
 
 ## Sends a core/ event to the client as the host's codec would encode it.
