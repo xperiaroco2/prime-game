@@ -10,8 +10,8 @@ and polls it with `wait`, one tool call of at most S seconds each (default 240).
 LAST complete non-empty line of the log is `exit=<n>`: the marker is the job's final write, a half-written line (no
 newline yet) is never read, and a bare `exit=0` line in the job's own output is not mistaken for the end. Then `wait`
 prints the job's summary (from the last "verify summary" line, which publish prints too, or "merge-train summary";
-otherwise the last TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line and 124. No log, or one it
-cannot read: 2.
+otherwise the last TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line and 124.
+No log, or one it cannot read: 2.
 
 Every line `wait` writes itself starts with "wait: ", so a job's own exit 2 or 124 is told apart by that line. It
 reads only: it never writes, deletes or starts anything (a timeout leaves the job running).
