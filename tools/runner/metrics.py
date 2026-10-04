@@ -225,8 +225,9 @@ GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_afte
 # docs/decisions/2026-10-04-instruction-diet.md, "How it was measured"), so its issues A to D are measured against it.
 # Characters per token: the median of 4,397 context-growth pairs after a lone tool result of 4,000 characters or more.
 CHARS_PER_TOKEN = 2.35
-# Points are % of a Max 20x week, (non-read $ + w x cache-read $) / k(w), at each (w, k(w)) (#302's fit).
-POINT_WEIGHTS = ((0.0, 15.3), (0.5, 20.3))
+# Points are % of a Max 20x week, (non-read $ + w x cache-read $) / k(w), at each (w, k(w)): w = 0 and 0.5 from #302's
+# fit (the instruction-diet ADR's two), then the week's central weight (#333) from WEEK_CENTRAL.
+POINT_WEIGHTS = ((0.0, 15.3), (0.5, 20.3), WEEK_CENTRAL)
 # The docs whose list $ is shown by section (§) of today's file: headings of levels 1 to 3, fenced code left out.
 SECTIONED = ("docs/ARCHITECTURE.md", "docs/AGENT_WORKFLOW.md")
 # The main checkout, whose files (and every worktree's copies under .claude/worktrees/<n>/) are the repository's.
@@ -1651,7 +1652,7 @@ def fmt_points(values: list[float]) -> str:
 
 
 def weights_label() -> str:
-    """'w = 0 / 0.5': the weights fmt_points prints, in its order."""
+    """'w = 0 / 0.5 / 0.75': the weights fmt_points prints, in its order."""
     return "w = " + " / ".join(f"{w:g}" for w, _k in POINT_WEIGHTS)
 
 
