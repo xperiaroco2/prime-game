@@ -1348,8 +1348,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   the game reads alike.
   Tests: `tests/unit/tools/headless_session_test.gd` (the roster line, the refusal texts, the exit codes),
   `tests/unit/client/app/launch_options_test.gd` (the arguments) and
-  `tools/runner/tests/test_hostjoin.py` (the supervision, and a real host with two local clients reaching the lobby
-  roster Player1 to Player3).
+  `tools/runner/tests/test_hostjoin.py` (the supervision, each stopped process's time from the stop to its exit, a
+  killed one's last line and when it came, a grace per process, and a real host with two local clients reaching the
+  lobby roster Player1 to Player3).
   Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and by default in a shell where
   `CLAUDECODE` is set (an agent's); otherwise they open the game in windows (§4.7).
 
@@ -2024,12 +2025,19 @@ stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `C
 client once every player is in its roster; peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
 process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
 went unanswered (window 1 not listening yet) joins again, `BotsEnet`'s start (#318, §4.6 "bots runner"). Nothing in
-`client/` changed for it. The stop is `host`'s: the stop file, then a kill. Desktop only; CI and `verify` never run
-it. Usage: `docs/AGENT_WORKFLOW.md` §11.
+`client/` changed for it. The stop is `host`'s: the stop file, then a kill once a process's grace has passed, 30 s
+for a window (`WINDOW_GRACE_SECONDS`) and `host`'s 10 s for the bots; the report gives each one's time from the stop
+to its exit. A window's grace is longer because its exit can wait seconds on the GPU driver (#354): on a PC whose
+every core runs normal-priority work (32 busy loops on 16 cores), the main thread waits in the renderer's teardown on
+NVIDIA's D3D user-mode driver threads (`nvwgf2umx.dll`), which run at idle priority and stay Ready with no CPU until
+Windows lifts a starved thread, about every 4 s; such windows took up to 9.5 s to exit after `session: stopped`
+(about 75 runs), a headless bots process about 1 s. Desktop only; CI and `verify` never run it. Usage:
+`docs/AGENT_WORKFLOW.md` §11.
 Tests: `tools/runner/tests/test_playcheck.py` (the scenario parser and its errors, the plan, the command lines, and
 runs of stand-in processes that pass, time out, fail a step, print an engine error or miss a PNG, each stopping
-every process; the text, shown and button grammar and `FIELDS` against `GameView`'s keys),
-`tests/scenarios/playcheck_bots_test.gd` (the bots' start, #318) and
+every process; windows that exit slowly within their grace beside bots killed after theirs; the text, shown and
+button grammar and `FIELDS` against `GameView`'s keys), `tests/scenarios/playcheck_bots_test.gd` (the bots' start,
+#318) and
 `tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at once or fails at its
 timeout and not before, with its line and what the window saw; frames; events matched once through player numbers;
 the setup; `is`/`has`/`lacks`, collapsed whitespace, a hidden field read as "", shown on and off; the `button` step's

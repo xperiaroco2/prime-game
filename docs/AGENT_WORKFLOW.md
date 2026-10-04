@@ -925,11 +925,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
     player: client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until
     Ctrl+C, `--seconds S` or every process ending (every window closed); the stop is clean (a stop file each process
     polls: the host closes, so the clients see `host_lost` at once), and a process still running 10 s later is
-    killed. Each process also stops by itself once the runner's alive file (touched every second) is gone or 10 s
-    old, so a killed runner leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error
-    line. The agent's own checks pass `--local --seconds S` (never without `--seconds` in the foreground). On
-    Windows, Ctrl+C in `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already
-    stopped, so either answer is fine. Its selftest runs a headless host and two local clients to the full lobby
+    killed (the report names its last line and when it came; one that stopped says how long it took). Each process
+    also stops by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner
+    leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error line. The agent's own
+    checks pass `--local --seconds S` (never without `--seconds` in the foreground). On Windows, Ctrl+C in
+    `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already stopped, so either answer
+    is fine. Its selftest runs a headless host and two local clients to the full lobby
     roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
     scene headless through its command line (CI below).
 - **`bots [scenario ...]` [applied]** (#102; `docs/ARCHITECTURE.md` §4.6, §9.7): plays every bot scenario in
@@ -1115,9 +1116,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `tools/out/logs/playcheck/<scenario>/`. A run fails on a wait past its timeout (the window prints the step's line and
   what it saw, and saves `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not
   done within `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started
-  through the stop file (else a kill). Desktop only: CI and `verify` never run it; an agent may (off-screen windows,
-  like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked up, swapped to the belt and
-  back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a second round, #276).
+  through the stop file (else a kill: a window after 30 s, since its renderer's exit can wait seconds on the GPU
+  driver when every core is busy, #354; the bots after 10 s). Desktop only: CI and `verify` never run it; an agent
+  may (off-screen windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked
+  up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a
+  second round, #276).
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
