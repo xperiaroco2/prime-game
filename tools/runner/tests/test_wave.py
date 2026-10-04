@@ -910,7 +910,7 @@ class WaveTest(unittest.TestCase):
         self.assertIn("- worktree 266: PR #366 merged into tooling/267-parent; after tooling/267-parent reaches main.",
                       notes)  # fmt: skip
         self.assertIn("- worktree 278: run wf_x still running there.", notes)
-        self.assertIn(f"- worktree 262: HEAD {sha(9)[:10]} moved after PR #362 merged ({sha(1362)[:10]}): check "
+        self.assertIn(f"- worktree 262: HEAD {sha(9)[:10]} is not PR #362's merged head {sha(1362)[:10]}: check "
                       "before removing.", notes)  # fmt: skip
         self.assertNotIn("300", "\n".join(notes))
         self.assertNotIn("playtest", part)

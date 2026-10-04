@@ -844,7 +844,8 @@ def housekeeping_of(worktrees: list[Worktree], merged: list[MergedPR], runs: lis
         elif run_there is not None:
             h.waiting.append(f"{label}: run {run_there.run_id} still running there.")
         elif wt.head != pr.head_oid:
-            h.waiting.append(f"{label}: HEAD {wt.head[:10]} moved after PR #{pr.number} merged ({pr.head_oid[:10]}): "
+            # Ahead (a commit after the merge) or behind (the remote branch got a commit): either way, look first.
+            h.waiting.append(f"{label}: HEAD {wt.head[:10]} is not PR #{pr.number}'s merged head {pr.head_oid[:10]}: "
                              "check before removing.")  # fmt: skip
         else:
             if wt.n is not None:
