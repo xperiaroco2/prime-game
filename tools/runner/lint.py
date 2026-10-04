@@ -1,11 +1,12 @@
-"""`lint`: gdformat --check and gdlint over project GDScript (never addons/)."""
+"""`lint`: gdformat --check and gdlint over project GDScript (never addons/); with no paths, also the instruction
+files and the docs' § references."""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-from . import instructions, pins
+from . import instructions, pins, refs
 from .common import GD_DIRS, ROOT, Failure, Result, bad, gd_files, gdtoolkit_exe, ok, rel, run, say
 
 TIMEOUT = 300
@@ -95,6 +96,7 @@ def main(fix: bool = False, files: list[str] | None = None) -> int:
         ok("no GDScript files to lint")
     if not files:
         failed = instruction_files() or failed
+        failed = section_refs() or failed
     say("lint: FAILED" if failed else "lint: passed")
     return 1 if failed else 0
 
@@ -107,6 +109,24 @@ def instruction_files() -> bool:
     if any("budget" in line for line in report.errors):
         bad("instruction files over budget", instructions.OVER_BUDGET_FIX)
     if report.errors:
+        return True
+    for line in report.notes:
+        ok(line)
+    return False
+
+
+def section_refs() -> bool:
+    """Duplicate § in a doc and § references to ARCHITECTURE and AGENT_WORKFLOW that resolve to nothing (#338).
+    Returns True when something failed."""
+    report = refs.check(ROOT)
+    for line in report.errors:
+        bad(line)
+    if report.errors:
+        bad(
+            "a § is duplicated or a § reference does not resolve",
+            "Point each at the section it means (tools\\run.cmd section <doc> prints the outline), or name its doc\n"
+            "where the scope rules in tools/runner/refs.py pick the wrong one; never renumber a section.",
+        )
         return True
     for line in report.notes:
         ok(line)
