@@ -475,19 +475,44 @@ def _gh_result(data: object, rc: int = 0) -> Result:
 
 
 class FakeGitHub:
-    """`gh pr list|view|checks` from a table of PRs; `merged` PRs show MERGED once the push happened."""
+    """`gh pr list|view|checks|merge` and `gh api user` from a table of PRs; a PR shows MERGED once its base has its
+    head. `pr merge` checks its exact arguments and makes GitHub's merge commit on the remote's main."""
 
     def __init__(self, repo: Repo) -> None:
         self.repo, self.prs, self.checks = repo, {}, {}
+        self.user = merge.ENGINEER_LOGIN
+        self.merges: list[tuple[str, ...]] = []
+        self.merge_rc = 0  # 1: GitHub refuses the merge and changes nothing
 
     def add(self, number: int, head: str, base: str, **extra: object) -> None:
         oid = _git(self.repo.work, "rev-parse", head)
         self.prs[number] = {
             "number": number, "title": f"feat: task {number}", "state": "OPEN", "baseRefName": base,
             "headRefName": head, "headRefOid": oid, "isDraft": False, "headRepositoryOwner": {"login": "owner"},
-            **extra,
+            "author": {"login": merge.ENGINEER_LOGIN}, "body": "## Needs the engineer\nNone.\n",
+            "mergeable": "MERGEABLE", "latestReviews": [], "mergeCommit": None, **extra,
         }  # fmt: skip
         self.checks[number] = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"}]
+
+    def merge(self, args: tuple[str, ...]) -> Result:
+        self.merges.append(args)
+        number = int(args[2])
+        data = self.prs[number]
+        if args != ("pr", "merge", str(number), "--merge", "--match-head-commit", data["headRefOid"]):
+            raise AssertionError(f"unexpected gh {args}")
+        if self.merge_rc:
+            return _gh_result("GraphQL: Pull Request is not mergeable", self.merge_rc)
+        remote = self.repo.tmp / "remote.git"
+        main = _git(remote, "rev-parse", "refs/heads/main")
+        tree = _git(remote, "merge-tree", "--write-tree", main, data["headRefOid"]).split()[0]
+        message = merge.merge_message(merge.PullRequest.of(data))
+        commit = _git(
+            remote, "-c", "user.name=GitHub", "-c", "user.email=noreply@github.com", "commit-tree", tree, "-p", main,
+            "-p", data["headRefOid"], "-m", message,
+        )  # fmt: skip
+        _git(remote, "update-ref", "refs/heads/main", commit, main)
+        data["mergeCommit"] = {"oid": commit}
+        return _gh_result("")
 
     def view(self, number: int) -> dict:
         data = dict(self.prs[number])
@@ -508,20 +533,23 @@ class FakeGitHub:
         if args[:2] == ("pr", "checks"):
             checks = self.checks[int(args[2])]
             return _gh_result(checks, 0 if checks else 1) if checks else _gh_result("no checks reported", 1)
+        if args[:2] == ("pr", "merge"):
+            return self.merge(args)
+        if args == ("api", "user"):
+            return _gh_result({"login": self.user})
         raise AssertionError(f"unexpected gh {args}")
 
 
-class CommandTest(unittest.TestCase):
-    """merge-check, --trial and merge against a local remote, with gh and verify stubbed."""
+class MergeCase(unittest.TestCase):
+    """A local remote whose main holds FILES, with gh and verify stubbed (no tests of its own)."""
+
+    FILES = {
+        "core/content/player_rules.gd": PLAYER_RULES, "client/player/player_controller.gd": CONTROLLER,
+        "tools/runner/gdunit.py": GDUNIT,
+    }  # fmt: skip
 
     def setUp(self) -> None:
-        self.repo = Repo(
-            self,
-            {
-                "core/content/player_rules.gd": PLAYER_RULES, "client/player/player_controller.gd": CONTROLLER,
-                "tools/runner/gdunit.py": GDUNIT,
-            },
-        )  # fmt: skip
+        self.repo = Repo(self, self.FILES)
         self.gh = FakeGitHub(self.repo)
         self.verified: list[set[str]] = []
         self.user_dirs: list[Path] = []
@@ -578,6 +606,10 @@ class CommandTest(unittest.TestCase):
     def user_dirs_left(self) -> list[Path]:
         """The scratch worktrees' user:// folders still in the (temporary) app-data folder."""
         return [user for user in self.user_dirs if user.exists()]
+
+
+class CommandTest(MergeCase):
+    """merge-check, --trial and merge into a release branch against a local remote, with gh and verify stubbed."""
 
     # merge-check
 
@@ -845,11 +877,12 @@ class CommandTest(unittest.TestCase):
 
     def test_refusals_change_nothing(self) -> None:
         self.task(7, {"core/a.gd": "extends Node\n"})
-        self.task(8, {"core/b.gd": "extends Node\n"}, base="main")  # a PR into main, green: still refused
+        # A PR into main goes through its gate since #300: MainGateTest covers its refusals and its merge.
         tip, main = self.repo.remote("release/m1"), self.repo.remote("main")
         cases = {
-            "main": (lambda: merge.merge(8, base="main"), "only humans merge into main"),
-            "main, synced": (lambda: merge.merge(None, base="main", sync_main=True), "only humans merge into main"),
+            "main, synced": (
+                lambda: merge.merge(None, base="main", sync_main=True), "--sync-main goes only into a release branch"
+            ),
             "a branch that is not release/": (lambda: merge.merge(7, base="core/7-task"), "only into a release branch"),
             "neither a PR nor --sync-main": (lambda: merge.merge(None, base="release/m1"), "name one PR"),
             "both": (lambda: merge.merge(7, base="release/m1", sync_main=True), "name one PR"),
@@ -938,6 +971,326 @@ class CommandTest(unittest.TestCase):
         self.assertEqual(self.repo.remote("release/m1"), merged)
 
 
+LINK = "https://github.com/o/r/issues/170#issuecomment-1"
+APPROVED = f"Approved by the engineer: {LINK}\n"
+RELAYED = "## Cross-area\nagreed with the designer, relayed by the engineer; @SwiftySinister\n"
+
+
+class MainGateTest(MergeCase):
+    """merge <pr> --base main (#300): the gate's refusals, each with its reason, and the merge through GitHub."""
+
+    FILES = {
+        **MergeCase.FILES, "docs/decisions/2026-01-01-old.md": "# Old\n", "tools/runner/guard.py": "X = 1\n",
+        "docs/GDD.md": "# GDD\n",
+    }  # fmt: skip
+
+    def pr(self, number: int, files: dict[str, str | None], body: str | None = None, **extra: object) -> str:
+        """An open PR into main whose head is on origin (GitHub's merge needs its commits there)."""
+        branch = self.task(number, files, base="main")
+        self.repo.push(branch)
+        if body is not None:
+            self.gh.prs[number]["body"] = body
+        self.gh.prs[number].update(extra)
+        return branch
+
+    def verdict(self, number: int, dry_run: bool = True) -> tuple[int, str]:
+        self.printed.clear()
+        rc = merge.merge(number, base="main", dry_run=dry_run)
+        return rc, "\n".join(self.printed)
+
+    def main_moves_on_github(self) -> str:
+        """Another PR merged on GitHub: a commit on the remote's main that this checkout has not fetched."""
+        remote = self.repo.tmp / "remote.git"
+        main = _git(remote, "rev-parse", "refs/heads/main")
+        tree = _git(remote, "rev-parse", f"{main}^{{tree}}")
+        commit = _git(remote, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit-tree", tree, "-p", main,
+                      "-m", "another merge")  # fmt: skip
+        _git(remote, "update-ref", "refs/heads/main", commit, main)
+        return commit
+
+    def assert_refused(self, number: int, expected: str, dry_run: bool = True) -> str:
+        main = self.repo.remote("main")
+        rc, text = self.verdict(number, dry_run)
+        self.assertEqual(rc, 1, text)
+        self.assertIn(f"gate: refused: {expected}", text)
+        self.assertEqual((self.repo.remote("main"), self.gh.merges), (main, []))
+        return text
+
+    def test_a_clean_pr_merges_through_github(self) -> None:
+        branch = self.pr(30, {"core/a.gd": "extends Node\n"})
+        main = self.repo.remote("main")
+        self.assertEqual(merge.merge(30, base="main"), 0)
+        oid = self.gh.prs[30]["headRefOid"]
+        self.assertEqual(self.gh.merges, [("pr", "merge", "30", "--merge", "--match-head-commit", oid)])
+        merged = self.repo.remote("main")
+        remote = self.repo.tmp / "remote.git"
+        self.assertEqual(_git(remote, "log", "-1", "--format=%P", merged).split(), [main, oid])
+        self.assertEqual(_git(remote, "log", "-1", "--format=%B", merged),
+                         f"Merge pull request #30 from owner/{branch}\n\nfeat: task 30")  # fmt: skip
+        self.assertEqual(self.verified, [])  # no local verify: CI tested this tree (the head contains main)
+        self.assertEqual(self.scratch_left(), [])
+        self.assertEqual(_git(self.repo.work, "rev-parse", "origin/main"), merged)  # fetched afterwards
+        self.assertTrue(self.printed[-1].startswith(
+            f"wave: merged #30 ({branch}) into main as {merged[:12]} through GitHub; gate: CI green on an up-to-date "
+            "head"), self.printed[-1])  # fmt: skip
+        self.assertEqual(self.verdict(30, dry_run=False)[0], 0)
+        self.assertIn("already merged into main; fetched only", self.printed[-1])
+        self.assertEqual(len(self.gh.merges), 1)
+
+    def test_refusals_on_github_facts(self) -> None:
+        self.pr(30, {"core/a.gd": "extends Node\n"})
+        saved, checks = dict(self.gh.prs[30]), list(self.gh.checks[30])
+        cases = [
+            ("another base", {"baseRefName": "release/m1"}, None, "#30 targets release/m1, not main"),
+            ("draft", {"isDraft": True}, None, "#30 is a draft"),
+            ("the designer's PR", {"author": {"login": "SwiftySinister"}}, None,
+             "#30 is not authored by the engineer's account xperiaroco2 (author: SwiftySinister)"),
+            ("the designer's session", {}, "SwiftySinister", "gh runs as SwiftySinister, not the engineer's account"),
+            ("the designer's PR in the designer's session", {"author": {"login": "SwiftySinister"}}, "SwiftySinister",
+             "#30 is not authored by the engineer's account"),
+            ("a conflict", {"mergeable": "CONFLICTING"}, None, "GitHub says it is not mergeable"),
+        ]  # fmt: skip
+        for name, change, user, expected in cases:
+            with self.subTest(name):
+                self.gh.prs[30] = {**saved, **change}
+                self.gh.user = user or merge.ENGINEER_LOGIN
+                self.assert_refused(30, expected, dry_run=False)
+        self.gh.prs[30], self.gh.user = saved, merge.ENGINEER_LOGIN
+        for name, failing in (
+            ("pending", [{"name": "verify", "state": "PENDING", "bucket": "pending"}]),
+            ("failing", [{"name": "verify", "state": "FAILURE", "bucket": "fail"}]),
+            ("none", []),
+        ):
+            with self.subTest(name):
+                self.gh.checks[30] = failing
+                self.assert_refused(30, "CI is not green on its head", dry_run=False)
+        self.gh.checks[30] = checks
+        self.gh.prs[30]["state"] = "CLOSED"
+        with self.assertRaises(Failure) as caught:
+            merge.merge(30, base="main")
+        self.assertIn("#30 is closed, not open", str(caught.exception))
+        self.assertEqual(self.gh.merges, [])
+
+    def test_refuses_a_head_behind_main_and_a_moved_head(self) -> None:
+        branch = self.pr(31, {"core/a.gd": "extends Node\n"})
+        self.main_moves_on_github()  # another PR merged after #31 was published: its CI tested another tree
+        self.assert_refused(31, "behind main (origin/main ", dry_run=False)
+        self.gh.prs.pop(31)
+        _git(self.repo.work, "fetch", "-q", "origin")
+        _git(self.repo.work, "switch", "-q", "main")
+        _git(self.repo.work, "merge", "-q", "--ff-only", "origin/main")
+        branch = self.pr(32, {"core/b.gd": "extends Node\n"})
+        _git(self.repo.work, "switch", "-q", branch)
+        self.repo.commit({"core/b.gd": "extends Object\n"}, "pushed after GitHub's view")
+        self.repo.push(branch)  # GitHub still reports the old head
+        _git(self.repo.work, "switch", "-q", "main")
+        self.assert_refused(32, "origin/core/32-task is not at the PR's head", dry_run=False)
+
+    def test_main_moving_after_the_gate_refuses_the_merge(self) -> None:
+        self.pr(30, {"core/a.gd": "extends Node\n"})
+        real, moved = merge.fetch, []
+
+        def fetch_then_main_moves() -> None:
+            real()
+            if not moved:  # the gate's fetch saw main; GitHub merges another PR right after it
+                moved.append(self.main_moves_on_github())
+
+        with mock.patch.object(merge, "fetch", fetch_then_main_moves), self.assertRaises(Failure) as caught:
+            merge.merge(30, base="main")
+        self.assertIn("origin/main moved since the fetch", str(caught.exception))
+        self.assertIn("Nothing was merged", str(caught.exception))
+        self.assertEqual((self.repo.remote("main"), self.gh.merges), (moved[0], []))
+
+    def test_a_refused_github_merge_changes_nothing_and_a_late_success_counts(self) -> None:
+        self.pr(30, {"core/a.gd": "extends Node\n"})
+        main = self.repo.remote("main")
+        self.gh.merge_rc = 1
+        with self.assertRaises(Failure) as caught:
+            merge.merge(30, base="main")
+        self.assertIn("GitHub refused the merge of #30: GraphQL: Pull Request is not mergeable. Nothing was merged.",
+                      str(caught.exception))  # fmt: skip
+        self.assertEqual(self.repo.remote("main"), main)
+        # gh exits 1 although GitHub merged it (a timeout after the merge): GitHub's state counts.
+        self.gh.merge_rc = 0
+        real = self.gh.merge
+
+        def merged_then_timed_out(args: tuple[str, ...]) -> Result:
+            real(args)
+            return _gh_result("timeout", 1)
+
+        with mock.patch.object(self.gh, "merge", merged_then_timed_out):
+            self.assertEqual(merge.merge(30, base="main"), 0)
+        self.assertTrue(any("gh pr merge exited 1, but GitHub shows #30 merged" in line for line in self.printed))
+        self.assertTrue(self.printed[-1].startswith("wave: merged #30"), self.printed[-1])
+        self.assertNotEqual(self.repo.remote("main"), main)
+
+    def test_designer_area_needs_the_designers_review_or_the_relay_phrase(self) -> None:
+        # Each designer path, a hint in a comment and a review that is no approval: GateTextTest.test_exceptions.
+        self.pr(40, {"content/x.tres": "x = 1\n"})
+        self.assert_refused(40, "the designer's area (content/x.tres) without the designer's approving review")
+        self.gh.prs[40]["body"] = RELAYED
+        self.assertEqual(self.verdict(40)[0], 0, self.printed)
+        self.gh.prs[40]["body"] = ""
+        self.gh.prs[40]["latestReviews"] = [{"author": {"login": "SwiftySinister"}, "state": "APPROVED"}]
+        self.assertEqual(self.verdict(40)[0], 0, self.printed)
+
+    def test_permission_and_safety_files_are_always_refused(self) -> None:
+        # Each safety path: GateTextTest.test_exceptions.
+        self.pr(50, {"tools/runner/guard.py": "Y = 2\n"}, body=RELAYED + APPROVED)
+        self.assert_refused(50, "permission and safety files (tools/runner/guard.py): the engineer merges these")
+        self.gh.prs.pop(50)
+        self.pr(59, {"tools/runner/tests/test_guard.py": "Y = 2\n"})
+        self.assertEqual(self.verdict(59)[0], 0)
+
+    def test_adrs_need_the_engineers_approval_line(self) -> None:
+        # Deleted and new ADRs and the forms of the line: GateTextTest.test_exceptions.
+        old = "docs/decisions/2026-01-01-old.md"
+        self.pr(60, {old: "# Old, amended\n", "docs/AGENT_WORKFLOW.md": "# Workflow\n"})
+        text = self.assert_refused(60, f"ADRs {old} (changed) without an \"Approved by the engineer: <GitHub link>\"")
+        self.assertIn("refused (1 reason)", text)  # docs/AGENT_WORKFLOW.md needs nothing
+        self.gh.prs[60]["body"] = APPROVED
+        self.assertEqual(self.verdict(60)[0], 0, self.printed)
+
+    def test_needs_the_engineer_items_must_be_answered(self) -> None:
+        body = (
+            "## Needs the engineer\n1. **Night-time wakes.** As built.\n   - A) Allow them.\n   - B) No timer.\n\n"
+            f"   Recommendation: A. Answered: {LINK}\n2. The scope of the rule. Keep it.\n\n## Merge order\nNone.\n"
+        )
+        self.pr(70, {"core/a.gd": "extends Node\n"}, body=body)
+        self.assert_refused(70, "\"Needs the engineer\": item 2 (\"The scope of the rule. Keep it.\") has no")
+        self.gh.prs[70]["body"] = body.replace("Keep it.", f"Keep it. Answered: {LINK}")
+        self.assertEqual(self.verdict(70)[0], 0)
+
+    def test_a_closing_release_pr_needs_the_go(self) -> None:
+        # The milestone's closing PR: release/m1 into main, with provisional content and a new ADR in its diff.
+        self.repo.branch("stage", "origin/release/m1")
+        stage = self.repo.commit({"content/x.tres": "x = 1\n", "docs/decisions/2026-10-04-m1.md": "# M1\n"}, "stage")
+        self.repo.push("stage:refs/heads/release/m1")
+        _git(self.repo.work, "switch", "-q", "main")
+        _git(self.repo.work, "fetch", "-q", "origin")
+        self.gh.add(80, "release/m1", "main", headRefOid=stage)
+        text = self.assert_refused(80, "a milestone's closing PR (release/m1) merges after the engineer's go")
+        self.assertIn("the designer's area (content/x.tres)", text)
+        self.assertIn("ADRs docs/decisions/2026-10-04-m1.md (new)", text)
+        self.assertIn("refused (3 reasons)", text)
+        self.gh.prs[80]["body"] = APPROVED + "## Needs the engineer\nNone.\n"
+        self.assertEqual(self.verdict(80, dry_run=False)[0], 0, self.printed)
+        self.assertEqual(_git(self.repo.tmp / "remote.git", "log", "-1", "--format=%P", "main").split()[1], stage)
+
+    def test_dry_run_lists_every_refusal_and_merges_nothing(self) -> None:
+        self.pr(90, {"tools/runner/guard.py": "Y = 2\n"}, isDraft=True)
+        self.gh.checks[90] = [{"name": "verify", "state": "FAILURE", "bucket": "fail"}]
+        text = self.assert_refused(90, "#90 is a draft")
+        for expected in ("CI is not green on its head: verify: FAILURE", "permission and safety files",
+                         "gate: #90 into main: refused (3 reasons); nothing was merged"):  # fmt: skip
+            self.assertIn(expected, text)
+        self.gh.prs.pop(90)
+        self.pr(91, {"core/a.gd": "extends Node\n"}, mergeable="UNKNOWN")  # just pushed: GitHub has not computed it
+        main = self.repo.remote("main")
+        self.assertEqual(self.verdict(91), (0, "\n".join(self.printed)))
+        self.assertIn("gate: #91 would merge into main", self.printed[-1])
+        self.assertEqual((self.repo.remote("main"), self.gh.merges), (main, []))
+        # From a task's checkout: a dry run works, a merge is refused (workflow agents never merge).
+        worktree = self.repo.tmp / "main-copy" / ".claude" / "worktrees" / "42"
+        _git(self.repo.work, "worktree", "add", "-q", "--detach", str(worktree), "main")
+        with mock.patch.object(merge, "_cwd", lambda: worktree):
+            self.assertEqual(self.verdict(91)[0], 0)
+            with self.assertRaises(Failure) as caught:
+                merge.merge(91, base="main")
+        self.assertIn("task's checkout", str(caught.exception))
+        self.assertEqual(self.gh.merges, [])
+
+    def test_merge_check_flags_and_stacked_prs_are_notes_not_refusals(self) -> None:
+        # #153 renames a field #154 reads and a parameter that #161 (into release/m1) passes; #155 is stacked on it.
+        renamed = PLAYER_RULES.replace("ghost_speed_factor", "crawl_speed_mps")
+        gdunit = GDUNIT.replace("run_import: bool", "import_first: bool")
+        branch = self.pr(153, {"core/content/player_rules.gd": renamed, "tools/runner/gdunit.py": gdunit})
+        self.pr(154, {"client/player/player_controller.gd": CONTROLLER + "\nfunc f() -> float:\n"
+                      "\treturn rules.ghost_speed_factor\n"})  # fmt: skip
+        self.task(155, {"core/c.gd": "extends Node\n"}, base=branch)
+        calls = GDUNIT + "\n\ndef again(paths: list[str]) -> int:\n    return main(paths, run_import=False)\n"
+        self.task(161, {"tools/runner/gdunit.py": calls})
+        rc, text = self.verdict(153)
+        self.assertEqual(rc, 0, text)
+        self.assertIn("gate: note: #155 is stacked on it: GitHub retargets it to main", text)
+        self.assertIn("gate: note: merge-check: #153 + #154: overlap: `ghost_speed_factor`: after this merge #154 is "
+                      "behind main and needs pr-rebase", text)  # fmt: skip
+        self.assertIn("gate: note: merge-check across bases: #153 (main) + #161 (release/m1): overlap: `main`: after "
+                      "this merge, merge --sync-main --base release/m1, then pr-rebase #161 before it merges", text)
+        self.assertIn("gate: #153 would merge into main", text)
+
+
+class GateTextTest(unittest.TestCase):
+    """The gate's reading of a PR body and its paths (#300), without git."""
+
+    def test_needs_the_engineer_in_every_form(self) -> None:
+        unanswered = "1. Night-time wakes.\n   - A) Allow them.\n   - B) No timer.\n\n   Recommendation: A.\n"
+        answered = unanswered.replace("Recommendation: A.", f"Recommendation: A. Answered: {LINK}")
+        for label in ("## Needs the engineer", "**Needs the engineer**", "**Needs the engineer:**",
+                      "Needs the engineer:", "### Needs the engineer (1)"):  # fmt: skip
+            with self.subTest(label):
+                body = f"## Summary\nText.\n\n{label}\n{unanswered}\n## Merge order\nIndependent.\n"
+                self.assertEqual(merge.open_needs(body), ["item 1 (\"Night-time wakes.\") has no \"Answered: <GitHub "
+                                                          "link>\""])  # fmt: skip
+                self.assertEqual(merge.open_needs(body.replace(unanswered, answered)), [])
+        # "- " items count like numbered ones; nested option bullets are part of their item.
+        self.assertEqual(len(merge.open_needs(f"## Needs the engineer\n- One.\n  - (a) x\n- Two. Answered: {LINK}\n")), 1)
+        for empty in ("## Needs the engineer\nNone.\n", "## Needs the engineer\n\n## Merge order\nx\n",
+                      "**Needs the engineer:** nothing\n", "Needs the engineer: none, nothing blocking.\n",
+                      "## Summary\nNo section and no mention.\n",
+                      "<!-- ## Needs the engineer\n1. a template hint -->\n"):  # fmt: skip
+            with self.subTest(empty):
+                self.assertEqual(merge.open_needs(empty), [])
+        # Fail closed: text the gate cannot read as items, a mention without a section, a link off GitHub.
+        self.assertIn("text but no numbered", merge.open_needs("## Needs the engineer\nPlease confirm the scope.\n")[0])
+        self.assertIn("no section starts with it", merge.open_needs("Listed under Needs the engineer.\n")[0])
+        self.assertEqual(len(merge.open_needs("## Needs the engineer\n1. x Answered: https://example.com/1\n")), 1)
+
+    def test_exceptions(self) -> None:
+        def reasons(path: str, body: str = "", status: str = "M", **kw: bool) -> list[str]:
+            return merge.exception_reasons([(status, path)], body, "core/1-x", **kw)
+
+        for path in ("content/x.tres", "levels/a.tscn", "docs/GDD.md", "docs/design/a.md",
+                     ".claude/skills/new-mechanic/SKILL.md", ".claude/skills/new-level-piece/SKILL.md"):  # fmt: skip
+            with self.subTest(path):
+                self.assertIn(f"the designer's area ({path})", reasons(path)[0])
+                self.assertEqual(reasons(path, RELAYED.upper()), [])
+                self.assertEqual(reasons(path, designer_approved=True), [])
+                # The template's hint carries the phrase inside an HTML comment: it does not count; nor the go.
+                self.assertEqual(len(reasons(path, f"<!-- \"{merge.RELAY_PHRASE}\" -->\n" + APPROVED)), 1)
+        for path in (".claude/settings.json", ".claude/settings.local.json", ".claude/githooks/pre-push",
+                     "tools/runner/guard.py"):  # fmt: skip
+            with self.subTest(path):
+                self.assertIn(f"permission and safety files ({path})", reasons(path, RELAYED + APPROVED)[0])
+        for path in ("tools/runner/tests/test_guard.py", ".claude/skills/finish-task/SKILL.md", "docs/designs.md"):
+            self.assertEqual(reasons(path), [])
+        old = "docs/decisions/2026-01-01-old.md"
+        for status, kind in (("M", "changed"), ("D", "deleted"), ("A", "new")):
+            with self.subTest(kind):
+                self.assertIn(f"ADRs {old} ({kind}) without", reasons(old, status=status)[0])
+                for body in (f"<!-- {APPROVED} -->", "Approved by the engineer: https://example.com/x\n",
+                             f"Not yet: Approved by the engineer: {LINK}\n"):  # fmt: skip
+                    self.assertEqual(len(reasons(old, body, status)), 1, body)
+                for body in (APPROVED, f"- **Approved by the engineer:** {LINK}\n", f"Text.\n  {APPROVED}"):
+                    self.assertEqual(reasons(old, body, status), [], body)
+        adr = [("A", "docs/decisions/x.md")]
+        self.assertEqual(merge.exception_reasons([("M", "core/a.gd")], "", "core/1-x"), [])
+        self.assertEqual(len(merge.exception_reasons(adr, "", "core/1-x")), 1)
+        self.assertEqual(merge.exception_reasons(adr, APPROVED, "core/1-x"), [])
+        # The go of a closing PR clears its designer-area paths and ADRs, never the safety files.
+        paths = [("M", "content/x.tres"), *adr, ("M", ".claude/settings.json")]
+        reasons = merge.exception_reasons(paths, APPROVED, "release/m5")
+        self.assertEqual(len(reasons), 1)
+        self.assertIn("permission and safety files (.claude/settings.json)", reasons[0])
+        self.assertEqual(len(merge.exception_reasons(paths, "", "release/m5")), 4)
+        self.assertEqual(merge.exception_reasons([("M", "content/x.tres")], "", "c/1-x", designer_approved=True), [])
+
+    def test_the_owners_match_codeowners(self) -> None:
+        owners = (ROOT / ".github" / "CODEOWNERS").read_text(encoding="utf-8")
+        self.assertRegex(owners, rf"(?m)^\*\s+@{merge.ENGINEER_LOGIN}\s*$")
+        self.assertRegex(owners, rf"(?m)^/content/\s+@{merge.DESIGNER_LOGIN}\s*$")
+
+
 class TypedCommandsTest(unittest.TestCase):
     """What a manager types runs without a prompt: the merge's own git commands run inside the runner's process,
     which the permission rules and the guard never see."""
@@ -950,6 +1303,10 @@ class TypedCommandsTest(unittest.TestCase):
         ("Bash", "tools/run.sh merge-check --base main"),
         ("Bash", "tools/run.sh merge 154 --base release/m4"),
         ("Bash", "cd /d/prime-game/.claude/worktrees/release-m5 && tools/run.sh merge --sync-main --base release/m5"),
+        ("PowerShell", r"tools\run.cmd merge 154 --base main"),
+        ("PowerShell", r"cd D:\prime-game; tools\run.cmd merge 154 --base main"),
+        ("PowerShell", r"tools\run.cmd merge 154 --base main --dry-run"),
+        ("Bash", "tools/run.sh merge 154 --base main --dry-run"),
     ]
 
     def test_from_the_main_checkout_and_from_a_worktree(self) -> None:
@@ -959,10 +1316,20 @@ class TypedCommandsTest(unittest.TestCase):
                     verdict = permissions.verdict(RULES, guard, tool, command, cwd, MAIN, guard.NoRepo(), bypass=False)
                     self.assertEqual(verdict[0], permissions.PASS, verdict)
 
+    def test_a_typed_gh_pr_merge_stays_denied(self) -> None:
+        # Only the runner's own subprocess merges through GitHub, after the gate (#300).
+        for tool in ("PowerShell", "Bash"):
+            for command in ("gh pr merge 154 --merge --match-head-commit abc", "gh pr merge 154 --admin"):
+                with self.subTest(tool=tool, command=command):
+                    verdict = permissions.verdict(RULES, guard, tool, command, MAIN, MAIN, guard.NoRepo(), bypass=False)
+                    self.assertEqual(verdict[0], permissions.DENIED, verdict)
+
     def test_the_parser(self) -> None:
         parser = cli.build_parser()
         args = parser.parse_args(["merge", "154", "--base", "release/m4"])
-        self.assertEqual((args.pr, args.base, args.sync_main), (154, "release/m4", False))
+        self.assertEqual((args.pr, args.base, args.sync_main, args.dry_run), (154, "release/m4", False, False))
+        args = parser.parse_args(["merge", "154", "--base", "main", "--dry-run"])
+        self.assertEqual((args.pr, args.base, args.dry_run), (154, "main", True))
         args = parser.parse_args(["merge-check", "--trial", "1", "2"])
         self.assertEqual((args.prs, args.trial, args.base), ([1, 2], True, None))
         with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
