@@ -265,13 +265,17 @@ class Doctor:
             )
             return
         # `git ls-files -t` tags a file the sparse checkout leaves out "S"; one deleted by hand, as CI does, is still
-        # "H", and `git add -A` would commit its deletion.
-        tags = run(["git", "ls-files", "-t", "--", *TWOVOIP_FILES], timeout=30, cwd=ROOT).out.split()
-        if tags[0::2] == ["S"] * len(TWOVOIP_FILES):
+        # "H", and `git add -A` would commit its deletion. A checkout from before M5 tracks neither: nothing to do.
+        listing = run(["git", "ls-files", "-t", "--", *TWOVOIP_FILES], timeout=30, cwd=ROOT)
+        tags = listing.out.split()[0::2] if listing.rc == 0 else ["?"]
+        if not tags:
+            ok("no TwoVoIP extension in this checkout")
+        elif set(tags) == {"S"}:
             ok("TwoVoIP extension left out (a cloud session runs without it, as CI does)")
         else:
             self.fail(
-                "the TwoVoIP extension is deleted, not left out by the sparse checkout: a commit could take the deletion",
+                "the TwoVoIP extension is deleted, not left out by the sparse checkout: a commit could take the "
+                "deletion",
                 fix,
             )
 

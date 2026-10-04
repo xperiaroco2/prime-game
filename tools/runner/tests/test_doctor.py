@@ -68,18 +68,19 @@ class CloudTwovoipTest(unittest.TestCase):
     checkout rather than deleted (a deletion could be committed). Each case is a real git repository."""
 
     def check(self, state: str, *, cloud: bool = True, ci: bool = False) -> tuple[int, str]:
-        """state: "present" (as cloned), "deleted" (by hand, as CI does) or "sparse" (as tools/cloud/setup.sh does)."""
+        """state: "present" (as cloned), "deleted" (by hand, as CI does), "sparse" (as tools/cloud/setup.sh does) or
+        "untracked" (a checkout from before M5)."""
         buffer = io.StringIO()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
 
             def git(*args: str) -> None:
-                subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=root, check=True,
-                               capture_output=True)  # fmt: skip
+                config = ["-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+                subprocess.run(["git", *config, *args], cwd=root, check=True, capture_output=True)
 
             git("init", "-q")
             (root / "project.godot").touch()
-            for path in doctor.TWOVOIP_FILES:
+            for path in doctor.TWOVOIP_FILES if state != "untracked" else ():
                 (root / path).parent.mkdir(parents=True, exist_ok=True)
                 (root / path).touch()
             git("add", "-A")
@@ -116,6 +117,11 @@ class CloudTwovoipTest(unittest.TestCase):
         failures, out = self.check("sparse")
         self.assertEqual(failures, 0)
         self.assertIn("ok    TwoVoIP extension left out", out)
+
+    def test_a_checkout_from_before_the_addon_is_ok(self) -> None:
+        failures, out = self.check("untracked")
+        self.assertEqual(failures, 0)
+        self.assertIn("ok    no TwoVoIP extension in this checkout", out)
 
     def test_a_pc_and_ci_are_not_checked(self) -> None:
         self.assertEqual(self.check("present", cloud=False), (0, ""))

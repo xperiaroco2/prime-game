@@ -38,28 +38,27 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 ### 2.1 Cloud sessions
 A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clone) runs `tools/run.sh verify` as CI
 does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.sh`, then `tools/run.sh doctor`.
-- **`tools/cloud/setup.sh`** (from any folder; idempotent, about 7 s with the download): installs the pinned Godot
-  Linux build in `~/godot/godot` (SHA-512 checked) and links it as `godot` on PATH, installs the pinned gdtoolkit with
-  pip, and raises `net.core.rmem_default` to 416 KB when lower (some container kernels hold only 256 small datagrams
-  in the 208 KB default; verify's stall step queues 320). **In a cloud session only** (`CLAUDE_CODE_REMOTE=true`) it
-  also leaves the Windows-only TwoVoIP extension (`addons/twovoip/twovoip.gdextension` and its `.uid`, the M5 voice
-  ADR §2) out of the clone with a non-cone sparse checkout, as CI deletes them: on Linux Godot prints an `ERROR:`
-  line for the extension and every Godot step of `verify` fails. git still tracks both files, so `git status` stays
-  clean and no commit can take their deletion; `git update-index --skip-worktree` alone brought the file back on a
-  switch to a commit that changes it, on `reset --hard` and in a new worktree, and the sparse patterns held through
-  all three. Undo with `git sparse-checkout disable`. If Godot imported the project before, a `run` still loads the
-  extension until the next `check` (ARCHITECTURE §6, "The addon in the repo"); `verify` runs `check` first. `doctor`
-  (also `--quick`, so `verify` stops at once) fails in a
-  cloud session while the `.gdextension` is in the working tree or was deleted by hand, and names the fix; it skips
-  the machine paths and `gh` there, as on CI.
+- **`tools/cloud/setup.sh`** (from any folder; idempotent; 7 s in #345's session, the Godot download included): installs
+  the pinned Godot Linux build in `~/godot/godot` (SHA-512 checked) and links it as `godot` on PATH, installs the pinned
+  gdtoolkit with pip, and raises `net.core.rmem_default` to 416 KB when lower (some container kernels hold only 256
+  small datagrams in the 208 KB default; verify's stall step queues 320). **In a cloud session only**
+  (`CLAUDE_CODE_REMOTE=true`) it also leaves the Windows-only TwoVoIP extension (`addons/twovoip/twovoip.gdextension`
+  and its `.uid`, the M5 voice ADR §2) out of the clone with a non-cone sparse checkout, as CI deletes them: on Linux
+  Godot prints an `ERROR:` line for the extension and every Godot step of `verify` fails. git still tracks both files,
+  so `git status` stays clean and no commit can take their deletion; `git update-index --skip-worktree` alone brought
+  the file back on a switch to a commit that changes it, on `reset --hard` and in a new worktree, and the sparse
+  patterns held through all three. Undo with `git sparse-checkout disable`. If Godot imported the project before, a
+  `run` still loads the extension until the next `check` (ARCHITECTURE §6, "The addon in the repo"); `verify` runs
+  `check` first. `doctor` (also `--quick`, so `verify` stops at once) fails in a cloud session while the `.gdextension`
+  is in the working tree or was deleted by hand, and names the fix; it skips the machine paths and `gh` there, as on CI.
 - **As the environment's setup script** (not yet tried): such a script runs before Claude Code starts, and the
   environment caches the resulting filesystem while each session starts from a fresh clone
   (code.claude.com/docs/en/cloud-environments), so the sparse checkout and the sysctl may not reach a later session,
   nor is it documented that `CLAUDE_CODE_REMOTE` is set at that point. Hence the first command above; `doctor` says
   when it is due.
-- **Python:** the image's `python3` is 3.11, the runner's minimum (`pins.PYTHON_MIN`; 3.12 and 3.13 are installed
-  too), while CI runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on 3.11.
-- **Network access** (the default Trusted level sufficed): `github.com` with `release-assets.githubusercontent.com`
+- **Python:** the image's `python3` is 3.11, the runner's minimum (`pins.PYTHON_MIN`; 3.10, 3.12 and 3.13 are
+  installed too), while CI runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on 3.11.
+- **Network access** (what #345's session used): `github.com` with `release-assets.githubusercontent.com`
   for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit. The session's proxy refuses API calls and
   feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
   reads public pages (docs, release pages) for research.
@@ -75,8 +74,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 - **Agents:** the subagents in `.claude/agents/` run there (#345: `code-reviewer` on its diff, and `agents-check`
   passed on its transcript). The Workflow tool is offered, under the `small` size guideline; #345's session launched
   none.
-- **Timing (#345, 4 CPUs):** `doctor` 5 s; a full `verify` 6 minutes (the Python lane 3.8, the Godot lane 6; `test`
-  3.4 and `selftest` 3.3 the longest).
+- **Timing (measured in #345's session, 4 CPUs):** `doctor` 5 s; a full `verify` 6 minutes (the Python lane 3.8,
+  the Godot lane 5.9; `test` 3.4 and `selftest` 3.3 the longest).
 - **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` or run `playcheck` (they
   stop with "needs a desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the
   humans' settings files, the TwoVoIP round trip).
