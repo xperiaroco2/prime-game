@@ -33,6 +33,12 @@ var now_usec := 0
 ## Count MatchEnded sides from what the bots decoded (over ENet a bot's own process has no
 ## observer); the one-process runner counts them from the host's slices instead.
 var ends_from_bots := false
+## Each frame the clients poll (step_clients), the bots act and move (play_frame), and only then do
+## the clients claim (claim_clients): a claim covers the client ticks since the last one and carries
+## the travel of exactly those ticks, also after a stall of the process (#284). Off (the chaos, perf
+## and playcheck runners), a client claims as it polls, before the bot moves, so the bot moves one
+## client tick at most per frame: a stall slows it down.
+var claims_after_moves := false
 
 ## Bot number -> the client tick of its last move: kept by _stand only in the client tick of that
 ## move, and dropped while the bot is dead, so the first walk after standing or a respawn covers one
@@ -49,6 +55,13 @@ var _forced: Dictionary[int, bool] = {}
 ## Bot number -> its stamina as its client predicts it.
 var _stamina: Dictionary[int, PredictedStamina] = {}
 var _settings_sent := false
+## The clients polled since they last claimed (claims_after_moves).
+var _claims_due := false
+## Bot number -> the client ticks its last walk covered.
+var _travel_now: Dictionary[int, int] = {}
+## The bots whose next claim starts a new baseline of one client tick (after a Welcome or a
+## Correction), until it goes out.
+var _fresh_claim: Dictionary[int, bool] = {}
 
 
 ## Makes `bot`'s client on `transport` (not joined yet, or the host's own client).
@@ -57,6 +70,7 @@ func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
 	client.keep_history = true
 	client.load_levels = false
 	client.hold_load_ack = func() -> bool: return bot.current_step() is StepLoadAck
+	client.hold_claims = claims_after_moves
 	client.event_received.connect(_on_event.bind(bot))
 	transport.connected.connect(_on_connected.bind(bot))
 	clients[bot.number] = client
@@ -67,14 +81,20 @@ func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
 		func(epoch: int, tick: int, covered: int, sprint: bool, moved: bool) -> void:
 			stamina.settle_claim(epoch, tick, covered, sprint, moved, bot.downed)
 	)
+	# A method, not the lambda's: a lambda that reads a member holds this runner, and the client it
+	# holds would never be freed.
+	client.claim_sent.connect(_on_claim_sent.bind(bot))
 	client.corrected.connect(
 		func(_position: Vector3, _velocity: Vector3) -> void: stamina.forget_unclaimed_jumps()
 	)
 	return client
 
 
-## Steps every bot's client at now_usec.
+## Steps every bot's client at now_usec. With claims_after_moves the claims wait for
+## claim_clients(); those of a frame that played no play_frame go out here, first.
 func step_clients() -> void:
+	if _claims_due:
+		claim_clients()
 	for bot: ScenarioBot in bots:
 		var client: BotClient = clients.get(bot.number)
 		if client == null or client.is_ended():
@@ -83,6 +103,16 @@ func step_clients() -> void:
 		if client.model.snapshot_tick != _snapshot_seen.get(bot.number, -1):
 			_snapshot_seen[bot.number] = client.model.snapshot_tick
 			bot.see(client.model.avatars)
+	_claims_due = claims_after_moves
+
+
+## Each client sends the MoveClaim due by now_usec, with its bot's move of this frame.
+func claim_clients() -> void:
+	_claims_due = false
+	for bot: ScenarioBot in bots:
+		var client: BotClient = clients.get(bot.number)
+		if client != null and not client.is_ended():
+			client.claim(now_usec)
 
 
 ## Every bot acts on what it decoded so far, at tick `at_tick` of the runner's clock, then speaks.
@@ -96,6 +126,15 @@ func play_frame(at_tick: int) -> void:
 			continue
 		_act(bot, at_tick)
 		_speak(bot)
+	if _claims_due:
+		claim_clients()
+
+
+## A claim went out: the bot's fresh baseline, if any, is behind it.
+func _on_claim_sent(
+	_epoch: int, _tick: int, _covered: int, _sprint: bool, _moved: bool, bot: ScenarioBot
+) -> void:
+	_fresh_claim.erase(bot.number)
 
 
 ## Its session ended (the host disconnected it, closed, or refused its join): it acts no more, but a
@@ -133,6 +172,10 @@ func _on_event(event_name: StringName, fields: Dictionary, bot: ScenarioBot) -> 
 			fields["claim_tick"] as int,
 			clients[bot.number].model.epoch
 		)
+	if event_name == &"Welcome" or event_name == &"Correction":
+		# The claim that follows may cover one client tick (ClientSession's fresh baseline after
+		# a Welcome or a placement): until it goes out the bot moves one tick at most.
+		_fresh_claim[bot.number] = true
 	var problem := bot.receive(event_name, fields)
 	if not problem.is_empty():
 		_fail_step(bot, problem)
@@ -206,11 +249,27 @@ func _join_host(_bot: ScenarioBot) -> String:
 	return "this runner joins no bot late"
 
 
+## With claims_after_moves, the client ticks since the bot's last move or its client's last claim,
+## the later: this frame's claim covers them (one after a Welcome or a placement, or the first).
+## Otherwise one in a frame whose client tick rose, never the ticks a stall skipped (#284): the
+## client claimed at the start of the frame, before the bot moved, so the next claim covers one
+## client tick or a few and must not carry the stall's travel.
 func _travel_ticks(bot: ScenarioBot) -> int:
-	var now_tick := clients[bot.number].client_tick(now_usec)
-	var last: int = _moved_tick.get(bot.number, now_tick - 1)
+	var client: BotClient = clients[bot.number]
+	var now_tick := client.client_tick(now_usec)
+	var ticks := 0
+	if claims_after_moves:
+		var moved: int = _moved_tick.get(bot.number, -1)
+		var from := maxi(moved, client.last_claim_tick())
+		ticks = now_tick - from
+		if _fresh_claim.has(bot.number) or client.last_claim_tick() < 0:
+			ticks = mini(1, ticks)
+	else:
+		var last: int = _moved_tick.get(bot.number, now_tick - 1)
+		ticks = mini(1, now_tick - last)
 	_moved_tick[bot.number] = now_tick
-	return now_tick - last
+	_travel_now[bot.number] = ticks
+	return ticks
 
 
 func _claim(bot: ScenarioBot, to: Vector3, velocity: Vector3, sprint: bool) -> void:
@@ -234,7 +293,11 @@ func _stand(bot: ScenarioBot) -> void:
 	client.set_motion(bot.position, Vector3.ZERO, facing, false, false, true)
 
 
+## A walk that covers more than one client tick (after a stall) walks: the stamina it predicts
+## pays for the next tick, not for every tick of the catch-up.
 func _sprint_available(bot: ScenarioBot) -> bool:
+	if _travel_now.get(bot.number, 1) > 1:
+		return false
 	var stamina := _stamina[bot.number]
 	return stamina.can_sprint(stamina.is_sprinting(), bot.downed)
 
