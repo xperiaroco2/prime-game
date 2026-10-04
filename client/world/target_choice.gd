@@ -23,11 +23,11 @@ const PICK_RADIUS_M := 0.3
 ## physics, and it carries the step before it (the session claims at the start of the physics
 ## step, before the controller moves). E's PickUp (or Raise: LifeView's raise hint stops the same
 ## margin short, #352) goes before the next claim, so on an even clock the host's feet trail by 1
-## to 3 steps: one claim interval, 1/20 s. A clock that stalls and
-## then jumps puts 4 steps into a claim interval now and then, so the margin is one claim
-## interval plus one physics step, 1/20 + 1/60 s = 4/60 s: 0.3 m at the base mode's 4.5 m/s,
-## and the hint shows from 1.7 m of its 2 m. Sprinting in (7 m/s) can still outrun it; once the
-## player stands, the host catches up within a claim.
+## to 3 steps: one claim interval, 1/20 s. A clock that stalls and then jumps puts 4 steps into a
+## claim interval now and then, so the margin is one claim interval plus one physics step, 1/20 +
+## 1/60 s = 4/60 s: 0.3 m at the base mode's 4.5 m/s, and the hint shows from 1.7 m of its 2 m.
+## Sprinting in (7 m/s) can still outrun it; once the player stands, the host catches up within a
+## claim.
 const HINT_MARGIN_S := 1.0 / Ticks.RATE + 1.0 / 60.0
 
 
