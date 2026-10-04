@@ -88,7 +88,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 | File | Loaded | Content | Budget |
 |---|---|---|---|
-| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, exact runner commands, PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
+| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, the runner command names (each command's `--help` says the rest), PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (designer-owned) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
@@ -135,6 +135,12 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
   Code would then load the rule at every launch). The same PR then scopes a rule to paths, moves it into a skill, or
   retires it, and the intervention entry says which.
+- **[applied]** Root's commands section is the runner line and one line of command names, no table (#340; N2 (a) of
+  the instruction-diet ADR, PR #325): each command's `--help` (its `description` in `tools/runner/cli.py`) carries what
+  its table row said. A new command adds its name in alphabetical order and a description; a note on the names line
+  only where nothing else always loaded says it (`bots` is the information-leak test). The runner test
+  `tools/runner/tests/test_cli_help.py` fails a name missing on either side, a command without a description, or a
+  fact of an old row gone from its `--help`.
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
@@ -1237,7 +1243,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
   `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-  `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), and `hook` (for Claude Code only). Pins
+  `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), and `hook` (for Claude Code only).
+  Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins
   and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
   launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
   PowerShell) the runner takes the machine paths from the Claude settings (§2).

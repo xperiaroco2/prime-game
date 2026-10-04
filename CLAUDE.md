@@ -41,27 +41,9 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 - The transport stays behind an abstraction (ENet now; Steam or WebRTC later).
 
 ## Commands
-Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
-
-| Command | What it does |
-|---|---|
-| `doctor [--quick]` | Checks the environment and prints fixes. Run it first in every session |
-| `lint [--fix] [paths]` | gdformat and gdlint on files or folders; with none, all GDScript plus CLAUDE.md budgets and rule/agent frontmatter |
-| `check [res://paths]` | Headless import, warnings policy, UID lint, parse and load of every script and scene |
-| `test [paths] [--shards K \| --repeat N] [--fixed-fps \| --real-time]` / `mutants <spec.json>` | GdUnit4 headless (no paths: K processes at once, the frame-bound suites at fixed fps, as in `verify`); judged by exit code and `results.xml`; orphan nodes fail; `--repeat`: N runs in a row (flaky hunt) / each fault of the spec (`--help`) planted in a scratch worktree of HEAD, its tests run there; exit 2: tell the human |
-| `verify` / `wait <log>\|--verified [--max S]` | Everything CI runs: `doctor`, then (on a PC in one of 2 machine-wide slots, waiting at most 600 s) a Python and a Godot lane at once; the definition-of-done gate / at most S s (240) for a background job's last line `exit=<n>`: its summary and code, else 124 (still running); 2: no log; `--verified`: 0 when the newest verify passed at HEAD with a clean tree |
-| `start <n> [--base P] [--here] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (the branch of a parent's open PR), for the engineer in its worktree, assign, board In progress (skill `start-task`) |
-| `publish [--base B]` / `merge-check [--base B] [--trial] [<pr>...]` / `merge <pr>\|--sync-main --base B [--dry-run]` / `merge-train <pr>... --base main [--dry-run] [--recent M]` | Rebases the task branch on its PR base (else `start --base`, else main), runs `verify`, pushes with a lease / open PRs onto their base and pairwise: textual conflicts and symbol overlaps, exit 1 on either; `--trial`: merged in order in a scratch worktree, then `verify` / B `main`: a PR through GitHub when its gate passes; B `release/<x>`: a manager's merge, `verify` on the merged tree, push by hash (AGENT_WORKFLOW §7.1) / PRs into main one by one: `publish` in each one's worktree, its CI, `merge`'s gate; a failing PR skipped with the reason (a background job) |
-| `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
-| `normalize <files>` / `shot <scene>` / `playcheck [scenario ...] [--seconds S]` | Re-save `.tscn`/`.tres` as the editor would / an off-screen PNG of a scene / the game in off-screen windows (bots for the rest) running scripted steps, PNGs at named steps; never CI |
-| `run <x.tscn\|x.gd> [--headless\|--offscreen] [--seconds N] [--instances N] [-- args]` | Runs it with the pinned Godot; fails on a non-zero exit, a timeout or an `ERROR:` line. Your own checks: `--headless` |
-| `host [--port P] [--clients N] [--local] [--seconds S] [--headless]` / `join <address> [--port P] [--seconds S] [--headless]` | The game over ENet in windows (tiled on one PC); `--headless`: M3's session printing roster, phase and counters. Yours stay headless (`CLAUDECODE`); never `--windows`. Checks: `--local --seconds` |
-| `credits` | Writes `CREDITS.md` from `docs/credits/`; `check` fails on an LFS asset without an entry |
-| `bots [scenario ...] [--instances N] [--seconds S]` / `bots --chaos [--seed N] [--runs K] [--long] [--enet]` / `perf [--bots N] [--seconds S] [--enet] [--baseline F]` / `load [--loops N] [--seconds S]` | Bot scenarios through the host and client sessions, and the information-leak test; `--instances N` (N > 1): one scenario over ENet, a process per bot / hostile and malformed peers against the host (no seed: random, printed) / host tick time and bytes per peer with 10 bots, compared with the last run (not `verify`) / busy loops (2 per CPU, 600 s) in a verify slot, to test under load: in the background, your steps after `load: running`; no slot in time: exit 1 |
-| `agents-check` / `metrics [--since T] [--until T] [--compact]` / `wave --since T [--base B] \| --args <n>` / `worktree-done <n> [--pushed]` | Subagents and workflow agents ran on their models / time and API list $ per task workflow from the transcripts / the whole wave comment's body (runs, PRs, merge-check, cost, housekeeping, handover args; posts nothing), or issue n's launch args as JSON / remove a merged (or pushed spike) task's worktree |
-| `selftest` / `pins [--get X]` / `permissions [--before R]` | The runner's own tests / pinned tool versions / transcripts replayed through the permission rules and the guard |
-
+`tools\run.cmd <command>` (Git Bash and CI: `tools/run.sh <command>`); `<command> --help` gives its use and exit codes.
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.
+Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `doctor` (first in every session) `host` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `selftest` `shot` `start` `test` `verify` `wait` `wave` `worktree-done`
 
 ## Shell
 PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 0) { B }`); the Bash tool is Git Bash.
