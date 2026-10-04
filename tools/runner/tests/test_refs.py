@@ -164,6 +164,22 @@ class LintTest(unittest.TestCase):
                 self.assertFalse(lint.section_refs())
         self.assertIn("ok    § references: 5 to ARCHITECTURE and AGENT_WORKFLOW resolve", out.getvalue())
 
+    def test_lint_without_paths_runs_the_check_and_with_paths_skips_it(self) -> None:
+        bad = refs.Report(errors=["a.md:1: §9 is not a section of docs/AGENT_WORKFLOW.md"])
+        with (
+            mock.patch.object(lint, "gdscript", return_value=False),
+            mock.patch.object(lint, "instruction_files", return_value=False),
+            mock.patch.object(lint, "targets_of", return_value=[Path("core/a.gd")]),
+            mock.patch.object(lint, "gd_files", return_value=[Path("core/a.gd")]),
+            mock.patch.object(refs, "check", return_value=bad) as checked,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(lint.main(), 1)
+            checked.assert_called_once()
+            checked.reset_mock()
+            self.assertEqual(lint.main(files=["core"]), 0)
+            checked.assert_not_called()
+
     def test_the_repo_resolves(self) -> None:
         """The same check as `lint`, on this checkout: every § reference to the two docs resolves."""
         self.assertEqual(refs.check(ROOT).errors, [])
