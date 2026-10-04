@@ -8,10 +8,11 @@ Snapshots: other managers launch these scripts by name from their own copies and
 resume replays an agent only while its prompt and options are unchanged. So with none of the optional pipeline-v2 args
 (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4) every agent's prompt, label, phase,
 schema and options must stay byte-identical: `workflow_snapshots/<script>/<case>.txt` holds them for representative
-arg sets, captured from the scripts on origin/main before v2 changed them; one more case pins the publish_clean trial
-of #308 (`publish-clean-main`). A deliberate change of a default prompt
-rewrites them: run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose,
-naming the files it wrote), review the diff, commit it with the change, and run `selftest` again without the variable.
+arg sets, captured from the scripts on origin/main before v2 changed them. The one exception is `publish-clean-main`:
+it passes a v2 arg and pins the publish_clean trial of #308, so the byte-identical rule covers every other case. A
+deliberate change of a default prompt rewrites them: run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the
+snapshot test then fails on purpose, naming the files it wrote), review the diff, commit it with the change, and run
+`selftest` again without the variable.
 """
 
 import difflib
