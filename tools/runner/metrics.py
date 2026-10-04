@@ -42,6 +42,28 @@ gap began: a keep-alive timer armed (a Bash or PowerShell call with `run_in_back
 `sleep`, optionally followed by an `echo`; armed from its line until the task notification naming its tool-use id, or
 until its seconds or its timeout ran out; one armed before --since counts while it is still armed), else a workflow
 run of the session in flight, else a stop.
+
+Quality scorecard (#314), per finished issue-task run, so a cost change is judged by quality as well as by $:
+- from the journal: the blockers and majors of the diff reviewers and the test review (SERIOUS_FROM; matched as
+  issue-task.js's SERIOUS, case-insensitive), how many skeptics checked and refuted, "open" (those minus the refuted)
+  and "clean" (none open, not stopped by mutants and not a design task, which its implementer's prompt says
+  (DESIGN_TASK): #315's publish_clean rule, derived here because a run's return value is not journaled), the
+  publisher's fixed, not_fixed and needs_engineer, its PR (pr_number, else pr_url), and its fix rounds (its
+  `publish` calls minus one, every attempt of a retried publisher counted); each agent's model and effort from its
+  transcript;
+- from `gh` (read-only, unless --no-gh): the PR's state; its CI rounds, one per head SHA of the pull_request runs of
+  CI_WORKFLOW on its branch: red when a run of it ended in CI_RED (a SHA whose runs were all cancelled or skipped is no
+  round; a re-run attempt shows only its last conclusion, so a re-run round counts in ci_reruns), "green on the first
+  CI round" from the earliest round only (unknown when that round was re-run to green: it may have been red), and
+  the red rounds that began after the run ended; Found-by follow-ups (issues whose "Found by" line names the
+  task's issue or PR: a lower bound, since nothing makes an agent write one); fix-up PRs (later PRs titled `revert`
+  or `fix(...)`/`fix:` that name the PR or issue, as `#N` or `owner/repo#N`, in the title or in a body sentence that
+  reverts or repairs it (REGRESSION), outside their "Found by" lines and their Merge order and Verification sections,
+  from another branch than the task's own `<area>/<n>-...`).
+Unknown is None in the JSON and "?" in the tables, never 0: a run without a PR, an older result shape without the
+key, skeptics not run while blockers or majors stand, no diff reviewer, a PR of another repository or missing from
+the list, a branch without CI runs, a run list cut before the PR, `gh` skipped or failed. Medians and sums count only
+the known values and say how many are known; PR-level signals count once per PR.
 """
 
 from __future__ import annotations
@@ -58,7 +80,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import agents_check
-from .common import OUT, ROOT, Failure, run, say
+from .common import OUT, ROOT, Failure, run, say, warn
 
 TOKEN_FIELDS = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
 SHORT = {
@@ -80,14 +102,18 @@ PRICES = {
 USD_KEYS = ("usd_input", "usd_cache_write", "usd_cache_read", "usd_output")
 # 1% of a Max 20x week in API list $ (#304, measured in #302): Max 20x; 66% at 2026-10-03 20:54 UTC = $1,690 list since
 # the counter restarted at the plan change (2026-10-02 about 10:30 UTC); cache reads are 40% of list $. The ADR's
-# first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x.
+# first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x. Re-fitted in #307 over the 44 readings to 77% at
+# 2026-10-04 05:05 UTC: $25.5 (least squares; 25.4 to 25.7 by method).
 WEEK_PERCENT_USD = 25.5
-# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at: far from it, the bracket is the better figure.
+# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at. It counts cache reads at full list $, the
+# bracket's upper end: at this share it matches the measured central weight (w = 0.75, $23.0 per 1%) within 1%; far
+# from it, it reads high (more cache reads) or low (fewer), and the bracket is the better figure.
 WEEK_READ_SHARE = 0.4
-# Whether the weekly limit counts cache reads, and at what weight w, is not measured yet (#307): the bracket gives
-# (list $ without cache reads + w x cache-read $) / k(w) at w = 0 and 0.5, k(w) from #302's fit over the readings
-# (15.3 / 17.8 / 20.3, 25.3 at w = 1).
-WEEK_BRACKET = ((0.0, 15.3), (0.5, 20.3))
+# The limits count cache reads at a weight w of their list $, measured in #307 (the ADR's amendment of 2026-10-04):
+# w = 0.75, range 0.6 to 1. The bracket gives (list $ without cache reads + w x cache-read $) / k(w) at the range's
+# ends, k(w) the least-squares fit over the same 44 readings (21.5 at w = 0.6, 23.0 at 0.75); at w = 1 that is full
+# list $, so k(1) is WEEK_PERCENT_USD.
+WEEK_BRACKET = ((0.6, 21.5), (1.0, WEEK_PERCENT_USD))
 
 ROLES = {
     "implement": "implementer",
@@ -144,8 +170,33 @@ TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:
                    re.IGNORECASE | re.DOTALL)  # fmt: skip
 # A background task's notification names the tool call that started it.
 NOTIFIED = re.compile(r"<tool-use-id>([^<\s]+)</tool-use-id>")
+# issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
+DESIGN_TASK = "This is a DESIGN task: documents only"
 # Claude Code stops a background command after its `timeout`, 30 minutes when none is given.
 BACKGROUND_TIMEOUT = 1800
+# The quality scorecard (#314, the module docstring): what issue-task.js counts as a blocker or major (its SERIOUS),
+# and the agents whose findings it counts (#315's open blockers and majors).
+SERIOUS = re.compile(r"blocker|major", re.IGNORECASE)
+SERIOUS_FROM = (*REVIEWERS, "netcode-second-reviewer", "test-reviewer")
+# A CI round is red when one of its runs ended so; cancelled, skipped and the like make no round.
+CI_RED = frozenset({"failure", "timed_out", "startup_failure"})
+PR_URL = re.compile(r"github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)")
+FOUND_BY = re.compile(r"found by[^\n]*", re.IGNORECASE)
+FIXUP_TITLE = re.compile(r"^\s*(revert\b|fix(\(|:|!))", re.IGNORECASE)
+# A fix-up's body names the task only in a sentence that says it reverts or repairs it: PR bodies list their sibling
+# PRs (Merge order, merge-check results) and cite others as context ("PR #41's test"), which is no fix-up.
+REGRESSION = re.compile(r"revert|regress|introduc|\bbroke|\bbreaks?\b|caused by", re.IGNORECASE)
+# The PR template's sections that list other PRs as a matter of course: left out of the search.
+LISTING_SECTION = re.compile(r"^#{1,6}[ \t]*(merge order|verification)\b.*?(?=^#{1,6}[ \t]|\Z)",
+                             re.IGNORECASE | re.MULTILINE | re.DOTALL)  # fmt: skip
+SENTENCE_END = re.compile(r"(?<=[.;!?])\s+|\n")
+# `gh pr list` and `gh issue list --limit`: the project had about 330 of each by 2026-10-05.
+GH_LIST_LIMIT = 1000
+# The signals of a run, and those of its PR (counted once per PR when several runs end on it).
+RUN_SIGNALS = ("serious", "refuted", "open", "not_fixed", "needs_engineer", "fix_rounds")
+PR_SIGNALS = ("ci_red_rounds", "ci_red_after_run")
+GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
+                  "green_first", "followups", "fixups")  # fmt: skip
 
 
 # --- time and formatting ------------------------------------------------------------------------------------------
@@ -248,7 +299,7 @@ def usd(t: dict) -> float:
 
 def week_percent(spent: float, read: float) -> dict:
     """% of a Max 20x week for `spent` API list $ of which `read` is cache reads: at WEEK_PERCENT_USD, and the
-    bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 0 and at 50%)."""
+    bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 60% and at 100%)."""
     return {"percent": spent / WEEK_PERCENT_USD, "bracket": [(spent - read + w * read) / k for w, k in WEEK_BRACKET]}
 
 
@@ -346,6 +397,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     uses: dict[str, dict] = {}
     stamps: list[float] = []
     model, effort, title = None, None, None
+    prompt: str | None = None  # the first user message: the agent's prompt
     last_ctx = 0
     verifies: list[dict] = []
     timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
@@ -378,6 +430,12 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             stamps.append(t)
             if not isinstance(m, dict):
                 continue
+            if prompt is None and d.get("type") == "user":
+                content = m.get("content")
+                if isinstance(content, str) or (
+                    isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "text" for b in content)
+                ):
+                    prompt = text_of(content)
             if d.get("type") == "assistant":
                 msg_model = m.get("model")
                 if msg_model == "<synthetic>":
@@ -453,6 +511,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "model": model,
         "effort": effort,
         "title": title,
+        "design": DESIGN_TASK in (prompt or ""),
         "api_calls": len(usage),
         "tokens": dict(tokens),
         "unpriced": unpriced,
@@ -787,6 +846,34 @@ def ci_data(since: float | None, until: float, last: int, gh=_gh) -> dict:
     }
 
 
+def gh_list(gh, args: list[str]) -> list[dict]:
+    """A `gh ... --json` listing as a list of objects; Failure when its output is not one."""
+    text = gh(args)
+    try:
+        value = json.loads(text)
+    except ValueError as exc:
+        raise Failure(f"gh {' '.join(args[:2])}: its output is not JSON ({exc})") from exc
+    if not isinstance(value, list):
+        raise Failure(f"gh {' '.join(args[:2])}: its output is not a JSON list")
+    return [v for v in value if isinstance(v, dict)]
+
+
+def read_github(gh=_gh) -> dict:
+    """What the quality scorecard reads from GitHub (read-only): every PR, the runs of CI_WORKFLOW, every issue."""
+    prs = gh_list(gh, ["pr", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json",
+                       "number,url,title,body,headRefName,state,createdAt,mergedAt"])  # fmt: skip
+    runs = gh_list(gh, ["run", "list", "--workflow", CI_WORKFLOW, "--limit", str(CI_LIST_LIMIT), "--json",
+                        "databaseId,event,headBranch,headSha,conclusion,createdAt,attempt"])  # fmt: skip
+    issues = gh_list(gh, ["issue", "list", "--state", "all", "--limit", str(GH_LIST_LIMIT), "--json",
+                          "number,title,body,createdAt"])  # fmt: skip
+    # A run list at its limit misses older runs: a PR opened before its oldest run has unknown CI rounds.
+    oldest = min((t for r in runs if (t := stamp(r.get("createdAt"))) is not None), default=None)
+    cut = [name for name, lst, limit in (("PRs", prs, GH_LIST_LIMIT), ("CI runs", runs, CI_LIST_LIMIT),
+                                         ("issues", issues, GH_LIST_LIMIT)) if len(lst) >= limit]  # fmt: skip
+    return {"read_at": iso(time.time()), "prs": prs, "runs": runs, "issues": issues, "cut": cut,
+            "runs_from": oldest if "CI runs" in cut else None}  # fmt: skip
+
+
 # --- the report ---------------------------------------------------------------------------------------------------
 
 
@@ -855,11 +942,13 @@ def total_week(counted: list[dict], managers: list[dict]) -> dict:
 
 
 def build(
-    data: dict, history: list[dict], ci: dict | None, since: float | None, until: float
+    data: dict, history: list[dict], ci: dict | None, since: float | None, until: float, *, github: dict | None = None
 ) -> tuple[list[str], dict, list[str]]:
-    """(the Markdown report, the JSON record, the compact summary)."""
+    """(the Markdown report, the JSON record, the compact summary). github: read_github's lists for the quality
+    scorecard, {"error": ...} or {"skipped": ...}; None leaves its GitHub signals unknown."""
     counted = [r for r in data["runs"] if r["counted"]]
-    tasks = [per_task(r) for r in counted if r["kind"] == "issue-task" and r["finished"]]
+    finished = [r for r in counted if r["kind"] == "issue-task" and r["finished"]]
+    tasks = [per_task(r) for r in finished]
     labels = list(dict.fromkeys(s["label"] for s in data["sessions"]))  # a label may name several sessions
     window = f"{iso(since) or 'the first transcript'} to {iso(until)}"
     md = [
@@ -876,6 +965,8 @@ def build(
     by_row = verify_rows(counted, data["sessions"], history)
     md += verify_section(by_row)
     md += review_section(counted)
+    quality = quality_record(finished, labels, github)
+    md += quality_section(quality)
     md += time_section(counted)
     md += cache_section(counted)
     managers = manager_rows(counted, data["sessions"])
@@ -886,7 +977,7 @@ def build(
     if ci is not None:
         md += ci_section(ci)
     week = total_week(counted, managers)
-    compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window)
+    compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality)
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -900,6 +991,7 @@ def build(
         },
         "ci": ci,
         "manager_rewrites": rewrites,
+        "quality": quality,
         "compact": compact,
     }
     return md, record, compact
@@ -1243,11 +1335,371 @@ def ci_section(ci: dict) -> list[str]:
     return md
 
 
+# --- the quality scorecard (#314) ---------------------------------------------------------------------------------
+
+
+def pr_of(pub: dict) -> tuple[int | None, str | None]:
+    """A publisher result's PR: (its number, from pr_number, else from pr_url; its URL)."""
+    url = pub.get("pr_url") if isinstance(pub.get("pr_url"), str) and pub.get("pr_url") else None
+    num = pub.get("pr_number")
+    if isinstance(num, bool) or not isinstance(num, (int, float)) or num != int(num) or num <= 0:
+        num = None
+    found = PR_URL.search(url) if url else None
+    if num is None and found:
+        num = int(found.group(2))
+    return (int(num) if num is not None else None), url
+
+
+def count_of(value: object) -> int | None:
+    """The length of a result's list; None when the key is missing (an older result shape), never 0."""
+    return len(value) if isinstance(value, list) else None
+
+
+def quality_of(r: dict) -> dict:
+    """A finished issue-task run's journal signals (the module docstring); None wherever the journal does not say."""
+    findings: Counter = Counter()
+    serious, reviewed = 0, False
+    for x in r["agents"]:
+        if x["role"] in SERIOUS_FROM and x["result"] is not None:
+            reviewed = reviewed or x["role"] in REVIEWERS
+            listed = x["result"].get("findings")
+            for f in listed if isinstance(listed, list) else []:
+                if isinstance(f, dict):
+                    sev = str(f.get("severity", "")).lower()
+                    findings[sev] += 1
+                    serious += bool(SERIOUS.search(sev))
+    skeptics = [x["result"] for x in r["agents"] if x["role"] == "skeptic" and x["result"] is not None]
+    checked: int | None = None
+    refuted: int | None = None
+    opened: int | None = None
+    if reviewed:
+        if skeptics or not serious:
+            checked, refuted = len(skeptics), sum(s.get("refuted") is True for s in skeptics)
+        opened = serious - (refuted or 0)
+    pubs = [x for x in r["agents"] if x["role"] == "publisher"]
+    pub = next((x["result"] for x in reversed(pubs) if x["result"] is not None), None) or {}
+    pr, url = pr_of(pub)
+    stopped = pub.get("stopped_by_mutants") is True
+    implementers = [x["data"] for x in r["agents"] if x["role"] == "implementer" and x["data"]]
+    design = any(d.get("design") for d in implementers) if implementers else None
+    data = [x["data"] for x in pubs if x["data"]]
+    runs = sum(d["kind_counts"].get("publish", 0) for d in data) if data else None
+    settings = {
+        x["role"]: {"model": x["data"]["model"], "effort": x["data"]["effort"]}
+        for x in r["agents"]
+        if x["data"] and x["data"]["start"] is not None
+    }
+    return {
+        "session": r["session"], "issue": r["issue"], "wf": r["wf"], "start": r["start"], "end": r["end"],
+        "usd": run_usd(r), "published": pub["published"] if isinstance(pub.get("published"), bool) else None,
+        "pr": pr, "pr_url": url, "findings": dict(findings) if reviewed else None,
+        "serious": serious if reviewed else None, "checked": checked, "refuted": refuted, "open": opened,
+        "clean": None if opened is None or design is None else opened == 0 and not stopped and not design,
+        "design": design, "stopped_by_mutants": stopped,
+        "fixed": count_of(pub.get("fixed")), "not_fixed": count_of(pub.get("not_fixed")),
+        "needs_engineer": count_of(pub.get("needs_engineer")), "publish_runs": runs,
+        "fix_rounds": None if runs is None else max(0, runs - 1), "settings": settings,
+    }  # fmt: skip
+
+
+def mentions(text: str, numbers: list[int], repo: str) -> bool:
+    """Whether text names one of the numbers as a whole `#N`, or as `owner/repo#N` of the PR's own repository."""
+    qualified = f"|(?<![\\w.-]){re.escape(repo)}" if repo else ""
+    return any(re.search(rf"(?:(?<![\w/#.-]){qualified})#{n}(?!\d)", text) for n in numbers)
+
+
+def fixes_in_body(body: str, numbers: list[int], repo: str) -> bool:
+    """Whether a fix PR's body names the task in a sentence that reverts or repairs it (REGRESSION), outside its
+    "Found by" lines and its Merge order and Verification sections."""
+    text = LISTING_SECTION.sub("", FOUND_BY.sub("", body))
+    return any(REGRESSION.search(s) and mentions(s, numbers, repo) for s in SENTENCE_END.split(text))
+
+
+def ci_rounds(runs: list[dict], branch: object, opened: float | None, end: float | None) -> dict:
+    """A PR's CI rounds: one per head SHA of the pull_request runs on its branch since it opened (module docstring)."""
+    mine = [r for r in runs if r.get("event") == "pull_request" and r.get("headBranch") == branch
+            and (opened is None or (stamp(r.get("createdAt")) or 0) >= opened - 60)]  # fmt: skip
+    found: dict = {"ci_runs": len(mine)}
+    rounds: dict[object, dict] = {}
+    for r in sorted(mine, key=lambda r: stamp(r.get("createdAt")) or 0):
+        g = rounds.setdefault(r.get("headSha"), {"first": stamp(r.get("createdAt")), "conclusions": [],
+                                                 "rerun": False})  # fmt: skip
+        g["conclusions"].append(str(r.get("conclusion") or ""))
+        attempt = r.get("attempt")
+        g["rerun"] = g["rerun"] or (isinstance(attempt, int) and attempt > 1)
+    outcomes = []
+    for g in rounds.values():
+        cs = g["conclusions"]
+        outcome = ("red" if any(c in CI_RED for c in cs) else "success" if "success" in cs
+                   else "pending" if "" in cs else None)  # fmt: skip
+        if outcome:  # all cancelled or skipped: no round
+            outcomes.append((g["first"], outcome, g["rerun"]))
+    if not outcomes:
+        return found
+    red = [t for t, o, _rerun in outcomes if o == "red"]
+    _t, first, rerun = outcomes[0]
+    return found | {
+        "ci_red_rounds": len(red),
+        "ci_red_after_run": None if end is None else sum(t is not None and t >= end for t in red),
+        "ci_last": outcomes[-1][1],
+        "ci_reruns": sum(o[2] for o in outcomes),
+        # A re-run shows only its last attempt: a first round re-run to green may have been red (a flaky run).
+        "green_first": None if rerun and first == "success" else {"success": True, "red": False}.get(first),
+    }
+
+
+def quality_github(q: dict, github: dict | None) -> dict:
+    """A run's GitHub signals (GITHUB_SIGNALS) from read_github's lists; all None when they cannot be known."""
+    out: dict = dict.fromkeys(GITHUB_SIGNALS)
+    if not github or "prs" not in github or q["pr"] is None:
+        return out
+    pr = next((p for p in github["prs"] if p.get("number") == q["pr"]), None)
+    if pr is None or (q["pr_url"] and str(pr.get("url", "")).rstrip("/") != q["pr_url"].rstrip("/")):
+        return out  # not in the list, or a PR of another repository
+    found = PR_URL.search(str(pr.get("url", "")))
+    repo = found.group(1) if found else ""
+    opened = stamp(pr.get("createdAt"))
+    out["pr_state"] = pr.get("state")
+    out["merged"] = pr.get("state") == "MERGED" or bool(pr.get("mergedAt"))
+    runs_from = github.get("runs_from")
+    if runs_from is None or (opened is not None and opened >= runs_from):
+        out.update(ci_rounds(github.get("runs") or [], pr.get("headRefName"), opened, q["end"]))
+    numbers = [n for n in (q["issue"], q["pr"]) if n is not None]
+    out["followups"] = sorted(
+        i["number"] for i in github.get("issues") or []
+        if i.get("number") not in numbers
+        and (q["start"] is None or (stamp(i.get("createdAt")) or 0) >= q["start"])
+        and any(mentions(m.group(0), numbers, repo) for m in FOUND_BY.finditer(str(i.get("body") or "")))
+    )  # fmt: skip
+    own = re.compile(rf"^[A-Za-z]+/{q['issue']}-") if q["issue"] is not None else None
+    fixups = []
+    for p in github["prs"]:
+        title = str(p.get("title") or "")
+        created = stamp(p.get("createdAt"))
+        if p.get("number") == q["pr"] or not FIXUP_TITLE.search(title):
+            continue
+        if opened is not None and (created is None or created <= opened):
+            continue
+        if own and own.match(str(p.get("headRefName") or "")):
+            continue
+        if mentions(title, numbers, repo) or fixes_in_body(str(p.get("body") or ""), numbers, repo):
+            fixups.append(p["number"])
+    out["fixups"] = sorted(fixups)
+    return out
+
+
+def stat(values: list) -> dict:
+    """The median of the known values (None: unknown), how many are known, and of how many."""
+    known = [v for v in values if v is not None]
+    return {"median": statistics.median(known) if known else None, "known": len(known), "of": len(values)}
+
+
+def pr_key(q: dict, i: int) -> object:
+    """One key per PR (a run without one is its own), so PR-level signals count once when two runs end on a PR."""
+    return i if q["pr"] is None else (q["repo"], q["pr"])
+
+
+def url_repo(url: str | None) -> str | None:
+    found = PR_URL.search(url or "")
+    return found.group(1) if found else None
+
+
+def quality_summary(label: str, rows: list[dict]) -> dict:
+    """A session's (or a wave's) runs: medians and sums of the known signals, and API list $ per green-first PR."""
+    units = list({pr_key(q, i): q for i, q in enumerate(rows)}.values())
+    prs = [q for q in units if q["pr"] is not None]
+    green = [q["green_first"] for q in units if q["green_first"] is not None]
+    spent = sum(q["usd"] for q in rows)
+    lists = {k: [q[k] for q in units if q[k] is not None] for k in ("followups", "fixups")}
+    return {
+        "session": label, "tasks": len(rows), "usd": spent,
+        **{k: stat([q[k] for q in rows]) for k in RUN_SIGNALS},
+        **{k: stat([q[k] for q in prs]) for k in PR_SIGNALS},
+        "sums": {k: sum(q[k] for q in rows if q[k] is not None) for k in RUN_SIGNALS}
+        | {k: sum(q[k] for q in prs if q[k] is not None) for k in PR_SIGNALS},
+        "prs": len(prs), "merged": sum(q["merged"] is True for q in prs),
+        "merged_known": sum(q["merged"] is not None for q in prs),
+        "green_first": sum(green), "green_known": len(green),
+        "usd_per_green_first": spent / sum(green) if sum(green) else None,
+        **{k: sorted({n for lst in v for n in lst}) if v else None for k, v in lists.items()},
+    }  # fmt: skip
+
+
+def quality_settings(runs: list[dict], rows: list[dict]) -> list[dict]:
+    """Per role setting (role, model, effort) of every agent of the scored runs: agents, their median API list $, and
+    the medians of the runs they took part in. A clean run's publisher also counts as "publisher (clean run)"."""
+    groups: dict[tuple[str, str, str], dict] = {}
+    for i, (r, q) in enumerate(zip(runs, rows)):
+        for x in r["agents"]:
+            d = x["data"]
+            if not d or d["start"] is None:
+                continue
+            roles = [x["role"], *(["publisher (clean run)"] if x["role"] == "publisher" and q["clean"] else [])]
+            for role in roles:
+                g = groups.setdefault((role, str(d["model"]), str(d["effort"])), {"usd": [], "rows": {}})
+                g["usd"].append(usd(d["tokens"]))
+                g["rows"][i] = q
+    found = []
+    for (role, model, effort), g in sorted(groups.items()):
+        part = quality_summary(role, list(g["rows"].values()))
+        found.append({"role": role, "model": model, "effort": effort, "agents": len(g["usd"]),
+                      "runs": len(g["rows"]), "usd": med(g["usd"]),
+                      **{k: part[k] for k in (*RUN_SIGNALS, *PR_SIGNALS, "green_first", "green_known")}})  # fmt: skip
+    return found
+
+
+def github_status(github: dict | None) -> dict:
+    """Where the GitHub signals came from, for the record and the notes."""
+    if github is None:
+        return {"skipped": "not read"}
+    if "prs" in github:
+        return {"read_at": github.get("read_at"), "cut": github.get("cut") or []}
+    return {k: v for k, v in github.items() if k in ("error", "skipped")}
+
+
+def quality_record(runs: list[dict], labels: list[str], github: dict | None) -> dict:
+    """The scorecard of the finished issue-task runs: per run, per session, over all, per role setting."""
+    rows = [q | quality_github(q, github) for q in map(quality_of, runs)]
+    # A PR's repository: its URL's, else (a result with pr_number only) the one most PR URLs name, so both result
+    # shapes of one PR are one PR.
+    repos = Counter(r for q in rows if (r := url_repo(q["pr_url"])))
+    home = repos.most_common(1)[0][0] if repos else ""
+    for q in rows:
+        q["repo"] = None if q["pr"] is None else url_repo(q["pr_url"]) or home
+    quality = {
+        "tasks": rows,
+        "sessions": [quality_summary(label, sel) for label in labels if (sel := [q for q in rows
+                                                                                 if q["session"] == label])],
+        "all": quality_summary("all", rows),
+        "settings": quality_settings(runs, rows),
+        "github": github_status(github),
+    }  # fmt: skip
+    quality["compact"] = quality_compact(quality)
+    return quality
+
+
+def fmt_v(value: object) -> str:
+    """A signal in a table: "?" when unknown."""
+    if value is None:
+        return "?"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, float):
+        return f"{value:g}"
+    return str(value)
+
+
+def fmt_q(s: dict) -> str:
+    """A stat(): its median, with "(k/n)" when only k of n are known; "?" when none is."""
+    if not s["known"]:
+        return "?"
+    return fmt_v(s["median"]) + (f" ({s['known']}/{s['of']})" if s["known"] < s["of"] else "")
+
+
+def fmt_nums(numbers: list[int] | None) -> str:
+    return "?" if numbers is None else ", ".join(f"#{n}" for n in numbers) or "none"
+
+
+def fmt_green(s: dict) -> str:
+    return f"{s['green_first']} of {s['green_known']}" if s["green_known"] else "?"
+
+
+def quality_section(quality: dict) -> list[str]:
+    rows = []
+    for q in quality["tasks"]:
+        pub = q["settings"].get("publisher")
+        rows.append([
+            q["session"], f"#{q['issue']}", q["pr"] or ("none" if q["published"] is False else "?"), fmt_v(q["merged"]),
+            fmt_v(q["serious"]), "?" if q["checked"] is None else f"{q['refuted']}/{q['checked']}", fmt_v(q["open"]),
+            fmt_v(q["clean"]), fmt_v(q["fixed"]), fmt_v(q["not_fixed"]), fmt_v(q["needs_engineer"]),
+            fmt_v(q["fix_rounds"]),
+            "?" if q["ci_red_rounds"] is None else f"{q['ci_red_rounds']} ({fmt_v(q['ci_red_after_run'])})",
+            fmt_v(q["green_first"]), fmt_nums(q["followups"]), fmt_nums(q["fixups"]),
+            f"{pub['model']} {pub['effort']}" if pub else "?", fmt_usd(q["usd"]),
+        ])  # fmt: skip
+    head = ["session", "issue", "PR", "merged", "blockers+majors", "refuted/checked", "open", "clean", "fixed",
+            "not fixed", "needs engineer", "publisher fix rounds", "CI red rounds (after the run)",
+            "green on the first CI round", "Found-by follow-ups", "fix-up PRs", "publisher", "API list $"]  # fmt: skip
+    md = ["## Quality per finished issue-task run (#314)", "", table(head, rows), ""]
+    sessions = [
+        [s["session"], s["tasks"], f"{s['prs']} ({s['merged'] if s['merged_known'] else '?'} merged)",
+         *(fmt_q(s[k]) for k in ("serious", "refuted", "open", "not_fixed", "fix_rounds", "ci_red_rounds")),
+         fmt_green(s), fmt_nums(s["followups"]), fmt_nums(s["fixups"]), fmt_usd(s["usd"]),
+         fmt_usd(s["usd_per_green_first"]) if s["usd_per_green_first"] is not None else "?"]
+        for s in [*quality["sessions"], *([quality["all"]] if len(quality["sessions"]) > 1 else [])]
+    ]  # fmt: skip
+    head = ["session", "tasks", "PRs", "blockers+majors", "refuted", "open", "not fixed", "publisher fix rounds",
+            "CI red rounds", "green on the first CI round", "Found-by follow-ups", "fix-up PRs", "API list $",
+            "$ per PR green on its first CI round"]  # fmt: skip
+    md += ["Per session (a wave when run with --since <wave start>; medians, PR signals once per PR):", "",
+           table(head, sessions), ""]  # fmt: skip
+    settings = [
+        [s["role"], s["model"], s["effort"], s["agents"], s["runs"], fmt_usd(s["usd"]),
+         *(fmt_q(s[k]) for k in ("serious", "open", "not_fixed", "fix_rounds", "ci_red_rounds")), fmt_green(s)]
+        for s in quality["settings"]
+    ]  # fmt: skip
+    head = ["role", "model", "effort", "agents", "runs", "API list $ per agent (median)", "blockers+majors", "open",
+            "not fixed", "publisher fix rounds", "CI red rounds", "green on the first CI round"]  # fmt: skip
+    md += ["By role setting (the medians of the runs each took part in):", "", table(head, settings), ""]
+    status = quality["github"]
+    if "read_at" in status:
+        source = f"GitHub read at {status['read_at']}" + (
+            f" ({', '.join(status['cut'])} at the list limit: older ones are missing)" if status["cut"] else "")
+    else:
+        source = "GitHub was not read (" + (status.get("skipped") or f"gh failed: {status.get('error')}") + ")"
+    md += [f"\"?\" is unknown, never 0: no PR, an older result shape, skeptics not run, a PR of another repository, "
+           f"a branch without CI runs, or GitHub not read. {source}. \"clean\": no blocker or major left after the "
+           "skeptics, not stopped by mutants, not a design task (#315's rule, from the journal). CI red rounds: "
+           "head SHAs with a red run (failure, timed_out, startup_failure), in brackets those that began after the "
+           "run ended. Found-by follow-ups are a lower bound (only issues whose \"Found by\" line names the task); "
+           "fix-up PRs are later `revert` or `fix` PRs naming it in a sentence that reverts or repairs it: check "
+           "both lists before trusting a count.", ""]  # fmt: skip
+    return md
+
+
+def quality_compact(quality: dict) -> str:
+    """One line for the compact summary (a wave comment): the quality of all scored runs and its cost."""
+    a = quality["all"]
+
+    def summed(key: str, of: str = "runs") -> str:
+        """The sum of the known values, with "in k of n" when only k of n are known; "?" when none is."""
+        s = a[key]
+        if not s["known"]:
+            return "?"
+        return f"{a['sums'][key]}" + (f" in {s['known']} of {s['of']} {of}" if s["known"] < s["of"] else "")
+
+    def counted(key: str) -> str:
+        """How many numbers a list holds; "?" when no run's list is known (unknown is never 0)."""
+        return "?" if a[key] is None else str(len(a[key]))
+
+    serious = summed("serious")
+    if a["serious"]["known"]:
+        serious += f" ({a['sums']['refuted']} refuted, {a['sums']['open']} open)"
+    line = (f"quality: {a['tasks']} tasks, {a['prs']} PRs ({a['merged'] if a['merged_known'] else '?'} merged); "
+            f"blockers+majors {serious}; not fixed {summed('not_fixed')}; "
+            f"publisher fix rounds {summed('fix_rounds')}")  # fmt: skip
+    status = quality["github"]
+    if "read_at" not in status:
+        why = status.get("skipped") if "skipped" in status else "gh failed"
+        return line + ("; GitHub: not read" + (f" ({why})" if why != "not read" else ""))
+    if a["green_first"]:
+        cost = (f"{fmt_usd(a['usd_per_green_first'])} per PR green on its first CI round "
+                f"({a['green_first']} of {a['green_known']} known)")  # fmt: skip
+    elif a["green_known"]:
+        cost = f"none of {a['green_known']} PRs green on their first CI round"
+    else:
+        cost = "no PR with a known first CI round"
+    after = f" ({a['sums']['ci_red_after_run']} after the run)" if a["ci_red_after_run"]["known"] else ""
+    return (line + f"; CI red rounds {summed('ci_red_rounds', 'PRs')}{after}; "
+            f"Found-by follow-ups {counted('followups')}, fix-up PRs {counted('fixups')}; {cost}")
+
+
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
-    managers: list[dict], week: dict, window: str,
+    managers: list[dict], week: dict, window: str, *, quality: dict | None = None,
 ) -> list[str]:
-    """At most ten lines for a wave comment: time and API list $ per task and in total, the % of the week, verify."""
+    """At most ten lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
+    (#314), the % of the week, verify."""
     other = [r for r in counted if r["kind"] != "issue-task" or not r["finished"]]
     lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, {len(other)} other runs "
              f"({sum(not r['finished'] for r in counted)} unfinished)"]
@@ -1258,6 +1710,8 @@ def compact_lines(
         ctx, calls = med([p["ctx"] for p in tasks]), med([p["calls"] for p in tasks])
         lines.append(f"task medians: {mins(wall)} min, {fmt_usd(cost)}, {fmt_tok(ctx)} final context, "
                      f"{calls:.0f} tool calls")
+        if quality:
+            lines.append(quality["compact"])
     task_usd = sum(p["usd"] for p in tasks)
     other_usd = sum(run_usd(r) for r in other)
     man_usd = sum(m["manager_usd"] + m["hand_usd"] for m in managers)
@@ -1302,6 +1756,7 @@ def main(
     dirs: list[Path] | None = None,
     history: list[Path] | None = None,
     gh=_gh,
+    no_gh: bool = False,
 ) -> int:
     t_since = parse_time(since) if since else None
     t_until = parse_time(until) if until else time.time()
@@ -1339,7 +1794,15 @@ def main(
         return 0
     verify_runs = read_history(history, t_since, t_until)
     ci_info = ci_data(t_since, t_until, ci, gh) if ci else None
-    md, record, summary = build(data, verify_runs, ci_info, t_since, t_until)
+    github: dict = {"skipped": "--no-gh"}
+    if not no_gh:
+        try:
+            github = read_github(gh)
+        except (Failure, ValueError) as exc:  # the quality scorecard's GitHub signals stay unknown
+            github = {"error": str(exc)}
+            if not compact:  # the compact summary's quality line says it
+                warn(f"metrics: GitHub not read, its quality signals are unknown: {exc}")
+    md, record, summary = build(data, verify_runs, ci_info, t_since, t_until, github=github)
     folder.mkdir(parents=True, exist_ok=True)
     text = "\n".join(["## Summary", "", "```", *summary, "```", "", *md])
     with io.open(folder / "metrics.md", "w", encoding="utf-8", newline="\n") as f:

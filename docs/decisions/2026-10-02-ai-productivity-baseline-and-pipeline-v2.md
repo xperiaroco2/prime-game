@@ -7,6 +7,9 @@
 - **Amended 2026-10-04 (#304):** the calibration to the weekly limit. 1% of a Max 20x week is about $25.5 API list
   (measured in #302), not the 4x figure first given here; every % of the week below reads 1.7x too low (the amendment
   under "Calibration to the weekly limit" gives the corrected figures).
+- **Amended 2026-10-04 (#307):** the 5-hour limit counts cache reads at about 0.75 of their list $ (range 0.6 to 1),
+  measured by a probe and taken to hold for the weekly limit; `metrics` brackets each % of the week at that range (the
+  amendment after #304's).
 - **Amended 2026-10-04 (#300):** `merge` now also merges a PR into `main`, through GitHub after a gate (green CI on
   an up-to-date head, the exceptions, answered questions), with no local `verify` on the merged tree: the head
   contains `main`, so `publish` and CI already verified that tree (item 3 (b)'s "refuses `main`" and its "always"
@@ -61,12 +64,51 @@ the UI sessions) from 2026-10-02 10:28 to 2026-10-03 20:54 UTC (34.4 hours) is $
 - Without cache reads it is **$15.3 per 1%** (1,012.1 / 66), the right rate only if the limit ignores cache reads.
   Whether and how much it counts them (a weight w) is not measured: the weekly fit prefers w = 0, the 5-hour counter
   suggests 0.3 to 0.75; #307 measures it. Until then `metrics` prints beside each % a bracket, (list $ without cache
-  reads + w x cache-read $) / k(w) for w = 0 and 0.5, k = 15.3 and 20.3.
+  reads + w x cache-read $) / k(w) for w = 0 and 0.5, k = 15.3 and 20.3. (Measured: w is about 0.75, see #307's
+  amendment below; the bracket moved to w = 0.6 and 1.)
 - The Max 20x weekly limit is therefore **2.1 to 2.2x Max 5x's, not 4x** (the 5-hour limit is about 3.9x).
 
 The % of the week this ADR gives at the first figure read 1.7x too low. At $25.5: M4 (subagents and manager, $366)
 about 14.4%; a median M4 task ($24) about 0.94% and a median M3 task ($14) about 0.55%; the twelve proposed tasks
 ($250 to $350) about 10 to 14% of a week; a night audit lens ($10) about 0.4%. The text below keeps its first figures.
+
+**Amended 2026-10-04 (#307: the weight of cache reads, measured; the probe result on #307 and #302, 05:10 UTC).** The
+limits count cache reads at about **w = 0.75 of their list $, range 0.6 to 1**. w = 0, which the weekly fit above
+prefers, is ruled out by the 5-hour counter. Sums below cover every transcript on the PC, deduplicated by message id
+(the largest value of each token field) and priced with `metrics.PRICES`; the engineer was asleep, so nothing else used
+the account.
+- **The probe** (2026-10-04 04:59 to 05:05 UTC, after the night queue drained). One agent built a ~1.0M-character
+  cached context, then made 200 one-line calls that each re-read it. In the 5-hour window (from 04:50) to the last
+  reading at 05:04:57, the spend was $3.43 non-read (5-minute writes $2.67, 1-hour writes $0.19, output $0.57) and
+  **$21.53 of cache reads**. The 5-hour counter went from 0% to **3%**; the weekly counter from 76% to 77%.
+- **The 5-hour counter, calibrated the same night.** The night's two earlier windows (2026-10-03 from 18:50 and from
+  23:50, five readings) fit one $ per point only for w = 0.64 to 0.87 if the display rounds, and 0.34 to 1.02 if it
+  truncates. Adding the probe's 3% gives 0.64 to 0.87 (rounding) or 0.61 to 1.02 (truncating); w = 0 predicts about
+  0.9 points. #302's calibration skeptic's Saturday windows, a separate sample, also fit best at 0.75. The probe's 0%
+  at 05:00:18 came just after $2.1 of context writes. It fits only a truncating display, or a counter that lags by
+  about 20 s.
+- **The weekly counter cannot separate w.** The step from 76% to 77% fits every w. All 44 readings since the restart
+  still fit w = 0 best (largest miss 0.28 points, against 0.85 at w = 0.75). As #302 found, that preference comes from
+  the restart's first 4.5 hours. The night's ten readings (from 20:38) fit every w from 0.25 to 1 within 0.11
+  points; w = 0 misses by 0.28. Taken here: the weekly limit weighs cache reads as the 5-hour one does. This is a
+  reading, not measured separately.
+- **$ per 1% of the week**, k(w), a least-squares fit over the 44 readings to 77%: **$21.5 at w = 0.6, $23.0 at 0.75,
+  $25.5 at 1**. At w = 1, k is full list $, so #304's $25.5 holds. `metrics` keeps its % at $25.5 full list, which is
+  the bracket's upper end, and prints the bracket at w = 0.6 and 1 (`WEEK_BRACKET`). At 40% cache reads the three
+  agree within 1%; at 86% (the probe's window) the w = 0.6 end is 22% lower.
+- **What it changes.** A list $ of cache reads saved is worth 0.6 to 1 (about 0.75) of a list $ of writes or output
+  saved, not about 0. At w = 0.75 (points since the restart, as in #302's report), #302's levers rank:
+  - bounded waits 7.9 (built, #303);
+  - effort high instead of xhigh 3.4;
+  - the manager keep-alive 3.4 (built, #305);
+  - lean agent types 2.8 (#332);
+  - manager rotation at about 300k 2.7;
+  - a Sonnet publisher 1.2;
+  - shorter tool outputs 1.1.
+
+  #302's condition for lean agent types (w at least 0.25) is met. The re-ranking, with #313's options, is on #302.
+- **The probe's cost:** $25.3 list in its window, 0.86% of the week at w = 0.75 (0.77 to 0.99%). That is above the
+  0.8% planned, because of the context build's writes and a first attempt that stopped early ($0.31).
 
 ### The baseline (66 runs: 48 finished `issue-task` runs, 6 resumed ones, 1 unfinished, 4 `pr-rebase`, 7 others)
 

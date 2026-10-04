@@ -53,6 +53,7 @@ One message from the human with `ultracode` in it (template in §10). It must st
 - where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
   second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of
   that model's own weekly window (at most half across all tracks). You stay on the shared models;
+- whether one wave of this stage is the #308 publisher trial (`models.publish_clean`, §3), and which: one wave only;
 - the rules: you merge into `release/m<k>` and, through the gate, into `main` (§5); you close issues, workflow
   agents never; each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
   windows only through `shot`; a game rule no ADR settles becomes options under "Needs the engineer"; `content/`
@@ -74,6 +75,9 @@ and ignores them, so the reviews they add would silently not run). The merges of
 in the main checkout's runner (`tools\run.cmd merge-check --help`, #181; merges into `main` need `--dry-run` in
 `tools\run.cmd merge --help`, #300: without it, the engineer merges those). Missing: ask the human to pull; a session
 opened before the pull needs `/reload-skills` to find the workflows by name.
+
+**Your effort is high, not xhigh** (the effort ADR's amendment of 2026-10-04, #308), as for the art and UI sessions:
+the human sets it in the session settings; `effortLevel` never goes into shared settings.
 
 ## 2. Before the first launch
 1. `tools\run.cmd doctor --quick`. Read the plan issue, every issue in scope with its comments, the handoffs they
@@ -148,12 +152,15 @@ workflow the kickoff approved:
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
 | `bounded_waits: true` | every `issue-task` and `pr-rebase` launch (no tool call of theirs blocks over 240 s, so their 5-minute cache stays warm), once `wait` (#303) is on the task's base (`git show origin/<base>:tools/runner/wait.py`) | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
-| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review` | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and, for the #308 trial only, `publish_clean: "sonnet"` on every non-design `issue-task` launch of the one wave the kickoff names (not `pr-rebase`: it has no publisher and rejects the role; none after the wave until the engineer keeps it) | 0 |
 
-- **`models`** follows the script's fallbacks: set only `implement` or `second_review`, never `review` or `netcode`
-  (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode` covers `second_review`).
-  `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model too unless you also set
-  `models.plan: "opus"`. Never as a habit, and never for yourself.
+- **`models`** follows the script's fallbacks: set only `implement`, `second_review` or (the trial) `publish_clean`,
+  never `review` or `netcode` (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode`
+  covers `second_review`). `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model
+  too unless you also set `models.plan: "opus"`. `publish_clean` falls back to `publish` and applies only to the full
+  publisher of a run with no blocker or major left open (a skeptic-refuted one is closed), never to a design task;
+  leave `efforts.publish_clean` unset during the trial, so only the model varies. Never as a habit, and never for
+  yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
   reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
   that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
@@ -175,7 +182,8 @@ in the data); name a task's merge order relative to the other open PRs; name eve
 ## 4. On each completion
 Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not_fixed`; with v2 args also `plan`
 (the plan and its critique, summarized in the PR), `test_review` (the mutants, or why it was skipped or missing),
-`skeptic` (`refuted`, `stood`, `unchecked`) and `visual` (the PNGs: the engineer drags them into the PR)). Merge it
+`skeptic` (`refuted`, `stood`, `unchecked`), `visual` (the PNGs: the engineer drags them into the PR) and
+`publish_clean` (`applied`, `why`, `open`, `model`, `effort`)). Merge it
 into its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and
 in which order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a
 concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End
@@ -202,6 +210,13 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
+- A `publish_clean` trial run (#308) relaunched fresh after any of the above drops `models.publish_clean` (an Opus
+  publisher, as before); the report counts the first run as a trial failure, not the relaunch as a second trial run.
+
+**The publisher trial's report** (#308, after its one wave): a comment on #302 with, per run, `publish_clean`
+(applied or why not), CI red rounds (failed runs on the PR's branch before its last green: `gh run list --branch
+<branch>`), the publisher's fix rounds, `fixed` and `not_fixed`, and its $ and output tokens from `tools\run.cmd
+metrics`, against comparable earlier clean runs with Opus publishers. The engineer keeps or drops the trial.
 
 **Answers.** Post them in English on the PR and the issue ("The engineer's answers (chat with the manager session,
 <date>)"). Carry an answer that belongs to a later task to that issue as a comment; open a new issue for a decision
@@ -499,6 +514,7 @@ about <P>% of the weekly limit for the stage (metrics converts API list $ to it)
 within that budget (15% of the week at most) your restatement is a report.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
 PRs, tasks red twice>, at most <Q>% of its own weekly window>; you stay on the shared models.
+Publisher trial (#308): <none | wave <k>: models.publish_clean "sonnet" on its non-design issue-task launches>.
 Rules: into main only through the gate; you close issues, workflow agents never; each agent only in its worktree;
 no git stash; you never leave your shell inside a worktree; temporary files in scratchpad/a<n>/ or tests/scratch/; Godot
 windows only through shot; a game rule no ADR settles becomes options with a recommendation under "Needs the

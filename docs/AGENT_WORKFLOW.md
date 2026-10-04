@@ -142,7 +142,7 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
 
 | Agent | Job | Model |
 |---|---|---|
-| `godot-api-checker` | Check changes against the pinned Godot 4.7.2 API; flag Godot 3 idioms. Sources: `check`, the engine API dump, `docs.godotengine.org/en/4.7/` only | `sonnet` |
+| `godot-api-checker` | Check changes against the pinned Godot 4.7.2 API; flag Godot 3 idioms. Sources: `check`, the engine API dump, `docs.godotengine.org/en/4.7/` only | `sonnet`, effort high |
 | `test-runner` | Run test / lint / check / bots via the runner; return only failures | `haiku` |
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, `ARCHITECTURE.md` and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions | `opus`, effort high |
@@ -211,6 +211,7 @@ and wait for the designer's review.
 | Foundation stages with no mid-task human input: M0 execution, core architecture and content-API design before M2, project-wide audits | xhigh + `ultracode` in that one prompt; one workflow per stage; human review between stages |
 | Everyday `core/ server/ net/ voice/` work, and **all tooling** (`tools/`, runner, hooks, CI) | high |
 | Docs, content data, routine fixes; the designer's default | medium |
+| Manager sessions (§7.1) of every track, and the art and UI sessions | high, not xhigh (the ADR's amendment of 2026-10-04; the human sets it in the session settings) |
 
 Rules for every workflow run:
 - **Size guideline `small` (fewer than 5 agents)** [applied: `workflowSizeGuideline` in shared settings].
@@ -249,7 +250,11 @@ Rules for every workflow run:
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
   same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
-  rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it).
+  rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it). Workflow agents
+  read their prompt, not this file, so the rules every agent of both scripts gets (all but the read-only reviewers)
+  carry one line each for the two calls that stopped them most (#312, #326): read the hooks path with
+  `git rev-parse --git-path hooks` (§8.1), and wait with `wait <log>`, `run_in_background` or Monitor, never a
+  foreground `sleep N; cat <log>` (§11, "Bounded waits"); the test pins both lines, identical in the two scripts.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default, so a launch or a resume with the earlier args gets the earlier
   agents byte for byte (`tools/runner/tests/workflow_snapshots/` holds their prompts and options for representative
@@ -263,18 +268,21 @@ Rules for every workflow run:
   (a number caps the agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the
   scenarios the notes name), a scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code
   reviewer reads the PNGs, and the rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per
-  role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish);
-  `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is set, and no
-  default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's `models`,
-  where the kickoff allows it (its amendment A, §5). A missing `mutants` or `playcheck` on the task's branch is
-  reported in the result and the PR, and the run goes on. `bounded_waits: true` (#303; `issue-task` and `pr-rebase`,
-  +0): each agent that runs `verify`, `publish`, `mutants` or a CI watch gets one paragraph, after the steps it
-  replaces, with the exact background launch, `wait` and CI commands of §11 "Bounded waits" (its publishing agents also
-  skip a standalone verify that `wait --verified` shows done). The root CLAUDE.md rule reaches every workflow agent
-  without it once on main; the arg adds the commands. `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`,
-  `efforts` and `models` (roles rebase, review, netcode, second_review, skeptic, fix); when skeptics refute every
-  blocker or major, no fix agent runs and the result's `note` asks the manager to list the refuted findings with their
-  reasons in the PR body. The kickoff's approved agent count must cover the options the manager will pass; each script's
+  role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish,
+  publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is
+  set, and no default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's
+  `models`, where the kickoff allows it (its amendment A, §5). `publish_clean` (#308, a one-wave trial; falls back to
+  `publish`) is the full publisher of a run with no blocker or major left open after the reviews, the test review
+  and the skeptics, never of a design task; the result's `publish_clean` says whether it applied. A missing
+  `mutants` or `playcheck` on the task's branch is reported in the result and the PR, and the run goes on.
+  `bounded_waits: true` (#303; `issue-task` and `pr-rebase`, +0): each agent that runs `verify`, `publish`, `mutants`
+  or a CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI
+  commands of §11 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows
+  done). The root CLAUDE.md rule reaches every workflow agent without it once on main; the arg adds the commands.
+  `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review,
+  netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix agent runs and the
+  result's `note` asks the manager to list the refuted findings with their reasons in the PR body. The kickoff's
+  approved agent count must cover the options the manager will pass; each script's
   `whenToUse` and args comment give the counts, the roles and their fallbacks.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
@@ -899,9 +907,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   none. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It writes only its `--out` file, runs
   no `gh` and launches nothing. The orchestrate-stage skill moves onto it, replacing its `args-<n>.json` files, in
   #279.
-- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact]` [applied]** (#178;
-  item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose baseline
-  it reproduces): time, tokens and API list $ of the task workflows, read-only from the Claude Code transcripts. It
+- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]` [applied]**
+  (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
+  baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
   reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
   path with every character but letters and digits replaced by `-` (`D--prime-game`), plus
   `<key>--claude-worktrees-<n>/`. The main checkout is the parent of `git rev-parse --path-format=absolute
@@ -923,16 +931,34 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
   call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
   window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten
-  lines (time and API list $ per task and in total, the % of the week, the `verify` medians): the manager pastes
+  lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
   `metrics --since <wave start> --compact` into each wave comment. The % of the week is at $25.5 list per 1% (#304: 66%
   at 2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change; the pipeline v2 ADR's
-  amendment), with a bracket beside it: the limit counting cache reads at 0 to 50% ((list $ without cache reads, plus 0
-  or 0.5 times the cache-read $) / $15.3 or $20.3), until #307 measures that weight. The $25.5 was fitted where cache
-  reads were 40% of list $: the compact line prints the report's own share, and far from 40% the bracket is the better
+  amendment), with a bracket beside it: the limit counting cache reads at 60 to 100% of their list $ ((list $ without
+  cache reads, plus 0.6 or 1 times the cache-read $) / $21.5 or $25.5), the range #307 measured (central 75%; the ADR's
+  #307 amendment). The $25.5 counts cache reads at full list $, the bracket's upper end; it was fitted where cache reads
+  were 40% of list $, where it matches the central weight ($23.0 per 1%) within 1%. The compact line prints the report's
+  own share: far from 40%, the % reads high with more cache reads and low with fewer, and the bracket is the better
   figure. It covers only this checkout's sessions (the main checkout and its worktrees) that ran a workflow or that
   `--session` names; the weekly counter counts every session of the account. API list $ is a weight (one price table in
   `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
-  empty window, which also writes an empty report over an older one.
+  empty window, which also writes an empty report over an older one. Its quality scorecard (#314), so a cost change
+  (#303, #308's publisher trial, effort levels) is judged by quality too, has three tables, per finished `issue-task`
+  run, per session (a wave with `--since <wave start>`; medians) and per role setting (role, model and effort from each
+  agent's transcript; a clean run's publisher also as "publisher (clean run)"), and `quality` in `metrics.json`. From
+  the journal: the diff reviewers' and test review's blockers and majors, the skeptics' refutations, "clean" (none left
+  open, not stopped by mutants, not a design task: #315's rule, derived because a run's return value is not
+  journaled), the publisher's `fixed`, `not_fixed`,
+  `needs_engineer` and PR, and its fix rounds (`publish` calls minus one). From `gh`, read-only and by default
+  (`--no-gh` skips it; a failure is a note, never an exit code): the PR's state, its CI rounds (one per head SHA of
+  `ci.yml`'s pull_request runs on its branch; red rounds, those after the run, and "green on the first CI round"),
+  Found-by follow-up issues (a lower bound: only those whose "Found by" line names the task) and later `revert` or
+  `fix` PRs naming it in the title or in a sentence that reverts or repairs it (not under Merge order or
+  Verification); a first round re-run to green is unknown, since `gh` shows only the last attempt. Unknown is `?` (null), never 0: no PR, an older result shape, skeptics not run, a PR of another
+  repository, no CI run, or `gh` not read; medians and sums say how many are known. The compact `quality:` line ends
+  with the API list $ per PR green on its first CI round (the merged count beside it). A caller of `metrics.build`
+  (wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
+  the GitHub half.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
   windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw
   before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`),
