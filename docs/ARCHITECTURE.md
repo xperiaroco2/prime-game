@@ -2018,6 +2018,79 @@ screen and view gets a `shot` of its preview scene in `client/dev/`, `playcheck`
 off-screen windows at the named steps of a scripted run and asserts what they draw (#275), and the playtests of the
 ADR's §6 check the rest.
 
+### 4.8 Signalling (M6-5a, #366)
+How a host and a joiner find each other before WebRTC connects (the
+[M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §2.3, §2.4; E52, E53, E55). The protocol is
+versioned apart from the game's wire (`"v"`, 1 today) and changes no row of §4.3. It carries no game data.
+
+**Pieces** (`net/signal/`): `SignalCodec` (the messages, their fields and checks), `SignalRouter` (the service's
+rooms and routing, with no sockets: a socket number in, the messages to send out), `LanSignalling` (the router over
+`ws://` from `TCPServer` and `WebSocketPeer`, served by the host itself on a LAN and in every headless test) and
+`Signaller` (the client side for a host and a joiner over `WebSocketPeer`; its signals fire from `poll()`). The
+Worker (M6-5b, `tools/signal/`) implements the same router in JavaScript.
+
+**Messages:** JSON text, printable ASCII (tab, CR and LF allowed: no `get_string_from_utf8` engine error a peer could
+repeat), at most 16 KB (16384 bytes, counted before parsing), each with `"t"` (the type) and `"v"`. Integers are JSON
+numbers without a fraction; the content hash, an s64, travels as 16 lowercase hex digits (its little-endian bytes;
+`SignalCodec.content_text`), since JavaScript numbers lose an s64's low bits.
+
+| From → to | Type and fields |
+|---|---|
+| host → service | `open {protocol: u16, content: hex16, max: 1..255}` (the first message; `max` is how many joiners at once, the mode's maximum minus the host); `offer {to, id, sdp}`; `candidate {to, mid, index, cand}`; `close`; `reopen` |
+| service → host | `room {code, ice_servers}`; `join {from}` (joiner `from` wants in); `answer {from, sdp}`; `candidate {from, mid, index, cand}`; `error {why}` |
+| joiner → service | `join {code}` (the first message); `answer {sdp}`; `candidate {mid, index, cand}` |
+| service → joiner | `found {protocol, content}` (advisory, §2.5 of the design); `offer {id, sdp, ice_servers}`; `candidate {mid, index, cand}`; `error {why}` |
+
+`to` and `from` are the service's number for a joiner in its room (1 upward, never reused in that room), not a game
+peer id: the game's id comes in `ADMIT` (§2.3 of the design). `id` is the host's id for that connection attempt,
+which the service passes on unread. `sdp` is 1 to 12288 characters, `cand` 0 to 1024 (empty: end of candidates),
+`mid` 0 to 64, `index` 0 to 255; `ice_servers` is a list of at most 8 `{urls: [1 to 4 "stun:", "stuns:", "turn:" or
+"turns:" URLs], username?, credential?}`. Codes are 6 characters from the 31 that cannot be misread
+(`23456789ABCDEFGHJKMNPQRSTUVWXYZ`: no 0, O, 1, I, L), random per room.
+
+**Rules** (the router's; the Worker keeps them):
+- **Decoding:** over 16384 bytes is `too large`, unread. Not printable ASCII, not JSON or not an object is
+  `bad message`. Any `"v"` but the integer 1 (missing included) is `update the game`, before the type is looked at.
+  An unknown type is `bad message`; a type of the protocol that the sender's side may not send is `not allowed`; a
+  field missing or out of its rule is `bad message`. Unknown fields are ignored, and every message sent on is
+  rebuilt from the checked fields only, so nothing a sender adds passes through.
+- **Roles per socket**, fixed by its first accepted message: `open` makes it a room's host, `join` a joiner; a
+  socket without a role may send only those two, and one whose `join` failed keeps no role and may try another code.
+  A host-only type (`offer`, `close`, `reopen`, `open`) from a joiner gets `not allowed` and is never forwarded. A
+  joiner's `answer` and `candidate` go to its room's host with its `from`, whatever they name (a `to` is dropped). The
+  host's `offer` and `candidate` go only to the joiner of its own room named in `to`, else `no such joiner`. Joiners
+  never see each other, and the host never sees another room.
+- **Joining:** `join` of a code no room holds is `no such room`; of a closed room (`close`, entering Loading) `the
+  match has started`, until `reopen`; of a room with `max` joiners `the room is full` (a joiner leaving frees its
+  place). Otherwise the joiner gets `found` and the host `join {from}`.
+- **ICE servers:** `room` carries the service's own (STUN from its configuration, E58); the service adds a joiner's
+  to the host's `offer` to that joiner, never to `found`, so a code pasted in a public chat hands out no relay.
+  `LanSignalling` serves an empty list (host candidates connect on a LAN and in tests).
+- **Caps** (placeholders, "not a decision"): 16 KB a message; 32 candidates per joiner each way, the 33rd refused
+  with `too many candidates` to its sender; `max` joiners at once.
+- **No reclaim:** the host's socket closing closes the room; its joiners get `the host left` and the service closes
+  their sockets; the code is free, and hosting again makes a new room.
+- **Closing after an error:** the service closes a socket a moment after the message that ends it
+  (`LanSignalling.close_grace_ms`, 1 s): Godot's `WebSocketPeer` drops a message read together with the close (#366's
+  probe: a text sent just before `close()` never reached the client), so closing at once would lose the reason.
+
+**Shared transcripts** (`tests/fixtures/signal/`, one exchange per file, plain JSON): `config` holds the service's
+`ice_servers` and the `codes` it hands out in order (so GDScript and JavaScript produce the same codes); `steps` are
+`{"open": s}` (socket s connects), `{"gone": s}` (s closes), or `{"from": s, "send": {...}}` / `{"from": s, "raw":
+"text"}` (s sends it; `"pad_to": n` pads the text with spaces to n bytes, `"repeat": n` sends it n times), each with
+`expect`: in order, `{"to": s, "msg": {...}}` the service sends after that step, with `"close": true` when it then
+closes s. Messages compare as JSON values (numbers by value, keys in any order). The flows: `flow_join`, `flow_closed`,
+`flow_no_room`, `flow_wrong_version`, `flow_host_left`, `caps_full`, `caps_candidates`, `caps_too_large`; the forged
+types (the design's §5): `forged_offer`, `forged_candidate_to`, `forged_close`, `forged_reopen`, and `forged_roles`
+(a host joining or answering, a joiner opening, a host naming another room's joiner).
+
+**Tests:** `tests/unit/net/signal/` (the codec's rules, the router replaying every transcript, a fuzz test of the
+decoder: every truncation, every field of every type replaced by each other JSON type, oversized and deeply nested
+input and random bytes give a clean reject or a canonical message and no engine error line) and
+`tests/integration/net/lan_signalling_test.gd` (every transcript replayed byte for byte over real WebSockets on
+127.0.0.1 through `LanSignalling` on a free port, and a host and a joiner `Signaller` through a whole exchange). The
+design's §5 plant, the router forwarding a joiner's `offer` to the joiner it names, failed `forged_offer` in both.
+
 ## 5. Per-peer information filtering
 
 - Each outgoing message is built for one recipient from what that peer is entitled to know.
