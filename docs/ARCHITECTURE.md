@@ -1058,16 +1058,38 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   **Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
   claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
   them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
-  `LoadAck` back while the bot's step is `LoadAck`, since a bot loads no scene and would acknowledge at once),
+  `LoadAck` back while the bot's step is `LoadAck`, since a bot loads no scene and would acknowledge at once, and
+  with `hold_claims` its `MoveClaim` until its bot moved, #284),
   `BotsRunner` (one process), `BotsEnet` (one instance over ENet), `LeakCheck`, `BotWatcher` (the lurker and the
   refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   - A network bot's intent reaches `Match` one host tick or so after the core runner's would (the host reads it in
     its next step), so a step's timing differs by that much between the runners; the six MVP scenarios pass in both.
-  - The mover claims one client tick of travel per client tick: when the bot walks, it advances by the client ticks
-    since its last move (one per tick on the simulated clock), and its `ClientSession` claims the position on the
-    next client tick. Standing, it claims where it stands with no velocity.
+  - The mover claims one client tick of travel per client tick. Since #284 the bots runner and the ENet runner
+    (`NetPlay.claims_after_moves`) poll every client, let the bots act and move, and only then claim
+    (`BotClient.hold_claims`, `claim_clients`): a walk advances by the client ticks since the bot's last move or its
+    client's last claim, the later, which is exactly what that frame's claim covers (one tick after a `Welcome` or a
+    placement, and a walk of more than one tick walks instead of sprinting: the predicted stamina pays for one).
+    Standing, it claims where it stands with no velocity. Until #284 every client claimed as it polled, before its
+    bot moved, and the bot then advanced by every client tick since its last move: after a stall of the process
+    the next claim covered one client tick or a few and carried the stall's travel. On a loaded machine
+    (`bots-enet` beside 32 busy loops on 16 cores) 0.45 m walked in a claim of one client tick against 0.275 m
+    allowed, or 0.15 m crawled against 0.056 m (one tick) and 0.111 m (two), and the host rightly corrected an
+    honest bot (7 of 12 loaded runs, 2026-10-04). The chaos, perf and playcheck runners keep claiming as they poll,
+    so their bots move one client tick at most per frame (a stall slows them down).
+    `tests/scenarios/bots_stall_test.gd` stalls the one-process runner's clock (`BotsRunner._frame_usec`) in the
+    middle of a walk (60 ms to 1.5 s: no correction; 120 ms and more corrected before the fix), and pins the
+    accepted limit of §7.1: a stall right after the first claim of an epoch costs nothing up to `TICK_LEAD` (0.5 s)
+    and corrects the bots once past it. `tests/scenarios/bots_enet_test.gd` covers the ENet runner's start below.
   - Bot 1 sends the `ForceRole`s once it knows the peer of every bot that joins at the start, then the setup's
     `ChangeSettings`, as the core runner does at tick 0; a later joiner's `ForceRole` goes once it connected.
+  - Over ENet bot 1 takes its first step only once every bot that joins at the start is in its lobby (their
+    `PlayerJoined`), as both one-process runners join them all before the first tick; a remote bot that joins at
+    the start and whose join failed unanswered (`connect_failed` after `EnetTransport.JOIN_TIMEOUT_MS`) joins again
+    (that instance logs `joins again`). Under load an instance's process can start seconds before or after the
+    host's: until #284 a bot gave up on a host that was not listening yet and sat out the run, and bot 1 readied
+    alone, so the round started without the others (a lone dissident wins at once) or a late joiner cancelled the
+    countdown after bot 1's Ready (3 of the same 12 runs). A host that refuses a bot disconnects it
+    (`host_lost`), which stays a failure.
   - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
     `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
   - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
