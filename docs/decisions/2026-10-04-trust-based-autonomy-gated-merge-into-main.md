@@ -1,15 +1,16 @@
 # Trust-based autonomy: the manager merges into main through a gate
 
-- **Status:** Proposed; the engineer approves it by merging its PR (#300), the last PR of the tooling track the
-  engineer merges by hand under the old rule
+- **Status:** Accepted: the engineer's decision on #170 and #300; its wording approved by merging its PR (#300), the
+  last PR of the tooling track the engineer merges by hand under the old rule
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (chat with the AI productivity manager session, 2026-10-03 ~20:00 UTC, recorded on #170
   in comment 5972652086 and in #300's body; the answers to the M5 manager on 2026-10-03 ~20:30 UTC, recorded on #300;
   the reporting rule of 2026-10-04 ~23:20 UTC, recorded on #300)
 - **Amends:** [only humans merge](2026-09-28-humans-merge-prs.md), [a release branch per
   milestone](2026-10-01-release-branch-per-milestone.md), [the orchestrator
-  session](2026-09-30-orchestrator-session.md) and [pipeline v2](2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)
-  item 3; each has a dated note pointing here.
+  session](2026-09-30-orchestrator-session.md), [pipeline v2](2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)
+  item 3 and [effort and workflow bounds](2026-09-28-effort-and-workflow-bounds.md) (launch approval); each has a
+  dated note pointing here.
 
 ## Context
 The engineer merges every PR into `main` without reading it: the agents' fresh reviews, CI and `verify` are the

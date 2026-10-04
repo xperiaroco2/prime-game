@@ -7,7 +7,8 @@
   into `main` through the same gate, merged by its manager
   ([trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). "Humans merge the milestone",
   "each merged by the engineer, never by an agent" and "humans still merge everything into `main`" below now hold only
-  for the gate's exceptions. `verify` on the merged tree stays the gate into `release/m<k>`; into `main` the gate
+  for the gate's exceptions, and "agents never close issues ... a human closes the stage's issues" no longer holds:
+  the manager closes them after the merge into `main`. `verify` on the merged tree stays the gate into `release/m<k>`; into `main` the gate
   requires an up-to-date head instead.
 - **Date:** 2026-10-01
 - **Deciders:** the engineer (chat with the M3 manager session, 2026-10-01; recorded on #96)
