@@ -920,6 +920,21 @@ class QualityTest(unittest.TestCase):
                             if s["role"] == "publisher (clean run)" and s["model"] == SONNET)
         self.assertEqual(clean_sonnet["runs"], 1, "wf_a's only: the design run's Sonnet publisher is not a clean run's")
 
+    def test_a_pr_without_a_url_is_the_same_pr(self) -> None:
+        # A relaunch of #31 whose publisher result has pr_number only: PR 41 of o/r still, counted once.
+        wf = self.dir / self.SID / "subagents" / "workflows" / "wf_h"
+        Fixture.run(wf, [
+            ("k-i31", "a-i142", "implement:#31", "Implement", {"verify_green": True}, self.lines("i142", 142, 150)),
+            ("k-p31", "a-p151", "publish:#31", "Publish", {"published": True, "pr_number": 41},
+             self.lines("p151", 151, 158)),
+        ])  # fmt: skip
+        _md, record, _compact = self.build(self.github())
+        rows = {q["wf"]: q for q in record["quality"]["tasks"]}
+        self.assertEqual((rows["wf_h"]["pr"], rows["wf_h"]["repo"]), (41, "o/r"))
+        self.assertEqual(rows["wf_d"]["repo"], "o/other")
+        session = record["quality"]["sessions"][0]
+        self.assertEqual((session["tasks"], session["prs"]), (7, 4), "41 (three runs), 42, 43 and o/other's 41")
+
     def test_quality_without_github_is_unknown_not_zero(self) -> None:
         md, record, compact = self.build()
         for wf, q in ((q["wf"], q) for q in record["quality"]["tasks"]):

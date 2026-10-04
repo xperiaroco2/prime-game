@@ -1496,10 +1496,12 @@ def stat(values: list) -> dict:
 
 def pr_key(q: dict, i: int) -> object:
     """One key per PR (a run without one is its own), so PR-level signals count once when two runs end on a PR."""
-    if q["pr"] is None:
-        return i
-    found = PR_URL.search(q["pr_url"] or "")
-    return (found.group(1) if found else "", q["pr"])
+    return i if q["pr"] is None else (q["repo"], q["pr"])
+
+
+def url_repo(url: str | None) -> str | None:
+    found = PR_URL.search(url or "")
+    return found.group(1) if found else None
 
 
 def quality_summary(label: str, rows: list[dict]) -> dict:
@@ -1558,6 +1560,12 @@ def github_status(github: dict | None) -> dict:
 def quality_record(runs: list[dict], labels: list[str], github: dict | None) -> dict:
     """The scorecard of the finished issue-task runs: per run, per session, over all, per role setting."""
     rows = [q | quality_github(q, github) for q in map(quality_of, runs)]
+    # A PR's repository: its URL's, else (a result with pr_number only) the one most PR URLs name, so both result
+    # shapes of one PR are one PR.
+    repos = Counter(r for q in rows if (r := url_repo(q["pr_url"])))
+    home = repos.most_common(1)[0][0] if repos else ""
+    for q in rows:
+        q["repo"] = None if q["pr"] is None else url_repo(q["pr_url"]) or home
     quality = {
         "tasks": rows,
         "sessions": [quality_summary(label, sel) for label in labels if (sel := [q for q in rows
