@@ -135,7 +135,7 @@ It prevents 10-04's over-limit runs, timeout reds and the lagging PC during the 
 ### Q4. Which levers are on by default (N4, N5)
 | lever | measured | proposal | decides |
 |---|---|---|---|
-| Bounded waits | 7.9 points (row 12), built | `bounded_waits: true` on every launch (the managers' practice); the default flips in P3 | manager |
+| Bounded waits | 7.9 points (row 12), built | `bounded_waits: true` on every launch (the managers' practice); the default flips in P3a | manager |
 | Keep-alive | 3.4, built | stays (orchestrate-stage §7) | done |
 | Effort per role | 3.4, decided 2026-10-04 | no change: managers, the art and UI sessions and reviewers high; implementers high, xhigh for a design | done |
 | Compact results | 88% smaller (row 13) | on once PR #397 merges, between waves | manager |
@@ -144,8 +144,8 @@ It prevents 10-04's over-limit runs, timeout reds and the lagging PC during the 
 | Manager rotation | 2.7 points | N6 (Q5) | engineer |
 
 - **N4, lean:** (a) `lean: true` on every `issue-task` and `pr-rebase` launch from the reset, except a task whose
-  agents need the Skill tool, and the default flips (P3) after a week with no missing tool; (b) flip the default now
-  (P3 first); (c) keep it opt-in. **Recommended (a):** the A/B passed its three criteria, and the plan agent, the test
+  agents need the Skill tool, and the default flips (P3b) after a week with no missing tool; (b) flip the default now
+  (P3b first); (c) keep it opt-in. **Recommended (a):** the A/B passed its three criteria, and the plan agent, the test
   reviewer and `pr-rebase`'s agents, which it did not cover, get a week of real runs before the default changes.
 - **N5, Sonnet publisher:** (a) keep `models.publish_clean: "sonnet"` on every non-design `issue-task` launch,
   re-judged at the next reset with `metrics`' quality scorecard; (b) drop it. **Recommended (a):** 79% less publisher
@@ -211,8 +211,9 @@ report and proposal (Q1) come then, and the managers' kickoffs for the week foll
 |---|---|---|---|---|---|
 | 1 | P1. `metrics`: a track's spend this week against its budget | M | manager | none | `tools/runner/metrics.py`, its tests, orchestrate-stage §6, §7 and §10, AGENT_WORKFLOW §7.1 |
 | 1 | P2. `slots --status` and `slots --quiet <hours>` | S | N3 (b) | #388, PR #399 (both change `slots.py`) | `tools/runner/slots.py`, `verify.py`, `cli.py`, tests, AGENT_WORKFLOW §11, orchestrate-stage §3 |
-| 2 | P3. `issue-task` and `pr-rebase` default to `lean` and `bounded_waits` | S | N4; manager for `bounded_waits` | a week of N4 (a), or none under (b); lands between waves | `.claude/workflows/issue-task.js`, `pr-rebase.js`, snapshots, `test_workflows.py`, the lean ADR, AGENT_WORKFLOW §7.1 |
-| 2 | P4. The week's rules in the skill and the ADRs | S | N1, N2, N3, N5 to N8 | the answers | orchestrate-stage §1, §3, §6, §7, §10; AGENT_WORKFLOW §7.1; dated amendments of the trust, effort and model-guard ADRs |
+| 1 | P3a. `issue-task` and `pr-rebase` default to `bounded_waits` | S | manager | none; lands between waves | `.claude/workflows/issue-task.js`, `pr-rebase.js`, snapshots, `test_workflows.py`, AGENT_WORKFLOW §7.1 |
+| 2 | P3b. `issue-task` and `pr-rebase` default to `lean` | S | N4 | a week of N4 (a), or none under (b); never under (c); lands between waves | `.claude/workflows/issue-task.js`, `pr-rebase.js`, snapshots, `test_workflows.py`, the lean ADR, AGENT_WORKFLOW §7.1 |
+| 2 | P4. The week's rules in the skill and the ADRs | S | N1, N2, N3, N5 to N8 | the answers | orchestrate-stage §1, §3, §6, §7, §10 and a new `budget.md` beside it; AGENT_WORKFLOW §7.1; dated amendments of the trust, effort and model-guard ADRs |
 | 3 | P5. The art and UI workflows get bounded waits, compact results and lean types, and their kickoffs a `Track:` line (one issue in each repo) | M each | those repos' managers | P1 (to measure before and after) | `prime-game-art` and `prime-game-ui`: `.claude/workflows/`, `.claude/agents/`, the kickoff template |
 
 - **P1:** `metrics --since <reset> --track <name> [--budget <%>]` reads the transcript folders of the checkouts
@@ -228,12 +229,16 @@ report and proposal (Q1) come then, and the managers' kickoffs for the week foll
 - **P2:** `slots --status` prints the holders, the waiters and the last hour's runs without a slot; `slots --quiet
   <hours>` writes a machine-wide limit of one slot with its end time into the slots folder, which `verify` reads
   (`--quiet off` ends it); a run that starts during a quiet window says so. Tests for both and for an expired file.
-- **P3:** both defaults true, `lean: false` and `bounded_waits: false` still accepted; the snapshots change on
-  purpose; the lean ADR's status amended to "on by default"; lands with no `issue-task` or `pr-rebase` run in flight.
-- **P4:** the kickoff template's `Track:` and budget lines and the 80%/100% rules (N2); the launch cap and the slot
-  read (N3); the 300k threshold (N6); `publish_clean` from a one-wave trial to a standing rule (N5: amendments of the
-  effort and model-guard ADRs); the trust ADR's "15% per stage or track" read as "the track's weekly budget under
-  this ADR, else 15%"; the skill within its 500-line budget.
+- **P3a and P3b:** each flips one default to true (`bounded_waits` at once, `lean` per N4); `bounded_waits: false`
+  and `lean: false` are still accepted; the snapshots change on purpose; P3b amends the lean ADR's status to "on by
+  default"; each lands with no `issue-task` or `pr-rebase` run in flight.
+- **P4:** the kickoff template's `Track:` and budget lines (§10 and §7's handover); the 80%/100% rules, the last-day
+  rule and the 93% stop (N2); the launch cap and the slot read (N3); the 300k threshold (N6); manager count and
+  fillers if N7 (b); the day/night rhythm (N8); `publish_clean` from a one-wave trial to a standing rule (N5:
+  amendments of the effort and model-guard ADRs); the trust ADR's "15% per stage or track" read as "the track's
+  weekly budget under this ADR, else 15%"; AGENT_WORKFLOW §7.1's "about six" becomes N3's cap. The skill's body is
+  already at its 500-line budget (`SKILL_BUDGET`), so the week's rules go into a supporting `budget.md` beside
+  `SKILL.md`, which §1, §3 and §6 point to in one line each.
 - **P5:** each repo's manager measures its runs with P1 first and ports what applies, and adds the `Track:` line to
   its own kickoff template (P1's checkout default covers it until then); no change in this repo.
 
