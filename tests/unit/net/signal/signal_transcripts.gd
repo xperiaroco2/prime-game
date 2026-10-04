@@ -6,7 +6,8 @@ extends RefCounted
 ## {"from": s, "send": {...}} or {"from": s, "raw": "text"} (s sends that message; "pad_to": n
 ## pads the text with spaces to n bytes, "repeat": n sends it n times). "expect" lists, in order,
 ## what the service sends after that step: {"to": s, "msg": {...}}, with "close": true when it then
-## closes s.
+## closes s. A file with "turn_only" (its text says why) needs TURN credentials minted, from the
+## fake API answers in config "turn" ({"key_id", "minted"}): only the Worker replays it.
 
 const FOLDER := "res://tests/fixtures/signal/"
 ## Every transcript, so a deleted one fails the suites: the flows, the caps and the forged types
@@ -27,6 +28,7 @@ const NAMES: Array[String] = [
 	"forged_offer.json",
 	"forged_reopen.json",
 	"forged_roles.json",
+	"turn_per_joiner.json",
 ]
 
 
@@ -43,6 +45,11 @@ static func all() -> Dictionary[String, Dictionary]:
 		assert(error == OK and json.data is Dictionary, "transcript %s does not parse" % name)
 		found[name] = json.data
 	return found
+
+
+## Whether only the Worker can replay the transcript: it needs TURN credentials minted (M6-10).
+static func turn_only(transcript: Dictionary) -> bool:
+	return transcript.has("turn_only")
 
 
 ## The steps with "repeat" unrolled, each one's text ready to send.
