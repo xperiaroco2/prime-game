@@ -46,10 +46,11 @@ run of the session in flight, else a stop.
 Quality scorecard (#314), per finished issue-task run, so a cost change is judged by quality as well as by $:
 - from the journal: the blockers and majors of the diff reviewers and the test review (SERIOUS_FROM; matched as
   issue-task.js's SERIOUS, case-insensitive), how many skeptics checked and refuted, "open" (those minus the refuted)
-  and "clean" (none open and not stopped by mutants: #315's publish_clean rule, derived here because a run's return
-  value is not journaled), the publisher's fixed, not_fixed and needs_engineer, its PR (pr_number, else pr_url), and
-  its fix rounds (its `publish` calls minus one, every attempt of a retried publisher counted); each agent's model
-  and effort from its transcript;
+  and "clean" (none open, not stopped by mutants and not a design task, which its implementer's prompt says
+  (DESIGN_TASK): #315's publish_clean rule, derived here because a run's return value is not journaled), the
+  publisher's fixed, not_fixed and needs_engineer, its PR (pr_number, else pr_url), and its fix rounds (its
+  `publish` calls minus one, every attempt of a retried publisher counted); each agent's model and effort from its
+  transcript;
 - from `gh` (read-only, unless --no-gh): the PR's state; its CI rounds, one per head SHA of the pull_request runs of
   CI_WORKFLOW on its branch: red when a run of it ended in CI_RED (a SHA whose runs were all cancelled or skipped is no
   round; a re-run attempt shows only its last conclusion), "green on the first CI round" from the earliest round only,
@@ -164,6 +165,8 @@ TIMER = re.compile(r"\s*(?:sleep|start-sleep(?:\s+-s(?:econds)?)?)\s+(\d+)\s*(?:
                    re.IGNORECASE | re.DOTALL)  # fmt: skip
 # A background task's notification names the tool call that started it.
 NOTIFIED = re.compile(r"<tool-use-id>([^<\s]+)</tool-use-id>")
+# issue-task.js tells a design task's implementer so in its prompt; #315's publish_clean is false for such a run.
+DESIGN_TASK = "This is a DESIGN task: documents only"
 # Claude Code stops a background command after its `timeout`, 30 minutes when none is given.
 BACKGROUND_TIMEOUT = 1800
 # The quality scorecard (#314, the module docstring): what issue-task.js counts as a blocker or major (its SERIOUS),
@@ -389,6 +392,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     uses: dict[str, dict] = {}
     stamps: list[float] = []
     model, effort, title = None, None, None
+    prompt: str | None = None  # the first user message: the agent's prompt
     last_ctx = 0
     verifies: list[dict] = []
     timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
@@ -421,6 +425,12 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             stamps.append(t)
             if not isinstance(m, dict):
                 continue
+            if prompt is None and d.get("type") == "user":
+                content = m.get("content")
+                if isinstance(content, str) or (
+                    isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "text" for b in content)
+                ):
+                    prompt = text_of(content)
             if d.get("type") == "assistant":
                 msg_model = m.get("model")
                 if msg_model == "<synthetic>":
@@ -496,6 +506,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "model": model,
         "effort": effort,
         "title": title,
+        "design": DESIGN_TASK in (prompt or ""),
         "api_calls": len(usage),
         "tokens": dict(tokens),
         "unpriced": unpriced,
@@ -1364,6 +1375,8 @@ def quality_of(r: dict) -> dict:
     pub = next((x["result"] for x in reversed(pubs) if x["result"] is not None), None) or {}
     pr, url = pr_of(pub)
     stopped = pub.get("stopped_by_mutants") is True
+    implementers = [x["data"] for x in r["agents"] if x["role"] == "implementer" and x["data"]]
+    design = any(d.get("design") for d in implementers) if implementers else None
     data = [x["data"] for x in pubs if x["data"]]
     runs = sum(d["kind_counts"].get("publish", 0) for d in data) if data else None
     settings = {
@@ -1376,7 +1389,8 @@ def quality_of(r: dict) -> dict:
         "usd": run_usd(r), "published": pub["published"] if isinstance(pub.get("published"), bool) else None,
         "pr": pr, "pr_url": url, "findings": dict(findings) if reviewed else None,
         "serious": serious if reviewed else None, "checked": checked, "refuted": refuted, "open": opened,
-        "clean": None if opened is None else opened == 0 and not stopped, "stopped_by_mutants": stopped,
+        "clean": None if opened is None or design is None else opened == 0 and not stopped and not design,
+        "design": design, "stopped_by_mutants": stopped,
         "fixed": count_of(pub.get("fixed")), "not_fixed": count_of(pub.get("not_fixed")),
         "needs_engineer": count_of(pub.get("needs_engineer")), "publish_runs": runs,
         "fix_rounds": None if runs is None else max(0, runs - 1), "settings": settings,
@@ -1616,10 +1630,11 @@ def quality_section(quality: dict) -> list[str]:
         source = "GitHub was not read (" + (status.get("skipped") or f"gh failed: {status.get('error')}") + ")"
     md += [f"\"?\" is unknown, never 0: no PR, an older result shape, skeptics not run, a PR of another repository, "
            f"a branch without CI runs, or GitHub not read. {source}. \"clean\": no blocker or major left after the "
-           "skeptics (#315's rule, from the journal). CI red rounds: head SHAs with a red run (failure, timed_out, "
-           "startup_failure), in brackets those that began after the run ended. Found-by follow-ups are a lower "
-           "bound (only issues whose \"Found by\" line names the task); fix-up PRs are later `revert` or `fix` PRs "
-           "naming it: check both lists before trusting a count.", ""]  # fmt: skip
+           "skeptics, not stopped by mutants, not a design task (#315's rule, from the journal). CI red rounds: "
+           "head SHAs with a red run (failure, timed_out, startup_failure), in brackets those that began after the "
+           "run ended. Found-by follow-ups are a lower bound (only issues whose \"Found by\" line names the task); "
+           "fix-up PRs are later `revert` or `fix` PRs naming it in a sentence that reverts or repairs it: check "
+           "both lists before trusting a count.", ""]  # fmt: skip
     return md
 
 

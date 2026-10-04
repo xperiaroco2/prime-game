@@ -891,6 +891,26 @@ class QualityTest(unittest.TestCase):
             q = metrics.quality_of(done)
         self.assertEqual((q["pr"], q["fixed"], q["not_fixed"], q["serious"]), (9, None, None, 1))
 
+    def test_a_design_run_is_never_clean(self) -> None:
+        # #315's publish_clean is false for a design task: issue-task.js says so in its implementer's prompt.
+        prompt = {"type": "user", "timestamp": at(142),
+                  "message": {"role": "user", "content": "Task: #36. This is a DESIGN task: documents only (...)."}}
+        wf = self.dir / self.SID / "subagents" / "workflows" / "wf_g"
+        Fixture.run(wf, [
+            ("k-i36", "a-i36", "implement:#36", "Implement", {"verify_green": True},
+             [prompt, *self.lines("i36", 142, 150)]),
+            ("k-c36", "a-c36", "review:code:#36", "Review", {"findings": []}, self.lines("c36", 151, 152)),
+            ("k-p36", "a-p36", "publish:#36", "Publish", new_pub(44), self.lines("p36", 153, 158, model=SONNET)),
+        ])  # fmt: skip
+        _md, record, _compact = self.build()
+        rows = {q["wf"]: q for q in record["quality"]["tasks"]}
+        g = rows["wf_g"]
+        self.assertEqual((g["design"], g["open"], g["clean"]), (True, 0, False))
+        self.assertEqual((rows["wf_e"]["design"], rows["wf_e"]["clean"]), (False, True))
+        clean_sonnet = next(s for s in record["quality"]["settings"]
+                            if s["role"] == "publisher (clean run)" and s["model"] == SONNET)
+        self.assertEqual(clean_sonnet["runs"], 1, "wf_a's only: the design run's Sonnet publisher is not a clean run's")
+
     def test_quality_without_github_is_unknown_not_zero(self) -> None:
         md, record, compact = self.build()
         for wf, q in ((q["wf"], q) for q in record["quality"]["tasks"]):
