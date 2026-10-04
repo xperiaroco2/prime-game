@@ -315,7 +315,7 @@ def week_rate() -> str:
 
 
 def fmt_week(week: dict) -> str:
-    """'6.3% (5.8 to 6.1%)': the % at the central weight, then the bracket."""
+    """'6.0% (5.8 to 6.1%)': the % at the central weight, then the bracket."""
     lo, hi = week["bracket"]
     return f"{week['percent']:.1f}% ({lo:.1f} to {hi:.1f}%)"
 
