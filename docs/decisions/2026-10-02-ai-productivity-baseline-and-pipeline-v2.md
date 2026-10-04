@@ -7,6 +7,12 @@
 - **Amended 2026-10-04 (#304):** the calibration to the weekly limit. 1% of a Max 20x week is about $25.5 API list
   (measured in #302), not the 4x figure first given here; every % of the week below reads 1.7x too low (the amendment
   under "Calibration to the weekly limit" gives the corrected figures).
+- **Amended 2026-10-04 (#300):** `merge` now also merges a PR into `main`, through GitHub after a gate (green CI on
+  an up-to-date head, the exceptions, answered questions), with no local `verify` on the merged tree: the head
+  contains `main`, so `publish` and CI already verified that tree (item 3 (b)'s "refuses `main`" and its "always"
+  hold for `release/m<k>` only). This track's PRs are merged by its manager, not the engineer (item 3's last
+  paragraph, N2); "merges through GitHub, which agents may not do" (item 3 (e), Rejected) now reads: only through the
+  runner's gate ([trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 

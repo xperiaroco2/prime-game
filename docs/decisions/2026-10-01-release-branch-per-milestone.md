@@ -2,6 +2,13 @@
 
 - **Status:** Accepted; one Decision bullet added 2026-10-02 (a tooling track beside a milestone, the engineer's
   answer N2, #183)
+- **Amended 2026-10-04 (#300):** the manager also merges the milestone's closing PR into `main` once the engineer
+  gave the milestone's go (an "Approved by the engineer: <link>" line in its body), and the tooling track's PRs go
+  into `main` through the same gate, merged by its manager
+  ([trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). "Humans merge the milestone",
+  "each merged by the engineer, never by an agent" and "humans still merge everything into `main`" below now hold only
+  for the gate's exceptions. `verify` on the merged tree stays the gate into `release/m<k>`; into `main` the gate
+  requires an up-to-date head instead.
 - **Date:** 2026-10-01
 - **Deciders:** the engineer (chat with the M3 manager session, 2026-10-01; recorded on #96)
 
