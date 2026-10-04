@@ -31,7 +31,7 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | Shell | PowerShell 5.1 is the agent's primary shell. No `&&`/`||`: chain with `; if ($LASTEXITCODE -eq 0) { … }`. Structured arguments go in files, not inline JSON | [M0] root `CLAUDE.md` |
 | Machine paths | `GODOT_BIN`, `GODOT_GUI_BIN`, `PYTHON_BIN`, `GDTOOLKIT_DIR` in the `env` of each human's `~/.claude/settings.json`, so every session, worktree, hook and subagent sees them ([ADR](decisions/2026-09-28-machine-env-in-user-settings.md)). A human's own terminal needs no Windows variables for them: before any command the runner fills each one the process environment lacks from the `env` of the project's `.claude/settings.local.json`, then of `~/.claude/settings.json` (`$CLAUDE_CONFIG_DIR/settings.json` when that is set), and `tools\run.cmd` finds `PYTHON_BIN` there before Python starts. The process environment wins; `doctor` says where each came from and warns when none has it | [applied] engineer |
 | Personal settings | Each human's `~/.claude/settings.json` holds `"language"` and `"permissions": {"defaultMode": "acceptEdits"}`. Personal rules go in `~/.claude/CLAUDE.md`. Nothing personal in shared files | [applied] engineer |
-| `.claude/settings.local.json` | Personal permission approvals only; gitignored and untracked | [applied] |
+| `.claude/settings.local.json` | Personal permission approvals, plus in the main checkout on Windows the `claudeMdExcludes` pattern that the full `doctor` adds (§3 "Which copy loads", #385); gitignored and untracked | [applied] |
 | Godot import scope | `docs/.gdignore` keeps the editor from importing anything under `docs/` | [applied] |
 | Auto mode | Not yet. Revisit after the M0 guard tests pass (§14) | — |
 
@@ -103,6 +103,19 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   `**/.claude/worktrees/*/CLAUDE.md` in the tracked `.claude/settings.json` is wrong: the tracked file is also each
   worktree's own settings, and in a session started inside a worktree the pattern matches the only root `CLAUDE.md`
   it has (a probe session started there with it loaded none).
+- **[applied] The exclude lives in the main checkout's `.claude/settings.local.json`** (#385, the engineer's option
+  (a) on PR #360). On Windows Claude Code reads the local settings file of the folder a session starts in
+  (code.claude.com/docs/en/settings, "Where Claude Code keeps the local file"; elsewhere a worktree session uses the
+  main checkout's file instead). #385's probes, Claude Code 2.1.284, in a replica of this layout (a main checkout
+  with the same root, area and rule files and a `git worktree add` under `.claude/worktrees/1`), the exclude only in
+  main's `settings.local.json`: a session started in the worktree still loaded the worktree's root `CLAUDE.md` at
+  launch (with the exclude also in the worktree's own `settings.local.json` it loaded none, so the pattern does
+  match); a session started in the main checkout that Read worktree files loaded main's root `CLAUDE.md` at launch
+  and, by path, the worktree's area files and both copies of each rule, but no worktree root `CLAUDE.md`.
+  `tools\run.cmd doctor` (the full one; `onboard` runs it) adds the pattern to that file, merged into what is there;
+  `doctor --quick` (and so `verify`) only warns when it is missing. Neither touches it in CI or off Windows, where
+  it would take a worktree session's only root `CLAUDE.md`. So a workflow agent reads a worktree's root `CLAUDE.md`
+  only by Read; the rules still load twice by path (main's copy and the worktree's).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
