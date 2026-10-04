@@ -1634,6 +1634,10 @@ def quality_compact(quality: dict) -> str:
             return "?"
         return f"{a['sums'][key]}" + (f" in {s['known']} of {s['of']} {of}" if s["known"] < s["of"] else "")
 
+    def counted(key: str) -> str:
+        """How many numbers a list holds; "?" when no run's list is known (unknown is never 0)."""
+        return "?" if a[key] is None else str(len(a[key]))
+
     serious = summed("serious")
     if a["serious"]["known"]:
         serious += f" ({a['sums']['refuted']} refuted, {a['sums']['open']} open)"
@@ -1653,7 +1657,7 @@ def quality_compact(quality: dict) -> str:
         cost = "no PR with a known first CI round"
     after = f" ({a['sums']['ci_red_after_run']} after the run)" if a["ci_red_after_run"]["known"] else ""
     return (line + f"; CI red rounds {summed('ci_red_rounds', 'PRs')}{after}; "
-            f"Found-by follow-ups {len(a['followups'] or [])}, fix-up PRs {len(a['fixups'] or [])}; {cost}")
+            f"Found-by follow-ups {counted('followups')}, fix-up PRs {counted('fixups')}; {cost}")
 
 
 def compact_lines(
