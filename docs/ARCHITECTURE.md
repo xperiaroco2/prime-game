@@ -1074,8 +1074,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     the next claim covered one client tick or a few and carried the stall's travel. On a loaded machine
     (`bots-enet` beside 32 busy loops on 16 cores) 0.45 m walked in a claim of one client tick against 0.275 m
     allowed, or 0.15 m crawled against 0.056 m (one tick) and 0.111 m (two), and the host rightly corrected an
-    honest bot (7 of 12 loaded runs, 2026-10-04). The chaos, perf and playcheck runners keep claiming as they poll,
-    so their bots move one client tick at most per frame (a stall slows them down).
+    honest bot (7 of 12 loaded runs, 2026-10-04). The chaos runner, a `BotsRunner`, claims after the moves too (its
+    hostile acts after the honest claims of the frame went out, as before). The perf and playcheck runners keep
+    claiming as they poll, so their bots move one client tick at most per frame (a stall slows them down).
     `tests/scenarios/bots_stall_test.gd` stalls the one-process runner's clock (`BotsRunner._frame_usec`) in the
     middle of a walk (60 ms to 1.5 s: no correction; 120 ms and more corrected before the fix), and pins the
     accepted limit of §7.1: a stall right after the first claim of an epoch costs nothing up to `TICK_LEAD` (0.5 s)

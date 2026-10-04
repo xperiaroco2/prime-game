@@ -254,7 +254,8 @@ func _note_chaos_sent(peer: int, packets: Array[ChaosFrames.Packet]) -> void:
 func play_frame(at_tick: int) -> void:
 	if over_enet and not _all_connected():
 		# Over ENet the joins take a few frames: bot 1 would be ready alone and start the
-		# countdown before its setup (BotsEnet's bot 1 waits for every peer id the same way).
+		# countdown before its setup. This waits for peer ids only; BotsEnet's bot 1 waits until
+		# every bot that joins at the start is in its lobby (_lobby_full, #284), a stronger gate.
 		malformed.poll()
 		return
 	super(at_tick)

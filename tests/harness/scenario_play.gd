@@ -538,7 +538,7 @@ func _claim(_bot: ScenarioBot, _to: Vector3, _velocity: Vector3, _sprint: bool) 
 
 
 ## How many ticks of travel the bot may cover now: one per host tick in the core runner; over the
-## network one in a frame whose client tick rose since the bot's last move, else none.
+## network the client ticks the frame's claim covers (NetPlay._travel_ticks).
 func _travel_ticks(_bot: ScenarioBot) -> int:
 	return 1
 

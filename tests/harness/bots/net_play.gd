@@ -35,9 +35,10 @@ var now_usec := 0
 var ends_from_bots := false
 ## Each frame the clients poll (step_clients), the bots act and move (play_frame), and only then do
 ## the clients claim (claim_clients): a claim covers the client ticks since the last one and carries
-## the travel of exactly those ticks, also after a stall of the process (#284). Off (the chaos, perf
-## and playcheck runners), a client claims as it polls, before the bot moves, so the bot moves one
-## client tick at most per frame: a stall slows it down.
+## the travel of exactly those ticks, also after a stall of the process (#284). On in BotsRunner
+## and BotsEnet, and so in ChaosRun (a BotsRunner). Off (the perf and playcheck runners), a client
+## claims as it polls, before the bot moves, so the bot moves one client tick at most per frame: a
+## stall slows it down.
 var claims_after_moves := false
 
 ## Bot number -> the client tick of its last move: kept by _stand only in the client tick of that
