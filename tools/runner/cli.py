@@ -233,6 +233,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--out", help="the body's file (default tools/out/wave/wave-<session8>.md); with --args, also the JSON's"
     )
+    p.add_argument("--base", metavar="B", help="--since: whose merges, open PRs and merge-check to report (default main)")
+    p.add_argument("--plan", type=int, metavar="N", help="--since: the plan issue, named in the header")
+    p.add_argument("--title", metavar="T", help="--since: the body's title (default 'Wave report since <T>')")
+    p.add_argument("--notes", metavar="FILE", help="--since: the manager's own text, placed under the title")
+    p.add_argument("--stage-since", metavar="T", help="--since: add the stage's total API list $ and %% of the week")
+    p.add_argument(
+        "--no-merge-check", dest="merge_check", action="store_false", help="--since: skip merge-check (no git fetch)"
+    )
 
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
@@ -421,8 +429,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import wave
 
             return wave.main(
-                session=args.session, since=args.since, args_issue=args.args, out=args.out, workflow=args.workflow
-            )
+                session=args.session, since=args.since, args_issue=args.args, out=args.out, workflow=args.workflow,
+                base=args.base, plan=args.plan, title=args.title, notes=args.notes, stage_since=args.stage_since,
+                merge_check=args.merge_check,
+            )  # fmt: skip
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0

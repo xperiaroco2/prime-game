@@ -968,34 +968,65 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to
   pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
   with a release host's cost.
-- **`wave --since T | --args <n> [--workflow NAME] [--session ID] [--out FILE]` [applied]** (#277; round 2 of the AI
-  productivity track, a cheaper manager): a manager session's workflow runs and their handover data, read-only from
-  its transcript and the journals, so status gathering and wave reports cost the manager one command. Sources: the
-  manager's `<session>.jsonl` in one pass (each Workflow call's input `{name or scriptPath or script, args,
-  resumeFromRunId}`, paired by `tool_use_id` with its result's `toolUseResult` `{runId, taskId, workflowName}` or the
-  "Run ID: wf_..." in its text; each task notification, from its queue `enqueue` record or its user record, paired by
-  `<tool-use-id>`; the API calls and the title) and each run's `journal.jsonl` through `metrics.read_run`. A
-  notification's `<result>` is cut at about 8 kB, so PR, CI, published, not fixed, needs engineer and human steps come
-  only from the journal (the publisher's result, else the pr-rebase fix's, else the rebase's; human steps from every
-  agent, each once); the notification gives the status (completed, failed, killed) and whether its result says
-  `"stopped"`. `--since T` writes a wave comment's body (default `tools/out/wave/wave-<session8>.md`, UTF-8; it prints
-  the path) with four sections, each a function in `wave.py`'s `SECTIONS` (#278 adds more): the runs finished since T
-  (a "relaunch fresh, never resume" flag when the outcome has published false, a publisher stopped on `mutants`
-  exit 2, issue-task stopped on a red implementer, a pr-rebase rebase is red or unpublished, or the result says
-  stopped; other workflows, such as a read-only scouting run, are listed by their name with no issue), the running
-  runs (title, worktree, branch, base, the agent working now: each `started` with no `result`, and the minutes since
-  the launch and since the newest write to the run's journal or agent transcripts, which tell a live run from one
-  whose session died), the handover args of each running run and of each failed, killed or stopped one that no later
-  launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`, `ensure_ascii=False`; a
-  resume without args inherits its run's), and a footer (the
-  session's age, its last call's context, the mean API list $ per call of its first and last 20 calls, and any
-  records it skipped). A run is finished when its latest launch has a notification or its journal reached the
-  script's end (issue-task: a publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a
-  red or unpublished rebase, or every reviewer answered with no blocker or major left to fix). `--args <n>` prints
-  only the JSON of issue n's newest launch on stdout (the run, workflow and time on stderr; `--workflow issue-task`
-  or `pr-rebase` picks one; `--out` also saves it, best for Cyrillic from PowerShell 5.1) and exits 1 when n has
-  none. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It writes only its `--out` file, runs
-  no `gh` and launches nothing. The orchestrate-stage skill moves onto it, replacing its `args-<n>.json` files, in
+- **`wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n>
+  [--workflow NAME] [--session ID] [--out FILE]` [applied]** (#277, #278; round 2 of the AI productivity track, a
+  cheaper manager): a manager session's workflow runs and their handover data, read-only from its transcript and the
+  journals, and with `--since` the whole wave comment, so status gathering and wave reports cost the manager one
+  command. Sources: the manager's `<session>.jsonl` in one pass (each Workflow call's input `{name or scriptPath or
+  script, args, resumeFromRunId}`, paired by `tool_use_id` with its result's `toolUseResult` `{runId, taskId,
+  workflowName}` or the "Run ID: wf_..." in its text; each task notification, from its queue `enqueue` record or its
+  user record, paired by `<tool-use-id>`; the API calls and the title) and each run's `journal.jsonl` through
+  `metrics.read_run`. A notification's `<result>` is cut at about 8 kB, so PR, CI, published, not fixed, needs engineer
+  and human steps come only from the journal (the publisher's result, else the pr-rebase fix's, else the rebase's; human
+  steps from every agent, each once); the notification gives the status (completed, failed, killed) and whether its
+  result says `"stopped"`. `--since T` writes a wave comment's body (default `tools/out/wave/wave-<session8>.md`, UTF-8;
+  it prints the path and its own run time) with eleven sections in this order, each a function in `wave.py`'s
+  `SECTIONS`: a title (`--title`, default "Wave report since T") with a header line (the plan issue `--plan`, the base,
+  the window); the manager's own judgement from `--notes FILE` as written (decisions, batched questions, the order from
+  here; a BOM and CRLF are dropped); the PRs merged into the base (`--base`, default main) since T (number, title,
+  branch, merge time and commit, closing issues or the branch's issue); the runs finished since T (a "relaunch fresh,
+  never resume" flag when the outcome has published false, a publisher stopped on `mutants` exit 2, issue-task stopped
+  on a red implementer, a pr-rebase rebase is red or unpublished, or the result says stopped; other workflows, such as a
+  read-only scouting run, are listed by their name with no issue), the running runs (title, worktree, branch, base, the
+  agent working now: each `started` with no `result`, and the minutes since the launch and since the newest write to the
+  run's journal or agent transcripts, which tell a live run from one whose session died); the open PRs into the base and
+  those stacked on them (issues, base, draft, a CI cell from `statusCheckRollup`: red beats pending, else green, "none"
+  when nothing reported; `mergeStateStatus`); merge safety (`merge-check --base B` with its printed lines captured: its
+  exit code and verdict line, and only when it flagged something or failed its tables and details exactly as printed;
+  `--no-merge-check` skips it and its `git fetch`); the cost (what `metrics --since T --session <this session>
+  --compact` prints, computed in memory with no metrics file written, plus with `--stage-since S` the stage's `total API
+  list $` and `% of a Max 20x week` lines; `COST_EXTRAS` in `wave.py` takes more lines over metrics' JSON record, the
+  hook for #314); housekeeping (below); the handover args of each running run and of each failed, killed or stopped one
+  that no later launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`,
+  `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
+  context, the mean API list $ per call of its first and last 20 calls, and any records it skipped). A section says
+  "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
+  body is still written and `wave` exits 0. Housekeeping, from `git worktree list --porcelain` in the main checkout: one
+  fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-done <n>`; for the manager's
+  `release-m<k>` worktree its `git worktree remove` and `git branch -D`) for each worktree whose branch's PR merged and
+  whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
+  running run of this session there, its HEAD at the merged head and no live Claude session in it; whoever does the
+  housekeeping (orchestrate-stage §8) runs those. The section's first line, which the manager lifts into its chat
+  message, names a worktree a live session holds and then the ready blocks: `For you: close the Claude session in
+  worktree <n> (...), then run its block below; run the blocks under Ready to remove (worktrees ...).` (`For you:
+  nothing.` when neither); a manager that runs the ready blocks itself drops that part. The other cases are one-line
+  waits (after `release/m<k>` reaches main, a run still running there, HEAD not the merged head). It also names the
+  issues still open whose PR reached main since T. One `gh pr list --state merged --search sort:updated-desc` (the 500
+  most recently updated, every base; gh's default order is by creation) serves the merged section and housekeeping (gh's
+  `merged:>=` search is date-only, so mergedAt is filtered here); when gh returns all 500, the merged section names the
+  oldest update among them, before which a merged PR (and its worktree) may be missing. A body over 60,000 characters
+  (GitHub's limit is 65,536) moves its handover data, each run's block whole, to `<out>-2.md` (and `-3.md`, ...), posted
+  as the next comments; the first body says so, every path is printed, a part one run's args alone push
+  over 65,536 gets a warn, and a part left from an earlier run is named, never deleted. A run is finished when its
+  latest launch has a notification or its journal reached the script's end (issue-task: a publisher result, or a red
+  implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or every reviewer answered with
+  no blocker or major left to fix). `--args <n>` prints only the JSON of issue n's newest launch on stdout (the run,
+  workflow and time on stderr; `--workflow issue-task` or `pr-rebase` picks one; `--out` also saves it, best for
+  Cyrillic from PowerShell 5.1) and exits 1 when n has none; the `--since` flags are refused with it, and it reads
+  nothing beyond the transcript. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It writes only
+  its `--out` file(s) and posts, edits and launches nothing: `gh` is only read, and merge-check's `git fetch` (with any
+  PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity manager (#278's PR)
+  took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its `args-<n>.json` files, in
   #279.
 - **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]` [applied]**
   (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
