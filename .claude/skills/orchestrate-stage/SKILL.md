@@ -153,14 +153,14 @@ workflow the kickoff approved:
 | `bounded_waits: true` | every `issue-task` and `pr-rebase` launch (no tool call of theirs blocks over 240 s, so their 5-minute cache stays warm), once `wait` (#303) is on the task's base (`git show origin/<base>:tools/runner/wait.py`) | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
 | `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and, for the #308 trial only, `publish_clean: "sonnet"` on every non-design `issue-task` launch of the one wave the kickoff names (not `pr-rebase`: it has no publisher and rejects the role; none after the wave until the engineer keeps it) | 0 |
+| `lean: true` | `issue-task` and `pr-rebase`: the 3-4 A/B tasks the kickoff names (#332, results on #302), until the engineer turns it on by default; only once `.claude/agents/task-implementer.md` and `task-publisher.md` are in your checkout (the first run's `agent-*.meta.json` shows `agentType` `task-implementer`); not for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) | 0 |
 
 - **`models`** follows the script's fallbacks: set only `implement`, `second_review` or (the trial) `publish_clean`,
   never `review` or `netcode` (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode`
   covers `second_review`). `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model
   too unless you also set `models.plan: "opus"`. `publish_clean` falls back to `publish` and applies only to the full
   publisher of a run with no blocker or major left open (a skeptic-refuted one is closed), never to a design task;
-  leave `efforts.publish_clean` unset during the trial, so only the model varies. Never as a habit, and never for
-  yourself.
+  leave `efforts.publish_clean` unset during the trial, so only the model varies. Never as a habit or for yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
   reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
   that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
@@ -280,7 +280,7 @@ taken in a `main` that has them.
   hand such a case to `pr-rebase` when the human is away.
 - A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
   with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
-  `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review, netcode, second_review,
+  `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models` and `lean` (roles rebase, review, netcode, second_review,
   skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4
   agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read;
   `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one

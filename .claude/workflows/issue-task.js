@@ -1,7 +1,7 @@
 export const meta = {
   name: 'issue-task',
   description: 'One prime-game issue in its worktree: implement (or design), fresh reviews chosen from the changed paths, fix, publish, PR, CI, handoff',
-  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, bounded_waits, efforts and models add none.',
+  whenToUse: 'The orchestrate-stage skill launches it once per task, after the manager ran `tools\\run.cmd start <n>`. args: {n, title, wt, branch, base?, notes, coord?, decisions?, reading?, testing?, design?, effort?, plan?, manager?, plan_review?, test_review?, second_review?, skeptic?, visual?, bounded_waits?, efforts?, models?, lean?}. Agents: 3 to 5 (implementer, 1 to 3 reviewers, publisher); plan_review adds 2, test_review 1 (none for a design task or a diff without core, server, net, client or voice code), second_review 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); visual, bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Implement', detail: 'one agent in the task worktree; commits, verify green, never publishes (plan_review: a plan agent and a fresh critique of its plan first)' },
     { title: 'Review', detail: 'code-reviewer; netcode-security-reviewer if core/server/net/client/tests/harness changed or a design task; godot-api-checker if .gd/.tscn/.tres changed (optional: a second netcode review, a test review with mutants, a skeptic per blocker or major)' },
@@ -65,6 +65,11 @@ export const meta = {
 //                 run stopped by mutants. It is the one-wave trial of #308 of a cheaper model from the shared list
 //                 for that publisher (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended 2026-10-04);
 //                 when models or efforts name it, the result's publish_clean says whether it applied.
+//   lean          true: the implementer, the plan agent and the test reviewer run as the agent type task-implementer,
+//                 the publisher (both kinds) as task-publisher: lean tool allowlists, no Skill tool (#332,
+//                 docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is appended to their
+//                 options; prompts, efforts and models stay. Opt-in until the A/B on #302; .claude/agents/ in the
+//                 manager's checkout must have both files. +0 agents
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
 // and earlier results, and each prompt tells its agent to check what an earlier attempt already did).
 
@@ -87,7 +92,7 @@ const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BAS
 
 // The pipeline v2 args. A wrong value throws before any agent runs: a typo must not silently drop a review the
 // kickoff paid for. An unknown arg only logs, as before v2 (a manager may pass extra fields).
-const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models']
+const KNOWN = ['n', 'title', 'wt', 'branch', 'base', 'notes', 'coord', 'decisions', 'reading', 'testing', 'design', 'effort', 'plan', 'manager', 'plan_review', 'test_review', 'second_review', 'skeptic', 'visual', 'bounded_waits', 'efforts', 'models', 'lean']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${N}: unknown args ignored: ${unknown.join(', ')}`)
 const flag = k => {
@@ -104,6 +109,7 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 // true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
 const BOUNDED = flag('bounded_waits')
+const LEAN = flag('lean')
 const V = A.visual
 const SCENES = V === true
   ? 'the playcheck scenarios the task notes name (none named: the scenarios under tools/playcheck/ that show what this task changes)'
@@ -134,8 +140,16 @@ const EFFORTS = perRole('efforts', ['low', 'medium', 'high', 'xhigh', 'max'])
 const MODELS = perRole('models', null)
 const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
 // Today's options keep their keys and order; an effort (agentType reviewers only: the others carry their default)
-// and a model are appended only where this launch sets them for the role.
-const withModel = (o, role) => (set(MODELS, role) === undefined ? o : { ...o, model: set(MODELS, role) })
+// and a model are appended only where this launch sets them for the role, and under lean the agent type of a role
+// that has none (a reviewer's own agentType wins), resolved through CHAIN, last.
+const LEAN_TYPES = { implement: 'task-implementer', plan: 'task-implementer', test_review: 'task-implementer', publish: 'task-publisher' }
+const leanType = (o, role) => (LEAN && !o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
+const withModel = (o, role) => {
+  const m = set(MODELS, role)
+  const t = leanType(o, role)
+  const out = m === undefined ? o : { ...o, model: m }
+  return t === undefined ? out : { ...out, agentType: t }
+}
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
 const IMPL_EFFORT = EFFORTS.implement || A.effort || (DESIGN ? 'xhigh' : 'high')
 const PLAN_EFFORT = EFFORTS.plan || IMPL_EFFORT

@@ -17,6 +17,22 @@ disallowedTools: Edit, Write, NotebookEdit, Agent
 Body.
 """
 
+# The lean workflow agent types (docs/decisions/2026-10-04-lean-workflow-agent-types.md), as their real frontmatter.
+WRITER = """---
+name: {name}
+description: A lean workflow agent. Edits files in its task worktree.
+model: opus
+tools: Bash, PowerShell, Read, Edit, Write, Grep, Glob, Monitor, TaskStop, WebFetch, WebSearch{extra}
+disallowedTools: NotebookEdit, Agent, Skill
+---
+
+Body.
+"""
+WRITER_FILES = {
+    ".claude/agents/task-implementer.md": WRITER.format(name="task-implementer", extra=""),
+    ".claude/agents/task-publisher.md": WRITER.format(name="task-publisher", extra=", SendUserFile"),
+}
+
 
 def write(root: Path, rel: str, text: str) -> None:
     path = root / rel
@@ -122,6 +138,47 @@ class BudgetTest(unittest.TestCase):
         joined = " | ".join(report.errors)
         self.assertIn("model: must be one of", joined)
         self.assertIn("disallowedTools: must include Agent", joined)
+
+    def test_lean_writer_types_may_edit(self) -> None:
+        # docs/decisions/2026-10-04-lean-workflow-agent-types.md: exactly these two workflow types edit.
+        report = self.check({"CLAUDE.md": "x\n", **WRITER_FILES})
+        self.assertEqual(report.errors, [])
+        self.assertIn("2 subagents: frontmatter, model guard, read-only or a lean writer", report.notes)
+
+    def test_the_exemption_goes_by_name_only(self) -> None:
+        # A regression guard: the writer frontmatter under any other name is still held to the read-only rule.
+        helper = WRITER.format(name="helper", extra="")
+        report = self.check({"CLAUDE.md": "x\n", ".claude/agents/helper.md": helper})
+        self.assertEqual(
+            report.errors,
+            [".claude/agents/helper.md: disallowedTools: must include Edit, Write (subagents are read-only)"],
+        )
+
+    def test_a_writer_type_stays_within_its_allowlist(self) -> None:
+        implementer = WRITER.format(name="task-implementer", extra="")
+        publisher = WRITER_FILES[".claude/agents/task-publisher.md"]
+        cases = (
+            ("task-implementer", WRITER.format(name="task-implementer", extra=", SendUserFile"), "tools: SendUserFile is outside the lean allowlist"),
+            ("task-implementer", WRITER.format(name="task-implementer", extra=", mcp__x__y"), "tools: mcp__x__y is outside the lean allowlist"),
+            ("task-implementer", implementer.replace(", Skill\n", "\n"), "disallowedTools: must include Skill"),
+            ("task-publisher", publisher.replace("model: opus\n", "model: opus\neffort: high\n"), "effort: is set by the workflow per role"),
+        )
+        for name, text, want in cases:
+            with self.subTest(want=want):
+                report = self.check({"CLAUDE.md": "x\n", f".claude/agents/{name}.md": text})
+                self.assertEqual(len(report.errors), 1, report.errors)
+                self.assertIn(want, report.errors[0])
+        # The publisher's own allowlist has SendUserFile (the screenshots of a visual PR).
+        self.assertEqual(self.check({"CLAUDE.md": "x\n", ".claude/agents/task-publisher.md": publisher}).errors, [])
+
+    def test_no_agent_sets_permission_mode(self) -> None:
+        # Project subagents inherit the session's permission mode; a field that could change it is an error.
+        for rel, text in ((".claude/agents/helper.md", AGENT), *WRITER_FILES.items()):
+            with self.subTest(agent=rel):
+                changed = text.replace("\n---\n\n", "\npermissionMode: acceptEdits\n---\n\n", 1)
+                report = self.check({"CLAUDE.md": "x\n", rel: changed})
+                self.assertEqual(len(report.errors), 1, report.errors)
+                self.assertIn("permissionMode: project subagents inherit the session's", report.errors[0])
 
 
 SKILL = """---
