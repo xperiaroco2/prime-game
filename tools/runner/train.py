@@ -214,7 +214,13 @@ def _retry_note(label: str, what: str) -> None:
 
 
 def by_publish(p: Plan) -> str:
-    """Publish in the worktree, once more after a red verify; "" when pushed, else why not."""
+    """Publish in the worktree, once more after a red verify; "" when pushed, else why not (the rebase undone)."""
+    before = _wt(p.worktree, "rev-parse", "HEAD").out.strip()
+    why = _publish(p)
+    return why + _undo_rebase(p, before) if why else ""
+
+
+def _publish(p: Plan) -> str:
     label = p.pr.label
     for attempt in (1, 2):
         result = publish_in(p.worktree, f"train-{p.pr.number}-publish-{attempt}")
@@ -229,6 +235,21 @@ def by_publish(p: Plan) -> str:
         if attempt == 1:
             _retry_note(label, "publish's verify")
     return "verify was red twice after the rebase: nothing was pushed"
+
+
+def _undo_rebase(p: Plan, before: str) -> str:
+    """After a publish that pushed nothing: the worktree back at the PR's head (publish leaves its rebase in place),
+    so that a later train run does not find it held by "commits nobody published". Only while the remote branch is
+    still the PR's head: a push that went through, or someone else's, is left alone."""
+    wt, branch = p.worktree, p.pr.head
+    now = _wt(wt, "rev-parse", "HEAD").out.strip()
+    remote = _wt(wt, "rev-parse", "--verify", "--quiet", f"refs/remotes/{REMOTE}/{branch}").out.strip()
+    if not before or now == before or before != p.pr.oid or remote != p.pr.oid:
+        return ""
+    res = _wt(wt, "reset", "-q", "--keep", before)
+    if res.rc != 0 or res.timed_out:
+        return f"; its rebase could not be undone (git reset --keep {before[:10]}: {_last_fail(res)})"
+    return f"; its rebase undone ({now[:10]} -> {before[:10]})"
 
 
 def by_merge(p: Plan) -> str:

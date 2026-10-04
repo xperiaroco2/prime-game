@@ -104,6 +104,10 @@ class TrainCase(MergeCase):
         number = self.number_of(wt)
         self.published.append(number)
         step = (self.publish_script.get(number) or ["green"]).pop(0)
+        if step == "rebased-red":  # as publish does: the rebase stays when its verify is red
+            _git(wt, "fetch", "-q", "origin")
+            _git(wt, "rebase", "-q", "origin/main")
+            step = "red"
         if step == "red":
             return Result(1, "verify summary\n  failed  test 900.0s\n" + RED, False, 0.0)
         if step == "conflict":
@@ -177,18 +181,27 @@ class TrainTest(TrainCase):
         self.pr(31, {"core/b.gd": "extends Node\n"})
         self.pr(32, {"core/c.gd": "extends Node\n"})
         self.main_moves({"core/z.gd": "extends Node\n"})
-        self.publish_script = {30: ["red", "green"], 31: ["red", "red"]}
+        self.publish_script = {30: ["red", "green"], 31: ["rebased-red", "rebased-red"]}
+        head_31 = self.gh.prs[31]["headRefOid"]
         rc, text = self.train(30, 31, 32)
         self.assertEqual(rc, 1, text)
         self.assertEqual(self.published, [30, 30, 31, 31, 32])
         self.assertEqual(text.count("is red on the first try: retrying once (a timeout on a busy PC"), 2)
         self.assertEqual([args[2] for args in self.gh.merges], ["30", "32"])
-        self.assertEqual(self.summary()[1:], [
+        summary = self.summary()
+        self.assertEqual(summary[1:4:2], [
             "  merged   #30 (core/30-task): published, CI green, the gate passed",
-            "  skipped  #31 (core/31-task): verify was red twice after the rebase: nothing was pushed",
             "  merged   #32 (core/32-task): published, CI green, the gate passed",
-            "merge-train: 2 merged, 1 skipped of 3 PRs",
         ])  # fmt: skip
+        self.assertRegex(summary[2], r"^  skipped  #31 \(core/31-task\): verify was red twice after the rebase: "
+                                     r"nothing was pushed; its rebase undone \(\w{10} -> " + head_31[:10] + r"\)$")
+        self.assertEqual(summary[4], "merge-train: 2 merged, 1 skipped of 3 PRs")
+        # The worktree is back at the PR's head, so the next run takes the PR again instead of finding it held.
+        self.assertEqual(_git(self.wts[31], "rev-parse", "HEAD"), head_31)
+        rc, text = self.train(31)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual(self.published[-1], 31)
+        self.assertEqual([args[2] for args in self.gh.merges], ["30", "32", "31"])
 
     def test_a_rebase_conflict_or_another_stop_skips_without_a_retry(self) -> None:
         self.pr(30, {"core/a.gd": "extends Node\n"})
