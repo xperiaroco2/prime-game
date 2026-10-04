@@ -1,13 +1,17 @@
 # M6: playable over the internet, and the M6 task split
 
-- **Status:** Proposed (2026-10-04). The D items wait for the engineer; the E items are the M6 manager session's to
-  decide and report (the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier (a)), each with
-  the recommendation below. Merges after the engineer answers the D items (#346); the M6 release branch is cut after.
+- **Status:** Accepted on 2026-10-04. The engineer took every recommendation (in chat with the #346 session, [recorded
+  on #346](https://github.com/xperiaroco2/prime-game/issues/346#issuecomment-5981040104)): D16 (a); D17 (b), or (a) if
+  Cloudflare asks for a payment card and the engineer declines; D18 (a); D19 (a); D20 (a); D21 (a) if M6-1 confirms
+  playit.gg's free tier carries the game, else (b); D22 (a); D23 (a); D24 (a); the split (§8) (a). The E items are the
+  M6 manager session's to decide and report (the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s
+  tier (a)), each recommendation standing until it reports otherwise. The tables below keep each item's options and
+  recommendation.
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (D16 to D24); the M6 manager session (E48 to E61); designed by the agent in #346, in a
   Claude Code cloud session
-- **Amends, once accepted:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md)'s
-  Reach line ("plus a UPnP attempt"; E61: no UPnP; none was ever built). That ADR gets a dated note pointing here.
+- **Amends:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md)'s Reach line ("plus
+  a UPnP attempt"; E61: no UPnP; none was ever built); that ADR has a dated note pointing here.
 - **Builds on:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md) (a listen
   server, own messages over `MultiplayerPeer`, "internet play without a VPN stays the M6 ADR"),
   [wire format and the host session](2026-09-30-wire-format-and-host-session.md) (E1, E7, E11, E17),
@@ -386,17 +390,18 @@ the playtest; none of it but `LaneOrder` testable in CI.
 | D24 | M5-4b's batched voice row in M6 (ARCHITECTURE §10: "whether to open it is the engineer's") | (a) built in M6 (M6-8) if M6-6 measures over E44's thresholds (4.5 Mbit/s of upload or 2 ms of relay per 20 ms, at 10 players); (b) built in M6 whatever M6-6 measures (§4 estimates 5.6 Mbit/s); (c) not in M6 | (a) waits for one more measurement; (b) a protocol change that SCTP's bundling might have made unneeded; (c) a lobby of 10 talkers over a 5 Mbit/s uplink | (a) |
 
 ### 10. Needs the engineer
-Answer as "1a, 2b, …" on #346 or this PR.
-1. D16: the internet path. Recommended (a).
+All answered on 2026-10-04 as recommended (the Status line; recorded on #346).
+1. D16: the internet path. Recommended (a). **Answered: (a).**
 2. D17: when a direct connection fails. Recommended (b), or (a) if Cloudflare asks for a card and you decline.
-3. D18: where signalling runs. Recommended (a).
-4. D19: how joining feels. Recommended (a).
-5. D20: how friends get the game. Recommended (a).
-6. D21: the fallback. Recommended (a) if M6-1 confirms it, else (b).
-7. D22: the M6 go. Recommended (a).
-8. D23: the new dependencies. Recommended (a).
-9. D24: M5-4b in M6. Recommended (a).
-10. The split (§8) and its waves: (a) as proposed; (b) with the changes you name. Recommended (a).
+   **Answered: as recommended.**
+3. D18: where signalling runs. Recommended (a). **Answered: (a).**
+4. D19: how joining feels. Recommended (a). **Answered: (a).**
+5. D20: how friends get the game. Recommended (a). **Answered: (a).**
+6. D21: the fallback. Recommended (a) if M6-1 confirms it, else (b). **Answered: as recommended.**
+7. D22: the M6 go. Recommended (a). **Answered: (a).**
+8. D23: the new dependencies. Recommended (a). **Answered: (a).**
+9. D24: M5-4b in M6. Recommended (a). **Answered: (a).**
+10. The split (§8) and its waves: (a) as proposed; (b) with the changes you name. Recommended (a). **Answered: (a).**
 
 ## Alternatives
 - **Steam now** (D16 (b)): the best joining experience and relays that always work, at the cost of Steam for every

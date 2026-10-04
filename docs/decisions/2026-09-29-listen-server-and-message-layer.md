@@ -3,6 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-09-29
 - **Deciders:** the engineer (approved in chat with the M2 manager session on 2026-09-29); recorded from #31
+- **Amended 2026-10-04** by [the M6 design](2026-10-04-m6-playable-over-the-internet.md) (accepted, #346): the Reach
+  line's "plus a UPnP attempt" is dropped (E61; none was ever built); internet play goes through WebRTC with our own
+  signalling (D16 (a)), and ENet direct join stays for a LAN, a VPN or a tunnel. The text below keeps its first wording.
 
 ## Context
 The [MVP rules](2026-09-29-mvp-rules.md) need a hosting model before M2 designs intents, events and entitlement (#32).
