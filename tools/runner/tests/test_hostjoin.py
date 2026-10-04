@@ -426,6 +426,29 @@ class SupervisionTest(unittest.TestCase):
         self.assertRegex(parts[0].problem, r"its last line came \d+\.\ds before the stop: 'session: roster")
         self.assertIsNone(parts[0].stop_seconds)
 
+    def test_each_part_is_killed_once_its_own_grace_has_passed(self) -> None:
+        parts = [fake("client 2", "stubborn", self.stop), fake("client 3", "stubborn", self.stop)]
+        parts[0].grace = 0.5
+        parts[1].grace = 2
+        killed: dict[str, float] = {}
+        real_kill = hostjoin.kill_tree
+
+        def timed_kill(proc: object) -> None:
+            label = next(p.label for p in parts if p.proc is proc)
+            stopped_at = parts[0].stopped_at
+            assert stopped_at is not None
+            killed[label] = time.monotonic() - stopped_at
+            real_kill(proc)  # type: ignore[arg-type]
+
+        with mock.patch.object(hostjoin, "kill_tree", timed_kill):
+            self.run_parts(parts, seconds=1)
+        self.assertLess(killed["client 2"], 1.5)
+        self.assertGreaterEqual(killed["client 3"], 2)
+        self.assertIn("did not stop within 0.5s of the stop", parts[0].problem)
+        self.assertIn("did not stop within 2s of the stop", parts[1].problem)
+        # A killed part did not end by itself: no stop time.
+        self.assertEqual([p.stop_seconds for p in parts], [None, None])
+
     def test_each_stopped_part_reports_how_long_it_took_to_end(self) -> None:
         parts = [fake("host", "host", self.stop), fake("client 2", "client", self.stop)]
         self.run_parts(parts, seconds=1)

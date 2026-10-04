@@ -67,8 +67,9 @@ on the same field before it.
 A run fails on a step that times out or cannot run (its window prints the step's line and what it saw, saves
 failed-window-<n>.png and exits 1), an engine error line or a non-zero exit of any process, a window that did not
 finish its steps within --seconds, or a missing PNG. Every process it started stops through hostjoin's stop file (a
-killed runner: the alive file) and is killed GRACE_SECONDS later, so no host is left holding the port. It needs a
-desktop session: CI never runs it, and verify does not.
+killed runner: the alive file) and is killed if it still runs WINDOW_GRACE_SECONDS later (a window; the bots:
+hostjoin's GRACE_SECONDS), so no host is left holding the port; the report gives each one's time from the stop to its
+exit. It needs a desktop session: CI never runs it, and verify does not.
 """
 
 from __future__ import annotations
@@ -104,6 +105,11 @@ MAX_CLOCK = 3600
 # The whole run of one scenario: joining, the lobby's countdown, loading and the steps.
 DEFAULT_SECONDS = 300
 MAX_SECONDS = 1800
+# How long a window gets from the stop to its exit before it is killed (hostjoin's GRACE_SECONDS for the bots). A
+# window's renderer teardown waits for the GPU driver's idle-priority threads, which a PC whose cores are all busy runs
+# only when Windows lifts a starved thread, about every 4 s: windows that printed `session: stopped` at once took up
+# to 9.5 s to exit beside 32 busy loops on 16 cores, and #318 saw over 10 s (#354).
+WINDOW_GRACE_SECONDS = 30
 SIZE = "1280x720"
 NAME_RE = re.compile(r"[a-z0-9_]+")
 ID_RE = re.compile(r"[a-z_][a-z0-9_]*")
@@ -512,6 +518,7 @@ def make_parts(scenario: Scenario, plan_path: Path, port: int, stop: Path) -> li
     for number, part in enumerate(parts, start=1):
         part.label = window_label(number)
         part.user_args = [f"--plan={plan_path}", f"--window={number}", *part.user_args]
+        part.grace = WINDOW_GRACE_SECONDS
         if number == 1:
             part.user_args.append(hostjoin.NO_REPLAY)
     if scenario.bots:

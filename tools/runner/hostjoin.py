@@ -17,11 +17,12 @@ and kept in one log per process in tools/out/logs/session/.
 
 They run until Ctrl+C, until --seconds pass, or until every process ended (every window closed). Stopping is clean:
 the runner creates a stop file that each process polls; it closes its session (so the clients see host_lost at once,
-not after ENet's timeout) and exits 0. A process still running GRACE_SECONDS later is killed and fails the run; a
-second Ctrl+C kills at once. The runner also touches an alive file every second: a runner that is killed (an agent's
-command timeout) leaves no session running, since each process stops once that file is gone or ten seconds old. The
-run fails when a process exits non-zero (a refused join, a host that could not start) or prints an engine error
-line, as `run` does.
+not after ENet's timeout) and exits 0. A process still running when its grace (GRACE_SECONDS unless its Part sets
+one) has passed is killed and fails the run; a second Ctrl+C kills at once. The report gives each stopped process's
+time from the stop to its exit, and a killed one's last line with when it came. The runner also touches an alive file
+every second: a runner that is killed (an agent's command timeout) leaves no session running, since each process stops
+once that file is gone or ten seconds old. The run fails when a process exits non-zero (a refused join, a host that
+could not start) or prints an engine error line, as `run` does.
 
 `game_check` is verify's `game` step: the game scene headless through that same command line, a host and one client
 over ENet on 127.0.0.1, both welcomed into the lobby, then both stopped through the stop file.
@@ -101,6 +102,8 @@ class Part:
     times: list[float] = field(default_factory=list)
     stopped_at: float | None = None
     ended_at: float | None = None
+    # Seconds it gets from the stop to its exit before it is killed; None: GRACE_SECONDS.
+    grace: float | None = None
     killed: bool = False
     log: Path | None = None
     # What a check of its own found missing in a process that ended well (a window, verify's game step).
@@ -116,7 +119,7 @@ class Part:
         if self.proc is None:
             return "never started"
         if self.killed:
-            return f"did not stop within {GRACE_SECONDS}s of the stop and was killed; {self.last_words()}"
+            return f"did not stop within {self.grace_seconds:g}s of the stop and was killed; {self.last_words()}"
         if self.proc.returncode != 0:
             last = next((line for line in reversed(self.lines) if line.startswith("session: ")), "")
             return f"exited {self.proc.returncode}" + (f" ({last.removeprefix('session: ')})" if last else "")
@@ -124,6 +127,10 @@ class Part:
         if count:
             return f"exited 0 but printed {count} engine error line{'s' if count > 1 else ''}"
         return self.unmet
+
+    @property
+    def grace_seconds(self) -> float:
+        return GRACE_SECONDS if self.grace is None else self.grace
 
     @property
     def stop_seconds(self) -> float | None:
@@ -351,7 +358,8 @@ def supervise(
                 break
             _sleep(POLL_SECONDS)
     except KeyboardInterrupt:
-        say(f"session: Ctrl+C, stopping (each process gets {GRACE_SECONDS}s; Ctrl+C again kills them)")
+        grace = max(part.grace_seconds for part in parts)
+        say(f"session: Ctrl+C, stopping (each process gets up to {grace:g}s; Ctrl+C again kills them)")
     finally:
         _stop(parts, stop)
         done.set()
@@ -392,18 +400,22 @@ def _stop(parts: list[Part], stop: Path) -> None:
     for part in running:
         part.stopped_at = stopped_at
     try:
-        deadline = stopped_at + GRACE_SECONDS
-        while any(part.running for part in parts) and time.monotonic() < deadline:
-            _sleep(POLL_SECONDS)
+        while True:
             _note_ended(running)
+            now = time.monotonic()
+            for part in running:
+                if part.running and now >= stopped_at + part.grace_seconds:
+                    _kill(part)
+            if not any(part.running for part in parts):
+                break
+            _sleep(POLL_SECONDS)
     except KeyboardInterrupt:
         pass
     finally:
         _note_ended(running)
         for part in parts:
-            if part.running and part.proc is not None:
-                part.killed = True
-                kill_tree(part.proc)
+            if part.running:
+                _kill(part)
         for part in parts:
             if part.reader is not None:
                 part.reader.join(timeout=5)
@@ -412,10 +424,17 @@ def _stop(parts: list[Part], stop: Path) -> None:
         stop.unlink(missing_ok=True)
 
 
+def _kill(part: Part) -> None:
+    if part.proc is not None:
+        part.killed = True
+        kill_tree(part.proc)
+
+
 def _note_ended(parts: list[Part]) -> None:
+    # A killed part did not end by itself: it keeps no stop time.
     now = time.monotonic()
     for part in parts:
-        if part.ended_at is None and not part.running:
+        if part.ended_at is None and not part.killed and not part.running:
             part.ended_at = now
 
 

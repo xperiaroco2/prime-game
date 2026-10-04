@@ -401,6 +401,8 @@ else:
 while not stop.exists():
     time.sleep(0.05)
 say("session: stopped")
+if what == "slowexit":
+    time.sleep(1.5)
 """
 
 
@@ -420,7 +422,9 @@ class RunTest(unittest.TestCase):
         self.out = out.start()
         self.addCleanup(out.stop)
 
-    def run_scenario(self, behaviours: dict[str, str], seconds: int = 30) -> tuple[int, list[hostjoin.Part]]:
+    def run_scenario(
+        self, behaviours: dict[str, str], seconds: int = 30, grace: float = 5, window_grace: float = 5
+    ) -> tuple[int, list[hostjoin.Part]]:
         s = scenario()
         seen: list[hostjoin.Part] = []
 
@@ -431,7 +435,8 @@ class RunTest(unittest.TestCase):
 
         with (
             mock.patch.object(playcheck, "set_commands", fake_commands),
-            mock.patch.object(hostjoin, "GRACE_SECONDS", 5),
+            mock.patch.object(hostjoin, "GRACE_SECONDS", grace),
+            mock.patch.object(playcheck, "WINDOW_GRACE_SECONDS", window_grace),
         ):
             code = playcheck.run_one(s, "godot", seconds, 24999)
         return code, seen
@@ -458,6 +463,25 @@ class RunTest(unittest.TestCase):
         self.assertIn("ok    bots: played", printed)
         self.assertIn("playcheck probe: passed", printed)
         self.assertIn(f"PLAYCHECK {out / 'host_view.png'}", printed)
+        self.assertRegex(printed, r"ok    window 1: its steps done, stopped in \d+\.\ds")
+
+    def test_a_window_gets_its_own_longer_grace_to_exit_and_the_bots_hostjoins(self) -> None:
+        # #354: a window's renderer teardown can take seconds under load after `session: stopped`.
+        behaviours = {"window 1": "slowexit", "window 2": "slowexit", "bots": "slowexit"}
+        code, parts = self.run_scenario(behaviours, grace=0.5, window_grace=10)
+        self.assertEqual(code, 1, self.out.getvalue())
+        self.assert_all_stopped(parts)
+        self.assertEqual([p.grace for p in parts], [10, 10, None])
+        for window in parts[:2]:
+            self.assertEqual(playcheck.problem(window), "", self.out.getvalue())
+            seconds = window.stop_seconds
+            assert seconds is not None
+            self.assertGreaterEqual(seconds, 1.4)
+        self.assertTrue(parts[2].killed)
+        printed = self.out.getvalue()
+        self.assertIn("FAIL  bots: did not stop within 0.5s of the stop and was killed", printed)
+        self.assertIn("its last line came", printed)
+        self.assertNotIn("FAIL  window", printed)
 
     def test_a_step_that_times_out_fails_the_run_with_its_line_and_every_process_stops(self) -> None:
         code, parts = self.run_scenario({"window 2": "fail"})
