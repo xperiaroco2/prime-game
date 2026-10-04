@@ -94,7 +94,9 @@ the account.
   reading, not measured separately.
 - **$ per 1% of the week**, k(w), a least-squares fit over the 44 readings to 77%: **$21.5 at w = 0.6, $23.0 at 0.75,
   $25.5 at 1**. At w = 1, k is full list $, so #304's $25.5 holds. `metrics` keeps its % at $25.5 full list, which is
-  the bracket's upper end, and prints the bracket at w = 0.6 and 1 (`WEEK_BRACKET`). At 40% cache reads the three
+  the bracket's upper end, and prints the bracket at w = 0.6 and 1 (`WEEK_BRACKET`). *Amended 2026-10-04 (#333,
+  approved on PR #351):* `metrics`' headline is now at the central weight, $23.0 at w = 0.75 (`WEEK_CENTRAL`);
+  $25.5 (`WEEK_PERCENT_USD`) stays the bracket's upper end. At 40% cache reads the three
   agree within 1%; at 86% (the probe's window) the w = 0.6 end is 22% lower.
 - **What it changes.** A list $ of cache reads saved is worth 0.6 to 1 (about 0.75) of a list $ of writes or output
   saved, not about 0. At w = 0.75 (points since the restart, as in #302's report), #302's levers rank:
