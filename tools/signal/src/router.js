@@ -41,6 +41,9 @@ export class SignalRouter {
     this.rooms = new Map();
     // Sockets whose record() changed since takeChanged().
     this.changed = new Set();
+    // Joiners restore() found without their room: their host's socket went away while the object
+    // was out of memory. Their owner tells them the host left.
+    this.orphans = [];
   }
 
   // A new socket. Numbers are never reused while the router may still hold one: a reused number
@@ -172,8 +175,9 @@ export class SignalRouter {
     for (const [socket, record] of joiners) {
       const room = router.rooms.get(record.code);
       if (room === undefined) {
-        // Its host's record was lost: the room is gone, and so is the joiner's place in it.
+        // Its host's socket is gone: so is the room, and the joiner's place in it.
         router.peers.delete(socket);
+        router.orphans.push(socket);
         continue;
       }
       room.joiners.set(record.number, socket);

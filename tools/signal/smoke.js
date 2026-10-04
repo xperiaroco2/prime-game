@@ -102,6 +102,7 @@ async function smoke(url) {
   console.log(`ok   an offer (ICE servers ${JSON.stringify(offer.ice_servers)}) and an answer went through`);
 
   host.socket.close();
+  await host.until(() => host.closed, "close of its own socket");
   await joiner.next("error", "the host left");
   const left = Date.now();
   await joiner.until(() => joiner.closed, "close after \"the host left\"");

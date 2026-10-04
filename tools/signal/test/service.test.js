@@ -90,7 +90,9 @@ function serviceFor(state, transcript, timers, codes) {
 }
 
 // Replays one transcript through SignalService; returns what went wrong, one line per wrong step.
-// `rebuild`: a new SignalService from the sockets' attachments after every step.
+// `rebuild`: a new SignalService from the sockets' attachments after every step; "wake" also
+// between a socket leaving the runtime's list and its close event, as when the close wakes the
+// object.
 function replay(transcript, rebuild) {
   const failures = [];
   const state = new FakeState();
@@ -109,6 +111,9 @@ function replay(transcript, rebuild) {
       const ws = sockets.get(step.gone);
       ws.close(1000, "");
       state.drop(ws);
+      if (rebuild === "wake") {
+        service = serviceFor(state, transcript, timers, codes);
+      }
       service.closed(ws);
     } else {
       service.message(sockets.get(step.from), step.raw);
@@ -161,7 +166,52 @@ for (const [file, transcript] of transcripts.all()) {
   test(`${file} replays with the object rebuilt after every step`, () => {
     assert.deepEqual(replay(transcript, true), []);
   });
+
+  test(`${file} replays with the object rebuilt as a close wakes it`, () => {
+    assert.deepEqual(replay(transcript, "wake"), []);
+  });
 }
+
+test("a socket that closed keeps no role after a wake, even while the runtime still lists it", () => {
+  const { state, timers, service, host, joiner, env } = hostAndJoiner();
+  service.closed(joiner);
+  service.closed(host);
+  const woken = new SignalService(state, env, { nextCode: () => "ABCDEF", setTimer: timers.set });
+  assert.equal(woken.roomCount(), 0);
+  const newcomer = new FakeSocket();
+  woken.accept(newcomer);
+  woken.message(newcomer, codec.encode(codec.Side.UNSET, "join", { code: "ABCDEF" }));
+  assert.deepEqual(newcomer.take().map((text) => JSON.parse(text).why), [codec.WHY_NO_ROOM]);
+  woken.message(host, codec.encode(codec.Side.HOST, "offer", { to: 1, id: 2, sdp: "v=0" }));
+  assert.deepEqual([...host.take(), ...joiner.take()], []);
+});
+
+test("a failed socket is gone and closed", () => {
+  const { state, timers, service, host, joiner, env } = hostAndJoiner();
+  service.failed(joiner);
+  assert.equal(joiner.closedWith.code, 1011);
+  assert.deepEqual(joiner.deserializeAttachment(), { id: 2, gone: true });
+  new SignalService(state, env, { setTimer: timers.set }).message(
+    host,
+    codec.encode(codec.Side.HOST, "offer", { to: 1, id: 2, sdp: "v=0" }),
+  );
+  assert.deepEqual(host.take().map((text) => JSON.parse(text).why), [codec.WHY_NO_JOINER]);
+  assert.deepEqual(joiner.take(), []);
+});
+
+test("joiners whose host went away while the object was out of memory hear it at the next event", () => {
+  const { state, timers, host, joiner, env } = hostAndJoiner();
+  state.drop(host);
+  const woken = new SignalService(state, env, { setTimer: timers.set, now: () => 0 });
+  assert.deepEqual(joiner.sent, []);
+  woken.accept(new FakeSocket());
+  assert.deepEqual(joiner.take().map((text) => JSON.parse(text).why), [codec.WHY_HOST_LEFT]);
+  assert.deepEqual(joiner.deserializeAttachment(), { id: 2, closing: CLOSE_GRACE_MS });
+  timers.runAll();
+  assert.equal(joiner.closedWith.code, 1000);
+  woken.message(joiner, codec.encode(codec.Side.JOINER, "answer", { sdp: "v=0" }));
+  assert.deepEqual(joiner.take(), []);
+});
 
 test("a socket the service is closing is ignored, and its close is no event", () => {
   const { state, timers, service, host, joiner } = hostAndJoiner();
@@ -190,6 +240,14 @@ test("a close lost with the object's memory happens when the object wakes", () =
   assert.equal(timers.pending.at(-1).ms, 0);
   timers.runAll();
   assert.equal(joiner.closedWith.code, 1000);
+});
+
+test("a socket the service ends is marked closing even when the send fails", () => {
+  const { state, service, host, joiner } = hostAndJoiner();
+  joiner.close(1000, "");
+  state.drop(host);
+  service.closed(host);
+  assert.equal(joiner.deserializeAttachment().closing, 5000 + CLOSE_GRACE_MS);
 });
 
 test("a send to a socket its client closed is skipped", () => {

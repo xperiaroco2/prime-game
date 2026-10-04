@@ -9,7 +9,9 @@
 // It uses the WebSocket Hibernation API: the object may leave memory while its sockets stay open,
 // and the constructor runs again on the next event. So nothing lives only in memory: each socket's
 // attachment holds its number and the router's record for it (SignalRouter.record), and a new
-// SignalService rebuilds the router from them.
+// SignalService rebuilds the router from them. A socket the router is done with says so in its
+// attachment, "closing" (closed after the grace) or "gone" (closed, or failed), so no rebuild
+// gives it back a role.
 
 import * as codec from "./codec.js";
 import { SignalRouter } from "./router.js";
@@ -20,8 +22,9 @@ export const DEFAULT_ICE_SERVERS = [{ urls: ["stun:stun.cloudflare.com:3478"] }]
 // WebSocketPeer drops a message it reads together with the close (#366's probe), so closing at once
 // would lose the reason. LanSignalling.close_grace_ms has the same value.
 export const CLOSE_GRACE_MS = 1000;
-// The normal closure (RFC 6455 §7.4.1).
+// The normal closure, and an unexpected condition (RFC 6455 §7.4.1).
 const CLOSE_NORMAL = 1000;
+const CLOSE_ERROR = 1011;
 
 // The ICE servers of the configuration (`ICE_SERVERS` in wrangler.toml's [vars], a list or its
 // JSON text), checked by the codec's rules for "room", or the default. A bad list throws, so a
@@ -62,8 +65,11 @@ export class SignalService {
       if (attachment === null || attachment === undefined) {
         continue;
       }
-      this.sockets.set(attachment.id, ws);
       this.nextSocket = Math.max(this.nextSocket, attachment.id + 1);
+      if (attachment.gone) {
+        continue;
+      }
+      this.sockets.set(attachment.id, ws);
       if (attachment.closing !== undefined) {
         // The timer died with the object's memory: close it when the grace would have ended.
         this.closeLater(ws, attachment.closing - this.now());
@@ -76,6 +82,7 @@ export class SignalService {
 
   // A new socket the Worker upgraded: the service accepts it with hibernation.
   accept(ws) {
+    this.settle();
     const socket = this.nextSocket++;
     this.ctx.acceptWebSocket(ws);
     this.sockets.set(socket, ws);
@@ -85,8 +92,9 @@ export class SignalService {
 
   // A message from `ws`: a string (text) or an ArrayBuffer (binary).
   message(ws, data) {
+    this.settle();
     const attachment = ws.deserializeAttachment();
-    if (attachment === null || attachment === undefined || attachment.closing !== undefined) {
+    if (ended(attachment)) {
       return;
     }
     const text = typeof data === "string";
@@ -96,19 +104,32 @@ export class SignalService {
     this.deliver(out);
   }
 
-  // `ws` closed, or failed (webSocketError). Idempotent.
+  // `ws` closed. Idempotent.
   closed(ws) {
+    this.settle();
     const attachment = ws.deserializeAttachment();
     if (attachment === null || attachment === undefined) {
       return;
     }
     this.sockets.delete(attachment.id);
-    if (attachment.closing !== undefined) {
+    if (ended(attachment)) {
       return;
     }
+    // Before anything is sent: an event that throws after this leaves no role on the socket.
+    mark(ws, { id: attachment.id, gone: true });
     const out = this.router.closed(attachment.id);
     this.save();
     this.deliver(out);
+  }
+
+  // `ws` failed (webSocketError): the service closes it, and it is gone as if its client closed it.
+  failed(ws) {
+    this.closed(ws);
+    try {
+      ws.close(CLOSE_ERROR, "");
+    } catch {
+      // Already closed.
+    }
   }
 
   roomCount() {
@@ -131,23 +152,33 @@ export class SignalService {
       if (ws === undefined) {
         continue;
       }
-      const attachment = ws.deserializeAttachment();
       // A socket the service is closing is no one's any more: nothing more goes to it.
-      if (attachment === null || attachment === undefined || attachment.closing !== undefined) {
+      if (ended(ws.deserializeAttachment())) {
         continue;
       }
       try {
         ws.send(JSON.stringify(each.message));
       } catch {
-        // Its client is gone, and its close event will follow.
-        continue;
+        // Its client is gone, and its close event will follow; a socket the router ended is
+        // still marked below, so no rebuild gives it back its role.
       }
       if (each.close) {
-        const closing = this.now() + this.closeGraceMs;
-        ws.serializeAttachment({ id: each.socket, closing });
+        mark(ws, { id: each.socket, closing: this.now() + this.closeGraceMs });
         this.closeLater(ws, this.closeGraceMs);
       }
     }
+  }
+
+  // Tells the joiners the rebuilt router found without a room that their host left, once, at the
+  // first event after a wake: the host's socket went away while the object was out of memory.
+  settle() {
+    const out = this.router.orphans.map((socket) => ({
+      socket,
+      message: { t: "error", v: codec.VERSION, why: codec.WHY_HOST_LEFT },
+      close: true,
+    }));
+    this.router.orphans = [];
+    this.deliver(out);
   }
 
   closeLater(ws, ms) {
@@ -158,5 +189,18 @@ export class SignalService {
         // Already closed by its client.
       }
     }, Math.max(0, ms));
+  }
+}
+
+// Whether the router is done with the socket of `attachment`.
+function ended(attachment) {
+  return attachment === null || attachment === undefined || attachment.gone === true || attachment.closing !== undefined;
+}
+
+function mark(ws, attachment) {
+  try {
+    ws.serializeAttachment(attachment);
+  } catch {
+    // A socket already closed keeps no attachment, and is not listed after a wake.
   }
 }
