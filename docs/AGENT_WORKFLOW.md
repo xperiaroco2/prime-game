@@ -57,7 +57,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   nor is it documented that `CLAUDE_CODE_REMOTE` is set at that point. Hence the first command above; `doctor` says
   when it is due.
 - **Python:** the image's `python3` is 3.11, the runner's minimum (`pins.PYTHON_MIN`; 3.10, 3.12 and 3.13 are
-  installed too), while CI runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on 3.11.
+  installed too), while CI's `verify` runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on
+  3.11, and since #349 CI's job `python-min` keeps the minimum true.
 - **Network access** (what #345's session used): `github.com` with `release-assets.githubusercontent.com`
   for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit. The session's proxy refuses API calls and
   feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
@@ -999,7 +1000,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
   seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
-  `verify` on the merged tree is the check there (§7.1). `verify` (#179) runs `doctor --quick` first (red: nothing
+  `verify` on the merged tree is the check there (§7.1). A second job, `python-min` (#349), sets up the pinned
+  minimum Python (`pins --get python_min`, 3.11), compiles every runner file and runs `selftest --group python`
+  (about 4 runner minutes beside `verify`, free on this public repository): `verify`'s 3.12 never ran the stated
+  minimum, and 3.12-only code broke `verify` in a cloud session on 3.11 (#345). `verify` (#179) runs `doctor --quick`
+  first (red: nothing
   else runs), then two lanes at once, each a process of its own and serial inside: the Python lane (`lint`, then
   `selftest`: the runner tests that start no Godot, each test in one of the worker processes, a quarter of the
   logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
@@ -1008,7 +1013,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
   output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
   clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
-  it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check). The
+  it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
+  `selftest --group python|godot` runs one group without it). The
   summary keeps the serial order (`doctor`, `lint`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
   `bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
   test count.

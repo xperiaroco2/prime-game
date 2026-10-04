@@ -56,3 +56,33 @@ jobs:
             tools/out/logs
           if-no-files-found: ignore
           retention-days: 14
+
+  # The runner on its stated minimum Python (tools/runner/pins.py PYTHON_MIN; the python-task-runner ADR), which the
+  # verify job's 3.12 never runs: 3.12-only code broke verify in a cloud session on 3.11 (#345, #349). Every runner
+  # file must compile there, and the runner tests that start no Godot (verify's Python lane) must pass; no Godot here.
+  python-min:
+    name: runner on the minimum Python
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      # The image's own python3 reads the pin, so the version is written in one place.
+      - name: Read the minimum Python
+        id: pins
+        run: echo "python=$(tools/run.sh pins --get python_min)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ steps.pins.outputs.python }}
+
+      - name: Install gdtoolkit
+        run: python -m pip install --disable-pip-version-check "gdtoolkit==$(tools/run.sh pins --get gdtoolkit)"
+
+      - name: Compile every runner file
+        run: python -m compileall -q tools
+
+      - name: Runner tests that start no Godot
+        run: tools/run.sh selftest --group python

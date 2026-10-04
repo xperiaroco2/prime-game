@@ -77,6 +77,22 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertEqual(uses[:2], ["actions/checkout@v7", SETUP])
         self.assertIn("GODOT_BIN=$HOME/godot/godot tools/run.sh verify", [step.get("run") for step in steps])
 
+    def test_ci_runs_the_runner_on_the_pinned_minimum_python(self) -> None:
+        # #349: the verify job's Python is 3.12, the runner's stated minimum 3.11 (pins.PYTHON_MIN).
+        steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["python-min"]["steps"]
+        runs = [step.get("run", "") for step in steps]
+        setup = [step for step in steps if step.get("uses") == "actions/setup-python@v7"]
+        self.assertEqual(len(setup), 1)
+        self.assertEqual(setup[0]["with"]["python-version"], "${{ steps.pins.outputs.python }}")
+        pins = next(i for i, step in enumerate(steps) if step.get("id") == "pins")
+        self.assertIn("tools/run.sh pins --get python_min", runs[pins])
+        self.assertLess(pins, steps.index(setup[0]))
+        order = [runs.index("python -m compileall -q tools"), runs.index("tools/run.sh selftest --group python")]
+        self.assertEqual(order, sorted(order))
+        self.assertLess(steps.index(setup[0]), order[0])
+        self.assertTrue(any("tools/run.sh pins --get gdtoolkit" in run for run in runs))
+        self.assertNotIn(SETUP, [step.get("uses") for step in steps], "the shared setup pins Python 3.12")
+
     def test_ci_restores_the_last_gdunit_times_before_verify(self) -> None:
         # `test` balances its shards by them (#182); a fresh CI checkout has none of its own.
         steps = load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]
