@@ -94,11 +94,11 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    shell anywhere else, `git fetch origin && git branch release/m<k> origin/main && git push -u origin release/m<k>
    && git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
    both in the first wave comment.
-6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree, the
-   args file), the queue, ownership splits, merge order, open questions, the session's, the stage's and the current
-   wave's start times, and the keep-alive timer and wake count (§7). Keep it current: it survives compaction. Keep
-   each task's args in `manager/args-<n>.json`. The scratchpad is per session, so every wave comment also carries
-   what a successor needs (§6).
+6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree), the
+   queue, ownership splits, merge order, open questions, the session's, the stage's and the current wave's start
+   times, and the keep-alive timer and wake count (§7). Keep it current: it survives compaction. Keep no args files:
+   `tools\run.cmd wave --args <n>` prints a task's args from your transcript (#277). The scratchpad is per session,
+   so every wave comment also carries what a successor needs (§6).
 7. Find the files that tasks running in parallel will all touch (mode `.tres` files, `docs/ARCHITECTURE.md`,
    registries, event folders) and split ownership **up front**: who owns which class, which task creates which
    shared class (same path and class name if two may create it), whose deal places what. Otherwise add/add
@@ -243,7 +243,8 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   task PRs onto the new tip); both go into the wave comment.
 - **Order.** Stacked PRs: the parent first. Never merge a parent while its child's workflow has not reached Publish:
   the merge deletes the parent branch the child's reviewers diff against and its publisher targets. If it happened
-  anyway, relaunch the child fresh with `base: "release/m<k>"` (update its args file) once the running one ends.
+  anyway, relaunch the child fresh with `base: "release/m<k>"` (its `wave --args <n>` with the new base) once the
+  running one ends.
 - After each merge: `gh pr list --state open --json number,headRefName,baseRefName,mergeStateStatus` (`UNKNOWN` just
   after a merge: ask again). A child still based on the merged parent: `gh pr edit <child> --base release/m<k>`.
 - Never touch a worktree whose workflow is still running, yours or another session's (§2.2).
@@ -291,8 +292,9 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   server; its `plan` part lists the per-model weekly limits with % used and reset time): `metrics` has no price for
   it and weighs it at Opus rates.
 - **Merge safety**: the latest `merge-check` result, or its table when it flagged something.
-- **Handover data** in every wave comment: for each running run the issue, the worktree, the owning session's name,
-  the runId and the args as a JSON block. A successor session (§7) relaunches from that, not from your scratchpad.
+- **Handover data** in every wave comment, which `tools\run.cmd wave --since <wave start>` writes from your
+  transcript (#277; no args files): each running run's args as launched (worktree included), its runId and your
+  session, and each failed, killed or stopped run since then not yet relaunched. A successor (§7) relaunches from it.
 - Keep every slot busy: when the next task waits for a merge, start what does not depend on it (a task's
   independent part with a "fetch and check whether X is on origin/release/m<k>" step, fillers, the next milestone's
   design task). When nothing more can run without merges or a design review, say so in a plan-issue comment and stop
@@ -302,7 +304,7 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 
 ## 7. Resume after a crash, a restart or a plan limit
 - A workflow throws when an agent returns nothing. Relaunch it the same way (name or `scriptPath`) with
-  `resumeFromRunId` and the **same args** (from the args file, v2 args included): finished agents return their saved
+  `resumeFromRunId` and the **same args** (`wave --args <n>`, v2 args included): finished agents return their saved
   results. A resume replays agents only while their prompts are unchanged, so it needs the same script too: if `main`
   changed `issue-task.js` since the launch, expect the changed agents to run again.
 - A result with `stopped` is never resumed (§4): relaunch fresh.
@@ -330,13 +332,22 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   no message to the human and no PushNotification, unless that line needs them. Count the wakes in a row in the
   state file (a message from the human resets the count); after 14 (about 12 hours of their absence) arm no more:
   hand over if one is due, else stop.
-- **The keep-alive and the fresh manager once a day (#279) together**, decided in this order at the end of each
-  turn and on each wake: (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes
-  none: the run's end still wakes you). (2) No run in flight and a handover due (the session over 12 hours old or
-  its context over 500k; `tools\run.cmd wave` prints both, #277): hand over (#279) and arm nothing, since a fresh
-  session costs less than keeping a big context warm. (3) No run in flight, no handover due, the context over
-  about 150k: arm the timer. (4) Otherwise arm nothing. A session that passes 12 hours while it waits hands over
-  on its next wake.
+- **A fresh manager once a day** (#279, the engineer's option A on #170): a manager never compacts, and a day-old
+  context makes each call about 3 times dearer (§9). A handover is due when you stop for the human with work left,
+  no run of your own in flight, and the session over 12 hours old or its context over 500k tokens (both in the
+  footer of `tools\run.cmd wave`). Post one plan-issue comment, `wave --since <session start> --title "Handover to
+  a fresh manager session" --notes <file>` (#278; before it, your notes above its body): the order from here, the
+  open questions, every `human_steps` command still due, the stage's start and `wave`'s handover data (since the
+  session start: every failed run not relaunched, not only this wave's). Your "For you:" is the human's single
+  step: paste the §10 kickoff with its "Continue from" line into a new session in `D:\prime-game`. Then a
+  PushNotification; stop with no timer and launch nothing more. Never hand over with a run in flight. The successor
+  takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is no live run) and the
+  stage's yes as given: it restates the order and goes on without waiting (§1's wait does not apply).
+- **The keep-alive and the handover together**, decided in this order at the end of each turn and on each wake:
+  (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes none: the run's end still
+  wakes you). (2) No run in flight and a handover due: hand over and arm nothing (a fresh session costs less than a
+  big warm context). (3) No run in flight, no handover due, the context over about 150k: arm the timer. (4)
+  Otherwise arm nothing. A session that passes 12 hours while it waits hands over on its next wake.
 - "продовжуй" after any break: re-read the live state first (`gh pr list`, the plan issue's latest comments, each
   running run), then the state file, then continue.
 
@@ -348,7 +359,7 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   `release/m<k>` is merged into `main` (on the tooling track: once the engineer merged the task's PR); a worktree
   whose branch never reached main but whose work did (merged into a parent) says so. Your `release-m<k>` worktree
   goes too, but `worktree-done` takes only an issue number: give the human `git worktree remove
-  .claude/worktrees/release-m<k>` and `git branch -d release/m<k>` (from `D:\prime-game`), to run after the closing
+  .claude/worktrees/release-m<k>` and `git branch -D release/m<k>` (from `D:\prime-game`), to run after the closing
   PR has merged into `main`.
 - Every housekeeping command, like every command of `human_steps` (§4), goes into the chat when it is due, one fenced
   PowerShell block per command, starting with `cd D:\prime-game` (or the folder it runs in), for example:
@@ -421,6 +432,11 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 - **Numbers** (M4, the pipeline v2 ADR's baseline): about 82 minutes, $24 API list and 0.94% of a Max 20x week per
   task ($25.5 per 1%, #304); a stage's budget in % starts from them.
 
+### 2026-10-03 (round 2's scouting, #170)
+- **A manager's context only grows** (round 2's wave 0 on #170, `wf_e55a9be5-eac`): neither manager compacted
+  (round 1's 147k to 933k tokens, M5's 184k to 928k); a call on day 2 cost 2.7 and 3.3 times one of the first hours;
+  the re-writes after idle hours cost $8.12 (14% of round 1's manager) and $14.06 (19% of M5's). Hence §7's handover.
+
 ### 2026-10-04 (the Token efficiency track, #302)
 - **Idle re-writes** (#302's report of 2026-10-04, the managers since the plan change): 24 calls after a gap over 1
   hour wrote 0.15 to 0.93M tokens each again, $89.8 list: 11 while their own workflow ran ($38.8), 13 at human
@@ -441,6 +457,8 @@ Start from: <my review of the design PR #<pr> and its handoff on #<design issue>
 <If from a design: open the stage's issues from that handoff with my review's changes, show me the list and the
 order, and wait for my "yes".>
 
+<After a handover (§7): Continue from the handover comment <link>; the previous manager session launches nothing
+more, and my yes to the stage's restatement stands: restate the order from there and go on.>
 Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
