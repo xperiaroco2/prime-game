@@ -6,6 +6,9 @@
 - **Amended 2026-10-01:** the manager merges task PRs into the stage's `release/m<k>` branch, and humans merge that
   branch into `main` ([release branch per milestone](2026-10-01-release-branch-per-milestone.md)); "the manager
   never merges" below now means never into `main`.
+- **Amended 2026-10-04 (#300):** the manager also merges into `main` through the gate of
+  [trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md), closes issues and runs the
+  housekeeping; the human answers, gives each milestone's go and merges the gate's exceptions.
 
 ## Context
 On 2026-09-30 one Claude Code session in ultracode ran M2's stage 2 as a manager: from a single kickoff message it

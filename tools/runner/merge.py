@@ -39,17 +39,34 @@ check (its base is gone from origin).
 `--no-ff` in a scratch detached worktree under `tools/out/merge/`, then that tree's own `verify`; it reports and
 removes the worktree. For what no symbol match sees (behaviour, test expectations).
 
+`merge <pr> --base main [--dry-run]` (#300, docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md):
+the engineer's manager merges a PR into `main` through GitHub when a deterministic gate passes. The gate collects
+every refusal (a dry run prints them all): not open into `main`; a draft; not authored by the engineer's account, or
+gh not running as it (the designer's PRs keep their flow); CI not green on its head; GitHub's `mergeable` CONFLICTING;
+`origin/<head>` not at the PR's head; `origin/main` not in the head (behind: CI did not test the tree that lands);
+the exceptions in the paths it changes since its fork (the designer's area without the designer's approving review or
+the relay phrase; `.claude/settings*.json`, `.claude/githooks/` and the guard, always; an ADR added, changed or
+deleted without an "Approved by the engineer: <GitHub link>" line); a milestone's closing PR (head `release/*`)
+without that line, the engineer's go, which then also clears its designer-area and ADR paths; and an item under
+"Needs the engineer" without "Answered: <GitHub link>" (an unreadable section refuses too). Markers in HTML comments
+do not count. No local verify: the head contains `main`, so the merged tree is the one `publish` verified and CI
+tested. merge-check's rows that involve the PR (pairs within `main` and across bases) and PRs stacked on it are
+printed as notes that never refuse: a partner is behind `main` after the merge and its own re-publish tests the pair.
+Then `origin/main` is read again (`git ls-remote`; moved: refused), `gh pr merge <n> --merge --match-head-commit
+<oid>` runs as the runner's subprocess (a typed `gh pr merge` stays denied), and one `wave:` line names the merge
+commit. A real merge refuses a task checkout; `--dry-run` merges nothing and runs anywhere.
+
 `merge <pr> --base release/<x>`: a milestone manager's merge of a task PR into its release branch
-(docs/decisions/2026-10-01-release-branch-per-milestone.md). It refuses any base but `release/*` (only humans merge
-into `main`) and a task checkout (a `.claude/worktrees/<n>` worktree or a task branch, here or in the current
-folder); fetches only when a human already merged the PR; requires green CI (`gh pr checks`) on a ready, open PR
+(docs/decisions/2026-10-01-release-branch-per-milestone.md). It refuses any other base and a task checkout (a
+`.claude/worktrees/<n>` worktree or a task branch, here or in the current folder); fetches only when a human
+already merged the PR; requires green CI (`gh pr checks`) on a ready, open PR
 into that base whose head origin has; then merges `--no-ff` with GitHub's message in a scratch detached worktree at
 `origin/<base>`, runs `verify` on the merged tree (always: the release-branch gate; no tree-equality shortcut), pushes
 the merge commit by its hash (`git push origin <sha>:refs/heads/<base>`, a fast-forward the pre-push hook allows),
 removes the worktree, confirms that GitHub shows the PR merged and prints one line for the wave comment. A red
 `verify` or a conflict pushes nothing and leaves nothing to undo. `merge --sync-main --base release/<x>` takes
 `origin/main` into the release branch the same way (the wave-boundary sync of the engineer's N2 answer). The fresh
-reviews' gate (no open blocker or major) stays the manager's call.
+reviews' gate (no open blocker or major) stays the manager's call, for both bases. `--dry-run` stops before the merge.
 
 The git commands run inside the runner's process, so neither the permission rules nor the guard see them: a session
 types only `tools\\run.cmd merge ...`, which `PowerShell(tools\\run.cmd *)` allows and the guard passes from the main
@@ -105,6 +122,37 @@ PR_FIELDS = "number,title,state,baseRefName,headRefName,headRefOid,isDraft,headR
 USE_SUFFIXES = (".gd", ".py", ".tres", ".tscn", ".godot", ".cfg", ".gdshader")
 # A deleted or renamed file counts as a removed path, unless nothing refers to it by path.
 PATHLESS_SUFFIXES = (".md", ".uid", ".import")
+
+# The gate of a merge into main (#300). The owners' GitHub accounts: the `*` and the designer's lines of
+# .github/CODEOWNERS (test_merge.py compares them).
+ENGINEER_LOGIN = "xperiaroco2"
+DESIGNER_LOGIN = "SwiftySinister"
+GATE_FIELDS = "body,mergeable,author,latestReviews"
+DESIGNER_PREFIXES = (
+    "content/", "levels/", "docs/design/", ".claude/skills/new-mechanic/", ".claude/skills/new-level-piece/",
+)  # fmt: skip
+DESIGNER_FILES = ("docs/GDD.md",)
+SAFETY_PREFIXES = (".claude/githooks/",)
+SAFETY_RE = re.compile(r"^\.claude/settings[^/]*\.json$")
+SAFETY_FILES = ("tools/runner/guard.py",)
+ADR_PREFIX = "docs/decisions/"
+RELAY_PHRASE = "agreed with the designer, relayed by the engineer"
+# The relay phrase as a line of its own (list markers, bold and quotes around it are fine), like the approval line.
+RELAY_RE = re.compile(r"(?im)^[^\w\n]*" + re.escape(RELAY_PHRASE))
+COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+# A line of its own (a list marker or bold around the label is fine), with a link to the engineer's words on GitHub.
+APPROVAL_RE = re.compile(r"(?im)^[^\w\n]*Approved by the engineer\W*https://github\.com/\S+")
+ANSWERED_RE = re.compile(r"(?i)\bAnswered\W*https://github\.com/\S+")
+# "Needs the engineer" as a heading, a bold label or a plain line. A heading section ends at the next heading of its
+# level or higher; a bold or plain one at the next heading or bold label. Inside, a sub-heading or a bold label is a
+# sub-label: it groups the items below it, or is a question of its own when no item follows. A label that starts with
+# a number ("### 1. ...", "**1. ...**") never ends a section.
+NEEDS_LABEL_RE = re.compile(r"^(?:#{1,6}[ \t]*)?(?:\*\*|__)?Needs the engineer\b(.*)$")
+HEADING_RE = re.compile(r"^(#{1,6})\s")
+BOLD_LINE_RE = re.compile(r"^(?:\*\*|__)[^*_\n]+(?:\*\*|__)\s*:?\s*$")
+NUMBERED_LABEL_RE = re.compile(r"^(?:#{1,6}\s+(?:\*\*|__)?|\*\*|__)\s*\d+[.)]?\s")
+ITEM_RE = re.compile(r"^(?:\d+[.)]|[-*+])\s+(.*)$")
+NONE_RE = re.compile(r"(?i)^\W*(?:none|nothing|n/a)\b")
 
 
 # --- GitHub and git ---------------------------------------------------------------------------------------------------
@@ -1158,10 +1206,10 @@ def check(numbers: list[int], base: str | None = None, trial: bool = False) -> i
         say(f"merge-check: {verdict}. Order the merges so the side that removes or changes a symbol goes first and "
             "the other is rebased on it, or run merge-check --trial <pr>... to see whether verify stays green.")
         if crossed:
-            say("Across bases: name the pair on both tracks' plan issues; the PR into main merges first (a human "
-                "merges it: hold the milestone's PR, merge the rest of the wave and list the pair under \"Needs the "
-                "engineer\"), the milestone takes main in (merge --sync-main) and its PR is rebased on that before it "
-                "merges.")  # fmt: skip
+            say("Across bases: name the pair on both tracks' plan issues; the PR into main merges first (merge <pr> "
+                "--base main through its gate, or a human for the gate's exceptions: meanwhile hold the milestone's "
+                "PR and merge the rest of the wave), the milestone takes main in (merge --sync-main) and its PR is "
+                "rebased on that before it merges.")  # fmt: skip
         return 1
     say(f"merge-check: clean ({verdict})")
     return 0
@@ -1305,11 +1353,14 @@ def refuse_task_checkout() -> None:
             )
 
 
-def refuse_base(base: str) -> None:
-    if base == "main" or not base.startswith("release/") or base == "release/":
+def refuse_base(base: str, sync_main: bool = False) -> None:
+    release = base.startswith("release/") and base != "release/"
+    if sync_main and not release:
+        raise Failure(f"--sync-main goes only into a release branch (release/<x>), not {base}. Nothing was changed.")
+    if not release and base != "main":
         raise Failure(
-            f"merge goes only into a release branch (release/<x>), not {base}: only humans merge into main "
-            "(docs/decisions/2026-09-28-humans-merge-prs.md). Nothing was changed."
+            f"merge goes only into a release branch (release/<x>) or, through its gate, into main; not {base} "
+            "(docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md). Nothing was changed."
         )
 
 
@@ -1340,15 +1391,18 @@ def _confirm(number: int) -> bool:
     return False
 
 
-def merge(number: int | None, base: str, sync_main: bool = False) -> int:
-    say(f"merge {'--sync-main' if sync_main else f'#{number}'} --base {base}")
+def merge(number: int | None, base: str, sync_main: bool = False, dry_run: bool = False) -> int:
+    say(f"merge {'--sync-main' if sync_main else f'#{number}'} --base {base}" + (" --dry-run" if dry_run else ""))
     if (number is None) == (not sync_main):
         raise Failure("name one PR (merge 154 --base release/m5) or --sync-main, not both or neither")
-    refuse_base(base)
-    refuse_task_checkout()
+    refuse_base(base, sync_main)
+    if not dry_run:
+        refuse_task_checkout()  # a dry run changes nothing but the remote-tracking refs
     if sync_main:
-        return _sync_main(base)
+        return _sync_main(base, dry_run)
     assert number is not None
+    if base == "main":
+        return _merge_main(number, dry_run)
     pr = pr_view(number)
     if pr.state == "MERGED":
         fetch()
@@ -1372,6 +1426,9 @@ def merge(number: int | None, base: str, sync_main: bool = False) -> int:
         raise Failure(f"{REMOTE}/{base} not found after the fetch")
     if _is_ancestor(pr.oid, tip):
         raise Failure(f"{REMOTE}/{base} already has #{number}'s head {pr.oid[:10]}; check gh pr view {number}")
+    if dry_run:
+        say(f"gate: #{number} would merge into {base}: merge --no-ff, verify on the merged tree, then the push by hash")
+        return 0
     sha, seconds = _merge_verify_push(tip, pr.oid, merge_message(pr), pr.label, base, f"merge-{number}")
     confirmed = _confirm(number)
     if not confirmed:
@@ -1383,13 +1440,16 @@ def merge(number: int | None, base: str, sync_main: bool = False) -> int:
     return 0
 
 
-def _sync_main(base: str) -> int:
+def _sync_main(base: str, dry_run: bool = False) -> int:
     fetch()
     tip, main = _sha(f"refs/remotes/{REMOTE}/{base}"), _sha(f"refs/remotes/{REMOTE}/main")
     if not tip or not main:
         raise Failure(f"{REMOTE}/{base} or {REMOTE}/main not found after the fetch")
     if _is_ancestor(main, tip):
         say(f"wave: {base} already has main at {main[:12]}; nothing to merge")
+        return 0
+    if dry_run:
+        say(f"gate: main ({main[:10]}) would merge into {base}: merge --no-ff, verify on the merged tree, the push")
         return 0
     message = f"Merge branch 'main' into {base}"
     sha, seconds = _merge_verify_push(tip, main, message, f"main ({main[:10]})", base, "merge-sync-main")
@@ -1410,3 +1470,302 @@ def _merge_verify_push(tip: str, commit: str, message: str, what: str, base: str
             )
         _push(sha, base)
     return sha, time.monotonic() - started
+
+
+# --- merge into main through GitHub (#300) ----------------------------------------------------------------------------
+
+
+def gh_user() -> str:
+    """The account gh runs as."""
+    return str(gh_json("api", "user").get("login", ""))
+
+
+def strip_comments(body: str) -> str:
+    """The PR body without its HTML comments (the template's hints carry the relay phrase)."""
+    return COMMENT_RE.sub("", body or "").replace("\r\n", "\n")
+
+
+def changed_paths(fork: str, head: str) -> list[tuple[str, str]]:
+    """(status letter, path) of each file the head changes since its fork; a rename is a delete and an add."""
+    out = _out("-c", "core.quotePath=false", "diff", "--name-status", "--no-renames", fork, head, "--")
+    found = []
+    for line in out.split("\n"):
+        status, _, path = line.partition("\t")
+        if path:
+            found.append((status[:1], path))
+    return found
+
+
+def exception_reasons(paths: list[tuple[str, str]], body: str, head: str, designer_approved: bool = False) -> list[str]:
+    """The gate's exceptions (the engineer's answer 1 on #300) in the paths a PR changes, given its body (comments
+    stripped). A milestone's closing PR (head `release/*`) needs the engineer's go, the approval line, which also
+    clears its designer-area paths and ADRs (the milestone's provisional content and decisions); nothing clears the
+    permission and safety files."""
+    text = strip_comments(body)
+    approved = bool(APPROVAL_RE.search(text))
+    closing = head.startswith("release/")
+    designer = [p for _, p in paths if p.startswith(DESIGNER_PREFIXES) or p in DESIGNER_FILES]
+    safety = [p for _, p in paths if p.startswith(SAFETY_PREFIXES) or SAFETY_RE.match(p) or p in SAFETY_FILES]
+    adrs = [(s, p) for s, p in paths if p.startswith(ADR_PREFIX)]
+    reasons = []
+    if closing and not approved:
+        reasons.append(
+            f"a milestone's closing PR ({head}) merges after the engineer's go: an \"Approved by the engineer: "
+            "<GitHub link>\" line in the body"
+        )
+    if designer and not (designer_approved or RELAY_RE.search(text) or (closing and approved)):
+        reasons.append(
+            f"the designer's area ({_files_cell(designer, 3)}) without the designer's approving review or "
+            f"\"{RELAY_PHRASE}\" in the body"
+        )
+    if safety:
+        reasons.append(f"permission and safety files ({_files_cell(safety, 3)}): the engineer merges these")
+    if adrs and not approved:
+        kinds = {"A": "new", "D": "deleted"}
+        listed = ", ".join(f"{p} ({kinds.get(s, 'changed')})" for s, p in adrs[:3]) + (" ..." if len(adrs) > 3 else "")
+        reasons.append(f"ADRs {listed} without an \"Approved by the engineer: <GitHub link>\" line in the body")
+    return reasons
+
+
+def open_needs(body: str) -> list[str]:
+    """What keeps the "Needs the engineer" sections of a PR body (comments stripped) from being answered: each
+    top-level numbered or bulleted item, or sub-label question (a sub-heading or bold label with no item under it),
+    whose block has no "Answered: <GitHub link>"; a section with text but no items; a bold or plain section that ends
+    at once on a bold label, and the phrase with no section to read (fail closed). "None", "nothing" or an empty
+    section pass."""
+    lines = strip_comments(body).split("\n")
+    problems: list[str] = []
+    found = False
+    i = 0
+    while i < len(lines):
+        label = NEEDS_LABEL_RE.match(lines[i].strip())
+        i += 1
+        if not label:
+            continue
+        found = True
+        heading = HEADING_RE.match(lines[i - 1].strip())
+        level = len(heading.group(1)) if heading else 0
+        section = [label.group(1).strip(" \t*_:")]
+        while i < len(lines) and not _ends_needs(lines[i].strip(), level):
+            section.append(lines[i])
+            i += 1
+        if i < len(lines) and not level and not "".join(section).strip() and BOLD_LINE_RE.match(lines[i].strip()):
+            problems.append(
+                f"the \"Needs the engineer\" section ends at once on \"{lines[i].strip()}\": cannot read it; write "
+                "its items as a numbered list, or \"None\""
+            )
+            continue
+        problems += _unanswered(section)
+    if not found and "Needs the engineer" in strip_comments(body):
+        problems.append(
+            "\"Needs the engineer\" is mentioned but no section starts with it (a heading, a bold label or a line of "
+            "its own): cannot read it"
+        )
+    return problems
+
+
+def _ends_needs(line: str, level: int) -> bool:
+    """Whether a line ends a "Needs the engineer" section that started as a heading of `level` (0: a bold or plain
+    label)."""
+    if NUMBERED_LABEL_RE.match(line):
+        return False
+    heading = HEADING_RE.match(line)
+    if level:
+        return bool(heading) and len(heading.group(1)) <= level
+    return bool(heading or BOLD_LINE_RE.match(line))
+
+
+def _unanswered(section: list[str]) -> list[str]:
+    """The problems of one section's lines (the label's own rest first): blocks start at a top-level item or a
+    sub-label; a sub-label followed by an item only groups, otherwise it is a question unless it is empty and
+    unnumbered or says "None"."""
+    blocks: list[tuple[str, list[str]]] = []  # ("intro" | "item" | "label", lines)
+    for line in section:
+        if ITEM_RE.match(line):  # top level: no indentation
+            blocks.append(("item", [line]))
+        elif HEADING_RE.match(line.strip()) or BOLD_LINE_RE.match(line.strip()):
+            blocks.append(("label", [line]))
+        elif blocks:
+            blocks[-1][1].append(line)
+        elif line.strip():
+            blocks.append(("intro", [line]))
+    questions: list[list[str]] = []
+    for k, (kind, block) in enumerate(blocks):
+        if kind == "item":
+            questions.append(block)
+        elif kind == "label":
+            text = " ".join(line.strip() for line in block[1:] if line.strip())
+            grouping = k + 1 < len(blocks) and blocks[k + 1][0] == "item"
+            if not grouping and (text or NUMBERED_LABEL_RE.match(block[0].strip())) and not NONE_RE.match(text):
+                questions.append(block)
+    if not questions:
+        text = " ".join(line.strip() for kind, block in blocks if kind == "intro" for line in block if line.strip())
+        if text and not NONE_RE.match(text) and not any(kind == "label" for kind, _ in blocks):
+            return [
+                "a \"Needs the engineer\" section with text but no numbered or \"-\" items: write each item on its own "
+                "line, or \"None\""
+            ]
+        return []
+    problems = []
+    for number, block in enumerate(questions, 1):
+        if not ANSWERED_RE.search("\n".join(block)):
+            first = block[0].strip()
+            match = ITEM_RE.match(first)
+            words = (match.group(1) if match else first.lstrip("#")).replace("*", "").replace("__", "").split()
+            if words and re.fullmatch(r"\d+[.)]?", words[0]) and not match:
+                words = words[1:]
+            problems.append(f"item {number} (\"{' '.join(words[:8])}\") has no \"Answered: <GitHub link>\"")
+    return problems
+
+
+def gate_notes(pr: PullRequest) -> list[str]:
+    """merge-check's rows that involve the PR, and PRs stacked on it, as notes that never refuse: with an up-to-date
+    head the merged tree is the one CI tested, and a flagged partner is behind main afterwards, so the gate refuses it
+    until its re-publish (and CI) tests the pair. Across bases the milestone takes main in next (§7.1)."""
+    notes: list[str] = []
+    everyone = open_prs()
+    for other in everyone:
+        if other.base == pr.head and other.number != pr.number:
+            notes.append(
+                f"{other.label} is stacked on it: GitHub retargets it to main when this merge deletes {pr.head}; a "
+                f"running workflow started with --base {pr.head} is relaunched with base main once it ends"
+            )
+    present = [p for p in everyone if p.number != pr.number and _sha(f"refs/remotes/{REMOTE}/{p.base}")] + [pr]
+    try:
+        sides = Sides()
+        by_head = {p.head: p for p in present}
+        for other in present:
+            if other.number == pr.number or other.base != "main":
+                continue
+            ensure_head(other)
+            row = Row.of(f"{pr.label} + {other.label}", textual(pr.oid, other.oid),
+                         both_ways(sides.change(pr), sides.change(other)))  # fmt: skip
+            if row.conflicts or row.overlaps:
+                notes.append(
+                    f"merge-check: {row.check}: {'; '.join(c for c in row.cells() if c != 'clean')}: after this "
+                    f"merge {other.label} is behind main and needs pr-rebase (a plain publish would stay red)"
+                )
+        for a, b in cross_pairs([pr], present):
+            other = b if a.number == pr.number else a
+            ensure_head(other)
+            rows, _ = check_cross([(a, b)], sides, by_head)
+            for row in rows:
+                if row.conflicts or row.overlaps:
+                    notes.append(
+                        f"merge-check across bases: {row.check}: {'; '.join(c for c in row.cells() if c != 'clean')}:"
+                        f" after this merge, merge --sync-main --base {root_base(other, by_head)}, then pr-rebase "
+                        f"{other.label} before it merges"
+                    )
+    except Failure as exc:
+        notes.append(f"merge-check could not compare it with the open PRs: {exc}")
+    return notes
+
+
+def main_gate(pr: PullRequest) -> tuple[list[str], list[str], str]:
+    """(refusals, notes, origin/main's tip at the fetch) for a merge of an open PR into main. Every refusal is
+    collected, so a dry run shows the whole verdict."""
+    n = pr.label
+    reasons = []
+    if pr.base != "main":
+        reasons.append(f"{n} targets {pr.base}, not main")
+    if pr.draft:
+        reasons.append(f"{n} is a draft")
+    view = gh_json("pr", "view", str(pr.number), "--json", GATE_FIELDS)
+    author = str((view.get("author") or {}).get("login", ""))
+    if author != ENGINEER_LOGIN:
+        reasons.append(f"{n} is not authored by the engineer's account {ENGINEER_LOGIN} (author: {author or '?'}): "
+                       "the designer's PRs keep their own flow")  # fmt: skip
+    user = gh_user()
+    if user != ENGINEER_LOGIN:
+        reasons.append(f"gh runs as {user or '?'}, not the engineer's account {ENGINEER_LOGIN}: only the engineer's "
+                       "sessions merge into main")  # fmt: skip
+    problems = ci_problems(pr.number)
+    if problems:
+        reasons.append(f"CI is not green on its head: {'; '.join(problems)}")
+    if view.get("mergeable") == "CONFLICTING":
+        reasons.append("GitHub says it is not mergeable (a conflict with main): rebase it with publish")
+    fetch()
+    ensure_head(pr)
+    if _sha(f"refs/remotes/{REMOTE}/{pr.head}") != pr.oid:
+        reasons.append(f"{REMOTE}/{pr.head} is not at the PR's head {pr.oid[:10]} (it moved): run merge again")
+    tip = _sha(f"refs/remotes/{REMOTE}/main")
+    if not tip:
+        raise Failure(f"{REMOTE}/main not found after the fetch")
+    if not _is_ancestor(tip, pr.oid):
+        reasons.append(
+            f"behind main ({REMOTE}/main {tip[:10]} is not in its head, so CI did not test the tree that would land): "
+            "rebase it with publish (pr-rebase for a semantic conflict) and wait for its CI"
+        )
+    designer_approved = any(
+        (r.get("author") or {}).get("login") == DESIGNER_LOGIN and r.get("state") == "APPROVED"
+        for r in view.get("latestReviews") or []
+    )
+    body = str(view.get("body") or "")
+    fork = _out("merge-base", tip, pr.oid).strip()
+    reasons += exception_reasons(changed_paths(fork, pr.oid), body, pr.head, designer_approved)
+    reasons += [f"\"Needs the engineer\": {p}" for p in open_needs(body)]
+    return reasons, gate_notes(pr), tip
+
+
+def _merge_on_github(pr: PullRequest) -> tuple[str, bool]:
+    """GitHub's merge commit of the PR (pinned to the head the gate checked) and whether GitHub shows it merged."""
+    res = gh("pr", "merge", str(pr.number), "--merge", "--match-head-commit", pr.oid)
+    if res.rc != 0 or res.timed_out:
+        try:
+            state = pr_view(pr.number).state
+        except Failure:
+            state = ""
+        if state != "MERGED":
+            raise Failure(
+                f"GitHub refused the merge of {pr.label}: {res.out.strip()[-400:]}. Nothing was merged"
+                + ("." if state == "OPEN" else f" unless GitHub shows it later: check gh pr view {pr.number}.")
+            )
+        warn(f"gh pr merge exited {res.rc}, but GitHub shows {pr.label} merged")
+    confirmed = _confirm(pr.number)
+    sha = ""
+    try:
+        merged = gh_json("pr", "view", str(pr.number), "--json", "mergeCommit").get("mergeCommit") or {}
+        sha = str(merged.get("oid") or "")
+    except Failure:
+        pass
+    fetch()
+    return sha, confirmed
+
+
+def _merge_main(number: int, dry_run: bool) -> int:
+    pr = pr_view(number)
+    if pr.state == "MERGED":
+        fetch()
+        say(f"wave: #{number} ({pr.head}) was already merged into {pr.base}; fetched only")
+        return 0
+    if pr.state != "OPEN":
+        raise Failure(f"#{number} is {pr.state.lower()}, not open. Nothing was changed.")
+    reasons, notes, tip = main_gate(pr)
+    for note in notes:
+        warn(f"gate: note: {note}")
+    if reasons:
+        for reason in reasons:
+            bad(f"gate: refused: {reason}")
+        say(f"gate: #{number} into main: refused ({len(reasons)} reason{'s' if len(reasons) > 1 else ''}); "
+            "nothing was merged")  # fmt: skip
+        return 1
+    if dry_run:
+        say(f"gate: #{number} would merge into main (CI green on an up-to-date head, no exception, nothing open)")
+        return 0
+    now = _out("ls-remote", REMOTE, "refs/heads/main").split()
+    if not now or now[0] != tip:
+        raise Failure(
+            f"{REMOTE}/main moved since the fetch ({tip[:10]} -> {now[0][:10] if now else '?'}): #{number} is behind "
+            "it now. Nothing was merged; run merge again (the gate asks for a rebase)."
+        )
+    ok(f"#{number}: the gate passed; merging through GitHub at {pr.oid[:10]}")
+    sha, confirmed = _merge_on_github(pr)
+    if not confirmed:
+        warn(f"GitHub does not show #{number} merged yet: check gh pr view {number} --json state")
+    say(
+        f"wave: merged #{number} ({pr.head}) into main as {sha[:12] or '?'} through GitHub; gate: CI green on an "
+        "up-to-date head, no exception, nothing open"
+        + (f"; {len(notes)} gate note{'s' if len(notes) > 1 else ''} above" if notes else "")
+        + ("" if confirmed else "; GitHub did not show it merged yet")
+    )
+    return 0

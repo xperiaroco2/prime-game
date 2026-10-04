@@ -10,6 +10,12 @@
 - **Amended 2026-10-04 (#307):** the 5-hour limit counts cache reads at about 0.75 of their list $ (range 0.6 to 1),
   measured by a probe and taken to hold for the weekly limit; `metrics` brackets each % of the week at that range (the
   amendment after #304's).
+- **Amended 2026-10-04 (#300):** `merge` now also merges a PR into `main`, through GitHub after a gate (green CI on
+  an up-to-date head, the exceptions, answered questions), with no local `verify` on the merged tree: the head
+  contains `main`, so `publish` and CI already verified that tree (item 3 (b)'s "refuses `main`" and its "always"
+  hold for `release/m<k>` only). This track's PRs are merged by its manager, not the engineer (item 3's last
+  paragraph, N2); "merges through GitHub, which agents may not do" (item 3 (e), Rejected) now reads: only through the
+  runner's gate ([trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
