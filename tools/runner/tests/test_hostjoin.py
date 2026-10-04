@@ -35,7 +35,7 @@ if what == "refused":
     sys.exit(1)
 if what == "late-host":
     time.sleep(0.5)
-if what in ("host", "late-host", "game-host"):
+if what in ("host", "late-host", "game-host", "stubborn-host"):
     say("session: hosting base_mode.tres on 127.0.0.1:1")
 if what == "menu-host":
     say("session: cannot host: port taken")
@@ -48,8 +48,10 @@ if what in ("welcomed", "leaves"):
 if what == "leaves":
     sys.exit(0)
 say("session: roster: Player1 [1]")
-while what == "stubborn" or not stop.exists():
+while what.startswith("stubborn") or not stop.exists():
     time.sleep(0.05)
+if what == "slow-stop":
+    time.sleep(1)
 say("session: stopped")
 """
 
@@ -420,8 +422,87 @@ class SupervisionTest(unittest.TestCase):
     def test_a_part_that_ignores_the_stop_is_killed_and_fails(self) -> None:
         parts = [fake("join", "stubborn", self.stop)]
         with mock.patch.object(hostjoin, "GRACE_SECONDS", 1):
-            self.run_parts(parts, seconds=1)
+            # The stop comes once it printed its roster line, however slowly the interpreter starts.
+            self.run_parts(parts, seconds=60, until=lambda ps: any("roster" in line for line in ps[0].lines))
             self.assertIn("was killed", parts[0].problem)
+        # Its last line came before the stop: the report says what it printed last and when (#354).
+        self.assertRegex(parts[0].problem, r"its last line came \d+\.\ds before the stop: 'session: roster")
+        self.assertIsNone(parts[0].stop_seconds)
+
+    def test_each_part_is_killed_once_its_own_grace_has_passed(self) -> None:
+        # The first part hosts, so the second starts at once rather than after HOST_READY_SECONDS.
+        parts = [fake("host", "stubborn-host", self.stop), fake("client 2", "stubborn", self.stop)]
+        parts[0].grace = 0.5
+        parts[1].grace = 2
+        killed: dict[str, float] = {}
+        real_kill = hostjoin.kill_tree
+
+        def timed_kill(proc: object) -> None:
+            label = next(p.label for p in parts if p.proc is proc)
+            stopped_at = parts[0].stopped_at
+            assert stopped_at is not None
+            killed[label] = time.monotonic() - stopped_at
+            real_kill(proc)  # type: ignore[arg-type]
+
+        with mock.patch.object(hostjoin, "kill_tree", timed_kill):
+            self.run_parts(parts, seconds=1)
+        self.assertLess(killed["host"], 1.5)
+        self.assertGreaterEqual(killed["client 2"], 2)
+        self.assertIn("did not stop within 0.5s of the stop", parts[0].problem)
+        self.assertIn("did not stop within 2s of the stop", parts[1].problem)
+        # A killed part did not end by itself: no stop time.
+        self.assertEqual([p.stop_seconds for p in parts], [None, None])
+
+    def test_a_stop_time_is_the_process_own_exit_even_while_a_kill_blocks(self) -> None:
+        # A taskkill under load can take seconds; a part that ends meanwhile keeps its own exit time (#354).
+        parts = [fake("host", "stubborn-host", self.stop), fake("client 2", "slow-stop", self.stop)]
+        parts[0].grace = 0.2
+        real_kill = hostjoin.kill_tree
+
+        def slow_kill(proc: object) -> None:
+            time.sleep(3)
+            real_kill(proc)  # type: ignore[arg-type]
+
+        def both_printed(ps: list[hostjoin.Part]) -> bool:
+            return all(any("roster" in line for line in p.lines) for p in ps)
+
+        with mock.patch.object(hostjoin, "kill_tree", slow_kill):
+            self.run_parts(parts, seconds=60, until=both_printed)
+        self.assertIn("was killed", parts[0].problem)
+        self.assertEqual(parts[1].problem, "", self.out.getvalue())
+        seconds = parts[1].stop_seconds
+        assert seconds is not None
+        # It ended about 1 s after the stop; the host's kill ended about 3.2 s after it.
+        self.assertLess(seconds, 2.5)
+
+    def test_each_stopped_part_reports_how_long_it_took_to_end(self) -> None:
+        parts = [fake("host", "host", self.stop), fake("client 2", "client", self.stop)]
+        self.run_parts(parts, seconds=1)
+        for part in parts:
+            seconds = part.stop_seconds
+            assert seconds is not None
+            self.assertLess(seconds, hostjoin.GRACE_SECONDS)
+            self.assertEqual(len(part.times), len(part.lines))
+            self.assertRegex(part.last_words(), r"^its last line came \d+\.\ds after the stop: 'session: stopped'$")
+        self.assertEqual(hostjoin.report(parts), 0)
+        self.assertRegex(self.out.getvalue(), r"ok    host: stopped cleanly in \d+\.\ds")
+
+    def test_a_part_that_ended_before_the_stop_has_no_stop_time(self) -> None:
+        parts = self.run_parts([fake("join", "leaves", self.stop)], seconds=30)
+        self.assertIsNone(parts[0].stopped_at)
+        self.assertEqual(hostjoin.stop_time(parts[0]), "")
+        self.assertEqual(parts[0].last_words(), "its last line: 'session: welcomed as Player2 [5]'")
+
+    def test_the_last_words_of_a_part_without_lines_or_times(self) -> None:
+        part = hostjoin.Part("join", [])
+        self.assertEqual(part.last_words(), "it printed nothing")
+        part.lines = ["session: stopped"]
+        part.stopped_at = 10.0
+        self.assertEqual(part.last_words(), "its last line: 'session: stopped'")
+        part.times = [12.3]
+        self.assertEqual(part.last_words(), "its last line came 2.3s after the stop: 'session: stopped'")
+        part.ended_at = 13.5
+        self.assertEqual(hostjoin.stop_time(part), " in 3.5s")
 
     def test_a_refused_join_fails_with_its_reason(self) -> None:
         parts = self.run_parts([fake("join", "refused", self.stop)], seconds=30)
