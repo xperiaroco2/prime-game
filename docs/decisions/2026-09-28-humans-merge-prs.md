@@ -10,6 +10,13 @@
   the engineer" is merged without the designer's approval (by the engineer, or in a stage by the manager into
   `release/m<k>`); the designer looks later, and an objection is reverted by a follow-up PR
   (`docs/AGENT_WORKFLOW.md` §9).
+- **Amended 2026-10-04 (#300):** the engineer's manager session merges PRs into `main` itself through a gate
+  (`tools\run.cmd merge <pr> --base main`: green CI on an up-to-date head, the exceptions, every "Needs the engineer"
+  item answered), including a milestone's closing PR after the engineer's go. The gate's exceptions (the designer's
+  area without the designer's approval or the relay phrase, the permission and safety files, ADRs without the
+  engineer's approval line) and the designer's PRs stay a human's to merge. A typed `gh pr merge` stays denied: the
+  runner runs it as its own subprocess after the gate
+  ([trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
 
 ## Decision
 Humans click Merge on GitHub or in the Desktop PR pane after CI is green. A cross-area PR is approved by the other
