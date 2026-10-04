@@ -8,6 +8,11 @@ extends Condition
 const UNAVAILABLE := &"unavailable"
 
 
+## It reads the rule's item (the intent's, or the fact's), not the actor.
+func reads_actor_state() -> bool:
+	return false
+
+
 func _test(ctx: MatchContext) -> bool:
 	var item := Items.target_of(ctx)
 	return item != null and item.where == ItemState.Where.GROUND

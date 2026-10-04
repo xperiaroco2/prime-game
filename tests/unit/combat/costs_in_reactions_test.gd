@@ -48,7 +48,7 @@ func test_a_stamina_cost_refuses_a_reaction_and_charges_nobody() -> void:
 
 
 func test_a_cost_that_reads_no_player_state_runs_the_reaction_and_pays_for_peer_0() -> void:
-	# The case the mode check allows (Cost.reads_actor_state false): FixtureCost reads and counts
+	# The case the mode check allows (Condition.reads_actor_state false): FixtureCost reads and counts
 	# in MatchState's counters, which have a row for peer 0, so the reaction passes and pays.
 	var mode := _reacting()
 	var conditions: Array[Condition] = [FixtureCost.of(&"uses", 1)]

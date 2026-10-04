@@ -23,6 +23,11 @@ static func of(side_id: StringName) -> NoneAlive:
 	return condition
 
 
+## It reads every player of the side, not the actor: a win condition may hold it.
+func reads_actor_state() -> bool:
+	return false
+
+
 func _test(ctx: MatchContext) -> bool:
 	for peer: int in ctx.state.peers():
 		var player := ctx.state.players[peer]

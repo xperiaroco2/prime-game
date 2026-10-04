@@ -8,6 +8,11 @@ extends Condition
 const NOT_DOWNED := &"not_downed"
 
 
+## It reads the rule's target player, not the actor.
+func reads_actor_state() -> bool:
+	return false
+
+
 func _test(ctx: MatchContext) -> bool:
 	var target := ctx.state.player(Channels.target_of(ctx))
 	return target != null and target.life == PlayerState.Life.DOWNED
