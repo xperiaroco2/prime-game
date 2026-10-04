@@ -90,7 +90,15 @@ class GithubWorkflowsTest(unittest.TestCase):
         order = [runs.index("python -m compileall -q tools"), runs.index("tools/run.sh selftest --group python")]
         self.assertEqual(order, sorted(order))
         self.assertLess(steps.index(setup[0]), order[0])
-        self.assertTrue(any("tools/run.sh pins --get gdtoolkit" in run for run in runs))
+        self.assertIn("tools/run.sh pins --get gdtoolkit", runs[pins])
+        # A failing `pins --get` must stop the step, not write an empty version (setup-python would then take 3.12).
+        self.assertNotIn("$(tools/run.sh", "".join(line for line in runs[pins].splitlines() if "echo" in line))
+        # After setup-python, the job checks the interpreter it runs is the pin's, and hands it to tools/run.sh.
+        guard = next(i for i, run in enumerate(runs) if "sys.version_info" in run)
+        self.assertLess(steps.index(setup[0]), guard)
+        self.assertLess(guard, order[0])
+        self.assertIn("${{ steps.pins.outputs.python }}", runs[guard])
+        self.assertIn('PYTHON_BIN=$(command -v python)" >> "$GITHUB_ENV"', runs[guard])
         self.assertNotIn(SETUP, [step.get("uses") for step in steps], "the shared setup pins Python 3.12")
 
     def test_ci_restores_the_last_gdunit_times_before_verify(self) -> None:

@@ -894,7 +894,6 @@ class FreePortTest(unittest.TestCase):
         self.assertIn("no free UDP port", str(caught.exception))
 
 
-
 class SelftestCommandTest(unittest.TestCase):
     """`selftest --group` (#349): CI's minimum-Python job runs only the tests that start no Godot."""
 

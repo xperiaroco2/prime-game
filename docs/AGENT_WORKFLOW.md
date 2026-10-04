@@ -1001,13 +1001,14 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
   seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
   `verify` on the merged tree is the check there (§7.1). A second job, `python-min` (#349), sets up the pinned
-  minimum Python (`pins --get python_min`, 3.11), compiles every runner file and runs `selftest --group python`
-  (about 4 runner minutes beside `verify`, free on this public repository): `verify`'s 3.12 never ran the stated
-  minimum, and 3.12-only code broke `verify` in a cloud session on 3.11 (#345). `verify` (#179) runs `doctor --quick`
-  first (red: nothing
-  else runs), then two lanes at once, each a process of its own and serial inside: the Python lane (`lint`, then
-  `selftest`: the runner tests that start no Godot, each test in one of the worker processes, a quarter of the
-  logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
+  minimum Python (`pins --get python_min`, 3.11), checks it runs that version, compiles every runner file and runs
+  `selftest --group python` (199 s on 3.11 in a cloud session, beside `verify`; Actions minutes cost nothing on a
+  public repository): `verify`'s 3.12 never ran the stated minimum, and 3.12-only code broke `verify` in a cloud
+  session on 3.11 (#345). `merge` refuses a PR while it is red, like any check; a human's merge button does not
+  unless the engineer adds it to the `main` ruleset's required checks (§8.5). `verify` (#179) runs `doctor --quick`
+  first (red: nothing else runs), then two lanes at once, each a process of its own and serial inside: the Python lane
+  (`lint`, then `selftest`: the runner tests that start no Godot, each test in one of the worker processes, a quarter of
+  the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
   `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
   imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots`
   and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
