@@ -39,6 +39,7 @@ paths:
 - One file: `tools\run.cmd test tests/unit/match/vote_test.gd`. Everything: `tools\run.cmd test`, which with no
   paths runs in shards: K GdUnit4 processes at once, each with its own `user://` (K from the CPU count, at most 4;
   `--shards K` sets it, 1 is one process). Named paths run one process unless `--shards K`; `--repeat` always one.
+- No paths (`verify`, CI): frame-bound suites at `--fixed-fps 60` (#341); paths, `--repeat`, `--real-time`: real time.
 - The runner trusts only GdUnit4's exit code and `results.xml` (never the console summary). Zero tests is a failure.
   Reports: `tools/out/gdunit/`; log: `tools/out/logs/test.log`.
 - Flaky hunt: `tools\run.cmd test --repeat N [paths]` runs them N times in a row; per-run reports in

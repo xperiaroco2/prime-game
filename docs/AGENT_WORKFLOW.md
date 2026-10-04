@@ -1266,23 +1266,27 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
   declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
   processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
-- **`test --fixed-fps` [opt-in, measured]** (#280): runs suites with the engine's `--fixed-fps 60` (placed before
-  `-s`, since GdUnit4's command tool skips every argument before its own script): each frame counts as 1/60 s of game
-  time however fast it runs, so a suite that steps physics frames on a simulated clock (`NetPair`'s, or the test's own
-  over the `LoopbackHub`) runs as fast as the CPU allows. `test <paths> --fixed-fps` (also with `--repeat N`) runs
-  every named suite so; `test --fixed-fps` runs `gdunit.FIXED_FPS_SUITES`, the 9 frame-bound client suites, in shards
-  of their own within the same K (`gdunit.split_shards` picks how many) and the rest real-time. Their seconds go to
-  the `fixed_fps` map of `gdunit-times.json`, never into the real-time one. Measured on the engineer's PC, 2026-10-04
+- **The frame-bound suites at fixed fps [applied, the default without paths]** (#280, #341): suites run with the
+  engine's `--fixed-fps 60` (placed before `-s`, since GdUnit4's command tool skips every argument before its own
+  script): each frame counts as 1/60 s of game time however fast it runs, so a suite that steps physics frames on a
+  simulated clock (`NetPair`'s, or the test's own over the `LoopbackHub`) runs as fast as the CPU allows. `test` with
+  no paths, so `verify` and CI too (#341), runs `gdunit.FIXED_FPS_SUITES`, the 9 frame-bound client suites, so, in
+  shards of their own within the same K (`gdunit.split_shards` picks how many), and the rest real-time; with one
+  process (`--shards 1`, `PRIME_TEST_SHARDS=1`, 2 or 3 CPUs) every suite runs real-time, and `test --real-time` asks
+  for that. `test <paths> --fixed-fps` (also with `--repeat N`) runs every named suite so; named paths and `--repeat`
+  are real-time without it. Seconds at fixed fps go to the `fixed_fps` map of `gdunit-times.json`, never into the
+  real-time one. Measured on the engineer's PC, 2026-10-04
   (the tables, the load and the break list are in #280's comment): the 9 took 284 s real-time and 22.7 s at fixed fps
   (medians of 10 runs each, all 90 green; beside another session's 100 % CPU load a CPU-bound one gained only 2.3x);
   the whole `test` step took 119.4 s real-time and 62.2 s with the flag (mean of 3 each, alternated, 4 shards, a quiet
   PC), 139.5 s and 90.7 s with `selftest` beside it as in verify, 226 s and 145 s in 2 shards (CI's count). Run with
   every suite at fixed fps, only `voice_views_audio_test` breaks (it listens to the real audio mix for a wall-clock
   time, so GdUnit4's 5-minute test timeout, counted in game time, runs out); the other 164 suites took 121 s real-time
-  and 119 s so. It stays off by default (#280): `verify`, CI and the nightly `flaky` job run real-time, which is
-  what still covers the #222 class: at fixed fps a frame runs exactly one physics step, never several, so a load bug
-  there and `.claude/rules/tests.md`'s `OS.delay_msec` recipe need a real-time run. Making it the default is the
-  engineer's call (#280).
+  and 119 s so. What it hides is the #222 class: at fixed fps a frame runs exactly one physics step, never several,
+  so a load bug there and `.claude/rules/tests.md`'s `OS.delay_msec` recipe (a named path) need a real-time run.
+  The engineer made it the default of `verify` and CI (option (b) on PR #323, the pipeline-v2 ADR's amendment of
+  #341); the nightly `flaky` job's `test --repeat 3` stays real-time and keeps covering that class, and
+  `test_github_workflows.py` pins both. A third CI process for the fixed shard (K+1) was declined for now.
 - **The real app-data folder stays clean [applied]** (#233): a worktree's `user://` folder outlives the worktree,
   and by 2026-10-02 22:30 UTC 62 such folders had piled up in `%APPDATA%\Godot\app_userdata\`, a new one with every
   `selftest` and every scratch worktree. Each source and its fix (found by listing a temporary app-data folder before
@@ -1376,7 +1380,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos-<ref>` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
-- **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run; any failed run fails it.
+- **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run, in real time (the #222 class,
+  #341; `verify` runs the frame-bound suites at fixed fps); any failed run fails it.
   Each run's report goes to `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`;
   `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
