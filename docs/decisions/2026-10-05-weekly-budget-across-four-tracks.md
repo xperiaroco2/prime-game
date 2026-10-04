@@ -26,8 +26,9 @@ limit and one PC (8 cores, 16 threads, 32 GB):
 
 The weekly counter restarted at the plan change (2026-10-02 10:28 UTC) and read 80% at 2026-10-04 20:26 UTC: four
 fifths of the week in 58 hours. On 2026-10-03, the one day all four tracks ran all day, they spent 40.7% of the
-week; at that pace a week lasts 2.5 days. A week that keeps the engineer's 5% has 95% to spend, **13.6% a day: a
-third of 2026-10-03's pace.** Since the restart the managers' own sessions spent 17.8% of the week.
+week; at that pace a week lasts 2.5 days. A week that keeps the engineer's 5% and stops at 93% has 88% to spend,
+**12.6% a day: under a third of 2026-10-03's pace.** Since the restart the managers' own sessions spent 17.8% of
+the week.
 
 ### Measured inputs
 % of the week = (list $ without cache reads + 0.75 x cache-read $) / $23.0, the `metrics` headline (#307, #333); the
@@ -76,14 +77,14 @@ of manager session 657efbf1.
 - **Planning figures:** what a budget buys is planned at row 8's all-in cost per task and re-measured at each reset.
 
 ### Q1. Budget per track (N1)
-| option | game | UI | art | meta | the engineer | buffer | buys at row 8's costs: game tasks / UI runs / art issues / meta tasks |
+| option | game | UI | art | meta | the engineer | buffer below the 93% stop | buys at row 8's costs, whole tasks: game tasks / UI runs / art issues / meta tasks |
 |---|---|---|---|---|---|---|---|
-| (a) equal | 22 | 22 | 22 | 22 | 5 | 7 | 30 / 19 / 19 / 36 |
-| (b) product first | 26 | 20 | 20 | 12 | 5 | 17 | 36 / 17 / 18 / 20 |
-| (c) game first | 40 | 15 | 15 | 10 | 5 | 15 | 55 / 13 / 13 / 16 |
+| (a) equal | 22 | 22 | 22 | 22 | 5 | 0 | 30 / 18 / 19 / 36 |
+| (b) product first | 26 | 20 | 20 | 12 | 5 | 10 | 35 / 16 / 17 / 19 |
+| (c) game first | 40 | 15 | 15 | 10 | 5 | 8 | 54 / 12 / 13 / 16 |
 
-- (a) prevents one track starving the others, but gives meta as much as the game; meta spent 37% this week, the
-  opposite of "balanced".
+- (a) prevents one track starving the others, but gives meta as much as the game (meta spent 37% this week, the
+  opposite of "balanced") and leaves no buffer below the 93% stop.
 - (b) keeps the three product tracks level, cuts meta to about a third of this week's spend, and keeps a buffer for
   the conversion's error (row 2: about 1 point) and for the track with the best queue mid-week.
 - (c) puts the milestone first; UI and art run at three quarters of (b).
@@ -106,7 +107,7 @@ last budgets.
 - In both, **the last 24 hours before the reset** (from Monday 10:00 UTC) open every track's unspent budget and the
   buffer to any track with work queued, up to the 93% stop: what is left at the reset is lost.
 - In both, **the 93% stop stays** as a standing rule: whatever a track's own budget, no new launch above 93% of the
-  weekly counter, so the engineer always has 7 points for his own use and the conversion's error.
+  weekly counter, so 7 points of the week stay out of every track's reach (Q1's buffers are below the stop).
 
 **Recommended (a), with the last-day rule.** (a) keeps the engineer's word on every point above a budget (tier (c):
 "money and budget above the set budget"); the last-day rule prevents ending the week with unused budget while a
@@ -117,7 +118,7 @@ Two `verify` runs at once are what this PC sustains with nothing else heavy on i
 took 38% longer than a lone one (26% longer than with two), and the timeouts came at two or three (rows 15 and 17). A
 task holds a slot about a third of its wall time (row 16), so six tasks in flight, the "about six" of AGENT_WORKFLOW
 §7.1, fill both slots with nothing left for merges, load runs, art's renders or the engineer's own use. Q1's budgets
-average about one task in flight across the tracks (13.6% a day at about 0.65% a task is about 21 tasks of about 65
+average about one task in flight across the tracks (12.6% a day at about 0.65% a task is about 19 tasks of about 65
 minutes), so the cap matters in bursts, not on average.
 - (a) **The slots only:** #388's 600 s slot wait and load runs in a slot (row 20); the "about six" stays.
 - (b) **The slots plus a cap across sessions:** at most four task workflows of this repo at once (by day the game 3
@@ -184,9 +185,10 @@ binds.
 report and proposal (Q1) come then, and the managers' kickoffs for the week follow the engineer's answer.
 
 ### Needs the engineer
-1. **N1, budget per track:** (a) equal, 22% each; (b) game 26, UI 20, art 20, meta 12, the engineer 5, buffer 17;
-   (c) game 40, UI 15, art 15, meta 10, the engineer 5, buffer 15. **Recommended (b),** and from the next reset the
-   meta track proposes the budgets with the past week's report, silence keeping the last ones.
+1. **N1, budget per track:** (a) equal, 22% each, no buffer; (b) game 26, UI 20, art 20, meta 12, the engineer 5,
+   buffer 10; (c) game 40, UI 15, art 15, meta 10, the engineer 5, buffer 8 (buffers below the 93% stop).
+   **Recommended (b),** and from the next reset the meta track proposes the budgets with the past week's report,
+   silence keeping the last ones.
 2. **N2, at a track's budget:** (a) a soft line at 80%, no launch at 100%, more only on the engineer's word; (b) as
    (a), plus up to 5 points of the buffer without asking. In both, the last 24 hours open unspent budget to any track,
    and this week's 93% stop becomes a standing rule. **Recommended (a)** with the last-day rule and the 93% stop.
