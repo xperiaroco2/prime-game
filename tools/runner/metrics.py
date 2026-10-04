@@ -85,7 +85,9 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   (changed since) and is reported apart;
 - per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
   pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
-  the textual cell: the ADR's N1 (c) trigger.
+  the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
+  ` ...`): a pair whose ARCHITECTURE conflict comes after the sixth is missed. A session is one row: a window
+  that spans several waves sums them (`--since <wave start>` for one).
 """
 
 from __future__ import annotations
@@ -1894,8 +1896,9 @@ def merge_check_lines(rec: dict) -> list[str]:
              ", ".join(" + ".join(f"#{n}" for n in p["prs"]) + (f" ({p['seen']}x)" if p["seen"] > 1 else "")
                        for p in m["pairs"]) or "none"]
             for m in rec["merge_check"]]  # fmt: skip
-    return ["Open-PR pairs whose merge-check output names an ARCHITECTURE conflict, per manager session (a wave with "
-            "--since <wave start>; the instruction-diet ADR's N1 (c) trigger):", "",
+    return ["Open-PR pairs whose merge-check output names an ARCHITECTURE conflict, per manager session (one row per "
+            "session: a window of several waves sums them, so pass --since <wave start> for one wave; the "
+            "instruction-diet ADR's N1 (c) trigger):", "",
             table(["session", "merge-check outputs", "pairs", "the pairs (outputs naming them)"], rows), ""]
 
 

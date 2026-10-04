@@ -1045,7 +1045,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   reads, its share of the role's $, the points at w = 0 and 0.5 ((non-read $ + w x cache-read $) / $15.3 or $20.3,
   `POINT_WEIGHTS`, for the window) and the files loaded twice in one agent (either copy, before a compaction). Then
   the cost by file, the duplicates, ARCHITECTURE's and AGENT_WORKFLOW's list $ by § of today's file, and per manager
-  session (a wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
+  session (one row each; `--since <wave start>` for a single wave) the open-PR pairs whose `merge-check` output
+  names an ARCHITECTURE conflict (N1 (c)'s trigger);
   `instructions` in `metrics.json`, and one compact line.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
   windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
