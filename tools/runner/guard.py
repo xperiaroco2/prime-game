@@ -39,25 +39,24 @@ The session's own worktree is free (issue #51): the worktree `.claude/worktrees/
 for a session in the main checkout (a manager's task session, whose shell starts there on every call), the first
 worktree its command enters with `cd` or `git -C`. The main checkout is owned only by a cloud session (issue #381:
 `CLAUDE_CODE_REMOTE` true and not CI, common.cloud_session) whose working directory is in no worktree, while a task
-branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, whichever task it is (no worktree
-folder pins it). The repository (`.git`), `.claude` and the other worktrees (`.claude/worktrees`), and any glob that
-may name them, stay outside it; so do `git clean -x|-X|-e|-ff` (ignored files and nested repositories),
-`git stash -a` and magic pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive
-deletes pass. Git commands that discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore`
-of paths, `clean`, forced `checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
-repository outside the project; they ask in the main checkout (but a cloud session's, above), in another worktree,
-after the command switched to another branch, and when their pathspec reaches another checkout. Branch changes are
-judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`, `checkout -B`, `switch -C`) or
-overwriting (`branch -M|-C`) a branch, or rebasing one by name, passes only for the
-task branch and its helpers (`<task branch>-x`, `<task branch>/x`); `stash drop|clear` only for entries made on
-them (the stash is shared by every checkout). An interactive rebase that opens a todo editor, `rebase --update-refs`
-and `git -c core.hooksPath=...` always ask; an interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to a
-no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) is judged like any other rebase. Rebase
-options are read as git reads them (issue #105): a cluster letter by letter (`-qi`), an attached value (`-x'cmd'`),
-a unique prefix of a long option (`--interac`, `--exe=cmd`), and `rebase.updateRefs` set by `git -c` or
-`--config-env` counts as `--update-refs`. A nested shell inherits the `VAR=value` prefixes of the command that starts
-it (`GIT_SEQUENCE_EDITOR=: bash -c '...'`). Branch, ref and stash names come from a repository reader
-(hooks.GitFiles); without one no branch is the session's own.
+branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, whichever task it is (no worktree folder
+pins it). The repository (`.git`), `.claude` and the other worktrees (`.claude/worktrees`), and any glob that may name
+them, stay outside it; so do `git clean -x|-X|-e|-ff` (ignored files and nested repositories), `git stash -a` and magic
+pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive deletes pass. Git commands that
+discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore` of paths, `clean`, forced
+`checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
+repository outside the project; they ask in the main checkout (but a cloud session's, above), in another worktree, after
+the command switched to another branch, and when their pathspec reaches another checkout. Branch changes are judged by
+name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`, `checkout -B`, `switch -C`) or overwriting
+(`branch -M|-C`) a branch, or rebasing one by name, passes only for the task branch and its helpers (`<task branch>-x`,
+`<task branch>/x`); `stash drop|clear` only for entries made on them (the stash is shared by every checkout). An
+interactive rebase that opens a todo editor, `rebase --update-refs` and `git -c core.hooksPath=...` always ask; an
+interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to a no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i
+--autosquash`, issue #104) is judged like any other rebase. Rebase options are read as git reads them (issue #105): a
+cluster letter by letter (`-qi`), an attached value (`-x'cmd'`), a unique prefix of a long option (`--interac`,
+`--exe=cmd`), and `rebase.updateRefs` set by `git -c` or `--config-env` counts as `--update-refs`. A nested shell
+inherits the `VAR=value` prefixes of the command that starts it (`GIT_SEQUENCE_EDITOR=: bash -c '...'`). Branch, ref and
+stash names come from a repository reader (hooks.GitFiles); without one no branch is the session's own.
 
 gh reads of other repositories run without a prompt (issue #68), so no text rule asks for `gh -R|--repo`. The guard
 asks instead when a gh command names a repository other than this project's (`origin`, read by hooks.GitFiles) and
