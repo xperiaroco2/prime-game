@@ -1120,11 +1120,16 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   library and no console wrapper (only a release template has `OS.is_debug_build()` false, which turns off F3, the
   dev tools and the debug kinds), and proves the content hash in an export with `tools/export/export_probe.gd` run
   on the pack: every level and what it reaches found, a second tree's export equal, one byte changed in each level
-  a new hash. The export converts `.tscn`/`.tres` to binary under `.godot/exported/` behind a `.remap`, and ships an
+  a new hash; and, since the game's levels reach no other file yet, on `ContentFingerprint`'s test fixtures exported
+  from that tree: the walk reaches the same five files as in the project, and one byte of a reached resource or of a
+  texture's source changes the hash. The export converts `.tscn`/`.tres` to binary under `.godot/exported/` behind a `.remap`, and ships an
   imported asset's products without its source; `ContentFingerprint` hashes what is shipped, so an export's hash
-  differs from a source run's (M6 ADR §2.5). About 2 minutes after the 1.3 GB download (#369's session). The workflow
-  `.github/workflows/release.yml` runs it on a pushed `v*` tag (never on a PR), attaches only the release zip to
-  that tag's GitHub Release and keeps the debug zip as a 7-day workflow artifact. The engineer tags a merged commit:
+  differs from a source run's (M6 ADR §2.5). The debug and the release zip of one commit have one hash and play
+  together, so a human who hosts with the debug zip sees hidden information through F3 (invariant 8: on that machine
+  only). About 3 minutes after the 1.3 GB download (#369's session). The workflow
+  `.github/workflows/release.yml` runs it on a pushed `v*` tag (never on a PR), with LFS content (unlike `verify`),
+  attaches only the release zip to that tag's GitHub Release (a re-run replaces it) and keeps the debug zip as a
+  7-day workflow artifact. The engineer tags a merged commit:
   `git tag v0.6.0 <commit>; git push origin v0.6.0`. Opening Project > Export in the editor may add the default
   options to `export_presets.cfg`: commit that once; never turn on `application/modify_resources` or
   `binary_format/embed_pck`, or the release check fails.
