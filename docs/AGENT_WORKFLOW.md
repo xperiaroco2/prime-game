@@ -1217,9 +1217,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   its output, its summary's last line and its record (`over`). A slot never skips or weakens a step. N is 2, measured on
   the engineer's PC with #182's shards (the PR of #185): one or two runs at once took 315 to 386 s each, three 431 to
   441 s, four 452 s; two runs of 4 shards and 4 selftest workers fill the 16 logical CPUs, while a third or fourth makes
-  every run a third longer (no room left for a wait in a 600 s call) and `test` red more often (freeze, stall, enet and
-  bots-enet stayed green). `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and
-  `PRIME_VERIFY_SLOTS_DIR` override the defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
+  every run a third longer and `test` red more often (freeze, stall, enet and bots-enet stayed green).
+  `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR` override the
+  defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
   **Load runs (#388):** an agent that tests something under load on purpose (as #318 and #354 did with 32 hand-written
   busy loops on 16 logical CPUs, which the slots could not see while the other tracks' verify runs went on beside them)
   runs `load [--loops N] [--seconds S]` (default 2 loops per logical CPU for 600 s; at most 256 loops and 1140 s). It
@@ -1269,9 +1269,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
   300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
   shell's `timeout` or `wait --max`, never only with the tool's own timeout. Since #388 every agent, a main or manager
-  session too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can reach 600 s, where a
-  foreground call is killed. A foreground `sleep N` followed by another
-  command (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
+  session too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can
+  reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
+  (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
   the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
   `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the job in the Bash tool with
   `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
