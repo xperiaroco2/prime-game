@@ -131,7 +131,9 @@ func _check_rules(mode: GameMode) -> void:
 ## A reaction runs, and a win condition is checked, for no player (actor 0, which has no
 ## PlayerState; §9.2): a condition that reads the actor (Condition.reads_actor_state) tests no
 ## player there, so its answer never changes. A cost of that kind always refuses, so its reaction
-## would silently never run its effects (#283) and its win condition never hold (#299).
+## would silently never run its effects (#283) and its win condition never hold (#299). A negated
+## cost in a win condition passes for actor 0 (a win condition pays nothing), so it gets the
+## condition's words; in a reaction only the "negates a cost" error.
 func _check_actor_conditions(mode: GameMode) -> void:
 	var where := "mode %s" % mode.resource_path if not mode.resource_path.is_empty() else "the mode"
 	for index: int in mode.reactions.size():
@@ -186,13 +188,15 @@ func _check_actor_condition(
 
 
 ## The global class name of `condition`'s script; for a script without a class_name (an inner
-## class), "a <the class it extends> with no class_name".
+## class), "a <the nearest named class it extends> with no class_name".
 static func _class_of(condition: Condition) -> String:
 	var script := condition.get_script() as Script
-	var name := script.get_global_name()
-	if not name.is_empty():
-		return String(name)
-	return "a %s with no class_name" % script.get_base_script().get_global_name()
+	if not script.get_global_name().is_empty():
+		return String(script.get_global_name())
+	while script != null and script.get_global_name().is_empty():
+		script = script.get_base_script()
+	var base := script.get_global_name() if script != null else &"Condition"
+	return "a %s with no class_name" % base
 
 
 func _check_owner(

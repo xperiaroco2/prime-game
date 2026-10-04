@@ -103,15 +103,42 @@ func test_a_condition_that_does_not_say_is_refused_and_named_by_its_base() -> vo
 
 
 func test_conditions_that_read_no_actor_pass_in_reactions_and_win_conditions() -> void:
+	# Not TargetDowned, nor ItemOnGround in a win condition: they read no actor, so this check
+	# allows them, but with no intent, channel or fact they find no target there (§9.4 "Where").
 	var all_done := AllSubtasksDone.new()
 	all_done.negate = true
-	var conditions: Array[Condition] = [
-		ItemOnGround.new(), TargetDowned.new(), ClockEnded.new(), all_done, NoneAlive.of(&"crew")
-	]
-	_expect_none(_reacting_on_the_clock(conditions))
+	var conditions: Array[Condition] = [ClockEnded.new(), all_done, NoneAlive.of(&"crew")]
 	_expect_none(_winning_with(conditions))
+	conditions.append(ItemOnGround.new())
+	_expect_none(_reacting_on_the_clock(conditions))
 	# The conditions refused there are fine in an action: the raise holds four of them.
 	_expect_none(FixtureCombatModes.raising())
+
+
+func test_empty_entries_are_reported_not_a_crash() -> void:
+	var mode := _winning_with([null])
+	mode.win_conditions.append(null)
+	mode.reactions = [null, FixtureModes.rule(Facts.CLOCK_ENDED, [null], [])]
+	(
+		assert_array(Array(ModeCheck.run(mode).errors))
+		. contains_exactly_in_any_order(
+			[
+				"mode.reactions has an empty entry",
+				"mode.reactions[1].conditions has an empty entry",
+				"mode.win_conditions has an empty entry",
+				"mode.win_conditions[1].conditions has an empty entry",
+			]
+		)
+	)
+
+
+func test_an_unnamed_condition_is_named_by_its_nearest_named_base() -> void:
+	var errors := Array(ModeCheck.run(_winning_with([UnnamedSubclass.new()])).errors)
+	assert_array(errors).has_size(1)
+	assert_str(str(errors[0])).contains("holds the condition a Condition with no class_name,")
+	var cost := Array(ModeCheck.run(_winning_with([CostWithNoName.new()])).errors)
+	assert_array(cost).has_size(1)
+	assert_str(str(cost[0])).contains("holds the cost a Cost with no class_name,")
 
 
 func test_every_condition_in_core_says_whether_it_reads_the_actor() -> void:
@@ -215,3 +242,13 @@ static func _global_base(class_id: StringName) -> StringName:
 ## A condition with no class_name and no say on reads_actor_state, so it keeps the default (true).
 class ConditionWithNoName:
 	extends Condition
+
+
+## An unnamed condition that extends another unnamed one.
+class UnnamedSubclass:
+	extends ConditionWithNoName
+
+
+## A cost with no class_name and no say on reads_actor_state, so it keeps the default (true).
+class CostWithNoName:
+	extends Cost
