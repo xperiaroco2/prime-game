@@ -873,7 +873,8 @@ class WaveTest(unittest.TestCase):
 
         lines = part.splitlines()
         self.assertEqual(lines[2], "For you: close the Claude session in worktree 260 ('solo' (pid 4242, idle, last "
-                         "update 10 min ago)), then run its block below.")  # fmt: skip
+                         "update 10 min ago)), then run its block below; run the blocks under Ready to remove "
+                         "(worktrees 305, 251, 264 and release-m4).")  # fmt: skip
         for n in (251, 264, 305, 260):
             self.assertIn(block(f"tools\\run.cmd worktree-done {n}"), part)
         self.assertEqual(part.count("```powershell"), 6, "four worktree-done blocks and the release worktree's two")
@@ -900,6 +901,12 @@ class WaveTest(unittest.TestCase):
                   merge_check=False)  # fmt: skip
         self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Housekeeping"),
                          "## Housekeeping\n\nFor you: nothing.\n\nNone.\n")  # fmt: skip
+        only_ready = FakeSources(merged=merged, porcelain="\n".join([wt("main", "main", sha(1)),
+                                                                     wt("305", "tooling/305-keep-warm", sha(1405))]))
+        self.main(since=SINCE, out=str(target), sources=only_ready, merge_check=False)
+        self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Housekeeping").splitlines()[2],
+                         "For you: run the blocks under Ready to remove (worktree 305).", "ready blocks are the human's "
+                         "until the manager runs them itself")  # fmt: skip
         failing = FakeSources(merged=merged, fail={"worktrees": Failure("git worktree list failed: no git")})
         self.main(since=SINCE, out=str(target), sources=failing, merge_check=False)
         self.assertIn("Unavailable: git worktree list failed: no git",

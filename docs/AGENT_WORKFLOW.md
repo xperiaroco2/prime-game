@@ -1006,10 +1006,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `release-m<k>` worktree its `git worktree remove` and `git branch -d`) for each worktree whose branch's PR merged and
   whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
   running run of this session there, its HEAD at the merged head and no live Claude session in it; whoever does the
-  housekeeping (orchestrate-stage §8) runs those. A worktree a live session holds goes on the section's first line, `For
-  you: close the Claude session in worktree <n> (...), then run its block below.` (else `For you: nothing.`), which the
-  manager lifts into its chat message; the other cases are one-line waits (after `release/m<k>` reaches main, a run
-  still running there, HEAD moved). It also names the issues still open whose PR reached main since T. One `gh pr list
+  housekeeping (orchestrate-stage §8) runs those. The section's first line, which the manager lifts into its chat
+  message, names a worktree a live session holds and then the ready blocks: `For you: close the Claude session in
+  worktree <n> (...), then run its block below; run the blocks under Ready to remove (worktrees ...).` (`For you:
+  nothing.` when neither); a manager that runs the ready blocks itself drops that part. The other cases are one-line
+  waits (after `release/m<k>` reaches main, a run still running there, HEAD moved). It also names the issues still open whose PR reached main since T. One `gh pr list
   --state merged` (the newest 500, every base) serves the merged section and housekeeping (gh's `merged:>=` search is
   date-only, so mergedAt is filtered here); a worktree whose PR is older than those is not listed. A body over 60,000
   characters (GitHub's limit is 65,536) moves its handover data, each run's block whole, to `<out>-2.md` (and `-3.md`,

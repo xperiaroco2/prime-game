@@ -45,7 +45,7 @@ that fails shows "Unavailable: <error>" in its section and a warn line; the rest
 - `git worktree list --porcelain` in the main checkout, sessions.alive_in and `gh issue list --state open`: a fenced
   PowerShell block per command for each task worktree (and the manager's release-m<k> worktree) whose work is on
   main, with no running run of this session there, HEAD at the merged head and no live Claude session in it; a
-  "For you:" line naming only what a live session holds; waits as one-line notes; the issues still open whose PR
+  "For you:" line naming what a live session holds, then the ready blocks; waits as one-line notes; the issues still open whose PR
   reached main since --since.
 The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
 safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
@@ -1024,20 +1024,35 @@ def powershell(commands: list[str]) -> list[str]:
     return [line for c in commands for line in [*fence(c, "powershell"), ""]]
 
 
+def names_of(labels: list[str]) -> str:
+    """'worktree 305' or 'worktrees 305, 251 and release-m4'."""
+    names = [label.removeprefix("worktree ") for label in labels]
+    if len(names) == 1:
+        return f"worktree {names[0]}"
+    return f"worktrees {', '.join(names[:-1])} and {names[-1]}"
+
+
+def for_you(h: Housekeeping) -> str:
+    """The section's first line, for the manager to lift into chat: the worktrees a live session holds, then the ready
+    blocks (whoever does the housekeeping runs them; a manager that runs them itself drops that part), else nothing."""
+    parts = []
+    if h.held:
+        who = "; ".join(sessions_ for _, sessions_, _ in h.held)
+        plural = len(h.held) > 1
+        parts.append(f"close the Claude session{'s' if plural else ''} in {names_of([lb for lb, _, _ in h.held])} "
+                     f"({who}), then run {'their blocks' if plural else 'its block'} below")  # fmt: skip
+    if h.ready:
+        parts.append(f"run the blocks under Ready to remove ({names_of([label for label, _ in h.ready])})")
+    return f"For you: {'; '.join(parts)}." if parts else "For you: nothing."
+
+
 def housekeeping_section(w: Wave) -> list[str]:
     md = ["## Housekeeping", ""]
     state = source_state(w.housekeeping)
     if state is not None or not isinstance(w.housekeeping, Housekeeping):
         return md + (state or [])
     h = w.housekeeping
-    if h.held:
-        names = " and ".join(label.removeprefix("worktree ") for label, _, _ in h.held)
-        who = "; ".join(sessions_ for _, sessions_, _ in h.held)
-        plural = len(h.held) > 1
-        md += [f"For you: close the Claude session{'s' if plural else ''} in worktree{'s' if plural else ''} {names} "
-               f"({who}), then run {'their blocks' if plural else 'its block'} below.", ""]  # fmt: skip
-    else:
-        md += ["For you: nothing.", ""]
+    md += [for_you(h), ""]
     if not (h.ready or h.held or h.waiting or h.issues):
         return [*md, "None.", ""]
     if h.ready:
