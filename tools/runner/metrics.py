@@ -83,7 +83,9 @@ USD_KEYS = ("usd_input", "usd_cache_write", "usd_cache_read", "usd_output")
 # first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x. Re-fitted in #307 over the 44 readings to 77% at
 # 2026-10-04 05:05 UTC: $25.5 (least squares; 25.4 to 25.7 by method).
 WEEK_PERCENT_USD = 25.5
-# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at: far from it, the bracket is the better figure.
+# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at. It counts cache reads at full list $, the
+# bracket's upper end: at this share it matches the measured central weight (w = 0.75, $23.0 per 1%) within 1%; far
+# from it, it reads high (more cache reads) or low (fewer), and the bracket is the better figure.
 WEEK_READ_SHARE = 0.4
 # The limits count cache reads at a weight w of their list $, measured in #307 (the ADR's amendment of 2026-10-04):
 # w = 0.75, range 0.6 to 1. The bracket gives (list $ without cache reads + w x cache-read $) / k(w) at the range's
