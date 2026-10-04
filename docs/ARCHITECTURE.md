@@ -1658,8 +1658,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   world. The pick-up hint stops a margin short of that reach (#319): the host measures from the feet of the last
   `MoveClaim` it accepted, which trail the player's own while walking in, so E at the first hint would otherwise be
   refused `out_of_reach`. The margin is the walk (the mode's `walk_speed_mps`) in one claim interval and one physics
-  step (`TargetChoice.HINT_MARGIN_S`, 4/60 s, not a decision): 1.7 m of the base mode's 2 m. The host's `InReach`
-  is unchanged. The keys send `PickUp(item)`,
+  step (`TargetChoice.HINT_MARGIN_S`, 4/60 s, not a decision): 1.7 m of the base mode's 2 m. The raise hint stops
+  the same margin short of the raise's `TargetInReach`, which the host also measures from that claim's feet (#352:
+  `LifeView.raise_hint_reach_of`, through `TargetChoice.hint_reach`). The host's `InReach` and `TargetInReach` are
+  unchanged. The keys send `PickUp(item)`,
   `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()`; the host checks each
   again (§7.1), and the client predicts nothing of an action's outcome.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
@@ -1689,7 +1691,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   component before normalising; `unit_or()`), which `look_angles` shares.
 - `client/life/`: `LifeView` (`Life` under `World`, 5: after the player, before `SightHider`) picks the camera by
   the own life (the player's, `DownedCamera`, or the spectate camera), runs the life inputs (E pressed on a downed
-  player within the mode's `TargetInReach` from the feet sends `Raise`, its release `StopRaise`, and a raise that
+  player within the mode's `TargetInReach` from the feet, less the walking margin of #352, sends `Raise`, its
+  release `StopRaise`, and a raise that
   starts after E was let go is stopped at once; G held for 1 s sends `GiveUp` once; the left and right mouse
   buttons cycle the spectate target while the mouse is captured) and plays `LiftMusic` while dead. `DownedCamera`
   is the `SpringArm3D` above (its probe 0.2 m, its arm pitch 0 to 80° down, a look further down tilting the
@@ -1718,7 +1721,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   downed joiner trying to crawl holds still and gets 0 `Correction`s (58 without the hold) and stands up
   invulnerable in first person; a joiner who gives up stays off the living however it is driven, watches the host
   from its eyes with the music, follows it to the camera above its body when it goes down, and respawns at a marker
-  in first person, invulnerable on the host's screen, with no `Correction`. `client/dev/life_preview.tscn` is the
+  in first person, invulnerable on the host's screen, with no `Correction`; `life_raise_network_test.gd` (#352: the
+  joiner walks at the downed host's body from three sides and presses E at the first raise hint, on an even and an
+  uneven clock; the host starts every raise; seen failing `out_of_reach` with no margin) and
+  `tests/unit/client/life/life_view_reach_test.gd`. `client/dev/life_preview.tscn` is the
   `shot` of the downed pose, a body, the invulnerable look and the panel.
 - Not headless: the keys and the mouse, the feel of the cameras and the music; the one-PC playtest (the M4 ADR's
   §6) checks them.
