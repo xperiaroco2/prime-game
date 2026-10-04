@@ -1119,9 +1119,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   the GitHub half. Its section "Instructions and docs per agent role" (#337) is the instruction-diet ADR's method (#313,
   "How it was measured"), so the diet's issues are measured against one baseline. Per role: agents, the median
   launch-loaded, path-loaded and read tokens, the list $ split into first writes, re-writes after a lapsed cache and
-  reads, its share of the role's $, the points at w = 0 and 0.5 ((non-read $ + w x cache-read $) / $15.3 or $20.3,
-  `POINT_WEIGHTS`, for the window) and the files loaded twice in one agent (either copy, before a compaction). Then
-  the cost by file, the duplicates, ARCHITECTURE's and AGENT_WORKFLOW's list $ by § of today's file, and per manager
+  reads, its share of the role's $, the points at w = 0, 0.5 and the central 0.75 ((non-read $ + w x cache-read $) /
+  $15.3, $20.3 or $23.0, `POINT_WEIGHTS`, the last from `WEEK_CENTRAL`, for the window) and the files loaded twice in
+  one agent (either copy, before a compaction). Then the cost by file, the duplicates, ARCHITECTURE's and AGENT_WORKFLOW's list $ by § of today's file, and per manager
   session (one row each; `--since <wave start>` for a single wave) the open-PR pairs whose `merge-check` output
   names an ARCHITECTURE conflict (N1 (c)'s trigger);
   `instructions` in `metrics.json`, and one compact line.
