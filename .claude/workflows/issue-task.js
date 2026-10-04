@@ -470,8 +470,8 @@ if (impl.verify_green) {
 
 // The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
 // the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
-// to a line or a count; the agents' full results stay in the run's journal.jsonl, one result line per agent label.
-const FULL = 'each agent\'s whole result: the run\'s journal.jsonl (subagents/workflows/<run id>/ beside the manager\'s transcript), one line per label'
+// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent.
+const FULL = 'whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
 const line = (s, max = 160) => {
   const t = s === undefined || s === null ? '' : String(s).trim()
   const first = t.split('\n')[0].trim()

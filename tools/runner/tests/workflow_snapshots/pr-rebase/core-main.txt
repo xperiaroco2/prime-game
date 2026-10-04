@@ -65,6 +65,6 @@ Focus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapsho
   }
  ],
  "fix": null,
- "full": "each agent's whole result: the run's journal.jsonl (subagents/workflows/<run id>/ beside the manager's transcript), one line per label"
+ "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null
