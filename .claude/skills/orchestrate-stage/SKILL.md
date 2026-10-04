@@ -354,9 +354,11 @@ taken in a `main` that has them.
   state file (a message from the human resets the count); after 14 (about 12 hours of their absence) arm no more:
   hand over if one is due, else stop.
 - **A fresh manager once a day** (#279, the engineer's option A on #170): a manager never compacts, and a day-old
-  context makes each call about 3 times dearer (§9). A handover is due when you stop for the human with work left,
-  no run of your own in flight, and the session over 12 hours old or its context over 500k tokens (both in the
-  footer of `tools\run.cmd wave`). Post one plan-issue comment, `wave --since <session start> --title "Handover to
+  context makes each call about 3 times dearer (§9). A handover is due only at a wave boundary (every run of the
+  wave ended, its PRs merged or waiting only for the human, its wave comment posted), with work left, and the
+  session over 12 hours old or its context over 500k tokens (both in the footer of `tools\run.cmd wave`); never
+  in the middle of a wave: a logical piece of work done, not a token count (the engineer's answer on #329).
+  Post one plan-issue comment, `wave --since <session start> --title "Handover to
   a fresh manager session" --notes <file>` (#278; before it, your notes above its body): the order from here, the
   open questions, every `human_steps` command still due, the stage's start and `wave`'s handover data (since the
   session start: every failed run not relaunched, not only this wave's). Your "For you:" is the human's single
