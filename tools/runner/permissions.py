@@ -2,21 +2,27 @@
 and a replay of local transcripts through those rules and the guard (§8.2).
 
 A model of Claude Code's matcher, close enough for selftests and replays, not the real one
-(`code.claude.com/docs/en/permissions`, checked 2026-09-30):
+(`code.claude.com/docs/en/permissions`, checked 2026-10-04):
 - A command is split into subcommands at `&&`, `||`, `;`, `|`, `&` and newlines, including the commands inside
   `$(...)` (guard.split). Each subcommand's text is its words joined by single spaces, after the wrappers `timeout`,
   `time`, `nice`, `nohup`, `stdbuf`, `command` and `builtin` and, for deny and ask rules, any leading `VAR=value`.
 - A `*` matches any text, spaces included. A trailing ` *` (or `:*`) that is the rule's only wildcard also matches the
   bare command. PowerShell rules match case-insensitively.
 - Deny beats ask beats allow, over all subcommands: one denied subcommand denies the call, one asked subcommand asks.
-  The guard's findings ask too. A call is allowed when every subcommand matches an allow rule or is a read-only
-  builtin (a small subset of Claude Code's: `cd`, `echo`, `ls`, `cat`, `pwd`, ...).
+  The guard's findings ask too. A call is allowed when every subcommand matches an allow rule or is read-only:
+  Claude Code's documented set (`cd`, `ls`, `cat`, `grep`, `find`, `diff`, `du`, ...; `find`, `sort` and `sed` without
+  their write flags) and this model's guess of git's read-only forms (`status`, `diff`, `log`, `show`, `rev-parse`,
+  ...; never after `git -C` or `-c`, nor in a call that `cd`s elsewhere, where Claude Code prompts for git). The
+  default-mode counts are therefore an estimate, and auto mode's classifier approves more.
 - In bypass mode (the engineer's) deny rules block, ask rules and the guard prompt, and everything else runs; in the
   modes that prompt, a call that is not allowed prompts as well.
 
 Replay: `tools/run.sh permissions --before origin/main` (`run.cmd` in PowerShell) replays every Bash and
-PowerShell call in `~/.claude/projects/<project>*/**/*.jsonl` in bypass mode, with the settings and the guard of that
-revision against the ones in this checkout, and prints the prompts before and after and every verdict that changed.
+PowerShell call in this project's transcripts (`~/.claude/projects/<project>` and `<project>--claude-worktrees-*`) in
+bypass mode, with the settings and the guard of that revision against the ones in this checkout, and prints the
+prompts before and after and every verdict that changed. `--since YYYY-MM-DD` keeps the calls from that day on,
+`--mode default` models a mode that prompts, `--list` names each cause with examples, and `--observed` reports what the
+transcripts record instead: the guard's asks, deny rule denials, Claude Code's own blocks and the human's rejections.
 """
 
 from __future__ import annotations
@@ -40,8 +46,20 @@ SHELLS = {"Bash": guard.BASH, "PowerShell": guard.POWERSHELL}
 # Wrappers Claude Code strips before matching, and the options of theirs that take a value.
 WRAPPERS = {"timeout", "time", "nice", "nohup", "stdbuf", "command", "builtin"}
 WRAPPER_VALUED = {"-n", "-s", "-k", "-i", "-o", "-e"}
-# Commands Claude Code runs without a rule (a subset of its read-only set: enough for the selftests).
-READ_ONLY = {"cd", "echo", "ls", "cat", "pwd", "head", "tail", "grep", "wc", "set-location", "get-content"}
+# Commands Claude Code runs without a rule: its documented read-only set (code.claude.com/docs/en/permissions, "Read-only
+# commands", checked 2026-10-04) and `sort` and `sed`, which it names as read-only with write-capable flags; the two
+# PowerShell cmdlets are this model's own guess (the docs list no PowerShell set).
+READ_ONLY = {
+    "cd", "echo", "ls", "cat", "pwd", "head", "tail", "grep", "find", "wc", "which", "diff", "stat", "du", "sort", "sed",
+    "set-location", "get-content",
+}  # fmt: skip
+FIND_WRITES = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"}
+# "read-only forms of git": the docs name none, so this is the model's guess of the plainly read-only subcommands
+# (with `worktree list`, `stash list`, `remote [-v|show|get-url]` and `config --get*|--list`).
+GIT_READ_ONLY = {
+    "status", "diff", "log", "show", "rev-parse", "merge-base", "ls-files", "ls-tree", "grep", "blame", "describe",
+    "shortlog", "cat-file", "for-each-ref", "show-ref", "rev-list", "check-ignore", "version", "help",
+}  # fmt: skip
 DENY, ASK, ALLOW, NONE = "deny", "ask", "allow", "none"
 # Verdicts: PASS runs without a prompt, PROMPT stops for the human (a rule, the guard or no allow rule), DENIED never
 # runs.
@@ -66,24 +84,30 @@ class Rules:
                 return written
         return None
 
-    def judge(self, tool: str, command: str) -> tuple[str, str | None]:
-        """(deny, ask, allow or none; the rule that decided) for one Bash or PowerShell call, without the guard."""
+    def judge(self, tool: str, command: str, cwd: str = "") -> tuple[str, str | None]:
+        """(deny, ask, allow or none; the rule that decided) for one Bash or PowerShell call, without the guard. With
+        cwd, a `cd` elsewhere in the same call takes git out of the read-only set."""
         texts = subcommands(command, SHELLS[tool])
         for kind in (DENY, ASK):
             for text in texts:
                 rule = self.matches(kind, tool, strip(text, assignments=True))
                 if rule:
                     return kind, rule
-        allowed = [self.matches(ALLOW, tool, strip(t, assignments=False)) or _read_only(t) for t in texts]
+        allowed = [self._allows(tool, t, _moves(texts, cwd)) for t in texts]
         if texts and all(allowed):
             return ALLOW, next((r for r in allowed if r != "read-only"), "read-only")
         return NONE, None
 
-    def unallowed(self, tool: str, command: str) -> str:
-        """The command name (`git diff`, `sed`) of the first subcommand that neither an allow rule nor the read-only
-        set lets run: what prompts outside bypass."""
-        for text in subcommands(command, SHELLS[tool]):
-            if not (self.matches(ALLOW, tool, strip(text, assignments=False)) or _read_only(text)):
+    def _allows(self, tool: str, text: str, moved: bool) -> str | None:
+        stripped = strip(text, assignments=False)
+        return self.matches(ALLOW, tool, stripped) or read_only(stripped, git=not moved)
+
+    def unallowed(self, tool: str, command: str, cwd: str = "") -> str:
+        """The command name (`git -C`, `sed`) of the first subcommand that neither an allow rule nor the read-only set
+        lets run: what prompts outside bypass."""
+        texts = subcommands(command, SHELLS[tool])
+        for text in texts:
+            if not self._allows(tool, text, _moves(texts, cwd)):
                 return head(strip(text, assignments=True))
         return "?"
 
@@ -139,9 +163,71 @@ def strip(text: str, assignments: bool) -> str:
     return " ".join(words)
 
 
-def _read_only(text: str) -> str | None:
-    first = text.split(" ", 1)[0].lower()
-    return "read-only" if first in READ_ONLY else None
+def read_only(text: str, git: bool = True) -> str | None:
+    """"read-only" when Claude Code would run this subcommand (wrappers stripped) without a rule, as far as its docs
+    say: the commands of READ_ONLY without their write flags, and git's read-only forms (GIT_READ_ONLY) unless git is
+    False."""
+    words = text.split(" ")
+    first = words[0].lower()
+    if first == "git":
+        return "read-only" if git and _git_read_only(words[1:]) else None
+    if first not in READ_ONLY:
+        return None
+    args = words[1:]
+    if first == "find" and any(w in FIND_WRITES for w in args):
+        return None
+    if first == "sort" and any(w.startswith("--output") or re.match(r"^-[^-]*o", w) for w in args):
+        return None
+    if first == "sed" and not _sed_read_only(args):
+        return None
+    return "read-only"
+
+
+def _git_read_only(args: list[str]) -> bool:
+    """A git subcommand that only reads, with no global option before it (`git -C x` and `git -c k=v` change where git
+    runs or what it runs) and no `--output`."""
+    if not args or args[0].startswith("-") or any(a.startswith("--output") for a in args):
+        return False
+    sub, rest = args[0], args[1:]
+    if sub in GIT_READ_ONLY:
+        return True
+    if sub in ("worktree", "stash") and rest[:1] == ["list"]:
+        return True
+    if sub == "remote":
+        return not rest or rest[0] in ("-v", "--verbose", "show", "get-url")
+    if sub == "config":
+        return bool(rest) and rest[0] in ("--get", "--get-all", "--get-regexp", "--list", "-l", "--show-origin")
+    return False
+
+
+def _sed_read_only(args: list[str]) -> bool:
+    """sed without `-i`/`--in-place` (also inside a cluster: `-ni`, `-i.bak`) and without a `w`, `W` or `e` command in
+    a script (`1,5w out`, `s/a/b/w out`): when unsure, not read-only."""
+    for arg in args:
+        if arg.startswith("--in-place") or re.match(r"^-[^-]*i", arg):
+            return False
+    scripts = [a for a in args if not a.startswith("-")][:1] + [
+        args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-e", "--expression")
+    ]
+    return not any(re.search(r"(?:^|[;{}\d$/])\s*[wWe](?:\s|$)|^s(.).*\1.*\1[a-zA-Z0-9]*[we]", s) for s in scripts)
+
+
+def _moves(texts: list[str], cwd: str) -> bool:
+    """A `cd`, `Set-Location` or `Push-Location` in the call into a folder other than cwd: Claude Code then prompts for
+    git even in its read-only forms, since git runs that folder's hooks."""
+    if not cwd:
+        return False
+    for text in texts:
+        words = text.split(" ")
+        if words[0].lower() in ("cd", "set-location", "push-location", "sl", "pushd") and len(words) > 1:
+            if _folder(words[-1].strip("'\"")) != _folder(cwd):
+                return True
+    return False
+
+
+def _folder(path: str) -> str:
+    path = re.sub(r"^/([a-zA-Z])/", r"\1:/", path.replace("\\", "/") + "/")
+    return path.rstrip("/").lower()
 
 
 def verdict(
@@ -149,7 +235,7 @@ def verdict(
     bypass: bool = True,
 ) -> tuple[str, str]:  # fmt: skip
     """(PASS, PROMPT or DENIED; why) for one call: the rules first, then the guard (it asks in every mode)."""
-    kind, rule = rules.judge(tool, command)
+    kind, rule = rules.judge(tool, command, cwd)
     if kind == DENY:
         return DENIED, f"deny rule {rule}"
     if kind == ASK:
@@ -158,7 +244,7 @@ def verdict(
     if findings:
         return PROMPT, "guard: " + ", ".join(sorted({f.area for f in findings}))
     if kind == NONE and not bypass:
-        return PROMPT, "no allow rule: " + rules.unallowed(tool, command)
+        return PROMPT, "no allow rule: " + rules.unallowed(tool, command, cwd)
     return PASS, "allow rule" if kind == ALLOW else "no rule"
 
 
