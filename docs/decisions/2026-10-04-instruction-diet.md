@@ -250,7 +250,7 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
   need them.
 - Area `CLAUDE.md` files cost $10 by path in the window (0.3 / 0.4 points per 7 days): not worth trimming now.
 - *Risk:* an agent forgets that a command exists. The failure: it runs Godot by hand, against the hard rule, or skips
-  `normalize` after a `.tscn` edit. Three things limit it:
+  `normalize` after a `.tscn` edit. Four things limit it:
   - the names line keeps every command visible;
   - `godot-resources.md` already names `normalize` when a `.tscn` is touched;
   - the prompts name the commands each role runs;
@@ -272,7 +272,7 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
   - *It amends the [instruction budgets ADR](2026-09-29-instruction-files-and-budgets.md):* that ADR keeps the hard
     rules and invariants in root `CLAUDE.md` because root survives compaction (AGENT_WORKFLOW §3: "re-injected after
     compaction"). Implementers average 82 calls and can compact. Whether a preloaded skill is re-attached after
-    compaction is not documented or measured, so packs need a probe first: an agent with a pack that compacts must
+    compaction is not established here, so packs need a probe first: an agent with a pack that compacts must
     still show the pack in its context afterwards. If it does not, packs are off the table.
   - *Risk:* packs are the two ways this design can lose a rule. A pack can miss a hard rule: a generator plus a
     stale-pack lint keeps the packs from drifting, but not from a wrong tag. And `omitClaudeMd` may also stop the area
