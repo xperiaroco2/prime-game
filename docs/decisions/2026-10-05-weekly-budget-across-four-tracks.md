@@ -69,8 +69,10 @@ of manager session 657efbf1.
 - **The budget line in every wave comment:** `<track>: <spent>% of <budget>% this week; plan to date <budget x days
   elapsed / 7>%; weekly counter <n>% (get_usage)`. The counter is the check: when it and the tracks' sum disagree by
   more than 3 points, the wave comment says so.
-- **A global stop at 93% of the weekly counter** (the engineer's rule of 2026-10-04): no track launches a new
-  workflow above it, whatever its own budget; runs in flight finish.
+- **This week's stop at 93% of the weekly counter** (the engineer's night plan,
+  [#302 comment 5984093660](https://github.com/xperiaroco2/prime-game/issues/302#issuecomment-5984093660), for the
+  week to 2026-10-06): no track launches a new workflow above it; runs in flight finish. Keeping it as a standing
+  rule is his choice (N2); the figures below assume it.
 - **Planning figures:** what a budget buys is planned at row 8's all-in cost per task and re-measured at each reset.
 
 ### Q1. Budget per track (N1)
@@ -103,6 +105,8 @@ last budgets.
 - (b) As (a), but the manager takes up to 5 points of the buffer without asking and reports it.
 - In both, **the last 24 hours before the reset** (from Monday 10:00 UTC) open every track's unspent budget and the
   buffer to any track with work queued, up to the 93% stop: what is left at the reset is lost.
+- In both, **the 93% stop stays** as a standing rule: whatever a track's own budget, no new launch above 93% of the
+  weekly counter, so the engineer always has 7 points for his own use and the conversion's error.
 
 **Recommended (a), with the last-day rule.** (a) keeps the engineer's word on every point above a budget (tier (c):
 "money and budget above the set budget"); the last-day rule prevents ending the week with unused budget while a
@@ -184,8 +188,8 @@ report and proposal (Q1) come then, and the managers' kickoffs for the week foll
    (c) game 40, UI 15, art 15, meta 10, the engineer 5, buffer 15. **Recommended (b),** and from the next reset the
    meta track proposes the budgets with the past week's report, silence keeping the last ones.
 2. **N2, at a track's budget:** (a) a soft line at 80%, no launch at 100%, more only on the engineer's word; (b) as
-   (a), plus up to 5 points of the buffer without asking. In both, the last 24 hours open unspent budget to any track.
-   **Recommended (a)** with the last-day rule.
+   (a), plus up to 5 points of the buffer without asking. In both, the last 24 hours open unspent budget to any track,
+   and this week's 93% stop becomes a standing rule. **Recommended (a)** with the last-day rule and the 93% stop.
 3. **N3, the PC:** (a) the slots only (#388); (b) the slots plus a cap of four task workflows of this repo at once,
    one art batch, launches only with no slot waiter, and `slots --quiet <hours>` for the engineer's own use.
    **Recommended (b).**
