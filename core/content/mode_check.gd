@@ -13,8 +13,10 @@ extends RefCounted
 ## no ChannelTicks, so the channel would never complete and a raise would pause a knockdown for
 ## good (M4-4); a ChannelEffect outside an action (a reaction, a row's actions), which has no player
 ## to run it, or in a rule that lacks a condition the effect requires (RaiseDowned: TargetDowned);
-## a reaction holding a cost that reads the actor's player state (Cost.reads_actor_state:
-## Cooldown, StaminaCost), which always refuses actor 0, so the reaction would never run (#283);
+## a reaction or a win condition holding a condition that reads the actor
+## (Condition.reads_actor_state: HoldsItem, InReach, Cooldown, ...), which tests no player there
+## (actor 0): a cost of that kind always refuses, so the reaction would never run (#283) or the
+## win condition never hold, and any other passes always or never (#299);
 ## two rules on one trigger in one owner; a number outside its part's bounds; an id
 ## outside the wire's alphabet (below). Warnings: a role-owned or role-gated rule with an effect
 ## whose event goes to everyone, which reveals the actor's role (§9.2); in a mode with a channel,
@@ -123,42 +125,70 @@ func _check_rules(mode: GameMode) -> void:
 	for kind: ItemKind in mode.item_kinds:
 		if kind != null:
 			_check_owner("item kind %s.actions" % kind.id, kind.actions, Intents.ALL, false)
-	_check_reaction_costs(mode)
+	_check_actor_conditions(mode)
 
 
-## A reaction runs for no player (actor 0, which has no PlayerState; §9.2): a cost that reads the
-## actor's player state (Cost.reads_actor_state: Cooldown, StaminaCost) always refuses there, so
-## the reaction would silently never run its effects (#283). A negated cost is not: it passes.
-func _check_reaction_costs(mode: GameMode) -> void:
+## A reaction runs, and a win condition is checked, for no player (actor 0, which has no
+## PlayerState; §9.2): a condition that reads the actor (Condition.reads_actor_state) tests no
+## player there, so its answer never changes. A cost of that kind always refuses, so its reaction
+## would silently never run its effects (#283) and its win condition never hold (#299).
+func _check_actor_conditions(mode: GameMode) -> void:
 	var where := "mode %s" % mode.resource_path if not mode.resource_path.is_empty() else "the mode"
 	for index: int in mode.reactions.size():
 		var rule := mode.reactions[index]
 		if rule == null:
 			continue
+		var owner := "mode.reactions[%d]: the reaction on %s of %s" % [index, rule.trigger, where]
 		for condition: Condition in rule.conditions:
 			# A negated cost passes for actor 0 and is never paid: _check_owner's "negates a cost"
 			# covers it, and the reaction would run.
-			if (
-				condition is Cost
-				and not condition.negate
-				and (condition as Cost).reads_actor_state()
-			):
-				errors.append(
-					(
-						(
-							"mode.reactions[%d]: the reaction on %s of %s holds the cost %s, which"
-							+ " reads the actor's player state: a reaction runs for no player"
-							+ " (actor 0), so the cost always refuses and the reaction never runs"
-						)
-						% [index, rule.trigger, where, _class_of(condition as Cost)]
-					)
+			if condition is Cost and condition.negate:
+				continue
+			_check_actor_condition(owner, condition, "a reaction runs", "the reaction never runs")
+	for index: int in mode.win_conditions.size():
+		var win := mode.win_conditions[index]
+		if win == null:
+			continue
+		var owner := "mode.win_conditions[%d]: the win condition %s of %s" % [index, win.id, where]
+		for condition: Condition in win.conditions:
+			_check_actor_condition(
+				owner, condition, "a win condition is checked", "the win condition never holds"
+			)
+
+
+## The error for `condition` of `owner` when it reads the actor. A cost that is not negated
+## always refuses actor 0; any other such condition passes always or never.
+func _check_actor_condition(
+	owner: String, condition: Condition, runs: String, never: String
+) -> void:
+	if condition == null or not condition.reads_actor_state():
+		return
+	if condition is Cost and not condition.negate:
+		errors.append(
+			(
+				(
+					"%s holds the cost %s, which reads the actor's player state: %s for no player"
+					+ " (actor 0), so the cost always refuses and %s"
 				)
+				% [owner, _class_of(condition), runs, never]
+			)
+		)
+		return
+	errors.append(
+		(
+			(
+				"%s holds the condition %s, which reads the actor: %s for no player (actor 0), so"
+				+ " the condition tests no player and its answer never changes"
+			)
+			% [owner, _class_of(condition), runs]
+		)
+	)
 
 
-## The global class name of `cost`'s script; for a script without a class_name (an inner class),
-## "a <the class it extends> with no class_name".
-static func _class_of(cost: Cost) -> String:
-	var script := cost.get_script() as Script
+## The global class name of `condition`'s script; for a script without a class_name (an inner
+## class), "a <the class it extends> with no class_name".
+static func _class_of(condition: Condition) -> String:
+	var script := condition.get_script() as Script
 	var name := script.get_global_name()
 	if not name.is_empty():
 		return String(name)
