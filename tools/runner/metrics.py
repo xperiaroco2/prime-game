@@ -55,8 +55,9 @@ Quality scorecard (#314), per finished issue-task run, so a cost change is judge
   round; a re-run attempt shows only its last conclusion), "green on the first CI round" from the earliest round only,
   and the red rounds that began after the run ended; Found-by follow-ups (issues whose "Found by" line names the
   task's issue or PR: a lower bound, since nothing makes an agent write one); fix-up PRs (later PRs titled `revert`
-  or `fix(...)`/`fix:` that name the PR or issue, as `#N` or `owner/repo#N`, outside their "Found by" lines, from
-  another branch than the task's own `<area>/<n>-...`).
+  or `fix(...)`/`fix:` that name the PR or issue, as `#N` or `owner/repo#N`, in the title or in a body sentence that
+  reverts or repairs it (REGRESSION), outside their "Found by" lines and their Merge order and Verification sections,
+  from another branch than the task's own `<area>/<n>-...`).
 Unknown is None in the JSON and "?" in the tables, never 0: a run without a PR, an older result shape without the
 key, skeptics not run while blockers or majors stand, no diff reviewer, a PR of another repository or missing from
 the list, a branch without CI runs, a run list cut before the PR, `gh` skipped or failed. Medians and sums count only
@@ -178,6 +179,13 @@ CI_RED = frozenset({"failure", "timed_out", "startup_failure"})
 PR_URL = re.compile(r"github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)")
 FOUND_BY = re.compile(r"found by[^\n]*", re.IGNORECASE)
 FIXUP_TITLE = re.compile(r"^\s*(revert\b|fix(\(|:|!))", re.IGNORECASE)
+# A fix-up's body names the task only in a sentence that says it reverts or repairs it: PR bodies list their sibling
+# PRs (Merge order, merge-check results) and cite others as context ("PR #41's test"), which is no fix-up.
+REGRESSION = re.compile(r"revert|regress|introduc|\bbroke|\bbreaks?\b|caused by", re.IGNORECASE)
+# The PR template's sections that list other PRs as a matter of course: left out of the search.
+LISTING_SECTION = re.compile(r"^#{1,6}[ \t]*(merge order|verification)\b.*?(?=^#{1,6}[ \t]|\Z)",
+                             re.IGNORECASE | re.MULTILINE | re.DOTALL)  # fmt: skip
+SENTENCE_END = re.compile(r"(?<=[.;!?])\s+|\n")
 # `gh pr list` and `gh issue list --limit`: the project had about 330 of each by 2026-10-05.
 GH_LIST_LIMIT = 1000
 # The signals of a run, and those of its PR (counted once per PR when several runs end on it).
@@ -1385,6 +1393,13 @@ def mentions(text: str, numbers: list[int], repo: str) -> bool:
     return any(re.search(rf"(?:(?<![\w/#.-]){qualified})#{n}(?!\d)", text) for n in numbers)
 
 
+def fixes_in_body(body: str, numbers: list[int], repo: str) -> bool:
+    """Whether a fix PR's body names the task in a sentence that reverts or repairs it (REGRESSION), outside its
+    "Found by" lines and its Merge order and Verification sections."""
+    text = LISTING_SECTION.sub("", FOUND_BY.sub("", body))
+    return any(REGRESSION.search(s) and mentions(s, numbers, repo) for s in SENTENCE_END.split(text))
+
+
 def ci_rounds(runs: list[dict], branch: object, opened: float | None, end: float | None) -> dict:
     """A PR's CI rounds: one per head SHA of the pull_request runs on its branch since it opened (module docstring)."""
     mine = [r for r in runs if r.get("event") == "pull_request" and r.get("headBranch") == branch
@@ -1446,7 +1461,7 @@ def quality_github(q: dict, github: dict | None) -> dict:
             continue
         if own and own.match(str(p.get("headRefName") or "")):
             continue
-        if mentions(title + "\n" + FOUND_BY.sub("", str(p.get("body") or "")), numbers, repo):
+        if mentions(title, numbers, repo) or fixes_in_body(str(p.get("body") or ""), numbers, repo):
             fixups.append(p["number"])
     out["fixups"] = sorted(fixups)
     return out

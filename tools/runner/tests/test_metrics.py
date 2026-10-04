@@ -769,6 +769,11 @@ class QualityTest(unittest.TestCase):
             pull(53, "tooling/31-c", 153, title="fix(tooling): own", body="#31"),  # the task's own branch
             pull(54, "revert-41-tooling/31-a", 154, title='Revert "feat(tooling): a"', body="Reverts o/r#41"),
             pull(55, "tooling/96-q", 155, title="fix: unrelated", body="see #410 and o/other#41"),
+            # Sibling PRs listed as a matter of course, and a PR cited as context: not fix-ups of 41.
+            pull(56, "tooling/95-r", 156, title="fix(bots): a stall",
+                 body="## Summary\nThe bots stall.\n\n## Verification\nmerge-check: no regression against #41.\n\n"
+                      "## Merge order\nIndependent of #41 and #42, which broke nothing here."),
+            pull(57, "tooling/94-s", 157, title="fix(tests): a flaky test", body="PR #41's test was flaky. Fixed."),
         ],
         "runs": [
             ci_run("tooling/31-a", "sha1", "failure", 18),
@@ -927,7 +932,7 @@ class QualityTest(unittest.TestCase):
                          "sha1 and sha3 red; the cancelled sha1 run adds nothing; the push to main is not the PR's")
         self.assertEqual((a["green_first"], a["ci_last"]), (False, "success"))
         self.assertEqual(a["followups"], [60])
-        self.assertEqual(a["fixups"], [50, 54], "the revert names o/r#41; 40, 51, 52, 53 and 55 are not fix-ups")
+        self.assertEqual(a["fixups"], [50, 54], "the revert names o/r#41; 40, 51, 52, 53, 55, 56, 57 are not fix-ups")
         b = rows["wf_b"]
         self.assertEqual((b["merged"], b["ci_red_rounds"], b["ci_red_after_run"]), (False, 1, 1))
         self.assertTrue(b["green_first"], "a cancelled round is skipped; a later red does not undo the first green")
