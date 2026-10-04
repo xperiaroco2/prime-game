@@ -213,6 +213,12 @@ class InstructionsTest(unittest.TestCase):
         self.assertAlmostEqual(item["write"], 1000 * (0.25 * 8.0 + 0.75 * 5.0) / 1e6)
         self.assertAlmostEqual(item["read"], 1000 * OPUS_READ)
 
+    def test_an_item_no_api_call_took_in_is_not_priced(self) -> None:
+        calls = [{**usage(write=1000), "cache_write_1h": 0, "model": "claude-opus-5-5"}]
+        late = {"chars": 2350}  # a tool result after the last API call: the agent was interrupted
+        metrics.price_items([late], calls, [])
+        self.assertEqual((round(late["tokens"]), late["write"], late["rewrite"], late["read"]), (1000, 0.0, 0.0, 0.0))
+
     def test_the_role_table_and_points(self) -> None:
         _md, record, _compact = self.build()
         rec = record["instructions"]

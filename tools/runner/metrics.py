@@ -629,7 +629,10 @@ def price_items(items: list[dict], calls: list[dict], bounds: list[int]) -> None
     rewrote = [u["cache_creation_input_tokens"] >= 0.5 * max(1, total(u) - u["output_tokens"]) for u in calls]
     for item in items:
         at = item.pop("at", None)
-        at = len(calls) - 1 if at is None else at
+        if at is None:  # still pending at the transcript's end (an interrupted agent): no API call took it in
+            item |= {"segment": len(bounds), "tokens": item["chars"] / CHARS_PER_TOKEN, "write": 0.0, "rewrite": 0.0,
+                     "read": 0.0}  # fmt: skip
+            continue
         end = next((b for b in bounds if b > at), len(calls))
         reads = max(0, end - at - 1)
         rewrites = sum(rewrote[at + 1:end])
