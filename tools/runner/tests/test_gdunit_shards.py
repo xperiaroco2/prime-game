@@ -506,6 +506,14 @@ class FixedFpsTest(Fixture):
         self.assertEqual([call["log"] for call in self.calls], ["test"])
         self.assertEqual(self.fixed_calls(), [])
 
+    def test_a_stale_list_is_named_by_the_list_not_by_a_flag_nobody_gave(self) -> None:
+        gone = "res://tests/integration/gone_test.gd"
+        with mock.patch.object(gdunit, "FIXED_FPS_SUITES", (self.C, self.D, gone)):
+            rc, text = self.run_test(shards=3)
+        self.assertEqual(rc, 0, text)
+        self.assertIn(f"gdunit.FIXED_FPS_SUITES: listed suites the scan did not find (1): {gone}; update the list", text)
+        self.assertNotIn("--fixed-fps:", text)
+
     def test_verifys_test_step_runs_the_listed_suites_at_fixed_fps(self) -> None:
         # The pin of #341: verify's step (and so CI's, which runs verify) is `test` with no paths, in CI's 2 shards.
         with mock.patch.object(gdunit, "default_shards", return_value=2), contextlib.redirect_stdout(io.StringIO()):

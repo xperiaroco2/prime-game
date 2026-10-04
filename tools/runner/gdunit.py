@@ -585,8 +585,8 @@ def fixed_set(suites: dict[str, list[str]], paths: list[str] | None) -> set[str]
         return set(suites)
     gone = [res for res in FIXED_FPS_SUITES if res not in suites]
     if gone:
-        warn(f"--fixed-fps: listed suites the scan did not find ({len(gone)}): {', '.join(gone)}; "
-             "update gdunit.FIXED_FPS_SUITES")  # fmt: skip
+        warn(f"gdunit.FIXED_FPS_SUITES: listed suites the scan did not find ({len(gone)}): {', '.join(gone)}; "
+             "update the list")  # fmt: skip
     return {res for res in FIXED_FPS_SUITES if res in suites}
 
 
