@@ -1164,11 +1164,15 @@ class CompactResultTest(unittest.TestCase):
         reviews = {"review:code": [{"reviewer": "r", "verdict": LONG, "findings": [BLOCKER, MAJOR, MINOR, MINOR]}], "review:netcode": [{"reviewer": "r", "verdict": "ok", "findings": []}]}
         stub = {"paths": ["core/match/vote.gd"], "queues": dict(reviews, implement=[FULL_IMPL], publish=[FULL_PUB])}
         silent = {k: v for k, v in FULL_PUB.items() if k != "needs_engineer"}
-        jobs = [("issue-task.js", dict(ARGS, branch="core/7-x"), stub), ("issue-task.js", dict(ARGS, branch="core/7-x"), dict(stub, queues=dict(stub["queues"], publish=[silent])))]
-        result, no_list = run_jobs(jobs)
+        empty = dict(FULL_PUB, needs_engineer=["None"])
+        jobs = [("issue-task.js", dict(ARGS, branch="core/7-x"), stub)] + [
+            ("issue-task.js", dict(ARGS, branch="core/7-x"), dict(stub, queues=dict(stub["queues"], publish=[p]))) for p in (silent, empty)
+        ]
+        result, no_list, no_item = run_jobs(jobs)
         self.assertIsNone(result["error"])
-        # A publisher that returns no needs_engineer list leaves the implementer's.
+        # A publisher that returns no needs_engineer list, or one with no item, leaves the implementer's.
         self.assertEqual(no_list["returned"]["needs_engineer"], FULL_IMPL["needs_engineer"])
+        self.assertEqual(no_item["returned"]["needs_engineer"], FULL_IMPL["needs_engineer"])
         out = result["returned"]
         self.assertEqual(
             {k: out[k] for k in ("n", "pr", "pr_url", "published", "ci_green", "closes_issue", "board_in_review", "verify_green", "complete")},

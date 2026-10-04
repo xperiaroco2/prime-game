@@ -509,8 +509,10 @@ const brief = (stopped, pub, extra) => {
     if (items(impl.left).length) out.left = lines(items(impl.left))
   }
   // In full: the manager explains each one to the engineer, and copies each step's command as is. The publisher's
-  // list carries the implementer's into the PR, so the implementer's counts only where the publisher returned none.
-  out.needs_engineer = items(pub && Array.isArray(pub.needs_engineer) ? pub.needs_engineer : impl.needs_engineer)
+  // list carries the implementer's into the PR, so the implementer's counts only where the publisher's has no item
+  // (none returned, or an empty list: its schema does not ask it to repeat the implementer's).
+  const pubNeeds = pub ? items(pub.needs_engineer) : []
+  out.needs_engineer = pubNeeds.length ? pubNeeds : items(impl.needs_engineer)
   if (pub) {
     out.human_steps = pub.human_steps || []
     out.not_fixed = lines(items(pub.not_fixed))
