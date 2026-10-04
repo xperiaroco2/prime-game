@@ -545,7 +545,9 @@ def plan_shards(costs: dict[str, float], count: int) -> list[list[str]]:
 # or the test's own over the LoopbackHub) runs as fast as the CPU allows instead of at wall-clock speed. 60 is the
 # project's physics ticks per second (the default; project.godot sets none) and perf's FIXED_FPS, so each frame runs
 # exactly one physics step. That is also what it hides: a frame never runs several physics steps, the condition
-# behind #222 and #225, so verify, CI and the nightly flaky job stay real-time (N4 (a)) and only a human asks for it.
+# behind #222 and #225, so verify, CI and the nightly flaky job stay real-time (that coverage; #280 keeps the flag off
+# by default) and only a human asks for it. A CLI flag, never an environment variable, so a local verify equals CI
+# (N4 (a) of docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md).
 FIXED_FPS_ARGS: tuple[str, ...] = ("--fixed-fps", FIXED_FPS)
 # The suites a run without paths takes at fixed fps, in shards of their own: frame-bound, on NetPair's or the test's
 # simulated clock over the LoopbackHub, measured green 10 runs in a row each (#280). Never an audio or ENet suite.

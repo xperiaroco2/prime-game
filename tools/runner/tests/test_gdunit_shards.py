@@ -433,7 +433,7 @@ class FixedFpsTest(Fixture):
         return json.loads((self.root / "tools" / "out" / "logs" / "gdunit-times.json").read_text(encoding="utf-8"))
 
     def test_without_the_flag_no_process_gets_engine_args(self) -> None:
-        # N4 (a): verify calls gdunit.main(run_import=False), so its run stays real-time
+        # Off by default (#280): verify calls gdunit.main(run_import=False), so its run stays real-time.
         self.assertEqual(self.run_test(shards=3)[0], 0)
         self.assertEqual(self.run_test(paths=["tests/unit"])[0], 0)
         self.assertEqual(len(self.calls), 4)
