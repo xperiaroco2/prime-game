@@ -249,8 +249,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
 - The game scene loads with threaded loading and a longer ENet timeout; the round starts when every peer still in
   the roster confirmed it loaded (§3.2).
 - The MVP is played over a LAN or a VPN (Radmin VPN, ZeroTier, Tailscale); no UPnP attempt was built. Internet play
-  without a VPN is the M6 ADR ([the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md), #346, which
-  recommends WebRTC with our own signalling and keeps ENet direct join).
+  without a VPN is the M6 ADR ([the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md), #346, accepted:
+  WebRTC with our own signalling, D16 (a); ENet direct join kept, no UPnP, E61).
 
 **Transport** (`net/transport/`, #40):
 - `NetTransport` is all game code sees: `host`, `join`, `poll`, `send(to_peer, kind, payload)`, `close`, `own_id`,
