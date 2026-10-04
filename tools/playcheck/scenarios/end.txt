@@ -16,6 +16,7 @@ wait phase lobby
 press ready
 wait screen round timeout=60
 wait text hud.clock has 0:
+wait text hud.clock lacks 10:
 shot round_clock
 wait screen end timeout=60
 wait phase end
@@ -48,6 +49,9 @@ wait ready off
 wait text lobby.roster has not ready
 frames 60
 shot lobby_after_end_guest
+# Window 1 shoots lobby_after_end after its own waits and 60 frames: ready up well after that, so
+# its shot shows nobody ready.
+frames 240
 press ready
 wait screen round timeout=60
 wait text hud.role has Role
