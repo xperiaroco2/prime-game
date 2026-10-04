@@ -86,7 +86,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 | File | Loaded | Content | Budget |
 |---|---|---|---|
-| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction | Hard rules, **architecture invariants**, exact runner commands, PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
+| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, exact runner commands, PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (designer-owned) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
@@ -94,6 +94,15 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 - Invariants live in root because nested files drop out after compaction
   ([ADR](decisions/2026-09-29-instruction-files-and-budgets.md)).
+- **Which copy loads** (Claude Code 2.1.284, probed in #336). A session started in the main checkout (the manager,
+  its workflow agents, and a task session that works in a worktree through `cd`/`Set-Location`, §4.1) loads main's
+  root `CLAUDE.md` at launch. A Read of a file under `.claude/worktrees/<n>/` then also loads that worktree's root
+  `CLAUDE.md` (a second copy, about 6k tokens at #336), its area `CLAUDE.md`, and both main's and the worktree's copy
+  of each matching rule. A session started inside a worktree loads only the worktree's copies: its root `CLAUDE.md`
+  at launch, never main's, and its area files and rules by path. So `claudeMdExcludes` with
+  `**/.claude/worktrees/*/CLAUDE.md` in the tracked `.claude/settings.json` is wrong: the tracked file is also each
+  worktree's own settings, and in a session started inside a worktree the pattern matches the only root `CLAUDE.md`
+  it has (a probe session started there with it loaded none).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
