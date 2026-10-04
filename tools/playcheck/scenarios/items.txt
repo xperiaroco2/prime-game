@@ -26,12 +26,13 @@ hold move_forward
 wait text hud.hint has pick up Knife timeout=30
 release move_forward
 # The hint shows at the edge of reach by the window's own position; the host checks the reach
-# from the last position it accepted, a step behind. Let it settle (the player slows to a stop a
-# little closer), then check the hint again before E.
+# from the last claim it accepted (claims go at 20 Hz), which trails by up to a claim interval plus
+# the latency (#319). Standing still lets it catch up: check the hint again, stop aiming (so the
+# next knife does not turn the player once this one is held), then E.
 frames 60
 wait text hud.hint has pick up Knife
-press interact
 aim off
+press interact
 wait text hud.hand is Hand: Knife
 wait text hand.item is knife
 frames 30
