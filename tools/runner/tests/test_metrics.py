@@ -994,6 +994,12 @@ class QualityTest(unittest.TestCase):
         line = next(x for x in compact if x.startswith("quality: "))
         self.assertIn("none of 2 PRs green on their first CI round", line)
 
+    def test_follow_ups_and_fix_ups_are_unknown_when_no_pr_is_found(self) -> None:
+        _md, record, compact = self.build(metrics.read_github(EMPTY_GH))
+        self.assertIsNone(record["quality"]["all"]["followups"])
+        line = next(x for x in compact if x.startswith("quality: "))
+        self.assertIn("Found-by follow-ups ?, fix-up PRs ?", line, "no PR in the list: unknown, not 0")
+
     def test_the_compact_quality_line(self) -> None:
         _md, _record, compact = self.build(self.github())
         line = next(x for x in compact if x.startswith("quality: "))
