@@ -72,7 +72,9 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   a green `verify`.
 - **Task branches**: the container starts on its own branch; switch to the task branch from its base
   (`git fetch origin <base>; git switch -c <area>/<n>-<slug> origin/<base>`, then `git branch --unset-upstream`, so
-  nothing tracks the base).
+  nothing tracks the base). On its task branch the clone is the session's own worktree for the guard (#381, §8.2):
+  `reset`, `rebase`, `checkout -- <path>` and `clean` there pass without a prompt, which nobody would answer. Before
+  #381 the M6-3 session waited 30 minutes on `git reset --soft HEAD~2`. On `main` or `release/*` they still ask.
 - **Agents:** the subagents in `.claude/agents/` run there (#345: `code-reviewer` on its diff, and `agents-check`
   passed on its transcript). The Workflow tool is offered, under the `small` size guideline; #345's session launched
   none.
@@ -501,8 +503,14 @@ commands, by the repository they name (issue #68, a read of another repository m
   checkout (a manager's task session) owns the first worktree its command enters with `cd`, `Set-Location` or
   `git -C` (`cd D:/prime-game/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same
   command asks), unless another live Claude session works in that worktree (`sessions.active_on`): then it owns
-  none. The main checkout is never owned: the designer's sessions and the engineer's `start --here` sessions keep
-  every prompt. The task branch is known by the worktree's identity: the branch checked out in
+  none. On a desktop the main checkout is never owned: the designer's sessions and the engineer's `start --here`
+  sessions keep every prompt. **A cloud session** (§2.1; `common.cloud_session`: `CLAUDE_CODE_REMOTE` true and `CI`
+  unset, the test `doctor` uses) whose working directory is in no worktree owns the main checkout while a task branch
+  (`<area>/<n>-<slug>`, `guard.TASK_BRANCH_RE`) is checked out there (issue #381): the same rules as a worktree on its
+  task branch, with `<n>` taken from that branch. `.git`, `.claude` and `.claude/worktrees` stay outside it, so their
+  deletes and git work in another worktree still ask; on `main`, `release/*`, any other branch or a detached HEAD it
+  asks as on a desktop. The pre-push hook and the push rules (no `main`, no force push by hand) are unchanged. The
+  task branch is known by the worktree's identity: the branch checked out in
   `.claude/worktrees/<n>` when its name is `<area>/<n>-<slug>`, as `start` makes it. Another branch checked out
   there (a parent, a spike) is not the task's, so work that discards on it asks, whatever an earlier call did; a
   detached HEAD moves no branch and stays free. Its helpers are branches named `<task branch>-x`,
