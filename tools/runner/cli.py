@@ -38,11 +38,22 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="K",
         help="K GdUnit4 processes at once (1: one process). Default: with no paths, from the CPU count; with paths, 1",
     )
-    p.add_argument(
+    clock = p.add_mutually_exclusive_group()
+    clock.add_argument(
         "--fixed-fps",
-        action="store_true",
-        help="frame-bound suites on a simulated clock (--fixed-fps 60): the named paths all, else "
-        "gdunit.FIXED_FPS_SUITES in shards of their own. Off by default; verify, CI and the nightly never use it (#280)",
+        dest="fixed_fps",
+        action="store_const",
+        const=True,
+        help="suites on a simulated clock (the engine's --fixed-fps 60): every named one. With no paths this is the "
+        "default (verify's and CI's, #341): gdunit.FIXED_FPS_SUITES in shards of their own, the rest real-time",
+    )
+    clock.add_argument(
+        "--real-time",
+        dest="fixed_fps",
+        action="store_const",
+        const=False,
+        help="every suite in real time (the default for named paths and --repeat, so the nightly flaky job): the #222 "
+        "class, several physics steps in one frame under load, shows only so",
     )
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
@@ -296,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "test":
             from . import gdunit
 
-            fixed = {"fixed_fps": True} if args.fixed_fps else {}
+            fixed = {"fixed_fps": args.fixed_fps} if args.fixed_fps is not None else {}
             if args.repeat is not None:
                 if args.shards is not None:
                     raise Failure("--repeat runs one process per run; drop --shards")

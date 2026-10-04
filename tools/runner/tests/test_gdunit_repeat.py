@@ -214,7 +214,9 @@ class CliTest(unittest.TestCase):
     def test_fixed_fps_reaches_repeat_only_when_given(self) -> None:
         with mock.patch.object(gdunit, "repeat", return_value=0) as rep:
             self.assertEqual(cli.main(["test", "--repeat", "2", "tests/unit", "--fixed-fps"]), 0)
-        rep.assert_called_once_with(2, paths=["tests/unit"], fixed_fps=True)
+            self.assertEqual(cli.main(["test", "--repeat", "2", "--real-time"]), 0)
+        self.assertEqual(rep.call_args_list, [mock.call(2, paths=["tests/unit"], fixed_fps=True),
+                                              mock.call(2, paths=None, fixed_fps=False)])  # fmt: skip
 
 
 if __name__ == "__main__":

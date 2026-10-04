@@ -201,20 +201,29 @@ def default_suites(tests_dir: Path) -> list[str]:
 
 
 def main(
-    paths: list[str] | None = None, run_import: bool = True, shards: int | None = None, fixed_fps: bool = False
+    paths: list[str] | None = None,
+    run_import: bool = True,
+    shards: int | None = None,
+    fixed_fps: bool | None = None,
 ) -> int:
     """`test`: with no paths, the suites in several GdUnit4 processes at once (the shards below); with paths, or
-    with one shard, one process as before #182. `shards` is `--shards K` (1: one process). `fixed_fps` is
-    `test --fixed-fps` (#280, the fixed-fps section below): never on unless asked for, so verify stays real-time."""
+    with one shard, one process as before #182. `shards` is `--shards K` (1: one process). `fixed_fps` (the fixed-fps
+    section below): None, the default and verify's (#341), runs FIXED_FPS_SUITES at fixed fps in shards of their own
+    when the run has no paths and two or more processes, else everything real-time; True is `test --fixed-fps` (#280),
+    False `test --real-time`."""
     global LAST_RUN
     LAST_RUN = None
-    say("test" + (f" --fixed-fps ({FIXED_FPS})" if fixed_fps else ""))
+    say("test" + {True: f" --fixed-fps ({FIXED_FPS})", False: " --real-time", None: ""}[fixed_fps])
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():
         raise Failure("no tests/ directory")
     count, why = shard_count(paths, shards)
-    if fixed_fps and not paths and count < 2:
+    if fixed_fps is None:
+        fixed_fps = not paths and count > 1
+        if not paths and not fixed_fps:
+            say(f"test: one process ({why}), so every suite runs real-time")
+    elif fixed_fps and not paths and count < 2:
         raise Failure(
             "--fixed-fps with no paths runs the listed suites in a process of their own, which needs a per-process "
             "user:// (Windows: APPDATA, Linux: XDG_DATA_HOME)"
@@ -545,9 +554,11 @@ def plan_shards(costs: dict[str, float], count: int) -> list[list[str]]:
 # or the test's own over the LoopbackHub) runs as fast as the CPU allows instead of at wall-clock speed. 60 is the
 # project's physics ticks per second (the default; project.godot sets none) and perf's FIXED_FPS, so each frame runs
 # exactly one physics step. That is also what it hides: a frame never runs several physics steps, the condition
-# behind #222 and #225, so verify, CI and the nightly flaky job stay real-time (that coverage; #280 keeps the flag off
-# by default) and only a human asks for it. A CLI flag, never an environment variable, so a local verify equals CI
-# (N4 (a) of docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md).
+# behind #222 and #225. So by default only FIXED_FPS_SUITES run so, in shards of their own, in `test` with no paths:
+# verify's and CI's test step (#341, the engineer's option (b) on PR #323; the amendment of #341 in
+# docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md). The rest of that run, named paths,
+# `--repeat` (the nightly flaky job) and `test --real-time` stay real-time and keep covering the #222 class. The
+# default is code and a flag changes it, never an environment variable, so a local verify equals CI (that ADR's N4 (a)).
 FIXED_FPS_ARGS: tuple[str, ...] = ("--fixed-fps", FIXED_FPS)
 # The suites a run without paths takes at fixed fps, in shards of their own: frame-bound, on NetPair's or the test's
 # simulated clock over the LoopbackHub, measured green 10 runs in a row each (#280). Never an audio or ENet suite.
@@ -729,9 +740,8 @@ def run_shards(
     count = min(count, len(suites))
     times, source = read_times()
     costs = estimates(files, suites, times)
-    fixed: set[str] = set()
-    if fixed_fps:
-        fixed = fixed_set(suites, items if named else None)
+    fixed = fixed_set(suites, items if named else None) if fixed_fps else set()
+    if fixed:
         at_fixed, fixed_source = read_times(FIXED_KEY)
         costs.update({res: max(s, 0.001) for res, s in fixed_times(fixed, times, at_fixed).items()})
         by = fixed_source if at_fixed else f"their real-time seconds / {FIXED_FPS_SPEEDUP:g}"
@@ -947,10 +957,11 @@ def summary_markdown(summary: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, fixed_fps: bool = False) -> int:
+def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, fixed_fps: bool | None = None) -> int:
     """`test --repeat N`: N runs one after another; any failed run fails it. Each run's report goes to
     tools/out/gdunit-runs/run-<i>/ and its log to tools/out/logs/test-run<i>.log; summary.json and summary.md compare
-    them. `fixed_fps` (named paths only) runs every one at FIXED_FPS_ARGS, and summary.json says so."""
+    them. `fixed_fps` True (named paths only) runs every one at FIXED_FPS_ARGS, and summary.json says so; else, the
+    default too, real-time: the nightly flaky job's `test --repeat 3` keeps covering the #222 class (#341)."""
     if runs < 1:
         raise Failure("--repeat must be at least 1")
     if fixed_fps and not paths:
