@@ -160,6 +160,37 @@ def merged_pr(n: int, head: str, merged_at: str, *, base: str = "main", title: s
             "headRefOid": oid or sha(n + 1000)}  # fmt: skip
 
 
+# merge-check's printed output (merge.check), clean and flagged, in its real shape.
+CLEAN_CHECK = """merge-check
+  ok    fetched origin
+  ok    3 open PRs: main (3)
+
+### main (origin/main at c1dbd37293): #315, #316, #317
+
+| check | textual | semantic |
+|---|---|---|
+| #315 onto main | clean | clean |
+
+merge-check: clean (0 textual conflicts and 0 overlaps in 6 checks)"""
+FLAGGED_CHECK = """merge-check
+  ok    fetched origin
+  ok    2 open PRs: main (2)
+
+### main (origin/main at c1dbd37293): #316, #317
+
+| check | textual | semantic |
+|---|---|---|
+| #316 onto main | clean | clean |
+| #316 + #317 | conflict: CLAUDE.md | overlap: wave.main |
+
+#316 + #317:
+- wave.main (tools/runner/wave.py:700 changed; used at tools/runner/cli.py:398)
+
+merge-check: 1 textual conflicts and 1 overlaps in 3 checks. Order the merges so the side that removes or changes a \
+symbol goes first and the other is rebased on it, or run merge-check --trial <pr>... to see whether verify stays green.
+Across bases: name the pair on both tracks' plan issues."""
+
+
 def open_pr(n: int, head: str, *, base: str = "main", issues: list[int] = (), rollup: list[dict] = (),
             draft: bool = False, state: str = "CLEAN") -> dict:  # fmt: skip
     refs = [{"number": i} for i in issues]
@@ -708,6 +739,51 @@ class WaveTest(unittest.TestCase):
         self.assertIn("Unavailable: gh pr list failed: HTTP 502", self.section(target.read_text(encoding="utf-8"),
                                                                                 "Open PRs"))  # fmt: skip
         self.assertIn("warn  wave: open PRs unavailable: gh pr list failed: HTTP 502", out)
+
+    def test_merge_check_capture_clean(self) -> None:
+        src = FakeSources(check_out=CLEAN_CHECK, rc=0)
+        target = self.root / "w.md"
+        rc, out, _ = self.main(since=SINCE, out=str(target), sources=src)
+        self.assertEqual((rc, src.checks), (0, [([], "main")]))
+        self.assertNotIn("open PRs: main", out, "merge-check's own lines are captured, not printed")
+        part = self.section(target.read_text(encoding="utf-8"), "Merge safety")
+        self.assertEqual(part, "## Merge safety\n\n`merge-check --base main`: exit 0.\n\n"
+                         "merge-check: clean (0 textual conflicts and 0 overlaps in 6 checks)\n")  # fmt: skip
+
+        class RealCheck(FakeSources):
+            check = wave.Sources.check
+
+        with mock.patch.object(wave.merge, "fetch", lambda: wave.merge.ok("fetched origin")), \
+                mock.patch.object(wave.merge, "open_prs", return_value=[]):  # fmt: skip
+            self.main(since=SINCE, out=str(target), sources=RealCheck(), base="release/m5")
+        part = self.section(target.read_text(encoding="utf-8"), "Merge safety")
+        self.assertEqual(part, "## Merge safety\n\n`merge-check --base release/m5`: exit 0.\n\n"
+                         "no open PRs to check into release/m5\n")  # fmt: skip
+
+    def test_merge_check_capture_flagged(self) -> None:
+        src = FakeSources(check_out=FLAGGED_CHECK, rc=1)
+        target = self.root / "w.md"
+        rc, _, _ = self.main(since=SINCE, out=str(target), sources=src)
+        self.assertEqual(rc, 0, "a flagged merge-check is data in the body, not wave's exit code")
+        part = self.section(target.read_text(encoding="utf-8"), "Merge safety")
+        printed = FLAGGED_CHECK.split("\n\n", 1)[1]  # from '### main' on, as merge-check printed it
+        self.assertTrue(printed.startswith("### main"))
+        self.assertEqual(part, f"## Merge safety\n\n`merge-check --base main`: exit 1.\n\n{printed}\n")
+        self.assertNotIn("fetched origin", part)
+        failing = FakeSources(check_out="merge-check\n  ok    fetched origin\n  warn  origin/m9 is gone",
+                              fail={"check": Failure("gh not found")})  # fmt: skip
+        rc, out, _ = self.main(since=SINCE, out=str(target), sources=failing)
+        self.assertEqual(rc, 0)
+        part = self.section(target.read_text(encoding="utf-8"), "Merge safety")
+        self.assertEqual(part, "## Merge safety\n\n`merge-check --base main`: exit 1.\n\nmerge-check failed: gh not found"
+                         "\n\n  warn  origin/m9 is gone\n")  # fmt: skip
+        self.assertIn("warn  wave: merge-check failed: gh not found", out)
+        self.assertIn("## Handover data", target.read_text(encoding="utf-8"), "the rest of the body is written")
+        skipped = FakeSources(check_out=CLEAN_CHECK)
+        self.main(since=SINCE, out=str(target), sources=skipped, merge_check=False)
+        self.assertEqual(skipped.checks, [])
+        self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Merge safety"),
+                         "## Merge safety\n\nSkipped (--no-merge-check).\n")  # fmt: skip
 
     def test_notes_and_title(self) -> None:
         notes = self.root / "notes.md"

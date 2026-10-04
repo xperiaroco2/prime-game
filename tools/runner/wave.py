@@ -45,6 +45,7 @@ import sys
 import time
 from collections import Counter
 from collections.abc import Callable
+from contextlib import redirect_stdout
 from dataclasses import dataclass, field
 from pathlib import Path, PureWindowsPath
 from typing import Any
@@ -166,6 +167,17 @@ class OpenPR:
 
 
 @dataclass
+class MergeCheck:
+    """merge-check's exit code, its verdict line and, when it flagged something or failed, its output as printed."""
+
+    rc: int
+    verdict: str
+    detail: list[str]
+    error: str | None = None
+    skipped: bool = False
+
+
+@dataclass
 class Wave:
     """What every section gets. A source's field is None when it was not read and a str (its error) when reading it
     failed; Wave(session, runs, since, now) alone renders every section."""
@@ -180,6 +192,7 @@ class Wave:
     notes: str | None = None
     merged: list[MergedPR] | str | None = None  # every base, oldest first
     open_prs: list[OpenPR] | str | None = None  # into base and stacked on those
+    merge_check: MergeCheck | None = None
 
 
 class Sources:
@@ -615,6 +628,38 @@ def read_open(gh: Callable[..., Any], base: str) -> list[OpenPR]:
     return sorted((p for p in prs if p.base in lands), key=lambda p: p.number)
 
 
+# --- merge-check --------------------------------------------------------------------------------------------------
+
+STATUS_PREFIX = re.compile(r"^  (?:ok|warn|FAIL|skip) +")
+
+
+def capture_merge_check(check: Callable[[list[int], str], int], base: str) -> MergeCheck:
+    """merge-check --base B with its printed lines captured (merge.check prints through `say`; its git and gh calls
+    capture their own output). The verdict: its last 'merge-check:' line, else its last line without the status
+    prefix. The detail: everything but its title and its 'ok' progress lines, kept only when it flagged or failed."""
+    buf = io.StringIO()
+    error = None
+    try:
+        with redirect_stdout(buf):
+            rc = int(check([], base))
+    except Exception as exc:  # a Failure (gh missing, a PR head not on origin) or a bug: the body is still written
+        rc, error = 1, str(exc).strip() or type(exc).__name__
+        warn(f"wave: merge-check failed: {error}")
+    lines = buf.getvalue().rstrip().splitlines()
+    if lines and lines[0].strip() == "merge-check":
+        lines = lines[1:]
+    verdict = next((line.strip() for line in reversed(lines) if line.startswith("merge-check:")), "")
+    if not verdict:
+        last = next((line for line in reversed(lines) if line.strip()), "")
+        verdict = STATUS_PREFIX.sub("", last).strip()
+    if error is not None:
+        verdict = f"merge-check failed: {error}"
+    detail = [line for line in lines if not line.startswith("  ok    ")]
+    while detail and not detail[0].strip():
+        detail.pop(0)
+    return MergeCheck(rc, verdict, detail if rc != 0 or error is not None else [], error)
+
+
 # --- sections -----------------------------------------------------------------------------------------------------
 
 
@@ -743,6 +788,19 @@ def open_prs_section(w: Wave) -> list[str]:
             f"Into {w.base}, and stacked on one of those.", ""]  # fmt: skip
 
 
+def merge_section(w: Wave) -> list[str]:
+    md = ["## Merge safety", ""]
+    m = w.merge_check
+    if m is None:
+        return [*md, "Not read.", ""]
+    if m.skipped:
+        return [*md, "Skipped (--no-merge-check).", ""]
+    md += [f"`merge-check --base {w.base}`: exit {m.rc}.", ""]
+    if m.error is not None:
+        return [*md, m.verdict, "", *([*m.detail, ""] if m.detail else [])]
+    return [*md, *(m.detail or [m.verdict]), ""]
+
+
 def finished_since(w: Wave) -> list[Run]:
     return [r for r in w.runs if r.finished and (r.finished_at is None or r.finished_at >= w.since)]
 
@@ -862,7 +920,7 @@ def footer_section(w: Wave) -> list[str]:
 
 SECTIONS: list[Callable[[Wave], list[str]]] = [
     header_section, notes_section, merged_section, finished_section, running_section, open_prs_section,
-    handover_section, footer_section,
+    merge_section, handover_section, footer_section,
 ]  # fmt: skip
 
 
@@ -900,10 +958,14 @@ def attempt(what: str, read: Callable[[], Any]) -> Any:
         return text
 
 
-def gather(w: Wave, src: Sources) -> None:
+def gather(w: Wave, src: Sources, merge_check: bool) -> None:
     """Every source beyond the transcripts, each on its own: one that fails leaves the others."""
     w.merged = attempt("merged PRs", lambda: read_merged(src.gh_json))
     w.open_prs = attempt("open PRs", lambda: read_open(src.gh_json, w.base))
+    if merge_check:
+        w.merge_check = capture_merge_check(src.check, w.base)
+    else:
+        w.merge_check = MergeCheck(0, "", [], skipped=True)
 
 
 def read_notes(path: Path) -> str:
@@ -975,7 +1037,7 @@ def main(
     assert t_since is not None
     w = Wave(session=s, runs=build_runs(s), since=t_since, now=time.time() if now is None else now,
              base=base or MAIN, plan=plan, title=title, notes=notes_text)  # fmt: skip
-    gather(w, sources or Sources())
+    gather(w, sources or Sources(), merge_check)
     body = render(w)
     if out:
         target = Path(out)
