@@ -134,3 +134,36 @@ func test_the_size_cap_counts_bytes() -> void:
 	assert_str(SignalCodec.decode(at_cap, SignalCodec.Side.JOINER).why).is_equal(
 		SignalCodec.WHY_TOO_LARGE
 	)
+
+
+## The decoding cases recorded from Godot (tests/fixtures/signal/decode/), which the Worker's codec
+## replays too (tools/signal/test/codec.test.js): a change to the rules shows in both.
+func test_every_decoding_case_gives_its_recorded_result() -> void:
+	var json := JSON.new()
+	var path := Transcripts.FOLDER + "decode/decode_cases.json"
+	assert_int(json.parse(FileAccess.get_file_as_string(path))).is_equal(OK)
+	var data: Dictionary = json.data
+	var cases: Array = data["cases"]
+	assert_int(cases.size()).is_greater(100)
+	var sides := {
+		"UNSET": SignalCodec.Side.UNSET,
+		"HOST": SignalCodec.Side.HOST,
+		"JOINER": SignalCodec.Side.JOINER,
+		"TO_HOST": SignalCodec.Side.TO_HOST,
+		"TO_JOINER": SignalCodec.Side.TO_JOINER,
+	}
+	var failures := PackedStringArray()
+	for index: int in cases.size():
+		var each: Dictionary = cases[index]
+		var text: String = each["raw"]
+		if each.has("pad_to"):
+			var pad_to: float = each["pad_to"]
+			text += " ".repeat(int(pad_to) - text.length())
+		var side: int = sides[each["side"]]
+		var decoded := SignalCodec.decode(text.to_ascii_buffer(), side)
+		var got := {"why": decoded.why}
+		if decoded.ok():
+			got = {"msg": SignalCodec.as_message(decoded)}
+		if Transcripts.canonical(got) != Transcripts.canonical(each["expect"]):
+			failures.append("case %d: got %s" % [index, Transcripts.canonical(got)])
+	assert_array(Array(failures)).is_empty()
