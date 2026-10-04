@@ -294,7 +294,7 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 - **Merge safety**: the latest `merge-check` result, or its table when it flagged something.
 - **Handover data** in every wave comment, which `tools\run.cmd wave --since <wave start>` writes from your
   transcript (#277; no args files): each running run's args as launched (worktree included), its runId and your
-  session, and each failed, killed or stopped run not yet relaunched. A successor session (§7) relaunches from that.
+  session, and each failed, killed or stopped run since then not yet relaunched. A successor (§7) relaunches from it.
 - Keep every slot busy: when the next task waits for a merge, start what does not depend on it (a task's
   independent part with a "fetch and check whether X is on origin/release/m<k>" step, fillers, the next milestone's
   design task). When nothing more can run without merges or a design review, say so in a plan-issue comment and stop
@@ -335,11 +335,12 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 - **A fresh manager once a day** (#279, the engineer's option A on #170): a manager never compacts, and a day-old
   context makes each call about 3 times dearer (§9). A handover is due when you stop for the human with work left,
   no run of your own in flight, and the session over 12 hours old or its context over 500k tokens (both in the
-  footer of `tools\run.cmd wave`). Post one plan-issue comment, `wave --since <wave start> --title "Handover to a
-  fresh manager session" --notes <file>` (#278; before it, your notes above its body): the order from here, the open
-  questions, every `human_steps` command still due, the stage's start and `wave`'s handover data. Your "For you:" is
-  the human's single step: paste the §10 kickoff with its "Continue from" line into a new session in `D:\prime-game`.
-  Then a PushNotification; stop with no timer and launch nothing more. Never hand over with a run in flight.
+  footer of `tools\run.cmd wave`). Post one plan-issue comment, `wave --since <session start> --title "Handover to
+  a fresh manager session" --notes <file>` (#278; before it, your notes above its body): the order from here, the
+  open questions, every `human_steps` command still due, the stage's start and `wave`'s handover data (since the
+  session start: every failed run not relaunched, not only this wave's). Your "For you:" is the human's single
+  step: paste the §10 kickoff with its "Continue from" line into a new session in `D:\prime-game`. Then a
+  PushNotification; stop with no timer and launch nothing more. Never hand over with a run in flight.
 - **The keep-alive and the handover together**, decided in this order at the end of each turn and on each wake:
   (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes none: the run's end still
   wakes you). (2) No run in flight and a handover due: hand over and arm nothing (a fresh session costs less than a
