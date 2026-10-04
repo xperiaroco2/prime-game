@@ -332,13 +332,19 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   no message to the human and no PushNotification, unless that line needs them. Count the wakes in a row in the
   state file (a message from the human resets the count); after 14 (about 12 hours of their absence) arm no more:
   hand over if one is due, else stop.
-- **The keep-alive and the fresh manager once a day (#279) together**, decided in this order at the end of each
-  turn and on each wake: (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes
-  none: the run's end still wakes you). (2) No run in flight and a handover due (the session over 12 hours old or
-  its context over 500k; `tools\run.cmd wave` prints both, #277): hand over (#279) and arm nothing, since a fresh
-  session costs less than keeping a big context warm. (3) No run in flight, no handover due, the context over
-  about 150k: arm the timer. (4) Otherwise arm nothing. A session that passes 12 hours while it waits hands over
-  on its next wake.
+- **A fresh manager once a day** (#279, the engineer's option A on #170): a manager never compacts, and a day-old
+  context makes each call about 3 times dearer (§9). A handover is due when you stop for the human with work left,
+  no run of your own in flight, and the session over 12 hours old or its context over 500k tokens (both in the
+  footer of `tools\run.cmd wave`). Post one plan-issue comment, `wave --since <wave start> --title "Handover to a
+  fresh manager session" --notes <file>` (#278; before it, your notes above its body): the order from here, the open
+  questions, every `human_steps` command still due, the stage's start and `wave`'s handover data. Your "For you:" is
+  the human's single step: paste the §10 kickoff with its "Continue from" line into a new session in `D:\prime-game`.
+  Then a PushNotification; stop with no timer and launch nothing more. Never hand over with a run in flight.
+- **The keep-alive and the handover together**, decided in this order at the end of each turn and on each wake:
+  (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes none: the run's end still
+  wakes you). (2) No run in flight and a handover due: hand over and arm nothing (a fresh session costs less than a
+  big warm context). (3) No run in flight, no handover due, the context over about 150k: arm the timer. (4)
+  Otherwise arm nothing. A session that passes 12 hours while it waits hands over on its next wake.
 - "продовжуй" after any break: re-read the live state first (`gh pr list`, the plan issue's latest comments, each
   running run), then the state file, then continue.
 
@@ -423,6 +429,11 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 - **Numbers** (M4, the pipeline v2 ADR's baseline): about 82 minutes, $24 API list and 0.94% of a Max 20x week per
   task ($25.5 per 1%, #304); a stage's budget in % starts from them.
 
+### 2026-10-03 (round 2's scouting, #170)
+- **A manager's context only grows** (round 2's wave 0 on #170, `wf_e55a9be5-eac`): neither manager compacted
+  (round 1's 147k to 933k tokens, M5's 184k to 928k); a call on day 2 cost 2.7 and 3.3 times one of the first hours;
+  the re-writes after idle hours cost $8.12 (14% of round 1's manager) and $14.06 (19% of M5's). Hence §7's handover.
+
 ### 2026-10-04 (the Token efficiency track, #302)
 - **Idle re-writes** (#302's report of 2026-10-04, the managers since the plan change): 24 calls after a gap over 1
   hour wrote 0.15 to 0.93M tokens each again, $89.8 list: 11 while their own workflow ran ($38.8), 13 at human
@@ -443,6 +454,8 @@ Start from: <my review of the design PR #<pr> and its handoff on #<design issue>
 <If from a design: open the stage's issues from that handoff with my review's changes, show me the list and the
 order, and wait for my "yes".>
 
+<After a handover (§7): Continue from the handover comment <link>; the previous manager session launches nothing
+more, and my yes to the stage's restatement stands: restate the order from there and go on.>
 Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
