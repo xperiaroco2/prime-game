@@ -218,7 +218,7 @@ class CliTest(unittest.TestCase):
         rep.assert_called_once_with(3, paths=["tests/unit"])
         main.assert_called_once_with(paths=None)
 
-    def test_fixed_fps_reaches_repeat_only_when_given(self) -> None:
+    def test_the_clock_flags_reach_repeat_only_when_given(self) -> None:
         with mock.patch.object(gdunit, "repeat", return_value=0) as rep:
             self.assertEqual(cli.main(["test", "--repeat", "2", "tests/unit", "--fixed-fps"]), 0)
             self.assertEqual(cli.main(["test", "--repeat", "2", "--real-time"]), 0)
