@@ -36,26 +36,50 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | Auto mode | Not yet. Revisit after the M0 guard tests pass (§14) | — |
 
 ### 2.1 Cloud sessions
-A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clone) can run `tools/run.sh verify` as CI
-does (#159). Setup:
-- **Setup script** of the cloud environment: `tools/cloud/setup.sh` from the repository root. Idempotent: it
-  installs the pinned Godot Linux build in `~/godot/godot` (SHA-512 checked) and links it as `godot` on PATH, installs
-  the pinned gdtoolkit with pip, and raises `net.core.rmem_default` to 416 KB when lower (some container kernels hold
-  only 256 small datagrams in the 208 KB default; verify's stall step queues 320). #159 ran it by hand inside a
-  session, not yet as the environment's setup script; a sysctl may not survive a cached environment, so rerun it
-  when `doctor` warns about the UDP buffer. `doctor` skips the machine paths and `gh` there, as on CI
-  (`CLAUDE_CODE_REMOTE=true`).
-- **Network access**: `github.com` and its release-asset host (`release-assets.githubusercontent.com`) for the
-  Godot zip, and `pypi.org` with `files.pythonhosted.org` for gdtoolkit.
-- **Task branches**: the container starts on its own branch; switch to the task branch from the stage's base
-  (`git fetch origin release/m<k>; git switch -c <area>/<n>-<slug> origin/release/m<k>`). With `gh` authenticated,
-  the runner's `start --here` and `publish` use it as on a PC (not yet tried in a cloud session). Without it, read
-  the issue and open the PR through the session's GitHub tools, leave the board column to the manager, and push with
-  `publish --base release/m<k>` (it needs no `gh` when given the base) or a plain `git push -u origin <branch>` after
+A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clone) runs `tools/run.sh verify` as CI
+does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.sh`, then `tools/run.sh doctor`.
+- **`tools/cloud/setup.sh`** (from any folder; idempotent, about 7 s with the download): installs the pinned Godot
+  Linux build in `~/godot/godot` (SHA-512 checked) and links it as `godot` on PATH, installs the pinned gdtoolkit with
+  pip, and raises `net.core.rmem_default` to 416 KB when lower (some container kernels hold only 256 small datagrams
+  in the 208 KB default; verify's stall step queues 320). **In a cloud session only** (`CLAUDE_CODE_REMOTE=true`) it
+  also leaves the Windows-only TwoVoIP extension (`addons/twovoip/twovoip.gdextension` and its `.uid`, the M5 voice
+  ADR §2) out of the clone with a non-cone sparse checkout, as CI deletes them: on Linux Godot prints an `ERROR:`
+  line for the extension and every Godot step of `verify` fails. git still tracks both files, so `git status` stays
+  clean and no commit can take their deletion; `git update-index --skip-worktree` alone brought the file back on a
+  switch to a commit that changes it, on `reset --hard` and in a new worktree, and the sparse patterns held through
+  all three. Undo with `git sparse-checkout disable`. If Godot imported the project before, a `run` still loads the
+  extension until the next `check` (ARCHITECTURE §6, "The addon in the repo"); `verify` runs `check` first. `doctor`
+  (also `--quick`, so `verify` stops at once) fails in a
+  cloud session while the `.gdextension` is in the working tree or was deleted by hand, and names the fix; it skips
+  the machine paths and `gh` there, as on CI.
+- **As the environment's setup script** (not yet tried): such a script runs before Claude Code starts, and the
+  environment caches the resulting filesystem while each session starts from a fresh clone
+  (code.claude.com/docs/en/cloud-environments), so the sparse checkout and the sysctl may not reach a later session,
+  nor is it documented that `CLAUDE_CODE_REMOTE` is set at that point. Hence the first command above; `doctor` says
+  when it is due.
+- **Python:** the image's `python3` is 3.11, the runner's minimum (`pins.PYTHON_MIN`; 3.12 and 3.13 are installed
+  too), while CI runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on 3.11.
+- **Network access** (the default Trusted level sufficed): `github.com` with `release-assets.githubusercontent.com`
+  for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit. The session's proxy refuses API calls and
+  feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
+  reads public pages (docs, release pages) for research.
+- **GitHub:** `gh auth status` calls the token invalid, yet `gh api` REST calls on this repository go through the
+  session's GitHub proxy (`gh api user`, `gh api repos/{owner}/{repo}/issues/<n>`). GraphQL is refused (HTTP 403), so
+  `gh issue view`, `gh pr create|view|checks` and `gh project` fail, and with them the runner's `start`, `board` and
+  `merge`. Read issues and open PRs with the session's GitHub tools, leave the board column to the manager, and push
+  with `publish --base <base>` (it needs no `gh` when given the base) or a plain `git push -u origin <branch>` after
   a green `verify`.
+- **Task branches**: the container starts on its own branch; switch to the task branch from its base
+  (`git fetch origin <base>; git switch -c <area>/<n>-<slug> origin/<base>`, then `git branch --unset-upstream`, so
+  nothing tracks the base).
+- **Agents:** the subagents in `.claude/agents/` run there (#345: `code-reviewer` on its diff, and `agents-check`
+  passed on its transcript). The Workflow tool is offered, under the `small` size guideline; #345's session launched
+  none.
+- **Timing (#345, 4 CPUs):** `doctor` 5 s; a full `verify` 6 minutes (the Python lane 3.8, the Godot lane 6; `test`
+  3.4 and `selftest` 3.3 the longest).
 - **Cannot**: open Godot windows (`run` without `--headless`, the editor), take a `shot` or run `playcheck` (they
   stop with "needs a desktop session with a GPU"), or do the Windows-only steps (`tools\run.cmd`, PowerShell, the
-  humans' settings files). A full `verify` took 5.5 minutes in one (test, selftest and bots-enet the longest).
+  humans' settings files, the TwoVoIP round trip).
 
 ## 3. Instruction files and memory
 
