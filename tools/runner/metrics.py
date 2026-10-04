@@ -1491,9 +1491,9 @@ def quality_summary(label: str, rows: list[dict]) -> dict:
     return {
         "session": label, "tasks": len(rows), "usd": spent,
         **{k: stat([q[k] for q in rows]) for k in RUN_SIGNALS},
-        **{k: stat([q[k] for q in units]) for k in PR_SIGNALS},
+        **{k: stat([q[k] for q in prs]) for k in PR_SIGNALS},
         "sums": {k: sum(q[k] for q in rows if q[k] is not None) for k in RUN_SIGNALS}
-        | {k: sum(q[k] for q in units if q[k] is not None) for k in PR_SIGNALS},
+        | {k: sum(q[k] for q in prs if q[k] is not None) for k in PR_SIGNALS},
         "prs": len(prs), "merged": sum(q["merged"] is True for q in prs),
         "merged_known": sum(q["merged"] is not None for q in prs),
         "green_first": sum(green), "green_known": len(green),

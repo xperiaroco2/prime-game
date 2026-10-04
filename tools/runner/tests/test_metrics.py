@@ -962,8 +962,8 @@ class QualityTest(unittest.TestCase):
         self.assertEqual((session["session"], session["tasks"]), ("55555555", 6))
         self.assertEqual(session["not_fixed"], {"median": 0, "known": 5, "of": 6}, "wf_b's older shape is unknown")
         self.assertEqual(session["serious"], {"median": 0, "known": 5, "of": 6})
-        # Per PR, once each: 41 (two runs), 42, 43, the other repository's 41 and wf_c without a PR.
-        self.assertEqual(session["ci_red_rounds"], {"median": 1, "known": 3, "of": 5})
+        # Per PR, once each: 41 (two runs), 42, 43 and the other repository's 41; wf_c has no PR to count.
+        self.assertEqual(session["ci_red_rounds"], {"median": 1, "known": 3, "of": 4})
         self.assertEqual((session["prs"], session["merged"], session["green_first"], session["green_known"]),
                          (4, 1, 1, 2))  # fmt: skip
         self.assertEqual((session["followups"], session["fixups"]), ([60], [50, 54]))
@@ -1001,6 +1001,7 @@ class QualityTest(unittest.TestCase):
         self.assertIn("6 tasks, 4 PRs (1 merged)", line)
         self.assertIn("per PR green on its first CI round (1 of 2 known)", line)
         self.assertIn("Found-by follow-ups 1", line)
+        self.assertIn("CI red rounds 3 in 3 of 4 PRs (2 after the run)", line, "of PRs: wf_c has none")
         # The most lines: tasks, three verify sources and CI. Ten, the CI line last.
         with tempfile.TemporaryDirectory() as tmp:
             fx = Fixture(Path(tmp))
