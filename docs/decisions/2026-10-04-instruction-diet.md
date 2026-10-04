@@ -1,6 +1,8 @@
 # Instruction diet: agents load only the instructions and docs a task needs
 
-- **Status:** Proposed (design task #313). The engineer chooses N1 to N3 below; the build waits for his choice.
+- **Status:** Accepted: the engineer chose N1 (a), N2 (a), N3 (a) and issue A on 2026-10-04 (PR #325, comment
+  https://github.com/xperiaroco2/prime-game/pull/325#issuecomment-5979209142); the build is #336 (A), #337 (E),
+  #338 (B), #339 (C) and #340 (D); F is #332 (PR #335); G is not opened.
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (N1 to N3). The measurement, the cost model and the technical framing are the design
   task's, under the engineer's delegation of technical choices (#134).
@@ -151,7 +153,7 @@ the worktree's rules would leave such a session with no `gdscript.md`, `tests.md
 duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bounded waits. The rule pairs ($6, 0.19
 / 0.25 with bounded waits) stay.
 
-## Decision (proposed)
+## Decision
 
 ### What this design decides (technical framing)
 - **The method and the unit.** Cost per role from the transcripts, as above, with every saving given at w = 0 and
