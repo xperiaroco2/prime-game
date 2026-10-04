@@ -84,8 +84,8 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
   and mutants as `<cmd> > <log> 2>&1; echo "exit=$?" >> <log>`, poll `wait <log>`, never rerun a running one (AGENT_WORKFLOW §11).
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
-- **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot CLAUDE.md`,
-  `docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`, `docs/ROADMAP.md`.
+- **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot`,
+  `export_presets.cfg CLAUDE.md docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`, `docs/ROADMAP.md`.
 - **Designer:** `content/ levels/ docs/GDD.md docs/design/` and the skills `new-mechanic` and `new-level-piece`.
 - **Shared:** `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/`.
 - The designer's agent never edits engine code: a missing primitive becomes an `engine-request` issue with a precise
