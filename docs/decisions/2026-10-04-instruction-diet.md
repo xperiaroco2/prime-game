@@ -245,6 +245,11 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
   - What goes in a pack: a runner command generates it from tagged root `CLAUDE.md` sections (hard rules, invariants,
     shell, the role's commands, definition of done). It leaves out routing, talking to the humans, memory and the
     glossary, which no unattended agent uses.
+  - *It amends the [instruction budgets ADR](2026-09-29-instruction-files-and-budgets.md):* that ADR keeps the hard
+    rules and invariants in root `CLAUDE.md` because root survives compaction (AGENT_WORKFLOW §3: "re-injected after
+    compaction"). Implementers average 82 calls and can compact. Whether a preloaded skill is re-attached after
+    compaction is not documented or measured, so packs need a probe first: an agent with a pack that compacts must
+    still show the pack in its context afterwards. If it does not, packs are off the table.
   - *Risk:* a pack that misses a hard rule is the one way this design can lose a rule. A generator plus a stale-pack
     lint keeps the packs from drifting, but not from a wrong tag.
 
@@ -280,7 +285,8 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 3. **N3, after #307, how lean the workflow agents get:**
    - (a) lean agent types only (no skill listing, MCP instructions or unused tool schemas; root `CLAUDE.md` still
      loads);
-   - (b) also `omitClaudeMd` with generated role packs;
+   - (b) also `omitClaudeMd` with generated role packs (it amends the instruction budgets ADR, and only if the
+     compaction probe in F passes);
    - (c) not now.
 
    **Recommended (a) first, and (b) only as an A/B trial on 3 to 4 tasks after (a)'s data.** This keeps the
@@ -338,7 +344,10 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
 - **F:** #302's E, plus:
   - the lean agents' first call carries no skill listing or MCP instructions;
   - if N3 (b): a generated role pack, `omitClaudeMd`, a stale-pack lint, and `instructions.py` accepting the new
-    agent fields.
+    agent fields;
+  - if N3 (b), before any trial: a probe agent with a pack runs until it compacts, and its transcript shows the pack
+    re-attached afterwards (hard rules and invariants in context). If it does not, (b) is dropped. The PR amends the
+    instruction budgets ADR.
 - **G:**
   - every § resolves through the index;
   - one file per group, under a lint size budget;
