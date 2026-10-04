@@ -1282,6 +1282,12 @@ class GateTextTest(unittest.TestCase):
                 self.assertEqual(reasons(path, designer_approved=True), [])
                 # The template's hint carries the phrase inside an HTML comment: it does not count; nor the go.
                 self.assertEqual(len(reasons(path, f"<!-- \"{merge.RELAY_PHRASE}\" -->\n" + APPROVED)), 1)
+                # The phrase counts only as a line of its own, never quoted or negated inside a sentence.
+                for body in (f"This needs \"{merge.RELAY_PHRASE}\" first.\n", f"Not yet {merge.RELAY_PHRASE}.\n"):
+                    self.assertEqual(len(reasons(path, body)), 1, body)
+                bold = f"- **{merge.RELAY_PHRASE.capitalize()}**; @SwiftySinister\n"
+                for body in (bold, f"\"{merge.RELAY_PHRASE}\"\n"):
+                    self.assertEqual(reasons(path, body), [], body)
         for path in (".claude/settings.json", ".claude/settings.local.json", ".claude/githooks/pre-push",
                      "tools/runner/guard.py"):  # fmt: skip
             with self.subTest(path):

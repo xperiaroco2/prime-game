@@ -137,6 +137,8 @@ SAFETY_RE = re.compile(r"^\.claude/settings[^/]*\.json$")
 SAFETY_FILES = ("tools/runner/guard.py",)
 ADR_PREFIX = "docs/decisions/"
 RELAY_PHRASE = "agreed with the designer, relayed by the engineer"
+# The relay phrase as a line of its own (list markers, bold and quotes around it are fine), like the approval line.
+RELAY_RE = re.compile(r"(?im)^[^\w\n]*" + re.escape(RELAY_PHRASE))
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 # A line of its own (a list marker or bold around the label is fine), with a link to the engineer's words on GitHub.
 APPROVAL_RE = re.compile(r"(?im)^[^\w\n]*Approved by the engineer\W*https://github\.com/\S+")
@@ -1511,7 +1513,7 @@ def exception_reasons(paths: list[tuple[str, str]], body: str, head: str, design
             f"a milestone's closing PR ({head}) merges after the engineer's go: an \"Approved by the engineer: "
             "<GitHub link>\" line in the body"
         )
-    if designer and not (designer_approved or RELAY_PHRASE in text.lower() or (closing and approved)):
+    if designer and not (designer_approved or RELAY_RE.search(text) or (closing and approved)):
         reasons.append(
             f"the designer's area ({_files_cell(designer, 3)}) without the designer's approving review or "
             f"\"{RELAY_PHRASE}\" in the body"
