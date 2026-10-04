@@ -36,11 +36,12 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
   - Usage credits stay off or capped (unchanged). `agents-check` proves which model served each agent: it reads the
     shared and the user-scope `availableModels`, accepts a model from the user list when the requested model served,
     and still fails a model in neither list that served.
-  - **2026-10-04 (#308; #302 decision 3, option (c)):** a model from the shared list (Sonnet) may go into a launch's
-    `models` without a kickoff allowance, since this amendment restricts only models beyond that list. The first such
-    use is the one-wave publisher trial: `issue-task` applies `models.publish_clean` only to the full publisher of a
-    run with no blocker or major open, never to a design task. The manager passes it on the non-design `issue-task`
-    launches of one wave only, then reports on #302, and the engineer keeps or drops it
+  - **2026-10-04 (#308; #302 decision 3, option (c)):** the one-wave publisher trial. Its model is from the shared
+    list (Sonnet), so it needs no allowance under this amendment; the kickoff only names the trial's wave. Any other
+    `models` use still follows the orchestrate-stage skill's §3 (only where the kickoff allows it). `issue-task`
+    applies `models.publish_clean` only to the full publisher of a run with no blocker or major open, never to a
+    design task. The manager passes it on the non-design `issue-task` launches of one wave only, then reports on
+    #302, and the engineer keeps or drops it
     ([effort ADR](2026-09-28-effort-and-workflow-bounds.md), amendment of 2026-10-04). No script, default or agent file
     names the model; the workflow tests still assert it.
 
