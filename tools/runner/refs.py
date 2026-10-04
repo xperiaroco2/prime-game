@@ -96,7 +96,9 @@ LIST_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s|^\s*\||^#{1,6}\s")
 OF_DOC_RE = re.compile(r"^[\s`'\"]*(?:of|in)\s+(?:the\s+(?:[\w-]+\s+)?)?[`'\"]?$")
 # "§2.4 in `ARCHITECTURE.md` §4": a doc followed by a § of its own takes that §, not the one before it.
 OWN_REF_RE = re.compile(r"[`'\")]*\s?§")
-SENTENCE_END_RE = re.compile(r"[.!?][`'\")*]*\s")
+# The end of a sentence, or of a clause at a semicolon: a doc named before it does not take a § after it ("AGENT_WORKFLOW
+# §11 and §8.2; §4.7 alone is 28k" in the instruction-diet ADR means its own §4.7, not AGENT_WORKFLOW's).
+SENTENCE_END_RE = re.compile(r"[.!?;][`'\")*]*\s")
 
 
 def _blocks(lines: list[str], markdown: bool) -> list[int]:
@@ -126,7 +128,7 @@ def references(path: str, text: str, own: str | None, declared: str | None) -> l
     """Each § reference in a file: (line, number, doc key or None). Its doc, the first that applies:
     1. the doc named right after it ("§4.5 of ARCHITECTURE"), unless a § of its own follows it ("§2.4 in
        ARCHITECTURE §4": that doc takes only the §4);
-    2. the doc named nearest before it in the same sentence;
+    2. the doc named nearest before it in the same sentence (a semicolon ends it, as a full stop does);
     3. the file's own sections (`own_doc`);
     4. the doc named nearest before it in its block (paragraph, list item, table row, comment block);
     5. the file's declared design doc (`declared_doc`)."""

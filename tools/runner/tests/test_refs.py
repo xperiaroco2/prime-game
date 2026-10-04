@@ -40,6 +40,26 @@ class ScopeTest(unittest.TestCase):
         text = "The design (ARCHITECTURE\n§4.5 and the rest\nof §1).\n"
         self.assertEqual(docs_of("x.md", text), ["ARCHITECTURE"] * 2)
 
+    def test_a_semicolon_ends_the_clause_so_a_doc_before_it_takes_no_section_after_it(self) -> None:
+        # The instruction-diet ADR's sentence: its last §4.7 is ARCHITECTURE's, not AGENT_WORKFLOW's (#396).
+        text = (
+            "## Decision\n"
+            "- **Large sections get numbered subsections.** These are the sections over about 7k tokens: §4.7, §4.6,"
+            " §7.1, §6,\n"
+            "  §4.5, §9.5, §9.4 and §4.3, and AGENT_WORKFLOW §11 and §8.2; §4.7 alone is 28k. How each gets them"
+            " depends on its\n"
+            "  labels today:\n"
+        )
+        self.assertEqual(
+            docs_of("docs/decisions/2026-10-04-instruction-diet.md", text),
+            ["other"] * 8 + ["AGENT_WORKFLOW"] * 2 + ["other"],
+        )
+        self.assertEqual(
+            docs_of("docs/ARCHITECTURE.md", "The workflow (AGENT_WORKFLOW §11 and §3; §4.5 here).\n"),
+            ["AGENT_WORKFLOW", "AGENT_WORKFLOW", "ARCHITECTURE"],
+        )
+        self.assertEqual(docs_of("notes.md", "AGENT_WORKFLOW §11; §3.\n"), ["AGENT_WORKFLOW"] * 2)  # rule 4
+
     def test_the_doc_named_right_after_it(self) -> None:
         text = "AGENT_WORKFLOW §3, §4.5 of ARCHITECTURE, §11 in `docs/AGENT_WORKFLOW.md`, §1 of the M5 ADR."
         self.assertEqual(docs_of("x.md", text), ["AGENT_WORKFLOW", "ARCHITECTURE", "AGENT_WORKFLOW", "other"])
