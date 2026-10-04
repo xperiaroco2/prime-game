@@ -887,9 +887,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   lines (time and API list $ per task and in total, the % of the week, the `verify` medians): the manager pastes
   `metrics --since <wave start> --compact` into each wave comment. The % of the week is at $25.5 list per 1% (#304: 66%
   at 2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change; the pipeline v2 ADR's
-  amendment), with a bracket beside it: the limit counting cache reads at 0 to 50% ((list $ without cache reads, plus 0
-  or 0.5 times the cache-read $) / $15.3 or $20.3), until #307 measures that weight. The $25.5 was fitted where cache
-  reads were 40% of list $: the compact line prints the report's own share, and far from 40% the bracket is the better
+  amendment), with a bracket beside it: the limit counting cache reads at 60 to 100% of their list $ ((list $ without
+  cache reads, plus 0.6 or 1 times the cache-read $) / $21.5 or $25.5), the range #307 measured (central 75%; the
+  ADR's #307 amendment). The $25.5 was fitted where cache reads were 40% of list $: the compact line prints the
+  report's own share, and far from 40% the bracket is the better
   figure. It covers only this checkout's sessions (the main checkout and its worktrees) that ran a workflow or that
   `--session` names; the weekly counter counts every session of the account. API list $ is a weight (one price table in
   `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
