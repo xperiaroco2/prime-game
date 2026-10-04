@@ -2750,9 +2750,9 @@ part is usable in data once its row or entry names the PR that built it. Every n
     lists no `LifeTicks` (M4-3); a phase that accepts an intent whose rule starts a channel (a `ChannelEffect`) but
     lists no `ChannelTicks`, so the channel would never complete (M4-4); a `ChannelEffect` outside an action (a
     reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
-    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction holding a cost that reads the
-    actor's player state (`Cost.reads_actor_state`: `Cooldown`, `StaminaCost`), which always refuses there (§9.2, #283);
-    an accepted intent that neither the phase class nor any rule handles; two rules on one trigger in one owner; a
+    (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction or a win condition holding a
+    condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
+    (§9.2, #283, #299); an accepted intent that neither the phase class nor any rule handles; two rules on one trigger in one owner; a
     number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
     `spawn_tag` and `tag` a part holds, and every condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9`
     and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
@@ -2783,13 +2783,19 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   `Rejected` with that condition's reason; for a fact, nothing happens. Every condition has `negate: bool` (false); a
   negated condition rejects with `not_allowed`. A **cost** is a condition that is also paid (stamina, a cooldown,
   later a use): all conditions and costs are checked first, then every cost is paid in order, then the effects run,
-  so a refused intent pays nothing. A reaction runs for no player (actor 0): a cost that reads the actor's player
-  state (`Cooldown`, `StaminaCost`) refuses there, so a reaction with one would never run its effects, record no
-  cooldown and charge nobody (#201; `tests/unit/combat/costs_in_reactions_test.gd`). The mode check therefore refuses
-  such a reaction at load, naming the mode, the fact, the rule's index and the cost's class (#283;
-  `tests/unit/content/mode_check_test.gd`). A cost says whether it reads that state (`Cost.reads_actor_state`, true
-  unless the class says otherwise): in `core/` both `Cooldown` and `StaminaCost` do, so no cost of `core/` is allowed
-  in a reaction yet; one that reads only match-wide state (a counter, as the tests' `FixtureCost`) would be. Between
+  so a refused intent pays nothing. **Where a condition may appear.** A reaction runs, and a win condition is checked,
+  for no player (actor 0), so a condition that reads the actor (its player state, its hand, its channel) tests no
+  player there and its answer never changes: a cost that reads the actor's player state (`Cooldown`, `StaminaCost`)
+  always refuses, so a reaction with one would never run its effects, record no cooldown and charge nobody (#201;
+  `tests/unit/combat/costs_in_reactions_test.gd`) and a win condition with one would never hold; `HoldsItem` never
+  passes and `HandNotTwoHanded` always does. The mode check therefore refuses such a condition in a reaction or a win
+  condition at load, naming the mode, the fact or the win condition, its index in `reactions` or `win_conditions` and
+  the condition's class (#283, #299; `tests/unit/content/mode_check_test.gd`, `mode_check_actor_test.gd`). A negated
+  cost in a reaction gets only the "negates a cost" error, since it passes there and is never paid. A condition says
+  whether it reads the actor (`Condition.reads_actor_state`, true unless the class says otherwise, so a new condition
+  that forgets is refused rather than silently never or always passing); §9.4's "Where" column gives the answer of
+  each part of `core/`. One that reads only the match, the fact or the rule's target is allowed everywhere (as the
+  tests' `FixtureCost`, a counter of peer 0). Between
   the checks and the costs, an **action** (a rule on an intent) that passed stops its actor's running channel
   (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its
   raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
@@ -2990,25 +2996,29 @@ phase classes come in the task each row names.
 ### 9.4 Parts (v0)
 **Conditions and costs** (a failed one rejects an intent with its reason, which reveals only what the column says):
 
-| Part | Passes when | Settings | Rejects with | Built in |
-|---|---|---|---|---|
-| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not in a hand or on a belt) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | 2e (#61) |
-| `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | 2e (#61) |
-| `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | 2e (#61) |
-| `HoldsItem` | the actor has an item in hand (a belt item does not count) | none | `empty_hand` | 2e (#61) |
-| `CarriesItem` | the actor has an item in the hand or on the belt: the base mode's `Swap` | none | `nothing_to_swap`: its own slots | M4-5 (#141, `core/items/carries_item.gd`) |
-| `HandNotTwoHanded` | the actor's hand item, if any, is not two-handed (`ItemKind.hands` 2): a package carrier cannot draw a belted knife (V13) | none | `two_handed`: what it holds is public | M4-5 (#141, `core/items/hand_not_two_handed.gd`) |
-| `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | with the first mechanic that needs it (#34) |
-| `AllSubtasksDone` | every task is done (`Tasks.all_done`): a task with no subtasks is done, and with no tasks it holds (the engineer's rule of 2026-09-30, #79) | none | (facts only) | 2h (#64, `core/win/all_subtasks_done.gd`) |
-| `NoneAlive` | no player of the side is present: each has left (M4-2: the downed and the dead still count; the name stays from "no crew alive"). A player's side is its role's; a player without a role of the mode is on no side, and with no player of the side it holds (the base mode's deal always leaves at least one crew member). It reads every player's role, which is hidden, but only as a win condition, whose `won` reaches no peer (§9.2) | `side` (a side of the mode) | (facts only) | 2h (#64, `core/win/none_alive.gd`) |
-| `ClockEnded` | the match clock has reached its end (`MatchState.clock_ended`, set when `Match` raises `clock_ended`); before `StartClock` there is no end | none | (facts only) | 2h (#64, `core/win/clock_ended.gd`) |
-| `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it. Not in a mode reaction: the mode check refuses it there, since a reaction's actor 0 has no player state (§9.2, #283) | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | 2g (#63, `core/combat/cooldown.gd`) |
-| `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor, at the end of the tick). Not in a mode reaction: the mode check refuses it there, since a reaction's actor 0 has no player state (§9.2, #283) | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | 2d (#60) |
-| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | M4-4 (#140, `core/life/target_downed.gd`) |
-| `TargetInReach` | the target lies within `reach_m` of the actor: both last accepted positions, their feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode's raise 2) | `out_of_reach` | M4-4 (#140) |
-| `TargetInSight` | the line from the actor's eye (`Items.eye_of`) to just above the target's feet (`Items.lifted`) is clear (§7.1), as `InSight` for an item | none | `blocked` | M4-4 (#140) |
-| `ChannelFree` | the actor runs no channel and no channel targets the rule's target, apart from the channel being checked again: one channel per actor and one per target (one raiser at a time) | none | `busy`: every channel of the MVP (a raise) is public | M4-4 (#140, `core/channel/`) |
-| `Channeling` | the actor runs a channel | none | `not_channeling`: its own state | M4-4 (#140) |
+In the "Where" column, *actions only* marks a part that reads the actor (`Condition.reads_actor_state`): the mode
+check refuses it in a mode reaction or a win condition, which run for no player (§9.2, #299). *Anywhere* marks one
+that reads no actor: an action, a reaction or a win condition.
+
+| Part | Passes when | Settings | Rejects with | Where (§9.2) | Built in |
+|---|---|---|---|---|---|
+| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not in a hand or on a belt) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | anywhere: reads the rule's item (the intent's or the fact's) | 2e (#61) |
+| `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | actions only: reads the actor | 2e (#61) |
+| `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | actions only: reads the actor | 2e (#61) |
+| `HoldsItem` | the actor has an item in hand (a belt item does not count) | none | `empty_hand` | actions only: reads the actor | 2e (#61) |
+| `CarriesItem` | the actor has an item in the hand or on the belt: the base mode's `Swap` | none | `nothing_to_swap`: its own slots | actions only: reads the actor | M4-5 (#141, `core/items/carries_item.gd`) |
+| `HandNotTwoHanded` | the actor's hand item, if any, is not two-handed (`ItemKind.hands` 2): a package carrier cannot draw a belted knife (V13) | none | `two_handed`: what it holds is public | actions only: reads the actor | M4-5 (#141, `core/items/hand_not_two_handed.gd`) |
+| `ActorRole` | the actor's role is one of the listed (no MVP use) | `roles` | `not_allowed`: the actor knows its own role | actions only: reads the actor | with the first mechanic that needs it (#34) |
+| `AllSubtasksDone` | every task is done (`Tasks.all_done`): a task with no subtasks is done, and with no tasks it holds (the engineer's rule of 2026-09-30, #79) | none | (facts only) | anywhere: reads no actor | 2h (#64, `core/win/all_subtasks_done.gd`) |
+| `NoneAlive` | no player of the side is present: each has left (M4-2: the downed and the dead still count; the name stays from "no crew alive"). A player's side is its role's; a player without a role of the mode is on no side, and with no player of the side it holds (the base mode's deal always leaves at least one crew member). It reads every player's role, which is hidden, but only as a win condition, whose `won` reaches no peer (§9.2) | `side` (a side of the mode) | (facts only) | anywhere: reads no actor | 2h (#64, `core/win/none_alive.gd`) |
+| `ClockEnded` | the match clock has reached its end (`MatchState.clock_ended`, set when `Match` raises `clock_ended`); before `StartClock` there is no end | none | (facts only) | anywhere: reads no actor | 2h (#64, `core/win/clock_ended.gd`) |
+| `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it. | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | actions only: reads the actor | 2g (#63, `core/combat/cooldown.gd`) |
+| `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor, at the end of the tick). | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | actions only: reads the actor | 2d (#60) |
+| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | anywhere: reads no actor (a reaction or a win condition has no target, so it fails there) | M4-4 (#140, `core/life/target_downed.gd`) |
+| `TargetInReach` | the target lies within `reach_m` of the actor: both last accepted positions, their feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode's raise 2) | `out_of_reach` | actions only: reads the actor | M4-4 (#140) |
+| `TargetInSight` | the line from the actor's eye (`Items.eye_of`) to just above the target's feet (`Items.lifted`) is clear (§7.1), as `InSight` for an item | none | `blocked` | actions only: reads the actor | M4-4 (#140) |
+| `ChannelFree` | the actor runs no channel and no channel targets the rule's target, apart from the channel being checked again: one channel per actor and one per target (one raiser at a time) | none | `busy`: every channel of the MVP (a raise) is public | actions only: reads the actor | M4-4 (#140, `core/channel/`) |
+| `Channeling` | the actor runs a channel | none | `not_channeling`: its own state | actions only: reads the actor | M4-4 (#140) |
 
 **Effects in rules:**
 
