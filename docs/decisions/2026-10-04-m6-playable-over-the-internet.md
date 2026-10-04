@@ -8,6 +8,10 @@
   tier (a)), each recommendation standing until it reports otherwise. The tables below keep each item's options and
   recommendation.
 - **Date:** 2026-10-04
+- **Amended:** 2026-10-04 with M6-1's Linux measurements ([#364](https://github.com/xperiaroco2/prime-game/issues/364);
+  §2.2, §2.6, the new §2.7, §4, §6, E48, E54, E56, E57, D17's and D24's figures, and the Context's lines on GodotSteam,
+  libdatachannel's threads, the library sizes and header sizes). The Windows rows are pending the engineer's run.
+  Every figure is from 127.0.0.1 with one peer: loopback shows no path loss, no congestion and no real round trip.
 - **Deciders:** the engineer (D16 to D24); the M6 manager session (E48 to E61); designed by the agent in #346, in a
   Claude Code cloud session
 - **Amends:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md)'s Reach line ("plus
@@ -70,10 +74,11 @@ Checked for this design on 2026-10-04, live rather than from memory:
 - **docs.godotengine.org/en/4.7** (tutorials/networking/webrtc): the WebRTC classes "are available automatically in
   HTML5, but require an external GDExtension plugin on native (non-HTML5) platforms" (webrtc-native).
 - **webrtc-native** (github.com/godotengine/webrtc-native): latest release `1.2.2-stable`, dated 30 September with no
-  year shown (GitHub omits the current year), on libdatachannel 0.24.6 and mbedTLS 3.6.7; the GDExtension build is
-  for Godot 4.3 and later (the README says 4.1+); MIT, its dependencies under "other permissive open source licenses";
-  platforms `windows`, `linux`, `osx`, `android`, `ios`. The page lists no library sizes (M6-2 measures them).
-  libdatachannel runs ICE, DTLS and SCTP on threads of its own (M6-1 confirms it with this binding).
+  year shown (GitHub omits the current year), on libdatachannel 0.24.6 and mbedTLS 3.6.7; the GDExtension build is for
+  Godot 4.3 and later (the README says 4.1+); MIT, its dependencies under "other permissive open source licenses";
+  platforms `windows`, `linux`, `osx`, `android`, `ios`. The page lists no library sizes (M6-1 measured them from the
+  zip: E57). libdatachannel runs ICE, DTLS and SCTP on threads of its own. M6-1 confirmed it with this binding: a main
+  thread hung for 30 s stayed `CONNECTED` on both sides (§2.7).
 - **ENet as Godot 4.7.2 ships it** (`thirdparty/enet/peer.c` at tag `4.7.2-stable`): an unreliable command carries its
   channel's reliable sequence number and is dispatched only once that reliable command was; an older one is
   discarded; unsequenced commands skip the check. So today LATEST keeps its place among RELIABLE messages on channel
@@ -83,7 +88,9 @@ Checked for this design on 2026-10-04, live rather than from memory:
   2026-08-22: Godot 4.7.2 is out and the module and GDExtension code are merged into one. `SteamMultiplayerPeer`
   (`create_host(virtual_port)`, `create_client(steam_id, virtual_port)`, `host_with_lobby`, `connect_to_lobby`) runs
   on Steam Networking Sockets (`createListenSocketP2P`, `connectP2P`); its page says "Only available in the main
-  GodotSteam branches", so whether the 4.22.1 GDExtension ships it is **to be confirmed**. Without an app ID of its
+  GodotSteam branches", so whether the 4.22.1 GDExtension ships it was to be confirmed. M6-1: it does, by the docs (no
+  binary checked). godotsteam.com's post of 2025-12-09 (4.17) says the MultiplayerPeer work "has also been wrapped
+  into the main GDExtension", and the GDExtension 4.22.1 is a later release of that branch. Without an app ID of its
   own a game "can use app ID 480 which is Valve's SpaceWar example game".
 - **Steamworks** (partner.steamgames.com): the Steam Direct fee is "$100 USD (or equivalent) fee for each new app",
   not refundable, "recoupable in the payment made after your product has at least $1,000.00 Adjusted Gross Revenue".
@@ -106,9 +113,10 @@ Checked for this design on 2026-10-04, live rather than from memory:
   2.3 ms of relay time per 20 ms at 81 streams, about 60% of it the transport's send per datagram. M5-4b's batched
   row would send about 11 datagrams per 20 ms instead of 81 (the host polls at 60 Hz); "whether to open it is the
   engineer's".
-- **Header sizes** (the RFCs; M6-1 measures the real cost): SCTP's common header is 12 bytes and a DATA chunk header
-  16 (RFC 9260 §3.1, §3.3.1); a DTLS 1.2 record header 13 (RFC 6347 §4.1); AES-GCM adds an 8-byte explicit nonce and
-  a 16-byte tag (RFC 5288 §3); 65 bytes in all per packet, against ENet's about 10.
+- **Header sizes** (the RFCs; M6-1 measured the real cost, §2.7): SCTP's common header is 12 bytes and a DATA chunk
+  header 16 (RFC 9260 §3.1, §3.3.1); a DTLS 1.2 record header 13 (RFC 6347 §4.1); AES-GCM adds an 8-byte explicit
+  nonce and a 16-byte tag (RFC 5288 §3); 65 bytes in all per packet, against ENet's about 10. M6-1 measured 57 bytes
+  plus the message's padding to 4 bytes: DTLS takes 29, with no explicit nonce (§2.7).
 
 ## Decision
 
@@ -184,16 +192,22 @@ sent before a reliable one then comes first, as ENet would deliver it), and deli
 That is ENet's rule for channel 0 (Context), so the inbox's LATEST merge and every consumer see the order they see
 today. RELIABLE and VOICE carry no header; VOICE keeps M5's tick check for late frames. Held packets are discarded,
 never delivered, when the peer leaves or is disconnected. A full hold never disconnects: an honest reliable packet can
-wait seconds for SCTP's resend timer, which doubles on each expiry (RFC 9260 §6.3.3). A reliable channel loses nothing,
-so the counts disagree for good only through a bug or the binding dropping packets from a full receive queue (M6-1
-measures its limit). That is timed per peer, not per packet (held packets come and go every 50 ms): a clock starts when
-the hold turns non-empty and restarts whenever a held packet is released; judged after both channels were read in a
-poll, a clock past the silence rule's 20 s (§2.6) is a transport fault, counted in `NetRejects` with its own reason, and
-the peer is disconnected rather than left connected and silently starved. A LATEST packet shorter than the header is a
-reject too. The header is the transport's, below `NetFrame`: `receive_bytes` gets the frame without it. The payload caps
-are unchanged (`MAX_UNRELIABLE_PAYLOAD` counts the payload); 1024 + 3 + 4 bytes must arrive unfragmented over SCTP,
-which M6-1 measures, since the cap's basis (ENet's MTU) does not carry over. Steam's unreliable messages arrive out of
-order too (Context), so a later `SteamTransport` reuses `LaneOrder` as it is.
+wait seconds for SCTP's resend timer, which doubles on each expiry (RFC 9260 §6.3.3). A reliable channel loses
+nothing, so the counts disagree for good only through a bug or the binding dropping packets from a full receive queue.
+That is timed per peer, not per packet (held packets come and go every 50 ms): a clock starts when the hold turns
+non-empty and restarts whenever a held packet is released; judged after both channels were read in a poll, a clock
+past the silence rule's 20 s (§2.6) is a transport fault, counted in `NetRejects` with its own reason, and the peer is
+disconnected rather than left connected and silently starved. M6-1 reached no receive-queue limit: webrtc-native's
+`onMessage` pushes into a queue with no size check (`WebRTCLibDataChannel.cpp` at `1.2.2-stable`), and the
+122,805-packet backlog of a 30 s hang arrived complete (§2.7; memory not measured). So a peer the backend stops
+reading still fills memory while its connection lives: the backend keeps draining and discarding a leaving peer's
+channels until `CLOSED`, and closes the connection at once on a leave the host decided. A peer flooding at SCTP's rate
+costs memory and poll time as it would with ENet (E60: no hardening). A LATEST packet shorter than the header is a
+reject too. The header is the transport's, below `NetFrame`: `receive_bytes` gets the frame without it. The payload
+caps are unchanged (`MAX_UNRELIABLE_PAYLOAD` counts the payload); 1024 + 3 + 4 bytes must arrive unfragmented over
+SCTP, since the cap's basis (ENet's MTU) does not carry over. M6-1 (Linux): up to 1156 B leaves as one datagram on
+VOICE (1150 B tested on LATEST and RELIABLE), so 1031 B fits with 125 B to spare (§2.7). Steam's unreliable messages
+arrive out of order too (Context), so a later `SteamTransport` reuses `LaneOrder` as it is.
 
 #### 2.3 How a friend joins (D19, E51, E52, E55)
 1. **The host** presses Host. The game hosts on the loopback as today, opens the signalling socket and asks for a
@@ -257,12 +271,48 @@ dead player sends no `MoveClaim`, Loading and End send none, the Lobby sends no 
   hung game stops sending it, as with ENet.
 - **The silence rule:** 20 s without any packet from a peer, keepalives included, is a leave (`peer_left` on the host,
   `host_lost` on a client); the backlog is drained before the clock is checked, so a thawed side drops nobody.
-  `FAILED` or `CLOSED` is a leave too; `DISCONNECTED` is not (it may recover).
+  `FAILED` or `CLOSED` is a leave too; `DISCONNECTED` is not (it may recover). M6-1 (§2.7): across a whole-process
+  stop, `DISCONNECTED` was absent or lasted 7 ms on the way to `CLOSED`; a connection never recovered after `CLOSED`.
+  WebRTC itself closed a fully stopped peer after 12.8 s while traffic flowed, and after 28.5 s when idle, on
+  loopback: 12.8 s fits SCTP's resend timer doubling from its loopback minimum, so on an internet round trip it is
+  longer and may pass the silence rule's 20 s. Path loss with both processes alive (a Wi-Fi roam, a NAT rebinding)
+  was not measured, so whether `DISCONNECTED` then recovers is open (the Windows run or M6-6's fault shim).
+- **Never send on a closed channel:** on a closed data channel each `put_packet` returns `FAILED` and prints an engine
+  `ERROR:` line (M6-1: 17,885 in one run after `CLOSED`), which fails `run` and the headless tests. A channel can close
+  while its connection stays `CONNECTED` (`disconnect_peer` below closes RELIABLE first; a peer can close a stream),
+  so the backend checks that channel's `get_ready_state()` is `STATE_OPEN` before each `put_packet`. A channel not
+  open while the connection is `CONNECTED` is a leave, counted in `NetRejects` with its own reason, unless the host
+  is closing that peer; a peer under `disconnect_peer` gets nothing more on that channel. States change on
+  libdatachannel's threads, so a close between the check and the send can still print one line: the twins have the
+  closing side stop sending first.
 - **The twins** of `enet_freeze.gd` and `enet_stall.gd`: no drop across a 5.2 s freeze; a stalled main thread (the
   process alive) dropped after 20 s; a silent dead client and a silent Lobby kept for 30 s.
 - **`disconnect_peer`** never blocks: the reason goes out on RELIABLE, then `poll()` closes that peer's RELIABLE
   channel and, once the client closed its side or 5 s passed, the connection (`get_buffered_amount` reaching 0 only
   means SCTP took the bytes).
+
+#### 2.7 M6-1's measurements (#364)
+Measured on a spike branch that is never merged (`spike/net/364-webrtc-native`, `spike/net/364/`). Two processes ran on
+127.0.0.1 with the three channels of §2.2, webrtc-native 1.2.2 and the pinned Godot 4.7.2. A capture on `lo` measured
+each datagram's UDP payload. Linux: a cloud container with 4 CPUs (Xeon @ 2.80 GHz), kernel 6.18.44, both processes on
+the same CPUs. Each timing was run 5 times or more; the commands and outputs are on #364.
+
+| Question | Linux (cloud, 2026-10-04) | Windows |
+|---|---|---|
+| The extension loads headless | yes; with no IPv6 on the host, libjuice prints one `WARNING:` line per connection (`errno=97`), not an `ERROR:` | pending the engineer's run |
+| Per-packet overhead | 57 B of UDP payload + the message padded to 4 bytes (0 to 3 B), on all three channels; 85 B + padding with IPv4 and UDP (IPv6: 105 B); a 58 B `VoiceDown` frame is 117 B of payload, 145 B on the wire | pending the engineer's run |
+| Bundling | none on loopback: 40,500 sends (81 per 20 ms) left as 40,500 datagrams (`out/sendtime_bundling.txt`); a full congestion window on a slow uplink may bundle | pending the engineer's run |
+| Acknowledgements | the receiver sends SCTP SACKs (57 B, 85 B on the wire) on every channel, unreliable ones included: one per datagram when paced (50 a second, `out/overhead.txt`), one per two in a burst (81 per 20 ms: 20,426 for 40,512, `out/sendtime_bundling.txt`) | pending the engineer's run |
+| Send time of 81 × 58 B on VOICE to one peer | median 1.97 ms (run medians 1.94 to 2.00), p99 4.2 to 5.2 ms, worst tick 22.4 ms; no send errors and `get_buffered_amount` 0, on loopback (an uncongested path); 0.02 to 0.2 % of the frames lost | pending the engineer's run |
+| Largest unfragmented message | 1156 B on VOICE (the largest datagram was 1213 B); 1160 B left as two datagrams; on LATEST and RELIABLE 1150 B left as one and 1160 B as two (1151 to 1159 B not run there); `lo`'s MTU is 65536, so the ceiling is the stack's own | pending the engineer's run |
+| The receive queue under a freeze with voice | no limit reached: 5.2 s at 81 streams queued 21,141 voice, 104 to 105 LATEST and 52 to 53 reliable packets, all read in the first poll, none lost (5 of 5 runs, `out/freeze81_runs.txt`); a 30 s hang queued 122,805 packets, the whole backlog read in one poll in 89 ms (the spike decodes a u32 per packet; the game does more); memory not measured | pending the engineer's run |
+| States across a 5.2 s freeze and a 30 s hung main thread | `CONNECTED` throughout on both sides; reliable packets complete and in order | pending the engineer's run |
+| States across a whole-process stop (SIGSTOP) | a 6 s stop: stayed `CONNECTED`, nothing lost; longer: the other side reached `CLOSED` after 12.79 to 12.84 s with traffic (median 12.81, 5 runs; twice through `DISCONNECTED` for 7 ms), or after 28.48 to 28.49 s when idle (5 runs), on loopback; the stopped side went to `CLOSED` on resuming, through `FAILED` in the idle run | pending the engineer's run |
+| Path loss with both processes alive | not measured | pending the engineer's run or M6-6's fault shim |
+| `get_buffered_amount` on a rate-limited path and during a stop | not measured (loopback never fills the window) | pending the engineer's run or M6-6 |
+| `WebRTCMultiplayerPeer` on `DISCONNECTED` | its `poll()` removes a peer in any state past `CONNECTED`, `DISCONNECTED` included (`webrtc_multiplayer_peer.cpp` at `4.7.2-stable`); in the run, `peer_disconnected` came in the same poll as `CLOSED`, and the peer did not come back | — (the engine's code) |
+| Outbound STUN from the container | no: `stun.cloudflare.com:3478` and `stun.l.google.com:19302` did not answer, and libdatachannel gathered only a host candidate. The container's network allows HTTPS through its proxy only, so §6's host-candidate tests stand | — |
+| Library sizes (E57) | Windows x86_64 8,111,104 B and Linux x86_64 8,668,688 B (release and debug together): 16,779,792 B in all, under 30 MB; the zip's SHA-256 is `98e94469…11f56e5`, the release page's digest | — |
 
 ### 3. What the client renders
 Each M6 client PR is reviewed against this list by `netcode-security-reviewer` and `code-reviewer`, besides the M4
@@ -281,18 +331,19 @@ and M5 lists:
 ### 4. Wire budgets
 | Quantity | ENet | WebRTC (estimate) | Basis |
 |---|---|---|---|
-| One `VoiceDown` on the wire | 96 B (M5-4, measured) | about 151 B | 55 payload + 3 frame + 28 IP and UDP + 65 SCTP and DTLS (Context) |
+| One `VoiceDown` on the wire | 96 B (M5-4, measured) | 145 B (M6-1, Linux; Windows pending) | 55 payload + 3 frame + 2 padding + 57 SCTP and DTLS + 28 IPv4 and UDP (§2.7; IPv6 adds 20) |
+| Acknowledgements | ENet's own | one 85 B SACK per datagram received when paced, per two in a burst, on every channel | M6-1 (§2.7); paid by the receiving side |
 | One LATEST packet | — | + 4 B | §2.2's header |
-| Host upload, 10 players all talking | about 3.1 Mbit/s of voice + 0.65 of snapshots, about 3.8 (M5-4, scaled) | about 4.9 of voice (81 streams × 50 × 151 B) + about 0.73 of snapshots, about 5.6 Mbit/s | over E44's 4.5 Mbit/s and the 5 Mbit/s threshold |
-| The same with M5-4b's batched row (about 11 datagrams per 20 ms, not 81) | — | about 2.2 Mbit/s of voice + 0.73 of snapshots | per listener and 20 ms: 9 frames × 53 B + 1.2 datagrams × (4 + 3 + 65 + 28) B, about 600 B |
-| The relay's send time per 20 ms at 81 streams | 2.1 to 2.3 ms (#245) | unknown: each send also encrypts | M6-1 measures a raw send, M6-6 the relay; E44's 2 ms |
-| A relayed client through TURN | — | about 0.62 Mbit/s down and 0.08 up, billed both ways: about 0.3 GB an hour | 9 streams at about 60 kbit/s plus snapshots; 1,000 free GB is about 3,200 relayed player-hours a month |
-| A relayed host (the hotspot side of D22) | — | all of its traffic through TURN, about 5.6 Mbit/s out and 0.7 in: about 2.8 GB per match-hour (1.6 batched) | about 350 match-hours a month within 1,000 GB |
+| Host upload, 10 players all talking | about 3.1 Mbit/s of voice + 0.65 of snapshots, about 3.8 (M5-4, scaled) | about 4.7 of voice (81 streams × 50 × 145 B) + about 0.7 of snapshots + about 0.3 of SACKs for the 450 paced voice datagrams a second it receives (plus the moves'), about 5.7 Mbit/s (M6-1) | over E44's 4.5 Mbit/s and the 5 Mbit/s threshold |
+| The same with M5-4b's batched row (about 11 datagrams per 20 ms, not 81) | — | about 2.1 Mbit/s of voice + 0.7 of snapshots | per listener and 20 ms: 9 frames × 53 B + 1.2 datagrams × (4 + 3 + 57 + 28) B, about 590 B (M6-1's overhead) |
+| The relay's send time per 20 ms at 81 streams | 2.1 to 2.3 ms (#245) | a raw send to one peer: median 1.97 ms, worst 22.4 ms (M6-1, Linux; Windows pending) | M6-6 measures the relay; E44's 2 ms is used up by the sends alone at 81 datagrams, so the batched row's 11 matter |
+| A relayed client through TURN | — | about 0.62 Mbit/s down and 0.23 up, billed both ways: about 0.38 GB an hour | 9 streams at about 60 kbit/s plus snapshots; up: 0.08 plus about 0.15 of SACKs for the 450 voice datagrams a second, which come in bursts of 9 per tick (one SACK per two; 0.31 at one per datagram) (M6-1); 1,000 free GB is about 2,600 relayed player-hours a month |
+| A relayed host (the hotspot side of D22) | — | all of its traffic through TURN, about 5.7 Mbit/s out and 2.1 in (0.7 plus about 1.4 of SACKs for its 4,050 voice datagrams a second, in bursts, M6-1): about 3.5 GB per match-hour (fewer batched: fewer datagrams, fewer SACKs) | about 280 match-hours a month within 1,000 GB |
 | Signalling | — | about 10 to 40 messages per join; the host's socket open for the session | 100,000 requests a day are thousands of joins; the hibernation API keeps the idle socket's duration small (M6-5b checks it against the 13,000 GB-s a day) |
 | Keepalives | ENet's own pings | one 3-byte frame per peer per idle second | negligible |
 
-SCTP can bundle several queued messages into one packet, so the real overhead may be lower. M6-1 measures a raw
-sender's per-packet overhead and send time; M6-6 measures the relay with `tools\run.cmd bots voice_load --instances 8
+SCTP can bundle several queued messages into one packet, but M6-1 saw none at this rate: every send left as its own
+datagram (§2.7). M6-6 measures the relay with `tools\run.cmd bots voice_load --instances 8
 --transport webrtc` (the M5-4 command over WebRTC). Whether M5-4b's batched row is built in M6 stays the engineer's
 (D24, ARCHITECTURE §10).
 
@@ -318,11 +369,11 @@ trusting the engineer's own service is the hobby-project trade (E60).
 - **Headless, every PR** (`verify`, CI, cloud sessions): `LaneOrder` unit tests; a host and two clients over WebRTC on
   127.0.0.1 with `LanSignalling` (no STUN or TURN: host candidates), as `enet_host_and_two_clients.gd`; the freeze,
   stall and silence twins; the bots, the leak test and the chaos bots over WebRTC (new `verify` steps, `bots-webrtc`
-  and `chaos-webrtc`), with the fault shim on; the service's routing module under Node (`node --test`, no npm
-  package) with fakes for the Durable Object and the sockets, replaying the shared transcripts (the Durable Object glue
-  is first tried at deploy); a fuzz test of the signalling decoder. webrtc-native's Linux library loads on CI and in
-  cloud sessions, unlike TwoVoIP (M6-1 confirms). `verify` grows by an estimated 1.5 to 2 minutes on the Godot lane
-  (the ENet steps take about 80 s today, and the silence twin waits over 20 s).
+  and `chaos-webrtc`), with the fault shim on; the service's routing module under Node (`node --test`, no npm package)
+  with fakes for the Durable Object and the sockets, replaying the shared transcripts (the Durable Object glue is
+  first tried at deploy); a fuzz test of the signalling decoder. webrtc-native's Linux library loads on CI and in
+  cloud sessions, unlike TwoVoIP (M6-1 confirmed the load, §2.7). `verify` grows by an estimated 1.5 to 2 minutes on
+  the Godot lane (the ENet steps take about 80 s today, and the silence twin waits over 20 s).
 - **On Windows, not in CI:** the addon in the editor and in an exported build; `shot` of the menu, the lobby's code
   and the connecting screen; the exported build starting.
 - **Two machines behind different routers** (the humans, M6-12): a code join across the internet, a phone hotspot
@@ -332,16 +383,16 @@ trusting the engineer's own service is the hobby-project trade (E60).
 ### 7. E items (technical; the M6 manager decides and reports)
 | # | Choice | Options | The failure it prevents | Recommendation |
 |---|---|---|---|---|
-| E48 | The backend's shape | (a) `WebRTCPeerConnection` per client, read directly, negotiated channels; (b) `WebRTCMultiplayerPeer` as `EnetTransport` uses `ENetMultiplayerPeer` | with (b) its `add_peer` creates its own reliable, unreliable and ordered channels (not our unordered, no-resend LATEST and VOICE), it may remove a peer on `DISCONNECTED` and so drop a frozen player (M6-1 checks), and the id reaches the client outside our `ADMIT` | (a) |
+| E48 | The backend's shape | (a) `WebRTCPeerConnection` per client, read directly, negotiated channels; (b) `WebRTCMultiplayerPeer` as `EnetTransport` uses `ENetMultiplayerPeer` | with (b) its `add_peer` creates its own reliable, unreliable and ordered channels (not our unordered, no-resend LATEST and VOICE), it removes a peer on `DISCONNECTED` (M6-1: by its code; with this binding `DISCONNECTED` lasted at most 7 ms before `CLOSED`, so in practice it drops a peer when WebRTC closes it, §2.7), and the id reaches the client outside our `ADMIT` | (a) |
 | E49 | Lanes and order on WebRTC | (a) three channels plus §2.2's header; (b) LATEST as `ordered: true, maxRetransmits: 0`, no header; (c) everything on one reliable channel | (b) still reorders LATEST against RELIABLE (a refused `PickUp`) and stalls behind a lost packet; (c) resends stale poses and grows the freeze backlog | (a) |
 | E50 | Peer ids | (a) assigned by the host, 2 upward, never reused in a session, sent in `ADMIT`; (b) chosen by the client, as ENet allows | (b) needs ENet's guard against id 1 and ids in use again | (a) |
 | E51 | The join API | (a) a `JoinTarget` parsed in `net/` (a code, or `address[:port]`), `Game` hands it to a transport factory; `--join=` and the runner's `join` take a code too; (b) `join(address, port)` with "code:" in the address | (b) spreads parsing over `client/` and hides which transport runs | (a) |
 | E52 | Signalling shape | (a) §2.4: the host offers, trickle ICE, the room closed with joins; (b) the joiner offers; (c) wait for all candidates, one message each way | (b) lets a joiner choose the channels; (c) adds the slowest STUN answer to every join | (a) |
 | E53 | How signalling is built and tested (where it runs is D18, its tools D23) | (a) one protocol, `LanSignalling` in GDScript, the service's routing as a pure module tested under Node with fakes, shared transcripts; Node pinned in `pins.py` with a `doctor` check (the toolchain-pins ADR); (b) tests only through a deployed service | (b) no test before a deploy, and none in CI | (a) |
-| E54 | States, keepalive and timeouts | (a) §2.6; the join gives up after 15 s; (b) any non-`CONNECTED` state is a leave, no keepalive | (b) drops a player at every 5 s freeze (#21), and every silent player after 20 s | (a) |
+| E54 | States, keepalive and timeouts | (a) §2.6; the join gives up after 15 s; (b) any non-`CONNECTED` state is a leave, no keepalive | (b) keeps a hung game connected (M6-1: a 30 s hung main thread stays `CONNECTED`, §2.7), drops every silent player after 20 s, and would drop a player at a brief `DISCONNECTED` if path loss shows one (not measured) | (a) |
 | E55 | Signalling's trust lines | (a) §2.4's roles per socket, no reclaim, TURN credentials per joiner with a short TTL, the id in `ADMIT`, one offer per attempt; (b) types not tied to sockets, credentials in `found` | (b) a joiner sends another joiner an offer, sits in the middle and reads that player's role and private events; a leaked code hands out relay on the engineer's account | (a) |
-| E56 | `take_upload()` on WebRTC | (a) frame bytes plus a per-packet overhead measured in M6-1, as a constant; (b) frame bytes only | (b) counts 58 of the 123 B a `VoiceDown` takes without IP and UDP, and reads below ENet's figure for the same traffic | (a) |
-| E57 | The addon in the repo | (a) webrtc-native 1.2.2, the Windows x86_64 and Linux x86_64 libraries only, as shipped, plain git like TwoVoIP; if they total over about 30 MB, ask the engineer (the LFS ADR keeps `addons/**` out of LFS); credits; CI loads it; (b) every platform | (b) megabytes for platforms nobody runs. E35 kept TwoVoIP off CI so its colour would not depend on an untested binary; here the backend's tests need it, and M6-1 loads it on Linux first; if it fails on CI later, CI removes it like TwoVoIP and the WebRTC steps print SKIP, leaving them to Windows `verify` | (a) |
+| E56 | `take_upload()` on WebRTC | (a) frame bytes plus a per-packet overhead measured in M6-1, as a constant: 108 B per packet (57 SCTP and DTLS + 48 IPv6 and UDP + 3 for the most padding: ICE may pick IPv6 host candidates, and over IPv4 it errs high by at most 23 B; Windows pending); SACKs are left out because the transport never sees them, so it under-counts a receiving peer's upload (§4); (b) frame bytes only | (b) counts 58 of the 145 B a `VoiceDown` takes on the wire (M6-1), and reads below ENet's figure for the same traffic | (a) |
+| E57 | The addon in the repo | (a) webrtc-native 1.2.2, the Windows x86_64 and Linux x86_64 libraries only, as shipped, plain git like TwoVoIP; if they total over about 30 MB, ask the engineer (the LFS ADR keeps `addons/**` out of LFS). M6-1: they total 16,779,792 B with release and debug, so no question for the engineer; the Linux library loads headless (§2.7); credits; CI loads it; (b) every platform | (b) megabytes for platforms nobody runs. E35 kept TwoVoIP off CI so its colour would not depend on an untested binary; here the backend's tests need it, and M6-1 loads it on Linux first; if it fails on CI later, CI removes it like TwoVoIP and the WebRTC steps print SKIP, leaving them to Windows `verify` | (a) |
 | E58 | STUN | (a) `stun.cloudflare.com:3478` from the service's configuration; (b) a list built into the game | (b) a dead server fixed only by a new build | (a) |
 | E59 | Builds for friends | (a) only the Windows x86_64 release export is published (no F3, no dev tools, no debug kinds: invariant 8); the debug export is a short-lived CI artifact for the humans; M6-9 checks the published zip is a release build; (b) both on the Release | (b) a friend hosts with the debug build: as peer 1 it may send `ForceRole`, and its F3 and console show hidden information to that player | (a) |
 | E60 | How much to protect the service | (a) §2.4's roles, caps and lifetimes only, no accounts, unguessable-enough codes (31^6 ≈ 887 million); (b) per-IP rate limits, signed rooms | (b) is hardening nobody asked for (root `CLAUDE.md`) | (a) |
@@ -380,14 +431,14 @@ the playtest; none of it but `LaneOrder` testable in CI.
 | # | Question | Options | The failure each one leaves | Recommendation |
 |---|---|---|---|---|
 | D16 | How friends reach a hosted game | (a) WebRTC with our own free signalling; (b) Steam networking (app 480 for M6, an own $100 app later); (c) no code: a tunnel or VPN only; (d) both (a) and (b) | (a) a friend behind two strict NATs needs TURN or the fallback; (b) a friend without Steam cannot play, nothing is tested in CI, $100 and a partner account for an own app; (c) every friend installs something, the humans debug it; (d) twice the work | (a) |
-| D17 | When a direct connection fails | (a) no relay: the menu explains the fallback (D21); (b) Cloudflare TURN through the service, free up to 1,000 GB a month, then $0.05 per GB, on the engineer's Cloudflare account (it may ask for a payment method); (c) our own TURN server on a rented machine | (a) a friend on a phone hotspot cannot join without installing the fallback; (b) a bill past 1,000 GB a month: about 3,200 relayed player-hours, or about 350 match-hours with a relayed host; credentials are per joiner with a 10-minute TTL, so a leaked code does not hand the relay to strangers; (c) a monthly bill and upkeep | (b), or (a) if Cloudflare asks for a card and the engineer declines |
+| D17 | When a direct connection fails | (a) no relay: the menu explains the fallback (D21); (b) Cloudflare TURN through the service, free up to 1,000 GB a month, then $0.05 per GB, on the engineer's Cloudflare account (it may ask for a payment method); (c) our own TURN server on a rented machine | (a) a friend on a phone hotspot cannot join without installing the fallback; (b) a bill past 1,000 GB a month: about 3,200 relayed player-hours, or about 350 match-hours with a relayed host (M6-1's numbers, §4: about 2,600 and 280); credentials are per joiner with a 10-minute TTL, so a leaked code does not hand the relay to strangers; (c) a monthly bill and upkeep | (b), or (a) if Cloudflare asks for a card and the engineer declines |
 | D18 | Where signalling runs, and whose account | (a) a Cloudflare Worker with a Durable Object on the free plan, on the engineer's account, deployed by the engineer with one command (later by CI with a token secret, if the engineer wants agents to redeploy); (b) a rented server running `LanSignalling` headless; (c) no server: offers and answers pasted through a chat app; (d) a public third-party broker (MQTT, Nostr) | (a) the service down means codes fail (Direct still works); (b) a monthly bill and upkeep; (c) each friend pastes two long blobs per game; (d) someone else's service changes or vanishes | (a) |
 | D19 | How joining feels | (a) a 6-character code shown in the lobby to those who know it, typed or pasted in the menu; Direct stays; (b) (a) plus a `prime-game://join/<code>` link the game registers on Windows; (c) a public list of open games; (d) Steam invites (with D16 (b) only) | (a) the code goes through a chat app; (b) a registry entry per PC; (c) strangers in friends' games | (a) |
 | D20 | How friends get the game | (a) the release zip on the public repo's GitHub Releases, built by CI from a tag, unsigned (Windows SmartScreen asks once: "More info", "Run anyway"); (b) an itch.io page (free account, restricted access); (c) a shared-drive link sent by hand; (d) Steam (with D16 (b)) | (a) anyone can download it (the code keeps games private); (b) another account; (c) old builds that cannot join (another version); signing costs money every year, so none of these is signed | (a) |
 | D21 | The fallback when nothing else connects | (a) playit.gg: only the host installs its agent, friends use Direct with its address (free tier; Premium $3/month); (b) Tailscale (free up to 6 users, everyone installs); (c) ZeroTier (free for 10 devices, everyone installs); (d) Radmin VPN (Windows, everyone installs, the MVP's way) | (a) a third party relays the game's unencrypted ENet traffic, and its free tier may change; (b) more than 6 people need node sharing; (c) exactly 10 devices for a 10-player game; (d) every friend installs a VPN | (a) if M6-1 confirms its free tier carries the game, else (b) |
 | D22 | The M6 go | (a) the two humans at two homes plus at least one friend, one side on a phone hotspot (CGNAT), a full match with voice, and the fallback tried once; (b) only the two humans | (b) misses the hard NAT case until a friend hits it | (a) |
 | D23 | New dependencies (stop-and-ask) | (a) webrtc-native (MIT) in `addons/`, and a JavaScript Worker in `tools/signal/` tested with Node's own test runner (Node pinned; no npm package in CI; `wrangler` only on the engineer's deploy); (b) the addon only, signalling in GDScript on a rented server (D18 (b)) | (b) a bill and a server to keep | (a) |
-| D24 | M5-4b's batched voice row in M6 (ARCHITECTURE §10: "whether to open it is the engineer's") | (a) built in M6 (M6-8) if M6-6 measures over E44's thresholds (4.5 Mbit/s of upload or 2 ms of relay per 20 ms, at 10 players); (b) built in M6 whatever M6-6 measures (§4 estimates 5.6 Mbit/s); (c) not in M6 | (a) waits for one more measurement; (b) a protocol change that SCTP's bundling might have made unneeded; (c) a lobby of 10 talkers over a 5 Mbit/s uplink | (a) |
+| D24 | M5-4b's batched voice row in M6 (ARCHITECTURE §10: "whether to open it is the engineer's") | (a) built in M6 (M6-8) if M6-6 measures over E44's thresholds (4.5 Mbit/s of upload or 2 ms of relay per 20 ms, at 10 players); (b) built in M6 whatever M6-6 measures (§4 estimated 5.6 Mbit/s; 5.7 with M6-1's numbers); (c) not in M6 | (a) waits for one more measurement; (b) a protocol change that SCTP's bundling might have made unneeded (M6-1 saw no bundling on loopback); (c) a lobby of 10 talkers over a 5 Mbit/s uplink | (a) |
 
 ### 10. Needs the engineer
 All answered on 2026-10-04 as recommended (the Status line; recorded on #346).
