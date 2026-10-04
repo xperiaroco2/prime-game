@@ -80,14 +80,18 @@ PRICES = {
 USD_KEYS = ("usd_input", "usd_cache_write", "usd_cache_read", "usd_output")
 # 1% of a Max 20x week in API list $ (#304, measured in #302): Max 20x; 66% at 2026-10-03 20:54 UTC = $1,690 list since
 # the counter restarted at the plan change (2026-10-02 about 10:30 UTC); cache reads are 40% of list $. The ADR's
-# first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x.
+# first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x. Re-fitted in #307 over the 44 readings to 77% at
+# 2026-10-04 05:05 UTC: $25.5 (least squares; 25.4 to 25.7 by method).
 WEEK_PERCENT_USD = 25.5
-# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at: far from it, the bracket is the better figure.
+# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at. It counts cache reads at full list $, the
+# bracket's upper end: at this share it matches the measured central weight (w = 0.75, $23.0 per 1%) within 1%; far
+# from it, it reads high (more cache reads) or low (fewer), and the bracket is the better figure.
 WEEK_READ_SHARE = 0.4
-# Whether the weekly limit counts cache reads, and at what weight w, is not measured yet (#307): the bracket gives
-# (list $ without cache reads + w x cache-read $) / k(w) at w = 0 and 0.5, k(w) from #302's fit over the readings
-# (15.3 / 17.8 / 20.3, 25.3 at w = 1).
-WEEK_BRACKET = ((0.0, 15.3), (0.5, 20.3))
+# The limits count cache reads at a weight w of their list $, measured in #307 (the ADR's amendment of 2026-10-04):
+# w = 0.75, range 0.6 to 1. The bracket gives (list $ without cache reads + w x cache-read $) / k(w) at the range's
+# ends, k(w) the least-squares fit over the same 44 readings (21.5 at w = 0.6, 23.0 at 0.75); at w = 1 that is full
+# list $, so k(1) is WEEK_PERCENT_USD.
+WEEK_BRACKET = ((0.6, 21.5), (1.0, WEEK_PERCENT_USD))
 
 ROLES = {
     "implement": "implementer",
@@ -248,7 +252,7 @@ def usd(t: dict) -> float:
 
 def week_percent(spent: float, read: float) -> dict:
     """% of a Max 20x week for `spent` API list $ of which `read` is cache reads: at WEEK_PERCENT_USD, and the
-    bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 0 and at 50%)."""
+    bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 60% and at 100%)."""
     return {"percent": spent / WEEK_PERCENT_USD, "bracket": [(spent - read + w * read) / k for w, k in WEEK_BRACKET]}
 
 
