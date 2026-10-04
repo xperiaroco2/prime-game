@@ -451,7 +451,8 @@ class MetricsTest(unittest.TestCase):
         # #307's last reading: 77% at 2026-10-04 05:05 UTC, $1,981.7 list since the restart, $805.3 of it cache reads.
         week = metrics.week_percent(1981.7, 805.3)
         self.assertEqual([round(v) for v in (week["percent"], *week["bracket"])], [78, 77, 78])
-        # The probe's 5-hour window, 90% cache reads: the bracket is 0.77 to 0.99% of the week, the % its upper end.
+        # The probe's 5-hour window to 05:05:30 ($3.51 non-read + $21.77 cache reads, 86% of list $; the ADR's $21.53
+        # runs to the last reading at 05:04:57): the bracket is 0.77 to 0.99% of the week, the % its upper end.
         week = metrics.week_percent(25.28, 21.77)
         self.assertEqual([round(v, 2) for v in (week["percent"], *week["bracket"])], [0.99, 0.77, 0.99])
         # The fixture: $14.99 list, $0.21 of it cache reads (Sonnet's 1M at $0.20 and Opus's 56.2k at $0.20 per 1M).
