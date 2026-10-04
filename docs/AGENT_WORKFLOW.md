@@ -940,7 +940,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   run, per session (a wave with `--since <wave start>`; medians) and per role setting (role, model and effort from each
   agent's transcript; a clean run's publisher also as "publisher (clean run)"), and `quality` in `metrics.json`. From
   the journal: the diff reviewers' and test review's blockers and majors, the skeptics' refutations, "clean" (none left
-  open: #315's rule, derived because a run's return value is not journaled), the publisher's `fixed`, `not_fixed`,
+  open, not stopped by mutants, not a design task: #315's rule, derived because a run's return value is not
+  journaled), the publisher's `fixed`, `not_fixed`,
   `needs_engineer` and PR, and its fix rounds (`publish` calls minus one). From `gh`, read-only and by default
   (`--no-gh` skips it; a failure is a note, never an exit code): the PR's state, its CI rounds (one per head SHA of
   `ci.yml`'s pull_request runs on its branch; red rounds, those after the run, and "green on the first CI round"),
