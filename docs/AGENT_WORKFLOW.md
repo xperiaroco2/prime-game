@@ -112,8 +112,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   launch (with the exclude also in the worktree's own `settings.local.json` it loaded none, so the pattern does
   match); a session started in the main checkout that Read worktree files loaded main's root `CLAUDE.md` at launch
   and, by path, the worktree's area files and both copies of each rule, but no worktree root `CLAUDE.md`.
-  `tools\run.cmd doctor` (the full one; `onboard` runs it) adds the pattern to that file, merged into what is there;
-  `doctor --quick` (and so `verify`) only warns when it is missing. Neither touches it in CI or off Windows, where
+  `tools\run.cmd doctor` (the full one; `onboard` runs it) adds the pattern to that file, merged into what is there
+  (never to a file under `.claude/worktrees/`, should git fail to name the main checkout); `doctor --quick` (and so `verify`) only warns when it is missing. Neither touches it in CI or off Windows, where
   it would take a worktree session's only root `CLAUDE.md`. So a workflow agent reads a worktree's root `CLAUDE.md`
   only by Read; the rules still load twice by path (main's copy and the worktree's).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
