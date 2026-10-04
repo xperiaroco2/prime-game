@@ -235,7 +235,11 @@ DOC_IN_SHELL = re.compile(
     r"(?<![\w./-])((?:[\w-]+/)*CLAUDE\.md|docs/[\w./-]+\.md|\.claude/(?:rules|skills|agents|workflows)/[\w./-]+\.\w+)"
 )
 # Shell output that is never a doc read: the runner's own output, and git's diffs and logs.
-NOT_A_READ = re.compile(r"run(\.cmd|\.sh)\s|\bgit\s+(diff|show|log)\b")
+# `git -C <dir> diff`, `git --no-pager log` and `git -c k=v show` count too: global options may sit before the
+# subcommand.
+NOT_A_READ = re.compile(
+    r"run(\.cmd|\.sh)\s|\bgit(?:\s+(?:-[Cc]\s+\S+|--[\w-]+(?:=\S+)?))*\s+(?:diff|show|log)\b"
+)
 SHELL_SEARCH = re.compile(r"\b(grep|rg|select-string|findstr)\b", re.IGNORECASE)
 READ_LINE = re.compile(r"^\s*(\d+)\t(.*)$")
 GREP_LINE = re.compile(r"^(?:.*?[:-])?(\d+)[:-](.*)$")

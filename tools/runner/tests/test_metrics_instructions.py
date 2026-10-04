@@ -349,6 +349,9 @@ class DocTargetsTest(unittest.TestCase):
              [(".claude/skills/start-task/SKILL.md", "shell read", "plain")]),
             ("Bash", {"command": "tools/run.sh lint docs/ARCHITECTURE.md"}, []),
             ("Bash", {"command": "git log -p -- docs/ARCHITECTURE.md"}, []),
+            ("Bash", {"command": f"git -C /d/{NAME}/.claude/worktrees/7 diff origin/main -- docs/ARCHITECTURE.md"}, []),
+            ("Bash", {"command": "git --no-pager show HEAD:docs/ARCHITECTURE.md"}, []),
+            ("Bash", {"command": "git -c core.pager=cat log -p -- docs/ARCHITECTURE.md"}, []),
             ("Bash", {"command": "cat ~/.claude/CLAUDE.md"}, []),
             ("Edit", {"file_path": str(ROOT / "docs" / "ARCHITECTURE.md")}, []),
         ]  # fmt: skip
