@@ -51,7 +51,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `test [paths] [--shards K \| --repeat N]` / `mutants <spec.json>` | GdUnit4 headless (no paths: K processes at once); judged by exit code and `results.xml`; orphan nodes fail; `--repeat`: N runs in a row (flaky hunt) / each fault of the spec (`--help`) planted in a scratch worktree of HEAD, its tests run there; exit 2: tell the human |
 | `verify` / `wait <log>\|--verified [--max S]` | Everything CI runs: `doctor`, then (on a PC in one of 2 machine-wide slots, waiting at most 95 s) a Python and a Godot lane at once; the definition-of-done gate / at most S s (240) for a background job's last line `exit=<n>`: its summary and code, else 124 (still running); 2: no log; `--verified`: 0 when the newest verify passed at HEAD with a clean tree |
 | `start <n> [--base P] [--here] [--include\|--stash] [--dry-run]` | Task branch `<area>/<n>-<slug>` from main or P (the branch of a parent's open PR), for the engineer in its worktree, assign, board In progress (skill `start-task`) |
-| `publish [--base B]` / `merge-check [--base B] [--trial] [<pr>...]` / `merge <pr>\|--sync-main --base release/<x>` | Rebases the task branch on its PR base (else `start --base`, else main), runs `verify`, pushes with a lease / open PRs onto their base and pairwise: textual conflicts and symbol overlaps, exit 1 on either; `--trial`: merged in order in a scratch worktree, then `verify` / a manager's merge into a release branch: `verify` on the merged tree, push by hash (AGENT_WORKFLOW §7.1) |
+| `publish [--base B]` / `merge-check [--base B] [--trial] [<pr>...]` / `merge <pr>\|--sync-main --base B [--dry-run]` | Rebases the task branch on its PR base (else `start --base`, else main), runs `verify`, pushes with a lease / open PRs onto their base and pairwise: textual conflicts and symbol overlaps, exit 1 on either; `--trial`: merged in order in a scratch worktree, then `verify` / B `main`: a PR through GitHub when its gate passes; B `release/<x>`: a manager's merge, `verify` on the merged tree, push by hash (AGENT_WORKFLOW §7.1) |
 | `board move <issue> in-progress` or `in-review` | Puts an open issue on the project board in that column |
 | `normalize <files>` / `shot <scene>` / `playcheck [scenario ...] [--seconds S]` | Re-save `.tscn`/`.tres` as the editor would / an off-screen PNG of a scene / the game in off-screen windows (bots for the rest) running scripted steps, PNGs at named steps; never CI |
 | `run <x.tscn\|x.gd> [--headless\|--offscreen] [--seconds N] [--instances N] [-- args]` | Runs it with the pinned Godot; fails on a non-zero exit, a timeout or an `ERROR:` line. Your own checks: `--headless` |
@@ -114,23 +114,23 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
 1. `verify` is green; paste its tail. Red → stop and report.
 2. Fresh-context review as routed above. Fix the findings or list them in the PR.
 3. Docs updated if durable knowledge changed; intervention and credit entries added if any.
-4. Ask once: "Publish now?". Then `publish` (rebase, verify, push), open the PR from the template (linked issue,
-   summary, verification commands and output, screenshots for visual changes, docs updated yes/no) and write the
-   handoff comment on the issue: done, left, decisions, gotchas.
-5. Only humans merge into `main`; in a stage the manager merges task PRs into `release/m<k>` (the release-branch
-   ADR). Stacked PRs: merging the parent deletes its branch (auto-delete is on) and GitHub retargets each child to
-   the parent's base; a child still showing the parent as base gets `gh pr edit <n> --base <that base>` first.
+4. In the engineer's sessions (`gh api user` is xperiaroco2) publish once 1-3 hold; otherwise ask once: "Publish now?".
+   Then `publish` (rebase, verify, push), the PR from the template (linked issue, summary, verification output,
+   screenshots for visual changes, docs updated yes/no) and the handoff comment: done, left, decisions, gotchas.
+5. Merges: `merge <pr> --base main` (its gate: the trust ADR) by the engineer's manager, task PRs into `release/m<k>`;
+   gate exceptions, the designer's PRs and solo sessions without the engineer's word go to a human. Merging a parent
+   deletes its branch and GitHub retargets each child; a child still on it gets `gh pr edit <n> --base <its base>`.
 
 ## Stop and ask before
 - Adding a dependency or addon; changing an architecture boundary; touching the other owner's area (see Ownership).
 - Anything destructive to git history or that discards work outside your own worktree and task branch (inside them
   git and deletes are free: the guard asks only beyond them); anything that costs money.
 <!-- see docs/interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md -->
-- Deciding anything reserved for the humans (the items above, final game content, a milestone's goal, a
-  go/no-go): batch such questions into one, with options and a recommendation.
+- Deciding anything reserved for the humans (the trust ADR's "ask and wait": game rules and taste, a milestone's
+  goal, a go/no-go, the items above): batch such questions into one, with options and a recommendation.
 <!-- see docs/interventions/2026-09-28-engineer-phase-a-workflow-unbounded.md -->
-- Launching a workflow: state the agent count (fewer than 5) and a rough cost, then wait for a yes; an
-  `orchestrate-stage` kickoff approves its stage's task workflows once, after the manager's restatement (§7.1).
+- Launching a workflow: state the agent count (fewer than 5) and a rough cost, then wait for a yes; a manager runs
+  a stage's or track's workflows without one up to 15% of the weekly limit (the trust ADR), reporting the spend.
   Every workflow prompt states its bounds: max agents, max turns or tool calls per agent, a time or token budget,
   and what to drop first. "ultracode" alone never approves exceeding the size guideline.
 <!-- see docs/interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md -->

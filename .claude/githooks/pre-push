@@ -25,7 +25,7 @@ while read -r local_ref local_oid remote_ref remote_oid; do
   if is_zero "$local_oid"; then
     block "the deletion of $remote_ref" "Remote branches and tags are deleted by a human, on GitHub."
   elif [ "$remote_ref" = refs/heads/main ]; then
-    block "a push to main" "Push the task branch and open a pull request: only humans merge into main."
+    block "a push to main" "Push the task branch and open a pull request: it reaches main through GitHub (tools\\run.cmd merge <pr> --base main, or a human)."
   elif is_zero "$remote_oid" || git merge-base --is-ancestor "$remote_oid" "$local_oid" 2>/dev/null; then
     : # a new ref or a fast-forward
   elif [ "${PRIME_GAME_PUBLISH:-}" = force-with-lease ] && [ -n "$branch" ] \

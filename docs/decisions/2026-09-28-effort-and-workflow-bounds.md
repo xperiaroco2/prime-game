@@ -18,6 +18,9 @@ ultracode run for foundation work and puts small tooling changes at medium.
 - `workflowSizeGuideline: "small"` (fewer than 5 agents) in shared settings. Every workflow prompt states max agents,
   max turns or tool calls per agent, a time or token budget, and what to drop first. Before launch, the agent states
   the agent count and a rough cost and waits for a yes; exceeding the guideline needs explicit approval.
+  (Amended 2026-10-04, #300: the manager of a stage or track launches without waiting for a yes up to 15% of
+  the weekly limit, its restatement then a report; see
+  [trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md).)
 - **Amended 2026-09-30 (issue #91):** a stage that runs as parallel tasks with the engineer merging between them
   goes to the orchestrator session ([ADR](2026-09-30-orchestrator-session.md)): one manager session, one saved
   workflow per task. Its kickoff approves exceeding the size guideline and the stage's cost once, after the manager
