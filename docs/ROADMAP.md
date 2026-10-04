@@ -17,5 +17,5 @@ and proximity voice) is playable over a LAN or a VPN.
 | **M3** Networked match loop | Lobby, role assignment, the intent and event protocol, per-peer filtering, the bot harness and information-leak tests |
 | **M4** First-person greybox | A map, movement, interactions and tasks in 3D, host-side movement checks, interpolation |
 | **M5** Voice integrated with rules | Proximity, occlusion, push-to-talk or voice activity. (Dead chat and the meeting mode were dropped by vision revision 1: nobody hears the downed or the dead, and the dead hear no voice) |
-| **M6** Playable vertical slice | Playable with friends over the internet: the NAT traversal ADR (Steam vs WebRTC; proposed in [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md), #346) and its implementation |
+| **M6** Playable vertical slice | Playable with friends over the internet: the NAT traversal ADR (Steam vs WebRTC: [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md), #346) and its implementation |
 | **M7+** Mechanics | Co-designed roles, abilities, items and sabotages, one at a time, each with tests and a bot scenario. Then the low-poly art pass, audio and polish |

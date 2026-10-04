@@ -4,24 +4,26 @@
   decide and report (the [trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s tier (a)), each with
   the recommendation below. Merges after the engineer answers the D items (#346); the M6 release branch is cut after.
 - **Date:** 2026-10-04
-- **Deciders:** the engineer (D16 to D23); the M6 manager session (E48 to E61); designed by the agent in #346, in a
+- **Deciders:** the engineer (D16 to D24); the M6 manager session (E48 to E61); designed by the agent in #346, in a
   Claude Code cloud session
+- **Amends, once accepted:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md)'s
+  Reach line ("plus a UPnP attempt"; E61: no UPnP; none was ever built). That ADR gets a dated note pointing here.
 - **Builds on:** [listen server and the message layer](2026-09-29-listen-server-and-message-layer.md) (a listen
   server, own messages over `MultiplayerPeer`, "internet play without a VPN stays the M6 ADR"),
   [wire format and the host session](2026-09-30-wire-format-and-host-session.md) (E1, E7, E11, E17),
   [the M5 voice design](2026-10-02-m5-voice-integrated-with-the-rules.md) (E44, M5-4b, its shape),
   [the trust ADR](2026-10-04-trust-based-autonomy-gated-merge-into-main.md), [a release branch per
-  milestone](2026-10-01-release-branch-per-milestone.md), [Git LFS](2026-09-29-git-lfs-for-binary-assets.md)
-- **Numbering:** the choices continue the M5 design's: **E48 to E61** and **D16 to D23** (the Phase A drafts in
+  milestone](2026-10-01-release-branch-per-milestone.md), [Git LFS](2026-09-29-git-lfs-for-binary-assets.md),
+  [toolchain pins](2026-09-28-toolchain-pins.md)
+- **Numbering:** the choices continue the M5 design's: **E48 to E61** and **D16 to D24** (the Phase A drafts in
   `docs/history/` used D16 to D24 for review findings; those are not these). The issues are **M6-1 to M6-12** (§8).
 
 ## Context
 M6's goal (`docs/ROADMAP.md`): playable with friends over the internet. Today a client joins the host over ENet by
 address and port (`EnetTransport`, the main menu's Address and Port, `--join=<address>`). That works on a LAN, over a
 VPN, or when the host forwards a port by hand. Behind a home router a friend's join fails: the host's router drops
-the unsolicited UDP packet, and two players behind CGNAT (a phone hotspot, some ISPs) cannot forward a port at all.
-`UPNP` exists in 4.7.2, but nothing calls it yet. M6 decides how friends reach a player-hosted game, and splits the
-work.
+the unsolicited UDP packet, and a player behind CGNAT (a phone hotspot, some ISPs) cannot forward a port at all.
+`UPNP` exists in 4.7.2, but nothing calls it. M6 decides how friends reach a player-hosted game, and splits the work.
 
 What constrains the design:
 - **Invariants 1 and 2.** The host stays authoritative and builds every message per recipient in `server/`; the
@@ -33,9 +35,11 @@ What constrains the design:
 - **The lanes** (`NetKindTable`): RELIABLE (ENet channel 0, reliable), LATEST (channel 0, unreliable sequenced) and
   VOICE (channel 1, unsequenced). The inbox's LATEST merge delivers one LATEST message per sender and kind per poll
   *between two of that sender's reliable messages*, so "each reliable message still follows the state sent before
-  it" (a `PickUp` is checked against the `MoveClaim` sent before it). Unreliable payloads stay at most 1024 bytes.
-- **Timeouts:** a peer is dropped after 10 to 20 s of silence, never sooner (a 5 s freeze, #21). Voice stays
-  unreliable and unordered.
+  it" (a `PickUp` is checked against the `MoveClaim` sent before it). Unreliable payloads stay at most 1024 bytes
+  (`MAX_UNRELIABLE_PAYLOAD`, chosen so ENet never fragments).
+- **Timeouts** (ARCHITECTURE §4): a peer is dropped after 10 to 20 s of silence, never sooner (a 5 s freeze, #21);
+  ENet pings every 500 ms below our code, and only from the main thread, so a hung game is dropped ("a servicing
+  thread … would keep a hung game connected"). Voice stays unreliable and unordered.
 - **The humans** write no code; agents open no window and download no binary into the repo (the engineer's step, as
   for TwoVoIP). The game targets Windows; CI and cloud sessions run Linux headless. Two real routers exist only at the
   humans' homes.
@@ -50,10 +54,11 @@ Checked for this design on 2026-10-04, live rather than from memory:
   `set_remote_description`, `add_ice_candidate`, `poll`, `get_connection_state` (`STATE_NEW` 0, `CONNECTING` 1,
   `CONNECTED` 2, `DISCONNECTED` 3, `FAILED` 4, `CLOSED` 5), the signals `session_description_created(type, sdp)`,
   `ice_candidate_created(media, index, name)` and `data_channel_received(channel)`; `WebRTCDataChannel` (a
-  `PacketPeer`: `get_buffered_amount`, `is_ordered`, `get_max_retransmits`, binary write mode);
-  `WebRTCMultiplayerPeer` (`create_server(channels_config)`, `create_client(peer_id)` with an id from 2 to
-  2147483647, `add_peer(peer, peer_id, unreliable_lifetime = 1)`, which "will create three channels for reliable,
-  unreliable, and ordered transport", and server relay support for `MultiplayerAPI`); `WebSocketPeer`
+  `PacketPeer`: `get_buffered_amount`, "the number of bytes currently queued to be sent over this channel",
+  `is_ordered`, `get_max_retransmits`, binary write mode); `WebRTCMultiplayerPeer` (`create_server(channels_config)`
+  and `create_client(peer_id, channels_config)` with an id from 2 to 2147483647, extra channels from
+  `channels_config`; `add_peer(peer, peer_id, unreliable_lifetime = 1)`: "Three channels will be created for
+  reliable, unreliable, and ordered transport", and relay support for the `MultiplayerAPI` layer above); `WebSocketPeer`
   (`connect_to_url`, `send`, `poll`, `set_heartbeat_interval`) and `TLSOptions.client()`; `UPNP` (`discover`,
   `add_port_mapping`; "methods on this class are synchronous and block the calling thread"); `MultiplayerPeerExtension`;
   `ENetMultiplayerPeer.create_client`, whose address "needs to be either a fully qualified domain name … or an IP
@@ -62,8 +67,9 @@ Checked for this design on 2026-10-04, live rather than from memory:
   HTML5, but require an external GDExtension plugin on native (non-HTML5) platforms" (webrtc-native).
 - **webrtc-native** (github.com/godotengine/webrtc-native): latest release `1.2.2-stable`, dated 30 September with no
   year shown (GitHub omits the current year), on libdatachannel 0.24.6 and mbedTLS 3.6.7; the GDExtension build is
-  for Godot 4.3 and later (the README says 4.1+); MIT; platforms `windows`, `linux`, `osx`, `android`, `ios`. Its
-  per-platform library sizes were not listed on the page (M6-2 measures them).
+  for Godot 4.3 and later (the README says 4.1+); MIT, its dependencies under "other permissive open source licenses";
+  platforms `windows`, `linux`, `osx`, `android`, `ios`. The page lists no library sizes (M6-2 measures them).
+  libdatachannel runs ICE, DTLS and SCTP on threads of its own (M6-1 confirms it with this binding).
 - **ENet as Godot 4.7.2 ships it** (`thirdparty/enet/peer.c` at tag `4.7.2-stable`): an unreliable command carries its
   channel's reliable sequence number and is dispatched only once that reliable command was; an older one is
   discarded; unsequenced commands skip the check. So today LATEST keeps its place among RELIABLE messages on channel
@@ -85,17 +91,20 @@ Checked for this design on 2026-10-04, live rather than from memory:
   443 (UDP), 3478 and 80 (TCP), 5349 and 443 (TLS); credentials come from a POST to
   `rtc.live.cloudflare.com/v1/turn/keys/<key id>/credentials/generate-ice-servers` with a bearer API token and a
   `ttl`. Whether a payment method is required is not stated. Durable Objects run on the Workers Free plan ("Only
-  Durable Objects with SQLite storage backend"): 100,000 requests a day, 13,000 GB-s a day, 5 GB; incoming WebSocket
-  messages count 20 to 1 as requests; a hibernation API for idle sockets.
+  Durable Objects with SQLite storage backend"): 100,000 requests a day, 13,000 GB-s of duration a day, 5 GB;
+  incoming WebSocket messages count 20 to 1 as requests; a hibernation API cuts the duration of idle sockets.
 - **Overlays and tunnels:** Tailscale Personal is "$0 Free forever", "Up to 6 users", "Unlimited user devices";
   ZeroTier's free Personal plan: "10 devices, one network", "Personal, non-commercial use"; playit.gg: "Only you run
   the agent, your players just connect", custom UDP and TCP tunnels on the free tier, "Premium just $3/month".
-- **Our own measurements** (`docs/ARCHITECTURE.md` §10): M5-4 measured the host's upload at about 3.8 Mbit/s with 10
-  players all talking (ENet), and after #245 about 2.1 to 2.3 ms of relay time per 20 ms at 81 streams, about 60% of
-  it the transport's send per datagram; M5-4b (a batched voice row) is still open.
+- **Our own measurements** (`docs/ARCHITECTURE.md` §6 "The wire" and §10): M5-4 measured 96 B per `VoiceDown` on the
+  wire for a 45 B frame (so ENet adds about 10 B to the payload, frame header and IP and UDP), and, scaled to 10
+  players, about 3.1 Mbit/s of voice and 0.65 of snapshots, about 3.8 Mbit/s of host upload; after #245 about 2.1 to
+  2.3 ms of relay time per 20 ms at 81 streams, about 60% of it the transport's send per datagram. M5-4b's batched
+  row would send about 11 datagrams per 20 ms instead of 81 (the host polls at 60 Hz); "whether to open it is the
+  engineer's".
 - **Header sizes** (the RFCs; M6-1 measures the real cost): SCTP's common header is 12 bytes and a DATA chunk header
   16 (RFC 9260 §3.1, §3.3.1); a DTLS 1.2 record header 13 (RFC 6347 §4.1); AES-GCM adds an 8-byte explicit nonce and
-  a 16-byte tag (RFC 5288 §3). ICE consent expires after 30 s without a response (RFC 7675 §5.1).
+  a 16-byte tag (RFC 5288 §3); 65 bytes in all per packet, against ENet's about 10.
 
 ## Decision
 
@@ -104,15 +113,15 @@ Checked for this design on 2026-10-04, live rather than from memory:
 | | (a) WebRTC | (b) Steam networking | (c) A tunnel or VPN only | (d) Direct ENet with UPnP |
 |---|---|---|---|---|
 | What carries the bytes | webrtc-native's data channels, peer to peer after a signalling exchange; STUN finds each side's public address; TURN relays when that fails | Steam Networking Sockets through GodotSteam, peer to peer or through Valve's relays | ENet as today, over Tailscale, ZeroTier, Radmin VPN or a playit.gg tunnel | ENet as today; the host opens a port on its router through `UPNP` |
-| Money | none (TURN: free up to 1,000 GB a month, D17) | app 480 for tests: none; an own app: $100 per app (D16) | none (playit Premium $3/month is optional) | none |
+| How `NetTransport` carries it | `WebRtcTransport`: RELIABLE, LATEST and VOICE on three data channels, VOICE unordered with no resend, §2.2's order header for LATEST | `SteamTransport`: Steam's reliable and unreliable sends, §2.2's header for LATEST, VOICE unreliable | `EnetTransport` unchanged | `EnetTransport` plus a UPnP call in `host` |
+| Filtering and authority | unchanged in every option: `server/` builds every message per recipient, clients reach only the host (a star), the host's own client keeps the loopback, voice stays unreliable | | | |
+| Money | none (TURN: free up to 1,000 GB a month, D17) | app 480 for tests: none; an own app: $100 per app | none (playit Premium $3/month is optional) | none |
 | Accounts | the engineer's Cloudflare account (D18); none for friends | every player needs Steam running; the engineer a Steamworks partner account for an own app | everyone installs the VPN (Tailscale, ZeroTier, Radmin), or only the host (playit) | none |
 | How joining feels | a 6-character code (D19) | an invite from the Steam friends list | install, join a network, type an address | type an address and port |
 | When the network is hard | STUN covers most home routers; two strict NATs or CGNAT need TURN (D17) | Valve's relays cover every case | always works once installed | fails behind CGNAT, a router with UPnP off, a second router |
 | Testable headless on Linux (CI, cloud) | yes: webrtc-native has Linux libraries, and host candidates work on 127.0.0.1 | no: it needs a logged-in Steam client | the game part is today's ENet | the game part is today's ENet |
-| How `NetTransport` carries it | `WebRtcTransport`: RELIABLE, LATEST and VOICE on three data channels, VOICE unordered with no resend, §2.2's order header for LATEST | `SteamTransport`: Steam's reliable and unreliable sends, §2.2's header for LATEST, VOICE unreliable | `EnetTransport` unchanged | `EnetTransport` plus a UPnP call in `host` |
-| Filtering and authority | unchanged in every option: `server/` builds every message per recipient, clients reach only the host (a star), the host's own client keeps the loopback, voice stays unreliable | | | |
 | New code | a backend, the order header (§2.2), signalling (two small servers), the join UI | a backend, the order header, lobby and invite UI, Steam setup and uploads | a "how to" page | a UPnP call and its messages |
-| Licenses | webrtc-native MIT (its dependencies "other permissive" ones) | GodotSteam MIT; the Steamworks SDK's redistributables under Valve's terms (to read before choosing it) | the providers' terms | none new |
+| Licenses | webrtc-native MIT, its dependencies "other permissive" ones | GodotSteam MIT; the Steamworks SDK's redistributables under Valve's terms (to read before choosing it) | the providers' terms | none new |
 
 The failure each one prevents or leaves:
 - **(a) WebRTC.** Prevents: a friend behind an ordinary home router cannot join without the host forwarding a port.
@@ -130,17 +139,17 @@ The failure each one prevents or leaves:
   why it failed, and `discover()` blocks the main thread (a thread is needed).
 
 **Recommendation: (a) WebRTC (D16), with ENet direct join kept for LAN, VPN and tunnels, and Steam left open** as a
-later backend for the day the game goes to Steam: §2's order header serves both, and nothing outside `net/` changes.
+later backend for the day the game goes to Steam: §2.2's order header serves both, and nothing outside `net/` changes.
 
 ### 2. The design with WebRTC (D16 (a))
 
 #### 2.1 Pieces
 | Piece | Where | What it does | The failure it prevents |
 |---|---|---|---|
-| `WebRtcTransport` | `net/transport/` | a `NetTransport` backend: the host holds one `WebRTCPeerConnection` per client (a star, never a mesh), three negotiated data channels per connection, host-assigned peer ids, `ADMIT` as today (E48, E50) | a client reaching another client; `MultiplayerAPI`'s relay features under our own messages |
+| `WebRtcTransport` | `net/transport/` | a `NetTransport` backend: the host holds one `WebRTCPeerConnection` per client (a star, never a mesh), three negotiated data channels per connection, host-assigned peer ids carried in `ADMIT`, a keepalive from `poll()` (E48, E50, E54) | a client reaching another client; a silent but live player dropped; a hung game kept "connected" |
 | `LaneOrder` | `net/transport/` | a 4-byte header on LATEST packets that restores ENet's channel-0 order across data channels (§2.2, E49) | a `PickUp` checked against an older `MoveClaim` only over the internet |
 | `Signaller` | `net/signal/` | the client side of the signalling protocol (§2.4) over `WebSocketPeer` (wss) | — |
-| The signalling service | `tools/signal/` (a Cloudflare Worker, JavaScript) | rooms, codes, forwarding offers, answers and candidates between a room's host and each joiner only; the ICE servers (E52, E53) | friends needing the host's address; a joiner learning another joiner's address |
+| The signalling service | `tools/signal/` (a Cloudflare Worker, JavaScript; D18, D23) | rooms, codes, forwarding offers, answers and candidates between a room's host and each joiner only, roles fixed per socket; the ICE servers (E52, E53, E55) | friends needing the host's address; a joiner posing as the host to another joiner |
 | `LanSignalling` | `net/signal/` (GDScript) | the same protocol served by the host itself on the LAN and in every headless test (E53) | tests that need the internet; a LAN game that needs the internet |
 | The join target | `net/` `JoinTarget` | parses what the player typed: a code, or `address[:port]` for ENet (E51) | two join paths in game code |
 
@@ -156,74 +165,101 @@ Separate channels lose ENet's order between RELIABLE and LATEST: a `MoveClaim` (
 (RELIABLE) can arrive after it, and the host then checks the `PickUp` against the claim before, a step farther from
 the package, and refuses it; only over the internet, never on the LAN. The sender therefore prefixes every LATEST
 packet with `[reliable_sent: u16][latest_seq: u16]` (little-endian, wrapping, compared in serial-number order): how
-many RELIABLE packets it had sent to that peer before, and a per-peer counter of its LATEST packets. The receiver
-keeps `reliable_received` per peer and delivers a LATEST packet:
+many packets it had written to that peer's RELIABLE channel before (every one, `ADMIT` included), and a per-peer
+counter of its LATEST packets. The receiver counts every packet it reads from the RELIABLE channel, before any
+decoding, as `reliable_received`. In each poll it reads the LATEST channel before the RELIABLE one (a LATEST packet
+sent before a reliable one then comes first, as ENet would deliver it), and delivers a LATEST packet:
 - when `reliable_sent` equals `reliable_received` and `latest_seq` is newer than the last one delivered;
 - held, when `reliable_sent` is ahead (its reliable packet is still on the way), until that many reliable packets
-  arrived, then judged as above; at most 8 held per peer, the oldest dropped first (a placeholder, "not a
-  decision");
+  were read, then judged as above; at most 8 held per peer, the oldest by `latest_seq` dropped first (placeholders,
+  "not a decision");
 - never, when `reliable_sent` is behind (sent before a reliable packet already delivered) or its seq is not newer.
 
 That is ENet's rule for channel 0 (Context), so the inbox's LATEST merge and every consumer see the order they see
-today. RELIABLE and VOICE carry no header; VOICE keeps M5's tick check for late frames. The header is the transport's,
-below `NetFrame`: `receive_bytes` gets the frame without it, and the 1024-byte unreliable cap counts it. Steam's
-unreliable messages arrive out of order too (Context), so a later `SteamTransport` reuses `LaneOrder` as it is.
+today. RELIABLE and VOICE carry no header; VOICE keeps M5's tick check for late frames. Held packets are discarded,
+never delivered, when the peer leaves or is disconnected. A reliable channel loses nothing, so a packet still "ahead"
+after 2 s (a placeholder) or a hold full of "ahead" packets means the counts disagree (a bug, or the binding dropping
+packets from a full receive queue): it is a transport fault, counted in `NetRejects` with its own reason, and the peer
+is disconnected rather than left connected and silently starved. A LATEST packet shorter than the header is a reject
+too. The header is the transport's, below `NetFrame`: `receive_bytes` gets the frame without it. The payload caps are
+unchanged (`MAX_UNRELIABLE_PAYLOAD` counts the payload); 1024 + 3 + 4 bytes must arrive unfragmented over SCTP, which
+M6-1 measures, since the cap's basis (ENet's MTU) does not carry over. Steam's unreliable messages arrive out of order
+too (Context), so a later `SteamTransport` reuses `LaneOrder` as it is.
 
-#### 2.3 How a friend joins (D19, E51, E52)
+#### 2.3 How a friend joins (D19, E51, E52, E55)
 1. **The host** presses Host. The game hosts on the loopback as today, opens the signalling socket and asks for a
-   room; the lobby shows the code (6 characters from 31 that cannot be misread: no 0, O, 1, I, L), with Copy.
+   room; its lobby shows the code (6 characters from 31 that cannot be misread: no 0, O, 1, I, L), with Copy.
 2. **The friend** pastes or types the code under "Join with a code" and presses Join. The client asks the service
    for the room and gets the host's protocol version and content hash with it (advisory: §2.5).
-3. The service tells the host "joiner n wants in". The host assigns the next peer id (2, 3, …, never reused in the
-   session), creates the connection with the ICE servers from the service, and sends an offer through the service;
-   the joiner answers; both trickle ICE candidates through it.
-4. The data channels open; the host sends `ADMIT` on RELIABLE as `EnetTransport` does; the client's `connected`
+3. The service tells the host "joiner n wants in". Unless it refuses joins or is full (half-made connections count
+   against the mode's maximum), the host assigns the next peer id (2, 3, …, never reused in the session), creates the
+   connection with the ICE servers it got for that joiner (§2.4), and sends an offer through the service; the joiner
+   answers; both trickle ICE candidates through it. The joiner applies exactly one offer per join attempt; the host
+   applies one answer per offer, and a second one, or one for no offer, closes that connection.
+4. The data channels open; the host sends `ADMIT` on RELIABLE as `EnetTransport` does, carrying the joiner's peer
+   id: the client learns its id there, not from the service, and refuses an id of 1 or less. The client's `connected`
    fires, then `Hello`, and `JoinRules` decides as today (`wrong_version`, `wrong_content`, `full`).
-5. Entering Loading, `server/` calls `set_refuse_new_connections(true)` as today: the host also tells the service the
-   room is closed, and a code typed now answers "the match has started". Entering the Lobby again reopens it. The
-   host leaving closes the room.
+5. Entering Loading, `server/` calls `set_refuse_new_connections(true)` as today: the host stops answering joiners
+   and tells the service the room is closed, so a code typed now answers "the match has started". Entering the Lobby
+   again reopens it. The host leaving closes the room.
 6. **Direct (LAN or VPN)** stays under the code field: address and port, as today, through ENet; a host name works
    (the 4.7.2 docs above), so a playit.gg address works too.
 
 **When traversal fails** (E54): the joiner's connection reaches `STATE_FAILED`, or 15 s pass from the offer without
-open channels (a placeholder, "not a decision"). The client gets `connect_failed` with a reason, and the menu says
-which: no room with that code; the match has started; another version (host's and own); the code service is
-unreachable (use Direct); or "could not reach the host directly", with the fallback (D17, D21). The host's side
-loses nothing: the half-made connection is closed and its id is not reused.
+open channels (a placeholder, "not a decision"). The client ends with a reason, and the menu says which: no room with
+that code; the match has started; another version (host's and own); the code service is unreachable (use Direct); or
+"could not reach the host directly", with the fallback (D17, D21). `NetTransport.connect_failed` carries no reason
+today, so M6-4 adds one for every backend (ENet and the loopback give the reason they have) and `ClientSession` passes
+it on. The host loses nothing: the half-made connection is closed and its id is not reused.
 
-#### 2.4 The signalling protocol (E52, E53)
+#### 2.4 The signalling protocol (E52, E53, E55)
 JSON text messages over a WebSocket (`wss://` for the Worker; `ws://` on the LAN), each with `"t"` (type) and `"v"`
-(the signalling version, 1). Host: `open {protocol, content}` → `room {code, ice_servers}`; `offer {to, id, sdp}`,
-`candidate {to, mid, index, cand}`, `close`, `reopen`. Joiner: `join {code}` → `found {protocol, content,
-ice_servers}` or `error {why}`; `answer {sdp}`, `candidate {…}`. The service forwards a joiner's messages only to its
-room's host and the host's only to the joiner named in `to`; joiners never see each other. It caps a message at
-16 KB, candidates at 32 per joiner, rooms at 10 joiners at once (the mode's maximum), and closes a room 30 minutes
-after its host's socket went away (placeholders). It stores no game data and never relays a game packet. The ICE
-servers live in the service's configuration (STUN by E58; TURN credentials minted per room when D17 (b) is on), so a
-change needs no new build. An unknown `"v"` gets `error {why: "update the game"}`.
+(the signalling version, 1). Host: `open {protocol, content}` → `room {code, ice_servers}`; `offer {to, id, sdp}` →
+the service adds that joiner's `ice_servers`; `candidate {to, mid, index, cand}`, `close`, `reopen`. Joiner:
+`join {code}` → `found {protocol, content}` or `error {why}`; `answer {sdp}`, `candidate {mid, index, cand}`.
+- **Roles are per socket**, fixed by its first message: `open` makes it a room's host, `join` a joiner. A host-only
+  type from a joiner's socket gets `error` and is never forwarded; a joiner's messages always go to its room's host,
+  whatever they name; the host's go only to a joiner of its own room named in `to`. Joiners never see each other.
+- **No reclaim:** when the host's socket goes away, the room closes and its waiting joiners get `error`; hosting again
+  makes a new code.
+- **ICE servers:** STUN from the service's configuration (E58); TURN credentials, when D17 (b) is on, minted per
+  joiner with a short TTL (10 minutes, a placeholder) and sent with the host's offer to that joiner, never with
+  `found`, so a code pasted in a public chat hands out no relay; the host's own come with `room`.
+- **Caps:** a message at most 16 KB, 32 candidates per joiner, as many joiners at once as the mode's maximum, a room
+  without its host closed at once (placeholders). The host's idle socket uses the Durable Object hibernation API.
+- It stores no game data and never relays a game packet. An unknown `"v"` gets `error {why: "update the game"}`.
 
 #### 2.5 The version check across the internet
 The service's `found` carries the host's protocol version and content hash, and the client compares them before any
 ICE: another version ends the join at once with both versions named, instead of after a connection. This is
 advisory only. The host still decides with `Hello` (`JoinRules`), so a service that lies changes nothing. Players run
-the same exported build (E59), so the content hash agrees across machines; a build run from source against an
-exported one differs (export may convert scenes, ARCHITECTURE §4.3) and is refused as another version, which the
-message says.
+the same exported build (E59). An exported build may convert scenes to binary (ARCHITECTURE §4.3), so M6-9 proves the
+content hash still sees every level file in an export (§8); a build run from source against an exported one is refused
+as `wrong_content`, and the message says "another build".
 
-#### 2.6 Connection states, freezes and timeouts (E54)
-`DISCONNECTED` is transient (consent checks missed during a freeze recover), so it is not a leave. `FAILED` or
-`CLOSED`, or 20 s without any packet from that peer (the backend's own clock, as ENet's 10 to 20 s), is a leave:
-`peer_left` on the host, `host_lost` on a client. The 5.2 s freeze run (`enet_freeze.gd`) and the stall run
-(`enet_stall.gd`) get WebRTC twins: no drop across a 5.2 s freeze, a drop after 20 s, and a frozen side's backlog
-merged by the inbox as today. `disconnect_peer` sends what was queued first (it waits for the RELIABLE channel's
-`get_buffered_amount` to reach 0, at most 2 s), then closes.
+#### 2.6 Connection states, keepalive, freezes and timeouts (E54)
+WebRTC's own keepalives (ICE consent, SCTP heartbeats) run on libdatachannel's threads and never reach GDScript, so a
+frozen or even hung main thread stays "connected" at that level; and our messages alone stop for long stretches (a
+dead player sends no `MoveClaim`, Loading and End send none, the Lobby sends no snapshots). Therefore:
+- **A keepalive:** `poll()` sends each peer a kind-0 control frame on the VOICE channel (unreliable, outside
+  `LaneOrder`'s count) when nothing went to it for 1 s (a placeholder); the backend consumes it before the inbox, as
+  `ADMIT`. It comes from the main thread only, so a hung game stops sending it, as with ENet.
+- **The silence rule:** 20 s without any packet from a peer, keepalives included, is a leave (`peer_left` on the host,
+  `host_lost` on a client); the backlog is drained before the clock is checked, so a thawed side drops nobody.
+  `FAILED` or `CLOSED` is a leave too; `DISCONNECTED` is not (it may recover).
+- **The twins** of `enet_freeze.gd` and `enet_stall.gd`: no drop across a 5.2 s freeze; a stalled main thread (the
+  process alive) dropped after 20 s; a silent dead client and a silent Lobby kept for 30 s.
+- **`disconnect_peer`** never blocks: the reason goes out on RELIABLE, then `poll()` closes that peer's RELIABLE
+  channel and, once the client closed its side or 5 s passed, the connection (`get_buffered_amount` reaching 0 only
+  means SCTP took the bytes).
 
 ### 3. What the client renders
 Each M6 client PR is reviewed against this list by `netcode-security-reviewer` and `code-reviewer`, besides the M4
 and M5 lists:
 1. The main menu: "Join with a code" (a field and Join), "Direct (LAN or VPN)" (address and port, as today), Host.
-2. The lobby shows the room's code with Copy to every player in it (the code is not hidden information: anyone in the
-   lobby may invite). Nothing else about the room (how many are connecting) is shown.
+2. The lobby shows the room's code with Copy to whoever knows it: the host (from the service) and each player who
+   joined with it (the code they typed). No wire change; a Direct joiner shows none. Nothing else about the room (how
+   many are connecting) is shown.
 3. The connecting screen names the step (finding the game, connecting, joined) and each failure of §2.3 in plain
    words, with the fallback's text when the host cannot be reached.
 4. No screen shows another player's address, candidates or whether another player is relayed. The F3 overlay (debug
@@ -232,41 +268,50 @@ and M5 lists:
 5. A failed or refused join returns to the main menu with its reason; the code field keeps what was typed.
 
 ### 4. Wire budgets
-| Quantity | ENet (M5) | WebRTC (estimate) | Basis |
+| Quantity | ENet | WebRTC (estimate) | Basis |
 |---|---|---|---|
-| One `VoiceDown` on the wire | about 106 B | about 151 B | 55 payload + 3 frame + 28 IP and UDP, plus ENet's measured 20 or SCTP's 12 + 16 and DTLS 1.2's 13 + 8 + 16 with AES-GCM (Context) |
+| One `VoiceDown` on the wire | 96 B (M5-4, measured) | about 151 B | 55 payload + 3 frame + 28 IP and UDP + 65 SCTP and DTLS (Context) |
 | One LATEST packet | — | + 4 B | §2.2's header |
-| Host upload, 10 players all talking | about 3.8 Mbit/s (M5-4, measured) | about 5.4 Mbit/s (scaled by 151 / 106) | over E44's 4.5 Mbit/s and the 5 Mbit/s threshold |
-| The same with M5-4b's batched row (9 packets per 20 ms, not 81) | — | about 2.1 Mbit/s of voice, plus the snapshots (about 0.6 by the M5 ADR) | per listener and 20 ms: 4 + 9 × (4 + 2 + 2 + 45) + 3 + 65 + 28 = 577 B |
-| The relay's send time per 20 ms at 81 streams | 2.1 to 2.3 ms (#245) | unknown: each send also encrypts | M6-1 measures; E44's 2 ms |
-| A relayed client through TURN | — | about 0.45 Mbit/s down: about 0.2 GB an hour | 9 voice streams at 42 kbit/s plus snapshots; 1,000 free GB is about 5,000 relayed player-hours a month |
-| Signalling per join | — | about 10 to 40 messages | an offer, an answer and the candidates; 100,000 requests a day are thousands of joins |
+| Host upload, 10 players all talking | about 3.1 Mbit/s of voice + 0.65 of snapshots, about 3.8 (M5-4, scaled) | about 4.9 of voice (81 streams × 50 × 151 B) + about 0.73 of snapshots, about 5.6 Mbit/s | over E44's 4.5 Mbit/s and the 5 Mbit/s threshold |
+| The same with M5-4b's batched row (about 11 datagrams per 20 ms, not 81) | — | about 2.2 Mbit/s of voice + 0.73 of snapshots | per listener and 20 ms: 9 frames × 53 B + 1.2 datagrams × (4 + 3 + 65 + 28) B, about 600 B |
+| The relay's send time per 20 ms at 81 streams | 2.1 to 2.3 ms (#245) | unknown: each send also encrypts | M6-1 measures a raw send, M6-6 the relay; E44's 2 ms |
+| A relayed client through TURN | — | about 0.62 Mbit/s down and 0.08 up, billed both ways: about 0.3 GB an hour | 9 streams at about 60 kbit/s plus snapshots; 1,000 free GB is about 3,200 relayed player-hours a month |
+| A relayed host (the hotspot side of D22) | — | all of its traffic through TURN, about 5.6 Mbit/s out and 0.7 in: about 2.8 GB per match-hour (1.6 batched) | about 350 match-hours a month within 1,000 GB |
+| Signalling | — | about 10 to 40 messages per join; the host's socket open for the session | 100,000 requests a day are thousands of joins; the hibernation API keeps the idle socket's duration small (M6-5b checks it against the 13,000 GB-s a day) |
+| Keepalives | ENet's own pings | one 3-byte frame per peer per idle second | negligible |
 
-SCTP can bundle several queued messages into one packet, so the real overhead may be lower; M6-1 measures it with
-`tools\run.cmd bots voice_load --instances 8` over WebRTC. **E55:** if the measured upload at 10 players exceeds
-4.5 Mbit/s or the relay 2 ms per 20 ms (E44's thresholds, placeholders), M5-4b's batched row is built in M6 (M6-8)
-with its version bump, codec samples and leak-test decoding, as the M5 ADR §4 specifies.
+SCTP can bundle several queued messages into one packet, so the real overhead may be lower. M6-1 measures a raw
+sender's per-packet overhead and send time; M6-6 measures the relay with `tools\run.cmd bots voice_load --instances 8
+--transport webrtc` (the M5-4 command over WebRTC). Whether M5-4b's batched row is built in M6 stays the engineer's
+(D24, ARCHITECTURE §10).
 
 ### 5. The leak test and host trust
 | Issue | Checks | Planted leak |
 |---|---|---|
-| M6-3 | `LaneOrder` with reordered, lost, duplicated and wrapped packets: a LATEST packet sent before a delivered reliable one is never delivered; one sent after a reliable one in flight waits for it | the "behind" rule removed: the test sees the stale claim delivered |
-| M6-4 | a client receives packets only from peer 1; a data channel or connection the host did not create for that peer is closed and counted, never delivered | the backend delivering a packet from a second client's connection |
-| M6-5 | the service and `LanSignalling` forward a joiner's messages only to the host and the host's only to the named joiner (the same JSON transcripts for both) | forwarding to every socket in the room |
-| M6-6 | the bots' matches and the leak test over WebRTC (`bots --transport webrtc`): every check of the leak test unchanged, and the order of each peer's RELIABLE and LATEST messages as sent | the M6-3 plant again, end to end |
+| M6-3 | `LaneOrder` with reordered, lost, duplicated and wrapped packets: a LATEST packet sent before a delivered reliable one is never delivered; one sent after a reliable one in flight waits for it; a count that disagrees disconnects; a short header is rejected | the "behind" rule removed: the test sees the stale claim delivered |
+| M6-4 | over the headless run of a host and two clients: each client receives only its own `Welcome` and its own filtered events | `send(to_peer)` going out on another peer's connection (a swapped id-to-connection map, or a stale entry after a leave) |
+| M6-5a, M6-5b | the service and `LanSignalling` keep roles per socket and forward a joiner's messages only to the host and the host's only to the named joiner: one JSON transcript per forged type (a joiner's `offer`, `candidate` with a `to`, `close`, `reopen`), the same for both | forwarding a joiner's `offer` to another joiner |
+| M6-6 | the bots' matches and the leak test over WebRTC (`bots --transport webrtc`), every check unchanged, plus the order of each peer's RELIABLE and LATEST messages as sent; `bots --chaos --transport webrtc` (the hostile and malformed peers over WebRTC). A test-only fault shim in the backend (debug builds, off by default) delays RELIABLE delivery by 50 ms and drops and duplicates LATEST packets in these runs and the freeze twin, since 127.0.0.1 almost never reorders across channels | the M6-3 plant again, end to end, caught with the shim on |
 
 **Host trust:** the host never trusts the service. The room's version and hash are advisory (§2.5); peer ids are the
-host's, so a joiner cannot pick id 1 or another's id (ENet's rule against forged ids stays for ENet); the host parses
-SDP and candidates defensively and drops a joiner whose messages exceed the caps. A client still sends only intents;
-every check of `server/` stays. The service sees each side's addresses (as any signalling does), never game data:
-the data channels are encrypted end to end by DTLS, through TURN too.
+host's and travel in `ADMIT`, so a joiner cannot pick id 1 or another's id (ENet's rule against forged ids stays for
+ENet); the host answers no joiner while it refuses joins, counts half-made connections against the maximum and takes
+one answer per offer (§2.3). SDP and candidates are parsed by libdatachannel, not by our code: ours caps their sizes,
+and an error from `set_remote_description` or `add_ice_candidate` closes that connection. A client still sends only
+intents; every check of `server/` stays. An honest service sees each side's addresses, never game data: the data
+channels are encrypted end to end by DTLS, through TURN too. A dishonest service could place itself in the middle (the
+DTLS fingerprints travel through it); the per-socket roles keep a joiner from doing that through the service, and
+trusting the engineer's own service is the hobby-project trade (E60).
 
 ### 6. Testing M6
 - **Headless, every PR** (`verify`, CI, cloud sessions): `LaneOrder` unit tests; a host and two clients over WebRTC on
-  127.0.0.1 with `LanSignalling` (no STUN or TURN: host candidates), as `enet_host_and_two_clients.gd`; the freeze
-  and stall twins; the bots and the leak test over WebRTC (a new `verify` step, `bots-webrtc`); the service's tests
-  under Node (`node --test`, no npm package) replaying the shared transcripts; a fuzz test of the signalling decoder.
-  webrtc-native's Linux library loads on CI and in cloud sessions, unlike TwoVoIP (M6-1 confirms).
+  127.0.0.1 with `LanSignalling` (no STUN or TURN: host candidates), as `enet_host_and_two_clients.gd`; the freeze,
+  stall and silence twins; the bots, the leak test and the chaos bots over WebRTC (new `verify` steps, `bots-webrtc`
+  and `chaos-webrtc`), with the fault shim on; the service's routing module under Node (`node --test`, no npm
+  package) with fakes for the Durable Object and the sockets, replaying the shared transcripts (the Durable Object glue
+  is first tried at deploy); a fuzz test of the signalling decoder. webrtc-native's Linux library loads on CI and in
+  cloud sessions, unlike TwoVoIP (M6-1 confirms). `verify` grows by an estimated 1.5 to 2 minutes on the Godot lane
+  (the ENet steps take about 80 s today, and the silence twin waits over 20 s).
 - **On Windows, not in CI:** the addon in the editor and in an exported build; `shot` of the menu, the lobby's code
   and the connecting screen; the exported build starting.
 - **Two machines behind different routers** (the humans, M6-12): a code join across the internet, a phone hotspot
@@ -276,58 +321,62 @@ the data channels are encrypted end to end by DTLS, through TURN too.
 ### 7. E items (technical; the M6 manager decides and reports)
 | # | Choice | Options | The failure it prevents | Recommendation |
 |---|---|---|---|---|
-| E48 | The backend's shape | (a) `WebRTCPeerConnection` per client, read directly, negotiated channels; (b) `WebRTCMultiplayerPeer` as `EnetTransport` uses `ENetMultiplayerPeer` | (b) creates its own three channels with a fixed lifetime and turns on `MultiplayerAPI`'s relay, which our own messages never use; our lanes and ids then depend on its internals | (a) |
+| E48 | The backend's shape | (a) `WebRTCPeerConnection` per client, read directly, negotiated channels; (b) `WebRTCMultiplayerPeer` as `EnetTransport` uses `ENetMultiplayerPeer` | with (b) its `add_peer` creates its own reliable, unreliable and ordered channels (not our unordered, no-resend LATEST and VOICE), it may remove a peer on `DISCONNECTED` and so drop a frozen player (M6-1 checks), and the id reaches the client outside our `ADMIT` | (a) |
 | E49 | Lanes and order on WebRTC | (a) three channels plus §2.2's header; (b) LATEST as `ordered: true, maxRetransmits: 0`, no header; (c) everything on one reliable channel | (b) still reorders LATEST against RELIABLE (a refused `PickUp`) and stalls behind a lost packet; (c) resends stale poses and grows the freeze backlog | (a) |
-| E50 | Peer ids | (a) assigned by the host, 2 upward, never reused in a session; (b) chosen by the client, as ENet allows | (b) needs ENet's guard against id 1 and ids in use again | (a) |
-| E51 | The join API | (a) a `JoinTarget` parsed in `net/` (a code, or `address[:port]`), `Game` hands it to a transport factory; (b) `join(address, port)` with "code:" in the address | (b) spreads parsing over `client/` and hides which transport runs | (a) |
-| E52 | Signalling shape | (a) §2.4: the host offers, trickle ICE, star-only forwarding, caps, the room closed with joins; (b) the joiner offers; (c) wait for all candidates, one message each way | (b) lets a joiner choose the channels; (c) adds the slowest STUN answer to every join | (a) |
-| E53 | Where signalling runs | (a) a Worker in `tools/signal/` plus `LanSignalling` in GDScript, one protocol, shared transcripts; (b) GDScript only, on a rented server; (c) the Worker only, tests through `wrangler dev` | (b) costs money and upkeep (D18); (c) adds an npm toolchain to CI and leaves LAN play needing the internet | (a) |
-| E54 | States and timeouts | (a) §2.6: `DISCONNECTED` transient, `FAILED`/`CLOSED` or 20 s silence a leave, join gives up after 15 s, freeze and stall twins; (b) any non-`CONNECTED` state is a leave | (b) drops a player at every 5 s freeze (#21) | (a) |
-| E55 | Upload and batching | (a) measure in M6-1; build M5-4b in M6 if over E44's thresholds; (b) build M5-4b first; (c) accept the overshoot | (c) a 10-player lobby of talkers saturating a 5 Mbit/s uplink; (b) a protocol change that may not be needed | (a) |
-| E56 | `take_upload()` on WebRTC | (a) frame bytes plus a per-packet overhead measured in M6-1, as a constant; (b) frame bytes only | (b) counters that read 40% low next to ENet's | (a) |
-| E57 | The addon in the repo | (a) webrtc-native 1.2.2, the Windows x86_64 and Linux x86_64 libraries only, as shipped, plain git like TwoVoIP if they total under about 30 MB, else LFS; credits; CI loads it; (b) every platform | (b) megabytes for platforms nobody runs | (a) |
+| E50 | Peer ids | (a) assigned by the host, 2 upward, never reused in a session, sent in `ADMIT`; (b) chosen by the client, as ENet allows | (b) needs ENet's guard against id 1 and ids in use again | (a) |
+| E51 | The join API | (a) a `JoinTarget` parsed in `net/` (a code, or `address[:port]`), `Game` hands it to a transport factory; `--join=` and the runner's `join` take a code too; (b) `join(address, port)` with "code:" in the address | (b) spreads parsing over `client/` and hides which transport runs | (a) |
+| E52 | Signalling shape | (a) §2.4: the host offers, trickle ICE, the room closed with joins; (b) the joiner offers; (c) wait for all candidates, one message each way | (b) lets a joiner choose the channels; (c) adds the slowest STUN answer to every join | (a) |
+| E53 | How signalling is built and tested (where it runs is D18, its tools D23) | (a) one protocol, `LanSignalling` in GDScript, the service's routing as a pure module tested under Node with fakes, shared transcripts; Node pinned in `pins.py` with a `doctor` check (the toolchain-pins ADR); (b) tests only through a deployed service | (b) no test before a deploy, and none in CI | (a) |
+| E54 | States, keepalive and timeouts | (a) §2.6; the join gives up after 15 s; (b) any non-`CONNECTED` state is a leave, no keepalive | (b) drops a player at every 5 s freeze (#21), and every silent player after 20 s | (a) |
+| E55 | Signalling's trust lines | (a) §2.4's roles per socket, no reclaim, TURN credentials per joiner with a short TTL, the id in `ADMIT`, one offer per attempt; (b) types not tied to sockets, credentials in `found` | (b) a joiner sends another joiner an offer, sits in the middle and reads that player's role and private events; a leaked code hands out relay on the engineer's account | (a) |
+| E56 | `take_upload()` on WebRTC | (a) frame bytes plus a per-packet overhead measured in M6-1, as a constant; (b) frame bytes only | (b) counts 58 of the 123 B a `VoiceDown` takes without IP and UDP, and reads below ENet's figure for the same traffic | (a) |
+| E57 | The addon in the repo | (a) webrtc-native 1.2.2, the Windows x86_64 and Linux x86_64 libraries only, as shipped, plain git like TwoVoIP; if they total over about 30 MB, ask the engineer (the LFS ADR keeps `addons/**` out of LFS); credits; CI loads it; (b) every platform | (b) megabytes for platforms nobody runs. E35 kept TwoVoIP off CI so its colour would not depend on an untested binary; here the backend's tests need it, and M6-1 loads it on Linux first; if it fails on CI later, CI removes it like TwoVoIP and the WebRTC steps print SKIP, leaving them to Windows `verify` | (a) |
 | E58 | STUN | (a) `stun.cloudflare.com:3478` from the service's configuration; (b) a list built into the game | (b) a dead server fixed only by a new build | (a) |
-| E59 | Builds for friends | (a) a Windows x86_64 release export (no F3, no dev tools: invariant 8), debug exports for the humans' diagnosis, CI building both from a tag with checksum-pinned export templates; (b) everyone on debug builds | (b) a friend's F3 or dev console showing hidden information | (a) |
-| E60 | How much to protect the service | (a) caps and lifetimes of §2.4 only, no accounts, unguessable-enough codes (31^6 ≈ 887 million); (b) per-IP rate limits, signed rooms | (b) is hardening nobody asked for (root `CLAUDE.md`) | (a) |
-| E61 | ENet direct and UPnP | (a) keep direct join for LAN, VPN and tunnels; no UPnP; (b) add a UPnP attempt on Host | (b) a blocking call and a half-working path that WebRTC already covers | (a) |
+| E59 | Builds for friends | (a) only the Windows x86_64 release export is published (no F3, no dev tools, no debug kinds: invariant 8); the debug export is a short-lived CI artifact for the humans; M6-9 checks the published zip is a release build; (b) both on the Release | (b) a friend hosts with the debug build: as peer 1 it may send `ForceRole`, and its F3 and console show hidden information to that player | (a) |
+| E60 | How much to protect the service | (a) §2.4's roles, caps and lifetimes only, no accounts, unguessable-enough codes (31^6 ≈ 887 million); (b) per-IP rate limits, signed rooms | (b) is hardening nobody asked for (root `CLAUDE.md`) | (a) |
+| E61 | ENet direct and UPnP | (a) keep direct join for LAN, VPN and tunnels; no UPnP (amends the listen-server ADR's Reach line); (b) add a UPnP attempt on Host | (b) a blocking call and a half-working path that WebRTC already covers | (a) |
 
 ### 8. The split
-Sizes as in M5: S up to about 400 changed lines, M up to about 900, L up to about 1500. "Cloud" means a cloud session
-can do all of it (Linux headless, `verify`); "Windows" a step needs the engineer's PC or a Windows session; "Two
-machines" the humans at two homes.
+Sizes as in M5: S up to about 400 changed lines, M up to about 900, L up to about 1500. Effort as in AGENT_WORKFLOW §7
+(`core/ server/ net/ voice/` and tooling: high). "Cloud" means a cloud session can do all of it (Linux headless,
+`verify`); "Windows" a step needs the engineer's PC or a Windows session; "two machines" the humans at two homes.
+`export_presets.cfg` and `docs/PLAYING.md` are new engineer-owned paths (AGENT_WORKFLOW §9 gains them in M6-9 and
+M6-11).
 
-| Issue | Goal | Acceptance | Files | Depends on | Size | Where |
-|---|---|---|---|---|---|---|
-| M6-1 | Spike: webrtc-native on 4.7.2 | on a spike branch, not merged: the extension loads headless on Linux and Windows; a host and two clients exchange the three lanes on 127.0.0.1; the per-packet overhead and the send time at 81 streams of `voice_load`; a 5.2 s freeze's states; the libraries' sizes; whether outbound STUN works from a cloud container; whether GodotSteam 4.22.1's GDExtension ships `SteamMultiplayerPeer` (a listing, no Steam run); playit.gg's free tier carrying the game's UDP (D21). A findings PR amends §4 and E55 to E57 | `spike/net/` (throwaway), this ADR | D16 | M | cloud, plus one Windows run by the engineer |
-| M6-2 | The addon in the repo | the engineer's download (a PowerShell block with the SHA-256, as for TwoVoIP); the agent commits the libraries, credits, `CREDITS.md`; `check` on Windows and CI | `addons/webrtc_native/`, `docs/credits/` | M6-1, D23 | S | Windows (download), then cloud |
-| M6-3 | `LaneOrder` | §2.2 as a pure class with its tests and the planted leak of §5 | `net/transport/`, `tests/unit/net/` | none | S | cloud |
-| M6-4 | `WebRtcTransport` | §2.1, §2.2, §2.6: the backend, host-assigned ids, `ADMIT`, refusal, `disconnect_peer`, `take_upload`; the headless run of a host and two clients and the freeze and stall twins, all in `verify`; the §5 plant | `net/transport/`, `tests/integration/net/`, `tools/runner/verify.py` | M6-2, M6-3, M6-5a's `LanSignalling` | L | cloud |
-| M6-5a | The protocol and `LanSignalling` | §2.4 in `ARCHITECTURE.md` §4; `Signaller` (client), `LanSignalling` (the host's own server), the shared JSON transcripts, the decoder's fuzz test, the §5 plant | `net/signal/`, `tests/` | none | M | cloud |
-| M6-5b | The signalling service | the Worker (rooms in a Durable Object, the caps, the ICE servers from its configuration, TURN credentials when configured), tested under Node by the runner's selftest with the shared transcripts; `wrangler.toml` without secrets; a deploy page for the engineer | `tools/signal/`, `tools/runner/` | M6-5a's transcripts, D18 | M | cloud; the deploy by the engineer |
-| M6-6 | Bots over WebRTC | `bots --transport webrtc` (one process per bot with `--instances`), the `bots-webrtc` step in `verify` and CI, the leak test unchanged plus §5's order check | `tests/harness/`, `tools/runner/` | M6-4 | M | cloud |
-| M6-7 | Joining in the game | §2.3, §3: the menu's code field and Direct, the lobby's code with Copy, the connecting screen's steps and reasons, the version check from `found`, the F3 line (debug); `JoinTarget` | `client/app/`, `client/ui/`, `net/` | M6-4, M6-5a | M | cloud for the code; `shot` on Windows |
-| M6-8 | Batched voice (M5-4b), only if E55 asks | the M5 ADR §4's batched row, with its version bump, samples and leak-test decoding | `net/messages/`, `server/`, `client/net/`, `tests/` | M6-1's measurement | M | cloud |
-| M6-9 | Exported builds | export presets (Windows x86_64 release and debug), a CI job on a tag the engineer pushes that downloads the pinned export templates by checksum and attaches the zips to a GitHub Release (D20); two exports compute one content hash | `export_presets.cfg`, `.github/workflows/`, `tools/` | D20 | M | cloud (CI); running the build on Windows |
-| M6-10 | TURN, if D17 (b) | the Worker mints Cloudflare TURN credentials per room with the key in its secrets; the game passes them to `initialize`; F3 says when the own connection is relayed | `tools/signal/`, `net/` | M6-5b, D17 | S | cloud; the key by the engineer |
-| M6-11 | How to play with friends | a page for players: download, Host, the code, Join, the SmartScreen prompt, what to do when it fails (D21) | `docs/PLAYING.md`, `README` | M6-7, M6-9 | S | cloud |
-| M6-12 | The playtest over the internet | §6's two-machine checklist, the engineer's go (D22) | none | all | — | two machines |
+| Issue | Goal | Acceptance | Files | Depends on | Protocol | Effort | Size | Where |
+|---|---|---|---|---|---|---|---|---|
+| M6-1 | Spike: webrtc-native on 4.7.2 | on a spike branch, not merged: the extension loads headless on Linux and Windows; a throwaway sender and receiver on 127.0.0.1 measure the per-packet overhead, the send time of 81 sends of 58 B per 20 ms, the largest unfragmented message, the receive queue's limit under a 5.2 s freeze backlog with voice, the connection's states across that freeze and a hung main thread, and whether `WebRTCMultiplayerPeer` drops a peer on `DISCONNECTED`; the libraries' sizes; whether outbound STUN works from a cloud container; whether GodotSteam 4.22.1's GDExtension ships `SteamMultiplayerPeer` (a listing, no Steam run). The engineer tries playit.gg's free tier with today's ENet (D21). A findings PR amends §2.2, §4, E56 and E57 | `spike/net/` (throwaway), this ADR | D16, D23 | no | high | M | cloud; the Windows run and playit by the engineer |
+| M6-2 | The addon in the repo | the engineer's download (a PowerShell block with the SHA-256, as for TwoVoIP); the agent commits the libraries, credits, `CREDITS.md`; `check` on Windows and CI | `addons/webrtc_native/`, `docs/credits/` | M6-1, D23 | no | high | S | Windows (download), then cloud |
+| M6-3 | `LaneOrder` | §2.2 as a pure class with its tests, its reject reasons and the planted leak of §5 | `net/transport/`, `tests/unit/net/` | none | no | high | S | cloud |
+| M6-4 | `WebRtcTransport` | §2.1 to §2.3 and §2.6: the backend, host-assigned ids in `ADMIT`, the keepalive and silence rule, refusal, `disconnect_peer`, `take_upload`, `connect_failed`'s reason for every backend; the headless run of a host and two clients and the freeze, stall and silence twins in `verify`; the fault shim; the §5 plant | `net/transport/`, `client/net/` (the reason), `tests/integration/net/`, `tools/runner/verify.py` | M6-2, M6-3, M6-5a | no | high | L | cloud |
+| M6-5a | The protocol and `LanSignalling` | §2.4 in `ARCHITECTURE.md` §4; `Signaller` (client), `LanSignalling` (the host's own server) with roles per socket, the shared JSON transcripts with every forged type, the decoder's fuzz test, the §5 plant | `net/signal/`, `tests/` | none | no | high | M | cloud |
+| M6-5b | The signalling service | the Worker: rooms in a Durable Object with hibernation, roles per socket, the caps, the ICE servers from its configuration, TURN credentials per joiner when configured; its routing module tested under Node (pinned, a `doctor` check) with the shared transcripts, as a `verify` step; `wrangler.toml` without secrets; a deploy page for the engineer | `tools/signal/`, `tools/runner/` | M6-5a's transcripts, D18, D23 | no | high | M | cloud; the deploy by the engineer |
+| M6-6 | Bots over WebRTC | `bots --transport webrtc` (one process per bot with `--instances`) and `bots --chaos --transport webrtc`, the `bots-webrtc` and `chaos-webrtc` steps in `verify` and CI with the fault shim on, the leak test unchanged plus §5's order check; the relay measured with `voice_load` over WebRTC, its numbers reported for D24 | `tests/harness/`, `tools/runner/` | M6-4 | no | high | M | cloud (the measurement's upper bound; the engineer may rerun it on a quiet PC) |
+| M6-7 | Joining in the game | §2.3, §3: `JoinTarget`, the menu's code field and Direct, the lobby's code with Copy, the connecting screen's steps and reasons, the version check from `found`, the F3 line (debug), `--join=<code>` and the runner's `host` and `join` with codes | `client/app/`, `client/ui/`, `net/`, `tools/runner/` | M6-5a, M6-6 | no | high | M | cloud for the code; `shot` on Windows |
+| M6-8 | Batched voice (M5-4b), only if D24 says so | the M5 ADR §4's batched row, with its version bump, samples and leak-test decoding | `net/messages/`, `server/`, `client/net/`, `tests/` | M6-6, D24 | yes | high | M | cloud |
+| M6-9 | Exported builds | export presets (Windows x86_64 release and debug); a CI job on a tag the engineer pushes downloads the pinned export templates by checksum, attaches only the release zip to a GitHub Release (D20) and keeps the debug zip as a short-lived artifact; the published zip is checked to be a release build; in an export the content hash finds every level file it hashes, and changes when one byte of a level changes | `export_presets.cfg`, `.github/workflows/`, `tools/` | D20 | no | high | M | cloud (CI); running the build on Windows |
+| M6-10 | TURN, if D17 (b) | the Worker mints Cloudflare TURN credentials per joiner, with the key in its secrets; the game passes them to `initialize`; F3 says when the own connection is relayed | `tools/signal/`, `net/` | M6-5b, D17 | no | high | S | cloud; the key by the engineer |
+| M6-11 | How to play with friends | a page for players: download, Host, the code, Join, the SmartScreen prompt, what to do when it fails (D21) | `docs/PLAYING.md`, `README` | M6-7, M6-9 | no | medium | S | cloud |
+| M6-12 | The playtest over the internet | §6's two-machine checklist, the engineer's go (D22) | none | all | — | — | — | two machines |
 
-Waves (at most three at once): M6-1, M6-3, M6-5a, then M6-2 (after the engineer's download), M6-5b, M6-9, then
-M6-4, then M6-6, M6-7 and M6-8 if needed, then M6-10 and M6-11, then M6-12. With D16 (b) instead, the split becomes:
-a GodotSteam spike on Windows, the addon, `LaneOrder` (unchanged), a `SteamTransport`, lobby and invite UI, the
-Steamworks setup and SteamPipe uploads (the engineer's), and the playtest; none of it but `LaneOrder` testable in CI.
+Waves (at most three at once): M6-1, M6-3, M6-5a; then M6-2 (after the engineer's download), M6-5b, M6-9; then M6-4;
+then M6-6; then M6-7, M6-8 (if D24) and M6-10 (if D17 (b)); then M6-11; then M6-12. With D16 (b) instead, the split
+becomes: a GodotSteam spike on Windows, the addon, `LaneOrder` (unchanged), a `SteamTransport`, lobby and invite UI,
+the Steamworks setup and SteamPipe uploads (the engineer's), and the playtest; none of it but `LaneOrder` testable in
+CI.
 
 ### 9. D items (the engineer's)
 | # | Question | Options | The failure each one leaves | Recommendation |
 |---|---|---|---|---|
 | D16 | How friends reach a hosted game | (a) WebRTC with our own free signalling; (b) Steam networking (app 480 for M6, an own $100 app later); (c) no code: a tunnel or VPN only; (d) both (a) and (b) | (a) a friend behind two strict NATs needs TURN or the fallback; (b) a friend without Steam cannot play, nothing is tested in CI, $100 and a partner account for an own app; (c) every friend installs something, the humans debug it; (d) twice the work | (a) |
-| D17 | When a direct connection fails | (a) no relay: the menu explains the fallback (D21); (b) Cloudflare TURN through the service, free up to 1,000 GB a month, then $0.05 per GB, on the engineer's Cloudflare account (it may ask for a payment method); (c) our own TURN server on a rented machine | (a) a friend on a phone hotspot cannot join without installing the fallback; (b) a bill if usage passed 1,000 GB a month (about 5,000 relayed player-hours); (c) a monthly bill and upkeep | (b), or (a) if Cloudflare asks for a card and the engineer declines |
+| D17 | When a direct connection fails | (a) no relay: the menu explains the fallback (D21); (b) Cloudflare TURN through the service, free up to 1,000 GB a month, then $0.05 per GB, on the engineer's Cloudflare account (it may ask for a payment method); (c) our own TURN server on a rented machine | (a) a friend on a phone hotspot cannot join without installing the fallback; (b) a bill past 1,000 GB a month: about 3,200 relayed player-hours, or about 350 match-hours with a relayed host; credentials are per joiner with a 10-minute TTL, so a leaked code does not hand the relay to strangers; (c) a monthly bill and upkeep | (b), or (a) if Cloudflare asks for a card and the engineer declines |
 | D18 | Where signalling runs, and whose account | (a) a Cloudflare Worker with a Durable Object on the free plan, on the engineer's account, deployed by the engineer with one command (later by CI with a token secret, if the engineer wants agents to redeploy); (b) a rented server running `LanSignalling` headless; (c) no server: offers and answers pasted through a chat app; (d) a public third-party broker (MQTT, Nostr) | (a) the service down means codes fail (Direct still works); (b) a monthly bill and upkeep; (c) each friend pastes two long blobs per game; (d) someone else's service changes or vanishes | (a) |
-| D19 | How joining feels | (a) a 6-character code shown in the lobby to every player, typed or pasted in the menu; Direct stays; (b) (a) plus a `prime-game://join/<code>` link the game registers on Windows; (c) a public list of open games; (d) Steam invites (with D16 (b) only) | (a) the code goes through a chat app; (b) a registry entry per PC; (c) strangers in friends' games | (a) |
-| D20 | How friends get the game | (a) zips on the public repo's GitHub Releases, built by CI from a tag, unsigned (Windows SmartScreen asks once: "More info", "Run anyway"); (b) an itch.io page (free account, restricted access); (c) a shared-drive link sent by hand; (d) Steam (with D16 (b)) | (a) anyone can download it (the code keeps games private); (b) another account; (c) old builds that cannot join (another version); signing costs money every year, so none of these is signed | (a) |
+| D19 | How joining feels | (a) a 6-character code shown in the lobby to those who know it, typed or pasted in the menu; Direct stays; (b) (a) plus a `prime-game://join/<code>` link the game registers on Windows; (c) a public list of open games; (d) Steam invites (with D16 (b) only) | (a) the code goes through a chat app; (b) a registry entry per PC; (c) strangers in friends' games | (a) |
+| D20 | How friends get the game | (a) the release zip on the public repo's GitHub Releases, built by CI from a tag, unsigned (Windows SmartScreen asks once: "More info", "Run anyway"); (b) an itch.io page (free account, restricted access); (c) a shared-drive link sent by hand; (d) Steam (with D16 (b)) | (a) anyone can download it (the code keeps games private); (b) another account; (c) old builds that cannot join (another version); signing costs money every year, so none of these is signed | (a) |
 | D21 | The fallback when nothing else connects | (a) playit.gg: only the host installs its agent, friends use Direct with its address (free tier; Premium $3/month); (b) Tailscale (free up to 6 users, everyone installs); (c) ZeroTier (free for 10 devices, everyone installs); (d) Radmin VPN (Windows, everyone installs, the MVP's way) | (a) a third party relays the game's unencrypted ENet traffic, and its free tier may change; (b) more than 6 people need node sharing; (c) exactly 10 devices for a 10-player game; (d) every friend installs a VPN | (a) if M6-1 confirms its free tier carries the game, else (b) |
 | D22 | The M6 go | (a) the two humans at two homes plus at least one friend, one side on a phone hotspot (CGNAT), a full match with voice, and the fallback tried once; (b) only the two humans | (b) misses the hard NAT case until a friend hits it | (a) |
-| D23 | New dependencies (stop-and-ask) | (a) webrtc-native (MIT) in `addons/`, and a JavaScript Worker in `tools/signal/` run with Node's own test runner (no npm package in CI; `wrangler` only on the engineer's deploy); (b) the addon only, signalling in GDScript on a rented server (D18 (b)) | (b) a bill and a server to keep | (a) |
+| D23 | New dependencies (stop-and-ask) | (a) webrtc-native (MIT) in `addons/`, and a JavaScript Worker in `tools/signal/` tested with Node's own test runner (Node pinned; no npm package in CI; `wrangler` only on the engineer's deploy); (b) the addon only, signalling in GDScript on a rented server (D18 (b)) | (b) a bill and a server to keep | (a) |
+| D24 | M5-4b's batched voice row in M6 (ARCHITECTURE §10: "whether to open it is the engineer's") | (a) built in M6 (M6-8) if M6-6 measures over E44's thresholds (4.5 Mbit/s of upload or 2 ms of relay per 20 ms, at 10 players); (b) built in M6 whatever M6-6 measures (§4 estimates 5.6 Mbit/s); (c) not in M6 | (a) waits for one more measurement; (b) a protocol change that SCTP's bundling might have made unneeded; (c) a lobby of 10 talkers over a 5 Mbit/s uplink | (a) |
 
 ### 10. Needs the engineer
 Answer as "1a, 2b, …" on #346 or this PR.
@@ -339,7 +388,8 @@ Answer as "1a, 2b, …" on #346 or this PR.
 6. D21: the fallback. Recommended (a) if M6-1 confirms it, else (b).
 7. D22: the M6 go. Recommended (a).
 8. D23: the new dependencies. Recommended (a).
-9. The split (§8) and its waves.
+9. D24: M5-4b in M6. Recommended (a).
+10. The split (§8) and its waves: (a) as proposed; (b) with the changes you name. Recommended (a).
 
 ## Alternatives
 - **Steam now** (D16 (b)): the best joining experience and relays that always work, at the cost of Steam for every
@@ -352,11 +402,13 @@ Answer as "1a, 2b, …" on #346 or this PR.
 - **Host migration or a dedicated server:** out of scope; the listen-server ADR's reasons hold.
 
 ## Consequences
-- `net/` gains a second network backend, `LaneOrder` and the signalling client; `tools/signal/` holds the only
-  non-Godot service. Nothing in `core/`, `server/` or the content API changes, unless M6-8 is needed.
-- `verify` gains WebRTC steps on Linux (the headless run, the twins, `bots-webrtc`); CI loads webrtc-native, unlike
-  TwoVoIP.
+- `net/` gains a second network backend, `LaneOrder`, the keepalive and the signalling client; `tools/signal/` holds
+  the only non-Godot service, and Node becomes a pinned tool. Nothing in `core/`, `server/` or the content API
+  changes, unless D24 builds M6-8; `NetTransport.connect_failed` gains a reason.
+- `verify` gains WebRTC steps on Linux (about 1.5 to 2 minutes); CI loads webrtc-native, unlike TwoVoIP.
 - The engineer owns a Cloudflare account, a deploy command and, with D17 (b), a TURN key; none of them is in the repo.
-- Friends play exported release builds; a source checkout joins only a host on the same commit.
-- `docs/ARCHITECTURE.md` §4 gains the transport's second backend, the order header and the signalling protocol in the
-  PRs that build them; this ADR's facts about third-party services date from 2026-10-04 and are re-checked by M6-1.
+- Friends play exported release builds; a source checkout joins only a host on the same commit run from source.
+- Once accepted, the listen-server ADR's Reach line gets a dated note (no UPnP attempt, E61).
+- `docs/ARCHITECTURE.md` §4 gains the transport's second backend, the order header, the keepalive and the signalling
+  protocol in the PRs that build them; this ADR's facts about third-party services date from 2026-10-04 and are
+  re-checked by M6-1.
