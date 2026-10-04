@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-from runner import cli, metrics, wave
+from runner import cli, metrics, sessions, wave
 from runner.common import Failure
 
 T0 = datetime(2026, 10, 3, 8, 0, tzinfo=timezone.utc)
@@ -828,6 +828,86 @@ class WaveTest(unittest.TestCase):
         self.main(since=late, out=str(target), merge_check=False)
         part = self.section(target.read_text(encoding="utf-8"), "Cost")
         self.assertIn("```text\n" + "\n".join(compact(late)) + "\n```", part)
+
+    def test_housekeeping_filters(self) -> None:
+        def wt(name: str, branch: str | None, head: str) -> str:
+            path = MAIN if name == "main" else f"{MAIN}/.claude/worktrees/{name}"
+            return f"worktree {path}\nHEAD {head}\n" + (f"branch refs/heads/{branch}\n" if branch else "detached\n")
+
+        porcelain = "\n".join([
+            wt("main", "main", sha(1)),
+            wt("305", "tooling/305-keep-warm", sha(1405)),  # merged into main: ready
+            wt("300", "tooling/300-autonomy", sha(7)),  # an open PR: not listed
+            wt("278", "tooling/278-wave", sha(1378)),  # merged, but a run of this session works there
+            wt("250", "core/250-items", sha(1350)),  # merged into release/m5, which is not on main yet
+            wt("251", "core/251-x", sha(1351)),  # merged into release/m4, which merged into main later: ready
+            wt("260", "tooling/260-x", sha(1360)),  # merged; a live Claude session sits there
+            wt("262", "tooling/262-x", sha(9)),  # merged, but its HEAD moved on since
+            wt("264", "tooling/264-child", sha(1364)),  # merged into its parent, which merged into main: ready
+            wt("266", "tooling/266-child", sha(1366)),  # merged into a parent that is still open
+            wt("release-m4", "release/m4", sha(1340)),  # the manager's release worktree, its PR merged: ready
+            wt("playtest-m4", None, sha(8)),  # detached, not a task's: not listed
+        ])  # fmt: skip
+        merged = [
+            merged_pr(405, "tooling/305-keep-warm", at(60)),
+            merged_pr(378, "tooling/278-wave", at(70)),
+            merged_pr(350, "core/250-items", at(30), base="release/m5"),
+            merged_pr(351, "core/251-x", at(20), base="release/m4"),
+            merged_pr(340, "release/m4", at(100)),
+            merged_pr(360, "tooling/260-x", at(65)),
+            merged_pr(362, "tooling/262-x", at(66)),
+            merged_pr(364, "tooling/264-child", at(40), base="tooling/265-parent"),
+            merged_pr(365, "tooling/265-parent", at(80)),
+            merged_pr(366, "tooling/266-child", at(50), base="tooling/267-parent"),
+        ]
+        self.p.launch(0, "t1", "wf_x", issue_args(278))
+        journal(self.p.run_dir("wf_x"), [("k1", "implement:#278", "Implement", None)])
+        solo = sessions.Session(4242, "s-260", f"{MAIN}/.claude/worktrees/260", "idle", NOW - 600, "solo")
+        src = FakeSources(merged=merged, porcelain=porcelain, alive={"260": [solo]}, open_issues=[305, 250, 251, 264, 9])
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), sources=src, merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Housekeeping")
+
+        def block(command: str) -> str:
+            return f"```powershell\ncd D:\\prime-game; {command}\n```"
+
+        lines = part.splitlines()
+        self.assertEqual(lines[2], "For you: close the Claude session in worktree 260 ('solo' (pid 4242, idle, last "
+                         "update 10 min ago)), then run its block below.")  # fmt: skip
+        for n in (251, 264, 305, 260):
+            self.assertIn(block(f"tools\\run.cmd worktree-done {n}"), part)
+        self.assertEqual(part.count("```powershell"), 6, "four worktree-done blocks and the release worktree's two")
+        self.assertIn(block("git worktree remove .claude/worktrees/release-m4"), part)
+        self.assertIn(block("git branch -d release/m4"), part)
+        self.assertLess(part.index("worktree-done 305"), part.index("Held by a live Claude session"))
+        self.assertGreater(part.index("worktree-done 260"), part.index("Held by a live Claude session"))
+        for n in (250, 262, 266, 278, 300):
+            self.assertNotIn(f"worktree-done {n}", part)
+        notes = [line for line in lines if line.startswith("- worktree ")]
+        self.assertIn("- worktree 250: PR #350 merged into release/m5; after release/m5 reaches main.", notes)
+        self.assertIn("- worktree 266: PR #366 merged into tooling/267-parent; after tooling/267-parent reaches main.",
+                      notes)  # fmt: skip
+        self.assertIn("- worktree 278: run wf_x still running there.", notes)
+        self.assertIn(f"- worktree 262: HEAD {sha(9)[:10]} moved after PR #362 merged ({sha(1362)[:10]}): check "
+                      "before removing.", notes)  # fmt: skip
+        self.assertNotIn("300", "\n".join(notes))
+        self.assertNotIn("playtest", part)
+        self.assertIn(f"Issues still open whose PR reached main since {SINCE} (close each once its acceptance criteria "
+                      "are met): #251 (PR #351 via release/m4), #264 (PR #364 via tooling/265-parent), #305 (PR #405).",
+                      part)  # fmt: skip
+        self.assertIn(("issue", "list", "--state", "open", "--limit", "1000", "--json", "number"), src.gh_calls)
+        self.main(since=SINCE, out=str(target), sources=FakeSources(porcelain=wt("main", "main", sha(1))),
+                  merge_check=False)  # fmt: skip
+        self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Housekeeping"),
+                         "## Housekeeping\n\nFor you: nothing.\n\nNone.\n")  # fmt: skip
+        failing = FakeSources(merged=merged, fail={"worktrees": Failure("git worktree list failed: no git")})
+        self.main(since=SINCE, out=str(target), sources=failing, merge_check=False)
+        self.assertIn("Unavailable: git worktree list failed: no git",
+                      self.section(target.read_text(encoding="utf-8"), "Housekeeping"))  # fmt: skip
+        no_gh = FakeSources(porcelain=porcelain, fail={"merged": Failure("gh: HTTP 502")})
+        self.main(since=SINCE, out=str(target), sources=no_gh, merge_check=False)
+        self.assertIn("Unavailable: merged PRs: gh: HTTP 502",
+                      self.section(target.read_text(encoding="utf-8"), "Housekeeping"))  # fmt: skip
 
     def test_notes_and_title(self) -> None:
         notes = self.root / "notes.md"
