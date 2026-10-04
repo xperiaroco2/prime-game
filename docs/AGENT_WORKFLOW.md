@@ -1251,10 +1251,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
   `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
   `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), and `hook` (for Claude
-  Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins
-  and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
-  launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
-  PowerShell) the runner takes the machine paths from the Claude settings (§2).
+  Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
+  rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
+  Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
+  runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem

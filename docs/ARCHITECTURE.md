@@ -1388,7 +1388,7 @@ lives for the whole process:
 | `Ui` | a `CanvasLayer`: the main menu, the lobby HUD, the loading screen, the HUD, the task screen, the end screen, the Esc menu, messages |
 
 Levels are swapped under `World`. Nothing calls `SceneTree.change_scene_to_*`: it removes the current scene at once
-and frees it at the end of the frame (4.7.2), so a `HostNode` inside it would close the session (`_exit_tree`) and
+and frees it at the end of the frame (Godot 4.7.2), so a `HostNode` inside it would close the session (`_exit_tree`) and
 every client would see `host_lost` at the first map load. There is no autoload, which `check` and every test run
 would load.
 
