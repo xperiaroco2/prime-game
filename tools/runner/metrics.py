@@ -100,19 +100,18 @@ PRICES = {
     "claude-haiku-4-5": (1.0, 1.25, 2.0, 0.10, 5.0),
 }
 USD_KEYS = ("usd_input", "usd_cache_write", "usd_cache_read", "usd_output")
-# 1% of a Max 20x week in API list $ (#304, measured in #302): Max 20x; 66% at 2026-10-03 20:54 UTC = $1,690 list since
-# the counter restarted at the plan change (2026-10-02 about 10:30 UTC); cache reads are 40% of list $. The ADR's
-# first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x. Re-fitted in #307 over the 44 readings to 77% at
-# 2026-10-04 05:05 UTC: $25.5 (least squares; 25.4 to 25.7 by method).
+# 1% of a Max 20x week in API list $ counting cache reads at full list $ (#304, measured in #302): Max 20x; 66% at
+# 2026-10-03 20:54 UTC = $1,690 list since the counter restarted at the plan change (2026-10-02 about 10:30 UTC); cache
+# reads are 40% of list $. The ADR's first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x. Re-fitted in #307 over
+# the 44 readings to 77% at 2026-10-04 05:05 UTC: $25.5 (least squares; 25.4 to 25.7 by method). Since #307 it is the
+# bracket's upper end (WEEK_BRACKET), not the headline (WEEK_CENTRAL).
 WEEK_PERCENT_USD = 25.5
-# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at. It counts cache reads at full list $, the
-# bracket's upper end: at this share it matches the measured central weight (w = 0.75, $23.0 per 1%) within 1%; far
-# from it, it reads high (more cache reads) or low (fewer), and the bracket is the better figure.
-WEEK_READ_SHARE = 0.4
-# The limits count cache reads at a weight w of their list $, measured in #307 (the ADR's amendment of 2026-10-04):
-# w = 0.75, range 0.6 to 1. The bracket gives (list $ without cache reads + w x cache-read $) / k(w) at the range's
-# ends, k(w) the least-squares fit over the same 44 readings (21.5 at w = 0.6, 23.0 at 0.75); at w = 1 that is full
-# list $, so k(1) is WEEK_PERCENT_USD.
+# The limits count cache reads at a weight w of their list $, measured in #307 (the baseline ADR's amendment of
+# 2026-10-04, docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md): w = 0.75, range 0.6 to 1. A % of
+# the week is (list $ without cache reads + w x cache-read $) / k(w), k(w) the least-squares fit over the same 44
+# readings: $21.5 at w = 0.6, $23.0 at 0.75 and full list $ at w = 1, so k(1) is WEEK_PERCENT_USD. The headline is at
+# the central weight (#333), whatever the cache reads' share of list $; the bracket is the range's ends.
+WEEK_CENTRAL = (0.75, 23.0)
 WEEK_BRACKET = ((0.6, 21.5), (1.0, WEEK_PERCENT_USD))
 
 ROLES = {
@@ -298,22 +297,25 @@ def usd(t: dict) -> float:
 
 
 def week_percent(spent: float, read: float) -> dict:
-    """% of a Max 20x week for `spent` API list $ of which `read` is cache reads: at WEEK_PERCENT_USD, and the
-    bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 60% and at 100%)."""
-    return {"percent": spent / WEEK_PERCENT_USD, "bracket": [(spent - read + w * read) / k for w, k in WEEK_BRACKET]}
+    """% of a Max 20x week for `spent` API list $ of which `read` is cache reads: at the central weight (WEEK_CENTRAL),
+    and the bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 60% and at 100%)."""
+    def at(w: float, k: float) -> float:
+        return (spent - read + w * read) / k
+
+    return {"percent": at(*WEEK_CENTRAL), "bracket": [at(w, k) for w, k in WEEK_BRACKET]}
 
 
 def week_rate() -> str:
     """The conversion, for a report's note on its % of the week."""
+    w, k = WEEK_CENTRAL
     (w0, k0), (w1, k1) = WEEK_BRACKET
-    return (f"${WEEK_PERCENT_USD} list per 1%, fitted where cache reads were {WEEK_READ_SHARE:.0%} of list $ (far from "
-            f"that share the bracket is the better figure); in brackets, the limit counting cache reads at "
-            f"{w0 * 100:g} to {w1:.0%} ((list $ without cache reads + {w0:g} or {w1:g} x cache-read $) / "
-            f"${k0} or ${k1})")
+    return (f"(list $ without cache reads + {w:g} x cache-read $) / ${k} per 1%, the limit counting cache reads at "
+            f"{w:.0%} of their list $ (#307's central weight); in brackets, at {w0 * 100:g} to {w1:.0%} ((list $ "
+            f"without cache reads + {w0:g} or {w1:g} x cache-read $) / ${k0} or ${k1})")
 
 
 def fmt_week(week: dict) -> str:
-    """'6.3% (5.8 to 6.1%)': the % at WEEK_PERCENT_USD, then the bracket."""
+    """'6.3% (5.8 to 6.1%)': the % at the central weight, then the bracket."""
     lo, hi = week["bracket"]
     return f"{week['percent']:.1f}% ({lo:.1f} to {hi:.1f}%)"
 
@@ -1254,7 +1256,7 @@ def manager_section(managers: list[dict], other_sessions: int) -> list[str]:
         for m in managers
     ]
     md = ["## Manager sessions (their own lines and hand-run subagents in the window)", "", table(head, rows), "",
-          f"% of a Max 20x week: manager, hand-run and workflow subagents together at {week_rate()}.", ""]
+          f"% of a Max 20x week: manager, hand-run and workflow subagents together, {week_rate()}.", ""]
     if other_sessions:
         md += [f"{other_sessions} other sessions of this checkout ran no workflow or have nothing in the window "
                "(name one with --session to see it).", ""]
@@ -1722,12 +1724,11 @@ def compact_lines(
     spent = task_usd + other_usd + man_usd
     lines.append(f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
                  f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
+    w, k = WEEK_CENTRAL
     (w0, _k0), (w1, _k1) = WEEK_BRACKET
     lo, hi = week["bracket"]
-    share = week["read_usd"] / week["usd"] if week["usd"] else 0.0
-    lines.append(f"% of a Max 20x week: {week['percent']:.1f}% at ${WEEK_PERCENT_USD} per 1% (fit at "
-                 f"{WEEK_READ_SHARE:.0%} cache reads, here {share:.0%}); {lo:.1f} to {hi:.1f}% if the limit counts "
-                 f"cache reads at {w0 * 100:g} to {w1:.0%}")
+    lines.append(f"% of a Max 20x week: {week['percent']:.1f}% with cache reads at {w:.0%} of their list $ (${k} per "
+                 f"1%); {lo:.1f} to {hi:.1f}% if the limit counts them at {w0 * 100:g} to {w1:.0%}")
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
