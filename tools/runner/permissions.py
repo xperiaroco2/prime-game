@@ -141,8 +141,14 @@ def subcommands(command: str, shell: str) -> list[str]:
     for segment in guard.split(command, shell):
         words = segment.words
         if shell == guard.POWERSHELL and len(words) > 1 and words[0].startswith("$") and words[1] == "=":
-            # `$x = <command>` runs the command; `$x = 'text'` runs nothing.
-            words = words[2:] if words[2:] and re.match(r"^([A-Za-z]+-[A-Za-z]+|git|gh)$", words[2]) else [""]
+            # `$x = <command>` runs the command; `$x = <a literal>` runs nothing: a quoted string (split drops the
+            # quotes, so the command text is asked), a number, a variable, `[type]`, `@(...)`, `@{...}` or `(...)`,
+            # whose `$(...)` split judges on its own. (`$x = & <command>`: split cuts at the `&`.)
+            rest = words[2:]
+            quoted = rest and re.search(
+                re.escape(words[0]) + r"\s*=\s*(['\"])" + re.escape(rest[0]) + r"\1", command, re.IGNORECASE
+            )
+            words = [""] if not rest or quoted or re.match(r"^[$\d\[@]", rest[0]) else rest
         elif shell == guard.BASH and words and all(re.match(r"^[A-Za-z_]\w*=", w) for w in words):
             # A bare assignment runs nothing (a `$(...)` in it is judged on its own), unless it sets PATH or IFS.
             words = words if any(re.match(r"^(PATH|IFS)=", w) for w in words) else [""]
