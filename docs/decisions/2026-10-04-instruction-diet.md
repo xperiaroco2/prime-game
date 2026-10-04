@@ -143,6 +143,13 @@ The two duplicates cost $25 in the window, 1.2 to 1.4 points per 7 days (0.7 to 
 already skips a worktree's root `CLAUDE.md` and rules for subagents it isolates itself (`isolation: worktree`,
 code.claude.com/docs/en/worktrees). Our worktrees come from `start`, so that rule does not apply to them.
 
+Only the root duplicate can go. A session started inside a worktree (the engineer's task session, AGENT_WORKFLOW
+§4.1) loads only the worktree's copy of each rule, never the main checkout's: in the transcripts under
+`D--prime-game--claude-worktrees-*`, every rule loaded by path is the worktree's copy, and none is main's. Excluding
+the worktree's rules would leave such a session with no `gdscript.md`, `tests.md` or `godot-resources.md`. The root
+duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bounded waits. The rule pairs ($6, 0.19
+/ 0.25 with bounded waits) stay.
+
 ## Decision (proposed)
 
 ### What this design decides (technical framing)
@@ -156,10 +163,12 @@ code.claude.com/docs/en/worktrees). Our worktrees come from `start`, so that rul
 - **Duplicates go through `claudeMdExcludes`, not through the workflow scripts.**
   - What it is: a setting that skips instruction files by absolute-path glob, at any settings layer; the arrays merge
     (code.claude.com/docs/en/memory). Installed Claude Code: 2.1.284.
-  - The patterns: `**/.claude/worktrees/*/CLAUDE.md` and `**/.claude/worktrees/*/.claude/rules/**`. One `*` does
-    not cross a folder, so area files such as `.claude/worktrees/<n>/core/CLAUDE.md` still load.
+  - The pattern: `**/.claude/worktrees/*/CLAUDE.md`. One `*` does not cross a folder, so area files such as
+    `.claude/worktrees/<n>/core/CLAUDE.md` still load. No pattern for the worktree's `.claude/rules/`: a session
+    started in a worktree has only that copy (Duplicate loads, above).
   - *Failure prevented:* every agent that reads a worktree file carries root `CLAUDE.md` twice.
-  - It is checked by a probe before the setting lands (issue A).
+  - It is checked by two probes before the setting lands, a workflow agent and a session started in a worktree
+    (issue A).
 - **Sections come from a runner command, not a generated index file.**
   - `tools\run.cmd section <doc>` prints the outline: §, title, line range and tokens.
   - `tools\run.cmd section <doc> <§>...` prints exactly those sections, up to the next heading of the same or a
@@ -175,20 +184,21 @@ code.claude.com/docs/en/worktrees). Our worktrees come from `start`, so that rul
 
 | | option | saving, points per 7 days (w = 0 / w = 0.5, after bounded waits) | migration cost | risk of an agent missing a rule | how lint and docs drift keep working |
 |---|---|---|---|---|---|
-| O1 | **Load each file once** (`claudeMdExcludes` for the worktree's root `CLAUDE.md` and rules) | 0.74 / 1.03 (before #303: 1.20 / 1.37); certain | S: one settings entry, a probe, a runner test, a §3 row | low (see O1) | budgets unchanged; a runner test asserts the patterns; issue E's duplicate count shows 0 |
+| O1 | **Load root `CLAUDE.md` once** (`claudeMdExcludes` for the worktree's root `CLAUDE.md`) | 0.55 / 0.78 (before #303: 0.90 / 1.04); certain | S: one settings entry, two probes, a runner test, a §3 row | low (see O1) | budgets unchanged; a runner test asserts the pattern; issue E's duplicate count shows no root `CLAUDE.md` twice |
 | O2 | **Read by section**: `section` command, numbered subsections, a lint check for § references, prompts that name sections | about 0.6 to 0.9 / 1.0 to 1.4 (50 to 75% of 1.14 / 1.92 addressable) | M (B) plus S (C); no file moves | low to medium (see O2) | docs have no budget; a new lint check fails a § reference that does not resolve or a duplicate § (a deterministic docs-drift check); the night audit's lens is unchanged |
 | O3 | **Per-area architecture files with an index**: `docs/architecture/<§>-<slug>.md` per group, ARCHITECTURE.md an index keeping every § | about the same as O2 (the file boundary does what `section` does) | L: 654 referring lines, CODEOWNERS, the night-audit lens; a move between waves while no open PR touches ARCHITECTURE | medium (see O3) | O2's § check over the new files; a size budget per file in lint; the night-audit lens and CODEOWNERS paths change |
 | O4 | **Reference tables out of always-loaded files**: root's commands table becomes one line of names plus `tools\run.cmd <command> --help` | 0.38 / 0.55; plus about 18 of root's 150 budget lines freed | S to M | medium (see O4) | lint's root count drops; a runner test checks the names line against `cli.py` both ways and that each command's `--help` says what the row said |
 | O5 | **Lean workflow agent types with role packs** (extends #302's lever 5) | skill listing and MCP instructions 1.60 / 2.49; the tool schemas per #302 (0.8 / 2.3 over its 34.4 hours); role packs about 0.6 / 0.9 more | M to L, and it reverses AGENT_WORKFLOW §5's "every project subagent is read-only" (#302 decision 4) | high for packs, low for lean types alone (see O5) | `instructions.py` learns the `omitClaudeMd` and `skills` agent fields; a pack generator, and lint fails a stale pack |
 
-**O1. Load each file once.** The probe (one workflow agent that Reads a worktree `.gd` file and a `tests/` file)
-must show, in its transcript's `nested_memory` lines:
-- the main checkout's `gdscript.md` and `tests.md`;
-- the worktree's `core/CLAUDE.md`;
-- no worktree root `CLAUDE.md` and no worktree `.claude/rules/` file.
-
-A main session started inside a worktree still loads root `CLAUDE.md` at launch: the 8 measured ones loaded
-`D:\prime-game\CLAUDE.md`, never the worktree's.
+**O1. Load root `CLAUDE.md` once.** Two probes run before the setting lands:
+- A workflow agent (working directory: the main checkout) Reads a worktree `.gd` file and a `tests/` file. Its
+  transcript's `nested_memory` lines show `gdscript.md` and `tests.md` (from either copy) and the worktree's
+  `core/CLAUDE.md`, and no worktree root `CLAUDE.md`.
+- A session started in `.claude/worktrees/<n>` loads a root `CLAUDE.md` at launch, then Reads a `.gd` file, a
+  `tests/` file and a `.tscn`. Its `nested_memory` lines show `gdscript.md`, `tests.md` and `godot-resources.md`.
+  The 8 measured worktree sessions loaded `D:\prime-game\CLAUDE.md` at launch, never the worktree's, so the
+  exclude should not touch them; the probe checks it.
+- *Fallback:* if either probe loses a file it should show, the setting does not land, and A reports what loaded.
 - *Risk:* a branch that changes root `CLAUDE.md` or a rule is followed under `main`'s version until it merges. That
   is already true at launch today, and the agent that edits the file reads it anyway.
 - *Who decides:* the change is technical and reversible, so it is decided here. It edits `.claude/settings.json`, so
@@ -249,7 +259,7 @@ A main session started inside a worktree still loads root `CLAUDE.md` at launch:
   measurement here replaces its assumed cut.
 - **Bounded waits (#303)** halve the non-read value of everything here, because 47% of the instructions' non-read $
   was re-writes after long waits. The figures above are given after that.
-- **Recommended now (O1, O2, O4): about 1.7 to 2.0 points per 7 days at w = 0 and 2.6 to 3.0 at w = 0.5** at this
+- **Recommended now (O1, O2, O4): about 1.5 to 1.8 points per 7 days at w = 0 and 2.3 to 2.7 at w = 0.5** at this
   week's volume. This week's whole load at that volume is 148 to 152 points per 7 days, so the saving is about 1 to
   2% of it. Nothing a task reads goes away.
 
@@ -282,7 +292,7 @@ O1 (issue A) is technical and recommended here. The engineer merges it because i
 
 | order | issue | size | decides | depends on | files |
 |---|---|---|---|---|---|
-| 1 | A. Workflow agents load each instruction file once (`claudeMdExcludes`) | S | manager; the engineer merges | none | `.claude/settings.json`, a runner test, AGENT_WORKFLOW §3 |
+| 1 | A. Workflow agents load root `CLAUDE.md` once (`claudeMdExcludes`) | S | manager; the engineer merges | none | `.claude/settings.json`, a runner test, AGENT_WORKFLOW §3 |
 | 1 | E. `metrics`: instruction and doc cost per role | M | manager | none; after #314 (both touch `metrics.py`) | `tools/runner/metrics.py`, its tests and fixtures |
 | 2 | B. `section`: a doc's outline and exact sections; numbered subsections; lint checks § references | M | N1 (a) or (c) | none | `tools/runner/section.py` (new), `cli.py`, the lint check, tests, ARCHITECTURE and AGENT_WORKFLOW headings only, one root `CLAUDE.md` row in place |
 | 3 | C. Prompts and the rule read docs by section | S | N1 (a) or (c) | B | `.claude/workflows/issue-task.js`, `pr-rebase.js`, the workflow snapshots, root `CLAUDE.md` one sentence in place |
@@ -294,8 +304,10 @@ Acceptance criteria. Each issue gives its before and after numbers from E, or fr
 C and F change `.claude/workflows/`, which changes only through the tooling track (pipeline v2 ADR, N5 (c)).
 - **A:**
   - a probe workflow agent shows the O1 result in its transcript;
-  - a session started inside a worktree still loads root `CLAUDE.md` at launch;
-  - `.claude/settings.json` carries the two patterns, and a runner test asserts them;
+  - a session started inside a worktree still loads root `CLAUDE.md` at launch, and its Reads of a `.gd` file, a
+    `tests/` file and a `.tscn` still load `gdscript.md`, `tests.md` and `godot-resources.md`; if either probe loses
+    a file, the setting does not land;
+  - `.claude/settings.json` carries the pattern (no pattern for the worktree's rules), and a runner test asserts it;
   - the AGENT_WORKFLOW §3 table says which copy loads.
 - **E:** `metrics` prints per role:
   - agents, and launch-loaded, path-loaded and read tokens;
@@ -356,7 +368,8 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
   dangling § reference fails `verify` instead of waiting for the night audit.
 - Root `CLAUDE.md` gets room under its budget again, and every runner command keeps a single source of truth in its
   own `--help`.
-- Workflow agents carry one copy of each instruction file.
+- Workflow agents carry one copy of root `CLAUDE.md`. A rule can still load twice (main's and the worktree's copy),
+  the price of keeping the rules in a session started in a worktree.
 - The launch prefix waits for #307. This design adds what it measured to #302's lever 5: the skill listing is 7.5k
   tokens in every general workflow agent, while implementers invoked a skill twice in 120 runs.
 - `metrics` reports the instruction and doc cost per role. A later rise, such as a doc that grows back into a
