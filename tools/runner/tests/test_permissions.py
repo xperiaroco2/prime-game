@@ -238,6 +238,8 @@ FORBIDDEN_PUSHES = [
     "push --all origin",
 ]
 TASK_PUSHES = [f"push -u origin {BRANCH}", f"push origin {BRANCH}"]
+# The documented trade-off (AGENT_WORKFLOW 8.1): `*` spans words, so a `-m` message that reads like a push is denied.
+MESSAGES_LIKE_PUSHES = ['"x push HEAD"', '"fix: deny git -C and git -c pushes like git push"', '"x push origin main"']
 
 
 class PushTwinsTest(unittest.TestCase):
@@ -270,6 +272,14 @@ class PushTwinsTest(unittest.TestCase):
             for command in commands:
                 with self.subTest(tool=tool, command=command):
                     self.assertEqual(verdict(tool, command)[0], permissions.PASS)
+
+    def test_a_commit_message_that_reads_like_a_forbidden_push_is_denied(self) -> None:
+        for tool in TOOLS:
+            for message in MESSAGES_LIKE_PUSHES:
+                for prefix in (f"git -C {WORKTREE}", "git -c k=v"):
+                    command = f"{prefix} commit -m {message}"
+                    with self.subTest(tool=tool, command=command):
+                        self.assertEqual(verdict(tool, command)[0], permissions.DENIED)
 
 
 class MatcherTest(unittest.TestCase):
