@@ -433,37 +433,40 @@ class MetricsTest(unittest.TestCase):
         self.assertLessEqual(len(compact), 10)
         self.assertTrue(compact[0].startswith("metrics, the first transcript to 2026-10-02T11:00:00Z: 1 finished"))
         self.assertIn("#5 18 min $", compact[1])
-        # The fixture's cache reads are 1% of its list $, far from the 40% the rate was fitted at: the line says so.
-        self.assertIn("% of a Max 20x week: 0.6% at $25.5 per 1% (fit at 40% cache reads, here 1%); 0.7 to 0.6% if the "
-                      "limit counts cache reads at 60 to 100%", compact)  # fmt: skip
+        # The headline is at the central weight whatever the share of cache reads (the fixture's are 1% of list $).
+        self.assertIn("% of a Max 20x week: 0.6% with cache reads at 75% of their list $ ($23.0 per 1%); 0.7 to 0.6% "
+                      "if the limit counts them at 60 to 100%", compact)  # fmt: skip
         self.assertTrue(any(line.startswith("local verify (agents): 1 runs, 1 red, median 271 s") for line in compact))
         self.assertEqual(compact[-1], "CI: 3 runs in the window; last 2 green: job 6.5 min median, verify 385 s")
         self.assertIn("## CI (GitHub Actions)", md)
 
     def test_the_percent_of_the_week_and_its_bracket(self) -> None:
-        # #307 measured the weight of cache reads: w = 0.75, range 0.6 to 1; the bracket is that range, k(1) full list.
+        # #307 measured the weight of cache reads (the baseline ADR's #307 amendment): w = 0.75 at $23.0 per 1%, the
+        # headline; range 0.6 to 1, the bracket, k(1) full list $.
+        self.assertEqual(metrics.WEEK_CENTRAL, (0.75, 23.0))
         self.assertEqual(metrics.WEEK_BRACKET, ((0.6, 21.5), (1.0, 25.5)))
-        # The calibration reading (#304): $1,690 list, 40% of it cache reads, was 66% of the week; both ends of the
-        # bracket land within a point of it.
+        # The calibration reading (#304): $1,690 list, 40% of it cache reads, was 66% of the week; the headline and
+        # both ends of the bracket round to it.
         week = metrics.week_percent(1690.0, 676.0)
-        self.assertAlmostEqual(week["percent"], 1690.0 / 25.5)
+        self.assertAlmostEqual(week["percent"], (1690.0 - 676.0 + 0.75 * 676.0) / 23.0, msg="cache reads at 75%")
         self.assertAlmostEqual(week["bracket"][0], (1690.0 - 676.0 + 0.6 * 676.0) / 21.5, msg="cache reads at 60%")
         self.assertAlmostEqual(week["bracket"][1], 1690.0 / 25.5, msg="cache reads at full list $")
         self.assertEqual([round(v) for v in (week["percent"], *week["bracket"])], [66, 66, 66])
         # #307's last reading: 77% at 2026-10-04 05:05 UTC, $1,981.7 list since the restart, $805.3 of it cache reads.
+        # The headline rounds to the reading; full list $ reads a point high.
         week = metrics.week_percent(1981.7, 805.3)
-        self.assertEqual([round(v) for v in (week["percent"], *week["bracket"])], [78, 77, 78])
+        self.assertEqual([round(v) for v in (week["percent"], *week["bracket"])], [77, 77, 78])
         # The probe's 5-hour window to 05:05:30 ($3.51 non-read + $21.77 cache reads, 86% of list $; the ADR's $21.53
-        # runs to the last reading at 05:04:57): the bracket is 0.77 to 0.99% of the week, the % its upper end.
+        # runs to the last reading at 05:04:57): 0.86% of the week, as the ADR gives it, in a bracket of 0.77 to 0.99%.
         week = metrics.week_percent(25.28, 21.77)
-        self.assertEqual([round(v, 2) for v in (week["percent"], *week["bracket"])], [0.99, 0.77, 0.99])
+        self.assertEqual([round(v, 2) for v in (week["percent"], *week["bracket"])], [0.86, 0.77, 0.99])
         # The fixture: $14.99 list, $0.21 of it cache reads (Sonnet's 1M at $0.20 and Opus's 56.2k at $0.20 per 1M).
         md, record, _compact = self.build()
         read = 0.20 + (1000 + 1000 + 20000 + 20100 + 5000 + 8000 + 100 + 1000) * 0.20 / 1e6
         self.assertAlmostEqual(record["week"]["read_usd"], read)
         spent = record["week"]["usd"]
         self.assertAlmostEqual(spent, sum(r["usd"] for r in record["runs"]) + 0.00868 + 0.0006)
-        self.assertAlmostEqual(record["week"]["percent"], spent / 25.5)
+        self.assertAlmostEqual(record["week"]["percent"], (spent - read + 0.75 * read) / 23.0)
         self.assertAlmostEqual(record["week"]["bracket"][0], (spent - read + 0.6 * read) / 21.5)
         self.assertAlmostEqual(record["week"]["bracket"][1], spent / 25.5)
         session = record["sessions"][0]
@@ -471,9 +474,10 @@ class MetricsTest(unittest.TestCase):
                                                                               record["week"]["bracket"]))
         text = "\n".join(md)
         self.assertIn("| 1 | $0.00 | 3 | $15 | 2.03M | 0.6% (0.7 to 0.6%) |", text)
-        self.assertIn("at $25.5 list per 1%, fitted where cache reads were 40% of list $ (far from that share the "
-                      "bracket is the better figure); in brackets, the limit counting cache reads at 60 to 100% "
-                      "((list $ without cache reads + 0.6 or 1 x cache-read $) / $21.5 or $25.5).", text)  # fmt: skip
+        self.assertIn("workflow subagents together, (list $ without cache reads + 0.75 x cache-read $) / $23.0 per 1%, "
+                      "the limit counting cache reads at 75% of their list $ (#307's central weight); in brackets, at "
+                      "60 to 100% ((list $ without cache reads + 0.6 or 1 x cache-read $) / $21.5 or $25.5).",
+                      text)  # fmt: skip
 
     def test_ci_from_gh(self) -> None:
         listed = [

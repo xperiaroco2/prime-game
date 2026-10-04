@@ -1013,15 +1013,15 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
   window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten
   lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
-  `metrics --since <wave start> --compact` into each wave comment. The % of the week is at $25.5 list per 1% (#304: 66%
-  at 2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change; the pipeline v2 ADR's
-  amendment), with a bracket beside it: the limit counting cache reads at 60 to 100% of their list $ ((list $ without
-  cache reads, plus 0.6 or 1 times the cache-read $) / $21.5 or $25.5), the range #307 measured (central 75%; the ADR's
-  #307 amendment). The $25.5 counts cache reads at full list $, the bracket's upper end; it was fitted where cache reads
-  were 40% of list $, where it matches the central weight ($23.0 per 1%) within 1%. The compact line prints the report's
-  own share: far from 40%, the % reads high with more cache reads and low with fewer, and the bracket is the better
-  figure. It covers only this checkout's sessions (the main checkout and its worktrees) that ran a workflow or that
-  `--session` names; the weekly counter counts every session of the account. API list $ is a weight (one price table in
+  `metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
+  weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
+  0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
+  range #307 measured, the limit counting cache reads at 60 to 100% of their list $ ((list $ without cache reads, plus
+  0.6 or 1 times the cache-read $) / $21.5 or $25.5; `WEEK_BRACKET`). At 1, $25.5 is #304's full list $ per 1% (66% at
+  2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change). The calibration readings, 66%
+  and 77%, both round to the reading at the central weight. It covers only this checkout's sessions (the main checkout
+  and its worktrees) that ran a workflow or that `--session` names; the weekly counter counts every session of the
+  account. API list $ is a weight (one price table in
   `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
   empty window, which also writes an empty report over an older one. Its quality scorecard (#314), so a cost change
   (#303, #308's publisher trial, effort levels) is judged by quality too, has three tables, per finished `issue-task`
