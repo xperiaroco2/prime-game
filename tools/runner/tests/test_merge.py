@@ -970,8 +970,22 @@ class CommandTest(MergeCase):
             merge.merge(None, base="release/m1", sync_main=True)
         self.assertEqual(self.repo.remote("release/m1"), merged)
 
+    def test_a_release_dry_run_merges_nothing_even_from_a_task_checkout(self) -> None:
+        self.task(7, {"core/a.gd": "extends Node\n"})
+        self.repo.commit({"tools/x.py": "X = 1\n"}, "main moves")
+        self.repo.push("main")
+        tip = self.repo.remote("release/m1")
+        worktree = self.repo.tmp / "main-copy" / ".claude" / "worktrees" / "42"
+        _git(self.repo.work, "worktree", "add", "-q", "--detach", str(worktree), "main")
+        with mock.patch.object(merge, "_cwd", lambda: worktree):
+            self.assertEqual(merge.merge(7, base="release/m1", dry_run=True), 0)
+            self.assertIn("gate: #7 would merge into release/m1", self.printed[-1])
+            self.assertEqual(merge.merge(None, base="release/m1", sync_main=True, dry_run=True), 0)
+            self.assertIn("would merge into release/m1", self.printed[-1])
+        self.assertEqual((self.repo.remote("release/m1"), self.verified, self.scratch_left()), (tip, [], []))
 
-LINK = "https://github.com/o/r/issues/170#issuecomment-1"
+
+LINK ="https://github.com/o/r/issues/170#issuecomment-1"
 APPROVED = f"Approved by the engineer: {LINK}\n"
 RELAYED = "## Cross-area\nagreed with the designer, relayed by the engineer; @SwiftySinister\n"
 
