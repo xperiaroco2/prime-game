@@ -2752,8 +2752,8 @@ part is usable in data once its row or entry names the PR that built it. Every n
     reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
     (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction or a win condition holding a
     condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
-    (§9.2, #283, #299); an accepted intent that neither the phase class nor any rule handles; two rules on one trigger in one owner; a
-    number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
+    (§9.2, #283, #299); an accepted intent that neither the phase class nor any rule handles; two rules on one
+    trigger in one owner; a number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
     `spawn_tag` and `tag` a part holds, and every condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9`
     and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
     every mode in `content/modes/` and runs this part (`ModeCheck`).
@@ -2998,11 +2998,13 @@ phase classes come in the task each row names.
 
 In the "Where" column, *actions only* marks a part that reads the actor (`Condition.reads_actor_state`): the mode
 check refuses it in a mode reaction or a win condition, which run for no player (§9.2, #299). *Anywhere* marks one
-that reads no actor: an action, a reaction or a win condition.
+that reads no actor: an action, a reaction or a win condition. The mode check does not yet catch a part that needs the
+rule's target, which only an intent, a channel or a fact gives (`TargetDowned`, and `ItemOnGround` in a win condition):
+its row says so.
 
 | Part | Passes when | Settings | Rejects with | Where (§9.2) | Built in |
 |---|---|---|---|---|---|
-| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not in a hand or on a belt) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | anywhere: reads the rule's item (the intent's or the fact's) | 2e (#61) |
+| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not in a hand or on a belt) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | an action or a reaction (reads no actor; a reaction's item is its fact's); the mode check allows it in a win condition, which has no item, so it never passes there | 2e (#61) |
 | `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | actions only: reads the actor | 2e (#61) |
 | `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | actions only: reads the actor | 2e (#61) |
 | `HoldsItem` | the actor has an item in hand (a belt item does not count) | none | `empty_hand` | actions only: reads the actor | 2e (#61) |
@@ -3014,7 +3016,7 @@ that reads no actor: an action, a reaction or a win condition.
 | `ClockEnded` | the match clock has reached its end (`MatchState.clock_ended`, set when `Match` raises `clock_ended`); before `StartClock` there is no end | none | (facts only) | anywhere: reads no actor | 2h (#64, `core/win/clock_ended.gd`) |
 | `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it. | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | actions only: reads the actor | 2g (#63, `core/combat/cooldown.gd`) |
 | `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor, at the end of the tick). | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | actions only: reads the actor | 2d (#60) |
-| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | anywhere: reads no actor (a reaction or a win condition has no target, so it fails there) | M4-4 (#140, `core/life/target_downed.gd`) |
+| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | allowed anywhere (reads no actor), but useful only in an action or a channel: a reaction or a win condition has no target, so it never passes there | M4-4 (#140, `core/life/target_downed.gd`) |
 | `TargetInReach` | the target lies within `reach_m` of the actor: both last accepted positions, their feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode's raise 2) | `out_of_reach` | actions only: reads the actor | M4-4 (#140) |
 | `TargetInSight` | the line from the actor's eye (`Items.eye_of`) to just above the target's feet (`Items.lifted`) is clear (§7.1), as `InSight` for an item | none | `blocked` | actions only: reads the actor | M4-4 (#140) |
 | `ChannelFree` | the actor runs no channel and no channel targets the rule's target, apart from the channel being checked again: one channel per actor and one per target (one raiser at a time) | none | `busy`: every channel of the MVP (a raise) is public | actions only: reads the actor | M4-4 (#140, `core/channel/`) |
