@@ -192,6 +192,53 @@ func test_a_dependency_is_the_file_its_uid_names_else_its_path() -> void:
 	assert_array(Array(reached)).contains_exactly([fallback])
 
 
+## An export (#369) ships a level converted to binary elsewhere, with a `.remap` naming it, and
+## not the level's own file: the level counts by the shipped bytes, and the walk follows them.
+func test_an_exported_level_counts_by_the_file_its_remap_names() -> void:
+	var shipped := _dir.path_join("export-map.tscn")
+	var prop := _dir.path_join("prop.tscn")
+	var level := _mode().maps[0]
+	_write("prop.tscn", _scene("Prop", [], 0))
+	_write("export-map.tscn", _scene("Map", [prop], 0))
+	DirAccess.remove_absolute(level)
+	_write("map.tscn.remap", '[remap]\n\npath="%s"\n' % shipped)
+	var exported := _of(_mode())
+	var text := _text_of(_mode())
+	assert_str(text).contains("\nlevel %s %s\n" % [level, FileAccess.get_sha256(shipped)])
+	assert_str(text).contains("\nfile %s %s" % [prop, FileAccess.get_sha256(prop)])
+	assert_array(Array(ContentFingerprint.missing_from(PackedStringArray([level])))).is_empty()
+	_write("export-map.tscn", _scene("Map", [prop], 1))
+	assert_int(_of(_mode())).is_not_equal(exported)
+	_write("export-map.tscn", _scene("Map", [prop], 0))
+	assert_int(_of(_mode())).is_equal(exported)
+	DirAccess.remove_absolute(shipped)
+	assert_str(_text_of(_mode())).contains("\nlevel %s missing" % level)
+
+
+## An export ships an imported asset as its products, named by the `[remap]` of the `.import` it
+## rewrites (no `[deps]`), not its source: the asset counts by them. A project's own `.import`
+## keeps a deleted source missing.
+func test_an_exported_asset_counts_by_its_import_products() -> void:
+	var label := _dir.path_join("label.svg")
+	_write("label.ctex", "texture bytes")
+	_write("label.svg.import", '[remap]\n\npath="%s"\n' % _dir.path_join("label.ctex"))
+	_write("map.tscn", _scene_with_texture("Map", label))
+	var exported := _of(_mode())
+	var product := FileAccess.get_sha256(_dir.path_join("label.ctex"))
+	assert_str(_text_of(_mode())).contains("\nfile %s %s\n" % [label, product])
+	assert_array(Array(ContentFingerprint.missing_from(_mode().maps))).is_empty()
+	_write("label.ctex", "other texture bytes")
+	assert_int(_of(_mode())).is_not_equal(exported)
+	_write(
+		"label.svg.import",
+		(
+			'[deps]\n\nsource_file="%s"\n\n[remap]\n\npath="%s"\n'
+			% [label, _dir.path_join("label.ctex")]
+		)
+	)
+	assert_array(Array(ContentFingerprint.missing_from(_mode().maps))).contains_exactly([label])
+
+
 func _mode() -> GameMode:
 	var mode := FixtureBaseMode.mode()
 	mode.lobby_level = _dir.path_join("lobby.tscn")
