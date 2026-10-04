@@ -94,11 +94,11 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    shell anywhere else, `git fetch origin && git branch release/m<k> origin/main && git push -u origin release/m<k>
    && git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
    both in the first wave comment.
-6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree, the
-   args file), the queue, ownership splits, merge order, open questions, the session's, the stage's and the current
-   wave's start times, and the keep-alive timer and wake count (§7). Keep it current: it survives compaction. Keep
-   each task's args in `manager/args-<n>.json`. The scratchpad is per session, so every wave comment also carries
-   what a successor needs (§6).
+6. Write a state file in your session scratchpad, `manager/state.md`: running runs (runId, issue, worktree), the
+   queue, ownership splits, merge order, open questions, the session's, the stage's and the current wave's start
+   times, and the keep-alive timer and wake count (§7). Keep it current: it survives compaction. Keep no args files:
+   `tools\run.cmd wave --args <n>` prints a task's args from your transcript (#277). The scratchpad is per session,
+   so every wave comment also carries what a successor needs (§6).
 7. Find the files that tasks running in parallel will all touch (mode `.tres` files, `docs/ARCHITECTURE.md`,
    registries, event folders) and split ownership **up front**: who owns which class, which task creates which
    shared class (same path and class name if two may create it), whose deal places what. Otherwise add/add
@@ -243,7 +243,8 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   task PRs onto the new tip); both go into the wave comment.
 - **Order.** Stacked PRs: the parent first. Never merge a parent while its child's workflow has not reached Publish:
   the merge deletes the parent branch the child's reviewers diff against and its publisher targets. If it happened
-  anyway, relaunch the child fresh with `base: "release/m<k>"` (update its args file) once the running one ends.
+  anyway, relaunch the child fresh with `base: "release/m<k>"` (its `wave --args <n>` with the new base) once the
+  running one ends.
 - After each merge: `gh pr list --state open --json number,headRefName,baseRefName,mergeStateStatus` (`UNKNOWN` just
   after a merge: ask again). A child still based on the merged parent: `gh pr edit <child> --base release/m<k>`.
 - Never touch a worktree whose workflow is still running, yours or another session's (§2.2).
@@ -291,8 +292,9 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   server; its `plan` part lists the per-model weekly limits with % used and reset time): `metrics` has no price for
   it and weighs it at Opus rates.
 - **Merge safety**: the latest `merge-check` result, or its table when it flagged something.
-- **Handover data** in every wave comment: for each running run the issue, the worktree, the owning session's name,
-  the runId and the args as a JSON block. A successor session (§7) relaunches from that, not from your scratchpad.
+- **Handover data** in every wave comment, which `tools\run.cmd wave --since <wave start>` writes from your
+  transcript (#277; no args files): each running run's args as launched (worktree included), its runId and your
+  session, and each failed, killed or stopped run not yet relaunched. A successor session (§7) relaunches from that.
 - Keep every slot busy: when the next task waits for a merge, start what does not depend on it (a task's
   independent part with a "fetch and check whether X is on origin/release/m<k>" step, fillers, the next milestone's
   design task). When nothing more can run without merges or a design review, say so in a plan-issue comment and stop
@@ -302,7 +304,7 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
 
 ## 7. Resume after a crash, a restart or a plan limit
 - A workflow throws when an agent returns nothing. Relaunch it the same way (name or `scriptPath`) with
-  `resumeFromRunId` and the **same args** (from the args file, v2 args included): finished agents return their saved
+  `resumeFromRunId` and the **same args** (`wave --args <n>`, v2 args included): finished agents return their saved
   results. A resume replays agents only while their prompts are unchanged, so it needs the same script too: if `main`
   changed `issue-task.js` since the launch, expect the changed agents to run again.
 - A result with `stopped` is never resumed (§4): relaunch fresh.
