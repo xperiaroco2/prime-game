@@ -1072,7 +1072,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   PC), 139.5 s and 90.7 s with `selftest` beside it as in verify, 226 s and 145 s in 2 shards (CI's count). Run with
   every suite at fixed fps, only `voice_views_audio_test` breaks (it listens to the real audio mix for a wall-clock
   time, so GdUnit4's 5-minute test timeout, counted in game time, runs out); the other 164 suites took 121 s real-time
-  and 119 s so. It stays off by default: `verify`, CI and the nightly `flaky` job run real-time (N4 (a)), which is
+  and 119 s so. It stays off by default (#280): `verify`, CI and the nightly `flaky` job run real-time, which is
   what still covers the #222 class: at fixed fps a frame runs exactly one physics step, never several, so a load bug
   there and `.claude/rules/tests.md`'s `OS.delay_msec` recipe need a real-time run. Making it the default is the
   engineer's call (#280).
