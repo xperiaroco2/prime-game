@@ -909,6 +909,88 @@ class WaveTest(unittest.TestCase):
         self.assertIn("Unavailable: merged PRs: gh: HTTP 502",
                       self.section(target.read_text(encoding="utf-8"), "Housekeeping"))  # fmt: skip
 
+    HEADINGS = ["## Merged into main since", "## Finished runs since", "## Running", "## Open PRs", "## Merge safety",
+                "## Cost", "## Housekeeping", "## Handover data", "\n---\n"]  # fmt: skip
+
+    def assert_order(self, body: str, needles: list[str]) -> None:
+        places = [body.find(x) for x in needles]
+        self.assertNotIn(-1, places, dict(zip(needles, places)))
+        self.assertEqual(places, sorted(places), dict(zip(needles, places)))
+
+    def test_section_order(self) -> None:
+        self.p.launch(10, "t1", "wf_done", issue_args(9), notice="completed")
+        journal(self.p.run_dir("wf_done"), [("k1", "publish:#9", "Publish", PUBLISHED)])
+        self.p.launch(20, "t2", "wf_open", issue_args(6))
+        journal(self.p.run_dir("wf_open"), [("k2", "implement:#6", "Implement", None)])
+        notes = self.root / "notes.md"
+        notes.write_text("The manager's own notes.\n", encoding="utf-8")
+        porcelain = f"worktree {MAIN}/.claude/worktrees/9\nHEAD {sha(1409)}\nbranch refs/heads/tooling/9-task\n"
+        src = FakeSources(merged=[merged_pr(409, "tooling/9-task", at(30))], porcelain=porcelain,
+                          open_prs=[open_pr(410, "tooling/6-task")], check_out=CLEAN_CHECK)  # fmt: skip
+        target = self.root / "w.md"
+        rc, out, _ = self.main(since=SINCE, out=str(target), sources=src, title="Wave 3", notes=str(notes))
+        body = target.read_text(encoding="utf-8")
+        self.assertEqual(rc, 0)
+        self.assert_order(body, ["# Wave 3", "The manager's own notes.", *self.HEADINGS])
+        self.assertTrue(body.split("\n---\n")[-1].lstrip().startswith(f"Session {SID}"), "the footer is last")
+        for missing in ("Not read.", "Unavailable", "None."):
+            self.assertNotIn(missing, body)
+        self.assertIn("worktree-done 9", self.section(body, "Housekeeping"))
+        self.assertIn(f"wave: 1 finished since {SINCE}, 1 running, 0 finished before; wrote {target} in ", out)
+        empty = FakeSources(check_out="merge-check\n  ok    fetched origin\n  ok    no open PRs to check into main")
+        self.p.lines = self.p.lines[:1]
+        self.main(since=SINCE, out=str(target), sources=empty)
+        body = target.read_text(encoding="utf-8")
+        self.assert_order(body, ["# Wave report since", *self.HEADINGS])
+        for heading in ("Merged into main since", "Finished runs since", "Running", "Open PRs", "Cost", "Housekeeping"):
+            self.assertIn("None.", self.section(body, heading), heading)
+        self.assertIn("no open PRs to check into main", self.section(body, "Merge safety"))
+        bare = self.p.body()  # a Wave built without the sources: each of their sections says so
+        self.assert_order(bare, self.HEADINGS)
+        for heading in ("Merged into main since", "Open PRs", "Merge safety", "Cost", "Housekeeping"):
+            self.assertIn("Not read.", self.section(bare, heading), heading)
+
+    def test_split_over_limit(self) -> None:
+        big = ["x" * 25000, "y" * 25000, "z" * 25000]
+        for i, notes in enumerate(big):
+            self.p.launch(i, f"t{i}", f"wf_{i}", issue_args(i + 1, notes=notes))
+            journal(self.p.run_dir(f"wf_{i}"), [(f"k{i}", f"implement:#{i + 1}", "Implement", None)])
+        target = self.root / "w.md"
+        _, out, _ = self.main(since=SINCE, out=str(target), merge_check=False)
+        first = target.read_text(encoding="utf-8")
+        parts = [self.root / "w-2.md", self.root / "w-3.md"]
+        self.assertLess(len(first), wave.SPLIT_LIMIT)
+        self.assert_order(first, self.HEADINGS)
+        self.assertIn("Moved to the next 2 comments (w-2.md, w-3.md): the args of 3 runs", first)
+        for notes in big:
+            self.assertNotIn(notes, first)
+        texts = [p.read_text(encoding="utf-8") for p in parts]
+        self.assertTrue(texts[0].startswith(f"## Handover data, part 2 of 3 (session {SID} "), texts[0][:100])
+        self.assertTrue(texts[1].startswith(f"## Handover data, part 3 of 3 (session {SID} "), texts[1][:100])
+        for t in texts:
+            self.assertLessEqual(len(t), wave.SPLIT_LIMIT)
+        blocks = [json.loads(b.split("\n```")[0]) for t in texts for b in t.split("```json\n")[1:]]
+        self.assertEqual(blocks, [issue_args(i + 1, notes=n) for i, n in enumerate(big)])
+        for p in [target, *parts]:
+            self.assertIn(str(p), out)
+        self.assertNotIn("warn", out)
+        self.p.launch(9, "t9", "wf_9", issue_args(9, notes="w" * 70000))
+        journal(self.p.run_dir("wf_9"), [("k9", "implement:#9", "Implement", None)])
+        _, out, _ = self.main(since=SINCE, out=str(target), merge_check=False)
+        parts.append(self.root / "w-4.md")
+        alone = parts[-1].read_text(encoding="utf-8")
+        self.assertIn('"' + "w" * 70000 + '"', alone, "the 70,000 characters in w-4.md")
+        self.assertEqual(alone.count("```json"), 1, "alone in w-4.md")
+        self.assertIn("warn  w-4.md has 70", out)
+        self.assertIn("over GitHub's comment limit of 65536", out, "one run's args alone are too long to post")
+        self.p.lines = self.p.lines[:1]
+        _, out, _ = self.main(since=SINCE, out=str(target), merge_check=False)
+        self.assertIn("No run is running.", target.read_text(encoding="utf-8"))
+        self.assertTrue(all(p.exists() for p in parts), "an earlier part is never deleted")
+        for p in parts:
+            self.assertIn(f"warn  {p} is from an earlier run of wave, not part of this body", out)
+        self.assertNotIn("w-5.md", out)
+
     def test_notes_and_title(self) -> None:
         notes = self.root / "notes.md"
         text = "Decisions:\r\n1. Кирилиця «лапки» stays.\r\n\r\nOrder from here: #279 then #204.\r\n"
