@@ -556,7 +556,8 @@ stops only for design and other human-reserved decisions and for what reaches be
   `gh pr merge --help`. Each `git push ...` deny rule has the twins `git -C * push ...` and
   `git -c * push ...` (#342; other git options before `push`, such as `--git-dir`, are left to the pre-push hook and
   the server ruleset), and because `*` spans words they also deny a `git -C` or `git -c` command whose `-m` message
-  reads like a forbidden push (`push ... HEAD`, `push ... main`), so such a message goes in a file (`-F`).
+  contains the word `push` (at its end, or before `HEAD`, `main` or a forbidden flag), so such a message goes in a
+  file (`-F`).
 - Godot, Python and gdtoolkit run without a prompt **only through the runner**; their raw forms prompt in modes that
   prompt.
 - `GH_PROMPT_DISABLED=1` is set in the shared `env`.
