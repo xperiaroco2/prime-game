@@ -92,6 +92,11 @@ ARGS = {
     "why": "w",
 }
 STASH_RULE = "Never use `git stash`"
+# The two one-line rules of #326 (each prompt line that starts so is the whole rule).
+HOOKS_RULE = "- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`"
+SLEEP_RULE = "- Never poll with a foreground `sleep N; cat <log>`"
+# The agent types of the read-only reviewers, which get no RULES.
+READ_ONLY_TYPES = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
 MAJOR = {"severity": "major", "file": "core/match/vote.gd", "line": 12, "problem": "p1", "fix": "f1"}
 MINOR = {"severity": "minor", "file": "core/match/vote.gd", "line": 30, "problem": "p2", "fix": "f2"}
 # What every agent that publishes returns for the engineer's own steps (#266), and how its prompt asks for it.
@@ -225,6 +230,36 @@ class WorkflowTest(unittest.TestCase):
                     self.assertIn("GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/release/m3", call["prompt"])
                     self.assertIn("$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash", call["prompt"])
                     self.assertIn("git reset --soft HEAD~1", call["prompt"])
+
+    def test_every_agent_gets_the_hooks_path_and_no_foreground_sleep_rules(self) -> None:
+        # #326, from #312: in the week of 2026-09-29 workflow agents made 9 of the 10 hooks-path reads the deny rule
+        # `git config *hooksPath*` refused and 26 of the 28 foreground `sleep N; cat <log>` polls Claude Code blocked.
+        # They read their workflow prompt, not docs/AGENT_WORKFLOW.md, so each rule is one line of the shared RULES,
+        # the same in both scripts.
+        jobs = [
+            ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        seen: dict[str, set[str]] = {HOOKS_RULE: set(), SLEEP_RULE: set()}
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                if options(event).get("agentType") in READ_ONLY_TYPES:
+                    continue  # reviewers are read-only
+                for rule, lines in seen.items():
+                    with self.subTest(workflow=name, agent=event["label"], rule=rule):
+                        found = [line for line in event["prompt"].splitlines() if line.startswith(rule)]
+                        self.assertEqual(len(found), 1, found)
+                        lines.add(found[0])
+        for rule, lines in seen.items():
+            with self.subTest(rule=rule):
+                self.assertEqual(len(lines), 1, f"the rule differs between agents or scripts: {sorted(lines)}")
+        self.assertIn("`git rev-parse --git-path hooks`", next(iter(seen[HOOKS_RULE])))
+        sleep = next(iter(seen[SLEEP_RULE]))
+        for way in ("`tools/run.sh wait <log>`", "run_in_background", "Monitor"):
+            self.assertIn(way, sleep)
 
     def test_a_release_base_reaches_publish_and_the_pr(self) -> None:
         # A release base is always passed, so publish never depends on the record start --base left (#113).

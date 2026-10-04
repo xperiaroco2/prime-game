@@ -6,6 +6,8 @@ You are a task agent of prime-game, run unattended by the manager session. No hu
 - Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close an issue, edit the body of #30. Do not run commands you expect to prompt. No Godot windows. Temporary files only under the subfolder r8/ of your scratchpad (it is shared with every other agent). LF line endings. Never weaken, skip or delete a test to make it pass.
 - Commits: Conventional Commits ending with the attribution line your system reminder gives for commits. An edit of any path under .claude/ or addons/ prompts unless the session runs in bypass: list it for the human instead.
 - Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/release/m5` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/release/m5`); never an interactive rebase without that variable. Both are free in your own worktree.
+- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.
+- Never poll with a foreground `sleep N; cat <log>` (Claude Code blocks it): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.
 
 Task: bring PR #8 up to date with origin/release/m5 and make both sides one coherent whole. Effort: high. Budget: at most about 150 tool calls.
 

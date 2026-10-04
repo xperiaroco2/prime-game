@@ -250,7 +250,11 @@ Rules for every workflow run:
   session needs `/reload-skills` (code.claude.com/docs/en/workflows). Both route `netcode-security-reviewer` by the
   same paths as §4.2, `client/` included: a leak through rendering is an information leak (#158).
   `tools/runner/tests/test_workflows.py` runs both scripts under Node with stub agents and checks their routing and
-  rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it).
+  rules (skipped where Node is missing, except on GitHub Actions, where a missing Node fails it). Workflow agents
+  read their prompt, not this file, so the rules every agent of both scripts gets (all but the read-only reviewers)
+  carry one line each for the two calls that stopped them most (#312, #326): read the hooks path with
+  `git rev-parse --git-path hooks` (§8.1), and wait with `wait <log>`, `run_in_background` or Monitor, never a
+  foreground `sleep N; cat <log>` (§11, "Bounded waits"); the test pins both lines, identical in the two scripts.
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default, so a launch or a resume with the earlier args gets the earlier
   agents byte for byte (`tools/runner/tests/workflow_snapshots/` holds their prompts and options for representative
