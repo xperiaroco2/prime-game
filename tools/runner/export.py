@@ -14,7 +14,10 @@ builds"). CI's release workflow runs it on a tag; it runs on Linux (and needs `c
    the F3 overlay, the dev tools and the debug wire kinds exist only when it is true (invariant 8).
 5. The content hash in an export (M6 ADR §2.5): tools/export/export_probe.gd runs against the release pack. Every
    level and every file it reaches is found; a second tree of the same commit exported again gives the same hash;
-   one byte changed in each level gives another.
+   one byte changed in each level gives another. The game's levels reach no other file yet, so the walk is proven on
+   the test fixtures of ContentFingerprint's suite, exported from that tree with tests/fixtures/ kept: a map reaching
+   two scenes, a resource and an imported texture (the binary scenes' dependencies and the export's `.import`), every
+   one found, and one byte of the resource or of the texture's source changing the hash.
 """
 
 from __future__ import annotations
@@ -45,6 +48,21 @@ PROBE = ROOT / "tools" / "export" / "export_probe.gd"
 EXPORT_TIMEOUT = 600
 PROBE_TIMEOUT = 120
 LFS_POINTER = b"version https://git-lfs.github.com/spec/v1"
+# ContentFingerprint's fixtures (tests/unit/net/messages/content_fingerprint_test.gd): what the map reaches, and one
+# byte to change in a reached resource and in the texture's source.
+FIXTURES = "res://tests/fixtures/net/"
+FIXTURE_MAP = FIXTURES + "fingerprint_map.tscn"
+FIXTURE_REACHED = [
+    FIXTURES + "fingerprint_crate.tscn",
+    FIXTURES + "fingerprint_label.svg",
+    FIXTURES + "fingerprint_label.svg.import",
+    FIXTURES + "fingerprint_room.tscn",
+    FIXTURES + "fingerprint_wall.tres",
+]
+FIXTURE_EDITS = {
+    FIXTURES + "fingerprint_wall.tres": (b"Vector3(4, 3", b"Vector3(5, 3"),
+    FIXTURES + "fingerprint_label.svg": (b"#8a6d3b", b"#8a6d3c"),
+}
 ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 NODE_NAME = re.compile(rb'\[node name="([A-Za-z])')
 
@@ -156,6 +174,8 @@ class Probe:
     fingerprints: dict[str, int] = field(default_factory=dict)
     texts: dict[str, list[str]] = field(default_factory=dict)
     missing: list[str] = field(default_factory=list)
+    walks: dict[str, int] = field(default_factory=dict)
+    reached: dict[str, list[str]] = field(default_factory=dict)
 
     def levels(self) -> list[str]:
         """The level files the modes name, in order, each once."""
@@ -166,6 +186,9 @@ class Probe:
                 if parts[0] == "level" and parts[1] not in found:
                     found.append(parts[1])
         return found
+
+    def levels_of(self, mode: str) -> list[str]:
+        return [line.split(" ")[1] for line in self.texts.get(mode, []) if line.startswith("level ")]
 
     def missing_digests(self) -> list[str]:
         return [line for lines in self.texts.values() for line in lines if line.endswith(" missing")]
@@ -184,6 +207,10 @@ def parse_probe(lines: list[str]) -> Probe:
             probe.texts.setdefault(parts[2], []).append(parts[3])
         elif parts[1] == "missing" and len(parts) == 4:
             probe.missing.append(f"{parts[2]}: {parts[3]}")
+        elif parts[1] == "walk" and len(parts) == 4:
+            probe.walks[parts[2]] = int(parts[3])
+        elif parts[1] == "reached" and len(parts) == 4:
+            probe.reached.setdefault(parts[2], []).append(parts[3])
         elif parts[1] == "done":
             done = True
     if not done or not probe.fingerprints:
@@ -191,11 +218,12 @@ def parse_probe(lines: list[str]) -> Probe:
     return probe
 
 
-def probe(pack: Path, data: Path) -> Probe:
-    """The content hash as the exported pack computes it, run from an empty folder so nothing but the pack is res://."""
+def probe(pack: Path, data: Path, walk: tuple[str, ...] = ()) -> Probe:
+    """The content hash as the exported pack computes it, run from an empty folder so nothing but the pack is res://;
+    `walk`: levels whose walk the probe prints too."""
     cwd = EXPORT / "probe-cwd"
     cwd.mkdir(parents=True, exist_ok=True)
-    cmd = [require_godot(), "--headless", "--main-pack", str(pack), "--script", str(PROBE)]
+    cmd = [require_godot(), "--headless", "--main-pack", str(pack), "--script", str(PROBE), "--", *walk]
     res = run(cmd, timeout=PROBE_TIMEOUT, cwd=cwd, log="export-probe", env=data_env(data))
     errors = unexpected_errors(res.lines)
     if res.rc != 0 or res.timed_out or errors:
@@ -270,10 +298,55 @@ def prove_hash(rev: str, data: Path, release: Probe) -> None:
             changed = probe(proof / f"level-{n}" / f"{GAME}.pck", data)
         finally:
             path.write_bytes(before)
-        same = [mode for mode, value in changed.fingerprints.items() if value == release.fingerprints.get(mode)]
+        naming = [mode for mode in release.fingerprints if level in release.levels_of(mode)]
+        same = [mode for mode in naming if changed.fingerprints.get(mode) == release.fingerprints[mode]]
         if same:
             raise Failure(f"one byte changed in {level} left the hash of {', '.join(same)} unchanged")
         ok(f"one byte changed in {level} changes the hash: {changed.fingerprints}")
+    prove_walk(tree, data, proof)
+
+
+def with_fixtures(presets: str, folders: list[str]) -> str:
+    """`export_presets.cfg` with tests/fixtures/ exported: every other folder of tests/ (`folders`) excluded instead of
+    tests/*."""
+    others = ", ".join(f"tests/{name}/*" for name in sorted(folders) if name != "fixtures")
+    if "tests/*" not in presets:
+        raise Failure("export_presets.cfg no longer excludes tests/*: update export.with_fixtures")
+    return presets.replace("tests/*", others)
+
+
+def prove_walk(tree: Path, data: Path, proof: Path) -> None:
+    """The walk in an export, on ContentFingerprint's fixtures: everything the map reaches is found, and one byte of a
+    reached resource or of the texture's source changes the hash."""
+    presets = tree / "export_presets.cfg"
+    original = presets.read_bytes()
+    folders = [path.name for path in (tree / "tests").iterdir() if path.is_dir()]
+    presets.write_text(with_fixtures(original.decode("utf-8"), folders), encoding="utf-8", newline="\n")
+    try:
+        export(tree, data, "--export-pack", RELEASE, proof / "walk" / f"{GAME}.pck", "export-walk")
+        walked = probe(proof / "walk" / f"{GAME}.pck", data, (FIXTURE_MAP,))
+        if walked.missing or walked.reached.get(FIXTURE_MAP) != FIXTURE_REACHED:
+            raise Failure(
+                f"in the export the walk from {FIXTURE_MAP} found {walked.reached.get(FIXTURE_MAP)}, missing"
+                f" {walked.missing}; the project finds {FIXTURE_REACHED}"
+            )
+        ok(f"the walk in an export reaches what it reaches in the project ({len(FIXTURE_REACHED)} files from the map)")
+        for n, (file, (old, new)) in enumerate(FIXTURE_EDITS.items()):
+            path = tree / file.removeprefix("res://")
+            before = path.read_bytes()
+            if before.count(old) != 1:
+                raise Failure(f"{file} no longer holds {old!r} once: update export.FIXTURE_EDITS")
+            path.write_bytes(before.replace(old, new))
+            try:
+                export(tree, data, "--export-pack", RELEASE, proof / f"walk-{n}" / f"{GAME}.pck", f"export-walk-{n}")
+                changed = probe(proof / f"walk-{n}" / f"{GAME}.pck", data, (FIXTURE_MAP,))
+            finally:
+                path.write_bytes(before)
+            if changed.walks.get(FIXTURE_MAP) == walked.walks.get(FIXTURE_MAP):
+                raise Failure(f"one byte changed in {file}, which {FIXTURE_MAP} reaches, left the hash unchanged")
+            ok(f"one byte changed in {file} (reached, not a level) changes the hash")
+    finally:
+        presets.write_bytes(original)
 
 
 def main(version: str | None = None, rev: str = "HEAD") -> int:

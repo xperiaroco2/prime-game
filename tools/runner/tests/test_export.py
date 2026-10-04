@@ -51,6 +51,37 @@ class ProbeTest(unittest.TestCase):
         self.assertIn("room.tscn", str(caught.exception))
 
 
+class ProofHelpersTest(unittest.TestCase):
+    def test_a_level_change_is_judged_only_on_the_modes_that_name_the_level(self) -> None:
+        other = "res://content/modes/other_mode.tres"
+        probe = export.parse_probe(
+            [
+                *PROBE_OUT[:-1],
+                f"EXPORT mode {other} 7",
+                f"EXPORT text {other} level res://levels/other.tscn ab",
+                "EXPORT done 2",
+            ]
+        )
+        self.assertEqual(probe.levels_of(MODE), ["res://levels/lobby/lobby.tscn", "res://levels/greybox/greybox.tscn"])
+        self.assertEqual(probe.levels_of(other), ["res://levels/other.tscn"])
+
+    def test_the_fixture_export_keeps_tests_fixtures_and_excludes_the_other_test_folders(self) -> None:
+        presets = (ROOT / "export_presets.cfg").read_text(encoding="utf-8")
+        changed = export.with_fixtures(presets, ["unit", "fixtures", "harness"])
+        self.assertNotIn("tests/*", changed)
+        self.assertIn('exclude_filter="tests/harness/*, tests/unit/*, tools/*', changed)
+        with self.assertRaises(Failure):
+            export.with_fixtures(presets.replace("tests/*", "tests/unit/*"), ["unit"])
+
+    def test_the_walk_proof_names_the_fixtures_the_suite_names(self) -> None:
+        suite_path = ROOT / "tests" / "unit" / "net" / "messages" / "content_fingerprint_test.gd"
+        suite = suite_path.read_text(encoding="utf-8")
+        for path in export.FIXTURE_REACHED:
+            self.assertIn(f'FIXTURES + "{path.removeprefix(export.FIXTURES)}"', suite)
+        for path, (old, _) in export.FIXTURE_EDITS.items():
+            self.assertEqual((ROOT / path.removeprefix("res://")).read_bytes().count(old), 1, path)
+
+
 class ChangedByteTest(unittest.TestCase):
     def test_one_byte_of_the_first_node_name_changes(self) -> None:
         scene = b'[gd_scene format=3]\n\n[node name="Lobby" type="Node3D"]\n\n[node name="Floor" parent="."]\n'
@@ -164,12 +195,14 @@ class ReleaseWorkflowTest(unittest.TestCase):
         steps = data["jobs"]["windows"]["steps"]
         uses = [step.get("uses", "") for step in steps]
         self.assertEqual(uses[:2], ["actions/checkout@v7", "./.github/actions/setup-toolchain"])
+        self.assertIs(steps[0]["with"]["lfs"], True, "a release ships the real LFS assets")
         runs = [step.get("run", "") for step in steps]
         self.assertFalse(any("twovoip" in run for run in runs), "the Windows build needs the TwoVoIP extension")
         exporting = next(i for i, run in enumerate(runs) if "tools/run.sh export" in run)
         self.assertIn('--version "$GITHUB_REF_NAME"', runs[exporting])
         publish = next(i for i, run in enumerate(runs) if "gh release create" in run)
-        self.assertIn("windows-x86_64.zip", runs[publish])
+        self.assertIn('-windows-x86_64.zip"', runs[publish])
+        self.assertIn("gh release upload", runs[publish])
         self.assertNotIn("debug", runs[publish])
         debug = next(step for step in steps if step.get("name") == "Keep the debug zip for the humans")
         self.assertTrue(debug["with"]["path"].endswith("-windows-x86_64-debug.zip"))

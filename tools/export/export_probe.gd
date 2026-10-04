@@ -6,6 +6,10 @@ extends SceneTree
 ##   EXPORT mode <path> <ContentFingerprint.of>
 ##   EXPORT text <path> <a line of ContentFingerprint.text_of>
 ##   EXPORT missing <path> <a file the mode's levels reach that is not there>
+## For each level path given after `--` (`export`'s walk proof, the test fixtures):
+##   EXPORT walk <level> <ContentFingerprint.of with a zero mode hash>
+##   EXPORT reached <level> <a file the level reaches>
+##   EXPORT missing <level> <a reached file that is not there>
 ## then `EXPORT done <modes>`. Scripts are loaded by path: outside the pack's res:// the global
 ## class names do not resolve, and net/ names no core/ class (ContentFingerprint's caller does).
 
@@ -33,6 +37,16 @@ func _initialize() -> void:
 		for file: String in missing:
 			print("EXPORT missing %s %s" % [path, file])
 		modes += 1
+	for level: String in OS.get_cmdline_user_args():
+		var walked := PackedStringArray([level])
+		var value: int = fingerprint.call("of", 0, level, PackedStringArray())
+		print("EXPORT walk %s %d" % [level, value])
+		var reached: PackedStringArray = fingerprint.call("reached_from", walked)
+		for file: String in reached:
+			print("EXPORT reached %s %s" % [level, file])
+		var gone: PackedStringArray = fingerprint.call("missing_from", walked)
+		for file: String in gone:
+			print("EXPORT missing %s %s" % [level, file])
 	print("EXPORT done %d" % modes)
 	quit(0)
 
