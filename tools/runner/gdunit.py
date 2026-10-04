@@ -213,7 +213,7 @@ def main(
     second process after the rest; True with paths is `test <paths> --fixed-fps` (#280), False `test --real-time`."""
     global LAST_RUN
     LAST_RUN = None
-    say("test" + {True: f" --fixed-fps ({FIXED_FPS})", False: " --real-time", None: ""}[fixed_fps])
+    say("test" + CLOCK_NOTE[fixed_fps])
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():
@@ -558,6 +558,8 @@ def plan_shards(costs: dict[str, float], count: int) -> list[list[str]]:
 # `--repeat` (the nightly flaky job) and `test --real-time` stay real-time and keep covering the #222 class. The
 # default is code and a flag changes it, never an environment variable, so a local verify equals CI (that ADR's N4 (a)).
 FIXED_FPS_ARGS: tuple[str, ...] = ("--fixed-fps", FIXED_FPS)
+# How the first line of `test` and of `test --repeat N` names the clock flag given (None: none).
+CLOCK_NOTE: dict[bool | None, str] = {True: f" --fixed-fps ({FIXED_FPS})", False: " --real-time", None: ""}
 # The suites a run without paths takes at fixed fps, in shards of their own: frame-bound, on NetPair's or the test's
 # simulated clock over the LoopbackHub, measured green 10 runs in a row each (#280). Never an audio or ENet suite.
 FIXED_FPS_SUITES: tuple[str, ...] = (
@@ -979,7 +981,7 @@ def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, f
         raise Failure("--repeat must be at least 1")
     if fixed_fps and not paths:
         raise Failure("--repeat with --fixed-fps needs the paths to run at fixed fps")
-    say(f"test --repeat {runs}" + (f" --fixed-fps ({FIXED_FPS})" if fixed_fps else ""))
+    say(f"test --repeat {runs}" + CLOCK_NOTE[fixed_fps])
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():

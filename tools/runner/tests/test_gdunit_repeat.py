@@ -183,6 +183,13 @@ class RepeatTest(unittest.TestCase):
         self.assertTrue(all("--fixed-fps" not in args for args in self.args))
         self.assertNotIn("engine_args", self.summary)
 
+    def test_the_first_line_names_the_clock_flag_given_as_plain_test_does(self) -> None:
+        xml = results_xml({"tests/unit/a_test": {"test_ok": PASS}})
+        for flag, line in [(None, "test --repeat 1"), (False, "test --repeat 1 --real-time"),
+                           (True, "test --repeat 1 --fixed-fps (60)")]:  # fmt: skip
+            printed = self.run_repeat([(0, xml, False)], 1, paths=["tests/unit"], fixed_fps=flag)[3]
+            self.assertIn(line, printed.splitlines())
+
     def test_repeat_with_the_flag_passes_engine_args_to_every_run(self) -> None:
         xml = results_xml({"tests/unit/a_test": {"test_ok": PASS}})
         rc, _, _, printed = self.run_repeat([(0, xml, False)] * 2, 2, paths=["tests/unit"], fixed_fps=True)
