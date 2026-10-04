@@ -41,14 +41,16 @@ def usage(inp: int = 0, write: int = 0, read: int = 0, out: int = 0, write_1h: i
     }
 
 
-def assistant(minutes: float, mid: str, u: dict, *, model: str = "claude-opus-5-5", tool: dict | None = None) -> dict:
+def assistant(
+    minutes: float, mid: str, u: dict, *, model: str = "claude-opus-5-5", tool: dict | None = None, effort: str = "high"
+) -> dict:
     content: list[dict] = [{"type": "text", "text": "working"}]
     if tool:
         content = [{"type": "tool_use", **tool}]
     return {
         "type": "assistant",
         "timestamp": at(minutes),
-        "effort": "high",
+        "effort": effort,
         "message": {"id": mid, "model": model, "usage": u, "content": content},
     }
 
@@ -498,7 +500,8 @@ class MetricsTest(unittest.TestCase):
         printed = io.StringIO()
         with redirect_stdout(printed):
             rc = metrics.main(
-                [f"{SESSION[:4]}=M9"], until=UNTIL, out=str(out), compact=True, dirs=[self.fx.dir], history=[]
+                [f"{SESSION[:4]}=M9"], until=UNTIL, out=str(out), compact=True, dirs=[self.fx.dir], history=[],
+                gh=EMPTY_GH,
             )
         self.assertEqual(rc, 0)
         record = json.loads((out / "metrics.json").read_text(encoding="utf-8"))
@@ -513,8 +516,10 @@ class MetricsTest(unittest.TestCase):
         out = self.root / "none"
         printed = io.StringIO()
         with redirect_stdout(printed):
-            self.assertEqual(metrics.main(until=UNTIL, out=str(out), dirs=[], history=[]), 0)
-            self.assertEqual(metrics.main(["0000"], until=UNTIL, out=str(out), dirs=[self.fx.dir], history=[]), 0)
+            self.assertEqual(metrics.main(until=UNTIL, out=str(out), dirs=[], history=[], gh=no_gh), 0)
+            self.assertEqual(
+                metrics.main(["0000"], until=UNTIL, out=str(out), dirs=[self.fx.dir], history=[], gh=no_gh), 0
+            )
         self.assertIn("no Claude Code transcripts of this checkout", printed.getvalue())
         self.assertFalse(out.exists())
         with self.assertRaises(Failure):
@@ -525,12 +530,12 @@ class MetricsTest(unittest.TestCase):
     def test_an_empty_window_says_so_and_replaces_an_older_report(self) -> None:
         out = self.root / "out"
         with redirect_stdout(io.StringIO()):
-            metrics.main(until=UNTIL, out=str(out), dirs=[self.fx.dir], history=[])
+            metrics.main(until=UNTIL, out=str(out), dirs=[self.fx.dir], history=[], gh=EMPTY_GH)
         self.assertIn("## Per finished issue-task run", (out / "metrics.md").read_text(encoding="utf-8"))
         printed = io.StringIO()
         with redirect_stdout(printed):
             rc = metrics.main(since="2026-10-01T00:00:00Z", until="2026-10-01T12:00:00Z", out=str(out),
-                              dirs=[self.fx.dir], history=[])
+                              dirs=[self.fx.dir], history=[], gh=no_gh)
         self.assertEqual(rc, 0)
         self.assertIn("metrics: nothing in the window 2026-10-01T00:00:00Z to 2026-10-01T12:00:00Z", printed.getvalue())
         self.assertNotIn("no Claude Code transcripts", printed.getvalue())
@@ -683,6 +688,349 @@ class ManagerRewriteTest(unittest.TestCase):
         row = record["manager_rewrites"][0]
         self.assertEqual([f["while"] for f in row["found"]], ["timer"], "k5 was armed when the gap began")
         self.assertEqual(row["timers"], 0, "the count is of the timers armed in the window")
+
+
+SONNET = "claude-sonnet-5-5"
+REPO = "https://github.com/o/r/pull/"
+
+
+def gh_stub(github: dict, calls: list | None = None):
+    """A stand-in for `gh` serving the PR, CI run and issue lists of `github`."""
+
+    def gh(args: list[str]) -> str:
+        if calls is not None:
+            calls.append(args)
+        for prefix, key in ((["pr", "list"], "prs"), (["run", "list"], "runs"), (["issue", "list"], "issues")):
+            if args[:2] == prefix:
+                return json.dumps(github[key])
+        raise AssertionError(f"unexpected gh call: {args}")
+
+    return gh
+
+
+def no_gh(args: list[str]) -> str:
+    raise AssertionError(f"gh was called: {args}")
+
+
+EMPTY_GH = gh_stub({"prs": [], "runs": [], "issues": []})
+
+
+def ci_run(branch: str, sha: str, conclusion: str, minutes: float, event: str = "pull_request") -> dict:
+    return {"databaseId": hash((branch, sha, minutes)) % 10**6, "event": event, "headBranch": branch, "headSha": sha,
+            "conclusion": conclusion, "createdAt": at(minutes), "attempt": 1}  # fmt: skip
+
+
+def pull(number: int, branch: str, minutes: float, title: str = "feat(tooling): a change", body: str = "",
+         state: str = "OPEN") -> dict:  # fmt: skip
+    return {"number": number, "url": f"{REPO}{number}", "title": title, "body": body, "headRefName": branch,
+            "state": state, "createdAt": at(minutes), "mergedAt": at(170) if state == "MERGED" else None}  # fmt: skip
+
+
+def new_pub(number: int, url: str | None = None, **extra: object) -> dict:
+    """The publisher's result in the current shape (issue-task.js PUB)."""
+    return {"published": True, "handoff_posted": True, "pr_number": number, "pr_url": url or f"{REPO}{number}",
+            "ci_green": True, "fixed": [], "not_fixed": [], "needs_engineer": [], **extra}  # fmt: skip
+
+
+class QualityTest(unittest.TestCase):
+    """#314: the quality scorecard per finished issue-task run, from fixture journals and a stand-in for `gh`.
+
+    wf_a #31 (minutes 0-30), the current shapes: a major and a minor from the code review, a godot-api check on Sonnet
+             at effort medium, a skeptic that refuted the major, a publisher retried once (an Opus attempt that died
+             after one publish, then Sonnet with one more) that opened PR 41 (merged): first CI round red, a red round
+             after the run, a Found-by follow-up issue, a fix-up PR and a GitHub revert.
+    wf_b #32 (40-60), an older shape: a blocker no skeptic checked, a publisher result with only pr_url and `green`;
+             PR 42: a cancelled run, then green on its first round, red after the run.
+    wf_c #33 (62-80): no PR (published false).
+    wf_d #34 (82-100): a PR in another repository, and no diff reviewer.
+    wf_e #35 (102-120): PR 43, its only CI run still pending.
+    wf_f #31 (122-140): a fresh relaunch of #31 that ends on the same PR 41.
+    """
+
+    SID = "55555555-0000-0000-0000-000000000000"
+    GITHUB = {
+        "prs": [
+            pull(41, "tooling/31-a", 17, title="feat(tooling): a (#31)", body="Closes #31", state="MERGED"),
+            pull(42, "tooling/32-b", 55),
+            pull(43, "tooling/35-e", 115),
+            pull(40, "tooling/90-old", 5, title="fix(tooling): older", body="#41"),  # before PR 41: not a fix-up
+            pull(50, "tooling/99-x", 150, title="fix(tooling): a regression", body="a regression from #41"),
+            pull(51, "tooling/98-y", 151, title="feat: builds on #41"),  # not a fix
+            pull(52, "tooling/97-z", 152, title="fix(x): another", body="Found by: #31's implementer (PR #41)"),
+            pull(53, "tooling/31-c", 153, title="fix(tooling): own", body="#31"),  # the task's own branch
+            pull(54, "revert-41-tooling/31-a", 154, title='Revert "feat(tooling): a"', body="Reverts o/r#41"),
+            pull(55, "tooling/96-q", 155, title="fix: unrelated", body="see #410 and o/other#41"),
+        ],
+        "runs": [
+            ci_run("tooling/31-a", "sha1", "failure", 18),
+            ci_run("tooling/31-a", "sha1", "cancelled", 18.5),
+            ci_run("tooling/31-a", "sha2", "success", 25),
+            ci_run("tooling/31-a", "sha3", "failure", 145),  # after both #31 runs ended
+            ci_run("tooling/31-a", "sha4", "success", 147),
+            ci_run("main", "sha9", "failure", 20, event="push"),
+            ci_run("tooling/32-b", "sha0", "cancelled", 55.5),
+            ci_run("tooling/32-b", "sha5", "success", 56),
+            ci_run("tooling/32-b", "sha6", "timed_out", 70),  # after wf_b ended
+            ci_run("tooling/35-e", "sha7", "", 116),
+        ],
+        "issues": [
+            {"number": 60, "title": "a bug", "body": "Found by: #31's publisher (PR #41).", "createdAt": at(150)},
+            {"number": 61, "title": "a note", "body": "see #41 for context", "createdAt": at(151)},
+            {"number": 62, "title": "drift", "body": "Found by: night-audit docs (#410)", "createdAt": at(152)},
+        ],
+    }
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name) / "projects" / "D--prime-game"
+        wf = self.dir / self.SID / "subagents" / "workflows"
+        lines = self.lines
+        review = "Review"
+
+        def implement(n: int, start: float) -> tuple:
+            return (f"k-i{n}", f"a-i{start:g}", f"implement:#{n}", "Implement", {"verify_green": True},
+                    lines(f"i{start:g}", start, start + 8))  # fmt: skip
+
+        def code(n: int, start: float, findings: list[dict]) -> tuple:
+            return (f"k-c{n}", f"a-c{start:g}", f"review:code:#{n}", review, {"findings": findings},
+                    lines(f"c{start:g}", start, start + 2))  # fmt: skip
+
+        def publish(n: int, start: float, end: float, result: dict | None, *, model: str = "claude-opus-5-5",
+                    publishes: int = 1, aid: str = "") -> tuple:  # fmt: skip
+            return (f"k-p{n}", aid or f"a-p{start:g}", f"publish:#{n}", "Publish", result,
+                    lines(f"p{start:g}", start, end, model=model, publishes=publishes))  # fmt: skip
+
+        major = [{"severity": "major", "problem": "p"}, {"severity": "minor", "problem": "q"}]
+        Fixture.run(wf / "wf_a", [
+            implement(31, 0),
+            code(31, 9, major),
+            ("k-g31", "a-g31", "review:godot-api:#31", review, {"findings": []},
+             lines("g31", 9, 10, model=SONNET, effort="medium")),
+            ("k-s31", "a-s31", "skeptic:#31", review, {"refuted": True, "reason": "handled", "evidence": "x.py:1"},
+             lines("s31", 12, 13)),
+            publish(31, 14, 16, None, aid="a-p-dead"),  # its first attempt died after one publish
+            publish(31, 17, 30, new_pub(41, fixed=["a", "b"], not_fixed=["c"]), model=SONNET),
+        ])  # fmt: skip
+        Fixture.run(wf / "wf_b", [
+            implement(32, 40),
+            code(32, 49, [{"severity": "Blocker", "problem": "p"}]),
+            publish(32, 52, 60, {"published": True, "green": True, "pr_url": f"{REPO}42"}),
+        ])
+        Fixture.run(wf / "wf_c", [
+            implement(33, 62),
+            code(33, 71, []),
+            publish(33, 74, 80, {"published": False, "handoff_posted": True, "not_fixed": ["x"]}, publishes=0),
+        ])
+        Fixture.run(wf / "wf_d", [
+            implement(34, 82),
+            publish(34, 91, 100, new_pub(41, url="https://github.com/o/other/pull/41")),
+        ])
+        Fixture.run(wf / "wf_e", [implement(35, 102), code(35, 111, []), publish(35, 114, 120, new_pub(43))])
+        Fixture.run(wf / "wf_f", [implement(31, 122), code(31, 131, []), publish(31, 134, 140, new_pub(41))])
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    @staticmethod
+    def lines(tag: str, start: float, end: float, *, model: str = "claude-opus-5-5", effort: str = "high",
+              publishes: int = 0) -> list[dict]:  # fmt: skip
+        """An agent's transcript from start to end (minutes), with `publishes` publish calls run as bounded waits do."""
+        out = [assistant(start, f"{tag}-1", usage(inp=1, write=1000, out=10), model=model, effort=effort)]
+        for i in range(publishes):
+            t = start + (end - start) * (i + 1) / (publishes + 2)
+            cmd = f'tools/run.sh publish > a/publish-{i}.log 2>&1; echo "exit=$?" >> a/publish-{i}.log'
+            out += [assistant(t, f"{tag}-p{i}", usage(inp=1, read=1000, out=10), model=model, effort=effort,
+                              tool=bash(f"{tag}-t{i}", cmd)),
+                    assistant(t + 0.1, f"{tag}-w{i}", usage(inp=1, read=1000, out=10), model=model, effort=effort,
+                              tool=bash(f"{tag}-u{i}", f"tools/run.sh wait a/publish-{i}.log")),
+                    tool_result(t + 0.2, f"{tag}-t{i}"), tool_result(t + 0.3, f"{tag}-u{i}")]  # fmt: skip
+        out.append(assistant(end, f"{tag}-2", usage(inp=1, read=1000, out=10), model=model, effort=effort))
+        return out
+
+    def build(self, github: dict | None = None) -> tuple[list[str], dict, list[str]]:
+        until = metrics.parse_time(UNTIL)
+        data = metrics.collect([self.dir], {}, None, until)
+        return metrics.build(data, [], None, None, until, github=github)
+
+    def rows(self, github: dict | None = None) -> dict[str, dict]:
+        return {q["wf"]: q for q in self.build(github)[1]["quality"]["tasks"]}
+
+    def github(self) -> dict:
+        return metrics.read_github(gh_stub(self.GITHUB))
+
+    def test_quality_journal_signals_new_and_old_shapes(self) -> None:
+        rows = self.rows()
+        self.assertEqual(list(rows), ["wf_a", "wf_b", "wf_c", "wf_d", "wf_e", "wf_f"])
+        a = rows["wf_a"]
+        self.assertEqual((a["issue"], a["pr"], a["pr_url"]), (31, 41, f"{REPO}41"))
+        self.assertEqual(a["findings"], {"major": 1, "minor": 1})
+        self.assertEqual((a["serious"], a["checked"], a["refuted"], a["open"], a["clean"]), (1, 1, 1, 0, True))
+        self.assertEqual((a["fixed"], a["not_fixed"], a["needs_engineer"]), (2, 1, 0))
+        self.assertEqual((a["publish_runs"], a["fix_rounds"]), (2, 1), "both attempts of the retried publisher")
+        self.assertEqual(a["settings"]["publisher"], {"model": SONNET, "effort": "high"})
+        self.assertEqual(a["settings"]["godot-api-checker"], {"model": SONNET, "effort": "medium"})
+        b = rows["wf_b"]
+        self.assertEqual((b["pr"], b["serious"], b["open"], b["clean"]), (42, 1, 1, False), "pr from pr_url")
+        self.assertEqual((b["checked"], b["refuted"]), (None, None), "no skeptic ran: unknown, not 0")
+        self.assertEqual((b["fixed"], b["not_fixed"], b["needs_engineer"]), (None, None, None), "an older shape")
+        c = rows["wf_c"]
+        self.assertEqual((c["pr"], c["serious"], c["checked"], c["refuted"]), (None, 0, 0, 0))
+        self.assertEqual((c["not_fixed"], c["publish_runs"], c["fix_rounds"]), (1, 0, 0))
+        d = rows["wf_d"]
+        self.assertEqual((d["serious"], d["open"], d["clean"]), (None, None, None), "no diff reviewer")
+        # The first fixture's publisher result has only pr_number and ci_green: no list is read as 0.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = Fixture(Path(tmp))
+            data = metrics.collect([fx.dir], {}, None, metrics.parse_time(UNTIL))
+            done = next(r for r in data["runs"] if r["wf"] == "wf_done")
+            q = metrics.quality_of(done)
+        self.assertEqual((q["pr"], q["fixed"], q["not_fixed"], q["serious"]), (9, None, None, 1))
+
+    def test_quality_without_github_is_unknown_not_zero(self) -> None:
+        md, record, compact = self.build()
+        for wf, q in ((q["wf"], q) for q in record["quality"]["tasks"]):
+            for key in ("merged", "ci_red_rounds", "ci_red_after_run", "green_first", "followups", "fixups"):
+                with self.subTest(wf=wf, key=key):
+                    self.assertIsNone(q[key])
+        self.assertEqual(record["quality"]["github"], {"skipped": "not read"})
+        self.assertIsNone(json.loads(json.dumps(record["quality"]))["tasks"][0]["ci_red_rounds"])
+        text = "\n".join(md)
+        section = text[text.index("## Quality per finished issue-task run (#314)"):]
+        row = next(line for line in section.splitlines() if line.startswith("| 55555555 | #31 | 41 |"))
+        self.assertEqual(row.split(" | ")[3], "?", "merged is unknown")
+        self.assertIn("GitHub was not read", section)
+        total = record["quality"]["all"]
+        self.assertEqual((total["ci_red_rounds"]["known"], total["green_known"]), (0, 0))
+        self.assertIsNone(total["usd_per_green_first"])
+        line = next(x for x in compact if x.startswith("quality: "))
+        self.assertIn("GitHub: not read", line)
+        self.assertNotIn("per PR green", line)
+
+    def test_quality_from_github(self) -> None:
+        calls: list = []
+        github = metrics.read_github(gh_stub(self.GITHUB, calls))
+        self.assertEqual([c[:2] for c in calls], [["pr", "list"], ["run", "list"], ["issue", "list"]])
+        self.assertIn("all", calls[0])
+        self.assertEqual(calls[1][2:4], ["--workflow", "ci.yml"])
+        rows = self.rows(github)
+        a = rows["wf_a"]
+        self.assertEqual((a["merged"], a["ci_runs"], a["ci_red_rounds"], a["ci_red_after_run"]), (True, 5, 2, 1),
+                         "sha1 and sha3 red; the cancelled sha1 run adds nothing; the push to main is not the PR's")
+        self.assertEqual((a["green_first"], a["ci_last"]), (False, "success"))
+        self.assertEqual(a["followups"], [60])
+        self.assertEqual(a["fixups"], [50, 54], "the revert names o/r#41; 40, 51, 52, 53 and 55 are not fix-ups")
+        b = rows["wf_b"]
+        self.assertEqual((b["merged"], b["ci_red_rounds"], b["ci_red_after_run"]), (False, 1, 1))
+        self.assertTrue(b["green_first"], "a cancelled round is skipped; a later red does not undo the first green")
+        self.assertEqual((b["followups"], b["fixups"]), ([], []))
+        e = rows["wf_e"]
+        self.assertEqual((e["ci_red_rounds"], e["green_first"], e["ci_last"]), (0, None, "pending"))
+        for wf in ("wf_c", "wf_d"):  # no PR; a PR of another repository
+            for key in ("merged", "ci_red_rounds", "green_first", "followups", "fixups"):
+                with self.subTest(wf=wf, key=key):
+                    self.assertIsNone(rows[wf][key])
+
+    def test_a_cut_list_or_a_failed_read_is_unknown(self) -> None:
+        github = self.github()
+        github["runs_from"] = metrics.parse_time(at(100))  # the run list was cut: it starts after PR 41 and 42
+        rows = self.rows(github)
+        self.assertEqual((rows["wf_a"]["ci_red_rounds"], rows["wf_a"]["merged"]), (None, True))
+        self.assertEqual(rows["wf_e"]["ci_red_rounds"], 0)
+        _md, record, compact = self.build({"error": "gh pr list failed: offline"})
+        self.assertIsNone(record["quality"]["tasks"][0]["merged"])
+        self.assertEqual(record["quality"]["github"], {"error": "gh pr list failed: offline"})
+        self.assertIn("GitHub: not read (gh failed)", next(x for x in compact if x.startswith("quality: ")))
+
+    def test_quality_medians_per_session_and_role_setting(self) -> None:
+        md, record, _compact = self.build(self.github())
+        quality = record["quality"]
+        session = quality["sessions"][0]
+        self.assertEqual((session["session"], session["tasks"]), ("55555555", 6))
+        self.assertEqual(session["not_fixed"], {"median": 0, "known": 5, "of": 6}, "wf_b's older shape is unknown")
+        self.assertEqual(session["serious"], {"median": 0, "known": 5, "of": 6})
+        # Per PR, once each: 41 (two runs), 42, 43, the other repository's 41 and wf_c without a PR.
+        self.assertEqual(session["ci_red_rounds"], {"median": 1, "known": 3, "of": 5})
+        self.assertEqual((session["prs"], session["merged"], session["green_first"], session["green_known"]),
+                         (4, 1, 1, 2))  # fmt: skip
+        self.assertEqual((session["followups"], session["fixups"]), ([60], [50, 54]))
+        spent = sum(q["usd"] for q in quality["tasks"])
+        self.assertAlmostEqual(session["usd_per_green_first"], spent / 1)
+        self.assertEqual(quality["all"]["tasks"], 6)
+        settings = {(s["role"], s["model"], s["effort"]): s for s in quality["settings"]}
+        self.assertEqual(settings[("publisher", SONNET, "high")]["agents"], 1)
+        self.assertEqual(settings[("publisher", "claude-opus-5-5", "high")]["agents"], 6, "a-p-dead and 5 others")
+        clean = settings[("publisher (clean run)", SONNET, "high")]
+        self.assertEqual((clean["agents"], clean["runs"]), (1, 1), "only wf_a's Sonnet publisher")
+        self.assertEqual(settings[("publisher (clean run)", "claude-opus-5-5", "high")]["agents"], 4,
+                         "wf_a's dead attempt, wf_c, wf_e and wf_f: wf_b's blocker stood, wf_d's is unknown")
+        godot = settings[("godot-api-checker", SONNET, "medium")]
+        self.assertEqual((godot["agents"], godot["serious"]["median"]), (1, 1))
+        text = "\n".join(md)
+        self.assertIn("## Quality per finished issue-task run (#314)", text)
+        self.assertLess(text.index("## Review findings by reviewer"), text.index("## Quality per finished"))
+        self.assertIn("| 55555555 | 6 | 4 (1 merged) |", text)
+        self.assertIn("| publisher (clean run) | claude-sonnet-5-5 | high | 1 | 1 |", text)
+
+    def test_none_green_on_the_first_round_is_not_unknown(self) -> None:
+        github = self.github()
+        github["runs"] = [r for r in github["runs"] if r["headSha"] not in ("sha5", "sha0")]  # 42's first round red
+        _md, record, compact = self.build(github)
+        total = record["quality"]["all"]
+        self.assertEqual((total["green_first"], total["green_known"], total["usd_per_green_first"]), (0, 2, None))
+        line = next(x for x in compact if x.startswith("quality: "))
+        self.assertIn("none of 2 PRs green on their first CI round", line)
+
+    def test_the_compact_quality_line(self) -> None:
+        _md, _record, compact = self.build(self.github())
+        line = next(x for x in compact if x.startswith("quality: "))
+        self.assertEqual(compact.index(line), 3, "right after the task medians")
+        self.assertIn("6 tasks, 4 PRs (1 merged)", line)
+        self.assertIn("per PR green on its first CI round (1 of 2 known)", line)
+        self.assertIn("Found-by follow-ups 1", line)
+        # The most lines: tasks, three verify sources and CI. Ten, the CI line last.
+        with tempfile.TemporaryDirectory() as tmp:
+            fx = Fixture(Path(tmp))
+            until = metrics.parse_time(UNTIL)
+            history = [{"steps": {"lint": ("passed", 20.0)}, "total": 20.0, "status": "passed", "via": "history",
+                        "t": until - 60, "wait": None, "over": False}]  # fmt: skip
+            ci = {"runs": 3, "by_outcome": {"push success": 3}, "reruns": 0, "queue_s": 0.0, "green": 2,
+                  "job_s": [360.0, 420.0], "steps": {"verify total": [380.0, 390.0]}}  # fmt: skip
+            data = metrics.collect([fx.dir], {}, None, until)
+            _md, _record, most = metrics.build(data, history, ci, None, until, github={"skipped": "--no-gh"})
+        self.assertEqual(len(most), 10)
+        self.assertTrue(most[3].startswith("quality: 1 tasks"))
+        self.assertTrue(most[-1].startswith("CI: 3 runs"))
+        self.assertIn("GitHub: not read (--no-gh)", most[3])
+
+    def test_main_reads_github_and_degrades_on_failure(self) -> None:
+        out = Path(self.tmp.name) / "out"
+
+        def run(**kw: object) -> tuple[dict, str]:
+            printed = io.StringIO()
+            with redirect_stdout(printed):
+                self.assertEqual(metrics.main(until=UNTIL, out=str(out), compact=True, dirs=[self.dir], history=[],
+                                              **kw), 0)  # fmt: skip
+            return json.loads((out / "metrics.json").read_text(encoding="utf-8"))["quality"], printed.getvalue()
+
+        quality, _printed = run(gh=gh_stub(self.GITHUB))
+        self.assertIn("read_at", quality["github"])
+        self.assertEqual(quality["tasks"][0]["ci_red_rounds"], 2)
+
+        def offline(args: list[str]) -> str:
+            raise Failure("gh pr list failed: offline")
+
+        for gh, error in ((offline, "gh pr list failed: offline"), (lambda args: "not json", "not JSON")):
+            quality, printed = run(gh=gh)
+            self.assertIn(error, quality["github"]["error"])
+            self.assertIsNone(quality["tasks"][0]["ci_red_rounds"])
+            self.assertLessEqual(len(printed.strip().splitlines()), 10)
+            self.assertNotIn("warn", printed, "--compact prints only the summary")
+        quality, _printed = run(gh=no_gh, no_gh=True)
+        self.assertEqual(quality["github"], {"skipped": "--no-gh"})
+
+    def test_the_no_gh_flag(self) -> None:
+        self.assertTrue(cli.build_parser().parse_args(["metrics", "--no-gh"]).no_gh)
+        self.assertFalse(cli.build_parser().parse_args(["metrics"]).no_gh)
 
 
 class ProjectKeyTest(unittest.TestCase):
