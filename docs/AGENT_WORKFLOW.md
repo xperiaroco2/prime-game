@@ -323,6 +323,13 @@ Rules for every workflow run:
   carry one line each for the two calls that stopped them most (#312, #326): read the hooks path with
   `git rev-parse --git-path hooks` (§8.1), and wait with `wait <log>`, `run_in_background` or Monitor, never a
   foreground `sleep N; cat <log>` (§11, "Bounded waits"); the test pins both lines, identical in the two scripts.
+  Both return a compact result (#386), because the harness prints a run's return value into the manager's context
+  and every later call reads it again: the fields the skill's §4 acts on (the PR, CI, published, `stopped` and why,
+  `needs_engineer` and `human_steps` in full, `not_fixed` and `merge_notes` a line each, the reviews' findings by
+  severity, each v2 option's summary) and `full`, a pointer to the run's `journal.jsonl`, which keeps every agent's
+  whole result. A stop keeps what its relaunch needs in full (a red implementer's verify tail, a red rebase's
+  problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session shrank from 89k to 11k
+  characters (about 1,250 a run).
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
   optional `issue-task` args, all off by default, so a launch or a resume with the earlier args gets the earlier
   agents byte for byte (`tools/runner/tests/workflow_snapshots/` holds their prompts and options for representative
