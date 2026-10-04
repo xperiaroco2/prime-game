@@ -1203,7 +1203,7 @@ class CompactResultTest(unittest.TestCase):
 
     def test_issue_task_stops_keep_the_failure_and_the_engineers_steps(self) -> None:
         # A red implementer: the relaunch's notes need its verify tail, what it left and its needs_engineer.
-        red = dict(FULL_IMPL, verify_green=False, left=[LONG, "None"])
+        red = dict(FULL_IMPL, verify_green=False, left=[LONG, "None", "the second one\nwith a second line"])
         stuck = {"available": True, "exit_2": True, "findings": [MAJOR], "notes": "tools/out/mutants/m1 is still listed\n" + LONG,
                  "mutants": [{"file": "core/x.gd", "result": "killed"}, {"file": "core/x.gd", "result": "survived"}, {"file": "core/x.gd", "result": "killed"}]}
         stop_pub = {"published": False, "handoff_posted": True, "stopped_by_mutants": True, "human_steps": STEPS[:1], "needs_engineer": NEEDS[:1]}
@@ -1216,7 +1216,7 @@ class CompactResultTest(unittest.TestCase):
         self.assertIn("verify red after the implementer", out["stopped"])
         self.assertIn("relaunch issue-task (not a resume)", out["stopped"])
         self.assertEqual(out["verify_tail"], FULL_IMPL["verify_tail"])
-        self.assertEqual(out["left"], [LONG[:159].rstrip() + "…"])
+        self.assertEqual(out["left"], [LONG, "the second one\nwith a second line"], "in full; a None entry says nothing")
         self.assertEqual(out["needs_engineer"], FULL_IMPL["needs_engineer"])
         self.assertEqual(out["plan"], {"summary": "p", "critique": {}})
         self.assertEqual(out["reviews"], [])

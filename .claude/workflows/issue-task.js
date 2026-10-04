@@ -502,11 +502,11 @@ const brief = (stopped, pub, extra) => {
   }
   Object.assign(out, pick(impl, ['verify_green', 'complete']))
   out.summary = line(impl.summary)
-  // Where no publisher ran, the relaunch's notes need the red verify tail and what is left; after a publisher, the PR
-  // ("Part of") and not_fixed say what is left.
+  // Where no publisher ran, the relaunch's notes need the red verify tail and what is left, both in full (only a stop
+  // carries them); after a publisher, the PR ("Part of") and not_fixed say what is left.
   if (!pub) {
     if (!impl.verify_green && impl.verify_tail) out.verify_tail = impl.verify_tail
-    if (items(impl.left).length) out.left = lines(items(impl.left))
+    if (items(impl.left).length) out.left = items(impl.left)
   }
   // In full: the manager explains each one to the engineer, and copies each step's command as is. The publisher's
   // list carries the implementer's into the PR, so the implementer's counts only where the publisher's has no item
