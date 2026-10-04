@@ -1227,7 +1227,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   waiting run names it (`slot 2: load run in <worktree> (...)`; its holder file has `kind: load`); past the wait it
   starts nothing and exits 1 (a load is no gate, and it would push the slotted runs over the limit). Taking a slot
   was chosen over `verify` counting load runs as extra holders: the same operating-system lock frees a killed load's
-  slot at once, there is one count to reason about, and nothing else has to find and judge the load's processes. Each
+  slot at once, there is one count to reason about, and nothing else has to find and judge the load's processes. One
+  slot makes the load visible but does not shield the verify that still runs beside it: a default load busies every
+  logical CPU (a slot stands for half the PC), so that verify is expected to run slow and may go red on `freeze` or
+  `stall`; rerun it after the load instead of debugging it. A load taking both slots would shield it, but would hold
+  every other verify for up to 1140 s, past the 600 s wait, so they would run over the limit anyway. Each
   loop is its own Python process that ends by itself at most S seconds after it starts, and the runner stops any loop
   that outlives S by 5 s. A killed `load` frees its slot at once while its loops run out their time without one, so S
   is at most 1140 s: the 600 s wait, S, the 5 s grace and a 55 s start margin fit the 30-minute default limit of a
