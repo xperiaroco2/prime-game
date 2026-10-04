@@ -157,12 +157,18 @@ def squeezed(text: str) -> str:
     return re.sub(r"\s+", "", ANSI.sub("", text)).lower()
 
 
-def commands_section() -> list[str]:
-    lines = (common.ROOT / "CLAUDE.md").read_text(encoding="utf-8").splitlines()
+def commands_section(text: str | None = None) -> list[str]:
+    """The lines from `## Commands` up to the next heading, without its trailing blank lines (a blank line inside
+    the section still counts, so the section cannot grow past one)."""
+    if text is None:
+        text = (common.ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    lines = text.splitlines()
     start = lines.index("## Commands")
-    ends = (i for i in range(start + 1, len(lines)) if not lines[i].strip() or lines[i].startswith("#"))
-    end = next(ends, len(lines))
-    return lines[start:end]
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("#")), len(lines))
+    section = lines[start:end]
+    while section and not section[-1].strip():
+        section.pop()
+    return section
 
 
 def names_line() -> str:
@@ -200,6 +206,11 @@ class NamesLineTest(unittest.TestCase):
         section = commands_section()
         self.assertLessEqual(len(section), 5, section)
         self.assertTrue(any("--help" in line for line in section), "the section points at <command> --help")
+
+    def test_the_commands_section_runs_to_the_next_heading_past_a_blank_line(self) -> None:
+        text = "## Rules\nr\n\n## Commands\na\nb\n\nc\nd\ne\n\n## Shell\ns\n"
+        self.assertEqual(commands_section(text), ["## Commands", "a", "b", "", "c", "d", "e"])
+        self.assertEqual(commands_section("## Commands\na\n\n"), ["## Commands", "a"])
 
     def test_listed_names_skip_the_flags_of_a_note(self) -> None:
         line = "Commands: `a` `bots` (the leak test; `--chaos`: hostile) `c-d`"
