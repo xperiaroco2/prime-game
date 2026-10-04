@@ -55,7 +55,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   environment caches the resulting filesystem while each session starts from a fresh clone
   (code.claude.com/docs/en/cloud-environments), so the sparse checkout and the sysctl may not reach a later session,
   nor is it documented that `CLAUDE_CODE_REMOTE` is set at that point. Hence the first command above; `doctor` says
-  when it is due.
+  when it is due. The sysctl also fell back to 212992 within #346's session (seemingly when the idle VM was restored),
+  and `verify`'s `freeze` and `stall` failed until `setup.sh` ran again: rerun it whenever `doctor` warns.
 - **Python:** the image's `python3` is 3.11, the runner's minimum (`pins.PYTHON_MIN`; 3.10, 3.12 and 3.13 are
   installed too), while CI's `verify` runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on
   3.11, and since #349 CI's job `python-min` keeps the minimum true.
@@ -681,9 +682,12 @@ context ("Read it again before the next Edit"). About 2 s per edit, 8 s when the
 ### 8.5 Server side 👤
 A ruleset on `main` of the public repo: block force pushes, restrict deletions, require a PR. The required status
 check `verify` is added **after the CI PR has merged**. Code-owner review stays off. No bypass for admins.
-- **Live state (read 2026-09-29 with `gh api .../rulesets`):** `main-1` blocks deletions and non-fast-forward
-  pushes; `main-2` requires a PR (0 approvals) and the `verify` check. Neither has a bypass: the engineer removed
-  `main-2`'s admin bypass on 2026-09-29, so the admin account the agents push as cannot skip them either.
+- **Live state (read 2026-10-04 with `gh api .../rules/branches/main`):** `main-1` blocks deletions and
+  non-fast-forward pushes; `main-2` requires a PR (0 approvals) and the checks `verify` and `runner on the minimum
+  Python` (the job `python-min`, added by the engineer on 2026-10-04 after #358), both from GitHub Actions. Neither
+  has a bypass: the engineer removed `main-2`'s admin bypass on 2026-09-29, so the admin account the agents push as
+  cannot skip them either. A cloud session cannot change a ruleset: its GitHub proxy refuses writes to that API path
+  (HTTP 403), so a ruleset change is the engineer's step in the repository's settings.
 - "Automatically delete head branches" is on: a merged PR's branch is deleted, and GitHub retargets its stacked
   children to `main` itself.
 
@@ -1043,8 +1047,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   minimum Python (`pins --get python_min`, 3.11), checks it runs that version, compiles every runner file and runs
   `selftest --group python` (199 s on 3.11 in a cloud session, beside `verify`; Actions minutes cost nothing on a
   public repository): `verify`'s 3.12 never ran the stated minimum, and 3.12-only code broke `verify` in a cloud
-  session on 3.11 (#345). `merge` refuses a PR while it is red, like any check; a human's merge button does not
-  unless the engineer adds it to the `main` ruleset's required checks (§8.5). `verify` (#179) runs `doctor --quick`
+  session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
+  merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
   first (red: nothing else runs), then two lanes at once, each a process of its own and serial inside: the Python lane
   (`lint`, then `selftest`: the runner tests that start no Godot, each test in one of the worker processes, a quarter of
   the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
