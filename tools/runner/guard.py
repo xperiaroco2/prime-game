@@ -43,8 +43,8 @@ branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, 
 folder pins it). The repository (`.git`), `.claude` and the other worktrees (`.claude/worktrees`), and any glob that
 may name them, stay outside it; so do `git clean -x|-X|-e|-ff` (ignored files and nested repositories),
 `git stash -a` and magic pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive
-deletes pass. Git commands that discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore` of paths, `clean`, forced
-`checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
+deletes pass. Git commands that discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore`
+of paths, `clean`, forced `checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
 repository outside the project; they ask in the main checkout (but a cloud session's, above), in another worktree,
 after the command switched to another branch, and when their pathspec reaches another checkout. Branch changes are
 judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`, `checkout -B`, `switch -C`) or
