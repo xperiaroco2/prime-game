@@ -1138,8 +1138,12 @@ def manager_rows(counted: list[dict], sessions: list[dict]) -> list[dict]:
         sub_tok: Counter = Counter()
         for d in sub:
             sub_tok.update(d["tokens"])
-        spent = usd(mtok) + hand_usd + usd(sub_tok)
-        read = mtok.get("usd_cache_read", 0) + hand_read + sub_tok.get("usd_cache_read", 0)
+        # Summed in total_week's order (its runs, then the manager's own and hand-run $), so a one-session week is
+        # the total to the last bit on any Python: 3.11's sum() rounds at each step, 3.12's compensates.
+        own = [r for r in counted if r["sid"] == s["id"]]
+        spent = sum(run_usd(r) for r in own) + (usd(mtok) + hand_usd)
+        read = sum(x["data"]["tokens"].get("usd_cache_read", 0) for r in own for x in r["agents"] if x["data"])
+        read += mtok.get("usd_cache_read", 0) + hand_read
         week = week_percent(spent, read)
         managers.append({
             "session": s["id"], "label": s["label"], "title": s["title"], "model": man.get("model"),

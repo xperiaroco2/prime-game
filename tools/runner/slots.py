@@ -315,7 +315,8 @@ def for_verify(
     if inside:
         return None, "no slot inside a verify (the outer run holds one)"
     value = setting(env, COUNT_VAR, DEFAULT_COUNT)
-    if not value.is_integer():  # 0.5 would truncate to 0, "no limit"
+    # float(): DEFAULT_COUNT is an int, and int.is_integer() is new in Python 3.12 (the runner's minimum is 3.11).
+    if not float(value).is_integer():  # 0.5 would truncate to 0, "no limit"
         raise Failure(f"{COUNT_VAR}={env.get(COUNT_VAR)!r} is not a whole number")
     count = int(value)
     if count == 0:
