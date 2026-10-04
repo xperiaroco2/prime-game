@@ -1,6 +1,6 @@
 """`export` (#369): the parts that start no Godot. The exports themselves, the release check on real templates and the
 content-hash proof ran in #369's cloud session and run in the release workflow on each tag (they need the 1.3 GB
-templates)."""
+templates). The release workflow's shape is checked here too, next to ci.yml's in test_github_workflows.py."""
 
 import shutil
 import tempfile
@@ -10,6 +10,11 @@ from pathlib import Path
 
 from runner import export, pins
 from runner.common import Failure
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover - only without gdtoolkit's dependencies
+    yaml = None
 
 ROOT = Path(__file__).resolve().parents[3]
 MODE = "res://content/modes/base_mode.tres"
@@ -147,6 +152,30 @@ class HelpersTest(unittest.TestCase):
         (tree / "levels" / "crate.glb").write_bytes(export.LFS_POINTER + b"\noid sha256:00\nsize 12\n")
         (tree / "levels" / "room.tscn").write_bytes(b"[gd_scene format=3]\n")
         self.assertEqual(export.lfs_pointers(tree), ["levels/crate.glb"])
+
+
+@unittest.skipIf(yaml is None, "PyYAML is missing (it comes with gdtoolkit)")
+class ReleaseWorkflowTest(unittest.TestCase):
+    def test_it_runs_on_a_tag_only_and_publishes_only_the_release_zip(self) -> None:
+        data = yaml.safe_load((ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"))
+        data["on"] = data.pop(True)  # YAML 1.1 reads a bare `on:` key as the boolean true
+        self.assertEqual(data["on"], {"push": {"tags": ["v*"]}})
+        self.assertEqual(data["permissions"], {"contents": "write"})
+        steps = data["jobs"]["windows"]["steps"]
+        uses = [step.get("uses", "") for step in steps]
+        self.assertEqual(uses[:2], ["actions/checkout@v7", "./.github/actions/setup-toolchain"])
+        runs = [step.get("run", "") for step in steps]
+        self.assertFalse(any("twovoip" in run for run in runs), "the Windows build needs the TwoVoIP extension")
+        exporting = next(i for i, run in enumerate(runs) if "tools/run.sh export" in run)
+        self.assertIn('--version "$GITHUB_REF_NAME"', runs[exporting])
+        publish = next(i for i, run in enumerate(runs) if "gh release create" in run)
+        self.assertIn("windows-x86_64.zip", runs[publish])
+        self.assertNotIn("debug", runs[publish])
+        debug = next(step for step in steps if step.get("name") == "Keep the debug zip for the humans")
+        self.assertTrue(debug["with"]["path"].endswith("-windows-x86_64-debug.zip"))
+        self.assertLessEqual(debug["with"]["retention-days"], 7)
+        self.assertLess(exporting, steps.index(debug))
+        self.assertLess(steps.index(debug), publish)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,59 @@
+# The friends' builds (#369; docs/decisions/2026-10-04-m6-playable-over-the-internet.md E59, D20): on a tag the
+# engineer pushes, `tools/run.sh export` exports both Windows presets from the tagged commit with the pinned export
+# templates (SHA-512 from tools/runner/pins.py), checks that the release zip is a release build and proves the content
+# hash in an export. Only the release zip goes on the tag's GitHub Release; the debug zip (F3, the dev console, the
+# debug wire kinds) stays a short-lived workflow artifact for the humans. Never on a PR: it adds nothing to PR checks.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Windows builds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      # The TwoVoIP extension stays: the Windows build needs its library (CI's verify job removes it on Linux).
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - uses: ./.github/actions/setup-toolchain
+
+      - name: Export
+        run: GODOT_BIN=$HOME/godot/godot tools/run.sh export --version "$GITHUB_REF_NAME"
+
+      - name: Keep the debug zip for the humans
+        uses: actions/upload-artifact@v7
+        with:
+          name: debug-${{ github.ref_name }}
+          path: tools/out/export/PrimeGame-${{ github.ref_name }}-windows-x86_64-debug.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish the release zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME"
+          --notes "Windows x86_64 release build of $GITHUB_REF_NAME. Unzip it and run PrimeGame.exe; Windows
+          SmartScreen asks once: More info, Run anyway."
+          "tools/out/export/PrimeGame-$GITHUB_REF_NAME-windows-x86_64.zip"
+
+      - name: Upload the export logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: export-logs-${{ github.ref_name }}
+          path: tools/out/logs
+          if-no-files-found: ignore
+          retention-days: 14
