@@ -154,12 +154,12 @@ def sha(n: int) -> str:
 
 
 def merged_pr(n: int, head: str, merged_at: str, *, base: str = "main", title: str = "", issues: list[int] = (),
-              oid: str = "") -> dict:  # fmt: skip
+              oid: str = "", updated_at: str = "") -> dict:  # fmt: skip
     """One row of `gh pr list --state merged --json` as GitHub returns it."""
     refs = [{"id": f"I_{i}", "number": i, "url": f"https://github.com/o/r/issues/{i}"} for i in issues]
     return {"number": n, "title": title or f"title {n}", "headRefName": head, "baseRefName": base,
             "mergedAt": merged_at[:19] + "Z", "mergeCommit": {"oid": sha(n)}, "closingIssuesReferences": refs,
-            "headRefOid": oid or sha(n + 1000)}  # fmt: skip
+            "headRefOid": oid or sha(n + 1000), "updatedAt": (updated_at or merged_at)[:19] + "Z"}  # fmt: skip
 
 
 # merge-check's printed output (merge.check), clean and flagged, in its real shape.
@@ -678,8 +678,9 @@ class WaveTest(unittest.TestCase):
         src = FakeSources(merged=merged)
         target = self.root / "w.md"
         self.main(since=SINCE, out=str(target), sources=src, merge_check=False)
-        self.assertIn(("pr", "list", "--state", "merged", "--limit", str(wave.MERGED_LIMIT), "--json",
-                       wave.MERGED_FIELDS), src.gh_calls)  # fmt: skip
+        self.assertIn(("pr", "list", "--state", "merged", "--search", "sort:updated-desc", "--limit",
+                       str(wave.MERGED_LIMIT), "--json", wave.MERGED_FIELDS), src.gh_calls)  # fmt: skip
+        self.assertIn("updatedAt", wave.MERGED_FIELDS.split(","))
         body = target.read_text(encoding="utf-8")
         part = self.section(body, "Merged into main since")
         rows = [line for line in part.splitlines() if line.startswith("| #")]
@@ -696,6 +697,28 @@ class WaveTest(unittest.TestCase):
         self.main(since="2026-10-03T13:00:00Z", out=str(target), sources=FakeSources(merged=merged),
                   merge_check=False)  # fmt: skip
         self.assertIn("None.", self.section(target.read_text(encoding="utf-8"), "Merged into main since"))
+
+    def test_merged_note_at_the_limit(self) -> None:
+        """gh lists the most recently updated merged PRs; at its limit, a PR merged before the oldest update may be
+        missing. Judged by gh's raw row count (a row without mergedAt counts too), not by the parsed rows."""
+        target = self.root / "w.md"
+        no_merge_time = {**merged_pr(312, "tooling/12-x", at(25)), "mergedAt": None}
+
+        def note(rows: list[dict]) -> str:
+            self.main(since=SINCE, out=str(target), sources=FakeSources(merged=rows), merge_check=False)
+            part = self.section(target.read_text(encoding="utf-8"), "Merged into main since")
+            return "\n".join(line for line in part.splitlines() if line.startswith("gh returned"))
+
+        with mock.patch.object(wave, "MERGED_LIMIT", 3):
+            cut = [merged_pr(310, "tooling/10-x", at(60)), no_merge_time,
+                   merged_pr(311, "tooling/11-x", at(20), updated_at=at(30))]  # fmt: skip
+            self.assertEqual(note(cut), f"gh returned its limit of 3 merged PRs, the most recently updated, back to an "
+                             f"update at {at(25)[:19]}Z: a PR merged before then may be missing here and in "
+                             "housekeeping.")  # fmt: skip
+            whole = [merged_pr(310, "tooling/10-x", at(60)), merged_pr(311, "tooling/11-x", at(20)),
+                     merged_pr(309, "tooling/9-x", at(-90), updated_at=at(-10))]  # fmt: skip
+            self.assertEqual(note(whole), "", "the oldest update is before since: every PR merged since is listed")
+            self.assertEqual(note(cut[:2]), "", "under the limit gh listed them all")
 
     def test_open_pr_ci_cell(self) -> None:
         def run_(name: str, status: str = "COMPLETED", conclusion: str = "SUCCESS") -> dict:
@@ -905,8 +928,8 @@ class WaveTest(unittest.TestCase):
                                                                      wt("305", "tooling/305-keep-warm", sha(1405))]))
         self.main(since=SINCE, out=str(target), sources=only_ready, merge_check=False)
         self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Housekeeping").splitlines()[2],
-                         "For you: run the blocks under Ready to remove (worktree 305).", "ready blocks are the human's "
-                         "until the manager runs them itself")  # fmt: skip
+                         "For you: run the blocks under Ready to remove (worktree 305).",
+                         "ready blocks are the human's until the manager runs them itself")  # fmt: skip
         failing = FakeSources(merged=merged, fail={"worktrees": Failure("git worktree list failed: no git")})
         self.main(since=SINCE, out=str(target), sources=failing, merge_check=False)
         self.assertIn("Unavailable: git worktree list failed: no git",
