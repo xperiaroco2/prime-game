@@ -263,6 +263,12 @@ class MatcherTest(unittest.TestCase):
         self.assertEqual(rules.judge("PowerShell", "$s = git status")[0], permissions.ALLOW)
         self.assertEqual(rules.judge("PowerShell", "$s = Remove-Item x")[0], permissions.NONE)
         self.assertEqual(rules.judge("PowerShell", "$s = git push")[0], permissions.DENY)
+        self.assertEqual(rules.judge("PowerShell", "$o = npm test")[0], permissions.NONE)
+        self.assertEqual(rules.judge("PowerShell", "$o = & tools\\run.cmd verify")[0], permissions.NONE)
+        self.assertEqual(rules.judge("PowerShell", "$o = & git push")[0], permissions.DENY)
+        for literal in ("$n = 5", "$a = @()", "$h = @{a = 1}", "$t = [int]'5'", "$b = $true", "$p = (Get-Content f)"):
+            with self.subTest(literal=literal):
+                self.assertEqual(rules.judge("PowerShell", literal)[0], permissions.ALLOW)
 
     def test_a_cd_elsewhere_takes_git_out_of_the_read_only_set(self) -> None:
         rules = self.rules()
