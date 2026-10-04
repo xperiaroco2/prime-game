@@ -10,7 +10,7 @@ import socket
 import sys
 from pathlib import Path
 
-from . import machine_env, pins
+from . import machine_env, metrics, pins
 from .common import (
     IS_CI,
     IS_CLOUD,
@@ -46,6 +46,13 @@ RMEM_DEFAULT_FIX = 425984
 # Windows libraries only (the M5 voice ADR §2): CI deletes both, tools/cloud/setup.sh leaves both out of a cloud clone.
 TWOVOIP_EXTENSION = "addons/twovoip/twovoip.gdextension"
 TWOVOIP_FILES = (TWOVOIP_EXTENSION, TWOVOIP_EXTENSION + ".uid")
+# #385: a session started in the main checkout (the manager and its workflow agents) loads main's root CLAUDE.md at
+# launch, and a Read under .claude/worktrees/<n>/ would load that worktree's copy too. The exclude goes only into the
+# main checkout's untracked settings.local.json: on Windows a session started inside a worktree reads its own
+# .claude/settings.local.json, never main's, so it keeps its only root CLAUDE.md (docs/AGENT_WORKFLOW.md §3).
+CLAUDE_MD_EXCLUDE = "**/.claude/worktrees/*/CLAUDE.md"
+EXCLUDES_KEY = "claudeMdExcludes"
+PRESENT, ADDED, MISSING = "present", "added", "missing"
 
 
 def _dotted(parts: tuple[int, ...]) -> str:
@@ -138,6 +145,39 @@ class Doctor:
             ok(f"git hooks: set core.hooksPath to {HOOKS_PATH}" + (f" (it was {current})" if current else ""))
         else:
             self.fail("could not set core.hooksPath", res.out.strip())
+
+    def claude_md_exclude(self, quick: bool) -> None:
+        """The main checkout's `.claude/settings.local.json` excludes the worktrees' root CLAUDE.md (#385). The full
+        doctor adds it, merged into what the file holds; the quick one (verify's first step) only reads and warns."""
+        if IS_CI:
+            skip(f"{EXCLUDES_KEY} (not needed in CI)")
+            return
+        if not IS_WINDOWS:
+            skip(
+                f"{EXCLUDES_KEY} (Windows only: elsewhere a session started in a worktree reads the main checkout's "
+                "settings.local.json, so the exclude would take its only root CLAUDE.md)"
+            )
+            return
+        target = metrics.main_checkout(ROOT) / machine_env.LOCAL_SETTINGS
+        try:
+            state = add_claude_md_exclude(target, write=not quick)
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            text = f"cannot add {EXCLUDES_KEY} to {target}: {exc}"
+            fix = "Fix the file by hand (Claude Code reads it too), then run: tools\\run.cmd doctor"
+            if quick:
+                warn(f"{text}. {fix}")
+            else:
+                self.fail(text, fix)
+            return
+        if state == PRESENT:
+            ok(f"{EXCLUDES_KEY} has {CLAUDE_MD_EXCLUDE} ({target})")
+        elif state == ADDED:
+            ok(f"{EXCLUDES_KEY}: added {CLAUDE_MD_EXCLUDE} to {target}")
+        else:
+            warn(
+                f"{target} lacks {EXCLUDES_KEY} {CLAUDE_MD_EXCLUDE}, so a workflow agent that reads a worktree file "
+                "loads root CLAUDE.md twice; run the full doctor once to add it: tools\\run.cmd doctor"
+            )
 
     def bash(self) -> None:
         path = git_bash()
@@ -314,6 +354,32 @@ class Doctor:
             self.fail("could not generate the engine API dump", "See tools/out/logs/doctor-api-dump.log")
 
 
+def add_claude_md_exclude(path: Path, write: bool = True) -> str:
+    """Make the settings file at `path` list CLAUDE_MD_EXCLUDE in its claudeMdExcludes. PRESENT: it already does;
+    ADDED: written (a missing file is created; every other key and pattern is kept, in its order); MISSING: it does
+    not and `write` is False. ValueError when the file is not a JSON object or its claudeMdExcludes is not a list:
+    nothing is written then."""
+    data: dict = {}
+    if path.is_file():
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+        if not isinstance(data, dict):
+            raise ValueError("the file is not a JSON object")
+    patterns = data.get(EXCLUDES_KEY, [])
+    if not isinstance(patterns, list):
+        raise ValueError(f"`{EXCLUDES_KEY}` is not a list")
+    if CLAUDE_MD_EXCLUDE in patterns:
+        return PRESENT
+    if not write:
+        return MISSING
+    data[EXCLUDES_KEY] = [*patterns, CLAUDE_MD_EXCLUDE]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Through a temporary file beside it, so a Claude Code session reading the file never sees half of it.
+    scratch = path.with_name(path.name + ".doctor.tmp")
+    scratch.write_bytes((json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
+    os.replace(scratch, path)
+    return ADDED
+
+
 def loopback_datagrams_held(count: int, rcvbuf: int | None = None) -> int:
     """Send `count` small datagrams to a fresh, never-read UDP socket on 127.0.0.1 with the default receive buffer
     (or `rcvbuf` bytes); return how many it holds. The kernel drops the rest (RcvbufErrors in /proc/net/snmp)."""
@@ -348,6 +414,7 @@ def main(quick: bool) -> int:
     doc.gdtoolkit()
     doc.addons()
     doc.githooks()  # also in --quick: start-task runs the quick doctor
+    doc.claude_md_exclude(quick)  # --quick only reads it: verify's doctor step never writes Claude Code's settings
     doc.udp_backlog()  # also in --quick: verify's doctor step then warns minutes before its stall step fails
     doc.cloud_twovoip()  # also in --quick: verify stops at its doctor step instead of failing its Godot steps
     if not quick:
