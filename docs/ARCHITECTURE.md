@@ -2043,7 +2043,7 @@ numbers without a fraction; the content hash, an s64, travels as 16 lowercase he
 
 `to` and `from` are the service's number for a joiner in its room (1 upward, never reused in that room), not a game
 peer id: the game's id comes in `ADMIT` (§2.3 of the design). `id` is the host's id for that connection attempt,
-which the service passes on unread. `sdp` is 1 to 12288 characters, `cand` 0 to 1024 (empty: end of candidates),
+which the service checks as an id (1 to 2^31 - 1) and otherwise passes on. `sdp` is 1 to 12288 characters, `cand` 0 to 1024 (empty: end of candidates),
 `mid` 0 to 64, `index` 0 to 255; `ice_servers` is a list of at most 8 `{urls: [1 to 4 "stun:", "stuns:", "turn:" or
 "turns:" URLs], username?, credential?}`. Codes are 6 characters from the 31 that cannot be misread
 (`23456789ABCDEFGHJKMNPQRSTUVWXYZ`: no 0, O, 1, I, L), random per room.
@@ -2054,9 +2054,10 @@ which the service passes on unread. `sdp` is 1 to 12288 characters, `cand` 0 to 
   An unknown type is `bad message`; a type of the protocol that the sender's side may not send is `not allowed`; a
   field missing or out of its rule is `bad message`. Unknown fields are ignored, and every message sent on is
   rebuilt from the checked fields only, so nothing a sender adds passes through.
-- **Roles per socket**, fixed by its first accepted message: `open` makes it a room's host, `join` a joiner; a
-  socket without a role may send only those two, and one whose `join` failed keeps no role and may try another code.
-  A host-only type (`offer`, `close`, `reopen`, `open`) from a joiner gets `not allowed` and is never forwarded. A
+- **Roles per socket**, fixed by its first accepted message (the design says "first message"; a refused one fixes
+  nothing): `open` makes it a room's host, `join` a joiner; a socket without a role may send only those two, and one
+  whose `join` failed keeps no role and may try another code. A host's type (`offer`, `close`, `reopen`), or `open`
+  or `join`, from a joiner gets `not allowed` and is never forwarded; so do `open`, `join` and `answer` from a host. A
   joiner's `answer` and `candidate` go to its room's host with its `from`, whatever they name (a `to` is dropped). The
   host's `offer` and `candidate` go only to the joiner of its own room named in `to`, else `no such joiner`. Joiners
   never see each other, and the host never sees another room.
@@ -2065,9 +2066,13 @@ which the service passes on unread. `sdp` is 1 to 12288 characters, `cand` 0 to 
   place). Otherwise the joiner gets `found` and the host `join {from}`.
 - **ICE servers:** `room` carries the service's own (STUN from its configuration, E58); the service adds a joiner's
   to the host's `offer` to that joiner, never to `found`, so a code pasted in a public chat hands out no relay.
-  `LanSignalling` serves an empty list (host candidates connect on a LAN and in tests).
-- **Caps** (placeholders, "not a decision"): 16 KB a message; 32 candidates per joiner each way, the 33rd refused
-  with `too many candidates` to its sender; `max` joiners at once.
+  `LanSignalling` serves an empty list by default (host candidates connect on a LAN and in tests); the transcripts'
+  replay passes theirs.
+- **Caps** (placeholders, "not a decision"): 16 KB a message, received and forwarded: what the service adds (`from`,
+  its ICE servers) can push a message at the cap over it, and the receiver would drop it unread, so the sender gets
+  `too large` instead; 32 candidates per joiner each way, the 33rd refused with `too many candidates` to its sender;
+  `max` joiners at once. Offers and answers are not counted: the service forwards each, and the host takes one answer
+  per offer and the joiner one offer per attempt (§2.3 of the design).
 - **No reclaim:** the host's socket closing closes the room; its joiners get `the host left` and the service closes
   their sockets; the code is free, and hosting again makes a new room.
 - **Closing after an error:** the service closes a socket a moment after the message that ends it
@@ -2080,15 +2085,19 @@ which the service passes on unread. `sdp` is 1 to 12288 characters, `cand` 0 to 
 "text"}` (s sends it; `"pad_to": n` pads the text with spaces to n bytes, `"repeat": n` sends it n times), each with
 `expect`: in order, `{"to": s, "msg": {...}}` the service sends after that step, with `"close": true` when it then
 closes s. Messages compare as JSON values (numbers by value, keys in any order). The flows: `flow_join`, `flow_closed`,
-`flow_no_room`, `flow_wrong_version`, `flow_host_left`, `caps_full`, `caps_candidates`, `caps_too_large`; the forged
-types (the design's §5): `forged_offer`, `forged_candidate_to`, `forged_close`, `forged_reopen`, and `forged_roles`
-(a host joining or answering, a joiner opening, a host naming another room's joiner).
+`flow_no_room`, `flow_wrong_version`, `flow_host_left` (the freed code handed out again), `caps_full`,
+`caps_candidates`, `caps_too_large`, `caps_forwarded_too_large`; the forged types (the design's §5): `forged_offer`,
+`forged_candidate_to`, `forged_close`, `forged_reopen`, `forged_from` (a joiner's `from`, a host's `ice_servers` and
+`from`, all dropped) and `forged_roles` (a host joining or answering, a joiner opening, a host naming another room's
+joiner). Both suites check the exact list, so a deleted transcript fails them.
 
 **Tests:** `tests/unit/net/signal/` (the codec's rules, the router replaying every transcript, a fuzz test of the
 decoder: every truncation, every field of every type replaced by each other JSON type, oversized and deeply nested
 input and random bytes give a clean reject or a canonical message and no engine error line) and
 `tests/integration/net/lan_signalling_test.gd` (every transcript replayed byte for byte over real WebSockets on
-127.0.0.1 through `LanSignalling` on a free port, and a host and a joiner `Signaller` through a whole exchange). The
+127.0.0.1 through `LanSignalling` on a free port; a host and a joiner `Signaller` through a whole exchange with a
+default `LanSignalling`; a `Signaller` dropping and counting in `rejected` what is not for its side, with no signal).
+`Signaller.room_found` gives the content hash as the s64 `ContentFingerprint` makes. The
 design's §5 plant, the router forwarding a joiner's `offer` to the joiner it names, failed `forged_offer` in both.
 
 ## 5. Per-peer information filtering

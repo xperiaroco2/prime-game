@@ -8,23 +8,12 @@ const Transcripts := preload("res://tests/unit/net/signal/signal_transcripts.gd"
 
 
 func test_there_is_a_transcript_per_flow_and_per_forged_type() -> void:
-	var names := Transcripts.all().keys()
-	for file: String in [
-		"flow_join.json",
-		"flow_closed.json",
-		"flow_no_room.json",
-		"flow_wrong_version.json",
-		"forged_offer.json",
-		"forged_candidate_to.json",
-		"forged_close.json",
-		"forged_reopen.json",
-	]:
-		assert_array(names).contains([file])
+	assert_array(Transcripts.all().keys()).contains_exactly(Transcripts.NAMES)
 
 
 func test_every_transcript_replays() -> void:
 	var transcripts := Transcripts.all()
-	assert_int(transcripts.size()).is_greater_equal(8)
+	assert_array(transcripts.keys()).contains_exactly(Transcripts.NAMES)
 	var failures := PackedStringArray()
 	for file: String in transcripts:
 		failures.append_array(_replay(file, transcripts[file]))

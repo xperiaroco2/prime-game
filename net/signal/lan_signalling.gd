@@ -3,8 +3,8 @@ extends RefCounted
 ## The signalling service served by the host itself over ws:// (ARCHITECTURE §4.8; the M6 ADR
 ## §2.4, E53): on the LAN, and in every headless test, so no test needs the internet. The rooms and
 ## the routing are SignalRouter's, the same rules the Worker (M6-5b) runs; this class only carries
-## its messages over WebSockets. It serves no ICE servers: on one machine or a LAN, host candidates
-## connect. The owner calls poll() every frame.
+## its messages over WebSockets. By default it serves no ICE servers: on one machine or a LAN, host
+## candidates connect (the transcripts' replay passes theirs). The owner calls poll() every frame.
 
 ## A connection that has not finished its WebSocket handshake by then is dropped.
 const HANDSHAKE_TIMEOUT_MS := 5000
@@ -117,7 +117,11 @@ func _poll_socket(socket: int) -> void:
 func _deliver(out: Array[SignalRouter.Outgoing]) -> void:
 	for each: SignalRouter.Outgoing in out:
 		var peer: WebSocketPeer = _sockets.get(each.socket)
+		# A socket its client is closing is still in a room until it reads closed; sending to it
+		# would print an engine error.
 		if peer == null or _closing.has(each.socket):
+			continue
+		if peer.get_ready_state() != WebSocketPeer.STATE_OPEN:
 			continue
 		peer.send_text(JSON.stringify(each.message, "", false))
 		if each.close:

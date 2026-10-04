@@ -9,6 +9,25 @@ extends RefCounted
 ## closes s.
 
 const FOLDER := "res://tests/fixtures/signal/"
+## Every transcript, so a deleted one fails the suites: the flows, the caps and the forged types
+## (the M6 ADR §5).
+const NAMES: Array[String] = [
+	"caps_candidates.json",
+	"caps_forwarded_too_large.json",
+	"caps_full.json",
+	"caps_too_large.json",
+	"flow_closed.json",
+	"flow_host_left.json",
+	"flow_join.json",
+	"flow_no_room.json",
+	"flow_wrong_version.json",
+	"forged_candidate_to.json",
+	"forged_close.json",
+	"forged_from.json",
+	"forged_offer.json",
+	"forged_reopen.json",
+	"forged_roles.json",
+]
 
 
 ## Every transcript by file name, sorted.

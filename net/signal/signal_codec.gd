@@ -24,7 +24,7 @@ enum Side {
 	TO_JOINER,
 }
 
-enum Field { INT, U16, ID, MAX_JOINERS, CODE, CONTENT, SDP, MID, INDEX, CAND, ICE, WHY }
+enum Field { U16, ID, MAX_JOINERS, CODE, CONTENT, SDP, MID, INDEX, CAND, ICE, WHY }
 
 const VERSION := 1
 ## Placeholders, "not a decision" (the ADR §2.4).
@@ -40,6 +40,7 @@ const MAX_CAND := 1024
 const MAX_MID := 64
 const MAX_WHY := 64
 const MAX_JOINERS := 255
+const MAX_ID := 2147483647
 
 ## The reasons an error carries ("why"). The client maps each to its text.
 const WHY_VERSION := "update the game"
@@ -54,7 +55,7 @@ const WHY_CANDIDATES := "too many candidates"
 const WHY_HOST_LEFT := "the host left"
 const WHY_BUSY := "no free code"
 
-## Side -> type -> field -> Field. A field marked optional in OPTIONAL may be absent.
+## Side -> type -> field -> Field. Every field is required; unknown ones are dropped.
 const TYPES := {
 	Side.UNSET:
 	{
@@ -93,7 +94,6 @@ const TYPES := {
 const KNOWN_TYPES: Array[String] = [
 	"open", "room", "join", "found", "offer", "answer", "candidate", "close", "reopen", "error"
 ]
-const MAX_ID := 2147483647
 
 
 ## A decoded message: its type and its checked fields, or the reason it was refused.
@@ -149,15 +149,19 @@ static func decode(bytes: PackedByteArray, side: int) -> Decoded:
 
 ## The text of a message of `type` with `fields` as `side` sends it, or "" (with an error) when
 ## decode() would refuse it: a sender never puts on the wire what the other side drops.
+## The text holds only the type's fields: a caller's stray keys never reach the wire.
 static func encode(side: int, type: String, fields: Dictionary) -> String:
 	var message := {"t": type, "v": VERSION}
 	message.merge(fields)
 	var text := JSON.stringify(message, "", true)
-	var check := decode(text.to_ascii_buffer(), side)
-	if not check.ok() or text.to_ascii_buffer().get_string_from_ascii() != text:
+	var check := Decoded.new()
+	check.why = WHY_BAD
+	if _ascii(text):
+		check = decode(text.to_ascii_buffer(), side)
+	if not check.ok():
 		push_error("signal: refused to encode %s from side %d: %s" % [type, side, check.why])
 		return ""
-	return text
+	return JSON.stringify(as_message(check), "", true)
 
 
 ## The whole message (type and "v" included) as a Dictionary, for transcripts and the router.
@@ -176,7 +180,10 @@ static func content_text(fingerprint: int) -> String:
 	return bytes.hex_encode()
 
 
+## The content hash of a checked "content" field (16 lowercase hex digits), else 0.
 static func content_hash(text: String) -> int:
+	if text.length() != 16 or not _is_lower_hex(text):
+		return 0
 	return text.hex_decode().decode_s64(0)
 
 
@@ -203,8 +210,6 @@ static func is_code(value: Variant) -> bool:
 ## The field checked against its kind, as the receiver should hold it, or null.
 static func _checked(value: Variant, kind: Field) -> Variant:
 	match kind:
-		Field.INT:
-			return _integer(value, 0, MAX_ID)
 		Field.U16:
 			return _integer(value, 0, 65535)
 		Field.ID:
@@ -309,6 +314,14 @@ static func _ice_scheme(url: String) -> bool:
 		if url.begins_with(scheme):
 			return true
 	return false
+
+
+## Whether every character of `text` is ASCII, so to_ascii_buffer() changes none.
+static func _ascii(text: String) -> bool:
+	for at: int in text.length():
+		if text.unicode_at(at) > 0x7F:
+			return false
+	return true
 
 
 static func _printable(bytes: PackedByteArray) -> bool:

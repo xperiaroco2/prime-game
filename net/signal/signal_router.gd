@@ -68,7 +68,10 @@ func _init(ice_servers: Array, next_code: Callable) -> void:
 	_next_code = next_code
 
 
+## A new socket. Numbers are never reused while the router may still hold one: a reused number
+## would inherit the old socket's place in a room.
 func opened(socket: int) -> void:
+	assert(not _peers.has(socket), "signal: socket %d opened twice" % socket)
 	_peers[socket] = Peer.new()
 
 
@@ -87,9 +90,10 @@ func received(socket: int, bytes: PackedByteArray, text := true) -> Array[Outgoi
 		side = SignalCodec.Side.HOST
 	elif peer.role == Role.JOINER:
 		side = SignalCodec.Side.JOINER
-	var decoded := SignalCodec.decode(bytes, side)
 	if not text:
-		decoded.why = SignalCodec.WHY_BAD
+		out.append(_error(socket, SignalCodec.WHY_BAD))
+		return out
+	var decoded := SignalCodec.decode(bytes, side)
 	if not decoded.ok():
 		out.append(_error(socket, decoded.why))
 		return out
@@ -103,6 +107,11 @@ func received(socket: int, bytes: PackedByteArray, text := true) -> Array[Outgoi
 			_from_host(socket, peer, decoded, out)
 		Role.JOINER:
 			_from_joiner(peer, decoded, out)
+	# What the service adds ("from", its ICE servers) can push a message at the cap over it, and
+	# the receiver would drop it unread: the sender hears "too large" instead.
+	for each: Outgoing in out:
+		if each.socket != socket and _size(each.message) > SignalCodec.MAX_MESSAGE_BYTES:
+			return [_error(socket, SignalCodec.WHY_TOO_LARGE)] as Array[Outgoing]
 	return out
 
 
@@ -215,6 +224,11 @@ func _from_joiner(peer: Peer, decoded: SignalCodec.Decoded, out: Array[Outgoing]
 		"from": peer.number, "mid": fields["mid"], "index": fields["index"], "cand": fields["cand"]
 	}
 	out.append(_send(room.host, "candidate", candidate))
+
+
+## The bytes of `message` as the service sends it (compact JSON).
+static func _size(message: Dictionary) -> int:
+	return JSON.stringify(message, "", false).to_ascii_buffer().size()
 
 
 func _send(socket: int, type: String, fields: Dictionary) -> Outgoing:

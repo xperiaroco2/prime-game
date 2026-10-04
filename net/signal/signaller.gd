@@ -8,7 +8,8 @@ extends RefCounted
 ## frame. Messages sent before the socket opens wait and go out in order when it does.
 
 signal opened
-## The socket closed, or never opened. After it this Signaller is done.
+## The socket closed, or never opened (after a connect_to() that returned OK). After it this
+## Signaller is done.
 signal closed
 ## Host: the service made the room.
 signal room_opened(code: String, ice_servers: Array)
@@ -17,10 +18,13 @@ signal joiner_arrived(joiner: int)
 signal answer_received(joiner: int, sdp: String)
 ## Host: from joiner `joiner`. Joiner: from the host, and `joiner` is 0.
 signal candidate_received(joiner: int, mid: String, index: int, cand: String)
-## Joiner: the room exists; advisory only (the host decides with Hello, the ADR §2.5).
-signal room_found(protocol: int, content: String)
+## Joiner: the room exists, with the host's protocol and content hash (an s64, as
+## ContentFingerprint gives it); advisory only (the host decides with Hello, the ADR §2.5).
+signal room_found(protocol: int, content: int)
 signal offer_received(id: int, sdp: String, ice_servers: Array)
-## The service refused something: `why` is one of SignalCodec's WHY_ reasons.
+## The service refused something: `why` is printable text, normally one of SignalCodec's WHY_
+## reasons (a newer service may send another). The service forwards every offer and answer: the
+## host takes one answer per offer and the joiner one offer per attempt (the ADR §2.3).
 signal refused(why: String)
 
 enum Role { NONE, HOST, JOINER }
@@ -117,10 +121,12 @@ func _send(side: int, type: String, fields: Dictionary) -> bool:
 	var text := SignalCodec.encode(side, type, fields)
 	if text == "" or _done:
 		return false
-	if _open:
-		return _socket.send_text(text) == OK
-	_queue.append(text)
-	return true
+	if not _open:
+		_queue.append(text)
+		return true
+	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return false
+	return _socket.send_text(text) == OK
 
 
 func _handle(bytes: PackedByteArray) -> void:
@@ -144,7 +150,7 @@ func _handle(bytes: PackedByteArray) -> void:
 			var joiner: int = fields.get("from", 0)
 			candidate_received.emit(joiner, fields["mid"], fields["index"], fields["cand"])
 		"found":
-			room_found.emit(fields["protocol"], fields["content"])
+			room_found.emit(fields["protocol"], SignalCodec.content_hash(str(fields["content"])))
 		"offer":
 			offer_received.emit(fields["id"], fields["sdp"], fields["ice_servers"])
 		"error":

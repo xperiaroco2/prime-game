@@ -88,10 +88,15 @@ func test_random_bytes_and_random_json_are_rejected_or_valid() -> void:
 	var samples := Samples.all()
 	for i: int in RANDOM_INPUTS:
 		var bytes := PackedByteArray()
-		if i % 3 == 0:
+		if i % 4 == 0:
 			bytes.resize(random.randi_range(0, 64))
 			for at: int in bytes.size():
 				bytes[at] = random.randi_range(0, 255)
+		elif i % 4 == 1:
+			# Printable ASCII, which passes the byte check and reaches the JSON parser.
+			bytes.resize(random.randi_range(0, 64))
+			for at: int in bytes.size():
+				bytes[at] = random.randi_range(0x20, 0x7E)
 		else:
 			# A sample with a few bytes changed to printable ASCII: mostly still JSON.
 			bytes = _text_of(samples[random.randi_range(0, samples.size() - 1)]).to_ascii_buffer()
@@ -99,6 +104,17 @@ func test_random_bytes_and_random_json_are_rejected_or_valid() -> void:
 				bytes[random.randi_range(0, bytes.size() - 1)] = random.randi_range(0x20, 0x7E)
 		for side: int in SignalCodec.Side.values():
 			_check(bytes, side)
+	assert_array(Array(_failures)).is_empty()
+	assert_array(Array(_errors.snapshot())).is_empty()
+
+
+## \u escapes the byte check cannot see: lone and paired surrogates, NUL, non-ASCII letters.
+func test_unicode_escapes_are_rejected_without_an_error_line() -> void:
+	for escape: String in ["\\ud800", "\\udc00", "\\ud83d\\ude00", "\\u0000", "\\u00e9", "\\uffff"]:
+		var text := '{"t": "candidate", "v": 1, "mid": "0", "index": 0, "cand": "a%s"}' % escape
+		_expect_rejected(text.to_ascii_buffer(), SignalCodec.WHY_BAD, [SignalCodec.Side.JOINER])
+		var key := '{"t": "close", "v": 1, "%s": 1}' % escape
+		_check(key.to_ascii_buffer(), SignalCodec.Side.HOST)
 	assert_array(Array(_failures)).is_empty()
 	assert_array(Array(_errors.snapshot())).is_empty()
 
