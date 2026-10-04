@@ -122,6 +122,11 @@ class CheckTest(unittest.TestCase):
             ],
         )
 
+    def test_a_heading_without_a_section_under_a_numbered_one_fails_in_the_two_docs(self) -> None:
+        arch = ARCH + "#### Foo (role)\n## Appendix\n### Notes\n```\n#### 4.5.<n> <Name>\n```\n"
+        report = check({"docs/ARCHITECTURE.md": arch, "docs/decisions/x.md": "## 1. A\n### Notes\n"})
+        self.assertEqual(report.errors, ["docs/ARCHITECTURE.md: line 7 `Foo (role)` has no § under §4.5"])
+
     def test_a_section_in_a_fence_neither_counts_nor_duplicates(self) -> None:
         fenced = FLOW + "```\n## 3. Example\n## 7. Example\n```\n"
         report = check({"docs/AGENT_WORKFLOW.md": fenced, "a.md": "AGENT_WORKFLOW §7\n"})

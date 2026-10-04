@@ -1,7 +1,7 @@
 """lint's check of § references (#338; the instruction-diet ADR's issue B).
 
-It fails a duplicate § in a doc, and a § reference to ARCHITECTURE or AGENT_WORKFLOW in a tracked file (docs/history/
-and addons/ excepted) that resolves to no heading. Which doc a § belongs to follows the ADR's scope rules, in the
+It fails a duplicate § in a doc, a heading without a § under a numbered one in ARCHITECTURE or AGENT_WORKFLOW, and
+a § reference to those two in a tracked file (docs/history/ and addons/ excepted) that resolves to no heading. Which doc a § belongs to follows the ADR's scope rules, in the
 order `references` gives. Where they were ambiguous, the choice keeps the docs' own references quiet: a doc named in
 an earlier sentence of the same line does not take a § (in ARCHITECTURE, "(`docs/AGENT_WORKFLOW.md` §12), ... (§9.3)"
 is its own §9.3), and a list item or a table row is a paragraph of its own. A § with no doc in scope, or with another
@@ -181,6 +181,19 @@ def numbers_of(text: str) -> tuple[set[str], list[str]]:
     return seen, twice
 
 
+def unnumbered(text: str) -> list[str]:
+    """Each heading without a § under a numbered one ("#### Foo (role)" in §9.5): it would quietly end the numbering
+    of the section it joins, and a reference could not name it."""
+    found, parents = [], []
+    for heading in headings(text):
+        while parents and parents[-1].level >= heading.level:
+            parents.pop()
+        if heading.number is None and parents and parents[-1].number is not None:
+            found.append(f"line {heading.start} `{heading.title}` has no § under §{parents[-1].number}")
+        parents.append(heading)
+    return found
+
+
 def tracked_texts(root: Path) -> dict[str, str]:
     """Every tracked text file outside SKIP_PREFIXES and SKIP_FILES, by repo-relative path (binary files skipped)."""
     res = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True, check=False)
@@ -212,6 +225,7 @@ def check(root: Path, texts: dict[str, str] | None = None) -> Report:
                 report.errors.append(f"{name}: §{number} is the number of more than one heading")
             if name in CHECKED.values():
                 numbers[name] = seen
+                report.errors.extend(f"{name}: {line}" for line in unnumbered(text))
     for name, text in sorted(texts.items()):
         if "§" not in text:
             continue

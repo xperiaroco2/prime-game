@@ -141,12 +141,13 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   only where nothing else always loaded says it (`bots` is the information-leak test). The runner test
   `tools/runner/tests/test_cli_help.py` fails a name missing on either side, a command without a description, or a
   fact of an old row gone from its `--help`.
-- **Docs by section [applied]** (the instruction-diet ADR's N1 (a), #325; #338): `tools\run.cmd section <doc>`
-  prints a doc's outline (§, title, line range, tokens), `section <doc> <§>...` exactly those sections. § numbers stay
-  stable: a section is never renumbered or moved, since code comments and issues name them. `lint` fails a duplicate §
-  in a doc and a § reference to ARCHITECTURE or AGENT_WORKFLOW that resolves to no heading; the doc a § belongs to is
-  the one named with it (scope rules: `tools/runner/refs.py`), and a § with no doc in scope is only counted
-  (`section --refs` lists those).
+- **Docs by section [applied]** (the instruction-diet ADR's N1 (a), #325; #338): `tools\run.cmd section <doc>` prints a
+  doc's outline (§, title, line range, tokens), `section <doc> <§>...` exactly those sections. § numbers stay stable: a
+  section is never renumbered or moved, since code comments and issues name them. `lint` fails a duplicate § in a doc, a
+  heading without a § under a numbered one in ARCHITECTURE or AGENT_WORKFLOW (a new heading takes the next free number
+  under its parent), and a § reference to those two that resolves to no heading; the doc a § belongs to is the one named
+  with it (scope rules: `tools/runner/refs.py`), and a § with no doc in scope is only counted (`section --refs` lists
+  those).
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.

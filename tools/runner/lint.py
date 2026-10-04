@@ -116,16 +116,17 @@ def instruction_files() -> bool:
 
 
 def section_refs() -> bool:
-    """Duplicate § in a doc and § references to ARCHITECTURE and AGENT_WORKFLOW that resolve to nothing (#338).
-    Returns True when something failed."""
+    """Duplicate § in a doc, unnumbered headings under numbered ones in ARCHITECTURE and AGENT_WORKFLOW, and §
+    references to those two that resolve to nothing (#338). Returns True when something failed."""
     report = refs.check(ROOT)
     for line in report.errors:
         bad(line)
     if report.errors:
         bad(
-            "a § is duplicated or a § reference does not resolve",
+            "a § is duplicated or missing, or a § reference does not resolve",
             "Point each at the section it means (tools\\run.cmd section <doc> prints the outline), or name its doc\n"
-            "where the scope rules in tools/runner/refs.py pick the wrong one; never renumber a section.",
+            "where the scope rules in tools/runner/refs.py pick the wrong one; a new heading takes the next free\n"
+            "number under its parent (#### 9.5.<n> ...); never renumber a section.",
         )
         return True
     for line in report.notes:
