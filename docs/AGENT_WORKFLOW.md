@@ -873,11 +873,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   message, names a worktree a live session holds and then the ready blocks: `For you: close the Claude session in
   worktree <n> (...), then run its block below; run the blocks under Ready to remove (worktrees ...).` (`For you:
   nothing.` when neither); a manager that runs the ready blocks itself drops that part. The other cases are one-line
-  waits (after `release/m<k>` reaches main, a run still running there, HEAD moved). It also names the issues still open whose PR reached main since T. One `gh pr list
-  --state merged` (the newest 500, every base) serves the merged section and housekeeping (gh's `merged:>=` search is
-  date-only, so mergedAt is filtered here); a worktree whose PR is older than those is not listed. A body over 60,000
-  characters (GitHub's limit is 65,536) moves its handover data, each run's block whole, to `<out>-2.md` (and `-3.md`,
-  ...), posted as the next comments; the first body says so, every path is printed, a part one run's args alone push
+  waits (after `release/m<k>` reaches main, a run still running there, HEAD moved). It also names the issues still open
+  whose PR reached main since T. One `gh pr list --state merged --search sort:updated-desc` (the 500 most recently
+  updated, every base; gh's default order is by creation) serves the merged section and housekeeping (gh's `merged:>=`
+  search is date-only, so mergedAt is filtered here); when gh returns all 500, the merged section names the oldest
+  update among them, before which a merged PR (and its worktree) may be missing. A body over 60,000 characters (GitHub's
+  limit is 65,536) moves its handover data, each run's block whole, to `<out>-2.md` (and `-3.md`, ...), posted as the
+  next comments; the first body says so, every path is printed, a part one run's args alone push
   over 65,536 gets a warn, and a part left from an earlier run is named, never deleted. A run is finished when its
   latest launch has a notification or its journal reached the script's end (issue-task: a publisher result, or a red
   implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or every reviewer answered with

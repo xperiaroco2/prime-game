@@ -33,7 +33,8 @@ Rules:
 
 The whole wave comment (#278): `--since` also reads, through Sources (tests replace it), each source on its own (one
 that fails shows "Unavailable: <error>" in its section and a warn line; the rest of the body is still written):
-- one `gh pr list --state merged` (MERGED_LIMIT, every base): the PRs merged into --base since --since (gh's merged:>=
+- one `gh pr list --state merged --search sort:updated-desc` (the MERGED_LIMIT most recently updated, every base; at
+  the limit the section names how far back it reached): the PRs merged into --base since --since (gh's merged:>=
   search is date-only, so the window is filtered by mergedAt here), and for housekeeping the PRs whose work reached
   main through a release or a parent branch (that branch's own PR into main merged at or after them);
 - `gh pr list --state open`: the PRs into --base and those stacked on them, with a one-word CI cell
@@ -45,8 +46,8 @@ that fails shows "Unavailable: <error>" in its section and a warn line; the rest
 - `git worktree list --porcelain` in the main checkout, sessions.alive_in and `gh issue list --state open`: a fenced
   PowerShell block per command for each task worktree (and the manager's release-m<k> worktree) whose work is on
   main, with no running run of this session there, HEAD at the merged head and no live Claude session in it; a
-  "For you:" line naming what a live session holds, then the ready blocks; waits as one-line notes; the issues still open whose PR
-  reached main since --since.
+  "For you:" line naming what a live session holds, then the ready blocks; waits as one-line notes; the issues still
+  open whose PR reached main since --since.
 The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
 safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
 block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
@@ -89,8 +90,12 @@ REVIEW_ROLES = ("code-reviewer", "netcode-security-reviewer", "netcode-second-re
 MAIN = "main"
 # One `gh pr list --state merged` serves the merged section (filtered by base and mergedAt here: gh's merged:>= search
 # is date-only) and housekeeping (every base, for PRs that reached main through a release or a parent branch).
+# gh lists PRs by creation date unless a search sorts them: by update, a PR merged lately comes first however old it is.
 MERGED_LIMIT = 500
-MERGED_FIELDS = "number,title,headRefName,baseRefName,mergedAt,mergeCommit,closingIssuesReferences,headRefOid"
+MERGED_SEARCH = "sort:updated-desc"
+MERGED_FIELDS = (
+    "number,title,headRefName,baseRefName,mergedAt,mergeCommit,closingIssuesReferences,headRefOid,updatedAt"
+)
 OPEN_FIELDS = "number,title,headRefName,baseRefName,isDraft,statusCheckRollup,mergeStateStatus,closingIssuesReferences"
 # The issue of a task branch <area>/<n>-<slug> (merge.TASK_BRANCH_RE's shape).
 TASK_BRANCH = re.compile(r"^[a-z][a-z0-9]*/(\d+)-")
@@ -265,6 +270,7 @@ class Wave:
     title: str | None = None
     notes: str | None = None
     merged: list[MergedPR] | str | None = None  # every base, oldest first
+    merged_cut: float | None = None  # read_merged's cut: gh's limit reached, a PR merged before it may be missing
     open_prs: list[OpenPR] | str | None = None  # into base and stacked on those
     merge_check: MergeCheck | None = None
     cost: Cost | str | None = None
@@ -644,11 +650,19 @@ def rows_of(data: Any, what: str) -> list[dict]:
     return [d for d in data if isinstance(d, dict) and isinstance(d.get("number"), int)]
 
 
-def read_merged(gh: Callable[..., Any]) -> list[MergedPR]:
-    """The newest MERGED_LIMIT merged PRs into any base, oldest first."""
+def read_merged(gh: Callable[..., Any]) -> tuple[list[MergedPR], float | None]:
+    """The MERGED_LIMIT most recently updated merged PRs into any base, oldest merge first, and the cut: the oldest
+    update among them when gh returned its whole limit (a PR merged before it may be missing; merging updates a PR, so
+    every PR merged after it is listed), else None."""
+    data = gh("pr", "list", "--state", "merged", "--search", MERGED_SEARCH, "--limit", str(MERGED_LIMIT), "--json",
+              MERGED_FIELDS)  # fmt: skip
+    rows = rows_of(data, "--state merged")
+    cut = None
+    if len(data) >= MERGED_LIMIT:
+        updates = [t for t in (metrics.stamp(d.get("updatedAt")) for d in rows) if t is not None]
+        cut = min(updates) if updates else None
     found = []
-    for d in rows_of(gh("pr", "list", "--state", "merged", "--limit", str(MERGED_LIMIT), "--json", MERGED_FIELDS),
-                     "--state merged"):  # fmt: skip
+    for d in rows:
         t = metrics.stamp(d.get("mergedAt"))
         if t is None:
             continue
@@ -656,7 +670,7 @@ def read_merged(gh: Callable[..., Any]) -> list[MergedPR]:
         found.append(MergedPR(d["number"], str(d.get("title") or ""), str(d.get("headRefName") or ""),
                               str(d.get("baseRefName") or ""), t, str(commit.get("oid") or ""), issues_of(d),
                               str(d.get("headRefOid") or "")))  # fmt: skip
-    return sorted(found, key=lambda p: (p.merged_at, p.number))
+    return sorted(found, key=lambda p: (p.merged_at, p.number)), cut
 
 
 def ci_cell(rollup: object) -> str:
@@ -972,9 +986,10 @@ def merged_section(w: Wave) -> list[str]:
     rows = [[f"#{p.number}", p.title, p.head, metrics.iso(p.merged_at), p.merge_commit[:10], issues_cell(p.issues)]
             for p in w.merged if p.base == w.base and p.merged_at >= w.since]  # fmt: skip
     md += [table(["PR", "title", "branch", "merged", "merge commit", "issues"], rows), ""] if rows else ["None.", ""]
-    if len(w.merged) >= MERGED_LIMIT and w.merged[0].merged_at > w.since:
-        md += [f"gh listed only the newest {MERGED_LIMIT} merged PRs, back to {metrics.iso(w.merged[0].merged_at)}: "
-               "older ones are not listed.", ""]  # fmt: skip
+    if w.merged_cut is not None and w.merged_cut > w.since:
+        md += [f"gh returned its limit of {MERGED_LIMIT} merged PRs, the most recently updated, back to an update at "
+               f"{metrics.iso(w.merged_cut)}: a PR merged before then may be missing here and in housekeeping.",
+               ""]  # fmt: skip
     return md
 
 
@@ -1278,7 +1293,8 @@ def attempt(what: str, read: Callable[[], Any]) -> Any:
 def gather(w: Wave, src: Sources, merge_check: bool, dirs: list[Path], stage_since: float | None) -> None:
     """Every source beyond the transcripts, each on its own: one that fails leaves the others."""
     main = attempt("the main checkout", src.main_checkout)
-    w.merged = attempt("merged PRs", lambda: read_merged(src.gh_json))
+    merged = attempt("merged PRs", lambda: read_merged(src.gh_json))
+    w.merged, w.merged_cut = merged if isinstance(merged, tuple) else (merged, None)
     w.open_prs = attempt("open PRs", lambda: read_open(src.gh_json, w.base))
     if merge_check:
         w.merge_check = capture_merge_check(src.check, w.base)
