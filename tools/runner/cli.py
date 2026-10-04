@@ -146,6 +146,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--base", required=True, help="release/<x>, or main (a PR through the gate, #300)")
     p.add_argument("--sync-main", action="store_true", help="merge origin/main into the base instead of a PR")
     p.add_argument("--dry-run", action="store_true", help="print the gate's verdict and merge nothing")
+    p = sub.add_parser(
+        "merge-train",
+        help="merge PRs into main one by one: publish each in its worktree (a red verify retried once), wait for its "
+        "CI, then merge's gate; a PR that fails is skipped with the reason (a background job: poll it with wait)",
+    )
+    p.add_argument("prs", nargs="+", type=int, help="the PRs to merge, in this order")
+    p.add_argument("--base", required=True, help="main (the only base it merges into)")
+    p.add_argument("--dry-run", action="store_true", help="print the plan and each gate's verdict now; merge nothing")
+    p.add_argument(
+        "--recent",
+        type=int,
+        default=10,
+        metavar="M",
+        help="a worktree whose last commit is younger than M minutes counts as held by a live run (0: off; default 10)",
+    )
 
     p = sub.add_parser("start", help="put the checkout on the task branch of an issue; assign it; board In progress")
     p.add_argument("issue", type=int, help="issue number")
@@ -367,6 +382,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import merge
 
             return merge.merge(args.pr, base=args.base, sync_main=args.sync_main, dry_run=args.dry_run)
+        if args.command == "merge-train":
+            from . import train
+
+            return train.main(args.prs, base=args.base, dry_run=args.dry_run, recent_minutes=args.recent)
         if args.command == "start":
             from . import start
 

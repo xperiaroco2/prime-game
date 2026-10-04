@@ -9,8 +9,8 @@ long job in the background with the Bash tool, its output and then an exit marke
 and polls it with `wait`, one tool call of at most S seconds each (default 240). The job is finished only when the
 LAST complete non-empty line of the log is `exit=<n>`: the marker is the job's final write, a half-written line (no
 newline yet) is never read, and a bare `exit=0` line in the job's own output is not mistaken for the end. Then `wait`
-prints the job's summary (from verify's last "verify summary" line, which publish prints too; otherwise the last
-TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line and 124. No log, or one it
+prints the job's summary (from the last "verify summary" line, which publish prints too, or "merge-train summary";
+otherwise the last TAIL_LINES lines) and returns n. Not finished by the deadline: one "still running" line and 124. No log, or one it
 cannot read: 2.
 
 Every line `wait` writes itself starts with "wait: ", so a job's own exit 2 or 124 is told apart by that line. It
@@ -38,7 +38,9 @@ MISSING = 2  # no log, an unreadable one, or a bad --max (argparse's own errors 
 POLL_SECONDS = 3.0
 APPEAR_GRACE = 10.0  # the background shell may not have created the log yet when the first wait starts
 TAIL_LINES = 20
-SUMMARY_HEAD = "verify summary"
+# A summary starts at the last of these lines: verify's (which publish prints too), or merge-train's own (#387), which
+# follows the verify summaries of the publishes it ran.
+SUMMARY_HEADS = ("verify summary", "merge-train summary")
 EXIT_LINE = re.compile(r"^exit=(\d+)$")
 MSYS_DRIVE = re.compile(r"^/([A-Za-z])(?=/|$)")
 
@@ -76,11 +78,11 @@ def exit_code(lines: list[str]) -> int | None:
 
 
 def summary_lines(lines: list[str], tail: int = TAIL_LINES) -> list[str]:
-    """What to print of a finished log: from the last "verify summary" line (verify, publish) to the marker, else the
-    last `tail` non-empty lines before it (mutants, a publish stopped before its verify)."""
+    """What to print of a finished log: from the last "verify summary" (verify, publish) or "merge-train summary" line
+    to the marker, else the last `tail` non-empty lines before it (mutants, a publish stopped before its verify)."""
     end = max(i for i, line in enumerate(lines) if line.strip())  # the marker
     body = lines[:end]
-    heads = [i for i, line in enumerate(body) if line.startswith(SUMMARY_HEAD)]
+    heads = [i for i, line in enumerate(body) if line.startswith(SUMMARY_HEADS)]
     if heads:
         return body[heads[-1] :]
     return [line for line in body if line.strip()][-tail:]
