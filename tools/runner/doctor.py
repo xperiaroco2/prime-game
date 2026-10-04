@@ -23,6 +23,7 @@ from .common import (
     ensure_out,
     gdtoolkit_exe,
     git_bash,
+    node_bin,
     godot_bin,
     ok,
     require_godot,
@@ -83,6 +84,8 @@ class Doctor:
                 ok(f"{var} from {source}: {os.environ.get(var, '')}")
             elif IS_CI or IS_CLOUD:
                 skip(f"{var} (not set; {'CI' if IS_CI else 'a cloud session'} finds its tools on PATH)")
+            elif var in machine_env.OPTIONAL_VARS:
+                skip(f"{var} (not set; the tool on PATH is used)")
             else:
                 warn(
                     f"{var} is not set: neither " + ", ".join(report.searched[:-1]) + f" nor {report.searched[-1]} "
@@ -198,6 +201,23 @@ class Doctor:
                     f"{name} reports '{version}', pinned {pins.GDTOOLKIT}",
                     f"Run: python -m pip install gdtoolkit=={pins.GDTOOLKIT}",
                 )
+
+    def node(self) -> None:
+        """Node.js for `signal`, a verify step (the toolchain-pins ADR)."""
+        exe = node_bin()
+        fix = (
+            f"Install Node.js {pins.NODE} (Windows: winget install OpenJS.NodeJS.LTS --version {pins.NODE}; a cloud "
+            f"session: bash tools/cloud/setup.sh), or set NODE_BIN to its node executable in {USER_SETTINGS} env."
+        )
+        if not exe:
+            self.fail("node not found", fix)
+            return
+        result = run([exe, "--version"], timeout=60)
+        version = version_tuple(result.out)
+        if version[:1] == (pins.NODE_MAJOR,):
+            ok(f"Node.js {_dotted(version)} ({exe})")
+        else:
+            self.fail(f"node reports '{result.out.strip()}', pinned {pins.NODE_MAJOR}.x ({pins.NODE} in CI)", fix)
 
     def addons(self) -> None:
         cfg_path = ROOT / "addons" / "gdUnit4" / "plugin.cfg"
@@ -346,6 +366,7 @@ def main(quick: bool) -> int:
     doc.disk()
     doc.godot()
     doc.gdtoolkit()
+    doc.node()
     doc.addons()
     doc.githooks()  # also in --quick: start-task runs the quick doctor
     doc.udp_backlog()  # also in --quick: verify's doctor step then warns minutes before its stall step fails

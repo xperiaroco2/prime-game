@@ -31,7 +31,14 @@ GITHUB = ROOT / ".github"
 SETUP = "./.github/actions/setup-toolchain"
 # The actions CI used when the night jobs came (#189). Another one from the marketplace is a new dependency: the
 # engineer's call (root CLAUDE.md, "Stop and ask before").
-KNOWN_ACTIONS = {"actions/checkout@v7", "actions/setup-python@v7", "actions/cache@v6", "actions/upload-artifact@v7"}
+# actions/setup-node came with the signalling Worker's tests (#368; the M6 ADR D23).
+KNOWN_ACTIONS = {
+    "actions/checkout@v7",
+    "actions/setup-python@v7",
+    "actions/cache@v6",
+    "actions/upload-artifact@v7",
+    "actions/setup-node@v7",
+}
 
 
 def load(path: Path) -> dict:
@@ -68,6 +75,17 @@ class GithubWorkflowsTest(unittest.TestCase):
         for step in data["runs"]["steps"]:
             if "run" in step:
                 self.assertEqual(step.get("shell"), "bash", step.get("name"))
+
+    def test_the_setup_action_installs_the_pinned_node_without_a_package_cache(self) -> None:
+        steps = load(ROOT / SETUP / "action.yml")["runs"]["steps"]
+        pins = next(i for i, step in enumerate(steps) if step.get("name") == "Read pins")
+        self.assertIn("node=$(tools/run.sh pins --get node)", steps[pins]["run"])
+        self.assertIn('echo "NODE_PIN=$node"', steps[pins]["run"])
+        node = [i for i, step in enumerate(steps) if step.get("uses") == "actions/setup-node@v7"]
+        self.assertEqual(len(node), 1)
+        self.assertLess(pins, node[0])
+        settings = {"node-version": "${{ env.NODE_PIN }}", "package-manager-cache": False}
+        self.assertEqual(steps[node[0]]["with"], settings)
 
     def test_ci_keeps_its_triggers_and_runs_verify_after_the_shared_setup(self) -> None:
         data = load(GITHUB / "workflows" / "ci.yml")

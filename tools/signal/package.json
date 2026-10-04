@@ -1,0 +1,6 @@
+{
+  "name": "prime-game-signal",
+  "private": true,
+  "description": "The signalling service's Worker; no dependencies (tools/signal/README.md).",
+  "type": "module"
+}
