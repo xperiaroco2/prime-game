@@ -206,8 +206,9 @@ func quit() -> void:
 
 
 ## Esc: the Esc menu over the current screen, the mouse freed; the player stands still under it.
+## The menu takes the live screen(), not the one _process drew last (#204).
 func open_esc() -> void:
-	ui.open_esc(hosting(), _welcomed_model())
+	ui.open_esc(hosting(), _welcomed_model(), screen())
 	pointer.capture(false)
 
 
