@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from unittest import mock
 
 from runner import cli, metrics, sessions, wave
@@ -851,6 +851,12 @@ class WaveTest(unittest.TestCase):
         self.main(since=late, out=str(target), merge_check=False)
         part = self.section(target.read_text(encoding="utf-8"), "Cost")
         self.assertIn("```text\n" + "\n".join(compact(late)) + "\n```", part)
+
+    def test_cd_main_keeps_the_root(self) -> None:
+        # A POSIX-flavoured path is how the main checkout reaches housekeeping on Linux; Python 3.11 used to turn it
+        # into the drive-relative "D:prime-game".
+        for main in (PurePosixPath(MAIN), PureWindowsPath(MAIN), Path(MAIN)):
+            self.assertEqual(wave.cd_main(main), "cd D:\\prime-game; ", repr(main))
 
     def test_housekeeping_filters(self) -> None:
         def wt(name: str, branch: str | None, head: str) -> str:

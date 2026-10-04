@@ -68,7 +68,7 @@ from collections import Counter
 from collections.abc import Callable
 from contextlib import redirect_stdout
 from dataclasses import dataclass, field
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePath, PureWindowsPath
 from typing import Any
 
 from . import agents_check, common, merge, metrics, sessions
@@ -822,12 +822,19 @@ def running_in(wt: Worktree, runs: list[Run]) -> Run | None:
     return None
 
 
+def cd_main(main: PurePath) -> str:
+    """The PowerShell prefix that enters the main checkout. Built from the path's text: Python 3.11 builds a
+    PureWindowsPath from another path's parts, so a POSIX-flavoured "D:/prime-game" (the Linux CI) became the
+    drive-relative "D:prime-game"; 3.12 and later read the text."""
+    return f"cd {PureWindowsPath(str(main))}; "
+
+
 def housekeeping_of(worktrees: list[Worktree], merged: list[MergedPR], runs: list[Run], alive_in: Callable[[Path],
                     list], main: Path, open_issues: set[int], since: float, now: float) -> Housekeeping:  # fmt: skip
     """Per task worktree (.claude/worktrees/<n>) and manager release worktree (release-m<k>) whose branch has a
     merged PR: a block when its work is on main, no run of this session works there, its HEAD is the merged head and
     no live Claude session sits there; held when one does; else a wait. Worktrees with no merged PR are left out."""
-    cd = f"cd {PureWindowsPath(main)}; "
+    cd = cd_main(main)
     by_head: dict[str, list[MergedPR]] = {}
     for p in merged:
         by_head.setdefault(p.head, []).append(p)
