@@ -420,7 +420,8 @@ class SupervisionTest(unittest.TestCase):
     def test_a_part_that_ignores_the_stop_is_killed_and_fails(self) -> None:
         parts = [fake("join", "stubborn", self.stop)]
         with mock.patch.object(hostjoin, "GRACE_SECONDS", 1):
-            self.run_parts(parts, seconds=1)
+            # The stop comes once it printed its roster line, however slowly the interpreter starts.
+            self.run_parts(parts, seconds=60, until=lambda ps: any("roster" in line for line in ps[0].lines))
             self.assertIn("was killed", parts[0].problem)
         # Its last line came before the stop: the report says what it printed last and when (#354).
         self.assertRegex(parts[0].problem, r"its last line came \d+\.\ds before the stop: 'session: roster")
