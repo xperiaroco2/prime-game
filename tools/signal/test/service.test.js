@@ -1,12 +1,15 @@
 // SignalService, the Durable Object's work, against fakes of the runtime's sockets and state: every
 // shared transcript over fake WebSockets, also with the object rebuilt from its sockets'
 // attachments after every step (hibernation), the close after the grace, and the configuration.
+// TURN (M6-10) over a fake of Cloudflare's API: the transcripts marked turn_only, the minting's
+// requests, and the offer without TURN when the API fails.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import * as codec from "../src/codec.js";
 import { CLOSE_GRACE_MS, DEFAULT_ICE_SERVERS, SignalService, iceServersFrom } from "../src/service.js";
+import * as turn from "../src/turn.js";
 import * as transcripts from "./transcripts.js";
 
 // A hibernatable server-side WebSocket: attachments are structured clones, as the runtime keeps
@@ -81,11 +84,75 @@ class FakeTimers {
   }
 }
 
-function serviceFor(state, transcript, timers, codes) {
-  return new SignalService(state, { ICE_SERVERS: transcript.config.ice_servers }, {
+// Cloudflare's generate-ice-servers as a fake fetch: it answers the bodies of `minted` in order
+// (null, or none left: a 500) and records every request.
+class FakeTurnApi {
+  constructor(minted = []) {
+    this.minted = structuredClone(minted);
+    this.requests = [];
+  }
+
+  fetch = async (url, init) => {
+    this.requests.push({ url, init });
+    const body = this.minted.length === 0 ? null : this.minted.shift();
+    if (body === null) {
+      return { status: 500, json: async () => ({}) };
+    }
+    return { status: 201, json: async () => body };
+  };
+}
+
+const TEST_TOKEN = "test-token";
+
+// The Worker's env for a transcript: its ICE servers, and the TURN secrets when it is turn_only.
+function envFor(transcript) {
+  const env = { ICE_SERVERS: transcript.config.ice_servers };
+  if (transcripts.turnOnly(transcript)) {
+    env[turn.KEY_ID] = transcript.config.turn.key_id;
+    env[turn.API_TOKEN] = TEST_TOKEN;
+  }
+  return env;
+}
+
+// What is wrong with the requests the service made of the fake API, one line each.
+function requestFailures(transcript, api) {
+  if (!transcripts.turnOnly(transcript)) {
+    return api.requests.length === 0 ? [] : [`${api.requests.length} TURN requests with no TURN key`];
+  }
+  const failures = [];
+  if (api.minted.length !== 0) {
+    failures.push(`${api.minted.length} minted credentials never asked for`);
+  }
+  const url = `${turn.API}/${transcript.config.turn.key_id}/credentials/generate-ice-servers`;
+  for (const { url: got, init } of api.requests) {
+    const request = {
+      url: got,
+      method: init.method,
+      authorization: init.headers.Authorization,
+      type: init.headers["Content-Type"],
+      body: JSON.parse(init.body),
+    };
+    const expected = {
+      url,
+      method: "POST",
+      authorization: `Bearer ${TEST_TOKEN}`,
+      type: "application/json",
+      body: { ttl: turn.TTL_SECONDS },
+    };
+    if (JSON.stringify(request) !== JSON.stringify(expected)) {
+      failures.push(`request ${JSON.stringify(request)}, expected ${JSON.stringify(expected)}`);
+    }
+  }
+  return failures;
+}
+
+function serviceFor(state, transcript, timers, codes, api) {
+  return new SignalService(state, envFor(transcript), {
     nextCode: codes,
     setTimer: timers.set,
     now: () => 0,
+    fetch: api.fetch,
+    log: () => {},
   });
 }
 
@@ -93,12 +160,13 @@ function serviceFor(state, transcript, timers, codes) {
 // `rebuild`: a new SignalService from the sockets' attachments after every step; "wake" also
 // between a socket leaving the runtime's list and its close event, as when the close wakes the
 // object.
-function replay(transcript, rebuild) {
+async function replay(transcript, rebuild) {
   const failures = [];
   const state = new FakeState();
   const timers = new FakeTimers();
   const codes = transcripts.codeSource(transcript);
-  let service = serviceFor(state, transcript, timers, codes);
+  const api = new FakeTurnApi(transcript.config.turn?.minted);
+  let service = serviceFor(state, transcript, timers, codes, api);
   const sockets = new Map();
   let index = 0;
   for (const step of transcripts.stepsOf(transcript)) {
@@ -106,17 +174,17 @@ function replay(transcript, rebuild) {
     if (step.open !== undefined) {
       const ws = new FakeSocket();
       sockets.set(step.open, ws);
-      service.accept(ws);
+      await service.accept(ws);
     } else if (step.gone !== undefined) {
       const ws = sockets.get(step.gone);
       ws.close(1000, "");
       state.drop(ws);
       if (rebuild === "wake") {
-        service = serviceFor(state, transcript, timers, codes);
+        service = serviceFor(state, transcript, timers, codes, api);
       }
-      service.closed(ws);
+      await service.closed(ws);
     } else {
-      service.message(sockets.get(step.from), step.raw);
+      await service.message(sockets.get(step.from), step.raw);
     }
     const got = [];
     // The sockets in the order the step's expectation names them, then the rest: a step's sends
@@ -149,28 +217,34 @@ function replay(transcript, rebuild) {
       }
       // Its client answers the close: the runtime forgets the socket and reports it.
       state.drop(ws);
-      service.closed(ws);
+      await service.closed(ws);
     }
     if (rebuild) {
-      service = serviceFor(state, transcript, timers, codes);
+      service = serviceFor(state, transcript, timers, codes, api);
     }
   }
-  return failures;
+  return [...failures, ...requestFailures(transcript, api)];
 }
 
 for (const [file, transcript] of transcripts.all()) {
-  test(`${file} replays over fake sockets`, () => {
-    assert.deepEqual(replay(transcript, false), []);
+  test(`${file} replays over fake sockets`, async () => {
+    assert.deepEqual(await replay(transcript, false), []);
   });
 
-  test(`${file} replays with the object rebuilt after every step`, () => {
-    assert.deepEqual(replay(transcript, true), []);
+  test(`${file} replays with the object rebuilt after every step`, async () => {
+    assert.deepEqual(await replay(transcript, true), []);
   });
 
-  test(`${file} replays with the object rebuilt as a close wakes it`, () => {
-    assert.deepEqual(replay(transcript, "wake"), []);
+  test(`${file} replays with the object rebuilt as a close wakes it`, async () => {
+    assert.deepEqual(await replay(transcript, "wake"), []);
   });
 }
+
+test("a transcript is turn_only exactly when its config has TURN answers", () => {
+  for (const [file, transcript] of transcripts.all()) {
+    assert.equal(transcripts.turnOnly(transcript), transcript.config.turn !== undefined, file);
+  }
+});
 
 test("a socket that closed keeps no role after a wake, even while the runtime still lists it", () => {
   const { state, timers, service, host, joiner, env } = hostAndJoiner();

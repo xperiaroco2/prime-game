@@ -1,0 +1,380 @@
+{
+  "about": "TURN on (M6-10, E55): two joiners; each host offer gets a credential minted for that offer alone, added after the configured STUN with only its turn: and turns: URLs, none on port 53, split into entries of at most 4 URLs. The room, found, answers and candidates carry none, and no joiner sees another's.",
+  "turn_only": "only the Worker mints TURN credentials: SignalRouter and LanSignalling skip this file",
+  "config": {
+    "ice_servers": [
+      {
+        "urls": [
+          "stun:stun.cloudflare.com:3478"
+        ]
+      }
+    ],
+    "codes": [
+      "ABCDEF"
+    ],
+    "turn": {
+      "key_id": "test-key",
+      "minted": [
+        {
+          "iceServers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            },
+            {
+              "urls": [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:443?transport=udp",
+                "turn:turn.cloudflare.com:53?transport=udp",
+                "turn:turn.cloudflare.com:3478?transport=tcp",
+                "turn:turn.cloudflare.com:80?transport=tcp",
+                "turns:turn.cloudflare.com:5349?transport=tcp",
+                "turns:turn.cloudflare.com:443?transport=tcp"
+              ],
+              "username": "joiner-two",
+              "credential": "secret-joiner-two"
+            }
+          ]
+        },
+        {
+          "iceServers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            },
+            {
+              "urls": [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:443?transport=udp",
+                "turn:turn.cloudflare.com:3478?transport=tcp",
+                "turn:turn.cloudflare.com:80?transport=tcp",
+                "turns:turn.cloudflare.com:5349?transport=tcp",
+                "turns:turn.cloudflare.com:443?transport=tcp"
+              ],
+              "username": "joiner-one",
+              "credential": "secret-joiner-one"
+            }
+          ]
+        },
+        {
+          "iceServers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            },
+            {
+              "urls": [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:443?transport=udp",
+                "turn:turn.cloudflare.com:3478?transport=tcp",
+                "turn:turn.cloudflare.com:80?transport=tcp",
+                "turns:turn.cloudflare.com:5349?transport=tcp",
+                "turns:turn.cloudflare.com:443?transport=tcp"
+              ],
+              "username": "joiner-one-again",
+              "credential": "secret-joiner-one-again"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "open": "host"
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "open",
+        "v": 1,
+        "protocol": 7,
+        "content": "0123456789abcdef",
+        "max": 9
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "room",
+            "v": 1,
+            "code": "ABCDEF",
+            "ice_servers": [
+              {
+                "urls": [
+                  "stun:stun.cloudflare.com:3478"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "open": "j1"
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "open": "j2"
+    },
+    {
+      "from": "j2",
+      "send": {
+        "t": "join",
+        "v": 1,
+        "code": "ABCDEF"
+      },
+      "expect": [
+        {
+          "to": "j2",
+          "msg": {
+            "t": "found",
+            "v": 1,
+            "protocol": 7,
+            "content": "0123456789abcdef"
+          }
+        },
+        {
+          "to": "host",
+          "msg": {
+            "t": "join",
+            "v": 1,
+            "from": 2
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "offer",
+        "v": 1,
+        "to": 2,
+        "id": 2,
+        "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "j2",
+          "msg": {
+            "t": "offer",
+            "v": 1,
+            "id": 2,
+            "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n",
+            "ice_servers": [
+              {
+                "urls": [
+                  "stun:stun.cloudflare.com:3478"
+                ]
+              },
+              {
+                "urls": [
+                  "turn:turn.cloudflare.com:3478?transport=udp",
+                  "turn:turn.cloudflare.com:443?transport=udp",
+                  "turn:turn.cloudflare.com:3478?transport=tcp",
+                  "turn:turn.cloudflare.com:80?transport=tcp"
+                ],
+                "username": "joiner-two",
+                "credential": "secret-joiner-two"
+              },
+              {
+                "urls": [
+                  "turns:turn.cloudflare.com:5349?transport=tcp",
+                  "turns:turn.cloudflare.com:443?transport=tcp"
+                ],
+                "username": "joiner-two",
+                "credential": "secret-joiner-two"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "candidate",
+        "v": 1,
+        "to": 2,
+        "mid": "0",
+        "index": 0,
+        "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+      },
+      "expect": [
+        {
+          "to": "j2",
+          "msg": {
+            "t": "candidate",
+            "v": 1,
+            "mid": "0",
+            "index": 0,
+            "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "offer",
+        "v": 1,
+        "to": 1,
+        "id": 3,
+        "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "offer",
+            "v": 1,
+            "id": 3,
+            "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n",
+            "ice_servers": [
+              {
+                "urls": [
+                  "stun:stun.cloudflare.com:3478"
+                ]
+              },
+              {
+                "urls": [
+                  "turn:turn.cloudflare.com:3478?transport=udp",
+                  "turn:turn.cloudflare.com:443?transport=udp",
+                  "turn:turn.cloudflare.com:3478?transport=tcp",
+                  "turn:turn.cloudflare.com:80?transport=tcp"
+                ],
+                "username": "joiner-one",
+                "credential": "secret-joiner-one"
+              },
+              {
+                "urls": [
+                  "turns:turn.cloudflare.com:5349?transport=tcp",
+                  "turns:turn.cloudflare.com:443?transport=tcp"
+                ],
+                "username": "joiner-one",
+                "credential": "secret-joiner-one"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "from": "host",
+      "send": {
+        "t": "offer",
+        "v": 1,
+        "to": 1,
+        "id": 4,
+        "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "j1",
+          "msg": {
+            "t": "offer",
+            "v": 1,
+            "id": 4,
+            "sdp": "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n",
+            "ice_servers": [
+              {
+                "urls": [
+                  "stun:stun.cloudflare.com:3478"
+                ]
+              },
+              {
+                "urls": [
+                  "turn:turn.cloudflare.com:3478?transport=udp",
+                  "turn:turn.cloudflare.com:443?transport=udp",
+                  "turn:turn.cloudflare.com:3478?transport=tcp",
+                  "turn:turn.cloudflare.com:80?transport=tcp"
+                ],
+                "username": "joiner-one-again",
+                "credential": "secret-joiner-one-again"
+              },
+              {
+                "urls": [
+                  "turns:turn.cloudflare.com:5349?transport=tcp",
+                  "turns:turn.cloudflare.com:443?transport=tcp"
+                ],
+                "username": "joiner-one-again",
+                "credential": "secret-joiner-one-again"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "from": "j1",
+      "send": {
+        "t": "answer",
+        "v": 1,
+        "sdp": "v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=-\r\n"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "answer",
+            "v": 1,
+            "sdp": "v=0\r\no=- 3 4 IN IP4 127.0.0.1\r\ns=-\r\n",
+            "from": 1
+          }
+        }
+      ]
+    },
+    {
+      "from": "j2",
+      "send": {
+        "t": "candidate",
+        "v": 1,
+        "mid": "0",
+        "index": 0,
+        "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host"
+      },
+      "expect": [
+        {
+          "to": "host",
+          "msg": {
+            "t": "candidate",
+            "v": 1,
+            "mid": "0",
+            "index": 0,
+            "cand": "candidate:1 1 UDP 2122317823 127.0.0.1 50000 typ host",
+            "from": 2
+          }
+        }
+      ]
+    }
+  ]
+}

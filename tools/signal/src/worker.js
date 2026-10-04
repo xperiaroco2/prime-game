@@ -21,12 +21,13 @@ export class Signalling extends DurableObject {
     return new Response(null, { status: 101, webSocket: client });
   }
 
+  // Awaited: with a TURN key, an offer waits on the API, and the object stays awake until it is sent.
   async webSocketMessage(ws, message) {
-    this.service.message(ws, message);
+    await this.service.message(ws, message);
   }
 
   async webSocketClose(ws, code, reason) {
-    this.service.closed(ws);
+    await this.service.closed(ws);
     // The runtime answers the close frame itself from compatibility date 2026-04-07; answering it
     // here too is harmless, and keeps the client from waiting if that flag is not on.
     try {
@@ -37,7 +38,7 @@ export class Signalling extends DurableObject {
   }
 
   async webSocketError(ws) {
-    this.service.failed(ws);
+    await this.service.failed(ws);
   }
 }
 

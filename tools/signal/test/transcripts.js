@@ -24,6 +24,7 @@ export const NAMES = [
   "forged_offer.json",
   "forged_reopen.json",
   "forged_roles.json",
+  "turn_per_joiner.json",
 ];
 
 // Every transcript by file name, sorted.
@@ -33,6 +34,12 @@ export function all() {
     found.set(name, JSON.parse(readFileSync(join(FOLDER, name), "utf8")));
   }
   return found;
+}
+
+// Whether only the Worker can replay the transcript: it needs TURN credentials minted, from the
+// fake API answers in its config.turn.minted, in order ("turn_only" says why).
+export function turnOnly(transcript) {
+  return transcript.turn_only !== undefined;
 }
 
 // The steps with "repeat" unrolled, each one's text ready to send as "raw".

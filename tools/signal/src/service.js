@@ -12,9 +12,14 @@
 // SignalService rebuilds the router from them. A socket the router is done with says so in its
 // attachment, "closing" (closed after the grace) or "gone" (closed, or failed), so no rebuild
 // gives it back a role.
+//
+// With a TURN key in the secrets (turn.js), every host offer to a joiner waits for a credential
+// minted for it, and everything sent after that offer waits too, so each socket still gets its
+// messages in the order the router made them (a candidate never overtakes its offer).
 
 import * as codec from "./codec.js";
 import { SignalRouter } from "./router.js";
+import { mint, turnFrom, withTurn } from "./turn.js";
 
 // What "room" and every "offer" carry when the configuration names none (E58).
 export const DEFAULT_ICE_SERVERS = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
@@ -47,7 +52,7 @@ export function iceServersFrom(env) {
 
 export class SignalService {
   // `ctx`: the Durable Object's state (acceptWebSocket, getWebSockets). `options` replaces the
-  // runtime's clock, timer and random bytes in tests.
+  // runtime's clock, timer, random bytes, fetch and log in tests.
   constructor(ctx, env, options = {}) {
     this.ctx = ctx;
     this.now = options.now ?? (() => Date.now());
@@ -55,6 +60,12 @@ export class SignalService {
     const randomBytes = options.randomBytes ?? ((n) => crypto.getRandomValues(new Uint8Array(n)));
     this.nextCode = options.nextCode ?? (() => codec.randomCode(randomBytes));
     this.iceServers = iceServersFrom(env);
+    // The TURN key, or null: no TURN, and every offer carries iceServers alone.
+    this.turn = turnFrom(env);
+    this.fetch = options.fetch ?? ((url, init) => fetch(url, init));
+    this.log = options.log ?? ((text) => console.log(text));
+    // What the last delivery still waiting on a mint settles, or null when nothing waits.
+    this.tail = null;
     this.closeGraceMs = options.closeGraceMs ?? CLOSE_GRACE_MS;
     // Socket number -> its WebSocket, for this life of the object.
     this.sockets = new Map();
@@ -80,7 +91,8 @@ export class SignalService {
     this.router = SignalRouter.restore(this.iceServers, this.nextCode, records);
   }
 
-  // A new socket the Worker upgraded: the service accepts it with hibernation.
+  // A new socket the Worker upgraded: the service accepts it with hibernation. The methods that
+  // take an event return a promise that settles once what the event sends is sent.
   accept(ws) {
     this.settle();
     const socket = this.nextSocket++;
@@ -88,6 +100,7 @@ export class SignalService {
     this.sockets.set(socket, ws);
     this.router.opened(socket);
     this.save();
+    return this.tail ?? Promise.resolve();
   }
 
   // A message from `ws`: a string (text) or an ArrayBuffer (binary).
@@ -95,13 +108,13 @@ export class SignalService {
     this.settle();
     const attachment = ws.deserializeAttachment();
     if (ended(attachment)) {
-      return;
+      return this.tail ?? Promise.resolve();
     }
     const text = typeof data === "string";
     const bytes = text ? new TextEncoder().encode(data) : new Uint8Array(data);
     const out = this.router.received(attachment.id, bytes, text);
     this.save();
-    this.deliver(out);
+    return this.inOrder(out);
   }
 
   // `ws` closed. Idempotent.
@@ -109,27 +122,28 @@ export class SignalService {
     this.settle();
     const attachment = ws.deserializeAttachment();
     if (attachment === null || attachment === undefined) {
-      return;
+      return this.tail ?? Promise.resolve();
     }
     this.sockets.delete(attachment.id);
     if (ended(attachment)) {
-      return;
+      return this.tail ?? Promise.resolve();
     }
     // Before anything is sent: an event that throws after this leaves no role on the socket.
     mark(ws, { id: attachment.id, gone: true });
     const out = this.router.closed(attachment.id);
     this.save();
-    this.deliver(out);
+    return this.inOrder(out);
   }
 
   // `ws` failed (webSocketError): the service closes it, and it is gone as if its client closed it.
   failed(ws) {
-    this.closed(ws);
+    const sent = this.closed(ws);
     try {
       ws.close(CLOSE_ERROR, "");
     } catch {
       // Already closed.
     }
+    return sent;
   }
 
   roomCount() {
@@ -146,26 +160,82 @@ export class SignalService {
     }
   }
 
+  // Sends `out` after everything sent before it: at once, unless an earlier offer still waits on
+  // its mint. The promise settles once `out` is sent; the Durable Object awaits it, so the object
+  // stays awake while the API answers.
+  inOrder(out) {
+    if (this.tail === null) {
+      const rest = this.deliver(out);
+      return rest === undefined ? Promise.resolve() : this.track(rest);
+    }
+    return this.track(this.tail.then(() => this.deliver(out)));
+  }
+
+  track(promise) {
+    const tail = promise
+      .catch((error) => this.log(`signal: a delivery failed: ${error}`))
+      .finally(() => {
+        if (this.tail === tail) {
+          this.tail = null;
+        }
+      });
+    this.tail = tail;
+    return tail;
+  }
+
+  // Sends `out` in order; returns undefined when all of it is sent, or a promise when an offer
+  // waits on its TURN credential (the rest is sent after it).
   deliver(out) {
-    for (const each of out) {
-      const ws = this.sockets.get(each.socket);
-      if (ws === undefined) {
-        continue;
+    for (let at = 0; at < out.length; at++) {
+      const each = out[at];
+      if (this.turn !== null && each.message.t === "offer") {
+        return this.withCredential(each).then(() => this.deliver(out.slice(at + 1)));
       }
-      // A socket the service is closing is no one's any more: nothing more goes to it.
-      if (ended(ws.deserializeAttachment())) {
-        continue;
+      this.send(each);
+    }
+    return undefined;
+  }
+
+  // The host's offer to one joiner, with a credential minted for this offer alone added to its ICE
+  // servers. If the API fails, or the credential would push the offer over the cap, the offer goes
+  // as it would without TURN: the joiner may still connect directly.
+  async withCredential(each) {
+    const ws = this.sockets.get(each.socket);
+    if (ws === undefined || ended(ws.deserializeAttachment())) {
+      return;
+    }
+    let message = each.message;
+    try {
+      const servers = withTurn(message.ice_servers, await mint(this.turn, this.fetch));
+      const relayed = { ...message, ice_servers: servers };
+      if (codec.size(relayed) > codec.MAX_MESSAGE_BYTES) {
+        throw new Error("the offer with TURN is over the cap");
       }
-      try {
-        ws.send(JSON.stringify(each.message));
-      } catch {
-        // Its client is gone, and its close event will follow; a socket the router ended is
-        // still marked below, so no rebuild gives it back its role.
-      }
-      if (each.close) {
-        mark(ws, { id: each.socket, closing: this.now() + this.closeGraceMs });
-        this.closeLater(ws, this.closeGraceMs);
-      }
+      message = relayed;
+    } catch (error) {
+      this.log(`signal: an offer goes without TURN: ${error.message}`);
+    }
+    this.send({ ...each, message });
+  }
+
+  send(each) {
+    const ws = this.sockets.get(each.socket);
+    if (ws === undefined) {
+      return;
+    }
+    // A socket the service is closing is no one's any more: nothing more goes to it.
+    if (ended(ws.deserializeAttachment())) {
+      return;
+    }
+    try {
+      ws.send(JSON.stringify(each.message));
+    } catch {
+      // Its client is gone, and its close event will follow; a socket the router ended is
+      // still marked below, so no rebuild gives it back its role.
+    }
+    if (each.close) {
+      mark(ws, { id: each.socket, closing: this.now() + this.closeGraceMs });
+      this.closeLater(ws, this.closeGraceMs);
     }
   }
 
@@ -178,7 +248,7 @@ export class SignalService {
       close: true,
     }));
     this.router.orphans = [];
-    this.deliver(out);
+    this.inOrder(out);
   }
 
   closeLater(ws, ms) {
