@@ -217,8 +217,8 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 - Rule: one sentence in root `CLAUDE.md`, changed in place with no net growth: "read docs by section:
   `tools\run.cmd section <doc>` for the outline, then the § you need; never a whole doc".
 - Prompts: `issue-task.js` and `pr-rebase.js` give the plan reviewer and the reviewers "the ARCHITECTURE sections the
-  change touches", not `docs/ARCHITECTURE.md`. The plan-review and review prompts stop asking to read root `CLAUDE.md`, which is
-  already loaded.
+  change touches", not `docs/ARCHITECTURE.md`. The plan-review and review prompts stop asking to read root
+  `CLAUDE.md`, which is already loaded.
 - Some sections are always read, whatever the change touches. The netcode-security reviewer reads §5 (filtering),
   §4.2 (each event's audience) and §4.6 (the leak test), because a change that touches only §4.7 or §7.1 can still
   add a snapshot field the leak test does not compare. The design reviewer starts from the outline and reads every
