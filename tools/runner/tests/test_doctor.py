@@ -3,7 +3,10 @@
 import contextlib
 import io
 import re
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from runner import doctor
@@ -57,3 +60,46 @@ class UdpBacklogTest(unittest.TestCase):
         if per_service is None or margin is None:
             self.fail("ENET_RECEIVES_PER_SERVICE or BACKLOG_POSES changed form; update this test and doctor")
         self.assertEqual(int(per_service[1]) + int(margin[1]), doctor.STALL_BACKLOG_DATAGRAMS)
+
+
+class CloudTwovoipTest(unittest.TestCase):
+    """#345: a cloud session runs verify without the Windows-only TwoVoIP extension, as CI does."""
+
+    def check(self, *, cloud: bool, ci: bool = False, present: bool) -> tuple[int, str]:
+        buffer = io.StringIO()
+        with tempfile.TemporaryDirectory() as root:
+            if present:
+                (Path(root) / doctor.TWOVOIP_EXTENSION).parent.mkdir(parents=True)
+                (Path(root) / doctor.TWOVOIP_EXTENSION).touch()
+            with (
+                mock.patch.object(doctor, "ROOT", Path(root)),
+                mock.patch.object(doctor, "IS_CLOUD", cloud),
+                mock.patch.object(doctor, "IS_CI", ci),
+                contextlib.redirect_stdout(buffer),
+                contextlib.redirect_stderr(buffer),
+            ):
+                doc = doctor.Doctor()
+                doc.cloud_twovoip()
+        return doc.failures, buffer.getvalue()
+
+    def test_a_cloud_session_with_the_extension_fails_with_the_fix(self) -> None:
+        failures, out = self.check(cloud=True, present=True)
+        self.assertEqual(failures, 1)
+        self.assertIn("addons/twovoip/twovoip.gdextension is in the working tree", out)
+        self.assertIn("Run: tools/cloud/setup.sh", out)
+
+    def test_a_cloud_session_without_it_is_ok(self) -> None:
+        failures, out = self.check(cloud=True, present=False)
+        self.assertEqual(failures, 0)
+        self.assertIn("ok    TwoVoIP extension left out", out)
+
+    def test_a_pc_and_ci_are_not_checked(self) -> None:
+        self.assertEqual(self.check(cloud=False, present=True), (0, ""))
+        self.assertEqual(self.check(cloud=True, ci=True, present=True), (0, ""))
+
+    def test_the_path_is_the_committed_extension(self) -> None:
+        """git tracks it even where the sparse checkout leaves it out of the working tree."""
+        tracked = subprocess.run(
+            ["git", "ls-files", "--", doctor.TWOVOIP_EXTENSION], cwd=ROOT, capture_output=True, text=True, check=True
+        )
+        self.assertEqual(tracked.stdout.strip(), doctor.TWOVOIP_EXTENSION)

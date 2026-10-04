@@ -6,6 +6,8 @@
 # Also raises the default UDP receive buffer when it is below RMEM_DEFAULT_FIX (tools/runner/doctor.py): some
 # container kernels charge about 830 bytes per small datagram, so the 208 KB default held 256 of the 320 datagrams
 # verify's stall step queues (#159).
+# In a cloud session only (CLAUDE_CODE_REMOTE=true), it leaves the Windows-only TwoVoIP extension out of this clone,
+# as CI does (#345): see the last step.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
 run="$repo/tools/run.sh"
@@ -51,6 +53,25 @@ elif [ "$(cat "$rmem")" -lt "$rmem_min" ]; then
   else
     echo "warning: cannot raise net.core.rmem_default to $rmem_min; verify's stall step may fail (see doctor)" >&2
   fi
+fi
+
+# The TwoVoIP addon ships Windows libraries only (the M5 voice ADR §2, E35 (a)): on Linux Godot prints an `ERROR:`
+# line for its .gdextension, which fails verify's Godot steps. CI deletes the .gdextension and its .uid; a session
+# that deleted them could commit the deletion. A sparse checkout leaves the two files out of the working tree while
+# the index keeps them, so `git status` stays clean and `git add -A` stages nothing. Plain `git update-index
+# --skip-worktree` does the same until a switch to a commit that changes either file, a `reset --hard` or a new
+# worktree brings it back; the sparse patterns hold through all three (tried in #345). Undo: git sparse-checkout
+# disable. tools/runner/doctor.py fails in a cloud session while the .gdextension is in the working tree.
+# --no-cone: cone mode takes folders only, and these are two files. Everything else stays in ('/*').
+sparse=('/*' '!/addons/twovoip/twovoip.gdextension' '!/addons/twovoip/twovoip.gdextension.uid')
+if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
+  echo "note: not a cloud session (CLAUDE_CODE_REMOTE is not true): the TwoVoIP extension stays in the working tree"
+elif [ "$(git -C "$repo" config --bool core.sparseCheckout || true)" = "true" ] &&
+  [ "$(git -C "$repo" sparse-checkout list)" != "$(printf '%s\n' "${sparse[@]}")" ]; then
+  echo "warning: this clone already has other sparse-checkout patterns; the TwoVoIP extension is left as it is" >&2
+else
+  git -C "$repo" sparse-checkout set --no-cone "${sparse[@]}"
+  echo "TwoVoIP extension left out of the working tree (sparse checkout); git status stays clean"
 fi
 
 echo

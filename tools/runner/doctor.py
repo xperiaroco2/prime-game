@@ -43,6 +43,8 @@ STALL_BACKLOG_DATAGRAMS = 256 + 64
 UDP_PROBE_BYTES = 32
 # Twice Linux's 208 KB default: room for 512 such datagrams here. tools/cloud/setup.sh raises the default to it.
 RMEM_DEFAULT_FIX = 425984
+# Windows libraries only (the M5 voice ADR §2): CI deletes it, tools/cloud/setup.sh leaves it out of a cloud clone.
+TWOVOIP_EXTENSION = "addons/twovoip/twovoip.gdextension"
 
 
 def _dotted(parts: tuple[int, ...]) -> str:
@@ -244,6 +246,20 @@ class Doctor:
             else:
                 ok(text)
 
+    def cloud_twovoip(self) -> None:
+        """A cloud session runs without the Windows-only TwoVoIP extension, as CI does (#345): on Linux Godot prints
+        an `ERROR:` line for its .gdextension, which fails verify's Godot steps minutes later."""
+        if not IS_CLOUD or IS_CI:
+            return
+        if not (ROOT / TWOVOIP_EXTENSION).exists():
+            ok("TwoVoIP extension left out (a cloud session runs without it, as CI does)")
+            return
+        self.fail(
+            f"{TWOVOIP_EXTENSION} is in the working tree: it has no Linux library, so "
+            "Godot prints an ERROR: line for it and verify fails",
+            "Run: tools/cloud/setup.sh (it leaves the extension out with a sparse checkout; git status stays clean)",
+        )
+
     def udp_backlog(self) -> None:
         """Warn early when a default UDP socket on 127.0.0.1 cannot hold the stall step's backlog (Linux only)."""
         if not IS_LINUX:
@@ -314,6 +330,7 @@ def main(quick: bool) -> int:
     doc.addons()
     doc.githooks()  # also in --quick: start-task runs the quick doctor
     doc.udp_backlog()  # also in --quick: verify's doctor step then warns minutes before its stall step fails
+    doc.cloud_twovoip()  # also in --quick: verify stops at its doctor step instead of failing its Godot steps
     if not quick:
         doc.git()
         doc.bash()
