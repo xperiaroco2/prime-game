@@ -1,0 +1,43 @@
+SPIKE r1    1586 1791146881.876654 kill -STOP 5362 -> 0
+SPIKE r1   14421 1791146894.711248 pc state 2 -> 5
+SPIKE r1   21606 1791146901.896523 kill -CONT 5362 -> 0
+SPIKE r1   31616 1791146911.906158 put_errors=8256 final sent r=316 l=631 v=14193 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true 
+SPIKE r1    1546 1791146914.216276 kill -STOP 5433 -> 0
+SPIKE r1   30034 1791146942.704736 pc state 2 -> 5
+SPIKE r1   34578 1791146947.248892 kill -CONT 5433 -> 0
+SPIKE r1   44588 1791146957.258489 put_errors=0 final sent r=0 l=0 v=0 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=5
+SPIKE r1    1586 1791146959.380002 kill -STOP 5970 -> 0
+SPIKE r1   14391 1791146972.184790 pc state 2 -> 3
+SPIKE r1   14398 1791146972.191549 pc state 3 -> 5
+SPIKE r1   21617 1791146979.411047 kill -CONT 5970 -> 0
+SPIKE r1   31627 1791146989.420947 put_errors=8274 final sent r=316 l=631 v=14202 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true 
+SPIKE r1    1547 1791146991.637982 kill -STOP 6031 -> 0
+SPIKE r1   30030 1791147020.121212 pc state 2 -> 5
+SPIKE r1   34586 1791147024.677116 kill -CONT 6031 -> 0
+SPIKE r1   44596 1791147034.687147 put_errors=0 final sent r=0 l=0 v=0 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=5
+SPIKE r1    1654 1791147036.900742 kill -STOP 6225 -> 0
+SPIKE r1   14438 1791147049.684634 pc state 2 -> 3
+SPIKE r1   14445 1791147049.691476 pc state 3 -> 5
+SPIKE r1   21671 1791147056.917950 kill -CONT 6225 -> 0
+SPIKE r1   31692 1791147066.938999 put_errors=8285 final sent r=316 l=631 v=14202 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true 
+SPIKE r1    1547 1791147069.155893 kill -STOP 6316 -> 0
+SPIKE r1   30029 1791147097.638033 pc state 2 -> 5
+SPIKE r1   34578 1791147102.187030 kill -CONT 6316 -> 0
+SPIKE r1   44588 1791147112.197011 put_errors=0 final sent r=0 l=0 v=0 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=5
+SPIKE r1    1552 1791147114.340501 kill -STOP 6418 -> 0
+SPIKE r1   14363 1791147127.151398 pc state 2 -> 5
+SPIKE r1   21569 1791147134.357168 kill -CONT 6418 -> 0
+SPIKE r1   31578 1791147144.366361 put_errors=8265 final sent r=316 l=631 v=14193 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true 
+SPIKE r1    1582 1791147146.588362 kill -STOP 6508 -> 0
+SPIKE r1   30071 1791147175.078059 pc state 2 -> 5
+SPIKE r1   34607 1791147179.613599 kill -CONT 6508 -> 0
+SPIKE r1   44616 1791147189.623305 put_errors=0 final sent r=0 l=0 v=0 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=5
+traffic 2: 1586 0 14421 5 
+idle 2: 1546 0 30034 5 
+traffic 3: 1586 0 14391 3 
+idle 3: 1547 0 30030 5 
+traffic 4: 1654 0 14438 3 
+idle 4: 1547 0 30029 5 
+traffic 5: 1552 0 14363 5 
+idle 5: 1582 0 30071 5 
+exit=0
