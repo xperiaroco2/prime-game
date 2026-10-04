@@ -12,10 +12,19 @@
 // SignalService rebuilds the router from them. A socket the router is done with says so in its
 // attachment, "closing" (closed after the grace) or "gone" (closed, or failed), so no rebuild
 // gives it back a role.
+//
+// With a TURN key in the secrets (turn.js), "room" and every host offer to a joiner wait for a
+// credential minted for their receiver, and what follows them to the same socket waits too, so
+// each socket still gets its messages in the order the router made them (a candidate never
+// overtakes its offer).
 
 import * as codec from "./codec.js";
 import { SignalRouter } from "./router.js";
+import { TIMEOUT_MS, mint, turnFrom, withTurn } from "./turn.js";
 
+// The messages that carry a TURN credential minted for their receiver, when TURN is on: the host's
+// own with "room", a joiner's with the host's offer to it (the M6 ADR §2.4), never "found".
+const RELAYED = new Set(["room", "offer"]);
 // What "room" and every "offer" carry when the configuration names none (E58).
 export const DEFAULT_ICE_SERVERS = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
 // How long after its last error the service closes a socket it ends (the host left). Godot's
@@ -47,7 +56,7 @@ export function iceServersFrom(env) {
 
 export class SignalService {
   // `ctx`: the Durable Object's state (acceptWebSocket, getWebSockets). `options` replaces the
-  // runtime's clock, timer and random bytes in tests.
+  // runtime's clock, timer, random bytes, fetch and log in tests.
   constructor(ctx, env, options = {}) {
     this.ctx = ctx;
     this.now = options.now ?? (() => Date.now());
@@ -55,6 +64,14 @@ export class SignalService {
     const randomBytes = options.randomBytes ?? ((n) => crypto.getRandomValues(new Uint8Array(n)));
     this.nextCode = options.nextCode ?? (() => codec.randomCode(randomBytes));
     this.iceServers = iceServersFrom(env);
+    this.fetch = options.fetch ?? ((url, init) => fetch(url, init));
+    this.log = options.log ?? ((text) => console.log(text));
+    // The TURN key, or null: no TURN, and "room" and every offer carry iceServers alone.
+    this.turn = turnFrom(env, this.log);
+    this.turnTimeoutMs = options.turnTimeoutMs ?? TIMEOUT_MS;
+    // Socket number -> what its last delivery still waiting on a mint settles; none when nothing
+    // waits for it.
+    this.queues = new Map();
     this.closeGraceMs = options.closeGraceMs ?? CLOSE_GRACE_MS;
     // Socket number -> its WebSocket, for this life of the object.
     this.sockets = new Map();
@@ -80,14 +97,16 @@ export class SignalService {
     this.router = SignalRouter.restore(this.iceServers, this.nextCode, records);
   }
 
-  // A new socket the Worker upgraded: the service accepts it with hibernation.
+  // A new socket the Worker upgraded: the service accepts it with hibernation. The methods that
+  // take an event return a promise that settles once what the event sends is sent.
   accept(ws) {
-    this.settle();
+    const orphaned = this.settle();
     const socket = this.nextSocket++;
     this.ctx.acceptWebSocket(ws);
     this.sockets.set(socket, ws);
     this.router.opened(socket);
     this.save();
+    return orphaned;
   }
 
   // A message from `ws`: a string (text) or an ArrayBuffer (binary).
@@ -95,13 +114,13 @@ export class SignalService {
     this.settle();
     const attachment = ws.deserializeAttachment();
     if (ended(attachment)) {
-      return;
+      return Promise.resolve();
     }
     const text = typeof data === "string";
     const bytes = text ? new TextEncoder().encode(data) : new Uint8Array(data);
     const out = this.router.received(attachment.id, bytes, text);
     this.save();
-    this.deliver(out);
+    return this.deliver(out);
   }
 
   // `ws` closed. Idempotent.
@@ -109,27 +128,28 @@ export class SignalService {
     this.settle();
     const attachment = ws.deserializeAttachment();
     if (attachment === null || attachment === undefined) {
-      return;
+      return Promise.resolve();
     }
     this.sockets.delete(attachment.id);
     if (ended(attachment)) {
-      return;
+      return Promise.resolve();
     }
     // Before anything is sent: an event that throws after this leaves no role on the socket.
     mark(ws, { id: attachment.id, gone: true });
     const out = this.router.closed(attachment.id);
     this.save();
-    this.deliver(out);
+    return this.deliver(out);
   }
 
   // `ws` failed (webSocketError): the service closes it, and it is gone as if its client closed it.
   failed(ws) {
-    this.closed(ws);
+    const sent = this.closed(ws);
     try {
       ws.close(CLOSE_ERROR, "");
     } catch {
       // Already closed.
     }
+    return sent;
   }
 
   roomCount() {
@@ -146,26 +166,75 @@ export class SignalService {
     }
   }
 
+  // Sends `out`, each message after everything still waiting for its socket: at once when nothing
+  // waits there and the message needs no credential. A credential's request starts at once, so
+  // offers to several joiners wait for the slowest request, not for the sum, and one socket's wait
+  // holds back no other socket. The promise settles once `out` is sent; the Durable Object awaits
+  // it, so the object stays awake while the API answers.
   deliver(out) {
+    const waits = [];
     for (const each of out) {
-      const ws = this.sockets.get(each.socket);
-      if (ws === undefined) {
+      const pending = this.queues.get(each.socket);
+      const minted = this.turn !== null && RELAYED.has(each.message.t);
+      if (pending === undefined && !minted) {
+        this.send(each);
         continue;
       }
-      // A socket the service is closing is no one's any more: nothing more goes to it.
-      if (ended(ws.deserializeAttachment())) {
-        continue;
+      const ready = minted ? this.withCredential(each) : each;
+      const queued = (pending ?? Promise.resolve())
+        .then(() => ready)
+        .then((final) => this.send(final))
+        .catch((error) => this.log(`signal: a delivery failed: ${error}`))
+        .finally(() => {
+          if (this.queues.get(each.socket) === queued) {
+            this.queues.delete(each.socket);
+          }
+        });
+      this.queues.set(each.socket, queued);
+      waits.push(queued);
+    }
+    return Promise.all(waits).then(() => {});
+  }
+
+  // `each` ("room" to a host, "offer" to a joiner) with a credential minted for this message alone
+  // added to its ICE servers. If the API fails, or the credential would push the message over the
+  // cap, it goes as it would without TURN: a direct connection may still work.
+  async withCredential(each) {
+    const ws = this.sockets.get(each.socket);
+    if (ws === undefined || ended(ws.deserializeAttachment())) {
+      return each;
+    }
+    try {
+      const servers = withTurn(each.message.ice_servers, await mint(this.turn, this.fetch, this.turnTimeoutMs));
+      const relayed = { ...each.message, ice_servers: servers };
+      if (codec.size(relayed) > codec.MAX_MESSAGE_BYTES) {
+        throw new Error(`the ${each.message.t} with TURN is over the cap`);
       }
-      try {
-        ws.send(JSON.stringify(each.message));
-      } catch {
-        // Its client is gone, and its close event will follow; a socket the router ended is
-        // still marked below, so no rebuild gives it back its role.
-      }
-      if (each.close) {
-        mark(ws, { id: each.socket, closing: this.now() + this.closeGraceMs });
-        this.closeLater(ws, this.closeGraceMs);
-      }
+      return { ...each, message: relayed };
+    } catch (error) {
+      this.log(`signal: "${each.message.t}" goes without TURN: ${error}`);
+      return each;
+    }
+  }
+
+  send(each) {
+    const ws = this.sockets.get(each.socket);
+    if (ws === undefined) {
+      return;
+    }
+    // A socket the service is closing is no one's any more: nothing more goes to it.
+    if (ended(ws.deserializeAttachment())) {
+      return;
+    }
+    try {
+      ws.send(JSON.stringify(each.message));
+    } catch {
+      // Its client is gone, and its close event will follow; a socket the router ended is
+      // still marked below, so no rebuild gives it back its role.
+    }
+    if (each.close) {
+      mark(ws, { id: each.socket, closing: this.now() + this.closeGraceMs });
+      this.closeLater(ws, this.closeGraceMs);
     }
   }
 
@@ -178,7 +247,7 @@ export class SignalService {
       close: true,
     }));
     this.router.orphans = [];
-    this.deliver(out);
+    return this.deliver(out);
   }
 
   closeLater(ws, ms) {

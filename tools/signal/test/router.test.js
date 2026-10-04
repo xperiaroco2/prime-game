@@ -18,6 +18,10 @@ test("there is a transcript per flow and per forged type", () => {
 });
 
 for (const [file, transcript] of transcripts.all()) {
+  if (transcripts.turnOnly(transcript)) {
+    // The router never mints: service.test.js replays it.
+    continue;
+  }
   test(`${file} replays`, () => {
     assert.deepEqual(replay(transcript, false), []);
   });

@@ -16,6 +16,9 @@ func test_every_transcript_replays() -> void:
 	assert_array(transcripts.keys()).contains_exactly(Transcripts.NAMES)
 	var failures := PackedStringArray()
 	for file: String in transcripts:
+		# SignalRouter never mints TURN credentials: the Worker's service.test.js replays it.
+		if Transcripts.turn_only(transcripts[file]):
+			continue
 		failures.append_array(_replay(file, transcripts[file]))
 	assert_array(Array(failures)).is_empty()
 

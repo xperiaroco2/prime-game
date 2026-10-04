@@ -59,6 +59,30 @@ func test_unknown_fields_are_dropped() -> void:
 	assert_array(decoded.fields.keys()).contains_exactly_in_any_order(["mid", "index", "cand"])
 
 
+## What the Worker sends a joiner with TURN on (M6-10) reaches it whole: every message of the
+## TURN-only transcripts decodes on its receiver's side to itself, so an offer's TURN entries keep
+## "urls", "username" and "credential", the keys WebRTCPeerConnection.initialize's "iceServers"
+## takes (extension_api.json, 4.7.2), and Signaller.offer_received passes them on unchanged.
+func test_the_worker_s_turn_messages_decode_whole() -> void:
+	var transcripts := Transcripts.all()
+	var checked := 0
+	for file: String in transcripts:
+		if not Transcripts.turn_only(transcripts[file]):
+			continue
+		for step: Dictionary in Transcripts.steps_of(transcripts[file]):
+			for each: Dictionary in step.get("expect", []):
+				var to_host := str(each["to"]) == "host"
+				var side := SignalCodec.Side.TO_HOST if to_host else SignalCodec.Side.TO_JOINER
+				var text := JSON.stringify(each["msg"], "", false)
+				var decoded := SignalCodec.decode(text.to_ascii_buffer(), side)
+				assert_str(decoded.why).override_failure_message(text).is_equal("")
+				assert_str(Transcripts.canonical(SignalCodec.as_message(decoded))).is_equal(
+					Transcripts.canonical(each["msg"])
+				)
+				checked += 1
+	assert_int(checked).is_greater(0)
+
+
 func test_ice_servers_are_rebuilt_from_known_keys() -> void:
 	var text := (
 		'{"t": "room", "v": 1, "code": "ABCDEF", "ice_servers": [{"urls": ["stun:a:1"],'

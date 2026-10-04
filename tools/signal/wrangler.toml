@@ -9,6 +9,9 @@ workers_dev = true
 [vars]
 # What "room" and every "offer" carry (E58); service.js checks it by the clients' rules.
 ICE_SERVERS = [{ urls = ["stun:stun.cloudflare.com:3478"] }]
+# TURN (M6-10): on only when the secrets TURN_KEY_ID and TURN_KEY_API_TOKEN are set (never here).
+# How long each joiner's credential lasts, in seconds (src/turn.js; D17's 10 minutes, a placeholder):
+# TURN_TTL_SECONDS = 600
 
 [[durable_objects.bindings]]
 name = "SIGNALLING"

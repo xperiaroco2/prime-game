@@ -4,6 +4,9 @@
 // may not send an offer; an offer and an answer go through; the host leaves, and the joiner hears
 // "the host left" before the service closes its socket. Exit 0 when every step passes, else 1. It
 // uses Node's own WebSocket (Node 22 and newer) and no package.
+//   node tools/signal/smoke.js <url> --turn
+// also checks TURN (M6-10): "room" carries the host's credential and the offer the joiner's, each a
+// TURN entry with a username and a credential, two different ones, and "found" carries none.
 
 const TIMEOUT_MS = 10000;
 
@@ -73,17 +76,39 @@ class Peer {
   }
 }
 
-async function smoke(url) {
+// The usernames of the TURN entries of `servers` that hold a username and a credential.
+function turnUsers(servers) {
+  const relayed = servers.filter(
+    (each) =>
+      each.urls.some((url) => url.startsWith("turn:") || url.startsWith("turns:")) &&
+      typeof each.username === "string" &&
+      typeof each.credential === "string",
+  );
+  return new Set(relayed.map((each) => each.username));
+}
+
+// The URLs of `servers` alone, so a credential is not printed.
+function urlsOf(servers) {
+  return JSON.stringify(servers.map((each) => each.urls));
+}
+
+async function smoke(url, turn) {
   const host = new Peer("host", url);
   await host.opened();
   host.send({ t: "open", protocol: 1, content: "0000000000000000", max: 1 });
   const room = await host.next("room");
-  console.log(`ok   room ${room.code}, ICE servers ${JSON.stringify(room.ice_servers)}`);
+  console.log(`ok   room ${room.code}, ICE servers ${urlsOf(room.ice_servers)}`);
+  if (turn && turnUsers(room.ice_servers).size === 0) {
+    throw new Error("room carries no TURN credential: are TURN_KEY_ID and TURN_KEY_API_TOKEN set?");
+  }
 
   const joiner = new Peer("joiner", url);
   await joiner.opened();
   joiner.send({ t: "join", code: room.code });
-  await joiner.next("found");
+  const found = await joiner.next("found");
+  if (found.ice_servers !== undefined) {
+    throw new Error("found carries ICE servers");
+  }
   const join = await host.next("join");
   console.log(`ok   a joiner found the room; the host heard joiner ${join.from}`);
 
@@ -99,7 +124,17 @@ async function smoke(url) {
   const offer = await joiner.next("offer");
   joiner.send({ t: "answer", sdp: "v=0\r\n" });
   await host.next("answer");
-  console.log(`ok   an offer (ICE servers ${JSON.stringify(offer.ice_servers)}) and an answer went through`);
+  console.log(`ok   an offer (ICE servers ${urlsOf(offer.ice_servers)}) and an answer went through`);
+  if (turn) {
+    const joiners = turnUsers(offer.ice_servers);
+    if (joiners.size === 0) {
+      throw new Error("the offer carries no TURN credential");
+    }
+    if ([...joiners].some((user) => turnUsers(room.ice_servers).has(user))) {
+      throw new Error("the offer carries the host's TURN credential");
+    }
+    console.log("ok   TURN: room and the offer each carry their own credential, and found none");
+  }
 
   host.socket.close();
   await host.until(() => host.closed, "close of its own socket");
@@ -111,12 +146,13 @@ async function smoke(url) {
 }
 
 const url = process.argv[2];
-if (url === undefined) {
-  console.error("usage: node tools/signal/smoke.js <wss:// or ws:// URL of the service>");
+const turn = process.argv[3] === "--turn";
+if (url === undefined || (process.argv.length > 3 && !turn) || process.argv.length > 4) {
+  console.error("usage: node tools/signal/smoke.js <wss:// or ws:// URL of the service> [--turn]");
   process.exit(2);
 }
 try {
-  await smoke(url);
+  await smoke(url, turn);
   console.log("smoke: passed");
   process.exit(0);
 } catch (error) {

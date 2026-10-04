@@ -36,6 +36,9 @@ func test_every_transcript_replays_over_websockets() -> void:
 	var transcripts := Transcripts.all()
 	assert_array(transcripts.keys()).contains_exactly(Transcripts.NAMES)
 	for file: String in transcripts:
+		# A LAN has no TURN: the Worker's service.test.js replays it.
+		if Transcripts.turn_only(transcripts[file]):
+			continue
 		var failures := await _replay(transcripts[file])
 		(
 			assert_array(Array(failures))

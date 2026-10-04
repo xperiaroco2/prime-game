@@ -2092,7 +2092,11 @@ which the service checks as an id (1 to 2^31 - 1) and otherwise passes on. `sdp`
 - **ICE servers:** `room` carries the service's own (STUN from its configuration, E58); the service adds a joiner's
   to the host's `offer` to that joiner, never to `found`, so a code pasted in a public chat hands out no relay.
   `LanSignalling` serves an empty list by default (host candidates connect on a LAN and in tests); the transcripts'
-  replay passes theirs.
+  replay passes theirs. With TURN on (the Worker only, M6-10, below), `room` also carries a TURN credential minted
+  for the host, and each host `offer` one minted for that joiner alone. The entries' keys (`urls`, `username`,
+  `credential`) are the ones `WebRTCPeerConnection.initialize`'s `"iceServers"` takes (4.7.2's
+  `extension_api.json`), so the WebRTC backend (`WebRtcTransport`, not built yet) can pass `room_opened`'s and
+  `offer_received`'s lists on as `{"iceServers": list}` unchanged.
 - **Caps** (placeholders, "not a decision"): 16 KB a message, received and forwarded: what the service adds (`from`,
   its ICE servers) can push a message at the cap over it, and the receiver would drop it unread, so the sender gets
   `too large` instead; 32 candidates per joiner each way, the 33rd refused with `too many candidates` to its sender;
@@ -2114,7 +2118,12 @@ closes s. Messages compare as JSON values (numbers by value, keys in any order).
 `caps_candidates`, `caps_too_large`, `caps_forwarded_too_large`; the forged types (the design's §5): `forged_offer`,
 `forged_candidate_to`, `forged_close`, `forged_reopen`, `forged_from` (a joiner's `from`, a host's `ice_servers` and
 `from`, all dropped) and `forged_roles` (a host joining or answering, a joiner opening, a host naming another room's
-joiner). Both suites check the exact list, so a deleted transcript fails them.
+joiner). Both suites check the exact list, so a deleted transcript fails them. A file with `"turn_only"` (its text
+says why) needs TURN credentials minted, from the fake API answers in `config.turn` (`key_id`, and `minted` in the
+order the offers ask): `SignalRouter`, `LanSignalling` and the Worker's router test skip it, the Worker's service test
+replays it, and `signal_codec_test.gd` checks that the joiner's codec decodes each of its messages to itself.
+`turn_per_joiner` is the only one: a host and two joiners, `room` and each host offer with its receiver's own
+credential, none in `found`, answers or candidates.
 
 **Tests:** `tests/unit/net/signal/` (the codec's rules, the router replaying every transcript, a fuzz test of the
 decoder: every truncation, every field of every type replaced by each other JSON type, oversized and deeply nested
@@ -2154,14 +2163,32 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   attachment and closed 1 s later; it gets nothing more, and its messages and close are no events. A close whose timer
   was lost with the object's memory happens when the object wakes.
 - **ICE servers** from `ICE_SERVERS` in `wrangler.toml` (`stun:stun.cloudflare.com:3478`, E58), checked by the
-  clients' rules at start. TURN credentials per joiner come with M6-10, only when a TURN key is configured; its key
-  goes in the Worker's secrets, never in `wrangler.toml`.
+  clients' rules at start.
+- **TURN** (M6-10, #375; D17 (b), E55; `src/turn.js`), on only when the secrets `TURN_KEY_ID` and
+  `TURN_KEY_API_TOKEN` are both set (neither, or one alone, logged: no TURN, and the service is what it was).
+  For the host's `room` and each host `offer` the service asks Cloudflare's TURN key API for a credential
+  (`rtc.live.cloudflare.com/v1/turn/keys/<key id>/credentials/generate-ice-servers`, `{"ttl": 600}`: D17's 10 minutes,
+  a placeholder, `TURN_TTL_SECONDS` in `[vars]` replaces it) and adds it after the configured servers: its `turn:`
+  and `turns:` URLs only, none on port 53 (browsers block it, Cloudflare's page says), split into entries of at most
+  4 URLs with the same username and credential, since Cloudflare answers 6 and the protocol's cap is 4; no protocol
+  change. Minted per message for its receiver (the host's own with `room`, the M6 ADR §2.4), never with `found`, so
+  a code pasted in a public chat hands out no relay and no joiner holds another's credential. Anyone with the
+  service's address can still open a room, join it from a second socket and offer to get one: the code is no key to
+  the relay, the address is. Each socket has its own queue: what follows a waiting message to the same socket waits
+  for it (a candidate never overtakes its offer), no other socket waits, and each request starts at once. If the API
+  fails, takes over 5 s or answers what clients would drop, or the credential would push the message over 16 KB, it
+  goes without TURN and the Worker logs a line. A message still waiting when the object restarts (a deploy) is lost,
+  and its client times out. Cloudflare's FAQ: a credential expiring while its relay is in use disconnects it "after
+  a short delay".
 - **Tests** (`tools/run.sh signal`, a `verify` step; Node pinned in `pins.py`, no npm package): every transcript
   through the router and through the service over fake sockets and state, each also with the router or the object
-  rebuilt after every step (as after hibernation) and with the object rebuilt as a close wakes it, the close grace, the configuration, and the decoding cases. The
+  rebuilt after every step (as after hibernation) and with the object rebuilt as a close wakes it, the close grace,
+  the configuration, and the decoding cases; TURN over a fake `fetch` of Cloudflare's API (the requests and their
+  TTL, a slow mint holding back only its own socket, the API failing or timing out, the cap, the configuration). The
   glue in `worker.js` is first tried at deploy, and `tools/signal/smoke.js` checks a running service (it passes
   against a headless `LanSignalling`). The design's §5 plant, the Worker forwarding a joiner's `offer` to another
-  joiner, failed `forged_offer` in both suites, then was reverted.
+  joiner, failed `forged_offer` in both suites, then was reverted. M6-10's plants, the credential also on `found` and
+  one credential reused for every joiner, each failed `turn_per_joiner`, then were reverted.
 
 ## 5. Per-peer information filtering
 
