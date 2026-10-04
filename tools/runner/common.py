@@ -187,6 +187,21 @@ def godot_bin() -> str | None:
     return shutil.which("godot")
 
 
+# Where tools/cloud/setup.sh installs the pinned Node.js: a cloud image's own node comes first on PATH.
+CLOUD_NODE = Path.home() / "node" / "bin" / "node"
+
+
+def node_bin() -> str | None:
+    """Node.js for the signalling Worker's tests: NODE_BIN when set, else in a cloud session the one setup.sh
+    installed, else `node` on PATH."""
+    value = os.environ.get("NODE_BIN")
+    if value:
+        return value if Path(value).is_file() else None
+    if IS_CLOUD and CLOUD_NODE.is_file():
+        return str(CLOUD_NODE)
+    return shutil.which("node")
+
+
 def gdtoolkit_exe(name: str) -> str | None:
     folder = os.environ.get("GDTOOLKIT_DIR")
     if folder:

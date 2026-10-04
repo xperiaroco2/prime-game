@@ -3,7 +3,7 @@
 # docs/decisions/2026-09-28-toolchain-pins.md. The job runs actions/checkout first (this action is in the repository).
 # Godot ends up at ~/godot/godot: pass it as GODOT_BIN=$HOME/godot/godot.
 name: Set up the pinned toolchain
-description: Python 3.12, the checksum-checked Godot build and gdtoolkit from the pins.
+description: Python 3.12, the checksum-checked Godot build, gdtoolkit and Node.js from the pins.
 
 runs:
   using: composite
@@ -20,12 +20,20 @@ runs:
         url=$(tools/run.sh pins --get godot_linux_url)
         sha512=$(tools/run.sh pins --get godot_linux_sha512)
         gdtoolkit=$(tools/run.sh pins --get gdtoolkit)
+        node=$(tools/run.sh pins --get node)
         {
           echo "GODOT_ZIP=$zip"
           echo "GODOT_URL=$url"
           echo "GODOT_SHA512=$sha512"
           echo "GDTOOLKIT_PIN=$gdtoolkit"
+          echo "NODE_PIN=$node"
         } >> "$GITHUB_ENV"
+
+    # The signalling Worker's tests (`signal`, a verify step). No npm package is installed, so no cache.
+    - uses: actions/setup-node@v7
+      with:
+        node-version: ${{ env.NODE_PIN }}
+        package-manager-cache: false
 
     - name: Cache the Godot download
       id: godot-cache

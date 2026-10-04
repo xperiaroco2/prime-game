@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Installs the verify toolchain in a Linux cloud container the way CI does (.github/actions/setup-toolchain):
 # the pinned Godot Linux build in ~/godot/godot (SHA-512 checked on every run, linked as `godot` on PATH when
-# /usr/local/bin is writable) and the pinned gdtoolkit. Idempotent: a downloaded zip with the right checksum is
+# /usr/local/bin is writable), the pinned gdtoolkit, and the pinned Node.js in ~/node (SHA-256 checked; the runner
+# takes ~/node/bin/node in a cloud session, since the image's own node comes first on PATH and Claude Code runs on it). Idempotent: a downloaded zip with the right checksum is
 # reused. Usage: tools/cloud/setup.sh (from any folder).
 # Also raises the default UDP receive buffer when it is below RMEM_DEFAULT_FIX (tools/runner/doctor.py): some
 # container kernels charge about 830 bytes per small datagram, so the 208 KB default held 256 of the 320 datagrams
@@ -18,6 +19,9 @@ zip=$("$run" pins --get godot_linux_zip)
 url=$("$run" pins --get godot_linux_url)
 sha512=$("$run" pins --get godot_linux_sha512)
 gdtoolkit=$("$run" pins --get gdtoolkit)
+node_tar=$("$run" pins --get node_linux_tar)
+node_url=$("$run" pins --get node_linux_url)
+node_sha256=$("$run" pins --get node_linux_sha256)
 
 download="$HOME/godot-download"
 mkdir -p "$download"
@@ -42,6 +46,19 @@ fi
 # The container is disposable: a system Python marked externally managed (PEP 668) takes the package anyway.
 PIP_BREAK_SYSTEM_PACKAGES=1 "$python" -m pip install --disable-pip-version-check -q "gdtoolkit==$gdtoolkit"
 "$python" -m pip show gdtoolkit | grep '^Version:'
+
+node_download="$HOME/node-download"
+mkdir -p "$node_download"
+if ! (cd "$node_download" && echo "$node_sha256  $node_tar" | sha256sum -c --status - 2>/dev/null); then
+  echo "Downloading $node_url"
+  curl -fsSL --retry 3 -o "$node_download/$node_tar.part" "$node_url"
+  mv "$node_download/$node_tar.part" "$node_download/$node_tar"
+fi
+(cd "$node_download" && echo "$node_sha256  $node_tar" | sha256sum -c -)
+rm -rf "$HOME/node"
+mkdir -p "$HOME/node"
+tar -xJf "$node_download/$node_tar" -C "$HOME/node" --strip-components=1
+echo "Node.js $("$HOME/node/bin/node" --version) in $HOME/node"
 
 rmem_min=425984 # RMEM_DEFAULT_FIX in tools/runner/doctor.py
 rmem=/proc/sys/net/core/rmem_default

@@ -41,6 +41,7 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
     for target, attribute, name in (
         (verify.doctor, "main", "doctor"),
         (verify.lint, "main", "lint"),
+        (verify.signalling, "main", "signal"),
         (verify.check, "main", "check"),
         (verify.gdunit, "main", "test"),
         (verify, "enet", "enet"),
@@ -133,7 +134,7 @@ def summary_rows(text: str) -> list[tuple[str, str]]:
 
 class LaneTest(unittest.TestCase):
     def test_every_step_has_one_lane_and_the_godot_steps_stay_serial_in_one(self) -> None:
-        self.assertEqual(verify.LANES["python"], ("lint", "selftest"))
+        self.assertEqual(verify.LANES["python"], ("lint", "signal", "selftest"))
         self.assertEqual(list(verify.LANES["godot"]), GODOT_STEPS)
         in_lanes = [name for names in verify.LANES.values() for name in names]
         self.assertEqual(sorted(["doctor", *in_lanes]), sorted(verify.STEP_ORDER))
@@ -163,7 +164,7 @@ class LaneTest(unittest.TestCase):
         self.assertEqual(rc, 0)
 
     def test_a_failed_step_of_either_lane_fails_verify_and_the_others_still_run(self) -> None:
-        for failing in ("lint", "selftest", *GODOT_STEPS):
+        for failing in ("lint", "signal", "selftest", *GODOT_STEPS):
             ran: list[str] = []
             with self.subTest(failing=failing), stub_steps(ran, failing):
                 rc, text, record = Verify(self).run(inline_lane)

@@ -1,10 +1,10 @@
 """`verify` (the definition of done: exactly what CI runs) and `selftest`.
 
 `doctor --quick` runs first, and a red one stops everything. Then two lanes run at once, each in a process of its
-own and serial inside (LANES): the Python lane (`lint`, then `selftest`: the runner tests that start no Godot, in
-worker processes) and the Godot lane (`check`, then `selftest-godot`: the runner tests that start Godot, then
-`test`, `enet`, `freeze`, `stall`, `bots`, `bots-enet`, `chaos` and `game`), so the timing-sensitive ENet runs never
-overlap.
+own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
+`selftest`: the runner tests that start no Godot, in worker processes) and the Godot lane (`check`, then
+`selftest-godot`: the runner tests that start Godot, then `test`, `enet`, `freeze`, `stall`, `bots`, `bots-enet`,
+`chaos` and `game`), so the timing-sensitive ENet runs never overlap.
 Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends. After both
 lanes: the clean-tree check, and the runner tests counted against a serial discovery (every test a serial `selftest`
 would run ran once, skipped where it would be skipped). The summary lists the steps in STEP_ORDER (the order of the
@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import bots, check, doctor, gdunit, hostjoin, launch, lint, slots
+from . import bots, check, doctor, gdunit, hostjoin, launch, lint, signalling, slots
 from .common import (
     IS_CI,
     LOGS,
@@ -82,6 +82,7 @@ PORT_TRIES = 50
 STEP_ORDER = (
     "doctor",
     "lint",
+    "signal",
     "check",
     "test",
     "enet",
@@ -98,7 +99,7 @@ STEP_ORDER = (
 # Godot runs (and no two real-time ENet sessions) ever overlap, and its runner tests come after check: a fresh CI
 # checkout has imported the project (.godot/) before RealSessionTest is discovered.
 LANES: dict[str, tuple[str, ...]] = {
-    "python": ("lint", "selftest"),
+    "python": ("lint", "signal", "selftest"),
     "godot": ("check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"),
 }
 # A lane process that outlives this is stopped and its unfinished steps fail (CI's whole job has 20 minutes).
@@ -192,6 +193,7 @@ def steps() -> dict[str, Callable[[], int]]:
     return {
         "doctor": lambda: doctor.main(quick=True),
         "lint": lambda: lint.main(),
+        "signal": lambda: signalling.main(),
         "check": lambda: check.main(),
         "test": lambda: gdunit.main(run_import=False),
         "enet": enet,

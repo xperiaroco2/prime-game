@@ -185,6 +185,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
     _view_options(p)
 
+    sub.add_parser("signal", help="the signalling Worker's tests under Node (tools/signal/, a verify step)")
+
     sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
 
     p = sub.add_parser(
@@ -397,6 +399,10 @@ def main(argv: list[str] | None = None) -> int:
             return hostjoin.join(
                 args.address, port=args.port, seconds=args.seconds, headless=args.headless, windows=args.windows
             )
+        if args.command == "signal":
+            from . import signalling
+
+            return signalling.main()
         if args.command == "credits":
             from . import credits
 
