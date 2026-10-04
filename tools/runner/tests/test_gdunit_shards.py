@@ -5,6 +5,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -543,9 +544,11 @@ class SplitTest(unittest.TestCase):
         found = gdunit.static_suites(list(gdunit.FIXED_FPS_SUITES))
         self.assertEqual(sorted(found), sorted(gdunit.FIXED_FPS_SUITES))
         self.assertTrue(all(found.values()), found)
-        # 60 frames a second is one physics step a frame only at the default 60 physics ticks per second.
+        # 60 frames a second is one physics step a frame only at 60 physics ticks per second (the default).
         project = (gdunit.ROOT / "project.godot").read_text(encoding="utf-8")
-        self.assertNotIn("physics_ticks_per_second", project)
+        ticks = re.search(r"^common/physics_ticks_per_second=(\d+)", project, re.M)
+        self.assertTrue(ticks is None or ticks.group(1) == gdunit.FIXED_FPS,
+                        "--fixed-fps 60 must stay one physics step per frame (#280)")  # fmt: skip
         self.assertEqual(gdunit.FIXED_FPS, "60")
 
 
