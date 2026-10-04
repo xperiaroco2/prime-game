@@ -860,9 +860,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   none. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It writes only its `--out` file, runs
   no `gh` and launches nothing. The orchestrate-stage skill moves onto it, replacing its `args-<n>.json` files, in
   #279.
-- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact]` [applied]** (#178;
-  item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose baseline
-  it reproduces): time, tokens and API list $ of the task workflows, read-only from the Claude Code transcripts. It
+- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]` [applied]**
+  (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
+  baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
   reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
   path with every character but letters and digits replaced by `-` (`D--prime-game`), plus
   `<key>--claude-worktrees-<n>/`. The main checkout is the parent of `git rev-parse --path-format=absolute
@@ -884,7 +884,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
   call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
   window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten
-  lines (time and API list $ per task and in total, the % of the week, the `verify` medians): the manager pastes
+  lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
   `metrics --since <wave start> --compact` into each wave comment. The % of the week is at $25.5 list per 1% (#304: 66%
   at 2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change; the pipeline v2 ADR's
   amendment), with a bracket beside it: the limit counting cache reads at 0 to 50% ((list $ without cache reads, plus 0
@@ -893,7 +893,23 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   figure. It covers only this checkout's sessions (the main checkout and its worktrees) that ran a workflow or that
   `--session` names; the weekly counter counts every session of the account. API list $ is a weight (one price table in
   `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
-  empty window, which also writes an empty report over an older one.
+  empty window, which also writes an empty report over an older one. Its quality scorecard (#314), so a cost change
+  (#303, #308's publisher trial, effort levels) is judged by quality too, has three tables, per finished `issue-task`
+  run, per session (a wave with `--since <wave start>`; medians) and per role setting (role, model and effort from each
+  agent's transcript; a clean run's publisher also as "publisher (clean run)"), and `quality` in `metrics.json`. From
+  the journal: the diff reviewers' and test review's blockers and majors, the skeptics' refutations, "clean" (none left
+  open, not stopped by mutants, not a design task: #315's rule, derived because a run's return value is not
+  journaled), the publisher's `fixed`, `not_fixed`,
+  `needs_engineer` and PR, and its fix rounds (`publish` calls minus one). From `gh`, read-only and by default
+  (`--no-gh` skips it; a failure is a note, never an exit code): the PR's state, its CI rounds (one per head SHA of
+  `ci.yml`'s pull_request runs on its branch; red rounds, those after the run, and "green on the first CI round"),
+  Found-by follow-up issues (a lower bound: only those whose "Found by" line names the task) and later `revert` or
+  `fix` PRs naming it in the title or in a sentence that reverts or repairs it (not under Merge order or
+  Verification); a first round re-run to green is unknown, since `gh` shows only the last attempt. Unknown is `?` (null), never 0: no PR, an older result shape, skeptics not run, a PR of another
+  repository, no CI run, or `gh` not read; medians and sums say how many are known. The compact `quality:` line ends
+  with the API list $ per PR green on its first CI round (the merged count beside it). A caller of `metrics.build`
+  (wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
+  the GitHub half.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
   windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw
   before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`),

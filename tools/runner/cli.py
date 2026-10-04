@@ -200,6 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--out", help="folder for metrics.md and metrics.json (default tools/out/metrics)")
     p.add_argument("--compact", action="store_true", help="print only the summary of at most ten lines (wave comments)")
+    p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")
 
     p = sub.add_parser(
         "wave",
@@ -390,7 +391,8 @@ def main(argv: list[str] | None = None) -> int:
             from . import metrics
 
             return metrics.main(
-                args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact
+                args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
+                no_gh=args.no_gh,
             )
         if args.command == "wave":
             from . import wave
