@@ -1052,20 +1052,19 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   --search sort:updated-desc` (the 500 most recently updated, every base; gh's default order is by creation) serves
   the merged section and housekeeping (gh's `merged:>=` search is date-only, so mergedAt is filtered here); when gh
   returns all 500, the merged section names the oldest update among them, before which a merged PR (and its worktree)
-  may be missing. A body over 60,000 characters
-  (GitHub's limit is 65,536) moves its handover data, each run's block whole, to `<out>-2.md` (and `-3.md`, ...), posted
-  as the next comments; the first body says so, every path is printed, a part one run's args alone push
-  over 65,536 gets a warn, and a part left from an earlier run is named, never deleted. A run is finished when its
-  latest launch has a notification or its journal reached the script's end (issue-task: a publisher result, or a red
-  implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or every reviewer answered with
-  no blocker or major left to fix). `--args <n>` prints only the JSON of issue n's newest launch on stdout (the run,
-  workflow and time on stderr; `--workflow issue-task` or `pr-rebase` picks one; `--out` also saves it, best for
-  Cyrillic from PowerShell 5.1) and exits 1 when n has none; the `--since` flags are refused with it, and it reads
-  nothing beyond the transcript. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It writes only
-  its `--out` file(s) and posts, edits and launches nothing: `gh` is only read, and merge-check's `git fetch` (with any
-  PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity manager (#278's PR)
-  took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its `args-<n>.json` files, in
-  #279.
+  may be missing. A body over 60,000 characters (GitHub's limit is 65,536) moves its handover data, each run's block
+  whole, to `<out>-2.md` (and `-3.md`, ...), posted as the next comments; the first body says so, every path is printed,
+  a part one run's args alone push over 65,536 gets a warn, and a part left from an earlier run is named, never deleted.
+  A run is finished when its latest launch has a notification or its journal reached the script's end (issue-task: a
+  publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or
+  every reviewer answered with no blocker or major left to fix). `--args <n>` prints only the JSON of issue n's newest
+  launch on stdout (the run, workflow and time on stderr; `--workflow issue-task` or `pr-rebase` picks one; `--out` also
+  saves it, best for Cyrillic from PowerShell 5.1) and exits 1 when n has none; the `--since` flags are refused with it,
+  and it reads nothing beyond the transcript. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It
+  writes only its `--out` file(s) and posts, edits and launches nothing: `gh` is only read, and merge-check's `git
+  fetch` (with any PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity
+  manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
+  `args-<n>.json` files, in #279.
 - **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]` [applied]**
   (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
   baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
