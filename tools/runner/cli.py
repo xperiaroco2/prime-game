@@ -10,24 +10,72 @@ from . import pins
 from .common import Failure, bad
 
 
+class _Formatter(argparse.HelpFormatter):
+    """Refills each paragraph of a description or epilog on its own; a paragraph with an indented line (a list of
+    exit codes) is kept as written."""
+
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        paragraphs = text.split("\n\n")
+        return "\n\n".join(
+            "\n".join(indent + line for line in para.splitlines())
+            if any(line.startswith(" ") for line in para.splitlines())
+            else super(_Formatter, self)._fill_text(para, width, indent)
+            for para in paragraphs
+        )
+
+
+class _Parser(argparse.ArgumentParser):
+    """Every command's parser: its description and epilog keep their paragraphs (`<command> --help`)."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        kwargs.setdefault("formatter_class", _Formatter)
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+
+
+# Root CLAUDE.md lists the command names only; each command's --help is where an agent reads what it does, so its
+# description keeps everything the old commands table said (tools/runner/tests/test_cli_help.py checks it).
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="run",
-        description="prime-game task runner. Windows: tools\\run.cmd <command>; bash: tools/run.sh <command>.",
+        description="prime-game task runner. Windows: tools\\run.cmd <command>; Git Bash and CI: tools/run.sh "
+        "<command>. Each command's --help says what it does, its options and its exit codes.",
+        epilog="Godot, Python and gdtoolkit run only through the runner. Logs: tools/out/logs/; reports: "
+        "tools/out/gdunit/.",
     )
     sub = parser.add_subparsers(dest="command", required=True, metavar="command")
 
-    p = sub.add_parser("doctor", help="check the environment and print fixes")
+    p = sub.add_parser(
+        "doctor",
+        help="check the environment and print fixes",
+        description="Check the environment and print a fix for each problem. Run it first in every session.",
+    )
     p.add_argument("--quick", action="store_true", help="only what verify needs (Python, Godot, gdtoolkit, addons)")
 
-    p = sub.add_parser("lint", help="gdformat --check + gdlint; CLAUDE.md budgets and rule/agent frontmatter")
+    p = sub.add_parser(
+        "lint",
+        help="gdformat --check + gdlint; CLAUDE.md budgets and rule/agent frontmatter",
+        description="gdformat --check and gdlint on the named .gd files or folders. With none: all project GDScript, "
+        "plus the CLAUDE.md budgets (the lines Claude Code loads) and the frontmatter of rules, skills and agents.",
+    )
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
     p.add_argument("files", nargs="*", help="repo-relative .gd files or folders (default: all project GDScript)")
 
-    p = sub.add_parser("check", help="import, warnings policy, UID lint, parse and load check")
+    p = sub.add_parser(
+        "check",
+        help="import, warnings policy, UID lint, parse and load check",
+        description="Headless import, the warnings policy, UID lint, then parse and load of every script and scene "
+        "(or of the named res:// paths). It also fails on an LFS asset without a docs/credits/ entry (see credits).",
+    )
     p.add_argument("files", nargs="*", help="res:// paths to check (default: the whole project)")
 
-    p = sub.add_parser("test", help="GdUnit4 tests, headless")
+    p = sub.add_parser(
+        "test",
+        help="GdUnit4 tests, headless",
+        description="GdUnit4 tests, headless. With no paths, every suite under res://tests in K processes at once "
+        "(--shards); with paths, one process. A run is judged by the exit code and results.xml (reports: "
+        "tools/out/gdunit/), never by the console; orphan nodes fail it. --repeat N: N runs in a row with a "
+        "per-suite comparison (a flaky hunt).",
+    )
     p.add_argument("paths", nargs="*", help="test files or directories (default: res://tests)")
     p.add_argument(
         "--repeat", type=int, metavar="N", help="N runs in a row with a per-suite comparison (the nightly flaky job)"
@@ -56,8 +104,18 @@ def build_parser() -> argparse.ArgumentParser:
         "class, several physics steps in one frame under load, shows only so",
     )
 
-    sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
-    p = sub.add_parser("selftest", help="unit tests of the runner itself")
+    sub.add_parser(
+        "verify",
+        help="everything CI runs, in the same order (definition of done)",
+        description="Everything CI runs, in the same order: doctor, then a Python lane and a Godot lane at once. On "
+        "a PC a run first takes one of 2 machine-wide slots, waiting at most 95 s. The definition-of-done gate. An "
+        "agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11).",
+    )
+    p = sub.add_parser(
+        "selftest",
+        help="unit tests of the runner itself",
+        description="The runner's own tests (tools/runner/tests), part of verify.",
+    )
     p.add_argument(
         "--group",
         choices=("all", "python", "godot"),
@@ -69,6 +127,10 @@ def build_parser() -> argparse.ArgumentParser:
         "wait",
         help="wait at most S s for a background job's last line exit=<n>: its summary and exit code; "
         "else 124 (still running); 2: no log",
+        description="Wait at most S s (default 240) for a background job's last line exit=<n> (the job run as "
+        "`<command> > <log> 2>&1; echo \"exit=$?\" >> <log>`), then print its summary and return n. Else 124 with a "
+        "'still running' line: call wait again, never start the job again. 2 with a 'wait: ' line: no log, or one "
+        "it cannot read. --verified: 0 when the newest verify passed at HEAD with a clean tree.",
     )
     p.add_argument(
         "log", nargs="?", help="the job's log: its output, then the line exit=<n> (docs/AGENT_WORKFLOW.md §11)"
@@ -79,7 +141,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="no log: 0 when the newest verify passed at HEAD with a clean tree (publish needs no verify before it)",
     )
     p.add_argument("--max", type=int, default=240, metavar="S", help="seconds to wait, 1 to 270 (default 240)")
-    p = sub.add_parser("bots", help="bot scenarios through the network layers and the information-leak test")
+    p = sub.add_parser(
+        "bots",
+        help="bot scenarios through the network layers and the information-leak test",
+        description="Bot scenarios (content/scenarios/) through the host and client sessions, and the "
+        "information-leak test. --instances N (N > 1): one scenario over ENet, a process per bot. --chaos: the "
+        "chaos bots, a hostile and a malformed peer against the host (no --seed: a random one, printed).",
+    )
     p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
     p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
     p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
@@ -94,6 +162,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "mutants",
         help="plant each fault of a spec in a scratch worktree of HEAD and run its tests there",
+        description="Plant each fault of the spec in a scratch worktree of HEAD and run its tests there.\n"
+        "Exit 2: tell the human (exit codes below).",
         epilog=MUTANTS_HELP,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -106,12 +176,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     p = sub.add_parser(
-        "playcheck", help="scripted game windows off-screen (and bots) with screenshots at named steps; never on CI"
+        "playcheck",
+        help="scripted game windows off-screen (and bots) with screenshots at named steps; never on CI",
+        description="The game in off-screen windows (bots for the rest of the players) running a scenario's scripted "
+        "steps, with PNGs at its named steps. Desktop only: CI and verify never run it; an agent may.",
     )
     p.add_argument("scenarios", nargs="*", help="scenario names in tools/playcheck/scenarios/ (default: every one)")
     p.add_argument("--seconds", type=int, help="hard timeout of each scenario's run (default 300)")
 
-    p = sub.add_parser("perf", help="the host's cost with 10 bots: tick time, snapshot sizes, bytes per peer (not verify)")
+    p = sub.add_parser(
+        "perf",
+        help="the host's cost with 10 bots: tick time, snapshot sizes, bytes per peer (not verify)",
+        description="The host's cost in a match of bots (10 by default): tick time, snapshot sizes and bytes per "
+        "peer, compared with the baseline or the last run. Not part of verify.",
+    )
     p.add_argument("--bots", type=int, default=10, help="bots in the match, 2 to 10 (default 10)")
     p.add_argument("--seconds", type=int, default=60, help="the round's length, 20 to 600 (default 60)")
     p.add_argument("--enet", action="store_true", help="real sockets on 127.0.0.1 and the real clock (default loopback)")
@@ -120,21 +198,43 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "load",
         help="bounded busy loops to test under load, in a verify slot (waits like verify; none free in time: exit 1)",
+        description="Busy loops (2 per logical CPU, 600 s by default) in a verify slot, to test something under load. "
+        "It takes the slot like verify (the same wait); no slot free in time: exit 1. Start it in the background, "
+        "take your steps after its 'load: running' line, and let the load end (or wait for it with wait <log>).",
     )
     p.add_argument("--loops", type=int, help="busy processes, 1 to 256 (default 2 per logical CPU)")
     p.add_argument("--seconds", type=float, default=600.0, help="how long they run, up to 1140 (default 600)")
 
-    p = sub.add_parser("board", help="the GitHub project board")
+    p = sub.add_parser(
+        "board",
+        help="the GitHub project board",
+        description="The GitHub project board. board move <issue> in-progress (or in-review) puts an open issue on "
+        "the board in that column.",
+    )
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
-    p = board_sub.add_parser("move", help="put an issue on the board in a column (agents use only these two)")
+    p = board_sub.add_parser(
+        "move",
+        help="put an issue on the board in a column (agents use only these two)",
+        description="Put an open issue on the project board in that column (agents use only these two).",
+    )
     p.add_argument("issue", type=int, help="issue number")
     p.add_argument("column", choices=["in-progress", "in-review"])
 
-    p = sub.add_parser("publish", help="fetch, rebase the task branch on its base, verify, push with a lease")
+    p = sub.add_parser(
+        "publish",
+        help="fetch, rebase the task branch on its base, verify, push with a lease",
+        description="Fetch, rebase the task branch on its PR's base (else start --base, else main), run verify, "
+        "push the branch with a lease. The only way a rebased branch goes up.",
+    )
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
 
     # Merge safety (#181): checks across open PRs, and a manager's merge into a release branch or, gated, main (#300).
-    p = sub.add_parser("merge-check", help="open PRs onto their base and pairwise: textual conflicts, symbol overlaps")
+    p = sub.add_parser(
+        "merge-check",
+        help="open PRs onto their base and pairwise: textual conflicts, symbol overlaps",
+        description="Open PRs onto their base and pairwise: textual conflicts and symbol overlaps; exit 1 on either. "
+        "--trial: the PRs merged in order onto the base in a scratch worktree, then verify.",
+    )
     p.add_argument("prs", nargs="*", type=int, help="PR numbers (default: every open PR, grouped by base)")
     p.add_argument(
         "--base",
@@ -148,6 +248,9 @@ def build_parser() -> argparse.ArgumentParser:
         "merge",
         help="merge a PR (or main) into release/<x> (verify on the merged tree, push by hash), or a PR into main "
         "through GitHub when its gate passes",
+        description="A manager's merge (docs/AGENT_WORKFLOW.md §7.1). --base release/<x>: the PR (or, with "
+        "--sync-main, origin/main) merged into it, verify on the merged tree, push by hash. --base main: the PR "
+        "merged through GitHub when its gate passes.",
     )
     p.add_argument("pr", nargs="?", type=int, help="the PR to merge")
     p.add_argument("--base", required=True, help="release/<x>, or main (a PR through the gate, #300)")
@@ -169,7 +272,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="a worktree whose last commit is younger than M minutes counts as held by a live run (0: off; default 10)",
     )
 
-    p = sub.add_parser("start", help="put the checkout on the task branch of an issue; assign it; board In progress")
+    p = sub.add_parser(
+        "start",
+        help="put the checkout on the task branch of an issue; assign it; board In progress",
+        description="Put the task branch <area>/<n>-<slug> of issue n, from main or --base P (the branch of a "
+        "parent's open PR), in the checkout (the engineer: in its worktree .claude/worktrees/<n>); assign the issue "
+        "and move it to In progress on the board (skill start-task).",
+    )
     p.add_argument("issue", type=int, help="issue number")
     p.add_argument("--area", help="branch prefix when the issue has no single area label")
     p.add_argument(
@@ -183,16 +292,29 @@ def build_parser() -> argparse.ArgumentParser:
     where.add_argument("--here", action="store_true", help="work in this checkout, not a worktree (the exception for the engineer)")
     p.add_argument("--dry-run", action="store_true", help="say what would happen; only a git fetch runs")
 
-    p = sub.add_parser("worktree-done", help="remove .claude/worktrees/<n> after its branch was merged")
+    p = sub.add_parser(
+        "worktree-done",
+        help="remove .claude/worktrees/<n> after its branch was merged",
+        description="Remove a task's worktree .claude/worktrees/<n> after its branch was merged (with --pushed, a "
+        "pushed spike's).",
+    )
     p.add_argument("issue", type=int, help="issue number")
     p.add_argument(
         "--pushed", action="store_true", help="also when the branch is not merged but origin has all its commits"
     )
 
-    p = sub.add_parser("normalize", help="re-save .tscn/.tres files in headless editor context")
+    p = sub.add_parser(
+        "normalize",
+        help="re-save .tscn/.tres files in headless editor context",
+        description="Re-save .tscn/.tres files as the editor would (headless editor context).",
+    )
     p.add_argument("files", nargs="+", help="repo-relative or res:// paths")
 
-    p = sub.add_parser("shot", help="render a scene off-screen in a real window and save a PNG")
+    p = sub.add_parser(
+        "shot",
+        help="render a scene off-screen in a real window and save a PNG",
+        description="An off-screen PNG of a scene: render it in a real window at an off-screen position and save it.",
+    )
     p.add_argument("scene", help="the .tscn to render (repo-relative or res://)")
     p.add_argument("--out", help="PNG path (default: tools/out/shots/<scene>.png)")
     p.add_argument("--size", default="1280x720", help="window size WxH (default 1280x720)")
@@ -202,6 +324,8 @@ def build_parser() -> argparse.ArgumentParser:
         "run",
         help="run a scene or script with the pinned Godot; arguments after -- reach the game",
         usage="run <scene.tscn | script.gd> [options] [-- <user args>]",
+        description="Run a scene or script with the pinned Godot; arguments after -- reach the game. It fails on a "
+        "non-zero exit, a timeout or an ERROR: line. An agent's own checks use --headless.",
     )
     p.add_argument("target", help="a .tscn or a .gd that extends SceneTree (repo-relative or res://)")
     view = p.add_mutually_exclusive_group()
@@ -211,30 +335,52 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--instances", type=int, default=1, help="copies at once, each with its own log (default 1)")
     p.add_argument("--audio", choices=["dummy", "default"], default="dummy", help="audio driver (default dummy)")
 
-    p = sub.add_parser("host", help="host the game over ENet in a window (--headless: M3's session); Ctrl+C stops")
+    host_join = (
+        "--headless: M3's session, printing the roster, the phase and the counters. Where CLAUDECODE is set (an "
+        "agent's shell) that is the default: an agent's runs stay headless and never pass --windows. An agent's check: "
+        "host --local --seconds S."
+    )
+    p = sub.add_parser(
+        "host",
+        help="host the game over ENet in a window (--headless: M3's session); Ctrl+C stops",
+        description="Host the game over ENet in a window; --clients N more windows join it (tiled on one PC). "
+        f"Ctrl+C or --seconds stops it cleanly. {host_join}",
+    )
     p.add_argument("--port", type=int, help="UDP port (default: the game's placeholder port)")
     p.add_argument("--clients", type=int, default=0, help="also start N clients joined on 127.0.0.1 (windows tiled)")
     p.add_argument("--local", action="store_true", help="listen on 127.0.0.1 only (this PC's clients; no firewall)")
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
     _view_options(p)
 
-    p = sub.add_parser("join", help="join a host over ENet in a window (--headless: M3's session); Ctrl+C stops")
+    p = sub.add_parser(
+        "join",
+        help="join a host over ENet in a window (--headless: M3's session); Ctrl+C stops",
+        description=f"Join a host over ENet in a window. Ctrl+C or --seconds stops it cleanly. {host_join}",
+    )
     p.add_argument("address", help="the host's address, such as 192.168.0.195 or 127.0.0.1")
     p.add_argument("--port", type=int, help="UDP port (default: the game's placeholder port)")
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
     _view_options(p)
 
-    sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
+    sub.add_parser(
+        "credits",
+        help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)",
+        description="Write CREDITS.md from docs/credits/. check fails when it is stale or an LFS asset has no entry.",
+    )
 
     p = sub.add_parser(
-        "agents-check", help="assert each subagent and workflow agent was served by the model family it asked for"
+        "agents-check",
+        help="assert each subagent and workflow agent was served by the model family it asked for",
+        description="Assert that each subagent and workflow agent ran on the model family it asked for.",
     )
     scope = p.add_mutually_exclusive_group()
     scope.add_argument("--session", help="session id (default: this Claude Code session, else all)")
     scope.add_argument("--all", action="store_true", help="every session of this checkout")
 
     p = sub.add_parser(
-        "metrics", help="time, tokens and API list $ of the task workflows, from this checkout's transcripts"
+        "metrics",
+        help="time, tokens and API list $ of the task workflows, from this checkout's transcripts",
+        description="Time, tokens and API list $ per task workflow, from this checkout's transcripts.",
     )
     p.add_argument(
         "--session",
@@ -277,6 +423,9 @@ def build_parser() -> argparse.ArgumentParser:
         "wave",
         help="a manager's runs and handover args from its transcript and the journals (a wave comment's body; "
         "posts nothing)",
+        description="A manager's finished and running runs and handover args, from its transcript and the journals: "
+        "--since T writes a wave comment's body (it posts nothing); --args N prints issue N's latest launch args as "
+        "JSON.",
     )
     what = p.add_mutually_exclusive_group(required=True)
     what.add_argument("--since", help="ISO 8601 time: write the wave comment's body, with the runs finished since it")
@@ -295,10 +444,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-merge-check", dest="merge_check", action="store_false", help="--since: skip merge-check (no git fetch)"
     )
 
-    p = sub.add_parser("pins", help="print pinned tool versions as JSON")
+    p = sub.add_parser(
+        "pins", help="print pinned tool versions as JSON", description="Print the pinned tool versions as JSON."
+    )
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
 
-    p = sub.add_parser("permissions", help="replay local transcripts through the permission rules and the guard")
+    p = sub.add_parser(
+        "permissions",
+        help="replay local transcripts through the permission rules and the guard",
+        description="Replay this machine's transcripts through the permission rules and the guard, compared with "
+        "--before.",
+    )
     p.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
     p.add_argument("--projects", default="", help="transcript folders glob under ~/.claude/projects")
     p.add_argument("--since", default="", help="only calls from this day on (YYYY-MM-DD)")
