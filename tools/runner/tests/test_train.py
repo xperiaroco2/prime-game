@@ -362,12 +362,19 @@ class TrainTest(TrainCase):
         def no_rebase() -> None:
             (Path(_git(wt, "rev-parse", "--absolute-git-dir")) / "rebase-merge").rmdir()
 
+        def bisect() -> None:
+            (Path(_git(wt, "rev-parse", "--absolute-git-dir")) / "BISECT_LOG").write_text("# bad\n", encoding="utf-8")
+
+        def no_bisect() -> None:
+            (Path(_git(wt, "rev-parse", "--absolute-git-dir")) / "BISECT_LOG").unlink()
+
         cases = [
             ("a verify slot", lambda: self.holders.append(slots.Holder(2, wt.as_posix(), "core/30-task", os.getpid(),
                                                                          "2026-10-05T01:00:00Z")),
              self.holders.clear, "a verify holds slot 2 there (pid "),
             ("a busy session", lambda: self.live.append(live), self.live.clear, "the Claude Code session 'implementer'"),
             ("a rebase", rebase_in_progress, no_rebase, "a rebase is in progress there"),
+            ("a bisect", bisect, no_bisect, "a bisect is in progress there"),
             ("uncommitted changes", dirty, clean, "uncommitted changes there (1 files)"),
             ("a local commit", local_commit, drop_local_commit, "its HEAD "),
         ]  # fmt: skip
