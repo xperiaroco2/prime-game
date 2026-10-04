@@ -95,8 +95,8 @@ func test_over_enet_a_join_is_judged_on_the_real_clock() -> void:
 	var run := ChaosRun.new(false, ChaosRun.Mode.CHAOS, 1, NO_PORT)
 	# Behind any real clock: the simulated one starts at BotsRunner.START_USEC.
 	run.now_usec = -1
-	var before := Time.get_ticks_usec()
-	assert_int(run._join_clock_usec()).is_greater_equal(before)
+	var started := Time.get_ticks_usec()
+	assert_int(run._join_clock_usec()).is_greater_equal(started)
 	var loopback := ChaosRun.new()
 	loopback.now_usec = START_USEC
 	assert_int(loopback._join_clock_usec()).is_equal(START_USEC)
