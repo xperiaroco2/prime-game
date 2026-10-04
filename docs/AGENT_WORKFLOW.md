@@ -118,7 +118,9 @@ does (#159). Setup:
    can leak) or `tests/harness/` (the information-leak test) changed; plus
    `godot-api-checker` if `.gd`, `.tscn` or `.tres` changed. Fix findings or list them in the PR.
 3. Update docs if durable knowledge changed; add intervention and credit entries if any.
-4. One question: **"Publish now? (push + PR + handoff comment)"**.
+4. In the engineer's sessions (`gh api user` is the engineer's account, the `*` owner in `.github/CODEOWNERS`) no
+   question: publish once 1 to 3 hold ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
+   In the designer's sessions, or when unsure, one question: **"Publish now? (push + PR + handoff comment)"**.
 5. `tools\run.cmd publish`: rebase on the open PR's base (else the `start --base` parent, else `origin/main`), re-run
    `verify`, push the task branch with a lease (§8.3). Under `bounded_waits` (§7.1) the publishing agents of
    `issue-task` and `pr-rebase` run no standalone `verify` before `publish` when `tools\run.cmd wait --verified` exits
@@ -236,8 +238,8 @@ Rules for every workflow run:
 
 ### 7.1 The orchestrator session
 ([ADR](decisions/2026-09-30-orchestrator-session.md); skill `orchestrate-stage`)
-- **When:** a whole stage or a list of issues that can run in parallel, with the engineer around to merge and
-  answer. One issue alone stays a normal task session (§4).
+- **When:** a whole stage or a list of issues that can run in parallel, with the engineer around to answer. One
+  issue alone stays a normal task session (§4).
 - **How:** one session in ultracode, the **manager**, runs the skill. For each task it runs `start` itself, then the
   saved workflow `issue-task` (`.claude/workflows/issue-task.js`: implementer → fresh reviewers chosen from the
   changed paths → publisher; `design: true` for a docs-only design task) with `args` (issue, worktree, branch, base,
@@ -278,71 +280,97 @@ Rules for every workflow run:
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
   about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
   issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to five agents (more with the v2 options above), over
-  the `small` guideline, so the kickoff approves that and the stage's budget once, confirmed by the human's yes to
-  the manager's restatement (§7). Code tasks wait for the engineer's review of the stage's design PR; before
+  the `small` guideline, so the kickoff approves that and the stage's budget once; within 15% of the weekly limit per
+  stage or track the manager's restatement is a report and it goes on, above it or for an "ask and wait" item it
+  waits for the human's yes (§7, the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
+  Code tasks wait for the engineer's review of the stage's design PR; before
   launching anything, the manager lists the runs another session may still own (issues In progress with no PR, fresh
   worktree commits, a rebase in progress) and asks.
-- **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>`
-  from `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base
-  release/m<k>`). Before each merge the manager runs `tools\run.cmd merge-check` (#181): every open PR onto its
-  base tip and each pair into the same base, textually (`git merge-tree --write-tree`) and by symbols (what one side
-  removes, renames or changes, used by the other side's added lines: GDScript and runner Python members and
-  signatures, wire rows and fields, `.tres` fields, deleted files; a signature that only appends parameters with
-  defaults is a note, not an overlap, #207); and, across bases, each PR with every open PR into another base when both
-  change a shared file, the same one or different ones (Parallel tracks below); seconds, no Godot; a Markdown table
-  per base and one across bases for the wave comment, each overlap with file:line on both sides, exit 1 on a
-  conflict, an overlap or a PR it could not check (its base gone from origin). On an overlap it merges the side
-  that changes the symbol first and has the other rebased (`pr-rebase`), or first runs
-  `merge-check --trial <pr>...`: the base plus the PRs merged in order in a scratch detached worktree under
-  `tools/out/merge/`, that tree's own `verify`, then the worktree removed. The manager merges a task PR once CI is
-  green, the fresh reviews left no open blocker or major, and `verify` passes on the merged tree, with
-  `tools\run.cmd merge <pr> --base release/m<k>` from the main checkout or its `release-m<k>` worktree (it refuses
-  `main`, any base outside `release/*` and a task's checkout): fetch (a PR a human already merged is only fetched),
+- **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>` from
+  `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base release/m<k>`). Before
+  each merge the manager runs `tools\run.cmd merge-check` (#181): every open PR onto its base tip and each pair into the
+  same base, textually (`git merge-tree --write-tree`) and by symbols (what one side removes, renames or changes, used
+  by the other side's added lines: GDScript and runner Python members and signatures, wire rows and fields, `.tres`
+  fields, deleted files; a signature that only appends parameters with defaults is a note, not an overlap, #207); and,
+  across bases, each PR with every open PR into another base when both change a shared file, the same one or different
+  ones (Parallel tracks below); seconds, no Godot; a Markdown table per base and one across bases for the wave comment,
+  each overlap with file:line on both sides, exit 1 on a conflict, an overlap or a PR it could not check (its base gone
+  from origin). On an overlap it merges the side that changes the symbol first and has the other rebased (`pr-rebase`),
+  or first runs `merge-check --trial <pr>...`: the base plus the PRs merged in order in a scratch detached worktree
+  under `tools/out/merge/`, that tree's own `verify`, then the worktree removed. The manager merges a task PR once CI is
+  green, the fresh reviews left no open blocker or major, and `verify` passes on the merged tree, with `tools\run.cmd
+  merge <pr> --base release/m<k>` from the main checkout or its `release-m<k>` worktree (into `main` only through the
+  gate below; it refuses any other base and a task's checkout): fetch (a PR a human already merged is only fetched),
   green CI (`gh pr checks`), `git merge --no-ff` with GitHub's message in a scratch detached worktree at
-  `origin/release/m<k>`, `verify` on the merged tree (always: no shortcut for an unchanged tree; a red run or a
-  conflict pushes nothing and leaves nothing to undo), `git push origin <commit>:refs/heads/release/m<k>` by hash (a
-  fast-forward the pre-push hook allows; the deny rule `git push *HEAD*` refuses `HEAD:` typed by hand), the scratch
-  worktree removed, the PR confirmed merged on GitHub, and one `wave:` line for the wave comment. Its `verify` takes
-  minutes: run it with `run_in_background`. At a wave boundary, when the AI productivity track (#170) says `main`
-  has something the stage needs, `merge --sync-main --base release/m<k>` takes `origin/main` in the same way. Its git
-  commands run inside the runner, so the session types only `tools\run.cmd merge ...`, which runs without a prompt
-  from the main checkout and from the `release-m<k>` worktree. A red `verify` of `merge` or `merge-check --trial`
-  keeps the merged tree's logs and GdUnit reports in `tools/out/merge-logs/<log>/`. A track whose PRs go straight into `main` (#170) runs `merge-check`
-  before asking the engineer to merge and names the safe order; `merge` never merges into `main`.
-  `gh pr merge` stays denied (the `main` rulesets ask only for a PR and green checks, so it would let any agent merge
-  into `main`). The stage ends with one PR from `release/m<k>` into `main`, which a human reviews and merges; the
-  stage's issues stay open until then (`Closes` fires only on the default branch) and a human closes them.
-- **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7,
-  the engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170)
-  sends its PRs straight into `main`, each merged by the engineer (the release-branch ADR's tooling-track bullet; how
-  a milestone takes `main` in: Git flow above). At most about six task workflows run at once across all tracks (three
-  per stage). Each kickoff states its budget as a percentage of the weekly limit, and its manager reports its own
-  spend in every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`, plus
-  the stage's running total (`--since <stage start>`): a run counts in the window it started in.
-  Shared files (N5 (c)): `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track
-  (an issue there, landing between the other managers' waves: a mid-wave change breaks their resumes);
-  `tools/runner/` and this file may be changed by any track between waves, after `merge-check`. `merge-check` also
-  pairs each PR with every open PR into another base (a PR stacked on one of its own track counts as its track's) when
-  both change a shared file (`tools/`, `.claude/`, `.github/`, this file), the same one or different ones (a
-  signature changed in `tools/runner/x.py` that the other PR calls from `tools/runner/y.py`, #231): the textual
-  conflicts in the files both change and the same symbol check over each whole PR, in a table "across bases" that
-  names both bases (#207); the pairs where at most one side changes a shared file it names as not compared. A
-  flagged pair: its manager names it on the other track's plan issue; the PR into `main` merges first (a human
-  merges it; the milestone's manager holds its own PR meanwhile, merges the rest of the wave and lists the pair under
-  "Needs the engineer"), the milestone takes `main` in (`merge --sync-main`) and its PR is rebased on that
-  (`pr-rebase`) before it merges. After the engineer merges a change to a shared file, the
-  tooling track's manager says so on each running manager's plan issue.
+  `origin/release/m<k>`, `verify` on the merged tree (always: no shortcut for an unchanged tree; a red run or a conflict
+  pushes nothing and leaves nothing to undo), `git push origin <commit>:refs/heads/release/m<k>` by hash (a fast-forward
+  the pre-push hook allows; the deny rule `git push *HEAD*` refuses `HEAD:` typed by hand), the scratch worktree
+  removed, the PR confirmed merged on GitHub, and one `wave:` line for the wave comment. Its `verify` takes minutes: run
+  it with `run_in_background`. At a wave boundary, when the AI productivity track (#170) says `main` has something the
+  stage needs, `merge --sync-main --base release/m<k>` takes `origin/main` in the same way. Its git commands run inside
+  the runner, so the session types only `tools\run.cmd merge ...`, which runs without a prompt from the main checkout
+  and from the `release-m<k>` worktree. A red `verify` of `merge` or `merge-check --trial` keeps the merged tree's logs
+  and GdUnit reports in `tools/out/merge-logs/<log>/`. A typed `gh pr merge` stays denied (the `main` rulesets ask only
+  for a PR and green checks, so it would let any agent merge into `main`). The stage ends with one PR from
+  `release/m<k>` into `main`, which the manager merges through the gate below once the engineer gave the milestone's go;
+  the stage's issues stay open until then (`Closes` fires only on the default branch) and the manager closes them.
+  - **Into `main`** (#300, the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)): the
+    engineer's manager runs `tools\run.cmd merge <pr> --base main` from the main checkout once the fresh reviews left no
+    open blocker or major. Its gate collects every refusal: not open into `main` or a draft; not authored by the
+    engineer's account, or gh not running as it (the designer's PRs keep their flow); CI not green on the head;
+    `mergeable` CONFLICTING; `origin/<head>` moved; **behind `main`** (`origin/main` not in the head: `publish` or
+    `pr-rebase` first, then its CI); the exceptions in the paths since the fork (the designer's area without the
+    designer's approving review or a line starting "agreed with the designer, relayed by the engineer";
+    `.claude/settings*.json`, `.claude/githooks/` and `tools/runner/guard.py`, always; an ADR added, changed or deleted
+    without "Approved by the engineer: <GitHub link>"); a closing PR (head `release/*`) without that line, the
+    engineer's go, which also clears its designer-area paths and ADRs; and any top-level item, or sub-heading or bold
+    label with no item under it, in "Needs the engineer" without "Answered: <GitHub link>" (the manager adds it with `gh
+    pr edit --body-file` once the answer is recorded on GitHub; "None" passes; an unreadable section refuses). Markers
+    inside HTML comments do not count. **No local `verify`:** with `main` in the head, the merged tree is the head's
+    own, which `publish` verified on Windows and CI (on `refs/pull/<n>/merge`) on Linux; a local run would hold a verify
+    slot 12 to 14 minutes per merge for nothing. `merge-check` rows that involve the PR and PRs stacked on it print as
+    `gate: note:` lines and never refuse: the partner is behind `main` afterwards (the gate refuses it until its
+    re-publish tests the pair), and across bases the milestone takes `main` in. Then `origin/main` is read again (moved:
+    refused), the runner runs `gh pr merge <n> --merge --match-head-commit <oid>` as its own subprocess and prints one
+    `wave:` line. `--dry-run` prints the verdict, merges nothing and runs from any checkout; a real merge refuses a
+    task's checkout. Each merge is one chat line to the engineer; when `main` breaks after one, the manager opens a
+    revert PR (`git revert -m 1 <merge>` on a task branch), merges it through the same gate and says so. "стоп мерджі"
+    from the engineer returns merges into `main` to the engineer until the engineer says otherwise (recorded on the plan
+    issue and #170). A solo session merges only where the engineer said so, from the main checkout.
+- **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7, the
+  engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170) sends
+  its PRs straight into `main`, each merged by its manager through the gate (Git flow above, "Into `main`"; how a
+  milestone takes `main` in: Git flow above). At most about six task workflows run at once across all tracks (three per
+  stage). Each kickoff states its budget as a percentage of the weekly limit, and its manager reports its own spend in
+  every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`, plus the stage's
+  running total (`--since <stage start>`): a run counts in the window it started in. Shared files (N5 (c)):
+  `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an issue there, landing
+  between the other managers' waves: a mid-wave change breaks their resumes); `tools/runner/` and this file may be
+  changed by any track between waves, after `merge-check`. `merge-check` also pairs each PR with every open PR into
+  another base (a PR stacked on one of its own track counts as its track's) when both change a shared file (`tools/`,
+  `.claude/`, `.github/`, this file), the same one or different ones (a signature changed in `tools/runner/x.py` that
+  the other PR calls from `tools/runner/y.py`, #231): the textual conflicts in the files both change and the same symbol
+  check over each whole PR, in a table "across bases" that names both bases (#207); the pairs where at most one side
+  changes a shared file it names as not compared. A flagged pair: its manager names it on the other track's plan issue;
+  the PR into `main` merges first (through the gate, or by a human for an exception; the milestone's manager holds its
+  own PR meanwhile and merges the rest of the wave), the milestone takes `main` in (`merge --sync-main`) and its PR is
+  rebased on that (`pr-rebase`) before it merges. After a change to a shared file reaches `main`, the tooling track's
+  manager says so on each running manager's plan issue.
 - **The human:** writes the kickoff (template in the skill, with the budget as a percentage of the weekly limit),
-  reviews and merges the stage's PR into `main`, answers the numbered "Needs the engineer" questions, and runs the
-  housekeeping (`worktree-done`, closing issues). The manager reports on the plan issue after each wave and stops
-  with a comment when nothing more can run without the human. While it waits (a run of its own in flight, or a stop with
-  a context over about 150k and no once-a-day handover due, #279) it keeps its 1-hour prompt cache warm with one
-  background `sleep 3000` re-armed on each cheap wake, for at most about 12 hours of the human's absence (the skill's
-  §7, #305). Each command the human must run (a workflow's `human_steps`, housekeeping) goes into the chat itself, one
-  runnable PowerShell block per command
+  answers the numbered "Needs the engineer" questions, gives each milestone's go (a playtest) and merges the gate's
+  exceptions. The manager closes issues whose work is on `main` (a comment linking the PRs and merge commits) and runs
+  `worktree-done` for its merged tasks when no live session sits there. Every message from the manager ends with one
+  short "For you:" block in the human's language, numbered, listing only what needs the human now (a refused merge, a
+  decision, a command), or "nothing"; housekeeping the human must run (a pull of `D:\prime-game`, a worktree a live
+  session holds) is batched there once per wave ([intervention](interventions/2026-10-04-engineer-for-you-block.md)).
+  The manager reports on the plan issue after each wave and stops with a comment when nothing more can run without the
+  human. While it waits (a run of its own in flight, or a stop with a context over about 150k and no once-a-day handover
+  due, #279) it keeps its 1-hour prompt cache warm with one background `sleep 3000` re-armed on each cheap wake, for at
+  most about 12 hours of the human's absence (the skill's §7, #305). Each command the human must run (a workflow's
+  `human_steps`, housekeeping) goes into the chat itself, one runnable PowerShell block per command
   ([intervention](interventions/2026-10-03-engineer-commands-in-the-chat.md)); the plan issue may list it too. The
-  publishing agents return `human_steps` as `{why, command}` pairs, each command one PowerShell line that starts
-  with `cd` to its absolute folder.
+  publishing agents return `human_steps` as `{why, command}` pairs, each command one PowerShell line that starts with
+  `cd` to its absolute folder.
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
@@ -557,7 +585,8 @@ Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.cl
 `git config *hooksPath*` is denied). It blocks pushes to `main`, all deletions and force pushes (any non-fast-forward
 update), with one exception: the **current task branch** `<area>/<n>-*` pushed by `tools\run.cmd publish`, which
 marks its `--force-with-lease` push with `PRIME_GAME_PUBLISH=force-with-lease`. A force push typed by hand has no
-marker and is blocked; `--dry-run` pushes run the hook too. The agent never force-pushes by hand
+marker and is blocked; `--dry-run` pushes run the hook too. A merge into `main` is GitHub's merge commit
+(`tools\run.cmd merge <pr> --base main`, §7.1), never a push. The agent never force-pushes by hand
 ([ADR](decisions/2026-09-28-force-with-lease-on-task-branches.md)).
 - The hook lives in the working tree. A checkout of a commit from before M0 stage 4 has no
   `.claude/githooks/pre-push`, and git then runs no pre-push hook at all (not even LFS's): only the deny rules and
@@ -627,14 +656,19 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   - The engineer's agent works in the designer's area when the engineer says the change was agreed with the
     designer. Without that word it stops and asks, as before.
   - The PR says "agreed with the designer, relayed by the engineer" under "Cross-area" and tags @SwiftySinister
-    there for a later look. It is merged without the designer's approval, by the engineer or, in a stage, by the
-    manager into `release/m<k>` (this replaces "a cross-area PR is approved by the other owner first" in §10 for
-    such a PR).
+    there for a later look. It is merged without the designer's approval, by the engineer or by the manager, into
+    `release/m<k>` or through the gate into `main` (this replaces "a cross-area PR is approved by the other owner
+    first" in §10 for such a PR).
   - If the designer objects, a follow-up PR reverts the change.
   - A scene the designer has an open PR on is still never edited (`gh pr list --state open --json
     number,author,files`).
   - The designer keeps his area and his skills (`new-mechanic`, `new-level-piece`); the engineer acts in it on his
     behalf. The M3 decisions D1 to D3 on #96 were relayed the same way.
+- The gate of `merge <pr> --base main` (§7.1) keeps ownership: it refuses a PR not authored by the engineer's
+  account, or run outside the engineer's sessions, and a PR that changes the designer's area without the designer's
+  approving review or the relay phrase; `.claude/settings*.json`, `.claude/githooks/` and the guard are always the
+  engineer's to merge, and an ADR change needs "Approved by the engineer: <link>"
+  ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
 - MVP exception: the engineer's agent builds the MVP's `content/` data and `levels/` scenes, each PR with the
   engineer's explicit approval and marked provisional; the designer may replace them
   ([ADR](decisions/2026-09-29-mvp-content-built-by-the-engineer.md)).
@@ -643,7 +677,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 - **Repo:** public, GitHub Free ([ADR](decisions/2026-09-28-public-repo-on-github-free.md)). The Phase A archive
   is published as is.
-- **Merging:** only humans merge into `main`, with the Merge button on GitHub or in the Desktop PR pane, after CI is
+- **Merging:** the engineer's manager merges into `main` through the gate of `tools\run.cmd merge <pr> --base main`
+  (§7.1, [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)); the gate's exceptions and
+  the designer's PRs are merged by a human, with the Merge button on GitHub or in the Desktop PR pane, after CI is
   green. A cross-area PR is approved by the other owner first. The designer reviews through `shot` screenshots and a
   playtest, never the diff ([ADR](decisions/2026-09-28-humans-merge-prs.md)). In a stage the manager merges task
   PRs into the milestone's `release/m<k>` (§7.1, [ADR](decisions/2026-10-01-release-branch-per-milestone.md)).
