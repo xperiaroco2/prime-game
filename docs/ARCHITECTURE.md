@@ -1641,7 +1641,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   own level; the hint and the key then apply only if the mode's `InReach` of `PickUp` holds, measured as the host
   measures it (2 m from the feet, not along the ray from the eye 1.6 m higher), so a crate-top item the host would
   refuse gets no hint and a floor item it would accept does. M4-8's target-choice test checks both against a fixture
-  world. The keys send `PickUp(item)`,
+  world. The pick-up hint stops a margin short of that reach (#319): the host measures from the feet of the last
+  `MoveClaim` it accepted, which trail the player's own while walking in, so E at the first hint would otherwise be
+  refused `out_of_reach`. The margin is the walk (the mode's `walk_speed_mps`) in one claim interval and one physics
+  step (`TargetChoice.HINT_MARGIN_S`, 4/60 s, not a decision): 1.7 m of the base mode's 2 m. The host's `InReach`
+  is unchanged. The keys send `PickUp(item)`,
   `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()`; the host checks each
   again (§7.1), and the client predicts nothing of an action's outcome.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
@@ -1724,8 +1728,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   front is M4-9's raise target, and E there picks up nothing behind it); the candidate is the ground item (not
   held, not delivered) whose middle the ray passes within 0.3 m of, entered short of that and of 4 m, the one the
   crosshair is closest to first; the hint and E apply only if the item lies within `InReach.reach_m` of `PickUp`
-  (the client's own mode) of the feet and a second ray from the camera to the item's middle meets no world geometry
-  (the host's `InSight`): an item just behind a thin wall or a door jamb is never named.
+  (the client's own mode) of the feet, less the walking margin of #319 (`TargetChoice.hint_reach_of`), and a second
+  ray from the camera to the item's middle meets no world geometry (the host's `InSight`): an item just behind a
+  thin wall or a door jamb is never named.
   Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own slots hold something
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
   menu. The facing is the camera's look vector.
@@ -1748,7 +1753,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
   chooser without the range), `tests/integration/client/world/item_interactions_test.gd` (the real controller on a
   fixture floor: a crate-top item 2.08 m from the feet and 1.75 m from the eye gets no hint, floor items 1.3 to
-  1.95 m away get one; seen failing with the reach measured from the eye) and `item_views_test.gd`. The `shot`s:
+  1.7 m away get one and one 1.85 m away none (#319); seen failing with the reach measured from the eye),
+  `item_pick_up_network_test.gd` (#319: a joiner walks at each of three knives over `NetPair` and presses E at the
+  first hint, on an even and an uneven clock; the host accepts every `PickUp`; seen failing `out_of_reach` with no
+  margin) and `item_views_test.gd`. The `shot`s:
   `client/dev/hud_preview.tscn`, `task_screen_preview.tscn`, `items_preview.tscn` and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
   ADR's §6), and a human picks the CC0 sounds.

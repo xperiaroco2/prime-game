@@ -137,6 +137,28 @@ func with_life(respawn_s: float) -> void:
 	)
 
 
+## Gives the mode knives and the pick-up (#319's suite), before start(): the item kind `knife`,
+## the base mode's PickUp (ItemOnGround, InReach 2 m, InSight; TakeIntoHand: FixtureItemModes)
+## accepted from the living in the round, and SpawnItems on the `all_loaded` row in place of the
+## FixtureDemand of knife markers it stands in for, which puts `count` knives on steps_room's knife
+## markers (at most its 3: (-10, 0, 10), (-8, 0, 10) and (-6, 0, 10)).
+func with_knives(count: int) -> void:
+	var knife := FixtureItemModes.item_kind(&"knife", [])
+	mode.item_kinds.append(knife)
+	mode.actions.append(FixtureItemModes.pick_up_rule(FixtureItemModes.REACH_M))
+	mode.find_phase(&"round").accepts.append(AcceptSpec.of(Intents.PICK_UP, AcceptSpec.From.LIVING))
+	mode.find_setting(&"knives").default_value = count
+	var spawn := SpawnItems.new()
+	spawn.kind = knife
+	spawn.count_setting = &"knives"
+	spawn.rng_purpose = &"knives"
+	var actions := mode.find_transition(&"loading", LoadingPhase.ALL_LOADED).actions
+	for i: int in actions.size():
+		var demand := actions[i] as FixtureDemand
+		if demand != null and demand.tag == &"knife":
+			actions[i] = spawn
+
+
 ## Knocks `game`'s player down on the host as a strike to 0 health would (LifeRules.knock_down,
 ## M4-2): KnockedDown to everyone and its Correction go out with the host's next tick. The fixture
 ## level has no weapon, so this reaches into the host's Match, which only a test may do: Game and

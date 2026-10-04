@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## TargetChoice's pure parts (client/world/target_choice.gd; ARCHITECTURE §4.7, Interactions): the
-## reach is the client's own mode's InReach of PickUp; the ray picks the nearest item on the ground
-## it passes close to, short of the level; the reach is measured from the feet, as the host does.
+## reach is the client's own mode's InReach of PickUp, and the hint's a margin short of it (#319);
+## the ray picks the nearest item on the ground it passes close to, short of the level; the reach
+## is measured from the feet, as the host does.
 ## Against a physics fixture world: tests/integration/client/world/item_interactions_test.gd.
 
 const MODE := "res://content/modes/base_mode.tres"
@@ -18,6 +19,22 @@ func test_the_reach_is_the_modes_in_reach_of_pick_up() -> void:
 	assert_float(TargetChoice.reach_of(load(MODE) as GameMode)).is_equal(2.0)
 	# A mode with no PickUp offers nothing.
 	assert_float(TargetChoice.reach_of(FixtureBaseMode.mode())).is_equal(0.0)
+
+
+func test_the_hint_stops_short_of_the_reach_by_a_claim_interval_and_a_step_of_walking() -> void:
+	# The margin is one claim interval (Ticks.RATE) and one physics step of walking (#319).
+	assert_float(TargetChoice.HINT_MARGIN_S).is_equal_approx(
+		1.0 / Ticks.RATE + 1.0 / Engine.physics_ticks_per_second, 1e-6
+	)
+	# The base mode: 2 m less 4.5 m/s for 4/60 s.
+	assert_float(TargetChoice.hint_reach_of(load(MODE) as GameMode)).is_equal_approx(1.7, 1e-5)
+	# A mode with no PickUp offers nothing.
+	assert_float(TargetChoice.hint_reach_of(FixtureBaseMode.mode())).is_equal(0.0)
+	# A short reach in a fast mode keeps half of it.
+	var fast := FixtureItemModes.basic()
+	fast.player_rules.walk_speed_mps = 20.0
+	fast.actions = [FixtureItemModes.pick_up_rule(0.5)]
+	assert_float(TargetChoice.hint_reach_of(fast)).is_equal_approx(0.25, 1e-5)
 
 
 func test_the_ray_enters_a_sphere_ahead_and_misses_one_behind_or_aside() -> void:
