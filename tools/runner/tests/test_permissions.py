@@ -12,6 +12,7 @@ from runner import cli, guard, permissions
 from runner.common import ROOT
 
 MAIN = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
+MAIN_POSIX = MAIN.replace("\\", "/")
 RULES = permissions.Rules.load(ROOT / ".claude" / "settings.json")
 TOOLS = ("Bash", "PowerShell")
 
@@ -143,6 +144,42 @@ class OtherRepositoriesTest(unittest.TestCase):
         )
         self.assertEqual(verdict("Bash", OTHER_READS[0], rules=old)[0], permissions.PROMPT)
         self.assertEqual(verdict("Bash", OTHER_READS[1], rules=old)[0], permissions.PROMPT)
+
+
+class ProtectionsTest(unittest.TestCase):
+    """The protections #312 must not weaken (its AC4), in both shells and both modes, for the patterns that met them
+    in the week's transcripts and their neighbours."""
+
+    DENIED = [
+        "git push origin main", "git push --force origin x", "git push -f origin x", "git push", "git push origin",
+        "git push origin HEAD", "git push origin HEAD:main", "git push --no-verify origin x", "gh pr merge 5",
+        "gh pr merge --help", "gh pr merge 5 -R o/r", "git config core.hooksPath x", "git config --get core.hooksPath",
+        "git config --unset core.x", "git diff --output=f", "git show --output=f HEAD", "gh auth token",
+        "gh repo delete o/r --yes",
+    ]  # fmt: skip
+
+    def test_the_deny_list_holds(self) -> None:
+        for tool in TOOLS:
+            for command in self.DENIED:
+                for bypass in (True, False):
+                    with self.subTest(tool=tool, command=command, bypass=bypass):
+                        self.assertEqual(verdict(tool, command, bypass)[0], permissions.DENIED)
+
+    def test_the_guard_still_asks_beyond_the_own_worktree(self) -> None:
+        for tool, command in (
+            ("Bash", f"git -C {MAIN_POSIX} reset --hard"),
+            ("Bash", f"rm -rf {MAIN_POSIX}/core"),
+            ("Bash", f"git -C {MAIN_POSIX} branch -D tooling/189-x"),
+            ("Bash", "gh issue create -R godotengine/godot --title x"),
+            ("Bash", "gh pr create -R xperiaroco2/prime-game-art --title x"),
+            ("Bash", "mv addons/twovoip /tmp/x"),
+            ("PowerShell", "Copy-Item x .claude/settings.json"),
+            # #104: only GIT_SEQUENCE_EDITOR=: makes an interactive rebase editor-free; -c core.editor still asks.
+            ("Bash", "git -c core.editor=true rebase -i --autosquash origin/main"),
+        ):  # fmt: skip
+            for bypass in (True, False):
+                with self.subTest(tool=tool, command=command, bypass=bypass):
+                    self.assertEqual(verdict(tool, command, bypass)[0], permissions.PROMPT)
 
 
 class SettingsTest(unittest.TestCase):
