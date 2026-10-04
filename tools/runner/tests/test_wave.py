@@ -787,6 +787,48 @@ class WaveTest(unittest.TestCase):
         self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Merge safety"),
                          "## Merge safety\n\nSkipped (--no-merge-check).\n")  # fmt: skip
 
+    def test_cost_block(self) -> None:
+        self.p.add(assistant(-30, "m-early", u=usage(inp=999, out=50)))  # 07:30, before --since
+        self.p.launch(10, "t1", "wf_a", issue_args(5), notice="completed")
+        journal(self.p.run_dir("wf_a"), [("k1", "implement:#5", "Implement", {"verify_green": True}),
+                                         ("k2", "publish:#5", "Publish", PUBLISHED)])  # fmt: skip
+        write_lines(self.p.run_dir("wf_a") / "agent-a-k1.jsonl",
+                    [assistant(12, "a1", u=usage(inp=10, write=1000, read=5000, out=200))])  # fmt: skip
+        write_lines(self.p.run_dir("wf_a") / "agent-a-k2.jsonl", [assistant(38, "a2", u=usage(inp=10, out=100))])
+        self.p.write()
+
+        def compact(since: str) -> list[str]:
+            t = metrics.parse_time(since)
+            return metrics.build(metrics.collect([self.p.dir], {SID: None}, t, NOW), [], None, t, NOW)[2]
+
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("```text\n" + "\n".join(compact(SINCE)) + "\n```", part, "metrics' own compact lines")
+        self.assertIn("1 finished issue-task runs", part)
+        self.assertNotIn("stage since", part)
+        stage = "2026-10-03T07:00:00Z"
+        want = [line for line in compact(stage) if line.startswith(("total API list $", "% of a Max 20x week"))]
+        self.assertEqual(len(want), 2)
+        self.assertNotEqual(want[0], next(x for x in compact(SINCE) if x.startswith("total API")), "07:30 counts")
+        self.main(since=SINCE, out=str(target), merge_check=False, stage_since=stage)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("\n".join(compact(SINCE)) + f"\n\nstage since {stage}:\n" + "\n".join(want) + "\n```", part)
+        extra = [lambda record: [f"an extra line since {record['since']}"]]
+        with mock.patch.object(wave, "COST_EXTRAS", extra):
+            self.main(since=SINCE, out=str(target), merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("\n".join(compact(SINCE)) + f"\nan extra line since {SINCE}\n```", part, "the #314 hook")
+        late = "2026-10-03T11:30:00Z"  # nothing of the session after it
+        self.main(since=late, out=str(target), merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("None.", part)
+        self.assertNotIn("```", part)
+        self.p.add(assistant(215, "m-late", u=usage(inp=5, out=5)))  # 11:35: one call in the window
+        self.main(since=late, out=str(target), merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("```text\n" + "\n".join(compact(late)) + "\n```", part)
+
     def test_notes_and_title(self) -> None:
         notes = self.root / "notes.md"
         text = "Decisions:\r\n1. Кирилиця «лапки» stays.\r\n\r\nOrder from here: #279 then #204.\r\n"
