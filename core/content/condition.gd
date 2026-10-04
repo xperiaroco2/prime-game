@@ -37,6 +37,25 @@ func reads_actor_state() -> bool:
 	return true
 
 
+## True when the condition reads the rule's target: the intent's `target` or `item`, the
+## channel's target, or the fact's item (Channels.target_of, Items.target_of). A win condition
+## has none of them and a reaction only its fact, so where no fact of target_facts() supplies the
+## target the condition finds none and its answer never changes; ModeCheck refuses it there
+## (§9.4, #379). False unless a subclass says otherwise: a condition reaches that check only
+## after it overrode reads_actor_state() to false (the default is refused first), so its author
+## has already said what it reads, and says this with it; the guard test in
+## mode_check_actor_test.gd lists both for every condition in core/. A default of true would
+## instead mislabel the conditions that read no target.
+func needs_target() -> bool:
+	return false
+
+
+## The facts whose Fact carries the target this condition reads (needs_target): a reaction on one
+## of them may hold it. None unless a subclass says otherwise.
+func target_facts() -> Array[StringName]:
+	return []
+
+
 ## The test itself, without `negate`.
 func _test(_ctx: MatchContext) -> bool:
 	return true

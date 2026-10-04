@@ -13,6 +13,11 @@ const OUT_OF_REACH := &"out_of_reach"
 @export var reach_m := 0.0
 
 
+## It needs a target player (Channels.target_of), and also reads the actor (the default).
+func needs_target() -> bool:
+	return true
+
+
 func _test(ctx: MatchContext) -> bool:
 	var actor := ctx.actor_state()
 	var target := ctx.state.player(Channels.target_of(ctx))

@@ -13,6 +13,16 @@ func reads_actor_state() -> bool:
 	return false
 
 
+## It needs an item: the intent's, or the fact's (Items.target_of).
+func needs_target() -> bool:
+	return true
+
+
+## Of the facts, only item_rested carries an item (Fact.item).
+func target_facts() -> Array[StringName]:
+	return [Facts.ITEM_RESTED]
+
+
 func _test(ctx: MatchContext) -> bool:
 	var item := Items.target_of(ctx)
 	return item != null and item.where == ItemState.Where.GROUND
