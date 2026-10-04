@@ -32,6 +32,9 @@ DOC_RE = re.compile(
     r"|(?<![\w/-])([\w./-]*[\w-]\.md)\b"
     r"|\b(KICKOFF|GDD|ROADMAP|ADRs?)\b"
 )
+# Markdown files without numbered sections: naming one takes no § ("the rest is in `server/CLAUDE.md` (§4.5)" in
+# ARCHITECTURE is its own §4.5), so the § falls through to the next scope rule.
+NO_SECTIONS = ("CLAUDE.md", "README.md", "CREDITS.md")
 DOC_LINK_RE = re.compile(r"\bdocs/[\w./-]+\.md\b")
 COMMENT_RE = re.compile(r"^\s*(#|//|/\*|\*|<!--|--)")
 
@@ -141,7 +144,11 @@ def references(path: str, text: str, own: str | None, declared: str | None) -> l
         if "§" not in line:
             continue
         block = "\n".join(joined[blocks[index]])
-        mentions = [(m.start(), m.end(), doc_key(m)) for m in DOC_RE.finditer(block)]
+        mentions = [
+            (m.start(), m.end(), doc_key(m))
+            for m in DOC_RE.finditer(block)
+            if not (m.group(2) and m.group(2).rpartition("/")[2] in NO_SECTIONS)
+        ]
         for match in REF_RE.finditer(line):
             at = offsets[index] + match.start()
             end = offsets[index] + match.end()

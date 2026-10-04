@@ -78,6 +78,13 @@ class ScopeTest(unittest.TestCase):
         self.assertEqual(docs_of(".claude/skills/s/SKILL.md", "## 2. Launch\nAs in §2.8.\n"), ["other"])
 
 
+    def test_a_markdown_file_without_sections_takes_no_section(self) -> None:
+        text = "ARCHITECTURE §4.5; the rest is in `server/CLAUDE.md` (§4.5.1), README.md §1 and CREDITS.md §1.1.\n"
+        self.assertEqual(docs_of("notes.md", text), ["ARCHITECTURE"] * 4)
+        own = ARCH + "The rest is in `server/CLAUDE.md` (§4.5).\n"
+        self.assertEqual(docs_of("docs/ARCHITECTURE.md", own), ["ARCHITECTURE"])
+
+
 class CheckTest(unittest.TestCase):
     def test_references_that_resolve_pass_and_are_counted(self) -> None:
         report = check({"core/x.gd": "# ARCHITECTURE §4.5.1 and §1.1; AGENT_WORKFLOW §2.1.\n"})
