@@ -40,8 +40,8 @@ of manager session 657efbf1.
 
 | # | input | value | source |
 |---|---|---|---|
-| 1 | Weekly counter | 0% at 10-02 10:53 (the restart), 66% at 10-03 20:54, 77% at 10-04 05:05, 79% at 12:40, 80% at 20:26; reset 10-06 10:00 UTC | `get_usage` readings: #302 comments 5973758335, 5981003461, 5984093660; the baseline ADR's #307 amendment |
-| 2 | Spend per track since the restart | game **17.6%** ($454), UI **13.0%** ($328), art **15.8%** ($409), meta **37.0%** ($949); sum 83.4%, 2 to 3 points above the counter (row 1): the conversion reads high late in the week | `tools\run.cmd metrics --since 2026-10-02T10:28:00Z --session <ids> --no-gh --compact`: game `3e834e50 dd93bf79`, meta `40774c17 5ef6e325 657efbf1`, UI `ce8374ce`, art `a62dc194`; plus `scan.py` for `802a8cfc` (UI, 8.8%) and `77aa0a64` (art, 9.1%) |
+| 1 | Weekly counter | 96% (Max 5x) at 10-02 10:28, the plan change, and 0% at 10:53 (the restart; this design counts from 10:28), 66% at 10-03 20:54, 77% at 10-04 05:05, 79% at 12:40, 80% at 20:26; reset 10-06 10:00 UTC | `get_usage` readings: #302 comments 5973758335, 5981003461, 5984093660; the baseline ADR's #307 amendment |
+| 2 | Spend per track since the restart | game **17.6%** ($454), UI **13.0%** ($328), art **15.8%** ($409), meta **37.0%** ($949); sum 83.4% to about 22:30. Cut at the counter's last reading (20:26): game 17.6, UI 13.0, art 15.8, meta 34.7, sum **81.2%** (80.6% counted from 10:53) against the counter's 80%: the conversion agrees with the counter within about 1 point | `tools\run.cmd metrics --since 2026-10-02T10:28:00Z --session <ids> --no-gh --compact`: game `3e834e50 dd93bf79`, meta `40774c17 5ef6e325 657efbf1`, UI `ce8374ce`, art `a62dc194`; plus `scan.py` for `802a8cfc` (UI, 8.8%) and `77aa0a64` (art, 9.1%); the cut: `until.py 2026-10-02T10:28:00Z 2026-10-04T20:26:00Z` |
 | 3 | Per UTC day | 10-03: game 9.1, UI 10.0, art 12.0, meta 9.6 = **40.7%**; 10-04: meta 12.2, the others stopped | `tracks.py` (each API call's day) |
 | 4 | The 5-hour limit | does not bind: a 5-hour point is about $6.5 at w = 0.75 against $23.0 a weekly point, so one 5-hour window holds roughly a quarter to a third of the week | #307's probe: 3 points on $3.43 non-read and $21.53 of cache reads |
 | 5 | Managers' own lines since the restart | game 4.5%, UI 3.8%, art 3.9%, meta 5.6%: **17.8%** (22% of list $; 25 to 29% of each product track, 15% of meta); per task or run handled: game 0.19%, meta 0.09%, art 0.28%, UI 0.35% | `tracks.py`; the `metrics` runs of row 2 ("managers and their hand-run subagents") |
@@ -85,7 +85,7 @@ of manager session 657efbf1.
 - (a) prevents one track starving the others, but gives meta as much as the game; meta spent 37% this week, the
   opposite of "balanced".
 - (b) keeps the three product tracks level, cuts meta to about a third of this week's spend, and keeps a buffer for
-  the conversion's error (row 2: 2 to 3 points) and for the track with the best queue mid-week.
+  the conversion's error (row 2: about 1 point) and for the track with the best queue mid-week.
 - (c) puts the milestone first; UI and art run at three quarters of (b).
 - The levers of Q4 lower the game's and meta's cost per task by an estimated 15 to 20% all-in (lean: 23 to 30% of
   the implementer and the publisher, which are 70% of a run's $, rows 9 and 11; the Sonnet publisher: about $1.5 a
@@ -256,5 +256,5 @@ report and proposal (Q1) come then, and the managers' kickoffs for the week foll
 - The art and UI tracks' costs stay outside the Q4 levers until P5.
 - The figures come from the 2.5 days after the counter restarted, under the four-track load: P1 re-measures them at
   each reset, and the budgets move with them.
-- The conversion read 2 to 3 points high against the counter late in the week (row 2): the buffer covers it, and the
-  93% stop reads the counter itself.
+- The conversion agreed with the counter within about 1 point at its last reading (row 2): the buffer covers it,
+  and the 93% stop reads the counter itself.
