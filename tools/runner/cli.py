@@ -36,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--shards",
         type=int,
         metavar="K",
-        help="K GdUnit4 processes at once (1: one process). Default: with no paths, from the CPU count; with paths, 1",
+        help="K GdUnit4 processes at once (1: one at a time). Default: with no paths, from the CPU count; with paths, 1",
     )
     clock = p.add_mutually_exclusive_group()
     clock.add_argument(

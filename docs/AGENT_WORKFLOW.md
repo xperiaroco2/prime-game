@@ -1272,8 +1272,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   simulated clock (`NetPair`'s, or the test's own over the `LoopbackHub`) runs as fast as the CPU allows. `test` with
   no paths, so `verify` and CI too (#341), runs `gdunit.FIXED_FPS_SUITES`, the 9 frame-bound client suites, so, in
   shards of their own within the same K (`gdunit.split_shards` picks how many), and the rest real-time; with one
-  process (`--shards 1`, `PRIME_TEST_SHARDS=1`, 2 or 3 CPUs) every suite runs real-time, and `test --real-time` asks
-  for that. `test <paths> --fixed-fps` (also with `--repeat N`) runs every named suite so; named paths and `--repeat`
+  process at a time (`--shards 1`, `PRIME_TEST_SHARDS=1`, 2 or 3 CPUs, no per-process `user://`) in a second process
+  after the rest, so every machine's `verify` runs CI's clock. `test --real-time` runs every suite real-time. `test <paths> --fixed-fps` (also with `--repeat N`) runs every named suite so; named paths and `--repeat`
   are real-time without it. Seconds at fixed fps go to the `fixed_fps` map of `gdunit-times.json`, never into the
   real-time one. Measured on the engineer's PC, 2026-10-04
   (the tables, the load and the break list are in #280's comment): the 9 took 284 s real-time and 22.7 s at fixed fps

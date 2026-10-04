@@ -512,8 +512,9 @@ shard: not now).
 - **What `verify` checks.** Its `test` step (so CI's, which runs `verify`) is `test` with no paths, which now runs
   `gdunit.FIXED_FPS_SUITES`, the 9 frame-bound client suites on `NetPair`'s or their own simulated clock over the
   `LoopbackHub`, with the engine's `--fixed-fps 60`, in shards of their own within the same K; every other suite runs
-  real-time as before. With one process (one shard) every suite runs real-time. `test --real-time` runs a run
-  without paths real-time; named paths and `test --repeat N` are real-time unless `--fixed-fps` is given (#280's
+  real-time as before. With one process at a time (2 or 3 CPUs, `--shards 1`, `PRIME_TEST_SHARDS=1`, no
+  per-process `user://`) the 9 run at fixed fps in a second process after the rest, so every machine's `verify` runs
+  CI's clock. `test --real-time` runs a run without paths real-time; named paths and `test --repeat N` are real-time unless `--fixed-fps` is given (#280's
   opt-in flag, unchanged).
 - **Why.** #280 measured it on the engineer's PC
   ([its results](https://github.com/xperiaroco2/prime-game/issues/280#issuecomment-5976143351)): the 9 suites took
