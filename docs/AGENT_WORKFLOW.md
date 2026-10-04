@@ -135,8 +135,13 @@ does (#159). Setup:
 
 ## 5. Subagents and models
 
-Files in `.claude/agents/` **[applied]**. All five are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
-includes `Agent`, no `memory:` field. Their shell use is limited by the shared permission rules.
+Files in `.claude/agents/` **[applied]**. Five are read-only: no Edit, Write or NotebookEdit, `disallowedTools`
+includes `Agent`, no `memory:` field. The two lean writers `task-implementer` and `task-publisher` are the one
+exception ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): only `issue-task` and `pr-rebase`
+launched with `lean: true` use them (§7.1); each keeps to its `tools:` allowlist, disallows Skill, NotebookEdit and
+Agent, and sets no `effort:`. No agent file sets `permissionMode`, so every subagent runs in the session's mode;
+`tools/runner/instructions.py` (`lint`) enforces both kinds. Their shell use is limited by the shared permission
+rules.
 
 | Agent | Job | Model |
 |---|---|---|
@@ -145,6 +150,8 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
 | `code-reviewer` | Review the branch diff against `CLAUDE.md`, `ARCHITECTURE.md` and the content API | `opus`, effort high |
 | `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions | `opus`, effort high |
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
+| `task-implementer` | `lean: true` only: the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
+| `task-publisher` | `lean: true` only: the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
 
 - **Model guard [applied]:** `"availableModels": ["opus", "sonnet", "haiku"]` in the shared settings. A request for
   another model falls back with a warning. Fable appears in no shared file
@@ -164,8 +171,9 @@ includes `Agent`, no `memory:` field. Their shell use is limited by the shared p
   merged with the user-scope one (#183). A request from the user list is ok when it served and listed as "fell back"
   when another family served it; a request in neither list must be served by another family (the model guard).
   Workflow agents (`<session>/subagents/workflows/wf_*/agent-*.jsonl` and `.meta.json`, #206) get the same verdicts,
-  printed with their label and run: a default launch's meta file has no `model` (a reviewer is judged by its agent
-  file, an implementer or publisher, `agentType` `workflow-subagent`, inherits the session's model and is only
+  printed with their label and run: a default launch's meta file has no `model` (a reviewer, or a `lean`
+  implementer or publisher, is judged by its agent file; an implementer or publisher of `agentType`
+  `workflow-subagent` inherits the session's model and is only
   listed, unless a model in neither list served it: a failure); a `models` launch is read from `model`, as the Agent
   tool records it, and any other meta key that names a model, at any depth (`request.model`), fails until the reader
   learns it. After a launch that passes `models`, `agents-check` in the manager's session checks it. `finish-task`
@@ -274,6 +282,13 @@ Rules for every workflow run:
   blocker or major, no fix agent runs and the result's `note` asks the manager to list the refuted findings with their
   reasons in the PR body. The kickoff's approved agent count must cover the options the manager will pass; each script's
   `whenToUse` and args comment give the counts, the roles and their fallbacks.
+- **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean: true` (`issue-task`
+  and `pr-rebase`, +0 agents, off by default) runs the implementer, the plan agent and the test reviewer as
+  `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5): a first call of
+  about 20k tokens plus the prompt instead of about 57k, with no desktop, MCP or Skill tools. It appends only
+  `agentType` to their options; prompts, efforts and models stay. Opt-in until the manager's A/B on 3-4 tasks
+  (results on #302) and the engineer's call on the default; the manager's checkout must have both agent files
+  (`agentType` resolves there), and a task whose agents need a skill through the Skill tool stays off it.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
   about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
