@@ -1093,7 +1093,18 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
     more after it started is tried again: a host that refuses a join answers at once, before the admission with
     `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
-    both stay failures.
+    both stay failures. Since #318 both live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
+    variant and the playcheck bots use them too (below and §4.7's `playcheck`): `_lobby_full` asks of one bot that
+    every other player that joins at the start has a known peer id and is in that bot's decoded lobby (its
+    `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
+    admitted, were the weaker gate those two runners had. `_join_again` judges a join on `_join_clock_usec()`,
+    the runner's clock, the real one in a runner on a simulated clock (the chaos run): `JOIN_TIMEOUT_MS` is real
+    time. Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
+    gate (peer ids alone fail it), a rejoin after an unanswered join and none after a join refused at once; the
+    chaos one also drives `play_frame` and the lobby reason of a run out of time. Beside 32 busy loops on 16
+    cores (2026-10-04) `bots --chaos --enet` passed 10 of 10 runs, and `playcheck spectate` 18 of 20: its bots
+    played in all 20, and both reds were a window that did not exit within `hostjoin`'s 10 s grace after the
+    stop (#354).
   - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
     `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
   - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
@@ -1293,6 +1304,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   the leak check (no superseded-LATEST or voice-seq check: a network bunches and drops), the counters, 4 to 7, and
   each chaos peer's host counts per reason bounded by the chaos packets it sent for that reason (`check_bounded`:
   a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
+  Over ENet the bots play once bot 1's lobby is full, and a bot whose join went unanswered joins again, as in
+  `BotsEnet` (#318; `ChaosRun._may_play`); a join lost for good ends the wait, so that its bot's step fails at once.
   - **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
     baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
     step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
@@ -2008,12 +2021,15 @@ see them as just pressed; holds through `Input.action_press`, screenshots throug
 off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
 that only remembers, so the real mouse is never captured; what needs a captured mouse (`use`, spectate cycling)
 stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`) as the host's own
-client once every player is in its roster; peer ids travel as `peer-<n>` files, as over ENet in `bots`. Nothing in
+client once every player is in its roster; peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
+process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
+went unanswered (window 1 not listening yet) joins again, `BotsEnet`'s start (#318, §4.6 "bots runner"). Nothing in
 `client/` changed for it. The stop is `host`'s: the stop file, then a kill. Desktop only; CI and `verify` never run
 it. Usage: `docs/AGENT_WORKFLOW.md` §11.
 Tests: `tools/runner/tests/test_playcheck.py` (the scenario parser and its errors, the plan, the command lines, and
 runs of stand-in processes that pass, time out, fail a step, print an engine error or miss a PNG, each stopping
-every process; the text, shown and button grammar and `FIELDS` against `GameView`'s keys) and
+every process; the text, shown and button grammar and `FIELDS` against `GameView`'s keys),
+`tests/scenarios/playcheck_bots_test.gd` (the bots' start, #318) and
 `tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at once or fails at its
 timeout and not before, with its line and what the window saw; frames; events matched once through player numbers;
 the setup; `is`/`has`/`lacks`, collapsed whitespace, a hidden field read as "", shown on and off; the `button` step's

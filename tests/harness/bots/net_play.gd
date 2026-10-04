@@ -23,6 +23,15 @@ extends ScenarioPlay
 ## A runner owns the clock (now_usec), makes each bot's client (add_client) and calls play_frame()
 ## once per frame after the clients stepped. BotsRunner plays in one process over LoopbackHub;
 ## BotsEnet over ENet, one bot per process.
+##
+## The start over ENet (#284, #318), shared by BotsEnet, ChaosRun's ENet variant and the playcheck
+## bots: a bot acts only once its lobby is full (_lobby_full), and a bot that joins at the start and
+## whose join went unanswered joins again (_join_again).
+
+## A join that failed this long or more after it started went unanswered: half of
+## EnetTransport.JOIN_TIMEOUT_MS, in microseconds (a frame's clock is read before its poll). A
+## sooner `connect_failed` is a refusal.
+const UNANSWERED_USEC := EnetTransport.JOIN_TIMEOUT_MS * 500
 
 ## The schema every bot and host uses: a debug build's, which has ForceRole's kind (E17).
 var schema := WireSchema.game(true)
@@ -63,10 +72,18 @@ var _travel_now: Dictionary[int, int] = {}
 ## The bots whose next claim starts a new baseline of one client tick (after a Welcome or a
 ## Correction), until it goes out.
 var _fresh_claim: Dictionary[int, bool] = {}
+## The bots whose lobby was full once (_lobby_full).
+var _lobby_was_full: Dictionary[int, bool] = {}
+## Bot number -> _join_clock_usec() when its last join started (add_client), and when _join_again
+## first saw it fail.
+var _join_started: Dictionary[int, int] = {}
+var _join_failed: Dictionary[int, int] = {}
 
 
 ## Makes `bot`'s client on `transport` (not joined yet, or the host's own client).
 func add_client(bot: ScenarioBot, transport: NetTransport) -> BotClient:
+	_join_started[bot.number] = _join_clock_usec()
+	_join_failed.erase(bot.number)
 	var client := BotClient.new(transport, scenario.mode, schema)
 	client.keep_history = true
 	client.load_levels = false
@@ -248,6 +265,82 @@ func _connect(bot: ScenarioBot) -> String:
 ## why it cannot, or "".
 func _join_host(_bot: ScenarioBot) -> String:
 	return "this runner joins no bot late"
+
+
+## A bot that joins at the start: no Join step first in its script.
+func _joins_at_start(number: int) -> bool:
+	var steps := scenario.steps_of(number)
+	return steps.is_empty() or not steps[0] is StepJoin
+
+
+## Whether `bot`'s lobby is full: every other player that joins at the start has a known peer id
+## and is in the lobby `bot` decoded (its Welcome's positions or a PlayerJoined); once true, true
+## for good. Over ENet the joins take frames, and under load a process can start seconds after the
+## host's: a bot that readied before the others joined started the round without them (a lone
+## dissident wins at once), or a late joiner cancelled the countdown (#284). Waiting for the peer
+## ids alone (`connected`) does not cover the second: the Hello is admitted later (#318).
+func _lobby_full(bot: ScenarioBot) -> bool:
+	if _lobby_was_full.has(bot.number):
+		return true
+	for number in range(1, scenario.bots + 1):
+		if number == bot.number or not _joins_at_start(number):
+			continue
+		var other := peers.peer_of(number)
+		if other == 0 or not bot.seen.has(other):
+			return false
+	_lobby_was_full[bot.number] = true
+	return true
+
+
+## Why `bot` still waits for its lobby, for a run that ran out of time; "" once it was full.
+func _lobby_wait(bot: ScenarioBot) -> String:
+	if _lobby_full(bot):
+		return ""
+	return (
+		"bot %d waited for the lobby: peers %s, players seen %s"
+		% [bot.number, peers.to_dict(), bot.seen.keys()]
+	)
+
+
+## A bot that joins at the start joins again when its join went unanswered: it failed
+## (CONNECT_FAILED) UNANSWERED_USEC or more after it started, as EnetTransport ends a join the host
+## never admitted after JOIN_TIMEOUT_MS. Under load its process can start seconds before the
+## host's listens, and it sat out the run unheard (#284). A host that refuses a join answers at
+## once: before the admission (refusing new connections, an id in use) the client also ends
+## `connect_failed`, but within a poll or two, and after it (a Rejected Hello) `host_lost`; both
+## stay failures (_lost). Judged when the failure is first seen, on _join_clock_usec().
+func _join_again(bot: ScenarioBot) -> void:
+	var client: BotClient = clients.get(bot.number)
+	if (
+		client == null
+		or bot.joined
+		or bot.gone
+		or bot.joins_late()
+		or client.end_reason != ClientSession.CONNECT_FAILED
+	):
+		return
+	var failed: int = _join_failed.get_or_add(bot.number, _join_clock_usec())
+	if failed - _join_started.get(bot.number, failed) < UNANSWERED_USEC:
+		return
+	print(
+		(
+			"%s: bot %d joins again (connect_failed: the host did not answer within %d ms)"
+			% [_log_label(), bot.number, EnetTransport.JOIN_TIMEOUT_MS]
+		)
+	)
+	_join_host(bot)
+
+
+## The clock _join_again judges a join on, in microseconds: the runner's (now_usec), which is the
+## real one over ENet. A runner on a simulated clock returns the real one: EnetTransport's
+## JOIN_TIMEOUT_MS is real time.
+func _join_clock_usec() -> int:
+	return now_usec
+
+
+## What starts this runner's log lines (_join_again's).
+func _log_label() -> String:
+	return "BOTS"
 
 
 ## With claims_after_moves, the client ticks since the bot's last move or its client's last claim,

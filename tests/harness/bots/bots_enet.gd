@@ -36,10 +36,6 @@ const EXTRA_CLIENTS := 3
 const PEERS_FILE := "peers"
 ## How often the host prints a window of its relay counters.
 const RELAY_WINDOW_S := 5
-## A join that failed this long or more after it started went unanswered: half of
-## EnetTransport.JOIN_TIMEOUT_MS, in microseconds (a frame's clock is read before its poll). A
-## sooner `connect_failed` is a refusal.
-const UNANSWERED_USEC := EnetTransport.JOIN_TIMEOUT_MS * 500
 
 ## This process's bot number (PRIME_INSTANCE).
 var instance := 1
@@ -62,11 +58,6 @@ var _finished := false
 var _known_peers := 0
 var _relay_before: Dictionary[StringName, int] = {}
 var _next_window_usec := 0
-## Every bot that joins at the start was in bot 1's lobby once (_lobby_full).
-var _lobby_was_full := false
-## Bot number -> now_usec when its last join started, and when _join_again first saw it fail.
-var _join_started: Dictionary[int, int] = {}
-var _join_failed: Dictionary[int, int] = {}
 
 
 func _init(bot_scenario: BotScenario, this_instance: int, on_port: int, out_dir: String) -> void:
@@ -141,12 +132,9 @@ func step(now: int) -> void:
 	if tick_now > Ticks.from_seconds(scenario.time_limit_s + (MARGIN_S if not is_host() else 0)):
 		if not _ended() or not _wrote_view:
 			_fail_time_limit()
-			if is_host() and not _lobby_was_full:
-				var known := peers.to_dict()
-				var seen := bot.seen.keys()
-				failures.append(
-					"bot 1 waited for the lobby: peers %s, players seen %s" % [known, seen]
-				)
+			var waited := _lobby_wait(bot) if is_host() else ""
+			if not waited.is_empty():
+				failures.append(waited)
 		if not _wrote_view:
 			_write_view()
 		_finished = true
@@ -239,62 +227,12 @@ func _relay_label() -> String:
 
 
 func _join_host(bot: ScenarioBot) -> String:
-	_join_started[bot.number] = now_usec
-	_join_failed.erase(bot.number)
 	add_client(bot, _joining())
 	return ""
 
 
-## A bot that joins at the start: no Join step first in its script.
-func _joins_at_start(number: int) -> bool:
-	var steps := scenario.steps_of(number)
-	return steps.is_empty() or not steps[0] is StepJoin
-
-
-## Whether the host's bot 1 may act: once every bot that joins at the start is in its lobby (its
-## PlayerJoined arrived), as both one-process runners join them all before the first tick. Under
-## load another instance's process can start seconds after the host's, and a bot 1 that readied
-## alone started the round without it (#284: a dissident alone wins at once).
-func _lobby_full(bot: ScenarioBot) -> bool:
-	if _lobby_was_full:
-		return true
-	for number in range(2, scenario.bots + 1):
-		if not _joins_at_start(number):
-			continue
-		var other := peers.peer_of(number)
-		if other == 0 or not bot.seen.has(other):
-			return false
-	_lobby_was_full = true
-	return true
-
-
-## A remote bot that joins at the start joins again when its join went unanswered: it failed
-## (CONNECT_FAILED) UNANSWERED_USEC or more after it started, as EnetTransport ends a join the host
-## never admitted after JOIN_TIMEOUT_MS. Under load its process can start seconds before the
-## host's listens, and it sat out the run unheard (#284). A host that refuses a join answers at
-## once: before the admission (refusing new connections, an id in use) the client also ends
-## `connect_failed`, but within a poll or two, and after it (a Rejected Hello) `host_lost`; both
-## stay failures (_lost).
-func _join_again(bot: ScenarioBot) -> void:
-	var client: BotClient = clients.get(bot.number)
-	if (
-		client == null
-		or bot.joined
-		or bot.gone
-		or bot.joins_late()
-		or client.end_reason != ClientSession.CONNECT_FAILED
-	):
-		return
-	var failed: int = _join_failed.get_or_add(bot.number, now_usec)
-	if failed - _join_started.get(bot.number, failed) < UNANSWERED_USEC:
-		return
-	print(
-		(
-			"BOTS %s: bot %d joins again (connect_failed: the host did not answer within %d ms)"
-			% [dir.get_file(), bot.number, EnetTransport.JOIN_TIMEOUT_MS]
-		)
-	)
-	_join_host(bot)
+func _log_label() -> String:
+	return "BOTS %s" % dir.get_file()
 
 
 func _joining() -> NetTransport:
