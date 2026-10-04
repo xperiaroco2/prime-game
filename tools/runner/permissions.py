@@ -46,12 +46,12 @@ SHELLS = {"Bash": guard.BASH, "PowerShell": guard.POWERSHELL}
 # Wrappers Claude Code strips before matching, and the options of theirs that take a value.
 WRAPPERS = {"timeout", "time", "nice", "nohup", "stdbuf", "command", "builtin"}
 WRAPPER_VALUED = {"-n", "-s", "-k", "-i", "-o", "-e"}
-# Commands Claude Code runs without a rule: its documented read-only set (code.claude.com/docs/en/permissions, "Read-only
-# commands", checked 2026-10-04) and `sort` and `sed`, which it names as read-only with write-capable flags; the two
-# PowerShell cmdlets are this model's own guess (the docs list no PowerShell set).
+# Commands Claude Code runs without a rule: its documented read-only set (code.claude.com/docs/en/permissions,
+# "Read-only commands", checked 2026-10-04) and `sort` and `sed`, which it names as read-only with write-capable
+# flags; the two PowerShell cmdlets are this model's own guess (the docs list no PowerShell set).
 READ_ONLY = {
-    "cd", "echo", "ls", "cat", "pwd", "head", "tail", "grep", "find", "wc", "which", "diff", "stat", "du", "sort", "sed",
-    "set-location", "get-content",
+    "cd", "echo", "ls", "cat", "pwd", "head", "tail", "grep", "find", "wc", "which", "diff", "stat", "du", "sort",
+    "sed", "set-location", "get-content",
 }  # fmt: skip
 FIND_WRITES = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"}
 # "read-only forms of git": the docs name none, so this is the model's guess of the plainly read-only subcommands
@@ -139,8 +139,15 @@ def subcommands(command: str, shell: str) -> list[str]:
     """The text of each simple command, the ones inside `$(...)` included."""
     texts = []
     for segment in guard.split(command, shell):
-        if segment.words:
-            texts.append(" ".join(segment.words))
+        words = segment.words
+        if shell == guard.POWERSHELL and len(words) > 1 and words[0].startswith("$") and words[1] == "=":
+            # `$x = <command>` runs the command; `$x = 'text'` runs nothing.
+            words = words[2:] if words[2:] and re.match(r"^([A-Za-z]+-[A-Za-z]+|git|gh)$", words[2]) else [""]
+        elif shell == guard.BASH and words and all(re.match(r"^[A-Za-z_]\w*=", w) for w in words):
+            # A bare assignment runs nothing (a `$(...)` in it is judged on its own), unless it sets PATH or IFS.
+            words = words if any(re.match(r"^(PATH|IFS)=", w) for w in words) else [""]
+        if words:
+            texts.append(" ".join(words))
         for sub in segment.subs:
             texts += subcommands(sub, shell)
     return texts
@@ -167,6 +174,8 @@ def read_only(text: str, git: bool = True) -> str | None:
     """"read-only" when Claude Code would run this subcommand (wrappers stripped) without a rule, as far as its docs
     say: the commands of READ_ONLY without their write flags, and git's read-only forms (GIT_READ_ONLY) unless git is
     False."""
+    if text == "":
+        return "read-only"  # a bare assignment (subcommands)
     words = text.split(" ")
     first = words[0].lower()
     if first == "git":
@@ -360,7 +369,8 @@ def replay(
             if len(seen) < 3 and call.command[:160] not in seen:
                 seen.append(call.command[:160])
         if results["before"][0] != results["after"][0]:
-            changed[(results["before"][0] + " -> " + results["after"][0], results["before"][1], call.command[:160])] += 1
+            change = results["before"][0] + " -> " + results["after"][0]
+            changed[(change, results["before"][1], call.command[:160])] += 1
     transcripts = sum(1 for folder in folders for _ in folder.rglob("*.jsonl"))
     lines = [f"{len(found)} calls in {transcripts} transcripts; {crashes} crashes"]
     for name in ("before", "after"):

@@ -215,6 +215,18 @@ class MatcherTest(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(rules.judge("Bash", command)[0], permissions.NONE)
 
+    def test_a_bare_assignment_runs_nothing(self) -> None:
+        rules = self.rules(deny=["Bash(git push)", "PowerShell(git push)"])
+        self.assertEqual(rules.judge("Bash", 'S="C:/a b" && ls "$S"')[0], permissions.ALLOW)
+        self.assertEqual(rules.judge("Bash", "f=$(grep -rl x core/); sed -n 1,5p $f")[0], permissions.ALLOW)
+        self.assertEqual(rules.judge("Bash", "f=$(npm test)")[0], permissions.NONE)
+        self.assertEqual(rules.judge("Bash", "PATH=/x")[0], permissions.NONE)
+        self.assertEqual(rules.judge("Bash", "X=1 git push")[0], permissions.DENY)
+        self.assertEqual(rules.judge("PowerShell", "$s = 'C:\\x'; Get-Content f")[0], permissions.ALLOW)
+        self.assertEqual(rules.judge("PowerShell", "$s = git status")[0], permissions.ALLOW)
+        self.assertEqual(rules.judge("PowerShell", "$s = Remove-Item x")[0], permissions.NONE)
+        self.assertEqual(rules.judge("PowerShell", "$s = git push")[0], permissions.DENY)
+
     def test_a_cd_elsewhere_takes_git_out_of_the_read_only_set(self) -> None:
         rules = self.rules()
         here = "D:\\prime-game\\.claude\\worktrees\\5"
