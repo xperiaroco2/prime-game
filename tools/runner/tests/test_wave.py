@@ -149,6 +149,26 @@ class Project:
 MAIN = "D:/prime-game"
 
 
+def sha(n: int) -> str:
+    return hashlib.sha1(str(n).encode()).hexdigest()
+
+
+def merged_pr(n: int, head: str, merged_at: str, *, base: str = "main", title: str = "", issues: list[int] = (),
+              oid: str = "") -> dict:  # fmt: skip
+    """One row of `gh pr list --state merged --json` as GitHub returns it."""
+    refs = [{"id": f"I_{i}", "number": i, "url": f"https://github.com/o/r/issues/{i}"} for i in issues]
+    return {"number": n, "title": title or f"title {n}", "headRefName": head, "baseRefName": base,
+            "mergedAt": merged_at[:19] + "Z", "mergeCommit": {"oid": sha(n)}, "closingIssuesReferences": refs,
+            "headRefOid": oid or sha(n + 1000)}  # fmt: skip
+
+
+def open_pr(n: int, head: str, *, base: str = "main", issues: list[int] = (), rollup: list[dict] = (),
+            draft: bool = False, state: str = "CLEAN") -> dict:  # fmt: skip
+    refs = [{"number": i} for i in issues]
+    return {"number": n, "title": f"title {n}", "headRefName": head, "baseRefName": base, "isDraft": draft,
+            "statusCheckRollup": list(rollup), "mergeStateStatus": state, "closingIssuesReferences": refs}  # fmt: skip
+
+
 class FakeSources(wave.Sources):
     """Everything wave reads beyond the transcripts, from the test: gh's JSON per query, merge-check's printed output
     and exit, `git worktree list --porcelain`, the live sessions per worktree folder name and the open issues."""
@@ -610,6 +630,86 @@ class WaveTest(unittest.TestCase):
                                  history=boom, main_checkout=boom):  # fmt: skip
             rc, out, _ = self.main(args_issue=5, sources=wave.Sources())
         self.assertEqual((rc, json.loads(out)), (0, issue_args(5)))
+
+    def section(self, body: str, heading: str) -> str:
+        """The text of one '## ' section of a body, its heading line included."""
+        part = body.split(f"\n## {heading}")[1]
+        return f"## {heading}" + part.split("\n## ")[0].split("\n---\n")[0]
+
+    def test_merged_rows_from_gh_json(self) -> None:
+        merged = [
+            merged_pr(311, "tooling/305-keep-warm", at(60), title="feat: a | b"),
+            merged_pr(300, "tooling/299-early", at(-30)),
+            merged_pr(320, "release/m5", at(120)),
+            merged_pr(310, "tooling/303-waits", at(30), issues=[283, 290]),
+            merged_pr(321, "core/250-items", at(90), base="release/m5"),
+        ]
+        src = FakeSources(merged=merged)
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), sources=src, merge_check=False)
+        self.assertIn(("pr", "list", "--state", "merged", "--limit", str(wave.MERGED_LIMIT), "--json",
+                       wave.MERGED_FIELDS), src.gh_calls)  # fmt: skip
+        body = target.read_text(encoding="utf-8")
+        part = self.section(body, "Merged into main since")
+        rows = [line for line in part.splitlines() if line.startswith("| #")]
+        self.assertEqual([r.split(" | ")[0] for r in rows], ["| #310", "| #311", "| #320"], "by mergedAt, from since")
+        self.assertEqual(rows[0], f"| #310 | title 310 | tooling/303-waits | {at(30)[:19]}Z | {sha(310)[:10]} | "
+                         "#283, #290 |", "the closing issues")  # fmt: skip
+        self.assertIn("| #311 | feat: a \\| b | tooling/305-keep-warm |", rows[1])
+        self.assertTrue(rows[1].endswith(" | #305 |"), "no closing issue: the issue from the branch")
+        self.assertTrue(rows[2].endswith(" | — |"), "release/m5 names no issue")
+        self.main(since=SINCE, out=str(target), sources=FakeSources(merged=merged), merge_check=False,
+                  base="release/m5")  # fmt: skip
+        part = self.section(target.read_text(encoding="utf-8"), "Merged into release/m5 since")
+        self.assertEqual([line.split(" | ")[0] for line in part.splitlines() if line.startswith("| #")], ["| #321"])
+        self.main(since="2026-10-03T13:00:00Z", out=str(target), sources=FakeSources(merged=merged),
+                  merge_check=False)  # fmt: skip
+        self.assertIn("None.", self.section(target.read_text(encoding="utf-8"), "Merged into main since"))
+
+    def test_open_pr_ci_cell(self) -> None:
+        def run_(name: str, status: str = "COMPLETED", conclusion: str = "SUCCESS") -> dict:
+            return {"__typename": "CheckRun", "name": name, "status": status, "conclusion": conclusion}
+
+        def ctx(name: str, state: str) -> dict:
+            return {"__typename": "StatusContext", "context": name, "state": state}
+
+        self.assertEqual(wave.ci_cell([]), "none")
+        self.assertEqual(wave.ci_cell([run_("verify"), run_("lint", conclusion="NEUTRAL"),
+                                       run_("docs", conclusion="SKIPPED"), ctx("ext", "SUCCESS")]), "green")
+        self.assertEqual(wave.ci_cell([run_("verify", conclusion="FAILURE"), run_("lint")]), "red: verify")
+        self.assertEqual(wave.ci_cell([run_("verify", status="IN_PROGRESS", conclusion=""),
+                                       run_("lint", status="QUEUED", conclusion="")]), "pending: verify, lint")
+        self.assertEqual(wave.ci_cell([ctx("ext", "PENDING")]), "pending: ext")
+        self.assertEqual(wave.ci_cell([ctx("ext", "ERROR"), run_("verify", status="IN_PROGRESS", conclusion="")]),
+                         "red: ext", "red beats pending")  # fmt: skip
+        self.assertEqual(wave.ci_cell([run_("verify", conclusion="CANCELLED"), run_("verify", conclusion="FAILURE")]),
+                         "red: verify", "a name once")  # fmt: skip
+        prs = [
+            open_pr(316, "tooling/300-autonomy", issues=[300], rollup=[run_("verify")], state="CLEAN"),
+            open_pr(318, "tooling/301-child", base="tooling/300-autonomy", draft=True, state="BLOCKED"),
+            open_pr(317, "net/284-bots", rollup=[run_("verify", status="IN_PROGRESS", conclusion="")],
+                    state="UNSTABLE"),
+            open_pr(330, "core/250-items", base="release/m5"),
+        ]  # fmt: skip
+        src = FakeSources(open_prs=prs)
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), sources=src, merge_check=False)
+        self.assertIn(("pr", "list", "--state", "open", "--limit", "200", "--json", wave.OPEN_FIELDS), src.gh_calls)
+        part = self.section(target.read_text(encoding="utf-8"), "Open PRs")
+        rows = [line for line in part.splitlines() if line.startswith("| #")]
+        self.assertEqual(rows, [
+            "| #316 | title 316 | #300 | main | no | green | CLEAN |",
+            "| #317 | title 317 | #284 | main | no | pending: verify | UNSTABLE |",
+            "| #318 | title 318 | #301 | tooling/300-autonomy | yes | none | BLOCKED |",
+        ], "into main and stacked on a PR into main; not into release/m5")  # fmt: skip
+        self.main(since=SINCE, out=str(target), sources=FakeSources(), merge_check=False)
+        self.assertIn("None.", self.section(target.read_text(encoding="utf-8"), "Open PRs"))
+        failing = FakeSources(fail={"open": Failure("gh pr list failed: HTTP 502")})
+        rc, out, _ = self.main(since=SINCE, out=str(target), sources=failing, merge_check=False)
+        self.assertEqual(rc, 0, "a source that fails still writes the body")
+        self.assertIn("Unavailable: gh pr list failed: HTTP 502", self.section(target.read_text(encoding="utf-8"),
+                                                                                "Open PRs"))  # fmt: skip
+        self.assertIn("warn  wave: open PRs unavailable: gh pr list failed: HTTP 502", out)
 
     def test_notes_and_title(self) -> None:
         notes = self.root / "notes.md"

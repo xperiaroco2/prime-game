@@ -65,6 +65,15 @@ WORKFLOW_NOTE = re.compile(r"\bworkflow\b", re.I)
 REVIEW_ROLES = ("code-reviewer", "netcode-security-reviewer", "netcode-second-reviewer", "godot-api-checker")
 # The branch every task's work finally lands in: worktree-done checks against origin/main.
 MAIN = "main"
+# One `gh pr list --state merged` serves the merged section (filtered by base and mergedAt here: gh's merged:>= search
+# is date-only) and housekeeping (every base, for PRs that reached main through a release or a parent branch).
+MERGED_LIMIT = 500
+MERGED_FIELDS = "number,title,headRefName,baseRefName,mergedAt,mergeCommit,closingIssuesReferences,headRefOid"
+OPEN_FIELDS = "number,title,headRefName,baseRefName,isDraft,statusCheckRollup,mergeStateStatus,closingIssuesReferences"
+# The issue of a task branch <area>/<n>-<slug> (merge.TASK_BRANCH_RE's shape).
+TASK_BRANCH = re.compile(r"^[a-z][a-z0-9]*/(\d+)-")
+CI_PASS = {"SUCCESS", "NEUTRAL", "SKIPPED"}
+CI_PENDING = {"PENDING", "EXPECTED", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
 
 
 @dataclass
@@ -133,6 +142,30 @@ class Run:
 
 
 @dataclass
+class MergedPR:
+    number: int
+    title: str
+    head: str
+    base: str
+    merged_at: float
+    merge_commit: str
+    issues: list[int]
+    head_oid: str
+
+
+@dataclass
+class OpenPR:
+    number: int
+    title: str
+    head: str
+    base: str
+    draft: bool
+    ci: str
+    merge_state: str
+    issues: list[int]
+
+
+@dataclass
 class Wave:
     """What every section gets. A source's field is None when it was not read and a str (its error) when reading it
     failed; Wave(session, runs, since, now) alone renders every section."""
@@ -145,6 +178,8 @@ class Wave:
     plan: int | None = None
     title: str | None = None
     notes: str | None = None
+    merged: list[MergedPR] | str | None = None  # every base, oldest first
+    open_prs: list[OpenPR] | str | None = None  # into base and stacked on those
 
 
 class Sources:
@@ -496,6 +531,90 @@ def latest_launch(s: Session, n: int, workflow: str | None = None) -> Launch:
     )
 
 
+# --- GitHub -------------------------------------------------------------------------------------------------------
+
+
+def issue_from_branch(branch: str) -> int | None:
+    m = TASK_BRANCH.match(branch)
+    return int(m.group(1)) if m else None
+
+
+def issues_of(d: dict) -> list[int]:
+    """A PR's closing issues, else the issue of its task branch (a PR into a release branch links none)."""
+    refs = d.get("closingIssuesReferences") if isinstance(d.get("closingIssuesReferences"), list) else []
+    found = [int(r["number"]) for r in refs if isinstance(r, dict) and isinstance(r.get("number"), int)]
+    if found:
+        return found
+    n = issue_from_branch(str(d.get("headRefName") or ""))
+    return [n] if n is not None else []
+
+
+def rows_of(data: Any, what: str) -> list[dict]:
+    if not isinstance(data, list):
+        raise Failure(f"gh pr list {what}: not a list but {type(data).__name__}")
+    return [d for d in data if isinstance(d, dict) and isinstance(d.get("number"), int)]
+
+
+def read_merged(gh: Callable[..., Any]) -> list[MergedPR]:
+    """The newest MERGED_LIMIT merged PRs into any base, oldest first."""
+    found = []
+    for d in rows_of(gh("pr", "list", "--state", "merged", "--limit", str(MERGED_LIMIT), "--json", MERGED_FIELDS),
+                     "--state merged"):  # fmt: skip
+        t = metrics.stamp(d.get("mergedAt"))
+        if t is None:
+            continue
+        commit = d.get("mergeCommit") if isinstance(d.get("mergeCommit"), dict) else {}
+        found.append(MergedPR(d["number"], str(d.get("title") or ""), str(d.get("headRefName") or ""),
+                              str(d.get("baseRefName") or ""), t, str(commit.get("oid") or ""), issues_of(d),
+                              str(d.get("headRefOid") or "")))  # fmt: skip
+    return sorted(found, key=lambda p: (p.merged_at, p.number))
+
+
+def ci_cell(rollup: object) -> str:
+    """A PR's statusCheckRollup in one word and the checks behind it: red (any failed) beats pending, else green;
+    none when no check reported."""
+    checks = [c for c in rollup if isinstance(c, dict)] if isinstance(rollup, list) else []
+    if not checks:
+        return "none"
+    red: list[str] = []
+    pending: list[str] = []
+    for c in checks:
+        name = str(c.get("name") or c.get("context") or "?")
+        if c.get("__typename") == "StatusContext" or ("state" in c and "status" not in c):
+            state = str(c.get("state") or "").upper()
+        elif str(c.get("status") or "").upper() != "COMPLETED":
+            state = "PENDING"
+        else:
+            state = str(c.get("conclusion") or "").upper()
+        if state in CI_PENDING:
+            pending.append(name)
+        elif state not in CI_PASS:
+            red.append(name)
+    if red:
+        return "red: " + ", ".join(dict.fromkeys(red))
+    if pending:
+        return "pending: " + ", ".join(dict.fromkeys(pending))
+    return "green"
+
+
+def read_open(gh: Callable[..., Any], base: str) -> list[OpenPR]:
+    """The open PRs into base, and those stacked on one of them (they land in base too), by number."""
+    prs = [
+        OpenPR(d["number"], str(d.get("title") or ""), str(d.get("headRefName") or ""), str(d.get("baseRefName") or ""),
+               bool(d.get("isDraft")), ci_cell(d.get("statusCheckRollup")), str(d.get("mergeStateStatus") or ""),
+               issues_of(d))
+        for d in rows_of(gh("pr", "list", "--state", "open", "--limit", "200", "--json", OPEN_FIELDS), "--state open")
+    ]  # fmt: skip
+    lands, grew = {base}, True
+    while grew:
+        grew = False
+        for p in prs:
+            if p.base in lands and p.head not in lands:
+                lands.add(p.head)
+                grew = True
+    return sorted((p for p in prs if p.base in lands), key=lambda p: p.number)
+
+
 # --- sections -----------------------------------------------------------------------------------------------------
 
 
@@ -582,6 +701,46 @@ def header_section(w: Wave) -> list[str]:
 def notes_section(w: Wave) -> list[str]:
     """The manager's own judgement (--notes), as written: decisions, batched questions, the order from here."""
     return [w.notes.strip("\n"), ""] if w.notes and w.notes.strip() else []
+
+
+def source_state(value: object) -> list[str] | None:
+    """The body of a section whose source was not read or failed, else None."""
+    if value is None:
+        return ["Not read.", ""]
+    if isinstance(value, str):
+        return [f"Unavailable: {cell(value)}", ""]
+    return None
+
+
+def issues_cell(issues: list[int]) -> str:
+    return ", ".join(f"#{n}" for n in issues) or "—"
+
+
+def merged_section(w: Wave) -> list[str]:
+    md = [f"## Merged into {w.base} since {metrics.iso(w.since)}", ""]
+    state = source_state(w.merged)
+    if state is not None or not isinstance(w.merged, list):
+        return md + (state or [])
+    rows = [[f"#{p.number}", p.title, p.head, metrics.iso(p.merged_at), p.merge_commit[:10], issues_cell(p.issues)]
+            for p in w.merged if p.base == w.base and p.merged_at >= w.since]  # fmt: skip
+    md += [table(["PR", "title", "branch", "merged", "merge commit", "issues"], rows), ""] if rows else ["None.", ""]
+    if len(w.merged) >= MERGED_LIMIT and w.merged[0].merged_at > w.since:
+        md += [f"gh listed only the newest {MERGED_LIMIT} merged PRs, back to {metrics.iso(w.merged[0].merged_at)}: "
+               "older ones are not listed.", ""]  # fmt: skip
+    return md
+
+
+def open_prs_section(w: Wave) -> list[str]:
+    md = ["## Open PRs", ""]
+    state = source_state(w.open_prs)
+    if state is not None or not isinstance(w.open_prs, list):
+        return md + (state or [])
+    if not w.open_prs:
+        return [*md, "None.", ""]
+    rows = [[f"#{p.number}", p.title, issues_cell(p.issues), p.base, yes_no(p.draft), p.ci, p.merge_state]
+            for p in w.open_prs]  # fmt: skip
+    return [*md, table(["PR", "title", "issues", "base", "draft", "CI", "merge state"], rows), "",
+            f"Into {w.base}, and stacked on one of those.", ""]  # fmt: skip
 
 
 def finished_since(w: Wave) -> list[Run]:
@@ -702,7 +861,8 @@ def footer_section(w: Wave) -> list[str]:
 
 
 SECTIONS: list[Callable[[Wave], list[str]]] = [
-    header_section, notes_section, finished_section, running_section, handover_section, footer_section,
+    header_section, notes_section, merged_section, finished_section, running_section, open_prs_section,
+    handover_section, footer_section,
 ]  # fmt: skip
 
 
@@ -727,6 +887,23 @@ def find_transcript(session: str | None, dirs: list[Path]) -> tuple[Path, str]:
     if len(found) > 1:
         raise Failure(f"wave: session {sid} is ambiguous: " + ", ".join(p.stem for p in found))
     return found[0], found[0].stem
+
+
+def attempt(what: str, read: Callable[[], Any]) -> Any:
+    """A source's value, or its error as a str (the section says it is unavailable; the rest of the body is still
+    written). Exception, not BaseException: Ctrl+C still stops the command."""
+    try:
+        return read()
+    except Exception as exc:
+        text = str(exc).strip() or type(exc).__name__
+        warn(f"wave: {what} unavailable: {text}")
+        return text
+
+
+def gather(w: Wave, src: Sources) -> None:
+    """Every source beyond the transcripts, each on its own: one that fails leaves the others."""
+    w.merged = attempt("merged PRs", lambda: read_merged(src.gh_json))
+    w.open_prs = attempt("open PRs", lambda: read_open(src.gh_json, w.base))
 
 
 def read_notes(path: Path) -> str:
@@ -798,6 +975,7 @@ def main(
     assert t_since is not None
     w = Wave(session=s, runs=build_runs(s), since=t_since, now=time.time() if now is None else now,
              base=base or MAIN, plan=plan, title=title, notes=notes_text)  # fmt: skip
+    gather(w, sources or Sources())
     body = render(w)
     if out:
         target = Path(out)
