@@ -35,7 +35,7 @@ if what == "refused":
     sys.exit(1)
 if what == "late-host":
     time.sleep(0.5)
-if what in ("host", "late-host", "game-host"):
+if what in ("host", "late-host", "game-host", "stubborn-host"):
     say("session: hosting base_mode.tres on 127.0.0.1:1")
 if what == "menu-host":
     say("session: cannot host: port taken")
@@ -48,7 +48,7 @@ if what in ("welcomed", "leaves"):
 if what == "leaves":
     sys.exit(0)
 say("session: roster: Player1 [1]")
-while what == "stubborn" or not stop.exists():
+while what.startswith("stubborn") or not stop.exists():
     time.sleep(0.05)
 say("session: stopped")
 """
@@ -427,7 +427,8 @@ class SupervisionTest(unittest.TestCase):
         self.assertIsNone(parts[0].stop_seconds)
 
     def test_each_part_is_killed_once_its_own_grace_has_passed(self) -> None:
-        parts = [fake("client 2", "stubborn", self.stop), fake("client 3", "stubborn", self.stop)]
+        # The first part hosts, so the second starts at once rather than after HOST_READY_SECONDS.
+        parts = [fake("host", "stubborn-host", self.stop), fake("client 2", "stubborn", self.stop)]
         parts[0].grace = 0.5
         parts[1].grace = 2
         killed: dict[str, float] = {}
@@ -442,8 +443,8 @@ class SupervisionTest(unittest.TestCase):
 
         with mock.patch.object(hostjoin, "kill_tree", timed_kill):
             self.run_parts(parts, seconds=1)
-        self.assertLess(killed["client 2"], 1.5)
-        self.assertGreaterEqual(killed["client 3"], 2)
+        self.assertLess(killed["host"], 1.5)
+        self.assertGreaterEqual(killed["client 2"], 2)
         self.assertIn("did not stop within 0.5s of the stop", parts[0].problem)
         self.assertIn("did not stop within 2s of the stop", parts[1].problem)
         # A killed part did not end by itself: no stop time.
