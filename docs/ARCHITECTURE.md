@@ -1104,7 +1104,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     chaos one also drives `play_frame` and the lobby reason of a run out of time. Beside 32 busy loops on 16
     cores (2026-10-04) `bots --chaos --enet` passed 10 of 10 runs, and `playcheck spectate` 18 of 20: its bots
     played in all 20, and both reds were a window that did not exit within `hostjoin`'s 10 s grace after the
-    stop (#354).
+    stop (#354; since then a window gets 30 s, §4.7's `playcheck`).
   - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
     `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
   - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
