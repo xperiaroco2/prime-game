@@ -422,6 +422,38 @@ class SupervisionTest(unittest.TestCase):
         with mock.patch.object(hostjoin, "GRACE_SECONDS", 1):
             self.run_parts(parts, seconds=1)
             self.assertIn("was killed", parts[0].problem)
+        # Its last line came before the stop: the report says what it printed last and when (#354).
+        self.assertRegex(parts[0].problem, r"its last line came \d+\.\ds before the stop: 'session: roster")
+        self.assertIsNone(parts[0].stop_seconds)
+
+    def test_each_stopped_part_reports_how_long_it_took_to_end(self) -> None:
+        parts = [fake("host", "host", self.stop), fake("client 2", "client", self.stop)]
+        self.run_parts(parts, seconds=1)
+        for part in parts:
+            seconds = part.stop_seconds
+            assert seconds is not None
+            self.assertLess(seconds, hostjoin.GRACE_SECONDS)
+            self.assertEqual(len(part.times), len(part.lines))
+            self.assertRegex(part.last_words(), r"^its last line came \d+\.\ds after the stop: 'session: stopped'$")
+        self.assertEqual(hostjoin.report(parts), 0)
+        self.assertRegex(self.out.getvalue(), r"ok    host: stopped cleanly in \d+\.\ds")
+
+    def test_a_part_that_ended_before_the_stop_has_no_stop_time(self) -> None:
+        parts = self.run_parts([fake("join", "leaves", self.stop)], seconds=30)
+        self.assertIsNone(parts[0].stopped_at)
+        self.assertEqual(hostjoin.stop_time(parts[0]), "")
+        self.assertEqual(parts[0].last_words(), "its last line: 'session: welcomed as Player2 [5]'")
+
+    def test_the_last_words_of_a_part_without_lines_or_times(self) -> None:
+        part = hostjoin.Part("join", [])
+        self.assertEqual(part.last_words(), "it printed nothing")
+        part.lines = ["session: stopped"]
+        part.stopped_at = 10.0
+        self.assertEqual(part.last_words(), "its last line: 'session: stopped'")
+        part.times = [12.3]
+        self.assertEqual(part.last_words(), "its last line came 2.3s after the stop: 'session: stopped'")
+        part.ended_at = 13.5
+        self.assertEqual(hostjoin.stop_time(part), " in 3.5s")
 
     def test_a_refused_join_fails_with_its_reason(self) -> None:
         parts = self.run_parts([fake("join", "refused", self.stop)], seconds=30)

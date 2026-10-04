@@ -96,6 +96,11 @@ class Part:
     proc: subprocess.Popen[bytes] | None = None
     reader: threading.Thread | None = None
     lines: list[str] = field(default_factory=list)
+    # When each line arrived (time.monotonic()), and when the stop file appeared and the process then ended (a
+    # process that ended before the stop has neither), so a slow or killed stop says where its time went.
+    times: list[float] = field(default_factory=list)
+    stopped_at: float | None = None
+    ended_at: float | None = None
     killed: bool = False
     log: Path | None = None
     # What a check of its own found missing in a process that ended well (a window, verify's game step).
@@ -111,7 +116,7 @@ class Part:
         if self.proc is None:
             return "never started"
         if self.killed:
-            return f"did not stop within {GRACE_SECONDS}s of the stop and was killed"
+            return f"did not stop within {GRACE_SECONDS}s of the stop and was killed; {self.last_words()}"
         if self.proc.returncode != 0:
             last = next((line for line in reversed(self.lines) if line.startswith("session: ")), "")
             return f"exited {self.proc.returncode}" + (f" ({last.removeprefix('session: ')})" if last else "")
@@ -119,6 +124,23 @@ class Part:
         if count:
             return f"exited 0 but printed {count} engine error line{'s' if count > 1 else ''}"
         return self.unmet
+
+    @property
+    def stop_seconds(self) -> float | None:
+        """How long the process took to end after the stop file appeared; None when it was not running then."""
+        if self.stopped_at is None or self.ended_at is None:
+            return None
+        return self.ended_at - self.stopped_at
+
+    def last_words(self) -> str:
+        """Its last line and when it came, counted from the stop: where a slow stop spent its time."""
+        if not self.lines:
+            return "it printed nothing"
+        if self.stopped_at is None or len(self.times) != len(self.lines):
+            return f"its last line: {self.lines[-1]!r}"
+        after = self.times[-1] - self.stopped_at
+        when = f"{after:.1f}s after the stop" if after >= 0 else f"{-after:.1f}s before the stop"
+        return f"its last line came {when}: {self.lines[-1]!r}"
 
 
 @dataclass(frozen=True)
@@ -279,6 +301,7 @@ def start(part: Part, *, cwd: Path = ROOT, instance: int = 1) -> None:
         assert part.proc is not None and part.proc.stdout is not None
         for raw in iter(part.proc.stdout.readline, b""):
             text = launch.ANSI_RE.sub("", raw.decode("utf-8", errors="replace")).rstrip("\r\n")
+            part.times.append(time.monotonic())
             part.lines.append(text)
             with _echo_lock:
                 sys.stdout.write(f"[{part.label}] {text}\n")
@@ -364,13 +387,19 @@ def _keep_alive(alive: Path, done: threading.Event) -> None:
 
 def _stop(parts: list[Part], stop: Path) -> None:
     stop.write_text("stop\n", encoding="ascii")
+    stopped_at = time.monotonic()
+    running = [part for part in parts if part.running]
+    for part in running:
+        part.stopped_at = stopped_at
     try:
-        deadline = time.monotonic() + GRACE_SECONDS
+        deadline = stopped_at + GRACE_SECONDS
         while any(part.running for part in parts) and time.monotonic() < deadline:
             _sleep(POLL_SECONDS)
+            _note_ended(running)
     except KeyboardInterrupt:
         pass
     finally:
+        _note_ended(running)
         for part in parts:
             if part.running and part.proc is not None:
                 part.killed = True
@@ -381,6 +410,13 @@ def _stop(parts: list[Part], stop: Path) -> None:
             if part.proc is not None and part.proc.stdout is not None and not (part.reader and part.reader.is_alive()):
                 part.proc.stdout.close()
         stop.unlink(missing_ok=True)
+
+
+def _note_ended(parts: list[Part]) -> None:
+    now = time.monotonic()
+    for part in parts:
+        if part.ended_at is None and not part.running:
+            part.ended_at = now
 
 
 def write_logs(parts: list[Part], log_dir: Path) -> None:
@@ -404,9 +440,15 @@ def report(parts: list[Part]) -> int:
             failed += 1
             bad(f"{part.label}: {part.problem}{where}", "\n".join(launch.error_lines(part.lines)[1]))
         else:
-            ok(f"{part.label}: stopped cleanly{where}")
+            ok(f"{part.label}: stopped cleanly{stop_time(part)}{where}")
     say(f"session: FAILED ({failed} of {len(parts)})" if failed else "session: passed")
     return 1 if failed else 0
+
+
+def stop_time(part: Part) -> str:
+    """' in 1.2s': how long the part took to end after the stop file appeared; '' when it had ended before."""
+    seconds = part.stop_seconds
+    return "" if seconds is None else f" in {seconds:.1f}s"
 
 
 def set_commands(parts: list[Part], exe: str) -> None:

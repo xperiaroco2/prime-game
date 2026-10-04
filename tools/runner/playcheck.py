@@ -598,7 +598,9 @@ def report(scenario: Scenario, parts: list[hostjoin.Part], out: Path) -> int:
             failed += 1
             bad(f"{part.label}: {why}{where}", "\n".join(launch.error_lines(part.lines)[1]))
         else:
-            ok(f"{part.label}: {'its steps done' if part.label != 'bots' else 'played'}{where}")
+            stopped = hostjoin.stop_time(part)
+            stopped = f", stopped{stopped}" if stopped else ""
+            ok(f"{part.label}: {'its steps done' if part.label != 'bots' else 'played'}{stopped}{where}")
     if not failed:
         missing = missing_shots(scenario, out)
         if missing:
