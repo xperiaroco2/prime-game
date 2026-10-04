@@ -16,5 +16,6 @@ budget; root `CLAUDE.md` applies in full.
   `.claude/skills/<name>/SKILL.md` in your worktree and follow it.
 - Long jobs: the Bash tool's `run_in_background` with `tools/run.sh wait <log>` (or Monitor) as the prompt says;
   TaskStop only for a job you started.
-- SendUserFile only for the screenshots of a visual PR, when the prompt asks for it.
+- SendUserFile: no workflow prompt uses it today (a visual PR lists its PNG paths for the engineer); use it only
+  if a prompt names it.
 - End by returning the structured result once.
