@@ -29,7 +29,9 @@ import subprocess
 import sys
 import types
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
+from typing import NamedTuple
 
 from . import guard
 
@@ -76,6 +78,22 @@ class Rules:
         if texts and all(allowed):
             return ALLOW, next((r for r in allowed if r != "read-only"), "read-only")
         return NONE, None
+
+    def unallowed(self, tool: str, command: str) -> str:
+        """The command name (`git diff`, `sed`) of the first subcommand that neither an allow rule nor the read-only
+        set lets run: what prompts outside bypass."""
+        for text in subcommands(command, SHELLS[tool]):
+            if not (self.matches(ALLOW, tool, strip(text, assignments=False)) or _read_only(text)):
+                return head(strip(text, assignments=True))
+        return "?"
+
+
+def head(text: str) -> str:
+    """A subcommand's name for a report: the program, and for git and gh their subcommand (or `git -C`)."""
+    words = text.split(" ")
+    if words[0].lower() in ("git", "gh") and len(words) > 1:
+        return f"{words[0].lower()} {words[1]}"
+    return words[0] if words[0].startswith("$") else words[0].lower()
 
 
 def _parse(rule: str) -> tuple[str, re.Pattern[str] | None, str]:
@@ -140,15 +158,33 @@ def verdict(
     if findings:
         return PROMPT, "guard: " + ", ".join(sorted({f.area for f in findings}))
     if kind == NONE and not bypass:
-        return PROMPT, "no allow rule"
+        return PROMPT, "no allow rule: " + rules.unallowed(tool, command)
     return PASS, "allow rule" if kind == ALLOW else "no rule"
 
 
 # --- replay of local transcripts -------------------------------------------------------------------------------------
 
 
-def calls(folders: list[Path]) -> list[tuple[str, str, str]]:
-    """(tool, command, cwd) of every Bash and PowerShell call in the transcripts under folders."""
+class Call(NamedTuple):
+    """One Bash or PowerShell call of a transcript."""
+
+    tool: str
+    command: str
+    cwd: str
+    when: str  # the entry's ISO timestamp, "" when it has none
+    role: str  # "session", "subagent" (a hand-made one) or "workflow" (a workflow script's agent)
+    transcript: str
+
+
+def role(path: Path) -> str:
+    """Who wrote a transcript, from where Claude Code keeps it: `<session>/subagents/workflows/<run>/agent-*.jsonl` is a
+    workflow agent's, `<session>/subagents/agent-*.jsonl` a hand subagent's, anything else a session's."""
+    text = path.as_posix()
+    return "workflow" if "/subagents/workflows/" in text else "subagent" if "/subagents/" in text else "session"
+
+
+def calls(folders: list[Path], since: str = "") -> list[Call]:
+    """Every Bash and PowerShell call in the transcripts under folders, from the day since (YYYY-MM-DD) on."""
     found = []
     for folder in folders:
         for path in sorted(folder.rglob("*.jsonl")):
@@ -160,11 +196,15 @@ def calls(folders: list[Path]) -> list[tuple[str, str, str]]:
                         entry = json.loads(line)
                     except json.JSONDecodeError:
                         continue
+                    when = str(entry.get("timestamp") or "")
+                    if since and when < since:
+                        continue
                     content = (entry.get("message") or {}).get("content")
                     for item in content if isinstance(content, list) else []:
                         command = (item.get("input") or {}).get("command") if isinstance(item, dict) else None
                         if item.get("type") == "tool_use" and item.get("name") in SHELLS and isinstance(command, str):
-                            found.append((item["name"], command, str(entry.get("cwd") or ROOT)))
+                            cwd = str(entry.get("cwd") or ROOT)
+                            found.append(Call(item["name"], command, cwd, when, role(path), str(path)))
     return found
 
 
@@ -201,39 +241,193 @@ class ReplayRepo:
         return False
 
 
-def replay(before: tuple[Rules, types.ModuleType], after: tuple[Rules, types.ModuleType], folders: list[Path]) -> str:
-    """The report: prompts and denials before and after, by cause, and every call whose verdict changed."""
+def replay(
+    before: tuple[Rules, types.ModuleType], after: tuple[Rules, types.ModuleType], folders: list[Path],
+    since: str = "", bypass: bool = True, listing: bool = False,
+) -> str:  # fmt: skip
+    """The report: prompts and denials before and after, by cause, and every call whose verdict changed; with listing,
+    each cause of the after side that stops a call, with its count by role and up to three example commands."""
     root = str(ROOT).replace("\\", "/")
     main = re.sub(r"/\.claude/worktrees/[^/]+$", "", root)
     repo = ReplayRepo(main)
-    found = calls(folders)
+    found = calls(folders, since)
     totals: dict[str, Counter[str]] = {"before": Counter(), "after": Counter()}
     changed: Counter[tuple[str, str, str]] = Counter()
+    causes: dict[tuple[str, str], Counter[str]] = {}
+    examples: dict[tuple[str, str], list[str]] = {}
     crashes = 0
-    for tool, command, cwd in found:
+    for call in found:
         results = {}
         for name, (rules, module) in (("before", before), ("after", after)):
             try:
-                results[name] = verdict(rules, module, tool, command, cwd, main, repo)
+                results[name] = verdict(rules, module, call.tool, call.command, call.cwd, main, repo, bypass)
             except Exception as exc:  # noqa: BLE001 - a replay reports crashes instead of stopping
                 crashes += 1
                 results[name] = (PROMPT, f"crash {type(exc).__name__}")
             state, why = results[name]
             totals[name][state] += 1
             totals[name][why.split(":")[0].split(" rule")[0]] += 1
+        state, why = results["after"]
+        if listing and state != PASS:
+            causes.setdefault((state, why), Counter())[call.role] += 1
+            seen = examples.setdefault((state, why), [])
+            if len(seen) < 3 and call.command[:160] not in seen:
+                seen.append(call.command[:160])
         if results["before"][0] != results["after"][0]:
-            changed[(results["before"][0] + " -> " + results["after"][0], results["before"][1], command[:160])] += 1
+            changed[(results["before"][0] + " -> " + results["after"][0], results["before"][1], call.command[:160])] += 1
     transcripts = sum(1 for folder in folders for _ in folder.rglob("*.jsonl"))
     lines = [f"{len(found)} calls in {transcripts} transcripts; {crashes} crashes"]
     for name in ("before", "after"):
         t = totals[name]
         lines.append(
-            f"{name}: {t[PROMPT]} prompts ({t['ask']} ask rules, {t['guard']} guard), {t[DENIED]} denied"
+            f"{name}: {t[PROMPT]} prompts ({t['ask']} ask rules, {t['guard']} guard, {t['no allow']} no allow rule),"
+            f" {t[DENIED]} denied"
         )
     newly = sum(n for (change, _, _), n in changed.items() if change == f"{PASS} -> {PROMPT}")
     lines.append(f"changed verdicts: {sum(changed.values())}; silent before, asking now: {newly}")
     for (change, why, command), count in sorted(changed.items()):
         lines.append(f"  {change} x{count} [{why}] {command!r}")
+    if listing:
+        lines.append("after, by cause (count; by role; examples):")
+        for (state, why), roles in sorted(causes.items(), key=lambda kv: (-sum(kv[1].values()), kv[0])):
+            by_role = ", ".join(f"{r} {n}" for r, n in sorted(roles.items()))
+            lines.append(f"  {state} [{why}] x{sum(roles.values())} ({by_role})")
+            lines += [f"      {command!r}" for command in examples[(state, why)]]
+    return "\n".join(lines)
+
+
+# --- what the transcripts record: the real prompts, denials and blocks -----------------------------------------------
+
+DENIED_TEXT = re.compile(r"Permission to use (\w+) with command (.*) has been denied\.", re.DOTALL)
+REJECTED_TEXT = "The user doesn't want to proceed with this tool use"
+PROTECTED_TEXT = re.compile(r"(\S+) on system path .* is blocked\. This path is protected from removal\.")
+
+
+class Event(NamedTuple):
+    """One call that something stopped, as its transcript records it."""
+
+    kind: str  # "guard ask", "deny rule", "blocked" (Claude Code's own check) or "rejected" (the human said no)
+    cause: str
+    command: str
+    when: str
+    wait: float  # seconds from the call to its result: the human's answer plus, after a yes, the run (an upper bound)
+    ran: bool  # the call ran after all (an ask answered yes)
+    role: str
+
+
+def _text(content: object) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(str(i.get("text") or "") for i in content if isinstance(i, dict))
+    return ""
+
+
+def _seconds(start: str, end: str) -> float:
+    try:
+        return max(0.0, (datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds())
+    except ValueError:
+        return 0.0
+
+
+def observed_events(folders: list[Path], rules: Rules, since: str = "") -> tuple[list[Event], int]:
+    """(the events, the malformed entries skipped) of every transcript under folders, from the day since on: a guard
+    ask or deny (the PreToolUse hook's permissionDecision), a deny rule's denial, Claude Code's own block (`Blocked:`
+    and protected removal paths) and a human's rejection. A call seen in two transcripts (a resumed session) counts
+    once."""
+    events: dict[str, Event] = {}
+    skipped = 0
+    for folder in folders:
+        for path in sorted(folder.rglob("*.jsonl")):
+            uses: dict[str, tuple[str, str]] = {}  # tool_use id: (command, timestamp)
+            hooks: dict[str, tuple[str, str]] = {}  # tool_use id: (decision, reason)
+            with path.open(encoding="utf-8", errors="replace") as handle:
+                for line in handle:
+                    if not any(k in line for k in ('"tool_use"', '"tool_result"', "permissionDecision")):
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        skipped += 1
+                        continue
+                    when = str(entry.get("timestamp") or "")
+                    attachment = entry.get("attachment")
+                    if isinstance(attachment, dict) and attachment.get("hookEvent") == "PreToolUse":
+                        try:
+                            output = json.loads(attachment.get("stdout") or "{}").get("hookSpecificOutput") or {}
+                        except (json.JSONDecodeError, AttributeError):
+                            skipped += 1
+                            continue
+                        if output.get("permissionDecision") in ("ask", "deny"):
+                            reason = str(output.get("permissionDecisionReason") or "")
+                            hooks[str(attachment.get("toolUseID"))] = (output["permissionDecision"], reason)
+                        continue
+                    content = (entry.get("message") or {}).get("content")
+                    for item in content if isinstance(content, list) else []:
+                        if not isinstance(item, dict):
+                            continue
+                        if item.get("type") == "tool_use":
+                            command = (item.get("input") or {}).get("command")
+                            uses[str(item.get("id"))] = (command if isinstance(command, str) else "", when)
+                            continue
+                        if item.get("type") != "tool_result":
+                            continue
+                        key = str(item.get("tool_use_id"))
+                        command, start = uses.get(key, ("", when))
+                        if since and start < since:
+                            continue
+                        text = _text(item.get("content")).strip()
+                        wait = _seconds(start, when)
+                        found = None
+                        if key in hooks:
+                            decision, reason = hooks[key]
+                            cause = reason.split(":", 1)[0]
+                            ran = not text.startswith(REJECTED_TEXT)  # a failing command ran too
+                            found = Event("guard " + decision, cause, command, start, wait, ran, role(path))
+                        elif match := DENIED_TEXT.match(text):
+                            tool, denied = match.group(1), match.group(2)
+                            command = command or denied
+                            judged = rules.judge(tool, command) if tool in SHELLS else (NONE, None)
+                            cause = judged[1] if judged[0] == DENY else "a deny rule no longer in the settings"
+                            found = Event("deny rule", str(cause), command, start, wait, False, role(path))
+                        elif text.startswith("<tool_use_error>Blocked: "):
+                            cause = re.sub(r"\d+", "N", text[len("<tool_use_error>") :].split(" followed by")[0])
+                            found = Event("blocked", cause[:80], command, start, wait, False, role(path))
+                        elif match := PROTECTED_TEXT.match(text):
+                            cause = f"{match.group(1)} on a protected system path"
+                            found = Event("blocked", cause, command, start, wait, False, role(path))
+                        elif text.startswith(REJECTED_TEXT):
+                            found = Event("rejected", "the human said no", command, start, wait, False, role(path))
+                        if found:
+                            events.setdefault(key, found)
+    return list(events.values()), skipped
+
+
+def observed(folders: list[Path], rules: Rules, since: str = "") -> str:
+    """The report of observed_events, by kind and cause: count, roles, days, the wait and whether the call ran."""
+    events, skipped = observed_events(folders, rules, since)
+    transcripts = sum(1 for folder in folders for _ in folder.rglob("*.jsonl"))
+    lines = [
+        f"{len(events)} stopped calls in {transcripts} transcripts ({skipped} malformed entries skipped); wait ="
+        " seconds from the call to its result, an upper bound of the human's answer (after a yes the run is in it)"
+    ]
+    groups: dict[tuple[str, str], list[Event]] = {}
+    for event in events:
+        groups.setdefault((event.kind, event.cause), []).append(event)
+    for (kind, cause), group in sorted(groups.items(), key=lambda kv: (kv[0][0], -len(kv[1]), kv[0][1])):
+        roles = Counter(e.role for e in group)
+        days = sorted(e.when[:10] for e in group if e.when)
+        span = f"{days[0]}..{days[-1]}" if days else "?"
+        waits = [e.wait for e in group]
+        lines.append(
+            f"{kind} [{cause}] x{len(group)} ({', '.join(f'{r} {n}' for r, n in sorted(roles.items()))}) {span};"
+            f" wait {sum(waits):.0f} s, longest {max(waits):.0f} s; ran {sum(e.ran for e in group)}"
+        )
+        shown: list[str] = []
+        for event in group:
+            if len(shown) < 3 and event.command[:160] not in shown:
+                shown.append(event.command[:160])
+        lines += [f"      {command!r}" for command in shown]
     return "\n".join(lines)
 
 
@@ -254,16 +448,35 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="transcript folders glob under ~/.claude/projects (default: this project's and its worktrees')",
     )
+    parser.add_argument("--since", default="", help="only calls from this day on (YYYY-MM-DD, UTC)")
+    parser.add_argument(
+        "--mode",
+        choices=["bypass", "default"],
+        default="bypass",
+        help="bypass: only deny and ask rules and the guard stop a call (default); default: a call no allow rule"
+        " or read-only command covers prompts as well (a model: an upper bound)",
+    )
+    parser.add_argument("--list", action="store_true", help="also list each cause that stops a call, with examples")
+    parser.add_argument(
+        "--observed",
+        action="store_true",
+        help="instead of a replay, what the transcripts record: guard asks, deny rule denials, Claude Code's blocks",
+    )
     args = parser.parse_args(argv)
     base = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
     main_root = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
     pattern = args.projects or re.sub(r"[^A-Za-z0-9]", "-", main_root) + "{,--claude-worktrees-*}"
     folders = project_folders(base, main_root, args.projects)
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+    if args.observed:
+        print(f"observed in {pattern}" + (f" since {args.since}" if args.since else ""))
+        print(observed(folders, Rules.load(ROOT / ".claude" / "settings.json"), args.since))
+        return 0
     before = (old_settings(args.before), old_guard(args.before))
     after = (Rules.load(ROOT / ".claude" / "settings.json"), guard)
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
-    print(f"replay of {pattern} in bypass mode: {args.before} against this checkout")
-    print(replay(before, after, folders))
+    since = f" since {args.since}" if args.since else ""
+    print(f"replay of {pattern}{since} in {args.mode} mode: {args.before} against this checkout")
+    print(replay(before, after, folders, args.since, args.mode == "bypass", args.list))
     return 0
 
 

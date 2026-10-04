@@ -221,6 +221,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("permissions", help="replay local transcripts through the permission rules and the guard")
     p.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
     p.add_argument("--projects", default="", help="transcript folders glob under ~/.claude/projects")
+    p.add_argument("--since", default="", help="only calls from this day on (YYYY-MM-DD)")
+    p.add_argument("--mode", choices=["bypass", "default"], default="bypass", help="the permission mode to model")
+    p.add_argument("--list", action="store_true", help="list each cause that stops a call, with examples")
+    p.add_argument("--observed", action="store_true", help="the prompts, denials and blocks the transcripts record")
 
     p = sub.add_parser("hook", help="Claude Code hooks (run by .claude/hooks/run-hook.sh, input on stdin)")
     p.add_argument("name", choices=["guard", "gd-edit"])
@@ -404,7 +408,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "permissions":
             from . import permissions
 
-            return permissions.main(["--before", args.before, "--projects", args.projects])
+            extra = ["--list"] * args.list + ["--observed"] * args.observed
+            argv = ["--before", args.before, "--projects", args.projects, "--since", args.since, "--mode", args.mode]
+            return permissions.main(argv + extra)
         if args.command == "hook":
             from . import hooks
 
