@@ -357,11 +357,15 @@ Rules for every workflow run:
 edit tooling, clean up its scratchpad and `tests/scratch/`) and stops only for the rare items below
 ([ADR](decisions/2026-09-28-unattended-work-permissions.md)). **Test for a new ask or deny rule:** "can an agent work
 alone overnight?" Replay the latest unattended run's transcripts against the new rule
-(`tools\run.cmd permissions --before origin/main` replays every local transcript through the rules and the guard of
-`origin/main` and of the checkout, in bypass mode); a rule that would have stopped routine work is judged by its
-target in the guard (§8.2) instead of by its text
+(`tools\run.cmd permissions --before origin/main` replays this project's transcripts, the main checkout's and its
+worktrees', through the rules and the guard of `origin/main` and of the checkout, in bypass mode; `--since
+YYYY-MM-DD` keeps the calls from that day on, `--mode default` models a mode that prompts, `--list` names each cause
+with examples, and `--observed` reports what the transcripts record instead: the guard's asks, deny rule denials,
+Claude Code's own blocks and the human's rejections, with roles and waits); a rule that would have stopped routine
+work is judged by its target in the guard (§8.2) instead of by its text
 ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). `runner.permissions` models
-Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow), and its selftests
+Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow, its documented read-only commands and
+a guess at git's read-only forms, which a `cd` elsewhere in the same call takes away), and its selftests
 (`tests/test_permissions.py`) check the lists with the guard: reads of other repositories pass in every mode, writes
 there ask, and every `Bash(...)` rule has its `PowerShell(...)` twin. **Inside its own worktree and
 task branch an agent has full freedom**: every git operation and every delete there runs without a prompt, and it
@@ -389,7 +393,10 @@ stops only for design and other human-reserved decisions and for what reaches be
   no branch and any push naming `HEAD` (always push an explicit branch name); `--no-verify`, remote deletes,
   `--prune`, `--mirror`, `--all`, `git config` on `hooksPath` or `--unset`, `--upload-pack`,
   `--output`, **`gh pr merge` and `mcp__ccd_pr__set_auto_merge`**, `gh repo delete`, `gh auth token`,
-  token-printing `gh auth status`.
+  token-printing `gh auth status`. A deny rule matches reads too and denies the whole call: read the hooks path with
+  `git rev-parse --git-path hooks` (it prints `.claude/githooks`) or `doctor`, never `git config --get core.hooksPath`
+  (10 denied calls in the week to 2026-10-04, #312), and the merge help with `gh help pr merge`, never
+  `gh pr merge --help`.
 - Godot, Python and gdtoolkit run without a prompt **only through the runner**; their raw forms prompt in modes that
   prompt.
 - `GH_PROMPT_DISABLED=1` is set in the shared `env`.
@@ -410,7 +417,9 @@ pipeline (`Get-ChildItem addons | Remove-Item`, `| xargs rm`), `for` loops over 
 and `$(...)` bodies, and the inline code of interpreters and .NET calls (`python -c`, a heredoc fed to Python,
 `node -e`, `[IO.File]::WriteAllText`). Text rules cannot see these writes: Claude Code checks a redirect or `tee`
 target against Edit allow and deny rules, not ask rules. The file tools need no guard, because `Edit(...)` rules
-cover Edit, Write and NotebookEdit.
+cover Edit, Write and NotebookEdit. So a test of what happens without an addon runs in a scratch clone outside the
+project (`git clone` into the scratchpad, then remove the addon there), never by moving `addons/` in the worktree,
+which asks at every step (5 asks in one task on 2026-10-03, #312).
 
 It also judges two kinds of command by what they act on, where a text rule would stop an unattended agent: commands
 that lose work, by where they act (its own scratch folder, issue #47, or its own worktree, issue #51), and `gh`
@@ -489,7 +498,10 @@ commands, by the repository they name (issue #68, a read of another repository m
   `GIT_SEQUENCE_EDITOR` the command sets to `:` or `true` (a prefix; in bash `export`, in PowerShell `$env:`, as that
   shell's last value; it outranks every other editor setting) opens no todo editor and is judged like a plain
   rebase: `git commit --fixup=HEAD` then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` stays
-  editor-free (a `squash!` commit would still open the message editor) (#104). Always asks: another
+  editor-free (a `squash!` commit would still open the message editor) (#104). `git -c core.editor=true`,
+  `-c sequence.editor=:` and `GIT_EDITOR=true` do not count, on purpose: a `GIT_SEQUENCE_EDITOR` inherited from the
+  environment or a `sequence.editor` in a git config file, which the guard cannot see, would outrank them (a publisher
+  that used `-c core.editor=true` on 2026-10-03 waited 23 minutes, #312). Always asks: another
   interactive rebase (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other
   branches), `rebase -x|--exec` (runs commands the guard cannot judge), `update-ref --stdin` and
   `git -c core.hooksPath=...` (the deny rule on `git config *hooksPath*` cannot see it).
@@ -509,7 +521,10 @@ commands, by the repository they name (issue #68, a read of another repository m
   `--jq`) never name the repository, and an option is never taken as the value of another one
   (`gh pr create -d -R x/y`). A value it cannot compute (`$env:GH_REPO = (Get-Content f)`, `-R "$R"`) counts as another
   repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a `gh` command run in a clone
-  of another repository without naming it.
+  of another repository without naming it. Sibling repositories of this project (`prime-game-art`, `prime-game-ui`)
+  are other repositories too: a session that manages one runs in that repository's checkout, never in
+  `D:\prime-game`, where each of its `gh` writes there asks (30 asks on 2026-10-02 and 10-03, about 12.6 hours of
+  waiting, one `gh pr create` over a whole night, #312).
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
   `git -C D:/prime-game clean -fdx` ask there.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
@@ -551,6 +566,24 @@ commands, by the repository they name (issue #68, a read of another repository m
   issue comment on this repository whose body held `-R`, `gh release --help`). Two calls still ask, now through the
   guard: `gh issue create --repo godotengine/godot` (an upstream bug report) and a `gh issue create -R` probe of a
   missing repository. The other 16 guard prompts are unchanged (§8.2 above).
+- What blocked agents in the week to 2026-10-04 (#312), from `tools\run.cmd permissions --observed --since
+  2026-09-29` over this project's 900 transcripts (24,590 shell calls; the earlier replays above also read the
+  `D--prime-game-art` and `-ui` folders, this one does not): 109 stopped calls, nearly all in bypass mode. 58 guard
+  asks: the 30 `gh` writes to the sibling repositories (above); 20 git commands that discard work, of which 11 came
+  from a manager's shell standing in a worktree and from `git stash drop` on 2026-09-30 (fixed by the 2026-10-01
+  intervention and the no-stash rule), 1 from a no-op editor rebase before #104 landed, 1 from `-c core.editor`
+  (above), 2 from custom sequence editors, and 5 were right (`branch -d|-D`, `reset --hard` of a release branch or in
+  a loop over another repository's worktrees, `worktree remove --force` in a loop); 8 writes to `addons/` (the TwoVoIP
+  install, and the missing-addon test above). 13 deny rule denials: 10 hooksPath reads (§8.1), `gh pr merge --help`,
+  and two pushes without a branch. 30 of Claude Code's own blocks: 28 foreground `sleep`s (§11, "Bounded waits"), and 2
+  `Remove-Item` on a "system path", one right (`D:\c`) and one false: a PowerShell command held `Remove-Item $out` and
+  a cmd.exe `/c` argument, which Claude Code read as its target; put such code in a `.ps1` file in the scratchpad
+  and run it with `powershell -File`. The human said no 8 times. No stop called for an allow rule or a guard change:
+  each was right or a wrong command pattern, now fixed in these instructions. Outside bypass the model
+  (`--mode default`, an upper bound) asks for 12,624 of the 24,590 calls: `$PYTHON_BIN` 3,340, git reads after a `cd`
+  into a worktree 1,931 (Claude Code prompts for git after a `cd` elsewhere, and workflow agents start every command
+  that way), `sed`, PowerShell filters and loops. Allow rules for the plain filters (`cut`, `tr`, `printf`, `date`,
+  `Select-Object` and the like) and `mkdir` would remove about 1,460 of them, so unattended work stays in bypass mode.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
@@ -1002,7 +1035,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly
   all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
   300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
-  shell's `timeout` or `wait --max`, never only with the tool's own timeout. It starts the job in the Bash tool with
+  shell's `timeout` or `wait --max`, never only with the tool's own timeout. A foreground `sleep N` followed by another
+  command (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
+  the week to 2026-10-04, 26 by workflow agents, #312): wait with `wait <log>`, `run_in_background` or Monitor with an
+  until-loop instead. The agent starts the job in the Bash tool with
   `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
   run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
   the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
