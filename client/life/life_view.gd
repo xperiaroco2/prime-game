@@ -4,8 +4,9 @@ extends Node3D
 ## countdowns, the life inputs and the lift music, from the own ClientModel, the interpolated poses
 ## (AvatarViews) and the client's own copy of the mode only (the M4 ADR's §3 items 1, 2, 3, 8).
 ##
-## - Living: the player's own first-person camera. E held on a downed player in reach sends
-##   Raise(target), its release StopRaise() (D6); the host checks everything again.
+## - Living: the player's own first-person camera. E held on a downed player in reach (a walking
+##   margin short of the host's, raise_hint_reach_of()) sends Raise(target), its release
+##   StopRaise() (D6); the host checks everything again.
 ## - Downed: the DownedCamera over the own body with the own look, and SightHider hiding what the
 ##   body's eye could not see. G held for GIVE_UP_HOLD_S sends GiveUp() once (D6).
 ## - Dead: spectating. The first target is drawn by SpectateTargets with the client's own
@@ -102,7 +103,7 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	mode = game_mode
 	avatars = views
 	countdowns = LifeCountdowns.new(mode.player_rules, LifeCountdowns.raise_seconds_of(mode))
-	_reach_m = raise_reach_of(mode)
+	_reach_m = raise_hint_reach_of(mode)
 	client.event_received.connect(on_event)
 
 
@@ -132,6 +133,15 @@ static func raise_reach_of(game_mode: GameMode) -> float:
 			if reach != null:
 				return reach.reach_m
 	return 0.0
+
+
+## The reach the raise hint and E offer a downed player within, in metres from the feet: the
+## mode's raise reach less the pick-up hint's walking margin (TargetChoice.hint_reach()). The host
+## measures from the feet of the last claim it accepted, which trail the player's own while
+## walking in, so E at the first hint would otherwise be refused `out_of_reach` (#352, as #319).
+## 0 when the mode has no raise.
+static func raise_hint_reach_of(game_mode: GameMode) -> float:
+	return TargetChoice.hint_reach(raise_reach_of(game_mode), game_mode)
 
 
 ## The camera in use, for tests and the listener.
@@ -222,9 +232,10 @@ func release_raise() -> void:
 		session.send_intent(Intents.STOP_RAISE)
 
 
-## The downed player the crosshair is on, if the mode's raise reach holds from the feet as the
-## host measures it (§4.7 Interactions); 0 when none. Cast in the last physics step, the only time
-## the physics space may be read (it is locked outside it with physics on its own thread).
+## The downed player the crosshair is on, if it lies within the raise hint's reach of the feet
+## (raise_hint_reach_of(): the host measures from the feet too, §4.7 Interactions, from its last
+## accepted claim); 0 when none. Cast in the last physics step, the only time the physics space
+## may be read (it is locked outside it with physics on its own thread).
 func raise_target() -> int:
 	return _raise_peer
 
