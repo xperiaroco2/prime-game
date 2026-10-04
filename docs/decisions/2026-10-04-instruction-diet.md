@@ -2,7 +2,8 @@
 
 - **Status:** Accepted: the engineer chose N1 (a), N2 (a), N3 (a) and issue A on 2026-10-04 (PR #325, comment
   https://github.com/xperiaroco2/prime-game/pull/325#issuecomment-5979209142); the build is #336 (A), #337 (E),
-  #338 (B), #339 (C) and #340 (D); F is #332 (PR #335); G is not opened.
+  #338 (B), #339 (C) and #340 (D); F is #332 (PR #335); G is not opened. A (#336) found that O1 cannot go in the
+  tracked settings (PR #360); the engineer chose its untracked form, #385.
 - **Date:** 2026-10-04
 - **Deciders:** the engineer (N1 to N3). The measurement, the cost model and the technical framing are the design
   task's, under the engineer's delegation of technical choices (#134).
@@ -207,8 +208,10 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
   `core/CLAUDE.md`, and no worktree root `CLAUDE.md`.
 - A session started in `.claude/worktrees/<n>` loads a root `CLAUDE.md` at launch, then Reads a `.gd` file, a
   `tests/` file and a `.tscn`. Its `nested_memory` lines show `gdscript.md`, `tests.md` and `godot-resources.md`.
-  The 8 measured worktree sessions loaded `D:\prime-game\CLAUDE.md` at launch, never the worktree's, so the
-  exclude should not touch them; the probe checks it.
+  The 8 measured worktree sessions loaded `D:\prime-game\CLAUDE.md` at launch because they started in the main
+  checkout and moved into the worktree. *Corrected 2026-10-04 (#336's probe C, PR #360, approved by the
+  engineer):* a session started in the worktree itself loads only the worktree's root `CLAUDE.md`, so the
+  tracked exclude leaves it with none; O1 moves to the main checkout's untracked `settings.local.json` (#385).
 - *Fallback:* if either probe loses a file it should show, the setting does not land, and A reports what loaded.
 - *Risk:* a branch that changes root `CLAUDE.md` or a rule is followed under `main`'s version until it merges. That
   is already true at launch today, and the agent that edits the file reads it anyway.
