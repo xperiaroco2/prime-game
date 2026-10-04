@@ -1348,8 +1348,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   the game reads alike.
   Tests: `tests/unit/tools/headless_session_test.gd` (the roster line, the refusal texts, the exit codes),
   `tests/unit/client/app/launch_options_test.gd` (the arguments) and
-  `tools/runner/tests/test_hostjoin.py` (the supervision, each stopped process's time from the stop to its exit, a
-  killed one's last line and when it came, a grace per process, and a real host with two local clients reaching the
+  `tools/runner/tests/test_hostjoin.py` (the supervision, each stopped process's time from the stop to its exit, taken
+  at its own exit even while a kill of another process blocks, a killed one's last line and when it came, a grace per process, and a real host with two local clients reaching the
   lobby roster Player1 to Player3).
   Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and by default in a shell where
   `CLAUDECODE` is set (an agent's); otherwise they open the game in windows (§4.7).

@@ -50,6 +50,8 @@ if what == "leaves":
 say("session: roster: Player1 [1]")
 while what.startswith("stubborn") or not stop.exists():
     time.sleep(0.05)
+if what == "slow-stop":
+    time.sleep(1)
 say("session: stopped")
 """
 
@@ -450,6 +452,28 @@ class SupervisionTest(unittest.TestCase):
         self.assertIn("did not stop within 2s of the stop", parts[1].problem)
         # A killed part did not end by itself: no stop time.
         self.assertEqual([p.stop_seconds for p in parts], [None, None])
+
+    def test_a_stop_time_is_the_process_own_exit_even_while_a_kill_blocks(self) -> None:
+        # A taskkill under load can take seconds; a part that ends meanwhile keeps its own exit time (#354).
+        parts = [fake("host", "stubborn-host", self.stop), fake("client 2", "slow-stop", self.stop)]
+        parts[0].grace = 0.2
+        real_kill = hostjoin.kill_tree
+
+        def slow_kill(proc: object) -> None:
+            time.sleep(3)
+            real_kill(proc)  # type: ignore[arg-type]
+
+        def both_printed(ps: list[hostjoin.Part]) -> bool:
+            return all(any("roster" in line for line in p.lines) for p in ps)
+
+        with mock.patch.object(hostjoin, "kill_tree", slow_kill):
+            self.run_parts(parts, seconds=60, until=both_printed)
+        self.assertIn("was killed", parts[0].problem)
+        self.assertEqual(parts[1].problem, "", self.out.getvalue())
+        seconds = parts[1].stop_seconds
+        assert seconds is not None
+        # It ended about 1 s after the stop; the host's kill ended about 3.2 s after it.
+        self.assertLess(seconds, 2.5)
 
     def test_each_stopped_part_reports_how_long_it_took_to_end(self) -> None:
         parts = [fake("host", "host", self.stop), fake("client 2", "client", self.stop)]

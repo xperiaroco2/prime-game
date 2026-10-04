@@ -135,7 +135,7 @@ class Part:
     @property
     def stop_seconds(self) -> float | None:
         """How long the process took to end after the stop file appeared; None when it was not running then."""
-        if self.stopped_at is None or self.ended_at is None:
+        if self.stopped_at is None or self.ended_at is None or self.killed:
             return None
         return self.ended_at - self.stopped_at
 
@@ -399,6 +399,7 @@ def _stop(parts: list[Part], stop: Path) -> None:
     running = [part for part in parts if part.running]
     for part in running:
         part.stopped_at = stopped_at
+        threading.Thread(target=_watch_end, args=(part,), daemon=True).start()
     try:
         while True:
             _note_ended(running)
@@ -430,8 +431,17 @@ def _kill(part: Part) -> None:
         kill_tree(part.proc)
 
 
+def _watch_end(part: Part) -> None:
+    """Note the process's own exit as it happens: the poll in _stop waits while a kill of another part blocks
+    (taskkill can take seconds under load), and its time would then include that kill (#354)."""
+    assert part.proc is not None
+    part.proc.wait()
+    if part.ended_at is None and not part.killed:
+        part.ended_at = time.monotonic()
+
+
 def _note_ended(parts: list[Part]) -> None:
-    # A killed part did not end by itself: it keeps no stop time.
+    # The fallback for _watch_end. A killed part did not end by itself: it keeps no stop time.
     now = time.monotonic()
     for part in parts:
         if part.ended_at is None and not part.killed and not part.running:
