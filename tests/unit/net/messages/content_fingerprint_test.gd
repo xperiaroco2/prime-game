@@ -239,6 +239,44 @@ func test_an_exported_asset_counts_by_its_import_products() -> void:
 	assert_array(Array(ContentFingerprint.missing_from(_mode().maps))).contains_exactly([label])
 
 
+## An asset an export ships as several products (one per texture format) counts by all of them in
+## key order; the `[remap]` keys that name no product are not files.
+func test_an_exported_asset_with_several_products_counts_by_each() -> void:
+	var label := _dir.path_join("label.svg")
+	_write("label.s3tc.ctex", "s3tc bytes")
+	_write("label.bptc.ctex", "bptc bytes")
+	_write(
+		"label.svg.import",
+		(
+			'[remap]\n\nimporter="texture"\ntype="CompressedTexture2D"\npath.s3tc="%s"\npath.bptc="%s"\n'
+			% [_dir.path_join("label.s3tc.ctex"), _dir.path_join("label.bptc.ctex")]
+		)
+	)
+	_write("map.tscn", _scene_with_texture("Map", label))
+	var products := (
+		"%s+%s"
+		% [
+			FileAccess.get_sha256(_dir.path_join("label.bptc.ctex")),
+			FileAccess.get_sha256(_dir.path_join("label.s3tc.ctex")),
+		]
+	)
+	assert_str(_text_of(_mode())).contains("\nfile %s %s\n" % [label, products])
+	var exported := _of(_mode())
+	_write("label.s3tc.ctex", "other s3tc bytes")
+	assert_int(_of(_mode())).is_not_equal(exported)
+
+
+## As Godot's loader, a `.remap` wins over a file left at the original path (a loose copy beside an
+## exported game): the hash counts what loads.
+func test_a_remap_wins_over_a_file_at_the_original_path() -> void:
+	var shipped := _dir.path_join("export-map.tscn")
+	_write("export-map.tscn", _scene("Map", [], 5))
+	_write("map.tscn.remap", '[remap]\n\npath="%s"\n' % shipped)
+	var level := _mode().maps[0]
+	var text := _text_of(_mode())
+	assert_str(text).contains("\nlevel %s %s" % [level, FileAccess.get_sha256(shipped)])
+
+
 func _mode() -> GameMode:
 	var mode := FixtureBaseMode.mode()
 	mode.lobby_level = _dir.path_join("lobby.tscn")

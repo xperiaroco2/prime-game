@@ -70,7 +70,8 @@ static func reached_from(levels: PackedStringArray) -> PackedStringArray:
 	while not to_walk.is_empty():
 		var path := to_walk[to_walk.size() - 1]
 		to_walk.remove_at(to_walk.size() - 1)
-		# get_dependencies prints an engine error for a file that is not there.
+		# get_dependencies prints an engine error for a file that is not there (a dangling remap
+		# target); an asset shipped as several products has no dependencies to walk.
 		var shipped := _shipped_as(path)
 		if shipped.size() != 1 or not FileAccess.file_exists(shipped[0]):
 			continue
@@ -134,16 +135,19 @@ static func _hashed(path: String) -> bool:
 	)
 
 
-## The files `path` is there as: itself; else, in an export, what its `.remap` (a converted scene
-## or resource) or its `.import` (an imported asset's products) names, every `path` key of the
-## `[remap]` section in key order; else none (missing). Only an export's `.import` counts: the
-## editor's has a `[deps]` section, so a deleted source stays missing in a project, not its cache.
+## The files `path` is there as, in the order Godot's loader follows them: in an export, what its
+## `.remap` (a converted scene or resource) or its `.import` (an imported asset's products) names,
+## every `path` key of the `[remap]` section in key order; else the file itself; else none
+## (missing). Only an export's `.import` counts: the editor's has a `[deps]` section, so in a
+## project the source counts and a deleted source stays missing. A project has no `.remap`.
 static func _shipped_as(path: String) -> PackedStringArray:
-	if FileAccess.file_exists(path):
-		return PackedStringArray([path])
 	for redirect: String in [path + ".remap", path + ".import"]:
 		if FileAccess.file_exists(redirect):
-			return _remapped_by(redirect)
+			var targets := _remapped_by(redirect)
+			if not targets.is_empty():
+				return targets
+	if FileAccess.file_exists(path):
+		return PackedStringArray([path])
 	return PackedStringArray()
 
 
