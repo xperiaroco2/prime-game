@@ -904,11 +904,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (`--no-gh` skips it; a failure is a note, never an exit code): the PR's state, its CI rounds (one per head SHA of
   `ci.yml`'s pull_request runs on its branch; red rounds, those after the run, and "green on the first CI round"),
   Found-by follow-up issues (a lower bound: only those whose "Found by" line names the task) and later `revert` or
-  `fix` PRs naming it. Unknown is `?` (null), never 0: no PR, an older result shape, skeptics not run, a PR of another
+  `fix` PRs naming it in the title or in a sentence that reverts or repairs it (not under Merge order or
+  Verification); a first round re-run to green is unknown, since `gh` shows only the last attempt. Unknown is `?` (null), never 0: no PR, an older result shape, skeptics not run, a PR of another
   repository, no CI run, or `gh` not read; medians and sums say how many are known. The compact `quality:` line ends
-  with the API list $ per PR green on its first CI round (the merged count beside it). `wave` (#278) gets the line's
-  journal half by calling `metrics.build`; for the GitHub half it passes `github=metrics.read_github()` to it, or puts
-  `metrics.quality_compact` over the record's `quality` in its `COST_EXTRAS`.
+  with the API list $ per PR green on its first CI round (the merged count beside it). A caller of `metrics.build`
+  (wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
+  the GitHub half.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
   windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw
   before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`),
