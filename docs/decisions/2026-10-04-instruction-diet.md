@@ -350,6 +350,11 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
     those sections stay whole;
   - lint fails a duplicate § in a doc, and a § reference to ARCHITECTURE or AGENT_WORKFLOW in tracked files
     (`docs/history/` excluded) that does not resolve; the same PR fixes the references that already dangle;
+  - which doc a § belongs to: the doc named last before it on the same line, else in the same comment block or
+    paragraph, else the file's declared design doc (an area `CLAUDE.md`'s first link to a doc; for a code file, its
+    folder's area `CLAUDE.md`). Many references name no doc (`(§7.1)` in `core/CLAUDE.md` and
+    `core/combat/strike.gd`), and ADRs use § for their own sections and for KICKOFF. A § with no doc in scope, or
+    with a doc other than these two, is reported, not failed, in the first PR;
   - runner tests cover all of it;
   - the root `CLAUDE.md` row is changed in place, with no net growth.
 - **C:**
