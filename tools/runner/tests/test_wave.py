@@ -902,8 +902,11 @@ class WaveTest(unittest.TestCase):
 
         lines = part.splitlines()
         self.assertEqual(lines[2], "For you: close the Claude session in worktree 260 ('solo' (pid 4242, idle, last "
-                         "update 10 min ago)), then run its block below; run the blocks under Ready to remove "
-                         "(worktrees 305, 251, 264 and release-m4).")  # fmt: skip
+                         "update 10 min ago)), then run its block below.",
+                         "the ready blocks are the manager's own steps (the trust ADR)")  # fmt: skip
+        self.assertIn("Ready to remove: worktree 305, worktree 251, worktree 264, worktree release-m4 (the work is on "
+                      "main; no run of this session and no live Claude session there; HEAD at the merged head). The "
+                      "manager runs each block itself (orchestrate-stage §8):", part)  # fmt: skip
         for n in (251, 264, 305, 260):
             self.assertIn(block(f"tools\\run.cmd worktree-done {n}"), part)
         self.assertEqual(part.count("```powershell"), 6, "four worktree-done blocks and the release worktree's two")
@@ -933,9 +936,10 @@ class WaveTest(unittest.TestCase):
         only_ready = FakeSources(merged=merged, porcelain="\n".join([wt("main", "main", sha(1)),
                                                                      wt("305", "tooling/305-keep-warm", sha(1405))]))
         self.main(since=SINCE, out=str(target), sources=only_ready, merge_check=False)
-        self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Housekeeping").splitlines()[2],
-                         "For you: run the blocks under Ready to remove (worktree 305).",
-                         "ready blocks are the human's until the manager runs them itself")  # fmt: skip
+        only_ready_part = self.section(target.read_text(encoding="utf-8"), "Housekeeping")
+        self.assertEqual(only_ready_part.splitlines()[2], "For you: nothing.",
+                         "a ready block alone needs nobody but the manager")  # fmt: skip
+        self.assertIn(block("tools\\run.cmd worktree-done 305"), only_ready_part)
         failing = FakeSources(merged=merged, fail={"worktrees": Failure("git worktree list failed: no git")})
         self.main(since=SINCE, out=str(target), sources=failing, merge_check=False)
         self.assertIn("Unavailable: git worktree list failed: no git",
@@ -944,6 +948,15 @@ class WaveTest(unittest.TestCase):
         self.main(since=SINCE, out=str(target), sources=no_gh, merge_check=False)
         self.assertIn("Unavailable: merged PRs: gh: HTTP 502",
                       self.section(target.read_text(encoding="utf-8"), "Housekeeping"))  # fmt: skip
+
+    def test_for_you_names_only_held_worktrees(self) -> None:
+        held = [("worktree 260", "'a' (pid 1)", ["x"]), ("worktree release-m4", "'b' (pid 2)", ["y", "z"])]
+        ready = [("worktree 305", ["w"])]
+        self.assertEqual(wave.for_you(wave.Housekeeping(ready=ready, held=held)),
+                         "For you: close the Claude sessions in worktrees 260 and release-m4 ('a' (pid 1); 'b' (pid "
+                         "2)), then run their blocks below.")  # fmt: skip
+        self.assertEqual(wave.for_you(wave.Housekeeping(ready=ready, waiting=["worktree 9: later."], issues=["#9"])),
+                         "For you: nothing.", "ready blocks, waits and open issues are the manager's")  # fmt: skip
 
     HEADINGS = ["## Merged into main since", "## Finished runs since", "## Running", "## Open PRs", "## Merge safety",
                 "## Cost", "## Housekeeping", "## Handover data", "\n---\n"]  # fmt: skip
