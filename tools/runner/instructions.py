@@ -17,7 +17,14 @@ ROOT_BUDGET = 150  # root CLAUDE.md plus every rule without paths: (all of them 
 NESTED_BUDGET = 100  # each CLAUDE.md below the root (loads when a file in its folder is read)
 RULE_BUDGET = 60  # each .claude/rules/**/*.md
 AGENT_MODELS = ("opus", "sonnet", "haiku")  # docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md
-READ_ONLY = ("Edit", "Write", "NotebookEdit", "Agent")  # every project subagent is read-only (§5)
+READ_ONLY = ("Edit", "Write", "NotebookEdit", "Agent")  # every project subagent but the lean writers is read-only (§5)
+# The lean workflow agent types, the only writable ones: exactly these names, each within its own tools allowlist
+# (docs/decisions/2026-10-04-lean-workflow-agent-types.md). A third writer needs a new ADR.
+_LEAN_TOOLS = (
+    "Bash", "PowerShell", "Read", "Edit", "Write", "Grep", "Glob", "Monitor", "TaskStop", "WebFetch", "WebSearch",
+)  # fmt: skip
+WRITERS = {"task-implementer": _LEAN_TOOLS, "task-publisher": (*_LEAN_TOOLS, "SendUserFile")}
+WRITER_DISALLOWED = ("NotebookEdit", "Agent", "Skill")
 # Skills (§6), against the frontmatter reference at code.claude.com/docs/en/skills (checked 2026-09-29). Claude Code
 # ignores an unknown field without a word, so a misspelled `allowed_tools` would silently grant nothing.
 SKILL_FIELDS = {
@@ -199,7 +206,7 @@ def check(root: Path) -> Report:
     for path in agents:
         report.errors += [f"{rel(path)}: {problem}" for problem in agent_problems(path)]
     if agents:
-        report.notes.append(f"{len(agents)} subagents: frontmatter, model guard, read-only")
+        report.notes.append(f"{len(agents)} subagents: frontmatter, model guard, read-only or a lean writer")
 
     skills_dir = root / ".claude" / "skills"
     skills = sorted(p for p in skills_dir.iterdir() if p.is_dir()) if skills_dir.is_dir() else []
@@ -320,11 +327,25 @@ def agent_problems(path: Path) -> list[str]:
         problems.append("description: is empty")
     if fm.fields.get("model") not in AGENT_MODELS:
         problems.append(f"model: must be one of {', '.join(AGENT_MODELS)} (model guard ADR)")
-    if not _as_list(fm.fields.get("tools")):
+    tools = _as_list(fm.fields.get("tools"))
+    if not tools:
         problems.append("tools: is empty (list the minimal tools)")
-    missing = [t for t in READ_ONLY if t not in _as_list(fm.fields.get("disallowedTools"))]
-    if missing:
-        problems.append(f"disallowedTools: must include {', '.join(missing)} (subagents are read-only)")
+    disallowed = _as_list(fm.fields.get("disallowedTools"))
+    if path.stem in WRITERS:
+        for tool in tools:
+            if tool not in WRITERS[path.stem]:
+                problems.append(f"tools: {tool} is outside the lean allowlist (lean agent types ADR)")
+        missing = [t for t in WRITER_DISALLOWED if t not in disallowed]
+        if missing:
+            problems.append(f"disallowedTools: must include {', '.join(missing)} (lean agent types ADR)")
+        if "effort" in fm.fields:
+            problems.append("effort: is set by the workflow per role (lean agent types ADR)")
+    else:
+        missing = [t for t in READ_ONLY if t not in disallowed]
+        if missing:
+            problems.append(f"disallowedTools: must include {', '.join(missing)} (subagents are read-only)")
+    if "permissionMode" in fm.fields:
+        problems.append("permissionMode: project subagents inherit the session's mode (lean agent types ADR)")
     if "memory" in fm.fields:
         problems.append("memory: is not used by project subagents")
     return problems
