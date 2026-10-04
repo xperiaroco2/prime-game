@@ -110,8 +110,8 @@ last budgets.
   weekly counter, so 7 points of the week stay out of every track's reach (Q1's buffers are below the stop).
 
 **Recommended (a), with the last-day rule.** (a) keeps the engineer's word on every point above a budget (tier (c):
-"money and budget above the set budget"); the last-day rule prevents ending the week with unused budget while a
-queue waits.
+"money and budget above the set budget") except in the last 24 hours, where choosing the last-day rule is that word
+given in advance; the last-day rule prevents ending the week with unused budget while a queue waits.
 
 ### Q3. The PC as a limit (N3)
 Two `verify` runs at once are what this PC sustains with nothing else heavy on it: with three at once the median run
