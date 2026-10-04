@@ -4,6 +4,9 @@ extends GdUnitTestSuite
 ## intent, channel or fact. The conditions that read the actor (#299) are tested in
 ## mode_check_actor_test.gd, which also lists every condition's classification.
 
+const P1 := 1
+const P2 := 2
+
 
 func test_a_win_condition_holding_a_condition_that_reads_the_target_is_refused() -> void:
 	# A win condition is checked with no intent, channel or fact: TargetDowned finds target 0 and
@@ -76,13 +79,34 @@ func test_a_reaction_whose_fact_supplies_the_target_is_allowed() -> void:
 		assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
 
 
+func test_an_item_rested_reaction_finds_its_item_on_the_ground() -> void:
+	# The premise of ItemOnGround.target_facts: in a reaction on item_rested, Items.target_of
+	# reads the fact's item, so the condition passes for the item that came to rest.
+	var mode := FixtureCombatModes.basic()
+	var on_ground: Array[Condition] = [ItemOnGround.new()]
+	var note: Array[RuleEffect] = [FixtureNote.of("reacted")]
+	mode.reactions = [FixtureModes.rule(Facts.ITEM_RESTED, on_ground, note)]
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+	var game := FixtureCombatModes.in_round(mode, [P1, P2])
+	FixtureItemModes.stand(game, P2, Vector3(2, 0, 2))
+	FixtureItemModes.pick_up(game, P2, FixtureItemModes.lay(game, &"package", Vector3(2, 0, 2)))
+	assert_array(FixtureModes.notes(game)).not_contains(["reacted"])
+	# Leaving drops the held package on the floor: item_rested, with the package as its item.
+	FixtureModes.send(game, Intents.PEER_LEFT, P2)
+	assert_array(FixtureModes.notes(game)).contains(["reacted"])
+
+
 func test_a_condition_that_reads_the_actor_and_the_target_gets_one_error() -> void:
 	# TargetInReach reads both: the actor's error says enough, and the target's is not added.
 	var condition := TargetInReach.new()
 	condition.reach_m = 2.0
-	var errors := Array(ModeCheck.run(_winning_with([condition])).errors)
-	assert_array(errors).has_size(1)
-	assert_str(str(errors[0])).contains("holds the condition TargetInReach, which reads the actor:")
+	var conditions: Array[Condition] = [condition]
+	for mode: GameMode in [_winning_with(conditions), _reacting_on(Facts.CLOCK_ENDED, conditions)]:
+		var errors := Array(ModeCheck.run(mode).errors)
+		assert_array(errors).has_size(1)
+		assert_str(str(errors[0])).contains(
+			"holds the condition TargetInReach, which reads the actor:"
+		)
 
 
 func test_the_refusal_names_the_modes_file() -> void:

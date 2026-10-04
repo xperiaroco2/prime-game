@@ -174,18 +174,18 @@ func _check_actor_conditions(mode: GameMode) -> void:
 func _check_target_condition(owner: String, condition: Condition, fact: StringName) -> void:
 	if condition == null or not condition.needs_target():
 		return
-	var none := "a win condition is checked with no intent, channel or fact to supply one"
+	var why_none := "a win condition is checked with no intent, channel or fact to supply one"
 	if not fact.is_empty():
 		if condition.target_facts().has(fact):
 			return
-		none = "a reaction runs with no intent or channel and its fact %s supplies none" % fact
+		why_none = "a reaction runs with no intent or channel and its fact %s supplies none" % fact
 	errors.append(
 		(
 			(
 				"%s holds the condition %s, which reads the rule's target: %s, so the condition"
 				+ " finds no target and its answer never changes"
 			)
-			% [owner, _class_of(condition), none]
+			% [owner, _class_of(condition), why_none]
 		)
 	)
 

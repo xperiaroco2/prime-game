@@ -44,8 +44,9 @@ func reads_actor_state() -> bool:
 ## (§9.4, #379). False unless a subclass says otherwise: a condition reaches that check only
 ## after it overrode reads_actor_state() to false (the default is refused first), so its author
 ## has already said what it reads, and says this with it; the guard test in
-## mode_check_actor_test.gd lists both for every condition in core/. A default of true would
-## instead mislabel the conditions that read no target.
+## mode_check_actor_test.gd lists this, reads_actor_state() and target_facts() for every
+## condition in core/. A default of true would instead mislabel the conditions that read no
+## target.
 func needs_target() -> bool:
 	return false
 

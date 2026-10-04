@@ -2753,8 +2753,9 @@ part is usable in data once its row or entry names the PR that built it. Every n
     (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction or a win condition holding a
     condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
     (§9.2, #283, #299), or one that reads the rule's target where nothing supplies it (`Condition.needs_target`: a win
-    condition, or a reaction whose fact does not carry it, #379); an accepted intent that neither the phase class nor any rule handles; two rules on one
-    trigger in one owner; a number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
+    condition, or a reaction whose fact does not carry it, #379); an accepted intent that neither the phase class
+    nor any rule handles; two rules on one trigger in one owner; a number outside its part's bounds; an id outside
+    the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
     `spawn_tag` and `tag` a part holds, and every condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9`
     and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
     every mode in `content/modes/` and runs this part (`ModeCheck`).
@@ -2802,7 +2803,7 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   mode check refuses it there too, with the same names (#379; `mode_check_target_test.gd`). `needs_target` is false
   unless the class says otherwise: a condition reaches that check only once it said it reads no actor, so its author
   has already said what it reads, and a default of true would mislabel the many that read no target; the guard test in
-  `mode_check_actor_test.gd` lists both answers for every condition of `core/`. Between
+  `mode_check_actor_test.gd` lists the three answers for every condition of `core/`. Between
   the checks and the costs, an **action** (a rule on an intent) that passed stops its actor's running channel
   (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its
   raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
