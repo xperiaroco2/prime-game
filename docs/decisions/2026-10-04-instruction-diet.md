@@ -175,9 +175,17 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
     higher level.
   - *Failure prevented:* a committed index drifts on each of ARCHITECTURE's commits (283 in six days). A Read range
     that guesses where a section ends returns 46% of other sections.
-- **Large sections get numbered subsections from their existing bold labels.** These are the sections over about 7k
-  tokens: §4.7, §4.6, §7.1, §6, §4.5, §9.5, §9.4 and §4.3, and AGENT_WORKFLOW §11 and §8.2; §4.7 alone is 28k. The
-  labels become `#### 4.7.1 ...` and no other text changes.
+- **Large sections get numbered subsections.** These are the sections over about 7k tokens: §4.7, §4.6, §7.1, §6,
+  §4.5, §9.5, §9.4 and §4.3, and AGENT_WORKFLOW §11 and §8.2; §4.7 alone is 28k. How each gets them depends on its
+  labels today:
+  - §9.5 already has unnumbered `####` headings (one per content item, plus the `#### <Name> (<kind>)` template):
+    they get numbers, nothing else changes.
+  - §4.3, §4.5, §4.7 and §9.4 have standalone bold labels (5, 13, 23 and 6 of them): each becomes `#### 4.7.1 ...`,
+    no other text changes.
+  - §4.6, §6 and §7.1, and AGENT_WORKFLOW §8.2 and §11, carry their labels only as list bullets (`- **...**`).
+    Turning a bullet into a heading splits its list, a text change the engineer approves in B's doc diff. If he
+    does not, those sections stay whole, and O2's saving moves toward its lower end (the groups holding §4.6, §6
+    and §7.1 are $17 of the $59 in the group table above).
   - *Failure prevented:* a "section read" of §4.7 still costs 28k tokens.
 
 ### The options
@@ -336,7 +344,10 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
 - **B:**
   - `section <doc>` prints the outline, and `section <doc> <§>...` prints exactly those sections, for ARCHITECTURE,
     AGENT_WORKFLOW and any ADR;
-  - the large sections get numbered subsections, with no other text change (the engineer approves the doc diff);
+  - the large sections get numbered subsections as the Decision says per section: §9.5's `####` headings get
+    numbers; standalone bold labels (§4.3, §4.5, §4.7, §9.4) become `####` headings; bulleted labels (§4.6, §6, §7.1,
+    AGENT_WORKFLOW §8.2 and §11) become headings only if the engineer accepts the split lists in the doc diff, else
+    those sections stay whole;
   - lint fails a duplicate § in a doc, and a § reference to ARCHITECTURE or AGENT_WORKFLOW in tracked files
     (`docs/history/` excluded) that does not resolve; the same PR fixes the references that already dangle;
   - runner tests cover all of it;
