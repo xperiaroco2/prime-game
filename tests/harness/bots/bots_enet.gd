@@ -10,7 +10,9 @@ extends NetPlay
 ## instance writes its peer id to `peer-<i>` in the scenario's folder on `connected`; bot 1 reads
 ## them, writes the whole map to `peers` once it knows every bot that joins at the start (and again
 ## when a later one connects), and only then sends the ForceRoles; every other bot reads `peers`
-## before its first step, and again when it meets a bot number it does not know.
+## before its first step, and again when it meets a bot number it does not know. Bot 1 takes no
+## step until every bot that joins at the start is in its lobby (_lobby_full), and a remote bot
+## whose join went unanswered joins again (_join_again, #284).
 ##
 ## Each bot writes its view file (ViewFile) when its script is done and it decoded the expected
 ## ends, or when its session ended; the host waits for every file (up to the time limit), then
@@ -34,6 +36,10 @@ const EXTRA_CLIENTS := 3
 const PEERS_FILE := "peers"
 ## How often the host prints a window of its relay counters.
 const RELAY_WINDOW_S := 5
+## A join that failed this long or more after it started went unanswered: half of
+## EnetTransport.JOIN_TIMEOUT_MS, in microseconds (a frame's clock is read before its poll). A
+## sooner `connect_failed` is a refusal.
+const UNANSWERED_USEC := EnetTransport.JOIN_TIMEOUT_MS * 500
 
 ## This process's bot number (PRIME_INSTANCE).
 var instance := 1
@@ -58,6 +64,9 @@ var _relay_before: Dictionary[StringName, int] = {}
 var _next_window_usec := 0
 ## Every bot that joins at the start was in bot 1's lobby once (_lobby_full).
 var _lobby_was_full := false
+## Bot number -> now_usec when its last join started, and when _join_again first saw it fail.
+var _join_started: Dictionary[int, int] = {}
+var _join_failed: Dictionary[int, int] = {}
 
 
 func _init(bot_scenario: BotScenario, this_instance: int, on_port: int, out_dir: String) -> void:
@@ -120,7 +129,7 @@ func step(now: int) -> void:
 	if not is_host():
 		_join_again(bot)
 	step_clients()
-	if _lobby_full(bot) if is_host() else (bot.joins_late() or _has_map()):
+	if _may_act(bot):
 		play_frame(tick_now)
 	if not _wrote_view and (bot.gone or (bot.finished() and _ended()) or not failures.is_empty()):
 		_write_view()
@@ -141,6 +150,14 @@ func step(now: int) -> void:
 		if not _wrote_view:
 			_write_view()
 		_finished = true
+
+
+## Bot 1 acts once its lobby is full (_lobby_full); a remote bot once it read bot 1's map, or at
+## once when its script joins late.
+func _may_act(bot: ScenarioBot) -> bool:
+	if is_host():
+		return _lobby_full(bot)
+	return bot.joins_late() or _has_map()
 
 
 func done() -> bool:
@@ -222,6 +239,8 @@ func _relay_label() -> String:
 
 
 func _join_host(bot: ScenarioBot) -> String:
+	_join_started[bot.number] = now_usec
+	_join_failed.erase(bot.number)
 	add_client(bot, _joining())
 	return ""
 
@@ -249,18 +268,25 @@ func _lobby_full(bot: ScenarioBot) -> bool:
 	return true
 
 
-## A remote bot that joins at the start joins again while its join failed with nothing heard from
-## the host (CONNECT_FAILED, EnetTransport.JOIN_TIMEOUT_MS): under load its process can start
-## seconds before the host's listens, and it sat out the run unheard (#284). A host that refuses it
-## disconnects it instead (host_lost), which stays a failure.
+## A remote bot that joins at the start joins again when its join went unanswered: it failed
+## (CONNECT_FAILED) UNANSWERED_USEC or more after it started, as EnetTransport ends a join the host
+## never admitted after JOIN_TIMEOUT_MS. Under load its process can start seconds before the
+## host's listens, and it sat out the run unheard (#284). A host that refuses a join answers at
+## once: before the admission (refusing new connections, an id in use) the client also ends
+## `connect_failed`, but within a poll or two, and after it (a Rejected Hello) `host_lost`; both
+## stay failures (_lost).
 func _join_again(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
 	if (
 		client == null
 		or bot.joined
+		or bot.gone
 		or bot.joins_late()
 		or client.end_reason != ClientSession.CONNECT_FAILED
 	):
+		return
+	var failed: int = _join_failed.get_or_add(bot.number, now_usec)
+	if failed - _join_started.get(bot.number, failed) < UNANSWERED_USEC:
 		return
 	print(
 		(
@@ -271,7 +297,7 @@ func _join_again(bot: ScenarioBot) -> void:
 	_join_host(bot)
 
 
-func _joining() -> EnetTransport:
+func _joining() -> NetTransport:
 	var transport := EnetTransport.new(schema.kind_table())
 	var joined := transport.join(ADDRESS, port)
 	if joined != OK:
