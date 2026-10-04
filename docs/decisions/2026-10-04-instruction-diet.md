@@ -253,7 +253,10 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
   `normalize` after a `.tscn` edit. Three things limit it:
   - the names line keeps every command visible;
   - `godot-resources.md` already names `normalize` when a `.tscn` is touched;
-  - the prompts name the commands each role runs.
+  - the prompts name the commands each role runs;
+  - the names line keeps a short note on `bots`: today's `bots` row is the only always-loaded text saying it runs
+    the information-leak test and that `--chaos` sends hostile peers at the host (the same rule is in
+    `server/CLAUDE.md` and `tests.md`, which load only by path).
 
 **O5. Lean agent types with role packs.**
 - Lean types alone: the implementer and the publisher get agent types with a `tools:` allowlist and no Skill or MCP
@@ -380,6 +383,7 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
   - one wave later E shows ARCHITECTURE $ per run down, and no review finding traced to a section not read.
 - **D:**
   - root's commands section is at most five lines, and lint's root count drops by at least 18;
+  - the names line marks `bots` as the leak test (with `--chaos` for hostile peers);
   - a runner test checks the names line against `cli.py` both ways, and that each command's `--help` covers its old
     row;
   - the night audit's docs-drift lens needs no change (it already checks commands against `--help`).
