@@ -1,0 +1,5 @@
+SPIKE r1   11059 1791146305.328993 sendtime ch=3 ticks=500 median_us=1969 p99_us=5164 max_us=12824 mean_us=2118 errors=0 buffered=0
+SPIKE r1   11016 1791146316.867461 sendtime ch=3 ticks=500 median_us=1937 p99_us=5087 max_us=22355 mean_us=2056 errors=0 buffered=0
+SPIKE r1   11057 1791146328.424014 sendtime ch=3 ticks=500 median_us=1943 p99_us=4812 max_us=5815 mean_us=1972 errors=0 buffered=0
+SPIKE r1   11060 1791146340.088019 sendtime ch=3 ticks=500 median_us=2002 p99_us=4331 max_us=5385 mean_us=1990 errors=0 buffered=0
+SPIKE r1   11070 1791146351.687537 sendtime ch=3 ticks=500 median_us=1996 p99_us=4237 max_us=5112 mean_us=1966 errors=0 buffered=0

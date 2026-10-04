@@ -1,0 +1,83 @@
+sender port 34430
+ch=3 size=    1 msgs~50 out_dgrams= 50 out_sizes={61: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=60 with_ip_udp=88 median_out=61.0
+ch=2 size=    1 msgs~50 out_dgrams= 50 out_sizes={61: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=60 with_ip_udp=88 median_out=61.0
+ch=1 size=    1 msgs~50 out_dgrams= 52 out_sizes={61: 50, 76: 1, 100: 1} back_dgrams=51 back_sizes={57: 49, 100: 1, 76: 1} overhead_udp_payload=60 with_ip_udp=88 median_out=61.0
+ch=3 size=   58 msgs~50 out_dgrams= 50 out_sizes={117: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=59 with_ip_udp=87 median_out=117.0
+ch=2 size=   58 msgs~50 out_dgrams= 50 out_sizes={117: 50} back_dgrams=49 back_sizes={57: 49} overhead_udp_payload=59 with_ip_udp=87 median_out=117.0
+ch=1 size=   58 msgs~50 out_dgrams= 51 out_sizes={89: 1, 117: 50} back_dgrams=50 back_sizes={57: 49, 105: 1} overhead_udp_payload=59 with_ip_udp=87 median_out=117
+ch=3 size=  100 msgs~50 out_dgrams= 50 out_sizes={157: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=57 with_ip_udp=85 median_out=157.0
+ch=2 size=  100 msgs~50 out_dgrams= 50 out_sizes={157: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=57 with_ip_udp=85 median_out=157.0
+ch=1 size=  100 msgs~50 out_dgrams= 52 out_sizes={76: 1, 100: 1, 157: 50} back_dgrams=52 back_sizes={57: 50, 100: 1, 76: 1} overhead_udp_payload=57 with_ip_udp=85 median_out=157.0
+ch=3 size=  500 msgs~50 out_dgrams= 50 out_sizes={557: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=57 with_ip_udp=85 median_out=557.0
+ch=2 size=  500 msgs~50 out_dgrams= 50 out_sizes={557: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=57 with_ip_udp=85 median_out=557.0
+ch=1 size=  500 msgs~50 out_dgrams= 52 out_sizes={76: 1, 89: 1, 557: 50} back_dgrams=52 back_sizes={57: 50, 100: 1, 89: 1} overhead_udp_payload=57 with_ip_udp=85 median_out=557.0
+ch=3 size= 1000 msgs~50 out_dgrams= 51 out_sizes={100: 1, 1057: 50} back_dgrams=51 back_sizes={57: 50, 76: 1} overhead_udp_payload=57 with_ip_udp=85 median_out=1057
+ch=2 size= 1000 msgs~50 out_dgrams= 50 out_sizes={1057: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=57 with_ip_udp=85 median_out=1057.0
+ch=1 size= 1000 msgs~50 out_dgrams= 51 out_sizes={76: 1, 1057: 50} back_dgrams=50 back_sizes={57: 49, 100: 1} overhead_udp_payload=57 with_ip_udp=85 median_out=1057
+ch=3 size= 1031 msgs~50 out_dgrams= 51 out_sizes={100: 1, 1089: 50} back_dgrams=51 back_sizes={57: 50, 76: 1} overhead_udp_payload=58 with_ip_udp=86 median_out=1089
+ch=2 size= 1031 msgs~50 out_dgrams= 50 out_sizes={1089: 50} back_dgrams=50 back_sizes={57: 50} overhead_udp_payload=58 with_ip_udp=86 median_out=1089.0
+ch=1 size= 1031 msgs~50 out_dgrams= 51 out_sizes={76: 1, 1089: 50} back_dgrams=51 back_sizes={57: 50, 100: 1} overhead_udp_payload=58 with_ip_udp=86 median_out=1089
+ch=3 size= 1100 msgs~ 5 out_dgrams=  6 out_sizes={100: 1, 1157: 5} back_dgrams=6 back_sizes={57: 5, 76: 1} overhead_udp_payload=57 with_ip_udp=85 median_out=1157.0
+ch=3 size= 1104 msgs~ 5 out_dgrams=  6 out_sizes={89: 1, 1161: 5} back_dgrams=5 back_sizes={105: 1, 57: 4} overhead_udp_payload=57 with_ip_udp=85 median_out=1161.0
+ch=3 size= 1108 msgs~ 5 out_dgrams=  5 out_sizes={1165: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1165
+ch=3 size= 1112 msgs~ 5 out_dgrams=  5 out_sizes={1169: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1169
+ch=3 size= 1116 msgs~ 5 out_dgrams=  5 out_sizes={1173: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1173
+ch=3 size= 1120 msgs~ 5 out_dgrams=  5 out_sizes={1177: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1177
+ch=3 size= 1124 msgs~ 5 out_dgrams=  5 out_sizes={1181: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1181
+ch=3 size= 1128 msgs~ 5 out_dgrams=  5 out_sizes={1185: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1185
+ch=3 size= 1132 msgs~ 5 out_dgrams=  5 out_sizes={1189: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1189
+ch=3 size= 1136 msgs~ 5 out_dgrams=  5 out_sizes={1193: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1193
+ch=3 size= 1140 msgs~ 5 out_dgrams=  5 out_sizes={1197: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1197
+ch=3 size= 1144 msgs~ 5 out_dgrams=  5 out_sizes={1201: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1201
+ch=3 size= 1148 msgs~ 5 out_dgrams=  5 out_sizes={1205: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1205
+ch=3 size= 1152 msgs~ 5 out_dgrams=  5 out_sizes={1209: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1209
+ch=3 size= 1156 msgs~ 5 out_dgrams=  6 out_sizes={76: 1, 1213: 5} back_dgrams=6 back_sizes={100: 1, 57: 5} overhead_udp_payload=57 with_ip_udp=85 median_out=1213.0
+ch=3 size= 1160 msgs~ 5 out_dgrams= 10 out_sizes={61: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=53 with_ip_udp=81 median_out=637.0
+ch=3 size= 1164 msgs~ 5 out_dgrams= 10 out_sizes={65: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=49 with_ip_udp=77 median_out=639.0
+ch=3 size= 1168 msgs~ 5 out_dgrams= 10 out_sizes={69: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=45 with_ip_udp=73 median_out=641.0
+ch=3 size= 1172 msgs~ 5 out_dgrams= 10 out_sizes={73: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=41 with_ip_udp=69 median_out=643.0
+ch=3 size= 1176 msgs~ 5 out_dgrams= 10 out_sizes={77: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=37 with_ip_udp=65 median_out=645.0
+ch=3 size= 1180 msgs~ 5 out_dgrams= 10 out_sizes={81: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=33 with_ip_udp=61 median_out=647.0
+ch=3 size= 1184 msgs~ 5 out_dgrams= 10 out_sizes={85: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=29 with_ip_udp=57 median_out=649.0
+ch=3 size= 1188 msgs~ 5 out_dgrams= 10 out_sizes={89: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=25 with_ip_udp=53 median_out=651.0
+ch=3 size= 1192 msgs~ 5 out_dgrams= 10 out_sizes={93: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=21 with_ip_udp=49 median_out=653.0
+ch=3 size= 1196 msgs~ 5 out_dgrams= 10 out_sizes={97: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=17 with_ip_udp=45 median_out=655.0
+ch=3 size= 1200 msgs~ 5 out_dgrams= 10 out_sizes={101: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=13 with_ip_udp=41 median_out=657.0
+ch=3 size= 1204 msgs~ 5 out_dgrams= 10 out_sizes={105: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=9 with_ip_udp=37 median_out=659.0
+ch=3 size= 1208 msgs~ 5 out_dgrams= 10 out_sizes={109: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=5 with_ip_udp=33 median_out=661.0
+ch=3 size= 1212 msgs~ 5 out_dgrams= 10 out_sizes={113: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=1 with_ip_udp=29 median_out=663.0
+ch=3 size= 1216 msgs~ 5 out_dgrams= 10 out_sizes={117: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-3 with_ip_udp=25 median_out=665.0
+ch=3 size= 1220 msgs~ 5 out_dgrams= 10 out_sizes={121: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-7 with_ip_udp=21 median_out=667.0
+ch=3 size= 1224 msgs~ 5 out_dgrams= 11 out_sizes={76: 1, 125: 5, 1213: 5} back_dgrams=6 back_sizes={57: 5, 100: 1} overhead_udp_payload=-11 with_ip_udp=17 median_out=125
+ch=3 size= 1228 msgs~ 5 out_dgrams= 10 out_sizes={129: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-15 with_ip_udp=13 median_out=671.0
+ch=3 size= 1232 msgs~ 5 out_dgrams= 10 out_sizes={133: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-19 with_ip_udp=9 median_out=673.0
+ch=3 size= 1236 msgs~ 5 out_dgrams= 12 out_sizes={89: 1, 100: 1, 137: 5, 1213: 5} back_dgrams=7 back_sizes={57: 5, 76: 1, 89: 1} overhead_udp_payload=-23 with_ip_udp=5 median_out=137.0
+ch=3 size= 1240 msgs~ 5 out_dgrams= 10 out_sizes={141: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-27 with_ip_udp=1 median_out=677.0
+ch=3 size= 1244 msgs~ 5 out_dgrams= 10 out_sizes={145: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-31 with_ip_udp=-3 median_out=679.0
+ch=3 size= 1248 msgs~ 5 out_dgrams= 10 out_sizes={149: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-35 with_ip_udp=-7 median_out=681.0
+ch=3 size= 1252 msgs~ 5 out_dgrams= 10 out_sizes={153: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-39 with_ip_udp=-11 median_out=683.0
+ch=3 size= 1256 msgs~ 5 out_dgrams= 10 out_sizes={157: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-43 with_ip_udp=-15 median_out=685.0
+ch=3 size= 1260 msgs~ 5 out_dgrams= 10 out_sizes={161: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-47 with_ip_udp=-19 median_out=687.0
+ch=3 size= 1264 msgs~ 5 out_dgrams= 10 out_sizes={165: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-51 with_ip_udp=-23 median_out=689.0
+ch=3 size= 1268 msgs~ 5 out_dgrams= 10 out_sizes={169: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-55 with_ip_udp=-27 median_out=691.0
+ch=3 size= 1272 msgs~ 5 out_dgrams= 10 out_sizes={173: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-59 with_ip_udp=-31 median_out=693.0
+ch=3 size= 1276 msgs~ 5 out_dgrams= 10 out_sizes={177: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-63 with_ip_udp=-35 median_out=695.0
+ch=3 size= 1280 msgs~ 5 out_dgrams= 10 out_sizes={181: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-67 with_ip_udp=-39 median_out=697.0
+ch=3 size= 1284 msgs~ 5 out_dgrams= 10 out_sizes={185: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-71 with_ip_udp=-43 median_out=699.0
+ch=3 size= 1288 msgs~ 5 out_dgrams= 11 out_sizes={100: 1, 189: 5, 1213: 5} back_dgrams=6 back_sizes={57: 5, 76: 1} overhead_udp_payload=-75 with_ip_udp=-47 median_out=189
+ch=3 size= 1292 msgs~ 5 out_dgrams= 11 out_sizes={76: 1, 193: 5, 1213: 5} back_dgrams=6 back_sizes={57: 5, 100: 1} overhead_udp_payload=-79 with_ip_udp=-51 median_out=193
+ch=3 size= 1296 msgs~ 5 out_dgrams= 10 out_sizes={197: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=-83 with_ip_udp=-55 median_out=705.0
+ch=2 size= 1150 msgs~ 5 out_dgrams=  5 out_sizes={1209: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=59 with_ip_udp=87 median_out=1209
+ch=1 size= 1150 msgs~ 5 out_dgrams=  5 out_sizes={1209: 5} back_dgrams=4 back_sizes={57: 4} overhead_udp_payload=59 with_ip_udp=87 median_out=1209
+ch=2 size= 1160 msgs~ 5 out_dgrams= 10 out_sizes={61: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=53 with_ip_udp=81 median_out=637.0
+ch=1 size= 1160 msgs~ 5 out_dgrams= 10 out_sizes={61: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=53 with_ip_udp=81 median_out=637.0
+ch=2 size= 1170 msgs~ 5 out_dgrams= 10 out_sizes={73: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=43 with_ip_udp=71 median_out=643.0
+ch=1 size= 1170 msgs~ 5 out_dgrams= 10 out_sizes={73: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=43 with_ip_udp=71 median_out=643.0
+ch=2 size= 1180 msgs~ 5 out_dgrams= 10 out_sizes={81: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=33 with_ip_udp=61 median_out=647.0
+ch=1 size= 1180 msgs~ 5 out_dgrams= 10 out_sizes={81: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=33 with_ip_udp=61 median_out=647.0
+ch=2 size= 1190 msgs~ 5 out_dgrams= 11 out_sizes={93: 5, 100: 1, 1213: 5} back_dgrams=6 back_sizes={57: 5, 76: 1} overhead_udp_payload=23 with_ip_udp=51 median_out=100
+ch=1 size= 1190 msgs~ 5 out_dgrams= 10 out_sizes={93: 5, 1213: 5} back_dgrams=5 back_sizes={57: 5} overhead_udp_payload=23 with_ip_udp=51 median_out=653.0
+ch=2 size= 1200 msgs~ 5 out_dgrams=  4 out_sizes={101: 2, 1213: 2} back_dgrams=2 back_sizes={57: 2} overhead_udp_payload=13 with_ip_udp=41 median_out=657.0
+ch=1 size= 1200 msgs~ 5 out_dgrams=  0 out_sizes={} back_dgrams=0 back_sizes={} overhead_udp_payload=-1200 with_ip_udp=-1172 median_out=0
+ch=2 size= 1210 msgs~ 5 out_dgrams=  0 out_sizes={} back_dgrams=0 back_sizes={} overhead_udp_payload=-1210 with_ip_udp=-1182 median_out=0
+ch=1 size= 1210 msgs~ 5 out_dgrams=  0 out_sizes={} back_dgrams=0 back_sizes={} overhead_udp_payload=-1210 with_ip_udp=-1182 median_out=0
