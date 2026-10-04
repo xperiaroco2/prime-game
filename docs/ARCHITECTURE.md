@@ -466,7 +466,8 @@ its fields in order and its payload cap. **The field names are `core/`'s**: an i
 (`MatchCommand`), an event's are the keys of its `to_dict()`. So a decoded message compares equal with what `core/`
 emitted, which the leak test needs (§4.6).
 
-**Wire types.** Little-endian; sizes in bytes.
+#### 4.3.1 Wire types
+Little-endian; sizes in bytes.
 
 | Type | Bytes | Encoding | The decoder rejects |
 |---|---|---|---|
@@ -499,7 +500,8 @@ spawn tag and station kind, plus the player count and the layout, each a full `n
 when the host starts, with the kind named; a test runs it over every mode in `content/`, so `verify` catches a
 content edit before a playtest instead of the encoder refusing a reliable event in one.
 
-**Intents** (C→H). Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
+#### 4.3.2 Intents (C→H)
+Every RELIABLE intent carries `seq`, the client's own rising number that a `Rejected` names.
 `Hello`'s is 0 (its layout is frozen, below). `MoveClaim` has none: a failed check gets `Correction`. A client stops
 claiming when its own copy of the mode says the new phase does not accept `MoveClaim` (§3.1).
 - **Before its `Welcome`** a client treats any `Rejected` as the end of its join, with a message naming the reason.
@@ -529,7 +531,8 @@ claiming when its own copy of the mode says the new phase does not accept `MoveC
 | 12 | `GiveUp` | RELIABLE | `seq: u32` (M4-4) | 4; 4 |
 | 13 | `Swap` | RELIABLE | `seq: u32` (M4-5, #141) | 4; 4 |
 
-**Debug commands** (C→H, E17): only in a debug build's table. `server/` takes them from the host's own client (peer 1)
+#### 4.3.3 Debug commands (C→H, E17)
+Only in a debug build's table. `server/` takes them from the host's own client (peer 1)
 only and turns each into the command it names; from another peer, or on a release host, whose table lacks the kind,
 the message is malformed (§4.5). They are not intents: `core/` does not answer them with `Rejected` (§3.3 lists them
 among the commands `server/` originates), and the seq only orders them in the client's log.
@@ -539,7 +542,8 @@ among the commands `server/` originates), and the seq only orders them in the cl
 | 24 | `ForceRole` (§9.4 `DealRoles`, 2j) | RELIABLE | `seq: u32`, `peer: peer` (the player whose role is forced, which becomes the command's peer), `has_role: bool`, then `role: id` when true; false clears the forced role (the command's `role` is then `""`, as `Match` reads it). `role` decodes as a `String`, not a `StringName`: `Match` reads it with `get_string`, which returns its default for a `StringName` | 19 for `dissident`; 42 |
 | 25 | `ForceClock` (§9.7 `clock_s`, M4-3) | RELIABLE | `seq: u32`, `peer: peer` (the sender itself, the host's own player, as every debug kind names a player), `seconds: u16`: the length of the match clocks that `StartClock` starts from now on, in place of the `match_duration` setting's whole minutes (`MatchState.forced_clock_s`); 0 clears it, and `ResetMatch` keeps it, as a forced role | 10; 10 |
 
-**Events** (H→C), all RELIABLE: one-off facts, and state sent only on change. `SelfStatus` is such state: on LATEST,
+#### 4.3.4 Events (H→C)
+All RELIABLE: one-off facts, and state sent only on change. `SelfStatus` is such state: on LATEST,
 losing the last change (stamina back to full) would leave a stale number on the HUD for good. Audiences: §4.2; a
 directive has no row, because it reaches no peer.
 
@@ -580,7 +584,7 @@ directive has no row, because it reaches no peer.
 | 64 | `Swapped` | `peer: peer` (audience *everyone*, M4-5, #141) | 4; 4 |
 | 65 | `TaskState` | `task: u8`, `type: id`, `done: u16`, `total: u16` (audience *everyone*, M4-5, E30) | 14 for `delivery`; 38 |
 
-**State and voice.**
+#### 4.3.5 State and voice
 
 | Kind | Message | Dir | Lane | Fields | Bytes; cap |
 |---|---|---|---|---|---|
@@ -726,7 +730,8 @@ calls `step(now_usec)` from `_physics_process` with `Time.get_ticks_usec()`, bef
 (`process_physics_priority`); tests and the bots runner call it with a clock of their own (§4.6). The host's own
 client is a `ClientSession` on the loopback like any other (§4.6) and reads nothing of `HostSession`.
 
-**Starting.** (1) Load the game mode and every level it names (the lobby and the maps), build each level's collision
+#### 4.5.1 Starting
+(1) Load the game mode and every level it names (the lobby and the maps), build each level's collision
 world (3c, below), then read the markers with `MarkerReader.read_levels` (2j) through the host's `WorldQuery`, which
 `read_levels` points at each level with `use_level(path)` before reading it (3c; the flat fake ignores it). So the
 `circle` markers snap to the floor the host plays on: option (b) of §10's reader question, recommended on #66. A
@@ -736,12 +741,13 @@ mode stops the host with the refusals shown. `keep_history` stays off (the bots 
 transport and link the own client, then `Match.start(0)`: host tick 0 is the session's start (hosting first, so the
 start slice's `RefuseJoins` or `AllowJoins` reaches the transport).
 
-**Host ticks come from the clock:** tick = ⌊(now − start) × `Ticks.RATE` / 10^6⌋, in microseconds. Not a count of
+#### 4.5.2 Host ticks come from the clock
+Tick = ⌊(now − start) × `Ticks.RATE` / 10^6⌋, in microseconds. Not a count of
 physics frames: Godot runs at most `Engine.max_physics_steps_per_frame` physics steps per rendered frame and drops the
 rest, so after a 5 s freeze a frame count falls behind the clients' clocks for good (the M1 lesson "stamp from the
 host clock and skip ticks", §7). With physics at 60 Hz (the default) a core tick falls due about every third step.
 
-**One step**, in this order (each choice names what it prevents):
+#### 4.5.3 One step, in this order (each choice names what it prevents)
 
 | # | What | Why |
 |---|---|---|
@@ -757,7 +763,8 @@ So a command is stamped with the tick that was due when the host read it, and th
 Accepted in step 1: a command that waited in the socket during a host freeze is stamped when the host reads it, so a
 `SetReady(false)` or a `LoadAck` sent during the freeze can lose to the countdown's end or the loading deadline.
 
-**One outbox slice per call.** `HostSession` takes `take_outbox()` after every `Match.apply` and every `Match.tick`
+#### 4.5.4 One outbox slice per call
+`HostSession` takes `take_outbox()` after every `Match.apply` and every `Match.tick`
 call (steps 1 and 4), keeping each slice with the call that emitted it, and delivers the slices in order (5). Three
 rules need the slices. (1) A reused peer id: from `peer_left(p)` until the call that applies `PeerLeft(p)`, p is left
 out as a recipient of every slice taken before that call, as the voice relay does (below). Otherwise an event `core/`
@@ -770,7 +777,8 @@ runs as in the core runner: `sender` is the command's peer, `check_event` sees t
 emitted the event, and `check_tick` runs after every `Match.tick` call, catch-up ticks included (§4.6). (3) A failed
 deal (below) is found before the slice is delivered.
 
-**Voice relay.** The routing table holds `speakers_for(l)` for every present player l, refreshed after every
+#### 4.5.5 Voice relay
+The routing table holds `speakers_for(l)` for every present player l, refreshed after every
 `Match.tick` call (catch-up ticks included: a catch-up that crosses Round → End must not relay under Round's routing),
 so between two ticks it is the routing that `view_of` records for the last one (§5). A `VoiceUp` from speaker s goes, as
 a `VoiceDown` (s, the stream's next seq, `ticked_through()`, the bytes unchanged), to each listener l ≠ s whose entry
@@ -800,7 +808,8 @@ still routes it: its own stream's seq, seen failing when every copy took the fir
 no public path makes such a listener today, so the test marks it by hand) and the leak test in `bots`, `bots-enet` and
 `bots --chaos` (§4.6).
 
-**Rate limits and malformed packets** (E7; the numbers are placeholders, "not a decision"). The accident they bound:
+#### 4.5.6 Rate limits and malformed packets
+(E7; the numbers are placeholders, "not a decision"). The accident they bound:
 a client bug sends an intent every frame; every command, and every `WorldQuery` answer it causes, stays in the command
 log for the whole match (§3.3), so one looping client grows the host's memory and work without end.
 - Per peer, three token buckets, refilled for the host time elapsed in step 2, before the poll:
@@ -825,7 +834,8 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
   at the threshold and ends the session (3f tests it).
 - The counters join the transport's summary line (at most one per 10 s, §4).
 
-**The host's counters** (debug builds only; the M5 ADR's E47 as amended, its §3 item 11 and §4; built in M5-4,
+#### 4.5.7 The host's counters
+(debug builds only; the M5 ADR's E47 as amended, its §3 item 11 and §4; built in M5-4,
 #218). `HostNode.counters()` gives the budgets' and the codec's counts (`over_budget`, `bad_payloads`,
 `malformed_disconnects`), which the F3 overlay may show at any time; its `over_budget` leaves out the voice frames
 over budget (`HostSession.over_budget_but_voice()`), which only the relay's counters give. The voice relay's are apart:
@@ -853,7 +863,7 @@ datagrams counted at once), `tests/unit/client/ui/debug_overlay_test.gd` and
 `tests/integration/client/player/player_network_test.gd` (a host `Game` shows them in the lobby and none in the
 round).
 
-**Loading a level and `LoadAck`.**
+#### 4.5.8 Loading a level and `LoadAck`
 - **Clients**, the host's own included: on `LoadMatch` a client loads the map only if its own copy of the mode lists
   that path (never a path from the wire alone), with `ResourceLoader.load_threaded_request` and a
   `load_threaded_get_status` check every frame, so its transport keeps polling while the level loads. It instantiates
@@ -863,7 +873,7 @@ round).
 - **The host's collision worlds** are built when the session starts, so loading asks nothing of `server/`: the host's
   own `LoadAck` means that its client loaded, and `WorldQuery` already answers for every level.
 
-**`WorldQuery` over the host's own worlds** (3c; §7.1).
+#### 4.5.9 `WorldQuery` over the host's own worlds (3c; §7.1)
 - **The world** (E8). Per level, a `World3D.new()` whose `space` gets one static body per `StaticBody3D` of layer 1
   (`world`) in the level's scene, through `PhysicsServer3D`: `body_create`, `body_set_mode` (static), `body_add_shape`
   with each `CollisionShape3D`'s shape RID and its transform composed up to the scene's root, `body_set_space`. The
@@ -914,7 +924,8 @@ round).
   (fixture levels with a wall, a ledge and a low crate in `tests/fixtures/levels/`, a package put down beside the ledge
   through a `Match`, and 2j's flat levels).
 
-**The command log and replays** (E13). The host keeps the log in memory (§3.3). A debug-build host writes the session's
+#### 4.5.10 The command log and replays (E13)
+The host keeps the log in memory (§3.3). A debug-build host writes the session's
 log to `user://replays/` when the session ends (never after each match) and keeps the last 10: the log holds the session
 seed, from which every later match's seed is derived (§3.3), so a log written after match 1 would let the host's human
 or agent, debugging mid-playtest, replay it and read every role of match 2; the bots runner writes a failed scenario's
@@ -922,7 +933,8 @@ log next to its report, so `Match.replay` reproduces the failure with the same b
 reading back). The log holds the seed: it stays on the host's disk and is never sent (§5). A host started from a task
 worktree writes into that worktree's own `user://` (#182, `docs/AGENT_WORKFLOW.md` §11), not the main checkout's.
 
-**A failed deal is fatal** (the engineer's answer on #90, item 2, 2026-09-30). `core/` has no guard for a deal that
+#### 4.5.11 A failed deal is fatal
+(the engineer's answer on #90, item 2, 2026-09-30). `core/` has no guard for a deal that
 cannot complete: a `Delivery` deal that could not place its packages or circles logs a match error
 (`Match.record_error`, kept in `Match.diagnostics`) and the round starts anyway, with no tasks, which every task done
 turns into an instant crew win (§3.4). Which row deals, and which phase it enters, is the game mode's data (invariant
@@ -933,10 +945,12 @@ So any row whose actions fail is fatal, a deal or not; an error outside a row, s
 mode lacks in the same host tick, is logged and the session goes on. The bots runner already fails a scenario on any
 match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
 
-**Ending.** The host quits, its own client's load fails, or the deal fails (above): `close()`, and every client sees
+#### 4.5.12 Ending
+The host quits, its own client's load fails, or the deal fails (above): `close()`, and every client sees
 `host_lost` (#40).
 
-**Built in 3f (#100).** The API that 3h and 3i use; the rest is in `server/CLAUDE.md` and the class comments.
+#### 4.5.13 Built in 3f (#100)
+The API that 3h and 3i use; the rest is in `server/CLAUDE.md` and the class comments.
 - `HostSession` (`server/host_session.gd`): `HostSession.new(transport, schema)` on a transport not yet hosting.
   `start(mode, port, max_clients, now_usec)` (the real levels and a `Crypto` seed) or `start_with(mode, world,
   layouts, port, max_clients, now_usec, seed)` (tests and runners on flat levels) returns false with `errors` when
@@ -1361,7 +1375,8 @@ recommendation was (b)). It is the client
 that M4-6 to M4-9 build; the core rework of vision revision 1 (M4-1 to M4-5) rewrites §3 to §9 in the issues that
 change their code, and the client reads the events those issues add (the ADR's §4 lists them).
 
-**One process, one persistent root** (E19). The main scene `client/app/game.tscn` (`application/run/main_scene`)
+#### 4.7.1 One process, one persistent root (E19)
+The main scene `client/app/game.tscn` (`application/run/main_scene`)
 lives for the whole process:
 
 | Node | What it is |
@@ -1377,7 +1392,8 @@ and frees it at the end of the frame (4.7.2), so a `HostNode` inside it would cl
 every client would see `host_lost` at the first map load. There is no autoload, which `check` and every test run
 would load.
 
-**Who owns what** (E18). Hosting (the menu's Host, or `--host` after `--`) does what `tools/run/headless_session.gd`
+#### 4.7.2 Who owns what (E18)
+Hosting (the menu's Host, or `--host` after `--`) does what `tools/run/headless_session.gd`
 does in M3: an `EnetTransport` with the game's kind table, `HostSession.start(mode, port, mode.max_players,
 HostNode.now_usec())`, a `HostNode`, then the own `ClientSession` on `own_client`. Joining is an `EnetTransport`, a
 `ClientSession` and `join(address, port)`. The mode is `content/modes/base_mode.tres`. `client/app/` is the only part
@@ -1389,7 +1405,7 @@ port)` builds and starts the `HostSession` and keeps it private; the game reads 
 `net/`'s "names no `core/` class"; it is seen rejecting a planted `Snapshots.for_peer` call and `_host.game`. So the
 host's own player sees only what its `ClientSession` decoded.
 
-**One physics frame.**
+#### 4.7.3 One physics frame
 
 | Priority | Node | What it does |
 |---|---|---|
@@ -1423,7 +1439,7 @@ the others again from the round's poses behind the interpolation delay, at their
 (its markers share the round's coordinates) may have placed the local player, pushed 0.35 m. So `AvatarViews` forgets
 the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`.
 
-**The flow.**
+#### 4.7.4 The flow
 
 | State (`ClientModel` and the session) | Screen | Level under `World` | The local player |
 |---|---|---|---|
@@ -1474,7 +1490,8 @@ the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`.
 - **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
   runner's `--stop-file` and `--alive-file`; the parser moves from `tools/run/headless_session.gd` to `client/app/`.
 
-**Built in M4-6 (#142)**, the shell: `client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
+#### 4.7.5 Built in M4-6 (#142), the shell
+`client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
 `GameFlow` (the flow table above as a pure class: the screen and the level per session state and phase, read from
 the client's own `PhaseSpec`: a lobby level shows the lobby screen, a phase that accepts `LoadAck` the loading screen,
 one that accepts `ReturnToLobby` or a match with a winner the end screen, any other map phase the round),
@@ -1509,7 +1526,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   The screens' `shot`s: `client/dev/<screen>_preview.tscn` (`screen_preview.gd`, a fake `ClientModel`).
 - The runner's windows for `host` and `join` (E20) came with #149, the rest of M4-6: below.
 
-**Movement on the network.**
+#### 4.7.6 Movement on the network
 - **Claims:** every physics step the controller calls `set_motion` (its position and velocity; as the facing, the
   camera's 3D look vector, at most 89° up or down; whether it sprints, gives movement input and stands on the floor)
   and `count_jump` at a jump, and `set_facing` when it turns outside the step (the respawn's level look, #191);
@@ -1548,7 +1565,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   checks use it), and only its mesh lies down. Physics layer 3 is `downed` (`PhysicsLayers.DOWNED`, built in M4-9),
   which no push search looks at: the downed collide with no player.
 
-**Built in M4-7 (#143)**, movement on the network:
+#### 4.7.7 Built in M4-7 (#143), movement on the network
 - `client/player/`: `PlayerController` takes `rules` (the mode's `PlayerRules`) and, `attach()`ed to the
   `ClientSession`, ends every physics step with `set_motion` (the camera's look vector as the facing) and
   `count_jump` at a jump, and has its `PredictedStamina` settle each claim and follow each `SelfStatus` (#155,
@@ -1585,7 +1602,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Not headless: how the others look moving, the overlay's key and the feel; the one-PC playtest (the M4 ADR's §6)
   checks them, and the two-machine one records its movement notes on #76.
 
-**The revision in 3D.**
+#### 4.7.8 The revision in 3D
 - **The life fold** (E25): `ClientModel` keeps each player's life from the public events (`KnockedDown` downed,
   `Revived` living, `Died` dead with a body, `Respawned` living with the body removed, `PlayerLeft` gone with any
   body; everyone living at `RoundStarted` and in the lobby). `life_of(peer)` (built in M4-2 with the knockdown,
@@ -1676,7 +1693,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   progress; no map. **A circle** is a translucent cylinder of its station kind's radius and height in
   `StationPlaced`'s colour, dimmed once `PackageDelivered` names it.
 
-**Built in M4-9 (#145)**, the life states in 3D:
+#### 4.7.9 Built in M4-9 (#145), the life states in 3D
 - `client/player/`: `PlayerController.life` (`set_life`, replacing the ghost flag and `set_ghost`) follows the own
   life fold (`Game._sync_life`): living on the living layer; downed on the `downed` layer, crawling, with its lying
   mesh (`Lying`); dead on no layer, no mesh, and no physics step (the controller returns at once and `Game` stops
@@ -1729,7 +1746,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Not headless: the keys and the mouse, the feel of the cameras and the music; the one-PC playtest (the M4 ADR's
   §6) checks them.
 
-**Built in M4-8 (#144)**, items, hands, the HUD and the task screen:
+#### 4.7.10 Built in M4-8 (#144), items, hands, the HUD and the task screen
 - `client/world/`: `ItemWorld` (`Items` under `World`, made by `Game`) holds `ItemViews`, `CircleViews`,
   `ItemInteractions` and `WorldSounds` and gives the HUD what the model does not hold (`hud_local()`: the predicted
   stamina and the crosshair's hint; `Game` adds whom a dead player watches, #168). `ItemView` is one item's
@@ -1781,7 +1798,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
   ADR's §6), and a human picks the CC0 sounds.
 
-**Built in #169 (an M4 follow-up of the one-PC playtest)**, one Esc menu with tabs:
+#### 4.7.11 Built in #169 (an M4 follow-up of the one-PC playtest), one Esc menu with tabs
 - `client/ui/`: `EscMenuState` (pure: open or closed, the tabs per screen, the selected tab, the host's questions
   before Leave and Quit, who may change the settings: the host, while the phase's `PhaseSpec` accepts its
   `ChangeSettings`), `EscMenu` (draws it: the tab buttons, a scrolling page on the right), `LobbyPanel` (now the
@@ -1807,7 +1824,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
   tab shows.
 
-**Built in #168**, the follow-up of the one-PC playtest on `release/m4` (PR #167):
+#### 4.7.12 Built in #168, the follow-up of the one-PC playtest on `release/m4` (PR #167)
 - The spectate camera: the playtest saw it "at another point than the target's eyes". Headless it has no offset:
   `tests/integration/client/life/spectate_network_test.gd` (NetPair; the joiner dies and watches the host's player
   while it walks and turns) finds the camera equal to the target's interpolated eye transform every physics frame,
@@ -1832,7 +1849,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `client/dev/spectate_preview.tscn`.
 - Not headless: the feel of spectating; the engineer repeats the spectating part of the one-PC playtest.
 
-**Built in #191**, the player looked up after a respawn (an M5 filler):
+#### 4.7.13 Built in #191, the player looked up after a respawn (an M5 filler)
 - `client/player/player_controller.gd`: the own `Respawned` (the controller's session events) calls
   `look_level()`: the head's pitch 0, the body's yaw kept (the engineer's answer on #191, no protocol change), and
   `ClientSession.set_facing` (new: the next `MoveClaim`'s facing, nothing else of `set_motion`'s report) with that
@@ -1852,7 +1869,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - Not headless: the mouse itself (headless keeps no mouse mode, so the tests call `look()`, which the mouse's
   `_unhandled_input` calls); the respawn part of the one-PC playtest.
 
-**What the client renders** follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
+#### 4.7.14 What the client renders
+What the client renders follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
 M4 client PR: only the own model, the interpolated poses and the own mode; spectating from the public snapshot only;
 the downed camera at or below eye height, never through the level, and showing nothing out of sight of the body's
 eye; no screen with an item's or a player's
@@ -1863,7 +1881,7 @@ the attacker beyond the accepted exceptions; hidden information in debug builds 
 World sounds play within the hearing range only (E33), measured from the ears (E40). What the client plays of voice
 follows the M5 ADR's checklist (its §3; §6 below).
 
-**Built in M5-5 (#219)**, hearing voice:
+#### 4.7.15 Built in M5-5 (#219), hearing voice
 - `client/world/`: `VoiceViews` (`Voices` under `World`, physics priority 8, after `LifeView` placed the ears) plays
   `ClientSession.voice_received(speaker, seq, tick, opus)` frames through one `VoiceSpeaker` per speaker on its
   `RemotePlayerBody.mouth_point()` (eye height − 0.1 m, a placeholder), by the rules of §6's "Playback and the ears".
@@ -1888,7 +1906,8 @@ follows the M5 ADR's checklist (its §3; §6 below).
 - Not headless: how a voice sounds (the direction, the fade to 8 m, no pop at the edge, the downed hearing from the
   body); the one-PC listening test of the M5 ADR's §6, after M5-6.
 
-**Built in M5-7 (#221)**, occlusion's muffle (the CC0 files had not arrived: they, their credits and CI's LFS step are
+#### 4.7.16 Built in M5-7 (#221), occlusion's muffle
+(the CC0 files had not arrived: they, their credits and CI's LFS step are
 a follow-up on #144 and #145):
 - `client/world/`: `Muffle` (pure) holds how muffled one sound is: 0 clear, 1 behind the level; it eases over
   100 ms, gives the player's offset (−8 dB at 1) and its bus (muffled from 0.75 on the way in to 0.25 on the way
@@ -1925,7 +1944,7 @@ a follow-up on #144 and #145):
 - Not headless: how the muffle sounds (8 dB and 1 kHz are placeholders, the bus switch within the ease, a door
   jamb's edge): the listening test of the M5 ADR's §6.
 
-**Built in M5-6 (#220)**, speaking (§6's "Capture and the gate"):
+#### 4.7.17 Built in M5-6 (#220), speaking (§6's "Capture and the gate")
 - `voice/`: `VoiceCapture` (the device list, the chosen device opened, every whole 20 ms chunk at the device's rate
   with its age, errors in words, the "opening" mark through `mark_changed`) over a `VoiceMicrophone` (the machine's,
   through 4.7's `AudioServer` input API; `VoiceToneMicrophone`, the debug test tone; the tests' `FakeMicrophone`).
@@ -1960,15 +1979,18 @@ a follow-up on #144 and #145):
 - Not headless: a real microphone (headless runs open none: the Dummy driver captures nothing), the #22 laptop's
   windowed start with input enabled (the M5 ADR §6), and the one-PC and two-machine listening tests.
 
-**What stays headless:** `HostSession`, `ClientSession`, `ClientModel`, `DecodedView`, the bots runner and the leak
+#### 4.7.18 What stays headless
+`HostSession`, `ClientSession`, `ClientModel`, `DecodedView`, the bots runner and the leak
 test, `host` and `join` with `--headless`, and every GdUnit4 suite. A bot loads no scene.
 
-**`host` and `join` with windows** (E20): `tools\run.cmd host [--clients N]` and `join <address>` run the game scene
+#### 4.7.19 `host` and `join` with windows (E20)
+`tools\run.cmd host [--clients N]` and `join <address>` run the game scene
 in windows, tiled on one PC with `--position`, with Vulkan as everywhere on Windows; `--headless` runs the M3
 session of §4.6. In a shell where `CLAUDECODE` is set (an agent's) the default stays headless, so an unattended run
 never opens a window on a human's screen.
 
-**Built in #149 (M4-6)** in `tools/runner/hostjoin.py`: each window is `client/app/game.tscn` with the arguments of
+#### 4.7.20 Built in #149 (M4-6) in `tools/runner/hostjoin.py`
+Each window is `client/app/game.tscn` with the arguments of
 `LaunchOptions` after `--` (`--host [--local]` or `--join=<address>`, `--port=`, the runner's stop and alive files),
 so it skips the menu, and stops cleanly for the runner as the headless session does. The console exe (`GODOT_BIN`)
 opens them, since the runner reads each process's lines (the host's `session: hosting` starts the clients; a host
@@ -1984,7 +2006,8 @@ tiles, `--headless`), and `verify`'s `game` step runs `game.tscn` headless throu
 (`--local --no-replay`) and one client over ENet on a free port of 127.0.0.1, both welcomed into the lobby, then
 both stopped through the stop file with exit 0 and no engine error line (about 5 s).
 
-**The import before a launch (#174).** Only an import rebuilds Godot's global class cache, the uid cache and the
+#### 4.7.21 The import before a launch (#174)
+Only an import rebuilds Godot's global class cache, the uid cache and the
 imported assets, so a game started after a `git switch` that brought a new `class_name` script failed to parse
 (`Identifier "MousePointer" not declared`, the engineer's playtest). `check.ensure_import()` runs before Godot starts
 in `host`, `join`, `run` (and through it `perf` and `bots`), `playcheck`, `shot` and `verify`'s `game` step: it
@@ -1998,7 +2021,7 @@ Tests: `tools/runner/tests/test_import_freshness.py` (the test over throwaway fo
 before the import, each command's order of finding Godot, importing and starting it, and, with the pinned Godot, a
 `class_name` script added after the import: the game fails without the import and `run` imports first and passes).
 
-**`playcheck`: scripted windows with screenshots (#186)**, the AI productivity design's P9
+#### 4.7.22 `playcheck`: scripted windows with screenshots (#186), the AI productivity design's P9
 (`docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md`, item 8), for the UI and camera bugs that
 only a playtest saw (#168, #169). `tools\run.cmd playcheck [scenario ...]` runs each scenario of
 `tools/playcheck/scenarios/` as `host` would with windows: window 1 is `game.tscn` hosting on 127.0.0.1 (`--host
@@ -2063,7 +2086,8 @@ roster and countdown, the life panel, the spectator HUD and the knife in the fir
 and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner and its
 host-only Back to lobby, the lobby's cleared ready flags after End and a second round.
 
-**Tests.** The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
+#### 4.7.23 Tests
+The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
 `SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
 `tests/unit/client/`. `tests/integration/client/` drives physics headless: the real `PlayerController` walking,
 sprinting, jumping and climbing steps through a `ClientSession` over a `LoopbackHub` to a `HostSession` on a fixture
@@ -3059,7 +3083,9 @@ phase classes come in the task each row names.
   the fit check of §9.4; `on_fact`, `tick` and `emits` as before.
 
 ### 9.4 Parts (v0)
-**Conditions and costs** (a failed one rejects an intent with its reason, which reveals only what the column says):
+
+#### 9.4.1 Conditions and costs
+(a failed one rejects an intent with its reason, which reveals only what the column says):
 
 In the "Where" column, *actions only* marks a part that reads the actor (`Condition.reads_actor_state`): the mode
 check refuses it in a mode reaction or a win condition, which run for no player (§9.2, #299). *Anywhere* marks one
@@ -3088,7 +3114,7 @@ names the facts that do.
 | `ChannelFree` | the actor runs no channel and no channel targets the rule's target, apart from the channel being checked again: one channel per actor and one per target (one raiser at a time) | none | `busy`: every channel of the MVP (a raise) is public | actions only: reads the actor | M4-4 (#140, `core/channel/`) |
 | `Channeling` | the actor runs a channel | none | `not_channeling`: its own state | actions only: reads the actor | M4-4 (#140) |
 
-**Effects in rules:**
+#### 9.4.2 Effects in rules
 
 | Part | What it does | Settings | Emits (audience); raises | Built in |
 |---|---|---|---|---|
@@ -3101,7 +3127,8 @@ names the facts that do.
 | `Respawn` (held by `LifeTicks`, not by a rule) | the actor, dead, comes back at a marker of `tag` in the current level, drawn uniformly with its RNG purpose from the free ones (no living or downed player within `PlayerRules.respawn_free_m` of it); from all of them when none is free (the engineer's answer 5 on PR #133); then `LifeRules.respawn` (§9.3). A marker missing is a rule error, logged | `tag` (`respawn`), `rng_purpose` (`respawn`); no defaults: the data sets them. Demands: one `tag` marker on every map, which the layout check and the lobby's fit check sum through `LifeTicks` | `Respawned` (everyone), `Correction` (that player), its `SelfStatus` at the end of the tick | M4-3 (#139, `core/life/respawn.gd`) |
 | `ReportOutcome` | reports an outcome of the current phase (a button in the level, say; no MVP use) | `outcome`, `argument` | an outcome (§3.1), which reaches no peer (§9.2) | with the first mechanic that needs it; 2a builds the outcome reporting it calls |
 
-**Transition actions** (effects that a transition row runs; the base mode's rows are in §9.5):
+#### 9.4.3 Transition actions
+(effects that a transition row runs; the base mode's rows are in §9.5):
 
 | Part | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|
@@ -3113,7 +3140,8 @@ names the facts that do.
 | `EndMatch` | records the side of the `won` outcome as the winner (`MatchState.winner`). An argument that is no side of the mode is a rule error, logged, and nothing is recorded or emitted | none | `MatchEnded` (everyone): the side only | 2h (#64, `core/win/end_match.gd`) |
 | `ResetMatch` | resets the match state from the roster: items, stations, tasks and their task states, bodies, roles, life, health, stamina, cooldowns, counters, per-part state, the clock and the winner; drops the players who left; keeps the session's join count (§3.5); everyone un-ready. Runs before the row's `PlacePlayers` | none | `ReadyChanged` (everyone), per player | 2b (#58, `core/match/reset_match.gd`) |
 
-**Demands.** Every placing action, and every task type through `DealTasks`, answers one question: given the settings
+#### 9.4.4 Demands
+Every placing action, and every task type through `DealTasks`, answers one question: given the settings
 and the player count, how many markers of which spawn tag does it need (and, for a station kind, how many colours).
 2a defines that interface on `Effect` and `TaskType`, with no demand by default; M4-3 adds it to `TickSystem`, so
 `LifeTicks` forwards its `Respawn`'s one `respawn` marker, taken per tag at the most that any one phase played on the
@@ -3130,7 +3158,7 @@ played on it (per tag, the most that any one of those phases needs; `LayoutCheck
 each sum with the chosen map's markers of that tag and each colour count with its palette (`Demands.shortfalls`,
 §3.2, §9.6), checks the player count against the mode's bounds, and `SettingsChanged` shows them.
 
-**Tick systems, phase classes and voice rules:**
+#### 9.4.5 Tick systems, phase classes and voice rules
 
 | Part | Kind | What it does | Settings | Emits (audience) | Built in |
 |---|---|---|---|---|---|
@@ -3146,7 +3174,8 @@ each sum with the chosen map's markers of that tag and each colour count with it
 | `Proximity` | voice rule | every pair of present players within the radius (3D, §6), under the voice invariant (§6, for every rule): nobody hears the downed or the dead; its hearing radius is `radius_m` | `radius_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65, `ProximityVoice`); the radius M5-1 (#215) |
 | `RoundVoice` | voice rule | a living or downed listener hears a living speaker within `living_m`, measured from the listener's last accepted position (where a downed player lies); under the voice invariant nobody hears the downed or the dead, the dead hear nobody, and a player who left hears and is heard by nobody (§6); its hearing radius is `living_m` | `living_m` (0.5 to 100; the class default 0, which the mode check refuses) | the routing per tick | 2i (#65); the ghost radii removed in M4-1 (#137); the radius M5-1 (#215) |
 
-**A voice rule's hearing radius** (M5-1, #215; E41): every voice rule answers `hearing_radius_m()`, the farthest it
+#### 9.4.6 A voice rule's hearing radius (M5-1, #215; E41)
+Every voice rule answers `hearing_radius_m()`, the farthest it
 routes a voice (3D, its edge included), 0 when it routes nobody; `VoiceRule.radius_of(rule)` gives 0 for a phase with
 no voice rule. The client fades a voice to silence there and the leak test fails any frame from farther away (§5,
 §6), so a new voice rule returns the radius its `hears` uses; one that routes past it fails every scenario where
@@ -3161,7 +3190,7 @@ The first content, one entry each. It is provisional: built by the engineer's ag
 new part or piece of content gets an entry in this format:
 
 ```
-#### <Name> (<kind>)
+#### 9.5.<n> <Name> (<kind>)
 What it does: one sentence.
 Settings: name: value or type (allowed values, default).
 Produces: events (audience), facts, outcomes, state changes.
@@ -3169,7 +3198,7 @@ Visible to: who learns the result, and when.
 Status: designed in #33 · built in <PR>. Tests: path.
 ```
 
-#### Base mode (game mode)
+#### 9.5.1 Base mode (game mode)
 What it does: the MVP match, Lobby → Countdown → Loading → Round → End → Lobby (§3.2).
 Settings:
 - Written in `content/modes/base_mode.tres`, over neutral class defaults (0), so the designer sees every number
@@ -3230,7 +3259,7 @@ match from this data to the end and back to the lobby, twice, and a round
 with 0 dissidents set in its lobby.
 Voice rules through the phases: `tests/unit/voice/voice_by_phase_test.gd`.
 
-#### Crew (role)
+#### 9.5.2 Crew (role)
 What it does: the side that wins only when every task is done (§3.4).
 Settings: id `crew`; display name "Engineer" (its side's "Engineers"; vision revision 1, M4-1); side `crew`; knows
 its teammates: no; actions: none. The default role of `DealRoles`.
@@ -3239,7 +3268,7 @@ Visible to: that player only (§5); `MatchEnded` names only the winning side, ne
 Status: designed in #33; built in 2c (#59): `content/roles/crew.tres`; named Engineer in M4-1 (#137). Tests:
 `tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd` (which pins both names).
 
-#### Dissident (role)
+#### 9.5.3 Dissident (role)
 What it does: the side that wins when time is up or no crew member is alive; dissidents know each other.
 Settings: id `dissident`; display name "Dissident"; side `dissidents`; knows its teammates: yes; actions: none.
 Dealt by the quota `dissidents`, leaving at least one other player.
@@ -3248,7 +3277,7 @@ Visible to: `RoleAssigned` to that player; `Teammates` to each dissident, and to
 Status: designed in #33; built in 2c (#59): `content/roles/dissident.tres`. Tests:
 `tests/unit/deal/deal_roles_test.gd`, `tests/unit/content/content_modes_test.gd`.
 
-#### Delivery (task type)
+#### 9.5.4 Delivery (task type)
 What it does: one shared task of `packages` packages (the engineer's decision of 2026-09-30, #79); a subtask is done
 when its package rests inside its own circle, however it got there (§7.1). Nobody owns the task: any living player
 delivers any package.
@@ -3293,7 +3322,7 @@ again), `tests/unit/content/delivery_content_test.gd` (the base mode's task sett
 `TaskState` (`delivery_test.gd`, `delivery_deal_test.gd`, `tests/unit/deal/deal_tasks_test.gd`; the description's mode
 check in `tests/unit/content/mode_check_test.gd` and `item_intents_test.gd`).
 
-#### Package (item kind)
+#### 9.5.5 Package (item kind)
 What it does: the item a Delivery subtask moves; any living player may carry any package.
 Settings: id `package`; display name "Package"; spawn tag `package`; `hands` 2 (M4-5, vision revision 1: never on
 the belt, and a carrier cannot swap); actions: none, so `Use` with a package in hand is rejected (`nothing_to_do`).
@@ -3305,7 +3334,7 @@ Status: designed in #33; built in 2e (#61, `content/items/package.tres`) and 2f 
 (#141, provisional). Tests: the parts' in `tests/unit/items/` (a package built in code, two-handed); its delivery in
 `tests/unit/tasks/delivery_test.gd`; the base mode's `hands` in `tests/unit/content/item_intents_test.gd`.
 
-#### Knife (item kind)
+#### 9.5.6 Knife (item kind)
 What it does: the MVP's weapon: `Use` strikes in front of the holder.
 Settings: id `knife`; display name "Knife"; spawn tag `knife`; `hands` 1 (M4-5: it fits the belt, and one player
 may carry both knives, one in hand and one on the belt, V13); actions: one rule on `Use` with costs `Cooldown`
@@ -3331,7 +3360,7 @@ dead, the §3.4 order, a death of a player who is not downed refused; M4-2), `te
 respawn at a free marker or any, its events, invulnerability that strikes skip and nothing ends early, the avatar's
 flag; M4-3), `tests/unit/match/phases/round_phase_test.gd` (leaving mid-round).
 
-#### Every task done (win condition)
+#### 9.5.7 Every task done (win condition)
 What it does: the crew's only win.
 Settings: side `crew`; conditions: `AllSubtasksDone`.
 Produces: `won(crew)`, then `EndMatch`: `MatchEnded(crew)`.
@@ -3340,7 +3369,7 @@ Status: designed in #33; built in 2h (#64): `content/win_conditions/every_task_d
 `tests/unit/win/all_subtasks_done_test.gd`, `tests/unit/win/clock_ended_test.gd` (a delivery on the end tick),
 `tests/unit/content/content_modes_test.gd` (the base mode's data).
 
-#### No crew present (win condition)
+#### 9.5.8 No crew present (win condition)
 What it does: the dissidents win when every crew member has left (vision revision 1, V10). A downed or dead crew
 member is still present: killing takes time from the crew, it does not end the round.
 Settings: side `dissidents`; conditions: `NoneAlive` (side `crew`; the class keeps its old name).
@@ -3351,7 +3380,7 @@ Status: designed in #33; built in 2h (#64) as "no crew alive"; replaced in M4-2 
 `tests/unit/win/none_alive_test.gd` (a knockdown and a death end nothing, the leaves, the §3.4 order),
 `tests/unit/content/content_modes_test.gd`.
 
-#### Time up (win condition)
+#### 9.5.9 Time up (win condition)
 What it does: the dissidents win when the clock ends with a subtask not done, with 0 dissidents too.
 Settings: side `dissidents`; conditions: `ClockEnded`, `AllSubtasksDone` negated.
 Produces: `won(dissidents)`, then `MatchEnded(dissidents)`.
@@ -3360,7 +3389,7 @@ Status: designed in #33; built in 2h (#64): `content/win_conditions/time_up.tres
 `tests/unit/win/clock_ended_test.gd` (0 dissidents too), `tests/unit/win/end_match_test.gd`,
 `tests/unit/content/content_modes_test.gd` (0 dissidents set through the base lobby).
 
-#### PickUp (action)
+#### 9.5.10 PickUp (action)
 What it does: takes an item from the ground into the hand; a one-handed hand item goes to an empty belt, any other
 rests where the picked one lay (§7.1; M4-5).
 Settings: a rule on the base mode: trigger `PickUp`; conditions `ItemOnGround`, `InReach` (2 m), `InSight`;
@@ -3373,7 +3402,7 @@ Status: designed in #33; built in 2e (#61); the belt in M4-5 (#141). Tests: `tes
 `tests/unit/items/in_sight_test.gd` (`InSight` refuses an item that is not there),
 `tests/unit/content/item_intents_test.gd` (only the living may send it).
 
-#### PutDown (action)
+#### 9.5.11 PutDown (action)
 What it does: puts the hand item down in front of the player (§7.1); a belt item stays (`empty_hand` with only one).
 Settings: a rule on the base mode: trigger `PutDown`; conditions `HoldsItem`; effects `PutDownInFront` (1 m).
 Produces: `ItemPlaced` (put down); `item_rested`.
@@ -3381,7 +3410,7 @@ Visible to: everyone; a refusal (`empty_hand`) only the sender. A mode rule: its
 Status: designed in #33; built in 2e (#61). Tests: `tests/unit/items/put_down_in_front_test.gd`; the drops at a
 death or a leave: `tests/unit/items/items_test.gd`.
 
-#### Use (action; the knife's hit)
+#### 9.5.12 Use (action; the knife's hit)
 What it does: uses the hand item, as its kind's rule says, never the belt item; in the MVP only the knife has one (above). It replaces
 #32's `Hit` intent, so that a new held item is data, not a new intent.
 Settings, Produces, Visible to: the knife's. A downed or dead player's `Use` is `not_accepted` (Round accepts it
@@ -3390,7 +3419,7 @@ Status: designed in #33; built in 2g (#63), as the knife's. Tests: the knife's; 
 `tests/unit/life/life_rules_test.gd`, `tests/unit/content/content_modes_test.gd` (the base mode),
 `tests/unit/content/item_intents_test.gd` (only the living, in every mode); a package's: `tests/unit/items/items_test.gd`.
 
-#### Raise, StopRaise and GiveUp (actions; the revive)
+#### 9.5.13 Raise, StopRaise and GiveUp (actions; the revive)
 What it does (vision revision 1, Revive and Give up; M4-4, #140): a living player raises a downed one by holding E
 for the raise time, and the downed player stands up where it lay; a downed player may give up and die at once.
 Settings (provisional, "not a decision"; the numbers are the raise rule's own, E27):
@@ -3408,7 +3437,7 @@ Status: built in M4-4 (#140). Tests: `tests/unit/life/raise_test.gd`, `tests/uni
 the base mode's data in `tests/unit/content/content_modes_test.gd`; the scenarios
 `crew_revives_the_downed` and `raise_stopped_then_given_up` (§9.7).
 
-#### Swap (action)
+#### 9.5.14 Swap (action)
 What it does (vision revision 1, Two hands; M4-5, #141): exchanges the hand and belt items, either of which may be
 empty, so a lone one-handed item moves between the hand and the belt (the ADR's controls: X).
 Settings: a rule on the base mode: trigger `Swap`; conditions `CarriesItem`, `HandNotTwoHanded`; effects `SwapHands`.
@@ -3421,7 +3450,7 @@ the dead, a swap stopping a raise, only the hand item used); `tests/unit/channel
 by `HandNotTwoHanded` stops no channel); `tests/unit/content/item_intents_test.gd` (the base
 mode's rule, only the living); the scenarios `refusals` and `two_handed_pickup_with_a_full_belt` (§9.7).
 
-#### Sprint (not a part in v0)
+#### 9.5.15 Sprint (not a part in v0)
 What it does: the `sprint` flag of `MoveClaim` and its per-tick mask `sprint_ticks` (#155), settled by the movement
 rule for every tick a claim covers (§7.1), with the numbers in `PlayerRules`: 7 m/s, 20 per second, from 20. A tick
 costs only when the claim's `moving` flag and `moved_ticks` say the player gave movement input and it moved
@@ -3435,7 +3464,7 @@ Status: designed in #33; built in 2d (#60): `MovementRule` and `StaminaLedger`; 
 `tests/unit/movement/movement_rule_test.gd`, `tests/unit/movement/movement_rule_masks_test.gd`,
 `tests/unit/stamina/stamina_ledger_test.gd`.
 
-#### Jump (not a part in v0)
+#### 9.5.16 Jump (not a part in v0)
 What it does: the `jumps` count of `MoveClaim` (3e; `jumped` until then), accepted as in §7.1 with the numbers in
 `PlayerRules`: 1 m for 10 per jump.
 The downed never jump: a new jump of theirs is corrected (§7.1 The crawl, M4-2).
