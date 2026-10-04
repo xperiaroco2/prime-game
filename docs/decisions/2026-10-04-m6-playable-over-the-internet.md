@@ -170,21 +170,24 @@ counter of its LATEST packets. The receiver counts every packet it reads from th
 decoding, as `reliable_received`. In each poll it reads the LATEST channel before the RELIABLE one (a LATEST packet
 sent before a reliable one then comes first, as ENet would deliver it), and delivers a LATEST packet:
 - when `reliable_sent` equals `reliable_received` and `latest_seq` is newer than the last one delivered;
-- held, when `reliable_sent` is ahead (its reliable packet is still on the way), until that many reliable packets
-  were read, then judged as above; at most 8 held per peer, the oldest by `latest_seq` dropped first (placeholders,
-  "not a decision");
+- held, when `reliable_sent` is ahead (its reliable packet is still on the way: a retransmission, or a thawed
+  backlog whose `PickUp` waits unread behind its 50 claims), until that many reliable packets were read, then judged
+  as above; when 8 are held (a placeholder, "not a decision"), the oldest by `latest_seq` is dropped and counted in
+  `latest_superseded`, which loses only a LATEST packet that a newer one replaces;
 - never, when `reliable_sent` is behind (sent before a reliable packet already delivered) or its seq is not newer.
 
 That is ENet's rule for channel 0 (Context), so the inbox's LATEST merge and every consumer see the order they see
 today. RELIABLE and VOICE carry no header; VOICE keeps M5's tick check for late frames. Held packets are discarded,
-never delivered, when the peer leaves or is disconnected. A reliable channel loses nothing, so a packet still "ahead"
-after 2 s (a placeholder) or a hold full of "ahead" packets means the counts disagree (a bug, or the binding dropping
-packets from a full receive queue): it is a transport fault, counted in `NetRejects` with its own reason, and the peer
-is disconnected rather than left connected and silently starved. A LATEST packet shorter than the header is a reject
-too. The header is the transport's, below `NetFrame`: `receive_bytes` gets the frame without it. The payload caps are
-unchanged (`MAX_UNRELIABLE_PAYLOAD` counts the payload); 1024 + 3 + 4 bytes must arrive unfragmented over SCTP, which
-M6-1 measures, since the cap's basis (ENet's MTU) does not carry over. Steam's unreliable messages arrive out of order
-too (Context), so a later `SteamTransport` reuses `LaneOrder` as it is.
+never delivered, when the peer leaves or is disconnected. A full hold never disconnects: an honest reliable packet can
+wait seconds for SCTP's resend timer, which doubles on each expiry (RFC 9260 §6.3.3). A reliable channel loses nothing,
+so the counts disagree for good only through a bug or the binding dropping packets from a full receive queue (M6-1
+measures its limit): judged after both channels were read in a poll, a packet that has waited "ahead" for the silence
+rule's 20 s (§2.6) is a transport fault, counted in `NetRejects` with its own reason, and the peer is disconnected
+rather than left connected and silently starved. A LATEST packet shorter than the header is a reject too. The header is
+the transport's, below `NetFrame`: `receive_bytes` gets the frame without it. The payload caps are unchanged
+(`MAX_UNRELIABLE_PAYLOAD` counts the payload); 1024 + 3 + 4 bytes must arrive unfragmented over SCTP, which M6-1
+measures, since the cap's basis (ENet's MTU) does not carry over. Steam's unreliable messages arrive out of order too
+(Context), so a later `SteamTransport` reuses `LaneOrder` as it is.
 
 #### 2.3 How a friend joins (D19, E51, E52, E55)
 1. **The host** presses Host. The game hosts on the loopback as today, opens the signalling socket and asks for a
@@ -241,9 +244,10 @@ as `wrong_content`, and the message says "another build".
 WebRTC's own keepalives (ICE consent, SCTP heartbeats) run on libdatachannel's threads and never reach GDScript, so a
 frozen or even hung main thread stays "connected" at that level; and our messages alone stop for long stretches (a
 dead player sends no `MoveClaim`, Loading and End send none, the Lobby sends no snapshots). Therefore:
-- **A keepalive:** `poll()` sends each peer a kind-0 control frame on the VOICE channel (unreliable, outside
-  `LaneOrder`'s count) when nothing went to it for 1 s (a placeholder); the backend consumes it before the inbox, as
-  `ADMIT`. It comes from the main thread only, so a hung game stops sending it, as with ENet.
+- **A keepalive:** `poll()` sends each peer exactly `[0, 0, 0]` (`ADMIT`'s bytes) on the VOICE channel
+  (unreliable, outside `LaneOrder`'s count) when nothing went to it for 1 s (a placeholder); the backend consumes it
+  before the inbox, as `ADMIT`, and rejects and counts any other kind-0 packet. It comes from the main thread only, so
+  a hung game stops sending it, as with ENet.
 - **The silence rule:** 20 s without any packet from a peer, keepalives included, is a leave (`peer_left` on the host,
   `host_lost` on a client); the backlog is drained before the clock is checked, so a thawed side drops nobody.
   `FAILED` or `CLOSED` is a leave too; `DISCONNECTED` is not (it may recover).
@@ -288,10 +292,10 @@ sender's per-packet overhead and send time; M6-6 measures the relay with `tools\
 ### 5. The leak test and host trust
 | Issue | Checks | Planted leak |
 |---|---|---|
-| M6-3 | `LaneOrder` with reordered, lost, duplicated and wrapped packets: a LATEST packet sent before a delivered reliable one is never delivered; one sent after a reliable one in flight waits for it; a count that disagrees disconnects; a short header is rejected | the "behind" rule removed: the test sees the stale claim delivered |
+| M6-3 | `LaneOrder` with reordered, lost, duplicated and wrapped packets: a LATEST packet sent before a delivered reliable one is never delivered; one sent after a reliable one in flight waits for it; a backlog of more than 8 "ahead" packets read before their reliable one in the same poll keeps the peer and delivers the newest after it; a reliable packet 3 s late keeps the peer; a count that disagrees for 20 s disconnects; a short header is rejected | the "behind" rule removed: the test sees the stale claim delivered |
 | M6-4 | over the headless run of a host and two clients: each client receives only its own `Welcome` and its own filtered events | `send(to_peer)` going out on another peer's connection (a swapped id-to-connection map, or a stale entry after a leave) |
 | M6-5a, M6-5b | the service and `LanSignalling` keep roles per socket and forward a joiner's messages only to the host and the host's only to the named joiner: one JSON transcript per forged type (a joiner's `offer`, `candidate` with a `to`, `close`, `reopen`), the same for both | forwarding a joiner's `offer` to another joiner |
-| M6-6 | the bots' matches and the leak test over WebRTC (`bots --transport webrtc`), every check unchanged, plus the order of each peer's RELIABLE and LATEST messages as sent; `bots --chaos --transport webrtc` (the hostile and malformed peers over WebRTC). A test-only fault shim in the backend (debug builds, off by default) delays RELIABLE delivery by 50 ms and drops and duplicates LATEST packets in these runs and the freeze twin, since 127.0.0.1 almost never reorders across channels | the M6-3 plant again, end to end, caught with the shim on |
+| M6-6 | the bots' matches and the leak test over WebRTC (`bots --transport webrtc`), every check unchanged, plus the order of each peer's RELIABLE and LATEST messages as sent; `bots --chaos --transport webrtc` (the hostile and malformed peers over WebRTC). A test-only fault shim in the backend (debug builds, off by default) delays RELIABLE delivery by 50 ms and drops and duplicates LATEST packets in these runs and the freeze twin, since 127.0.0.1 almost never reorders across channels; one case delays a RELIABLE packet by 3 s while LATEST keeps flowing, and the peer stays | the M6-3 plant again, end to end, caught with the shim on |
 
 **Host trust:** the host never trusts the service. The room's version and hash are advisory (§2.5); peer ids are the
 host's and travel in `ADMIT`, so a joiner cannot pick id 1 or another's id (ENet's rule against forged ids stays for
@@ -354,16 +358,16 @@ M6-11).
 | M6-6 | Bots over WebRTC | `bots --transport webrtc` (one process per bot with `--instances`) and `bots --chaos --transport webrtc`, the `bots-webrtc` and `chaos-webrtc` steps in `verify` and CI with the fault shim on, the leak test unchanged plus §5's order check; the relay measured with `voice_load` over WebRTC, its numbers reported for D24 | `tests/harness/`, `tools/runner/` | M6-4 | no | high | M | cloud (the measurement's upper bound; the engineer may rerun it on a quiet PC) |
 | M6-7 | Joining in the game | §2.3, §3: `JoinTarget`, the menu's code field and Direct, the lobby's code with Copy, the connecting screen's steps and reasons, the version check from `found`, the F3 line (debug), `--join=<code>` and the runner's `host` and `join` with codes | `client/app/`, `client/ui/`, `net/`, `tools/runner/` | M6-5a, M6-6 | no | high | M | cloud for the code; `shot` on Windows |
 | M6-8 | Batched voice (M5-4b), only if D24 says so | the M5 ADR §4's batched row, with its version bump, samples and leak-test decoding | `net/messages/`, `server/`, `client/net/`, `tests/` | M6-6, D24 | yes | high | M | cloud |
-| M6-9 | Exported builds | export presets (Windows x86_64 release and debug); a CI job on a tag the engineer pushes downloads the pinned export templates by checksum, attaches only the release zip to a GitHub Release (D20) and keeps the debug zip as a short-lived artifact; the published zip is checked to be a release build; in an export the content hash finds every level file it hashes, and changes when one byte of a level changes | `export_presets.cfg`, `.github/workflows/`, `tools/` | D20 | no | high | M | cloud (CI); running the build on Windows |
+| M6-9 | Exported builds | export presets (Windows x86_64 release and debug); a CI job on a tag the engineer pushes downloads the pinned export templates by checksum, attaches only the release zip to a GitHub Release (D20) and keeps the debug zip as a short-lived artifact; the published zip is checked to be a release build; in an export the content hash finds every level file it hashes, and changes when one byte of a level changes | `export_presets.cfg`, `.github/workflows/`, `tools/`, `docs/AGENT_WORKFLOW.md` (§9) | D20 | no | high | M | cloud (CI); running the build on Windows |
 | M6-10 | TURN, if D17 (b) | the Worker mints Cloudflare TURN credentials per joiner, with the key in its secrets; the game passes them to `initialize`; F3 says when the own connection is relayed | `tools/signal/`, `net/` | M6-5b, D17 | no | high | S | cloud; the key by the engineer |
-| M6-11 | How to play with friends | a page for players: download, Host, the code, Join, the SmartScreen prompt, what to do when it fails (D21) | `docs/PLAYING.md`, `README` | M6-7, M6-9 | no | medium | S | cloud |
+| M6-11 | How to play with friends | a page for players: download, Host, the code, Join, the SmartScreen prompt, what to do when it fails (D21) | `docs/PLAYING.md`, `README`, `docs/AGENT_WORKFLOW.md` (§9) | M6-7, M6-9 | no | medium | S | cloud |
 | M6-12 | The playtest over the internet | §6's two-machine checklist, the engineer's go (D22) | none | all | — | — | — | two machines |
 
 Waves (at most three at once): M6-1, M6-3, M6-5a; then M6-2 (after the engineer's download), M6-5b, M6-9; then M6-4;
-then M6-6; then M6-7, M6-8 (if D24) and M6-10 (if D17 (b)); then M6-11; then M6-12. With D16 (b) instead, the split
-becomes: a GodotSteam spike on Windows, the addon, `LaneOrder` (unchanged), a `SteamTransport`, lobby and invite UI,
-the Steamworks setup and SteamPipe uploads (the engineer's), and the playtest; none of it but `LaneOrder` testable in
-CI.
+then M6-6; then M6-7, M6-8 (if D24) and M6-10 (if D17 (b)) (M6-7 and M6-10 both touch `net/`, different files); then
+M6-11; then M6-12. With D16 (b) instead, the split becomes: a GodotSteam spike on Windows, the addon, `LaneOrder`
+(unchanged), a `SteamTransport`, lobby and invite UI, the Steamworks setup and SteamPipe uploads (the engineer's), and
+the playtest; none of it but `LaneOrder` testable in CI.
 
 ### 9. D items (the engineer's)
 | # | Question | Options | The failure each one leaves | Recommendation |
@@ -395,8 +399,8 @@ Answer as "1a, 2b, …" on #346 or this PR.
 - **Steam now** (D16 (b)): the best joining experience and relays that always work, at the cost of Steam for every
   friend, $100 and a partner account for an own app, and no automated test of the transport. Kept open: §2.2's header
   is shared, and a `SteamTransport` replaces nothing outside `net/`.
-- **`WebRTCMultiplayerPeer` and `MultiplayerAPI`:** rejected by the listen-server ADR's reasons (RPC parsing, the
-  server relay) and E48.
+- **`WebRTCMultiplayerPeer`:** rejected by E48 (its own channels, its handling of `DISCONNECTED`, the id outside
+  `ADMIT`); `MultiplayerAPI` stays unused for the listen-server ADR's reasons.
 - **A mesh** (every client connected to every other): clients would hold each other's addresses and a direct path
   around `server/`'s filter. The star keeps invariant 2 where it is.
 - **Host migration or a dedicated server:** out of scope; the listen-server ADR's reasons hold.
