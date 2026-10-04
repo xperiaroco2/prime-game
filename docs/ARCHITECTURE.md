@@ -1058,16 +1058,41 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   **Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
   claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
   them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
-  `LoadAck` back while the bot's step is `LoadAck`, since a bot loads no scene and would acknowledge at once),
+  `LoadAck` back while the bot's step is `LoadAck`, since a bot loads no scene and would acknowledge at once, and
+  with `hold_claims` its `MoveClaim` until its bot moved, #284),
   `BotsRunner` (one process), `BotsEnet` (one instance over ENet), `LeakCheck`, `BotWatcher` (the lurker and the
   refused bot), `ViewFile` and the entry `bots_main.gd`. What the build pinned:
   - A network bot's intent reaches `Match` one host tick or so after the core runner's would (the host reads it in
     its next step), so a step's timing differs by that much between the runners; the six MVP scenarios pass in both.
-  - The mover claims one client tick of travel per client tick: when the bot walks, it advances by the client ticks
-    since its last move (one per tick on the simulated clock), and its `ClientSession` claims the position on the
-    next client tick. Standing, it claims where it stands with no velocity.
+  - The mover claims one client tick of travel per client tick. Since #284 the bots runner and the ENet runner
+    (`NetPlay.claims_after_moves`) poll every client, let the bots act and move, and only then claim
+    (`BotClient.hold_claims`, `claim_clients`): a walk advances by the client ticks since the bot's last move or its
+    client's last claim, the later, which is exactly what that frame's claim covers (one tick after a `Welcome` or a
+    placement, and a walk of more than one tick walks instead of sprinting: the predicted stamina pays for one).
+    Standing, it claims where it stands with no velocity. Until #284 every client claimed as it polled, before its
+    bot moved, and the bot then advanced by every client tick since its last move: after a stall of the process
+    the next claim covered one client tick or a few and carried the stall's travel. On a loaded machine
+    (`bots-enet` beside 32 busy loops on 16 cores) 0.45 m walked in a claim of one client tick against 0.275 m
+    allowed, or 0.15 m crawled against 0.056 m (one tick) and 0.111 m (two), and the host rightly corrected an
+    honest bot (7 of 12 loaded runs, 2026-10-04). The chaos runner, a `BotsRunner`, claims after the moves too (its
+    hostile acts after the honest claims of the frame went out, as before). The perf and playcheck runners keep
+    claiming as they poll, so their bots move one client tick at most per frame (a stall slows them down).
+    `tests/scenarios/bots_stall_test.gd` stalls the one-process runner's clock (`BotsRunner._frame_usec`) in the
+    middle of a walk (60 ms to 1.5 s: no correction; 120 ms and more corrected before the fix), and pins the
+    accepted limit of §7.1: a stall right after the first claim of an epoch costs nothing up to `TICK_LEAD` (0.5 s)
+    and corrects the bots once past it. `tests/scenarios/bots_enet_test.gd` covers the ENet runner's start below.
   - Bot 1 sends the `ForceRole`s once it knows the peer of every bot that joins at the start, then the setup's
     `ChangeSettings`, as the core runner does at tick 0; a later joiner's `ForceRole` goes once it connected.
+  - Over ENet bot 1 takes its first step only once every bot that joins at the start is in its lobby (their
+    `PlayerJoined`), as both one-process runners join them all before the first tick; a remote bot that joins at
+    the start and whose join failed unanswered (`connect_failed` after `EnetTransport.JOIN_TIMEOUT_MS`) joins again
+    (that instance logs `joins again`). Under load an instance's process can start seconds before or after the
+    host's: until #284 a bot gave up on a host that was not listening yet and sat out the run, and bot 1 readied
+    alone, so the round started without the others (a lone dissident wins at once) or a late joiner cancelled the
+    countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
+    more after it started is tried again: a host that refuses a join answers at once, before the admission with
+    `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
+    both stay failures.
   - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
     `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
   - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
@@ -1417,7 +1442,8 @@ the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`.
 - **The Esc menu** (#169): one Esc opens it and frees the mouse; Esc again, or Resume, closes it, and in the lobby
   and the round captures the mouse again. Its tabs are on the left (Resume; Lobby, in the lobby and the countdown;
   Voice, in every screen, M5-6; Leave; Quit), the selected tab's page on the right; it opens on the Lobby tab where
-  there is one, else on Resume.
+  there is one, else on Resume. `Game.open_esc` gives it the live `screen()`, not the screen `_process` drew last:
+  an Esc in the frame the Welcome arrives comes before the lobby is drawn and opens on the Lobby tab too (#204).
   Under it nothing reads the gameplay keys, the held ones are released, and F readies nobody.
 - **Leaving:** the Esc menu's Leave and Quit. A client's Leave calls `ClientSession.leave()`; the host's asks for a
   confirmation, then frees the `HostNode`, which closes the session (every client sees `host_lost`). Closing the
@@ -1745,8 +1771,12 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
   with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
   `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|resume|leave|quit>_preview.tscn`.
+  #204 adds an Esc pressed from the `welcomed` signal, before any `_process` drew the lobby: the Lobby tab (seen
+  failing without the fix, also under a slow `_process`); `screens_test.gd` holds `GameUi.open_esc`'s `screen_now`.
 - Not headless: the mouse capture on a real window and the feel; the engineer repeats the lobby part of the one-PC
-  playtest.
+  playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
+  as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
+  tab shows.
 
 **Built in #168**, the follow-up of the one-PC playtest on `release/m4` (PR #167):
 - The spectate camera: the playtest saw it "at another point than the target's eyes". Headless it has no offset:

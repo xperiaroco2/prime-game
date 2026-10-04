@@ -2,6 +2,7 @@
 name: godot-api-checker
 description: Use after editing .gd, .tscn or .tres files and before opening a PR. Verifies the change against the pinned Godot 4.7.2 API using engine-generated references (never memory) and flags Godot 3 idioms. Read-only; never edits files.
 model: sonnet
+effort: high
 tools: Read, Grep, Glob, Bash, PowerShell, WebFetch
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---

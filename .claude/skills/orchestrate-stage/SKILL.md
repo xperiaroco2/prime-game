@@ -1,6 +1,6 @@
 ---
 name: orchestrate-stage
-description: Run a whole prime-game stage or list of issues as the manager session - one issue-task workflow per task, at most three at a time, while the engineer merges and answers. Use for an "ultracode" kickoff that names a stage or a list of issues, "оркеструй етап", "run stage N", or "продовжуй" in a session that already manages a stage.
+description: Run a whole prime-game stage or list of issues as the manager session - one issue-task workflow per task, at most three at a time, merging into release/m<k> and, through a gate, into main while the engineer answers. Use for an "ultracode" kickoff that names a stage or a list of issues, "оркеструй етап", "run stage N", or "продовжуй" in a session that already manages a stage.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -29,9 +29,11 @@ docs, reviews, publishing) runs inside workflows; your own inline work is `start
 and posting answers. Talk to the human in their chat language, in plain words; everything on GitHub and in the repo
 is English. Commands use `tools\run.cmd`; in Git Bash `tools/run.sh`. The method and its history:
 [ADR](../../../docs/decisions/2026-09-30-orchestrator-session.md); the git flow: every task PR targets the
-milestone's `release/m<k>`, you merge task PRs into it, a human merges it into `main`
-([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). The one exception is the tooling track
-(the AI productivity track, #170): its PRs go straight into `main` and the engineer merges each (§5).
+milestone's `release/m<k>`, you merge task PRs into it and, after the engineer's go, the milestone into `main`
+([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). The tooling track (the AI productivity
+track, #170) sends its PRs straight into `main`, and you merge each through the gate (§5). What you decide alone,
+what you tell at once and what you ask: the tiers of the
+[trust ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md).
 
 ## 1. The kickoff
 One message from the human with `ultracode` in it (template in §10). It must state:
@@ -51,25 +53,31 @@ One message from the human with `ultracode` in it (template in §10). It must st
 - where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
   second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of
   that model's own weekly window (at most half across all tracks). You stay on the shared models;
-- the rules: only humans merge into `main`, you merge task PRs into `release/m<k>` (§5); no agent closes issues;
-  each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
+- whether one wave of this stage is the #308 publisher trial (`models.publish_clean`, §3), and which: one wave only;
+- the rules: you merge into `release/m<k>` and, through the gate, into `main` (§5); you close issues, workflow
+  agents never; each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
   windows only through `shot`; a game rule no ADR settles becomes options under "Needs the engineer"; `content/`
   and `levels/` files are provisional;
 - the engineer's standing decisions to honour, with where each is recorded; known traps; what to drop first;
 - reporting: a comment on the plan issue after each wave; stop with a comment when nothing more can run without
-  the human (answers, a design review, the closing PR's merge); "продовжуй" resumes after a check of the live state.
+  the human (answers, a design review, the milestone's go); "продовжуй" resumes after a check of the live state.
 
 Something missing: ask once, batched, with a recommendation for each item. Then, always, restate in the human's
 language the waves, the ownership splits, the merge order, the agent count per workflow and the rough cost as a
-percentage of the weekly limit (§9 numbers), and wait for their yes. That yes covers every later `issue-task` and
-`pr-rebase` run of the stage; a new kind of workflow still asks.
+percentage of the weekly limit (§9 numbers). Within 15% of the week for the stage or track and with no "ask and
+wait" item (the trust ADR's tiers), the restatement is a report and you go on; above it, wait for their yes. That
+covers every later `issue-task` and `pr-rebase` run of the stage; a new kind of workflow still asks.
 
 **Prerequisites** (check them before the restatement): the human pulled `main` in `D:\prime-game` after saving all
 scenes in the editor, and `D:/prime-game/.claude/workflows/issue-task.js` exists (`Test-Path`) and knows the v2 args
 (`Select-String -Path D:/prime-game/.claude/workflows/issue-task.js -Pattern plan_review -Quiet`: an older copy logs
 and ignores them, so the reviews they add would silently not run). The merges of §5 need `merge-check` and `merge`
-in the main checkout's runner (`tools\run.cmd merge-check --help`, #181). Missing: ask the human to pull; a session
+in the main checkout's runner (`tools\run.cmd merge-check --help`, #181; merges into `main` need `--dry-run` in
+`tools\run.cmd merge --help`, #300: without it, the engineer merges those). Missing: ask the human to pull; a session
 opened before the pull needs `/reload-skills` to find the workflows by name.
+
+**Your effort is high, not xhigh** (the effort ADR's amendment of 2026-10-04, #308), as for the art and UI sessions:
+the human sets it in the session settings; `effortLevel` never goes into shared settings.
 
 ## 2. Before the first launch
 1. `tools\run.cmd doctor --quick`. Read the plan issue, every issue in scope with its comments, the handoffs they
@@ -84,9 +92,9 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    has no PR yet: when another session runs it, your first wave is empty (post a plan-issue comment saying you wait
    for it, and stop); otherwise the first wave is that design task alone (`design: true`). Offer fillers that do not
    depend on the design meanwhile.
-4. **Opening the stage's issues** from a design handoff (its `proposed_issues`) and the engineer's review: show the
-   list and the order in chat and wait for their "yes" before creating anything. Then for each, a body file under
-   `<scratchpad>/manager/` with Goal, Acceptance criteria (a checklist), Out of scope, Verification, `Depends on #…`
+4. **Opening the stage's issues** from a design handoff (its `proposed_issues`) and the engineer's review: create
+   them without waiting for a "yes" and report the list and the order (an accepted design; the trust ADR). For
+   each, a body file under `<scratchpad>/manager/` with Goal, Acceptance criteria (a checklist), Out of scope, Verification, `Depends on #…`
    and `Tracking: #<plan>`, and `gh issue create --title "<area>: <what>" --label area:<x> --milestone M<k>
    --body-file <file>` (one `area:` label, which `start` needs for the branch prefix). Put the new numbers in a
    plan-issue comment.
@@ -109,7 +117,7 @@ opened before the pull needs `/reload-skills` to find the workflows by name.
    change `tools/runner/` or `docs/AGENT_WORKFLOW.md`, merged between waves after `merge-check`. `merge-check` also
    pairs your PRs with every open PR into another base when both change a shared file (`tools/`, `.claude/`,
    `.github/`, `docs/AGENT_WORKFLOW.md`; its table "across bases", #207). A flagged pair: name it on that track's
-   plan issue; the PR into `main` merges first (a human merges it), the milestone takes `main` in
+   plan issue; the PR into `main` merges first (through the gate, §5), the milestone takes `main` in
    (`merge --sync-main`, §5) and its PR is rebased on that before it merges (what you do meanwhile: §5).
 
 ## 3. Launching a task
@@ -144,13 +152,16 @@ workflow the kickoff approved:
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
 | `bounded_waits: true` | every `issue-task` and `pr-rebase` launch (no tool call of theirs blocks over 240 s, so their 5-minute cache stays warm), once `wait` (#303) is on the task's base (`git show origin/<base>:tools/runner/wait.py`) | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
-| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review` | 0 |
+| `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and, for the #308 trial only, `publish_clean: "sonnet"` on every non-design `issue-task` launch of the one wave the kickoff names (not `pr-rebase`: it has no publisher and rejects the role; none after the wave until the engineer keeps it) | 0 |
 | `lean: true` | `issue-task` and `pr-rebase`: the 3-4 A/B tasks the kickoff names (#332, results on #302), until the engineer turns it on by default; only once `.claude/agents/task-implementer.md` and `task-publisher.md` are in your checkout (the first run's `agent-*.meta.json` shows `agentType` `task-implementer`); not for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) | 0 |
 
-- **`models`** follows the script's fallbacks: set only `implement` or `second_review`, never `review` or `netcode`
-  (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode` covers `second_review`).
-  `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model too unless you also set
-  `models.plan: "opus"`. Never as a habit, and never for yourself.
+- **`models`** follows the script's fallbacks: set only `implement`, `second_review` or (the trial) `publish_clean`,
+  never `review` or `netcode` (`review` also covers `plan_review`, `netcode`, `skeptic` and `second_review`; `netcode`
+  covers `second_review`). `plan` follows `implement`, so a red-twice launch with `plan_review` plans on that model
+  too unless you also set `models.plan: "opus"`. `publish_clean` falls back to `publish` and applies only to the full
+  publisher of a run with no blocker or major left open (a skeptic-refuted one is closed), never to a design task;
+  leave `efforts.publish_clean` unset during the trial, so only the model varies. Never as a habit, and never for
+  yourself.
 - **Staying within the approved count A.** An `issue-task` launch runs at most 5 agents (the implementer, up to three
   reviewers, the publisher) plus what each option you pass adds. For a design task or an audit pass `skeptic: A −
   that sum` when it is at least 1, else leave `skeptic` out; `true` (a skeptic on every blocker or major) only when
@@ -172,10 +183,13 @@ in the data); name a task's merge order relative to the other open PRs; name eve
 ## 4. On each completion
 Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not_fixed`; with v2 args also `plan`
 (the plan and its critique, summarized in the PR), `test_review` (the mutants, or why it was skipped or missing),
-`skeptic` (`refuted`, `stood`, `unchecked`) and `visual` (the PNGs: the engineer drags them into the PR)). Merge it
-into the release branch when the gate in §5 holds (on the tooling track: run `merge-check` and ask the engineer),
-and tell the human what you merged and in which order; explain each "Needs the engineer" item in plain words: a
-concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". Copy
+`skeptic` (`refuted`, `stood`, `unchecked`), `visual` (the PNGs: the engineer drags them into the PR) and
+`publish_clean` (`applied`, `why`, `open`, `model`, `effort`)). Merge it
+into its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and
+in which order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a
+concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End
+every message to the human with one short "For you:" block in their language, numbered, listing only what needs them
+now (a merge the gate refused, a decision, a command), or "nothing"; the rest goes into the wave comment. Copy
 every command of `human_steps` into the chat itself, never only a pointer ("the command is in PR #235's body"): fetch
 a command a step only points to, then one fenced PowerShell block per command, starting with `cd` to its absolute
 folder, run or previewed by you first (root `CLAUDE.md`, "Talking to the humans"). The PR and the wave comment may
@@ -197,6 +211,13 @@ When something failed (never resume a run whose result has `stopped`: a resume r
   in `notes`: a resume would replay the cached exit 2.
 - `ci_green` false after the publisher's two rounds: the same, with the failing check in `notes`.
 - `not_fixed` items: list them in the wave comment; they are the engineer's to accept or turn into issues.
+- A `publish_clean` trial run (#308) relaunched fresh after any of the above drops `models.publish_clean` (an Opus
+  publisher, as before); the report counts the first run as a trial failure, not the relaunch as a second trial run.
+
+**The publisher trial's report** (#308, after its one wave): a comment on #302 with, per run, `publish_clean`
+(applied or why not), CI red rounds (failed runs on the PR's branch before its last green: `gh run list --branch
+<branch>`), the publisher's fix rounds, `fixed` and `not_fixed`, and its $ and output tokens from `tools\run.cmd
+metrics`, against comparable earlier clean runs with Opus publishers. The engineer keeps or drops the trial.
 
 **Answers.** Post them in English on the PR and the issue ("The engineer's answers (chat with the manager session,
 <date>)"). Carry an answer that belongs to a later task to that issue as a comment; open a new issue for a decision
@@ -207,13 +228,16 @@ answer that changes a published PR: a trivial one inline in its worktree, in a s
 again for that issue with the answers in `notes` (its agents find the branch and the PR and continue).
 
 ## 5. Merges and rebases
-You merge task PRs into `release/m<k>`; only a human merges into `main`
-([ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md)). `gh pr merge` stays denied: you merge
-locally with `tools\run.cmd merge` (#181; AGENT_WORKFLOW §7.1 Git flow). Run `merge` and `merge-check` from the main
-checkout: your `release-m<k>` worktree has them only once `release/m<k>` has taken in a `main` that has them.
-- **The gate.** Merge a task PR only when CI is green, the fresh reviews left no open blocker or major (the PR's
-  findings table and `not_fixed`; one that waits for the engineer waits for the merge too), and `verify` is green on
-  the merged tree (`merge` checks CI and runs that `verify`).
+You merge task PRs into `release/m<k>`, and PRs into `main` through the gate of `merge <pr> --base main`
+([release-branch ADR](../../../docs/decisions/2026-10-01-release-branch-per-milestone.md),
+[trust ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). A typed `gh pr
+merge` stays denied: you merge only with `tools\run.cmd merge` (#181, #300; AGENT_WORKFLOW §7.1 Git flow). Run
+`merge` and `merge-check` from the main checkout: your `release-m<k>` worktree has them only once `release/m<k>` has
+taken in a `main` that has them.
+- **The gate.** Merge a PR only when CI is green, the fresh reviews left no open blocker or major (the PR's
+  findings table and `not_fixed`; one that waits for the engineer waits for the merge too: write its answer as
+  "Answered: <link>" at the end of the item, `gh pr edit --body-file`), and, into `release/m<k>`, `verify` is green
+  on the merged tree (`merge` checks CI and runs that `verify`; into `main` it checks the rest of the gate instead).
 - **Before every merge: `tools\run.cmd merge-check --base release/m<k>`** (seconds, no Godot): each open PR onto
   its base tip and each pair into it, textually and by symbols (what one side removes or changes and the other's
   added lines use; a signature that only appends parameters with defaults is a note), plus the pairs across bases
@@ -224,13 +248,13 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   `run_in_background` (the base plus the PRs merged in that order in a scratch worktree, then `verify`): green,
   merge in that order; red, merge the first and send the later PR to `pr-rebase` with the trial's log in `why`. A
   chain you merge in one go gets a trial too.
-- **Flagged across bases** (your PR and an open PR into `main`, §2.8): you cannot merge the `main` side (only humans
-  merge into `main`) and `--trial` takes one base, so hold that one PR and merge the rest of the wave. Name the pair
-  on your plan issue and under "Needs the engineer" in the wave comment (a merge of the `main` PR first). Once it is
-  on `main`: `merge --sync-main`, then the held PR to `pr-rebase` (inline for a docs conflict), then merge it. If
-  the `main` PR is still open when everything else of the stage is merged, the engineer chooses the order.
+- **Flagged across bases** (your PR and an open PR into `main`, §2.8): `--trial` takes one base, so hold that one PR
+  and merge the rest of the wave. Name the pair on your plan issue and the other track's; the `main` side merges
+  first (its manager's gate notes the pair). Once it is on `main`: `merge --sync-main`, then the held PR to
+  `pr-rebase` (inline for a docs conflict), then merge it. If the `main` PR is still open when everything else of
+  the stage is merged, it goes into your "For you:" block: the engineer chooses the order.
 - **The merge:** `tools\run.cmd merge <pr> --base release/m<k>` with `run_in_background` (12 to 14 minutes on this
-  PC: a fresh import plus the whole suite). It refuses `main`, any base outside `release/*` and a task's checkout;
+  PC: a fresh import plus the whole suite). It refuses any base but `release/*` and `main`, and a task's checkout;
   a PR a human already merged is only fetched (the engineer merged #107 himself); otherwise it checks CI, merges
   `--no-ff` in a scratch detached worktree at `origin/release/m<k>`, runs `verify` on the merged tree, pushes the
   merge commit by hash, confirms the PR merged on GitHub and prints one `wave:` line: paste it into the wave comment.
@@ -264,23 +288,35 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   blocker and major, so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr>
   --json body -q .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix
   agent that changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
-- **A main-based track** (the tooling track, #170): you merge nothing. Before you ask the engineer to merge, run
-  `tools\run.cmd merge-check --base main` and name the safe order in chat and in the wave comment; a flagged overlap
-  gets a `--trial` or a `pr-rebase` first, as above. A PR that changes a shared file follows §2.8. After the
-  engineer merges a change a running milestone needs, say so on that milestone's plan issue (its manager then runs
-  `merge --sync-main`).
+- **Into `main`** (the tooling track, #170, and a milestone's closing PR): `tools\run.cmd merge-check --base main`,
+  then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without `--dry-run`. The gate (AGENT_WORKFLOW
+  §7.1 "Into `main`") refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or
+  session, a head behind `main` (send it to `publish` in its worktree, or `pr-rebase` when its `gate: note:` lines
+  name an overlap, then wait for CI), the exceptions (the designer's area without the relay phrase or the designer's
+  approval; `.claude/settings*.json`, `.claude/githooks/`, the guard; an ADR without "Approved by the engineer:
+  <link>"), an unanswered "Needs the engineer" item. An exception goes into your "For you:" block for the engineer
+  to merge; the rest you fix and run again. Merge one PR at a time: each merge leaves the other open PRs behind
+  `main`. After each, one chat line ("merged #N into main as <sha>"), the `wave:` line in the wave comment, and,
+  when a running milestone needs the change, a note on its plan issue (its manager runs `merge --sync-main`). If
+  `main` breaks after your merge: a revert PR (`git revert -m 1 <merge>` on a task branch), merged through the same
+  gate, and tell the engineer. "стоп мерджі": no more merges into `main` until the engineer lifts it; record the stop
+  on your plan issue and on #170.
 - **The stage's end.** When every task is merged, open the PR from `release/m<k>` into `main` (`gh pr create --base
   main --head release/m<k>`; M3: #117): a table of the task PRs with their merge commits, every open "Needs the
-  engineer" and "Needs the designer" item, and the issues a human closes after the merge (`Closes` does not fire
-  from the release branch). Open it only when no task PR still targets `release/m<k>`: merging it deletes the branch
+  engineer" and "Needs the designer" item, and the issues to close after the merge (`Closes` does not fire from the
+  release branch). Open it only when no task PR still targets `release/m<k>`: merging it deletes the branch
   (auto-delete) and GitHub retargets such a PR to `main`. Run `merge-check --base main` and put its table in the PR.
-  A human reviews and merges it.
+  Ask the engineer for the milestone's go (a playtest, their human checks done or postponed); record it as a PR
+  comment, add "Approved by the engineer: <its link>" to the body and merge it with `merge <pr> --base main`. Then
+  close the stage's issues (a comment linking the PRs and merge commits) and remove your release worktree.
 
 ## 6. Reporting and keeping slots busy
 - After each wave, a comment on the plan issue: merged PRs (each `merge` `wave:` line), decisions recorded (with
-  links), in progress, order from here, batched questions (numbered, recommendations), housekeeping for a human:
-  `worktree-done` lines (§8: also in the chat) and the issues to close once `release/m<k>` is merged into `main`
-  (auto-close does not fire from the release branch and agents never close issues). Never edit the plan issue's body.
+  links), issues opened and closed, housekeeping done, in progress, order from here, batched questions (numbered,
+  recommendations). Close an issue yourself once its work is on `main` and its acceptance criteria are met (a
+  comment linking its PRs and merge commits; workflow agents never close one). Never edit the plan issue's body.
+- In the chat, after each wave: one line per merge into `main`, then the "For you:" block (§4), with the wave's
+  housekeeping the human must run batched into it once (§8), not after each PR.
 - **The wave's cost**, in every wave comment: the output of `tools\run.cmd metrics --since <wave start> --session
   <your session id> --compact` in a text block (at most ten lines: time and API list $ per task and in total, the %
   of the weekly limit, verify). The wave start is UTC ISO 8601 (from the state file); your id is
@@ -342,17 +378,18 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   running run), then the state file, then continue.
 
 ## 8. Notifications and housekeeping
-- When the human is needed (a PR to merge, questions, a stop), end your turn with a short summary and send a
-  PushNotification. It is suppressed while the human is active in the session, and the desktop app only flashes its
-  icon while its window is in use; a PowerShell toast tests whether Windows notifications work at all.
-- Merged tasks' worktrees: give the human `tools\run.cmd worktree-done <n>` (from `D:\prime-game`), to run once
-  `release/m<k>` is merged into `main` (on the tooling track: once the engineer merged the task's PR); a worktree
-  whose branch never reached main but whose work did (merged into a parent) says so. Your `release-m<k>` worktree
-  goes too, but `worktree-done` takes only an issue number: give the human `git worktree remove
-  .claude/worktrees/release-m<k>` and `git branch -d release/m<k>` (from `D:\prime-game`), to run after the closing
-  PR has merged into `main`.
-- Every housekeeping command, like every command of `human_steps` (§4), goes into the chat when it is due, one fenced
-  PowerShell block per command, starting with `cd D:\prime-game` (or the folder it runs in), for example:
+- When the human is needed (a refused merge, questions, a stop), end your turn with a short summary, the "For you:"
+  block, and send a PushNotification. It is suppressed while the human is active in the session, and the desktop app
+  only flashes its icon while its window is in use; a PowerShell toast tests whether Windows notifications work at all.
+- Merged tasks' worktrees: once the task's work is on `main` (`release/m<k>` merged into `main`, or the task's PR
+  on the tooling track), run `tools\run.cmd worktree-done <n>` (from `D:\prime-game`) yourself when no live session
+  sits in that worktree (no workflow of yours running there; a solo session's worktree is its owner's); a worktree
+  whose branch never reached main but whose work did (merged into a parent) takes `--pushed` or says so. After the
+  closing PR has merged, remove your `release-m<k>` worktree too (`git worktree remove .claude/worktrees/release-m<k>`
+  and `git branch -d release/m<k>` from `D:\prime-game`). What you cannot run (it prompts, or a live session holds
+  the folder, or the human must pull `D:\prime-game` with the editor saved) goes into the wave's "For you:" block.
+- Every housekeeping command the human runs, like every command of `human_steps` (§4), goes into the chat when it is
+  due, one fenced PowerShell block per command, starting with `cd D:\prime-game` (or the folder it runs in), for example:
   ```powershell
   cd D:\prime-game; tools\run.cmd worktree-done 42
   ```
@@ -439,27 +476,28 @@ ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestra
 task = one issue-task workflow, at most three at once (about six task workflows across all tracks).
 
 Start from: <my review of the design PR #<pr> and its handoff on #<design issue> | the issues below>.
-<If from a design: open the stage's issues from that handoff with my review's changes, show me the list and the
-order, and wait for my "yes".>
+<If from a design: open the stage's issues from that handoff with my review's changes and report the list and the
+order.>
 
 Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
 with tools\run.cmd merge after green CI, fresh reviews with no open blocker or major, merge-check and verify on the
-merged tree; I merge it into main through one PR at the end | every PR straight into main (the tooling track); I
-merge each; you run merge-check --base main before you ask me>.
+merged tree; you merge it into main through one PR at the end, through the gate, after my go | every PR straight
+into main (the tooling track); you merge each with merge <pr> --base main after merge-check>.
 Order: <order, or "as in the handoff">; stack with start --base <parent> only where a task depends on an unmerged
 PR.
 Pipeline v2: <plan_review for core/server/net/tests-harness and size M or more; test_review once mutants is on the
 base; skeptic for design tasks; ...>; approved agents per workflow: issue-task up to <A>, pr-rebase up to <B>.
 Bounds: implementer ≤ 250 tool calls, reviewers ≤ 60, publisher ≤ 150; plan ≤ 80, its critique ≤ 40, test review
 ≤ 60, each skeptic ≤ 30. I approve exceeding the size guideline (up to <A> agents per workflow) and a budget of
-about <P>% of the weekly limit for the stage (metrics converts API list $ to it); do not ask before each workflow
-once I have said yes to your restatement.
+about <P>% of the weekly limit for the stage (metrics converts API list $ to it); do not ask before each workflow;
+within that budget (15% of the week at most) your restatement is a report.
 Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
 PRs, tasks red twice>, at most <Q>% of its own weekly window>; you stay on the shared models.
-Rules: only I merge into main; no issue is closed by an agent; each agent only in its worktree; no git stash;
-you never leave your shell inside a worktree; temporary files in scratchpad/a<n>/ or tests/scratch/; Godot
+Publisher trial (#308): <none | wave <k>: models.publish_clean "sonnet" on its non-design issue-task launches>.
+Rules: into main only through the gate; you close issues, workflow agents never; each agent only in its worktree;
+no git stash; you never leave your shell inside a worktree; temporary files in scratchpad/a<n>/ or tests/scratch/; Godot
 windows only through shot; a game rule no ADR settles becomes options with a recommendation under "Needs the
 engineer"; content/ and levels/ files are provisional, I approve them in the PR.
 My decisions: the ADRs and my answers in the comments of <issues> (newer ones win).
