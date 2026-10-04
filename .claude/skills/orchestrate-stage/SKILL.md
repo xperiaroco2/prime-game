@@ -369,18 +369,16 @@ taken in a `main` that has them.
   state file (a message from the human resets the count); after 14 (about 12 hours of their absence) arm no more:
   hand over if one is due, else stop.
 - **A fresh manager once a day** (#279, the engineer's option A on #170): a manager never compacts, and a day-old
-  context makes each call about 3 times dearer (§9). A handover is due only at a wave boundary (every run of the
-  wave ended, its PRs merged or waiting only for the human, its wave comment posted), with work left, and the
-  session over 12 hours old or its context over 500k tokens (both in the footer of `tools\run.cmd wave`); never
-  in the middle of a wave: a logical piece of work done, not a token count (the engineer's answer on #329).
-  Post one plan-issue comment, `wave --since <session start> --title "Handover to
-  a fresh manager session" --notes <file>` (#278; before it, your notes above its body): the order from here, the
-  open questions, every `human_steps` command still due, the stage's start and `wave`'s handover data (since the
-  session start: every failed run not relaunched, not only this wave's). Your "For you:" is the human's single
-  step: paste the §10 kickoff with its "Continue from" line into a new session in `D:\prime-game`. Then a
-  PushNotification; stop with no timer and launch nothing more. Never hand over with a run in flight. The successor
-  takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is no live run) and the
-  stage's yes as given: it restates the order and goes on without waiting (§1's wait does not apply).
+  context makes each call about 3 times dearer (§9). A handover is due only at a wave boundary (its runs ended, its
+  PRs merged or waiting for the human, its comment posted; never mid-wave, the engineer on #329), with work left, and
+  the session over 12 hours old or its context over 500k tokens (both in the footer of `tools\run.cmd wave`). Post one
+  plan-issue comment, `wave --since <session start> --title "Handover to a fresh manager session" --notes <file>`
+  (#278; before it, your notes above its body): the order from here, the open questions, every `human_steps` command
+  still due, the stage's start and `wave`'s handover data (since the session start: every failed run not relaunched,
+  not only this wave's). Your "For you:" is the human's single step: paste the §10 kickoff with its "Continue from"
+  line into a new session in `D:\prime-game`. Then a PushNotification; stop with no timer and launch nothing more. The
+  successor takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is no live run) and
+  the stage's yes as given: it restates the order and goes on without waiting (§1's wait does not apply).
 - **The keep-alive and the handover together**, decided in this order at the end of each turn and on each wake:
   (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes none: the run's end still
   wakes you). (2) No run in flight and a handover due: hand over and arm nothing (a fresh session costs less than a
