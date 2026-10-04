@@ -146,6 +146,60 @@ class Project:
         return wave.render(wave.Wave(s, wave.build_runs(s), metrics.parse_time(since), now))
 
 
+MAIN = "D:/prime-game"
+
+
+class FakeSources(wave.Sources):
+    """Everything wave reads beyond the transcripts, from the test: gh's JSON per query, merge-check's printed output
+    and exit, `git worktree list --porcelain`, the live sessions per worktree folder name and the open issues."""
+
+    def __init__(self, merged: list[dict] | None = None, open_prs: list[dict] | None = None, check_out: str = "",
+                 rc: int = 0, porcelain: str = "", alive: dict[str, list] | None = None,
+                 open_issues: list[int] | None = None, fail: dict[str, Exception] | None = None) -> None:  # fmt: skip
+        self.merged, self.open_prs, self.check_out, self.rc = merged or [], open_prs or [], check_out, rc
+        self.porcelain, self.alive, self.open_issues = porcelain, alive or {}, open_issues or []
+        self.fail = fail or {}
+        self.gh_calls: list[tuple[str, ...]] = []
+        self.checks: list[tuple[list[int], str]] = []
+
+    def raise_for(self, what: str) -> None:
+        if what in self.fail:
+            raise self.fail[what]
+
+    def gh_json(self, *args: str) -> object:
+        self.gh_calls.append(args)
+        if args[:2] == ("pr", "list") and "merged" in args:
+            self.raise_for("merged")
+            return self.merged
+        if args[:2] == ("pr", "list"):
+            self.raise_for("open")
+            return self.open_prs
+        if args[:2] == ("issue", "list"):
+            self.raise_for("issues")
+            return [{"number": n} for n in self.open_issues]
+        raise AssertionError(f"unexpected gh call {args}")
+
+    def check(self, numbers: list[int], base: str) -> int:
+        self.checks.append((numbers, base))
+        if self.check_out:
+            print(self.check_out)
+        self.raise_for("check")
+        return self.rc
+
+    def worktree_list(self, main: Path) -> str:
+        self.raise_for("worktrees")
+        return self.porcelain
+
+    def alive_in(self, path: Path) -> list:
+        return self.alive.get(path.name, [])
+
+    def history(self, main: Path) -> list[Path]:
+        return []
+
+    def main_checkout(self) -> Path:
+        return Path(MAIN)
+
+
 class WaveTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -156,8 +210,10 @@ class WaveTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def main(self, **kw: object) -> tuple[int, str, str]:
+        """wave.main on this test's transcript folder; GitHub, merge-check, git and the sessions are FakeSources."""
         self.p.write()
         out, err = io.StringIO(), io.StringIO()
+        kw.setdefault("sources", FakeSources())
         with redirect_stdout(out), redirect_stderr(err):
             rc = wave.main(session=kw.pop("session", SID), dirs=[self.p.dir], now=NOW, **kw)
         return rc, out.getvalue(), err.getvalue()
@@ -520,10 +576,62 @@ class WaveTest(unittest.TestCase):
         args = cli.build_parser().parse_args(["wave", "--since", "2026-10-03T14:00:00Z", "--session", "abc",
                                               "--out", "x.md"])  # fmt: skip
         self.assertEqual((args.since, args.session, args.out, args.args), ("2026-10-03T14:00:00Z", "abc", "x.md", None))
+        self.assertEqual((args.base, args.plan, args.title, args.notes, args.stage_since, args.merge_check),
+                         (None, None, None, None, None, True))  # fmt: skip
         self.assertEqual(cli.build_parser().parse_args(["wave", "--args", "231"]).args, 231)
-        for bad in (["wave", "--since", "x", "--args", "1"], ["wave"]):
+        args = cli.build_parser().parse_args(["wave", "--since", "T", "--base", "release/m5", "--plan", "302", "--title",
+                                              "Wave 3", "--notes", "n.md", "--stage-since", "S",
+                                              "--no-merge-check"])  # fmt: skip
+        self.assertEqual((args.base, args.plan, args.title, args.notes, args.stage_since, args.merge_check),
+                         ("release/m5", 302, "Wave 3", "n.md", "S", False))  # fmt: skip
+        for bad in (["wave", "--since", "x", "--args", "1"], ["wave"], ["wave", "--since", "x", "--plan", "p"]):
             with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
                 cli.build_parser().parse_args(bad)
+
+    def test_since_flags_refused_with_args(self) -> None:
+        self.p.launch(0, "t1", "wf_a", issue_args(5))
+        self.p.write()
+        for flag in (["--base", "main"], ["--plan", "302"], ["--title", "W"], ["--notes", "n.md"],
+                     ["--stage-since", SINCE], ["--no-merge-check"]):  # fmt: skip
+            out = io.StringIO()
+            with mock.patch.object(wave.agents_check, "project_dirs", return_value=[self.p.dir]), \
+                    mock.patch.object(wave.metrics, "main_checkout", return_value=self.root), \
+                    redirect_stdout(out):  # fmt: skip
+                self.assertEqual(cli.main(["wave", "--args", "5", "--session", SID, *flag]), 1, flag)
+            self.assertIn(f"{flag[0]} goes with --since", out.getvalue())
+        with self.assertRaises(Failure) as caught:
+            self.main(since=SINCE, stage_since="yesterday")
+        self.assertIn("yesterday", str(caught.exception))
+
+    def test_args_reads_no_github(self) -> None:
+        self.p.launch(0, "t1", "wf_a", issue_args(5))
+        boom = mock.Mock(side_effect=AssertionError("--args reads no source"))
+        with mock.patch.multiple(wave.Sources, gh_json=boom, check=boom, worktree_list=boom, alive_in=boom,
+                                 history=boom, main_checkout=boom):  # fmt: skip
+            rc, out, _ = self.main(args_issue=5, sources=wave.Sources())
+        self.assertEqual((rc, json.loads(out)), (0, issue_args(5)))
+
+    def test_notes_and_title(self) -> None:
+        notes = self.root / "notes.md"
+        text = "Decisions:\r\n1. Кирилиця «лапки» stays.\r\n\r\nOrder from here: #279 then #204.\r\n"
+        notes.write_bytes(b"\xef\xbb\xbf" + text.encode("utf-8"))
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), title="Wave 3: a cheaper manager", plan=302, notes=str(notes),
+                  merge_check=False)  # fmt: skip
+        body = target.read_text(encoding="utf-8")
+        head = body.split("\n## ")[0]
+        self.assertTrue(head.startswith("# Wave 3: a cheaper manager\n\n"), head)
+        self.assertIn("Plan #302; base main; since 2026-10-03T08:00:00Z", head)
+        self.assertIn("\n\nDecisions:\n1. Кирилиця «лапки» stays.\n\nOrder from here: #279 then #204.\n", head)
+        self.assertNotIn("﻿", body)
+        self.assertNotIn(b"\r", target.read_bytes())
+        self.main(since=SINCE, out=str(target), merge_check=False)
+        body = target.read_text(encoding="utf-8")
+        self.assertTrue(body.startswith("# Wave report since 2026-10-03T08:00:00Z\n"), body[:80])
+        self.assertNotIn("Plan #", body.split("\n## ")[0])
+        with self.assertRaises(Failure) as caught:
+            self.main(since=SINCE, out=str(target), notes=str(self.root / "missing.md"))
+        self.assertIn("missing.md", str(caught.exception))
 
 
 if __name__ == "__main__":

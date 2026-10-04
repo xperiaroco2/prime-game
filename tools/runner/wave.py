@@ -46,10 +46,11 @@ import time
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+from typing import Any
 
-from . import agents_check, metrics
-from .common import OUT, Failure, ensure_out, say
+from . import agents_check, common, merge, metrics, sessions
+from .common import OUT, Failure, ensure_out, say, warn
 
 RELAUNCH = "relaunch fresh, never resume"
 RUN_ID = re.compile(r"Run ID:\s*(wf_[\w-]+)")
@@ -62,6 +63,8 @@ FOOTER_CALLS = 20
 # manager's queue (background shells, monitors, its subagents' tasks) are not runs and are passed over.
 WORKFLOW_NOTE = re.compile(r"\bworkflow\b", re.I)
 REVIEW_ROLES = ("code-reviewer", "netcode-security-reviewer", "netcode-second-reviewer", "godot-api-checker")
+# The branch every task's work finally lands in: worktree-done checks against origin/main.
+MAIN = "main"
 
 
 @dataclass
@@ -131,12 +134,44 @@ class Run:
 
 @dataclass
 class Wave:
-    """What every section gets."""
+    """What every section gets. A source's field is None when it was not read and a str (its error) when reading it
+    failed; Wave(session, runs, since, now) alone renders every section."""
 
     session: Session
     runs: list[Run]
     since: float
     now: float
+    base: str = MAIN
+    plan: int | None = None
+    title: str | None = None
+    notes: str | None = None
+
+
+class Sources:
+    """Everything `wave --since` reads beyond the transcripts and the journals (tests replace it). Each is a read:
+    gh's JSON, merge-check (its git fetch is its only write, to the shared git dir), `git worktree list`, the live
+    Claude sessions, the verify history files and the main checkout."""
+
+    def gh_json(self, *args: str) -> Any:
+        return merge.gh_json(*args)
+
+    def check(self, numbers: list[int], base: str) -> int:
+        return merge.check(numbers, base=base)
+
+    def worktree_list(self, main: Path) -> str:
+        res = common.run(["git", "worktree", "list", "--porcelain"], timeout=60, cwd=main)
+        if res.rc != 0 or res.timed_out:
+            raise Failure(f"git worktree list failed: {res.out.strip()[-300:]}")
+        return res.out
+
+    def alive_in(self, path: Path) -> list:
+        return sessions.alive_in(path)
+
+    def history(self, main: Path) -> list[Path]:
+        return metrics.history_paths(main)
+
+    def main_checkout(self) -> Path:
+        return metrics.main_checkout()
 
 
 # --- reading the transcript ---------------------------------------------------------------------------------------
@@ -536,6 +571,19 @@ def step_lines(step: object) -> list[str]:
     return ["", *fence(json.dumps(step, indent=1, ensure_ascii=False), "json"), ""]
 
 
+def header_section(w: Wave) -> list[str]:
+    title = w.title or f"Wave report since {metrics.iso(w.since)}"
+    plan = f"Plan #{w.plan}; " if w.plan is not None else ""
+    return [f"# {cell(title)}", "",
+            f"{plan}base {w.base}; since {metrics.iso(w.since)}; written {metrics.iso(w.now)} from session "
+            f"{w.session.sid[:8]}.", ""]  # fmt: skip
+
+
+def notes_section(w: Wave) -> list[str]:
+    """The manager's own judgement (--notes), as written: decisions, batched questions, the order from here."""
+    return [w.notes.strip("\n"), ""] if w.notes and w.notes.strip() else []
+
+
 def finished_since(w: Wave) -> list[Run]:
     return [r for r in w.runs if r.finished and (r.finished_at is None or r.finished_at >= w.since)]
 
@@ -653,7 +701,9 @@ def footer_section(w: Wave) -> list[str]:
     return [*md, ""]
 
 
-SECTIONS: list[Callable[[Wave], list[str]]] = [finished_section, running_section, handover_section, footer_section]
+SECTIONS: list[Callable[[Wave], list[str]]] = [
+    header_section, notes_section, finished_section, running_section, handover_section, footer_section,
+]  # fmt: skip
 
 
 def render(w: Wave) -> str:
@@ -679,6 +729,15 @@ def find_transcript(session: str | None, dirs: list[Path]) -> tuple[Path, str]:
     return found[0], found[0].stem
 
 
+def read_notes(path: Path) -> str:
+    """--notes as UTF-8 text with LF line ends (a file PowerShell 5.1 wrote may start with a BOM and use CRLF)."""
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise Failure(f"wave: --notes {path}: cannot read it ({exc.strerror or exc})") from None
+    return raw.decode("utf-8-sig", errors="replace").replace("\r\n", "\n")
+
+
 def default_out(sid: str) -> Path:
     return OUT / "wave" / f"wave-{sid[:8]}.md"
 
@@ -695,15 +754,31 @@ def main(
     args_issue: int | None = None,
     out: str | None = None,
     workflow: str | None = None,
+    base: str | None = None,
+    plan: int | None = None,
+    title: str | None = None,
+    notes: str | None = None,
+    stage_since: str | None = None,
+    merge_check: bool = True,
     *,
     dirs: list[Path] | None = None,
     now: float | None = None,
+    sources: Sources | None = None,
 ) -> int:
+    started = time.monotonic()
     if (since is None) == (args_issue is None):
         raise Failure("wave: pass either --since T (the wave comment) or --args N (one issue's args)")
     if workflow is not None and args_issue is None:
         raise Failure("wave: --workflow goes with --args")
+    if args_issue is not None:
+        given = {"--base": base, "--plan": plan, "--title": title, "--notes": notes, "--stage-since": stage_since,
+                 "--no-merge-check": None if merge_check else True}  # fmt: skip
+        extra = [flag for flag, value in given.items() if value is not None]
+        if extra:
+            raise Failure(f"wave: {', '.join(extra)} goes with --since, not with --args")
     t_since = metrics.parse_time(since) if since is not None else None
+    t_stage = metrics.parse_time(stage_since) if stage_since is not None else None
+    notes_text = read_notes(Path(notes)) if notes is not None else None
     if dirs is None:
         dirs = agents_check.project_dirs(metrics.main_checkout())
     path, sid = find_transcript(session, dirs)
@@ -721,7 +796,8 @@ def main(
         sys.stdout.flush()
         return 0
     assert t_since is not None
-    w = Wave(session=s, runs=build_runs(s), since=t_since, now=time.time() if now is None else now)
+    w = Wave(session=s, runs=build_runs(s), since=t_since, now=time.time() if now is None else now,
+             base=base or MAIN, plan=plan, title=title, notes=notes_text)  # fmt: skip
     body = render(w)
     if out:
         target = Path(out)
