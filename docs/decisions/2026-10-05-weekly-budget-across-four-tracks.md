@@ -25,7 +25,7 @@ limit and one PC (8 cores, 16 threads, 32 GB):
 The weekly counter restarted at the plan change (2026-10-02 10:28 UTC) and read 80% at 2026-10-04 20:26 UTC: four
 fifths of the week in 58 hours. On 2026-10-03, the one day all four tracks ran all day, they spent 40.7% of the
 week; at that pace a week lasts 2.5 days. A week that keeps the engineer's 5% has 95% to spend, **13.6% a day: a
-third of 2026-10-03's pace.** The managers' own sessions were 17.8% of the week in those 2.5 days.
+third of 2026-10-03's pace.** Since the restart the managers' own sessions spent 17.8% of the week.
 
 ### Measured inputs
 % of the week = (list $ without cache reads + 0.75 x cache-read $) / $23.0, the `metrics` headline (#307, #333); the
@@ -54,9 +54,10 @@ of manager session 657efbf1.
 | 14 | CI's `test` step (#341) | 133.5 s against 199 to 212 s; CI `verify` 292 s against 332 to 366 s | PR #398 |
 | 15 | `verify` by runs at once on this PC (k) | median 330 s at k = 1 (n = 24), 362 s at k = 2 (20), 456 s at k = 3 (17), 422 s at k of 4 or more (7); red 14 to 24% at every k (mostly the tasks' own failures); the 3 runs that timed out (a test shard at 600 s) came at k = 2 or 3; in 3 runs Godot or git failed to start (0xC0000142, a Windows DLL initialization failure), one of them at k = 1 | `verify.py` over every worktree's `tools/out/logs/verify-history.jsonl` (68 runs from 10-03 23:08); #185's k = 1 to 4 figures in `tools/runner/slots.py` agree |
 | 16 | `verify` this week; time in it | 478 agent `verify` runs, median 359 s, max 1,805 s, 11 of them without a slot (over the limit); a task holds a slot 16 to 25 of its 48 to 82 minutes (per-session medians since 10-01) | `metrics` (row 9's run: "local verify", "min in verify", "wall") |
-| 17 | 10-04 13:28 to 14:16 UTC | 5 red `verify` runs in 48 minutes: 3 timed out (1,332 to 1,805 s), and in 2 every Godot process failed to start; 2 or 3 `verify` runs at once, 3 workflows and the engineer's game on the PC; the engineer paused the track at 14:25 | `verify.py`; #302 comment 5981003461 |
+| 17 | 10-04 13:28 to 14:16 UTC | 5 red `verify` runs in 48 minutes: 3 hit the 600 s test-shard timeout (runs of 1,332 to 1,805 s), and in 2 every Godot process failed to start (0xC0000142); 2 or 3 `verify` runs at once, 3 workflows and the engineer's game on the PC; the engineer paused the track at 14:25 | `verify.py`; #302 comment 5981003461 |
 | 18 | Workflow runs in flight, all tracks | 10-02: up to 7, 5 or more for 319 minutes; 10-03: up to 7, 163 minutes; 10-04: up to 4 | `verify.py` (sampled each minute) |
 | 19 | Other load | a Godot window took up to 9.5 s to exit under all-core load, and `playcheck` failed 8 times for other load reasons; art's batches run headless Blender and off-screen Godot outside the slots; UI's checks are Node scripts | PR #394 (#354); `D:\prime-game-art\CLAUDE.md`, `D:\prime-game-ui\CLAUDE.md` |
+| 20 | #388's slot wait (PR #399, open) | `verify` waits up to 600 s for a slot instead of 95 s, and a deliberate load run takes a slot (`load`); the over-limit runs it found took a median 603 s against 359 s for slotted ones | PR #399's body |
 
 ## Decision (proposed)
 
@@ -112,7 +113,7 @@ task holds a slot about a third of its wall time (row 16), so six tasks in fligh
 §7.1, fill both slots with nothing left for merges, load runs, art's renders or the engineer's own use. Q1's budgets
 average about one task in flight across the tracks (13.6% a day at about 0.65% a task is about 21 tasks of about 65
 minutes), so the cap matters in bursts, not on average.
-- (a) **The slots only:** #388's longer slot wait and load runs in a slot; the "about six" stays.
+- (a) **The slots only:** #388's 600 s slot wait and load runs in a slot (row 20); the "about six" stays.
 - (b) **The slots plus a cap across sessions:** at most four task workflows of this repo at once (by day the game 3
   and meta 1; at night either track up to 3), one art batch at a time, UI uncapped (no Godot or Blender in its
   checks). A manager launches only when `slots --status` shows no run waiting for a slot (P2). The engineer runs
@@ -166,8 +167,9 @@ binds.
 - (a) **Steady:** every track runs all day at about a third of its pace, one or two workflows at a time.
 - (b) **Day and night:** by day, while the engineer answers, UI, art and the game's tasks that need his answers or
   taste; by night one long chain at a time, the game's stacked tasks or merge chain or the meta track's tooling
-  merges, alternating by night. Meta's changes to shared files then land between the game's waves (AGENT_WORKFLOW
-  §7.1). The daily figure is a guide; the weekly budget is the limit.
+  merges, alternating by night (#387's `merge-train` runs a merge chain without a manager turn per merge). Meta's
+  changes to shared files then land between the game's waves (AGENT_WORKFLOW §7.1). The daily figure is a guide;
+  the weekly budget is the limit.
 - (c) **Track days:** one track at a time at full pace. Q1 (b) at 10-03's pace is about 8 track-days in a 7-day
   week, so not every track gets its days, and a track waits days for its turn.
 
@@ -199,7 +201,7 @@ report and proposal (Q1) come then, and the managers' kickoffs for the week foll
 | order | issue | size | decides | depends on | files |
 |---|---|---|---|---|---|
 | 1 | P1. `metrics`: a track's spend this week against its budget | M | manager | none | `tools/runner/metrics.py`, its tests, orchestrate-stage §6 and §10, AGENT_WORKFLOW §7.1 |
-| 1 | P2. `slots --status` and `slots --quiet <hours>` | S | N3 (b) | #388 (both change `slots.py`) | `tools/runner/slots.py`, `verify.py`, `cli.py`, tests, AGENT_WORKFLOW §11, orchestrate-stage §3 |
+| 1 | P2. `slots --status` and `slots --quiet <hours>` | S | N3 (b) | #388, PR #399 (both change `slots.py`) | `tools/runner/slots.py`, `verify.py`, `cli.py`, tests, AGENT_WORKFLOW §11, orchestrate-stage §3 |
 | 2 | P3. `issue-task` and `pr-rebase` default to `lean` and `bounded_waits` | S | N4; manager for `bounded_waits` | a week of N4 (a), or none under (b); lands between waves | `.claude/workflows/issue-task.js`, `pr-rebase.js`, snapshots, `test_workflows.py`, the lean ADR, AGENT_WORKFLOW §7.1 |
 | 2 | P4. The week's rules in the skill and the ADRs | S | N1, N2, N3, N5 to N8 | the answers | orchestrate-stage §1, §3, §6, §7, §10; AGENT_WORKFLOW §7.1; dated amendments of the trust, effort and model-guard ADRs |
 | 3 | P5. The art and UI workflows get bounded waits, compact results and lean types (one issue in each repo) | M each | those repos' managers | P1 (to measure before and after) | `prime-game-art` and `prime-game-ui`: `.claude/workflows/`, `.claude/agents/` |
