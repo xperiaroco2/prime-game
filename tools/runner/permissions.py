@@ -22,7 +22,8 @@ PowerShell call in this project's transcripts (`~/.claude/projects/<project>` an
 bypass mode, with the settings and the guard of that revision against the ones in this checkout, and prints the
 prompts before and after and every verdict that changed. `--since YYYY-MM-DD` keeps the calls from that day on,
 `--mode default` models a mode that prompts, `--list` names each cause with examples, and `--observed` reports what the
-transcripts record instead: the guard's asks, deny rule denials, Claude Code's own blocks and the human's rejections.
+transcripts record instead: the guard's asks, deny rule denials, Claude Code's own blocks and the human's rejections
+(not an ask rule's prompt that the human approved, which leaves no trace: take those from the replay).
 """
 
 from __future__ import annotations
@@ -436,7 +437,8 @@ def observed_events(folders: list[Path], rules: Rules, since: str = "") -> tuple
     """(the events, the malformed entries skipped) of every transcript under folders, from the day since on: a guard
     ask or deny (the PreToolUse hook's permissionDecision), a deny rule's denial, Claude Code's own block (`Blocked:`
     and protected removal paths) and a human's rejection. A call seen in two transcripts (a resumed session) counts
-    once."""
+    once. Blind spot: an ask rule's prompt (settings.json `ask`) that the human approved leaves no trace in the
+    transcript, only a rejected one does; the replay's "ask rules" count holds those."""
     events: dict[str, Event] = {}
     skipped = 0
     for folder in folders:
@@ -511,7 +513,8 @@ def observed(folders: list[Path], rules: Rules, since: str = "") -> str:
     transcripts = sum(1 for folder in folders for _ in folder.rglob("*.jsonl"))
     lines = [
         f"{len(events)} stopped calls in {transcripts} transcripts ({skipped} malformed entries skipped); wait ="
-        " seconds from the call to its result, an upper bound of the human's answer (after a yes the run is in it)"
+        " seconds from the call to its result, an upper bound of the human's answer (after a yes the run is in it)",
+        "not here: an ask rule's prompt the human approved (no trace in the transcript; see the replay's ask rules)",
     ]
     groups: dict[tuple[str, str], list[Event]] = {}
     for event in events:
@@ -570,7 +573,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--observed",
         action="store_true",
-        help="instead of a replay, what the transcripts record: guard asks, deny rule denials, Claude Code's blocks",
+        help="instead of a replay, what the transcripts record: guard asks, deny rule denials, Claude Code's blocks"
+        " (not an approved ask rule prompt, which leaves no trace: the replay counts those)",
     )
     args = parser.parse_args(argv)
     if args.since and _day(args.since) != args.since:  # compared as text with the transcripts' ISO timestamps

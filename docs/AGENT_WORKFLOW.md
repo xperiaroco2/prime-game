@@ -361,7 +361,8 @@ alone overnight?" Replay the latest unattended run's transcripts against the new
 worktrees', through the rules and the guard of `origin/main` and of the checkout, in bypass mode; `--since
 YYYY-MM-DD` keeps the calls from that day on, `--mode default` models a mode that prompts, `--list` names each cause
 with examples, and `--observed` reports what the transcripts record instead: the guard's asks, deny rule denials,
-Claude Code's own blocks and the human's rejections, with roles and waits); a rule that would have stopped routine
+Claude Code's own blocks and the human's rejections, with roles and waits, but not an ask rule's prompt that the human
+approved, which leaves no trace: the replay's "ask rules" count holds those); a rule that would have stopped routine
 work is judged by its target in the guard (§8.2) instead of by its text
 ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). `runner.permissions` models
 Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow, its documented read-only commands and
