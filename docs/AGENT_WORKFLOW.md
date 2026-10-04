@@ -284,11 +284,13 @@ Rules for every workflow run:
   `whenToUse` and args comment give the counts, the roles and their fallbacks.
 - **Lean agent types** ([ADR](decisions/2026-10-04-lean-workflow-agent-types.md), #332): `lean: true` (`issue-task`
   and `pr-rebase`, +0 agents, off by default) runs the implementer, the plan agent and the test reviewer as
-  `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5): a first call of
-  about 20k tokens plus the prompt instead of about 57k, with no desktop, MCP or Skill tools. It appends only
-  `agentType` to their options; prompts, efforts and models stay. Opt-in until the manager's A/B on 3-4 tasks
-  (results on #302) and the engineer's call on the default; the manager's checkout must have both agent files
-  (`agentType` resolves there), and a task whose agents need a skill through the Skill tool stays off it.
+  `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5), with no desktop, MCP
+  or Skill tools. The ADR's CLI probe measured a lean first call of about 20k tokens before the task prompt, against a
+  median of about 57k for a general implementer's whole first call under a desktop manager; the A/B measures the real
+  difference. It appends only `agentType` to their options; prompts, efforts and models stay. Opt-in until the
+  manager's A/B on 3-4 tasks (results on #302) and the engineer's call on the default; the manager's checkout must
+  have both agent files (`agentType` resolves there), and a task whose agents need a skill through the Skill tool
+  stays off it.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
   about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
