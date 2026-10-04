@@ -8,14 +8,17 @@ Snapshots: other managers launch these scripts by name from their own copies and
 resume replays an agent only while its prompt and options are unchanged. So with none of the optional pipeline-v2 args
 (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4) every agent's prompt, label, phase,
 schema and options must stay byte-identical: `workflow_snapshots/<script>/<case>.txt` holds them for representative
-arg sets, captured from the scripts on origin/main before v2 changed them. A deliberate change of a default prompt
-rewrites them: run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose,
-naming the files it wrote), review the diff, commit it with the change, and run `selftest` again without the variable.
+arg sets, captured from the scripts on origin/main before v2 changed them. The one exception is `publish-clean-main`:
+it passes a v2 arg and pins the publish_clean trial of #308, so the byte-identical rule covers every other case. A
+deliberate change of a default prompt rewrites them: run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the
+snapshot test then fails on purpose, naming the files it wrote), review the diff, commit it with the change, and run
+`selftest` again without the variable.
 """
 
 import difflib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -116,6 +119,8 @@ SNAPSHOT_CASES = {
         ("content-release", {"branch": "content/7-x", "base": "release/m5"}, {"paths": ["content/roles/x.tres", "levels/rooms/x.tscn"]}),
         ("design-main", {"branch": "docs/7-x", "design": True}, {"paths": ["docs/ARCHITECTURE.md", "docs/decisions/x.md"]}),
         ("no-paths-main", {"branch": "core/7-x"}, {"paths": []}),
+        # #308's one-wave trial: a clean run's publisher with a cheaper model (the only case with a v2 arg).
+        ("publish-clean-main", {"branch": "core/7-x", "models": {"publish_clean": "sonnet"}}, {"paths": ["core/x.gd"], "findings": [MINOR]}),
         (
             "every-arg-release",
             {
@@ -331,8 +336,9 @@ class WorkflowTest(unittest.TestCase):
                     labels = [c["label"] for c in run_workflow(WORKFLOWS / name, "release/m4", paths)]
                     self.assertEqual(any(label.startswith("review:netcode") for label in labels), routed, labels)
 
-    def test_without_the_v2_args_every_agent_call_matches_its_snapshot(self) -> None:
-        # Compatibility first: another manager's launch or resume with today's args must get today's agents.
+    def test_every_agent_call_matches_its_snapshot(self) -> None:
+        # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
+        # case but publish-clean-main passes no v2 arg).
         jobs, files = [], []
         for name, cases in SNAPSHOT_CASES.items():
             for case, args, stub in cases:
@@ -721,6 +727,112 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("Skeptics refuted these blocker or major findings", fix[0]["prompt"])
         self.assertIn("vote.gd:12 already checks it", fix[0]["prompt"])
 
+    def test_publish_clean_applies_only_on_a_clean_run(self) -> None:
+        # #308, a one-wave trial: the full publisher of a run that the reviews, the test review and the skeptics left
+        # with no blocker or major open takes the role publish_clean (falling back to publish), so a launch can give it
+        # a cheaper model. Nothing else changes: not its prompt, not another agent, not a design task's publisher.
+        m, p = AVAILABLE[1], AVAILABLE[0]
+        core = dict(ARGS, branch="core/7-x")  # three reviewers: code, netcode, godot
+        clean = {"paths": ["core/x.gd"], "findings": [MINOR]}
+        major = {"paths": ["core/x.gd"], "findings": [MAJOR, MINOR]}  # three majors
+        blocker = {"paths": ["core/x.gd"], "findings": [dict(MAJOR, severity="blocker")]}
+        refuted = {"refuted": True, "reason": "vote.gd:12 already checks it", "evidence": "vote.gd:12"}
+        stands = {"refuted": False, "reason": "it stands"}
+        survived = {"available": True, "exit_2": False, "findings": [MAJOR], "mutants": [{"file": "core/x.gd", "result": "survived"}]}
+        stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
+        trial = {"models": {"publish_clean": m}}
+        jobs = [
+            ("issue-task.js", core, clean),  # 0: the same run without the arg
+            ("issue-task.js", dict(core, **trial), clean),
+            ("issue-task.js", dict(core, **trial), major),
+            ("issue-task.js", dict(core, **trial), blocker),
+            ("issue-task.js", dict(core, skeptic=True, **trial), dict(major, queues={"skeptic": [refuted] * 3})),
+            ("issue-task.js", dict(core, skeptic=True, **trial), dict(major, queues={"skeptic": [refuted, stands, refuted]})),  # 5
+            ("issue-task.js", dict(core, skeptic=1, **trial), dict(major, queues={"skeptic": [refuted]})),
+            ("issue-task.js", dict(core, test_review=True, **trial), dict(clean, queues={"test-review": [survived]})),
+            ("issue-task.js", dict(core, models={"publish": p, "publish_clean": m}), clean),
+            ("issue-task.js", dict(core, models={"publish": p, "publish_clean": m}), major),
+            ("issue-task.js", dict(core, models={"publish": p}), clean),  # 10
+            ("issue-task.js", dict(core, models={"publish": p}), major),
+            ("issue-task.js", dict(core, efforts={"publish_clean": "medium"}), clean),
+            ("issue-task.js", dict(core, efforts={"publish_clean": "medium"}), major),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, **trial), {"paths": ["docs/x.md"]}),
+            ("issue-task.js", dict(core, test_review=True, **trial), dict(clean, queues={"test-review": [stuck]})),  # 15
+            ("pr-rebase.js", dict(ARGS, **trial), clean),
+            ("issue-task.js", dict(ARGS, models={"publish_clean": ""}), {}),
+            ("issue-task.js", dict(ARGS, efforts={"publish_clean": "extreme"}), {}),
+        ]
+        results = run_jobs(jobs)
+        for k, result in enumerate(results[:16]):
+            self.assertIsNone(result["error"], k)
+
+        def publisher(result: dict) -> dict:
+            (event,) = calls(result, "publish")
+            return event
+
+        def trial_of(result: dict) -> dict:
+            return result["returned"]["publish_clean"]
+
+        def logs(result: dict) -> list[str]:
+            return [e["message"] for e in result["events"] if e["kind"] == "log" and "publish_clean" in e["message"]]
+
+        base, on = results[0], results[1]
+        # Clean: only the publisher's model changes; its prompt and every other option are today's.
+        self.assertEqual(options(publisher(on))["model"], m)
+        self.assertEqual(publisher(on)["prompt"], publisher(base)["prompt"])
+        self.assertEqual({k: v for k, v in options(publisher(on)).items() if k != "model"}, options(publisher(base)))
+        self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(base)])
+        for before, after in zip(agents(base), agents(on)):
+            if not after["label"].startswith("publish"):
+                self.assertEqual((after["opts"], after["prompt"]), (before["opts"], before["prompt"]), after["label"])
+        self.assertNotIn("publish_clean", base["returned"])
+        self.assertEqual(logs(base), [])
+        want = {"applied": True, "why": "no blocker or major open", "open": 0, "model": m, "effort": "high"}
+        self.assertEqual(trial_of(on), want)
+        self.assertEqual(len(logs(on)), 1)
+        self.assertIn("publish_clean applied", logs(on)[0])
+        # A blocker or major still open keeps the publisher as it is today.
+        for k, open_ in ((2, 3), (3, 3), (5, 1), (6, 2), (7, 1)):
+            with self.subTest(case=k):
+                self.assertNotIn("model", options(publisher(results[k])))
+                self.assertEqual((trial_of(results[k])["applied"], trial_of(results[k])["open"]), (False, open_))
+                self.assertIsNone(trial_of(results[k])["model"])
+                self.assertIn(f"publish_clean not applied: {open_} blocker or major finding(s) open", logs(results[k])[0])
+        # Every blocker or major refuted by a skeptic: closed, so the trial applies.
+        self.assertEqual(options(publisher(results[4]))["model"], m)
+        self.assertEqual((trial_of(results[4])["applied"], trial_of(results[4])["open"]), (True, 0))
+        # publish_clean falls back to publish; publish alone gives the same model both ways and no result field.
+        self.assertEqual(options(publisher(results[8]))["model"], m)
+        self.assertEqual(options(publisher(results[9]))["model"], p)
+        self.assertEqual(trial_of(results[9])["model"], p)
+        for k in (10, 11):
+            self.assertEqual(options(publisher(results[k]))["model"], p)
+            self.assertNotIn("publish_clean", results[k]["returned"])
+        # efforts.publish_clean: the effort in the options and in the prompt's Effort line.
+        self.assertEqual(options(publisher(results[12]))["effort"], "medium")
+        self.assertIn("Effort: medium.", publisher(results[12])["prompt"])
+        self.assertEqual(options(publisher(results[13]))["effort"], "high")
+        self.assertIn("Effort: high.", publisher(results[13])["prompt"])
+        self.assertNotIn("model", options(publisher(results[12])))
+        # A design task never switches.
+        design = results[14]
+        self.assertNotIn("model", options(publisher(design)))
+        self.assertEqual((trial_of(design)["applied"], trial_of(design)["why"]), (False, "a design task"))
+        self.assertIn("publish_clean not applied: a design task", logs(design)[0])
+        # A mutants stop: the publisher that only reports it is not the trial's, and the result says so.
+        stop = results[15]
+        self.assertIn("Task: report a stopped run of issue #7", publisher(stop)["prompt"])
+        self.assertNotIn("model", options(publisher(stop)))
+        self.assertEqual((trial_of(stop)["applied"], trial_of(stop)["why"]), (False, "mutants exited 2"))
+        self.assertIn("publish_clean not applied: mutants exited 2", logs(stop)[0])
+        # pr-rebase has no publisher role; a wrong value names the role's values, not a missing role.
+        self.assertIn("args.models.publish_clean: no such role", results[16]["error"])
+        self.assertEqual(agents(results[16]), [])
+        for result in results[17:]:
+            self.assertIn("must be", result["error"])
+            self.assertNotIn("no such role", result["error"])
+            self.assertEqual(agents(result), [])
+
     def test_visual_allows_playcheck_and_hands_the_pngs_to_the_code_reviewer(self) -> None:
         core = {"paths": ["client/hud/hud.gd"]}
         absent = {"available": False, "pngs": [], "notes": "no playcheck command on the branch"}
@@ -854,6 +966,29 @@ class PipelineV2Test(unittest.TestCase):
                 for arg in names:
                     self.assertIn(f"{arg}?", when)
                     self.assertRegex(comment, rf"//   {arg} ")
+
+
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+
+
+class ReviewerEffortTest(unittest.TestCase):
+    """The workflows pass an agentType reviewer no effort unless a launch's `efforts` names its role, so the agent file's
+    own `effort` applies; without one the reviewer inherits the manager session's effort (xhigh before #308)."""
+
+    def test_every_routed_reviewer_sets_its_own_effort(self) -> None:
+        from runner.instructions import parse
+
+        routed = set()
+        for name in ("issue-task.js", "pr-rebase.js"):
+            routed |= set(re.findall(r"agentType: '([a-z-]+)'", (WORKFLOWS / name).read_text(encoding="utf-8")))
+        self.assertTrue(routed, "no agentType found in the workflows: the pattern no longer matches them")
+        for agent in sorted(routed):
+            fields = parse((ROOT / ".claude" / "agents" / f"{agent}.md").read_text(encoding="utf-8")).fields
+            with self.subTest(agent=agent):
+                self.assertIn(fields.get("effort"), EFFORTS, "no effort: the reviewer inherits the manager's")
+                # Today's level for every reviewer (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended
+                # 2026-10-04 by #308).
+                self.assertEqual(fields.get("effort"), "high")
 
 
 class NodeOnCiTest(unittest.TestCase):
