@@ -409,8 +409,8 @@ def main(argv: list[str] | None = None) -> int:
             from . import permissions
 
             extra = ["--list"] * args.list + ["--observed"] * args.observed
-            argv = ["--before", args.before, "--projects", args.projects, "--since", args.since, "--mode", args.mode]
-            return permissions.main(argv + extra)
+            forwarded = ["--before", args.before, "--projects", args.projects, "--since", args.since]
+            return permissions.main(forwarded + ["--mode", args.mode] + extra)
         if args.command == "hook":
             from . import hooks
 
