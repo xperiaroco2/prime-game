@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -362,20 +363,27 @@ def main(numbers: list[int], base: str, dry_run: bool = False, recent_minutes: i
         return 0 if fine else 1
     merge.refuse_task_checkout()
     outcomes: list[Outcome] = []
-    for number in order:
-        say()
-        say(f"== merge-train: #{number} ({datetime.now(UTC).strftime('%H:%MZ')})")
-        try:
-            outcome = ride(number, recent_minutes)
-        except Failure as exc:
-            outcome = Outcome(number, "", False, str(exc))
-        if not outcome.merged:
-            bad(f"train: #{number} skipped: {outcome.why}")
-        outcomes.append(outcome)
+    try:
+        for number in order:
+            say()
+            say(f"== merge-train: #{number} ({datetime.now(UTC).strftime('%H:%MZ')})")
+            try:
+                outcome = ride(number, recent_minutes)
+            except (Failure, subprocess.TimeoutExpired, OSError) as exc:  # a hung git call ends one PR, not the train
+                outcome = Outcome(number, "", False, str(exc) or type(exc).__name__)
+            if not outcome.merged:
+                bad(f"train: #{number} skipped: {outcome.why}")
+            outcomes.append(outcome)
+    finally:  # an unexpected error still leaves the summary of the PRs taken so far for `wait`
+        summarize(outcomes, len(order))
+    return 0 if sum(o.merged for o in outcomes) == len(order) else 1
+
+
+def summarize(outcomes: list[Outcome], wanted: int) -> None:
     merged = sum(o.merged for o in outcomes)
     say()
     say("merge-train summary")
     for outcome in outcomes:
         say(outcome.line())
-    say(f"merge-train: {merged} merged, {len(outcomes) - merged} skipped of {len(outcomes)} PRs")
-    return 0 if merged == len(outcomes) else 1
+    left = f", {wanted - len(outcomes)} not tried (the train stopped)" if len(outcomes) < wanted else ""
+    say(f"merge-train: {merged} merged, {len(outcomes) - merged} skipped of {len(outcomes)} PRs{left}")

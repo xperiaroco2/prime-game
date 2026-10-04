@@ -3,6 +3,7 @@ stood in for. Nothing reaches GitHub: the remote is a bare repository in a tempo
 FakeGitHub's commit on it."""
 
 import os
+import subprocess
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -202,6 +203,43 @@ class TrainTest(TrainCase):
         self.assertIn("#30 (core/30-task): the rebase on origin/main stopped on a conflict (publish aborted it): "
                       "pr-rebase", self.summary()[1])  # fmt: skip
         self.assertIn("#31 (core/31-task): publish stopped: the push was rejected. 'stale info'", self.summary()[2])
+
+    def test_a_hung_git_call_skips_one_pr_and_the_train_goes_on(self) -> None:
+        self.pr(30, {"core/a.gd": "extends Node\n"})
+        self.pr(31, {"core/b.gd": "extends Node\n"})
+        real = merge._out
+        hangs = [1]
+
+        def hang_once(*args: str, cwd: Path | None = None) -> str:
+            if args[:2] == ("worktree", "list") and hangs:
+                hangs.pop()
+                raise subprocess.TimeoutExpired(["git", *args], merge.TIMEOUT)
+            return real(*args, cwd=cwd)
+
+        with mock.patch.object(merge, "_out", hang_once):
+            rc, text = self.train(30, 31)
+        self.assertEqual(rc, 1, text)
+        self.assertEqual([args[2] for args in self.gh.merges], ["31"])
+        self.assertIn("  skipped  #30: Command '['git', 'worktree', 'list'", self.summary()[1])
+        self.assertEqual(self.summary()[3], "merge-train: 1 merged, 1 skipped of 2 PRs")
+
+    def test_an_unexpected_error_still_prints_the_summary(self) -> None:
+        self.pr(30, {"core/a.gd": "extends Node\n"})
+        self.pr(31, {"core/b.gd": "extends Node\n"})
+        real = train.ride
+
+        def broken(number: int, recent_minutes: int) -> train.Outcome:
+            if number == 31:
+                raise RuntimeError("a bug")
+            return real(number, recent_minutes)
+
+        with mock.patch.object(train, "ride", broken), self.assertRaises(RuntimeError):
+            self.train(30, 31)
+        self.assertEqual(self.summary(), [
+            "merge-train summary",
+            "  merged   #30 (core/30-task): no publish (main was in its head), CI green, the gate passed",
+            "merge-train: 1 merged, 0 skipped of 1 PRs, 1 not tried (the train stopped)",
+        ])  # fmt: skip
 
     def test_red_ci_skips_at_once_and_names_the_failed_job(self) -> None:
         # 2026-10-04: a new required job, "runner on the minimum Python", failed #321 while verify passed.
