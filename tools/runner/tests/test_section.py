@@ -155,7 +155,7 @@ class RealDocsTest(unittest.TestCase):
         end = int(out[0].split(":")[1].split()[0].split("-")[1])
         self.assertTrue(text[end].startswith("### 4.6 "), text[end])
 
-    def test_agent_workflow_has_no_duplicate_section_numbers(self) -> None:
+    def test_the_two_docs_have_no_duplicate_section_numbers(self) -> None:
         for name in ("ARCHITECTURE", "AGENT_WORKFLOW"):
             numbers = [h.number for h in section.headings(section.doc_path(name).read_text(encoding="utf-8"))]
             numbered = [n for n in numbers if n]
