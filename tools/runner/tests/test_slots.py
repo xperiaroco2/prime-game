@@ -117,18 +117,6 @@ class WaitTest(SlotsCase):
         self.assertEqual((record["slot"], record["over"], record["error"]), (None, True, taken.error))
         self.assertIn("ran without a slot", taken.summary())
 
-    def test_holders_names_each_slot_with_an_empty_holder_for_a_free_one(self) -> None:
-        # #324: a free slot (no holder file, or a cleared one) raised NameError instead of an empty holder.
-        self.pool(count=3, name="a").acquire()
-        released = self.pool(count=3, name="b")
-        released.acquire()
-        released.release()  # slot 2: its holder file cleared; slot 3: never written
-        holders = self.pool(count=3, name="reader").holders()
-        self.assertEqual([h.slot for h in holders], [1, 2, 3])
-        self.assertEqual([h.worktree for h in holders], ["D:/wt/a", "?", "?"])
-        self.assertEqual(holders[1], slots.Holder(2))
-        self.assertEqual(holders[2].line(), "slot 3: ? (detached, pid None, since ?)")
-
     def test_a_full_pool_whose_holder_file_is_blank_still_waits_and_names_the_slot(self) -> None:
         # A held slot can have a blank holder file (its write failed, or a reader caught it half-written): the wait
         # reports it as unknown instead of crashing (#324).
@@ -145,6 +133,20 @@ class WaitTest(SlotsCase):
         fake = FakeClock()
         self.assertTrue(self.pool(count=1, max_wait=0, name="now", clock=fake).acquire().over)
         self.assertEqual(fake.slept, [])
+
+
+class HoldersTest(SlotsCase):
+    def test_holders_names_each_slot_with_an_empty_holder_for_a_free_one(self) -> None:
+        # #324: a free slot (no holder file, or a cleared one) raised NameError instead of an empty holder.
+        self.pool(count=3, name="a").acquire()
+        released = self.pool(count=3, name="b")
+        released.acquire()
+        released.release()  # slot 2: its holder file cleared; slot 3: never written
+        holders = self.pool(count=3, name="reader").holders()
+        self.assertEqual([h.slot for h in holders], [1, 2, 3])
+        self.assertEqual([h.worktree for h in holders], ["D:/wt/a", "?", "?"])
+        self.assertEqual(holders[1], slots.Holder(2))
+        self.assertEqual(holders[2].line(), "slot 3: ? (detached, pid None, since ?)")
 
 
 class ReleaseTest(SlotsCase):
