@@ -648,8 +648,9 @@ commands, by the repository they name (issue #68, a read of another repository m
   guard: `gh issue create --repo godotengine/godot` (an upstream bug report) and a `gh issue create -R` probe of a
   missing repository. The other 16 guard prompts are unchanged (§8.2 above).
 - What blocked agents in the week to 2026-10-04 (#312), from `tools\run.cmd permissions --observed --since
-  2026-09-29` over this project's 900 transcripts (24,590 shell calls; the earlier replays above also read the
-  `D--prime-game-art` and `-ui` folders, this one does not): 109 stopped calls, nearly all in bypass mode. 58 guard
+  2026-09-29` over this project's transcripts (about 910 of them and 24,800 shell calls on 2026-10-04; the earlier
+  replays above also read the `D--prime-game-art` and `-ui` folders, this one does not): 109 stopped calls, nearly
+  all in bypass mode. 58 guard
   asks: the 30 `gh` writes to the sibling repositories (above); 20 git commands that discard work, of which 11 came
   from a manager's shell standing in a worktree and from `git stash drop` on 2026-09-30 (fixed by the 2026-10-01
   intervention and the no-stash rule), 1 from a no-op editor rebase before #104 landed, 1 from `-c core.editor`
@@ -660,11 +661,13 @@ commands, by the repository they name (issue #68, a read of another repository m
   `Remove-Item` on a "system path", one right (`D:\c`) and one false: a PowerShell command held `Remove-Item $out` and
   a cmd.exe `/c` argument, which Claude Code read as its target; put such code in a `.ps1` file in the scratchpad
   and run it with `powershell -File`. The human said no 8 times. No stop called for an allow rule or a guard change:
-  each was right or a wrong command pattern, now fixed in these instructions. Outside bypass the model
-  (`--mode default`, an upper bound) asks for 12,624 of the 24,590 calls: `$PYTHON_BIN` 3,340, git reads after a `cd`
-  into a worktree 1,931 (Claude Code prompts for git after a `cd` elsewhere, and workflow agents start every command
-  that way), `sed`, PowerShell filters and loops. Allow rules for the plain filters (`cut`, `tr`, `printf`, `date`,
-  `Select-Object` and the like) and `mkdir` would remove about 1,460 of them, so unattended work stays in bypass mode.
+  each was right or a wrong command pattern. The fixes for the wrong patterns are documented here; workflow agents
+  read their workflow prompt instead, which gets the hooks-path and `sleep` rules through #326. Outside bypass the
+  model (`--mode default`, an upper bound) asks for about 12,800 of the calls: `$PYTHON_BIN` about 3,400, git reads
+  (`diff`, `status`, `show`) about 2,200, nearly all after a `cd` into a worktree (Claude Code prompts for git after a
+  `cd` elsewhere, and workflow agents start every command that way), `sed`, PowerShell filters and loops. Allow rules
+  for the plain filters (`cut`, `tr`, `printf`, `date`, `Select-Object` and the like) and `mkdir` would remove about
+  1,500 of them, so unattended work stays in bypass mode.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
@@ -1157,8 +1160,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
   shell's `timeout` or `wait --max`, never only with the tool's own timeout. A foreground `sleep N` followed by another
   command (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
-  the week to 2026-10-04, 26 by workflow agents, #312): wait with `wait <log>`, `run_in_background` or Monitor with an
-  until-loop instead. The agent starts the job in the Bash tool with
+  the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
+  `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the job in the Bash tool with
   `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
   run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
   the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
