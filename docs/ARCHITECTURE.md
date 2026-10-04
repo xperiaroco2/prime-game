@@ -1962,7 +1962,7 @@ nearest item of that kind resting (no holder) in the window's own `ClientModel`,
 sent, and calls `PlayerController.look` on `Game.player()` to face its middle (`ItemView.centre_of`), as mouse motion
 would. The pick-up hint reads the window's own position and the host's reach check the last one it accepted, so a
 scenario that walks up to an item lets the player settle (`frames`) and waits for the hint again before `press
-interact` (`items.txt`: pressed at once, the pick-up failed in 1 run of 2). Keys go in through
+interact` (`items.txt`: pressed at once, the pick-up failed intermittently; #319). Keys go in through
 `Input.parse_input_event`, before the frame's `_process`, so actions polled there (`interact`, `swap`, `put_down`)
 see them as just pressed; holds through `Input.action_press`, screenshots through
 `Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
