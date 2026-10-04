@@ -1004,31 +1004,35 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
   the GitHub half.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
-  windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw
-  before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`),
-  names its players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more
-  windows join it, and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a
-  `BotScenario`'s scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup
-  window 1 sends as the host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps:
-  `wait phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`,
-  Esc menu and pointer, never `HostSession`, the match or `core/` (invariant 2); `wait text <field> is|has|lacks
-  <text>` and `wait shown <field> on|off` (#275), what its own Ui and current camera draw (the fields: `FIELDS` in
+  windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
+  (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`), names its
+  players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more windows join it,
+  and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a `BotScenario`'s
+  scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup window 1 sends as the
+  host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps: `wait
+  phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`, Esc menu and
+  pointer, never `HostSession`, the match or `core/` (invariant 2); `wait text <field> is|has|lacks <text>` and `wait
+  shown <field> on|off` (#275), what its own Ui and current camera draw (the fields: `FIELDS` in
   `tools/runner/playcheck.py`, the same keys as the window's `GameView`; whitespace runs count as one space, a hidden
   field reads as ""); `press <action>` (its key through `Input.parse_input_event`), `hold`/`release`
   (`Input.action_press`), `button <text>` (the one visible, enabled Button with that text takes the focus and gets
-  `ui_accept`'s key; none or several fail the step), `frames N` and `shot <name>`. A text wait asserts a short, stable
-  part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario edit,
-  and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
-  (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit
-  at `shot`'s off-screen position with the dummy audio driver, never headless. The game gets a pointer that only
-  remembers, and playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse
-  (`use`, spectate cycling) is out of its reach. PNGs: `tools/out/playcheck/<scenario>/<shot>.png` (`gh` cannot
-  upload them: the PR lists their paths and says what each shows); logs: `tools/out/logs/playcheck/<scenario>/`. A
-  run fails on a wait past its timeout (the window prints the step's line and what it saw, and saves
-  `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not done within
-  `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started through
-  the stop file (else a kill). Desktop only: CI and `verify` never run it; an agent may (off-screen windows, like
-  `shot`). Scenarios: `esc_menu` (#169) and `spectate` (#168).
+  `ui_accept`'s key; none or several fail the step), `aim item <kind>` until `aim off` (#276: each frame the window
+  turns its own player, `PlayerController.look`, to face the nearest resting item of that kind in its own `ClientModel`;
+  paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
+  `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,
+  stable part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario
+  edit, and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
+  (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit at `shot`'s
+  off-screen position with the dummy audio driver, never headless. The game gets a pointer that only remembers, and
+  playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse (`use`, spectate
+  cycling) is out of its reach, and `aim` is the only way to turn. PNGs: `tools/out/playcheck/<scenario>/<shot>.png`
+  (`gh` cannot upload them: the PR lists their paths and says what each shows); logs:
+  `tools/out/logs/playcheck/<scenario>/`. A run fails on a wait past its timeout (the window prints the step's line and
+  what it saw, and saves `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not
+  done within `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started
+  through the stop file (else a kill). Desktop only: CI and `verify` never run it; an agent may (off-screen windows,
+  like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked up, swapped to the belt and
+  back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a second round, #276).
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with

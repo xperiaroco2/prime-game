@@ -2,10 +2,13 @@ extends GdUnitTestSuite
 ## The steps of a playcheck window (tools/playcheck/playcheck_steps.gd, #186): waits that pass at
 ## once or time out at their timeout and not before, frames, actions, the host's setup and event
 ## matching through player numbers, over a fake View and a fake clock (no window, no sleep); what
-## the window draws (`wait text`, `wait shown`) and the `button` step's choice (#275). The plan
-## comes from tools/runner/playcheck.py (its parser: tools/runner/tests/test_playcheck.py).
+## the window draws (`wait text`, `wait shown`) and the `button` step's choice (#275); the `aim`
+## step, the item it picks and the turn that makes a real PlayerController face it (#276); the
+## window turning every frame until `aim off` is covered by the items scenario. The plan comes
+## from tools/runner/playcheck.py (its parser: tools/runner/tests/test_playcheck.py).
 
 const Steps := preload("res://tools/playcheck/playcheck_steps.gd")
+const PLAYER_SCENE := preload("res://client/player/player.tscn")
 
 
 class FakeView:
@@ -463,3 +466,75 @@ func test_a_button_is_the_one_visible_enabled_button_with_that_text() -> void:
 		"no visible button 'Leave'; " + shows
 	)
 	assert_str(Steps.button_problem(buttons, "Resum")).starts_with("no visible button 'Resum';")
+
+
+func test_aim_item_and_aim_off_are_action_steps_advance_returns() -> void:
+	var aim := {"line": 4, "text": "aim item knife", "do": "aim", "kind": "knife"}
+	var off := {"line": 6, "text": "aim off", "do": "aim", "kind": ""}
+	var steps := _steps([aim, _frames(1), off], FakeView.new())
+	assert_dict(steps.advance(0)).is_equal(aim)
+	assert_dict(steps.advance(16)).is_empty()
+	assert_dict(steps.advance(32)).is_equal(off)
+	assert_dict(steps.advance(48)).is_empty()
+	assert_int(steps.status).is_equal(Steps.Status.DONE)
+
+
+func test_the_aim_picks_the_nearest_resting_item_of_its_kind() -> void:
+	var model := ClientModel.new(GameMode.new())
+	model.items[1] = _item(&"knife", Vector3(5, 0, 0))
+	model.items[2] = _item(&"knife", Vector3(0, 0, 3), 7)
+	model.items[3] = _item(&"package", Vector3(1, 0, 0))
+	model.items[4] = _item(&"knife", Vector3(0, 0, -4))
+	assert_int(Steps.nearest_resting(model, &"knife", Vector3.ZERO)).is_equal(4)
+	assert_int(Steps.nearest_resting(model, &"package", Vector3.ZERO)).is_equal(3)
+	assert_int(Steps.nearest_resting(model, &"knife", Vector3(4, 0, 0))).is_equal(1)
+	# Held (item 2, by peer 7) or delivered: never one to face.
+	model.items[1].delivered = true
+	model.items[4].holder = 7
+	assert_int(Steps.nearest_resting(model, &"knife", Vector3.ZERO)).is_equal(-1)
+	assert_int(Steps.nearest_resting(model, &"crowbar", Vector3.ZERO)).is_equal(-1)
+
+
+func test_the_aim_turn_makes_the_player_look_at_the_target() -> void:
+	var player := auto_free(PLAYER_SCENE.instantiate()) as PlayerController
+	add_child(player)
+	player.global_position = Vector3(2, 0, -1)
+	player.look(0.7, -0.2)
+	for target: Vector3 in [
+		Vector3(6, 0.1, -1),
+		Vector3(-3, 0.1, 4),
+		Vector3(2.5, 0.1, -1.2),
+		Vector3(1, 2.5, -9),
+		Vector3(2, 0.1, 3),
+	]:
+		var eye := player.get_camera().global_position
+		var turn := Steps.aim_turn(player.look_vector(), eye, target)
+		# The shorter way round: never more than half a turn.
+		assert_float(absf(turn.x)).is_less_equal(PI)
+		player.look(turn.x, turn.y)
+		var wanted := (target - eye).normalized()
+		assert_float(player.look_vector().distance_to(wanted)).is_less(0.001)
+
+
+func test_the_aim_turn_keeps_the_yaw_straight_above_or_at_the_eye() -> void:
+	var ahead := Vector3(0, 0, -1)
+	assert_vector(Steps.aim_turn(ahead, Vector3.ZERO, Vector3.ZERO)).is_equal(Vector2.ZERO)
+	var below := Steps.aim_turn(ahead, Vector3(0, 1.6, 0), Vector3(0, 0, 0))
+	assert_float(below.x).is_equal(0.0)
+	assert_float(below.y).is_equal_approx(-PI / 2.0, 0.0001)
+	# A quarter turn to the right (to +X) is a negative yaw; level, no pitch.
+	var right := Steps.aim_turn(ahead, Vector3.ZERO, Vector3(3, 0, 0))
+	assert_float(right.x).is_equal_approx(-PI / 2.0, 0.0001)
+	assert_float(right.y).is_equal_approx(0.0, 0.0001)
+
+
+func _item(kind: StringName, at: Vector3, holder := ClientModel.NO_HOLDER) -> ClientModel.Item:
+	var item := ClientModel.Item.new()
+	item.kind = kind
+	item.position = at
+	item.holder = holder
+	return item
+
+
+func _frames(count: int) -> Dictionary:
+	return {"line": 5, "text": "frames %d" % count, "do": "frames", "count": count}
