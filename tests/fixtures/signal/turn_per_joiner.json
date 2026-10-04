@@ -1,5 +1,5 @@
 {
-  "about": "TURN on (M6-10, E55): two joiners; each host offer gets a credential minted for that offer alone, added after the configured STUN with only its turn: and turns: URLs, none on port 53, split into entries of at most 4 URLs. The room, found, answers and candidates carry none, and no joiner sees another's.",
+  "about": "TURN on (M6-10, E55): a host and two joiners. The host's room and each host offer get a credential minted for that message's receiver alone, added after the configured STUN with only its turn: and turns: URLs, none on port 53, split into entries of at most 4 URLs. found, answers and candidates carry none, and no joiner sees another's or the host's.",
   "turn_only": "only the Worker mints TURN credentials: SignalRouter and LanSignalling skip this file",
   "config": {
     "ice_servers": [
@@ -15,6 +15,27 @@
     "turn": {
       "key_id": "test-key",
       "minted": [
+        {
+          "iceServers": [
+            {
+              "urls": [
+                "stun:stun.cloudflare.com:3478"
+              ]
+            },
+            {
+              "urls": [
+                "turn:turn.cloudflare.com:3478?transport=udp",
+                "turn:turn.cloudflare.com:443?transport=udp",
+                "turn:turn.cloudflare.com:3478?transport=tcp",
+                "turn:turn.cloudflare.com:80?transport=tcp",
+                "turns:turn.cloudflare.com:5349?transport=tcp",
+                "turns:turn.cloudflare.com:443?transport=tcp"
+              ],
+              "username": "the-host",
+              "credential": "secret-the-host"
+            }
+          ]
+        },
         {
           "iceServers": [
             {
@@ -107,6 +128,24 @@
                 "urls": [
                   "stun:stun.cloudflare.com:3478"
                 ]
+              },
+              {
+                "urls": [
+                  "turn:turn.cloudflare.com:3478?transport=udp",
+                  "turn:turn.cloudflare.com:443?transport=udp",
+                  "turn:turn.cloudflare.com:3478?transport=tcp",
+                  "turn:turn.cloudflare.com:80?transport=tcp"
+                ],
+                "username": "the-host",
+                "credential": "secret-the-host"
+              },
+              {
+                "urls": [
+                  "turns:turn.cloudflare.com:5349?transport=tcp",
+                  "turns:turn.cloudflare.com:443?transport=tcp"
+                ],
+                "username": "the-host",
+                "credential": "secret-the-host"
               }
             ]
           }

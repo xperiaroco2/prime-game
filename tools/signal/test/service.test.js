@@ -394,41 +394,76 @@ function hostAndJoiner() {
   return { state, timers, service, host, joiner, env };
 }
 
-// A host with a room "ABCDEF" and one joiner, with a TURN key and `api` as Cloudflare's API.
-function turnHostAndJoiner(api, logged = []) {
-  const state = new FakeState();
-  const env = { ICE_SERVERS: [], [turn.KEY_ID]: "k", [turn.API_TOKEN]: "t" };
-  const options = { nextCode: () => "ABCDEF", setTimer: () => {}, fetch: api, log: (text) => logged.push(text) };
-  const service = new SignalService(state, env, options);
-  const host = new FakeSocket();
-  const joiner = new FakeSocket();
-  service.accept(host);
-  service.accept(joiner);
-  service.message(host, codec.encode(codec.Side.UNSET, "open", { protocol: 7, content: "0123456789abcdef", max: 2 }));
-  service.message(joiner, codec.encode(codec.Side.UNSET, "join", { code: "ABCDEF" }));
-  host.take();
-  joiner.take();
-  return { service, host, joiner };
+// Cloudflare's API answering a fresh credential for `url`s; `wait` (a promise), when given, holds
+// every answer back until it settles.
+function credentials(urls, wait = null) {
+  let count = 0;
+  return async () => {
+    count += 1;
+    const user = `u${count}`;
+    if (wait !== null) {
+      await wait;
+    }
+    return { status: 201, json: async () => ({ iceServers: [{ urls, username: user, credential: "c" }] }) };
+  };
 }
-
-const OFFER = codec.encode(codec.Side.HOST, "offer", { to: 1, id: 2, sdp: "v=0" });
-const CANDIDATE = codec.encode(codec.Side.HOST, "candidate", { to: 1, mid: "0", index: 0, cand: "c" });
-const TURN_URLS = ["turn:t.example:3478?transport=udp", "turns:t.example:443?transport=tcp"];
 
 function answering(body, status = 201) {
   return async () => ({ status, json: async () => structuredClone(body) });
 }
 
-test("with no TURN key the service never calls the API, and offers carry the configured servers", async () => {
-  const { state, host, joiner, env } = hostAndJoiner();
+const TURN_URLS = ["turn:t.example:3478?transport=udp", "turns:t.example:443?transport=tcp"];
+const OPEN = codec.encode(codec.Side.UNSET, "open", { protocol: 7, content: "0123456789abcdef", max: 2 });
+const OFFER = codec.encode(codec.Side.HOST, "offer", { to: 1, id: 2, sdp: "v=0" });
+const CANDIDATE = codec.encode(codec.Side.HOST, "candidate", { to: 1, mid: "0", index: 0, cand: "c" });
+
+// A host with a room "ABCDEF" and one joiner, with a TURN key and `api` as Cloudflare's API; the
+// room's own credential is taken.
+async function turnHostAndJoiner(api, options = {}) {
+  const state = new FakeState();
+  const env = { ICE_SERVERS: [], [turn.KEY_ID]: "k", [turn.API_TOKEN]: "t", ...options.env };
+  const logged = options.logged ?? [];
+  const service = new SignalService(state, env, {
+    nextCode: () => "ABCDEF",
+    setTimer: () => {},
+    fetch: api,
+    log: (text) => logged.push(text),
+    turnTimeoutMs: options.turnTimeoutMs,
+  });
+  const host = new FakeSocket();
+  const joiner = new FakeSocket();
+  await service.accept(host);
+  await service.accept(joiner);
+  await service.message(host, OPEN);
+  await service.message(joiner, codec.encode(codec.Side.UNSET, "join", { code: "ABCDEF" }));
+  host.take();
+  joiner.take();
+  return { service, host, joiner, logged };
+}
+
+function usersIn(servers) {
+  return servers.filter((each) => each.username !== undefined).map((each) => each.username);
+}
+
+test("with no TURN key the service never calls the API, and room and offers carry the configured servers", async () => {
+  const state = new FakeState();
   let calls = 0;
-  const service = new SignalService(state, env, { fetch: async () => calls++ });
-  await service.message(host, OFFER);
+  const options = { nextCode: () => "ABCDEF", fetch: async () => calls++ };
+  const service = new SignalService(state, { ICE_SERVERS: [] }, options);
+  const host = new FakeSocket();
+  const joiner = new FakeSocket();
+  service.accept(host);
+  service.accept(joiner);
+  service.message(host, OPEN);
+  service.message(joiner, codec.encode(codec.Side.UNSET, "join", { code: "ABCDEF" }));
+  service.message(host, OFFER);
+  // All of it sent at once, as before M6-10.
+  assert.deepEqual(JSON.parse(host.take()[0]).ice_servers, []);
+  assert.deepEqual(JSON.parse(joiner.take()[1]).ice_servers, []);
   assert.equal(calls, 0);
-  assert.deepEqual(JSON.parse(joiner.take()[0]).ice_servers, []);
 });
 
-test("an offer goes without TURN when the API fails, and the failure is logged", async () => {
+test("room and an offer go without TURN when the API fails, and the failure is logged", async () => {
   for (const api of [
     answering({}, 500),
     answering({ iceServers: "x" }),
@@ -438,41 +473,84 @@ test("an offer goes without TURN when the API fails, and the failure is logged",
       throw new Error("network down");
     },
   ]) {
-    const logged = [];
-    const { service, joiner } = turnHostAndJoiner(api, logged);
-    const host = [...service.sockets.values()][0];
+    const { service, host, joiner, logged } = await turnHostAndJoiner(api);
     await service.message(host, OFFER);
     assert.deepEqual(JSON.parse(joiner.take()[0]).ice_servers, []);
-    assert.equal(logged.length, 1);
-    assert.match(logged[0], /without TURN/);
+    assert.deepEqual(logged.map((text) => /"(room|offer)" goes without TURN/.exec(text)?.[1]), ["room", "offer"]);
   }
 });
 
-test("what the host sends after an offer waits for that offer's credential", async () => {
+test("an API that does not answer in time is aborted, and the offer goes without TURN", async () => {
+  const api = (url, init) =>
+    new Promise((resolve, reject) => init.signal.addEventListener("abort", () => reject(new Error("aborted"))));
+  const { service, host, joiner, logged } = await turnHostAndJoiner(api, { turnTimeoutMs: 5 });
+  await service.message(host, OFFER);
+  assert.deepEqual(JSON.parse(joiner.take()[0]).ice_servers, []);
+  assert.match(logged.at(-1), /"offer" goes without TURN: Error: aborted/);
+});
+
+test("what the host sends a joiner after an offer waits for that offer's credential", async () => {
   let release;
   const gate = new Promise((resolve) => (release = resolve));
-  const api = async () => {
-    await gate;
-    return { status: 201, json: async () => ({ iceServers: [{ urls: TURN_URLS, username: "u", credential: "c" }] }) };
-  };
-  const { service, host, joiner } = turnHostAndJoiner(api);
+  const { service, host, joiner } = await turnHostAndJoiner(credentials(TURN_URLS));
+  service.fetch = credentials(TURN_URLS, gate);
   const offered = service.message(host, OFFER);
   const candidate = service.message(host, CANDIDATE);
   assert.deepEqual(joiner.sent, []);
   release();
   await Promise.all([offered, candidate]);
   assert.deepEqual(joiner.take().map((text) => JSON.parse(text).t), ["offer", "candidate"]);
-  assert.equal(service.tail, null);
+  assert.equal(service.queues.size, 0);
+});
+
+test("a credential being minted holds back no other socket, and offers to several joiners mint at once", async () => {
+  let release;
+  const gate = new Promise((resolve) => (release = resolve));
+  let asked = 0;
+  const slow = credentials(TURN_URLS, gate);
+  const state = new FakeState();
+  const env = { ICE_SERVERS: [], [turn.KEY_ID]: "k", [turn.API_TOKEN]: "t" };
+  const codes = ["AAAAAA", "BBBBBB"];
+  const service = new SignalService(state, env, {
+    nextCode: () => codes.shift(),
+    fetch: (url, init) => {
+      asked += 1;
+      return slow(url, init);
+    },
+    log: () => {},
+  });
+  const [host, first, second, otherHost] = [new FakeSocket(), new FakeSocket(), new FakeSocket(), new FakeSocket()];
+  for (const ws of [host, first, second, otherHost]) {
+    service.accept(ws);
+  }
+  const roomOpened = service.message(host, OPEN);
+  service.message(first, codec.encode(codec.Side.UNSET, "join", { code: "AAAAAA" }));
+  service.message(second, codec.encode(codec.Side.UNSET, "join", { code: "AAAAAA" }));
+  // The host's room waits on its credential; the joiners hear "found" at once.
+  assert.deepEqual(host.sent, []);
+  assert.deepEqual([first.take(), second.take()].map((sent) => JSON.parse(sent[0]).t), ["found", "found"]);
+  const offers = [
+    service.message(host, codec.encode(codec.Side.HOST, "offer", { to: 1, id: 2, sdp: "v=0" })),
+    service.message(host, codec.encode(codec.Side.HOST, "offer", { to: 2, id: 3, sdp: "v=0" })),
+  ];
+  assert.equal(asked, 3);
+  // Another room's host, with its own mint waiting, and a stranger's bad message, answered at once.
+  const stranger = new FakeSocket();
+  service.accept(stranger);
+  service.message(stranger, "{");
+  assert.deepEqual(stranger.take().map((text) => JSON.parse(text).why), [codec.WHY_BAD]);
+  release();
+  await Promise.all([roomOpened, ...offers]);
+  assert.equal(JSON.parse(host.take()[0]).t, "room");
+  assert.deepEqual(usersIn(JSON.parse(first.take()[0]).ice_servers), ["u2"]);
+  assert.deepEqual(usersIn(JSON.parse(second.take()[0]).ice_servers), ["u3"]);
 });
 
 test("an offer to a joiner that left while its credential was minted is not sent", async () => {
   let release;
   const gate = new Promise((resolve) => (release = resolve));
-  const api = async () => {
-    await gate;
-    return { status: 201, json: async () => ({ iceServers: [{ urls: TURN_URLS, username: "u", credential: "c" }] }) };
-  };
-  const { service, host, joiner } = turnHostAndJoiner(api);
+  const { service, host, joiner } = await turnHostAndJoiner(credentials(TURN_URLS));
+  service.fetch = credentials(TURN_URLS, gate);
   const offered = service.message(host, OFFER);
   joiner.close(1000, "");
   const gone = service.closed(joiner);
@@ -485,28 +563,42 @@ test("a credential that would push the offer over the cap leaves it out", async 
   // About 4 KB of TURN entries: they fit an offer with a short sdp, not one with the longest.
   const urls = Array.from({ length: 8 }, (_, i) => `turn:${"h".repeat(500)}${i}:3478`);
   assert.doesNotThrow(() => turn.withTurn([], [{ urls: urls.slice(0, 4) }, { urls: urls.slice(4) }]));
-  const logged = [];
-  const api = answering({ iceServers: [{ urls, username: "u", credential: "c" }] });
-  const { service, host, joiner } = turnHostAndJoiner(api, logged);
-  await service.message(host, codec.encode(codec.Side.HOST, "offer", { to: 1, id: 2, sdp: "s".repeat(codec.MAX_SDP) }));
-  const offer = JSON.parse(joiner.take()[0]);
-  assert.deepEqual(offer.ice_servers, []);
-  assert.match(logged[0], /over the cap/);
+  const { service, host, joiner, logged } = await turnHostAndJoiner(credentials(urls));
+  const longest = codec.encode(codec.Side.HOST, "offer", { to: 1, id: 2, sdp: "s".repeat(codec.MAX_SDP) });
+  await service.message(host, longest);
+  assert.deepEqual(JSON.parse(joiner.take()[0]).ice_servers, []);
+  assert.match(logged.at(-1), /over the cap/);
+});
+
+test("the request asks for the configured TTL", async () => {
+  const requests = [];
+  const api = credentials(TURN_URLS);
+  const record = (url, init) => {
+    requests.push(JSON.parse(init.body));
+    return api(url, init);
+  };
+  await turnHostAndJoiner(record, { env: { [turn.TTL_VAR]: "3600" } });
+  assert.deepEqual(requests, [{ ttl: 3600 }]);
 });
 
 test("the TURN key is both secrets or neither, and its TTL a whole number of seconds up to 48 hours", () => {
-  assert.equal(turn.turnFrom({}), null);
-  assert.equal(turn.turnFrom({ [turn.KEY_ID]: "", [turn.API_TOKEN]: "" }), null);
-  assert.deepEqual(turn.turnFrom({ [turn.KEY_ID]: "k", [turn.API_TOKEN]: "t" }), { keyId: "k", token: "t", ttl: 600 });
-  assert.throws(() => turn.turnFrom({ [turn.KEY_ID]: "k" }), /both/);
-  assert.throws(() => turn.turnFrom({ [turn.API_TOKEN]: "t" }), /both/);
+  const logged = [];
+  const log = (text) => logged.push(text);
+  assert.equal(turn.turnFrom({}, log), null);
+  assert.equal(turn.turnFrom({ [turn.KEY_ID]: "", [turn.API_TOKEN]: "" }, log), null);
+  assert.deepEqual(logged, []);
   const key = { [turn.KEY_ID]: "k", [turn.API_TOKEN]: "t" };
-  assert.equal(turn.turnFrom({ ...key, [turn.TTL_VAR]: 3600 }).ttl, 3600);
-  assert.equal(turn.turnFrom({ ...key, [turn.TTL_VAR]: "7200" }).ttl, 7200);
+  assert.deepEqual(turn.turnFrom(key, log), { keyId: "k", token: "t", ttl: 600 });
+  // One secret alone, as between the engineer's two `secret put`: no TURN, logged.
+  assert.equal(turn.turnFrom({ [turn.KEY_ID]: "k" }, log), null);
+  assert.equal(turn.turnFrom({ [turn.API_TOKEN]: "t" }, log), null);
+  assert.equal(logged.length, 2);
+  assert.match(logged[0], /no TURN until both/);
+  assert.equal(turn.turnFrom({ ...key, [turn.TTL_VAR]: 3600 }, log).ttl, 3600);
+  assert.equal(turn.turnFrom({ ...key, [turn.TTL_VAR]: "7200" }, log).ttl, 7200);
   for (const bad of [0, -1, 1.5, "x", 48 * 3600 + 1]) {
-    assert.throws(() => turn.turnFrom({ ...key, [turn.TTL_VAR]: bad }), /TURN_TTL_SECONDS/);
+    assert.throws(() => turn.turnFrom({ ...key, [turn.TTL_VAR]: bad }, log), /TURN_TTL_SECONDS/);
   }
-  assert.throws(() => new SignalService(new FakeState(), { [turn.KEY_ID]: "k" }), /both/);
 });
 
 test("a credential keeps only TURN URLs off port 53, at most 4 to an entry, after the configured servers", async () => {
@@ -520,21 +612,24 @@ test("a credential keeps only TURN URLs off port 53, at most 4 to an entry, afte
     "turn:t.example:80?transport=tcp",
     "turns:t.example:443?transport=tcp",
   ];
-  const minted = await turn.mint({ keyId: "k", token: "t", ttl: 600 }, answering({
-    iceServers: [{ urls: ["stun:stun.example:3478"] }, { urls, username: "u", credential: "c" }],
-  }));
+  const body = { iceServers: [{ urls: ["stun:stun.example:3478"] }, { urls, username: "u", credential: "c" }] };
+  const minted = await turn.mint({ keyId: "k", token: "t", ttl: 600 }, answering(body));
+  const kept = [
+    "turn:t.example:3478?transport=udp",
+    "turn:t.example:5300?transport=udp",
+    "turn:t.example:443?transport=udp",
+    "turn:t.example:80?transport=tcp",
+  ];
   assert.deepEqual(minted, [
-    {
-      urls: ["turn:t.example:3478?transport=udp", "turn:t.example:5300?transport=udp", "turn:t.example:443?transport=udp", "turn:t.example:80?transport=tcp"],
-      username: "u",
-      credential: "c",
-    },
+    { urls: kept, username: "u", credential: "c" },
     { urls: ["turns:t.example:443?transport=tcp"], username: "u", credential: "c" },
   ]);
   const base = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
-  const many = Array.from({ length: 9 }, () => minted[1]);
-  const servers = turn.withTurn(base, many);
+  const servers = turn.withTurn(base, Array.from({ length: 9 }, () => minted[1]));
   assert.equal(servers.length, codec.MAX_ICE_SERVERS);
   assert.deepEqual(servers[0], base[0]);
-  assert.throws(() => turn.withTurn(base, [{ urls: ["turn:a:1"], username: "x".repeat(codec.MAX_ICE_TEXT + 1) }]), /drop/);
+  const tooLong = [{ urls: ["turn:a:1"], username: "x".repeat(codec.MAX_ICE_TEXT + 1) }];
+  assert.throws(() => turn.withTurn(base, tooLong), /drop/);
+  const full = Array.from({ length: codec.MAX_ICE_SERVERS }, () => base[0]);
+  assert.throws(() => turn.withTurn(full, minted), /no room for TURN/);
 });

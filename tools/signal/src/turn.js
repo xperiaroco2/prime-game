@@ -25,15 +25,17 @@ export const TIMEOUT_MS = 5000;
 export const API = "https://rtc.live.cloudflare.com/v1/turn/keys";
 
 // The TURN key from the Worker's secrets, or null when none is configured. One secret without the
-// other throws, so a half-done setup fails at its first connection instead of silently not relaying.
-export function turnFrom(env) {
+// other is no TURN, logged: each `wrangler secret put` goes live at once, so the service runs between
+// the engineer's two commands.
+export function turnFrom(env, log = (text) => console.log(text)) {
   const keyId = env[KEY_ID] ?? "";
   const token = env[API_TOKEN] ?? "";
   if (keyId === "" && token === "") {
     return null;
   }
   if (keyId === "" || token === "") {
-    throw new Error(`signal: set both ${KEY_ID} and ${API_TOKEN}, or neither`);
+    log(`signal: no TURN until both ${KEY_ID} and ${API_TOKEN} are set`);
+    return null;
   }
   const ttl = Number(env[TTL_VAR] ?? TTL_SECONDS);
   if (!Number.isInteger(ttl) || ttl < 1 || ttl > MAX_TTL_SECONDS) {
@@ -47,9 +49,9 @@ export function turnFrom(env) {
 // "known to be blocked by web browsers"), each entry split into entries of at most
 // codec.MAX_ICE_URLS URLs with the same username and credential, so no protocol change is needed.
 // Throws when the API fails or answers what the clients would drop.
-export async function mint(turn, fetchFn) {
+export async function mint(turn, fetchFn, timeoutMs = TIMEOUT_MS) {
   const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => abort.abort(), timeoutMs);
   let body;
   try {
     const response = await fetchFn(`${API}/${encodeURIComponent(turn.keyId)}/credentials/generate-ice-servers`, {
@@ -92,8 +94,11 @@ export async function mint(turn, fetchFn) {
 }
 
 // `base` (the configuration's servers) and then `turn`'s entries, as many as the list holds,
-// checked by the clients' rules; throws when they would drop the list.
+// checked by the clients' rules; throws when no TURN entry fits or the clients would drop the list.
 export function withTurn(base, turn) {
+  if (base.length >= codec.MAX_ICE_SERVERS) {
+    throw new Error(`ICE_SERVERS leaves no room for TURN (${codec.MAX_ICE_SERVERS} entries at most)`);
+  }
   const servers = [...structuredClone(base), ...turn].slice(0, codec.MAX_ICE_SERVERS);
   const offer = { t: "offer", v: codec.VERSION, id: 1, sdp: "v=0", ice_servers: servers };
   const decoded = codec.decode(new TextEncoder().encode(JSON.stringify(offer)), codec.Side.TO_JOINER);

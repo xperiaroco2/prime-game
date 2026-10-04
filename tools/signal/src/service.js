@@ -13,14 +13,18 @@
 // attachment, "closing" (closed after the grace) or "gone" (closed, or failed), so no rebuild
 // gives it back a role.
 //
-// With a TURN key in the secrets (turn.js), every host offer to a joiner waits for a credential
-// minted for it, and everything sent after that offer waits too, so each socket still gets its
-// messages in the order the router made them (a candidate never overtakes its offer).
+// With a TURN key in the secrets (turn.js), "room" and every host offer to a joiner wait for a
+// credential minted for their receiver, and what follows them to the same socket waits too, so
+// each socket still gets its messages in the order the router made them (a candidate never
+// overtakes its offer).
 
 import * as codec from "./codec.js";
 import { SignalRouter } from "./router.js";
-import { mint, turnFrom, withTurn } from "./turn.js";
+import { TIMEOUT_MS, mint, turnFrom, withTurn } from "./turn.js";
 
+// The messages that carry a TURN credential minted for their receiver, when TURN is on: the host's
+// own with "room", a joiner's with the host's offer to it (the M6 ADR §2.4), never "found".
+const RELAYED = new Set(["room", "offer"]);
 // What "room" and every "offer" carry when the configuration names none (E58).
 export const DEFAULT_ICE_SERVERS = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
 // How long after its last error the service closes a socket it ends (the host left). Godot's
@@ -60,12 +64,14 @@ export class SignalService {
     const randomBytes = options.randomBytes ?? ((n) => crypto.getRandomValues(new Uint8Array(n)));
     this.nextCode = options.nextCode ?? (() => codec.randomCode(randomBytes));
     this.iceServers = iceServersFrom(env);
-    // The TURN key, or null: no TURN, and every offer carries iceServers alone.
-    this.turn = turnFrom(env);
     this.fetch = options.fetch ?? ((url, init) => fetch(url, init));
     this.log = options.log ?? ((text) => console.log(text));
-    // What the last delivery still waiting on a mint settles, or null when nothing waits.
-    this.tail = null;
+    // The TURN key, or null: no TURN, and "room" and every offer carry iceServers alone.
+    this.turn = turnFrom(env, this.log);
+    this.turnTimeoutMs = options.turnTimeoutMs ?? TIMEOUT_MS;
+    // Socket number -> what its last delivery still waiting on a mint settles; none when nothing
+    // waits for it.
+    this.queues = new Map();
     this.closeGraceMs = options.closeGraceMs ?? CLOSE_GRACE_MS;
     // Socket number -> its WebSocket, for this life of the object.
     this.sockets = new Map();
@@ -94,13 +100,13 @@ export class SignalService {
   // A new socket the Worker upgraded: the service accepts it with hibernation. The methods that
   // take an event return a promise that settles once what the event sends is sent.
   accept(ws) {
-    this.settle();
+    const orphaned = this.settle();
     const socket = this.nextSocket++;
     this.ctx.acceptWebSocket(ws);
     this.sockets.set(socket, ws);
     this.router.opened(socket);
     this.save();
-    return this.tail ?? Promise.resolve();
+    return orphaned;
   }
 
   // A message from `ws`: a string (text) or an ArrayBuffer (binary).
@@ -108,13 +114,13 @@ export class SignalService {
     this.settle();
     const attachment = ws.deserializeAttachment();
     if (ended(attachment)) {
-      return this.tail ?? Promise.resolve();
+      return Promise.resolve();
     }
     const text = typeof data === "string";
     const bytes = text ? new TextEncoder().encode(data) : new Uint8Array(data);
     const out = this.router.received(attachment.id, bytes, text);
     this.save();
-    return this.inOrder(out);
+    return this.deliver(out);
   }
 
   // `ws` closed. Idempotent.
@@ -122,17 +128,17 @@ export class SignalService {
     this.settle();
     const attachment = ws.deserializeAttachment();
     if (attachment === null || attachment === undefined) {
-      return this.tail ?? Promise.resolve();
+      return Promise.resolve();
     }
     this.sockets.delete(attachment.id);
     if (ended(attachment)) {
-      return this.tail ?? Promise.resolve();
+      return Promise.resolve();
     }
     // Before anything is sent: an event that throws after this leaves no role on the socket.
     mark(ws, { id: attachment.id, gone: true });
     const out = this.router.closed(attachment.id);
     this.save();
-    return this.inOrder(out);
+    return this.deliver(out);
   }
 
   // `ws` failed (webSocketError): the service closes it, and it is gone as if its client closed it.
@@ -160,62 +166,55 @@ export class SignalService {
     }
   }
 
-  // Sends `out` after everything sent before it: at once, unless an earlier offer still waits on
-  // its mint. The promise settles once `out` is sent; the Durable Object awaits it, so the object
-  // stays awake while the API answers.
-  inOrder(out) {
-    if (this.tail === null) {
-      const rest = this.deliver(out);
-      return rest === undefined ? Promise.resolve() : this.track(rest);
-    }
-    return this.track(this.tail.then(() => this.deliver(out)));
-  }
-
-  track(promise) {
-    const tail = promise
-      .catch((error) => this.log(`signal: a delivery failed: ${error}`))
-      .finally(() => {
-        if (this.tail === tail) {
-          this.tail = null;
-        }
-      });
-    this.tail = tail;
-    return tail;
-  }
-
-  // Sends `out` in order; returns undefined when all of it is sent, or a promise when an offer
-  // waits on its TURN credential (the rest is sent after it).
+  // Sends `out`, each message after everything still waiting for its socket: at once when nothing
+  // waits there and the message needs no credential. A credential's request starts at once, so
+  // offers to several joiners wait for the slowest request, not for the sum, and one socket's wait
+  // holds back no other socket. The promise settles once `out` is sent; the Durable Object awaits
+  // it, so the object stays awake while the API answers.
   deliver(out) {
-    for (let at = 0; at < out.length; at++) {
-      const each = out[at];
-      if (this.turn !== null && each.message.t === "offer") {
-        return this.withCredential(each).then(() => this.deliver(out.slice(at + 1)));
+    const waits = [];
+    for (const each of out) {
+      const pending = this.queues.get(each.socket);
+      const minted = this.turn !== null && RELAYED.has(each.message.t);
+      if (pending === undefined && !minted) {
+        this.send(each);
+        continue;
       }
-      this.send(each);
+      const ready = minted ? this.withCredential(each) : each;
+      const queued = (pending ?? Promise.resolve())
+        .then(() => ready)
+        .then((final) => this.send(final))
+        .catch((error) => this.log(`signal: a delivery failed: ${error}`))
+        .finally(() => {
+          if (this.queues.get(each.socket) === queued) {
+            this.queues.delete(each.socket);
+          }
+        });
+      this.queues.set(each.socket, queued);
+      waits.push(queued);
     }
-    return undefined;
+    return Promise.all(waits).then(() => {});
   }
 
-  // The host's offer to one joiner, with a credential minted for this offer alone added to its ICE
-  // servers. If the API fails, or the credential would push the offer over the cap, the offer goes
-  // as it would without TURN: the joiner may still connect directly.
+  // `each` ("room" to a host, "offer" to a joiner) with a credential minted for this message alone
+  // added to its ICE servers. If the API fails, or the credential would push the message over the
+  // cap, it goes as it would without TURN: a direct connection may still work.
   async withCredential(each) {
     const ws = this.sockets.get(each.socket);
     if (ws === undefined || ended(ws.deserializeAttachment())) {
-      return;
+      return each;
     }
-    let message = each.message;
     try {
-      const servers = withTurn(message.ice_servers, await mint(this.turn, this.fetch));
-      const relayed = { ...message, ice_servers: servers };
+      const servers = withTurn(each.message.ice_servers, await mint(this.turn, this.fetch, this.turnTimeoutMs));
+      const relayed = { ...each.message, ice_servers: servers };
       if (codec.size(relayed) > codec.MAX_MESSAGE_BYTES) {
-        throw new Error("the offer with TURN is over the cap");
+        throw new Error(`the ${each.message.t} with TURN is over the cap`);
       }
-      message = relayed;
+      return { ...each, message: relayed };
     } catch (error) {
-      this.log(`signal: an offer goes without TURN: ${error.message}`);
+      this.log(`signal: "${each.message.t}" goes without TURN: ${error}`);
+      return each;
     }
-    this.send({ ...each, message });
   }
 
   send(each) {
@@ -248,7 +247,7 @@ export class SignalService {
       close: true,
     }));
     this.router.orphans = [];
-    this.inOrder(out);
+    return this.deliver(out);
   }
 
   closeLater(ws, ms) {
