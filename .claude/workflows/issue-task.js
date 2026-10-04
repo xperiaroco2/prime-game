@@ -51,13 +51,20 @@ export const meta = {
 //                 verify that `wait --verified` shows done. Without `wait` on the branch: the foreground. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
 //                 falls back to today's default), plan (falls back to implement's), plan_review, review, netcode,
-//                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'). review
-//                 covers the code reviewer and is the fallback of plan_review, netcode, skeptic and (after netcode)
-//                 second_review. An agentType reviewer gets an effort only when one is set; otherwise its agent
-//                 file's applies, as before v2. +0 agents
+//                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
+//                 publish_clean (falls back to publish). review covers the code reviewer and is the fallback of
+//                 plan_review, netcode, skeptic and (after netcode) second_review. An agentType reviewer gets an effort
+//                 only when one is set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
-//                 (plan falls back to implement, none to a default). No default names a model (the model-guard ADR
-//                 and its amendment A: the manager passes one per launch where the kickoff allows it). +0 agents
+//                 (plan falls back to implement, publish_clean to publish, none to a default). No default names a
+//                 model (the model-guard ADR and its amendment A: the manager passes one per launch where the kickoff
+//                 allows it). +0 agents
+//                 The role publish_clean is the full publisher of a run that the reviews, the test review and the
+//                 skeptics left with no blocker or major open (a skeptic-refuted finding is closed, one over the
+//                 skeptic limit is open; the plan critique's findings do not count), never of a design task or of a
+//                 run stopped by mutants. It is the one-wave trial of #308 of a cheaper model from the shared list
+//                 for that publisher (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended 2026-10-04);
+//                 when models or efforts name it, the result's publish_clean says whether it applied.
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
 // and earlier results, and each prompt tells its agent to check what an earlier attempt already did).
 
@@ -105,12 +112,13 @@ const SCENES = V === true
   : null
 if (SCENES === null && V !== undefined && V !== null && V !== false) throw new Error('issue-task: args.visual must be true, a playcheck scenario name or a list of them')
 const VISUAL = SCENES !== null
-const ROLES = ['implement', 'plan', 'plan_review', 'review', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish']
+const ROLES = ['implement', 'plan', 'plan_review', 'review', 'netcode', 'second_review', 'godot', 'test_review', 'skeptic', 'publish', 'publish_clean']
 // The roles a role falls back to, in order, when this launch sets nothing for it.
 const CHAIN = {
   implement: ['implement'], plan: ['plan', 'implement'], plan_review: ['plan_review', 'review'], review: ['review'],
   netcode: ['netcode', 'review'], second_review: ['second_review', 'netcode', 'review'], godot: ['godot'],
   test_review: ['test_review'], skeptic: ['skeptic', 'review'], publish: ['publish'],
+  publish_clean: ['publish_clean', 'publish'],
 }
 const perRole = (k, values) => {
   const m = A[k]
@@ -341,6 +349,8 @@ let reviews = []
 let testReview = null
 let testReviewSkipped = ''
 let skeptic = null
+// The blocker and major findings still open before the publisher (publish_clean): a skeptic's refutation closes one.
+let openSerious = 0
 if (impl.verify_green) {
   // Only a green implementer is reviewed; a red one stops below.
   phase('Review')
@@ -412,11 +422,12 @@ if (impl.verify_green) {
     log(`#${N}: test review ${testReview.available ? `${(testReview.mutants || []).length} mutants, ${(testReview.findings || []).length} findings` : 'not run: `mutants` is missing on the branch'}${testReview.exit_2 ? '; mutants EXITED 2' : ''}`)
   }
 
+  // The blocker and major findings: the reviews' in their order, then the test review's.
+  const serious = []
+  reviews.forEach((r, i) => (r.findings || []).forEach(f => { if (SERIOUS.test(f.severity)) serious.push({ from: labels[i], finding: f }) }))
+  if (testReview) (testReview.findings || []).forEach(f => { if (SERIOUS.test(f.severity)) serious.push({ from: 'test review', finding: f }) })
   // skeptic: one read-only agent per blocker or major finding tries to refute it before the publisher fixes it.
   if (SKEPTICS) {
-    const serious = []
-    reviews.forEach((r, i) => (r.findings || []).forEach(f => { if (SERIOUS.test(f.severity)) serious.push({ from: labels[i], finding: f }) }))
-    if (testReview) (testReview.findings || []).forEach(f => { if (SERIOUS.test(f.severity)) serious.push({ from: 'test review', finding: f }) })
     const checked = serious.slice(0, SKEPTICS)
     skeptic = { refuted: [], stood: [], unchecked: serious.slice(SKEPTICS) }
     if (skeptic.unchecked.length) log(`#${N}: ${skeptic.unchecked.length} blocker or major finding(s) over the skeptic limit of ${SKEPTICS} go to the publisher unchecked`)
@@ -432,6 +443,7 @@ if (impl.verify_green) {
     }
     log(`#${N}: skeptics refuted ${skeptic.refuted.length} of ${checked.length} blocker or major finding(s)`)
   }
+  openSerious = SKEPTICS ? skeptic.stood.length + skeptic.unchecked.length : serious.length
 }
 
 // A red implementer stops the run here: no fresh agent has read the final code, so nothing may be published
@@ -449,6 +461,13 @@ const stoppedByMutants = testReview && testReview.exit_2 === true
 // The publisher's schema gains stopped_by_mutants only where its prompt can stop on mutants, so a default run's
 // schema stays byte-identical.
 const PUB_SCHEMA = testReview && testReview.available ? { ...PUB, properties: { ...PUB.properties, stopped_by_mutants: { type: 'boolean' } } } : PUB
+// publish_clean (#308): the full publisher of a clean run takes its own role, which falls back to publish, so with
+// neither models nor efforts naming it the publisher's options and prompt stay byte-identical.
+const PUB_ROLE = !DESIGN && !stoppedByMutants && openSerious === 0 ? 'publish_clean' : 'publish'
+const FULL_PUB_EFFORT = set(EFFORTS, PUB_ROLE) || 'high'
+const TRIAL = MODELS.publish_clean !== undefined || EFFORTS.publish_clean !== undefined
+const TRIAL_WHY = DESIGN ? 'a design task' : stoppedByMutants ? 'mutants exited 2' : openSerious ? `${openSerious} blocker or major finding(s) open` : 'no blocker or major open'
+if (TRIAL) log(`#${N}: publish_clean ${PUB_ROLE === 'publish_clean' ? 'applied' : 'not applied'}: ${TRIAL_WHY}; the publisher runs with model ${set(MODELS, PUB_ROLE) || '(the session default)'}, effort ${FULL_PUB_EFFORT}`)
 const pub = stoppedByMutants
   ? await agent([
     RULES,
@@ -460,7 +479,7 @@ const pub = stoppedByMutants
   ].join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
   : await agent([
     RULES,
-    `Task: publish issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${PUB_EFFORT}. Budget: at most about 150 tool calls.`,
+    `Task: publish issue #${N} (${A.title}) from the worktree ${WT}, PR base ${BASE}. Effort: ${FULL_PUB_EFFORT}. Budget: at most about 150 tool calls.`,
     `An earlier attempt may have got part of the way (a resumed run): check \`gh pr list --head ${A.branch} --state all\`, the issue's latest comments and \`git status\` before doing anything twice.`,
     `The implementer reported: ${JSON.stringify(impl)}`,
     `Fresh reviewers found: ${JSON.stringify(reviews)}\n\nFix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. \`tools\\run.cmd verify\` until green (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #${N} (Done / Red and why / Needs the engineer) and return published false.`,
@@ -489,7 +508,7 @@ const pub = stoppedByMutants
     `Task notes from the manager (for the PR's merge order and the handoff):\n${A.notes}${A.coord ? '\n\n' + A.coord : ''}`,
     HUMAN_STEPS,
     'Return the structured result.',
-  ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: PUB_EFFORT, schema: PUB_SCHEMA }, 'publish'))
+  ].filter(Boolean).join('\n\n'), withModel({ label: `publish:#${N}`, phase: 'Publish', effort: FULL_PUB_EFFORT, schema: PUB_SCHEMA }, PUB_ROLE))
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
@@ -498,6 +517,7 @@ if (planned) out.plan = planned
 if (TEST_REVIEW) out.test_review = testReviewSkipped ? { skipped: testReviewSkipped } : testReview
 if (SKEPTICS) out.skeptic = skeptic
 if (VISUAL) out.visual = shots
+if (TRIAL) out.publish_clean = { applied: PUB_ROLE === 'publish_clean', why: TRIAL_WHY, open: openSerious, model: set(MODELS, PUB_ROLE) || null, effort: FULL_PUB_EFFORT }
 // A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
 if (stoppedByMutants || pub.stopped_by_mutants === true) {
   out.stopped = `tools\\run.cmd mutants exited 2 ${stoppedByMutants ? 'in the test review' : 'in a rerun by the publisher'}: its scratch worktree could not be removed; nothing published (see the comment on the issue). Once the engineer removes the leftover worktree, relaunch issue-task (not a resume: a resume replays the cached exit 2) with the stop in notes`
