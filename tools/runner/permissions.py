@@ -542,6 +542,14 @@ def project_folders(base: Path, main_root: str, pattern: str = "") -> list[Path]
     return sorted(p for p in [base / slug, *base.glob(slug + "--claude-worktrees-*")] if p.is_dir())
 
 
+def _day(text: str) -> str:
+    """text as a zero-padded YYYY-MM-DD day, or "" when it is not one (strptime alone accepts `2026-9-29`)."""
+    try:
+        return datetime.strptime(text, "%Y-%m-%d").strftime("%Y-%m-%d")
+    except ValueError:
+        return ""
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="run permissions", description=__doc__.split("\n\n")[0])
     parser.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
@@ -565,7 +573,9 @@ def main(argv: list[str] | None = None) -> int:
         help="instead of a replay, what the transcripts record: guard asks, deny rule denials, Claude Code's blocks",
     )
     args = parser.parse_args(argv)
-    base = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
+    if args.since and _day(args.since) != args.since:  # compared as text with the transcripts' ISO timestamps
+        parser.error(f"--since {args.since}: not a YYYY-MM-DD day")
+    base =Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
     main_root = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
     pattern = args.projects or re.sub(r"[^A-Za-z0-9]", "-", main_root) + "{,--claude-worktrees-*}"
     folders = project_folders(base, main_root, args.projects)

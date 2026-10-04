@@ -391,6 +391,11 @@ class ReplayCommandTest(unittest.TestCase):
              "--observed"]
         )  # fmt: skip
 
+    def test_since_must_be_a_day(self) -> None:
+        for since in ("2026-9-29", "29.09.2026", "2026-09-29T10:00"):
+            with self.subTest(since=since), mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+                permissions.main(["--since", since, "--observed"])
+
 
 if __name__ == "__main__":
     unittest.main()
