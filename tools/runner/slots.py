@@ -8,9 +8,11 @@ lock, `slot-<i>.json` names its holder (worktree, branch, pid, since): the waiti
 holder file that was never cleared when its slot is taken again names a run that ended without releasing it (a
 reclaimed slot).
 
-The wait is bounded (max_wait): an agent's foreground shell call dies at 600 s, and a verify that first waited
-longer would be killed before it ended. After max_wait the run goes ahead without a slot, with a loud warning that
-the summary and the history record repeat: a slot never skips or weakens a step, it only orders the runs.
+The wait is bounded (max_wait, #388: about one whole verify run on a loaded PC, so a slot frees within it unless a
+holder is stuck). After max_wait the run goes ahead without a slot, with a loud warning that the summary and the
+history record repeat: a slot never skips or weakens a step, it only orders the runs. Agents therefore run verify
+in the background and poll it with `wait` (#303): a foreground shell call dies at 600 s, before a long wait and the
+run after it end.
 """
 
 from __future__ import annotations
@@ -34,19 +36,25 @@ DIR_VAR = "PRIME_VERIFY_SLOTS_DIR"
 # selftest's four workers, beside the other sessions' runs): k verify runs at once took 316 s (k = 1), 315 and 386 s
 # (k = 2), 431 and 441 s (k = 3) and 452 s (k = 4) per batch, so 11, 19 to 23, 25 and 32 runs an hour. Two at once
 # cost a run little and fill the 16 logical CPUs (2 x (4 shards + 4 workers)); a third or fourth makes every run a
-# third longer (450 s leaves no room for a wait in an agent's 600 s call) and `test`, whose load-sensitive suites
-# already fail under the other sessions' load, red more often. freeze, stall, enet and bots-enet stayed green.
+# third longer and `test`, whose load-sensitive suites already fail under the other sessions' load, red more often.
+# freeze, stall, enet and bots-enet stayed green.
 DEFAULT_COUNT = 2
-# An agent's foreground shell call (Claude Code's Bash tool) is killed at 600 s, and agents run verify (and publish,
-# which runs it) in the foreground: the longest wait plus a verify run must end before that, with a margin for a
-# slower run, doctor and the git facts. A run waits the whole DEFAULT_WAIT only when it then goes ahead without a
-# slot, beside DEFAULT_COUNT slotted runs: VERIFY_OVER is the slowest verify measured with DEFAULT_COUNT + 1 runs at
-# once (above), rounded up, and VERIFY_RUN the slowest with DEFAULT_COUNT.
-AGENT_CALL_LIMIT = 600.0
-MARGIN = 60.0
-VERIFY_RUN = 390.0
-VERIFY_OVER = 445.0
-DEFAULT_WAIT = 95.0
+# The longest wait (#388). Until then it was 95 s, so that the wait and a verify fit an agent's foreground shell call
+# (600 s); since #303 agents run verify and publish in the background and poll them with `wait`, so the wait no longer
+# has to fit one call. With 95 s, `metrics` counted 11 runs over the limit in the agents' verify summaries to
+# 2026-10-04 22:00 UTC, and the verify history files left (59 runs) 7, all on 2026-10-04 with three or four tracks
+# verifying at once. Those seven were slow: 388 to 895 s (median 603 s) against a median of 359 s for the 51 slotted
+# runs, and two were red (stall, selftest). For each of the five over-limit runs whose holders are in the history
+# files, a slot freed NEEDED seconds after its wait began (the end of the earlier of the holders' runs): the longest
+# wait covers all of them with a margin. A wait never needs longer than the rest of one holder's run, at most a whole
+# verify on a loaded PC (45 of the 51 slotted runs took under 600 s); past that a holder is likely stuck, and the run
+# goes ahead, as before. A run started in the background (Claude Code's default limit for a background command: 30
+# minutes, BACKGROUND_LIMIT) still ends within it after the whole wait and the slowest green slotted run measured
+# (SLOWEST_GREEN, 2026-10-04, three runs at once).
+NEEDED = (207.0, 229.0, 341.0, 522.0, 536.0)
+SLOWEST_GREEN = 960.0
+BACKGROUND_LIMIT = 1800.0
+DEFAULT_WAIT = 600.0
 # How often a waiting run tries the slots again, and how often it says who holds them.
 POLL = 2.0
 REPORT_EVERY = 60.0
