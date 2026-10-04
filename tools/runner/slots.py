@@ -217,8 +217,9 @@ class Pool:
         )
 
     def holders(self) -> list[Holder]:
-        """The holder files of every slot, as last written (a slot being taken may still name its last holder)."""
-        return [h or Holder(slot) for h in (self.holder(slot) for slot in range(1, self.count + 1))]
+        """The holder files of every slot, as last written (a slot being taken may still name its last holder); an
+        empty Holder for a slot whose file is missing, cleared or unreadable."""
+        return [self.holder(slot) or Holder(slot) for slot in range(1, self.count + 1)]
 
     def _write_holder(self, slot: int, data: dict[str, object] | None) -> None:
         # In place, not a temporary file and a rename: on Windows a rename fails while a waiting run has the file open
