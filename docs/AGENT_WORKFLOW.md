@@ -509,9 +509,10 @@ commands, by the repository they name (issue #68, a read of another repository m
   directory is in no worktree owns the main checkout while a task branch (`<area>/<n>-<slug>`, `guard.TASK_BRANCH_RE`)
   is checked out there (issue #381): the same rules as a worktree on its task branch, with `<n>` taken from that
   branch. No worktree folder pins `<n>` there, so any task branch checked out counts, a parent's after a switch too.
-  `.git`, `.claude`, `.claude/worktrees` and any glob that may name them (`.[^.]*`, `*`) stay outside it, and so do
-  `git clean -x|-X|-ff` (ignored files: `.claude/settings.local.json`, the other worktrees as nested repositories) and
-  magic pathspecs (`:(top)x`); git work in another worktree still asks. On `main`, `release/*`, any other branch or a
+  `.git`, `.claude`, `.claude/worktrees` and any glob that may name them (`.[^.]*`, `*`, `{s..t}`, an extglob) stay
+  outside it, and so do `git clean -x|-X|-e|-ff` (ignored files: `.claude/settings.local.json`, the other worktrees as
+  nested repositories), `git stash -a` and magic pathspecs (`:(top)x`); git work in another worktree still asks.
+  `git clean -en` is `-e n`, no dry run (in every checkout since #381). On `main`, `release/*`, any other branch or a
   detached HEAD it asks as on a desktop; a rebase stopped on a conflict keeps its branch (`hooks.GitFiles` reads
   `rebase-merge|rebase-apply/head-name`). The pre-push hook and the push rules (no `main`, no force push by hand) are
   unchanged. `tools/run.sh permissions` judges the replayed calls as this machine's sessions: a cloud container's

@@ -41,8 +41,8 @@ worktree its command enters with `cd` or `git -C`. The main checkout is owned on
 `CLAUDE_CODE_REMOTE` true and not CI, common.cloud_session) whose working directory is in no worktree, while a task
 branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, whichever task it is (no worktree
 folder pins it). The repository (`.git`), `.claude` and the other worktrees (`.claude/worktrees`), and any glob that
-may name them, stay outside it; so do `git clean -x|-X|-ff` (ignored files and nested repositories) and magic
-pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive deletes pass. Git commands
+may name them, stay outside it; so do `git clean -x|-X|-e|-ff` (ignored files and nested repositories), `git stash
+-a` and magic pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive deletes pass. Git commands
 that discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore` of paths, `clean`, forced
 `checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
 repository outside the project; they ask in the main checkout (but a cloud session's, above), in another worktree,
@@ -547,8 +547,9 @@ class Paths:
         parts = path[len(self.root) + 1 :].split("/")
 
         def may_be(part: str, name: str) -> bool:
-            # Bash globs that fnmatch reads otherwise (`[^.]`, `[[:lower:]]`): any glob may match.
-            return part == name or any(c in part for c in "*?[")
+            # Bash globs that fnmatch reads otherwise (`[^.]`, `[[:lower:]]`, `{s..t}`): any glob may match. The lexer
+            # splits an extglob (`shopt -s extglob; rm -rf @(.git)`) before its `(`, leaving `@`, `!` or `+`.
+            return part == name or any(c in part for c in "*?[{(") or part in ("@", "!", "+")
 
         if may_be(parts[0], ".git"):
             return True
@@ -1211,6 +1212,31 @@ def _rebase_options(args: list[str]) -> tuple[list[str], list[str]]:
     return options, positionals
 
 
+def _long_prefix(arg: str, option: str) -> bool:
+    """arg is option or a unique prefix git accepts for it (`--fo` for `--force`), with or without `=value`."""
+    name = arg.split("=", 1)[0]
+    return len(name) > 3 and option.startswith(name)
+
+
+def _clean_options(args: list[str]) -> tuple[str, list[str]]:
+    """The short option letters and long option names of `git clean`, read as git reads them: `-e` takes the rest of
+    its cluster or the next word as its value (`-en` is `-e n`, no dry run)."""
+    letters, longs, i = "", [], 0
+    while i < len(args) and args[i] != "--":
+        arg = args[i]
+        if arg.startswith("--"):
+            longs.append(arg)
+            if "=" not in arg and _long_prefix(arg, "--exclude"):
+                i += 1
+        elif arg.startswith("-") and len(arg) > 1:
+            head, e, value = arg[1:].partition("e")
+            letters += head + e
+            if e and not value:
+                i += 1
+        i += 1
+    return letters, longs
+
+
 def _positionals(args: list[str], valued: set[str] | None = None) -> list[str]:
     """Arguments that are not options, nor the values of the options in valued."""
     result, skip = [], False
@@ -1659,14 +1685,17 @@ class Analysis:
 
     def git_clean(self, rest: list[str], place: str, base: str | None) -> None:
         """`git clean` deletes untracked files; `-n` / `--dry-run` only lists them."""
-        if "--dry-run" in rest or any(re.fullmatch(r"-[a-zA-Z]*n[a-zA-Z]*", a) for a in rest):
+        letters, longs = _clean_options(rest)
+        if "n" in letters or any(_long_prefix(name, "--dry-run") for name in longs):
             return
         shown = ["git", "clean", *rest]
         if place == OWN and self.paths.own == self.paths.root:
-            # A cloud session's main checkout (issue #381): ignored files (`-x`, `-X`) include
-            # .claude/settings.local.json and the other worktrees, which a second `-f` removes as nested repositories.
-            short = "".join(a[1:] for a in rest if re.fullmatch(r"-[a-zA-Z]+", a))
-            if {"x", "X"} & set(short) or short.count("f") + rest.count("--force") > 1:
+            # A cloud session's main checkout (issue #381): ignored files (`-x`, `-X`, or un-ignored by `-e '!x'`)
+            # include .claude/settings.local.json and the other worktrees, which a second force removes as nested
+            # repositories.
+            forces = letters.count("f") + sum(_long_prefix(name, "--force") for name in longs)
+            excludes = "e" in letters or any(_long_prefix(name, "--exclude") for name in longs)
+            if {"x", "X"} & set(letters) or excludes or forces > 1:
                 self.git_finding(shown, "removes ignored files or nested repositories of the main checkout")
                 return
         self.git_discards(shown, place, base, _positionals(rest, CLEAN_VALUED))
@@ -1676,6 +1705,12 @@ class Analysis:
         for entries made on the task branch or a helper (a human's `start --stash` entry is never the agent's)."""
         action = rest[0].lower() if rest and not rest[0].startswith("-") else "push"
         moved, shown = self.paths.stash_moved, ["git", "stash", *rest]
+        if action in ("push", "save") and place == OWN and self.paths.own == self.paths.root:
+            # `--all` takes the ignored files of a cloud session's main checkout away (issue #381), as `clean -x`.
+            options = [a for a in rest if a.startswith("-")]
+            if any(_long_prefix(a, "--all") or re.fullmatch(r"-[a-zA-Z]*a[a-zA-Z]*", a) for a in options):
+                self.git_finding(shown, "stashes the ignored files of the main checkout")
+                return
         if action not in ("list", "show", "apply", "create"):
             self.paths.stash_moved = True
         if action not in ("drop", "clear"):

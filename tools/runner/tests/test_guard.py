@@ -809,6 +809,19 @@ CLOUD_BEYOND = [
     (B, "rm -rf .gi[[:lower:]]"),
     (B, "rm -rf .claude/worktree[[:alpha:]]"),
     (B, "rm -rf *"),  # bash's `*` skips dotfiles, but the guard does not judge by the shell's options
+    # Found by the second review of #381: `-e '!x'` un-ignores, `--fo` is `--force`, `-en` is `-e n` (no dry run),
+    # brace sequences and extglob are globs too, and `stash -a` takes the ignored files away.
+    (B, "git clean -fd -e '!*'"),
+    (B, "git clean -fd --exclude='!.claude/settings.local.json'"),
+    (B, "git clean -fd --fo"),
+    (B, "git clean -ffdx -en"),
+    (B, "git clean -fdx -e -n"),
+    (B, "rm -rf .gi{s..t}"),
+    (B, "shopt -s extglob; rm -rf @(.git)"),
+    (B, "shopt -s extglob; rm -rf +(.git|x)"),
+    (B, "git stash -a"),
+    (B, "git stash push --all -m x"),
+    (B, "git stash save -a x"),
 ]
 
 
@@ -842,6 +855,16 @@ class CloudCheckoutTest(unittest.TestCase):
         self.assertEqual(in_cloud(B, "git reset --hard origin/core/365-parent", repo=repo), [])
         self.assertEqual(in_cloud(B, "git branch -D core/365-parent-backup", repo=repo), [])
         self.assertTrue(in_cloud(B, f"git branch -D {CLOUD_TASK}", repo=repo))
+
+    def test_an_exclude_value_is_no_dry_run(self) -> None:
+        # Older than #381: `-en` and `-e -n` give -e its value, so the clean is real and asks outside the own worktree.
+        own = ROOT + "\\.claude\\worktrees\\51"
+        for command in ("git -C ../47 clean -fdx -en", "git -C ../47 clean -fdx -e -n"):
+            with self.subTest(command=command):
+                self.assertTrue(in_cloud(B, command, cwd=own, cloud=False), "expected the guard to ask")
+        for command in ("git clean -ndx", "git clean -fdxn -e x", "git clean --dry-run -fdx", "git clean --dry -fdx"):
+            with self.subTest(command=command):
+                self.assertEqual(in_cloud(B, command, repo=CloudRepo("main")), [])
 
     def test_a_worktree_in_the_cloud_keeps_its_own_rules(self) -> None:
         own = ROOT + "\\.claude\\worktrees\\51"
