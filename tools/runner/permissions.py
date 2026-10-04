@@ -237,17 +237,28 @@ def replay(before: tuple[Rules, types.ModuleType], after: tuple[Rules, types.Mod
     return "\n".join(lines)
 
 
+def project_folders(base: Path, main_root: str, pattern: str = "") -> list[Path]:
+    """The transcript folders of this project: the main checkout's and its worktrees' (`<slug>--claude-worktrees-*`),
+    never a sibling repository's whose name only starts the same (`D--prime-game-art`); or those matching pattern."""
+    if pattern:
+        return sorted(p for p in base.glob(pattern) if p.is_dir())
+    slug = re.sub(r"[^A-Za-z0-9]", "-", main_root)
+    return sorted(p for p in [base / slug, *base.glob(slug + "--claude-worktrees-*")] if p.is_dir())
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="run permissions", description=__doc__.split("\n\n")[0])
     parser.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
     parser.add_argument(
-        "--projects", default="", help="transcript folders glob under ~/.claude/projects (default: <project>*)"
+        "--projects",
+        default="",
+        help="transcript folders glob under ~/.claude/projects (default: this project's and its worktrees')",
     )
     args = parser.parse_args(argv)
     base = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude") / "projects"
     main_root = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
-    pattern = args.projects or re.sub(r"[^A-Za-z0-9]", "-", main_root) + "*"
-    folders = sorted(p for p in base.glob(pattern) if p.is_dir())
+    pattern = args.projects or re.sub(r"[^A-Za-z0-9]", "-", main_root) + "{,--claude-worktrees-*}"
+    folders = project_folders(base, main_root, args.projects)
     before = (old_settings(args.before), old_guard(args.before))
     after = (Rules.load(ROOT / ".claude" / "settings.json"), guard)
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]

@@ -2,7 +2,9 @@
 repositories pass in every mode, writes there ask (issue #68); and the model of Claude Code's rule matcher."""
 
 import re
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from runner import cli, guard, permissions
@@ -202,6 +204,18 @@ class MatcherTest(unittest.TestCase):
         self.assertEqual(
             permissions.verdict(rules, guard, "Bash", "npm test", str(ROOT), MAIN, OwnRepo(), bypass=False)[0], "prompt"
         )
+
+
+class ReplayFoldersTest(unittest.TestCase):
+    def test_only_this_projects_folders(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            for name in ("D--x", "D--x--claude-worktrees-5", "D--x-art", "D--x-ui", "D--y"):
+                (base / name).mkdir()
+            names = [p.name for p in permissions.project_folders(base, "D:/x")]
+            self.assertEqual(names, ["D--x", "D--x--claude-worktrees-5"])
+            names = [p.name for p in permissions.project_folders(base, "D:/x", "D--x*")]
+            self.assertEqual(names, ["D--x", "D--x--claude-worktrees-5", "D--x-art", "D--x-ui"])
 
 
 class ReplayCommandTest(unittest.TestCase):
