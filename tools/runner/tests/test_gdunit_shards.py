@@ -467,6 +467,19 @@ class FixedFpsTest(Fixture):
         )  # fmt: skip
         self.assertEqual(sorted(self.times()), ["fixed_fps"])
 
+    def test_named_paths_with_the_flag_run_at_fixed_fps_in_every_shard(self) -> None:
+        # Named paths in shards: every suite runs at fixed fps, the listed ones and the rest alike.
+        rc, text = self.run_test(paths=["tests/integration", "tests/unit"], shards=2, fixed_fps=True)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual(len(self.calls), 2)
+        for call in self.calls:
+            args = call["args"]
+            self.assertIn("--fixed-fps", args)
+            self.assertLess(args.index("--fixed-fps"), args.index("-s"))
+        ran = sorted(s for call in self.calls for s in call["selected"] if SUITES.get(s))
+        self.assertEqual(ran, [self.C, self.D, self.A, self.B])
+        self.assertEqual(sorted(self.times()), ["fixed_fps"])
+
     def test_the_flag_without_paths_needs_two_processes(self) -> None:
         with self.assertRaisesRegex(common.Failure, "--shards 2"):
             self.run_test(shards=1, fixed_fps=True)
