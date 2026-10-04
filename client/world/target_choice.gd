@@ -27,7 +27,7 @@ const PICK_RADIUS_M := 0.3
 ## interval plus one physics step, 1/20 + 1/60 s = 4/60 s: 0.3 m at the base mode's 4.5 m/s,
 ## and the hint shows from 1.7 m of its 2 m. Sprinting in (7 m/s) can still outrun it; once the
 ## player stands, the host catches up within a claim.
-const HINT_MARGIN_S := 1.0 / 20.0 + 1.0 / 60.0
+const HINT_MARGIN_S := 1.0 / Ticks.RATE + 1.0 / 60.0
 
 
 ## The reach of the mode's PickUp (its InReach), in metres from the feet; 0 when the mode has
