@@ -348,7 +348,7 @@ checkout: your `release-m<k>` worktree has them only once `release/m<k>` has tak
   `release/m<k>` is merged into `main` (on the tooling track: once the engineer merged the task's PR); a worktree
   whose branch never reached main but whose work did (merged into a parent) says so. Your `release-m<k>` worktree
   goes too, but `worktree-done` takes only an issue number: give the human `git worktree remove
-  .claude/worktrees/release-m<k>` and `git branch -d release/m<k>` (from `D:\prime-game`), to run after the closing
+  .claude/worktrees/release-m<k>` and `git branch -D release/m<k>` (from `D:\prime-game`), to run after the closing
   PR has merged into `main`.
 - Every housekeeping command, like every command of `human_steps` (§4), goes into the chat when it is due, one fenced
   PowerShell block per command, starting with `cd D:\prime-game` (or the folder it runs in), for example:
