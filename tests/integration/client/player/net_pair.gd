@@ -24,6 +24,8 @@ const FRAME_USEC := 16667
 const MAX_START_FRAMES := 300
 ## The most physics frames to_round() waits: the fixture's 5 s countdown is 300, then the load.
 const MAX_ROUND_FRAMES := 1200
+## The most physics frames walk_to() walks.
+const MAX_WALK_FRAMES := 600
 
 var host: Game
 var client: Game
@@ -110,6 +112,32 @@ func frames(count: int) -> void:
 ## The peer id of `game`'s own player.
 func peer_of(game: Game) -> int:
 	return game.client().model.own_peer
+
+
+## Turns `player`'s camera at `point`.
+func aim(player: PlayerController, point: Vector3) -> void:
+	var eye := player.get_camera().global_position
+	var to := point - eye
+	var yaw := atan2(-to.x, -to.z)
+	var pitch := atan2(to.y, Vector2(to.x, to.z).length())
+	var current_pitch := player.get_camera().get_parent_node_3d().rotation.x
+	player.look(angle_difference(player.rotation.y, yaw), pitch - current_pitch)
+
+
+## Walks `player` toward `target` on the floor, turning to it every frame; false when it is not
+## within 0.2 m after MAX_WALK_FRAMES frames. It stops giving input once there.
+func walk_to(player: PlayerController, target: Vector3) -> bool:
+	for i: int in MAX_WALK_FRAMES:
+		var to := target - player.global_position
+		to.y = 0.0
+		if to.length() < 0.2:
+			player.move_input = Vector2.ZERO
+			return true
+		player.look(angle_difference(player.rotation.y, atan2(-to.x, -to.z)), 0.0)
+		player.move_input = Vector2(0.0, 1.0)
+		await frames(1)
+	player.move_input = Vector2.ZERO
+	return false
 
 
 ## Gives the mode the life rules of the base mode (M4-9's suites), before start(): the Round's

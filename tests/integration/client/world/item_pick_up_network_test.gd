@@ -59,7 +59,7 @@ func _walk_in_at_every_knife() -> void:
 	assert_int(knives.size()).is_equal(KNIVES)
 	for knife: int in knives:
 		var at := model.items[knife].position
-		assert_bool(await _walk_to(player, at + Vector3(0, 0, START_M))).is_true()
+		assert_bool(await _pair.walk_to(player, at + Vector3(0, 0, START_M))).is_true()
 		await _pair.frames(10)
 		var feet := await _walk_in(player, keys, knife, at)
 		var hint := TargetChoice.hint_reach_of(_pair.mode)
@@ -93,36 +93,10 @@ func _walk_in(player: PlayerController, keys: ItemInteractions, knife: int, at: 
 		if keys.target() == knife:
 			player.move_input = Vector2.ZERO
 			return player.global_position
-		_aim(player, ItemView.centre_of(&"knife", at))
+		_pair.aim(player, ItemView.centre_of(&"knife", at))
 		player.move_input = Vector2(0.0, 1.0)
 	player.move_input = Vector2.ZERO
 	return Vector3.INF
-
-
-## Turns `player`'s camera at `point`.
-func _aim(player: PlayerController, point: Vector3) -> void:
-	var eye := player.get_camera().global_position
-	var to := point - eye
-	var yaw := atan2(-to.x, -to.z)
-	var pitch := atan2(to.y, Vector2(to.x, to.z).length())
-	var current_pitch := player.get_camera().get_parent_node_3d().rotation.x
-	player.look(angle_difference(player.rotation.y, yaw), pitch - current_pitch)
-
-
-## Walks `player` toward `target` on the floor, turning to it every frame; false when it is not
-## within 0.2 m after WALK_FRAMES frames. It stops giving input once there.
-func _walk_to(player: PlayerController, target: Vector3) -> bool:
-	for i: int in WALK_FRAMES:
-		var to := target - player.global_position
-		to.y = 0.0
-		if to.length() < 0.2:
-			player.move_input = Vector2.ZERO
-			return true
-		player.look(angle_difference(player.rotation.y, atan2(-to.x, -to.z)), 0.0)
-		player.move_input = Vector2(0.0, 1.0)
-		await _pair.frames(1)
-	player.move_input = Vector2.ZERO
-	return false
 
 
 func _on_event(event_name: StringName, fields: Dictionary) -> void:
