@@ -23,7 +23,8 @@ role loads and uses, then gives the engineer options to cut it without losing a 
 A read-only script over the transcripts under `~/.claude/projects/D--prime-game*/` (not the art and UI
 repositories). The window is this limit week, 2026-09-29 10:00 to 2026-10-04 03:00 UTC (4.71 days: M2's end, M3, M4,
 M5 and the tooling tracks). It covers 683 agent transcripts: 619 workflow agents in 117 `issue-task` runs and other
-workflows, 41 hand-run subagents, 9 manager sessions and 14 other main sessions. #313's own run is left out.
+workflows, 41 hand-run subagents, 9 manager sessions and 14 other main sessions. #313's own run is left out. The
+role table's rows below add up to 682: the one skeptic agent (11 calls) is in no row.
 - **What enters a context:** each transcript's `instructions` attachment (the files loaded at launch), its
   `nested_memory` attachments (files loaded by path), the `skill_listing` and `mcp_instructions_delta` attachments,
   and the result of every tool call that reads a doc: Read, Grep, and Bash or PowerShell commands that name a doc
@@ -128,8 +129,8 @@ tasks. §7.1 (the orchestrator) costs $1.6, §8.2 (the guard) $0.8, the rest $0.
     the rest 14% or less;
   - publishers: `board` 92%, `publish` 91%, `lint` 73%, `test` 56%, `verify` 56%;
   - reviewers: `test` and `check` (the godot-api-checker 75% and 44%, the others 11% or less).
-- Agents still grep or `sed` the file they were given at launch: 288 times, $4. The plan-review prompt asks for it
-  explicitly.
+- Agents still grep or `sed` the file they were given at launch: 288 times, $4. The plan-review and review prompts
+  ask for it explicitly.
 
 ### Duplicate loads
 The workflow agents' working directory is the main checkout, and they Read files under `.claude/worktrees/<n>/`.
@@ -216,7 +217,7 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 - Rule: one sentence in root `CLAUDE.md`, changed in place with no net growth: "read docs by section:
   `tools\run.cmd section <doc>` for the outline, then the § you need; never a whole doc".
 - Prompts: `issue-task.js` and `pr-rebase.js` give the plan reviewer and the reviewers "the ARCHITECTURE sections the
-  change touches", not `docs/ARCHITECTURE.md`. The plan-review prompt stops asking to read root `CLAUDE.md`, which is
+  change touches", not `docs/ARCHITECTURE.md`. The plan-review and review prompts stop asking to read root `CLAUDE.md`, which is
   already loaded.
 - The implementer's reading list (`READING` in `issue-task.js`) stops naming "the CLAUDE.md of every area it touches
   and .claude/rules/". Those files load by path when the agent Reads a file there, which an implementer does before
@@ -419,6 +420,6 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
 - Workflow agents carry one copy of root `CLAUDE.md`. A rule can still load twice (main's and the worktree's copy),
   the price of keeping the rules in a session started in a worktree.
 - The launch prefix waits for #307. This design adds what it measured to #302's lever 5: the skill listing is 7.5k
-  tokens in every general workflow agent, while implementers invoked a skill twice in 120 runs.
+  tokens in every general workflow agent, while 120 implementer agents invoked a skill twice in all.
 - `metrics` reports the instruction and doc cost per role. A later rise, such as a doc that grows back into a
   monolith or a new duplicate load, then shows up in the wave comments.
