@@ -188,6 +188,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("credits", help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)")
 
     p = sub.add_parser(
+        "export", help="the Windows release and debug zips of a commit, the release check and the content-hash proof"
+    )
+    p.add_argument("--version", help="the name in the zips (default: git describe of the commit; CI: the tag)")
+    p.add_argument("--rev", default="HEAD", help="the commit to export, from a clean tree (default HEAD)")
+
+    p = sub.add_parser(
         "agents-check", help="assert each subagent and workflow agent was served by the model family it asked for"
     )
     scope = p.add_mutually_exclusive_group()
@@ -395,6 +401,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import credits
 
             return credits.main()
+        if args.command == "export":
+            from . import export
+
+            return export.main(version=args.version, rev=args.rev)
         if args.command == "agents-check":
             from . import agents_check
 

@@ -697,7 +697,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 | Owner | Paths |
 |---|---|
-| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot CLAUDE.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP}.md` |
+| Engineer | `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/` (except the two designer skills) `project.godot export_presets.cfg CLAUDE.md docs/{ARCHITECTURE,AGENT_WORKFLOW,ROADMAP}.md` |
 | Designer | `content/ levels/ docs/GDD.md docs/design/ .claude/skills/{new-mechanic,new-level-piece}/` |
 | Shared | `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/` |
 
@@ -1111,6 +1111,28 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
   (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
   branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
+- **Exported builds: `export [--version V] [--rev R]` [applied]** (#369; the M6 ADR's E59 and D20): the friends'
+  Windows x86_64 builds from the two presets of `export_presets.cfg` (`Windows Release`, `Windows Debug`; the pack
+  beside the `.exe`, the `.exe`'s icon and metadata left as the template's). Linux only (CI, a cloud session): it
+  checks the pinned export templates (`pins.py`, the release's SHA512-SUMS.txt), exports a clean `git archive` tree
+  of the commit (the TwoVoIP extension in it; its `ERROR:` lines on Linux are expected), zips both into
+  `tools/out/export/`, checks that the release zip holds the release template's `.exe` byte for byte, its TwoVoIP
+  library and no console wrapper (only a release template has `OS.is_debug_build()` false, which turns off F3, the
+  dev tools and the debug kinds), and proves the content hash in an export with `tools/export/export_probe.gd` run
+  on the pack: every level and what it reaches found, a second tree's export equal, one byte changed in each level
+  a new hash; and, since the game's levels reach no other file yet, on `ContentFingerprint`'s test fixtures exported
+  from that tree: the walk reaches the same five files as in the project, and one byte of a reached resource or of a
+  texture's source changes the hash. The export converts `.tscn`/`.tres` to binary under `.godot/exported/` behind a `.remap`, and ships an
+  imported asset's products without its source; `ContentFingerprint` hashes what is shipped, so an export's hash
+  differs from a source run's (M6 ADR §2.5). The debug and the release zip of one commit have one hash and play
+  together, so a human who hosts with the debug zip sees hidden information through F3 (invariant 8: on that machine
+  only). About 3 minutes after the 1.3 GB download (#369's session). The workflow
+  `.github/workflows/release.yml` runs it on a pushed `v*` tag (never on a PR), with LFS content (unlike `verify`),
+  attaches only the release zip to that tag's GitHub Release (a re-run replaces it) and keeps the debug zip as a
+  7-day workflow artifact. The engineer tags a merged commit:
+  `git tag v0.6.0 <commit>; git push origin v0.6.0`. Opening Project > Export in the editor may add the default
+  options to `export_presets.cfg`: commit that once; never turn on `application/modify_resources` or
+  `binary_format/embed_pck`, or the release check fails.
 - **Bounded waits: `wait <log> [--max S]` and `wait --verified` [applied]** (#303; #302's token research): a workflow
   agent or subagent writes its prompt cache with a 5-minute lifetime (a main or manager session has 1 hour), so a
   tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54

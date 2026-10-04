@@ -15,6 +15,13 @@ extends RefCounted
 ## out) and Godot's generated files under res://.godot/ (made from sources the walk hashes). An
 ## imported asset counts by its source bytes and its `.import` settings.
 ##
+## In an exported build (#369) a file counts by what the export ships in its place: the export
+## converts a text scene or resource to binary under res://.godot/exported/ and leaves a
+## `<path>.remap` naming it, and ships an imported asset as its import products, named by the
+## `[remap]` of the `.import` it rewrites, without the source. So a level a build ships is found,
+## and a level byte that reaches the build changes its hash; the hash of an export differs from
+## the source's (another build, §2.5 of the M6 ADR).
+##
 ## net/ names no core/ class (§1), so the caller passes the mode's parts. The host's server/ and
 ## every client call it the same way, from their own copy of the mode:
 ## `ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)`.
@@ -63,10 +70,12 @@ static func reached_from(levels: PackedStringArray) -> PackedStringArray:
 	while not to_walk.is_empty():
 		var path := to_walk[to_walk.size() - 1]
 		to_walk.remove_at(to_walk.size() - 1)
-		# get_dependencies prints an engine error for a file that is not there.
-		if not FileAccess.file_exists(path):
+		# get_dependencies prints an engine error for a file that is not there (a dangling remap
+		# target); an asset shipped as several products has no dependencies to walk.
+		var shipped := _shipped_as(path)
+		if shipped.size() != 1 or not FileAccess.file_exists(shipped[0]):
 			continue
-		for dependency: String in ResourceLoader.get_dependencies(path):
+		for dependency: String in ResourceLoader.get_dependencies(shipped[0]):
 			var target := _target_of(dependency)
 			if seen.has(target) or not _hashed(target):
 				continue
@@ -101,7 +110,7 @@ static func _text(
 static func _missing_in(files: PackedStringArray) -> PackedStringArray:
 	var missing := PackedStringArray()
 	for path: String in files:
-		if not FileAccess.file_exists(path):
+		if _digest(path) == "missing":
 			missing.append(path)
 	return missing
 
@@ -126,6 +135,44 @@ static func _hashed(path: String) -> bool:
 	)
 
 
+## The files `path` is there as, in the order Godot's loader follows them: in an export, what its
+## `.remap` (a converted scene or resource) or its `.import` (an imported asset's products) names,
+## every `path` key of the `[remap]` section in key order; else the file itself; else none
+## (missing). Only an export's `.import` counts: the editor's has a `[deps]` section, so in a
+## project the source counts and a deleted source stays missing. A project has no `.remap`.
+static func _shipped_as(path: String) -> PackedStringArray:
+	for redirect: String in [path + ".remap", path + ".import"]:
+		if FileAccess.file_exists(redirect):
+			var targets := _remapped_by(redirect)
+			if not targets.is_empty():
+				return targets
+	if FileAccess.file_exists(path):
+		return PackedStringArray([path])
+	return PackedStringArray()
+
+
+static func _remapped_by(redirect: String) -> PackedStringArray:
+	var files := PackedStringArray()
+	var config := ConfigFile.new()
+	if config.load(redirect) != OK or not config.has_section("remap") or config.has_section("deps"):
+		return files
+	var keys := config.get_section_keys("remap")
+	keys.sort()
+	for key: String in keys:
+		var target: Variant = config.get_value("remap", key)
+		if (key == "path" or key.begins_with("path.")) and target is String:
+			files.append(target as String)
+	return files
+
+
+## The SHA-256 of what `path` is there as (`_shipped_as`), the products' digests joined by `+`;
+## `missing` when it is not there or a file it names is not.
 static func _digest(path: String) -> String:
-	var digest := FileAccess.get_sha256(path) if FileAccess.file_exists(path) else ""
-	return digest if not digest.is_empty() else "missing"
+	var shipped := _shipped_as(path)
+	var digests := PackedStringArray()
+	for file: String in shipped:
+		var digest := FileAccess.get_sha256(file) if FileAccess.file_exists(file) else ""
+		if digest.is_empty():
+			return "missing"
+		digests.append(digest)
+	return "+".join(digests) if not digests.is_empty() else "missing"

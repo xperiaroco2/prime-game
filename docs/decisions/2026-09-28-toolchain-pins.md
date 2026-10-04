@@ -17,6 +17,7 @@ errors, `load()` returns a script that does not compile, and the GdUnit4 console
 |---|---|---|
 | Godot | 4.7.2 official stable, standard build (`4.7.2.stable.official*`) | Every command that runs Godot checks the version first and stops with a download link |
 | Godot in CI | `Godot_v4.7.2-stable_linux.x86_64.zip` from the official release, SHA512 pinned as `godot_linux_sha512` | Copied from the release's `SHA512-SUMS.txt`; CI runs `sha512sum -c` on every run, cached or not |
+| Godot export templates | `Godot_v4.7.2-stable_export_templates.tpz` from the same release, SHA512 pinned as `godot_templates_sha512` (#369) | Copied from that `SHA512-SUMS.txt`; `export` checks it on every run before it unpacks the Windows x86_64 templates |
 | GdUnit4 | 6.2.1, committed in `addons/gdUnit4` | Its README lists Godot up to 4.7.1; runs on 4.7.2 verified locally |
 | gdtoolkit | 4.5.0 | No upstream commits since 2025-10; Godot's parser in `check` stays the authority |
 | Python | 3.11 or newer | Runner uses the standard library only |
@@ -45,8 +46,8 @@ checked Godot build and `gdtoolkit==<pin>` on Python 3.12, then runs `GODOT_BIN=
 `verify` fails.
 
 **Changing a pin** is a PR that edits `tools/runner/pins.py` (plus the addon for GdUnit4, and
-`godot_linux_sha512` from the new release's `SHA512-SUMS.txt` for Godot), updates this ADR, and shows `verify`
-green locally and in CI.
+`godot_linux_sha512` and `godot_templates_sha512` from the new release's `SHA512-SUMS.txt` for Godot), updates this
+ADR, and shows `verify` green locally and in CI, and `export` green in a Linux session.
 
 ## Alternatives
 - Orphans as a warning only: leaks in `core/` tests would pile up unseen.

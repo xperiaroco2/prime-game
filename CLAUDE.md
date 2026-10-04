@@ -56,7 +56,7 @@ Windows: `tools\run.cmd <command>`. Git Bash and CI: `tools/run.sh <command>`.
 | `normalize <files>` / `shot <scene>` / `playcheck [scenario ...] [--seconds S]` | Re-save `.tscn`/`.tres` as the editor would / an off-screen PNG of a scene / the game in off-screen windows (bots for the rest) running scripted steps, PNGs at named steps; never CI |
 | `run <x.tscn\|x.gd> [--headless\|--offscreen] [--seconds N] [--instances N] [-- args]` | Runs it with the pinned Godot; fails on a non-zero exit, a timeout or an `ERROR:` line. Your own checks: `--headless` |
 | `host [--port P] [--clients N] [--local] [--seconds S] [--headless]` / `join <address> [--port P] [--seconds S] [--headless]` | The game over ENet in windows (tiled on one PC); `--headless`: M3's session printing roster, phase and counters. Yours stay headless (`CLAUDECODE`); never `--windows`. Checks: `--local --seconds` |
-| `credits` | Writes `CREDITS.md` from `docs/credits/`; `check` fails on an LFS asset without an entry |
+| `credits` / `export [--version V]` | Writes `CREDITS.md` from `docs/credits/`; `check` fails on an LFS asset without an entry / the Windows zips of a commit, release check, content-hash proof (Linux; CI on a `v*` tag) |
 | `bots [scenario ...] [--instances N] [--seconds S]` / `bots --chaos [--seed N] [--runs K] [--long] [--enet]` / `perf [--bots N] [--seconds S] [--enet] [--baseline F]` | Bot scenarios through the host and client sessions, and the information-leak test; `--instances N` (N > 1): one scenario over ENet, a process per bot / hostile and malformed peers against the host (no seed: random, printed) / host tick time and bytes per peer with 10 bots, compared with the last run (not `verify`) |
 | `agents-check` / `metrics [--since T] [--until T] [--compact]` / `wave --since T \| --args <n>` / `worktree-done <n> [--pushed]` | Subagents and workflow agents ran on their models / time and API list $ per task workflow from the transcripts / a manager's finished and running runs and handover args (a wave comment's body; posts nothing), or issue n's launch args as JSON / remove a merged (or pushed spike) task's worktree |
 | `selftest` / `pins [--get X]` / `permissions [--before R]` | The runner's own tests / pinned tool versions / transcripts replayed through the permission rules and the guard |
@@ -84,8 +84,8 @@ PowerShell 5.1 is the primary shell (no `&&` or `||`: `A; if ($LASTEXITCODE -eq 
   and mutants as `<cmd> > <log> 2>&1; echo "exit=$?" >> <log>`, poll `wait <log>`, never rerun a running one (AGENT_WORKFLOW §11).
 
 ## Ownership (`docs/AGENT_WORKFLOW.md` §9)
-- **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot CLAUDE.md`,
-  `docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`, `docs/ROADMAP.md`.
+- **Engineer:** `core/ server/ net/ client/ voice/ tools/ tests/ addons/ .github/ .claude/ project.godot`,
+  `export_presets.cfg CLAUDE.md docs/ARCHITECTURE.md`, `docs/AGENT_WORKFLOW.md`, `docs/ROADMAP.md`.
 - **Designer:** `content/ levels/ docs/GDD.md docs/design/` and the skills `new-mechanic` and `new-level-piece`.
 - **Shared:** `docs/interventions/ docs/decisions/ docs/credits/ docs/history/ CREDITS.md .claude/rules/`.
 - The designer's agent never edits engine code: a missing primitive becomes an `engine-request` issue with a precise
