@@ -1101,6 +1101,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     the runner's clock, the real one in a runner on a simulated clock (the chaos run): `JOIN_TIMEOUT_MS` is real
     time. Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
     gate (peer ids alone fail it), a rejoin after an unanswered join and none after a join refused at once.
+    Beside 32 busy loops on 16 cores (2026-10-04) `bots --chaos --enet` passed 10 of 10 runs, and `playcheck
+    spectate` 18 of 20: its bots played in all 20, and both reds were a window that did not exit within
+    `hostjoin`'s 10 s grace after the stop.
   - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
     `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
   - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
