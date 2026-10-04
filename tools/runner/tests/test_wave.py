@@ -879,7 +879,7 @@ class WaveTest(unittest.TestCase):
             self.assertIn(block(f"tools\\run.cmd worktree-done {n}"), part)
         self.assertEqual(part.count("```powershell"), 6, "four worktree-done blocks and the release worktree's two")
         self.assertIn(block("git worktree remove .claude/worktrees/release-m4"), part)
-        self.assertIn(block("git branch -d release/m4"), part)
+        self.assertIn(block("git branch -D release/m4"), part)
         self.assertLess(part.index("worktree-done 305"), part.index("Held by a live Claude session"))
         self.assertGreater(part.index("worktree-done 260"), part.index("Held by a live Claude session"))
         for n in (250, 262, 266, 278, 300):
