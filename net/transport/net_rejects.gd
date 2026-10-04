@@ -21,6 +21,11 @@ enum Reason {
 	OVER_BUDGET,
 	## server/: the codec rejected the payload, or a debug kind came from a peer other than 1.
 	BAD_PAYLOAD,
+	## A LATEST packet shorter than LaneOrder's header (WebRTC and later backends).
+	ORDER_HEADER_SHORT,
+	## LaneOrder: a hold that no reliable packet released for LaneOrder.STALL_MS, a transport fault
+	## that disconnects the peer (the M6 design §2.2).
+	ORDER_STALLED,
 }
 
 ## Peers named in one summary line; the rest are summed up.

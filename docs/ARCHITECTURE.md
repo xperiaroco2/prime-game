@@ -296,6 +296,31 @@ dissidents, no crew present only once every crew member left, End widens nothing
   a host-to-client LATEST kind holds what it describes for every player that recipient may see (filtered by
   `server/`) in one message, never one message per player, or only the last player's would arrive in a poll that
   holds several.
+- **`LaneOrder`** (`net/transport/`, M6-3, #365; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md)
+  §2.2, E49) restores ENet's channel-0 order of LATEST against RELIABLE for a backend whose channels do not keep it
+  (WebRTC's data channels, a later Steam backend; ENet and the loopback do not use it). Without it a `MoveClaim`
+  sent just before a `PickUp` can arrive after it, and the host refuses the `PickUp`, only over the internet. The
+  sender prefixes each LATEST packet with `[reliable_sent: u16][latest_seq: u16]` (LE, wrapping, compared in
+  serial-number order): the packets written to that peer's RELIABLE channel before it, `ADMIT` included
+  (`count_reliable_sent`), and a per-peer LATEST counter (`stamp_latest`). RELIABLE and VOICE carry no header, and
+  the header sits below `NetFrame`: the frame handed on has none, and the payload caps are unchanged. The receiver
+  reads LATEST before RELIABLE in each poll and calls `read_reliable` for every RELIABLE packet before decoding it;
+  `read_latest` delivers a packet whose `reliable_sent` equals that count and whose seq is newer, holds one that is
+  ahead until its reliable packet is read (`read_reliable` returns the held frames it releases, which go to the
+  inbox right after that reliable packet), and drops one that is behind or not newer. At `HOLD_CAP` (8, a
+  placeholder) held packets one packet of the arriving one's kind, the arriving one included, is dropped: first the
+  oldest that a newer one waiting for the same reliable packet follows (the inbox's merge would drop it anyway),
+  else the oldest (§2.2's rule; it loses the claim between two reliable packets only with 8 in flight), and with
+  none of that kind held the arriving one. The dropped frame comes back in `Read.superseded`: the backend decodes
+  it without delivering it and counts it in `latest_superseded` when valid, as the inbox does. A per-peer clock
+  starts when the hold turns non-empty and restarts at each release; past `STALL_MS` (20 s, the silence rule),
+  judged after both channels were read, `stalled_peers` names the peer once and forgets it, and the backend counts
+  `ORDER_STALLED` and disconnects it (a client ends as `host_lost`); a full hold alone never disconnects. Rejects:
+  a LATEST packet shorter than the header (`ORDER_HEADER_SHORT`), longer than the header and the longest frame
+  (`TOO_LARGE`), or from a peer it does not know (`UNKNOWN_PEER`). Peers are explicit: `add_peer` when a connection
+  opens, `forget` at once when it leaves or is disconnected, which discards its held packets undelivered, so a
+  late packet never brings an old connection's counts back. `count_reliable_sent` counts only packets the channel
+  accepted. The class is pure (the caller passes the time); M6-4 (#370) wires it into `WebRtcTransport`.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
