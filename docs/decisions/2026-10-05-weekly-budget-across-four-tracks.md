@@ -36,13 +36,14 @@ bracket at w = 0.6 and 1 moves no track's figure by more than 0.2 points. "Since
 2026-10-04 about 22:30 UTC. `metrics` reads only this checkout's transcript folders, so the UI and art sessions in their
 own checkouts (`802a8cfc` in `D--prime-game-ui`, `77aa0a64` in `D--prime-game-art`) were summed by a read-only script
 with `metrics`' rules (each `message.id` once, `metrics.PRICES`); it matches `metrics`' totals for the sessions in this
-checkout to within $2. The scripts (`scan.py`, `tracks.py`, `verify.py`) and their output are in the scratchpad `a389/`
-of manager session 657efbf1.
+checkout to within $2. The scripts (`scan.py`, `tracks.py`, `until.py`, `med.py`, `verify.py`) and the command line
+for each figure are in [#389 comment 5985397112](https://github.com/xperiaroco2/prime-game/issues/389#issuecomment-5985397112);
+P1 and P2 replace them.
 
 | # | input | value | source |
 |---|---|---|---|
 | 1 | Weekly counter | 96% (Max 5x) at 10-02 10:28, the plan change, and 0% at 10:53 (the restart; this design counts from 10:28), 66% at 10-03 20:54, 77% at 10-04 05:05, 79% at 12:40, 80% at 20:26; reset 10-06 10:00 UTC | `get_usage` readings: #302 comments 5973758335, 5981003461, 5984093660; the baseline ADR's #307 amendment |
-| 2 | Spend per track since the restart | game **17.6%** ($454), UI **13.0%** ($328), art **15.8%** ($409), meta **37.0%** ($949); sum 83.4% to about 22:30. Cut at the counter's last reading (20:26): game 17.6, UI 13.0, art 15.8, meta 34.7, sum **81.2%** (80.6% counted from 10:53) against the counter's 80%: the conversion agrees with the counter within about 1 point | `tools\run.cmd metrics --since 2026-10-02T10:28:00Z --session <ids> --no-gh --compact`: game `3e834e50 dd93bf79`, meta `40774c17 5ef6e325 657efbf1`, UI `ce8374ce`, art `a62dc194`; plus `scan.py` for `802a8cfc` (UI, 8.8%) and `77aa0a64` (art, 9.1%); the cut: `until.py 2026-10-02T10:28:00Z 2026-10-04T20:26:00Z` |
+| 2 | Spend per track since the restart | game **17.6%** (list $454), UI **13.0%** (list $328), art **15.8%** (list $409), meta **37.0%** (list $949); sum 83.4% to about 22:30. Cut at the counter's last reading (20:26): game 17.6, UI 13.0, art 15.8, meta 34.7, sum **81.2%** (80.6% counted from 10:53) against the counter's 80%: the conversion agrees with the counter within about 1 point | `tools\run.cmd metrics --since 2026-10-02T10:28:00Z --session <ids> --no-gh --compact`: game `3e834e50 dd93bf79`, meta `40774c17 5ef6e325 657efbf1` (the #332 probe session `40b3fffd`, 0.03%, left out), UI `ce8374ce`, art `a62dc194`; plus `scan.py` for `802a8cfc` (UI, 8.8%) and `77aa0a64` (art, 9.1%); the cut: `until.py 2026-10-02T10:28:00Z 2026-10-04T20:26:00Z` |
 | 3 | Per UTC day | 10-03: game 9.1, UI 10.0, art 12.0, meta 9.6 = **40.7%**; 10-04: meta 12.2, the others stopped | `tracks.py` (each API call's day) |
 | 4 | The 5-hour limit | does not bind: a 5-hour point is about $6.5 at w = 0.75 against $23.0 a weekly point, so one 5-hour window holds roughly a quarter to a third of the week | #307's probe: 3 points on $3.43 non-read and $21.53 of cache reads |
 | 5 | Managers' own lines since the restart | game 4.5%, UI 3.8%, art 3.9%, meta 5.6%: **17.8%** (22% of list $; 25 to 29% of each product track, 15% of meta); per task or run handled: game 0.19%, meta 0.09%, art 0.28%, UI 0.35% | `tracks.py`; the `metrics` runs of row 2 ("managers and their hand-run subagents") |
