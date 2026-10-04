@@ -3,8 +3,9 @@ extends GdUnitTestSuite
 ## once or time out at their timeout and not before, frames, actions, the host's setup and event
 ## matching through player numbers, over a fake View and a fake clock (no window, no sleep); what
 ## the window draws (`wait text`, `wait shown`) and the `button` step's choice (#275); the `aim`
-## step, the item it picks and the turn that makes a real PlayerController face it (#276). The plan
-## comes from tools/runner/playcheck.py (its parser: tools/runner/tests/test_playcheck.py).
+## step, the item it picks and the turn that makes a real PlayerController face it (#276); the
+## window turning every frame until `aim off` is covered by the items scenario. The plan comes
+## from tools/runner/playcheck.py (its parser: tools/runner/tests/test_playcheck.py).
 
 const Steps := preload("res://tools/playcheck/playcheck_steps.gd")
 const PLAYER_SCENE := preload("res://client/player/player.tscn")
@@ -467,7 +468,7 @@ func test_a_button_is_the_one_visible_enabled_button_with_that_text() -> void:
 	assert_str(Steps.button_problem(buttons, "Resum")).starts_with("no visible button 'Resum';")
 
 
-func test_aim_item_and_aim_off_are_actions_the_window_performs() -> void:
+func test_aim_item_and_aim_off_are_action_steps_advance_returns() -> void:
 	var aim := {"line": 4, "text": "aim item knife", "do": "aim", "kind": "knife"}
 	var off := {"line": 6, "text": "aim off", "do": "aim", "kind": ""}
 	var steps := _steps([aim, _frames(1), off], FakeView.new())
