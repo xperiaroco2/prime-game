@@ -202,18 +202,22 @@ report and proposal (Q1) come then, and the managers' kickoffs for the week foll
 ### Proposed issues (not opened; the build waits for the answers)
 | order | issue | size | decides | depends on | files |
 |---|---|---|---|---|---|
-| 1 | P1. `metrics`: a track's spend this week against its budget | M | manager | none | `tools/runner/metrics.py`, its tests, orchestrate-stage §6 and §10, AGENT_WORKFLOW §7.1 |
+| 1 | P1. `metrics`: a track's spend this week against its budget | M | manager | none | `tools/runner/metrics.py`, its tests, orchestrate-stage §6, §7 and §10, AGENT_WORKFLOW §7.1 |
 | 1 | P2. `slots --status` and `slots --quiet <hours>` | S | N3 (b) | #388, PR #399 (both change `slots.py`) | `tools/runner/slots.py`, `verify.py`, `cli.py`, tests, AGENT_WORKFLOW §11, orchestrate-stage §3 |
 | 2 | P3. `issue-task` and `pr-rebase` default to `lean` and `bounded_waits` | S | N4; manager for `bounded_waits` | a week of N4 (a), or none under (b); lands between waves | `.claude/workflows/issue-task.js`, `pr-rebase.js`, snapshots, `test_workflows.py`, the lean ADR, AGENT_WORKFLOW §7.1 |
 | 2 | P4. The week's rules in the skill and the ADRs | S | N1, N2, N3, N5 to N8 | the answers | orchestrate-stage §1, §3, §6, §7, §10; AGENT_WORKFLOW §7.1; dated amendments of the trust, effort and model-guard ADRs |
-| 3 | P5. The art and UI workflows get bounded waits, compact results and lean types (one issue in each repo) | M each | those repos' managers | P1 (to measure before and after) | `prime-game-art` and `prime-game-ui`: `.claude/workflows/`, `.claude/agents/` |
+| 3 | P5. The art and UI workflows get bounded waits, compact results and lean types, and their kickoffs a `Track:` line (one issue in each repo) | M each | those repos' managers | P1 (to measure before and after) | `prime-game-art` and `prime-game-ui`: `.claude/workflows/`, `.claude/agents/`, the kickoff template |
 
-- **P1:** `metrics --since <reset> --track <name> [--budget <%>]` groups sessions by a `Track: <name>` line in the
-  session's first user message (the kickoff; the §10 template gets the line), reads the transcript folders of the
-  checkouts listed in one constant (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`, each with its
-  worktrees), and prints each track's % (w = 0.75, the bracket), its budget and the plan to date; a session with no
-  line counts as "untracked" (the engineer's reserve). Fixture transcripts in two folders; the wave comment's budget
-  line comes from it. Acceptance: on this week's transcripts it reproduces row 2 within 0.1 points.
+- **P1:** `metrics --since <reset> --track <name> [--budget <%>]` reads the transcript folders of the checkouts
+  listed in one constant (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`, each with its worktrees) and
+  prints each track's % (w = 0.75, the bracket), its budget and the plan to date. A session's track comes from, in
+  order: an explicit `--session <id>=<track>` label (`--session` already takes `ID=LABEL`); a `Track: <name>` line in
+  the session's first user message (the kickoff: the §10 template and the §7 handover kickoff carry it, so a rotated
+  successor keeps its track); the checkout's default (`D--prime-game-ui` is UI, `D--prime-game-art` is art). A
+  session with none counts as "untracked" (the engineer's reserve). Fixture transcripts in two folders; the wave
+  comment's budget line comes from it. Acceptance: with row 2's sessions given as `--session <id>=<track>`, on this
+  week's transcripts it reproduces row 2 within 0.1 points; a fixture session without a Track line in the UI folder
+  counts as UI.
 - **P2:** `slots --status` prints the holders, the waiters and the last hour's runs without a slot; `slots --quiet
   <hours>` writes a machine-wide limit of one slot with its end time into the slots folder, which `verify` reads
   (`--quiet off` ends it); a run that starts during a quiet window says so. Tests for both and for an expired file.
@@ -223,7 +227,8 @@ report and proposal (Q1) come then, and the managers' kickoffs for the week foll
   read (N3); the 300k threshold (N6); `publish_clean` from a one-wave trial to a standing rule (N5: amendments of the
   effort and model-guard ADRs); the trust ADR's "15% per stage or track" read as "the track's weekly budget under
   this ADR, else 15%"; the skill within its 500-line budget.
-- **P5:** each repo's manager measures its runs with P1 first and ports what applies; no change in this repo.
+- **P5:** each repo's manager measures its runs with P1 first and ports what applies, and adds the `Track:` line to
+  its own kickoff template (P1's checkout default covers it until then); no change in this repo.
 
 ## Alternatives
 - **No per-track budget, spend as each track needs:** 10-03's pattern. Four tracks at full pace end the week in 2.5
