@@ -1,0 +1,20 @@
+# The signalling service's Worker (tools/signal/README.md). No secrets here: they go in the
+# Cloudflare dashboard (the README's "Secrets"). Deployed by the engineer with `npx wrangler deploy`.
+name = "prime-game-signal"
+main = "src/worker.js"
+# On or after 2026-04-07 the runtime answers a client's close frame itself (web_socket_auto_reply_to_close).
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[vars]
+# What "room" and every "offer" carry (E58); service.js checks it by the clients' rules.
+ICE_SERVERS = [{ urls = ["stun:stun.cloudflare.com:3478"] }]
+
+[[durable_objects.bindings]]
+name = "SIGNALLING"
+class_name = "Signalling"
+
+# The Workers Free plan has Durable Objects with the SQLite storage backend only.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Signalling"]
