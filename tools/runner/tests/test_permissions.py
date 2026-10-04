@@ -297,7 +297,6 @@ class ReplayFoldersTest(unittest.TestCase):
             names = [p.name for p in permissions.project_folders(base, "D:/x", "D--x*")]
             self.assertEqual(names, ["D--x", "D--x--claude-worktrees-5", "D--x-art", "D--x-ui"])
 
-
     def test_since_and_roles(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             session = Path(tmp) / "D--x" / "s1"
