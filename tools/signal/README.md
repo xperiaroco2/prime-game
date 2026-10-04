@@ -12,11 +12,11 @@ engineer deploys it. Agents never run `wrangler`.
 |---|---|
 | `src/codec.js` | The messages and their checks: `SignalCodec`'s rules, with a JSON reader that accepts and refuses exactly what Godot's does |
 | `src/router.js` | Rooms and routing with no sockets: `SignalRouter`'s rules, its state kept as one record per socket |
-| `src/service.js` | The Durable Object's work: hibernatable sockets, the records in socket attachments, the 1 s close grace, `ICE_SERVERS`, deliveries in order while a TURN credential is minted |
-| `src/turn.js` | TURN credentials per host offer from Cloudflare's TURN key API (M6-10), only when the TURN secrets are set |
+| `src/service.js` | The Durable Object's work: hibernatable sockets, the records in socket attachments, the 1 s close grace, `ICE_SERVERS`, deliveries in order per socket while a TURN credential is minted |
+| `src/turn.js` | TURN credentials for the host's `room` and each host offer from Cloudflare's TURN key API (M6-10), only when the TURN secrets are set |
 | `src/worker.js` | The Worker and the Durable Object class `Signalling`: the only file that needs the Cloudflare runtime |
 | `test/*.test.js` | `node --test`, no npm package: the shared transcripts and decoding cases (`tests/fixtures/signal/`) through the router and the service over fakes, Cloudflare's TURN API a fake `fetch` |
-| `smoke.js` | A smoke test of a running service (the Worker, or a `LanSignalling`); `--turn` also checks the TURN credential's audience |
+| `smoke.js` | A smoke test of a running service (the Worker, or a `LanSignalling`); `--turn` also checks the TURN credentials' audience |
 | `wrangler.toml` | The deploy configuration. No secrets |
 
 `tools/run.sh signal` runs the tests (a `verify` step) with the pinned Node (`tools/runner/pins.py`).
@@ -40,7 +40,7 @@ deploy Cloudflare may ask you to pick the `workers.dev` subdomain in the dashboa
 Then check the deployed service from the same folder:
 
 ```powershell
-node smoke.js wss://prime-game-signal.<your-subdomain>.workers.dev/
+node smoke.js "wss://prime-game-signal.<your-subdomain>.workers.dev/"
 ```
 
 It ends with `smoke: passed`. It opens a room, joins it, sees a second joiner refused, passes an offer and an answer,
@@ -52,14 +52,15 @@ and checks that a joiner hears "the host left" before its socket closes.
   `stun:stun.cloudflare.com:3478` (E58). The service checks it by the clients' rules and refuses to start with a list
   they would drop. Change it in `wrangler.toml` and deploy again.
 - **Secrets:** `TURN_KEY_ID` and `TURN_KEY_API_TOKEN`, the TURN key's id and its API token (below). With neither
-  set the service relays nothing: every `offer` carries `ICE_SERVERS` alone, as before M6-10. One without the other
-  stops the service at its first connection. They never go in `wrangler.toml`. Add each in the dashboard: **Workers
+  set the service relays nothing: `room` and every `offer` carry `ICE_SERVERS` alone, as before M6-10. One without the
+  other is no TURN too, and the Worker logs `no TURN until both ... are set` (each `secret put` goes live at once, so
+  this is the state between the two commands below). They never go in `wrangler.toml`. Add each in the dashboard: **Workers
   & Pages** > select `prime-game-signal` > **Settings** > **Variables and Secrets** > **Add** > type **Secret**, its
   name and value > **Deploy**. Or from this folder: `npx wrangler secret put <NAME>`, which asks for the value.
 - **`TURN_TTL_SECONDS`** (optional, `[vars]`): how long each credential lasts, 600 (D17's 10 minutes, a
   placeholder) when unset, at most 172800 (48 hours). Cloudflare's FAQ: when a credential expires while its relay is
   in use, "after a short delay, the connection will be disconnected", so a relayed player is dropped this long after
-  the host's offer.
+  the host's offer, and a relayed host this long after opening the room. Pick it before relying on TURN.
 
 ## TURN (M6-10, the engineer, once)
 
@@ -70,18 +71,19 @@ payment card is found out here; if it does and you decline, skip this section: D
 1. Create a TURN key in the Cloudflare dashboard: open `https://dash.cloudflare.com/?to=/:account/calls` (the
    link Cloudflare's page gives; the menu names were not checked) and create a TURN key. Copy its key id and its API
    token (Cloudflare's page calls them `$TURN_KEY_ID` and `$TURN_KEY_API_TOKEN`).
-2. Set both secrets and deploy again from this folder; each `secret put` asks for its value:
+2. Set both secrets and deploy again from this folder; each `secret put` asks for its value. Replace
+   `<your-subdomain>` in the last line first (PowerShell refuses a bare `<`):
 
 ```powershell
 cd C:\path\to\prime-game\tools\signal
 npx wrangler secret put TURN_KEY_ID
 npx wrangler secret put TURN_KEY_API_TOKEN
 npx wrangler deploy
-node smoke.js wss://prime-game-signal.<your-subdomain>.workers.dev/ --turn
+node smoke.js "wss://prime-game-signal.<your-subdomain>.workers.dev/" --turn
 ```
 
-`smoke.js --turn` ends with `smoke: passed` after `ok   TURN: the offer carries a credential, and neither room nor
-found does`. It prints the servers' URLs, never a credential. To turn TURN off again, delete both secrets
+`smoke.js --turn` ends with `smoke: passed` after `ok   TURN: room and the offer each carry their own credential,
+and found none`. It prints the servers' URLs, never a credential. To turn TURN off again, delete both secrets
 (`npx wrangler secret delete <NAME>`) and deploy.
 
 ## How it runs
@@ -91,14 +93,16 @@ found does`. It prints the servers' URLs, never a credential. To turn TURN off a
   same socket, so a socket cannot be sent to a room's own object when it connects. The free plan's duration, 13,000
   GB-s a day, is about 28 hours a day of one object at 128 MB, so even an object that never hibernated would stay
   within it; requests (100,000 a day, a WebSocket message counting 1/20) are a few per join.
-- **TURN** (M6-10, `src/turn.js`): with the two secrets set, each host `offer` to a joiner waits for a credential
-  minted for that offer (`POST https://rtc.live.cloudflare.com/v1/turn/keys/<key id>/credentials/generate-ice-servers`,
+- **TURN** (M6-10, `src/turn.js`): with the two secrets set, the host's `room` and each host `offer` to a joiner wait
+  for a credential minted for their receiver (`POST https://rtc.live.cloudflare.com/v1/turn/keys/<key id>/credentials/generate-ice-servers`,
   `{"ttl": 600}`), added after `ICE_SERVERS`: only its `turn:` and `turns:` URLs, none on port 53, split into
   entries of at most 4 URLs with the same username and credential (the protocol's cap; Cloudflare's answer has 6).
-  `room`, `found`, answers and candidates never carry one, and a joiner gets only its own. Everything sent after an
-  offer waits for it, so a candidate never overtakes its offer. If the API fails, answers what the clients would
-  drop, or takes over 5 s, or the credential would push the offer over 16 KB, the offer goes without TURN and the
-  Worker logs a line (`npx wrangler tail` shows it). The transcript `turn_per_joiner.json` is replayed here only.
+  `found`, answers and candidates never carry one, and a joiner gets only its own (the M6 ADR §2.4: "the host's own
+  come with `room`"). Each socket has its own queue: what follows a waiting message to the same socket waits for it,
+  so a candidate never overtakes its offer, and no other socket waits; each request starts at once. If the API
+  fails, answers what the clients would drop, or takes over 5 s, or the credential would push the message over
+  16 KB, it goes without TURN and the Worker logs a line (`npx wrangler tail` shows it). A message still waiting
+  when the object restarts (a deploy) is lost: its client times out and tries again. The transcript `turn_per_joiner.json` is replayed here only.
 - **Hibernation:** the object accepts sockets with the WebSocket Hibernation API, so an idle room costs no duration.
   The object may leave memory while sockets stay open; its constructor then runs again. Everything the router knows
   is in each socket's attachment (its number and the router's record; a host's also holds its room), and the

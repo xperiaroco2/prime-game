@@ -5,8 +5,8 @@
 // "the host left" before the service closes its socket. Exit 0 when every step passes, else 1. It
 // uses Node's own WebSocket (Node 22 and newer) and no package.
 //   node tools/signal/smoke.js <url> --turn
-// also checks TURN (M6-10): the offer carries a TURN entry with a username and a credential, and
-// neither "room" nor "found" carries one.
+// also checks TURN (M6-10): "room" carries the host's credential and the offer the joiner's, each a
+// TURN entry with a username and a credential, two different ones, and "found" carries none.
 
 const TIMEOUT_MS = 10000;
 
@@ -76,14 +76,15 @@ class Peer {
   }
 }
 
-// Whether `servers` hold a TURN entry with its username and credential.
-function hasTurn(servers) {
-  return servers.some(
+// The usernames of the TURN entries of `servers` that hold a username and a credential.
+function turnUsers(servers) {
+  const relayed = servers.filter(
     (each) =>
       each.urls.some((url) => url.startsWith("turn:") || url.startsWith("turns:")) &&
       typeof each.username === "string" &&
       typeof each.credential === "string",
   );
+  return new Set(relayed.map((each) => each.username));
 }
 
 // The URLs of `servers` alone, so a credential is not printed.
@@ -97,8 +98,8 @@ async function smoke(url, turn) {
   host.send({ t: "open", protocol: 1, content: "0000000000000000", max: 1 });
   const room = await host.next("room");
   console.log(`ok   room ${room.code}, ICE servers ${urlsOf(room.ice_servers)}`);
-  if (turn && hasTurn(room.ice_servers)) {
-    throw new Error("room carries a TURN credential");
+  if (turn && turnUsers(room.ice_servers).size === 0) {
+    throw new Error("room carries no TURN credential: are TURN_KEY_ID and TURN_KEY_API_TOKEN set?");
   }
 
   const joiner = new Peer("joiner", url);
@@ -125,10 +126,14 @@ async function smoke(url, turn) {
   await host.next("answer");
   console.log(`ok   an offer (ICE servers ${urlsOf(offer.ice_servers)}) and an answer went through`);
   if (turn) {
-    if (!hasTurn(offer.ice_servers)) {
-      throw new Error("the offer carries no TURN credential: are TURN_KEY_ID and TURN_KEY_API_TOKEN set?");
+    const joiners = turnUsers(offer.ice_servers);
+    if (joiners.size === 0) {
+      throw new Error("the offer carries no TURN credential");
     }
-    console.log("ok   TURN: the offer carries a credential, and neither room nor found does");
+    if ([...joiners].some((user) => turnUsers(room.ice_servers).has(user))) {
+      throw new Error("the offer carries the host's TURN credential");
+    }
+    console.log("ok   TURN: room and the offer each carry their own credential, and found none");
   }
 
   host.socket.close();
