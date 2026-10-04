@@ -41,9 +41,9 @@ worktree its command enters with `cd` or `git -C`. The main checkout is owned on
 `CLAUDE_CODE_REMOTE` true and not CI, common.cloud_session) whose working directory is in no worktree, while a task
 branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, whichever task it is (no worktree
 folder pins it). The repository (`.git`), `.claude` and the other worktrees (`.claude/worktrees`), and any glob that
-may name them, stay outside it; so do `git clean -x|-X|-e|-ff` (ignored files and nested repositories), `git stash
--a` and magic pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive deletes pass. Git commands
-that discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore` of paths, `clean`, forced
+may name them, stay outside it; so do `git clean -x|-X|-e|-ff` (ignored files and nested repositories),
+`git stash -a` and magic pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive
+deletes pass. Git commands that discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore` of paths, `clean`, forced
 `checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
 repository outside the project; they ask in the main checkout (but a cloud session's, above), in another worktree,
 after the command switched to another branch, and when their pathspec reaches another checkout. Branch changes are
