@@ -64,6 +64,30 @@ Unknown is None in the JSON and "?" in the tables, never 0: a run without a PR, 
 key, skeptics not run while blockers or majors stand, no diff reviewer, a PR of another repository or missing from
 the list, a branch without CI runs, a run list cut before the PR, `gh` skipped or failed. Medians and sums count only
 the known values and say how many are known; PR-level signals count once per PR.
+
+Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, "How it was measured"), so its
+issues A to D are measured against the same baseline. Over the agents total_week counts (the counted runs' workflow
+agents by role, "other workflow agents" for an unknown label; the managers' own lines; their hand-run subagents):
+- the items that enter a context: an `instructions` attachment's files (launch: root CLAUDE.md, the user memory), a
+  `nested_memory` attachment's file (by path: a nested CLAUDE.md, a .claude/rules/ file), the `skill_listing` and
+  `mcp_instructions_delta` attachments (launch), and the result of a tool call that reads a doc (doc_what): Read,
+  Grep, or a Bash or PowerShell command naming a doc path (never one running the runner or `git diff/show/log`); a
+  result naming several docs is split evenly;
+- an item enters at the next API call; it is written to the cache there (at the agent's 5-minute and 1-hour mix, at
+  its most used model's prices), written again by each later call that wrote at least half of its context to the cache
+  (a re-write after a lapsed cache), and read by every other later call, until a compaction or the agent's end;
+  tokens are characters / CHARS_PER_TOKEN; points are (non-read $ + w x cache-read $) / k(w) at POINT_WEIGHTS;
+- a file is loaded twice when an agent loads it again (at launch or by path, the main checkout's or a worktree's
+  copy: the same repository path) before a compaction;
+- ARCHITECTURE and AGENT_WORKFLOW by section of today's file (this checkout's; headings of levels 1 to 3 outside
+  fenced code): each line of a tool's result found in exactly one section starts that section, the lines after it
+  follow it, and the item's $ is split by characters; text before the first such line matches nothing today
+  (changed since) and is reported apart;
+- per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
+  pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
+  the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
+  ` ...`): a pair whose ARCHITECTURE conflict comes after the sixth is missed. A session is one row: a window
+  that spans several waves sums them (`--since <wave start>` for one).
 """
 
 from __future__ import annotations
@@ -196,6 +220,45 @@ RUN_SIGNALS = ("serious", "refuted", "open", "not_fixed", "needs_engineer", "fix
 PR_SIGNALS = ("ci_red_rounds", "ci_red_after_run")
 GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
                   "green_first", "followups", "fixups")  # fmt: skip
+
+# Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, PR #325:
+# docs/decisions/2026-10-04-instruction-diet.md, "How it was measured"), so its issues A to D are measured against it.
+# Characters per token: the median of 4,397 context-growth pairs after a lone tool result of 4,000 characters or more.
+CHARS_PER_TOKEN = 2.35
+# Points are % of a Max 20x week, (non-read $ + w x cache-read $) / k(w), at each (w, k(w)) (#302's fit).
+POINT_WEIGHTS = ((0.0, 15.3), (0.5, 20.3))
+# The docs whose list $ is shown by section (§) of today's file: headings of levels 1 to 3, fenced code left out.
+SECTIONED = ("docs/ARCHITECTURE.md", "docs/AGENT_WORKFLOW.md")
+# The main checkout, whose files (and every worktree's copies under .claude/worktrees/<n>/) are the repository's.
+REPO_ROOT = ROOT.parents[2] if ROOT.parent.name == "worktrees" and ROOT.parent.parent.name == ".claude" else ROOT
+WORKTREE_PATH = re.compile(r"/\.claude/worktrees/[^/]+/(.+)$")
+# A shell command's doc paths, once the checkout's and the worktrees' absolute prefixes are cut off.
+DOC_IN_SHELL = re.compile(
+    r"(?<![\w./-])((?:[\w-]+/)*CLAUDE\.md|docs/[\w./-]+\.md|\.claude/(?:rules|skills|agents|workflows)/[\w./-]+\.\w+)"
+)
+# Shell output that is never a doc read: the runner's own output, and git's diffs and logs.
+# `git -C <dir> diff`, `git --no-pager log` and `git -c k=v show` count too: global options may sit before the
+# subcommand.
+NOT_A_READ = re.compile(
+    r"run(\.cmd|\.sh)\s|\bgit(?:\s+(?:-[Cc]\s+\S+|--[\w-]+(?:=\S+)?))*\s+(?:diff|show|log)\b"
+)
+SHELL_SEARCH = re.compile(r"\b(grep|rg|select-string|findstr)\b", re.IGNORECASE)
+READ_LINE = re.compile(r"^\s*(\d+)\t(.*)$")
+# The file a Grep output line starts with (an absolute or relative path with an extension, then `:` or `-` and a
+# line number, a `:`, or the end of the line).
+GREP_PATH = re.compile(r"^((?:[A-Za-z]:)?[^:\n]*?\.\w+)(?:[:-]\d+[:-]|:|$)")
+GREP_LINE = re.compile(r"^(?:.*?[:-])?(\d+)[:-](.*)$")
+# A line that maps to a section: this long at least, so blank lines and short list items do not.
+SECTION_LINE = 25
+# A merge-check table row of a pair (`| #A + #B | textual | semantic |`, across bases with a shared-files cell): the
+# pairs whose textual cell names an ARCHITECTURE conflict are N1 (c)'s trigger.
+MERGE_PAIR = re.compile(r"^\|\s*(#\d+[^|]*\+\s*#\d+[^|]*)\|(.*)\|\s*$")
+# A merge-check output starts with its own line (a log read with `wait` or `cat` too); a doc or a grep that only names
+# the command is none.
+MERGE_HEADER = re.compile(r"^merge-check(?: --trial)?\s*$", re.MULTILINE)
+ARCHITECTURE = "docs/ARCHITECTURE.md"
+# The by-file table and the per-role medians count an item as launch-loaded, loaded by path, or read by a tool.
+HOW_CLASS = {"launch": "launch", "by path": "by path"}
 
 
 # --- time and formatting ------------------------------------------------------------------------------------------
@@ -390,6 +453,199 @@ def timer_seconds(block: object) -> float | None:
     return min(float(timer.group(1)), limit_s or BACKGROUND_TIMEOUT)
 
 
+def repo_path(path: object) -> str | None:
+    """A path's place in the repository (the main checkout, or a worktree's copy: the same file); None outside it."""
+    p = str(path or "").replace("\\", "/")
+    copy = WORKTREE_PATH.search(p)
+    if copy:
+        return copy.group(1)
+    root = REPO_ROOT.as_posix().rstrip("/") + "/"
+    return p[len(root):] if p.lower().startswith(root.lower()) else None
+
+
+def doc_what(rel: str | None) -> str | None:
+    """What an instruction or doc file is, for the by-file table; None when it is neither."""
+    if not rel:
+        return None
+    if rel == "CLAUDE.md":
+        return "root CLAUDE.md"
+    if rel.endswith("/CLAUDE.md"):
+        return "area CLAUDE.md"
+    for prefix, what in ((".claude/rules/", ".claude/rules/"), (".claude/skills/", "skills"),
+                         (".claude/agents/", "agent definitions"), (".claude/workflows/", "workflow scripts"),
+                         ("docs/decisions/", "ADRs"), ("docs/history/", "docs/history/"),
+                         ("docs/interventions/", "docs/interventions/")):  # fmt: skip
+        if rel.startswith(prefix):
+            return what
+    if rel in (*SECTIONED, "docs/GDD.md", "docs/ROADMAP.md"):
+        return rel
+    if rel.startswith("docs/") and "." in rel.rsplit("/", 1)[-1]:
+        return "other docs"
+    return None
+
+
+def file_item(path: object, content: object, how: str) -> dict:
+    """An instruction file loaded at launch or by path. One outside the repository is the user memory."""
+    rel = repo_path(path)
+    norm = str(path or "").replace("\\", "/")
+    return {"what": doc_what(rel) or (rel or "user memory"), "how": how, "chars": len(str(content or "")),
+            "file": rel or norm, "copy": ".claude/worktrees/" in norm}  # fmt: skip
+
+
+def attachment_items(att: object) -> list[dict]:
+    """The items an attachment line adds to the context: the files loaded at launch (`instructions`) or by path
+    (`nested_memory`), the skill listing and the MCP servers' instructions."""
+    if not isinstance(att, dict):
+        return []
+    kind = att.get("type")
+    if kind == "instructions":
+        return [file_item(f.get("path"), f.get("content"), "launch") for f in att.get("files") or []
+                if isinstance(f, dict)]  # fmt: skip
+    if kind == "nested_memory":
+        content = att.get("content") if isinstance(att.get("content"), dict) else {}
+        return [file_item(att.get("path"), content.get("content"), "by path")]
+    if kind == "skill_listing":
+        return [{"what": "the skill listing", "how": "launch", "chars": len(str(att.get("content") or "")),
+                 "file": None}]  # fmt: skip
+    if kind == "mcp_instructions_delta":
+        blocks = att.get("addedBlocks") if isinstance(att.get("addedBlocks"), list) else []
+        return [{"what": "MCP server instructions", "how": "launch", "chars": sum(len(str(x)) for x in blocks),
+                 "file": None}]  # fmt: skip
+    return []
+
+
+def shell_docs(cmd: str) -> list[str]:
+    """The repository doc paths a shell command names, with the checkout's and the worktrees' prefixes cut off."""
+    text = cmd.replace("\\", "/")
+    text = re.sub(r"[^\s'\"]*?/\.claude/worktrees/[^/\s'\"]+/", " ", text)
+    text = re.sub(rf"[^\s'\"]*?/{re.escape(REPO_ROOT.name)}/", " ", text, flags=re.IGNORECASE)
+    return list(dict.fromkeys(DOC_IN_SHELL.findall(text)))
+
+
+def doc_targets(name: str, inp: dict) -> list[tuple[str, str, str]]:
+    """The docs a tool call reads, as (repository path, how, how its output is laid out): a Read, a Grep, or a shell
+    command that names a doc (never the runner's output or git's diffs and logs)."""
+    if name == "Read":
+        rel = repo_path(inp.get("file_path"))
+        return [(rel, "Read", "read")] if doc_what(rel) else []
+    if name == "Grep":
+        rel = repo_path(inp.get("path"))
+        if doc_what(rel):
+            return [(rel, "Grep", "grep")]
+        folder = grep_folder(inp.get("path"), rel)
+        return [(folder, "Grep", "folder")] if folder is not None else []
+    if name not in ("Bash", "PowerShell"):
+        return []
+    cmd = str(inp.get("command", ""))
+    if NOT_A_READ.search(cmd):
+        return []
+    words = re.sub(r"^\s*((cd|Set-Location)\s+\S+\s*(&&|;)\s*)+", "", cmd, flags=re.IGNORECASE).split()
+    search = bool(SHELL_SEARCH.search(cmd)) and (words[0].lower() if words else "") not in ("sed", "cat")
+    how, mode = ("shell search", "grep") if search else ("shell read", "plain")
+    return [(rel, how, mode) for rel in shell_docs(cmd) if doc_what(rel)]
+
+
+def grep_folder(path: object, rel: str | None) -> str | None:
+    """The repository folder a Grep searches ("" for the whole checkout, also when it has no path); None for a file
+    or a path outside the repository."""
+    p = str(path or "").replace("\\", "/").rstrip("/")
+    root = bool(re.search(r"(^|/)\.claude/worktrees/[^/]+$", p)) or p.lower() == REPO_ROOT.as_posix().lower()
+    if not p or root:
+        return ""
+    if rel is None and not re.match(r"([A-Za-z]:|/|~)", p):
+        rel = p[2:] if p.startswith("./") else p  # a path relative to the checkout
+    if rel is None or "." in rel.rsplit("/", 1)[-1]:
+        return None
+    return rel
+
+
+def folder_items(folder: str, text: str) -> list[dict]:
+    """A Grep over a folder: each doc its output names, with that file's lines (a `path:line:text` or `path-line-text`
+    line, or a path alone; a line that names none belongs to the file before it). When no file can be told apart in a
+    docs folder, one item of the folder's docs."""
+    if text.lstrip().startswith(("No matches", "No files found")):
+        return []
+    lines: dict[str, list[str]] = {}
+    current = None
+    for line in text.splitlines():
+        if line == "--":
+            continue  # ripgrep's separator between context groups
+        named = GREP_PATH.match(line)
+        if named and " " not in named.group(1):
+            cand = named.group(1).replace("\\", "/")
+            rel = repo_path(cand) or (cand[2:] if cand.startswith("./") else cand)
+            current = rel if doc_what(rel) else None
+        if current:
+            lines.setdefault(current, []).append(line)
+    found = []
+    for rel, rows in lines.items():
+        item = {"what": doc_what(rel), "how": "Grep", "chars": sum(len(x) + 1 for x in rows), "file": rel}
+        if rel in SECTIONED:
+            item |= {"text": "\n".join(rows), "mode": "grep"}
+        found.append(item)
+    other = doc_what(folder.rstrip("/") + "/x.md") if folder else None
+    if not found and other and text.strip():
+        found.append({"what": other, "how": "Grep", "chars": len(text), "file": folder})
+    return found
+
+
+def read_items(targets: list[tuple[str, str, str]], text: str) -> list[dict]:
+    """A tool result's doc items: its characters split evenly over the docs it names. A sectioned doc keeps the text
+    for the section tables when it is the only one."""
+    found = []
+    for rel, how, mode in targets:
+        if mode == "folder":
+            found += folder_items(rel, text)
+            continue
+        item = {"what": doc_what(rel), "how": how, "chars": len(text) // len(targets), "file": rel}
+        if rel in SECTIONED and len(targets) == 1:
+            item |= {"text": text, "mode": mode}
+        found.append(item)
+    return found
+
+
+def architecture_pairs(text: str) -> list[tuple[int, ...]]:
+    """The PR pairs of a merge-check output whose textual cell names a conflict in ARCHITECTURE."""
+    pairs = []
+    for line in text.splitlines():
+        row = MERGE_PAIR.match(line.strip())
+        if not row:
+            continue
+        cells = [c.strip() for c in row.group(2).split("|")]
+        textual = cells[-2] if len(cells) >= 2 else ""
+        if textual.startswith("conflict:") and ARCHITECTURE in textual:
+            pairs.append(tuple(sorted({int(n) for n in re.findall(r"#(\d+)", row.group(1))})))
+    return pairs
+
+
+def price_items(items: list[dict], calls: list[dict], bounds: list[int]) -> None:
+    """Each item's tokens and list $ (the ADR's cost model): written to the cache at the call it entered (at the
+    agent's 5-minute and 1-hour mix), read by every later call until a compaction or the end, and written again by a
+    later call that re-wrote at least half of its context. Priced at the agent's most used model."""
+    model = Counter(u["model"] for u in calls).most_common(1)[0][0] if calls else None
+    price, _known = price_of(model)
+    written = sum(u["cache_creation_input_tokens"] for u in calls)
+    one_hour = sum(min(u["cache_write_1h"], u["cache_creation_input_tokens"]) for u in calls)
+    share = one_hour / written if written else 0.0
+    write_price = share * price[2] + (1 - share) * price[1]
+    rewrote = [u["cache_creation_input_tokens"] >= 0.5 * max(1, total(u) - u["output_tokens"]) for u in calls]
+    for item in items:
+        at = item.pop("at", None)
+        if at is None:  # still pending at the transcript's end (an interrupted agent): no API call took it in
+            item |= {"segment": len(bounds), "tokens": item["chars"] / CHARS_PER_TOKEN, "write": 0.0, "rewrite": 0.0,
+                     "read": 0.0}  # fmt: skip
+            continue
+        end = next((b for b in bounds if b > at), len(calls))
+        reads = max(0, end - at - 1)
+        rewrites = sum(rewrote[at + 1:end])
+        tokens = item["chars"] / CHARS_PER_TOKEN
+        item["segment"] = sum(b <= at for b in bounds)
+        item["tokens"] = tokens
+        item["write"] = tokens * write_price / 1e6 if calls else 0.0
+        item["rewrite"] = tokens * rewrites * write_price / 1e6
+        item["read"] = tokens * (reads - rewrites) * price[3] / 1e6
+
+
 def read_agent(path: Path, since: float | None = None, until: float | None = None) -> dict:
     """One transcript: usage deduplicated by message id, tool calls with their wall time, verify summaries.
 
@@ -404,6 +660,10 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     verifies: list[dict] = []
     timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
     woken: dict[str, float] = {}  # a background task's tool-use id: when its notification came
+    items: list[dict] = []  # instruction and doc items (#337); each enters the context at the next API call
+    pending: list[dict] = []
+    bounds: list[int] = []  # the API calls' indexes at which a compaction began
+    merge_outputs, merge_pairs = 0, []
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -430,6 +690,14 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             timers[b["id"]] = (t, secs)
                 continue
             stamps.append(t)
+            if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
+                bounds.append(len(usage))
+                continue
+            if d.get("type") == "attachment":
+                found = attachment_items(d.get("attachment"))
+                items += found
+                pending += found
+                continue
             if not isinstance(m, dict):
                 continue
             if prompt is None and d.get("type") == "user":
@@ -450,6 +718,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                 if cur is None:
                     cur = usage[mid] = {**{f: 0 for f in TOKEN_FIELDS}, "cache_write_1h": 0, "model": model}
                     first_seen[mid] = t
+                    for item in pending:
+                        item["at"] = len(usage) - 1
+                    pending.clear()
                 for f in TOKEN_FIELDS:
                     cur[f] = max(cur[f], int(u.get(f) or 0))
                 cache = u.get("cache_creation")
@@ -468,6 +739,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "t0": t,
                             "t1": None,
                             "kind": cmd_kind(cmd) if cmd else b.get("name"),
+                            "docs": doc_targets(str(b.get("name")), inp),
                         }
             elif d.get("type") == "user" and isinstance(m.get("content"), list):
                 for b in m["content"]:
@@ -475,6 +747,12 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         call = uses[b["tool_use_id"]]
                         call["t1"] = t
                         text = text_of(b.get("content"))
+                        found = read_items(call["docs"], text)
+                        items += found
+                        pending += found
+                        if MERGE_HEADER.search(text):
+                            merge_outputs += 1
+                            merge_pairs += architecture_pairs(text)
                         if call["kind"] in ("verify", "publish") or "verify summary" in text:
                             v = parse_verify(text)
                             if v:
@@ -507,6 +785,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     kinds: dict[str, float] = defaultdict(float)
     for c in calls:
         kinds[c["kind"]] += (c["t1"] or c["t0"]) - c["t0"]
+    price_items(items, list(usage.values()), bounds)  # in the order the calls were first seen, as "at" counts them
     return {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
@@ -528,6 +807,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "kind_counts": Counter(c["kind"] for c in calls),
         "tool_seconds": union_seconds([(c["t0"], c["t1"]) for c in calls if c["t1"]]),
         "verifies": unique,
+        "instructions": items,
+        # merge-check outputs among its tool results, and the PR pairs whose rows name an ARCHITECTURE conflict
+        "merge_check": {"outputs": merge_outputs, "pairs": merge_pairs},
     }
 
 
@@ -944,10 +1226,12 @@ def total_week(counted: list[dict], managers: list[dict]) -> dict:
 
 
 def build(
-    data: dict, history: list[dict], ci: dict | None, since: float | None, until: float, *, github: dict | None = None
+    data: dict, history: list[dict], ci: dict | None, since: float | None, until: float, *, github: dict | None = None,
+    docs_root: Path | None = None,
 ) -> tuple[list[str], dict, list[str]]:
     """(the Markdown report, the JSON record, the compact summary). github: read_github's lists for the quality
-    scorecard, {"error": ...} or {"skipped": ...}; None leaves its GitHub signals unknown."""
+    scorecard, {"error": ...} or {"skipped": ...}; None leaves its GitHub signals unknown. docs_root: the checkout
+    whose ARCHITECTURE and AGENT_WORKFLOW give the sections of the instruction tables (default this one)."""
     counted = [r for r in data["runs"] if r["counted"]]
     finished = [r for r in counted if r["kind"] == "issue-task" and r["finished"]]
     tasks = [per_task(r) for r in finished]
@@ -964,6 +1248,8 @@ def build(
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
     md += role_section(counted)
+    instructions = instruction_record(counted, data["sessions"], docs_root)
+    md += instruction_section(instructions)
     by_row = verify_rows(counted, data["sessions"], history)
     md += verify_section(by_row)
     md += review_section(counted)
@@ -979,7 +1265,8 @@ def build(
     if ci is not None:
         md += ci_section(ci)
     week = total_week(counted, managers)
-    compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality)
+    compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
+                            instructions=instructions)  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -994,6 +1281,7 @@ def build(
         "ci": ci,
         "manager_rewrites": rewrites,
         "quality": quality,
+        "instructions": instructions,
         "compact": compact,
     }
     return md, record, compact
@@ -1339,6 +1627,296 @@ def ci_section(ci: dict) -> list[str]:
         md += [table(["verify step", "seconds (median)", "max"],
                      [[k, f"{med(v):.0f}", f"{max(v):.0f}"] for k, v in ci["steps"].items()]), ""]
     return md
+
+
+# --- instructions and docs per agent role (#337) ------------------------------------------------------------------
+
+
+def how_class(how: str) -> str:
+    """launch, by path, or read (by a tool: Read, Grep, a shell read or search)."""
+    return HOW_CLASS.get(how, "read")
+
+
+def item_usd(item: dict) -> float:
+    return item["write"] + item["rewrite"] + item["read"]
+
+
+def points(non_read: float, read: float) -> list[float]:
+    """% of a Max 20x week at each of POINT_WEIGHTS."""
+    return [(non_read + w * read) / k for w, k in POINT_WEIGHTS]
+
+
+def fmt_points(values: list[float]) -> str:
+    return " / ".join(f"{v:.2f}" for v in values)
+
+
+def weights_label() -> str:
+    """'w = 0 / 0.5': the weights fmt_points prints, in its order."""
+    return "w = " + " / ".join(f"{w:g}" for w, _k in POINT_WEIGHTS)
+
+
+def mark_twice(items: list[dict]) -> None:
+    """Flag each instruction file an agent loaded again (at launch or by path, from either copy: the main checkout's
+    or a worktree's) before a compaction emptied its context."""
+    seen: set[tuple[int, str]] = set()
+    for item in items:
+        if item["how"] in HOW_CLASS and item.get("file"):
+            key = (item["segment"], item["file"])
+            item["twice"] = key in seen
+            seen.add(key)
+
+
+def section_map(path: Path) -> dict | None:
+    """Today's file by section: each heading of levels 1 to 3 outside fenced code starts one, labelled by its
+    number (§4.7) or else its title; its size in characters, and each line of SECTION_LINE characters or more with the
+    sections it appears in. None when the file cannot be read."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    current, fenced = "(before the first heading)", False
+    size: Counter = Counter()
+    titles = {current: current}
+    index: dict[str, set[str]] = defaultdict(set)
+    for line in lines:
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        heading = None if fenced else re.match(r"^#{1,3}\s+(.*\S)\s*$", line)
+        if heading:
+            title = heading.group(1)
+            number = re.match(r"(\d+(?:\.\d+)*)\.?(?=\s|$)", title)
+            current = f"§{number.group(1)}" if number else title[:60]
+            titles.setdefault(current, title)
+        size[current] += len(line) + 1
+        if len(line.strip()) >= SECTION_LINE:
+            index[line.strip()].add(current)
+    return {"size": dict(size), "titles": titles, "index": dict(index)}
+
+
+def sections_of(index: dict[str, set[str]], text: str, mode: str) -> tuple[Counter, int]:
+    """A tool result's characters by section of today's file: a line found in exactly one section starts it, the lines
+    after it follow it; the characters before the first such line are unmapped (text changed since)."""
+    pattern = READ_LINE if mode == "read" else GREP_LINE if mode == "grep" else None
+    found: Counter = Counter()
+    unmapped, last = 0, None
+    for raw in text.splitlines():
+        hit = pattern.match(raw) if pattern else None
+        body = (hit.group(2) if hit else raw).strip()
+        sections = index.get(body) if len(body) >= SECTION_LINE else None
+        if sections and len(sections) == 1:
+            last = next(iter(sections))
+        if last is None:
+            unmapped += len(raw) + 1
+        else:
+            found[last] += len(raw) + 1
+    return found, unmapped
+
+
+def instruction_agents(counted: list[dict], sessions: list[dict]) -> list[tuple[str, dict]]:
+    """(role, transcript data) of every agent total_week counts: the counted runs' workflow agents by role, the
+    managers' own lines and their hand-run subagents."""
+    agents = []
+    for r in counted:
+        for x in r["agents"]:
+            if x["data"] and x["data"]["start"] is not None:
+                agents.append(("other workflow agents" if x["role"] == "other" else x["role"], x["data"]))
+    for s in sessions:
+        if s["manager"] and s["manager"]["api_calls"]:
+            agents.append(("manager sessions", s["manager"]))
+        agents += [("hand-run subagents", h["data"]) for h in s["hand"]]
+    return agents
+
+
+def top_roles(roles: Counter, spent: float, n: int = 2) -> list[str]:
+    return [f"{role} {value / spent:.0%}" for role, value in roles.most_common(n)] if spent else []
+
+
+def instruction_sections(agents: list[tuple[str, dict]], docs_root: Path) -> dict:
+    """ARCHITECTURE's and AGENT_WORKFLOW's list $ by section of today's file (the text a tool returned, each item's
+    $ split by its characters), and the $ of the text that matches no line of it."""
+    found = {}
+    for doc in SECTIONED:
+        reads = [(i, role, item) for i, (role, d) in enumerate(agents) for item in d.get("instructions") or []
+                 if item.get("file") == doc and "text" in item]  # fmt: skip
+        smap = section_map(docs_root / doc) if reads else None
+        if smap is None:
+            continue
+        rows: dict[str, dict] = {}
+        spent = unmapped = 0.0
+        for i, role, item in reads:
+            got, lost = sections_of(smap["index"], item["text"], item["mode"])
+            chars = sum(got.values()) + lost
+            cost = item_usd(item)
+            spent += cost
+            if not chars:
+                continue
+            unmapped += cost * lost / chars
+            for sec, n in got.items():
+                row = rows.setdefault(sec, {"section": sec, "title": smap["titles"].get(sec, sec),
+                                            "size": smap["size"].get(sec, 0) / CHARS_PER_TOKEN, "tokens": 0.0,
+                                            "agents": set(), "usd": 0.0, "roles": Counter()})  # fmt: skip
+                row["tokens"] += n / CHARS_PER_TOKEN
+                row["agents"].add(i)
+                row["usd"] += cost * n / chars
+                row["roles"][role] += cost * n / chars
+        found[doc] = {
+            "usd": spent, "unmapped_usd": unmapped,
+            "rows": [r | {"agents": len(r["agents"]), "roles": top_roles(r["roles"], r["usd"])}
+                     for r in sorted(rows.values(), key=lambda r: -r["usd"])],
+        }  # fmt: skip
+    return found
+
+
+def instruction_merges(sessions: list[dict]) -> list[dict]:
+    """Per manager session (a wave with --since <wave start>): the merge-check outputs among its tool results, and the
+    PR pairs whose rows name an ARCHITECTURE conflict (the instruction-diet ADR's N1 (c) trigger)."""
+    found = []
+    for s in sessions:
+        checks = (s["manager"] or {}).get("merge_check") or {}
+        if checks.get("outputs"):
+            pairs = Counter(tuple(p) for p in checks["pairs"])
+            found.append({"session": s["id"], "label": s["label"], "outputs": checks["outputs"],
+                          "pairs": [{"prs": list(p), "seen": n} for p, n in sorted(pairs.items())]})  # fmt: skip
+    return found
+
+
+def instruction_record(counted: list[dict], sessions: list[dict], docs_root: Path | None = None) -> dict:
+    """What the instructions and docs cost per agent role, by file and by section, the files loaded twice, and the
+    merge-check ARCHITECTURE conflicts (#337, the instruction-diet ADR's method; the module docstring)."""
+    agents = instruction_agents(counted, sessions)
+    roles: dict[str, dict] = {}
+    files: dict[tuple[str, str], dict] = {}
+    twice: dict[str, dict] = {}
+    for _role, d in agents:
+        mark_twice(d.get("instructions") or [])
+    for role, d in agents:
+        g = roles.setdefault(role, {"role": role, "agents": 0, "tokens": {"launch": [], "by path": [], "read": []},
+                                    "write_usd": 0.0, "rewrite_usd": 0.0, "read_usd": 0.0, "of": 0.0, "twice": 0,
+                                    "twice_usd": 0.0})  # fmt: skip
+        g["agents"] += 1
+        g["of"] += usd(d["tokens"])
+        tokens: Counter = Counter()
+        for item in d.get("instructions") or []:
+            how = how_class(item["how"])
+            tokens[how] += item["tokens"]
+            g["write_usd"] += item["write"]
+            g["rewrite_usd"] += item["rewrite"]
+            g["read_usd"] += item["read"]
+            f = files.setdefault((item["what"], how), {"what": item["what"], "how": how, "loads": 0, "tokens": 0.0,
+                                                       "usd": 0.0, "non_read": 0.0, "roles": Counter()})  # fmt: skip
+            f["loads"] += 1
+            f["tokens"] += item["tokens"]
+            f["usd"] += item_usd(item)
+            f["non_read"] += item["write"] + item["rewrite"]
+            f["roles"][role] += item_usd(item)
+            if item.get("twice"):
+                g["twice"] += 1
+                g["twice_usd"] += item_usd(item)
+                t = twice.setdefault(item["file"], {"file": item["file"], "agents": set(), "loads": 0, "usd": 0.0,
+                                                    "roles": Counter()})  # fmt: skip
+                t["agents"].add(id(d))
+                t["loads"] += 1
+                t["usd"] += item_usd(item)
+                t["roles"][role] += 1
+        for how in g["tokens"]:
+            g["tokens"][how].append(tokens[how])
+    rows = []
+    for g in sorted(roles.values(), key=lambda g: -(g["write_usd"] + g["rewrite_usd"] + g["read_usd"])):
+        spent = g["write_usd"] + g["rewrite_usd"] + g["read_usd"]
+        rows.append({k: v for k, v in g.items() if k != "tokens"} | {
+            "tokens": {how: med(v) for how, v in g["tokens"].items()}, "usd": spent,
+            "share": spent / g["of"] if g["of"] else None,
+            "points": points(g["write_usd"] + g["rewrite_usd"], g["read_usd"]),
+        })  # fmt: skip
+    every = {k: sum(r[k] for r in rows) for k in ("agents", "write_usd", "rewrite_usd", "read_usd", "usd", "of",
+                                                   "twice", "twice_usd")}  # fmt: skip
+    every |= {"share": every["usd"] / every["of"] if every["of"] else None,
+              "points": points(every["write_usd"] + every["rewrite_usd"], every["read_usd"])}  # fmt: skip
+    return {
+        "chars_per_token": CHARS_PER_TOKEN, "weights": [list(w) for w in POINT_WEIGHTS], "roles": rows, "all": every,
+        "files": [f | {"roles": top_roles(f["roles"], f["usd"])} for f in sorted(files.values(),
+                                                                                 key=lambda f: -f["usd"])],
+        "twice": [t | {"agents": len(t["agents"]), "roles": [r for r, _n in t["roles"].most_common(3)]}
+                  for t in sorted(twice.values(), key=lambda t: -t["usd"])],
+        "sections": instruction_sections(agents, docs_root or ROOT),
+        "merge_check": instruction_merges(sessions),
+    }  # fmt: skip
+
+
+def instruction_section(rec: dict) -> list[str]:
+    md = ["## Instructions and docs per agent role (#337)", ""]
+    if not rec["all"]["usd"]:
+        return md + ["No instruction or doc item in the window's transcripts.", ""] + merge_check_lines(rec)
+    head = ["role", "agents", "launch-loaded", "loaded by path", "read", "first writes", "re-writes", "reads",
+            "list $", "of the role's $", f"points ({weights_label()})", "loaded twice (loads, $)"]  # fmt: skip
+    body = [
+        [r["role"], r["agents"], *(fmt_tok(r["tokens"][h]) for h in ("launch", "by path", "read")),
+         *(fmt_usd(r[k]) for k in ("write_usd", "rewrite_usd", "read_usd", "usd")),
+         "?" if r["share"] is None else f"{r['share']:.0%}", fmt_points(r["points"]),
+         f"{r['twice']} ({fmt_usd(r['twice_usd'])})"]
+        for r in rec["roles"]
+    ]  # fmt: skip
+    a = rec["all"]
+    body.append(["all", a["agents"], "", "", "", *(fmt_usd(a[k]) for k in ("write_usd", "rewrite_usd", "read_usd",
+                                                                            "usd")),
+                 "?" if a["share"] is None else f"{a['share']:.0%}", fmt_points(a["points"]),
+                 f"{a['twice']} ({fmt_usd(a['twice_usd'])})"])  # fmt: skip
+    md += [table(head, body), "",
+           "Tokens are medians per agent (characters / " f"{CHARS_PER_TOKEN:g}). An item is written to the cache at "
+           "the call it entered (first writes), written again by each later call that re-wrote at least half of its "
+           "context (re-writes, after a lapsed cache), and read by every other later call until a compaction or the "
+           "agent's end (reads). Points: % of a Max 20x week, (non-read $ + w x cache-read $) / k(w) with "
+           + ", ".join(f"k({w:g}) = {k:g}" for w, k in POINT_WEIGHTS) + ", for the window (not per 7 days). The "
+           "instruction-diet ADR's method (#313, docs/decisions/2026-10-04-instruction-diet.md).", ""]  # fmt: skip
+    rows = [[f["what"], f["how"], f["loads"], fmt_tok(f["tokens"]), fmt_usd(f["usd"]), fmt_usd(f["non_read"]),
+             ", ".join(f["roles"])] for f in rec["files"]]  # fmt: skip
+    md += ["By file:", "", table(["what", "how it gets in", "loads or reads", "tokens in", "list $", "of it non-read",
+                                  "main roles"], rows), ""]  # fmt: skip
+    if rec["twice"]:
+        rows = [[f"`{t['file']}`", t["agents"], t["loads"], fmt_usd(t["usd"]), ", ".join(t["roles"])]
+                for t in rec["twice"]]  # fmt: skip
+        md += ["Files loaded twice in one agent (at launch or by path, either copy, before a compaction):", "",
+               table(["file", "agents", "extra loads", "list $ of the extra loads", "roles"], rows), ""]  # fmt: skip
+    else:
+        md += ["No file was loaded twice in one agent.", ""]
+    for doc, sec in rec["sections"].items():
+        rows = [[r["title"], fmt_tok(r["size"]), fmt_tok(r["tokens"]), r["agents"], fmt_usd(r["usd"]),
+                 ", ".join(r["roles"])] for r in sec["rows"]]  # fmt: skip
+        md += [f"`{doc}` by section of today's file ({fmt_usd(sec['usd'])} read by tools; "
+               f"{fmt_usd(sec['unmapped_usd'])} of it is text that matches no line of today's file):", "",
+               table(["section", "size today (tokens)", "tokens returned", "agents", "list $", "main roles"], rows),
+               ""]  # fmt: skip
+    return md + merge_check_lines(rec)
+
+
+def merge_check_lines(rec: dict) -> list[str]:
+    if not rec["merge_check"]:
+        return ["merge-check and ARCHITECTURE: no manager session read a merge-check output in the window.", ""]
+    rows = [[m["label"], m["outputs"], len(m["pairs"]),
+             ", ".join(" + ".join(f"#{n}" for n in p["prs"]) + (f" ({p['seen']}x)" if p["seen"] > 1 else "")
+                       for p in m["pairs"]) or "none"]
+            for m in rec["merge_check"]]  # fmt: skip
+    return ["Open-PR pairs whose merge-check output names an ARCHITECTURE conflict, per manager session (one row per "
+            "session: a window of several waves sums them, so pass --since <wave start> for one wave; the "
+            "instruction-diet ADR's N1 (c) trigger):", "",
+            table(["session", "merge-check outputs", "pairs", "the pairs (outputs naming them)"], rows), ""]
+
+
+def instruction_compact(rec: dict) -> str | None:
+    """One line for the compact summary; None when the window has no instruction or doc item."""
+    a = rec["all"]
+    if not a["usd"]:
+        return None
+    share = "" if a["share"] is None else f" ({a['share']:.0%} of {fmt_usd(a['of'])})"
+    read = {f["what"]: f["usd"] for f in rec["files"] if f["how"] == "read"}
+    docs = ", ".join(f"{doc.rsplit('/', 1)[-1].removesuffix('.md')} {fmt_usd(read[doc])}" for doc in SECTIONED
+                     if doc in read)  # fmt: skip
+    pairs = sum(len(m["pairs"]) for m in rec["merge_check"])
+    merges = f"{pairs} merge-check pairs with an ARCHITECTURE conflict" if rec["merge_check"] else "no merge-check"
+    return (f"instructions and docs: {fmt_usd(a['usd'])}{share}: first writes {fmt_usd(a['write_usd'])}, re-writes "
+            f"{fmt_usd(a['rewrite_usd'])}, reads {fmt_usd(a['read_usd'])}; points {fmt_points(a['points'])} "
+            f"({weights_label()}); loaded twice {a['twice']} ({fmt_usd(a['twice_usd'])})"
+            + (f"; {docs}" if docs else "") + f"; {merges}")
 
 
 # --- the quality scorecard (#314) ---------------------------------------------------------------------------------
@@ -1702,10 +2280,10 @@ def quality_compact(quality: dict) -> str:
 
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
-    managers: list[dict], week: dict, window: str, *, quality: dict | None = None,
+    managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
 ) -> list[str]:
-    """At most ten lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
-    (#314), the % of the week, verify."""
+    """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
+    (#314), the instructions' and docs' line (#337), the % of the week, verify."""
     other = [r for r in counted if r["kind"] != "issue-task" or not r["finished"]]
     lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, {len(other)} other runs "
              f"({sum(not r['finished'] for r in counted)} unfinished)"]
@@ -1718,6 +2296,9 @@ def compact_lines(
                      f"{calls:.0f} tool calls")
         if quality:
             lines.append(quality["compact"])
+    diet = instruction_compact(instructions) if instructions else None
+    if diet:
+        lines.append(diet)
     task_usd = sum(p["usd"] for p in tasks)
     other_usd = sum(run_usd(r) for r in other)
     man_usd = sum(m["manager_usd"] + m["hand_usd"] for m in managers)
@@ -1747,7 +2328,7 @@ def compact_lines(
         vt = ci["steps"].get("verify total")
         lines.append(f"CI: {ci['runs']} runs in the window; last {ci['green']} green: {job}"
                      + (f", verify {med(vt):.0f} s" if vt else ""))
-    return lines[:10]
+    return lines[:11]
 
 
 def main(

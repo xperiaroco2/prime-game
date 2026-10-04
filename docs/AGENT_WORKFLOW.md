@@ -1011,7 +1011,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
   by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
   call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
-  window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten
+  window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
   lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
   `metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
   weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
@@ -1039,7 +1039,15 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   repository, no CI run, or `gh` not read; medians and sums say how many are known. The compact `quality:` line ends
   with the API list $ per PR green on its first CI round (the merged count beside it). A caller of `metrics.build`
   (wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
-  the GitHub half.
+  the GitHub half. Its section "Instructions and docs per agent role" (#337) is the instruction-diet ADR's method (#313,
+  "How it was measured"), so the diet's issues are measured against one baseline. Per role: agents, the median
+  launch-loaded, path-loaded and read tokens, the list $ split into first writes, re-writes after a lapsed cache and
+  reads, its share of the role's $, the points at w = 0 and 0.5 ((non-read $ + w x cache-read $) / $15.3 or $20.3,
+  `POINT_WEIGHTS`, for the window) and the files loaded twice in one agent (either copy, before a compaction). Then
+  the cost by file, the duplicates, ARCHITECTURE's and AGENT_WORKFLOW's list $ by § of today's file, and per manager
+  session (one row each; `--since <wave start>` for a single wave) the open-PR pairs whose `merge-check` output
+  names an ARCHITECTURE conflict (N1 (c)'s trigger);
+  `instructions` in `metrics.json`, and one compact line.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
   windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
   (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`), names its
