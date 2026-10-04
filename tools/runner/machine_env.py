@@ -19,7 +19,9 @@ from pathlib import Path
 
 from .common import ROOT
 
-MACHINE_VARS = ("GODOT_BIN", "GODOT_GUI_BIN", "PYTHON_BIN", "GDTOOLKIT_DIR")
+MACHINE_VARS = ("GODOT_BIN", "GODOT_GUI_BIN", "PYTHON_BIN", "GDTOOLKIT_DIR", "NODE_BIN")
+# Loaded like the others, but `doctor` does not warn when unset: `node` on PATH is the usual case (#368).
+OPTIONAL_VARS = ("NODE_BIN",)
 PROCESS = "the process environment"
 LOCAL_SETTINGS = ".claude/settings.local.json"
 USER_SETTINGS = "~/.claude/settings.json"

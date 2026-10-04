@@ -23,6 +23,7 @@ GODOT = r"C:\Godot\Godot_v4.7.2-stable_win64_console.exe"
 GUI = r"C:\Godot\Godot_v4.7.2-stable_win64.exe"
 PYTHON = r"C:\Python314\python.exe"
 TOOLKIT = r"C:\Python314\Scripts"
+NODE = r"C:\Program Files\nodejs\node.exe"
 
 
 def write_settings(path: Path, env: object | None = None, text: str | None = None) -> None:
@@ -62,12 +63,20 @@ class LoadTest(unittest.TestCase):
     def test_from_user_settings(self) -> None:
         write_settings(
             self.user,
-            {"GODOT_BIN": GODOT, "GODOT_GUI_BIN": GUI, "PYTHON_BIN": PYTHON, "GDTOOLKIT_DIR": TOOLKIT, "OTHER": "1"},
+            {
+                "GODOT_BIN": GODOT,
+                "GODOT_GUI_BIN": GUI,
+                "PYTHON_BIN": PYTHON,
+                "GDTOOLKIT_DIR": TOOLKIT,
+                "NODE_BIN": NODE,
+                "OTHER": "1",
+            },
         )
         environ: dict[str, str] = {}
         report = self.load(environ)
         self.assertEqual(
-            environ, {"GODOT_BIN": GODOT, "GODOT_GUI_BIN": GUI, "PYTHON_BIN": PYTHON, "GDTOOLKIT_DIR": TOOLKIT}
+            environ,
+            {"GODOT_BIN": GODOT, "GODOT_GUI_BIN": GUI, "PYTHON_BIN": PYTHON, "GDTOOLKIT_DIR": TOOLKIT, "NODE_BIN": NODE},
         )
         self.assertEqual(set(report.sources.values()), {USER_SETTINGS})
 
@@ -155,6 +164,7 @@ class DoctorTest(unittest.TestCase):
             f"warn  PYTHON_BIN is not set: neither {PROCESS}, {LOCAL_SETTINGS} nor {USER_SETTINGS} has it", out
         )
         self.assertEqual(out.count("warn"), 4, out)
+        self.assertIn("skip  NODE_BIN (not set; the tool on PATH is used)", out)
 
     def test_names_the_claude_config_dir_settings_when_they_are_searched(self) -> None:
         report = self.report()

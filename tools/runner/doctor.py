@@ -84,6 +84,8 @@ class Doctor:
                 ok(f"{var} from {source}: {os.environ.get(var, '')}")
             elif IS_CI or IS_CLOUD:
                 skip(f"{var} (not set; {'CI' if IS_CI else 'a cloud session'} finds its tools on PATH)")
+            elif var in machine_env.OPTIONAL_VARS:
+                skip(f"{var} (not set; the tool on PATH is used)")
             else:
                 warn(
                     f"{var} is not set: neither " + ", ".join(report.searched[:-1]) + f" nor {report.searched[-1]} "
@@ -204,8 +206,8 @@ class Doctor:
         """Node.js for `signal`, a verify step (the toolchain-pins ADR)."""
         exe = node_bin()
         fix = (
-            f"Install Node.js {pins.NODE_MAJOR} LTS (Windows: winget install OpenJS.NodeJS.LTS; a cloud session: "
-            "bash tools/cloud/setup.sh), or set NODE_BIN to its node executable."
+            f"Install Node.js {pins.NODE} (Windows: winget install OpenJS.NodeJS.LTS --version {pins.NODE}; a cloud "
+            f"session: bash tools/cloud/setup.sh), or set NODE_BIN to its node executable in {USER_SETTINGS} env."
         )
         if not exe:
             self.fail("node not found", fix)

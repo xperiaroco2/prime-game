@@ -18,8 +18,7 @@ TIMEOUT = 120
 
 
 def test_files(folder: Path = TESTS) -> list[Path]:
-    """Every `*.test.js`, sorted, passed by name (as POSIX paths: Node reads its arguments as globs, where a Windows
-    backslash escapes): `node --test` with a pattern that matches nothing passes."""
+    """Every `*.test.js`, sorted: `node --test` with a pattern that matches nothing passes."""
     return sorted(folder.glob("*.test.js"))
 
 
@@ -35,6 +34,7 @@ def main() -> int:
     if not files:
         raise Failure(f"no *.test.js in {rel(TESTS)}")
     result = run(
+        # POSIX paths: Node reads its arguments as globs, where a Windows backslash escapes the next character.
         [exe, "--test", "--test-reporter=tap", *[path.relative_to(FOLDER).as_posix() for path in files]],
         timeout=TIMEOUT,
         cwd=FOLDER,
@@ -46,7 +46,7 @@ def main() -> int:
     if result.rc != 0:
         bad(f"node --test exited {result.rc} (log: tools/out/logs/signal.log)", result.out.rstrip())
         return 1
-    # TAP's summary ("# tests 80", "# pass 80"): ASCII, unlike the spec reporter's, for a Windows console.
+    # TAP, whose summary lines ("# tests 80", "# pass 80") are plain to pick out.
     summary = [line[2:] for line in result.out.splitlines() if line.startswith(("# tests ", "# pass "))]
     ok(f"node --test: {len(files)} files, " + ", ".join(summary))
     return 0

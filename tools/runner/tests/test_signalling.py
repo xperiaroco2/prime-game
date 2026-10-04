@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from runner import doctor, pins, signalling
+from runner import common, doctor, pins, signalling
 from runner.common import Failure, Result
 
 
@@ -47,6 +47,12 @@ class SignalTest(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("not ok 3 - flow_join.json replays", text)
 
+    def test_a_run_over_its_time_fails(self) -> None:
+        version = result(out=f"v{pins.NODE_MAJOR}.0.0")
+        rc, text, _calls = self.run_main(version, Result(-9, "ok 1 - a\n", True, 120.0))
+        self.assertEqual(rc, 1)
+        self.assertIn(f"ran over {signalling.TIMEOUT} s", text)
+
     def test_another_major_or_no_node_stops_it(self) -> None:
         with self.assertRaisesRegex(Failure, "pinned"):
             self.run_main(result(out="v22.22.0"))
@@ -58,6 +64,28 @@ class SignalTest(unittest.TestCase):
             self.assertEqual(signalling.test_files(Path(folder)), [])
             with mock.patch.object(signalling, "test_files", return_value=[]), self.assertRaisesRegex(Failure, "no"):
                 self.run_main(result(out=f"v{pins.NODE_MAJOR}.0.0"))
+
+
+class NodeBinTest(unittest.TestCase):
+    def find(self, environ: dict[str, str], cloud: bool, cloud_node: Path) -> str | None:
+        with (
+            mock.patch.dict(common.os.environ, environ, clear=True),
+            mock.patch.object(common, "IS_CLOUD", cloud),
+            mock.patch.object(common, "CLOUD_NODE", cloud_node),
+            mock.patch.object(common.shutil, "which", return_value="/usr/bin/node"),
+        ):
+            return common.node_bin()
+
+    def test_node_bin_then_the_cloud_install_then_path(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            node = Path(folder) / "node"
+            node.write_text("", encoding="utf-8")
+            missing = Path(folder) / "missing"
+            self.assertEqual(self.find({"NODE_BIN": str(node)}, True, node), str(node))
+            self.assertIsNone(self.find({"NODE_BIN": str(missing)}, False, node))
+            self.assertEqual(self.find({}, True, node), str(node))
+            self.assertEqual(self.find({}, True, missing), "/usr/bin/node")
+            self.assertEqual(self.find({}, False, node), "/usr/bin/node")
 
 
 class DoctorNodeTest(unittest.TestCase):
