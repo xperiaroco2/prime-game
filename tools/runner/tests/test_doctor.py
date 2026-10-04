@@ -208,6 +208,15 @@ class ClaudeMdExcludeTest(unittest.TestCase):
                     doctor.add_claude_md_exclude(self.settings)
                 self.assertEqual(self.settings.read_text(encoding="utf-8"), text)
 
+    def test_a_failed_replace_leaves_no_temporary_file(self) -> None:
+        text = '{"model": "opus"}'
+        self.write(text)
+        with mock.patch.object(doctor.os, "replace", side_effect=PermissionError("in use")):
+            with self.assertRaises(PermissionError):
+                doctor.add_claude_md_exclude(self.settings)
+        self.assertEqual([p.name for p in self.settings.parent.iterdir()], ["settings.local.json"])
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), text)
+
     def run_check(
         self, quick: bool, *, windows: bool = True, ci: bool = False, root: Path | None = None
     ) -> tuple[int, str]:

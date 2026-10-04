@@ -392,8 +392,13 @@ def add_claude_md_exclude(path: Path, write: bool = True) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     # Through a temporary file beside it, so a Claude Code session reading the file never sees half of it.
     scratch = path.with_name(path.name + ".doctor.tmp")
-    scratch.write_bytes((json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
-    os.replace(scratch, path)
+    try:
+        scratch.write_bytes((json.dumps(data, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
+        os.replace(scratch, path)
+    except BaseException:
+        # A failed replace (a sharing violation while Claude Code holds the file) leaves no stray untracked file.
+        scratch.unlink(missing_ok=True)
+        raise
     return ADDED
 
 
