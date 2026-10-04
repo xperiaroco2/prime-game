@@ -219,6 +219,10 @@ duplicate is $19 of the $25: 0.90 / 1.04 points per 7 days, 0.55 / 0.78 with bou
 - Prompts: `issue-task.js` and `pr-rebase.js` give the plan reviewer and the reviewers "the ARCHITECTURE sections the
   change touches", not `docs/ARCHITECTURE.md`. The plan-review and review prompts stop asking to read root `CLAUDE.md`, which is
   already loaded.
+- Some sections are always read, whatever the change touches. The netcode-security reviewer reads §5 (filtering),
+  §4.2 (each event's audience) and §4.6 (the leak test), because a change that touches only §4.7 or §7.1 can still
+  add a snapshot field the leak test does not compare. The design reviewer starts from the outline and reads every
+  section a proposal could contradict, not only the ones it edits.
 - The implementer's reading list (`READING` in `issue-task.js`) stops naming "the CLAUDE.md of every area it touches
   and .claude/rules/". Those files load by path when the agent Reads a file there, which an implementer does before
   every Edit. Area `CLAUDE.md` files read by a tool cost $17 in the window, 72% of it implementers', and mostly
@@ -369,6 +373,9 @@ C and F change `.claude/workflows/`, which changes only through the tooling trac
   - the plan-review and review prompts name sections, not the whole doc, and no prompt asks to read root `CLAUDE.md`
     again;
   - `READING` in `issue-task.js` no longer names the area `CLAUDE.md` files and `.claude/rules/` (they load by path);
+  - the netcode-security reviewer's focus in `issue-task.js` and `pr-rebase.js` names §5, §4.2 and §4.6 as always
+    read; the design reviewer's prompt keeps the outline call plus any section a proposal contradicts; both checked
+    in the snapshots;
   - the snapshots change on purpose;
   - one wave later E shows ARCHITECTURE $ per run down, and no review finding traced to a section not read.
 - **D:**
