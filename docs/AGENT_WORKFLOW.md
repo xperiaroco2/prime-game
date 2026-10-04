@@ -382,6 +382,9 @@ Rules for every workflow run:
 - **Recovery:** a crashed run resumes with `resumeFromRunId` and the same args; the prompts tell each agent to check
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
+  Once a day that handover is deliberate (#279, the engineer's option A): a manager that stops for the human with no
+  run of its own in flight and either its session over 12 hours old or its context over 500k tokens (`wave` prints
+  both) posts a handover wave comment and gives the human the kickoff to paste into a new session (the skill's §7).
 
 ## 8. Permissions, guards and hooks
 
