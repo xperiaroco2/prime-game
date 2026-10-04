@@ -40,7 +40,9 @@ A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clon
 does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.sh`, then `tools/run.sh doctor`.
 - **`tools/cloud/setup.sh`** (from any folder; idempotent; 7 s in #345's session, the Godot download included): installs
   the pinned Godot Linux build in `~/godot/godot` (SHA-512 checked) and links it as `godot` on PATH, installs the pinned
-  gdtoolkit with pip, and raises `net.core.rmem_default` to 416 KB when lower (some container kernels hold only 256
+  gdtoolkit with pip, the pinned Node.js in `~/node` (SHA-256 checked; the runner takes it there in a cloud session,
+  since the image's own Node 22 comes first on PATH and Claude Code runs on it; #368), and raises
+  `net.core.rmem_default` to 416 KB when lower (some container kernels hold only 256
   small datagrams in the 208 KB default; verify's stall step queues 320). **In a cloud session only**
   (`CLAUDE_CODE_REMOTE=true`) it also leaves the Windows-only TwoVoIP extension (`addons/twovoip/twovoip.gdextension`
   and its `.uid`, the M5 voice ADR §2) out of the clone with a non-cone sparse checkout, as CI deletes them: on Linux
@@ -61,7 +63,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   installed too), while CI's `verify` runs 3.12; #345 fixed three 3.12-only spots that broke `verify` and `selftest` on
   3.11, and since #349 CI's job `python-min` keeps the minimum true.
 - **Network access** (what #345's session used): `github.com` with `release-assets.githubusercontent.com`
-  for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit. The session's proxy refuses API calls and
+  for the Godot zip, `pypi.org` with `files.pythonhosted.org` for gdtoolkit; `nodejs.org` for Node (#368). The session's proxy refuses API calls and
   feeds of other GitHub repositories ("sessions are bound to their configured repositories"); the WebFetch tool still
   reads public pages (docs, release pages) for research.
 - **GitHub:** `gh auth status` calls the token invalid, yet `gh api` REST calls on this repository go through the
@@ -1035,7 +1037,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
   `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-  `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), and `hook` (for Claude Code only). Pins
+  `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `signal` (the signalling Worker's
+  tests, `tools/signal/`, under the pinned Node; #368), and `hook` (for Claude Code only). Pins
   and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
   launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
   PowerShell) the runner takes the machine paths from the Claude settings (§2).
@@ -1050,7 +1053,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
   merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
   first (red: nothing else runs), then two lanes at once, each a process of its own and serial inside: the Python lane
-  (`lint`, then `selftest`: the runner tests that start no Godot, each test in one of the worker processes, a quarter of
+  (`lint`, `signal`: the signalling Worker's `node --test` over `tools/signal/test/`, then `selftest`: the runner
+  tests that start no Godot, each test in one of the worker processes, a quarter of
   the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
   `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
   imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots`
@@ -1059,7 +1063,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
   it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
   `selftest --group python|godot` runs one group without it). The
-  summary keeps the serial order (`doctor`, `lint`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
+  summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
   `bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
   test count.
   Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,

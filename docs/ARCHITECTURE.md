@@ -2125,6 +2125,38 @@ default `LanSignalling`; a `Signaller` dropping and counting in `rejected` what 
 `Signaller.room_found` gives the content hash as the s64 `ContentFingerprint` makes. The
 design's §5 plant, the router forwarding a joiner's `offer` to the joiner it names, failed `forged_offer` in both.
 
+**Decoding cases** (`tests/fixtures/signal/decode/decode_cases.json`, #368): 189 messages from every side with the
+result Godot 4.7.2's `SignalCodec` gives, recorded from it; `signal_codec_test.gd` and the Worker's `codec.test.js` both
+check every one. Godot's JSON parser is not `JSON.parse`: it takes a trailing comma in an object or list, a leading
+zero, `1.`, and a raw tab or line break inside a string, and refuses a lone UTF-16 surrogate escape and a value nested
+deeper than 1024 (the top one at depth 0). The Worker reads JSON with its own parser of those rules, so both answer
+every message alike. A `\u0000` escape passes, but Godot prints a "Unicode parsing error" line for it (not an
+`ERROR:` line); `LanSignalling` serves the LAN only, so it stays.
+
+**The Worker** (M6-5b, #368; `tools/signal/`, its README is the deploy page): `src/codec.js` and `src/router.js` are
+`SignalCodec` and `SignalRouter` in JavaScript, rule for rule; `src/service.js` is the Durable Object's work, which
+`src/worker.js` (the only file that needs the Cloudflare runtime) wraps.
+- **One Durable Object holds every room**, not one per room: the room is named in the socket's first message, after it
+  is open, and a socket whose `join` failed may try another code, so a socket cannot be routed to its room's object
+  when it connects. It stays far below the Workers Free plan's limits (SQLite-backed objects only on Free).
+- **Hibernation:** sockets are accepted with the WebSocket Hibernation API, so idle rooms cost no duration; the object
+  may leave memory, and its constructor runs again on the next event. So the router's whole state is one record per
+  socket (role, code, number, candidate counts; a host's record also holds its room), kept in that socket's attachment
+  after every change, and the constructor rebuilds the router from the attachments. Socket numbers go on from the
+  highest one held.
+- **Closing after an error** as `LanSignalling` does: a socket the service ends (the host left) is marked closing in its
+  attachment and closed 1 s later; it gets nothing more, and its messages and close are no events. A close whose timer
+  was lost with the object's memory happens when the object wakes.
+- **ICE servers** from `ICE_SERVERS` in `wrangler.toml` (`stun:stun.cloudflare.com:3478`, E58), checked by the
+  clients' rules at start. TURN credentials per joiner come with M6-10, only when a TURN key is configured; its key
+  goes in the Worker's secrets, never in `wrangler.toml`.
+- **Tests** (`tools/run.sh signal`, a `verify` step; Node pinned in `pins.py`, no npm package): every transcript
+  through the router and through the service over fake sockets and state, each also with the router or the object
+  rebuilt after every step (as after hibernation), the close grace, the configuration, and the decoding cases. The
+  glue in `worker.js` is first tried at deploy, and `tools/signal/smoke.js` checks a running service (it passes
+  against a headless `LanSignalling`). The design's §5 plant, the Worker forwarding a joiner's `offer` to another
+  joiner, failed `forged_offer` in both suites, then was reverted.
+
 ## 5. Per-peer information filtering
 
 - Each outgoing message is built for one recipient from what that peer is entitled to know.

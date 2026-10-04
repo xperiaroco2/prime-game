@@ -21,6 +21,7 @@ errors, `load()` returns a script that does not compile, and the GdUnit4 console
 | GdUnit4 | 6.2.1, committed in `addons/gdUnit4` | Its README lists Godot up to 4.7.1; runs on 4.7.2 verified locally |
 | gdtoolkit | 4.5.0 | No upstream commits since 2025-10; Godot's parser in `check` stays the authority |
 | Python | 3.11 or newer | Runner uses the standard library only |
+| Node.js | 24.21.0 in CI (`actions/setup-node`), any 24.x locally (`doctor`); the cloud setup downloads the official Linux build, SHA-256 pinned as `node_linux_sha256` | Runs the signalling Worker's tests, `signal` (#368; the M6 ADR E53, D23). Node's own test runner, no npm package |
 | gh | 2.97 or newer | Needed for the board commands |
 | Claude Code on PATH | 2.1.281 or newer | `doctor` fails on an older `claude` on PATH |
 
@@ -34,7 +35,7 @@ errors, `load()` returns a script that does not compile, and the GdUnit4 console
 - `test` trusts only the GdUnit4 exit code and `results.xml`. Exit 101 (**orphan nodes**) fails the build, and so
   does a run with zero tests. `results.xml` does not record orphans, so `test` names the leaking test (or the
   suite's `before()`/`after()`) from the console log.
-- `verify` runs doctor (quick), lint, check, test, the headless ENet run (`enet`, added by #45), the 5.2 s freeze
+- `verify` runs doctor (quick), lint, signal (#368), check, test, the headless ENet run (`enet`, added by #45), the 5.2 s freeze
   run (`freeze`, #70) and the runner's own tests, and fails if the run left files in the working tree. The current
   list of steps: `docs/AGENT_WORKFLOW.md` §11.
 - Every Godot call has a hard timeout and kills the whole process tree (the Windows console exe starts the engine as
@@ -42,7 +43,7 @@ errors, `load()` returns a script that does not compile, and the GdUnit4 console
 
 **CI** (`.github/workflows/ci.yml`, job `verify`, ubuntu-24.04) reads every pin with `tools/run.sh pins --get`
 (in the composite action `.github/actions/setup-toolchain`, which the night jobs share since #189), installs the
-checked Godot build and `gdtoolkit==<pin>` on Python 3.12, then runs `GODOT_BIN=$HOME/godot/godot tools/run.sh verify`. It uploads `tools/out/gdunit` and `tools/out/logs` even when
+checked Godot build, `gdtoolkit==<pin>` on Python 3.12 and the pinned Node (`actions/setup-node`), then runs `GODOT_BIN=$HOME/godot/godot tools/run.sh verify`. It uploads `tools/out/gdunit` and `tools/out/logs` even when
 `verify` fails.
 
 **Changing a pin** is a PR that edits `tools/runner/pins.py` (plus the addon for GdUnit4, and
