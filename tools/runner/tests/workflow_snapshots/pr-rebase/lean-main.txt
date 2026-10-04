@@ -1,0 +1,109 @@
+### phase Rebase
+### agent rebase:#8
+opts {"label":"rebase:#8","phase":"Rebase","effort":"high","schema":{"type":"object","properties":{"up_to_date":{"type":"boolean"},"verify_green":{"type":"boolean"},"ci_green":{"type":"boolean"},"published":{"type":"boolean"},"old_tip":{"type":"string"},"new_tip":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"conflicts":{"type":"array","items":{"type":"string"}},"fixes":{"type":"array","items":{"type":"string"}},"problems":{"type":"array","items":{"type":"string"}},"human_steps":{"type":"array","items":{"type":"object","properties":{"why":{"type":"string"},"command":{"type":"string"}},"required":["why","command"]}}},"required":["up_to_date","verify_green","published"]},"agentType":"task-publisher"}
+You are a task agent of prime-game, run unattended by the manager session. No human answers questions: never ask in chat. Root CLAUDE.md applies in full.
+- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch tooling/7-x, PR #8, issue #7, base main). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...`. Never change D:/prime-game itself or another worktree.
+- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close an issue, edit the body of #30. Do not run commands you expect to prompt. No Godot windows. Temporary files only under the subfolder r8/ of your scratchpad (it is shared with every other agent). LF line endings. Never weaken, skip or delete a test to make it pass.
+- Commits: Conventional Commits ending with the attribution line your system reminder gives for commits. An edit of any path under .claude/ or addons/ prompts unless the session runs in bypass: list it for the human instead.
+- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main`); never an interactive rebase without that variable. Both are free in your own worktree.
+
+Task: bring PR #8 up to date with origin/main and make both sides one coherent whole. Effort: high. Budget: at most about 150 tool calls.
+
+An earlier attempt may have got part of the way (a resumed run): check `git status` (a rebase in progress?), `git log --oneline origin/main..HEAD` and PR #8's latest body and comments first.
+
+Why:
+w
+
+Steps:
+1. Record the old tip (`git rev-parse HEAD`). `git fetch --prune origin`, `git rebase origin/main`. Resolve each conflict keeping both sides' intent: an add/add class keeps the base's file and uid and folds in what this PR needs; data files keep every line of both sides with unique ids (then `tools\run.cmd normalize <file>` if check asks); docs keep both texts.
+2. Fix what the new base breaks in this PR's code and tests, each fix in its own commit.
+3. `tools\run.cmd verify` until green; `tools\run.cmd publish` (it can fail right after a rebase that changed tools/runner: run it again).
+4. Update PR #8's body (`gh pr edit 8 --body-file`): a "Rebased on main" section with the conflicts, how each was resolved and the fixes; keep the rest. `gh pr checks 8 --watch`, at most two fix rounds. A short comment on #7.
+
+human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with `cd <absolute folder>;` (`cd D:\prime-game;` for the main checkout, where his terminal is; `cd D:\prime-game\.claude\worktrees\7;` for your worktree), commands joined with `;` (never `&&`), never a pointer such as "the command in the PR body". Preview it from that folder first (`--dry-run` where the command has one, a read-only listing such as `git worktree list`); run it outright only when it is read-only, never one that does his step, changes `D:\prime-game` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.
+
+Return the structured result. changed_paths: `git diff --name-only origin/main...HEAD`.
+### phase Review
+### agent review:code:#8
+opts {"label":"review:code:#8","phase":"Review","agentType":"code-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["verdict","findings"]}}
+Fresh read-only review of PR #8 (issue #7) after its rebase on origin/main (worktree D:/prime-game/.claude/worktrees/7; D:/prime-game is main). Budget: at most about 60 tool calls; do not edit anything; you may run `tools\run.cmd test <path>` in the worktree.
+
+The rebase agent reported: {"up_to_date":true,"verify_green":true,"published":true,"changed_paths":["core/x.gd"]}
+
+Check that each conflict resolution keeps both sides' intent and that the fixes for the new base are correct: `git -C /d/prime-game/.claude/worktrees/7 range-diff <old_tip>...<new_tip>` where the tips are known, and `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD`. One copy of each shared class, used consistently; no lost or duplicate lines in data files; no weakened test.
+
+Report findings with severity (blocker, major, minor, nit), file, line, problem and fix. No findings is a valid answer.
+### agent review:netcode:#8
+opts {"label":"review:netcode:#8","phase":"Review","agentType":"netcode-security-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["verdict","findings"]}}
+Fresh read-only review of PR #8 (issue #7) after its rebase on origin/main (worktree D:/prime-game/.claude/worktrees/7; D:/prime-game is main). Budget: at most about 60 tool calls; do not edit anything; you may run `tools\run.cmd test <path>` in the worktree.
+
+The rebase agent reported: {"up_to_date":true,"verify_green":true,"published":true,"changed_paths":["core/x.gd"]}
+
+Check that each conflict resolution keeps both sides' intent and that the fixes for the new base are correct: `git -C /d/prime-game/.claude/worktrees/7 range-diff <old_tip>...<new_tip>` where the tips are known, and `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD`. One copy of each shared class, used consistently; no lost or duplicate lines in data files; no weakened test.
+
+Report findings with severity (blocker, major, minor, nit), file, line, problem and fix. No findings is a valid answer.
+
+Focus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides.
+### phase Fix
+### agent fix:#8
+opts {"label":"fix:#8","phase":"Fix","effort":"high","schema":{"type":"object","properties":{"fixed":{"type":"array","items":{"type":"string"}},"not_fixed":{"type":"array","items":{"type":"string"}},"verify_green":{"type":"boolean"},"published":{"type":"boolean"},"ci_green":{"type":"boolean"},"human_steps":{"type":"array","items":{"type":"object","properties":{"why":{"type":"string"},"command":{"type":"string"}},"required":["why","command"]}}},"required":["fixed","verify_green","published","ci_green"]},"agentType":"task-publisher"}
+You are a task agent of prime-game, run unattended by the manager session. No human answers questions: never ask in chat. Root CLAUDE.md applies in full.
+- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch tooling/7-x, PR #8, issue #7, base main). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...`. Never change D:/prime-game itself or another worktree.
+- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close an issue, edit the body of #30. Do not run commands you expect to prompt. No Godot windows. Temporary files only under the subfolder r8/ of your scratchpad (it is shared with every other agent). LF line endings. Never weaken, skip or delete a test to make it pass.
+- Commits: Conventional Commits ending with the attribution line your system reminder gives for commits. An edit of any path under .claude/ or addons/ prompts unless the session runs in bypass: list it for the human instead.
+- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main`); never an interactive rebase without that variable. Both are free in your own worktree.
+
+Task: fix the blocker and major findings of a fresh review of PR #8, each with a test where it is a behaviour, plus cheap minor ones. Budget: at most about 100 tool calls. Check `git log` and PR #8's body first (a resumed run may have fixed some). Findings: [{"reviewer":"r","verdict":"ok","findings":[{"severity":"major","file":"core/match/vote.gd","line":12,"problem":"p1","fix":"f1"}]},{"reviewer":"r","verdict":"ok","findings":[{"severity":"major","file":"core/match/vote.gd","line":12,"problem":"p1","fix":"f1"}]}]
+
+`tools\run.cmd verify` until green, `tools\run.cmd publish`, add the findings and what happened to each to PR #8's body, `gh pr checks 8 --watch` (at most two fix rounds).
+
+human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with `cd <absolute folder>;` (`cd D:\prime-game;` for the main checkout, where his terminal is; `cd D:\prime-game\.claude\worktrees\7;` for your worktree), commands joined with `;` (never `&&`), never a pointer such as "the command in the PR body". Preview it from that folder first (`--dry-run` where the command has one, a read-only listing such as `git worktree list`); run it outright only when it is read-only, never one that does his step, changes `D:\prime-game` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.
+
+Return the structured result.
+### returned
+{
+ "pr": 8,
+ "reb": {
+  "up_to_date": true,
+  "verify_green": true,
+  "published": true,
+  "changed_paths": [
+   "core/x.gd"
+  ]
+ },
+ "reviews": [
+  {
+   "reviewer": "r",
+   "verdict": "ok",
+   "findings": [
+    {
+     "severity": "major",
+     "file": "core/match/vote.gd",
+     "line": 12,
+     "problem": "p1",
+     "fix": "f1"
+    }
+   ]
+  },
+  {
+   "reviewer": "r",
+   "verdict": "ok",
+   "findings": [
+    {
+     "severity": "major",
+     "file": "core/match/vote.gd",
+     "line": 12,
+     "problem": "p1",
+     "fix": "f1"
+    }
+   ]
+  }
+ ],
+ "fix": {
+  "fixed": [],
+  "verify_green": true,
+  "published": true,
+  "ci_green": true
+ }
+}
+### error null

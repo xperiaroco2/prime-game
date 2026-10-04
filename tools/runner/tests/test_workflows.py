@@ -367,6 +367,22 @@ PLAYCHECK_LINE = (
 )
 PNG = "D:/prime-game/.claude/worktrees/7/tools/out/playcheck/spectate/01.png"
 SHOTS = {"available": True, "scenarios": ["spectate"], "exit_codes": [0], "pngs": [PNG]}
+# lean (#332, docs/decisions/2026-10-04-lean-workflow-agent-types.md): the agent type each role's label prefix gets.
+LEAN_WRITERS = ("task-implementer", "task-publisher")
+LEAN_TYPES = {
+    "plan": "task-implementer",
+    "implement": "task-implementer",
+    "test-review": "task-implementer",
+    "publish": "task-publisher",
+    "rebase": "task-publisher",
+    "fix": "task-publisher",
+}
+# The lean snapshots pin the options lean adds. They sit beside the pre-v2 snapshots but are not part of that guard:
+# every other case runs without a v2 arg.
+LEAN_SNAPSHOT_CASES = {
+    "issue-task.js": [("lean-main", {"branch": "core/7-x", "lean": True}, {"paths": ["core/x.gd"]})],
+    "pr-rebase.js": [("lean-main", {"lean": True}, {"paths": ["core/x.gd"], "findings": [MAJOR]})],
+}
 
 
 def implemented(paths: list[str], **extra) -> dict:
@@ -501,6 +517,8 @@ class PipelineV2Test(unittest.TestCase):
             {"skeptic": 0.5},
             {"second_review": "true"},
             {"bounded_waits": "yes"},
+            {"lean": "yes"},
+            {"lean": 1},
         )
         jobs = [(name, dict(ARGS, **args), {}) for name in ("issue-task.js", "pr-rebase.js") for args in bad]
         jobs += [("issue-task.js", dict(ARGS, **args), {}) for args in ({"plan_review": 1}, {"test_review": "no"}, {"visual": 5}, {"visual": [""]})]
@@ -522,10 +540,15 @@ class PipelineV2Test(unittest.TestCase):
             ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m5", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
             ("pr-rebase.js", dict(ARGS, base="release/m5", second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
+        # With lean the implementing and publishing agents get a lean writer type (#332) and still every rule.
+        jobs += [(name, dict(args, lean=True), stub) for name, args, stub in jobs]
         for result in run_jobs(jobs):
             for event in agents(result):
                 with self.subTest(agent=event["label"]):
-                    if "agentType" in options(event):
+                    if options(event).get("agentType") in LEAN_WRITERS:
+                        self.assertIn(STASH_RULE, event["prompt"])
+                        self.assertIn("GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/release/m5", event["prompt"])
+                    elif "agentType" in options(event):
                         self.assertIn(options(event)["agentType"], ("code-reviewer", "netcode-security-reviewer", "godot-api-checker"))
                         self.assertNotIn(STASH_RULE, event["prompt"])
                     else:
@@ -842,9 +865,9 @@ class PipelineV2Test(unittest.TestCase):
         for name, names in (
             (
                 "issue-task.js",
-                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models"),
+                ("plan_review", "test_review", "second_review", "skeptic", "visual", "bounded_waits", "efforts", "models", "lean"),
             ),
-            ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models")),
+            ("pr-rebase.js", ("second_review", "skeptic", "bounded_waits", "efforts", "models", "lean")),
         ):
             text = (WORKFLOWS / name).read_text(encoding="utf-8")
             when = next(line for line in text.splitlines() if line.strip().startswith("whenToUse:"))
@@ -854,6 +877,78 @@ class PipelineV2Test(unittest.TestCase):
                 for arg in names:
                     self.assertIn(f"{arg}?", when)
                     self.assertRegex(comment, rf"//   {arg} ")
+
+    def test_lean_adds_only_the_agent_type(self) -> None:
+        # #332: lean must change nothing but an agentType appended to the implementing and publishing agents' options,
+        # so the efforts and models a launch sets still reach them, and a run without lean stays as it was.
+        stuck = {"available": True, "exit_2": True, "findings": [], "notes": "n"}
+        core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        tuned = {"bounded_waits": True, "efforts": {"implement": "medium", "publish": "low"}, "models": {"implement": AVAILABLE[0]}}
+        bases = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **tuned, **V2), core),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [stuck]})),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True, efforts={"fix": "medium"}), core),
+        ]
+        jobs = [(name, dict(args, **extra), stub) for name, args, stub in bases for extra in ({}, {"lean": False}, {"lean": True})]
+        results = run_jobs(jobs)
+        typed = set()
+        for i, (name, _, _) in enumerate(bases):
+            plain, off, lean = results[3 * i : 3 * i + 3]
+            with self.subTest(job=i, workflow=name):
+                for result in (plain, off, lean):
+                    self.assertIsNone(result["error"])
+                self.assertEqual(render(off), render(plain))
+                before, after = agents(plain), agents(lean)
+                self.assertEqual([e["label"] for e in after], [e["label"] for e in before])
+                for old, new in zip(before, after):
+                    self.assertEqual(new["prompt"], old["prompt"], old["label"])
+                    want = LEAN_TYPES.get(old["label"].split(":")[0])
+                    if want is None:
+                        self.assertEqual(new["opts"], old["opts"], old["label"])
+                        continue
+                    typed.add(old["label"].split(":")[0])
+                    self.assertNotIn("agentType", options(old))
+                    self.assertEqual(options(new), dict(options(old), agentType=want), old["label"])
+                    self.assertEqual(list(options(new))[-1], "agentType", old["label"])  # appended last
+        self.assertEqual(sorted(typed), sorted(LEAN_TYPES))
+        # The tuned launch's effort and model still reach the lean implementer and publisher.
+        lean = {e["label"]: options(e) for e in agents(results[2])}
+        self.assertEqual((lean["implement:#7"]["effort"], lean["implement:#7"]["model"]), ("medium", AVAILABLE[0]))
+        self.assertEqual(lean["publish:#7"]["effort"], "low")
+
+    def test_lean_options_match_their_snapshots(self) -> None:
+        jobs, files = [], []
+        for name, cases in LEAN_SNAPSHOT_CASES.items():
+            for case, args, stub in cases:
+                jobs.append((name, dict(ARGS, **args), stub))
+                files.append(SNAPSHOTS / name.removesuffix(".js") / f"{case}.txt")
+        results = run_jobs(jobs)
+        if UPDATE:
+            for path, result in zip(files, results):
+                path.write_bytes(render(result).encode("utf-8"))
+            self.fail(f"PRIME_WORKFLOW_SNAPSHOTS=update wrote {len(files)} lean snapshots; review the diff, then rerun without it")
+        for path, result in zip(files, results):
+            with self.subTest(snapshot=f"{path.parent.name}/{path.name}"):
+                self.assertTrue(path.is_file(), f"missing snapshot {path}")
+                self.assertEqual(render(result), path.read_bytes().decode("utf-8"))
+                self.assertIn('"agentType":"task-', render(result))
+
+    def test_every_agent_type_the_scripts_pass_has_an_agent_file(self) -> None:
+        # A typo in an agentType makes agent() throw at launch; the file's name: is what Claude Code resolves.
+        from runner import instructions
+
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", lean=True, **V2), {"paths": ["core/x.gd", "client/x.tscn"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, lean=True, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        seen = {options(e).get("agentType") for result in run_jobs(jobs) for e in agents(result)} - {None}
+        self.assertTrue(set(LEAN_WRITERS) <= seen, seen)
+        for agent_type in sorted(seen):
+            with self.subTest(agent_type=agent_type):
+                path = ROOT / ".claude" / "agents" / f"{agent_type}.md"
+                self.assertTrue(path.is_file(), f"no agent file for {agent_type}")
+                self.assertEqual(instructions.parse(path.read_text(encoding="utf-8")).fields.get("name"), agent_type)
 
 
 class NodeOnCiTest(unittest.TestCase):

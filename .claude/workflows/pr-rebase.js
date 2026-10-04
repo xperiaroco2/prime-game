@@ -1,7 +1,7 @@
 export const meta = {
   name: 'pr-rebase',
   description: 'Bring one open prime-game PR up to date with its base after a semantic conflict: rebase and reconcile, verify, publish; fresh review; fix only if blocker or major',
-  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, bounded_waits?, efforts?, models?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); bounded_waits, efforts and models add none.',
+  whenToUse: 'The orchestrate-stage skill launches it when a merge leaves an open PR with a semantic conflict (two PRs creating the same classes, a changed interface). A docs or test-list conflict the manager resolves inline instead. args: {n, pr, wt, branch, base?, why, steps?, focus?, plan?, manager?, second_review?, skeptic?, bounded_waits?, efforts?, models?, lean?}. Agents: 2 to 4 (rebase, 1 or 2 reviewers, a fix agent after a blocker or major); second_review adds 1 where the netcode review is routed, skeptic 1 per blocker or major finding (true: every one; a number: at most that many); bounded_waits, efforts, models and lean add none.',
   phases: [
     { title: 'Rebase', detail: 'one agent in the task worktree' },
     { title: 'Review', detail: 'code-reviewer over the range-diff; netcode-security-reviewer if core/server/net/client/tests/harness changed (optional: a second netcode review, a skeptic per blocker or major)' },
@@ -39,6 +39,9 @@ export const meta = {
 //                 one is set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
 //                 and no default (the model-guard ADR and its amendment A). +0 agents
+//   lean          true: the rebase and fix agents run as the agent type task-publisher (a lean tool allowlist, no
+//                 Skill tool; #332, docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js.
+//                 Only agentType is appended to their options. Opt-in until the A/B on #302. +0 agents
 // Resume: relaunch with resumeFromRunId and the SAME args.
 
 const A = args || {}
@@ -58,13 +61,15 @@ const TASK_BRANCH = /^[a-z][a-z0-9]*\/[0-9]+-[a-z0-9][a-z0-9._-]*$/
 const PUBLISH = `tools\\run.cmd publish${BASE === 'main' || TASK_BRANCH.test(BASE) ? '' : ` --base ${BASE}`}`
 
 // The pipeline v2 args, checked as in issue-task.js: a wrong value throws before any agent runs; an unknown arg logs.
-const KNOWN = ['n', 'pr', 'wt', 'branch', 'base', 'why', 'steps', 'focus', 'plan', 'manager', 'second_review', 'skeptic', 'bounded_waits', 'efforts', 'models']
+const KNOWN = ['n', 'pr', 'wt', 'branch', 'base', 'why', 'steps', 'focus', 'plan', 'manager', 'second_review', 'skeptic', 'bounded_waits', 'efforts', 'models', 'lean']
 const unknown = Object.keys(A).filter(k => !KNOWN.includes(k))
 if (unknown.length) log(`#${PR}: unknown args ignored: ${unknown.join(', ')}`)
 if (A.second_review !== undefined && A.second_review !== null && typeof A.second_review !== 'boolean') throw new Error('pr-rebase: args.second_review must be true or false')
 const SECOND_REVIEW = A.second_review === true
 if (A.bounded_waits !== undefined && A.bounded_waits !== null && typeof A.bounded_waits !== 'boolean') throw new Error('pr-rebase: args.bounded_waits must be true or false')
 const BOUNDED = A.bounded_waits === true
+if (A.lean !== undefined && A.lean !== null && typeof A.lean !== 'boolean') throw new Error('pr-rebase: args.lean must be true or false')
+const LEAN = A.lean === true
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
   throw new Error('pr-rebase: args.skeptic must be true, false or the most findings to check (a positive integer)')
 }
@@ -90,8 +95,16 @@ const EFFORTS = perRole('efforts', ['low', 'medium', 'high', 'xhigh', 'max'])
 const MODELS = perRole('models', null)
 const set = (m, role) => CHAIN[role].map(r => m[r]).find(v => v !== undefined)
 // Today's options keep their keys and order; an effort (reviewers only: the others carry their default) and a model
-// are appended only where this launch sets them for the role.
-const withModel = (o, role) => (set(MODELS, role) === undefined ? o : { ...o, model: set(MODELS, role) })
+// are appended only where this launch sets them for the role, and under lean the agent type of a role that has none
+// (a reviewer's own agentType wins), resolved through CHAIN, last.
+const LEAN_TYPES = { rebase: 'task-publisher', fix: 'task-publisher' }
+const leanType = (o, role) => (LEAN && !o.agentType ? CHAIN[role].map(r => LEAN_TYPES[r]).find(Boolean) : undefined)
+const withModel = (o, role) => {
+  const m = set(MODELS, role)
+  const t = leanType(o, role)
+  const out = m === undefined ? o : { ...o, model: m }
+  return t === undefined ? out : { ...out, agentType: t }
+}
 const asReviewer = (o, role) => withModel(set(EFFORTS, role) === undefined ? o : { ...o, effort: set(EFFORTS, role) }, role)
 const REB_EFFORT = EFFORTS.rebase || 'high'
 const FIX_EFFORT = EFFORTS.fix || 'high'
