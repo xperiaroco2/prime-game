@@ -1,0 +1,37 @@
+SPIKE r1       4 1791146462.250864 channel 1 label=reliable ordered=true maxRetransmits=-1 negotiated=true
+SPIKE r1       4 1791146462.251024 channel 2 label=latest ordered=false maxRetransmits=0 negotiated=true
+SPIKE r1       4 1791146462.251064 channel 3 label=voice ordered=false maxRetransmits=0 negotiated=true
+SPIKE r1      12 1791146462.258690 signalling connected
+SPIKE r1      14 1791146462.260425 pc state -1 -> 1
+SPIKE r1      14 1791146462.260493 channel 1 state 0
+SPIKE r1      14 1791146462.260511 channel 2 state 0
+SPIKE r1      14 1791146462.260524 channel 3 state 0
+SPIKE r1      79 1791146462.326090 pc state 1 -> 2
+SPIKE r1      79 1791146462.326157 channel 1 state 1
+SPIKE r1      79 1791146462.326170 channel 2 state 1
+SPIKE r1      79 1791146462.326179 channel 3 state 1
+SPIKE r1      79 1791146462.326214 open after 79 ms
+SPIKE r1    9085 1791146471.331482 freeze 5200 ms (main thread)
+SPIKE r1   14285 1791146476.531764 thaw; pc=2
+SPIKE r1   14285 1791146476.531988 final sent r=91 l=181 v=36531 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=2
+SPIKE r2       4 1791146462.212694 channel 1 label=reliable ordered=true maxRetransmits=-1 negotiated=true
+SPIKE r2       4 1791146462.212804 channel 2 label=latest ordered=false maxRetransmits=0 negotiated=true
+SPIKE r2       4 1791146462.212823 channel 3 label=voice ordered=false maxRetransmits=0 negotiated=true
+SPIKE r2      13 1791146462.221257 pc state -1 -> 0
+SPIKE r2      13 1791146462.221342 channel 1 state 0
+SPIKE r2      13 1791146462.221358 channel 2 state 0
+SPIKE r2      13 1791146462.221368 channel 3 state 0
+SPIKE r2      57 1791146462.265416 pc state 0 -> 1
+SPIKE r2     117 1791146462.325138 pc state 1 -> 2
+SPIKE r2     117 1791146462.325240 channel 1 state 1
+SPIKE r2     117 1791146462.325264 channel 2 state 1
+SPIKE r2     117 1791146462.325277 channel 3 state 1
+SPIKE r2     117 1791146462.325294 open after 117 ms
+SPIKE r2    1621 1791146463.829320 freeze 5200 ms (main thread)
+SPIKE r2    6821 1791146469.029554 thaw; pc=2
+SPIKE r2    6836 1791146469.044942 first poll after a 5200 ms gap read reliable=53 latest=105 voice=21141
+SPIKE r2   14326 1791146476.534124 final sent r=0 l=0 v=0 got r=91 l=181 v=36531 maxseq r=90 l=180 v=36530 beats_in_order=true pc=5
+SPIKE r2   14326 1791146476.534246 pc state 2 -> 5
+SPIKE r2   14326 1791146476.534296 channel 1 state 3
+SPIKE r2   14326 1791146476.534351 channel 2 state 3
+SPIKE r2   14326 1791146476.534388 channel 3 state 3

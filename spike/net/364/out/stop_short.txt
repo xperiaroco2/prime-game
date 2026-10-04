@@ -1,0 +1,30 @@
+SPIKE r1       4 1791146773.517582 channel 1 label=reliable ordered=true maxRetransmits=-1 negotiated=true
+SPIKE r1       4 1791146773.517679 channel 2 label=latest ordered=false maxRetransmits=0 negotiated=true
+SPIKE r1       4 1791146773.517696 channel 3 label=voice ordered=false maxRetransmits=0 negotiated=true
+SPIKE r1      11 1791146773.525345 signalling connected
+SPIKE r1      13 1791146773.526638 pc state -1 -> 1
+SPIKE r1      13 1791146773.526690 channel 1 state 0
+SPIKE r1      13 1791146773.526705 channel 2 state 0
+SPIKE r1      13 1791146773.526734 channel 3 state 0
+SPIKE r1      41 1791146773.554683 pc state 1 -> 2
+SPIKE r1      41 1791146773.554805 channel 1 state 1
+SPIKE r1      41 1791146773.554831 channel 2 state 1
+SPIKE r1      41 1791146773.554849 channel 3 state 1
+SPIKE r1      41 1791146773.554923 open after 41 ms
+SPIKE r1    1550 1791146775.063858 kill -STOP 5220 -> 0
+SPIKE r1    7560 1791146781.073973 kill -CONT 5220 -> 0
+SPIKE r1   17570 1791146791.083657 put_errors=0 final sent r=176 l=351 v=7893 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=2
+SPIKE r2       5 1791146773.523635 channel 1 label=reliable ordered=true maxRetransmits=-1 negotiated=true
+SPIKE r2       5 1791146773.523791 channel 2 label=latest ordered=false maxRetransmits=0 negotiated=true
+SPIKE r2       5 1791146773.523906 channel 3 label=voice ordered=false maxRetransmits=0 negotiated=true
+SPIKE r2      22 1791146773.540952 pc state -1 -> 1
+SPIKE r2      22 1791146773.541007 channel 1 state 0
+SPIKE r2      22 1791146773.541021 channel 2 state 0
+SPIKE r2      22 1791146773.541033 channel 3 state 0
+SPIKE r2      36 1791146773.555195 pc state 1 -> 2
+SPIKE r2      36 1791146773.555340 channel 1 state 1
+SPIKE r2      36 1791146773.555376 channel 2 state 1
+SPIKE r2      36 1791146773.555387 channel 3 state 1
+SPIKE r2      36 1791146773.555418 open after 36 ms
+SPIKE r2    7555 1791146781.074211 first poll after a 6012 ms gap read reliable=0 latest=0 voice=0
+SPIKE r2   17571 1791146791.090331 put_errors=0 final sent r=0 l=0 v=0 got r=176 l=351 v=7893 maxseq r=175 l=350 v=7892 beats_in_order=true pc=2

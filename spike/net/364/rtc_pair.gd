@@ -48,6 +48,7 @@ var got: Dictionary[int, int] = {CH_RELIABLE: 0, CH_LATEST: 0, CH_VOICE: 0}
 var max_seq: Dictionary[int, int] = {CH_RELIABLE: -1, CH_LATEST: -1, CH_VOICE: -1}
 var beat_order_ok: bool = true
 var last_poll_us: int = 0
+var put_errors: int = 0
 
 
 func _init() -> void:
@@ -226,6 +227,8 @@ func _put(ch: int, size: int) -> void:
 	var c: WebRTCDataChannel = chans[ch]
 	var err: Error = c.put_packet(_packet(ch, size))
 	if err != OK:
+		put_errors += 1
+	if err != OK and put_errors == 1:
 		log_line("put_packet ch %d size %d err %d" % [ch, size, err])
 
 
@@ -248,6 +251,11 @@ func _drain() -> Dictionary[int, int]:
 
 func _traffic() -> void:
 	var now: int = _ms()
+	# After a freeze a game sends its next tick, not the ticks it missed.
+	if now - next_voice > 100:
+		next_voice = now
+		next_latest = now
+		next_beat = now
 	while now >= next_voice:
 		next_voice += 20
 		for i in voice_streams:
@@ -310,8 +318,9 @@ func _finish() -> void:
 		return
 	log_line(
 		(
-			"final sent r=%d l=%d v=%d got r=%d l=%d v=%d maxseq r=%d l=%d v=%d beats_in_order=%s pc=%d"
+			"put_errors=%d final sent r=%d l=%d v=%d got r=%d l=%d v=%d maxseq r=%d l=%d v=%d beats_in_order=%s pc=%d"
 			% [
+				put_errors,
 				seq[CH_RELIABLE],
 				seq[CH_LATEST],
 				seq[CH_VOICE],
@@ -338,8 +347,8 @@ func _run_steps() -> void:
 	while step_i < step_do.size() and _ms() - step_at >= step_after[step_i]:
 		var c: Callable = step_do[step_i]
 		step_i += 1
-		step_at = _ms()
 		c.call()
+		step_at = _ms()
 
 
 func _step(after: int, c: Callable) -> void:
@@ -385,7 +394,7 @@ func _plan() -> void:
 		_step(0, _start_traffic)
 		_step(_opt_i("hang", "30") * 1000 + 6000, _finish)
 	elif mode == "stop":
-		if mp == null:
+		if mp == null and _opt("traffic", "1") == "1":
 			_step(0, _start_traffic)
 		var stop_s: int = _opt_i("stop", "20")
 		_step(1500, func() -> void: _signal_peer("STOP"))
@@ -424,9 +433,17 @@ func _signal_peer(sig: String) -> void:
 
 
 func _freeze(ms: int) -> void:
-	log_line("freeze %d ms (main thread)" % ms)
+	log_line("freeze %d ms (main thread) rss_kb=%d" % [ms, _rss_kb()])
 	OS.delay_msec(ms)
-	log_line("thaw; pc=%d" % pc.get_connection_state())
+	log_line("thaw; pc=%d rss_kb=%d" % [pc.get_connection_state(), _rss_kb()])
+
+
+func _rss_kb() -> int:
+	var t: String = FileAccess.get_file_as_string("/proc/self/status")
+	for line: String in t.split("\n"):
+		if line.begins_with("VmRSS:"):
+			return int(line.substr(6).strip_edges().split(" ")[0])
+	return -1
 
 
 func _send_timed() -> void:

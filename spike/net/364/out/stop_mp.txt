@@ -1,0 +1,40 @@
+SPIKE r1      11 1791146791.692142 pc state -1 -> 0
+SPIKE r1      12 1791146791.692270 open after 12 ms
+SPIKE r1      26 1791146791.706357 signalling connected
+SPIKE r1      27 1791146791.707698 pc state 0 -> 1
+SPIKE r1      53 1791146791.733949 mp peer_connected 2
+SPIKE r1      53 1791146791.734025 pc state 1 -> 2
+SPIKE r1    1518 1791146793.198789 kill -STOP 5275 -> 0
+SPIKE r1   30045 1791146821.725242 mp peer_disconnected 2
+SPIKE r1   30045 1791146821.725343 pc state 2 -> 5
+SPIKE r1   30541 1791146822.222069 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   31542 1791146823.222578 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   32544 1791146824.224241 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   33544 1791146825.224699 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   34544 1791146826.225186 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   35545 1791146827.225757 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   36545 1791146828.226188 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   37546 1791146829.226883 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   38546 1791146830.227202 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   39547 1791146831.227674 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   40547 1791146832.228190 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   41548 1791146833.228629 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   41550 1791146833.230759 kill -CONT 5275 -> 0
+SPIKE r1   42555 1791146834.236029 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   43556 1791146835.236745 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   44556 1791146836.237034 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   45557 1791146837.237530 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   46557 1791146838.238086 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   47558 1791146839.238501 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   48558 1791146840.239005 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   49559 1791146841.239440 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   50559 1791146842.240010 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   51560 1791146843.240515 mp has_peer(2)=false status=2 pc=5
+SPIKE r1   51560 1791146843.240601 put_errors=0 final sent r=0 l=0 v=0 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=5
+SPIKE r2      14 1791146791.719072 pc state -1 -> 1
+SPIKE r2      28 1791146791.733177 mp peer_connected 1
+SPIKE r2      28 1791146791.733276 pc state 1 -> 2
+SPIKE r2      28 1791146791.733298 open after 28 ms
+SPIKE r2   41532 1791146833.237781 mp peer_disconnected 1
+SPIKE r2   41533 1791146833.237898 pc state 2 -> 5
+SPIKE r2   51543 1791146843.247903 put_errors=0 final sent r=0 l=0 v=0 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=5

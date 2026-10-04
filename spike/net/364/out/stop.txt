@@ -1,0 +1,76 @@
+SPIKE r1       4 1791146624.670441 channel 1 label=reliable ordered=true maxRetransmits=-1 negotiated=true
+SPIKE r1       4 1791146624.670544 channel 2 label=latest ordered=false maxRetransmits=0 negotiated=true
+SPIKE r1       4 1791146624.670563 channel 3 label=voice ordered=false maxRetransmits=0 negotiated=true
+SPIKE r1      12 1791146624.678123 signalling connected
+SPIKE r1      13 1791146624.679574 pc state -1 -> 1
+SPIKE r1      13 1791146624.679631 channel 1 state 0
+SPIKE r1      13 1791146624.679646 channel 2 state 0
+SPIKE r1      13 1791146624.679676 channel 3 state 0
+SPIKE r1      34 1791146624.700602 pc state 1 -> 2
+SPIKE r1      34 1791146624.700694 channel 1 state 1
+SPIKE r1      34 1791146624.700709 channel 2 state 1
+SPIKE r1      35 1791146624.700718 channel 3 state 1
+SPIKE r1      35 1791146624.700732 open after 35 ms
+SPIKE r1    1541 1791146626.206892 kill -STOP 4589 -> 0
+SPIKE r1   14331 1791146638.997439 pc state 2 -> 5
+SPIKE r1   14331 1791146638.997542 channel 1 state 3
+SPIKE r1   14331 1791146638.997558 channel 2 state 3
+SPIKE r1   14331 1791146638.997567 channel 3 state 3
+SPIKE r1   14552 1791146639.218229 pc=5 voice buffered=0
+SPIKE r1   15557 1791146640.222774 pc=5 voice buffered=0
+SPIKE r1   16557 1791146641.223329 pc=5 voice buffered=0
+SPIKE r1   17558 1791146642.223839 pc=5 voice buffered=0
+SPIKE r1   18558 1791146643.224346 pc=5 voice buffered=0
+SPIKE r1   19559 1791146644.224931 pc=5 voice buffered=0
+SPIKE r1   20559 1791146645.225607 pc=5 voice buffered=0
+SPIKE r1   21560 1791146646.225825 pc=5 voice buffered=0
+SPIKE r1   22561 1791146647.227130 pc=5 voice buffered=0
+SPIKE r1   23561 1791146648.227017 pc=5 voice buffered=0
+SPIKE r1   24561 1791146649.227337 pc=5 voice buffered=0
+SPIKE r1   25562 1791146650.227827 pc=5 voice buffered=0
+SPIKE r1   26562 1791146651.228298 pc=5 voice buffered=0
+SPIKE r1   27562 1791146652.228052 pc=5 voice buffered=0
+SPIKE r1   28562 1791146653.228588 pc=5 voice buffered=0
+SPIKE r1   29563 1791146654.229031 pc=5 voice buffered=0
+SPIKE r1   30563 1791146655.229657 pc=5 voice buffered=0
+SPIKE r1   31564 1791146656.230075 pc=5 voice buffered=0
+SPIKE r1   32565 1791146657.231328 pc=5 voice buffered=0
+SPIKE r1   33566 1791146658.231755 pc=5 voice buffered=0
+SPIKE r1   34566 1791146659.232264 pc=5 voice buffered=0
+SPIKE r1   35567 1791146660.232841 pc=5 voice buffered=0
+SPIKE r1   36567 1791146661.233257 pc=5 voice buffered=0
+SPIKE r1   37568 1791146662.233854 pc=5 voice buffered=0
+SPIKE r1   38568 1791146663.234287 pc=5 voice buffered=0
+SPIKE r1   39569 1791146664.234830 pc=5 voice buffered=0
+SPIKE r1   40569 1791146665.235470 pc=5 voice buffered=0
+SPIKE r1   41570 1791146666.235854 pc=5 voice buffered=0
+SPIKE r1   41572 1791146666.237871 kill -CONT 4589 -> 0
+SPIKE r1   42578 1791146667.243844 pc=5 voice buffered=0
+SPIKE r1   43578 1791146668.244611 pc=5 voice buffered=0
+SPIKE r1   44579 1791146669.244771 pc=5 voice buffered=0
+SPIKE r1   45580 1791146670.246200 pc=5 voice buffered=0
+SPIKE r1   46580 1791146671.245847 pc=5 voice buffered=0
+SPIKE r1   47580 1791146672.246443 pc=5 voice buffered=0
+SPIKE r1   48581 1791146673.247127 pc=5 voice buffered=0
+SPIKE r1   49581 1791146674.247473 pc=5 voice buffered=0
+SPIKE r1   50582 1791146675.247836 pc=5 voice buffered=0
+SPIKE r1   51582 1791146676.248151 pc=5 voice buffered=0
+SPIKE r1   51582 1791146676.248186 final sent r=516 l=1031 v=23202 got r=0 l=0 v=0 maxseq r=-1 l=-1 v=-1 beats_in_order=true pc=5
+SPIKE r2       4 1791146624.672316 channel 1 label=reliable ordered=true maxRetransmits=-1 negotiated=true
+SPIKE r2       4 1791146624.672435 channel 2 label=latest ordered=false maxRetransmits=0 negotiated=true
+SPIKE r2       4 1791146624.672453 channel 3 label=voice ordered=false maxRetransmits=0 negotiated=true
+SPIKE r2      13 1791146624.681723 pc state -1 -> 1
+SPIKE r2      13 1791146624.681780 channel 1 state 0
+SPIKE r2      13 1791146624.681801 channel 2 state 0
+SPIKE r2      13 1791146624.681833 channel 3 state 0
+SPIKE r2      34 1791146624.702792 pc state 1 -> 2
+SPIKE r2      34 1791146624.702858 channel 1 state 1
+SPIKE r2      35 1791146624.702872 channel 2 state 1
+SPIKE r2      35 1791146624.702881 channel 3 state 1
+SPIKE r2      35 1791146624.702894 open after 35 ms
+SPIKE r2   41570 1791146666.238070 first poll after a 40037 ms gap read reliable=1 latest=1 voice=9
+SPIKE r2   41577 1791146666.244955 pc state 2 -> 5
+SPIKE r2   41577 1791146666.245030 channel 1 state 3
+SPIKE r2   41577 1791146666.245051 channel 2 state 3
+SPIKE r2   41577 1791146666.245085 channel 3 state 3
+SPIKE r2   51587 1791146676.255024 final sent r=0 l=0 v=0 got r=17 l=33 v=731 maxseq r=16 l=32 v=730 beats_in_order=true pc=5
