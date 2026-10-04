@@ -1,5 +1,6 @@
 """Claude Code hooks: the fail-closed wrapper .claude/hooks/run-hook.sh, and the parts of the .gd post-edit hook."""
 
+import io
 import json
 import os
 import re
@@ -26,7 +27,9 @@ class WrapperTest(unittest.TestCase):
         bash = git_bash()
         self.assertIsNotNone(bash, "Git Bash (or bash) is needed to run the hooks")
         full = {**os.environ, "CLAUDE_PROJECT_DIR": str(ROOT)}
-        for key, value in env.items():
+        # A desktop session unless a test says otherwise: in a cloud session on a task branch the main checkout is
+        # the session's own (#381), and these tests judge it as a desktop session's.
+        for key, value in {"CLAUDE_CODE_REMOTE": None, **env}.items():
             if value is None:
                 full.pop(key, None)
             else:
@@ -179,6 +182,45 @@ class PostEditTest(unittest.TestCase):
             assert stamp is not None
             self.assertGreaterEqual(stamp, started)
             self.assertEqual(check.freshness(root).why, "")
+
+
+class CloudSessionTest(unittest.TestCase):
+    """Issue #381: the hook tells the guard it runs in a cloud session, by the same test as doctor.cloud_twovoip."""
+
+    def test_the_cloud_test_is_remote_without_ci(self) -> None:
+        from runner import common
+
+        for cloud, ci, expected in ((True, False, True), (True, True, False), (False, False, False)):
+            with self.subTest(cloud=cloud, ci=ci):
+                self.assertEqual(common.cloud_session(cloud, ci), expected)
+                with unittest.mock.patch.multiple(common, IS_CLOUD=cloud, IS_CI=ci):
+                    self.assertEqual(common.cloud_session(), expected)
+
+    def test_the_hook_owns_the_main_checkout_only_in_a_cloud_session_on_a_task_branch(self) -> None:
+        from runner import common
+
+        class Repo(guard.NoRepo):
+            def __init__(self, root: str, branch: str) -> None:
+                self.name = branch
+
+            def branch(self, checkout: str) -> str | None:
+                return self.name
+
+        call = {"tool_name": "Bash", "tool_input": {"command": "git reset -q --soft HEAD~2"}, "cwd": MAIN}
+        for cloud, ci, branch, asks in (
+            (True, False, "tooling/381-guard-cloud-checkout", False),
+            (True, False, "main", True),
+            (True, True, "tooling/381-guard-cloud-checkout", True),
+            (False, False, "tooling/381-guard-cloud-checkout", True),
+        ):
+            with (
+                self.subTest(cloud=cloud, ci=ci, branch=branch),
+                unittest.mock.patch.multiple(common, IS_CLOUD=cloud, IS_CI=ci),
+                unittest.mock.patch.object(hooks, "GitFiles", lambda root, b=branch: Repo(root, b)),
+                unittest.mock.patch("sys.stdout", new_callable=io.StringIO) as out,
+            ):
+                self.assertEqual(hooks.pre_tool_use(call), 0)
+                self.assertEqual('"permissionDecision": "ask"' in out.getvalue(), asks, out.getvalue())
 
 
 class GitFilesTest(unittest.TestCase):

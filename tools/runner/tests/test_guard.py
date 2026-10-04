@@ -726,6 +726,110 @@ class OwnWorktreeTest(unittest.TestCase):
         self.assertIn("§8.2", text)
 
 
+# Issue #381: a cloud session works in the main checkout, on its task branch, with no worktree.
+CLOUD_TASK = "tooling/381-guard-cloud-checkout"
+
+
+class CloudRepo(FakeRepo):
+    """The main checkout of a cloud session, on main_branch; worktree 47 belongs to another session."""
+
+    def __init__(self, main_branch: str | None = CLOUD_TASK, stash: list[str] | None = None) -> None:
+        super().__init__(stash=stash if stash is not None else [CLOUD_TASK])
+        self.main_branch = main_branch
+
+    def branch(self, checkout: str) -> str | None:
+        return self.main_branch if checkout == "d:/prime-game" else super().branch(checkout)
+
+    def refs(self) -> set[str]:
+        return super().refs() | {CLOUD_TASK, "release/m6", "origin/release/m6"}
+
+
+def in_cloud(
+    shell: str, command: str, cwd: str = ROOT, repo: guard.NoRepo | None = None, cloud: bool = True
+) -> list[guard.Finding]:
+    return guard.check(command, shell, cwd, ROOT, "", repo or CloudRepo(), cloud=cloud)
+
+
+# (shell, command) run by a cloud session in the main checkout on its task branch: its own work never asks.
+CLOUD_WORK = [
+    (B, "git reset -q --soft HEAD~2"),
+    (B, "git reset --hard origin/main"),
+    (B, "git rebase origin/main"),
+    (B, "GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/tooling/381-guard-cloud-checkout"),
+    (B, "git checkout -- tools/runner/guard.py"),
+    (B, "git restore core/x.gd"),
+    (B, "git clean -fd"),
+    (B, "git checkout -f"),
+    (B, f"git branch -D {CLOUD_TASK}-backup"),
+    (B, "git stash drop"),
+    (B, "rm -rf core/tmp"),
+    (B, "cd core && git reset --hard HEAD~1 && rm -rf tmp"),
+    (B, "cd /tmp && git -C D:/prime-game reset --soft HEAD~1"),
+    (P, "git reset --soft HEAD~2; Remove-Item -Recurse tests\\integration\\tmp"),
+]
+
+# (shell, command) that still asks in a cloud session on its task branch: other checkouts, other branches, the
+# repository itself, the checkout's folder, and the protected paths.
+CLOUD_BEYOND = [
+    (B, "git -C D:/prime-game/.claude/worktrees/47 reset --hard"),
+    (B, "cd .claude/worktrees/47 && git rebase origin/main"),
+    (B, "git --git-dir=.git/worktrees/47 --work-tree=.claude/worktrees/47 clean -fdx"),
+    (B, "git checkout -- .claude/worktrees/47/core"),
+    (B, "rm -rf .claude/worktrees/47"),
+    (B, "rm -rf .claude/worktrees"),
+    (B, "rm -rf .claude"),
+    (B, "rm -rf .git"),
+    (B, "rm -rf .g*"),
+    (B, "rm -rf .git/refs"),
+    (B, "rm -rf D:/prime-game"),
+    (B, "cd .. && rm -rf prime-game"),
+    (B, "rm -rf addons/gdUnit4"),
+    (B, "git checkout -- addons"),
+    (B, "git branch -D main"),
+    (B, "git branch -f release/m6 HEAD"),
+    (B, "git rebase origin/main release/m6"),
+    (B, "git switch main && git reset --hard origin/main"),
+    (B, "git checkout -f main"),
+    (B, "git branch -D tooling/365-other"),
+    (B, "git worktree remove D:/prime-game"),
+    (B, "git -c core.hooksPath=/dev/null push"),
+]
+
+
+class CloudCheckoutTest(unittest.TestCase):
+    def test_a_cloud_session_on_its_task_branch_owns_the_main_checkout(self) -> None:
+        for shell, command in CLOUD_WORK:
+            for cwd in (ROOT, ROOT + "\\tools"):
+                with self.subTest(shell=shell, command=command, cwd=cwd):
+                    self.assertEqual(in_cloud(shell, command, cwd), [])
+
+    def test_beyond_its_checkout_and_branch_a_cloud_session_still_asks(self) -> None:
+        for shell, command in CLOUD_BEYOND:
+            with self.subTest(shell=shell, command=command):
+                self.assertTrue(in_cloud(shell, command), "expected the guard to ask")
+
+    def test_a_cloud_session_on_main_or_a_release_branch_still_asks(self) -> None:
+        for branch in ("main", "release/m6", "feature-x", "Tooling/381-guard", None):
+            for command in ("git reset -q --soft HEAD~2", "git rebase origin/main", "git clean -fd", "rm -rf core"):
+                with self.subTest(branch=branch, command=command):
+                    self.assertTrue(in_cloud(B, command, repo=CloudRepo(branch)), "expected the guard to ask")
+
+    def test_a_desktop_session_in_the_main_checkout_still_asks(self) -> None:
+        for shell, command in CLOUD_WORK:
+            with self.subTest(shell=shell, command=command):
+                self.assertTrue(in_cloud(shell, command, cloud=False), "expected the guard to ask")
+
+    def test_a_worktree_in_the_cloud_keeps_its_own_rules(self) -> None:
+        own = ROOT + "\\.claude\\worktrees\\51"
+        self.assertEqual(in_cloud(B, "git reset --hard HEAD~1", cwd=own), [])
+        self.assertTrue(in_cloud(B, "git -C D:/prime-game reset --hard", cwd=own))
+
+    def test_the_task_branch_form_matches_publish(self) -> None:
+        from runner import publish
+
+        self.assertEqual(guard.TASK_BRANCH_RE.pattern, publish.TASK_BRANCH_RE.pattern)
+
+
 class GuardTest(unittest.TestCase):
     def test_asks_before_writes_to_protected_paths(self) -> None:
         for shell, command in ASKS:

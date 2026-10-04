@@ -65,12 +65,14 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     command = tool_input.get("command")
     if not isinstance(command, str):
         raise ValueError(f"{tool} call without a command string")
-    from . import guard
+    from . import common, guard
 
     shell = guard.BASH if tool == "Bash" else guard.POWERSHELL
     home = os.path.expanduser("~")  # so that `~/<project>` stays protected when the checkout is under home
     cwd = str(payload.get("cwd") or "")
-    findings = guard.check(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT))
+    # A cloud session works in the main checkout on its task branch: there it is the session's own (#381).
+    cloud = common.cloud_session()
+    findings = guard.check(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT), cloud)
     if findings:
         _emit("PreToolUse", permissionDecision="ask", permissionDecisionReason=guard.reason(findings))
     return 0

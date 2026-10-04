@@ -37,8 +37,11 @@ two commands by their target (issue #47):
 
 The session's own worktree is free (issue #51): the worktree `.claude/worktrees/<n>` its working directory is in, or,
 for a session in the main checkout (a manager's task session, whose shell starts there on every call), the first
-worktree its command enters with `cd` or `git -C`. The main checkout is never owned. Inside the own worktree (not its
-folder itself) recursive deletes pass. Git commands that discard work or rewrite history (`reset` that discards or
+worktree its command enters with `cd` or `git -C`. The main checkout is owned only by a cloud session (issue #381:
+`CLAUDE_CODE_REMOTE` true and `CI` unset, common.cloud_session) whose working directory is in no worktree, while a
+task branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, and the repository (`.git`),
+`.claude` and the other worktrees (`.claude/worktrees`) stay outside it. Inside the own worktree (not its folder
+itself) recursive deletes pass. Git commands that discard work or rewrite history (`reset` that discards or
 moves, `checkout`/`restore` of paths, `clean`, forced `checkout`/`switch`, `rebase`, `stash drop|clear`,
 `worktree remove|move`) pass there on the task branch, and in a repository outside the project; they ask in the main
 checkout, in another worktree, after the command switched to another branch, and when their pathspec reaches another
@@ -94,6 +97,9 @@ OUTSIDE_VARS = {
 VAR_RE = re.compile(r"\$\{(\w+)\}|\$env:(\w+)|\$(\w+)|%(\w+)%", re.IGNORECASE)
 ASSIGN_RE = re.compile(r"^\$?([A-Za-z_]\w*)=(.*)$", re.DOTALL)
 PS_VAR_RE = re.compile(r"^\$(?:env:)?([A-Za-z_]\w*)$")
+
+# A task branch, as start.py names it: `<area>/<n>-<slug>` (the same form as publish.TASK_BRANCH_RE).
+TASK_BRANCH_RE = re.compile(r"^[a-z][a-z0-9]*/[0-9]+-[a-z0-9][a-z0-9._-]*$")
 
 # Words that only prefix the real command.
 PREFIXES = {
@@ -520,10 +526,24 @@ class Paths:
         return match.group(1) if match else None
 
     def owned(self, path: str, root_too: bool = False) -> bool:
-        """A resolved path is inside the session's own worktree (or is its folder, with root_too)."""
+        """A resolved path is inside the session's own worktree (or is its folder, with root_too). A cloud session's
+        main checkout (issue #381) holds the other worktrees and the repository: they are never its own."""
         if not self.own:
             return False
+        if self.own == self.root and self.shared(path):
+            return False
         return path.startswith(self.own + "/") or (root_too and path == self.own)
+
+    def shared(self, path: str) -> bool:
+        """A resolved path in the main checkout is, or may match by a glob, the repository (`.git`), `.claude` or
+        `.claude/worktrees`, or is inside one of them: every checkout's, not one session's."""
+        if not path.startswith(self.root + "/"):
+            return False
+        parts = path[len(self.root) + 1 :].split("/")
+        if fnmatch.fnmatchcase(".git", parts[0]):
+            return True
+        in_claude = fnmatch.fnmatchcase(".claude", parts[0])
+        return in_claude and (len(parts) == 1 or fnmatch.fnmatchcase("worktrees", parts[1]))
 
     def claim_worktree(self, path: str | None) -> None:
         """A session outside every worktree owns the first worktree its command enters, unless another live session
@@ -1274,10 +1294,15 @@ class Finding:
 
 
 class Analysis:
-    def __init__(self, paths: Paths, repo: NoRepo | None = None) -> None:
+    def __init__(self, paths: Paths, repo: NoRepo | None = None, cloud: bool = False) -> None:
         self.paths = paths
         self.repo = repo or NoRepo()
         self.paths.busy = self.repo.busy
+        # A cloud session in no worktree owns the main checkout while its task branch is checked out there (#381).
+        self.root_task = ""
+        main = self.repo.branch(paths.root) if cloud and paths.own is None else None
+        if main and TASK_BRANCH_RE.match(main):
+            paths.own, paths.claim, self.root_task = paths.root, False, main.lower()
         self.findings: list[Finding] = []
         self.piped_first: dict[int, list[str]] = {}
         # The `VAR=value` prefixes of the simple command being judged (`GIT_DIR=x git reset`).
@@ -1494,10 +1519,14 @@ class Analysis:
         return current.lower() if current and self.task_name(current) else None
 
     def task_name(self, name: str) -> bool:
-        """name has the form of the own task's branches: `<area>/<n>-...` for the own worktree `<n>`."""
+        """name has the form of the own task's branches: `<area>/<n>-...` for the own worktree `<n>`, or for the
+        task branch a cloud session's main checkout was on when the command started."""
         if not self.paths.own:
             return False
-        number = re.escape(self.paths.own.rsplit("/", 1)[-1])
+        if self.paths.own == self.paths.root:
+            number = re.escape(self.root_task.split("/", 1)[1].split("-", 1)[0])
+        else:
+            number = re.escape(self.paths.own.rsplit("/", 1)[-1])
         return bool(re.match(rf"^[^/]+/{number}-", name.lower().removeprefix("refs/heads/")))
 
     def own_branch(self, name: str) -> bool:
@@ -1720,7 +1749,7 @@ class Analysis:
         for target in _positionals(rest[1:])[:1]:
             path = self.paths.resolve(target, base if base is not None else "")
             absolute = bool(ABSOLUTE_RE.match(target))
-            if path is not None and self.paths.own and path == self.paths.own:
+            if path is not None and self.paths.own and path == self.paths.own != self.paths.root:
                 continue
             if path is not None and absolute and self.paths.place(path) == OUTSIDE_PROJECT:
                 continue
@@ -1920,12 +1949,15 @@ GIT_JUDGES = {
 }
 
 
-def check(command: str, shell: str, cwd: str, root: str, home: str = "", repo: NoRepo | None = None) -> list[Finding]:
+def check(
+    command: str, shell: str, cwd: str, root: str, home: str = "", repo: NoRepo | None = None, cloud: bool = False
+) -> list[Finding]:
     """Findings for one Bash or PowerShell command run in cwd; empty when it writes to no ask-protected path of the
     project at root, and deletes recursively or discards git work only in the session's own worktree, on its task
     branch, or outside the project. home is the user's home folder, when known: `~` and `$HOME` resolve to it. repo
-    tells branch and stash names (hooks.GitFiles); without it no branch is the session's own."""
-    analysis = Analysis(Paths(root, cwd, home, shell), repo)
+    tells branch and stash names (hooks.GitFiles); without it no branch is the session's own. cloud: the command
+    runs in a cloud session (common.cloud_session), whose main checkout on a task branch is its own (issue #381)."""
+    analysis = Analysis(Paths(root, cwd, home, shell), repo, cloud)
     analysis.command(command, shell)
     return analysis.findings
 
