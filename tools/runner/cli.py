@@ -38,6 +38,12 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="K",
         help="K GdUnit4 processes at once (1: one process). Default: with no paths, from the CPU count; with paths, 1",
     )
+    p.add_argument(
+        "--fixed-fps",
+        action="store_true",
+        help="frame-bound suites on a simulated clock (--fixed-fps 60): the named paths all, else "
+        "gdunit.FIXED_FPS_SUITES in shards of their own. Off by default; verify, CI and the nightly never use it (#280)",
+    )
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
     sub.add_parser("selftest", help="unit tests of the runner itself")
@@ -265,12 +271,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "test":
             from . import gdunit
 
+            fixed = {"fixed_fps": True} if args.fixed_fps else {}
             if args.repeat is not None:
                 if args.shards is not None:
                     raise Failure("--repeat runs one process per run; drop --shards")
-                return gdunit.repeat(args.repeat, paths=args.paths or None)
+                return gdunit.repeat(args.repeat, paths=args.paths or None, **fixed)
             shards = {"shards": args.shards} if args.shards is not None else {}
-            return gdunit.main(paths=args.paths or None, **shards)
+            return gdunit.main(paths=args.paths or None, **shards, **fixed)
         if args.command == "verify":
             from . import verify
 

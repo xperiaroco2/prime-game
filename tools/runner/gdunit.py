@@ -11,7 +11,7 @@ import subprocess
 import threading
 import xml.etree.ElementTree as ET
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -33,6 +33,7 @@ from .common import (
     say,
     warn,
 )
+from .perf import FIXED_FPS
 
 TIMEOUT = 600
 REPORT_DIR = OUT / "gdunit"
@@ -199,17 +200,28 @@ def default_suites(tests_dir: Path) -> list[str]:
     ]
 
 
-def main(paths: list[str] | None = None, run_import: bool = True, shards: int | None = None) -> int:
+def main(
+    paths: list[str] | None = None, run_import: bool = True, shards: int | None = None, fixed_fps: bool = False
+) -> int:
     """`test`: with no paths, the suites in several GdUnit4 processes at once (the shards below); with paths, or
-    with one shard, one process as before #182. `shards` is `--shards K` (1: one process)."""
+    with one shard, one process as before #182. `shards` is `--shards K` (1: one process). `fixed_fps` is
+    `test --fixed-fps` (#280, the fixed-fps section below): never on unless asked for, so verify stays real-time."""
     global LAST_RUN
     LAST_RUN = None
-    say("test")
+    say("test" + (f" --fixed-fps ({FIXED_FPS})" if fixed_fps else ""))
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():
         raise Failure("no tests/ directory")
     count, why = shard_count(paths, shards)
+    if fixed_fps and not paths and count < 2:
+        raise Failure(
+            "--fixed-fps with no paths runs the listed suites in a process of their own, which needs a per-process "
+            "user:// (Windows: APPDATA, Linux: XDG_DATA_HOME)"
+            if why == "no per-process user://"
+            else f"--fixed-fps with no paths runs the listed suites in a process of their own, but {why} gives one "
+            "process: give --shards 2 or more"
+        )
     if run_import:
         # The class cache must be current, or new class_name suites fail to resolve. One import for every shard.
         from .check import run_import as do_import
@@ -217,15 +229,17 @@ def main(paths: list[str] | None = None, run_import: bool = True, shards: int | 
         for line in do_import("test-import"):
             bad(f"import: {line} (run `check` for details)")
     shutil.rmtree(REPORT_DIR, ignore_errors=True)
-    failed = run_shards(selectors(paths, tests_dir), count, why) if count > 1 else None
+    failed = run_shards(selectors(paths, tests_dir), count, why, fixed_fps, bool(paths)) if count > 1 else None
     if failed is None:
-        res = godot(_args(paths, tests_dir), timeout=TIMEOUT, log="test")
+        # One process: at fixed fps only for named paths (a run without paths keeps the rest real-time).
+        fixed = fixed_fps and bool(paths)
+        res = godot(_args(paths, tests_dir, FIXED_FPS_ARGS if fixed else ()), timeout=TIMEOUT, log="test")
         reports = _reports()
         _remember([process_record(1, res, reports)], _failed(res, reports))
         if res.timed_out:
             raise Failure(f"tests timed out after {TIMEOUT}s (log: tools/out/logs/test.log)")
         failed = _judge(res.rc, res.out, reports, "tools/out/logs/test.log")
-        record_times(reports[-1:])
+        record_times(reports[-1:], FIXED_KEY if fixed else SUITES_KEY)
     say("test: FAILED" if failed else "test: passed")
     return 1 if failed else 0
 
@@ -238,16 +252,19 @@ def selectors(paths: list[str] | None, tests_dir: Path) -> list[str]:
     ]
 
 
-def _args(paths: list[str] | None, tests_dir: Path) -> list[str]:
-    return _command(selectors(paths, tests_dir), "res://tools/out/gdunit")
+def _args(paths: list[str] | None, tests_dir: Path, engine_args: Sequence[str] = ()) -> list[str]:
+    return _command(selectors(paths, tests_dir), "res://tools/out/gdunit", engine_args)
 
 
-def _command(items: list[str], report_dir: str) -> list[str]:
+def _command(items: list[str], report_dir: str, engine_args: Sequence[str] = ()) -> list[str]:
+    """GdUnit4's command line. `engine_args` (FIXED_FPS_ARGS) go before `-s`: GdUnitCmdTool's argument parser skips
+    everything before its own script, so the engine reads them and GdUnit4 never sees them."""
     selected: list[str] = []
     for item in items:
         selected += ["-a", item]
     return [
         "--headless",
+        *engine_args,
         "-s",
         "res://addons/gdUnit4/bin/GdUnitCmdTool.gd",
         "--ignoreHeadlessMode",
@@ -441,36 +458,50 @@ def suite_times(report: Path) -> dict[str, float]:
     return times
 
 
-def _load_times(path: Path) -> dict[str, float]:
+# TIMES holds a map per clock: real-time seconds under SUITES_KEY (what the shards of verify and CI are balanced by)
+# and seconds at --fixed-fps under FIXED_KEY (#280), so a fixed-fps run never skews a real-time plan.
+SUITES_KEY, FIXED_KEY = "suites", "fixed_fps"
+
+
+def _load_file(path: Path) -> dict[str, object]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        suites = data.get("suites") if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _load_times(path: Path, key: str = SUITES_KEY) -> dict[str, float]:
+    suites = _load_file(path).get(key)
+    try:
         return {str(k): float(v) for k, v in suites.items()} if isinstance(suites, dict) else {}
-    except (OSError, ValueError, TypeError, AttributeError):
+    except (ValueError, TypeError):
         return {}
 
 
-def record_times(reports: list[Path]) -> None:
-    """Merge the suites' seconds of a run into TIMES (a suite this run did not run keeps its last time; one whose
-    script is gone is dropped). Every run records, a run of named paths too."""
+def record_times(reports: list[Path], key: str = SUITES_KEY) -> None:
+    """Merge the suites' seconds of a run into TIMES under `key` (a suite this run did not run keeps its last time;
+    one whose script is gone is dropped); every other key of the file is kept. Every run records, a run of named
+    paths too."""
     found: dict[str, float] = {}
     for report in reports:
         found.update(suite_times(report))
     if not found:
         return
-    merged = {**_load_times(TIMES), **found}
-    times = {k: v for k, v in sorted(merged.items()) if (ROOT / k.removeprefix("res://")).is_file()}
+    data = _load_file(TIMES)
+    merged = {**_load_times(TIMES, key), **found}
+    data[key] = {k: v for k, v in sorted(merged.items()) if (ROOT / k.removeprefix("res://")).is_file()}
     try:
         ensure_out()
-        TIMES.write_text(json.dumps({"suites": times}, indent=1) + "\n", encoding="utf-8", newline="\n")
+        TIMES.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8", newline="\n")
     except OSError as exc:
         warn(f"could not write {TIMES}: {exc}")
 
 
-def read_times() -> tuple[dict[str, float], str]:
-    """The last per-suite times and where they came from: this checkout's TIMES, else (a fresh worktree) the newest
-    TIMES of another checkout of this clone (read only), else none (then every suite counts the same)."""
-    own = _load_times(TIMES)
+def read_times(key: str = SUITES_KEY) -> tuple[dict[str, float], str]:
+    """The last per-suite times under `key` and where they came from: this checkout's TIMES, else (a fresh worktree)
+    the newest TIMES of another checkout of this clone (read only), else none (then every suite counts the same)."""
+    own = _load_times(TIMES, key)
     if own:
         return own, TIMES.relative_to(ROOT).as_posix()
     res = git("worktree", "list", "--porcelain")
@@ -482,7 +513,7 @@ def read_times() -> tuple[dict[str, float], str]:
             if folder.resolve() != ROOT.resolve() and candidate.is_file():
                 others.append((candidate.stat().st_mtime, candidate))
     for _mtime, candidate in sorted(others, reverse=True):
-        times = _load_times(candidate)
+        times = _load_times(candidate, key)
         if times:
             return times, f"{candidate.as_posix()} (this checkout has no times yet)"
     return {}, "no times yet: every suite counts the same"
@@ -506,6 +537,78 @@ def plan_shards(costs: dict[str, float], count: int) -> list[list[str]]:
         shards[index].append(res)
         loads[index] += costs[res]
     return [sorted(shard) for shard in shards]
+
+
+# --- fixed fps (#280) -------------------------------------------------------------------------------------------
+# `test --fixed-fps` runs frame-bound suites with the engine's `--fixed-fps 60`: each frame then counts as 1/60 s of
+# game time however fast the machine renders it, so a suite that steps physics frames on a simulated clock (NetPair's
+# or the test's own over the LoopbackHub) runs as fast as the CPU allows instead of at wall-clock speed. 60 is the
+# project's physics ticks per second (the default; project.godot sets none) and perf's FIXED_FPS, so each frame runs
+# exactly one physics step. That is also what it hides: a frame never runs several physics steps, the condition
+# behind #222 and #225, so verify, CI and the nightly flaky job stay real-time (N4 (a)) and only a human asks for it.
+FIXED_FPS_ARGS: tuple[str, ...] = ("--fixed-fps", FIXED_FPS)
+# The suites a run without paths takes at fixed fps, in shards of their own: frame-bound, on NetPair's or the test's
+# simulated clock over the LoopbackHub, measured green 10 runs in a row each (#280). Never an audio or ENet suite.
+FIXED_FPS_SUITES: tuple[str, ...] = (
+    "res://tests/integration/client/app/game_loop_test.gd",
+    "res://tests/integration/client/life/life_network_test.gd",
+    "res://tests/integration/client/life/spectate_network_test.gd",
+    "res://tests/integration/client/player/player_controller_downed_test.gd",
+    "res://tests/integration/client/player/player_controller_push_test.gd",
+    "res://tests/integration/client/player/player_controller_test.gd",
+    "res://tests/integration/client/player/player_network_push_test.gd",
+    "res://tests/integration/client/player/player_network_sprint_test.gd",
+    "res://tests/integration/client/player/player_network_test.gd",
+)
+# A fixed-fps suite with no time at fixed fps yet is planned at its real-time seconds over this, so the first
+# `test --fixed-fps` of a checkout is balanced too. Measured in #280 on a quiet PC: the 9 took 284 s real-time and
+# 22.7 s at fixed fps (medians of 10 runs each, 12.5x), and their shard 28 to 32 s with its start-up: 10x. A CPU-bound
+# suite on a busy PC gains less (2.3x seen beside a 100 % CPU load).
+FIXED_FPS_SPEEDUP = 10.0
+
+
+def fixed_set(suites: dict[str, list[str]], paths: list[str] | None) -> set[str]:
+    """The suites of a --fixed-fps run that run at fixed fps: every one of named paths, else FIXED_FPS_SUITES (a
+    listed suite the scan did not find is named, since the list has gone stale)."""
+    if paths:
+        return set(suites)
+    gone = [res for res in FIXED_FPS_SUITES if res not in suites]
+    if gone:
+        warn(f"--fixed-fps: listed suites the scan did not find ({len(gone)}): {', '.join(gone)}; "
+             "update gdunit.FIXED_FPS_SUITES")  # fmt: skip
+    return {res for res in FIXED_FPS_SUITES if res in suites}
+
+
+def fixed_times(fixed: set[str], times: dict[str, float], at_fixed: dict[str, float]) -> dict[str, float]:
+    """The planning seconds of the fixed-fps suites: the last time at fixed fps, else the real-time one over
+    FIXED_FPS_SPEEDUP (a suite with neither keeps estimates' real-time mean)."""
+    found = {res: times[res] / FIXED_FPS_SPEEDUP for res in fixed if res in times}
+    found.update({res: at_fixed[res] for res in fixed if res in at_fixed})
+    return found
+
+
+def split_shards(costs: dict[str, float], fixed: set[str], count: int) -> list[tuple[list[str], bool]]:
+    """The scripts in `count` shards, each real-time (False) or at fixed fps (True): plan_shards on each group, with
+    the number of fixed shards that gives the shortest longest shard (ties: fewer fixed shards). Every shard gets a
+    suite that costs something; the scripts that cost nothing (helpers) go with the real-time group, or with the fixed
+    group when every suite is fixed. Needs count at most the number of scripts that cost something."""
+    paid = [res for res in costs if costs[res] > 0]
+    fixed_paid = [res for res in paid if res in fixed]
+    real_paid = [res for res in paid if res not in fixed]
+    free = {res: 0.0 for res in costs if costs[res] <= 0}
+    if not fixed_paid:
+        return [(shard, False) for shard in plan_shards(costs, count)]
+    if not real_paid:
+        return [(shard, True) for shard in plan_shards(costs, count)]
+
+    def makespan(group: list[str], n: int) -> float:
+        return max(sum(costs[res] for res in shard) for shard in plan_shards({r: costs[r] for r in group}, n))
+
+    low, high = max(1, count - len(real_paid)), min(count - 1, len(fixed_paid))
+    best = min(range(low, high + 1), key=lambda f: (max(makespan(fixed_paid, f), makespan(real_paid, count - f)), f))
+    fixed_plan = plan_shards({res: costs[res] for res in fixed_paid}, best)
+    real_plan = plan_shards({**{res: costs[res] for res in real_paid}, **free}, count - best)
+    return [(shard, True) for shard in fixed_plan] + [(shard, False) for shard in real_plan]
 
 
 def merge_junit(reports: list[Path]) -> ET.Element:
@@ -587,8 +690,14 @@ class ShardRun:
     index: int
     scripts: list[str]
     expected_seconds: float
+    engine_args: list[str] = field(default_factory=list)  # FIXED_FPS_ARGS for a fixed-fps shard (#280)
     result: Result | None = None
     error: str = ""
+
+    @property
+    def clock(self) -> str:
+        """How the shard's lines end: its engine args, or nothing for a real-time shard."""
+        return f" at {' '.join(self.engine_args)}" if self.engine_args else ""
 
     @property
     def log(self) -> str:
@@ -603,9 +712,12 @@ class ShardRun:
         return SHARD_USER / f"shard-{self.index}"
 
 
-def run_shards(items: list[str], count: int, why: str) -> bool | None:
+def run_shards(
+    items: list[str], count: int, why: str, fixed_fps: bool = False, named: bool = False
+) -> bool | None:
     """Run the suites under the selectors in `count` processes at once; True when the run failed. None when fewer
-    than two suites are found: the caller runs them in one process."""
+    than two suites are found: the caller runs them in one process. With `fixed_fps`, the fixed-fps suites (every
+    suite of `named` paths, else FIXED_FPS_SUITES) run at --fixed-fps in shards of their own (split_shards)."""
     files = script_files(items)
     # Only a suite that declares a test function weighs in the plan: a base class alone runs no test case, and a
     # GdUnit4 process given no test case writes no results.xml.
@@ -615,12 +727,22 @@ def run_shards(items: list[str], count: int, why: str) -> bool | None:
     count = min(count, len(suites))
     times, source = read_times()
     costs = estimates(files, suites, times)
-    plan = plan_shards(costs, count)
-    runs = [ShardRun(i, scripts, sum(costs[s] for s in scripts)) for i, scripts in enumerate(plan, 1)]
+    fixed: set[str] = set()
+    if fixed_fps:
+        fixed = fixed_set(suites, items if named else None)
+        at_fixed, fixed_source = read_times(FIXED_KEY)
+        costs.update({res: max(s, 0.001) for res, s in fixed_times(fixed, times, at_fixed).items()})
+        by = fixed_source if at_fixed else f"their real-time seconds / {FIXED_FPS_SPEEDUP:g}"
+        source += f"; the {len(fixed)} at --fixed-fps {FIXED_FPS} by {by}"
+    plan = split_shards(costs, fixed, count)
+    runs = [
+        ShardRun(i, scripts, sum(costs[s] for s in scripts), list(FIXED_FPS_ARGS) if at_fps else [])
+        for i, (scripts, at_fps) in enumerate(plan, 1)
+    ]
     say(f"test: {count} GdUnit4 processes at once ({why}), {len(suites)} suites balanced by {source}")
     for shard in runs:
         n = sum(s in suites for s in shard.scripts)
-        say(f"        shard {shard.index}: {n} suites, about {shard.expected_seconds:.0f}s by those times")
+        say(f"        shard {shard.index}: {n} suites, about {shard.expected_seconds:.0f}s by those times{shard.clock}")
     shutil.rmtree(SHARD_USER, ignore_errors=True)
     _run_parallel(runs)
     return _judge_shards(runs, suites)
@@ -641,7 +763,7 @@ def _run_parallel(runs: list[ShardRun]) -> None:
     def one(shard: ShardRun) -> None:
         try:
             shard.result = godot(
-                _command(shard.scripts, "res://" + shard.report_dir.relative_to(ROOT).as_posix()),
+                _command(shard.scripts, "res://" + shard.report_dir.relative_to(ROOT).as_posix(), shard.engine_args),
                 timeout=TIMEOUT,
                 log=shard.log,
                 env={var: str(shard.user_root)},
@@ -669,6 +791,7 @@ def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
     """Each shard judged as a one-process run is, then the merged results.xml against the one-process scan."""
     failed = False
     reports: list[Path] = []
+    fixed_reports: list[Path] = []
     processes, failures = [], []
     for shard in runs:
         found = sorted(shard.report_dir.glob("report_*/results.xml"))
@@ -683,7 +806,8 @@ def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
             bad(f"{label}: could not start: {shard.error}")
             failed = True
             continue
-        say(f"        {label}: {res.seconds:.1f}s (expected about {shard.expected_seconds:.0f}s), exit {res.rc}")
+        say(f"        {label}: {res.seconds:.1f}s (expected about {shard.expected_seconds:.0f}s), exit {res.rc}"
+            f"{shard.clock}")  # fmt: skip
         if res.timed_out:
             bad(f"{label}: timed out after {TIMEOUT}s (log: {log})")
             failed = True
@@ -694,6 +818,7 @@ def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
                 "may be the shared one. Run `test --shards 1` and report it")  # fmt: skip
             failed = True
         reports += found[-1:]
+        fixed_reports += found[-1:] if shard.engine_args else []
     _combined_log(runs)
     if not reports:
         bad("no shard wrote a results.xml")
@@ -712,7 +837,8 @@ def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
         failed = True
     if not failed:
         ok(f"{junit.tests} tests passed in {len(runs)} processes (report: {path.relative_to(ROOT).as_posix()})")
-    record_times(reports)
+    record_times([report for report in reports if report not in fixed_reports])
+    record_times(fixed_reports, FIXED_KEY)
     return failed
 
 
@@ -819,13 +945,15 @@ def summary_markdown(summary: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True) -> int:
+def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, fixed_fps: bool = False) -> int:
     """`test --repeat N`: N runs one after another; any failed run fails it. Each run's report goes to
     tools/out/gdunit-runs/run-<i>/ and its log to tools/out/logs/test-run<i>.log; summary.json and summary.md compare
-    them."""
+    them. `fixed_fps` (named paths only) runs every one at FIXED_FPS_ARGS, and summary.json says so."""
     if runs < 1:
         raise Failure("--repeat must be at least 1")
-    say(f"test --repeat {runs}")
+    if fixed_fps and not paths:
+        raise Failure("--repeat with --fixed-fps needs the paths to run at fixed fps")
+    say(f"test --repeat {runs}" + (f" --fixed-fps ({FIXED_FPS})" if fixed_fps else ""))
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():
@@ -837,7 +965,8 @@ def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True) -
             bad(f"import: {line} (run `check` for details)")
     shutil.rmtree(RUNS_DIR, ignore_errors=True)
     RUNS_DIR.mkdir(parents=True)
-    args = _args(paths, tests_dir)
+    engine_args = FIXED_FPS_ARGS if fixed_fps else ()
+    args = _args(paths, tests_dir, engine_args)
     outcomes: list[RunOutcome] = []
     for index in range(1, runs + 1):
         say(f"test: run {index} of {runs}")
@@ -858,6 +987,8 @@ def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True) -
             shutil.copytree(REPORT_DIR, RUNS_DIR / f"run-{index}")
         outcomes.append(outcome)
     summary = summarize(outcomes)
+    if engine_args:
+        summary["engine_args"] = list(engine_args)
     (RUNS_DIR / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8", newline="\n")
     (RUNS_DIR / "summary.md").write_text(summary_markdown(summary), encoding="utf-8", newline="\n")
     say(f"test --repeat {runs}: " + ", ".join(f"run {o.run} {o.status}" for o in outcomes))

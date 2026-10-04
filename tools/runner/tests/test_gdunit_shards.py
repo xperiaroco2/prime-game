@@ -413,6 +413,129 @@ class PlanTest(Fixture):
         )
 
 
+class FixedFpsTest(Fixture):
+    """`test --fixed-fps` (#280): never on unless asked for; the listed suites at fixed fps in shards of their own."""
+
+    C, D = "res://tests/integration/c_test.gd", "res://tests/integration/d_test.gd"
+    A, B = "res://tests/unit/a_test.gd", "res://tests/unit/b_test.gd"
+
+    def setUp(self) -> None:
+        super().setUp()
+        patch = mock.patch.object(gdunit, "FIXED_FPS_SUITES", (self.C, self.D))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def fixed_calls(self) -> list[dict[str, Any]]:
+        return [call for call in self.calls if "--fixed-fps" in call["args"]]
+
+    def times(self) -> dict[str, Any]:
+        return json.loads((self.root / "tools" / "out" / "logs" / "gdunit-times.json").read_text(encoding="utf-8"))
+
+    def test_without_the_flag_no_process_gets_engine_args(self) -> None:
+        # N4 (a): verify calls gdunit.main(run_import=False), so its run stays real-time
+        self.assertEqual(self.run_test(shards=3)[0], 0)
+        self.assertEqual(self.run_test(paths=["tests/unit"])[0], 0)
+        self.assertEqual(len(self.calls), 4)
+        self.assertEqual(self.fixed_calls(), [])
+        self.assertNotIn("fixed_fps", self.times())
+
+    def test_the_listed_suites_run_in_a_shard_of_their_own_at_fixed_fps(self) -> None:
+        rc, text = self.run_test(shards=3, fixed_fps=True)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual(len(self.calls), 3)
+        fixed = self.fixed_calls()
+        self.assertEqual(len(fixed), 1)
+        self.assertEqual([s for s in fixed[0]["selected"] if SUITES.get(s)], [self.C, self.D])
+        args = fixed[0]["args"]
+        self.assertEqual(args[args.index("--fixed-fps") + 1], gdunit.FIXED_FPS)
+        self.assertLess(args.index("--fixed-fps"), args.index("-s"))
+        others = [s for call in self.calls if call not in fixed for s in call["selected"] if SUITES.get(s)]
+        self.assertEqual(sorted(others), [self.A, self.B])
+        self.assertIn("4 suites and 5 test cases ran in 3 processes", text)
+        self.assertIn("by those times at --fixed-fps 60", text)
+        times = self.times()
+        self.assertEqual(sorted(times["fixed_fps"]), [self.C, self.D])
+        self.assertEqual(sorted(times["suites"]), [self.A, self.B])
+
+    def test_named_paths_with_the_flag_run_at_fixed_fps_in_one_process(self) -> None:
+        rc, text = self.run_test(paths=["tests/unit"], fixed_fps=True)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual(
+            [call["args"] for call in self.calls],
+            [["--headless", "--fixed-fps", "60", "-s", "res://addons/gdUnit4/bin/GdUnitCmdTool.gd",
+              "--ignoreHeadlessMode", "-c", "-a", "res://tests/unit", "-rd", "res://tools/out/gdunit", "-rc", "1"]],
+        )  # fmt: skip
+        self.assertEqual(sorted(self.times()), ["fixed_fps"])
+
+    def test_the_flag_without_paths_needs_two_processes(self) -> None:
+        with self.assertRaisesRegex(common.Failure, "--shards 2"):
+            self.run_test(shards=1, fixed_fps=True)
+        with (
+            mock.patch.object(gdunit, "app_data_var", return_value=None),
+            contextlib.redirect_stdout(io.StringIO()),
+            self.assertRaisesRegex(common.Failure, "per-process user://"),
+        ):
+            self.run_test(shards=3, fixed_fps=True)
+        self.assertEqual(self.calls, [])
+
+    def test_fixed_fps_times_are_kept_apart(self) -> None:
+        (self.root / "tools" / "out" / "logs").mkdir(parents=True)
+        old = {self.A: 30.0, self.B: 30.0, self.C: 50.0, self.D: 50.0}
+        (self.root / "tools" / "out" / "logs" / "gdunit-times.json").write_text(
+            json.dumps({"suites": old}), encoding="utf-8"
+        )
+        # No time at fixed fps yet: 50 s real-time over the speed-up puts both fixed suites in one shard of three
+        # (at 50 s each they would take two).
+        self.seconds = {self.A: 30.0, self.B: 30.0, self.C: 2.0, self.D: 3.0}
+        rc, text = self.run_test(shards=3, fixed_fps=True)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual(len(self.fixed_calls()), 1)
+        self.assertIn(f"by their real-time seconds / {gdunit.FIXED_FPS_SPEEDUP:g}", text)
+        self.assertEqual(self.times(), {"suites": old, "fixed_fps": {self.C: 2.0, self.D: 3.0}})
+        self.assertEqual(self.run_test(shards=3)[0], 0)  # a real-time run keeps the fixed-fps map
+        self.assertEqual(self.times()["fixed_fps"], {self.C: 2.0, self.D: 3.0})
+        self.assertEqual(self.times()["suites"][self.C], 2.0)
+        rc, text = self.run_test(shards=3, fixed_fps=True)
+        self.assertEqual(rc, 0, text)
+        self.assertIn("at --fixed-fps 60 by tools/out/logs/gdunit-times.json", text)
+
+
+class SplitTest(unittest.TestCase):
+    """split_shards (pure), and the list itself against the real project (no ROOT patch)."""
+
+    def test_split_balances_the_two_groups(self) -> None:
+        costs = {"f1": 30.0, "f2": 10.0, "r1": 50.0, "r2": 40.0, "r3": 30.0, "h": 0.0}
+        self.assertEqual(
+            gdunit.split_shards(costs, {"f1", "f2"}, 4),
+            [(["f1", "f2"], True), (["r1"], False), (["r2"], False), (["h", "r3"], False)],
+        )
+        # A tie between one and two fixed shards (20 s either way) takes one.
+        ties = {"f1": 10.0, "f2": 10.0, "r1": 10.0, "r2": 10.0}
+        self.assertEqual(gdunit.split_shards(ties, {"f1", "f2"}, 3),
+                         [(["f1", "f2"], True), (["r1"], False), (["r2"], False)])  # fmt: skip
+
+    def test_every_shard_gets_a_suite_that_costs_something(self) -> None:
+        costs = {"f1": 1.0, "f2": 1.0, "f3": 1.0, "r1": 100.0, "h": 0.0}
+        plan = gdunit.split_shards(costs, {"f1", "f2", "f3"}, 4)
+        self.assertEqual(plan, [(["f1"], True), (["f2"], True), (["f3"], True), (["h", "r1"], False)])
+
+    def test_one_group_alone_is_plan_shards(self) -> None:
+        costs = {"a": 10.0, "b": 6.0, "c": 5.0, "h": 0.0}
+        plan = gdunit.plan_shards(costs, 2)
+        self.assertEqual(gdunit.split_shards(costs, set(), 2), [(shard, False) for shard in plan])
+        self.assertEqual(gdunit.split_shards(costs, {"a", "b", "c"}, 2), [(shard, True) for shard in plan])
+
+    def test_the_listed_suites_exist_and_are_suites_in_this_repo(self) -> None:
+        # The stale-list guard: a renamed or moved suite fails here, not quietly in a --fixed-fps run.
+        found = gdunit.static_suites(list(gdunit.FIXED_FPS_SUITES))
+        self.assertEqual(sorted(found), sorted(gdunit.FIXED_FPS_SUITES))
+        self.assertTrue(all(found.values()), found)
+        # 60 frames a second is one physics step a frame only at the default 60 physics ticks per second.
+        project = (gdunit.ROOT / "project.godot").read_text(encoding="utf-8")
+        self.assertNotIn("physics_ticks_per_second", project)
+        self.assertEqual(gdunit.FIXED_FPS, "60")
+
+
 class MergeTest(unittest.TestCase):
     def test_merge_sums_the_totals_and_coverage_counts_against_the_scan(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -454,6 +577,17 @@ class CliTest(unittest.TestCase):
         main.assert_called_once_with(paths=None, shards=1)
         rep.assert_not_called()
         self.assertIn("--repeat runs one process per run", out.getvalue())
+
+    def test_fixed_fps_reaches_main_only_when_given(self) -> None:
+        with mock.patch.object(gdunit, "main", return_value=0) as main:
+            self.assertEqual(cli.main(["test", "--fixed-fps", "--shards", "4"]), 0)
+            self.assertEqual(cli.main(["test", "tests/unit", "--fixed-fps"]), 0)
+            self.assertEqual(cli.main(["test"]), 0)
+        self.assertEqual(
+            main.call_args_list,
+            [mock.call(paths=None, shards=4, fixed_fps=True), mock.call(paths=["tests/unit"], fixed_fps=True),
+             mock.call(paths=None)],
+        )  # fmt: skip
 
 
 if __name__ == "__main__":
