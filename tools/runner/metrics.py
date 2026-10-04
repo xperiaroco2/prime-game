@@ -53,8 +53,9 @@ Quality scorecard (#314), per finished issue-task run, so a cost change is judge
   transcript;
 - from `gh` (read-only, unless --no-gh): the PR's state; its CI rounds, one per head SHA of the pull_request runs of
   CI_WORKFLOW on its branch: red when a run of it ended in CI_RED (a SHA whose runs were all cancelled or skipped is no
-  round; a re-run attempt shows only its last conclusion), "green on the first CI round" from the earliest round only,
-  and the red rounds that began after the run ended; Found-by follow-ups (issues whose "Found by" line names the
+  round; a re-run attempt shows only its last conclusion, so a re-run round counts in ci_reruns), "green on the first
+  CI round" from the earliest round only (unknown when that round was re-run to green: it may have been red), and
+  the red rounds that began after the run ended; Found-by follow-ups (issues whose "Found by" line names the
   task's issue or PR: a lower bound, since nothing makes an agent write one); fix-up PRs (later PRs titled `revert`
   or `fix(...)`/`fix:` that name the PR or issue, as `#N` or `owner/repo#N`, in the title or in a body sentence that
   reverts or repairs it (REGRESSION), outside their "Found by" lines and their Merge order and Verification sections,
@@ -190,8 +191,8 @@ GH_LIST_LIMIT = 1000
 # The signals of a run, and those of its PR (counted once per PR when several runs end on it).
 RUN_SIGNALS = ("serious", "refuted", "open", "not_fixed", "needs_engineer", "fix_rounds")
 PR_SIGNALS = ("ci_red_rounds", "ci_red_after_run")
-GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_after_run", "ci_last", "green_first",
-                  "followups", "fixups")  # fmt: skip
+GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
+                  "green_first", "followups", "fixups")  # fmt: skip
 
 
 # --- time and formatting ------------------------------------------------------------------------------------------
@@ -1417,23 +1418,29 @@ def ci_rounds(runs: list[dict], branch: object, opened: float | None, end: float
     found: dict = {"ci_runs": len(mine)}
     rounds: dict[object, dict] = {}
     for r in sorted(mine, key=lambda r: stamp(r.get("createdAt")) or 0):
-        g = rounds.setdefault(r.get("headSha"), {"first": stamp(r.get("createdAt")), "conclusions": []})
+        g = rounds.setdefault(r.get("headSha"), {"first": stamp(r.get("createdAt")), "conclusions": [],
+                                                 "rerun": False})  # fmt: skip
         g["conclusions"].append(str(r.get("conclusion") or ""))
+        attempt = r.get("attempt")
+        g["rerun"] = g["rerun"] or (isinstance(attempt, int) and attempt > 1)
     outcomes = []
     for g in rounds.values():
         cs = g["conclusions"]
         outcome = ("red" if any(c in CI_RED for c in cs) else "success" if "success" in cs
                    else "pending" if "" in cs else None)  # fmt: skip
         if outcome:  # all cancelled or skipped: no round
-            outcomes.append((g["first"], outcome))
+            outcomes.append((g["first"], outcome, g["rerun"]))
     if not outcomes:
         return found
-    red = [t for t, o in outcomes if o == "red"]
+    red = [t for t, o, _rerun in outcomes if o == "red"]
+    _t, first, rerun = outcomes[0]
     return found | {
         "ci_red_rounds": len(red),
         "ci_red_after_run": None if end is None else sum(t is not None and t >= end for t in red),
         "ci_last": outcomes[-1][1],
-        "green_first": {"success": True, "red": False}.get(outcomes[0][1]),
+        "ci_reruns": sum(o[2] for o in outcomes),
+        # A re-run shows only its last attempt: a first round re-run to green may have been red (a flaky run).
+        "green_first": None if rerun and first == "success" else {"success": True, "red": False}.get(first),
     }
 
 

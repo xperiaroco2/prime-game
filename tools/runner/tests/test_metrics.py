@@ -996,6 +996,17 @@ class QualityTest(unittest.TestCase):
         self.assertIn("| 55555555 | 6 | 4 (1 merged) |", text)
         self.assertIn("| publisher (clean run) | claude-sonnet-5-5 | high | 1 | 1 |", text)
 
+    def test_a_first_round_re_run_to_green_is_unknown(self) -> None:
+        # `gh run list` shows a re-run's last attempt only: a first round re-run to green may have been red.
+        github = self.github()
+        for r in github["runs"]:
+            if r["headSha"] in ("sha5", "sha1"):  # 42's first round (green), 41's first round (red)
+                r["attempt"] = 2
+        rows = self.rows(github)
+        self.assertEqual((rows["wf_b"]["green_first"], rows["wf_b"]["ci_reruns"]), (None, 1))
+        self.assertEqual((rows["wf_a"]["green_first"], rows["wf_a"]["ci_reruns"]), (False, 1), "red is red anyway")
+        self.assertEqual((rows["wf_e"]["green_first"], rows["wf_e"]["ci_reruns"]), (None, 0))
+
     def test_none_green_on_the_first_round_is_not_unknown(self) -> None:
         github = self.github()
         github["runs"] = [r for r in github["runs"] if r["headSha"] not in ("sha5", "sha0")]  # 42's first round red
