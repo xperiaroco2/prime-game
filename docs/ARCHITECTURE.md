@@ -1089,8 +1089,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     (that instance logs `joins again`). Under load an instance's process can start seconds before or after the
     host's: until #284 a bot gave up on a host that was not listening yet and sat out the run, and bot 1 readied
     alone, so the round started without the others (a lone dissident wins at once) or a late joiner cancelled the
-    countdown after bot 1's Ready (3 of the same 12 runs). A host that refuses a bot disconnects it
-    (`host_lost`), which stays a failure.
+    countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
+    more after it started is tried again: a host that refuses a join answers at once, before the admission with
+    `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
+    both stay failures.
   - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
     `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
   - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
