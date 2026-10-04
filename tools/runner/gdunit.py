@@ -201,27 +201,26 @@ def default_suites(tests_dir: Path) -> list[str]:
 
 
 def main(
-    paths: list[str] | None = None, run_import: bool = True, shards: int | None = None, fixed_fps: bool = False
+    paths: list[str] | None = None,
+    run_import: bool = True,
+    shards: int | None = None,
+    fixed_fps: bool | None = None,
 ) -> int:
     """`test`: with no paths, the suites in several GdUnit4 processes at once (the shards below); with paths, or
-    with one shard, one process as before #182. `shards` is `--shards K` (1: one process). `fixed_fps` is
-    `test --fixed-fps` (#280, the fixed-fps section below): never on unless asked for, so verify stays real-time."""
+    with one shard, one process as before #182. `shards` is `--shards K` (1: one process at a time). `fixed_fps` (the
+    fixed-fps section below): None, the default and verify's (#341), is True without paths and False with them; True
+    without paths runs FIXED_FPS_SUITES at fixed fps in shards of their own, or, with one process at a time, in a
+    second process after the rest; True with paths is `test <paths> --fixed-fps` (#280), False `test --real-time`."""
     global LAST_RUN
     LAST_RUN = None
-    say("test" + (f" --fixed-fps ({FIXED_FPS})" if fixed_fps else ""))
+    say("test" + CLOCK_NOTE[fixed_fps])
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():
         raise Failure("no tests/ directory")
     count, why = shard_count(paths, shards)
-    if fixed_fps and not paths and count < 2:
-        raise Failure(
-            "--fixed-fps with no paths runs the listed suites in a process of their own, which needs a per-process "
-            "user:// (Windows: APPDATA, Linux: XDG_DATA_HOME)"
-            if why == "no per-process user://"
-            else f"--fixed-fps with no paths runs the listed suites in a process of their own, but {why} gives one "
-            "process: give --shards 2 or more"
-        )
+    if fixed_fps is None:
+        fixed_fps = not paths
     if run_import:
         # The class cache must be current, or new class_name suites fail to resolve. One import for every shard.
         from .check import run_import as do_import
@@ -229,7 +228,15 @@ def main(
         for line in do_import("test-import"):
             bad(f"import: {line} (run `check` for details)")
     shutil.rmtree(REPORT_DIR, ignore_errors=True)
-    failed = run_shards(selectors(paths, tests_dir), count, why, fixed_fps, bool(paths)) if count > 1 else None
+    items = selectors(paths, tests_dir)
+    if count > 1:
+        failed = run_shards(items, count, why, fixed_fps, bool(paths))
+    elif fixed_fps and not paths:
+        # One process at a time (2 or 3 CPUs, PRIME_TEST_SHARDS=1, no per-process user://): the listed suites still
+        # run at fixed fps, in a second process after the rest, so the clock is CI's on every machine.
+        failed = run_shards(items, 2, why, True, in_turn=True)
+    else:
+        failed = None
     if failed is None:
         # One process: at fixed fps only for named paths (a run without paths keeps the rest real-time).
         fixed = fixed_fps and bool(paths)
@@ -545,10 +552,14 @@ def plan_shards(costs: dict[str, float], count: int) -> list[list[str]]:
 # or the test's own over the LoopbackHub) runs as fast as the CPU allows instead of at wall-clock speed. 60 is the
 # project's physics ticks per second (the default; project.godot sets none) and perf's FIXED_FPS, so each frame runs
 # exactly one physics step. That is also what it hides: a frame never runs several physics steps, the condition
-# behind #222 and #225, so verify, CI and the nightly flaky job stay real-time (that coverage; #280 keeps the flag off
-# by default) and only a human asks for it. A CLI flag, never an environment variable, so a local verify equals CI
-# (N4 (a) of docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md).
+# behind #222 and #225. So by default only FIXED_FPS_SUITES run so, in shards of their own, in `test` with no paths:
+# verify's and CI's test step (#341, the engineer's option (b) on PR #323; the amendment of #341 in
+# docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md). The rest of that run, named paths,
+# `--repeat` (the nightly flaky job) and `test --real-time` stay real-time and keep covering the #222 class. The
+# default is code and a flag changes it, never an environment variable, so a local verify equals CI (that ADR's N4 (a)).
 FIXED_FPS_ARGS: tuple[str, ...] = ("--fixed-fps", FIXED_FPS)
+# How the first line of `test` and of `test --repeat N` names the clock flag given (None: none).
+CLOCK_NOTE: dict[bool | None, str] = {True: f" --fixed-fps ({FIXED_FPS})", False: " --real-time", None: ""}
 # The suites a run without paths takes at fixed fps, in shards of their own: frame-bound, on NetPair's or the test's
 # simulated clock over the LoopbackHub, measured green 10 runs in a row each (#280). Never an audio or ENet suite.
 FIXED_FPS_SUITES: tuple[str, ...] = (
@@ -576,8 +587,8 @@ def fixed_set(suites: dict[str, list[str]], paths: list[str] | None) -> set[str]
         return set(suites)
     gone = [res for res in FIXED_FPS_SUITES if res not in suites]
     if gone:
-        warn(f"--fixed-fps: listed suites the scan did not find ({len(gone)}): {', '.join(gone)}; "
-             "update gdunit.FIXED_FPS_SUITES")  # fmt: skip
+        warn(f"gdunit.FIXED_FPS_SUITES: listed suites the scan did not find ({len(gone)}): {', '.join(gone)}; "
+             "update the list")  # fmt: skip
     return {res for res in FIXED_FPS_SUITES if res in suites}
 
 
@@ -693,6 +704,7 @@ class ShardRun:
     scripts: list[str]
     expected_seconds: float
     engine_args: list[str] = field(default_factory=list)  # FIXED_FPS_ARGS for a fixed-fps shard (#280)
+    own_user: bool = True  # False for shards in turn: each takes the default user://, as one process does
     result: Result | None = None
     error: str = ""
 
@@ -715,11 +727,13 @@ class ShardRun:
 
 
 def run_shards(
-    items: list[str], count: int, why: str, fixed_fps: bool = False, named: bool = False
+    items: list[str], count: int, why: str, fixed_fps: bool = False, named: bool = False, in_turn: bool = False
 ) -> bool | None:
     """Run the suites under the selectors in `count` processes at once; True when the run failed. None when fewer
     than two suites are found: the caller runs them in one process. With `fixed_fps`, the fixed-fps suites (every
-    suite of `named` paths, else FIXED_FPS_SUITES) run at --fixed-fps in shards of their own (split_shards)."""
+    suite of `named` paths, else FIXED_FPS_SUITES) run at --fixed-fps in shards of their own (split_shards).
+    `in_turn` (one process at a time, `why` says why): the shards run one after another with the default user://,
+    and None when no fixed-fps suite is found, since the split then buys nothing."""
     files = script_files(items)
     # Only a suite that declares a test function weighs in the plan: a base class alone runs no test case, and a
     # GdUnit4 process given no test case writes no results.xml.
@@ -729,32 +743,40 @@ def run_shards(
     count = min(count, len(suites))
     times, source = read_times()
     costs = estimates(files, suites, times)
-    fixed: set[str] = set()
-    if fixed_fps:
-        fixed = fixed_set(suites, items if named else None)
+    fixed = fixed_set(suites, items if named else None) if fixed_fps else set()
+    if fixed:
         at_fixed, fixed_source = read_times(FIXED_KEY)
         costs.update({res: max(s, 0.001) for res, s in fixed_times(fixed, times, at_fixed).items()})
         by = fixed_source if at_fixed else f"their real-time seconds / {FIXED_FPS_SPEEDUP:g}"
         source += f"; the {len(fixed)} at --fixed-fps {FIXED_FPS} by {by}"
+    if in_turn and not fixed:
+        return None
     plan = split_shards(costs, fixed, count)
+    if in_turn:
+        plan.sort(key=lambda shard: shard[1])  # the real-time shard first: shard 1, the fixed-fps one shard 2
     runs = [
-        ShardRun(i, scripts, sum(costs[s] for s in scripts), list(FIXED_FPS_ARGS) if at_fps else [])
+        ShardRun(i, scripts, sum(costs[s] for s in scripts), list(FIXED_FPS_ARGS) if at_fps else [], not in_turn)
         for i, (scripts, at_fps) in enumerate(plan, 1)
     ]
-    say(f"test: {count} GdUnit4 processes at once ({why}), {len(suites)} suites balanced by {source}")
+    if in_turn:
+        say(f"test: one process at a time ({why}), so {count} GdUnit4 processes one after another, the real-time "
+            f"suites first, {len(suites)} suites by {source}")  # fmt: skip
+    else:
+        say(f"test: {count} GdUnit4 processes at once ({why}), {len(suites)} suites balanced by {source}")
     for shard in runs:
         n = sum(s in suites for s in shard.scripts)
         say(f"        shard {shard.index}: {n} suites, about {shard.expected_seconds:.0f}s by those times{shard.clock}")
     shutil.rmtree(SHARD_USER, ignore_errors=True)
-    _run_parallel(runs)
+    _run_parallel(runs, at_once=not in_turn)
     return _judge_shards(runs, suites)
 
 
-def _run_parallel(runs: list[ShardRun]) -> None:
-    """Each shard in a thread of its own; Ctrl+C stops every shard's process tree."""
+def _run_parallel(runs: list[ShardRun], at_once: bool = True) -> None:
+    """Each shard in a thread of its own, all at once or (`at_once` False) one after another in the given order;
+    Ctrl+C stops every shard's process tree."""
     require_godot()  # once, before the threads: the version check and the worktree's override.cfg
     var = app_data_var()
-    assert var is not None
+    assert var is not None or not at_once
     live: list[subprocess.Popen[bytes]] = []
     lock = threading.Lock()
 
@@ -768,7 +790,7 @@ def _run_parallel(runs: list[ShardRun]) -> None:
                 _command(shard.scripts, "res://" + shard.report_dir.relative_to(ROOT).as_posix(), shard.engine_args),
                 timeout=TIMEOUT,
                 log=shard.log,
-                env={var: str(shard.user_root)},
+                env={var: str(shard.user_root)} if var and shard.own_user else None,
                 on_start=started,
             )
         except Exception as exc:  # noqa: BLE001 - a shard that could not start fails the run, not the other shards
@@ -778,6 +800,9 @@ def _run_parallel(runs: list[ShardRun]) -> None:
     try:
         for thread in threads:
             thread.start()
+            if not at_once:
+                while thread.is_alive():
+                    thread.join(0.5)
         for thread in threads:
             while thread.is_alive():
                 thread.join(0.5)  # a bounded join lets Ctrl+C through on Windows
@@ -815,7 +840,7 @@ def _judge_shards(runs: list[ShardRun], suites: dict[str, list[str]]) -> bool:
             failed = True
         else:
             failed = _judge(res.rc, res.out, found, log, label) or failed
-        if not (shard.user_root.is_dir() and any(shard.user_root.iterdir())):
+        if shard.own_user and not (shard.user_root.is_dir() and any(shard.user_root.iterdir())):
             bad(f"{label}: Godot put nothing under {shard.user_root.relative_to(ROOT).as_posix()}, so its user:// "
                 "may be the shared one. Run `test --shards 1` and report it")  # fmt: skip
             failed = True
@@ -947,15 +972,16 @@ def summary_markdown(summary: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, fixed_fps: bool = False) -> int:
+def repeat(runs: int, paths: list[str] | None = None, run_import: bool = True, fixed_fps: bool | None = None) -> int:
     """`test --repeat N`: N runs one after another; any failed run fails it. Each run's report goes to
     tools/out/gdunit-runs/run-<i>/ and its log to tools/out/logs/test-run<i>.log; summary.json and summary.md compare
-    them. `fixed_fps` (named paths only) runs every one at FIXED_FPS_ARGS, and summary.json says so."""
+    them. `fixed_fps` True (named paths only) runs every one at FIXED_FPS_ARGS, and summary.json says so; else, the
+    default too, real-time: the nightly flaky job's `test --repeat 3` keeps covering the #222 class (#341)."""
     if runs < 1:
         raise Failure("--repeat must be at least 1")
     if fixed_fps and not paths:
         raise Failure("--repeat with --fixed-fps needs the paths to run at fixed fps")
-    say(f"test --repeat {runs}" + (f" --fixed-fps ({FIXED_FPS})" if fixed_fps else ""))
+    say(f"test --repeat {runs}" + CLOCK_NOTE[fixed_fps])
     ensure_out()
     tests_dir = ROOT / "tests"
     if not tests_dir.is_dir():

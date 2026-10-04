@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
-from runner import cli, common, gdunit
+from runner import cli, common, gdunit, verify
 
 SUITE = "extends GdUnitTestSuite\n\n\nfunc test_one() -> void:\n\tpass\n\n\nfunc test_two() -> void:\n\tpass\n"
 # The fixture project's scripts: path -> source. Four suites (one through a class_name base, one through a quoted
@@ -88,6 +88,8 @@ class Fixture(unittest.TestCase):
             mock.patch.object(gdunit, "godot", self.fake_godot),
             mock.patch.object(gdunit, "git", side_effect=lambda *a, **k: common.Result(0, self.siblings, False, 0.0)),
             mock.patch.dict(os.environ, {gdunit.SHARDS_VAR: ""}),
+            # No listed suite here, so a run without paths is real-time throughout (FixedFpsTest lists two).
+            mock.patch.object(gdunit, "FIXED_FPS_SUITES", ()),
         ]
         for patch in patches:
             patch.start()
@@ -415,7 +417,9 @@ class PlanTest(Fixture):
 
 
 class FixedFpsTest(Fixture):
-    """`test --fixed-fps` (#280): never on unless asked for; the listed suites at fixed fps in shards of their own."""
+    """`test --fixed-fps` (#280): the listed suites at fixed fps in shards of their own, by default in a run without
+    paths (#341: verify and CI), in a second process with one process at a time; named paths and `--real-time`
+    real-time throughout."""
 
     C, D = "res://tests/integration/c_test.gd", "res://tests/integration/d_test.gd"
     A, B = "res://tests/unit/a_test.gd", "res://tests/unit/b_test.gd"
@@ -432,13 +436,94 @@ class FixedFpsTest(Fixture):
     def times(self) -> dict[str, Any]:
         return json.loads((self.root / "tools" / "out" / "logs" / "gdunit-times.json").read_text(encoding="utf-8"))
 
-    def test_without_the_flag_no_process_gets_engine_args(self) -> None:
-        # Off by default (#280): verify calls gdunit.main(run_import=False), so its run stays real-time.
-        self.assertEqual(self.run_test(shards=3)[0], 0)
-        self.assertEqual(self.run_test(paths=["tests/unit"])[0], 0)
-        self.assertEqual(len(self.calls), 4)
+    def test_real_time_and_named_paths_by_default_get_no_engine_args(self) -> None:
+        # `--real-time`, and named paths without the flag (a probe copy of a listed suite in tests/scratch/ for the
+        # #222 recipe of .claude/rules/tests.md), run every suite real-time.
+        rc, text = self.run_test(shards=3, fixed_fps=False)
+        self.assertEqual(rc, 0, text)
+        self.assertIn("test --real-time", text)
+        self.assertEqual(self.run_test(paths=["tests/integration"])[0], 0)
+        self.assertEqual(self.run_test(paths=["tests/integration", "tests/unit"], shards=2)[0], 0)
+        self.assertEqual(len(self.calls), 6)
         self.assertEqual(self.fixed_calls(), [])
         self.assertNotIn("fixed_fps", self.times())
+
+    def test_by_default_a_run_without_paths_takes_the_listed_suites_at_fixed_fps(self) -> None:
+        # #341, the engineer's option (b) on PR #323: what verify and CI run.
+        rc, text = self.run_test(shards=3)
+        self.assertEqual(rc, 0, text)
+        fixed = self.fixed_calls()
+        self.assertEqual(len(fixed), 1)
+        self.assertEqual([s for s in fixed[0]["selected"] if SUITES.get(s)], [self.C, self.D])
+        self.assertEqual(len(self.calls), 3)
+        self.assertIn("by those times at --fixed-fps 60", text)
+        self.assertEqual(sorted(self.times()["fixed_fps"]), [self.C, self.D])
+
+    def in_turn(self, text: str) -> None:
+        """Two processes one after another, the real-time one first, both on the default user://; the listed suites
+        at fixed fps in the second."""
+        self.assertEqual(len(self.calls), 2, text)
+        first, second = self.calls
+        self.assertNotIn("--fixed-fps", first["args"])
+        self.assertEqual([s for s in first["selected"] if SUITES.get(s)], [self.A, self.B])
+        self.assertEqual(self.fixed_calls(), [second])
+        self.assertEqual([call["log"] for call in self.calls], ["test-shard1", "test-shard2"])
+        self.assertEqual([s for s in second["selected"] if SUITES.get(s)], [self.C, self.D])
+        self.assertEqual([call["env"] for call in self.calls], [None, None])
+        self.assertIn("so 2 GdUnit4 processes one after another, the real-time suites first", text)
+        self.assertIn("4 suites and 5 test cases ran in 2 processes", text)
+        self.assertEqual(sorted(self.times()["fixed_fps"]), [self.C, self.D])
+
+    def test_by_default_one_process_at_a_time_runs_the_listed_suites_at_fixed_fps_after_the_rest(self) -> None:
+        # A machine with one shard (2 or 3 CPUs, PRIME_TEST_SHARDS=1, no per-process user://) runs the clock CI does:
+        # `verify` there fails where CI would. The two never overlap, so neither needs a user:// of its own.
+        rc, text = self.run_test(shards=1)
+        self.assertEqual(rc, 0, text)
+        self.assertIn("test: one process at a time (--shards 1)", text)
+        self.in_turn(text)
+        self.calls.clear()
+        with mock.patch.object(gdunit, "app_data_var", return_value=None):
+            rc, text = self.run_test(shards=3)
+        self.assertEqual(rc, 0, text)
+        self.assertIn("test: one process at a time (no per-process user://)", text)
+        self.in_turn(text)
+
+    def test_one_process_at_a_time_stops_on_neither_shards_failure(self) -> None:
+        # The fixed-fps process runs after a red real-time one, and its own failure fails the run.
+        self.behaviour[1] = {"rc": 100, "fail": "res://tests/unit/a_test.gd"}
+        self.behaviour[2] = {"rc": 100, "fail": self.C}
+        rc, text = self.run_test(shards=1)
+        self.assertEqual(rc, 1)
+        self.assertEqual(len(self.calls), 2)
+        self.assertIn("a_test::test_one: FAILED", text)
+        self.assertIn("FAIL  shard 1: exit 100: tests failed", text)
+        self.assertIn("FAIL  shard 2: exit 100: tests failed", text)
+
+    def test_one_process_at_a_time_without_a_listed_suite_is_one_process(self) -> None:
+        with mock.patch.object(gdunit, "FIXED_FPS_SUITES", ()):
+            rc, text = self.run_test(shards=1)
+        self.assertEqual(rc, 0, text)
+        self.assertEqual([call["log"] for call in self.calls], ["test"])
+        self.assertEqual(self.fixed_calls(), [])
+
+    def test_a_stale_list_is_named_by_the_list_not_by_a_flag_nobody_gave(self) -> None:
+        gone = "res://tests/integration/gone_test.gd"
+        with mock.patch.object(gdunit, "FIXED_FPS_SUITES", (self.C, self.D, gone)):
+            rc, text = self.run_test(shards=3)
+        self.assertEqual(rc, 0, text)
+        self.assertIn(f"gdunit.FIXED_FPS_SUITES: listed suites the scan did not find (1): {gone}; update the list", text)
+        self.assertNotIn("--fixed-fps:", text)
+
+    def test_verifys_test_step_runs_the_listed_suites_at_fixed_fps(self) -> None:
+        # The pin of #341: verify's step (and so CI's, which runs verify) is `test` with no paths, in CI's 2 shards.
+        with mock.patch.object(gdunit, "default_shards", return_value=2), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(verify.steps()["test"](), 0)
+        self.assertEqual(len(self.calls), 2)
+        fixed = self.fixed_calls()
+        self.assertEqual(len(fixed), 1)
+        self.assertEqual([s for s in fixed[0]["selected"] if SUITES.get(s)], [self.C, self.D])
+        args = fixed[0]["args"]
+        self.assertEqual(args[args.index("--fixed-fps") : args.index("-s")], ["--fixed-fps", "60"])
 
     def test_the_listed_suites_run_in_a_shard_of_their_own_at_fixed_fps(self) -> None:
         rc, text = self.run_test(shards=3, fixed_fps=True)
@@ -481,16 +566,13 @@ class FixedFpsTest(Fixture):
         self.assertEqual(ran, [self.C, self.D, self.A, self.B])
         self.assertEqual(sorted(self.times()), ["fixed_fps"])
 
-    def test_the_flag_without_paths_needs_two_processes(self) -> None:
-        with self.assertRaisesRegex(common.Failure, "--shards 2"):
-            self.run_test(shards=1, fixed_fps=True)
-        with (
-            mock.patch.object(gdunit, "app_data_var", return_value=None),
-            contextlib.redirect_stdout(io.StringIO()),
-            self.assertRaisesRegex(common.Failure, "per-process user://"),
-        ):
-            self.run_test(shards=3, fixed_fps=True)
-        self.assertEqual(self.calls, [])
+    def test_the_flag_without_paths_and_one_process_at_a_time_runs_the_two_in_turn(self) -> None:
+        # Before #341 this refused (a fixed-fps shard of its own needed a second process at once): now it runs the
+        # listed suites in a second process after the rest, as the default does.
+        rc, text = self.run_test(shards=1, fixed_fps=True)
+        self.assertEqual(rc, 0, text)
+        self.assertIn("test --fixed-fps (60)", text)
+        self.in_turn(text)
 
     def test_fixed_fps_times_are_kept_apart(self) -> None:
         (self.root / "tools" / "out" / "logs").mkdir(parents=True)
@@ -506,7 +588,7 @@ class FixedFpsTest(Fixture):
         self.assertEqual(len(self.fixed_calls()), 1)
         self.assertIn(f"by their real-time seconds / {gdunit.FIXED_FPS_SPEEDUP:g}", text)
         self.assertEqual(self.times(), {"suites": old, "fixed_fps": {self.C: 2.0, self.D: 3.0}})
-        self.assertEqual(self.run_test(shards=3)[0], 0)  # a real-time run keeps the fixed-fps map
+        self.assertEqual(self.run_test(shards=3, fixed_fps=False)[0], 0)  # a real-time run keeps the fixed-fps map
         self.assertEqual(self.times()["fixed_fps"], {self.C: 2.0, self.D: 3.0})
         self.assertEqual(self.times()["suites"][self.C], 2.0)
         rc, text = self.run_test(shards=3, fixed_fps=True)
@@ -594,16 +676,22 @@ class CliTest(unittest.TestCase):
         rep.assert_not_called()
         self.assertIn("--repeat runs one process per run", out.getvalue())
 
-    def test_fixed_fps_reaches_main_only_when_given(self) -> None:
+    def test_the_clock_flags_reach_main_only_when_given(self) -> None:
         with mock.patch.object(gdunit, "main", return_value=0) as main:
             self.assertEqual(cli.main(["test", "--fixed-fps", "--shards", "4"]), 0)
             self.assertEqual(cli.main(["test", "tests/unit", "--fixed-fps"]), 0)
+            self.assertEqual(cli.main(["test", "--real-time"]), 0)
             self.assertEqual(cli.main(["test"]), 0)
         self.assertEqual(
             main.call_args_list,
             [mock.call(paths=None, shards=4, fixed_fps=True), mock.call(paths=["tests/unit"], fixed_fps=True),
-             mock.call(paths=None)],
+             mock.call(paths=None, fixed_fps=False), mock.call(paths=None)],
         )  # fmt: skip
+
+    def test_fixed_fps_and_real_time_exclude_each_other(self) -> None:
+        with contextlib.redirect_stderr(io.StringIO()) as err, self.assertRaises(SystemExit):
+            cli.build_parser().parse_args(["test", "--fixed-fps", "--real-time"])
+        self.assertIn("not allowed with argument", err.getvalue())
 
 
 if __name__ == "__main__":

@@ -16,6 +16,10 @@
   hold for `release/m<k>` only). This track's PRs are merged by its manager, not the engineer (item 3's last
   paragraph, N2); "merges through GitHub, which agents may not do" (item 3 (e), Rejected) now reads: only through the
   runner's gate ([trust-based autonomy](2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
+- **Amended 2026-10-05 (#341):** `verify`, and so CI, now runs the 9 frame-bound client suites at the engine's
+  `--fixed-fps 60` (`test` with no paths: in shards of their own, the rest real-time); the nightly `flaky` job stays
+  real-time. The engineer's decision, option (b) on PR #323; item 2 and N4 (a) still hold (the amendment of #341
+  below).
 - **Date:** 2026-10-02
 - **Deciders:** the engineer (the AI productivity track, #170; design task #171)
 
@@ -498,6 +502,35 @@ Proposed text, replacing "There is no `staging` branch and one milestone runs at
 - Before every merge, into a release branch or (for the engineer) into `main`, the manager runs `merge-check` across
   all open PRs and names the safe order.
 - Still no `staging` branch.
+
+## Amendment of #341 (2026-10-05): the frame-bound suites at fixed fps in `verify` and CI
+**Decided by the engineer** on 2026-10-04: option (b) of PR #323's first "Needs the engineer" item, in [the
+engineer's answers on PR #323](https://github.com/xperiaroco2/prime-game/pull/323#issuecomment-5979208948) ("the
+default in `verify` and CI, with the nightly `flaky` job left real-time"; the optional third CI process for the fixed
+shard: not now).
+
+- **What `verify` checks.** Its `test` step (so CI's, which runs `verify`) is `test` with no paths, which now runs
+  `gdunit.FIXED_FPS_SUITES`, the 9 frame-bound client suites on `NetPair`'s or their own simulated clock over the
+  `LoopbackHub`, with the engine's `--fixed-fps 60`, in shards of their own within the same K; every other suite runs
+  real-time as before. With one process at a time (2 or 3 CPUs, `--shards 1`, `PRIME_TEST_SHARDS=1`, no
+  per-process `user://`) the 9 run at fixed fps in a second process after the rest, so every machine's `verify` runs
+  CI's clock. `test --real-time` runs a run without paths real-time; named paths and `test --repeat N` are real-time unless `--fixed-fps` is given (#280's
+  opt-in flag, unchanged).
+- **Why.** #280 measured it on the engineer's PC
+  ([its results](https://github.com/xperiaroco2/prime-game/issues/280#issuecomment-5976143351)): the 9 suites took
+  284 s real-time and 22.7 s at fixed fps; the whole `test` step 119.4 s and 62.2 s in 4 shards (mean of 3 each),
+  139.5 s and 90.7 s with `selftest` beside it as in `verify`, 226 s and 145 s in 2 shards (CI's count); 0 reds in 130
+  fixed-fps runs of the 9. Main's CI test step took 210 s in 2 shards before this change (3 runs of 2026-10-04).
+- **What it hides, and what still covers it.** At `--fixed-fps 60` with 60 physics ticks every frame runs exactly one
+  physics step, so the #222 / #225 class (several physics steps in one frame under load) never shows in `verify` for
+  those suites. The nightly `flaky` job (`test --repeat 3`, no clock flag, so a release ref with an older runner runs
+  it as well) stays real-time and covers it, and so does any named-path run, such as the `OS.delay_msec` recipe of
+  `.claude/rules/tests.md`. `tools/runner/tests/test_github_workflows.py` and `test_gdunit_shards.py` pin both
+  sides.
+- **What stays.** N4 (a): `verify` is still exactly what CI runs, with no environment variable that could make a
+  local run differ (the default is in the runner's code, a command-line flag changes it). A suite joins the list only
+  after `test <suite> --repeat 10 --fixed-fps` is green, and never an audio, ENet or wall-clock one
+  (`voice_views_audio_test` breaks at fixed fps: GdUnit4's test timeout counts game time).
 
 ## Alternatives
 - **A 1-hour cache lifetime for subagents** (`subagentPromptCacheTtl` or `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL`,

@@ -183,6 +183,13 @@ class RepeatTest(unittest.TestCase):
         self.assertTrue(all("--fixed-fps" not in args for args in self.args))
         self.assertNotIn("engine_args", self.summary)
 
+    def test_the_first_line_names_the_clock_flag_given_as_plain_test_does(self) -> None:
+        xml = results_xml({"tests/unit/a_test": {"test_ok": PASS}})
+        for flag, line in [(None, "test --repeat 1"), (False, "test --repeat 1 --real-time"),
+                           (True, "test --repeat 1 --fixed-fps (60)")]:  # fmt: skip
+            printed = self.run_repeat([(0, xml, False)], 1, paths=["tests/unit"], fixed_fps=flag)[3]
+            self.assertIn(line, printed.splitlines())
+
     def test_repeat_with_the_flag_passes_engine_args_to_every_run(self) -> None:
         xml = results_xml({"tests/unit/a_test": {"test_ok": PASS}})
         rc, _, _, printed = self.run_repeat([(0, xml, False)] * 2, 2, paths=["tests/unit"], fixed_fps=True)
@@ -211,10 +218,12 @@ class CliTest(unittest.TestCase):
         rep.assert_called_once_with(3, paths=["tests/unit"])
         main.assert_called_once_with(paths=None)
 
-    def test_fixed_fps_reaches_repeat_only_when_given(self) -> None:
+    def test_the_clock_flags_reach_repeat_only_when_given(self) -> None:
         with mock.patch.object(gdunit, "repeat", return_value=0) as rep:
             self.assertEqual(cli.main(["test", "--repeat", "2", "tests/unit", "--fixed-fps"]), 0)
-        rep.assert_called_once_with(2, paths=["tests/unit"], fixed_fps=True)
+            self.assertEqual(cli.main(["test", "--repeat", "2", "--real-time"]), 0)
+        self.assertEqual(rep.call_args_list, [mock.call(2, paths=["tests/unit"], fixed_fps=True),
+                                              mock.call(2, paths=None, fixed_fps=False)])  # fmt: skip
 
 
 if __name__ == "__main__":
