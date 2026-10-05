@@ -1344,10 +1344,14 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   beside the `.exe`, the `.exe`'s icon and metadata left as the template's). Linux only (CI, a cloud session): it
   checks the pinned export templates (`pins.py`, the release's SHA512-SUMS.txt), exports a clean `git archive` tree
   of the commit (the TwoVoIP extension in it; its `ERROR:` lines on Linux are expected, and webrtc-native's too when
-  the probe below runs the Windows pack, which holds no Linux library), zips both into `tools/out/export/`, checks
+  the probe below runs the Windows pack, which holds no Linux library), adds the license notices to both builds
+  (#419: `CREDITS.md` and every `LICENSE*` file of the addons whose libraries a build ships, TwoVoIP's and
+  webrtc-native's, under `licenses/<addon>/` beside the `.exe`, one folder per addon since two could both be
+  `LICENSE`; Apache 2.0 §4 and BSD-3 want them beside the binaries), zips both into `tools/out/export/`, checks
   that the release zip holds the release template's `.exe` byte for byte, the release libraries of TwoVoIP and
-  webrtc-native (#367) and no console wrapper (only a release template has `OS.is_debug_build()` false, which turns
-  off F3, the dev tools and the debug kinds), and proves the content hash in an export with
+  webrtc-native (#367), exactly the notices of `export.NOTICES` and no console wrapper (only a release template has
+  `OS.is_debug_build()` false, which turns off F3, the dev tools and the debug kinds), and the debug zip the same
+  notices, and proves the content hash in an export with
   `tools/export/export_probe.gd` run
   on the pack: every level and what it reaches found, a second tree's export equal, one byte changed in each level
   a new hash; and, since the game's levels reach no other file yet, on `ContentFingerprint`'s test fixtures exported
@@ -1362,7 +1366,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   7-day workflow artifact. The engineer tags a merged commit:
   `git tag v0.6.0 <commit>; git push origin v0.6.0`. Opening Project > Export in the editor may add the default
   options to `export_presets.cfg`: commit that once; never turn on `application/modify_resources` or
-  `binary_format/embed_pck`, or the release check fails.
+  `binary_format/embed_pck`, or the release check fails. A new addon with a `LICENSE*` file goes into
+  `export.SHIPPED_ADDONS` (its notices into `NOTICES`) or, kept out of builds by both presets' `exclude_filter`, into
+  `UNSHIPPED_ADDONS` (gdUnit4); `test_export.py`'s `NoticesTest` fails until it does, and a license file added to or
+  removed from a shipped addon fails `export` until `NOTICES` follows.
 - **Bounded waits: `wait <log> [--max S]` and `wait --verified` [applied]** (#303; #302's token research): a workflow
   agent or subagent writes its prompt cache with a 5-minute lifetime (a main or manager session has 1 hour), so a
   tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54

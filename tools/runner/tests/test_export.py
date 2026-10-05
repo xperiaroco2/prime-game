@@ -109,6 +109,7 @@ class ReleaseCheckTest(unittest.TestCase):
         folder = self.dir / "build"
         folder.mkdir(exist_ok=True)
         for name, data in files.items():
+            (folder / name).parent.mkdir(parents=True, exist_ok=True)
             (folder / name).write_bytes(data)
         archive = self.dir / "game.zip"
         export.write_zip(folder, archive, "PrimeGame")
@@ -120,10 +121,48 @@ class ReleaseCheckTest(unittest.TestCase):
             "PrimeGame.pck": b"pack",
             "libtwovoip.windows.template_release.x86_64.dll": b"dll",
             "libwebrtc_native.windows.template_release.x86_64.dll": b"dll",
+            **{notice: b"notice" for notice in export.NOTICES},
         }
 
-    def test_the_release_templates_exe_and_library_pass(self) -> None:
+    def test_the_release_templates_exe_library_and_notices_pass(self) -> None:
         self.assertEqual(export.check_release(self.build(self.release_files()), self.templates), [])
+
+    def test_a_zip_without_a_license_notice_or_the_credits_fails(self) -> None:
+        for notice in ("CREDITS.md", "licenses/twovoip/LICENSE", "licenses/webrtc_native/LICENSE.mbedtls"):
+            with self.subTest(notice=notice):
+                shutil.rmtree(self.dir / "build", ignore_errors=True)
+                files = self.release_files()
+                del files[notice]
+                problems = export.check_release(self.build(files), self.templates)
+                self.assertTrue(any(notice in problem for problem in problems), problems)
+                self.assertEqual(export.missing_notices(self.dir / "game.zip"), [notice])
+
+    def test_a_notice_moved_out_of_its_folder_fails(self) -> None:
+        files = self.release_files()
+        files["LICENSE.mbedtls"] = files.pop("licenses/webrtc_native/LICENSE.mbedtls")
+        problems = export.check_release(self.build(files), self.templates)
+        self.assertTrue(any("licenses/webrtc_native/LICENSE.mbedtls" in problem for problem in problems), problems)
+
+    def test_the_notices_are_copied_from_the_tree_under_licenses_per_addon(self) -> None:
+        tree = self.dir / "tree"
+        (tree / "addons" / "gdUnit4").mkdir(parents=True)
+        (tree / "addons" / "gdUnit4" / "LICENSE").write_bytes(b"not shipped")
+        (tree / "CREDITS.md").write_bytes(b"# Credits\n")
+        for addon in export.SHIPPED_ADDONS:
+            (tree / "addons" / addon).mkdir(parents=True)
+        for notice in export.NOTICES:
+            if notice.startswith("licenses/"):
+                (tree / "addons" / notice.removeprefix("licenses/")).write_bytes(notice.encode())
+        folder = self.dir / "build"
+        export.add_notices(tree, folder)
+        self.assertEqual(
+            sorted(path.relative_to(folder).as_posix() for path in folder.rglob("*") if path.is_file()),
+            sorted(export.NOTICES),
+        )
+        self.assertEqual((folder / "licenses" / "twovoip" / "LICENSE").read_bytes(), b"licenses/twovoip/LICENSE")
+        (tree / "CREDITS.md").unlink()
+        with self.assertRaises(Failure):
+            export.add_notices(tree, self.dir / "again")
 
     def test_the_debug_template_a_console_wrapper_or_the_debug_library_fail(self) -> None:
         files = self.release_files()
@@ -153,6 +192,43 @@ class ReleaseCheckTest(unittest.TestCase):
         self.assertEqual(first, second)
         with zipfile.ZipFile(self.dir / "game.zip") as archive:
             self.assertTrue(all(name.startswith("PrimeGame/") for name in archive.namelist()))
+            self.assertIn("PrimeGame/licenses/twovoip/LICENSE", archive.namelist())
+
+
+class NoticesTest(unittest.TestCase):
+    """#419: every addon with a license file is either shipped, its notices in the zip, or kept out of the build."""
+
+    def addon_licenses(self) -> dict[str, list[str]]:
+        found: dict[str, list[str]] = {}
+        for path in sorted((ROOT / "addons").glob("*/LICENSE*")):
+            found.setdefault(path.parent.name, []).append(path.name)
+        return found
+
+    def test_every_addon_with_a_license_file_is_named_shipped_or_not(self) -> None:
+        addons = self.addon_licenses()
+        self.assertEqual(sorted(addons), sorted((*export.SHIPPED_ADDONS, *export.UNSHIPPED_ADDONS)))
+        self.assertFalse(set(export.SHIPPED_ADDONS) & set(export.UNSHIPPED_ADDONS))
+
+    def test_the_notices_are_the_credits_and_every_license_file_of_a_shipped_addon(self) -> None:
+        addons = self.addon_licenses()
+        expected = ["CREDITS.md"] + [
+            f"licenses/{addon}/{name}" for addon in export.SHIPPED_ADDONS for name in addons.get(addon, [])
+        ]
+        self.assertEqual(sorted(export.NOTICES), sorted(expected))
+        self.assertLessEqual(set(export.NOTICES), export.RELEASE_FILES)
+
+    def test_an_unshipped_addon_is_excluded_from_both_presets(self) -> None:
+        presets = (ROOT / "export_presets.cfg").read_text(encoding="utf-8")
+        filters = [line for line in presets.splitlines() if line.startswith("exclude_filter=")]
+        self.assertEqual(len(filters), 2)
+        for addon in export.UNSHIPPED_ADDONS:
+            for line in filters:
+                self.assertIn(f"addons/{addon}/*", line)
+
+    def test_a_shipped_addon_is_not_excluded(self) -> None:
+        presets = (ROOT / "export_presets.cfg").read_text(encoding="utf-8")
+        for addon in export.SHIPPED_ADDONS:
+            self.assertNotIn(f"addons/{addon}/", presets)
 
 
 class HelpersTest(unittest.TestCase):
