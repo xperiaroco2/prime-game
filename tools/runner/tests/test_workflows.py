@@ -6,14 +6,17 @@ tests skip, except on GitHub Actions, where a missing Node fails `test_github_ac
 
 Snapshots: other managers launch these scripts by name from their own copies and resume runs with the same args, and a
 resume replays an agent only while its prompt and options are unchanged. So with none of the optional pipeline-v2 args
-(docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4) every agent's prompt, label, phase,
-schema and options must stay byte-identical: `workflow_snapshots/<script>/<case>.txt` holds them for representative
-arg sets, captured from the scripts on origin/main before v2 changed them. The one exception is `publish-clean-main`:
-it passes a v2 arg and pins the publish_clean trial of #308, so the byte-identical rule covers every other case. A
-deliberate change of a default prompt rewrites them: run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the
-snapshot test then fails on purpose, naming the files it wrote), review the diff, commit it with the change, and run
-`selftest` again without the variable. Each snapshot ends with the run's return value, which the rule does not cover (a
-resume replays agents, not the return): #386 made it compact and changed only that part of every snapshot.
+(docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4) and `bounded_waits: false` every
+agent's prompt, label, phase, schema and options must stay byte-identical: `workflow_snapshots/<script>/unbounded/`
+holds them for representative arg sets, captured from the scripts on origin/main before v2 changed them. The one
+exception is `publish-clean-main`: it passes a v2 arg and pins the publish_clean trial of #308, so the byte-identical
+rule covers every other case. `workflow_snapshots/<script>/<case>.txt` holds the same cases as launched, with
+`bounded_waits` on by default since #411 (their one deliberate change: each agent that waits gained the bounded-waits
+paragraph). A deliberate change of a default prompt rewrites them: run `selftest` once with
+PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
+commit it with the change, and run `selftest` again without the variable. Each snapshot ends with the run's return
+value, which the rule does not cover (a resume replays agents, not the return): #386 made it compact and changed only
+that part of every snapshot.
 """
 
 import difflib
@@ -374,12 +377,14 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main passes no v2 arg).
+        # case but publish-clean-main passes no v2 arg). Each case runs twice: as launched (`<case>.txt`, bounded
+        # waits on by default since #411) and with bounded_waits false (`unbounded/<case>.txt`, the text before #411).
         jobs, files = [], []
         for name, cases in SNAPSHOT_CASES.items():
             for case, args, stub in cases:
-                jobs.append((name, dict(ARGS, **args), stub))
-                files.append(SNAPSHOTS / name.removesuffix(".js") / f"{case}.txt")
+                for extra, folder in (({}, ()), ({"bounded_waits": False}, ("unbounded",))):
+                    jobs.append((name, dict(ARGS, **args, **extra), stub))
+                    files.append(SNAPSHOTS.joinpath(name.removesuffix(".js"), *folder, f"{case}.txt"))
         results = run_jobs(jobs)
         if UPDATE:
             for path, result in zip(files, results):
@@ -387,7 +392,8 @@ class WorkflowTest(unittest.TestCase):
                 path.write_bytes(render(result).encode("utf-8"))
             self.fail(f"PRIME_WORKFLOW_SNAPSHOTS=update wrote {len(files)} snapshots; review the diff, then rerun without it")
         for path, result in zip(files, results):
-            with self.subTest(snapshot=f"{path.parent.name}/{path.name}"):
+            where = path.relative_to(SNAPSHOTS).as_posix()
+            with self.subTest(snapshot=where):
                 self.assertTrue(path.is_file(), f"missing snapshot {path}")
                 want = path.read_bytes().decode("utf-8")
                 got = render(result)
@@ -397,7 +403,7 @@ class WorkflowTest(unittest.TestCase):
                     k = next((i for i, (a, b) in enumerate(zip(old, new)) if a != b), min(len(old), len(new)))
                     first = new[k][:200] if k < len(new) else "(the run ends earlier)"
                     # selftest prints only a failure's last line, so the summary goes last.
-                    self.fail(f"{diff[:4000]}\n{path.parent.name}/{path.name} differs from line {k + 1}: {first!r}")
+                    self.fail(f"{diff[:4000]}\n{where} differs from line {k + 1}: {first!r}")
 
 
 AVAILABLE = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["availableModels"]
@@ -935,8 +941,9 @@ class PipelineV2Test(unittest.TestCase):
 
     def test_bounded_waits_adds_one_paragraph_to_each_agent_that_waits(self) -> None:
         # #303: a tool call that blocks over 5 minutes (verify, publish, mutants, CI) costs the agent's whole context
-        # again. With the arg, each agent that runs one gets one paragraph more, after the steps it replaces; without
-        # it every prompt is today's (the snapshots), so a resume or another manager's launch is unchanged.
+        # again. With the arg, each agent that runs one gets one paragraph more, after the steps it replaces. #411 made
+        # it the default (a missing or null arg); with bounded_waits false every prompt is the one before (the
+        # unbounded/ snapshots), so a resume of an earlier run with false added is unchanged.
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
         design = {"paths": ["docs/x.md"], "findings": [MAJOR]}
@@ -949,15 +956,16 @@ class PipelineV2Test(unittest.TestCase):
         jobs = []
         for name, args, stub in pairs:
             jobs += [(name, args, stub), (name, dict(args, bounded_waits=True), stub)]
-            jobs.append((name, dict(args, bounded_waits=False), stub))
+            jobs += [(name, dict(args, bounded_waits=None), stub), (name, dict(args, bounded_waits=False), stub)]
         results = run_jobs(jobs)
         waiting, publishing = ("implement", "test-review", "publish", "rebase", "fix"), ("publish", "rebase", "fix")
         extra = {}
         for k, (name, _, _) in enumerate(pairs):
-            off, on, false = results[3 * k : 3 * k + 3]
-            for result in (off, on, false):
+            default, on, null, off = results[4 * k : 4 * k + 4]
+            for result in (default, on, null, off):
                 self.assertIsNone(result["error"])
-            self.assertEqual(render(false), render(off), "bounded_waits false is the default")
+            self.assertEqual(render(default), render(on), "bounded_waits true is the default")
+            self.assertEqual(render(null), render(on), "a null bounded_waits is the default")
             self.assertEqual([e["label"] for e in agents(on)], [e["label"] for e in agents(off)])
             stopped = k == 2  # the publisher that only reports a mutants stop runs no long command
             for before, after in zip(agents(off), agents(on)):

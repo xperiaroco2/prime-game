@@ -2,10 +2,10 @@
 ### agent implement:#7
 opts {"label":"implement:#7","phase":"Implement","effort":"high","schema":{"type":"object","properties":{"verify_green":{"type":"boolean"},"verify_tail":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"commits":{"type":"array","items":{"type":"string"}},"complete":{"type":"boolean"},"left":{"type":"array","items":{"type":"string"}},"summary":{"type":"string"},"decisions":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"provisional_content":{"type":"array","items":{"type":"string"}},"proposed_issues":{"type":"array","items":{"type":"string"}}},"required":["verify_green","complete","summary","changed_paths"]}}
 You are a task agent of prime-game, run unattended by the manager session through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).
-- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch voice/7-x, PR base net/5-parent; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
+- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch net/7-x, PR base main; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
 - Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close or reopen an issue (humans close issues), edit the body of #30, `gh pr merge`.
 - Do not run a command you expect to prompt (a delete, reset, rebase or branch delete outside your worktree and task branch; an edit of any path under .claude/ or addons/ unless the session runs in bypass): a prompt blocks the run until the human returns. List such a step in the handoff for the human instead.
-- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/net/5-parent` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/net/5-parent`); never an interactive rebase without that variable. Both are free in your own worktree.
+- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main`); never an interactive rebase without that variable. Both are free in your own worktree.
 - Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.
 - Never poll with a foreground `sleep N; cat <log>` (Claude Code blocks it): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.
 - No Godot windows: headless runs only; a screenshot only through `tools\run.cmd shot` (off-screen).
@@ -18,55 +18,60 @@ You are a task agent of prime-game, run unattended by the manager session throug
 
 Task: GitHub issue #7 (t). Effort: high. Budget: at most about 250 tool calls; if it runs out, stop at a green, committed state and list what is left.
 
-An earlier attempt may have got part of the way (a resumed run): first run `git log --oneline origin/net/5-parent..HEAD` and `git status` in the worktree, and continue from that state; uncommitted files there are that attempt's work.
+An earlier attempt may have got part of the way (a resumed run): first run `git log --oneline origin/main..HEAD` and `git status` in the worktree, and continue from that state; uncommitted files there are that attempt's work.
 
 Read: `gh issue view 7 --comments`; the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names; the CLAUDE.md of every area it touches and .claude/rules/; the code it builds on and its tests.
 
 Task notes from the manager:
 n
 
-Plan, then implement every acceptance criterion. Tests under tests/unit/ or tests/integration/ mirroring the folders you change. Where you fix a guard, see its test fail without the code first. If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish `git fetch` and check whether it reached origin/net/5-parent; if it did, rebase on it inside your worktree and use it.
+Plan, then implement every acceptance criterion. GdUnit4 tests under tests/unit/net/ (and tests/unit/server/ for the host session) over the loopback transport (net/transport/loopback_hub.gd), asserting what each peer receives; the ENet runs in verify (tests/integration/net/) still pass, and a new ENet scenario joins them when the issue asks for one. Where you fix a guard, see its test fail without the code first. If a file you need comes from a PR that is not merged yet (the notes say so), build and test with fixtures first, and before you finish `git fetch` and check whether it reached origin/main; if it did, rebase on it inside your worktree and use it.
 
 Update docs/ARCHITECTURE.md (the rows and "Built in"/"Tests" lines your work completes, and anything it makes stale) and other durable docs in the same branch. Commit as you go.
 
 `tools\run.cmd verify` in the worktree until green (it takes a few minutes: its selftest is slow). If it fails in a way that points at another worktree's run at the same time (a busy ENet port, a timeout under CPU load), run it once more before debugging.
 
-Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 240 s: bound it with the shell's `timeout` or `wait --max`, never only with the tool's timeout.
-- Start each one in the Bash tool with run_in_background true (timeout 3600000 for mutants), with a NEW log under a7/ of your scratchpad for each run (verify-1.log, verify-2.log, publish-1.log, ...): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>` (<command>: `verify`, `publish` with the arguments given above, or `mutants <spec.json>`).
-- Then wait in separate calls of `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in the Bash tool (in PowerShell `tools\run.cmd wait <log>`), with the tool's timeout set to 300000 (its default of 120000 cuts a 240 s wait short). Exit 124 with a `wait: still running` line: call wait again, and never start the job again while it runs. Any other exit is the job's own, its summary printed above a `wait: ... finished: exit=<n>` line (verify and publish: 0 is green; mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch worktree could not be removed). Exit 2 with a `wait: no log`, `wait: cannot read` or `wait: --max` line is wait's own error (check the log path), never mutants' exit 2. A log that has not grown for 10 minutes: check the background task.
-- CI: `cd /d/prime-game/.claude/worktrees/7 && timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with the tool's timeout set to 300000 (in PowerShell `timeout` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red.
-- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.
-
 Do NOT publish, push, open a PR or comment on GitHub: fresh reviewers check the branch next.
 
-Return the structured result. changed_paths: `git diff --name-only origin/net/5-parent...HEAD`. verify_tail: the lines from "verify summary" to the end.
+Return the structured result. changed_paths: `git diff --name-only origin/main...HEAD`. verify_tail: the lines from "verify summary" to the end.
 ### phase Review
 ### agent review:code:#7
 opts {"label":"review:code:#7","phase":"Review","agentType":"code-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]}}
-Issue #7 (t). Branch voice/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/net/5-parent. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
+Issue #7 (t). Branch net/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/main. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
 
-Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/net/5-parent...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), docs/ARCHITECTURE.md, the ADRs the issue links, root CLAUDE.md and the area CLAUDE.md files. Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
+Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), docs/ARCHITECTURE.md, the ADRs the issue links, root CLAUDE.md and the area CLAUDE.md files. Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["voice/mixer.gd"]}
+The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["net/protocol/codec.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
+### agent review:netcode:#7
+opts {"label":"review:netcode:#7","phase":"Review","agentType":"netcode-security-reviewer","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]}}
+Issue #7 (t). Branch net/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/main. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
+
+Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), docs/ARCHITECTURE.md, the ADRs the issue links, root CLAUDE.md and the area CLAUDE.md files. Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
+
+The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["net/protocol/codec.gd"]}
+
+Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
+
+Focus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay.
 ### agent review:godot-api:#7
 opts {"label":"review:godot-api:#7","phase":"Review","agentType":"godot-api-checker","schema":{"type":"object","properties":{"reviewer":{"type":"string"},"verdict":{"type":"string"},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocker","major","minor","nit"]},"file":{"type":"string"},"line":{"type":"number"},"problem":{"type":"string"},"fix":{"type":"string"}},"required":["severity","problem"]}}},"required":["reviewer","verdict","findings"]}}
-Issue #7 (t). Branch voice/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/net/5-parent. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
+Issue #7 (t). Branch net/7-x in the worktree D:/prime-game/.claude/worktrees/7; its PR base is origin/main. D:/prime-game is main: read the branch's files under D:/prime-game/.claude/worktrees/7.
 
-Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/net/5-parent...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), docs/ARCHITECTURE.md, the ADRs the issue links, root CLAUDE.md and the area CLAUDE.md files. Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
+Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), docs/ARCHITECTURE.md, the ADRs the issue links, root CLAUDE.md and the area CLAUDE.md files. Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["voice/mixer.gd"]}
+The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["net/protocol/codec.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 ### phase Publish
 ### agent publish:#7
 opts {"label":"publish:#7","phase":"Publish","effort":"high","schema":{"type":"object","properties":{"published":{"type":"boolean"},"pr_number":{"type":"number"},"pr_url":{"type":"string"},"ci_green":{"type":"boolean"},"handoff_posted":{"type":"boolean"},"board_in_review":{"type":"boolean"},"closes_issue":{"type":"boolean"},"fixed":{"type":"array","items":{"type":"string"}},"not_fixed":{"type":"array","items":{"type":"string"}},"needs_engineer":{"type":"array","items":{"type":"string"}},"merge_notes":{"type":"string"},"human_steps":{"type":"array","items":{"type":"object","properties":{"why":{"type":"string"},"command":{"type":"string"}},"required":["why","command"]}}},"required":["published","handoff_posted"]}}
 You are a task agent of prime-game, run unattended by the manager session through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).
-- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch voice/7-x, PR base net/5-parent; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
+- Work ONLY in the worktree D:/prime-game/.claude/worktrees/7 (branch net/7-x, PR base main; the manager already ran `start`, never run it again). Start every shell command with `cd /d/prime-game/.claude/worktrees/7 && ...` (Git Bash) or `Set-Location D:/prime-game/.claude/worktrees/7; ...` (PowerShell), and use absolute paths under D:/prime-game/.claude/worktrees/7 for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.
 - Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through `tools\run.cmd publish`), close or reopen an issue (humans close issues), edit the body of #30, `gh pr merge`.
 - Do not run a command you expect to prompt (a delete, reset, rebase or branch delete outside your worktree and task branch; an edit of any path under .claude/ or addons/ unless the session runs in bypass): a prompt blocks the run until the human returns. List such a step in the handoff for the human instead.
-- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/net/5-parent` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/net/5-parent`); never an interactive rebase without that variable. Both are free in your own worktree.
+- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1`. To fold a fix into an earlier commit: `git commit --fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/main` (Git Bash; in PowerShell `$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/main`); never an interactive rebase without that variable. Both are free in your own worktree.
 - Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`: the deny rule `git config *hooksPath*` refuses the whole call.
 - Never poll with a foreground `sleep N; cat <log>` (Claude Code blocks it): wait with `tools/run.sh wait <log>`, run_in_background or Monitor.
 - No Godot windows: headless runs only; a screenshot only through `tools\run.cmd shot` (off-screen).
@@ -77,29 +82,22 @@ You are a task agent of prime-game, run unattended by the manager session throug
 - The engineer's answers in issue and PR comments override older text, including these notes.
 - Commits: small Conventional Commits, one logical change each, message from a file (`git commit -F`), each ending with the attribution line your system reminder gives for commits; a PR body ends with the line it gives for pull requests.
 
-Task: publish issue #7 (t) from the worktree D:/prime-game/.claude/worktrees/7, PR base net/5-parent. Effort: high. Budget: at most about 150 tool calls.
+Task: publish issue #7 (t) from the worktree D:/prime-game/.claude/worktrees/7, PR base main. Effort: high. Budget: at most about 150 tool calls.
 
-An earlier attempt may have got part of the way (a resumed run): check `gh pr list --head voice/7-x --state all`, the issue's latest comments and `git status` before doing anything twice.
+An earlier attempt may have got part of the way (a resumed run): check `gh pr list --head net/7-x --state all`, the issue's latest comments and `git status` before doing anything twice.
 
-The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["voice/mixer.gd"]}
+The implementer reported: {"verify_green":true,"complete":true,"summary":"s","changed_paths":["net/protocol/codec.gd"]}
 
-Fresh reviewers found: [{"reviewer":"r","verdict":"ok","findings":[]},{"reviewer":"r","verdict":"ok","findings":[]}]
+Fresh reviewers found: [{"reviewer":"r","verdict":"ok","findings":[]},{"reviewer":"r","verdict":"ok","findings":[]},{"reviewer":"r","verdict":"ok","findings":[]}]
 
 Fix every blocker and major finding and the cheap minor ones, each in its own commit, with a test where it is a behaviour; a finding you think is wrong gets the reason in the PR. List the rest. `tools\run.cmd verify` until green (never weaken, skip or delete a test); if it stays red, publish nothing: post a comment on #7 (Done / Red and why / Needs the engineer) and return published false.
 
 Then follow .claude/skills/finish-task/SKILL.md from its docs step: "Publish now?" is answered yes; the reviews above replace its review step; skip agents-check.
-- `tools\run.cmd publish`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with `git ls-remote origin` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (`git rebase origin/net/5-parent`, resolve keeping both sides' intent, `git rebase --continue`, verify), then publish again after `git config branch.voice/7-x.primeBaseTip $(git merge-base HEAD origin/net/5-parent)` (redundant since #113: publish does this itself; harmless).
-- PR: `gh pr create --base net/5-parent --title "<conventional title>" --body-file <file under a7/>` from .github/pull_request_template.md: `Closes #7` when every acceptance criterion is met (else `Part of #7` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").
+- `tools\run.cmd publish`. Known traps: it can fail right after a rebase that changed tools/runner (verify ran with the old runner modules): run it again; "Could not resolve hostname github.com" is transient: check with `git ls-remote origin` and run it again. If it stops on a rebase conflict, rebase by hand inside your worktree (`git rebase origin/main`, resolve keeping both sides' intent, `git rebase --continue`, verify), then publish again.
+- PR: `gh pr create --base main --title "<conventional title>" --body-file <file under a7/>` from .github/pull_request_template.md: `Closes #7` when every acceptance criterion is met (else `Part of #7` and what is left); the summary; the verification commands and the verify tail; screenshots "none" unless visual; docs updated; under Cross-area, the content/ and levels/ files as provisional under the MVP content ADR, for the engineer's approval, or, when the task's notes say the change was agreed with the designer, "agreed with the designer, relayed by the engineer" and a tag of @SwiftySinister (docs/AGENT_WORKFLOW.md §9); a table of every reviewer finding and what happened to it; "Needs the engineer" with options and a recommendation for each; "Merge order" (which open PRs this depends on or will conflict with, from the notes below; a stacked PR says "merge only after its parent, into the parent's base").
 - `gh pr checks <pr> --watch`. Red: fix, verify, publish again; at most two rounds, then report what is still red.
 - The handoff comment on #7 (`gh issue comment 7 --body-file <file>`): "## Handoff", the PR link, then Done / Left / Decisions / Gotchas / Needs the engineer.
 - `tools\run.cmd board move 7 in-review`.
-
-Bounded waits (bounded_waits): this replaces how every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt and the skills it names is run. A tool call that blocks over about 5 minutes makes your next call write your whole context again (your prompt cache lives 5 minutes). No tool call blocks longer than 240 s: bound it with the shell's `timeout` or `wait --max`, never only with the tool's timeout.
-- Start each one in the Bash tool with run_in_background true (timeout 3600000 for mutants), with a NEW log under a7/ of your scratchpad for each run (verify-1.log, verify-2.log, publish-1.log, ...): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>` (<command>: `verify`, `publish` with the arguments given above, or `mutants <spec.json>`).
-- Then wait in separate calls of `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in the Bash tool (in PowerShell `tools\run.cmd wait <log>`), with the tool's timeout set to 300000 (its default of 120000 cuts a 240 s wait short). Exit 124 with a `wait: still running` line: call wait again, and never start the job again while it runs. Any other exit is the job's own, its summary printed above a `wait: ... finished: exit=<n>` line (verify and publish: 0 is green; mutants: 0 the run completed, 1 a bad spec or a run that could not finish, 2 its scratch worktree could not be removed). Exit 2 with a `wait: no log`, `wait: cannot read` or `wait: --max` line is wait's own error (check the log path), never mutants' exit 2. A log that has not grown for 10 minutes: check the background task.
-- CI: `cd /d/prime-game/.claude/worktrees/7 && timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with the tool's timeout set to 300000 (in PowerShell `timeout` is another program), repeated while rc is 124 or 8; rc 1 with "no checks reported" means CI has not started yet: run it again. Otherwise rc 0 is green and 1 red.
-- Before `publish`, run `tools/run.sh wait --verified`: exit 0 (the newest verify passed at HEAD with a clean tree) means no standalone `verify` first, because `publish` runs `verify` itself; after any new commit, verify as before.
-- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.
 
 Task notes from the manager (for the PR's merge order and the handoff):
 n
@@ -121,6 +119,9 @@ Return the structured result.
  "reviews": [
   {
    "by": "code-reviewer"
+  },
+  {
+   "by": "netcode-security-reviewer"
   },
   {
    "by": "godot-api-checker"

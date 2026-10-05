@@ -20,9 +20,10 @@ export const meta = {
 //   plan    the plan issue whose body no agent edits (default 30)
 //   manager who runs this (default 'the manager session')
 // Optional pipeline v2 review args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4),
-// all off by default, as in issue-task.js: with none of them every agent's prompt, label, phase, schema and options are
-// byte-identical to the script before v2 (tools/runner/tests/test_workflows.py snapshots them). The agents each one
-// adds count toward the agent number the kickoff approves (2 to 4 without them):
+// all off by default but bounded_waits (on since #411), as in issue-task.js: with none of them and bounded_waits false
+// every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
+// (tools/runner/tests/test_workflows.py snapshots them, and the default too). The agents each one adds count toward the
+// agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -30,9 +31,10 @@ export const meta = {
 //                 refuted finding is not sent to the fix agent but listed in the PR body with the reason (by the fix
 //                 agent, or by the manager when every one was refuted: the result's note says so). +1 agent per
 //                 finding checked
-//   bounded_waits true: the rebase and fix agents run verify and publish in the background and poll them with
-//                 `tools\run.cmd wait` (#303), wait on CI in calls of at most 240 s, and skip a standalone verify
-//                 that `wait --verified` shows done, as in issue-task.js. +0 agents
+//   bounded_waits true, the default (#411; missing or null is true): the rebase and fix agents run verify and
+//                 publish in the background and poll them with `tools\run.cmd wait` (#303), wait on CI in calls of
+//                 at most 240 s, and skip a standalone verify that `wait --verified` shows done, as in issue-task.js.
+//                 false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: rebase (default 'high'), review,
 //                 netcode, second_review, skeptic, fix (default 'high'). review covers the code reviewer and is the
 //                 fallback of netcode, skeptic and (after netcode) second_review. A reviewer gets an effort only when
@@ -72,7 +74,8 @@ if (unknown.length) log(`#${PR}: unknown args ignored: ${unknown.join(', ')}`)
 if (A.second_review !== undefined && A.second_review !== null && typeof A.second_review !== 'boolean') throw new Error('pr-rebase: args.second_review must be true or false')
 const SECOND_REVIEW = A.second_review === true
 if (A.bounded_waits !== undefined && A.bounded_waits !== null && typeof A.bounded_waits !== 'boolean') throw new Error('pr-rebase: args.bounded_waits must be true or false')
-const BOUNDED = A.bounded_waits === true
+// On unless a launch passes false (#411): a missing or null arg is the default.
+const BOUNDED = A.bounded_waits !== false
 if (A.lean !== undefined && A.lean !== null && typeof A.lean !== 'boolean') throw new Error('pr-rebase: args.lean must be true or false')
 const LEAN = A.lean === true
 if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boolean' && !(Number.isInteger(A.skeptic) && A.skeptic > 0)) {
