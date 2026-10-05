@@ -42,10 +42,10 @@ class SlotsCase(unittest.TestCase):
         self.said: list[str] = []
 
     def pool(self, count: int = 2, max_wait: float = 150.0, name: str = "me", clock: FakeClock | None = None,
-             ) -> slots.Pool:  # fmt: skip
+             kind: str = slots.VERIFY) -> slots.Pool:  # fmt: skip
         fake = clock or FakeClock()
         pool = slots.Pool(
-            self.where, count, max_wait, me={"worktree": f"D:/wt/{name}", "branch": f"tooling/1-{name}"},
+            self.where, count, max_wait, kind=kind, me={"worktree": f"D:/wt/{name}", "branch": f"tooling/1-{name}"},
             clock=fake.clock, sleep=fake.sleep, say=self.said.append,
         )  # fmt: skip
         self.addCleanup(pool.release)
@@ -58,6 +58,7 @@ class AcquireTest(SlotsCase):
         self.assertEqual((taken.slot, taken.waited, taken.over, taken.reclaimed), (1, 0.0, False, []))
         holder = json.loads((self.where / "slot-1.json").read_text(encoding="utf-8"))
         self.assertEqual((holder["worktree"], holder["branch"], holder["pid"]), ("D:/wt/a", "tooling/1-a", os.getpid()))
+        self.assertEqual(holder["kind"], "verify")
         self.assertRegex(holder["since"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
         self.assertEqual(taken.record(), {"slot": 1, "of": 2, "waited": 0.0, "over": False, "reclaimed": 0})
 
@@ -128,11 +129,93 @@ class WaitTest(SlotsCase):
         self.assertTrue(any(line.startswith("verify: waiting for a slot") and "slot 1: ?" in line
                             for line in self.said), self.said)  # fmt: skip
 
+    def test_with_the_default_wait_a_run_gets_the_slot_the_longest_measured_need_freed(self) -> None:
+        # #388: with 95 s this run went ahead over the limit; the default wait now covers every wait the verify
+        # history needed (slots.NEEDED), so it gets the slot its holder frees.
+        holder = self.pool(count=1, name="busy")
+        holder.acquire()
+        env = {slots.COUNT_VAR: "1", slots.DIR_VAR: str(self.where)}
+        pool, _ = slots.for_verify({"worktree": "D:/wt/late"}, env=env, say=self.said.append)
+        assert pool is not None
+        self.addCleanup(pool.release)
+        fake = FakeClock()
+        pool.clock, pool.sleep = fake.clock, fake.sleep
+        fake.at.append((fake.now + max(slots.NEEDED), holder.release))
+        taken = pool.acquire()
+        self.assertEqual((taken.slot, taken.over), (1, False))
+        self.assertGreaterEqual(taken.waited, max(slots.NEEDED))
+        reports = [line for line in self.said if line.startswith("verify: waiting for a slot")]
+        self.assertEqual(len(reports), 9, self.said)  # at 0, 60, ..., 480 s
+        self.assertIn(f"at most {slots.DEFAULT_WAIT:.0f}s", reports[0])
+
+    def test_past_the_default_wait_the_run_still_goes_ahead_and_says_so(self) -> None:
+        self.pool(count=1, name="stuck").acquire()
+        env = {slots.COUNT_VAR: "1", slots.DIR_VAR: str(self.where)}
+        pool, _ = slots.for_verify({}, env=env, say=self.said.append)
+        assert pool is not None
+        fake = FakeClock()
+        pool.clock, pool.sleep = fake.clock, fake.sleep
+        taken = pool.acquire()
+        self.assertTrue(taken.over)
+        self.assertAlmostEqual(taken.waited, slots.DEFAULT_WAIT)
+        self.assertTrue(any("this verify runs OVER THE LIMIT" in line and "D:/wt/stuck" in line for line in self.said))
+
     def test_a_zero_wait_never_sleeps(self) -> None:
         self.pool(count=1, name="busy").acquire()
         fake = FakeClock()
         self.assertTrue(self.pool(count=1, max_wait=0, name="now", clock=fake).acquire().over)
         self.assertEqual(fake.slept, [])
+
+
+class LoadRunTest(SlotsCase):
+    """#388: a load run (`load`) takes a slot like a verify run, so the verify runs see it."""
+
+    def test_a_load_run_holds_a_slot_that_a_waiting_verify_names(self) -> None:
+        load = self.pool(count=1, name="loaded", kind=slots.LOAD)
+        self.assertEqual(load.acquire().slot, 1)
+        self.assertEqual(json.loads((self.where / "slot-1.json").read_text(encoding="utf-8"))["kind"], "load")
+        fake = FakeClock()
+        fake.at.append((fake.now + 70, load.release))
+        taken = self.pool(count=1, name="verifying", clock=fake).acquire()
+        self.assertEqual((taken.slot, taken.over), (1, False))
+        reports = [line for line in self.said if line.startswith("verify: waiting for a slot")]
+        self.assertEqual(len(reports), 2, self.said)
+        for line in reports:
+            self.assertIn("slot 1: load run in D:/wt/loaded (tooling/1-loaded, pid", line)
+
+    def test_a_load_run_counts_against_the_slots_of_the_verify_runs(self) -> None:
+        self.pool(count=2, name="verify").acquire()
+        self.pool(count=2, name="loaded", kind=slots.LOAD).acquire()
+        taken = self.pool(count=2, max_wait=30, name="third", clock=FakeClock()).acquire()
+        self.assertTrue(taken.over)
+        self.assertEqual([h.kind for h in taken.holders], [slots.VERIFY, slots.LOAD])
+        self.assertIn("slot 2: load run in D:/wt/loaded", taken.summary())
+
+    def test_a_load_run_waits_like_a_verify_and_past_the_wait_says_it_does_not_start(self) -> None:
+        self.pool(count=1, name="busy").acquire()
+        taken = self.pool(count=1, max_wait=150, name="loaded", clock=FakeClock(), kind=slots.LOAD).acquire()
+        self.assertTrue(taken.over)
+        self.assertAlmostEqual(taken.waited, 150.0)
+        self.assertTrue(any(line.startswith("load: waiting for a slot") for line in self.said), self.said)
+        warning = next(line for line in self.said if "WARN" in line)
+        self.assertIn("this load run does not start", warning)
+        self.assertNotIn("OVER THE LIMIT", warning)
+
+    def test_a_holder_file_without_a_kind_is_a_verify(self) -> None:
+        # Holder files written before #388 name no kind.
+        self.where.mkdir(parents=True)
+        (self.where / "slot-1.json").write_text(json.dumps({"worktree": "D:/wt/old", "pid": 7}), encoding="utf-8")
+        holder = self.pool(count=1, name="reader").holder(1)
+        assert holder is not None
+        self.assertEqual(holder.kind, slots.VERIFY)
+        self.assertEqual(holder.line(), "slot 1: D:/wt/old (detached, pid 7, since ?)")
+
+    def test_a_pool_knows_only_verify_and_load_runs(self) -> None:
+        with self.assertRaises(ValueError):
+            slots.Pool(self.where, 1, 1, kind="perf")
+        pool, _ = slots.for_verify({}, env={slots.DIR_VAR: str(self.where)}, kind=slots.LOAD)
+        assert pool is not None
+        self.assertEqual((pool.kind, pool.max_wait), (slots.LOAD, slots.DEFAULT_WAIT))
 
 
 class HoldersTest(SlotsCase):
@@ -235,11 +318,12 @@ class SettingsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             slots.Pool(Path("x"), 0, 1)
 
-    def test_the_default_wait_and_a_verify_fit_an_agents_shell_call(self) -> None:
-        # An agent's foreground shell call dies at 600 s: the longest wait leaves room, with the margin, for the run
-        # that then goes ahead over the limit (one more at once than the slots), the slowest one after a wait.
-        self.assertGreater(slots.VERIFY_OVER, slots.VERIFY_RUN)
-        self.assertLessEqual(slots.DEFAULT_WAIT + slots.VERIFY_OVER + slots.MARGIN, slots.AGENT_CALL_LIMIT)
+    def test_the_default_wait_covers_the_measured_waits_and_fits_a_background_run(self) -> None:
+        # #388: the longest wait covers every wait an over-limit run of the verify history needed for a slot, and the
+        # whole wait plus the slowest green slotted verify still ends within a background command's limit. (Until
+        # #388 it had to fit an agent's 600 s foreground call; agents run verify in the background since #303.)
+        self.assertGreaterEqual(slots.DEFAULT_WAIT, max(slots.NEEDED))
+        self.assertLessEqual(slots.DEFAULT_WAIT + slots.SLOWEST_GREEN, slots.BACKGROUND_LIMIT)
 
 
 if __name__ == "__main__":

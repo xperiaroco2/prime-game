@@ -117,6 +117,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--enet", action="store_true", help="real sockets on 127.0.0.1 and the real clock (default loopback)")
     p.add_argument("--baseline", help="report to compare with (default tools/out/perf/baseline.json, else the last)")
 
+    p = sub.add_parser(
+        "load",
+        help="bounded busy loops to test under load, in a verify slot (waits like verify; none free in time: exit 1)",
+    )
+    p.add_argument("--loops", type=int, help="busy processes, 1 to 256 (default 2 per logical CPU)")
+    p.add_argument("--seconds", type=float, default=600.0, help="how long they run, up to 1140 (default 600)")
+
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
     p = board_sub.add_parser("move", help="put an issue on the board in a column (agents use only these two)")
@@ -366,6 +373,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import perf
 
             return perf.main(bots=args.bots, seconds=args.seconds, enet=args.enet, baseline=args.baseline)
+        if args.command == "load":
+            from . import load
+
+            return load.main(args.loops, args.seconds)
         if args.command == "board":
             from . import board
 

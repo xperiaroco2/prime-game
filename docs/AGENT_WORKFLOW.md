@@ -1207,15 +1207,38 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The
   operating system frees a slot's lock when its process ends however it ends, so a killed run's slot is taken over at
   once (the next run names it: "left by a run that ended without releasing it"). While every slot is held the run prints
-  every minute which worktrees, branches and pids hold them. The wait is bounded (default 95 s): an agent's foreground
-  shell call dies at 600 s, and the wait plus the run that then goes ahead over the limit (about 445 s, three runs at
-  once) and a 60 s margin must end before it; after the wait the run goes ahead without a slot, with `OVER THE LIMIT` in
+  every minute which worktrees, branches and pids hold them. The wait is bounded (default 600 s since #388; 95 s
+  before, to fit an agent's 600 s foreground call, which agents no longer make: they run verify and publish in the
+  background and poll them with `wait`, below). With 95 s, 7 of the 59 runs left in the verify history files (to
+  2026-10-04) ran over the limit, all on 2026-10-04 with three or four tracks verifying at once, and they were slow
+  (median 603 s against 359 s slotted); for the five whose holders the files name, a slot freed 207 to 536 s after the
+  wait began. 600 s covers them all and is about one whole verify on the loaded PC (45 of 51 slotted runs took less):
+  a longer wait means a stuck holder. After the wait the run goes ahead without a slot, with `OVER THE LIMIT` in
   its output, its summary's last line and its record (`over`). A slot never skips or weakens a step. N is 2, measured on
   the engineer's PC with #182's shards (the PR of #185): one or two runs at once took 315 to 386 s each, three 431 to
   441 s, four 452 s; two runs of 4 shards and 4 selftest workers fill the 16 logical CPUs, while a third or fourth makes
-  every run a third longer (no room left for a wait in a 600 s call) and `test` red more often (freeze, stall, enet and
-  bots-enet stayed green). `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and
-  `PRIME_VERIFY_SLOTS_DIR` override the defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
+  every run a third longer and `test` red more often (freeze, stall, enet and bots-enet stayed green).
+  `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR` override the
+  defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
+  **Load runs (#388):** an agent that tests something under load on purpose (as #318 and #354 did with 32 hand-written
+  busy loops on 16 logical CPUs, which the slots could not see while the other tracks' verify runs went on beside them)
+  runs `load [--loops N] [--seconds S]` (default 2 loops per logical CPU for 600 s; at most 256 loops and 1140 s). It
+  first takes a slot like a verify (the same wait and waiting line), so one verify fewer runs beside it and every
+  waiting run names it (`slot 2: load run in <worktree> (...)`; its holder file has `kind: load`); past the wait it
+  starts nothing and exits 1 (a load is no gate, and it would push the slotted runs over the limit). Taking a slot
+  was chosen over `verify` counting load runs as extra holders: the same operating-system lock frees a killed load's
+  slot at once, there is one count to reason about, and nothing else has to find and judge the load's processes. One
+  slot makes the load visible but does not shield the verify that still runs beside it: a default load busies every
+  logical CPU (a slot stands for half the PC), so that verify is expected to run slow and may go red on `freeze` or
+  `stall`; rerun it after the load instead of debugging it. A load taking both slots would shield it, but would hold
+  every other verify for up to 1140 s, past the 600 s wait, so they would run over the limit anyway. Each
+  loop is its own Python process that ends by itself at most S seconds after it starts, and the runner stops any loop
+  that outlives S by 5 s. A killed `load` frees its slot at once while its loops run out their time without one, so S
+  is at most 1140 s: the 600 s wait, S, the 5 s grace and a 55 s start margin fit the 30-minute default limit of a
+  background command, which therefore never kills a `load`. The agent starts it in the background (a log under its
+  scratch folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with
+  `wait <log>`.
+  Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
   The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (and `error` when the slot folder failed: the run
   then goes ahead without a slot, a slot never stops the gate), its `seconds` leave the wait out, and the summary's last
   line adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over
@@ -1245,8 +1268,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly
   all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
   300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
-  shell's `timeout` or `wait --max`, never only with the tool's own timeout. A foreground `sleep N` followed by another
-  command (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
+  shell's `timeout` or `wait --max`, never only with the tool's own timeout. Since #388 every agent, a main or manager
+  session too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can
+  reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
+  (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
   the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
   `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the job in the Bash tool with
   `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
