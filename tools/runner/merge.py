@@ -146,7 +146,8 @@ ANSWERED_RE = re.compile(r"(?i)\bAnswered\W*https://github\.com/\S+")
 # "Needs the engineer" as a heading, a bold label or a plain line. A heading section ends at the next heading of its
 # level or higher; a bold or plain one at the next heading or bold label. Inside, a sub-heading or a bold label is a
 # sub-label: it groups the items below it, or is a question of its own when no item follows. A label that starts with
-# a number ("### 1. ...", "**1. ...**") never ends a section.
+# a number ("### 1. ...", "**1. ...**") never ends a section. An indented bold line inside an item ("   **Recommended
+# (b).**") is part of that item: it neither starts a sub-label nor ends a section (#417).
 NEEDS_LABEL_RE = re.compile(r"^(?:#{1,6}[ \t]*)?(?:\*\*|__)?Needs the engineer\b(.*)$")
 HEADING_RE = re.compile(r"^(#{1,6})\s")
 BOLD_LINE_RE = re.compile(r"^(?:\*\*|__)[^*_\n]+(?:\*\*|__)\s*:?\s*$")
@@ -1556,7 +1557,12 @@ def open_needs(body: str) -> list[str]:
         heading = HEADING_RE.match(lines[i - 1].strip())
         level = len(heading.group(1)) if heading else 0
         section = [label.group(1).strip(" \t*_:")]
-        while i < len(lines) and not _ends_needs(lines[i].strip(), level):
+        in_item = False  # whether the last block is a top-level item, as _unanswered splits them
+        while i < len(lines) and not _ends_needs(lines[i], level, in_item):
+            if ITEM_RE.match(lines[i]):
+                in_item = True
+            elif _is_label(lines[i], in_item):
+                in_item = False
             section.append(lines[i])
             i += 1
         if i < len(lines) and not level and not "".join(section).strip() and BOLD_LINE_RE.match(lines[i].strip()):
@@ -1574,15 +1580,23 @@ def open_needs(body: str) -> list[str]:
     return problems
 
 
-def _ends_needs(line: str, level: int) -> bool:
+def _ends_needs(line: str, level: int, in_item: bool) -> bool:
     """Whether a line ends a "Needs the engineer" section that started as a heading of `level` (0: a bold or plain
-    label)."""
-    if NUMBERED_LABEL_RE.match(line):
+    label, which a sub-label ends: a heading, or a bold line unless it is indented inside an item, `in_item`)."""
+    if NUMBERED_LABEL_RE.match(line.strip()):
         return False
-    heading = HEADING_RE.match(line)
+    heading = HEADING_RE.match(line.strip())
     if level:
         return bool(heading) and len(heading.group(1)) <= level
-    return bool(heading or BOLD_LINE_RE.match(line))
+    return _is_label(line, in_item)
+
+
+def _is_label(line: str, in_item: bool) -> bool:
+    """Whether a section line is a sub-label: a heading or a bold-only line, but an indented bold line inside a
+    top-level item (its "**Recommended (b).**") is part of that item (#417)."""
+    if HEADING_RE.match(line.strip()):
+        return True
+    return bool(BOLD_LINE_RE.match(line.strip())) and not (in_item and line[:1].isspace())
 
 
 def _unanswered(section: list[str]) -> list[str]:
@@ -1593,7 +1607,7 @@ def _unanswered(section: list[str]) -> list[str]:
     for line in section:
         if ITEM_RE.match(line):  # top level: no indentation
             blocks.append(("item", [line]))
-        elif HEADING_RE.match(line.strip()) or BOLD_LINE_RE.match(line.strip()):
+        elif _is_label(line, bool(blocks) and blocks[-1][0] == "item"):
             blocks.append(("label", [line]))
         elif blocks:
             blocks[-1][1].append(line)
