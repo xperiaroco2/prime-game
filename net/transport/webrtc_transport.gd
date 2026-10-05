@@ -82,6 +82,8 @@ var _ice_servers: Array = []
 var _join_started_ms := 0
 var _signal_opened := false
 var _client_id := 0
+## When poll() last ran; -1 before the first.
+var _last_poll_ms := -1
 
 
 ## One connection and what the backend knows about it.
@@ -215,12 +217,14 @@ func _backend_poll() -> void:
 	if _signaller != null:
 		_signaller.poll()
 	var now := Time.get_ticks_msec()
+	var since := _last_poll_ms if _last_poll_ms >= 0 else now
+	_last_poll_ms = now
 	for peer_id: int in _conns.keys():
 		if _conns.has(peer_id):
 			_step_connection(_conns[peer_id], now)
 	for peer_id: int in _conns.keys():
 		if _conns.has(peer_id):
-			_read(_conns[peer_id], now)
+			_read(_conns[peer_id], now, since)
 	_judge(now)
 	for conn: Conn in _conns.values():
 		if _is_live(conn) and now - conn.last_sent_ms >= KEEPALIVE_MS:
@@ -248,6 +252,7 @@ func _backend_close() -> void:
 	_ice_servers = []
 	_client_id = 0
 	_signal_opened = false
+	_last_poll_ms = -1
 	found_protocol = -1
 	found_content = 0
 
@@ -368,7 +373,9 @@ func _step_closing(conn: Conn, now: int) -> void:
 
 ## Reads every channel of a connection: LATEST before RELIABLE, so a LATEST packet sent before a
 ## reliable one comes first, as ENet delivers it (§2.2).
-func _read(conn: Conn, now: int) -> void:
+## `since`: the previous poll, when what is read now had arrived at the latest (the fault shim
+## delays from there, so a backlog read after a freeze is not held back again).
+func _read(conn: Conn, now: int, since: int) -> void:
 	if not conn.open:
 		return
 	var closing := conn.closing_since_ms >= 0
@@ -390,7 +397,7 @@ func _read(conn: Conn, now: int) -> void:
 					if _faults == null:
 						_take_reliable(conn, bytes, now)
 					else:
-						_delay_reliable(conn, bytes, now)
+						_delay_reliable(conn, bytes, since)
 				NetKindTable.Lane.VOICE:
 					if bytes != PackedByteArray(KEEPALIVE):
 						_push_packet(conn.peer_id, bytes, lane)
@@ -440,8 +447,8 @@ static func _admitted_id(bytes: PackedByteArray) -> int:
 	return bytes.decode_u32(NetFrame.HEADER_BYTES)
 
 
-func _delay_reliable(conn: Conn, bytes: PackedByteArray, now: int) -> void:
-	var due := now + _faults.reliable_delay()
+func _delay_reliable(conn: Conn, bytes: PackedByteArray, arrived: int) -> void:
+	var due := arrived + _faults.reliable_delay()
 	if not conn.delayed_due.is_empty():
 		due = maxi(due, conn.delayed_due[conn.delayed_due.size() - 1])
 	conn.delayed.append(bytes)
