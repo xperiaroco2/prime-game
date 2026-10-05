@@ -4,7 +4,7 @@ paths:
   - "**/*.tres"
   - "**/*.uid"
   - "**/*.import"
-  - "project.godot"
+  - "**/project.godot"
 ---
 
 # Scenes, resources and Godot metadata
