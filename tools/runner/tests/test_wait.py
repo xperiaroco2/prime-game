@@ -110,6 +110,16 @@ class WaitTest(unittest.TestCase):
         self.assertIn("verify: FAILED in 305.0s", out)
         self.assertIn("finished: exit=1", out[-1])
 
+    def test_a_merge_train_log_prints_its_own_summary_after_the_publishes_verify(self) -> None:
+        # merge-train (#387) runs publishes whose verify summaries come before its own: only the train's is printed.
+        train = ["merge-train summary", "  merged   #30 (core/30-task): publish", "  skipped  #31: CI is red",
+                 "merge-train: 1 merged, 1 skipped of 2 PRs"]  # fmt: skip
+        self.write(VERIFY_START + VERIFY_STEPS + GREEN_SUMMARY + ["publish: done", "wave: merged #30"] + train
+                   + ["exit=1"])  # fmt: skip
+        rc, out = self.run_wait()
+        self.assertEqual(rc, 1)
+        self.assertEqual(out[:-1], train)
+
     def test_a_job_exit_code_passes_through_unchanged(self) -> None:
         # mutants has no "verify summary": the last lines before the marker are its table and verdict.
         body = [f"line {i}" for i in range(40)] + ["mutants: 3 killed, 0 survived in 400.0 s", "exit=2"]
