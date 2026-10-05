@@ -89,6 +89,10 @@ func check_client(
 		found.append(
 			"host to %s: %d messages sent, none recorded as delivered" % [label, mine.sent.size()]
 		)
+	if client.sent.is_empty() and not mine.delivered.is_empty():
+		found.append(
+			"%s to host: %d delivered, none recorded as sent" % [label, mine.delivered.size()]
+		)
 	if mine.delivered.is_empty() and not client.sent.is_empty():
 		found.append(
 			"%s to host: %d messages sent, none recorded as delivered" % [label, client.sent.size()]

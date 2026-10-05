@@ -327,7 +327,9 @@ func _join_again(bot: ScenarioBot) -> void:
 	if client == null or bot.joined or bot.gone or bot.joins_late():
 		return
 	var reason := client.end_reason
-	if not reason in UNANSWERED and not reason in ROOM_NOT_UP:
+	# Over WebRTC connect_failed is a connection that closed or a bad ADMIT, never a missing answer.
+	var unanswered := reason in UNANSWERED and not client.transport() is WebRtcTransport
+	if not unanswered and not reason in ROOM_NOT_UP:
 		return
 	var failed: int = _join_failed.get_or_add(bot.number, _join_clock_usec())
 	if reason in ROOM_NOT_UP:

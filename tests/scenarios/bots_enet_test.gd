@@ -142,9 +142,12 @@ func test_over_webrtc_a_join_that_reached_the_room_does_not_join_again() -> void
 	# The match has started, or the room is full: the host's own answer. host_unreachable: the
 	# service answered and the connection never opened, a transport fault the run must not ride out.
 	for reason: StringName in [
-		NetTransport.JOIN_STARTED, NetTransport.JOIN_FULL, NetTransport.JOIN_UNREACHABLE
+		NetTransport.JOIN_STARTED,
+		NetTransport.JOIN_FULL,
+		NetTransport.JOIN_UNREACHABLE,
+		NetTransport.JOIN_FAILED,
 	]:
-		var runner := RemoteBot.new(_scenario([[], []]))
+		var runner := RtcRemoteBot.new(_scenario([[], []]))
 		var bot := runner.add_bot()
 		runner.now_usec = START_USEC
 		runner._join_host(bot)
@@ -156,6 +159,14 @@ func test_over_webrtc_a_join_that_reached_the_room_does_not_join_again() -> void
 		runner._join_again(bot)
 		assert_object(runner.clients[2]).override_failure_message(String(reason)).is_same(client)
 		client.leave()
+
+
+## Bot 2's instance over WebRTC, its joins never started (no signalling).
+class RtcRemoteBot:
+	extends RemoteBot
+
+	func _joining() -> NetTransport:
+		return WebRtcTransport.new(schema.kind_table())
 
 
 ## A scenario of one script per bot in the base mode, each a list of steps.

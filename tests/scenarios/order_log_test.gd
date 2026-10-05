@@ -59,6 +59,8 @@ func test_check_client_walks_both_ways_and_sees_a_recording_that_broke() -> void
 	var empty := OrderLog.from_data({})
 	var found := host.check_client("bot 2", 7, empty)
 	assert_str(found[0]).contains("none recorded as delivered")
+	var silent := OrderLog.from_data({"delivered": from_file.delivered})
+	assert_str(host.check_client("bot 2", 7, silent)[0]).contains("none recorded as sent")
 	assert_str(host.summary("bot 2", 7, from_file)).is_equal(
 		"bot 2: host to it 2 sent, 2 delivered; it to host 1 sent, 1 delivered"
 	)
