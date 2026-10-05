@@ -42,6 +42,11 @@ export const meta = {
 //   lean          true: the rebase and fix agents run as the agent type task-publisher (a lean tool allowlist, no
 //                 Skill tool; #332, docs/decisions/2026-10-04-lean-workflow-agent-types.md), as in issue-task.js.
 //                 Only agentType is appended to their options. Opt-in until the A/B on #302. +0 agents
+// Returns a compact result (#386), as issue-task.js does: pr, n, stopped (why, when the run stopped), the PR's state after
+// the last agent (published, ci_green, verify_green), up_to_date, the rebase's conflicts and fixes as counts and its
+// problems (in full on a stop), human_steps of the rebase and fix agents in full, the reviews' findings by severity,
+// fix (null when none ran) and not_fixed, the skeptics' counts and note (with the refuted findings in full), and
+// `full`, a pointer to the run's journal.jsonl with every agent's whole result.
 // Resume: relaunch with resumeFromRunId and the SAME args.
 
 const A = args || {}
@@ -136,6 +141,46 @@ const waits = publishes => [
   '- If `tools/run.sh wait --help` fails in the worktree (its base predates #303), run them in the foreground as before.',
 ].filter(Boolean).join('\n')
 
+// The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
+// the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
+// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent.
+const FULL = 'whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
+const line = (s, max = 160) => {
+  const t = s === undefined || s === null ? '' : String(s).trim()
+  const first = t.split('\n')[0].trim()
+  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first.length < t.length ? `${first} …` : first
+}
+const lines = (a, max) => (Array.isArray(a) ? a.map(s => line(typeof s === 'string' ? s : JSON.stringify(s), max)) : [])
+const SEVERITIES = ['blocker', 'major', 'minor', 'nit']
+const tally = (list, key, order) => {
+  const c = {}
+  for (const x of list || []) { const k = String(x && x[key]); c[k] = (c[k] || 0) + 1 }
+  return Object.fromEntries([...order.filter(k => c[k]), ...Object.keys(c).filter(k => !order.includes(k))].map(k => [k, c[k]]))
+}
+const briefReviews = (by, rs) => rs.map((r, i) => ({ by: by[i], ...tally(r.findings, 'severity', SEVERITIES) }))
+const pick = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined && o[k] !== null).map(k => [k, o[k]]))
+// A list's "None" or empty entries say nothing.
+const items = a => (Array.isArray(a) ? a.filter(x => !(typeof x === 'string' && /^(none\.?)?$/i.test(x.trim()))) : [])
+
+// pr-rebase's own result: the rebase's verdict, the reviews' counts, the last agent's state and the skeptics'.
+const brief = (stopped, reviews, fix, extra) => {
+  const out = { pr: PR, n: N }
+  if (stopped) out.stopped = stopped
+  // The last agent that ran says what the PR is now: the fix agent's state, else the rebase's.
+  Object.assign(out, pick(fix || reb, ['published', 'ci_green', 'verify_green']), pick(reb, ['up_to_date']))
+  out.conflicts = items(reb.conflicts).length
+  out.fixes = items(reb.fixes).length
+  // In full on a stop: the fresh relaunch's steps need them (orchestrate-stage §5).
+  if (items(reb.problems).length) out.problems = stopped ? items(reb.problems) : lines(items(reb.problems))
+  out.human_steps = [...(reb.human_steps || []), ...((fix && fix.human_steps) || [])]
+  out.reviews = reviews.length ? briefReviews(labels, reviews) : []
+  out.fix = fix ? { fixed: items(fix.fixed).length } : null
+  if (fix) out.not_fixed = lines(items(fix.not_fixed))
+  Object.assign(out, extra)
+  out.full = FULL
+  return out
+}
+
 phase('Rebase')
 const reb = await agent([
   RULES,
@@ -160,7 +205,7 @@ if (!reb) throw new Error(`#${PR}: the rebase agent returned nothing; resume thi
 // A red or unpublished rebase is not reviewed: the reviewer would read a local state that is not the PR.
 if (!reb.verify_green || !reb.published) {
   log(`#${PR}: rebase ${reb.verify_green ? 'green' : 'RED'}, ${reb.published ? 'published' : 'NOT published'}; stopped before review`)
-  return { pr: PR, reb, reviews: [], fix: null, stopped: 'rebase red or unpublished: nothing reviewed; read reb.problems, then relaunch (not a resume) with them in steps' }
+  return brief('rebase red or unpublished: nothing reviewed; read problems, then relaunch (not a resume) with them in steps', [], null, {})
 }
 
 phase('Review')
@@ -231,7 +276,11 @@ if (toFix.length) {
   }, 'fix'))
   if (!fix) throw new Error(`#${PR}: the fix agent returned nothing, so ${toFix.length} blocker/major finding(s) may be unfixed; resume this run with the same args`)
 }
-if (!SKEPTICS) return { pr: PR, reb, reviews, fix }
-const out = { pr: PR, reb, reviews, fix, skeptic }
-if (serious.length && !toFix.length) out.note = `every blocker and major finding was refuted, so no fix agent ran: add skeptic.refuted, each with its reason, to PR #${PR}'s body`
-return out
+if (!SKEPTICS) return brief(null, reviews, fix, {})
+const extra = { skeptic: { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length } }
+if (serious.length && !toFix.length) {
+  extra.note = `every blocker and major finding was refuted, so no fix agent ran: add refuted, each with its reason, to PR #${PR}'s body`
+  // In full: the manager copies them into the PR body.
+  extra.refuted = skeptic.refuted.map(s => ({ from: s.from, ...pick(s.finding, ['severity', 'file', 'line', 'problem']), reason: s.reason }))
+}
+return brief(null, reviews, fix, extra)

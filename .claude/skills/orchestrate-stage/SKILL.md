@@ -180,29 +180,29 @@ once it lands"); repeat rules that force fixture updates in every later PR (neut
 in the data); name a task's merge order relative to the other open PRs; name every rename in both tasks' notes (§9).
 
 ## 4. On each completion
-Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not_fixed`; with v2 args also `plan`
-(the plan and its critique, summarized in the PR), `test_review` (the mutants, or why it was skipped or missing),
-`skeptic` (`refuted`, `stood`, `unchecked`), `visual` (the PNGs: the engineer drags them into the PR) and
-`publish_clean` (`applied`, `why`, `open`, `model`, `effort`)). Merge it
-into its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and
-in which order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a
-concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End
-every message to the human with one short "For you:" block in their language, numbered, listing only what needs them
-now (a merge the gate refused, a decision, a command), or "nothing"; the rest goes into the wave comment. Copy
-every command of `human_steps` into the chat itself, never only a pointer ("the command is in PR #235's body"): fetch
-a command a step only points to, then one fenced PowerShell block per command, starting with `cd` to its absolute
-folder, run or previewed by you first (root `CLAUDE.md`, "Talking to the humans"). The PR and the wave comment may
-carry it too. Each `human_steps` item (also `reb.human_steps` and `fix.human_steps` of a `pr-rebase` run) is
-`{why, command}`: `command` is that one PowerShell line, which you check starts with `cd <absolute folder>;` and
-copy as is under its `why`; an empty `command` is a click or a decision you tell in plain words; a plain string (a
-run launched before #266) you handle as above. Then fill the free slot.
+Read the compact result (#386): `pr_url`, `published`, `ci_green`, `stopped`, `needs_engineer` and `human_steps` in
+full, `not_fixed` and `merge_notes` cut to a line, `fixed` and `reviews` as counts (findings by severity); with v2
+args also `plan`, `test_review` (mutants by result, or why skipped or missing), `skeptic` (counts), `visual` (PNGs the
+engineer drags into the PR) and `publish_clean`. The whole texts are in the run's `journal.jsonl` (`full` says where;
+a `result` line has the `key` of its agent's `started` line): read it only when a field you act on points there.
+`handoff_posted` or `board_in_review` false: post the handoff or `board move <n> in-review` yourself. Merge it into
+its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and in which
+order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a concrete scenario of
+what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End every message to the
+human with one short "For you:" block in their language, numbered, listing only what needs them now (a merge the gate
+refused, a decision, a command), or "nothing"; the rest goes into the wave comment. Copy every `human_steps` command
+into the chat itself, never only a pointer ("it is in PR #235's body"; fetch what a step only points to): one fenced
+PowerShell block each, run or previewed by you first (root `CLAUDE.md`, "Talking to the humans"); the PR and the wave
+comment may carry it too. Each item is `{why, command}`: `command` is one PowerShell line, which you check starts with
+`cd <absolute folder>;` and copy as is under its `why`; an empty `command` is a click or a decision you tell in plain
+words; a plain string (a run before #266) likewise. Then fill the free slot.
 <!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
 
 When something failed (never resume a run whose result has `stopped`: a resume replays the stop):
-- `stopped` (the implementer ended red) or `pub.published` false: say so on the plan issue and in chat, then launch
-  `issue-task` once more as a **fresh** run with the failure added to `notes`; the implementer continues from the
-  worktree's commits. Red again: stop that task and ask the human; where the kickoff allows a model beyond the shared
-  list for a task red twice, offer a third launch with `models.implement` (§3).
+- `stopped` (the implementer ended red) or `published` false: say so on the plan issue and in chat, then launch
+  `issue-task` once more as a **fresh** run with the failure added to `notes` (its issue comment or the journal); the
+  implementer continues from the worktree's commits. Red again: stop that task and ask the human; where the kickoff
+  allows a model beyond the shared list for a task red twice, offer a third launch with `models.implement` (§3).
 - `stopped` after `tools\run.cmd mutants` exited 2 (a scratch worktree could not be removed, or the task's
   `git status` changed during the run): nothing was published. Read the stop comment on the issue. Only when it
   names a leftover worktree under the task worktree's `tools/out/mutants/`, ask the engineer to remove it (a delete
@@ -284,8 +284,8 @@ taken in a `main` that has them.
   skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4
   agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read;
   `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one
-  fresh relaunch with `reb.problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every
-  blocker and major, so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr>
+  fresh relaunch with its `problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every
+  blocker and major, so no fix agent ran): add its `refuted`, each with its reason, to the PR body (`gh pr view <pr>
   --json body -q .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix
   agent that changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
 - **Into `main`** (the tooling track, #170, and a milestone's closing PR): `tools\run.cmd merge-check --base main`,

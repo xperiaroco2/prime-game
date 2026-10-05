@@ -28,13 +28,16 @@ Return the structured result. changed_paths: `git diff --name-only origin/main..
 ### returned
 {
  "pr": 8,
- "reb": {
-  "up_to_date": false,
-  "verify_green": false,
-  "published": false
- },
+ "n": 7,
+ "stopped": "rebase red or unpublished: nothing reviewed; read problems, then relaunch (not a resume) with them in steps",
+ "published": false,
+ "verify_green": false,
+ "up_to_date": false,
+ "conflicts": 0,
+ "fixes": 0,
+ "human_steps": [],
  "reviews": [],
  "fix": null,
- "stopped": "rebase red or unpublished: nothing reviewed; read reb.problems, then relaunch (not a resume) with them in steps"
+ "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null

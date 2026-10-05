@@ -108,65 +108,35 @@ Return the structured result.
 ### returned
 {
  "n": 7,
- "impl": {
-  "verify_green": true,
-  "complete": true,
-  "summary": "s",
-  "changed_paths": [
-   "core/x.gd"
-  ]
- },
+ "published": true,
+ "verify_green": true,
+ "complete": true,
+ "summary": "s",
+ "needs_engineer": [],
+ "human_steps": [],
+ "not_fixed": [],
+ "fixed": 0,
  "reviews": [
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": [
-    {
-     "severity": "minor",
-     "file": "core/match/vote.gd",
-     "line": 30,
-     "problem": "p2",
-     "fix": "f2"
-    }
-   ]
+   "by": "code-reviewer",
+   "minor": 1
   },
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": [
-    {
-     "severity": "minor",
-     "file": "core/match/vote.gd",
-     "line": 30,
-     "problem": "p2",
-     "fix": "f2"
-    }
-   ]
+   "by": "netcode-security-reviewer",
+   "minor": 1
   },
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": [
-    {
-     "severity": "minor",
-     "file": "core/match/vote.gd",
-     "line": 30,
-     "problem": "p2",
-     "fix": "f2"
-    }
-   ]
+   "by": "godot-api-checker",
+   "minor": 1
   }
  ],
- "pub": {
-  "published": true,
-  "handoff_posted": true
- },
  "publish_clean": {
   "applied": true,
   "why": "no blocker or major open",
   "open": 0,
   "model": "sonnet",
   "effort": "high"
- }
+ },
+ "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null

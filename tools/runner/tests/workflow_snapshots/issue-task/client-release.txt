@@ -108,35 +108,25 @@ Return the structured result.
 ### returned
 {
  "n": 7,
- "impl": {
-  "verify_green": true,
-  "complete": true,
-  "summary": "s",
-  "changed_paths": [
-   "client/hud/hud.gd",
-   "client/hud/hud.tscn"
-  ]
- },
+ "published": true,
+ "verify_green": true,
+ "complete": true,
+ "summary": "s",
+ "needs_engineer": [],
+ "human_steps": [],
+ "not_fixed": [],
+ "fixed": 0,
  "reviews": [
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": []
+   "by": "code-reviewer"
   },
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": []
+   "by": "netcode-security-reviewer"
   },
   {
-   "reviewer": "r",
-   "verdict": "ok",
-   "findings": []
+   "by": "godot-api-checker"
   }
  ],
- "pub": {
-  "published": true,
-  "handoff_posted": true
- }
+ "full": "whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)"
 }
 ### error null

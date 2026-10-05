@@ -12,7 +12,8 @@ arg sets, captured from the scripts on origin/main before v2 changed them. The o
 it passes a v2 arg and pins the publish_clean trial of #308, so the byte-identical rule covers every other case. A
 deliberate change of a default prompt rewrites them: run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the
 snapshot test then fails on purpose, naming the files it wrote), review the diff, commit it with the change, and run
-`selftest` again without the variable.
+`selftest` again without the variable. Each snapshot ends with the run's return value, which the rule does not cover (a
+resume replays agents, not the return): #386 made it compact and changed only that part of every snapshot.
 """
 
 import difflib
@@ -632,7 +633,7 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn('The plan: {"summary":"p"', implement["prompt"])
         self.assertIn('The critique: {"reviewer":"r"', implement["prompt"])
         self.assertIn('under "Plan review"', calls(ok, "publish")[0]["prompt"])
-        self.assertEqual(ok["returned"]["plan"]["plan"]["summary"], "p")
+        self.assertEqual(ok["returned"]["plan"], {"summary": "p", "critique": {}})
         self.assertIn("the plan agent returned nothing", no_plan["error"])
         self.assertEqual([e["label"] for e in agents(no_plan)], ["plan:#7"])
         self.assertIn("the plan's reviewer returned nothing", no_critique["error"])
@@ -720,7 +721,7 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("`tools\\run.cmd mutants` is missing on this branch (P7, #184", calls(absent, "publish")[0]["prompt"])
         self.assertIn("no mutants command on the branch", calls(absent, "publish")[0]["prompt"])
         self.assertFalse(absent["returned"]["test_review"]["available"])
-        self.assertTrue(absent["returned"]["pub"]["published"])
+        self.assertTrue(absent["returned"]["published"])
         # mutants exited 2: the publisher only reports.
         publish = calls(exit_2, "publish")[0]["prompt"]
         self.assertIn("Task: report a stopped run of issue #7", publish)
@@ -753,9 +754,9 @@ class PipelineV2Test(unittest.TestCase):
         ]
         three, two, none, dead, all_refuted, one_stands, six, four = run_jobs(jobs)
         self.assertEqual(len(calls(six, "skeptic")), 6)
-        self.assertEqual(six["returned"]["skeptic"]["unchecked"], [])
+        self.assertEqual(six["returned"]["skeptic"], {"refuted": 0, "stood": 6, "unchecked": 0})
         self.assertEqual(len(calls(four, "skeptic")), 4)
-        self.assertEqual(four["returned"]["skeptic"]["unchecked"], [])
+        self.assertEqual(four["returned"]["skeptic"], {"refuted": 0, "stood": 4, "unchecked": 0})
         self.assertFalse(any("skeptic limit" in e["message"] for r in (six, four) for e in r["events"] if e["kind"] == "log"))
         skeptics = calls(three, "skeptic")
         self.assertEqual(len(skeptics), 3)
@@ -764,14 +765,13 @@ class PipelineV2Test(unittest.TestCase):
             self.assertIn('"problem":"p1"', event["prompt"])
             self.assertIn("refuted true only with evidence", event["prompt"])
         self.assertEqual([e["label"] for e in agents(three)][-1], "publish:#7")
-        self.assertEqual(len(three["returned"]["skeptic"]["refuted"]), 1)
-        self.assertEqual(len(three["returned"]["skeptic"]["stood"]), 2)
+        self.assertEqual(three["returned"]["skeptic"], {"refuted": 1, "stood": 2, "unchecked": 0})
         publish = calls(three, "publish")[0]["prompt"]
         self.assertIn("vote.gd:12 already checks it", publish)
         self.assertIn("A refuted finding is not fixed unless you find the skeptic wrong", publish)
         # The limit: the rest go to the publisher unchecked, and the log says so.
         self.assertEqual(len(calls(two, "skeptic")), 2)
-        self.assertEqual(len(two["returned"]["skeptic"]["unchecked"]), 1)
+        self.assertEqual(two["returned"]["skeptic"], {"refuted": 0, "stood": 2, "unchecked": 1})
         self.assertTrue(any("over the skeptic limit of 2" in e["message"] for e in two["events"] if e["kind"] == "log"))
         self.assertFalse(calls(none, "skeptic"))
         self.assertNotIn("Skeptics tried to refute", calls(none, "publish")[0]["prompt"])
@@ -780,6 +780,11 @@ class PipelineV2Test(unittest.TestCase):
         self.assertFalse(calls(all_refuted, "fix"))
         self.assertIsNone(all_refuted["returned"]["fix"])
         self.assertIn("no fix agent ran", all_refuted["returned"]["note"])
+        self.assertEqual(all_refuted["returned"]["skeptic"], {"refuted": 2, "stood": 0, "unchecked": 0})
+        # The manager copies the refuted findings into the PR body, so they come back in full with their reasons.
+        refuted_back = {"from": "code-reviewer", "severity": "major", "file": "core/match/vote.gd", "line": 12, "problem": "p1", "reason": "vote.gd:12 already checks it"}
+        self.assertEqual(all_refuted["returned"]["refuted"], [refuted_back, dict(refuted_back, **{"from": "netcode-security-reviewer"})])
+        self.assertNotIn("refuted", one_stands["returned"])
         fix = calls(one_stands, "fix")
         self.assertEqual(len(fix), 1)
         self.assertIn("Skeptics refuted these blocker or major findings", fix[0]["prompt"])
@@ -924,7 +929,7 @@ class PipelineV2Test(unittest.TestCase):
         self.assertIn("the playcheck scenarios the task notes name", calls(missing, "implement")[0]["prompt"])
         self.assertIn("no playcheck screenshots (no playcheck command on the branch)", calls(missing, "review:code")[0]["prompt"])
         self.assertIn("Say so in the PR's Screenshots and verification sections", calls(missing, "publish")[0]["prompt"])
-        self.assertTrue(missing["returned"]["pub"]["published"])
+        self.assertTrue(missing["returned"]["published"])
         self.assertIn("`spectate`", calls(unreported, "implement")[0]["prompt"])
         self.assertIn("the implementer reported no playcheck run", calls(unreported, "publish")[0]["prompt"])
 
@@ -1119,6 +1124,166 @@ class ReviewerEffortTest(unittest.TestCase):
                 # Today's level for every reviewer (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended
                 # 2026-10-04 by #308).
                 self.assertEqual(fields.get("effort"), "high")
+
+
+# The compact result (#386): what a finished run hands the manager. Long texts as the agents of 2026-10-04 wrote them.
+LONG = "First line of a long text that goes on well past one line of the manager's context. " * 4
+SUMMARY = "#7 is done in 3 commits; verify passed at HEAD abc1234.\n\n" + "What changed: a paragraph. " * 250
+BLOCKER = {"severity": "blocker", "file": "core/match/vote.gd", "line": 3, "problem": LONG, "fix": "Rewrite it: " + LONG * 3}
+STEPS = [
+    {"why": "After PR #9 merges, remove the task's worktree (previewed with `git worktree list`).", "command": "cd D:\\prime-game; tools\\run.cmd worktree-done 7"},
+    {"why": "Decide whether #7 closes at 18 of 20 runs: (a) accept, (b) wait for #354. Recommended: (a). Answer on PR #9.", "command": ""},
+]
+NEEDS = [
+    "1. Does #7 close at 18 of 20? (a) Accept it and close #7 when PR #9 merges. (b) Keep it open until #354 lands. Recommendation: (a).\nA second paragraph with the scenario.",
+    "2. Approve the ADR amendment (recommended) or leave the ADR as history.",
+]
+FULL_IMPL = {
+    "verify_green": True, "verify_tail": "verify summary\n" + "step ok\n" * 20, "changed_paths": ["core/match/vote.gd"],
+    "commits": ["abc1234 feat(core): x"] * 3, "complete": False, "left": [LONG], "summary": SUMMARY, "decisions": [LONG] * 4,
+    "needs_engineer": ["the implementer's own item, which the publisher carries into the PR"],
+    "provisional_content": ["content/roles/x.tres"], "proposed_issues": [LONG],
+}
+FULL_PUB = {
+    "published": True, "pr_number": 9, "pr_url": "https://github.com/xperiaroco2/prime-game/pull/9", "ci_green": True,
+    "handoff_posted": True, "board_in_review": False, "closes_issue": False, "fixed": [LONG] * 5,
+    "not_fixed": [LONG, "the second one\nwith a second line", "None"], "needs_engineer": NEEDS,
+    "merge_notes": "Merge #8 first.\n" + LONG * 3, "human_steps": STEPS,
+}
+
+
+def size(value: object) -> int:
+    return len(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
+
+
+@unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
+class CompactResultTest(unittest.TestCase):
+    def test_issue_task_keeps_every_field_the_manager_acts_on(self) -> None:
+        # Orchestrate-stage §4 reads the PR, CI, published, stopped, needs_engineer, human_steps (their commands copied
+        # as is), not_fixed, the reviews' counts and the v2 options' summaries; the long texts become a line or a count.
+        reviews = {"review:code": [{"reviewer": "r", "verdict": LONG, "findings": [BLOCKER, MAJOR, MINOR, MINOR]}], "review:netcode": [{"reviewer": "r", "verdict": "ok", "findings": []}]}
+        stub = {"paths": ["core/match/vote.gd"], "queues": dict(reviews, implement=[FULL_IMPL], publish=[FULL_PUB])}
+        silent = {k: v for k, v in FULL_PUB.items() if k != "needs_engineer"}
+        empty = dict(FULL_PUB, needs_engineer=["None"])
+        jobs = [("issue-task.js", dict(ARGS, branch="core/7-x"), stub)] + [
+            ("issue-task.js", dict(ARGS, branch="core/7-x"), dict(stub, queues=dict(stub["queues"], publish=[p]))) for p in (silent, empty)
+        ]
+        result, no_list, no_item = run_jobs(jobs)
+        self.assertIsNone(result["error"])
+        # A publisher that returns no needs_engineer list, or one with no item, leaves the implementer's.
+        self.assertEqual(no_list["returned"]["needs_engineer"], FULL_IMPL["needs_engineer"])
+        self.assertEqual(no_item["returned"]["needs_engineer"], FULL_IMPL["needs_engineer"])
+        out = result["returned"]
+        self.assertEqual(
+            {k: out[k] for k in ("n", "pr", "pr_url", "published", "ci_green", "closes_issue", "board_in_review", "verify_green", "complete")},
+            {"n": 7, "pr": 9, "pr_url": FULL_PUB["pr_url"], "published": True, "ci_green": True, "closes_issue": False, "board_in_review": False, "verify_green": True, "complete": False},
+        )
+        self.assertNotIn("handoff_posted", out)  # true is the usual: only a false one is the manager's to act on
+        self.assertNotIn("stopped", out)
+        self.assertEqual(out["human_steps"], STEPS)
+        self.assertEqual(out["needs_engineer"], NEEDS)
+        self.assertEqual(out["reviews"], [{"by": "code-reviewer", "blocker": 1, "major": 1, "minor": 2}, {"by": "netcode-security-reviewer"}, {"by": "godot-api-checker"}])
+        self.assertEqual(out["fixed"], 5)
+        self.assertEqual(len(out["not_fixed"]), 2, "a None entry says nothing")
+        self.assertEqual(out["not_fixed"][1], "the second one …")
+        for text, cut in ((SUMMARY, out["summary"]), (LONG, out["not_fixed"][0]), (FULL_PUB["merge_notes"], out["merge_notes"])):
+            self.assertLessEqual(len(cut), 160)
+            self.assertTrue(cut.endswith("…"), cut)
+            self.assertTrue(text.startswith(cut.removesuffix("…").rstrip(" ")), cut)
+        self.assertEqual(out["proposed_issues"], [LONG[:99].rstrip() + "…"])
+        self.assertEqual(out["provisional_content"], ["content/roles/x.tres"])
+        self.assertNotIn("left", out)  # after a publisher, the PR and not_fixed say what is left
+        self.assertIn("journal.jsonl", out["full"])
+        # The publisher's fix text and the implementer's decisions stay in the journal only.
+        self.assertNotIn("Rewrite it", json.dumps(out))
+        self.assertNotIn("decisions", out)
+        self.assertLessEqual(size({k: v for k, v in out.items() if k not in ("needs_engineer", "human_steps")}), 1500)
+        whole = size([FULL_IMPL, reviews["review:code"][0], FULL_PUB])
+        self.assertGreater(whole, 10 * size(out), "the whole results, as the result before #386 carried them")
+
+    def test_issue_task_stops_keep_the_failure_and_the_engineers_steps(self) -> None:
+        # A red implementer: the relaunch's notes need its verify tail, what it left and its needs_engineer.
+        red = dict(FULL_IMPL, verify_green=False, left=[LONG, "None", "the second one\nwith a second line"])
+        stuck = {"available": True, "exit_2": True, "findings": [MAJOR], "notes": "tools/out/mutants/m1 is still listed\n" + LONG,
+                 "mutants": [{"file": "core/x.gd", "result": "killed"}, {"file": "core/x.gd", "result": "survived"}, {"file": "core/x.gd", "result": "killed"}]}
+        stop_pub = {"published": False, "handoff_posted": True, "stopped_by_mutants": True, "human_steps": STEPS[:1], "needs_engineer": NEEDS[:1]}
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", plan_review=True), {"paths": ["core/x.gd"], "queues": {"implement": [red]}}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), {"paths": ["core/x.gd"], "queues": {"test-review": [stuck], "publish": [stop_pub]}}),
+        ]
+        red_run, mutants_run = run_jobs(jobs)
+        out = red_run["returned"]
+        self.assertIn("verify red after the implementer", out["stopped"])
+        self.assertIn("relaunch issue-task (not a resume)", out["stopped"])
+        self.assertEqual(out["verify_tail"], FULL_IMPL["verify_tail"])
+        self.assertEqual(out["left"], [LONG, "the second one\nwith a second line"], "in full; a None entry says nothing")
+        self.assertEqual(out["needs_engineer"], FULL_IMPL["needs_engineer"])
+        self.assertEqual(out["plan"], {"summary": "p", "critique": {}})
+        self.assertEqual(out["reviews"], [])
+        self.assertNotIn("pr_url", out)
+        out = mutants_run["returned"]
+        self.assertIn("mutants exited 2 in the test review", out["stopped"])
+        self.assertTrue(out["stopped_by_mutants"])
+        self.assertFalse(out["published"])
+        self.assertEqual(out["human_steps"], STEPS[:1])
+        self.assertEqual(out["needs_engineer"], NEEDS[:1])
+        self.assertEqual(out["test_review"], {"available": True, "exit_2": True, "mutants": {"killed": 2, "survived": 1}, "findings": {"major": 1}, "notes": "tools/out/mutants/m1 is still listed …"})
+
+    def test_wave_reads_the_stop_of_a_compact_result(self) -> None:
+        # `wave` reads only "stopped" from a run's notification (its <result> is cut at about 8 kB).
+        from runner.wave import STOPPED
+
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x"), {"paths": ["core/x.gd"], "queues": {"implement": [dict(FULL_IMPL, verify_green=False)]}}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x"), {"paths": ["core/x.gd"], "queues": {"implement": [FULL_IMPL], "publish": [FULL_PUB]}}),
+            ("pr-rebase.js", ARGS, {"paths": ["core/x.gd"], "queues": {"rebase": [{"up_to_date": False, "verify_green": False, "published": False}]}}),
+        ]
+        red, ok, red_rebase = run_jobs(jobs)
+        for result in (red, red_rebase):
+            m = STOPPED.search(json.dumps(result["returned"], ensure_ascii=False))
+            self.assertIsNotNone(m)
+            self.assertEqual(m.group(1), result["returned"]["stopped"])
+        self.assertIsNone(STOPPED.search(json.dumps(ok["returned"], ensure_ascii=False)))
+
+    def test_pr_rebase_keeps_every_field_the_manager_acts_on(self) -> None:
+        step_fix = {"why": "Re-run the trial merge after #8.", "command": "cd D:\\prime-game; tools\\run.cmd merge-check --base main"}
+        rebased = {"up_to_date": True, "verify_green": True, "published": True, "ci_green": True, "old_tip": "a" * 40, "new_tip": "b" * 40,
+                   "changed_paths": ["core/x.gd"], "conflicts": [LONG, LONG], "fixes": [LONG], "problems": [], "human_steps": STEPS[:1]}
+        fixed = {"fixed": [LONG, LONG], "not_fixed": [LONG], "verify_green": True, "published": True, "ci_green": False, "human_steps": [step_fix]}
+        problems = ["verify red: test_x fails\n" + LONG, "publish refused: behind origin/main"]
+        jobs = [
+            ("pr-rebase.js", ARGS, {"paths": ["core/x.gd"], "findings": [BLOCKER, MINOR], "queues": {"rebase": [rebased], "fix": [fixed]}}),
+            ("pr-rebase.js", ARGS, {"paths": ["core/x.gd"], "queues": {"rebase": [{"up_to_date": False, "verify_green": False, "published": False, "problems": problems, "human_steps": STEPS}]}}),
+        ]
+        ok, red = run_jobs(jobs)
+        out = ok["returned"]
+        self.assertIsNone(ok["error"])
+        self.assertEqual(
+            {k: out[k] for k in ("pr", "n", "published", "ci_green", "verify_green", "up_to_date", "conflicts", "fixes", "fix")},
+            {"pr": 8, "n": 7, "published": True, "ci_green": False, "verify_green": True, "up_to_date": True, "conflicts": 2, "fixes": 1, "fix": {"fixed": 2}},
+        )
+        self.assertEqual(out["human_steps"], STEPS[:1] + [step_fix])
+        self.assertEqual(out["reviews"], [{"by": "code-reviewer", "blocker": 1, "minor": 1}, {"by": "netcode-security-reviewer", "blocker": 1, "minor": 1}])
+        self.assertEqual(out["not_fixed"], [LONG[:159].rstrip() + "…"])
+        self.assertNotIn("stopped", out)
+        self.assertIn("journal.jsonl", out["full"])
+        self.assertLessEqual(size(out), 1500)
+        out = red["returned"]
+        self.assertIn("rebase red or unpublished", out["stopped"])
+        self.assertEqual(out["problems"], problems, "the relaunch's steps need the problems in full")
+        self.assertEqual(out["human_steps"], STEPS)
+        self.assertEqual((out["published"], out["verify_green"], out["fix"], out["reviews"]), (False, False, None, []))
+
+    def test_both_scripts_share_the_compact_helpers(self) -> None:
+        # One reducer's helpers in two scripts (a workflow script imports nothing): the same text, from the comment that
+        # opens them to the blank line that ends them.
+        blocks = []
+        for name in ("issue-task.js", "pr-rebase.js"):
+            text = (WORKFLOWS / name).read_text(encoding="utf-8")
+            start = text.index("// The compact result (#386)")
+            blocks.append(text[start : text.index("\n\n", start)])
+        self.assertEqual(blocks[0], blocks[1])
+        self.assertIn("const FULL = ", blocks[0])
 
 
 class NodeOnCiTest(unittest.TestCase):
