@@ -99,6 +99,8 @@ STASH_RULE = "Never use `git stash`"
 # The two one-line rules of #326 (each prompt line that starts so is the whole rule).
 HOOKS_RULE = "- Read the hooks path with `git rev-parse --git-path hooks`, never `git config --get core.hooksPath`"
 SLEEP_RULE = "- Never poll with a foreground `sleep N; cat <log>`"
+# #413's one-line rule: the writes outside the worktree and the scratchpad that a throwaway first command made.
+WRITE_RULE = "- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway"
 # The agent types of the read-only reviewers, which get no RULES.
 READ_ONLY_TYPES = ("code-reviewer", "netcode-security-reviewer", "godot-api-checker")
 MAJOR = {"severity": "major", "file": "core/match/vote.gd", "line": 12, "problem": "p1", "fix": "f1"}
@@ -264,6 +266,38 @@ class WorkflowTest(unittest.TestCase):
         sleep = next(iter(seen[SLEEP_RULE]))
         for way in ("`tools/run.sh wait <log>`", "run_in_background", "Monitor"):
             self.assertIn(way, sleep)
+
+    def test_every_agent_gets_the_no_write_outside_rule(self) -> None:
+        # #413: from 2026-10-01 to 05 workflow agents opened Bash calls with 75 throwaway writes (`cat > <file>
+        # 2>/dev/null;`), 64 of them into the system Temp folder ($TMP, $TEMP, $TMPDIR, /tmp), not the scratchpad.
+        # On the night of 2026-10-04/05 one, `cat > ../../../../tmp_unused` from a worktree, asked and held #393's
+        # rebase for two hours; two more left empty files in Temp. A Git Bash `/c/...` path given to `tools\run.cmd`
+        # made D:\c\ (2026-10-02). The rule is one line of the shared RULES, the same in both scripts and in a lean run.
+        jobs = [
+            ("issue-task.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, lean=True), {"paths": ["tools/x.py"]}),
+            ("pr-rebase.js", dict(ARGS, base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS, lean=True), {"paths": ["tools/x.py"]}),
+        ]
+        lines: set[str] = set()
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                if options(event).get("agentType") in READ_ONLY_TYPES:
+                    continue  # reviewers are read-only
+                with self.subTest(workflow=name, agent=event["label"]):
+                    found = [line for line in event["prompt"].splitlines() if line.startswith(WRITE_RULE)]
+                    self.assertEqual(len(found), 1, found)
+                    lines.add(found[0])
+        self.assertEqual(len(lines), 1, f"the rule differs between agents or scripts: {sorted(lines)}")
+        rule = next(iter(lines))
+        # The traps by name: a relative climb, a throwaway first write into Temp, a Git Bash path on the Windows side,
+        # and where dropped output goes instead.
+        for trap in ("`cat > ../../../../tmp_unused`", '`cat > "$TMP/x" 2>/dev/null;`', "`$TEMP`", "`$TMPDIR`",
+                     "`/tmp`", "`/c/...`", "`tools\\run.cmd`", "`/dev/null` (Git Bash)", "`$null` (PowerShell)"):
+            self.assertIn(trap, rule)
 
     def test_a_release_base_reaches_publish_and_the_pr(self) -> None:
         # A release base is always passed, so publish never depends on the record start --base left (#113).
