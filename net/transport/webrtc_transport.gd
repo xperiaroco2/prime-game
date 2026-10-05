@@ -42,8 +42,9 @@ const KEEPALIVE: Array[int] = [0, 0, 0]
 ## Nothing heard from a peer for this long, keepalives included, is a leave (§2.6): past a 5.2 s
 ## freeze and WebRTC's own 12.8 s on loopback, and LaneOrder's stall rule uses it too.
 const SILENCE_MS := 20000
-## A join whose channels are not open this long after it started gives up (E54, a placeholder);
-## the host closes a half-made connection after as long.
+## A join not admitted this long after join() gives up (E54, a placeholder): no offer came (a
+## full or refusing host answers none), or the channels never opened. The host closes a half-made
+## connection after as long from the joiner's arrival.
 const JOIN_TIMEOUT_MS := 15000
 ## disconnect_peer: the connection closes once the client closed its side, or after this long.
 const CLOSE_WAIT_MS := 5000
@@ -65,6 +66,8 @@ var local_candidates := false
 ## before it.
 var found_protocol := -1
 var found_content := 0
+## JOIN_TIMEOUT_MS; tests shorten it.
+var join_timeout_ms := JOIN_TIMEOUT_MS
 
 var _signaller: Signaller = null
 var _order := LaneOrder.new()
@@ -168,6 +171,12 @@ func use_faults(shim: FaultShim) -> Error:
 	return OK
 
 
+## Host: its connections, half-made and closing ones included (they count against the maximum).
+## Client: 1 from the offer on, else 0.
+func connection_count() -> int:
+	return _conns.size()
+
+
 ## Host: the room's code once room_opened fired, else "".
 func room_code() -> String:
 	return _room_code
@@ -226,6 +235,8 @@ func _backend_poll() -> void:
 		if _conns.has(peer_id):
 			_read(_conns[peer_id], now, since)
 	_judge(now)
+	if role() == Role.CLIENT and _client_id == 0 and now - _join_started_ms > join_timeout_ms:
+		_fail_join(JOIN_UNREACHABLE)
 	for conn: Conn in _conns.values():
 		if _is_live(conn) and now - conn.last_sent_ms >= KEEPALIVE_MS:
 			_put(conn, NetKindTable.Lane.VOICE, PackedByteArray(KEEPALIVE))
@@ -331,7 +342,7 @@ func _step_connection(conn: Conn, now: int) -> void:
 	elif not conn.open:
 		if conn.state() == WebRTCPeerConnection.STATE_CONNECTED and conn.all_channels_open():
 			_opened(conn, now)
-		elif now - conn.started_ms > JOIN_TIMEOUT_MS:
+		elif now - conn.started_ms > join_timeout_ms:
 			_lose(conn, JOIN_UNREACHABLE)
 
 
@@ -599,7 +610,7 @@ func _on_answer(joiner: int, sdp: String) -> void:
 	if conn == null:
 		return
 	if conn.described or conn.pc.set_remote_description("answer", sdp) != OK:
-		_drop(conn)
+		_lose(conn, JOIN_FAILED)  # an admitted peer leaves
 		return
 	conn.described = true
 
