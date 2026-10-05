@@ -48,7 +48,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   so `git status` stays clean and no commit can take their deletion; `git update-index --skip-worktree` alone brought
   the file back on a switch to a commit that changes it, on `reset --hard` and in a new worktree, and the sparse
   patterns held through all three. Undo with `git sparse-checkout disable`. If Godot imported the project before, a
-  `run` still loads the extension until the next `check` (ARCHITECTURE §6, "The addon in the repo"); `verify` runs
+  `run` still loads the extension until the next `check` (ARCHITECTURE §6.5, "The addon in the repo"); `verify` runs
   `check` first. `doctor` (also `--quick`, so `verify` stops at once) fails in a cloud session while the `.gdextension`
   is in the working tree or was deleted by hand, and names the fix; it skips the machine paths and `gh` there, as on CI.
 - **As the environment's setup script** (not yet tried): such a script runs before Claude Code starts, and the
@@ -72,7 +72,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   a green `verify`.
 - **Task branches**: the container starts on its own branch; switch to the task branch from its base
   (`git fetch origin <base>; git switch -c <area>/<n>-<slug> origin/<base>`, then `git branch --unset-upstream`, so
-  nothing tracks the base). On its task branch the clone is the session's own worktree for the guard (#381, §8.2):
+  nothing tracks the base). On its task branch the clone is the session's own worktree for the guard (#381, §8.2.1):
   `reset`, `rebase`, `checkout -- <path>` and `clean` there pass without a prompt, which nobody would answer. Before
   #381 the M6-3 session waited 30 minutes on `git reset --soft HEAD~2`. On `main` or `release/*` they still ask.
 - **Agents:** the subagents in `.claude/agents/` run there (#345: `code-reviewer` on its diff, and `agents-check`
@@ -175,14 +175,14 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
    `start` records the parent in the machine-local git config key `branch.<task>.primeBase` (its tip in `primeBaseTip`),
    where `publish` and `finish-task` find it before the PR exists (§8.3); resuming an existing branch ignores `--base`
    and says so. **For the engineer it creates a worktree `.claude/worktrees/<n>` for every task** (issue #51): there
-   the agent works freely (§8.2), and the main checkout, where the Godot editor and the humans' files live, stays
+   the agent works freely (§8.2.1), and the main checkout, where the Godot editor and the humans' files live, stays
    protected. `--here` is the exception that keeps the task in this checkout, and so do `--stash` and `--include`
    (they act on this checkout's changes) and a branch already checked out here. The designer never gets a worktree:
    with another Claude session active on this checkout, `start` stops rather than switch the branch under that
    session (`--here` when the human says it is idle). Work in the worktree: a session opened in that folder, or,
    for a task session whose shell starts in the main checkout, `cd <worktree> && ...` (Git Bash) or
    `Set-Location <worktree>; ...` (PowerShell) at the start of every command. `tools\run.cmd worktree-done <n>`
-   removes the worktree, and its own `user://` folder (§11), once its branch is merged
+   removes the worktree, and its own `user://` folder (§11.18), once its branch is merged
    ([ADR](decisions/2026-09-28-worktrees-only-for-parallel-sessions.md)); `--pushed` also removes one whose branch is
    never merged (a spike) once `origin/<branch>` holds all its commits, and keeps that local branch. Run it from the
    main checkout: Windows cannot delete a folder a process sits in, so it refuses when the current folder is inside the
@@ -193,9 +193,9 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots` and `bots-enet`, §11). Every agent runs it in the background and polls it with `wait <log>`
+   matches too (`bots` and `bots-enet`, §11.9). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
-   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11, "Bounded waits").
+   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
    can leak) or `tests/harness/` (the information-leak test) changed; plus
@@ -345,7 +345,7 @@ Rules for every workflow run:
   read their prompt, not this file, so the rules every agent of both scripts gets (all but the read-only reviewers)
   carry one line each for the two calls that stopped them most (#312, #326): read the hooks path with
   `git rev-parse --git-path hooks` (§8.1), and wait with `wait <log>`, `run_in_background` or Monitor, never a
-  foreground `sleep N; cat <log>` (§11, "Bounded waits"); the test pins both lines, identical in the two scripts.
+  foreground `sleep N; cat <log>` (§11.17, "Bounded waits"); the test pins both lines, identical in the two scripts.
   A third (#413) names the writes outside the worktree and the scratchpad: a throwaway first command such as
   `cat > "$TMP/x" 2>/dev/null;` (`$TMP` and `/tmp` are the system Temp folder), a `../` climb that asked and held a
   rebase for two hours, and a Git Bash `/c/...` path given to `tools\run.cmd` (a `D:\c\` folder); the test pins it
@@ -385,7 +385,7 @@ Rules for every workflow run:
   and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`, +0; the default since #411, `false` turns
   it off for a resume of an earlier run launched without it): each agent that runs `verify`, `publish`, `mutants` or a
   CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI commands
-  of §11 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows done). The
+  of §11.17 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows done). The
   root CLAUDE.md rule reaches every workflow agent without it once on main; the arg adds the commands.
   `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review,
   netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix agent runs and the
@@ -792,7 +792,7 @@ whole night, #312).
   (above), 2 from custom sequence editors, and 5 were right (`branch -d|-D`, `reset --hard` of a release branch or in
   a loop over another repository's worktrees, `worktree remove --force` in a loop); 8 writes to `addons/` (the TwoVoIP
   install, and the missing-addon test above). 13 deny rule denials: 10 hooksPath reads (§8.1), `gh pr merge --help`,
-  and two pushes without a branch. 30 of Claude Code's own blocks: 28 foreground `sleep`s (§11, "Bounded waits"), and 2
+  and two pushes without a branch. 30 of Claude Code's own blocks: 28 foreground `sleep`s (§11.17, "Bounded waits"), and 2
   `Remove-Item` on a "system path", one right (`D:\c`) and one false: a PowerShell command held `Remove-Item $out` and
   a cmd.exe `/c` argument, which Claude Code read as its target; put such code in a `.ps1` file in the scratchpad
   and run it with `powershell -File`. The human said no 8 times. No stop called for an allow rule or a guard change:
@@ -1025,11 +1025,12 @@ the import takes about 7.5 s, 10 to 11 s afresh), imports it once, runs every na
 baseline makes every mutant an `error`), then plants each mutant there, runs its tests (`test` without the import) and
 restores the file: `killed` (a named test failed; they are listed), `survived` (a finding, not a failure) or `error`
 (the mutant does not compile, `--seconds` (default 300) ran out, or the tests could not judge; the reason and the log).
-At the end it removes the scratch worktree (and its `user://` folder, §11), also after an exception, and confirms the
+At the end it removes the scratch worktree (and its `user://` folder, §11.18), also after an exception, and confirms the
 task's `git status` unchanged. A `tree-*` folder that `git worktree remove` leaves is deleted with
 `common.force_rmtree` (#453; the runner tests clean up with it too): git's read-only files are made writable, a path a
 git process removes meanwhile counts as deleted, and every other error is reported. A lock in `tools/out/mutants/`
-allows one run per checkout (the OS releases it when a run is killed). The table is printed and written to `tools/out/mutants/<spec name>.md` after every mutant, with each test
+allows one run per checkout (the OS releases it when a run is killed). The table is printed and written to
+`tools/out/mutants/<spec name>.md` after every mutant, with each test
 run's output and Godot's log in `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever the results; 1: an invalid spec, or a run
 that could not start or finish (a dirty tree, another run, a failed import), nothing left behind; 2: the scratch
 worktree could not be removed or the task's tree changed: run no more mutants and tell the human (`git worktree
@@ -1088,7 +1089,7 @@ events) and writes the command log that replays it (`ReplayFiles.read`, then `Ma
 `tools/out/bots/<scenario>/`, next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over
 ENet a scenario step that needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is
 timing-dependent (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself
-(ARCHITECTURE §4.6). `bots --chaos [--seed N] [--runs K] [--long] [--enet]` (#188; `docs/ARCHITECTURE.md` §4.6 "Chaos
+(ARCHITECTURE §4.6). `bots --chaos [--seed N] [--runs K] [--long] [--enet]` (#188; `docs/ARCHITECTURE.md` §4.6.5 "Chaos
 bots") runs the chaos bots instead: `tests/harness/chaos/chaos_main.gd`, a hostile player and a malformed peer against
 the host beside honest bots, for K seeds from N (without `--seed` a random one, printed first, so a failed night run
 names the seed that replays it); per seed a baseline with the chaos peers idle, the chaos run and one with hidden roles
@@ -1536,8 +1537,8 @@ that `doctor` generates into `tools/out/godot-api/4.7.2/`, and `docs.godotengine
 - **Onboarding [applied]:** after M0 merges, the designer opens the clone in Desktop and says "налаштуй мене".
   `onboard` runs `doctor` (which sets `core.hooksPath`), writes her user settings (`env`, `language`, `defaultMode`)
   after she approves the exact content, installs gdtoolkit via a real Python with her OK, and runs
-  `git lfs install --skip-repo` (§8.3). It explains the save-first rule (§11) and the one-time answer to a guard
-  prompt (§8.2). Then it prints the clicks only she can make: Git for Windows (required), Python 3.11+, Godot 4.7.2,
+  `git lfs install --skip-repo` (§8.3). It explains the save-first rule (§11.2) and the one-time answer to a guard
+  prompt (§8.2.8). Then it prints the clicks only she can make: Git for Windows (required), Python 3.11+, Godot 4.7.2,
   repo and project invites, `gh auth login` + `gh auth refresh -s project`, trusting the folder, checking her Claude
   plan, usage credits off. It ends with a one-page summary for her sign-off, where she may reopen any decision that
   binds her.
@@ -1548,7 +1549,7 @@ that `doctor` generates into `tools/out/godot-api/4.7.2/`, and `docs.godotengine
   screenshots; "запусти хост і двох клієнтів" is `tools\run.cmd host --clients 2`, which M4 gives windows (#149):
   the agent hands her that command for her own PowerShell (with the `cd`), since in the agent's shell the runner
   stays headless; a second machine runs `tools\run.cmd join <address>`. For its own check the agent runs
-  `host --clients 2 --local --seconds S` headless (§11).
+  `host --clients 2 --local --seconds S` headless (§11.8).
 
 ## 13. How humans talk to the agent
 
