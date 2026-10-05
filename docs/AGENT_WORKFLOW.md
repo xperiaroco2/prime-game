@@ -737,6 +737,8 @@ another repository without naming it. Sibling repositories of this project (`pri
 repositories too: a session that manages one runs in that repository's checkout, never in `D:\prime-game`, where each of
 its `gh` writes there asks (30 asks on 2026-10-02 and 10-03, about 12.6 hours of waiting, one `gh pr create` over a
 whole night, #312).
+
+#### 8.2.8 Targets and the prompt
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
   `git -C D:/prime-game clean -fdx` ask there.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
@@ -746,6 +748,8 @@ whole night, #312).
   that match only by expansion (`a*ons`), `git apply`, `awk -i`, `ed`. It does not check ownership or the editor.
 - The prompt appears in every mode, bypass included. 👤 Answer it with a one-time "Yes" or "No": "don't ask again"
   silences the guard for the rest of the session (verified live 2026-09-29).
+
+#### 8.2.9 Replays
 - Replayed over the 1,683 distinct shell commands of the Phase A and B transcripts (stage 4 included): no crash; it
   asks for the real install of GdUnit4 into `addons/` and the three commands of the live test, nothing else. It adds
   about 0.2 s to each shell command.
