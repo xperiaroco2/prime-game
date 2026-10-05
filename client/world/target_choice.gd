@@ -21,12 +21,13 @@ const PICK_RADIUS_M := 0.3
 ## InReach from the feet of the last MoveClaim it accepted, which trail the feet the hint
 ## measures from (§7.1): a claim goes once per client tick (20 Hz, Ticks.RATE) against 60 Hz
 ## physics, and it carries the step before it (the session claims at the start of the physics
-## step, before the controller moves). E's PickUp goes before the next claim, so on an even clock
-## the host's feet trail by 1 to 3 steps: one claim interval, 1/20 s. A clock that stalls and
-## then jumps puts 4 steps into a claim interval now and then, so the margin is one claim
-## interval plus one physics step, 1/20 + 1/60 s = 4/60 s: 0.3 m at the base mode's 4.5 m/s,
-## and the hint shows from 1.7 m of its 2 m. Sprinting in (7 m/s) can still outrun it; once the
-## player stands, the host catches up within a claim.
+## step, before the controller moves). E's PickUp (or Raise: LifeView's raise hint stops the same
+## margin short, #352) goes before the next claim, so on an even clock the host's feet trail by 1
+## to 3 steps: one claim interval, 1/20 s. A clock that stalls and then jumps puts 4 steps into a
+## claim interval now and then, so the margin is one claim interval plus one physics step, 1/20 +
+## 1/60 s = 4/60 s: 0.3 m at the base mode's 4.5 m/s, and the hint shows from 1.7 m of its 2 m.
+## Sprinting in (7 m/s) can still outrun it; once the player stands, the host catches up within a
+## claim.
 const HINT_MARGIN_S := 1.0 / Ticks.RATE + 1.0 / 60.0
 
 
@@ -44,13 +45,20 @@ static func reach_of(mode: GameMode) -> float:
 
 
 ## The reach the hint and E offer an item within, in metres from the feet: the mode's PickUp
-## reach less the distance walked in HINT_MARGIN_S, so E at the first hint while walking in is
-## not refused `out_of_reach` (#319). Never less than half the reach, so a short reach in a fast
-## mode still offers something; 0 when the mode has no PickUp.
+## reach less the walking margin (hint_reach()), so E at the first hint while walking in is not
+## refused `out_of_reach` (#319); 0 when the mode has no PickUp.
 static func hint_reach_of(mode: GameMode) -> float:
-	var reach := reach_of(mode)
+	return hint_reach(reach_of(mode), mode)
+
+
+## The reach a hint offers within, in metres from the feet, for an action the host grants within
+## `reach_m` of the feet of the last claim it accepted (PickUp's InReach; the raise's
+## TargetInReach in LifeView, #352): `reach_m` less the distance walked at `mode`'s
+## `walk_speed_mps` in HINT_MARGIN_S. Never less than half the reach, so a short reach in a fast
+## mode still offers something; 0 for a reach of 0.
+static func hint_reach(reach_m: float, mode: GameMode) -> float:
 	var walk := mode.player_rules.walk_speed_mps if mode.player_rules != null else 0.0
-	return maxf(reach - walk * HINT_MARGIN_S, reach / 2.0)
+	return maxf(reach_m - walk * HINT_MARGIN_S, reach_m / 2.0)
 
 
 ## The item the crosshair is on that passes the host's OnGround and InReach, or -1: the ray from
