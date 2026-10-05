@@ -2207,7 +2207,7 @@ Rejected ways of expressing it (per field, per content part, filtering in `serve
 
 capture → gate → encode (Opus) → routing decision per speaker and listener (`core/` rules, applied by the host's
 `server/`) → listener → jitter buffer → decode → `AudioStreamPlayer3D` on the speaker's avatar → the listener's ears.
-- Routing inputs: distance, life (the voice invariant below), later items such as radios and role abilities. Walls
+- Routing inputs: distance, life (the voice invariant, §6.3), later items such as radios and role abilities. Walls
   do not enter the routing: they muffle on the listener (the M5 ADR's D13 (a), the engineer's answer). Dead chat and
   meetings, in the brief, are gone (vision revision 1).
 
@@ -2617,7 +2617,7 @@ tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless
   which the ledger cannot settle yet, is run on from the settled ones for the speed alone; a living player's tick
   without its own movement gets the walk speed, since only movement pays for sprint),
   for the living plus `sprint_speed` for at most `PUSH_TICKS` (10) covered ticks while another living player's
-  last accepted position is within `MovementRule.push_reach()` of the claim's path (Pushing apart below; #76);
+  last accepted position is within `MovementRule.push_reach()` of the claim's path (§7.1.6 Pushing apart; #76);
   for the downed the crawl speed alone, with no sprint and no push allowance (M4-2); plus `DISTANCE_SLACK_M`
   (0.05 m) per claim, or
   for the crawl `CRAWL_SLACK_FRACTION` (a tenth) of its own travel plus 1 mm: 0.05 m is a whole tick of the

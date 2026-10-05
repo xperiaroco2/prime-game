@@ -616,7 +616,7 @@ which asks at every step (5 asks in one task on 2026-10-03, #312).
 
 It also judges two kinds of command by what they act on, where a text rule would stop an unattended agent: commands
 that lose work, by where they act (its own scratch folder, issue #47, or its own worktree, issue #51), and `gh`
-commands, by the repository they name (issue #68, a read of another repository must not stop it):
+commands, by the repository they name (issue #68, a read of another repository must not stop it).
 
 #### 8.2.1 The session's own worktree and task branch are free
 (issue #51,
@@ -1088,7 +1088,7 @@ so each window keeps its own settings file (`user://settings.cfg`, `settings_2.c
   `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already stopped, so either answer
   is fine. Its selftest runs a headless host and two local clients to the full lobby
   roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
-  scene headless through its command line (CI below).
+  scene headless through its command line (§11.16 CI).
 
 ### 11.9 `bots [scenario ...]` [applied] (#102; `docs/ARCHITECTURE.md` §4.6, §9.7)
 Plays every bot scenario in
