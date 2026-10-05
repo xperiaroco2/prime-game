@@ -1157,7 +1157,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   bracket, its list $ and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the
   engineer's, N1 of the design, so there is no default) `of <budget>% this week; plan to date <budget x days since
   --since / 7, at most the budget>%`; then every session's total, which the manager holds against the weekly counter
-  (`get_usage`). Without `--compact` a table of the sessions follows (track, where it came
+  (`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
+  or translated shows there). Without `--compact` a table of the sessions follows (track, where it came
   from, API calls, list $, %). It writes `tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to
   2026-10-04 22:33 UTC with the design's sessions labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%,
   art 15.8%, meta 37.0%.

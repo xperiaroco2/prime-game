@@ -163,8 +163,8 @@ class TracksTest(unittest.TestCase):
         self.assertEqual(lines[2], "meta: 2.0% (2.1 to 1.8%) of 12% this week; plan to date 6.0%; list $46 in 2 "
                                    "sessions")  # fmt: skip
         self.assertEqual(lines[3], "ui: 1.0% (1.1 to 0.9%) of 20% this week; plan to date 10.0%; list $23 in 1 session")
-        self.assertEqual(lines[4], "every session: 10.0% (10.7 to 9.0%) (untracked 1.0%), against the weekly counter "
-                                   "(get_usage)")  # fmt: skip
+        self.assertEqual(lines[4], "every session: 10.0% (10.7 to 9.0%) (untracked 1.0% in 1 session: plain), against "
+                                   "the weekly counter (get_usage)")  # fmt: skip
         self.assertEqual(len(lines), 5)  # --compact: the lines alone
         record = json.loads((self.root / "out" / "tracks.json").read_text(encoding="utf-8"))
         self.assertEqual(record["budgets"], {"game": 26, "meta": 12, "ui": 20})
@@ -181,6 +181,17 @@ class TracksTest(unittest.TestCase):
         self.assertTrue(every[5].startswith("untracked: 1.0% "), every[5])
         table = self.run_main("all", compact=False)
         self.assertIn("| meta | lab | D--prime-game | --session | 1 | $23 | 1.00% |", table)
+
+    def test_the_last_line_names_the_largest_untracked_sessions(self) -> None:
+        none_left = self.run_main("game", labels=("plain=meta",)).splitlines()[-1]
+        self.assertIn("(untracked 0.0%), against", none_left)
+        main = self.root / "projects" / "D--prime-game"
+        for i, sid in enumerate(["0a-small", "0b-large-session", "0c-mid", "0d-mid"]):
+            calls = [assistant(101 + k, f"{sid}-{k}", ONE) for k in range([1, 3, 2, 2][i])]
+            write_lines(main / f"{sid}.jsonl", [kickoff(100, "Трек: гра"), *calls])
+        last = self.run_main("game", labels=()).splitlines()[-1]
+        # plain and 0a-small at 1%, 0c-mid and 0d-mid at 2% (by id on a tie), 0b-large at 3%
+        self.assertIn("(untracked 9.0% in 5 sessions: 0b-large 0c-mid 0d-mid and 2 more)", last)
 
     def test_the_plan_to_date_stops_at_the_budget_after_seven_days(self) -> None:
         lines = self.run_main("game", budgets=(26,), until=at(60 + 8 * 1440)).splitlines()

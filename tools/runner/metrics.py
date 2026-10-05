@@ -99,8 +99,8 @@ its first user message (the kickoff, the key also `Трек:`, the name in Engli
 none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the engineer's reserve). Per named track it prints
 the % of the week (week_percent, with the bracket), and with `--budget PCT ...` (one per name, in order) the budget and
 the plan to date (budget x days since --since / 7, at most the budget); then every session's total for the weekly
-counter. It writes tracks.json, not
-metrics.md: the task report reads only this checkout and keeps its own --session meaning.
+counter, with the untracked share and its largest sessions (a kickoff's Track: line left out or translated). It writes
+tracks.json, not metrics.md: the task report reads only this checkout and keeps its own --session meaning.
 """
 
 from __future__ import annotations
@@ -2518,9 +2518,20 @@ def track_lines(spend: dict, names: list[str], budgets: list[float], since: floa
         lines.append(f"{line}; list {fmt_usd(t['usd'])} in {n} session{'s' if n != 1 else ''}")
     every = week_percent(sum(t["usd"] for t in tracks.values()), sum(t["read_usd"] for t in tracks.values()))
     left = tracks.get(UNTRACKED, empty)
-    lines.append(f"every session: {fmt_week(every)} (untracked {left['percent']:.1f}%), against the weekly counter "
-                 f"(get_usage)")  # fmt: skip
+    lines.append(f"every session: {fmt_week(every)} (untracked {left['percent']:.1f}%{untracked_named(spend)}), "
+                 f"against the weekly counter (get_usage)")  # fmt: skip
     return lines
+
+
+def untracked_named(spend: dict, most: int = 3) -> str:
+    """` in N sessions: <id> <id> <id> and K more`, the untracked sessions by spend, so a manager sees a kickoff whose
+    Track: line was left out or translated; empty when there is none."""
+    loose = sorted((s for s in spend["sessions"] if s["track"] == UNTRACKED), key=lambda s: (-s["usd"], s["id"]))
+    if not loose:
+        return ""
+    more = f" and {len(loose) - most} more" if len(loose) > most else ""
+    n = len(loose)
+    return f" in {n} session{'s' if n != 1 else ''}: {' '.join(s['id'][:8] for s in loose[:most])}{more}"
 
 
 def track_table(spend: dict) -> list[str]:
