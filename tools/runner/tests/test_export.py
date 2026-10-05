@@ -167,8 +167,13 @@ class ReleaseCheckTest(unittest.TestCase):
         for addon in export.SHIPPED_ADDONS:
             (tree / "addons" / addon).mkdir(parents=True)
         for notice in export.NOTICES:
-            if notice.startswith("licenses/"):
-                (tree / "addons" / notice.removeprefix("licenses/")).write_bytes(notice.encode())
+            name = notice.removeprefix("licenses/")
+            if name.split("/")[0] in export.SHIPPED_ADDONS:
+                (tree / "addons" / name).write_bytes(notice.encode())
+            elif notice.startswith("licenses/"):
+                (tree / export.BUNDLED_LICENSES / name).parent.mkdir(parents=True, exist_ok=True)
+                (tree / export.BUNDLED_LICENSES / name).write_bytes(notice.encode())
+        (tree / export.BUNDLED_LICENSES / "README.md").write_bytes(b"# Sources\n")
         folder = self.dir / "build"
         export.add_notices(tree, folder)
         self.assertEqual(
@@ -176,6 +181,7 @@ class ReleaseCheckTest(unittest.TestCase):
             sorted(export.NOTICES),
         )
         self.assertEqual((folder / "licenses" / "twovoip" / "LICENSE").read_bytes(), b"licenses/twovoip/LICENSE")
+        self.assertEqual((folder / "licenses" / "opus" / "COPYING").read_bytes(), b"licenses/opus/COPYING")
         (tree / "CREDITS.md").unlink()
         with self.assertRaises(Failure):
             export.add_notices(tree, self.dir / "again")
@@ -227,11 +233,36 @@ class NoticesTest(unittest.TestCase):
 
     def test_the_notices_are_the_credits_and_every_license_file_of_a_shipped_addon(self) -> None:
         addons = self.addon_licenses()
-        expected = ["CREDITS.md"] + [
-            f"licenses/{addon}/{name}" for addon in export.SHIPPED_ADDONS for name in addons.get(addon, [])
-        ]
+        bundled = ROOT / export.BUNDLED_LICENSES
+        expected = (
+            ["CREDITS.md"]
+            + [f"licenses/{addon}/{name}" for addon in export.SHIPPED_ADDONS for name in addons.get(addon, [])]
+            + [f"licenses/{path.relative_to(bundled).as_posix()}" for path in bundled.glob("*/*") if path.is_file()]
+        )
         self.assertEqual(sorted(export.NOTICES), sorted(expected))
         self.assertLessEqual(set(export.NOTICES), export.RELEASE_FILES)
+
+    def test_godot_and_the_codecs_inside_twovoip_ship_their_license_texts(self) -> None:
+        # #422: the .exe is Godot's release template; Opus, RNNoise and SpeexDSP are built into libtwovoip.
+        texts = [
+            "licenses/godot/LICENSE.txt",
+            "licenses/godot/COPYRIGHT.txt",
+            "licenses/opus/COPYING",
+            "licenses/rnnoise/COPYING",
+            "licenses/speexdsp/COPYING",
+        ]
+        self.assertLessEqual(set(texts), set(export.NOTICES))
+        self.assertFalse(set(export.BUNDLED) & set(export.SHIPPED_ADDONS))
+        folders = [path.name for path in (ROOT / export.BUNDLED_LICENSES).iterdir() if path.is_dir()]
+        self.assertEqual(sorted(folders), sorted(export.BUNDLED))
+        sources = (ROOT / export.BUNDLED_LICENSES / "README.md").read_text(encoding="utf-8")
+        for text in texts:
+            with self.subTest(text=text):
+                name = text.removeprefix("licenses/")
+                self.assertTrue((ROOT / export.BUNDLED_LICENSES / name).read_bytes().strip())
+                lines = [line for line in sources.splitlines() if f"`{name}`" in line]
+                self.assertEqual(len(lines), 1, f"README.md names `{name}` once, with its source URL")
+                self.assertIn("https://", lines[0])
 
     def test_an_unshipped_addon_is_excluded_from_both_presets(self) -> None:
         presets = (ROOT / "export_presets.cfg").read_text(encoding="utf-8")
