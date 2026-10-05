@@ -124,7 +124,10 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   rules by path (with the patterns also in the worktree's own file it loaded no rule, so the pattern does match); a
   session started in the main checkout that Read a worktree `.gd`, test and `.tscn` loaded main's copy of each of the
   3 rules once (main's `tests/**` rule matches a worktree's `tests/` file) and no worktree copy, where without the
-  patterns it loaded both copies of each.
+  patterns it loaded both copies of each. So a main-started agent follows main's rules: a task branch's own edit of
+  a rule, or a rule it adds, reaches that agent only by Read (a task that changes a rule says so in its prompt).
+  `godot-resources.md` names `**/project.godot` rather than `project.godot` so that main's copy also matches a
+  worktree's (not probed, #406's review).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
