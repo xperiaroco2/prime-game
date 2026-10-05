@@ -31,13 +31,15 @@ TARGET = "tests/harness/bots/bots_main.gd"
 BOTS_OUT = OUT / "bots"
 # Every scenario in one process: about 8 s on the engineer's machine (#102); the timeout leaves room for slow CI.
 ONE_PROCESS_SECONDS = 300
-# Over ENet the scenarios run on the real clock: their own length plus joining and the host's wait for the files.
+# Over ENet or WebRTC the scenarios run on the real clock: their own length plus joining and the host's wait for the
+# files.
 ENET_SECONDS = 180
 NAME_RE = re.compile(r"[a-z0-9_]+")
 # `run` writes instance i's output to tools/out/logs/run/bots_main-<i>.log.
 RUN_LOGS = LOGS / "run"
 CHAOS_TARGET = "tests/harness/chaos/chaos_main.gd"
-# Per seed: three loopback runs of about 2 s each (the long match about 3 s), or one run over ENet.
+# Per seed: three loopback runs of about 2 s each (the long match about 3 s), or one run over ENet (or WebRTC, paced to
+# the real clock: about 16 s).
 CHAOS_SECONDS_PER_SEED = 60
 CHAOS_MAX_RUNS = 100
 # The night job's random seed (printed before the run): positive, and far from int overflow when runs add to it.

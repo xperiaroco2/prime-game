@@ -35,9 +35,10 @@ const UNANSWERED_USEC := EnetTransport.JOIN_TIMEOUT_MS * 500
 ## Over WebRTC a join can also end at once because the host's room is not up yet (its process
 ## starts later, or its signalling has not opened the room): the bot joins again this long after.
 const ROOM_RETRY_USEC := 500000
-## The joins that end for no answer (ENet's connect_failed, WebRTC's host_unreachable after its
-## 15 s), and the ones that end because the room is not up yet.
-const UNANSWERED: Array[StringName] = [ClientSession.CONNECT_FAILED, NetTransport.JOIN_UNREACHABLE]
+## The joins that end for no answer (ENet's connect_failed), and the ones that end because the
+## room is not up yet (WebRTC). WebRTC's host_unreachable is no such case: the service answered and
+## the connection never opened, a transport fault the run must not ride out.
+const UNANSWERED: Array[StringName] = [ClientSession.CONNECT_FAILED]
 const ROOM_NOT_UP: Array[StringName] = [
 	NetTransport.JOIN_NO_ROOM, NetTransport.JOIN_SERVICE_UNREACHABLE
 ]
@@ -313,13 +314,14 @@ func _lobby_wait(bot: ScenarioBot) -> String:
 
 ## A bot that joins at the start joins again when its join went unanswered: it failed (UNANSWERED)
 ## UNANSWERED_USEC or more after it started, as EnetTransport ends a join the host never admitted
-## after JOIN_TIMEOUT_MS (WebRtcTransport after its own). Under load its process can start seconds
+## after JOIN_TIMEOUT_MS. Under load its process can start seconds
 ## before the host's listens, and it sat out the run unheard (#284). A host that refuses a join
 ## answers at once: before the admission (refusing new connections, an id in use) the client also
 ## ends `connect_failed`, but within a poll or two, and after it (a Rejected Hello) `host_lost`;
-## both stay failures (_lost), as do WebRTC's `joins_closed` and `full`. Over WebRTC a join that
-## found no room (ROOM_NOT_UP: the host's process or room is not up yet) joins again
-## ROOM_RETRY_USEC after it ended. Judged when the failure is first seen, on _join_clock_usec().
+## both stay failures (_lost), as do WebRTC's `joins_closed`, `full` and `host_unreachable`. Over
+## WebRTC a join that found no room (ROOM_NOT_UP: the host's process or room is not up yet) joins
+## again ROOM_RETRY_USEC after it ended. Judged when the failure is first seen, on
+## _join_clock_usec().
 func _join_again(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
 	if client == null or bot.joined or bot.gone or bot.joins_late():

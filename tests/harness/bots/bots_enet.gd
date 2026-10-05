@@ -169,8 +169,9 @@ func step(now: int) -> void:
 		_finished = true
 
 
-## Over WebRTC a remote bot that wrote its view file only polls until the host closes: it sends
-## nothing more (no voice, no claim, no intent), so no packet of it meets the host's close. A send
+## Over WebRTC a remote bot that wrote its view file only polls until the host closes: it acts no
+## more (no voice, no intent; its session claims only in a phase that takes claims, and a passing
+## bot wrote its file in End), so no packet of it meets the host's close. A send
 ## on a channel the other side just closed prints an engine error line (WebRtcTransport checks the
 ## channel's state, which libdatachannel's threads change between the check and the send).
 func _step_quietly(bot: ScenarioBot) -> void:
@@ -469,7 +470,9 @@ func _compare() -> void:
 		)
 		if _host_rtc != null and watcher.peer != 0:
 			var lists := (watcher.transport as BotWebRtc).order.of(NetTransport.HOST_ID)
-			failures.append_array(_host_rtc.order.check_client(watcher.label, watcher.peer, lists))
+			failures.append_array(
+				_host_rtc.order.check_client(watcher.label, watcher.peer, lists, true)
+			)
 			print(
 				(
 					"%s order, %s"

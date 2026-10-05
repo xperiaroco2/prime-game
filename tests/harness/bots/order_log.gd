@@ -32,8 +32,8 @@ class Lists:
 	var delivered := PackedInt64Array()
 
 
-## A message's fingerprint: its payload's hash, its kind and its size (a hash collision can only
-## hide a problem, never make one up).
+## A message's fingerprint: its payload's hash, its kind and its size. A hash collision can hide a
+## problem, and in a remote bot's file (very rarely) make one up.
 static func fingerprint(kind: int, payload: PackedByteArray) -> int:
 	return (hash(payload) & 0xFFFFFFFF) | (kind << 32) | ((payload.size() & 0xFFFF) << 40)
 
@@ -76,11 +76,15 @@ static func from_data(data: Variant) -> Lists:
 
 
 ## Both directions between this side, the host, and a client's own lists (`client`, its peer
-## `peer` here), headed by `label` ("bot 2"); empty when the order held.
-func check_client(label: String, peer: int, client: Lists) -> PackedStringArray:
+## `peer` here), headed by `label` ("bot 2"); empty when the order held. `client_complete`: the
+## client's lists are whole (it runs in this process), not a file written before its last sends.
+func check_client(
+	label: String, peer: int, client: Lists, client_complete := false
+) -> PackedStringArray:
 	var mine := of(peer)
 	var found := PackedStringArray()
-	# A recording that broke would pass any walk: every client hears its Welcome, and says Hello.
+	# A recording that broke would pass any walk: a client that sent or was sent anything (a lurker
+	# neither) has something delivered.
 	if client.delivered.is_empty() and not mine.sent.is_empty():
 		found.append(
 			"host to %s: %d messages sent, none recorded as delivered" % [label, mine.sent.size()]
@@ -93,7 +97,9 @@ func check_client(label: String, peer: int, client: Lists) -> PackedStringArray:
 		problems("host to %s" % label, mine.sent, mine.reliable, client.delivered, true)
 	)
 	found.append_array(
-		problems("%s to host" % label, client.sent, client.reliable, mine.delivered, false)
+		problems(
+			"%s to host" % label, client.sent, client.reliable, mine.delivered, client_complete
+		)
 	)
 	return found
 
@@ -101,8 +107,10 @@ func check_client(label: String, peer: int, client: Lists) -> PackedStringArray:
 ## What went wrong between a sender's lists (`sent_to`, `reliable`) and what the other side
 ## delivered from it (`got`), headed by `label` ("host to bot 2"); empty when the order held.
 ## `complete`: `sent_to` holds everything the sender sent so far (the host's own lists when it
-## checks), so a delivered message missing from it was never sent to this peer. Otherwise
-## (a remote bot's file) the walk stops at the first one missing: it was sent after the file.
+## checks, or a client's in the same process), so a delivered message missing from it was never
+## sent to this peer. Otherwise (a remote bot's file) the first one missing was sent after the file
+## ended: every RELIABLE message the file holds past the walk's place was sent before it and must
+## have been delivered, and no message the file holds may be delivered after it.
 static func problems(
 	label: String,
 	sent_to: PackedInt64Array,
@@ -116,19 +124,30 @@ static func problems(
 		if not first_at.has(sent_to[i]):
 			first_at[sent_to[i]] = i
 	var at := 0
+	var past_end := false
 	for n in got.size():
 		var message := got[n]
+		if past_end:
+			if first_at.has(message):
+				found.append(
+					(
+						"%s: message %d was delivered after one sent after the list's end"
+						% [label, first_at[message]]
+					)
+				)
+				return found
+			continue
 		var match_at := _find(sent_to, message, at)
 		if match_at >= 0:
-			for skipped in range(at, match_at):
-				if reliable[skipped] == 1:
-					found.append(
-						(
-							"%s: RELIABLE message %d was not delivered before message %d"
-							% [label, skipped, match_at]
-						)
+			var skipped := _reliable_in(reliable, at, match_at)
+			if skipped >= 0:
+				found.append(
+					(
+						"%s: RELIABLE message %d was not delivered before message %d"
+						% [label, skipped, match_at]
 					)
-					return found
+				)
+				return found
 			at = match_at + 1
 		elif first_at.has(message):
 			found.append(
@@ -143,8 +162,25 @@ static func problems(
 			found.append("%s: delivered message %d was never sent to it" % [label, n])
 			return found
 		else:
-			break  # sent after the sender's list ended
+			past_end = true
+			var lost := _reliable_in(reliable, at, sent_to.size())
+			if lost >= 0:
+				found.append(
+					(
+						"%s: RELIABLE message %d was not delivered before one sent after the list"
+						% [label, lost]
+					)
+				)
+				return found
 	return found
+
+
+## The first RELIABLE message in [from, to), or -1.
+static func _reliable_in(reliable: PackedByteArray, from: int, to: int) -> int:
+	for i in range(from, to):
+		if reliable[i] == 1:
+			return i
+	return -1
 
 
 ## One line on what was checked between this side, the host, and a client: the messages each way.

@@ -390,12 +390,15 @@ dissidents, no crew present only once every crew member left, End widens nothing
   - **The fault shim** (`FaultShim`, `use_faults`, debug builds only and off by default; the design's §5): on what
     that side receives, RELIABLE arrives `reliable_delay_ms` late in order, counted from the poll before it was read
     (so a backlog read after a freeze is not held back again), one packet `delay_next_reliable(ms)` late instead
-    (holding back the ones behind it, as SCTP would), and LATEST is dropped and duplicated at seeded rates and each
-    copy arrives up to `latest_delay_ms` late (uniform, seeded; M6-6). The freeze twin runs with it on (50 ms, 10 %
-    dropped, 10 % duplicated), the stall twin delays one beat by 3 s while LATEST flows, and the bots and chaos bots
-    over WebRTC (§4.6) add LATEST up to 200 ms late: more than RELIABLE's 50 ms plus a 20 Hz interval, so a LATEST
-    packet sent just before a reliable one can arrive after it, the one case only `LaneOrder`'s "behind" rule handles
-    (with RELIABLE late alone, the rule removed passed `bots-webrtc`, M6-6).
+    (holding back the ones behind it, as SCTP would), and LATEST is dropped and duplicated at seeded rates, and at the
+    rate `latest_late` a copy arrives `latest_delay_ms` late, holding back the LATEST packets behind it (M6-6). The
+    freeze twin runs with it on (50 ms, 10 % dropped, 10 % duplicated), the stall twin delays one beat by 3 s while
+    LATEST flows, and the bots and chaos bots over WebRTC (§4.6) add one LATEST packet in five 120 ms late: more than
+    RELIABLE's 50 ms plus a 20 Hz interval, so a LATEST packet sent just before a reliable one arrives after it, the
+    one case only `LaneOrder`'s "behind" rule handles (with RELIABLE late alone, the rule removed passed
+    `bots-webrtc`). LATEST never overtakes LATEST: with each packet 0 to 200 ms late at random, the first claim of an
+    epoch was often overtaken, which §7.1 takes as one tick, and an honest chaos bot was corrected (1 of 5 runs
+    under load).
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
@@ -1436,6 +1439,47 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
     `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
     in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
+- **Over WebRTC** (M6-6, #371; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) §5, §6):
+  `tools\run.cmd bots <scenario> --instances N --transport webrtc` runs `BotsEnet` with every transport a
+  `BotWebRtc` (`tests/harness/bots/`): instance 1 serves `LanSignalling` on the port, whose one room is
+  `BotWebRtc.CODE`, and only IPv4 host candidates on 127.0.0.1 are signalled (no STUN in a container, the design's
+  §2.7). A bot
+  whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later,
+  one unanswered (`host_unreachable` after 15 s) as over ENet; `joins_closed` and `full` stay refusals. The fault
+  shim (§4 above) is on in every transport, seeded per transport: RELIABLE 50 ms late, LATEST 10 % dropped, 10 %
+  duplicated and one in five 120 ms late; not for a measurement (`BotScenario.measurement`, which measures the relay).
+  A remote bot that wrote its view file sends nothing more and only polls until the host closes, since a send that
+  meets the other side's close prints an engine `ERROR:` line (the state check and the send race libdatachannel's
+  threads). Every check of the leak test runs unchanged, plus the **order check** (`OrderLog`, the design's §5):
+  each transport records per peer a fingerprint (the kind, the payload's hash and size) of every RELIABLE and LATEST
+  message its channel took (`send`) and every one it delivered (`packet_received`, after the inbox's merge); what one
+  side delivered from a peer must be what that peer sent, in order, with LATEST messages left out at most. It fails on
+  a message delivered after one sent later, a RELIABLE message skipped, a recording that delivered nothing, and, as
+  the host's lists are whole, a message never sent to that peer (a swapped id-to-connection map). A remote bot's
+  lists end with its view file, so the walk of what the host delivered from it stops at the first message missing
+  from them. The host checks both directions of each remote bot (its view file carries its lists), the lurker and
+  the refused bot; bot 1 is the host's own loopback client. Over WebRTC the relay counters' upload adds no IP and UDP
+  bytes per datagram: E56's 108 B per packet already counts them (`RelayReport.window`).
+  `tools\run.cmd bots --chaos [--seed N] --transport webrtc` (`--enet` is `--transport enet`) runs `ChaosRun` in one
+  process the same way, paced to the real clock (a frame waits until the real clock reached the simulated one: the
+  connections and the shim's delays are real time), with the ENet variant's invariants plus the order check, both ways
+  for the honest bots and the watchers, host to peer for the two chaos peers (their raw sends bypass `send`). A raw
+  packet goes on the channel of the lane whose ENet channel and mode `ChaosFrames` chose; a LATEST one still gets
+  `LaneOrder`'s header, as any sender's would. `verify`, and so CI, runs `bots-webrtc` (`dissident_kills_the_crew
+  --instances 3`, about 50 s) and `chaos-webrtc` (seed 188001, about 16 s). Tests: `tests/scenarios/order_log_test.gd`,
+  `tests/scenarios/bots_enet_test.gd` (the joins again over WebRTC), `tests/unit/net/transport/fault_shim_test.gd`,
+  `tools/runner/tests/test_bots.py` and `test_verify.py`.
+  - **Proven** (2026-10-05, each plant reverted): `LaneOrder`'s "behind" rule removed (the design's §5 plant, M6-3's
+    again): with M6-4's shim alone `bots-webrtc` passed, as 127.0.0.1 never delivered a LATEST packet after a reliable
+    one sent after it; with the late LATEST above it failed on the order check (`host to bot 2: message 5 was
+    delivered after message 7, which was sent after it`, three such lines for bots 2 and 3), and `chaos-webrtc` on an
+    honest bot corrected after the stale claim (`a Correction outside a placement`; the shim of the paragraph above,
+    whose honest runs passed 10 of 10 under load). #427's plant with real `HostSession`s and `ClientSession`s (its
+    review's item 3): a swapped id-to-connection map in `WebRtcTransport._backend_send` (the host's message to peer
+    p went on the connection of p xor 1) failed `bots-webrtc` on all three instances: bot 3 decoded another peer's
+    `PlayerJoined` where `view_of` holds its own `Welcome`, and other snapshots; the lurker decoded the refused bot's
+    `Rejected`, and the refused bot nothing; voice relayed under the wrong speaker; and the order check (`host to bot 3:
+    delivered message 0 was never sent to it`).
 - **`host` and `join`** (3i): `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
   with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
   headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
@@ -3877,7 +3921,7 @@ one class per step, `StepJoin` to `StepLeave`, whose `problems()` report an unpl
   forced dissident takes a knife and knocks both crew down; `too_soon`; a downed bot is not hit again, its `PickUp` is
   `not_accepted`, and it crawls; both die at the end of their knockdown and a dead bot's `PickUp` is `not_accepted`;
   the match ends by time up, every crew member dead but present, on a 40 s clock (`clock_s`, M4-3); the `bots-enet`
-  step), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
+  step, and over WebRTC `bots-webrtc`, §4.6), `crew_respawns_invulnerable` (M4-3: a crew bot is knocked down, dies and respawns 30 s later at a
   `respawn` marker; the dissident sprints to it and swings within its 3 s of invulnerability, which brings no
   `Damaged`, then swings again after them, which does; the match ends by time up on a 55 s clock),
   `crew_revives_the_downed` (M4-4: a dissident knocks a crew bot down and another crew bot raises it for 3 s; it

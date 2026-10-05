@@ -440,13 +440,11 @@ func _read(conn: Conn, now: int, since: int) -> void:
 				continue
 			match lane:
 				NetKindTable.Lane.LATEST:
-					var copies := 1 if _faults == null else _faults.latest_copies()
-					for _i in copies:
-						var late := 0 if _faults == null else _faults.latest_delay()
-						if late > 0 or not conn.late_latest.is_empty():
-							_delay_latest(conn, bytes, since + late)
-						else:
-							_take_latest(conn, bytes, now)
+					if _faults == null:
+						_take_latest(conn, bytes, now)
+					else:
+						for _i in _faults.latest_copies():
+							_shim_latest(conn, bytes, now, since)
 				NetKindTable.Lane.RELIABLE:
 					if _faults == null:
 						_take_reliable(conn, bytes, now)
@@ -511,7 +509,14 @@ func _delay_reliable(conn: Conn, bytes: PackedByteArray, arrived: int) -> void:
 	conn.delayed_due.append(due)
 
 
-func _delay_latest(conn: Conn, bytes: PackedByteArray, due: int) -> void:
+## One copy of a LATEST packet read at `now` under the fault shim: late by its delay from `since`,
+## or behind a late one still held, in order; else at once.
+func _shim_latest(conn: Conn, bytes: PackedByteArray, now: int, since: int) -> void:
+	var late := _faults.latest_delay()
+	if late == 0 and conn.late_latest.is_empty():
+		_take_latest(conn, bytes, now)
+		return
+	var due := since + late
 	if not conn.late_latest_due.is_empty():
 		due = maxi(due, conn.late_latest_due[conn.late_latest_due.size() - 1])
 	conn.late_latest.append(bytes)

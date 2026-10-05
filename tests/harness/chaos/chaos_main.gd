@@ -41,6 +41,10 @@ func _initialize() -> void:
 			port = arg.trim_prefix(PORT_ARG).to_int()
 		elif arg.begins_with(TRANSPORT_ARG):
 			webrtc = arg.trim_prefix(TRANSPORT_ARG) == WEBRTC
+			if not webrtc:
+				print("CHAOS FAILED: --transport=%s is not webrtc" % arg.trim_prefix(TRANSPORT_ARG))
+				quit(1)
+				return
 	if not OS.is_debug_build():
 		print("CHAOS FAILED: the chaos bots run in debug builds only (ForceRole, the observer)")
 		quit(1)

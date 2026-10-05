@@ -37,6 +37,10 @@ func _initialize() -> void:
 			instances = arg.trim_prefix(INSTANCES_ARG).to_int()
 		elif arg.begins_with(TRANSPORT_ARG):
 			webrtc = arg.trim_prefix(TRANSPORT_ARG) == WEBRTC
+			if not webrtc:
+				print("BOTS FAILED: --transport=%s is not webrtc" % arg.trim_prefix(TRANSPORT_ARG))
+				quit(1)
+				return
 		else:
 			names.append(arg)
 	if port > 0:

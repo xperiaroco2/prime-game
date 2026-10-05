@@ -36,8 +36,17 @@ func test_a_message_never_sent_to_it_fails_when_the_list_is_complete() -> void:
 	# A swapped id-to-connection map: one peer's messages delivered to another.
 	var log := _sent([[1, R], [2, L]])
 	assert_str(_problems(log, _fingerprints([1, 99]), true)[0]).contains("never sent to it")
-	# A remote bot's file ends before its last sends: the walk stops at the first one missing.
-	assert_array(_problems(log, _fingerprints([1, 99, 2]), false)).is_empty()
+	# A remote bot's file ends before its last sends: what follows the first one missing is past it.
+	assert_array(_problems(log, _fingerprints([1, 99, 98]), false)).is_empty()
+	# But a message the file holds cannot come after one sent past its end, and no RELIABLE
+	# message the file holds may be missing then.
+	assert_str(_problems(log, _fingerprints([1, 99, 2]), false)[0]).contains(
+		"message 1 was delivered after one sent after the list's end"
+	)
+	var reliable_last := _sent([[1, L], [2, R]])
+	assert_str(_problems(reliable_last, _fingerprints([1, 99]), false)[0]).contains(
+		"RELIABLE message 1 was not delivered before one sent after the list"
+	)
 
 
 func test_check_client_walks_both_ways_and_sees_a_recording_that_broke() -> void:

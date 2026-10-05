@@ -83,8 +83,6 @@ BOTS_ENET_SCENARIO = "dissident_kills_the_crew"
 BOTS_ENET_INSTANCES = 3
 # The chaos bots (#188): one seed, the short match, three runs in one process over the loopback (about 6 s).
 CHAOS_SEED = 188001
-# The same scenario and seed over WebRTC (M6-6, #371), with the fault shim on and the leak test's order check: the bots
-# one process each (about 50 s), the chaos run in one process paced to the real clock (about 16 s).
 
 # Below the ephemeral ranges of Windows (49152+) and Linux (32768+): an ENet client's own socket never takes it.
 ENET_PORTS = range(20000, 32000)
@@ -226,7 +224,8 @@ def bots_enet() -> int:
 
 
 def bots_webrtc() -> int:
-    """`bots <BOTS_ENET_SCENARIO> --instances 3 --transport webrtc`: the same scenario over WebRTC on a free port."""
+    """`bots <BOTS_ENET_SCENARIO> --instances 3 --transport webrtc`: the same scenario over WebRTC on a free port (M6-6,
+    #371), with the fault shim on and the leak test's order check; one process per bot, about 50 s."""
     return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES, transport="webrtc")
 
 
@@ -236,7 +235,8 @@ def chaos() -> int:
 
 
 def chaos_webrtc() -> int:
-    """`bots --chaos --seed <CHAOS_SEED> --transport webrtc`: the short seeded run over WebRTC on a free port."""
+    """`bots --chaos --seed <CHAOS_SEED> --transport webrtc`: the short seeded run over WebRTC on a free port (M6-6),
+    one chaos run in one process paced to the real clock, the fault shim on; about 16 s."""
     return bots.chaos(seed=CHAOS_SEED, transport="webrtc")
 
 

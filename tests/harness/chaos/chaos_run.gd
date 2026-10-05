@@ -578,11 +578,13 @@ func _check_order() -> void:
 		if bot.number == HOSTILE:
 			failures.append_array(_order_from_host(label, bot.peer, own))
 		else:
-			failures.append_array(_host_rtc.order.check_client(label, bot.peer, own))
+			failures.append_array(_host_rtc.order.check_client(label, bot.peer, own, true))
 	for watcher: BotWatcher in [lurker, refused]:
 		if watcher.peer != 0:
 			var lists := (watcher.transport as BotWebRtc).order.of(NetTransport.HOST_ID)
-			failures.append_array(_host_rtc.order.check_client(watcher.label, watcher.peer, lists))
+			failures.append_array(
+				_host_rtc.order.check_client(watcher.label, watcher.peer, lists, true)
+			)
 	if malformed.peer != 0:
 		var lists := (malformed.transport as BotWebRtc).order.of(NetTransport.HOST_ID)
 		failures.append_array(_order_from_host("malformed peer", malformed.peer, lists))
