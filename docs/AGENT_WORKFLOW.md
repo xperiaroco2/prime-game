@@ -147,7 +147,12 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   heading without a § under a numbered one in ARCHITECTURE or AGENT_WORKFLOW (a new heading takes the next free number
   under its parent), and a § reference to those two that resolves to no heading; the doc a § belongs to is the one named
   with it (scope rules: `tools/runner/refs.py`), and a § with no doc in scope is only counted (`section --refs` lists
-  those).
+  those). Root's runner line says to read docs by section, never whole (#339), and the workflow prompts (§7.1) name
+  sections: the reviewers and the plan's critique read the ARCHITECTURE sections the change touches (a design's: the
+  outline, then every section it could contradict), the netcode reviewers always ARCHITECTURE §5, §4.2 and §4.6 (a
+  change to its §4.7 alone can still add a snapshot field the leak test does not compare), and no prompt asks for root
+  `CLAUDE.md`, which every agent has from its launch. The implementer's default reading list names no area `CLAUDE.md`
+  file and no rule: those load by path when it Reads a file there, as it does before every Edit (a `cat` loads none).
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
@@ -355,7 +360,8 @@ Rules for every workflow run:
   optional `issue-task` args, all off by default but `bounded_waits` (on since #411), so a launch or a resume with the
   earlier args and `bounded_waits: false` gets the earlier agents byte for byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
-  sets; the folder above it, the same cases as launched by default). `plan_review: true`: a plan agent and a fresh
+  sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
+  prompts that landed between waves and rewrote both folders (#413's rules line, #339's section reads). `plan_review: true`: a plan agent and a fresh
   critique of its plan before the implementer, summarized in the PR (+2 agents). `test_review: true`: after the
   reviews one agent plants 3 to 5 faults in the diff's production code with `tools\run.cmd mutants` (#184), each in a
   scratch worktree; a survived mutant is a finding, and the publisher stops and reports when `mutants` exits 2; the
