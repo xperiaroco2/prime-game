@@ -113,7 +113,8 @@ def build_parser() -> argparse.ArgumentParser:
         "verify",
         help="everything CI runs, in the same order (definition of done)",
         description="Everything CI runs, in the same order: doctor, then a Python lane and a Godot lane at once. On "
-        "a PC a run first takes one of 2 machine-wide slots, waiting at most 600 s. The definition-of-done gate. "
+        "a PC a run first takes one of 2 machine-wide slots, waiting at most 600 s (in a quiet window of slots "
+        "--quiet, the one slot). The definition-of-done gate. "
         "Every agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11).",
     )
     p = sub.add_parser(
@@ -209,6 +210,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--loops", type=int, help="busy processes, 1 to 256 (default 2 per logical CPU)")
     p.add_argument("--seconds", type=float, default=600.0, help="how long they run, up to 1140 (default 600)")
+
+    p = sub.add_parser(
+        "slots",
+        help="who holds and waits for the verify slots (--status); one slot for a while (--quiet <hours> | off)",
+        description="The machine-wide verify slots, shared by every checkout of this PC (docs/AGENT_WORKFLOW.md §11). "
+        "--status prints the quiet window, the holders (worktree, branch, pid, since), the runs waiting for a slot, "
+        "the runs going on without one, and the last hour's verify runs that ran without a slot (over the limit), "
+        "from the slots folder and the verify history; its last line says whether a run waits or runs over the "
+        "limit (a manager launches nothing while one does). --quiet <hours> (more than 0, at most 24) starts a quiet window for the engineer's "
+        "own use of the PC: until its end time every new verify and load run takes one slot, and its slot line names "
+        "the window; a run already in a slot finishes there, and a run already waiting joins the window. --quiet off ends it. An expired, unreadable or "
+        "malformed quiet file is ignored with a warning, and a run still waits at most 600 s.",
+    )
+    what = p.add_mutually_exclusive_group(required=True)
+    what.add_argument(
+        "--status", action="store_true", help="print the holders, the waiters and the runs without a slot"
+    )
+    what.add_argument(
+        "--quiet", metavar="HOURS|off", help="one slot for HOURS (more than 0, at most 24) from now; off ends it"
+    )
 
     p = sub.add_parser(
         "board",
@@ -575,6 +596,12 @@ def main(argv: list[str] | None = None) -> int:
             from . import load
 
             return load.main(args.loops, args.seconds)
+        if args.command == "slots":
+            from . import slots
+
+            if args.status:
+                return slots.status()
+            return slots.quiet_command(args.quiet, me=slots.this_checkout())
         if args.command == "board":
             from . import board
 
