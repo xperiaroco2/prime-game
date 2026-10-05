@@ -32,6 +32,15 @@ extends ScenarioPlay
 ## EnetTransport.JOIN_TIMEOUT_MS, in microseconds (a frame's clock is read before its poll). A
 ## sooner `connect_failed` is a refusal.
 const UNANSWERED_USEC := EnetTransport.JOIN_TIMEOUT_MS * 500
+## Over WebRTC a join can also end at once because the host's room is not up yet (its process
+## starts later, or its signalling has not opened the room): the bot joins again this long after.
+const ROOM_RETRY_USEC := 500000
+## The joins that end for no answer (ENet's connect_failed, WebRTC's host_unreachable after its
+## 15 s), and the ones that end because the room is not up yet.
+const UNANSWERED: Array[StringName] = [ClientSession.CONNECT_FAILED, NetTransport.JOIN_UNREACHABLE]
+const ROOM_NOT_UP: Array[StringName] = [
+	NetTransport.JOIN_NO_ROOM, NetTransport.JOIN_SERVICE_UNREACHABLE
+]
 
 ## The schema every bot and host uses: a debug build's, which has ForceRole's kind (E17).
 var schema := WireSchema.game(true)
@@ -302,31 +311,30 @@ func _lobby_wait(bot: ScenarioBot) -> String:
 	)
 
 
-## A bot that joins at the start joins again when its join went unanswered: it failed
-## (CONNECT_FAILED) UNANSWERED_USEC or more after it started, as EnetTransport ends a join the host
-## never admitted after JOIN_TIMEOUT_MS. Under load its process can start seconds before the
-## host's listens, and it sat out the run unheard (#284). A host that refuses a join answers at
-## once: before the admission (refusing new connections, an id in use) the client also ends
-## `connect_failed`, but within a poll or two, and after it (a Rejected Hello) `host_lost`; both
-## stay failures (_lost). Judged when the failure is first seen, on _join_clock_usec().
+## A bot that joins at the start joins again when its join went unanswered: it failed (UNANSWERED)
+## UNANSWERED_USEC or more after it started, as EnetTransport ends a join the host never admitted
+## after JOIN_TIMEOUT_MS (WebRtcTransport after its own). Under load its process can start seconds
+## before the host's listens, and it sat out the run unheard (#284). A host that refuses a join
+## answers at once: before the admission (refusing new connections, an id in use) the client also
+## ends `connect_failed`, but within a poll or two, and after it (a Rejected Hello) `host_lost`;
+## both stay failures (_lost), as do WebRTC's `joins_closed` and `full`. Over WebRTC a join that
+## found no room (ROOM_NOT_UP: the host's process or room is not up yet) joins again
+## ROOM_RETRY_USEC after it ended. Judged when the failure is first seen, on _join_clock_usec().
 func _join_again(bot: ScenarioBot) -> void:
 	var client: BotClient = clients.get(bot.number)
-	if (
-		client == null
-		or bot.joined
-		or bot.gone
-		or bot.joins_late()
-		or client.end_reason != ClientSession.CONNECT_FAILED
-	):
+	if client == null or bot.joined or bot.gone or bot.joins_late():
+		return
+	var reason := client.end_reason
+	if not reason in UNANSWERED and not reason in ROOM_NOT_UP:
 		return
 	var failed: int = _join_failed.get_or_add(bot.number, _join_clock_usec())
-	if failed - _join_started.get(bot.number, failed) < UNANSWERED_USEC:
+	if reason in ROOM_NOT_UP:
+		if _join_clock_usec() - failed < ROOM_RETRY_USEC:
+			return
+	elif failed - _join_started.get(bot.number, failed) < UNANSWERED_USEC:
 		return
 	print(
-		(
-			"%s: bot %d joins again (connect_failed: the host did not answer within %d ms)"
-			% [_log_label(), bot.number, EnetTransport.JOIN_TIMEOUT_MS]
-		)
+		"%s: bot %d joins again (%s: the host did not answer)" % [_log_label(), bot.number, reason]
 	)
 	_join_host(bot)
 

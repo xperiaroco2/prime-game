@@ -3,7 +3,8 @@ extends RefCounted
 ## A bot's view file (ARCHITECTURE §4.6): what one bot decoded, its peer id and its failures,
 ## written as FileAccess.store_var of plain data (a local file, lossless, not the wire) to
 ## tools/out/bots/<scenario>/bot-<i>.bin. Over ENet the host reads every bot's file back and
-## compares it with view_of; in one process the files are a record of the run.
+## compares it with view_of; in one process the files are a record of the run. Over WebRTC it also
+## holds the bot's OrderLog lists (`order`), which the host checks against its own.
 
 
 ## The folder of a scenario's files under the project: tools/out/bots/<scenario>.
@@ -13,7 +14,12 @@ static func dir_of(scenario_name: String) -> String:
 
 ## Writes bot `bot`'s file in `dir`; false after logging why it could not.
 static func write(
-	dir: String, bot: int, peer: int, view: DecodedView, failures: PackedStringArray
+	dir: String,
+	bot: int,
+	peer: int,
+	view: DecodedView,
+	failures: PackedStringArray,
+	order: Dictionary = {}
 ) -> bool:
 	if DirAccess.make_dir_recursive_absolute(dir) != OK:
 		push_error("bots: cannot create %s" % dir)
@@ -30,6 +36,7 @@ static func write(
 		"voice": view.voice,
 		"voice_seqs": view.voice_seqs,
 		"failures": failures,
+		"order": order,
 	}
 	var path := path_of(dir, bot)
 	var file := FileAccess.open(path + ".part", FileAccess.WRITE)
@@ -46,8 +53,8 @@ static func path_of(dir: String, bot: int) -> String:
 	return dir.path_join("bot-%d.bin" % bot)
 
 
-## {bot, peer, view: DecodedView, failures} from bot `bot`'s file in `dir`; empty when there is
-## none (yet) or it cannot be read.
+## {bot, peer, view: DecodedView, failures, order} from bot `bot`'s file in `dir`; empty when
+## there is none (yet) or it cannot be read.
 static func read(dir: String, bot: int) -> Dictionary:
 	var path := path_of(dir, bot)
 	if not FileAccess.file_exists(path):
@@ -73,4 +80,5 @@ static func read(dir: String, bot: int) -> Dictionary:
 		"peer": fields["peer"],
 		"view": view,
 		"failures": fields["failures"],
+		"order": fields.get("order", {}),
 	}

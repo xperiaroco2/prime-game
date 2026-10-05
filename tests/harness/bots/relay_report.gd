@@ -7,6 +7,8 @@ extends RefCounted
 ## Derived: VoiceDowns sent per 20 ms (the streams on the wire while everyone talks), the relay's
 ## microseconds per 20 ms and per send, the send alone per send, and the upload in Mbit/s on the
 ## wire: the bytes take_upload counted (ENet's headers included) plus IP_UDP_BYTES per datagram.
+## Over WebRTC take_upload already counts them (WebRtcTransport.PACKET_OVERHEAD_BYTES, E56): the
+## caller passes 0.
 
 ## IPv4 and UDP headers per datagram, which ENet's statistics leave out.
 const IP_UDP_BYTES := 28
@@ -16,9 +18,12 @@ const MBIT := 1000000.0
 
 
 ## One line for the window from `before` to `now` (two readings of relay_counters), headed by
-## `label`; empty when no time passed.
+## `label`, with `ip_udp_bytes` added per datagram; empty when no time passed.
 static func window(
-	label: String, before: Dictionary[StringName, int], now: Dictionary[StringName, int]
+	label: String,
+	before: Dictionary[StringName, int],
+	now: Dictionary[StringName, int],
+	ip_udp_bytes := IP_UDP_BYTES
 ) -> String:
 	var delta := _difference(before, now)
 	var ms: int = delta.get(&"session_ms", 0)
@@ -32,9 +37,9 @@ static func window(
 	if sent > 0:
 		per_send = "%.1f" % (delta[&"voice_relay_usec"] / float(sent))
 		send_alone = "%.1f" % (delta[&"voice_send_usec"] / float(sent))
-	var voice := _mbit(delta, &"voice", seconds)
-	var snapshots := _mbit(delta, &"snapshot", seconds)
-	var other := _mbit(delta, &"other", seconds)
+	var voice := _mbit(delta, &"voice", seconds, ip_udp_bytes)
+	var snapshots := _mbit(delta, &"snapshot", seconds, ip_udp_bytes)
+	var other := _mbit(delta, &"other", seconds, ip_udp_bytes)
 	return (
 		(
 			"%s %.1f-%.1f s: relayed %d, sent %d (%.1f per 20 ms), dropped %d, over budget %d;"
@@ -83,7 +88,9 @@ static func _difference(
 
 
 ## `prefix`_up_bytes and _datagrams as Mbit/s on the wire over `seconds`.
-static func _mbit(delta: Dictionary[StringName, int], prefix: String, seconds: float) -> float:
+static func _mbit(
+	delta: Dictionary[StringName, int], prefix: String, seconds: float, ip_udp_bytes: int
+) -> float:
 	var bytes: int = delta.get(StringName(prefix + "_up_bytes"), 0)
 	var datagrams: int = delta.get(StringName(prefix + "_up_datagrams"), 0)
-	return (bytes + IP_UDP_BYTES * datagrams) * BITS_PER_BYTE / seconds / MBIT
+	return (bytes + ip_udp_bytes * datagrams) * BITS_PER_BYTE / seconds / MBIT
