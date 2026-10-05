@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## stamina regenerates as usual. It passes through players (the engineer's correction of
 ## 2026-09-30, #46: the downed do not fly). It lies down (its mesh; the capsule stays standing),
 ## and a raise holds it still (M4-9). A dead player has no body and does not look around, and
-## look_level() levels a respawned head (#191). Forward is -Z. Each test builds its own small world.
+## look_level() levels a respawned head (#191), and the own placement's (#240). Forward is -Z. Each
+## test builds its own small world.
 
 const SPEED_TOLERANCE := 0.05
 const PlayerTestWorld := preload("res://tests/integration/client/player/player_test_world.gd")
@@ -296,6 +297,26 @@ func test_look_level_levels_the_head_and_keeps_the_yaw() -> void:
 	assert_float(player.rotation.y).is_equal_approx(-1.2, 0.0001)
 	var ahead := Vector3(sin(1.2), 0.0, -cos(1.2))
 	assert_vector(player.look_vector()).is_equal_approx(ahead, Vector3.ONE * 0.0001)
+
+
+func test_only_the_own_respawn_and_placement_level_the_look() -> void:
+	# #240 (the engineer's answer, option b): a PlayersPlaced naming the own player levels its look
+	# as the own Respawned does (#191); another player's respawn or placement keeps it.
+	var player := _world.add_player(Vector3.ZERO)
+	var schema := WireSchema.game(OS.is_debug_build())
+	var transport := LoopbackTransport.new(schema.kind_table(), LoopbackHub.new())
+	var session := ClientSession.new(transport, FixtureBaseMode.mode(), schema)
+	session.model.own_peer = 2
+	player.attach(session)
+	player.look(0.5, 0.4)
+	var others: Dictionary[int, Vector3] = {3: Vector3.ONE}
+	session.event_received.emit(&"PlayersPlaced", {"spots": others})
+	session.event_received.emit(&"Respawned", {"peer": 3})
+	assert_float(_pitch(player)).is_equal_approx(0.4, 0.0001)
+	var everyone: Dictionary[int, Vector3] = {2: Vector3.ZERO, 3: Vector3.ONE}
+	session.event_received.emit(&"PlayersPlaced", {"spots": everyone})
+	assert_float(_pitch(player)).is_equal_approx(0.0, 0.0001)
+	assert_float(player.rotation.y).is_equal_approx(0.5, 0.0001)
 
 
 func test_a_held_downed_player_stands_still_while_asked_to_crawl() -> void:
