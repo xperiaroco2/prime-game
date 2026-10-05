@@ -291,14 +291,14 @@ taken in a `main` that has them.
 - **Into `main`** (the tooling track, #170, and a milestone's closing PR): `tools\run.cmd merge-check --base main`,
   then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without it. The gate (AGENT_WORKFLOW §7.1)
   refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or session, a head behind
-  `main` (`publish` in its worktree, or `pr-rebase` when its `gate: note:` lines name an overlap, then CI), the
-  exceptions (the designer's area without the relay phrase or approval; `.claude/settings*.json`, `.claude/githooks/`,
-  the guard; an ADR without "Approved by the engineer: <link>"), an open "Needs the engineer" item. An exception goes
-  into your "For you:" block; the rest you fix and run again. Each merge leaves the other PRs behind `main`: two or
-  more go through `tools\run.cmd merge-train <pr>... --base main` (#387; `--dry-run` first, then in the background,
-  `wait` on its log): per PR in order, publish in its worktree (a red verify retried once), CI, the gate; a PR that
-  fails is skipped with the reason and the train goes on. After each merge: one chat line ("merged #N into main as
-  <sha>"), the `wave:` line in the wave comment, a note on a running milestone's plan issue that needs it (`merge
+  `main` (a background `publish` with `wait <log>` in its worktree, or `pr-rebase` when its `gate: note:` lines name an
+  overlap, then CI), the exceptions (the designer's area without the relay phrase or approval; `.claude/settings*.json`,
+  `.claude/githooks/`, the guard; an ADR without "Approved by the engineer: <link>"), an open "Needs the engineer" item.
+  An exception goes into your "For you:" block; the rest you fix and run again. Each merge leaves the other PRs behind
+  `main`: two or more go through `tools\run.cmd merge-train <pr>... --base main` (#387; `--dry-run` first, then in the
+  background, `wait` on its log): per PR in order, publish in its worktree (a red verify retried once), CI, the gate; a
+  PR that fails is skipped with the reason and the train goes on. After each merge: one chat line ("merged #N into main
+  as <sha>"), the `wave:` line in the wave comment, a note on a running milestone's plan issue that needs it (`merge
   --sync-main`). `main` broken by your merge: a revert PR (`git revert -m 1 <merge>`) through the same gate; tell the
   engineer. "стоп мерджі": no merges into `main` until the engineer lifts it; record it on your plan issue and #170.
 - **The stage's end.** When every task is merged, open the PR from `release/m<k>` into `main` (`gh pr create --base
