@@ -1,9 +1,9 @@
 # A weekly budget across four tracks
 
-- **Status:** Proposed (#389). The engineer chooses from "Needs the engineer" (N1 to N8) before or at the weekly
-  reset, 2026-10-06 10:00 UTC. Until he answers, only "What this design settles" (tier (a)) applies: every track
-  stays within the trust ADR's 15%, and the effort, model-guard and rotation rules stand as written; no N item's
-  recommendation applies before its answer.
+- **Status:** Accepted (#389). The engineer chose every recommendation on 2026-10-05: N1 (b), N2 (a), N3 (b),
+  N4 (a), N5 (a), N6 (b), N7 (a) and N8 (b) ([PR #403 comment
+  5992271562](https://github.com/xperiaroco2/prime-game/pull/403#issuecomment-5992271562)). They govern the week from
+  the weekly reset of 2026-10-06 10:00 UTC; N5 (the Sonnet publisher on clean runs) holds from the answer.
 - **Date:** 2026-10-05
 - **Deciders:** the engineer (N1 to N8). The measurement and the technical choices ("What this design settles") are
   the design task's, under the engineer's delegation of technical choices (#134) and the night plan he approved on
