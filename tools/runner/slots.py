@@ -86,6 +86,9 @@ MAX_QUIET_HOURS = 24.0
 # A waiting run's file (#416), and the window of `slots --status`'s runs without a slot.
 WAITER_PREFIX = "waiter-"
 RECENT = 3600.0
+# A waiter file in the WAITING state older than its run's wait plus this many seconds is a ghost (#416): its run was
+# killed and Windows gave its pid to another process, so the pid looks alive. `slots --status` removes it.
+STALE_MARGIN = 60.0
 # What a waiter file says the run does: it waits for a slot, or it went ahead without one (a verify past max_wait).
 WAITING = "waiting"
 OVER = "over"
@@ -287,6 +290,7 @@ class Waiter:
     since: str = "?"
     kind: str = VERIFY
     state: str = WAITING
+    wait: float | None = None  # the run's longest wait, in seconds (None: the file does not say)
 
     def line(self, now: datetime | None = None) -> str:
         started = parse_stamp(self.since)
@@ -317,6 +321,7 @@ def read_waiters(where: Path) -> list[Waiter]:
                 since=str(data.get("since", "?")),
                 kind=LOAD if data.get("kind") == LOAD else VERIFY,
                 state=OVER if data.get("state") == OVER else WAITING,
+                wait=float(data["wait"]) if isinstance(data.get("wait"), (int, float)) else None,
             )
         )
     return sorted(found, key=lambda w: w.since)
@@ -461,7 +466,8 @@ class Pool:
         if self._waiter is None:
             self._waiter = self.where / f"{WAITER_PREFIX}{os.getpid()}-{uuid.uuid4().hex[:8]}.json"
             self._waiting_since = stamp(datetime.now(UTC))
-        data = {**self.me, "kind": self.kind, "pid": os.getpid(), "since": self._waiting_since, "state": state}
+        data = {**self.me, "kind": self.kind, "pid": os.getpid(), "since": self._waiting_since, "state": state,
+                "wait": self.max_wait}  # fmt: skip
         with contextlib.suppress(OSError):
             self._waiter.write_text(json.dumps(data), encoding="utf-8")
 
@@ -626,6 +632,16 @@ def _alive(pid: int) -> bool:
     return sessions.process_alive(pid)
 
 
+def stale_waiter(waiter: Waiter, now: datetime, default_wait: float) -> bool:
+    """A WAITING file older than its run's longest wait (plus STALE_MARGIN): the run is gone, whatever its pid says. An
+    OVER file has no bound (a verify runs as long as it runs)."""
+    started = parse_stamp(waiter.since)
+    if waiter.state != WAITING or started is None:
+        return False
+    limit = waiter.wait if waiter.wait is not None else default_wait
+    return (now - started).total_seconds() > limit + STALE_MARGIN
+
+
 def status(
     env: dict[str, str] | os._Environ[str] = os.environ,
     *,
@@ -671,9 +687,9 @@ def status(
         out("  none (no limit)")
     waiters: list[Waiter] = []
     for waiter in read_waiters(where) if where.is_dir() else []:
-        if waiter.pid is not None and alive(waiter.pid):
+        if waiter.pid is not None and alive(waiter.pid) and not stale_waiter(waiter, now, wait):
             waiters.append(waiter)
-        else:  # its run was killed while it waited or ran: nothing removed it
+        else:  # its run was killed while it waited or ran (its pid may live on in another process): nothing removed it
             with contextlib.suppress(OSError):
                 waiter.path.unlink(missing_ok=True)
     waiting = [w for w in waiters if w.state == WAITING]

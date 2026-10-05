@@ -476,16 +476,18 @@ class StatusTest(SlotsCase):
     def test_holders_waiters_and_the_quiet_window(self) -> None:
         holder = self.pool(count=1, name="busy")
         holder.acquire()
-        slots.write_quiet(self.where, 2, now=NOW - timedelta(minutes=30), me={"worktree": "D:/prime-game"})
+        now = datetime.now(UTC)  # the waiter file is stamped with the real time, and a stale one is left out
+        slots.write_quiet(self.where, 2, now=now - timedelta(minutes=30), me={"worktree": "D:/prime-game"})
         left = json.dumps({"worktree": "D:/wt/killed", "pid": 999999})
         (self.where / "slot-2.json").write_text(left, encoding="utf-8")
         seen: list[list[str]] = []
         fake = FakeClock()
-        fake.at.append((fake.now + 10, lambda: seen.append(self.status())))
+        fake.at.append((fake.now + 10, lambda: seen.append(self.status(now=datetime.now(UTC)))))
         fake.at.append((fake.now + 20, holder.release))
         self.pool(count=1, name="waiting", clock=fake).acquire()
         out = seen[0]
-        quiet = "quiet: until 2026-10-05T13:30:00Z (90 min left): a new verify or load run takes 1 of 2 slots"
+        until = slots.stamp(now + timedelta(minutes=90))
+        quiet = f"quiet: until {until} (90 min left): a new verify or load run takes 1 of 2 slots"
         self.assertIn(quiet, out[1])
         self.assertTrue(out[3].startswith(f"  slot 1: D:/wt/busy (tooling/1-busy, pid {os.getpid()}, since "), out)
         self.assertEqual(out[4], "  slot 2: free (its last holder, pid 999999 in D:/wt/killed, ended without "
@@ -516,6 +518,31 @@ class StatusTest(SlotsCase):
         out = self.status()
         self.assertIn("waiters: none", out)
         self.assertFalse(stale.exists())
+
+    def test_a_waiting_file_older_than_its_wait_is_a_ghost_even_when_its_pid_lives(self) -> None:
+        # The run was killed while it waited and Windows gave its pid to a long-lived process: the pid looks alive.
+        self.where.mkdir(parents=True)
+
+        def waiter(name: str, since: datetime, state: str, wait: float | None) -> Path:
+            data: dict[str, object] = {"worktree": f"D:/wt/{name}", "pid": os.getpid(), "since": slots.stamp(since),
+                                       "state": state}  # fmt: skip
+            if wait is not None:
+                data["wait"] = wait
+            path = self.where / f"{slots.WAITER_PREFIX}{os.getpid()}-{name}.json"
+            path.write_text(json.dumps(data), encoding="utf-8")
+            return path
+
+        margin = timedelta(seconds=slots.STALE_MARGIN)
+        ghost = waiter("ghost", NOW - timedelta(seconds=600) - margin - timedelta(seconds=5), slots.WAITING, 600)
+        no_wait = waiter("nowait", NOW - timedelta(seconds=slots.DEFAULT_WAIT) - margin * 2, slots.WAITING, None)
+        fresh = waiter("fresh", NOW - timedelta(seconds=500), slots.WAITING, 600)
+        patient = waiter("patient", NOW - timedelta(seconds=900), slots.WAITING, 3600)  # a longer wait, its own
+        over = waiter("over", NOW - timedelta(hours=2), slots.OVER, 600)  # a verify runs as long as it runs
+        out = self.status()
+        self.assertIn("waiters: 2", out)
+        self.assertEqual([ghost.exists(), no_wait.exists()], [False, False])
+        self.assertTrue(fresh.exists() and patient.exists() and over.exists())
+        self.assertIn("running without a slot now: 1", out)
 
     def test_the_last_hours_runs_without_a_slot_come_from_the_verify_history(self) -> None:
         def run(start: str, slot: object, seconds: float = 400.0, status: str = "passed") -> dict[str, object]:
