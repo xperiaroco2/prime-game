@@ -8,39 +8,39 @@ const L := false
 
 
 func test_the_order_as_sent_passes_with_latest_messages_left_out() -> void:
-	var log := _sent([[1, R], [2, L], [3, L], [4, R], [5, L]])
+	var sent_log := _sent([[1, R], [2, L], [3, L], [4, R], [5, L]])
 	var got := _fingerprints([1, 3, 4, 5])
-	assert_array(_problems(log, got, true)).is_empty()
-	assert_array(_problems(log, _fingerprints([]), true)).is_empty()
+	assert_array(_problems(sent_log, got, true)).is_empty()
+	assert_array(_problems(sent_log, _fingerprints([]), true)).is_empty()
 	# Messages still on their way at the end are no problem.
-	assert_array(_problems(log, _fingerprints([1, 2]), true)).is_empty()
+	assert_array(_problems(sent_log, _fingerprints([1, 2]), true)).is_empty()
 
 
 func test_a_latest_message_delivered_after_a_later_reliable_one_fails() -> void:
 	# LaneOrder's "behind" rule: a LATEST message sent before a reliable one already delivered.
-	var log := _sent([[1, L], [2, R], [3, L]])
-	var found := _problems(log, _fingerprints([2, 1, 3]), true)
+	var sent_log := _sent([[1, L], [2, R], [3, L]])
+	var found := _problems(sent_log, _fingerprints([2, 1, 3]), true)
 	assert_int(found.size()).is_equal(1)
 	assert_str(found[0]).contains("message 0 was delivered after message 1")
 
 
 func test_a_reliable_message_skipped_or_reordered_fails() -> void:
-	var log := _sent([[1, R], [2, R], [3, L]])
-	assert_str(_problems(log, _fingerprints([1, 3]), true)[0]).contains(
+	var sent_log := _sent([[1, R], [2, R], [3, L]])
+	assert_str(_problems(sent_log, _fingerprints([1, 3]), true)[0]).contains(
 		"RELIABLE message 1 was not delivered"
 	)
-	assert_array(_problems(log, _fingerprints([2, 1]), true)).is_not_empty()
+	assert_array(_problems(sent_log, _fingerprints([2, 1]), true)).is_not_empty()
 
 
 func test_a_message_never_sent_to_it_fails_when_the_list_is_complete() -> void:
 	# A swapped id-to-connection map: one peer's messages delivered to another.
-	var log := _sent([[1, R], [2, L]])
-	assert_str(_problems(log, _fingerprints([1, 99]), true)[0]).contains("never sent to it")
+	var sent_log := _sent([[1, R], [2, L]])
+	assert_str(_problems(sent_log, _fingerprints([1, 99]), true)[0]).contains("never sent to it")
 	# A remote bot's file ends before its last sends: what follows the first one missing is past it.
-	assert_array(_problems(log, _fingerprints([1, 99, 98]), false)).is_empty()
+	assert_array(_problems(sent_log, _fingerprints([1, 99, 98]), false)).is_empty()
 	# But a message the file holds cannot come after one sent past its end, and no RELIABLE
 	# message the file holds may be missing then.
-	assert_str(_problems(log, _fingerprints([1, 99, 2]), false)[0]).contains(
+	assert_str(_problems(sent_log, _fingerprints([1, 99, 2]), false)[0]).contains(
 		"message 1 was delivered after one sent after the list's end"
 	)
 	var reliable_last := _sent([[1, L], [2, R]])
@@ -87,10 +87,10 @@ func _exchange(host: OrderLog, client: OrderLog, peer: int) -> void:
 
 ## An OrderLog whose peer 2 was sent the messages [id, reliable], each a one-byte payload `id`.
 func _sent(messages: Array) -> OrderLog:
-	var log := OrderLog.new()
+	var sent_log := OrderLog.new()
 	for pair: Array in messages:
-		log.record_sent(2, 40, PackedByteArray([pair[0] as int]), pair[1] as bool)
-	return log
+		sent_log.record_sent(2, 40, PackedByteArray([pair[0] as int]), pair[1] as bool)
+	return sent_log
 
 
 func _fingerprints(ids: Array) -> PackedInt64Array:
@@ -100,6 +100,6 @@ func _fingerprints(ids: Array) -> PackedInt64Array:
 	return found
 
 
-func _problems(log: OrderLog, got: PackedInt64Array, complete: bool) -> PackedStringArray:
-	var lists := log.of(2)
+func _problems(sent_log: OrderLog, got: PackedInt64Array, complete: bool) -> PackedStringArray:
+	var lists := sent_log.of(2)
 	return OrderLog.problems("host to bot 2", lists.sent, lists.reliable, got, complete)

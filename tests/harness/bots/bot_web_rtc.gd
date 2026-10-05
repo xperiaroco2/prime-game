@@ -10,7 +10,7 @@ extends WebRtcTransport
 ## - sends raw bytes on any lane as a modified client can (send_raw, the chaos peers, as ChaosEnet),
 ##   keeping what it sent in `outbox` when keep_outbox is on.
 ## The fault shim (the M6 design §5) is on by default: RELIABLE SHIM_RELIABLE_DELAY_MS late, LATEST
-## dropped, duplicated and late, seeded per transport.
+## dropped and duplicated, seeded per transport, and on a joining side also late.
 
 ## The room every harness host opens: LanSignalling hands out only this code (`signalling`).
 const CODE := "BTSRTC"
@@ -20,7 +20,9 @@ const ADDRESS := "127.0.0.1"
 ## RELIABLE's delay plus a 20 Hz interval, so a LATEST message sent just before a reliable one
 ## arrives after it, the case LaneOrder's "behind" rule exists for. LATEST never overtakes LATEST:
 ## a lost or overtaken first claim of an epoch is taken as one tick and corrects an honest bot
-## (ARCHITECTURE §7.1), which plain drops already risk.
+## (ARCHITECTURE §7.1), which plain drops already risk. Only clients get late LATEST (snapshots): a
+## host that drops a late claim behind a reliable PickUp checks the PickUp against the claim before
+## and refuses an honest bot (out_of_reach, 1 of 3 chaos runs), the rule working as designed.
 const SHIM_RELIABLE_DELAY_MS := 50
 const SHIM_LATEST_DROP := 0.1
 const SHIM_LATEST_DUPLICATE := 0.1
@@ -33,6 +35,8 @@ var order := OrderLog.new()
 var ledger := RejectLedger.new()
 var keep_outbox := false
 var outbox: Array[ChaosFrames.Packet] = []
+
+var _shim: FaultShim = null
 
 
 ## A transport for the signalling on `port` of 127.0.0.1, with the fault shim seeded with
@@ -47,9 +51,9 @@ func _init(kinds: NetKindTable, port: int, shim_seed: int) -> void:
 		shim.reliable_delay_ms = SHIM_RELIABLE_DELAY_MS
 		shim.latest_drop = SHIM_LATEST_DROP
 		shim.latest_duplicate = SHIM_LATEST_DUPLICATE
-		shim.latest_late = SHIM_LATEST_LATE
 		shim.latest_delay_ms = SHIM_LATEST_DELAY_MS
-		use_faults(shim)
+		if use_faults(shim) == OK:
+			_shim = shim
 
 
 ## The service a harness host runs on 127.0.0.1: every room it opens is CODE.
@@ -66,6 +70,13 @@ static func wait_for_room(service: LanSignalling, host_transport: WebRtcTranspor
 		host_transport.poll()
 		OS.delay_msec(2)
 	return not host_transport.room_code().is_empty()
+
+
+## A joining side's shim also makes LATEST late (the host's never does: see SHIM_LATEST_LATE).
+func join(address: String, port: int) -> Error:
+	if _shim != null:
+		_shim.latest_late = SHIM_LATEST_LATE
+	return super(address, port)
 
 
 func send(to_peer: int, kind: int, payload: PackedByteArray) -> Error:

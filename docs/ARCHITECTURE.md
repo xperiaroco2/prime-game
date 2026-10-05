@@ -393,12 +393,14 @@ dissidents, no crew present only once every crew member left, End widens nothing
     (holding back the ones behind it, as SCTP would), and LATEST is dropped and duplicated at seeded rates, and at the
     rate `latest_late` a copy arrives `latest_delay_ms` late, holding back the LATEST packets behind it (M6-6). The
     freeze twin runs with it on (50 ms, 10 % dropped, 10 % duplicated), the stall twin delays one beat by 3 s while
-    LATEST flows, and the bots and chaos bots over WebRTC (§4.6) add one LATEST packet in five 120 ms late: more than
-    RELIABLE's 50 ms plus a 20 Hz interval, so a LATEST packet sent just before a reliable one arrives after it, the
-    one case only `LaneOrder`'s "behind" rule handles (with RELIABLE late alone, the rule removed passed
-    `bots-webrtc`). LATEST never overtakes LATEST: with each packet 0 to 200 ms late at random, the first claim of an
-    epoch was often overtaken, which §7.1 takes as one tick, and an honest chaos bot was corrected (1 of 5 runs
-    under load).
+    LATEST flows, and the bots and chaos bots over WebRTC (§4.6) make one LATEST packet in five that a client receives
+    120 ms late: more than RELIABLE's 50 ms plus a 20 Hz interval, so a LATEST packet sent just before a reliable one
+    arrives after it, the one case only `LaneOrder`'s "behind" rule handles (with RELIABLE late alone, the rule
+    removed passed `bots-webrtc`). LATEST never overtakes LATEST: with each packet 0 to 200 ms late at random, the
+    first claim of an epoch was often overtaken, which §7.1 takes as one tick, and an honest chaos bot was corrected
+    (1 of 5 runs under load). Only clients: a host that drops a late `MoveClaim` behind a reliable `PickUp` (the rule
+    at work) checks the `PickUp` against the claim before and refuses an honest bot (`out_of_reach`, 1 of 3 chaos
+    runs), the M6 design's §2.2 case, which on a real path needs datagrams reordered by more than a claim interval.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the
@@ -1447,7 +1449,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later,
   one unanswered (`host_unreachable` after 15 s) as over ENet; `joins_closed` and `full` stay refusals. The fault
   shim (§4 above) is on in every transport, seeded per transport: RELIABLE 50 ms late, LATEST 10 % dropped, 10 %
-  duplicated and one in five 120 ms late; not for a measurement (`BotScenario.measurement`, which measures the relay).
+  duplicated, and on the clients one in five 120 ms late; not for a measurement (`BotScenario.measurement`, which measures the relay).
   A remote bot that wrote its view file sends nothing more and only polls until the host closes, since a send that
   meets the other side's close prints an engine `ERROR:` line (the state check and the send race libdatachannel's
   threads). Every check of the leak test runs unchanged, plus the **order check** (`OrderLog`, the design's §5):
@@ -1471,10 +1473,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   `tools/runner/tests/test_bots.py` and `test_verify.py`.
   - **Proven** (2026-10-05, each plant reverted): `LaneOrder`'s "behind" rule removed (the design's §5 plant, M6-3's
     again): with M6-4's shim alone `bots-webrtc` passed, as 127.0.0.1 never delivered a LATEST packet after a reliable
-    one sent after it; with the late LATEST above it failed on the order check (`host to bot 2: message 5 was
-    delivered after message 7, which was sent after it`, three such lines for bots 2 and 3), and `chaos-webrtc` on an
-    honest bot corrected after the stale claim (`a Correction outside a placement`; the shim of the paragraph above,
-    whose honest runs passed 10 of 10 under load). #427's plant with real `HostSession`s and `ClientSession`s (its
+    one sent after it; with the clients' late LATEST above both steps failed on the order check (`bots-webrtc`: `host
+    to bot 3: message 11 was delivered after message 14, which was sent after it`, and a second; `chaos-webrtc`: three
+    such lines for bots 2 and 3). #427's plant with real `HostSession`s and `ClientSession`s (its
     review's item 3): a swapped id-to-connection map in `WebRtcTransport._backend_send` (the host's message to peer
     p went on the connection of p xor 1) failed `bots-webrtc` on all three instances: bot 3 decoded another peer's
     `PlayerJoined` where `view_of` holds its own `Welcome`, and other snapshots; the lurker decoded the refused bot's
@@ -2691,6 +2692,19 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     20 ms at 10 players instead of 81 (the host polls every physics frame, 60 Hz), saving most of the transport's 1.3
     ms, and about 1.1 Mbit/s of the voice upload's per-datagram headers (estimates, not measured). Whether to open it is
     the engineer's (§10).
+    **Over WebRTC (M6-6, #371, for D24):** `tools/run.sh bots voice_load --instances 8 --transport webrtc` (the fault
+    shim off for a measurement) in a cloud container (4 CPUs, Xeon at 2.8 GHz, the 8 bot processes on the same CPUs),
+    2026-10-05, so every figure is an upper bound; three quiet runs (load average under 4) and two beside a `load` of 8
+    busy loops. With everyone talking (the five full windows of each run): 56 `VoiceDown`s per 20 ms, 49 on the wire,
+    as over ENet; the relay took 2.65 to 2.80 ms per 20 ms in the quiet runs' medians (worst window 2.97 ms), 47 to 50
+    µs per send (45 to 53 per window), of which 31 to 37 µs inside `WebRtcTransport.send` (webrtc-native's
+    `put_packet`, against ENet's 14 to 19 µs); 3.8 to 4.0 ms (worst 5.96) beside the load. The upload was 3.25 Mbit/s of voice and 0.49 of snapshots,
+    3.74 Mbit/s, counted by E56 (each packet plus 108 B: IPv6, so about 21 B per datagram high over IPv4); SCTP's
+    acknowledgements are not counted. Scaled to 10 players as for M5-4 (90 sends per 20 ms, 81 datagrams on the wire;
+    snapshots by 81/49): the relay about 4.4 ms per 20 ms (run medians 4.25 to 4.50 ms, worst window 4.77; 6.1 to 6.4
+    ms, worst 9.6, beside the load), and the upload about 6.2 Mbit/s by E56 (about 5.4 over IPv4), plus about 0.3 of
+    acknowledgements (the M6 design's §4 estimate): **both over E44's 2 ms and 4.5 Mbit/s**, so by D24 (a) M6-8 (the
+    batched row) is wanted. With two talkers: 0.73 to 0.78 ms and 1.29 Mbit/s. The engineer may rerun it on a quiet PC.
   - **The cutoff and the distance invariant** (E41, E45; **built in M5-1**, #215): every voice rule answers
     `hearing_radius_m()`, the farthest it routes a voice between the last accepted positions in 3D (its edge
     included), 0 when it routes nobody: the base class and `SilentVoice` 0, `ProximityVoice` its `radius_m`,
