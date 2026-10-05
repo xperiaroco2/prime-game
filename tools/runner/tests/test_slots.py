@@ -506,9 +506,11 @@ class StatusTest(SlotsCase):
         at = out.index("running without a slot now: 1")
         self.assertIn("verify in D:/wt/late (tooling/1-late", out[at + 1])
         self.assertIn("running OVER THE LIMIT, without a slot, since", out[at + 1])
-        self.assertTrue(out[-1].startswith("slots: no run waits for a slot"))
+        self.assertEqual(out[-1], "slots: 1 running over the limit (1 of 2 held): launch nothing now")
         late.release()
-        self.assertNotIn("running without a slot now: 1", self.status())
+        out = self.status()
+        self.assertNotIn("running without a slot now: 1", out)
+        self.assertTrue(out[-1].startswith("slots: no run waits for a slot"))
 
     def test_the_file_of_a_killed_waiter_is_left_out_and_removed(self) -> None:
         self.where.mkdir(parents=True)

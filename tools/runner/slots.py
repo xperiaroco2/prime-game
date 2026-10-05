@@ -652,7 +652,7 @@ def status(
 ) -> int:
     """`slots --status`: the quiet window, who holds each slot, the runs waiting for one (and those that went ahead
     without one and still run), and the verify runs of the last hour that ran without a slot. A manager launches only
-    when no run waits (N3 (b) of the weekly budget ADR); the last line says whether one does."""
+    when no run waits or runs over the limit (N3 (b) of the weekly budget ADR); the last line says whether one does."""
     now = now or datetime.now(UTC)
     where = folder(env)
     count = configured_count(env)
@@ -714,8 +714,11 @@ def status(
             f"  {rec.get('start')} {rec.get('worktree', '?')} ({rec.get('branch') or 'detached'}): {why}, "
             f"{rec.get('status', '?')} in {rec.get('seconds', '?')} s after waiting {slot.get('waited', '?')} s"
         )
-    if waiting:
-        out(f"slots: {len(waiting)} run(s) waiting for a slot ({held} of {count} held): launch nothing now")
+    if waiting or over_now:  # a run over the limit means the PC is past its slots: even more contention
+        parts = [f"{len(waiting)} run(s) waiting for a slot"] if waiting else []
+        if over_now:
+            parts.append(f"{len(over_now)} running over the limit")
+        out(f"slots: {', '.join(parts)} ({held} of {count} held): launch nothing now")
     else:
         out(f"slots: no run waits for a slot ({held} of {count} held)")
     return 0
