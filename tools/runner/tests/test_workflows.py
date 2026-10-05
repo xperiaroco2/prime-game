@@ -468,7 +468,8 @@ class WorkflowTest(unittest.TestCase):
                     if name == "issue-task.js" and label.startswith(("review:code", "review:plan", "plan:")):
                         self.assertIn(outline, prompt)
                     if label.startswith("review:") and "tools/run.sh section" in prompt:
-                        # The reviewer agent files allow only git commands; the prompt allows `section` too.
+                        # The prompt allows `section` itself; the reviewer agent files allow it too since #433
+                        # (test_agent_files.py).
                         self.assertIn("you may run it", prompt)
         design = {e["label"]: e["prompt"] for e in agents(results[1])}
         for label in ("review:code:#7", "review:netcode:#7"):
