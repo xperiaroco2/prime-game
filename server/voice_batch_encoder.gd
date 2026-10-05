@@ -31,8 +31,9 @@ var count_at := 0
 var _schema: WireSchema
 ## The last header encoded, and its tick: one encoding per poll, not per listener or frame (each
 ## WireSchema.encode costs tens of microseconds, M5-4).
-var _header_tick := -1
+var _header_tick := 0
 var _header_bytes := PackedByteArray()
+var _header_valid := false
 
 
 func _init(schema: WireSchema) -> void:
@@ -140,9 +141,10 @@ class Batches:
 
 ## What WireSchema writes for a batch of no frames under `tick`: the bytes before the first record.
 func _header(tick: int) -> PackedByteArray:
-	if tick != _header_tick:
+	if not _header_valid or tick != _header_tick:
 		_header_bytes = _schema.encode(_batch(tick, []))
-		_header_tick = tick if not _header_bytes.is_empty() else -1
+		_header_tick = tick
+		_header_valid = not _header_bytes.is_empty()
 	return _header_bytes
 
 

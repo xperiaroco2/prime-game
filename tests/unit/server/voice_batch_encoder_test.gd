@@ -119,6 +119,25 @@ func test_records_fill_each_batch_up_to_the_cap_in_order() -> void:
 	assert_int(at).is_equal(patched.size())
 
 
+func test_a_batch_fills_to_exactly_the_cap_and_one_byte_more_starts_the_next() -> void:
+	var encoder := VoiceBatchEncoder.new(_schema)
+	# The header (5), then records of 508, 502 and 9 bytes: 1024 in all, the cap itself.
+	var records: Array[PackedByteArray] = []
+	var frames: Array[Dictionary] = []
+	for size: int in [WireSchema.MAX_OPUS, 494, 1, 1]:
+		var opus := _opus(size, size)
+		records.append(encoder.record(_down(4, frames.size(), 2, opus)))
+		frames.append(_frame(4, frames.size(), opus))
+	var payloads := encoder.payloads(2, records.slice(0, 3))
+	assert_int(payloads.size()).is_equal(1)
+	assert_int(payloads[0].size()).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
+	assert_str(payloads[0].hex_encode()).is_equal(_codec(2, frames.slice(0, 3)))
+	payloads = encoder.payloads(2, records)
+	assert_int(payloads.size()).is_equal(2)
+	assert_int(payloads[0].size()).is_equal(NetKindTable.MAX_UNRELIABLE_PAYLOAD)
+	assert_str(payloads[1].hex_encode()).is_equal(_codec(2, frames.slice(3)))
+
+
 func test_a_batch_holds_at_most_its_row_s_most_frames() -> void:
 	var encoder := VoiceBatchEncoder.new(_schema)
 	var records: Array[PackedByteArray] = []
