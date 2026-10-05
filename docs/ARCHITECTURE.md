@@ -974,15 +974,17 @@ The API that 3h and 3i use; the rest is in `server/CLAUDE.md` and the class comm
 ### 4.6 The client, the bots and the leak test in M3 (#89)
 
 #### 4.6.1 `ClientSession` (`client/net/`, 3g)
-Is what every client runs: the host's own over the loopback, a remote one over ENet, and every bot. It decodes each
-message (§4.4) into a **decoded view** shaped like `core/`'s `PeerView` (§5): the events in order as (name, fields), the
-snapshots by tick, the voice frames as (speaker, tick, bytes). From it, it keeps what a player may know: its peer id and
-epoch, the phase, the roster, the settings; the items, stations, bodies and each player's life folded from the events
-(cleared on `LoadMatch` and on entering the lobby); the avatars of the newest snapshot; its own `SelfStatus`. It sends
-`Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per client tick (20 Hz) with its epoch, client tick
-and jump count, and `LoadAck` after loading. It never reads `core/` state (invariant 2). Built in 3g (#101) as
-`client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and `ClientModel` (the fold). What the
-build pinned:
+Is what every client runs: the host's own over the loopback, a remote one
+over ENet, and every bot. It decodes each message (§4.4) into a **decoded view** shaped like `core/`'s `PeerView`
+(§5): the events in order as (name, fields), the snapshots by tick, the voice frames as (speaker, tick, bytes). From
+it, it keeps what a player may know: its peer id and epoch, the phase, the roster, the settings; the items, stations,
+bodies and each player's life folded from the events (cleared on `LoadMatch` and on entering the lobby); the
+avatars of the newest
+snapshot; its own `SelfStatus`. It sends `Hello` on `connected`, intents with a rising `seq`, one `MoveClaim` per
+client tick (20 Hz) with its epoch, client tick and jump count, and `LoadAck` after loading. It never reads `core/`
+state (invariant 2).
+Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record, in `PeerView`'s shape) and
+`ClientModel` (the fold). What the build pinned:
 - The owner calls `step(now_usec)` every frame, like `HostSession`: it polls the transport, advances a threaded load
   and sends the claim that is due. The game's `SessionNode` gives it the physics steps run as its clock (the
   physics step divided by 3), not the real clock: catch-up steps after a hitch would put 4 or more physics steps
@@ -1048,36 +1050,36 @@ build pinned:
   `tests/integration/server/host_session_end_to_end_test.gd` and its siblings), the bots 3h's.
 
 #### 4.6.2 Bots (`tests/harness/`, 3h)
-A bot is a `ClientSession`, a scenario script and an honest mover. The script is the core runner's (2j): on `main`
-`ScenarioRunner` holds both the §9.7 steps (`_run_step` and a method per step) and its stand-in for `server/` (`_queue`,
-`_deliver`, `_carry_out`), and `ScenarioBot.receive` takes `MatchEvent` objects. 3h splits the steps from the stand-in
-and has `ScenarioBot` learn from (name, fields), which the core runner takes from `to_dict()` and a network bot from its
-decoded view, so both runners play the same steps the same way, and `ScenarioInvariants` checks §5 in both (in the bots
-runner per `Match` call, through `HostSession`'s observer, §4.5). The mover moves its position toward the target at the
-walk or sprint speed of the mode's `PlayerRules` on the flat levels (2j), at the crawl speed with no sprint while
-downed, claims every client tick, counts its jumps and adopts every `Correction`; a dead bot claims nothing, and a
-`WalkTo` of a dead bot fails (M4-2). It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no
-geometry of its own. A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the
-joins, but on the wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer
-id, so the bots run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7),
-and nothing on the wire tells bot 1 which peer is bot i: the host names every joiner `Player<n>`, and over ENet the
-clients choose their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
-`ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core runner
-keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client (`LoopbackHub`
-hands out the ids). Over ENet each instance writes its peer id to `tools/out/bots/<scenario>/peer-<i>` on `connected`;
-bot 1 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there, and only then
-sends the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band is harmless: peer
-ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known, after it connected
-(§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a listener also checks
-that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends like a player's gate (the M5
-ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B with the peer id and the counter
-first (`LeakCheck.voice_frame`), in talk spurts by default (`BotVoice`: a spurt of 0.8 to 1.7 s, then a silence of 0.3
-to 0.9 s, both lengths and the start shifted per bot; placeholders, "not a decision"), so every scenario starts and
-stops streams; continuously when the scenario's `voice` says so (§9.7), the load M5-4's `voice_load` measures. After a
-hitch of the clock at most the newest 5 frames go out at once (the relay's newest 5 per poll). It talks in every phase
-and life state, as a modified client may: the host must route none of it where nobody hears it (§6), which the leak test
-checks. The perf harness (§9.7) talks the same way, so its voice numbers from before M5-1 (20 frames a second of 8 to 14
-B) do not compare with later ones.
+A bot is a `ClientSession`, a scenario script and an honest mover. The script is the
+core runner's (2j): on `main` `ScenarioRunner` holds both the §9.7 steps (`_run_step` and a method per step) and its
+stand-in for `server/` (`_queue`, `_deliver`, `_carry_out`), and `ScenarioBot.receive` takes `MatchEvent` objects. 3h
+splits the steps from the stand-in and has `ScenarioBot` learn from (name, fields), which the core runner takes from
+`to_dict()` and a network bot from its decoded view, so both runners play the same steps the same way, and
+`ScenarioInvariants` checks §5 in both (in the bots runner per `Match` call, through `HostSession`'s observer,
+§4.5). The mover moves its position toward the target at the walk or sprint speed of the mode's `PlayerRules` on
+the flat levels (2j), at the crawl speed with no sprint while downed, claims every client tick, counts its jumps
+and adopts every `Correction`; a dead bot claims nothing, and a `WalkTo` of a dead bot fails (M4-2). It acknowledges `LoadMatch` as §9.7 says, without loading the scene: a bot needs no geometry of its own.
+A scenario's forced roles go as the core runner sends them, one `ForceRole` per bot right after the joins, but on the
+wire: bot 1, the host's own client (peer 1), sends the debug kind (§4.3, E17) naming each bot's peer id, so the bots
+run in debug builds only. **Bot numbers to peer ids:** a scenario names players by bot number (§9.7), and nothing on
+the wire tells bot 1 which peer is bot i: the host names every joiner `Player<n>`, and over ENet the clients choose
+their ids (§4.5). So each runner owns a map from bot number to peer id, which `peer_of`, `matches` and
+`ScenarioInvariants` (its `never` check) take in place of today's static `ScenarioRunner.peer_of` (3h). The core
+runner keeps 1 and 1000 + i; the one-process bots runner fills the map as it connects each bot's loopback client
+(`LoopbackHub` hands out the ids). Over ENet each instance writes its peer id to `tools/out/bots/<scenario>/peer-<i>`
+on `connected`; bot 1 waits for all of them (up to the scenario's time limit), writes the whole map to `peers` there,
+and only then sends the `ForceRole`s; every other bot reads `peers` before its first step. Learning ids out of band
+is harmless: peer ids are public in the roster. A bot that joins later gets its `ForceRole` once its id is known,
+after it connected (§9.4). Its voice is synthetic: frames of varying length holding its peer id and a counter, so a
+listener also checks that the relay changed no frame and named the right speaker. **Since M5-1 (#215)** it sends
+like a player's gate (the M5 ADR §5): one frame per 20 ms of the runner's clock (50 a second, E38), each 30 to 60 B
+with the peer id and the counter first (`LeakCheck.voice_frame`), in talk spurts by default (`BotVoice`: a spurt of
+0.8 to 1.7 s, then a silence of 0.3 to 0.9 s, both lengths and the start shifted per bot; placeholders, "not a
+decision"), so every scenario starts and stops streams; continuously when the scenario's `voice` says so (§9.7),
+the load M5-4's `voice_load` measures. After a hitch of the clock at most the newest 5 frames go out at once (the
+relay's newest 5 per poll). It talks in every phase and life state, as a modified client may: the host must route
+none of it where nobody hears it (§6), which the leak test checks. The perf harness (§9.7) talks the same way, so
+its voice numbers from before M5-1 (20 frames a second of 8 to 14 B) do not compare with later ones.
 **Built in 3h (#102)** in `tests/harness/`: `ScenarioPlay` holds the steps and the runner's hooks (send, connect,
 claim, travel, jump, leave, answer a load, stand); `ScenarioRunner` (core) and `NetPlay` (network bots) supply
 them; `ScenarioPeers` is each runner's map. In `bots/`: `BotClient` (a `ClientSession` that holds its automatic
@@ -1273,10 +1275,10 @@ Compares what each bot b decoded with `view_of(b)`:
   fails that sweep).
 
 #### 4.6.5 Chaos bots
-(#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), P11):
-invariant 1 (the host validates every intent) against what a modified client can send, in `tests/harness/chaos/`.
-`ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one package; bot 1 knocks bot 4
-down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
+(#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
+P11): invariant 1 (the host validates every intent) against what a modified client can send, in
+`tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots, one
+package; bot 1 knocks bot 4 down, bot 2 then delivers) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
 downed and (`--long`) dead, and stays under the malformed limit; and a **malformed** peer (`ChaosMalformed`)
 that never sends `Hello`, so it is in no rule and invisible to the players (§3.2), until the host disconnects
@@ -1355,9 +1357,9 @@ Over ENet the bots play once bot 1's lobby is full, and a bot whose join went un
   in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
 
 #### 4.6.6 `host` and `join` (3i)
-`tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and, with `--clients`, N local clients
-joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran headless sessions that print the
-roster, the phase and the counters: a connectivity check between two machines, as
+`tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
+with `--clients`, N local clients joined to it; `tools\run.cmd join <address> [--port P]` joins one. In M3 they ran
+headless sessions that print the roster, the phase and the counters: a connectivity check between two machines, as
 #21 ran; with `--headless` they still do. Since #149 (M4-6) they open the game in windows (§4.7). The default port
 is a placeholder. Several windows on one PC
 met the D3D12 freeze of §4; Windows now renders with Vulkan (#124), which did not meet it in 10 runs on one PC.
@@ -2236,7 +2238,8 @@ capture → gate → encode (Opus) → routing decision per speaker and listener
     input-latency API in 4.7.
 
 ### 6.2 Routing per phase in the base mode (#32; radii in the [MVP rules](decisions/2026-09-29-mvp-rules.md))
-The mode's data names each phase's rule (§3.1), so a new mode's rule is one more rule, not a change to the loop.
+The mode's
+data names each phase's rule (§3.1), so a new mode's rule is one more rule, not a change to the loop.
 
 | Phase | Who hears whom |
 |---|---|
@@ -2248,22 +2251,24 @@ The mode's data names each phase's rule (§3.1), so a new mode's rule is one mor
 A player who left hears nobody and is heard by nobody.
 
 ### 6.3 The voice invariant (vision revision 1; built in M4-1, #137)
-Nobody hears a downed or dead player, under any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of`
-drops every speaker who is not living and gives a dead listener nobody before it asks the phase's rule, so no mode's
-data can route their voice; it replaces 2i's "the living never hear a ghost". Tests:
-`tests/unit/content/voice_rule_test.gd`, under `FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak
-test's checks (§5).
+Nobody hears a downed or dead player, under
+any voice rule, and a dead player hears nobody. `VoiceRule.speakers_of` drops every speaker who is not living
+and gives a dead listener nobody before it asks the phase's rule, so no mode's data can route their voice; it
+replaces 2i's "the living never hear a ghost". Tests: `tests/unit/content/voice_rule_test.gd`, under
+`FixtureEveryoneHears`, a rule that lets everyone hear everyone; the leak test's checks (§5).
 
 ### 6.4 Built in 2i (#65, `core/voice/`)
-`SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's data names one per phase with the numbers of
-§9.5. A distance is between the two players' last accepted positions (§7.1), in 3D, and a radius includes its edge, as
-the M1 spike's routing measured them (#15, `distance_to(...) <= cutoff`, which the engineer listened to and accepted);
-3D also matches the listener's fade. A horizontal radius (a player on the floor above heard like one beside) stays a
-possible later change. M4-1 removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voice/`.
+`SilentVoice`, `ProximityVoice` and `RoundVoice` (§9.4); the base mode's
+data names one per phase with the numbers of §9.5. A distance is between the two players' last accepted
+positions (§7.1), in 3D, and a radius includes its edge, as the M1 spike's routing measured them (#15,
+`distance_to(...) <= cutoff`, which the engineer listened to and accepted); 3D also matches the listener's fade.
+A horizontal radius (a player on the floor above heard like one beside) stays a possible later change. M4-1
+removed `RoundVoice`'s ghost radii: it keeps `living_m`. Tests: `tests/unit/voice/`.
 
 ### 6.5 Designed for M5
-(#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), accepted on 2026-10-02: E34 to E47, D11 to
-D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221). The lessons above, answered:
+(#177, [M5 ADR](decisions/2026-10-02-m5-voice-integrated-with-the-rules.md), accepted on
+2026-10-02: E34 to E47, D11 to D15; each part is rewritten here as built by its issue, M5-1 to M5-7, #215 to #221).
+The lessons above, answered:
 - **The codec boundary, the gate and the jitter buffer** (E34, E37, E38, E39; built in M5-2, #216). `voice/`'s
   `VoiceCodec` (`available()`, `new_encoder()`, `new_stream()`, `playback_of(player)`), `VoiceEncoder`
   (`start(input_rate, denoise)` returns an error text, `encode(chunk)` one 20 ms frame) and `VoicePlayback`
@@ -2543,53 +2548,56 @@ Each choice names the failure it prevents. Numbers: the [MVP rules](decisions/20
 "not a decision"), including the player's capsule, eye height and step height; tolerances: M4.
 
 #### 7.1.1 Geometry through a port
-`WorldQuery` is an abstract `RefCounted` in `core/` that answers the geometric questions of the rules: line of sight
-between two points, the floor below a point, and where an item placed from A towards B comes to rest. `server/`
-implements it over its own `World3D` holding the level's static colliders, never the client's scene, so a headless host
-and bots work the same; tests use a fake. `core/` stays pure, and every rule is still in one place. The 4.7.2 API limits
-`World3D.direct_space_state` to `_physics_process` on the main thread when physics runs on a separate thread, so the
-host ticks `core/` from its physics step; whether a new space answers queries before its first step was probed in 3c
-(#99): it does (§4.5).
+`WorldQuery` is an abstract `RefCounted` in `core/` that answers the geometric
+questions of the rules: line of sight between two points, the floor below a point, and where an item placed from A
+towards B comes to rest. `server/` implements it over its own `World3D` holding the level's static colliders, never
+the client's scene, so a headless host and bots work the same; tests use a fake. `core/` stays pure, and every rule
+is still in one place. The 4.7.2 API limits `World3D.direct_space_state` to `_physics_process` on the main thread
+when physics runs on a separate thread, so the host ticks `core/` from its physics step; whether a new space answers
+queries before its first step was probed in 3c (#99): it does (§4.5).
 
 #### 7.1.2 Positions
-`core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every range rule (reach,
-hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client claiming to stand next
-to what it wants to grab.
+`core/` keeps each player's last accepted `MoveClaim` (position, velocity, facing, on floor). Every
+range rule (reach, hit zone, circle, voice) reads those, never a position inside another intent. Prevents: a client
+claiming to stand next to what it wants to grab.
 
 #### 7.1.3 Stamina
-Belongs to `core/` (only the living sprint; the downed regenerate, see §7.1.7 The crawl). The client predicts its own
-from the published numbers to draw the HUD and gate Shift, and follows `SelfStatus` (on the network claim by claim, #155:
-below). `core/` keeps a ledger per player: the host tick up to which stamina is settled. A claim settles the ticks it
-covers (its client-tick delta, never past the current host tick), each with the flags its masks give that tick (#155,
-§7.1.5 Speed): a covered tick in the sprint state in which the player gave movement input and moved horizontally costs
-1/20 of the per-second cost, and every other covered tick regenerates. Only the player's own movement counts (the
-engineer's decision of 2026-09-30, #46): a pushed player holding sprint without movement input pays nothing for the
-push. `PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina
-(`StaminaLedger`, 2d) counts the same way: a claim says whether movement input was held (`moving`). Before a jump or a
-hit is checked, the ticks not yet settled are settled with the last claim's sprint state and movement-input flag, so an
-idle player is not refused on stale stamina; a later claim settles only what is left. A jump claim first settles its own
-covered ticks with its own flags, so a sprint that ends in a jump is paid. The sprint state (Q7) starts when the claim
-holds the sprint flag and stamina is at least the start threshold, and lasts while the flag is held and stamina is above 0.
-An accepted jump or hit costs its amount at once. The allowed horizontal speed is the sprint speed in the sprint state,
-else the walk speed, plus the push allowance near another living player (§7.1.6 Pushing apart), measured over the
-client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents: a client that never spends stamina,
-or spaces its claims out to regenerate between them, sprinting forever.
+Belongs to `core/` (only the living sprint; the downed regenerate, see §7.1.7 The crawl). The client
+predicts its own from the published numbers to draw the HUD and gate Shift, and follows `SelfStatus` (on the
+network claim by claim, #155: below). `core/` keeps a ledger per player: the host tick up to which stamina is
+settled. A claim settles the ticks it covers (its client-tick delta, never past the current host tick), each with
+the flags its masks give that tick (#155, §7.1.5 Speed): a covered tick in the sprint state in which the player gave
+movement input and moved horizontally costs 1/20 of the per-second cost, and every other covered tick regenerates.
+Only the player's own movement counts (the engineer's decision of 2026-09-30, #46): a pushed player holding sprint
+without movement input pays nothing for the push.
+`PlayerController` reports a step as moving only while it gives movement input; `core/`'s stamina
+(`StaminaLedger`, 2d) counts the same way: a claim says whether movement input was held (`moving`). Before a
+jump or a hit is checked, the ticks not yet settled are settled with the last claim's sprint state and movement-input
+flag, so an idle player is not refused on stale stamina; a later claim settles only what is left. A jump claim
+first settles its own covered ticks with its own flags, so a sprint that ends in a jump is paid. The sprint state
+(Q7) starts when the claim holds the sprint flag and stamina is at least the start threshold, and lasts while the flag
+is held and stamina is above 0. An accepted jump or hit costs its amount at once. The allowed horizontal speed is the
+sprint speed in the sprint state, else the walk speed, plus the push allowance near another living player (§7.1.6 Pushing apart),
+measured over the client's tick delta (lesson above). Faster: `Correction` with a new epoch. Prevents:
+a client that never spends stamina, or spaces its claims out to regenerate between them, sprinting forever.
 
 #### 7.1.4 Jumps
-Are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within step height plus
-`STEP_CLEARANCE` below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
-the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost; a downed
-player's new jump is always corrected (§7.1.7 The crawl). Until the next landing the height above the floor is bounded by
-the jump height; a rise without an accepted jump beyond step height is corrected. Prevents: free or endless jumps, and
-flying. A claim carries `jumps`, the client's count of jumps since it adopted the epoch (3e, E2; §4.3): a rise d ≥ 1
-over the last accepted claim's count in the epoch is one jump, which stamina must cover d times; a count that falls
-within an epoch is corrected, and so is a rise d above the client ticks the claim covers, since a client lands between
-two jumps (#76, from #117 item 6), except in a fresh claim (the first of a client-tick baseline, after a placement or a
-rebase), which the host counts as one tick whatever span it carries; the count restarts at 0 with every new epoch. So a
-jump in a claim that the LATEST lane merged away or lost still counts in the next one.
+Are accepted only when the host has the player on the floor (the floor found by `WorldQuery` within
+step height plus `STEP_CLEARANCE` below the last accepted feet; the last claim need not say `on_floor`, because claims go at 20 Hz and
+the client's physics at 60 Hz, so a landing and a jump can fall within one claim) and stamina covers the cost; a
+downed player's new jump is always corrected (§7.1.7 The crawl). Until the next landing
+the height above the floor is bounded by the jump height; a rise without an accepted jump beyond step height is
+corrected. Prevents: free or endless jumps, and flying. A claim carries `jumps`, the client's count of jumps since
+it adopted the epoch (3e, E2; §4.3): a rise d ≥ 1 over the last accepted claim's count in the epoch is one jump,
+which stamina must cover d times; a count that falls within an epoch is corrected, and so is a rise d above the
+client ticks the claim covers, since a client lands between two jumps (#76, from #117 item 6), except in a fresh
+claim (the first of a client-tick baseline, after a placement or a rebase), which the host counts as one tick
+whatever span it carries; the count restarts at 0 with every new epoch. So a jump in a claim that the LATEST lane
+merged away or lost still counts in the next one.
 
 #### 7.1.5 The movement checks (`MovementRule` in `core/movement/`, the ledger in `core/stamina/`; 2d, #60)
-Every tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client:
+Every
+tolerance is a constant of `MovementRule`, a placeholder "not a decision" unless it copies the client:
 - A claim of another epoch, or whose client tick does not rise, is dropped: no `Correction`, so one correction
   does not cascade. Every other failed check sends `Correction` with a new epoch and the host's position to that
   player only, and changes nothing else (stamina settled up to now aside, §9.2).
@@ -2702,10 +2710,11 @@ Every tolerance is a constant of `MovementRule`, a placeholder "not a decision" 
   `tests/unit/movement/movement_rule_test.gd`.
 
 #### 7.1.6 Pushing apart (the engineer's decision of 2026-09-30, #46; the rule is in the MVP rules, "Collisions")
-Living players never pass through each other, but a body cannot block a passage. Each client moves only its own player
+Living
+players never pass through each other, but a body cannot block a passage. Each client moves only its own player
 against the other living players' capsules at their interpolated positions; the host tolerates overlap and never
-corrects it. `PlayerController` does not collide with players: each physics step a contact search on the living layer
-finds the capsules it touches, and for each one:
+corrects it. `PlayerController` does not collide with players: each physics step a contact search on the living
+layer finds the capsules it touches, and for each one:
 - Walking into it pushes: the part of the motion into it slows to `push_speed_factor`, and the pusher drifts to its
   own right at `push_side_bias` of that speed, so a perfectly straight contact slides off instead of freezing. The
   pusher stops advancing once it is `push_max_overlap` deep in the other capsule (numbers in `PlayerTuning`).
@@ -2742,95 +2751,102 @@ decides whether that is enough; the options are a larger limit (deeper visible o
 capsule moved ahead on the pusher's client (display only).
 
 #### 7.1.7 The crawl (vision revision 1; M4-2, #138, replacing the ghosts' movement)
-A downed player's claims get the movement checks with the crawl's bounds: the allowed travel is
-`PlayerRules.crawl_speed_mps` times the ticks covered (plus a tenth of that, and 1 mm for floats), with no sprint ticks
-and no push allowance; a new jump is corrected; the rise is the step height (plus `STEP_CLEARANCE` and the slope
-allowance) above the last landing. The downed are never in the sprint state and spend no stamina; it regenerates as
-usual. They collide with the level client-side and with no player. `PickUp`, `PutDown` and `Use` from the downed are
-rejected (`not_accepted`: Round accepts them from the living only); the dead send no intent that is accepted (§3.1). The
-knockdown places the downed player where it stood, on the floor below its last accepted position, with a new epoch and a
-`Correction` (`LifeRules.knock_down`), even on the floor. The movement rule treats that like a placement: walking claims
-in flight are dropped as stale instead of failing the crawl check, and its first claim as downed starts a new
-client-tick baseline there. A death sends no `Correction`: the dead claim nothing. Tests: `tests/unit/movement/`,
-`tests/unit/stamina/stamina_ledger_test.gd`, `tests/unit/life/life_rules_test.gd`.
+A downed player's claims get the
+movement checks with the crawl's bounds: the allowed travel is `PlayerRules.crawl_speed_mps` times the ticks covered
+(plus a tenth of that, and 1 mm for floats), with no sprint ticks and no push allowance; a new jump is corrected; the rise is the step height
+(plus `STEP_CLEARANCE` and the slope allowance) above the last landing. The downed are never in the sprint state and
+spend no stamina; it regenerates as usual. They collide with the level client-side and with no player. `PickUp`,
+`PutDown` and `Use` from the downed are rejected (`not_accepted`: Round accepts them from the living only); the dead
+send no intent that is accepted (§3.1). The knockdown places the downed player where it stood, on the floor below
+its last accepted position, with a new epoch and a `Correction` (`LifeRules.knock_down`), even on the floor. The
+movement rule treats that like a placement: walking claims in flight are dropped as stale instead of failing the
+crawl check, and its first claim as downed starts a new client-tick baseline there. A death sends no `Correction`:
+the dead claim nothing. Tests: `tests/unit/movement/`, `tests/unit/stamina/stamina_ledger_test.gd`,
+`tests/unit/life/life_rules_test.gd`.
 
 #### 7.1.8 The raise (vision revision 1, Revive; M4-4, #140)
-The host checks the raise's conditions when `Raise` arrives and again every tick while it runs (a channel, §9.4): the
-target is downed, it lies within the pick-up's reach (2 m) of the raiser's last accepted position, both feet, and the
-line from the raiser's eye (`Items.eye_of`) to just above where it lies (`Items.lifted`) is clear; one raiser at a time.
-So a raiser who walks away or loses sight stops the raise on the next tick. The raiser may move while it holds E and may
-hold the package. While a raise runs, the downed player is **held in place** (the engineer's answer 8 on PR #133): a
-claim farther than `MovementRule.HOLD_SLACK_M` (1 mm, a margin for the client's physics, not for the wire) from where
-the raise started (`Channel.held_at`), in any direction, is corrected (`MovementRule.held_against`, from
-`Channels.holding`), so no run of claims a hair apart adds up to a move, and a teammate who restarts a raise just short
-of its time again and again keeps a downed package carrier alive (the pause) but cannot carry it anywhere; giving up is
-the way out. A completed raise sends no `Correction`: the player stands where the host has it, and its next claim is
-checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd` (also: a stop restarts only a knockdown the
-raise paused, of a player still downed).
+The host checks the raise's conditions when `Raise` arrives
+and again every tick while it runs (a channel, §9.4): the target is downed, it lies within the pick-up's reach
+(2 m) of the raiser's last accepted position, both feet, and the line from the raiser's eye (`Items.eye_of`) to
+just above where it lies (`Items.lifted`) is clear; one raiser at a time. So a raiser who walks away or loses
+sight stops the raise on the next tick. The raiser may move while it holds E and may hold the package. While a
+raise runs, the downed player is **held in place** (the engineer's answer 8 on PR #133): a claim farther than
+`MovementRule.HOLD_SLACK_M` (1 mm, a margin for the client's physics, not for the wire) from where the raise
+started (`Channel.held_at`), in any direction, is corrected (`MovementRule.held_against`, from
+`Channels.holding`), so no run of claims a hair apart adds up to a move, and a teammate who restarts a raise
+just short of its time again and again keeps a downed package carrier alive (the pause) but cannot carry it
+anywhere; giving up is the way out. A completed raise sends no `Correction`: the player stands where the host has
+it, and its next claim is checked at walking speed from there. Tests: `tests/unit/life/raise_test.gd` (also: a
+stop restarts only a knockdown the raise paused, of a player still downed).
 
 #### 7.1.9 Walls
-The MVP host does not check movement through walls (nobody asked for cheat protection). It does check walls for hits,
-pick-ups and placement, because there an honest client would otherwise stab or grab through a thin wall.
+The MVP host does not check movement through walls (nobody asked for cheat protection). It does check
+walls for hits, pick-ups and placement, because there an honest client would otherwise stab or grab through a thin
+wall.
 
 #### 7.1.10 Hits (the knife's `Use`: `Strike`, §9.4)
-The host picks the targets: every living player other than the attacker (strikes skip the downed, the dead and the
-invulnerable: for `PlayerRules.invulnerable_s` after a respawn or a revive, `PlayerState.is_invulnerable`, which nothing
-ends early, not even the player's own attack, the engineer's answer 3 on PR #133; M4-3, the revive M4-4) whose capsule
-has a point within the weapon's reach of the attacker's position and within half the weapon's angle of the facing,
-overlapping vertically, and in line of sight from the attacker's eye. Each takes the weapon's damage; the zone lives in
-the weapon's data. The minimum interval between hits is per player, so swapping to a second knife does not skip it. The
-facing is a claim, which is harmless because the reach is the host's. No lag compensation in the MVP: at walk speed a
-target is up to ~0.5 m ahead of what the attacker saw (100 ms of interpolation) against a 1.5 m reach. The playtest
-decides; rewinding targets to the attacker's view is the fallback. Prevents: hits on someone far away, behind a wall,
-without a weapon, or without stamina. 2g (#63, `Strike` in `core/combat/strike.gd`) measures it so: the zone is a
-horizontal sector with its apex at the attacker's feet (the last accepted position), `reach_m` long and `angle_deg` wide
-around the horizontal part of the facing; a target's capsule has a point in it when its circle of `capsule_radius_m`
-around the target's position touches the sector (so an overlapping capsule touches the apex whatever the facing); it
-overlaps vertically when the two feet are at most `capsule_height_m` apart; the line of sight runs from the attacker's
-eye (`Items.eye_of`, the floor below plus the eye height) to the middle of the target's capsule. A facing with no
-horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The cooldown is a
-`Cooldown` cost with the key `hit` in the knife's rule, recorded per player in `MatchState`.
+The host picks the targets: every living player other than the
+attacker (strikes skip the downed, the dead and the invulnerable: for `PlayerRules.invulnerable_s` after a
+respawn or a revive, `PlayerState.is_invulnerable`, which nothing ends early, not even the player's own attack, the
+engineer's answer 3 on PR #133; M4-3, the revive M4-4) whose capsule has a point within
+the weapon's reach of the attacker's position and within half the weapon's angle of the facing, overlapping
+vertically, and in line of sight from the attacker's eye. Each takes the weapon's damage; the zone lives in the
+weapon's data. The minimum interval between hits is per player, so swapping to a second knife does not skip it.
+The facing is a claim, which is harmless because the reach is the host's. No lag compensation in the MVP: at walk
+speed a target is up to ~0.5 m ahead of what the attacker saw (100 ms of interpolation) against a 1.5 m reach. The
+playtest decides; rewinding targets to the attacker's view is the fallback. Prevents: hits on someone far away,
+behind a wall, without a weapon, or without stamina.
+2g (#63, `Strike` in `core/combat/strike.gd`) measures it so: the zone is a horizontal sector with its apex at the
+attacker's feet (the last accepted position), `reach_m` long and `angle_deg` wide around the horizontal part of
+the facing; a target's capsule has a point in it when its circle of `capsule_radius_m` around the target's
+position touches the sector (so an overlapping capsule touches the apex whatever the facing); it overlaps
+vertically when the two feet are at most `capsule_height_m` apart; the line of sight runs from the attacker's eye
+(`Items.eye_of`, the floor below plus the eye height) to the middle of the target's capsule. A facing with no
+horizontal part leaves only the apex; a `Use` without a finite facing takes the last accepted claim's. The
+cooldown is a `Cooldown` cost with the key `hit` in the knife's rule, recorded per player in `MatchState`.
 
 #### 7.1.11 Pick up and swap
-The client names the item; the host checks reach and line of sight from its own positions. The picked item goes to the
-hand (vision revision 1, Two hands; M4-5, #141). A one-handed hand item moves to an empty belt; otherwise (a full belt,
-or a two-handed hand item: the package) the hand item rests where the picked-up one lay, a spot already known to be
-valid, whichever of the two is two-handed. `Swap()` exchanges the hand and belt items; it needs an item in one of them
-(`nothing_to_swap`) and is refused with a two-handed item in the hand (`two_handed`), so a package carrier cannot draw a
-belted knife (V13), and only the living send it. Only the hand item is used or put down: `Match._find_action` reads the
-hand, and `HoldsItem` too. The downed keep both slots; a death places both at the body and a leave drops both, the hand
-item first; a respawn starts empty. 2e (#61) measures the reach from the feet (the last accepted position) and the sight
-from the eye to just above the item (`Items.lifted`, 5 cm), so the floor or crate it lies on does not block the line.
+The client names the item; the host checks reach and line of sight from its own positions.
+The picked item goes to the hand (vision revision 1, Two hands; M4-5, #141). A one-handed hand item moves to an
+empty belt; otherwise (a full belt, or a two-handed hand item: the package) the hand item rests where the
+picked-up one lay, a spot already known to be valid, whichever of the two is two-handed. `Swap()` exchanges the
+hand and belt items; it needs an item in one of them (`nothing_to_swap`) and is refused with a two-handed item in
+the hand (`two_handed`), so a package carrier cannot draw a belted knife (V13), and only the living send it. Only
+the hand item is used or put down: `Match._find_action` reads the hand, and `HoldsItem` too. The downed keep both
+slots; a death places both at the body and a leave drops both, the hand item first; a respawn starts empty.
+2e (#61) measures the reach from the feet (the last accepted position) and the sight from the eye to just above
+the item (`Items.lifted`, 5 cm), so the floor or crate it lies on does not block the line.
 
 #### 7.1.12 Put down
-The client sends only its facing. The host places the item at the put-down distance along the horizontal facing, through
-`WorldQuery`: stopped before a wall and dropped to the floor. Prevents: a package put straight onto its circle across
-the map, or into a wall. 2e (#61) asks `rest_position` from the eye towards the point at that distance, so an item goes
-over what the player sees over (a low crate) and is stopped by a wall; a facing straight up or down puts it at the feet.
-The eye of the item rules (`Items.eye_of`) is the floor below the last accepted position plus the eye height, so a jump
-does not raise it: nobody puts a package, or sees one, over a partition from the top of a jump.
+The client sends only its facing. The host places the item at the put-down distance along the
+horizontal facing, through `WorldQuery`: stopped before a wall and dropped to the floor. Prevents: a package put
+straight onto its circle across the map, or into a wall. 2e (#61) asks `rest_position` from the eye towards the
+point at that distance, so an item goes over what the player sees over (a low crate) and is stopped by a wall; a
+facing straight up or down puts it at the feet. The eye of the item rules (`Items.eye_of`) is the floor below
+the last accepted position plus the eye height, so a jump does not raise it: nobody puts a package, or sees one,
+over a partition from the top of a jump.
 
 #### 7.1.13 Drops
-An item dropped at a death or a leave, a downed player, and a body, come to rest on the floor below the player's last
-position (through `WorldQuery`), never in mid-air. `Items.drop_carried` (2e, #61; both slots, M4-5) drops the items,
-asking the floor from 5 cm above the feet so a ray that starts on the floor still finds it; a level with no floor there
-is a level bug: the item rests at that position and the match logs an error. Where a knocked-down player lies
+An item dropped at a death or a leave, a downed player, and a body, come to rest on the floor below the
+player's last position (through `WorldQuery`), never in mid-air. `Items.drop_carried` (2e, #61; both slots, M4-5) drops the items, asking the floor
+from 5 cm above the feet so a ray that starts on the floor still finds it; a level with no floor there is a
+level bug: the item rests at that position and the match logs an error. Where a knocked-down player lies
 (`LifeRules.knock_down`) and its body at the death (`LifeRules.die`; M4-2) are found the same way, with the same
 fallback, and at the death the items then drop at the body (`Items.place_carried`). Nothing drops at a knockdown.
 
 #### 7.1.14 Delivery
-The rule is "the package rests inside its circle, however it got there". So one check runs whenever an item comes to
-rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest `server/` reports from
-its physics (`ItemRested`, #37). A package resting inside its own circle is delivered: it stops being interactive
-(`PickUp` is rejected) and its circle is shown as done. Holding a package over its circle never counts, because it is
-not at rest. A circle is an invisible cylinder standing on the floor at its marker (the engineer's decision of
-2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a placeholder). The package counts when its rest
-position is inside: within the radius horizontally, edge included, and from the marker's height up to that plus the
-height, both included (1 mm below the marker still counts: float noise between a physics floor and a hand-placed
-marker). The rest position is the one point `core/` knows of an item: the centre of its base on the surface it rests on,
-as `WorldQuery` placed it (or `server/` reports it, #37), not the centre of its mesh. So a package on a crate inside the
-circle counts, one on a floor below the marker does not. The check reads only that position; it asks no geometry of its
-own.
+The rule is "the package rests inside its circle, however it got there". So one check runs whenever
+an item comes to rest: a put-down, a swap, a drop at a death or a leave, the spawn, and later a throw, whose rest
+`server/` reports from its physics (`ItemRested`, #37). A package resting inside its own circle is delivered: it
+stops being interactive (`PickUp` is rejected) and its circle is shown as done. Holding a package over its circle
+never counts, because it is not at rest. A circle is an invisible cylinder standing on the floor at its marker
+(the engineer's decision of 2026-09-30, #79): radius 1 m (game design, in the data) and height 2 m (a
+placeholder). The package counts when its rest position is inside: within the radius horizontally, edge
+included, and from the marker's height up to that plus the height, both included (1 mm below the marker
+still counts: float noise between a physics floor and a hand-placed marker). The rest position is the one
+point `core/` knows of an item: the centre of its base on the surface it rests on, as `WorldQuery` placed it (or
+`server/` reports it, #37), not the centre of its mesh. So a package on a crate inside the circle counts, one on
+a floor below the marker does not. The check reads only that position; it asks no geometry of its own.
 
 ## 8. Debug tooling
 
