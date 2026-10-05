@@ -46,7 +46,7 @@ Check that each conflict resolution keeps both sides' intent and that the fixes 
 
 Report findings with severity (blocker, major, minor, nit), file, line, problem and fix. No findings is a valid answer.
 
-Focus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides.
+Focus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides. Always read ARCHITECTURE §5 (per-peer filtering), §4.2 (each event's audience) and §4.6 (the client, the bots and the leak test), whatever the change touches: `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6` (read-only; you may run it). A change to §4.7 or §7.1 alone can still add a snapshot field the leak test does not compare.
 ### returned
 {
  "pr": 8,

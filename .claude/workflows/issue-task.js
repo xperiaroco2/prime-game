@@ -18,7 +18,8 @@ export const meta = {
 //   notes    the manager's task notes: specifics, ownership splits of shared files, merge order (required)
 //   coord    what runs in parallel and which shared files to touch minimally
 //   decisions the engineer's standing decisions that apply, each with where it is recorded
-//   reading  what to read first (default: the issue's links, handoffs, ADRs and area CLAUDE.md files)
+//   reading  what to read first (default: the issue's links, handoffs and ADRs, the ARCHITECTURE sections it names by
+//            section, and the code; area CLAUDE.md files and .claude/rules/ load by path, #339)
 //   testing  the test expectations (default by the branch's area: core/ a seeded Match; net/ and server/ the
 //            loopback transport plus the ENet runs; tooling the runner selftest; code tasks only)
 //   design   true: a docs-only design task (options for the engineer, a proposed issue split, the netcode reviewer)
@@ -28,8 +29,9 @@ export const meta = {
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
 // by default but bounded_waits (on since #411). With none of them and bounded_waits false every agent's prompt, label,
 // phase, schema and options are byte-identical to the script before v2 (tools/runner/tests/test_workflows.py snapshots
-// them, and the default too), so a launch or resume with the earlier args and bounded_waits false is unchanged. The
-// agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// them, and the default too), so a launch or resume with the earlier args and bounded_waits false is unchanged, but for
+// the deliberate changes of the default prompts that rewrote those snapshots (#413's RULES line, #339's section
+// reads). The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents
 //   test_review   true: after the reviews one agent plants 3 to 5 mutants in the diff's production code with
@@ -311,7 +313,19 @@ const TESTING = {
 }
 TESTING.server = TESTING.net
 const TESTS = A.testing || `${TESTING[AREA] || 'Tests under tests/unit/ or tests/integration/ mirroring the folders you change.'} Where you fix a guard, see its test fail without the code first.`
-const READING = A.reading || 'the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names; the CLAUDE.md of every area it touches and .claude/rules/; the code it builds on and its tests'
+// #339 (the instruction-diet ADR's N1 (a)): docs are read by section, never whole. READING names no area CLAUDE.md
+// file and no .claude/rules/: they load by path when the agent Reads a file there, which it does before every Edit.
+// Root CLAUDE.md is loaded at launch, so no prompt asks to read it. The reviewers read the ARCHITECTURE sections the
+// change touches (a design's: the outline, then every section it could contradict), and the netcode reviewers always
+// read §5, §4.2 and §4.6 (NETCODE_SECTIONS; the second_review pass too, which audits the leak test).
+const SECTION = `\`cd ${WTB} && tools/run.sh section docs/ARCHITECTURE.md\` prints its outline (§, title, line range, tokens) and \`tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3\` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike`
+const arch = what => DESIGN
+  ? `ARCHITECTURE by section: its outline first, then every section ${what} could contradict, not only the ones it edits (${SECTION}; read-only, so you may run it)`
+  : `the ARCHITECTURE sections ${what} touches, by section, never the whole doc (${SECTION}; read-only, so you may run it)`
+// The same sentence as in pr-rebase.js (test_workflows.py compares the two): a change that touches only §4.7 or §7.1
+// can still add a snapshot field the leak test does not compare.
+const NETCODE_SECTIONS = `Always read ARCHITECTURE §5 (per-peer filtering), §4.2 (each event's audience) and §4.6 (the client, the bots and the leak test), whatever the change touches: \`cd ${WTB} && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6\` (read-only; you may run it). A change to §4.7 or §7.1 alone can still add a snapshot field the leak test does not compare.`
+const READING = A.reading || `the docs, ADRs and handoff comments the issue links (\`gh issue view <n> --comments\` for each handoff it builds on); the ARCHITECTURE sections it names, by section, never the whole doc (${SECTION}); the code it builds on and its tests`
 
 const WORK = DESIGN
   ? [
@@ -338,7 +352,7 @@ if (PLAN_REVIEW) {
   if (!plan) throw new Error(`#${N}: the plan agent returned nothing; resume this run with the same args`)
   const critique = await agent([
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
-    `Critique read-only a PLAN written before anything was built (plan_review); an implementer builds from it next, with your critique. Read the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs and handoffs it links, docs/ARCHITECTURE.md, root CLAUDE.md, the area CLAUDE.md files and the code the plan names. Budget: at most about 40 tool calls. Edit nothing.`,
+    `Critique read-only a PLAN written before anything was built (plan_review); an implementer builds from it next, with your critique. Read the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs and handoffs it links, the area CLAUDE.md files, the code the plan names and ${arch('the plan')}. Budget: at most about 40 tool calls. Edit nothing.`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
     `The plan: ${JSON.stringify(plan)}`,
     'Find what would make the built change wrong or need rework: an acceptance criterion missed or misread; an invariant broken (host authority, per-peer filtering, pure core/, mechanics as data); information reaching a peer that is not entitled to it (events, snapshots, view_of, what a client renders); an interface that clashes with the code on the base or with the parallel work; tests that would pass whatever the code does, or no test that fails first; a doc, ARCHITECTURE row or ADR the change needs; a choice reserved for the engineer that the plan makes. Report findings with severity (blocker, major, minor, nit), the file or plan item, the problem and a concrete change to the plan. Blocker or major: building the plan as written would be wrong or need rework. No findings is a valid answer.',
@@ -388,7 +402,7 @@ if (impl.verify_green) {
   const godot = paths.some(p => /\.(gd|tscn|tres)$/.test(p)) || (!DESIGN && !paths.length)
   const base = [
     `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
-    `Review read-only${DESIGN ? ', adversarially, a DESIGN (documents only)' : ''}: \`git -C ${WTB} diff origin/${BASE}...HEAD\` and the files in ${WT}, against the issue and its comments (\`gh issue view ${N} --comments\`), docs/ARCHITECTURE.md, the ADRs the issue links, root CLAUDE.md and the area CLAUDE.md files. Budget: at most about 60 tool calls. ${DESIGN ? 'Edit nothing.' : 'You may run `tools\\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.'}`,
+    `Review read-only${DESIGN ? ', adversarially, a DESIGN (documents only)' : ''}: \`git -C ${WTB} diff origin/${BASE}...HEAD\` and the files in ${WT}, against the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs the issue links, the area CLAUDE.md files and ${arch(DESIGN ? 'the design' : 'the change')}. Budget: at most about 60 tool calls. ${DESIGN ? 'Edit nothing.' : 'You may run `tools\\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.'}`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
     `The implementer reported: ${JSON.stringify(impl)}`,
     `Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. ${DESIGN ? 'A design that would let information reach a peer that is not entitled to it, trust a client field, leave an intent unvalidated, or contradict an accepted ADR or the code on main is a blocker or major.' : 'Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test.'} No findings is a valid answer.`,
@@ -404,7 +418,7 @@ if (impl.verify_green) {
   const thunks = [() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
   if (netcode) {
     labels.push('netcode-security-reviewer')
-    thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay.', asReviewer({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
+    thunks.push(() => agent(base + '\n\nFocus: information leaks through events, audiences, snapshots, view_of, recorded recipients and rejection reasons (the ARCHITECTURE §5 invariants); intents the rules do not validate; host-trust assumptions; floods and rate limits; determinism and replay. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
   }
   if (godot) {
     labels.push('godot-api-checker')
@@ -413,7 +427,7 @@ if (impl.verify_green) {
   // second_review: a second netcode review where leaks matter, with another lens (and, per launch, another model).
   if (netcode && SECOND_REVIEW) {
     labels.push('second netcode-security-reviewer')
-    thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers events, audiences, snapshots, view_of and rejection reasons. Take the attacker\'s side instead: (1) a modified client: for each intent, field and message the change adds or reads, what a client could send that the host accepts (out-of-range or non-finite values, the wrong phase, another peer\'s ids, replays, floods past the budgets); (2) a curious player: follow each new or changed piece of state from core/ to every peer\'s wire, logs, audio and screen, the host\'s own client included (it gets the same filtered view), and the debug-only paths in a release build; (3) the tests: would the information-leak test (tests/harness/) or a unit test fail if this change leaked or trusted the client? A gap there is a finding.', asReviewer({ label: `review:netcode-second:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
+    thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers events, audiences, snapshots, view_of and rejection reasons. Take the attacker\'s side instead: (1) a modified client: for each intent, field and message the change adds or reads, what a client could send that the host accepts (out-of-range or non-finite values, the wrong phase, another peer\'s ids, replays, floods past the budgets); (2) a curious player: follow each new or changed piece of state from core/ to every peer\'s wire, logs, audio and screen, the host\'s own client included (it gets the same filtered view), and the debug-only paths in a release build; (3) the tests: would the information-leak test (tests/harness/) or a unit test fail if this change leaked or trusted the client? A gap there is a finding. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode-second:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
   }
   const results = await parallel(thunks)
   // Every routed reviewer must answer: a dropped netcode review on a core/ change is not a clean review. A resume

@@ -21,7 +21,7 @@ Task: GitHub issue #7 (t). Effort: high. Budget: at most about 250 tool calls; i
 
 An earlier attempt may have got part of the way (a resumed run): first run `git log --oneline origin/main..HEAD` and `git status` in the worktree, and continue from that state; uncommitted files there are that attempt's work.
 
-Read: `gh issue view 7 --comments`; the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names; the CLAUDE.md of every area it touches and .claude/rules/; the code it builds on and its tests.
+Read: `gh issue view 7 --comments`; the docs, ADRs and handoff comments the issue links (`gh issue view <n> --comments` for each handoff it builds on); the ARCHITECTURE sections it names, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike); the code it builds on and its tests.
 
 Task notes from the manager:
 n

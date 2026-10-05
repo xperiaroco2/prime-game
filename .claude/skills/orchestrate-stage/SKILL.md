@@ -136,7 +136,7 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
 | `notes` | the task's specifics, the engineer's answers that apply, ownership splits, merge order (required) |
 | `coord` | what runs in parallel now and which shared files to touch minimally |
 | `decisions` | the engineer's standing decisions, each with where it is recorded (every task that they touch) |
-| `reading` | overrides the default reading list (the issue's links, handoffs, ADRs, area CLAUDE.md files) |
+| `reading` | overrides the default reading list (the issue's links, handoffs and ADRs, the ARCHITECTURE sections it names by section, the code; area CLAUDE.md files and rules load by path, #339) |
 | `testing` | overrides the default test expectations, which follow the branch's area: `core` a seeded Match and `view_of`; `net`/`server` loopback-transport tests plus the ENet runs in verify; `tooling` the runner selftest; others generic |
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |

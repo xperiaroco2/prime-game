@@ -41,7 +41,7 @@ Decisions: `docs/decisions/`. Architecture and the content API: `docs/ARCHITECTU
 - The transport stays behind an abstraction (ENet now; Steam or WebRTC later).
 
 ## Commands
-`tools\run.cmd <command>` (Git Bash and CI: `tools/run.sh <command>`); `<command> --help` says what it does and its options.
+`tools\run.cmd <command>` (Git Bash and CI: `tools/run.sh <command>`); `<command> --help` says what it does and its options; read docs by section, never whole: `section <doc>` for the outline, then the § you need.
 Godot, Python and gdtoolkit run only through the runner. Logs: `tools/out/logs/`; reports: `tools/out/gdunit/`.
 Commands: `agents-check` `board` `bots` (the information-leak test; `--chaos`: hostile peers against the host) `check` `credits` `doctor` (first in every session) `host` `join` `lint` `load` `merge` `merge-check` `merge-train` `metrics` `mutants` `normalize` `perf` `permissions` `pins` `playcheck` `publish` `run` `section` `selftest` `shot` `slots` `start` `test` `verify` `wait` `wave` `worktree-done`
 
