@@ -70,10 +70,18 @@ def pre_tool_use(payload: dict[str, object]) -> int:
     shell = guard.BASH if tool == "Bash" else guard.POWERSHELL
     home = os.path.expanduser("~")  # so that `~/<project>` stays protected when the checkout is under home
     cwd = str(payload.get("cwd") or "")
-    findings = guard.check(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT))
+    # A cloud session works in the main checkout on its task branch: there it is the session's own (#381).
+    findings = guard.check(command, shell, cwd, ROOT, home if home != "~" else "", GitFiles(ROOT), cloud_session())
     if findings:
         _emit("PreToolUse", permissionDecision="ask", permissionDecisionReason=guard.reason(findings))
     return 0
+
+
+def cloud_session() -> bool:
+    """common.cloud_session() (the test doctor.cloud_twovoip uses), read here without importing common, which costs
+    the guard about 40 ms on every shell call; test_hooks keeps the two equal."""
+    remote = os.environ.get("CLAUDE_CODE_REMOTE", "").lower() == "true"
+    return remote and os.environ.get("CI", "").lower() not in ("1", "true", "yes")
 
 
 class GitFiles:
@@ -108,7 +116,14 @@ class GitFiles:
                 return None
             admin = match.group(1).strip()
         head = self._read(admin, "HEAD").strip()
-        return head.removeprefix("ref: refs/heads/") if head.startswith("ref: refs/heads/") else None
+        if head.startswith("ref: refs/heads/"):
+            return head.removeprefix("ref: refs/heads/")
+        # A rebase stopped on a conflict detaches HEAD, but it still rewrites its branch (#381).
+        for folder in ("rebase-merge", "rebase-apply"):
+            name = self._read(admin, folder, "head-name").strip()
+            if name.startswith("refs/heads/"):
+                return name.removeprefix("refs/heads/")
+        return None
 
     def busy(self, checkout: str) -> bool:
         """Another live Claude session works in the worktree checkout (a normalized path): a session in the main

@@ -33,6 +33,13 @@ IS_CI = os.environ.get("CI", "").lower() in ("1", "true", "yes")
 # A Claude Code cloud session (#159): a headless Linux container set up by tools/cloud/setup.sh, like CI.
 IS_CLOUD = os.environ.get("CLAUDE_CODE_REMOTE", "").lower() == "true"
 
+
+def cloud_session(cloud: bool | None = None, ci: bool | None = None) -> bool:
+    """A Claude Code cloud session, not a CI job that sets CLAUDE_CODE_REMOTE too: doctor's cloud steps and the
+    guard's cloud checkout (#381) share this test. cloud and ci stand in for IS_CLOUD and IS_CI (doctor's tests)."""
+    return (IS_CLOUD if cloud is None else cloud) and not (IS_CI if ci is None else ci)
+
+
 # Directories that hold project GDScript (addons/ is third-party and never linted or checked).
 GD_DIRS = ("core", "server", "net", "client", "voice", "content", "levels", "tools", "tests")
 

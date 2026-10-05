@@ -37,22 +37,26 @@ two commands by their target (issue #47):
 
 The session's own worktree is free (issue #51): the worktree `.claude/worktrees/<n>` its working directory is in, or,
 for a session in the main checkout (a manager's task session, whose shell starts there on every call), the first
-worktree its command enters with `cd` or `git -C`. The main checkout is never owned. Inside the own worktree (not its
-folder itself) recursive deletes pass. Git commands that discard work or rewrite history (`reset` that discards or
-moves, `checkout`/`restore` of paths, `clean`, forced `checkout`/`switch`, `rebase`, `stash drop|clear`,
-`worktree remove|move`) pass there on the task branch, and in a repository outside the project; they ask in the main
-checkout, in another worktree, after the command switched to another branch, and when their pathspec reaches another
-checkout. Branch changes are judged by name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`,
-`checkout -B`, `switch -C`) or overwriting (`branch -M|-C`) a branch, or rebasing one by name, passes only for the
-task branch and its helpers (`<task branch>-x`, `<task branch>/x`); `stash drop|clear` only for entries made on
-them (the stash is shared by every checkout). An interactive rebase that opens a todo editor, `rebase --update-refs`
-and `git -c core.hooksPath=...` always ask; an interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to a
-no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash`, issue #104) is judged like any other rebase. Rebase
-options are read as git reads them (issue #105): a cluster letter by letter (`-qi`), an attached value (`-x'cmd'`),
-a unique prefix of a long option (`--interac`, `--exe=cmd`), and `rebase.updateRefs` set by `git -c` or
-`--config-env` counts as `--update-refs`. A nested shell inherits the `VAR=value` prefixes of the command that starts
-it (`GIT_SEQUENCE_EDITOR=: bash -c '...'`). Branch, ref and stash names come from a repository reader
-(hooks.GitFiles); without one no branch is the session's own.
+worktree its command enters with `cd` or `git -C`. The main checkout is owned only by a cloud session (issue #381:
+`CLAUDE_CODE_REMOTE` true and not CI, common.cloud_session) whose working directory is in no worktree, while a task
+branch (TASK_BRANCH_RE) is checked out there: its task number is that branch's, whichever task it is (no worktree folder
+pins it). The repository (`.git`), `.claude` and the other worktrees (`.claude/worktrees`), and any glob that may name
+them, stay outside it; so do `git clean -x|-X|-e|-ff` (ignored files and nested repositories), `git stash -a` and magic
+pathspecs (`:(top)x`) there. Inside the own worktree (not its folder itself) recursive deletes pass. Git commands that
+discard work or rewrite history (`reset` that discards or moves, `checkout`/`restore` of paths, `clean`, forced
+`checkout`/`switch`, `rebase`, `stash drop|clear`, `worktree remove|move`) pass there on the task branch, and in a
+repository outside the project; they ask in the main checkout (but a cloud session's, above), in another worktree, after
+the command switched to another branch, and when their pathspec reaches another checkout. Branch changes are judged by
+name whatever the checkout: deleting (`branch -d|-D`), moving (`branch -f`, `checkout -B`, `switch -C`) or overwriting
+(`branch -M|-C`) a branch, or rebasing one by name, passes only for the task branch and its helpers (`<task branch>-x`,
+`<task branch>/x`); `stash drop|clear` only for entries made on them (the stash is shared by every checkout). An
+interactive rebase that opens a todo editor, `rebase --update-refs` and `git -c core.hooksPath=...` always ask; an
+interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to a no-op (`GIT_SEQUENCE_EDITOR=: git rebase -i
+--autosquash`, issue #104) is judged like any other rebase. Rebase options are read as git reads them (issue #105): a
+cluster letter by letter (`-qi`), an attached value (`-x'cmd'`), a unique prefix of a long option (`--interac`,
+`--exe=cmd`), and `rebase.updateRefs` set by `git -c` or `--config-env` counts as `--update-refs`. A nested shell
+inherits the `VAR=value` prefixes of the command that starts it (`GIT_SEQUENCE_EDITOR=: bash -c '...'`). Branch, ref and
+stash names come from a repository reader (hooks.GitFiles); without one no branch is the session's own.
 
 gh reads of other repositories run without a prompt (issue #68), so no text rule asks for `gh -R|--repo`. The guard
 asks instead when a gh command names a repository other than this project's (`origin`, read by hooks.GitFiles) and
@@ -94,6 +98,9 @@ OUTSIDE_VARS = {
 VAR_RE = re.compile(r"\$\{(\w+)\}|\$env:(\w+)|\$(\w+)|%(\w+)%", re.IGNORECASE)
 ASSIGN_RE = re.compile(r"^\$?([A-Za-z_]\w*)=(.*)$", re.DOTALL)
 PS_VAR_RE = re.compile(r"^\$(?:env:)?([A-Za-z_]\w*)$")
+
+# A task branch, as start.py names it: `<area>/<n>-<slug>` (the same form as publish.TASK_BRANCH_RE).
+TASK_BRANCH_RE = re.compile(r"^[a-z][a-z0-9]*/[0-9]+-[a-z0-9][a-z0-9._-]*$")
 
 # Words that only prefix the real command.
 PREFIXES = {
@@ -480,10 +487,12 @@ class Paths:
         self.name_re = re.compile(rf"(?:^|[/\\:\s'\"]){name}(?:[/\\\s'\"]|$)|{TOPLEVEL_TEXT}", re.IGNORECASE)
         # The session's own worktree (issue #51): the one its working directory is in. A session in the main checkout
         # (a manager's task session, whose shell starts there each call) owns the worktree its command first `cd`s
-        # into, or names with `git -C`, unless another live session works there (busy). The main checkout is never
-        # owned.
+        # into, or names with `git -C`, unless another live session works there (busy). The main checkout is owned
+        # only by a cloud session on a task branch (issue #381, Analysis).
         self.own = self.worktree_of(self.cwd)
         self.claim = self.own is None
+        # A cloud session's task branch, when it owns the main checkout (issue #381; set by Analysis).
+        self.task = ""
         self.busy: Callable[[str], bool] = lambda _: False
         # A checkout or switch in this command left the own task branch: later git commands act on another branch.
         self.off_branch = False
@@ -503,6 +512,7 @@ class Paths:
             inner.remember(name, value, [f"{name}={value}"])
             inner.env[name] = inner.vars.get(name)
         inner.oldpwd, inner.own, inner.claim, inner.busy = self.oldpwd, self.own, self.claim, self.busy
+        inner.task = self.task
         inner.off_branch, inner.stash_moved = self.off_branch, self.stash_moved
         return inner
 
@@ -520,10 +530,29 @@ class Paths:
         return match.group(1) if match else None
 
     def owned(self, path: str, root_too: bool = False) -> bool:
-        """A resolved path is inside the session's own worktree (or is its folder, with root_too)."""
+        """A resolved path is inside the session's own worktree (or is its folder, with root_too). A cloud session's
+        main checkout (issue #381) holds the other worktrees and the repository: they are never its own."""
         if not self.own:
             return False
+        if self.own == self.root and self.shared(path):
+            return False
         return path.startswith(self.own + "/") or (root_too and path == self.own)
+
+    def shared(self, path: str) -> bool:
+        """A resolved path in the main checkout is, or may name by a glob, the repository (`.git`), `.claude` or
+        `.claude/worktrees`, or is inside one of them: every checkout's, not one session's."""
+        if not path.startswith(self.root + "/"):
+            return False
+        parts = path[len(self.root) + 1 :].split("/")
+
+        def may_be(part: str, name: str) -> bool:
+            # Bash globs that fnmatch reads otherwise (`[^.]`, `[[:lower:]]`, `{s..t}`): any glob may match. The lexer
+            # splits an extglob (`shopt -s extglob; rm -rf @(.git)`) before its `(`, leaving `@`, `!` or `+`.
+            return part == name or any(c in part for c in "*?[{(") or part in ("@", "!", "+")
+
+        if may_be(parts[0], ".git"):
+            return True
+        return may_be(parts[0], ".claude") and (len(parts) == 1 or may_be(parts[1], "worktrees"))
 
     def claim_worktree(self, path: str | None) -> None:
         """A session outside every worktree owns the first worktree its command enters, unless another live session
@@ -1182,6 +1211,31 @@ def _rebase_options(args: list[str]) -> tuple[list[str], list[str]]:
     return options, positionals
 
 
+def _long_prefix(arg: str, option: str) -> bool:
+    """arg is option or a unique prefix git accepts for it (`--fo` for `--force`), with or without `=value`."""
+    name = arg.split("=", 1)[0]
+    return len(name) > 3 and option.startswith(name)
+
+
+def _clean_options(args: list[str]) -> tuple[str, list[str]]:
+    """The short option letters and long option names of `git clean`, read as git reads them: `-e` takes the rest of
+    its cluster or the next word as its value (`-en` is `-e n`, no dry run)."""
+    letters, longs, i = "", [], 0
+    while i < len(args) and args[i] != "--":
+        arg = args[i]
+        if arg.startswith("--"):
+            longs.append(arg)
+            if "=" not in arg and _long_prefix(arg, "--exclude"):
+                i += 1
+        elif arg.startswith("-") and len(arg) > 1:
+            head, e, value = arg[1:].partition("e")
+            letters += head + e
+            if e and not value:
+                i += 1
+        i += 1
+    return letters, longs
+
+
 def _positionals(args: list[str], valued: set[str] | None = None) -> list[str]:
     """Arguments that are not options, nor the values of the options in valued."""
     result, skip = [], False
@@ -1274,10 +1328,14 @@ class Finding:
 
 
 class Analysis:
-    def __init__(self, paths: Paths, repo: NoRepo | None = None) -> None:
+    def __init__(self, paths: Paths, repo: NoRepo | None = None, cloud: bool = False) -> None:
         self.paths = paths
         self.repo = repo or NoRepo()
         self.paths.busy = self.repo.busy
+        # A cloud session in no worktree owns the main checkout while its task branch is checked out there (#381).
+        main = self.repo.branch(paths.root) if cloud and paths.own is None else None
+        if main and TASK_BRANCH_RE.match(main):
+            paths.own, paths.claim, paths.task = paths.root, False, main.lower()
         self.findings: list[Finding] = []
         self.piped_first: dict[int, list[str]] = {}
         # The `VAR=value` prefixes of the simple command being judged (`GIT_DIR=x git reset`).
@@ -1409,8 +1467,8 @@ class Analysis:
     def git(self, args: list[str]) -> None:
         """Judge a git command by where it acts (docs/AGENT_WORKFLOW.md §8.2). Commands that discard work or rewrite
         history pass in the session's own worktree on its task branch and in scratch repositories outside the
-        project; they ask in the main checkout, in another worktree, and on another branch. Writes to the protected
-        paths ask everywhere."""
+        project; they ask in the main checkout (but a cloud session's on its task branch, issue #381), in another
+        worktree, and on another branch. Writes to the protected paths ask everywhere."""
         i, dirs, git_dir, work_tree, configs = 0, [], "", "", []
         while i < len(args) and args[i].startswith("-"):
             name, eq, value = args[i].partition("=")
@@ -1494,10 +1552,14 @@ class Analysis:
         return current.lower() if current and self.task_name(current) else None
 
     def task_name(self, name: str) -> bool:
-        """name has the form of the own task's branches: `<area>/<n>-...` for the own worktree `<n>`."""
+        """name has the form of the own task's branches: `<area>/<n>-...` for the own worktree `<n>`, or for the
+        task branch a cloud session's main checkout was on when the command started."""
         if not self.paths.own:
             return False
-        number = re.escape(self.paths.own.rsplit("/", 1)[-1])
+        if self.paths.own == self.paths.root:
+            number = re.escape(self.paths.task.split("/", 1)[1].split("-", 1)[0])
+        else:
+            number = re.escape(self.paths.own.rsplit("/", 1)[-1])
         return bool(re.match(rf"^[^/]+/{number}-", name.lower().removeprefix("refs/heads/")))
 
     def own_branch(self, name: str) -> bool:
@@ -1528,6 +1590,10 @@ class Analysis:
             self.git_finding(shown, f"on another branch ({current}) checked out in the own worktree")
         elif place == OWN and base is not None:
             for spec in pathspecs or []:
+                if spec.startswith(":") and self.paths.own == self.paths.root and spec != ":":
+                    # A magic pathspec (`:(top).claude/worktrees`) may name the shared parts of a cloud checkout.
+                    self.git_finding(shown, f"its path {spec} may reach the shared parts of the main checkout")
+                    return
                 if not spec.startswith((":", "-")) and self.paths.where(spec, base) == ELSEWHERE:
                     self.git_finding(shown, f"its path {spec} is outside this session's own worktree")
                     return
@@ -1618,15 +1684,32 @@ class Analysis:
 
     def git_clean(self, rest: list[str], place: str, base: str | None) -> None:
         """`git clean` deletes untracked files; `-n` / `--dry-run` only lists them."""
-        if "--dry-run" in rest or any(re.fullmatch(r"-[a-zA-Z]*n[a-zA-Z]*", a) for a in rest):
+        letters, longs = _clean_options(rest)
+        if "n" in letters or any(_long_prefix(name, "--dry-run") for name in longs):
             return
-        self.git_discards(["git", "clean", *rest], place, base, _positionals(rest, CLEAN_VALUED))
+        shown = ["git", "clean", *rest]
+        if place == OWN and self.paths.own == self.paths.root:
+            # A cloud session's main checkout (issue #381): ignored files (`-x`, `-X`, or un-ignored by `-e '!x'`)
+            # include .claude/settings.local.json and the other worktrees, which a second force removes as nested
+            # repositories.
+            forces = letters.count("f") + sum(_long_prefix(name, "--force") for name in longs)
+            excludes = "e" in letters or any(_long_prefix(name, "--exclude") for name in longs)
+            if {"x", "X"} & set(letters) or excludes or forces > 1:
+                self.git_finding(shown, "removes ignored files or nested repositories of the main checkout")
+                return
+        self.git_discards(shown, place, base, _positionals(rest, CLEAN_VALUED))
 
     def git_stash(self, rest: list[str], place: str, base: str | None) -> None:
         """`git stash drop` and `clear`. The stash is shared by every checkout of the repository, so they pass only
         for entries made on the task branch or a helper (a human's `start --stash` entry is never the agent's)."""
         action = rest[0].lower() if rest and not rest[0].startswith("-") else "push"
         moved, shown = self.paths.stash_moved, ["git", "stash", *rest]
+        if action in ("push", "save") and place == OWN and self.paths.own == self.paths.root:
+            # `--all` takes the ignored files of a cloud session's main checkout away (issue #381), as `clean -x`.
+            options = [a for a in rest if a.startswith("-")]
+            if any(_long_prefix(a, "--all") or re.fullmatch(r"-[a-zA-Z]*a[a-zA-Z]*", a) for a in options):
+                self.git_finding(shown, "stashes the ignored files of the main checkout")
+                return
         if action not in ("list", "show", "apply", "create"):
             self.paths.stash_moved = True
         if action not in ("drop", "clear"):
@@ -1720,7 +1803,7 @@ class Analysis:
         for target in _positionals(rest[1:])[:1]:
             path = self.paths.resolve(target, base if base is not None else "")
             absolute = bool(ABSOLUTE_RE.match(target))
-            if path is not None and self.paths.own and path == self.paths.own:
+            if path is not None and self.paths.own and path == self.paths.own != self.paths.root:
                 continue
             if path is not None and absolute and self.paths.place(path) == OUTSIDE_PROJECT:
                 continue
@@ -1920,12 +2003,15 @@ GIT_JUDGES = {
 }
 
 
-def check(command: str, shell: str, cwd: str, root: str, home: str = "", repo: NoRepo | None = None) -> list[Finding]:
+def check(
+    command: str, shell: str, cwd: str, root: str, home: str = "", repo: NoRepo | None = None, cloud: bool = False
+) -> list[Finding]:
     """Findings for one Bash or PowerShell command run in cwd; empty when it writes to no ask-protected path of the
     project at root, and deletes recursively or discards git work only in the session's own worktree, on its task
     branch, or outside the project. home is the user's home folder, when known: `~` and `$HOME` resolve to it. repo
-    tells branch and stash names (hooks.GitFiles); without it no branch is the session's own."""
-    analysis = Analysis(Paths(root, cwd, home, shell), repo)
+    tells branch and stash names (hooks.GitFiles); without it no branch is the session's own. cloud: the command
+    runs in a cloud session (common.cloud_session), whose main checkout on a task branch is its own (issue #381)."""
+    analysis = Analysis(Paths(root, cwd, home, shell), repo, cloud)
     analysis.command(command, shell)
     return analysis.findings
 

@@ -20,6 +20,7 @@ from .common import (
     ROOT,
     Failure,
     bad,
+    cloud_session,
     ensure_out,
     gdtoolkit_exe,
     git_bash,
@@ -305,7 +306,7 @@ class Doctor:
     def cloud_twovoip(self) -> None:
         """A cloud session runs without the Windows-only TwoVoIP extension, as CI does (#345): on Linux Godot prints
         an `ERROR:` line for its .gdextension, which fails verify's Godot steps minutes later."""
-        if not IS_CLOUD or IS_CI:
+        if not cloud_session(IS_CLOUD, IS_CI):
             return
         fix = (
             "Run: tools/cloud/setup.sh, or only its last step: git sparse-checkout set --no-cone '/*' "
