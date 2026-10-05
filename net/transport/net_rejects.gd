@@ -26,6 +26,9 @@ enum Reason {
 	## LaneOrder: a hold that no reliable packet released for LaneOrder.STALL_MS, a transport fault
 	## that disconnects the peer (the M6 design §2.2).
 	ORDER_STALLED,
+	## WebRTC: one of a peer's data channels closed while its connection stayed up, and the host
+	## was not closing that peer; the peer leaves (the M6 design §2.6).
+	CHANNEL_CLOSED,
 }
 
 ## Peers named in one summary line; the rest are summed up.
