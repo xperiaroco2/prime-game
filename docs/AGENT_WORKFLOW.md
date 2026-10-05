@@ -327,7 +327,8 @@ Rules for every workflow run:
   foreground `sleep N; cat <log>` (§11, "Bounded waits"); the test pins both lines, identical in the two scripts.
   A third (#413) names the writes outside the worktree and the scratchpad: a throwaway first command such as
   `cat > "$TMP/x" 2>/dev/null;` (`$TMP` and `/tmp` are the system Temp folder), a `../` climb that asked and held a
-  rebase for two hours, and a Git Bash `/c/...` path given to `tools\run.cmd` (a `D:\c\` folder).
+  rebase for two hours, and a Git Bash `/c/...` path given to `tools\run.cmd` (a `D:\c\` folder); the test pins it
+  too, identical in the two scripts.
   Both return a compact result (#386), because the harness prints a run's return value into the manager's context
   and every later call reads it again: the fields the skill's §4 acts on (the PR, CI, published, `stopped` and why,
   `needs_engineer` and `human_steps` in full, `not_fixed` and `merge_notes` a line each, the reviews' findings by
