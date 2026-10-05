@@ -127,6 +127,20 @@ class TracksTest(unittest.TestCase):
         self.assertEqual(got["lower"], ("ui", "Track: line"))
         self.assertEqual(got["name"], ("untracked", "none"))  # a translated name: no track
 
+    def test_the_templates_unfilled_placeholder_names_no_track(self) -> None:
+        line = 'Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.'
+        skill = Path(__file__).resolve().parents[3] / ".claude" / "skills" / "orchestrate-stage" / "SKILL.md"
+        self.assertIn(line, skill.read_text(encoding="utf-8").splitlines())  # §10's template line as it stands
+        write_lines(self.root / "projects" / "D--prime-game" / "tpl.jsonl", [
+            kickoff(100, f"ultracode: orchestrate stage <k>\n{line}"), assistant(101, "tpl1", ONE),
+        ])
+        write_lines(self.root / "projects" / "D--prime-game-ui" / "tplui.jsonl", [
+            kickoff(100, line), assistant(101, "tplui1", ONE),
+        ])
+        got = {s["id"]: (s["track"], s["source"]) for s in self.spend()["sessions"]}
+        self.assertEqual(got["tpl"], ("untracked", "none"))
+        self.assertEqual(got["tplui"], ("ui", "checkout"))
+
     def test_the_ui_folders_session_without_a_track_line_counts_as_ui(self) -> None:
         tracks = self.spend()["tracks"]
         self.assertEqual(tracks["ui"]["sessions"], 1)
