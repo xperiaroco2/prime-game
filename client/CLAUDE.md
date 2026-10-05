@@ -24,8 +24,8 @@ review checklists for client PRs: §3 of `docs/decisions/2026-10-01-m4-first-per
   `VoicePanel` (M5-6), and the lobby's `LobbyHud`.
 - `app/` (M4-6): `Game` (the main scene `game.tscn`: the sessions, the level swap, leaving), `GameFlow` (screen and
   level per phase, pure), `SessionNode`, `LaunchOptions`, `EndReasons` (every end reason in words; add a new one
-  there). `ui/`: the screens under `GameUi`, built in code, the HUD and the task screen (M4-8), and the shared
-  theme `ui/theme/game_theme.tres`. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
+  there), `JoinProgress` and `CodeRoom` (M6-7's join steps and code room). `ui/`: the screens under `GameUi`, built
+  in code, the HUD and the task screen (M4-8), and the shared theme `ui/theme/game_theme.tres`. `world/`: `SnapshotBuffer` and `AvatarViews` (M4-7), `BodyViews` (M4-9),
   `ItemWorld` (M4-8: item and circle views, the item keys, the world sounds).
   `life/` (M4-9): `LifeView` (the cameras, inputs and music by life), `DownedCamera`, `SightHider`, and the pure
   `SpectateTargets`, `LifeCountdowns` and `LifeHud`.

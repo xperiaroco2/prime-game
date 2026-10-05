@@ -34,7 +34,7 @@ npx wrangler deploy
 ```
 
 The deploy prints the service's address, `https://prime-game-signal.<your-subdomain>.workers.dev`. The game connects
-to it as `wss://prime-game-signal.<your-subdomain>.workers.dev/` (M6-7 puts that address in the game). On the first
+to it as `wss://prime-game-signal.<your-subdomain>.workers.dev/` (put that address in `JoinTarget.SERVICE_URL`, `net/transport/join_target.gd`; until then a code join says to use Direct). On the first
 deploy Cloudflare may ask you to pick the `workers.dev` subdomain in the dashboard first.
 
 Then check the deployed service from the same folder:

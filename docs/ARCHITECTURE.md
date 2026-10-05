@@ -1628,7 +1628,7 @@ the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`.
   to the dropped player right before its `DisconnectPeer`, and `ClientSession` ends with that reason. ENet's
   `peer_disconnect_later` delivers it first (§4 Transport).
 - **The command line:** `--host [--local]`, `--join=<address>` and `--port=<p>` after `--` skip the menu, with the
-  runner's `--stop-file` and `--alive-file`; the parser moves from `tools/run/headless_session.gd` to `client/app/`.
+  runner's `--stop-file` and `--alive-file` (M6-7 adds `--code`, `--signal=`, `--room=` and codes for `--join=`, §4.8); the parser moves from `tools/run/headless_session.gd` to `client/app/`.
 
 **Built in M4-6 (#142)**, the shell: `client/app/` holds `Game` (`game.gd`, `game.tscn`, the main scene),
 `GameFlow` (the flow table above as a pure class: the screen and the level per session state and phase, read from
@@ -2377,6 +2377,36 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   against a headless `LanSignalling`). The design's §5 plant, the Worker forwarding a joiner's `offer` to another
   joiner, failed `forged_offer` in both suites, then was reverted. M6-10's plants, the credential also on `found` and
   one credential reused for every joiner, each failed `turn_per_joiner`, then were reverted.
+
+**Joining in the game (M6-7, #373;** the M6 design §2.3, §2.5, §3; D19, E51):
+- **`JoinTarget`** (`net/transport/`) is what the player typed: a code (6 characters of the alphabet above, any case,
+  spaces and dashes dropped) or a host's `address[:port]` (IPv4, IPv6 in brackets with a port, or a host name, so a
+  playit.gg address works). `transport(kinds)` makes the join's backend (a code: `WebRtcTransport` at the service
+  URL; an address: `EnetTransport`) and `join(join_address(), port)` starts it. `JoinTarget.SERVICE_URL` is the
+  engineer's Worker (`tools/signal/README.md`), empty until it is deployed: a code join then ends as
+  `service_unreachable` (use Direct). `--signal=<url>` overrides it.
+- **The menu** (`MainMenu`): "Join with a code" (a field and Join), Host (a room with a code, `CodeRoom` over
+  `WebRtcTransport`), and "Direct (LAN or VPN)": address, port, Join and Host Direct (ENet, as before M6). A host serves
+  one backend, so a code host takes no Direct joiner and a Direct host has no code. A failed join returns to the menu
+  with its reason; the fields keep what was typed.
+- **The connecting screen** names the target the player typed and the step (`JoinProgress`): finding the game (a
+  code, before `found`), connecting, joined (connected, before `Welcome`). **The version check:** a code join whose
+  `found` names another protocol or content hash ends at once as `wrong_version` or `wrong_content`, with the host's
+  and the own named after the words ("another build" for the content); advisory only, `Hello` still decides.
+- **Failures in words** (`EndReasons`): `no_room`, `joins_closed`, `wrong_version`, `wrong_content` ("another
+  build"), `service_unreachable` (use Direct) and `host_unreachable`, which also covers a full host (it answers a
+  joiner nothing, so the join times out after 15 s) and names the playit.gg fallback under Direct.
+- **The lobby's code** (`LobbyHud` line, the Esc menu's Lobby tab with Copy): the host's from `CodeRoom` (the
+  transport's `room_code()`), a code joiner's the code it typed, a Direct game's none. When the host's service goes
+  away, `room_code()` turns empty and the line says the code is gone (no reclaim). No wire change.
+- **No screen shows another player's address, candidates or relay status:** a source test holds that `client/` calls
+  no address or ICE-state API and that `client/ui/` names no transport. The F3 line with the own connection's kind and
+  round trip (§3 item 4 of the design) is not built: `WebRtcTransport` exposes neither yet.
+- **The command line and the runner:** `--host --code [--signal=lan --room=<CODE>]` hosts a room (`lan`: this process
+  serves `LanSignalling` on TCP of its port); `--join=<code>` with `--signal=ws://<host>:<port>` joins one.
+  `tools\run.cmd host --code [--clients N] [--local]` picks a random code and starts the clients with it;
+  `tools\run.cmd join <code> --signal ws://<address>:<port>` joins from another machine. The headless session (`--headless`)
+  does the same through `CodeRoom` and prints `session: room code <CODE>`.
 
 ## 5. Per-peer information filtering
 
