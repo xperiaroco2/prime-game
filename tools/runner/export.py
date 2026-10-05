@@ -10,8 +10,9 @@ builds"). CI's release workflow runs it on a tag; it runs on Linux (and needs `c
    lines for that extension (it has Windows libraries only); those are expected, any other fails the export.
 3. Both presets exported (`--export-release` / `--export-debug`) and zipped into tools/out/export/.
 4. The release check: the published zip holds the release template's .exe byte for byte (not the debug one), the
-   release library of TwoVoIP and no console wrapper. OS.is_debug_build() is false only in a release template, and
-   the F3 overlay, the dev tools and the debug wire kinds exist only when it is true (invariant 8).
+   release libraries of TwoVoIP and webrtc-native and no console wrapper. OS.is_debug_build() is false only in a
+   release template, and the F3 overlay, the dev tools and the debug wire kinds exist only when it is true
+   (invariant 8).
 5. The content hash in an export (M6 ADR §2.5): tools/export/export_probe.gd runs against the release pack. Every
    level and every file it reaches is found; a second tree of the same commit exported again gives the same hash;
    one byte changed in each level gives another. The game's levels reach no other file yet, so the walk is proven on
@@ -43,7 +44,16 @@ TEMPLATES = (
     "windows_debug_x86_64.exe",
     "windows_debug_x86_64_console.exe",
 )
-RELEASE_FILES = {f"{GAME}.exe", f"{GAME}.pck", "libtwovoip.windows.template_release.x86_64.dll"}
+RELEASE_FILES = {
+    f"{GAME}.exe",
+    f"{GAME}.pck",
+    "libtwovoip.windows.template_release.x86_64.dll",
+    "libwebrtc_native.windows.template_release.x86_64.dll",
+}
+# Extensions whose `ERROR:` lines a Linux Godot run expects: TwoVoIP ships no Linux library at all; the Windows pack
+# the probe runs holds the webrtc-native extension but only its Windows libraries (the project's Linux one loads).
+WINDOWS_ONLY = ("twovoip",)
+PACK_WITHOUT_LINUX = ("twovoip", "webrtc_native")
 PROBE = ROOT / "tools" / "export" / "export_probe.gd"
 EXPORT_TIMEOUT = 600
 PROBE_TIMEOUT = 120
@@ -141,13 +151,13 @@ def lfs_pointers(tree: Path) -> list[str]:
     return found
 
 
-def unexpected_errors(lines: list[str]) -> list[str]:
-    """The `ERROR:` lines of a Godot run, minus those about the TwoVoIP extension, which has no Linux library."""
+def unexpected_errors(lines: list[str], extensions: tuple[str, ...] = WINDOWS_ONLY) -> list[str]:
+    """The `ERROR:` lines of a Godot run, minus those naming one of `extensions`: Godot on Linux cannot load them."""
     errors = []
     for i, line in enumerate(lines):
         if not line.startswith("ERROR:"):
             continue
-        if "twovoip" in line.lower():
+        if any(name in line.lower() for name in extensions):
             continue
         errors.append(line + (f" {lines[i + 1].strip()}" if i + 1 < len(lines) else ""))
     return errors
@@ -225,7 +235,7 @@ def probe(pack: Path, data: Path, walk: tuple[str, ...] = ()) -> Probe:
     cwd.mkdir(parents=True, exist_ok=True)
     cmd = [require_godot(), "--headless", "--main-pack", str(pack), "--script", str(PROBE), "--", *walk]
     res = run(cmd, timeout=PROBE_TIMEOUT, cwd=cwd, log="export-probe", env=data_env(data))
-    errors = unexpected_errors(res.lines)
+    errors = unexpected_errors(res.lines, PACK_WITHOUT_LINUX)
     if res.rc != 0 or res.timed_out or errors:
         reason = "; ".join(errors) or f"exit {res.rc}"
         raise Failure(f"the export probe failed: {reason} (log: tools/out/logs/export-probe.log)")
@@ -244,7 +254,7 @@ def changed_byte(text: bytes) -> bytes:
 
 
 def check_release(archive: Path, templates: Path) -> list[str]:
-    """What makes the zip not a release build: files, the .exe against the templates, the TwoVoIP library."""
+    """What makes the zip not a release build: files, the .exe against the templates, the extensions' libraries."""
     problems = []
     with zipfile.ZipFile(archive) as files:
         names = {Path(name).name: name for name in files.namelist() if not name.endswith("/")}
@@ -373,7 +383,7 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
     problems = check_release(release_zip, templates)
     if problems:
         raise Failure(f"{release_zip.name} is not a release build: " + "; ".join(problems))
-    ok(f"{release_zip.name} is a release build (the release template's .exe, the release TwoVoIP library)")
+    ok(f"{release_zip.name} is a release build (the release template's .exe, the release TwoVoIP and webrtc-native libraries)")
     prove_hash(commit, data, probe(builds / "release" / f"{GAME}.pck", data))
     for archive in (release_zip, debug_zip):
         say(f"EXPORT {archive.relative_to(ROOT).as_posix()} {archive.stat().st_size // (1 << 20)} MB")
