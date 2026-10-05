@@ -177,8 +177,9 @@ class TracksTest(unittest.TestCase):
         self.assertEqual(lines[2], "meta: 2.0% (2.1 to 1.8%) of 12% this week; plan to date 6.0%; list $46 in 2 "
                                    "sessions")  # fmt: skip
         self.assertEqual(lines[3], "ui: 1.0% (1.1 to 0.9%) of 20% this week; plan to date 10.0%; list $23 in 1 session")
-        self.assertEqual(lines[4], "every session: 10.0% (10.7 to 9.0%) (untracked 1.0% in 1 session: plain), against "
-                                   "the weekly counter (get_usage)")  # fmt: skip
+        self.assertEqual(lines[4], "every session of the 3 checkouts: 10.0% (10.7 to 9.0%) (untracked 1.0% in 1 "
+                                   "session: plain), against the weekly counter (get_usage), which also counts the "
+                                   "account's sessions elsewhere")  # fmt: skip
         self.assertEqual(len(lines), 5)  # --compact: the lines alone
         record = json.loads((self.root / "out" / "tracks.json").read_text(encoding="utf-8"))
         self.assertEqual(record["budgets"], {"game": 26, "meta": 12, "ui": 20})

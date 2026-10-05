@@ -2499,7 +2499,8 @@ def track_order(names: list[str]) -> list[str]:
 def track_lines(spend: dict, names: list[str], budgets: list[float], since: float, until: float) -> list[str]:
     """The budget lines: the window, one line per track (its % of the week with the bracket, its budget and the plan to
     date when a budget is given: budget x days since --since / 7, at most the budget), and every session's total, which
-    the manager holds against the weekly counter (get_usage)."""
+    the manager holds against the weekly counter (get_usage); the counter also counts the account's sessions outside
+    TRACK_CHECKOUTS (other project folders, replays), so the two differ by more than the conversion's error."""
     days = (until - since) / 86400
     tracks = spend["tracks"]
     if names == ["all"]:
@@ -2518,8 +2519,9 @@ def track_lines(spend: dict, names: list[str], budgets: list[float], since: floa
         lines.append(f"{line}; list {fmt_usd(t['usd'])} in {n} session{'s' if n != 1 else ''}")
     every = week_percent(sum(t["usd"] for t in tracks.values()), sum(t["read_usd"] for t in tracks.values()))
     left = tracks.get(UNTRACKED, empty)
-    lines.append(f"every session: {fmt_week(every)} (untracked {left['percent']:.1f}%{untracked_named(spend)}), "
-                 f"against the weekly counter (get_usage)")  # fmt: skip
+    lines.append(f"every session of the {len(TRACK_CHECKOUTS)} checkouts: {fmt_week(every)} (untracked "
+                 f"{left['percent']:.1f}%{untracked_named(spend)}), against the weekly counter (get_usage), which "
+                 f"also counts the account's sessions elsewhere")  # fmt: skip
     return lines
 
 
