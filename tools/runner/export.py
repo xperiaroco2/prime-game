@@ -9,7 +9,8 @@ builds"). CI's release workflow runs it on a tag; it runs on Linux (and needs `c
    TwoVoIP extension, which a cloud session's sparse checkout leaves out, is in it. On Linux Godot prints `ERROR:`
    lines for that extension (it has Windows libraries only); those are expected, any other fails the export.
 3. Both presets exported (`--export-release` / `--export-debug`), the license notices added (CREDITS.md and the shipped
-   addons' LICENSE* files under licenses/<addon>/, #419) and zipped into tools/out/export/.
+   addons' LICENSE* files under licenses/<addon>/, #419; Godot's and the codecs' texts from docs/credits/licenses/,
+   #422) and zipped into tools/out/export/.
 4. The release check: the published zip holds the release template's .exe byte for byte (not the debug one), the
    release libraries of TwoVoIP and webrtc-native, exactly the notices of NOTICES and no console wrapper.
    OS.is_debug_build() is false only in a release template, and the F3 overlay, the dev tools and the debug wire kinds
@@ -46,11 +47,15 @@ TEMPLATES = (
     "windows_debug_x86_64_console.exe",
 )
 # The license notices both zips carry (#419): CREDITS.md and every LICENSE* file of the addons whose libraries a build
-# ships, under licenses/<addon>/ (one folder per addon, as TwoVoIP's LICENSE would collide with another addon's). Only
-# the addons' own files: the BSD-3 libraries built into TwoVoIP's (Opus, RNNoise, SpeexDSP) are only named in
-# CREDITS.md. export_presets.cfg keeps the unshipped addons out of a build.
+# ships, under licenses/<addon>/ (one folder per addon, as TwoVoIP's LICENSE would collide with another addon's), and
+# the texts of what a build carries outside an addon's own files (#422): Godot's LICENSE.txt and COPYRIGHT.txt (the .exe
+# is its template) and the BSD-3 libraries built into TwoVoIP's (Opus, RNNoise, SpeexDSP), kept verbatim in
+# BUNDLED_LICENSES/<folder>/ (their sources in its README.md) and shipped as licenses/<folder>/. export_presets.cfg
+# keeps the unshipped addons out of a build.
 SHIPPED_ADDONS = ("twovoip", "webrtc_native")
 UNSHIPPED_ADDONS = ("gdUnit4",)
+BUNDLED_LICENSES = "docs/credits/licenses"
+BUNDLED = ("godot", "opus", "rnnoise", "speexdsp")
 NOTICES = (
     "CREDITS.md",
     "licenses/twovoip/LICENSE",
@@ -61,6 +66,11 @@ NOTICES = (
     "licenses/webrtc_native/LICENSE.plog",
     "licenses/webrtc_native/LICENSE.usrsctp",
     "licenses/webrtc_native/LICENSE.webrtc-native",
+    "licenses/godot/COPYRIGHT.txt",
+    "licenses/godot/LICENSE.txt",
+    "licenses/opus/COPYING",
+    "licenses/rnnoise/COPYING",
+    "licenses/speexdsp/COPYING",
 )
 RELEASE_FILES = {
     f"{GAME}.exe",
@@ -306,9 +316,10 @@ def check_release(archive: Path, templates: Path) -> list[str]:
 
 
 def add_notices(tree: Path, folder: Path) -> None:
-    """CREDITS.md and every LICENSE* file of the shipped addons, from the exported `tree` into the build `folder`
-    (licenses/<addon>/). The release check then holds them against NOTICES, so a license file added or removed in a
-    shipped addon fails the export until NOTICES follows."""
+    """CREDITS.md, every LICENSE* file of the shipped addons and every file of BUNDLED_LICENSES' folders, from the
+    exported `tree` into the build `folder` (licenses/<addon>/, licenses/<folder>/). The release check then holds them
+    against NOTICES, so a license file added or removed in a shipped addon or a bundled folder fails the export until
+    NOTICES follows."""
     credits = tree / "CREDITS.md"
     if not credits.is_file():
         raise Failure("no CREDITS.md in the exported tree: run `credits`")
@@ -321,6 +332,14 @@ def add_notices(tree: Path, folder: Path) -> None:
         target = folder / "licenses" / addon
         target.mkdir(parents=True, exist_ok=True)
         for path in licenses:
+            shutil.copyfile(path, target / path.name)
+    for name in BUNDLED:
+        texts = sorted(path for path in (tree / BUNDLED_LICENSES / name).glob("*") if path.is_file())
+        if not texts:
+            raise Failure(f"{BUNDLED_LICENSES}/{name} has no license text, and a build carries it")
+        target = folder / "licenses" / name
+        target.mkdir(parents=True, exist_ok=True)
+        for path in texts:
             shutil.copyfile(path, target / path.name)
 
 

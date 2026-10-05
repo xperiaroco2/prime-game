@@ -1347,8 +1347,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   the probe below runs the Windows pack, which holds no Linux library), adds the license notices to both builds
   (#419: `CREDITS.md` and every `LICENSE*` file of the addons whose libraries a build ships, TwoVoIP's and
   webrtc-native's, under `licenses/<addon>/` beside the `.exe`, one folder per addon since two could both be
-  `LICENSE`; only the addons' own files: Opus, RNNoise and SpeexDSP inside TwoVoIP's library are named in
-  `CREDITS.md` only), zips both into `tools/out/export/`, checks
+  `LICENSE`; and, #422, every file of `docs/credits/licenses/<folder>/` as `licenses/<folder>/`: Godot 4.7.2-stable's
+  `LICENSE.txt` and `COPYRIGHT.txt`, since the `.exe` is its template, and the `COPYING` of Opus, RNNoise and SpeexDSP,
+  built into TwoVoIP's library, each verbatim from its primary source, its URL and SHA-256 in
+  `docs/credits/licenses/README.md`; a new Godot pin or TwoVoIP release fetches them again), zips both into `tools/out/export/`, checks
   that the release zip holds the release template's `.exe` byte for byte, the release libraries of TwoVoIP and
   webrtc-native (#367), exactly the notices of `export.NOTICES` and no console wrapper (only a release template has
   `OS.is_debug_build()` false, which turns off F3, the dev tools and the debug kinds), checks that the debug zip
@@ -1371,7 +1373,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `export.SHIPPED_ADDONS` (its notices into `NOTICES`) or, kept out of builds by both presets' `exclude_filter`, into
   `UNSHIPPED_ADDONS` (gdUnit4); `test_export.py`'s `NoticesTest` (in `verify`) fails until it does, and also when a
   `LICENSE*` file is added to or removed from a shipped addon without `NOTICES` following, as `export` would. Only
-  files named `LICENSE*` count (not `COPYING` or `NOTICE`).
+  files named `LICENSE*` count (not `COPYING` or `NOTICE`) in an addon; in `docs/credits/licenses/` every file of a
+  folder of `export.BUNDLED` counts, and a folder there not in `BUNDLED` fails `NoticesTest` too.
 - **Bounded waits: `wait <log> [--max S]` and `wait --verified` [applied]** (#303; #302's token research): a workflow
   agent or subagent writes its prompt cache with a 5-minute lifetime (a main or manager session has 1 hour), so a
   tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54

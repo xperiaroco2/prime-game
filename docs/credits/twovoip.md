@@ -9,11 +9,12 @@
 - **License:** MIT (`addons/twovoip/LICENSE`: the source repository's `LICENSE` at tag v6.5, which the release
   archive does not ship; added by the engineer on 2026-10-03)
 - **Bundled libraries:** the release archive names none and ships no license text for them. The Windows libraries'
-  strings show Opus, RNNoise (the `DENOISER_RNNOISE` option) and Speex (the `DENOISER_SPEEX` option) built in. Their
-  upstream licenses, not checked against the copies in v6.5's build: Opus (https://opus-codec.org) BSD 3-Clause,
-  Xiph.Org Foundation and contributors; RNNoise (https://github.com/xiph/rnnoise) BSD 3-Clause, Jean-Marc Valin, the
-  Xiph.Org Foundation and Mozilla; SpeexDSP (https://github.com/xiph/speexdsp) BSD 3-Clause, Xiph.Org Foundation and
-  contributors.
+  strings show Opus, RNNoise (the `DENOISER_RNNOISE` option) and Speex (the `DENOISER_SPEEX` option) built in. All
+  three are BSD 3-Clause; their license texts, verbatim from the submodule commits at the source repository's tag v6.5,
+  are in `docs/credits/licenses/` (`opus/`, `rnnoise/`, `speexdsp/`, sources in its README) and ship in both zips
+  (#422): Opus (https://opus-codec.org), Xiph.Org, Skype Limited, Octasic, Jean-Marc Valin and others; RNNoise
+  (https://github.com/xiph/rnnoise), Jean-Marc Valin, Amazon, Mozilla, the Xiph.Org Foundation and Mark Borgerding;
+  SpeexDSP (https://github.com/xiph/speexdsp), the Xiph.org Foundation, Jean-Marc Valin and others.
 
 The Opus voice codec, behind `voice/`'s `VoiceCodec` (`TwoVoipCodec` reaches it by class name only, the M5 ADR's E34).
 Committed: the `.gdextension` and its `.uid` as shipped and the Windows libraries only (E35 (a)); the addon's helper
