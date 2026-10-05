@@ -1007,14 +1007,16 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   exception, and confirms the task's `git status` unchanged. A lock in `tools/out/mutants/` allows one run per
   checkout (the OS releases it when a run is killed). The table is printed and written to
   `tools/out/mutants/<spec name>.md` after every mutant, with each test run's output and Godot's log in
-  `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever the results; 1: an invalid spec, or a run that could not start or finish (a dirty tree, another run, a failed
-  import), nothing left behind; 2: the scratch worktree could not be removed or the task's tree changed: run no more
-  mutants and tell the human (`git worktree list` shows it; the next run removes it first). One mutant per call takes
-  about 17 to 19 s with small suites (setup about 9 s, baseline and mutant about 4 s each); several, or tests that
-  name all of `tests/` (two full runs: 596 s while other worktrees verified), go in the background, and their report
-  file shows the progress. The runner's own git commands are not the session's shell
-  commands, so the guard judges only `tools\run.cmd mutants <spec>`, which passes from a task worktree and the main
-  checkout; a hand-typed `git worktree remove` of the scratch tree asks (§8.2).
+  `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever the results; 1: an invalid spec, or a run
+  that could not start or finish (a dirty tree, another run, a failed import), nothing left behind; 2: the scratch
+  worktree could not be removed or the task's tree changed: run no more mutants and tell the human (`git worktree
+  list` shows it; the next run removes it first). One mutant takes about 17 to 19 s with small suites (setup about
+  9 s, baseline and mutant about 4 s each), several or tests that name all of `tests/` far longer (two full runs:
+  596 s while other worktrees verified), so every agent runs `mutants` in the background and polls `wait <log>` (the
+  "Bounded waits" of §11; `mutants --help` prints both lines, #435); the report file shows the progress meanwhile.
+  The runner's own git commands are not the session's shell commands, so the guard judges only `tools\run.cmd mutants
+  <spec>`, which passes from a task worktree and the main checkout; a hand-typed `git worktree remove` of the scratch
+  tree asks (§8.2).
 - **`host` and `join` [applied]** (3i, #103; windows since #149; `docs/ARCHITECTURE.md` §4.6 and §4.7, the M4 ADR's
   E20): the game over ENet. `host [--port P] [--clients N] [--local] [--seconds S]` hosts on every interface, or on
   127.0.0.1 only with `--local` (no firewall prompt), and with `--clients N` (up to 7) starts N clients that join it

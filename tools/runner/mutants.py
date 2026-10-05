@@ -92,8 +92,12 @@ exit codes:
   2  the scratch worktree could not be removed, or the task's git status changed: run no more mutants and tell
      the human (git worktree list shows the leftover; a later run removes it first)
 
-A foreground shell call dies at 600 s: run one mutant per call (about 20 s with small suites), or several in
-the background and read the report file."""
+Run it in the background (a foreground shell call dies at 600 s, and setup and the baseline come before the first
+mutant) and call wait again while it exits 124 (still running); a workflow agent or subagent blocks no call over
+240 s:
+  tools/run.sh mutants <spec> > <log> 2>&1; echo "exit=$?" >> <log>
+  tools/run.sh wait <log>
+The report file shows the progress meanwhile."""
 
 # Runs in the scratch tree with its own runner (HEAD's code), so its ROOT, logs and reports are the scratch tree's.
 STEP = """\
