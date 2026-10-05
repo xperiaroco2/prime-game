@@ -701,7 +701,7 @@ directive has no row, because it reaches no peer.
 |---|---|---|---|---|---|
 | 96 | `Snapshot` | H→C | LATEST | `tick: tick` (the host tick whose state it shows); `avatars: map<peer, avatar>`, an avatar being `position: vec3`, `velocity: vec3`, `facing: vec3`, flags `u8` (1 `downed`, M4-2; 2 `invulnerable`, M4-3: strikes skip the player at that tick; other bits 0), `held_item: item` (optional), `belt_item: item` (optional, M4-5). Every living or downed player's avatar, never a dead one's (§5) | 410 (9 avatars); 1024 (15 avatars: 680) |
 | 112 | `VoiceUp` | C→H | VOICE | `seq: u16` (the speaker's frame counter), `opus` (one 20 ms frame, 1 to 500 bytes) | 47; 502 |
-| 113 | `VoiceDown` | H→C | VOICE | `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5), `tick: tick` (the host tick whose routing let it through, E11), `opus` | 55; 510 |
+| 114 | `VoiceBatch` | H→C | VOICE | `tick: tick` (the host tick whose routing let its frames through, E11); `frames: list<frame>` (1 to 113 in practice, the cap bounds it first), a frame being `speaker: peer`, `seq: u16` (renumbered per speaker and listener, §4.5) and `opus: sized_opus` (a u16 length, then 1 to 500 bytes). One poll's frames for one listener (M5-4b, #374); each frame decodes to the `VoiceDown` (speaker, seq, tick, opus) it stands for. Kind 113, protocol 7's single-frame `VoiceDown`, is retired | 58 (one 45 B frame), 9 frames: 482; 1024 |
 
 The rules of the table:
 - **Kinds.** 0 is the transport's `ADMIT`; 1 to 23 are intents, 24 to 31 debug commands (a debug build's table only,
@@ -773,8 +773,11 @@ The rules of the table:
   mode in `content/` passes `WireBudget` (above); a payload built with 32-character ids, a 255-byte map path and the
   longest shortfall of each kind encodes within its cap or is refused by `WireBudget` first; and a synthetic mode at
   the declared maxima is refused with the kind named.
-- **Voice batching** (M5). One frame per `VoiceDown`. If M5 confirms the per-send ENet cost (§6), a batch of several
-  speakers' frames to one listener is a new row.
+- **Voice batching** (M5-4b, built in M6-8, #374; protocol 8). One `VoiceBatch` per listener per poll holds every
+  frame it hears in that poll, in the relay's order (per speaker in peer-id order, each speaker's in its seq order);
+  frames that would pass the 1024-byte cap start a second batch. `sized_opus` is the only Opus type that may stand
+  before another field (`opus`, the rest of the payload, is a row's last field only). The client turns each frame
+  back into a `VoiceDown` (`DecodedView.voice_downs`), so `voice_received` and the leak test stay per frame.
 
 ### 4.4 The codec (M3 design, #89)
 - **One table** in `net/messages/` declares each row of §4.3: kind, name, direction, lane, cap and the fields with their
@@ -888,8 +891,8 @@ deal (below) is found before the slice is delivered.
 **Voice relay.** The routing table holds `speakers_for(l)` for every present player l, refreshed after every
 `Match.tick` call (catch-up ticks included: a catch-up that crosses Round → End must not relay under Round's routing),
 so between two ticks it is the routing that `view_of` records for the last one (§5). A `VoiceUp` from speaker s goes, as
-a `VoiceDown` (s, the stream's next seq, `ticked_through()`, the bytes unchanged), to each listener l ≠ s whose entry
-holds s; one from a peer that is not a present player is dropped. Between two ticks the transport's word on a leave
+a frame (s, the stream's next seq, the bytes unchanged) of the `VoiceBatch` stamped `ticked_through()`, to each listener
+l ≠ s whose entry holds s; one from a peer that is not a present player is dropped. Between two ticks the transport's word on a leave
 wins: on `peer_left(p)`, p leaves the table at once as speaker and listener until the refresh after the tick that
 applied its `PeerLeft`. Peer ids are chosen by clients and can be reused (§4), so a new connection with a departing
 player's id must not speak or hear as that player before `core/` has seen the leave; the new peer is a newcomer, absent
@@ -901,15 +904,16 @@ worse than a gap (M5 tunes it). Unreliable messages go only to players, and a pl
 overtakes the `ADMIT` (§4 Joining). The host never decodes Opus. M3 relays the bots' synthetic frames; capture and
 playback are M5.
 
-The send path encodes each frame once (#245, M5-4b's first step, no wire change): `VoiceRelay.flush` gives one
+The send path encodes each frame once (#245) and batches per listener (M5-4b, #374): `VoiceRelay.flush` gives one
 `Outgoing` per frame with its listeners in peer-id order and each one's stream seq; `HostSession` encodes the frame's
-`VoiceDown` once (if any listener is reachable) and sends every reachable listener a copy with its own seq written at
-the offset the schema gives (`VoiceDownEncoder`, `WireRow.fixed_offset`: the fixed sizes of the fields before it), byte
-for byte what `WireSchema.encode` gives for that listener's `VoiceDown`. A row change that moves the seq behind a field
-of varying size, or widens it, makes every copy a full encoding (slower, never corrupt) and fails
-`voice_down_encoder_test`. Tests: `tests/unit/server/voice_relay_test.gd`, `voice_down_encoder_test.gd` (every copy
-against the codec for several speakers, ticks, frame sizes and seqs, and through `VoiceRelay` across the u16 wrap; seen
-failing on a planted wrong offset), `tests/unit/net/messages/wire_schema_test.gd` (the offsets),
+record (speaker, seq, length, bytes) once (if any listener is reachable), gives every reachable listener a copy with its
+own seq written at the offset the schema gives (`VoiceBatchEncoder`, `WireField.fixed_offset` of the record:
+the fixed sizes of the parts before it), then sends each listener, in peer-id order, its copies behind the tick and a
+count in as few `VoiceBatch`es as the cap and `MAX_BATCH_FRAMES` allow, each byte for byte what `WireSchema.encode`
+gives for that batch. A row change that moves the seq behind a part of varying size, or widens it, makes every copy a
+full encoding (slower, never corrupt) and fails `voice_batch_encoder_test`. Tests: `tests/unit/server/voice_relay_test.gd`,
+`voice_batch_encoder_test.gd` (every batch against the codec for several speakers, ticks, frame sizes and seqs, filled to
+the cap and to the most frames, and through `VoiceRelay` across the u16 wrap), `tests/unit/net/messages/wire_schema_test.gd` (the offsets),
 `tests/integration/server/host_session_voice_test.gd` (also a listener after one that is unreachable while the relay
 still routes it: its own stream's seq, seen failing when every copy took the first listener's seq or was sent unpatched;
 no public path makes such a listener today, so the test marks it by hand) and the leak test in `bots`, `bots-enet` and
@@ -946,9 +950,10 @@ log for the whole match (§3.3), so one looping client grows the host's memory a
 over budget (`HostSession.over_budget_but_voice()`), which only the relay's counters give. The voice relay's are apart:
 `HostSession.relay_counters()` (and `HostNode.relay_counters()`) gives, as totals since the session started,
 `voice_relayed` (frames of present players the relay passed on, after the newest 5 per poll, heard or not),
-`voice_sent` (`VoiceDown`s the transport took), `voice_dropped` (a backlog's old part), `voice_over_budget` (of
+`voice_sent` (frames the transport took, one per listener a frame went to), `voice_batches` (the `VoiceBatch`es that
+carried them: the sends), `voice_dropped` (a backlog's old part), `voice_over_budget` (of
 `over_budget`, the frames over a speaker's voice bucket), `voice_relay_usec` (`Time.get_ticks_usec` around a poll's
-flush, encoding and sends, in polls that held frames), `voice_send_usec` (around each `VoiceDown`'s `send` alone),
+flush, encoding and sends, in polls that held frames), `voice_send_usec` (around each `VoiceBatch`'s `send` alone),
 and the upload apart: `voice_up_*`, `snapshot_up_*` and `other_up_*` bytes and datagrams, with `snapshots_sent` and
 `session_ms`. `RelayMeter` (`server/relay_meter.gd`) keeps them; a release build has none. The upload comes from
 `NetTransport.take_upload()`, taken before and after the voice sends and the snapshot sends: `EnetTransport` pops
@@ -1269,7 +1274,10 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     lacks is a leak (a subset check, because LATEST may drop), and so is a second snapshot of one tick
     (`DecodedView` keeps it apart, `repeated_snapshots`, instead of overwriting the first);
   - voice: each decoded frame's speaker is in `view_of(b).speakers[tick]` for its tick (a subset check); and, apart
-    from the voice rule, the distance invariant (M5-1, #215, below and §5);
+    from the voice rule, the distance invariant (M5-1, #215, below and §5). Since protocol 8 every frame arrives in a
+    `VoiceBatch` and is checked as the `VoiceDown` it stands for; a batch with no frame fails too (M5-4b, #374: proven
+    with a planted relay that batched a frame to listeners whose routing lacked its speaker, seen failing in
+    `voice_beyond_the_radius` with "voice of 2 under tick 124, which view_of does not allow", then reverted);
   - what only one process can promise (#115's review): the host sends one snapshot per peer per step and every
     client polls once per step, so no transport of a bot or watcher may count a superseded LATEST message
     (`latest_superseded`); else a snapshot sent *before* the bot's own in the same step would be dropped unseen.
@@ -1282,7 +1290,7 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     the host's transport rejected;
   - peers that are not players: every scenario also runs a **lurker**, a bot that connects in Lobby and never sends
     `Hello`, and one **refused** bot (`wrong_version`). The lurker decodes nothing and the refused bot exactly its
-    `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceDown`. The runner raises the hello
+    `Rejected`, which is `view_of` of each; neither decodes a `Snapshot` or a `VoiceBatch`, even an empty one. The runner raises the hello
     deadline (a `HostSession` setting) for the lurker, so it stays connected through the lobby's and the countdown's
     events, snapshots and voice until the entry into Loading disconnects it (E14): a lurker that lost its connection
     with no `DisconnectPeer` of `core/` (a hello deadline, a dropped transport) fails, and so does one whose
