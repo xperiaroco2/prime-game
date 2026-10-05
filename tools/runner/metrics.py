@@ -88,6 +88,19 @@ agents by role, "other workflow agents" for an unknown label; the managers' own 
   the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
   ` ...`): a pair whose ARCHITECTURE conflict comes after the sixth is missed. A session is one row: a window
   that spans several waves sums them (`--since <wave start>` for one).
+
+A track's spend this week against its budget (#409, P1 of the four-track budget design): `--track NAME ...` (or `all`)
+with `--since <the weekly reset>` reads every session of the folders of TRACK_CHECKOUTS (the main checkout and its -ui
+and -art siblings, each with its worktrees), whether or not it ran a workflow: its own transcript, its hand-run
+subagents and its workflow runs' agents, each API call counted by its time in [--since, --until) (a run in flight or one
+that began before the reset counts in part), each message id once across every file. A session's track is, the first
+that holds: its --session ID=TRACK label (under --track --session labels and never filters), a `Track: <name>` line in
+its first user message (the kickoff, the key also `Трек:`, the name in English; isMeta lines and tool results are
+none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the engineer's reserve). Per named track it prints
+the % of the week (week_percent, with the bracket), and with `--budget PCT ...` (one per name, in order) the budget and
+the plan to date (budget x days since --since / 7, at most the budget); then every session's total for the weekly
+counter, with the untracked share and its largest sessions (a kickoff's Track: line left out or translated). It writes
+tracks.json, not metrics.md: the task report reads only this checkout and keeps its own --session meaning.
 """
 
 from __future__ import annotations
@@ -260,6 +273,20 @@ MERGE_HEADER = re.compile(r"^merge-check(?: --trial)?\s*$", re.MULTILINE)
 ARCHITECTURE = "docs/ARCHITECTURE.md"
 # The by-file table and the per-role medians count an item as launch-loaded, loaded by path, or read by a tool.
 HOW_CLASS = {"launch": "launch", "by path": "by path"}
+
+# `metrics --track` (#409, P1 of the design docs/decisions/2026-10-05-weekly-budget-across-four-tracks.md): the
+# checkouts whose transcript folders it reads, each with its worktrees, as suffixes of the main checkout's folder name
+# (D:\prime-game, D:\prime-game-ui, D:\prime-game-art), each with the track of a session there that neither a --session
+# label nor a kickoff's Track: line names (None: untracked).
+TRACK_CHECKOUTS = (("", None), ("-ui", "ui"), ("-art", "art"))
+# A kickoff's track: a line `Track: <name>` in the session's first user message (orchestrate-stage §10's template),
+# any case. The humans translate kickoffs, so the Ukrainian key `Трек:` counts too, but the name stays English (game,
+# ui, art, meta): an unfilled placeholder `<game | ...>` or a translated name names no track.
+TRACK_LINE = re.compile(r"^[ \t]*(?:Track|Трек):[ \t]*([A-Za-z][\w-]*)", re.MULTILINE | re.IGNORECASE)
+# A session no label, kickoff or checkout names: the engineer's reserve.
+UNTRACKED = "untracked"
+# The order of `--track all`'s lines (the design's four tracks); any other name follows alphabetically.
+TRACK_ORDER = ("game", "ui", "art", "meta")
 
 
 # --- time and formatting ------------------------------------------------------------------------------------------
@@ -2332,6 +2359,232 @@ def compact_lines(
     return lines[:11]
 
 
+# --- tracks (#409) ------------------------------------------------------------------------------------------------
+
+
+def track_dirs(main: Path, base: Path | None = None) -> list[tuple[Path, str | None]]:
+    """Each TRACK_CHECKOUTS checkout's transcript folders (its worktrees' included) with the checkout's default track.
+    `base`: the config folder (default agents_check.config_dir())."""
+    found: list[tuple[Path, str | None]] = []
+    for suffix, default in TRACK_CHECKOUTS:
+        checkout = main.with_name(main.name + suffix)
+        found += [(d, default) for d in agents_check.project_dirs(checkout, base)]
+    return found
+
+
+def kickoff_track(transcript: Path) -> str | None:
+    """The track a `Track: <name>` line names in a session's first user message (its kickoff), lower case; else None.
+    A tool result, a skill's text Claude Code adds (isMeta) and a line with no text are no message."""
+    if not transcript.is_file():
+        return None
+    with io.open(transcript, encoding="utf-8", errors="replace") as lines:
+        for line in lines:
+            if '"user"' not in line:
+                continue
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(d, dict) or d.get("type") != "user" or d.get("isMeta"):
+                continue
+            m = d.get("message")
+            content = m.get("content") if isinstance(m, dict) else None
+            if isinstance(content, list) and not any(isinstance(b, dict) and b.get("type") == "text" for b in content):
+                continue  # tool results only
+            if not isinstance(content, (str, list)):
+                continue
+            found = TRACK_LINE.search(text_of(content))
+            return found.group(1).lower() if found else None
+    return None
+
+
+def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> tuple[float, float, int]:
+    """(API list $, its cache-read $, API calls) of one transcript's calls in [since, until): each message id once
+    across every file read (`seen`), each usage field's maximum, at the time of its first line."""
+    usage: dict[str, dict] = {}
+    first: dict[str, float] = {}
+    with io.open(path, encoding="utf-8", errors="replace") as lines:
+        for line in lines:
+            if '"usage"' not in line:
+                continue
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(d, dict) or d.get("type") != "assistant":
+                continue
+            m = d.get("message")
+            if not isinstance(m, dict) or m.get("model") == "<synthetic>":
+                continue
+            t = stamp(d.get("timestamp"))
+            if t is None:
+                continue
+            u = m.get("usage") if isinstance(m.get("usage"), dict) else {}
+            mid = str(m.get("id") or d.get("requestId") or d.get("uuid"))
+            cur = usage.get(mid)
+            if cur is None:
+                cur = usage[mid] = {**{f: 0 for f in TOKEN_FIELDS}, "cache_write_1h": 0, "model": m.get("model")}
+                first[mid] = t
+            for f in TOKEN_FIELDS:
+                cur[f] = max(cur[f], int(u.get(f) or 0))
+            cache = u.get("cache_creation")
+            if isinstance(cache, dict):
+                cur["cache_write_1h"] = max(cur["cache_write_1h"], int(cache.get("ephemeral_1h_input_tokens") or 0))
+    spent = read = 0.0
+    calls = 0
+    for mid, u in usage.items():
+        if mid in seen or first[mid] >= until or (since is not None and first[mid] < since):
+            continue
+        seen.add(mid)
+        cost = usd_of(u)
+        spent += sum(cost.values())
+        read += cost["usd_cache_read"]
+        calls += 1
+    return spent, read, calls
+
+
+def track_spend(
+    dirs: list[tuple[Path, str | None]], labels: dict[str, str | None], since: float | None, until: float
+) -> dict:
+    """Every session of the folders with API calls in [since, until): its own transcript, its hand-run subagents and
+    its workflow runs' agents, and its track by the first that holds: a --session ID=TRACK label, its kickoff's
+    `Track:` line, its checkout's default, else UNTRACKED. Returns {"sessions": [...], "tracks": {name: totals}}."""
+    seen: set[str] = set()
+    sessions = []
+    for folder, default in dirs:
+        names = {p.stem for p in folder.glob("*.jsonl")} | {
+            p.name for p in folder.iterdir() if p.is_dir() and (p / "subagents").is_dir()
+        }
+        for sid in sorted(names):
+            transcript = folder / f"{sid}.jsonl"
+            files = [transcript] if transcript.is_file() else []
+            files += sorted((folder / sid / "subagents").rglob("agent-*.jsonl"))
+            spent = read = 0.0
+            calls = 0
+            for p in files:
+                s, r, c = spend_of(p, since, until, seen)
+                spent, read, calls = spent + s, read + r, calls + c
+            if not calls:
+                continue
+            named = next((k for k in labels if sid == k or sid.startswith(k)), None)
+            if named is not None and labels[named]:
+                track, source = str(labels[named]).lower(), "--session"
+            elif (kicked := kickoff_track(transcript)) is not None:
+                track, source = kicked, "Track: line"
+            elif default:
+                track, source = default, "checkout"
+            else:
+                track, source = UNTRACKED, "none"
+            sessions.append({"id": sid, "folder": folder.name, "track": track, "source": source, "usd": spent,
+                             "read_usd": read, "calls": calls, **week_percent(spent, read)})  # fmt: skip
+    tracks: dict[str, dict] = {}
+    for s in sessions:
+        t = tracks.setdefault(s["track"], {"usd": 0.0, "read_usd": 0.0, "sessions": 0})
+        t["usd"] += s["usd"]
+        t["read_usd"] += s["read_usd"]
+        t["sessions"] += 1
+    for t in tracks.values():
+        t.update(week_percent(t["usd"], t["read_usd"]))
+    return {"sessions": sessions, "tracks": tracks}
+
+
+def track_order(names: list[str]) -> list[str]:
+    """TRACK_ORDER first, then the others alphabetically, UNTRACKED last."""
+    known = [n for n in TRACK_ORDER if n in names]
+    return known + sorted(n for n in names if n not in TRACK_ORDER and n != UNTRACKED) + (
+        [UNTRACKED] if UNTRACKED in names else []
+    )
+
+
+def track_lines(spend: dict, names: list[str], budgets: list[float], since: float, until: float) -> list[str]:
+    """The budget lines: the window, one line per track (its % of the week with the bracket, its budget and the plan to
+    date when a budget is given: budget x days since --since / 7, at most the budget), and every session's total, which
+    the manager holds against the weekly counter (get_usage); the counter also counts the account's sessions outside
+    TRACK_CHECKOUTS (other project folders, replays), so the two differ by more than the conversion's error."""
+    days = (until - since) / 86400
+    tracks = spend["tracks"]
+    if names == ["all"]:
+        names = track_order(list(tracks))
+    lines = [f"tracks, {iso(since)} to {iso(until)} ({days:.1f} days of the week's 7), % of a Max 20x week at the "
+             f"central weight (the bracket in brackets)"]  # fmt: skip
+    empty = {"usd": 0.0, "sessions": 0, **week_percent(0.0, 0.0)}
+    for i, name in enumerate(names):
+        t = tracks.get(name, empty)
+        budget = budgets[i] if budgets else None
+        of = f" of {budget:g}%" if budget is not None else ""
+        line = f"{name}: {fmt_week(t)}{of} this week"
+        if budget is not None:
+            line += f"; plan to date {budget * min(days, 7) / 7:.1f}%"
+        n = t["sessions"]
+        lines.append(f"{line}; list {fmt_usd(t['usd'])} in {n} session{'s' if n != 1 else ''}")
+    every = week_percent(sum(t["usd"] for t in tracks.values()), sum(t["read_usd"] for t in tracks.values()))
+    left = tracks.get(UNTRACKED, empty)
+    lines.append(f"every session of the {len(TRACK_CHECKOUTS)} checkouts: {fmt_week(every)} (untracked "
+                 f"{left['percent']:.1f}%{untracked_named(spend)}), against the weekly counter (get_usage), which "
+                 f"also counts the account's sessions elsewhere")  # fmt: skip
+    return lines
+
+
+def untracked_named(spend: dict, most: int = 3) -> str:
+    """` in N sessions: <id> <id> <id> and K more`, the untracked sessions by spend, so a manager sees a kickoff whose
+    Track: line was left out or translated; empty when there is none."""
+    loose = sorted((s for s in spend["sessions"] if s["track"] == UNTRACKED), key=lambda s: (-s["usd"], s["id"]))
+    if not loose:
+        return ""
+    more = f" and {len(loose) - most} more" if len(loose) > most else ""
+    n = len(loose)
+    return f" in {n} session{'s' if n != 1 else ''}: {' '.join(s['id'][:8] for s in loose[:most])}{more}"
+
+
+def track_table(spend: dict) -> list[str]:
+    """Each session with its track and where the track came from, by track and then by spend."""
+    order = {name: i for i, name in enumerate(track_order(list(spend["tracks"])))}
+    rows = [
+        [s["track"], s["id"][:8], s["folder"], s["source"], s["calls"], fmt_usd(s["usd"]), f"{s['percent']:.2f}%"]
+        for s in sorted(spend["sessions"], key=lambda s: (order[s["track"]], -s["usd"]))
+    ]
+    return [table(["track", "session", "folder", "track from", "API calls", "list $", "% of week"], rows)]
+
+
+def tracks_main(
+    labels: list[str], names: list[str], budgets: list[float], since: str | None, until: str | None, out: str | None,
+    compact: bool, *, checkout: Path | None = None, base: Path | None = None,
+) -> int:
+    """`metrics --track`: the tracks' spend since the reset (--since) against their budgets (module docstring)."""
+    if not since:
+        raise Failure("--track needs --since <the weekly reset> (ISO 8601): the week's spend counts from it")
+    t_since = parse_time(since)
+    t_until = parse_time(until) if until else time.time()
+    if t_since >= t_until:
+        raise Failure(f"--since {since} is not before --until {until or 'now'}")
+    names = [n.strip().lower() for n in names if n.strip()]
+    if "all" in names and names != ["all"]:
+        raise Failure("--track all stands alone: it names every track found")
+    if budgets and names == ["all"]:
+        raise Failure("--budget goes with named tracks (--track game meta --budget 26 12), not with --track all")
+    if budgets and len(budgets) != len(names):
+        raise Failure(f"--budget takes one % per --track name, in their order: {len(names)} names, {len(budgets)} "
+                      f"budgets")  # fmt: skip
+    if any(b < 0 for b in budgets):
+        raise Failure("--budget is a % of the week, 0 or more")
+    dirs = track_dirs(checkout or main_checkout(), base)
+    spend = track_spend(dirs, session_filter(labels), t_since, t_until)
+    lines = track_lines(spend, names, budgets, t_since, t_until)
+    folder = Path(out) if out else OUT / "metrics"
+    folder.mkdir(parents=True, exist_ok=True)
+    record = {"since": iso(t_since), "until": iso(t_until), "folders": [str(d) for d, _ in dirs],
+              "budgets": dict(zip(names, budgets)), "lines": lines, **spend}  # fmt: skip
+    with io.open(folder / "tracks.json", "w", encoding="utf-8", newline="\n") as f:
+        json.dump(record, f, indent=1, default=_json_default)
+        f.write("\n")
+    if compact:
+        say("\n".join(lines))
+    else:
+        say("\n".join([*lines, "", *track_table(spend)]))
+        say(f"\nmetrics: wrote {folder / 'tracks.json'}")
+    return 0
+
+
 def main(
     sessions: list[str] | None = None,
     since: str | None = None,
@@ -2344,7 +2597,13 @@ def main(
     history: list[Path] | None = None,
     gh=_gh,
     no_gh: bool = False,
+    track: list[str] | None = None,
+    budget: list[float] | None = None,
 ) -> int:
+    if track:  # --session labels the tracks' sessions instead of choosing the report's
+        return tracks_main(sessions or [], track, budget or [], since, until, out, compact)
+    if budget:
+        raise Failure("--budget goes with --track: one % of the week per track named")
     t_since = parse_time(since) if since else None
     t_until = parse_time(until) if until else time.time()
     if ci < 0:

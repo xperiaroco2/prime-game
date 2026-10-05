@@ -452,7 +452,10 @@ Rules for every workflow run:
   milestone takes `main` in: Git flow above). At most about six task workflows run at once across all tracks (three per
   stage). Each kickoff states its budget as a percentage of the weekly limit, and its manager reports its own spend in
   every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`, plus the stage's
-  running total (`--since <stage start>`): a run counts in the window it started in. Shared files (N5 (c)):
+  running total (`--since <stage start>`): a run counts in the window it started in. A track's spend this week against
+  its budget, over every session of the track, the UI and art checkouts' included: `tools\run.cmd metrics --since <the
+  weekly reset> --track <name> [--budget <%>]` (#409; a session's track is its `--session <id>=<track>` label, else
+  the `Track:` line of its kickoff, the skill's §10, else its checkout's, else untracked). Shared files (N5 (c)):
   `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an issue there, landing
   between the other managers' waves: a mid-wave change breaks their resumes); `tools/runner/` and this file may be
   changed by any track between waves, after `merge-check`. `merge-check` also pairs each PR with every open PR into
@@ -1079,7 +1082,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   fetch` (with any PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity
   manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
   `args-<n>.json` files, in #279.
-- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]` [applied]**
+- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]
+  [--track NAME ... [--budget PCT ...]]` [applied]**
   (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
   baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
   reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
@@ -1112,7 +1116,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change). The calibration readings, 66%
   and 77%, both round to the reading at the central weight. It covers only this checkout's sessions (the main checkout
   and its worktrees) that ran a workflow or that `--session` names; the weekly counter counts every session of the
-  account. API list $ is a weight (one price table in
+  account (`--track`, below, reads every session of three checkouts). API list $ is a weight (one price table in
   `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
   empty window, which also writes an empty report over an older one. Its quality scorecard (#314), so a cost change
   (#303, #308's publisher trial, effort levels) is judged by quality too, has three tables, per finished `issue-task`
@@ -1138,7 +1142,27 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   one agent (either copy, before a compaction). Then the cost by file, the duplicates, ARCHITECTURE's and
   AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row each; `--since <wave start>` for a
   single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
-  `instructions` in `metrics.json`, and one compact line.
+  `instructions` in `metrics.json`, and one compact line. **`--track NAME ...`** (#409, P1 of the four-track budget
+  design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
+  session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and its siblings with the folder
+  name plus `-ui` and `-art` (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), each with its
+  worktrees; the session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
+  its time in the window (a run in flight or one begun before the reset counts in part) and each message id once
+  across every file. A session's track is, the first that holds: `--session <id>=<track>` (under `--track`
+  `--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
+  orchestrate-stage skill's §10 template and §7's handover carry one; any case, the key also `Трек:` for a translated
+  kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's
+  default (`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track
+  (`all`: every track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the
+  bracket, its list $ and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the
+  engineer's, N1 of the design, so there is no default) `of <budget>% this week; plan to date <budget x days since
+  --since / 7, at most the budget>%`; then every session's total, which the manager holds against the weekly counter
+  (`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
+  or translated shows there). That total covers only the three checkouts: the counter also counts the account's
+  sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
+  Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %). It writes
+  `tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
+  labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
   windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
   (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`), names its
