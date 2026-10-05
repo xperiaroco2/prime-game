@@ -46,8 +46,8 @@ that fails shows "Unavailable: <error>" in its section and a warn line; the rest
 - `git worktree list --porcelain` in the main checkout, sessions.alive_in and `gh issue list --state open`: a fenced
   PowerShell block per command for each task worktree (and the manager's release-m<k> worktree) whose work is on
   main, with no running run of this session there, HEAD at the merged head and no live Claude session in it; a
-  "For you:" line naming what a live session holds, then the ready blocks; waits as one-line notes; the issues still
-  open whose PR reached main since --since.
+  "For you:" line naming only what a live session holds (#343: the manager runs the ready blocks itself), then the
+  ready blocks; waits as one-line notes; the issues still open whose PR reached main since --since.
 The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
 safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
 block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
@@ -1058,17 +1058,15 @@ def names_of(labels: list[str]) -> str:
 
 
 def for_you(h: Housekeeping) -> str:
-    """The section's first line, for the manager to lift into chat: the worktrees a live session holds, then the ready
-    blocks (whoever does the housekeeping runs them; a manager that runs them itself drops that part), else nothing."""
-    parts = []
-    if h.held:
-        who = "; ".join(sessions_ for _, sessions_, _ in h.held)
-        plural = len(h.held) > 1
-        parts.append(f"close the Claude session{'s' if plural else ''} in {names_of([lb for lb, _, _ in h.held])} "
-                     f"({who}), then run {'their blocks' if plural else 'its block'} below")  # fmt: skip
-    if h.ready:
-        parts.append(f"run the blocks under Ready to remove ({names_of([label for label, _ in h.ready])})")
-    return f"For you: {'; '.join(parts)}." if parts else "For you: nothing."
+    """The section's first line, for the manager to lift into chat: only what needs the engineer, the worktrees a live
+    session holds, else nothing. The ready blocks are the manager's own steps (the trust ADR: it runs worktree-done
+    itself when no live session sits there), so they stay out of this line."""
+    if not h.held:
+        return "For you: nothing."
+    who = "; ".join(sessions_ for _, sessions_, _ in h.held)
+    plural = len(h.held) > 1
+    return (f"For you: close the Claude session{'s' if plural else ''} in {names_of([lb for lb, _, _ in h.held])} "
+            f"({who}), then run {'their blocks' if plural else 'its block'} below.")  # fmt: skip
 
 
 def housekeeping_section(w: Wave) -> list[str]:
@@ -1082,8 +1080,8 @@ def housekeeping_section(w: Wave) -> list[str]:
         return [*md, "None.", ""]
     if h.ready:
         md += [f"Ready to remove: {', '.join(label for label, _ in h.ready)} (the work is on main; no run of this "
-               "session and no live Claude session there; HEAD at the merged head). Whoever does the housekeeping "
-               "(orchestrate-stage §8) runs each block:", ""]  # fmt: skip
+               "session and no live Claude session there; HEAD at the merged head). The manager runs each block itself "
+               "(orchestrate-stage §8):", ""]  # fmt: skip
         md += [line for _, commands in h.ready for line in powershell(commands)]
     if h.held:
         md += ["Held by a live Claude session (worktree-done refuses while one sits there):", ""]
