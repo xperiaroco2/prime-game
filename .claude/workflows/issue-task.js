@@ -316,8 +316,8 @@ const TESTS = A.testing || `${TESTING[AREA] || 'Tests under tests/unit/ or tests
 // #339 (the instruction-diet ADR's N1 (a)): docs are read by section, never whole. READING names no area CLAUDE.md
 // file and no .claude/rules/: they load by path when the agent Reads a file there, which it does before every Edit.
 // Root CLAUDE.md is loaded at launch, so no prompt asks to read it. The reviewers read the ARCHITECTURE sections the
-// change touches (a design's: the outline, then every section it could contradict), and the netcode reviewer always
-// reads §5, §4.2 and §4.6 (NETCODE_SECTIONS).
+// change touches (a design's: the outline, then every section it could contradict), and the netcode reviewers always
+// read §5, §4.2 and §4.6 (NETCODE_SECTIONS; the second_review pass too, which audits the leak test).
 const SECTION = `\`cd ${WTB} && tools/run.sh section docs/ARCHITECTURE.md\` prints its outline (§, title, line range, tokens) and \`tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3\` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike`
 const arch = what => DESIGN
   ? `ARCHITECTURE by section: its outline first, then every section ${what} could contradict, not only the ones it edits (${SECTION}; read-only, so you may run it)`
@@ -427,7 +427,7 @@ if (impl.verify_green) {
   // second_review: a second netcode review where leaks matter, with another lens (and, per launch, another model).
   if (netcode && SECOND_REVIEW) {
     labels.push('second netcode-security-reviewer')
-    thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers events, audiences, snapshots, view_of and rejection reasons. Take the attacker\'s side instead: (1) a modified client: for each intent, field and message the change adds or reads, what a client could send that the host accepts (out-of-range or non-finite values, the wrong phase, another peer\'s ids, replays, floods past the budgets); (2) a curious player: follow each new or changed piece of state from core/ to every peer\'s wire, logs, audio and screen, the host\'s own client included (it gets the same filtered view), and the debug-only paths in a release build; (3) the tests: would the information-leak test (tests/harness/) or a unit test fail if this change leaked or trusted the client? A gap there is a finding.', asReviewer({ label: `review:netcode-second:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
+    thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers events, audiences, snapshots, view_of and rejection reasons. Take the attacker\'s side instead: (1) a modified client: for each intent, field and message the change adds or reads, what a client could send that the host accepts (out-of-range or non-finite values, the wrong phase, another peer\'s ids, replays, floods past the budgets); (2) a curious player: follow each new or changed piece of state from core/ to every peer\'s wire, logs, audio and screen, the host\'s own client included (it gets the same filtered view), and the debug-only paths in a release build; (3) the tests: would the information-leak test (tests/harness/) or a unit test fail if this change leaked or trusted the client? A gap there is a finding. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode-second:#${N}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
   }
   const results = await parallel(thunks)
   // Every routed reviewer must answer: a dropped netcode review on a core/ change is not a clean review. A resume

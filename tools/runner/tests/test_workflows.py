@@ -412,10 +412,11 @@ class WorkflowTest(unittest.TestCase):
                     self.assertEqual(any(label.startswith("review:netcode") for label in labels), routed, labels)
 
     def test_the_netcode_reviewers_always_read_the_leak_sections(self) -> None:
-        # #339 (the instruction-diet ADR's N1 (a)): reviewers read ARCHITECTURE by section, but the netcode reviewer
-        # always reads §5 (filtering), §4.2 (each event's audience) and §4.6 (the leak test): a change that touches
-        # only §4.7 or §7.1 can still add a snapshot field the leak test does not compare. One sentence, identical in
-        # both scripts, in every netcode review they route (a design task's too) and in no other agent's prompt.
+        # #339 (the instruction-diet ADR's N1 (a)): reviewers read ARCHITECTURE by section, but the netcode reviewers
+        # (the second_review pass too, which audits the leak test) always read §5 (filtering), §4.2 (each event's
+        # audience) and §4.6 (the leak test): a change that touches only §4.7 or §7.1 can still add a snapshot field
+        # the leak test does not compare. One sentence, identical in both scripts, in every netcode review they route
+        # (a design task's too) and in no other agent's prompt.
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m3"), {"paths": ["core/x.gd"]}),
             ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True), {"paths": ["docs/ARCHITECTURE.md"]}),
@@ -424,10 +425,10 @@ class WorkflowTest(unittest.TestCase):
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
         sentences: set[str] = set()
-        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+        for (name, args, _), result in zip(jobs, run_jobs(jobs)):
             self.assertIsNone(result["error"])
-            netcode = [e for e in agents(result) if e["label"].startswith("review:netcode:")]
-            self.assertEqual(len(netcode), 1, [e["label"] for e in agents(result)])
+            netcode = [e for e in agents(result) if e["label"].startswith("review:netcode")]
+            self.assertEqual(len(netcode), 2 if args.get("second_review") else 1, [e["label"] for e in agents(result)])
             for event in agents(result):
                 found = re.findall(r"Always read ARCHITECTURE §5[^\n]*?does not compare\.", event["prompt"])
                 with self.subTest(workflow=name, agent=event["label"]):

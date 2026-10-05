@@ -149,9 +149,9 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   with it (scope rules: `tools/runner/refs.py`), and a § with no doc in scope is only counted (`section --refs` lists
   those). Root's runner line says to read docs by section, never whole (#339), and the workflow prompts (§7.1) name
   sections: the reviewers and the plan's critique read the ARCHITECTURE sections the change touches (a design's: the
-  outline, then every section it could contradict), the netcode reviewers always ARCHITECTURE §5, §4.2 and §4.6 (a
-  change to its §4.7 alone can still add a snapshot field the leak test does not compare), and no prompt asks for root
-  `CLAUDE.md`, which every agent has from its launch. The implementer's default reading list names no area `CLAUDE.md`
+  outline, then every section it could contradict), the netcode reviewers (the `second_review` pass too, which audits
+  the leak test) always read ARCHITECTURE §5, §4.2 and §4.6 (a change to its §4.7 alone can still add a snapshot field
+  the leak test does not compare), and no prompt asks for root `CLAUDE.md`, which every agent has from its launch. The implementer's default reading list names no area `CLAUDE.md`
   file and no rule: those load by path when it Reads a file there, as it does before every Edit (a `cat` loads none).
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after

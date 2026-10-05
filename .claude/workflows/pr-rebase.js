@@ -222,8 +222,8 @@ const base = [
   'Report findings with severity (blocker, major, minor, nit), file, line, problem and fix. No findings is a valid answer.',
 ].join('\n\n')
 // #339 (the instruction-diet ADR's N1 (a)), the same sentence as in issue-task.js (test_workflows.py compares the
-// two): the netcode reviewer always reads the sections where a leak shows, whatever the change touches; a change that
-// touches only §4.7 or §7.1 can still add a snapshot field the leak test does not compare.
+// two): the netcode reviewers (the second_review pass too) always read the sections where a leak shows, whatever the
+// change touches; a change that touches only §4.7 or §7.1 can still add a snapshot field the leak test does not compare.
 const NETCODE_SECTIONS = `Always read ARCHITECTURE §5 (per-peer filtering), §4.2 (each event's audience) and §4.6 (the client, the bots and the leak test), whatever the change touches: \`cd ${WTB} && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6\` (read-only; you may run it). A change to §4.7 or §7.1 alone can still add a snapshot field the leak test does not compare.`
 const labels = ['code-reviewer']
 const thunks = [() => agent(base, asReviewer({ label: `review:code:#${PR}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
@@ -237,7 +237,7 @@ if (netcode) {
 // second_review: a second netcode review where leaks matter, with another lens (and, per launch, another model).
 if (netcode && SECOND_REVIEW) {
   labels.push('second netcode-security-reviewer')
-  thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers view_of, event audiences and snapshots. Take the attacker\'s side over the merged code instead: what a modified client could now send that the host accepts, and what a curious player could now learn from the wire, logs, audio or screen (the host\'s own client included) because the two sides were joined; and whether the information-leak test (tests/harness/) would still fail on a leak in what changed. A gap there is a finding.', asReviewer({ label: `review:netcode-second:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
+  thunks.push(() => agent(base + '\n\nFocus: you are a second, independent netcode review (second_review); another reviewer covers view_of, event audiences and snapshots. Take the attacker\'s side over the merged code instead: what a modified client could now send that the host accepts, and what a curious player could now learn from the wire, logs, audio or screen (the host\'s own client included) because the two sides were joined; and whether the information-leak test (tests/harness/) would still fail on a leak in what changed. A gap there is a finding. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode-second:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'second_review')))
 }
 const results = await parallel(thunks)
 // Every routed reviewer must answer: an empty review list is not a clean review. A resume replays the ones that did.
