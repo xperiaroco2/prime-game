@@ -1311,7 +1311,22 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   starting; shard 1 is the one process of a run without shards) and, when red, `failed_tests` (`test` as
   `<suite>::<test>`, with the failure's `message` on one line, or `orphans` for a leak) and `failed_tests_more` past 20.
   A message is cut at 240 characters, so a red record stays about 1 KB; `metrics` lists the red runs' failing tests,
-  first failure lines and shard exits. **Verify slots (#185):** on a PC, after `doctor`, `verify` takes one of N
+  first failure lines and shard exits.
+  **Processes Windows could not start (#441):** on the engineer's PC, Godot, git, Python and PowerShell sometimes exit
+  with 3221225794 (0xC0000142, STATUS_DLL_INIT_FAILED) a fraction of a second after their start, before they print a
+  line: Windows failed them while it loaded their DLLs, so none of their code ran. In 11 of about 420 agents' verify
+  logs (10-01 to 10-05) it hit every process that started during a window of 0.5 s to several minutes, at one to three
+  verify runs at once (row 15 of the weekly budget ADR), and the same tree passed on a rerun; which per-session resource
+  ran short (commit, desktop heap or another) is not known yet. `run` in `tools/runner/common.py` (every `run` instance,
+  GdUnit4 shard, `check` import and the runner's git and gh calls) starts such a process once more after 10 s, with a
+  `NOT STARTED, restarted once` warning that carries the machine's load at that moment (processes, threads, handles,
+  commit, free RAM, USER and GDI objects: the evidence to find the shortage), then `RESTARTED` or `NOT STARTED again`;
+  once a restart was refused too, that runner process restarts nothing more. A process that printed a line or lived 10 s
+  is never started again, whatever it returned, so no step that ran is retried. A start that stayed refused is reported
+  as `could not start: ... run verify again` (also by `game`'s host and client, which are not restarted), each step's
+  record adds `not_started` ({`refused`, `restarted`, `recovered`}) and the summary a `NOT STARTED` line. The restart is
+  a policy that waits for the engineer's word (#441's PR). Tests: `tools/runner/tests/test_not_started.py`.
+  **Verify slots (#185):** on a PC, after `doctor`, `verify` takes one of N
   machine-wide slots for its lanes, so the tracks' runs queue instead of starving each other (and `freeze` and `stall`):
   a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots` (elsewhere
   `~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The
