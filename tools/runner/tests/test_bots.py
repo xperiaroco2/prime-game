@@ -44,11 +44,13 @@ class ChaosTest(unittest.TestCase):
         with mock.patch.object(bots, "chaos", return_value=0) as run:
             self.assertEqual(cli.main(["bots", "--chaos", "--seed", "7", "--runs", "3", "--long"]), 0)
             self.assertEqual(cli.main(["bots", "--chaos", "--enet"]), 0)
+            self.assertEqual(cli.main(["bots", "--chaos", "--transport", "webrtc"]), 0)
         self.assertEqual(
             run.call_args_list,
             [
-                mock.call(7, 3, long=True, enet=False, seconds=None),
-                mock.call(None, 1, long=False, enet=True, seconds=None),
+                mock.call(7, 3, long=True, enet=False, seconds=None, transport=None),
+                mock.call(None, 1, long=False, enet=True, seconds=None, transport=None),
+                mock.call(None, 1, long=False, enet=False, seconds=None, transport="webrtc"),
             ],
         )
 
@@ -101,6 +103,27 @@ class ChaosTest(unittest.TestCase):
             self.assertEqual(bots.chaos(seed=3, enet=True), 0)
         self.assertEqual(run.call_args.kwargs["user_args"], ["--seed=3", "--runs=1", "--port=23999"])
 
+    def test_over_webrtc_it_takes_a_port_free_for_tcp_too(self) -> None:
+        with (
+            mock.patch.object(bots.launch, "main", return_value=0) as run,
+            mock.patch.object(verify, "free_udp_port", return_value=23998) as pick,
+        ):
+            self.assertEqual(bots.chaos(seed=3, transport="webrtc"), 0)
+            self.assertEqual(bots.chaos(seed=3, transport="enet"), 0)
+        self.assertEqual(pick.call_args_list, [mock.call(tcp=True), mock.call(tcp=False)])
+        self.assertEqual(
+            [call.kwargs["user_args"] for call in run.call_args_list],
+            [
+                ["--seed=3", "--runs=1", "--port=23998", "--transport=webrtc"],
+                ["--seed=3", "--runs=1", "--port=23998"],
+            ],
+        )
+
+    def test_enet_and_another_transport_are_refused(self) -> None:
+        for transport in ("webrtc", "steam"):
+            with self.subTest(transport=transport), self.assertRaises(Failure):
+                bots.chaos(seed=1, enet=transport == "webrtc", transport=transport)
+
     def test_runs_stay_in_range(self) -> None:
         for runs in (0, bots.CHAOS_MAX_RUNS + 1):
             with self.subTest(runs=runs), self.assertRaises(Failure):
@@ -140,6 +163,31 @@ class BotsRunTest(unittest.TestCase):
             instances=2,
             user_args=["--port=24242", "--instances=2", "refusals"],
         )
+
+    def test_webrtc_runs_one_instance_per_bot_on_a_port_free_for_tcp_too(self) -> None:
+        with (
+            mock.patch.object(bots, "clear_out"),
+            mock.patch.object(verify, "free_udp_port", return_value=24243) as pick,
+            mock.patch.object(bots.launch, "main", return_value=0) as run,
+            mock.patch.object(bots, "say"),
+        ):
+            self.assertEqual(bots.main(["refusals"], instances=2, transport="webrtc"), 0)
+        pick.assert_called_once_with(tcp=True)
+        run.assert_called_once_with(
+            bots.TARGET,
+            headless=True,
+            seconds=bots.ENET_SECONDS,
+            instances=2,
+            user_args=["--port=24243", "--instances=2", "--transport=webrtc", "refusals"],
+        )
+
+    def test_a_transport_needs_instances_and_a_known_name(self) -> None:
+        for instances, transport in ((1, "webrtc"), (2, "steam")):
+            with self.subTest(transport=transport), self.assertRaises(Failure):
+                bots.check_args(["refusals"], instances, transport)
+        with mock.patch.object(bots, "main", return_value=0) as run:
+            self.assertEqual(cli.main(["bots", "a", "--instances", "3", "--transport", "webrtc"]), 0)
+        run.assert_called_once_with(["a"], instances=3, seconds=None, transport="webrtc")
 
     def test_a_failed_enet_run_prints_each_instances_failure_report(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
