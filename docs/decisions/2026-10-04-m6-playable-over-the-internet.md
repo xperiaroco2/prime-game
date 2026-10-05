@@ -230,7 +230,8 @@ arrive out of order too (Context), so a later `SteamTransport` reuses `LaneOrder
    (the 4.7.2 docs above), so a playit.gg address works too.
 
 **When traversal fails** (E54): the joiner's connection reaches `STATE_FAILED`, or 15 s pass from the offer without
-open channels (a placeholder, "not a decision"). The client ends with a reason, and the menu says which: no room with
+open channels (a placeholder, "not a decision"; M6-4 counts them from `join()`, since a full host answers no offer
+and the joiner would otherwise wait for good). The client ends with a reason, and the menu says which: no room with
 that code; the match has started; another version (host's and own); the code service is unreachable (use Direct); or
 "could not reach the host directly", with the fallback (D17, D21). `NetTransport.connect_failed` carries no reason
 today, so M6-4 adds one for every backend (ENet and the loopback give the reason they have) and `ClientSession` passes
