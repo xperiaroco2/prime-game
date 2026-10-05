@@ -333,29 +333,31 @@ Rules for every workflow run:
   left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
   shrank from 89k to 11k characters (about 1,250 a run).
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
-  optional `issue-task` args, all off by default, so a launch or a resume with the earlier args gets the earlier
-  agents byte for byte (`tools/runner/tests/workflow_snapshots/` holds their prompts and options for representative
-  arg sets). `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized
-  in the PR (+2 agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's
-  production code with `tools\run.cmd mutants` (#184), each in a scratch worktree; a survived mutant is a finding,
-  and the publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not
-  resume (+1; none for a design task or a diff without `core/ server/ net/ client/ voice/` code). `second_review:
-  true`: a second `netcode-security-reviewer` with an attacker's lens wherever the netcode review is routed (+1).
-  `skeptic: true` or a number: a read-only agent tries to refute each blocker or major finding before the publisher
-  (a number caps the agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the
-  scenarios the notes name), a scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code
-  reviewer reads the PNGs, and the rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per
-  role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish,
-  publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is
-  set, and no default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's
-  `models`, where the kickoff allows it (its amendment A, §5). `publish_clean` (#308, a one-wave trial; falls back to
-  `publish`) is the full publisher of a run with no blocker or major left open after the reviews, the test review
-  and the skeptics, never of a design task; the result's `publish_clean` says whether it applied. A missing
-  `mutants` or `playcheck` on the task's branch is reported in the result and the PR, and the run goes on.
-  `bounded_waits: true` (#303; `issue-task` and `pr-rebase`, +0): each agent that runs `verify`, `publish`, `mutants`
-  or a CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI
-  commands of §11 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows
-  done). The root CLAUDE.md rule reaches every workflow agent without it once on main; the arg adds the commands.
+  optional `issue-task` args, all off by default but `bounded_waits` (on since #411), so a launch or a resume with the
+  earlier args and `bounded_waits: false` gets the earlier agents byte for byte
+  (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
+  sets; the folder above it, the same cases as launched by default). `plan_review: true`: a plan agent and a fresh
+  critique of its plan before the implementer, summarized in the PR (+2 agents). `test_review: true`: after the
+  reviews one agent plants 3 to 5 faults in the diff's production code with `tools\run.cmd mutants` (#184), each in a
+  scratch worktree; a survived mutant is a finding, and the publisher stops and reports when `mutants` exits 2; the
+  result's `stopped` then says to relaunch, not resume (+1; none for a design task or a diff without `core/ server/
+  net/ client/ voice/` code). `second_review: true`: a second `netcode-security-reviewer` with an attacker's lens
+  wherever the netcode review is routed (+1). `skeptic: true` or a number: a read-only agent tries to refute each
+  blocker or major finding before the publisher (a number caps the agents); refuted ones are listed in the PR with the
+  reason (+1 each). `visual: true` (the scenarios the notes name), a scenario or a list: the implementer runs
+  `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the rule on Godot windows also allows
+  `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review, review, netcode, second_review,
+  godot, test_review, skeptic, publish, publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an
+  effort or a model only when one is set, and no default names a model (the model-guard ADR); a model beyond the
+  shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A, §5). `publish_clean`
+  (#308, a one-wave trial; falls back to `publish`) is the full publisher of a run with no blocker or major left open
+  after the reviews, the test review and the skeptics, never of a design task; the result's `publish_clean` says
+  whether it applied. A missing `mutants` or `playcheck` on the task's branch is reported in the result and the PR,
+  and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`, +0; the default since #411, `false` turns
+  it off for a resume of an earlier run launched without it): each agent that runs `verify`, `publish`, `mutants` or a
+  CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI commands
+  of §11 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows done). The
+  root CLAUDE.md rule reaches every workflow agent without it once on main; the arg adds the commands.
   `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review,
   netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix agent runs and the
   result's `note` asks the manager to list the refuted findings with their reasons in the PR body. The kickoff's

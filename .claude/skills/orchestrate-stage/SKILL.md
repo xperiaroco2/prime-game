@@ -140,8 +140,8 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 
-**Pipeline v2 args** (AGENT_WORKFLOW §7.1), all off by default; the agents each adds count toward the number per
-workflow the kickoff approved:
+**Pipeline v2 args** (AGENT_WORKFLOW §7.1), all off by default but `bounded_waits`; the agents each adds count
+toward the number per workflow the kickoff approved:
 
 | arg | when | adds (tool calls each) |
 |---|---|---|
@@ -150,7 +150,7 @@ workflow the kickoff approved:
 | `second_review: true` | PRs that touch `core/ server/ net/ tests/harness/`, where the kickoff asks for it; with `models.second_review` where it allows a model beyond the shared list there | 1 (60) where the netcode review is routed |
 | `skeptic: <n>` or `true` | design tasks and audits (publishers judged only 8 of 441 findings wrong) | 1 per blocker or major checked (30) |
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
-| `bounded_waits: true` | every `issue-task` and `pr-rebase` launch (no tool call of theirs blocks over 240 s, so their 5-minute cache stays warm), once `wait` (#303) is on the task's base (`git show origin/<base>:tools/runner/wait.py`) | 0 |
+| `bounded_waits` | the default since #411 (no tool call of `issue-task` or `pr-rebase` blocks over 240 s, so their 5-minute cache stays warm; on a base without `wait`, #303, the agents wait in the foreground): pass nothing; `false` only to resume a run launched before #411 without the arg | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
 | `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and, for the #308 trial only, `publish_clean: "sonnet"` on every non-design `issue-task` launch of the one wave the kickoff names (not `pr-rebase`: it has no publisher and rejects the role; none after the wave until the engineer keeps it) | 0 |
 | `lean: true` | `issue-task` and `pr-rebase`: the 3-4 A/B tasks the kickoff names (#332, results on #302), until the engineer turns it on by default; only once `.claude/agents/task-implementer.md` and `task-publisher.md` are in your checkout (the first run's `agent-*.meta.json` shows `agentType` `task-implementer`); not for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) | 0 |
