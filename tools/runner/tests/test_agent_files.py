@@ -43,8 +43,11 @@ class ReviewerAgentFilesTest(unittest.TestCase):
         for name in REVIEWERS:
             whole = " ".join(text(name).split())
             with self.subTest(agent=name):
-                # Every mention of the doc, the description included, is a `section` call on it.
-                self.assertEqual(re.findall(r"(?<!section )docs/ARCHITECTURE\.md", whole), [])
+                # Every mention of the doc, the description included, is a `section` call on it: the bare file name
+                # ("against CLAUDE.md, ARCHITECTURE.md and the content API") is the old whole-doc wording.
+                self.assertEqual(re.findall(r"(?<!section docs/)ARCHITECTURE\.md", whole), [])
+                # The outline prints the size; a figure in the file goes stale as the doc grows.
+                self.assertNotRegex(whole, r"\d+k tokens")
                 self.assertIn(OUTLINE + " prints", whole)
                 self.assertRegex(whole, r"`tools/run\.sh section docs/ARCHITECTURE\.md \d+(\.\d+)*( \d+(\.\d+)*)*`")
 
@@ -69,6 +72,18 @@ class ReviewerAgentFilesTest(unittest.TestCase):
                 self.assertIn("`tools/run.sh section`", item)
                 self.assertIn("`tools\\run.cmd section`", item)
                 self.assertEqual(set(RUN_RE.findall(item)), RUNNER_COMMANDS[name], item)
+
+    def test_they_run_section_from_the_worktree_under_review(self) -> None:
+        # A workflow launches a reviewer with its cwd in the main checkout: without a `cd`, `section` would print
+        # main's doc, not the branch's, and a diff that edits ARCHITECTURE would be read against the old text.
+        for name in REVIEWERS:
+            whole = " ".join(text(name).split())
+            with self.subTest(agent=name):
+                self.assertIn("from the worktree under review (prefix `cd <worktree> &&`", whole)
+                self.assertIn("`cd <dir> &&`", allowed(name))
+        command = "cd D:/prime-game/.claude/worktrees/433 && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6"
+        got = permissions.verdict(SETTINGS, guard, "Bash", command, str(ROOT), MAIN, OwnRepo(), False)
+        self.assertEqual(got[0], permissions.PASS, got)
 
     def test_they_stay_read_only(self) -> None:
         for name in REVIEWERS:
