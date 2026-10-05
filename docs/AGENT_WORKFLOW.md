@@ -617,53 +617,56 @@ which asks at every step (5 asks in one task on 2026-10-03, #312).
 It also judges two kinds of command by what they act on, where a text rule would stop an unattended agent: commands
 that lose work, by where they act (its own scratch folder, issue #47, or its own worktree, issue #51), and `gh`
 commands, by the repository they name (issue #68, a read of another repository must not stop it):
-- **The session's own worktree and task branch are free** (issue #51,
-  [intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)). The own worktree is the
-  `.claude/worktrees/<n>` that the session's working directory is in; a session whose shell starts in the main
-  checkout (a manager's task session) owns the first worktree its command enters with `cd`, `Set-Location` or
-  `git -C` (`cd D:/prime-game/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same
-  command asks), unless another live Claude session works in that worktree (`sessions.active_on`): then it owns
-  none. On a desktop the main checkout is never owned: the designer's sessions and the engineer's `start --here`
-  sessions keep every prompt. **A cloud session** (§2.1; `CLAUDE_CODE_REMOTE` true and not CI, the test `doctor`
-  uses: `common.cloud_session`, which `hooks.cloud_session` mirrors without importing `common`) whose working
-  directory is in no worktree owns the main checkout while a task branch (`<area>/<n>-<slug>`, `guard.TASK_BRANCH_RE`)
-  is checked out there (issue #381): the same rules as a worktree on its task branch, with `<n>` taken from that
-  branch. No worktree folder pins `<n>` there, so any task branch checked out counts, a parent's after a switch too.
-  `.git`, `.claude`, `.claude/worktrees` and any glob that may name them (`.[^.]*`, `*`, `{s..t}`, an extglob) stay
-  outside it, and so do `git clean -x|-X|-e|-ff` (ignored files: `.claude/settings.local.json`, the other worktrees as
-  nested repositories), `git stash -a` and magic pathspecs (`:(top)x`); git work in another worktree still asks.
-  `git clean -en` is `-e n`, no dry run (in every checkout since #381). On `main`, `release/*`, any other branch or a
-  detached HEAD it asks as on a desktop; a rebase stopped on a conflict keeps its branch (`hooks.GitFiles` reads
-  `rebase-merge|rebase-apply/head-name`). The pre-push hook and the push rules (no `main`, no force push by hand) are
-  unchanged. `tools/run.sh permissions` judges the replayed calls as this machine's sessions: a cloud container's
-  replay sees the cloud rule. The task branch is known by the worktree's identity: the branch checked out in
-  `.claude/worktrees/<n>` when its name is `<area>/<n>-<slug>`, as `start` makes it. Another branch checked out
-  there (a parent, a spike) is not the task's, so work that discards on it asks, whatever an earlier call did; a
-  detached HEAD moves no branch and stays free. Its helpers are branches named `<task branch>-x`,
-  `<task branch>/x`, `<task branch>.x` or `<task branch>_x`. The hook reads branch, ref and stash names from the
-  files in `.git` (`hooks.GitFiles`, no git call).
-- **Workflow agents' hooks take the manager session's working directory** (the `cwd` of the hook input), not their
-  own. A manager whose shell stands in a worktree (a `cd` in the Bash tool persists between its calls) makes that
-  worktree every agent's own, and each agent's own worktree someone else's: on the M3 night run a publisher's
-  autosquash in its own worktree asked that way, and a replay with `tools\run.cmd permissions` showed the same
-  command passing from `D:\prime-game`. So the manager enters worktrees only through subshells `(cd <wt> && ...)`,
-  `git -C <wt>` or PowerShell `Push-Location`/`Pop-Location`, and its shell stays in the main checkout
-  ([intervention](interventions/2026-10-01-engineer-night-run-prompts.md)).
-- **Recursive deletes** (`rm -r|-R|-rf|--recursive` or `--rec` in bash, `Remove-Item -Recurse` or `-r`, `rmdir /s`,
-  `rd /s/q` (`//s` from Git Bash), `del /s`, a plain delete fed by a recursive listing, an unfiltered `find -delete` or `find -exec rm -rf`,
-  `shutil.rmtree('x')` and `[IO.Directory]::Delete('x', $true)`; also inside `bash -c`, pipelines, `xargs`,
-  `timeout` and `for` loops) ask when a target is the project (the main checkout or a worktree), inside it (but not
-  inside the own worktree; its folder itself, `rm -rf .` there, still asks), above it, a drive root, `/`, or the home or temp folder itself (`~`, `$HOME`, `$env:TEMP`). A target it cannot resolve
-  asks when it names the project: its folder name (read from the checkout, so a clone named otherwise is covered),
-  `git rev-parse --show-toplevel`, `$PWD` inside it, a command's output that names a path in it (`$(realpath core)`,
-  `(Resolve-Path core)`; `$(mktemp -d)` names none), a variable or loop built from such text, or a relative path
-  after an unresolvable `cd` made from inside the project. The targets of a pipeline (`$_`, `{}`, none) are the
-  paths its first command names, or the working directory. A PowerShell array (`Remove-Item -Recurse a,b`,
-  `'a','b'`, `@('a','b')`) and a bash brace expansion (`x/{a,b}`) are judged item by item. Regenerated output
-  (`tools/out/`, `.godot/`, any `__pycache__/`) and the gitignored scratch folder `tests/scratch/` pass, in the main
-  checkout and in every worktree; so do the scratchpad, `$TEMP/x`, `/tmp/x` and `~/x` (the hook passes the real
-  home folder, so a checkout under home stays protected). `$(git rev-parse --show-toplevel)` is the checkout that
-  holds the working directory, so `rm -rf "$(git rev-parse --show-toplevel)/tests/scratch"` passes too.
+
+#### 8.2.1 The session's own worktree and task branch are free
+(issue #51, [intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)). The own worktree is the
+`.claude/worktrees/<n>` that the session's working directory is in; a session whose shell starts in the main checkout (a
+manager's task session) owns the first worktree its command enters with `cd`, `Set-Location` or `git -C` (`cd
+D:/prime-game/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same command asks),
+unless another live Claude session works in that worktree (`sessions.active_on`): then it owns none. On a desktop the
+main checkout is never owned: the designer's sessions and the engineer's `start --here` sessions keep every prompt. **A
+cloud session** (§2.1; `CLAUDE_CODE_REMOTE` true and not CI, the test `doctor` uses: `common.cloud_session`, which
+`hooks.cloud_session` mirrors without importing `common`) whose working directory is in no worktree owns the main
+checkout while a task branch (`<area>/<n>-<slug>`, `guard.TASK_BRANCH_RE`) is checked out there (issue #381): the same
+rules as a worktree on its task branch, with `<n>` taken from that branch. No worktree folder pins `<n>` there, so any
+task branch checked out counts, a parent's after a switch too. `.git`, `.claude`, `.claude/worktrees` and any glob that
+may name them (`.[^.]*`, `*`, `{s..t}`, an extglob) stay outside it, and so do `git clean -x|-X|-e|-ff` (ignored files:
+`.claude/settings.local.json`, the other worktrees as nested repositories), `git stash -a` and magic pathspecs
+(`:(top)x`); git work in another worktree still asks. `git clean -en` is `-e n`, no dry run (in every checkout since #381).
+On `main`, `release/*`, any other branch or a detached HEAD it asks as on a desktop; a rebase stopped on a conflict
+keeps its branch (`hooks.GitFiles` reads `rebase-merge|rebase-apply/head-name`). The pre-push hook and the push rules
+(no `main`, no force push by hand) are unchanged. `tools/run.sh permissions` judges the replayed calls as this machine's
+sessions: a cloud container's replay sees the cloud rule. The task branch is known by the worktree's identity: the
+branch checked out in `.claude/worktrees/<n>` when its name is `<area>/<n>-<slug>`, as `start` makes it. Another branch
+checked out there (a parent, a spike) is not the task's, so work that discards on it asks, whatever an earlier call did;
+a detached HEAD moves no branch and stays free. Its helpers are branches named `<task branch>-x`, `<task branch>/x`,
+`<task branch>.x` or `<task branch>_x`. The hook reads branch, ref and stash names from the files in `.git`
+(`hooks.GitFiles`, no git call).
+
+#### 8.2.2 Workflow agents' hooks take the manager session's working directory (the `cwd` of the hook input), not their own
+A manager whose shell stands in a worktree (a `cd` in the Bash tool persists between its calls) makes that worktree
+every agent's own, and each agent's own worktree someone else's: on the M3 night run a publisher's autosquash in its own
+worktree asked that way, and a replay with `tools\run.cmd permissions` showed the same command passing from
+`D:\prime-game`. So the manager enters worktrees only through subshells `(cd <wt> && ...)`, `git -C <wt>` or PowerShell
+`Push-Location`/`Pop-Location`, and its shell stays in the main checkout
+([intervention](interventions/2026-10-01-engineer-night-run-prompts.md)).
+
+#### 8.2.3 Recursive deletes
+(`rm -r|-R|-rf|--recursive` or `--rec` in bash, `Remove-Item -Recurse` or `-r`, `rmdir /s`, `rd /s/q` (`//s` from Git
+Bash), `del /s`, a plain delete fed by a recursive listing, an unfiltered `find -delete` or `find -exec rm -rf`,
+`shutil.rmtree('x')` and `[IO.Directory]::Delete('x', $true)`; also inside `bash -c`, pipelines, `xargs`, `timeout` and
+`for` loops) ask when a target is the project (the main checkout or a worktree), inside it (but not inside the own
+worktree; its folder itself, `rm -rf .` there, still asks), above it, a drive root, `/`, or the home or temp folder
+itself (`~`, `$HOME`, `$env:TEMP`). A target it cannot resolve asks when it names the project: its folder name (read
+from the checkout, so a clone named otherwise is covered), `git rev-parse --show-toplevel`, `$PWD` inside it, a
+command's output that names a path in it (`$(realpath core)`, `(Resolve-Path core)`; `$(mktemp -d)` names none), a
+variable or loop built from such text, or a relative path after an unresolvable `cd` made from inside the project. The
+targets of a pipeline (`$_`, `{}`, none) are the paths its first command names, or the working directory. A PowerShell
+array (`Remove-Item -Recurse a,b`, `'a','b'`, `@('a','b')`) and a bash brace expansion (`x/{a,b}`) are judged item by
+item. Regenerated output (`tools/out/`, `.godot/`, any `__pycache__/`) and the gitignored scratch folder
+`tests/scratch/` pass, in the main checkout and in every worktree; so do the scratchpad, `$TEMP/x`, `/tmp/x` and `~/x`
+(the hook passes the real home folder, so a checkout under home stays protected). `$(git rev-parse --show-toplevel)` is
+the checkout that holds the working directory, so `rm -rf "$(git rev-parse --show-toplevel)/tests/scratch"` passes too.
 - Neither the Bash tool nor the PowerShell tool keeps variables between calls. In bash a variable the command never
   assigns is therefore also judged as empty: `rm -rf "$X"/*` is `rm -rf /*` and asks, and `cd "$X" && rm -rf y`
   stays in the project and asks. A bash subshell (`( ... )`, `$(...)`) keeps its `cd` and variables to itself, and
@@ -671,66 +674,69 @@ commands, by the repository they name (issue #68, a read of another repository m
   from the environment or a PowerShell variable the command never assigns, when its text does not name the project;
   filtered deletes, even project-wide ones (`find . -name '*.orig' -delete`, `find . -name '*.gd' -delete`,
   `Get-ChildItem -Recurse -Filter *.tmp | Remove-Item`; a filter of `*`, or one before `-prune -o`, is none).
-- **`tests/scratch/`** is for temporary files that must be under `res://` (a probe test). It is gitignored but not
-  gdignored, so `tools\run.cmd test tests/scratch/<file>` and `check res://tests/scratch/<file>` run what is there;
-  full `check` (its UID lint too, #264), `test` and `lint` runs leave it out, so a half-written probe or a leftover
-  `.gd.uid` never turns `verify` red. Godot still imports it: no `class_name` and no uid copied from a project file
-  there (a `.tscn`/`.tres` header, or a suite's `.gd.uid` copied with it): Godot gives the uid to whichever file it
-  scans last, so the import and the UID lint both fail on a copy. Never create a link or junction there: the guard
-  judges a delete by its text path, and PowerShell 5.1 `Remove-Item -Recurse` on a junction deletes what it points to.
-- **`git reset`** asks with `--hard`, `--merge` or `--keep`, or when it moves the branch to another commit
-  (`git reset HEAD~1`, `git reset --soft origin/main`, `git reset v0.1.0`), in a repository anywhere in the project
-  but the own worktree, `tools/out/` included; `-C`, `--git-dir` and `--work-tree` name that repository. Unstaging passes: `git reset`, `git reset -q`, `git reset -- <paths>`,
-  `git reset HEAD -- <paths>`, `git reset core`. A lone argument without `--` is a commit when it looks like one (a
-  SHA, `~`, `^`, `origin/x`, `refs/x`, `v1.2`, a task branch `net/40-x`, `main`) and a path otherwise, so
-  `git reset feature-x` passes.
-- **Other git that discards work or rewrites history** passes in the own worktree on the task branch, and in a
-  repository outside the project (a clone in the scratchpad); it asks in the main checkout (but a cloud session's on
-  its task branch, above) and in another worktree
-  (`-C`, `cd`, `--git-dir`, `--work-tree`, `GIT_DIR`, `GIT_WORK_TREE`; the repository and the working tree are
-  judged apart and the worse wins), when a pathspec reaches another checkout (`git checkout -- ../47/core`), and
-  after the same command switched away from the task branch (`git checkout main && git reset --hard`, also inside
-  `bash -c`):
-  `checkout` of paths or `-f`, `switch -f|--discard-changes`, `restore` (not `--staged` alone), `clean` (not `-n`),
-  `rebase` (`--continue` and `--abort` too), `worktree remove|move` of anything but the own worktree's folder or an
-  absolute path outside the project (git also takes a worktree's last path parts: `git worktree remove 47`),
-  `update-ref HEAD`. A plain `git switch x` or
-  `git checkout x` discards nothing and passes anywhere. Branches and the stash are shared by every checkout, so
-  they are judged by name: `branch -d|-D`, `branch -f`, `branch -M|-C`, `checkout -B`, `switch -C`, a rebase that
-  names its branch, `update-ref refs/heads/<x>` and a forced switch pass only for the task branch and its helpers;
-  `stash drop|clear` only for entries made on them (a human's `start --stash` entry is made on `main` and asks),
-  and never after the same command changed the stash (the indices shift); agents use no stash at all, a WIP commit
-  instead (root `CLAUDE.md`, Shell). An interactive rebase whose
-  `GIT_SEQUENCE_EDITOR` the command sets to `:` or `true` (a prefix; in bash `export`, in PowerShell `$env:`, as that
-  shell's last value; it outranks every other editor setting) opens no todo editor and is judged like a plain
-  rebase: `git commit --fixup=HEAD` then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` stays
-  editor-free (a `squash!` commit would still open the message editor) (#104). `git -c core.editor=true`,
-  `-c sequence.editor=:` and `GIT_EDITOR=true` do not count, on purpose: a `GIT_SEQUENCE_EDITOR` inherited from the
-  environment or a `sequence.editor` in a git config file, which the guard cannot see, would outrank them (a publisher
-  that used `-c core.editor=true` on 2026-10-03 waited 23 minutes, #312). Always asks: another
-  interactive rebase (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other
-  branches), `rebase -x|--exec` (runs commands the guard cannot judge), `update-ref --stdin` and
-  `git -c core.hooksPath=...` (the deny rule on `git config *hooksPath*` cannot see it).
-  Rebase options are read as git reads them (#105): a cluster letter by letter (`-qi`, `-qx cmd`), an attached
-  value (`-x'cmd'`), a unique prefix of a long option (`--interac`, `--exe=cmd`, `--up`), and `rebase.updateRefs`
-  from `git -c` or `--config-env` (any true value, unless `--no-update-refs` follows) like `--update-refs`. A nested
-  shell inherits its command's `VAR=value` prefixes (`GIT_SEQUENCE_EDITOR=: bash -c 'git rebase -i ...'` passes).
-- **`gh` aimed at another repository** (issue #68) asks unless it only reads. The repository is the value of `-R|--repo`
-  (`-Rx/y`, `--repo=x/y`), `GH_REPO` (a prefix, `export` or `$env:`), a github.com URL argument
-  (`gh issue comment https://github.com/x/y/issues/1`), `gh repo <sub> x/y`, the destination of `gh issue transfer`, or
-  a `gh api repos/x/y/...` endpoint; `{owner}/{repo}` and this project's own `origin` (read from `.git/config` by
-  `hooks.GitFiles`, any spelling) are not another repository. Reads: `issue view|list|status`,
-  `pr view|list|diff|checks|status`, `release view|list|verify|verify-asset`, `repo view|list|clone`,
-  `run view|list|watch`, `workflow view|list`, `label list`, `cache list`, `ruleset view|list|check`, every `gh search`,
-  and `gh api` GET or HEAD (`-X GET|HEAD`, or no `-X` and no `-f`, `-F` or `--input` field: fields without `-X`
-  make it a POST). Everything else there asks, `gh issue create --repo godotengine/godot` included. The values of text options (`--body`, `--title`, `-f`,
-  `--jq`) never name the repository, and an option is never taken as the value of another one
-  (`gh pr create -d -R x/y`). A value it cannot compute (`$env:GH_REPO = (Get-Content f)`, `-R "$R"`) counts as another
-  repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a `gh` command run in a clone
-  of another repository without naming it. Sibling repositories of this project (`prime-game-art`, `prime-game-ui`)
-  are other repositories too: a session that manages one runs in that repository's checkout, never in
-  `D:\prime-game`, where each of its `gh` writes there asks (30 asks on 2026-10-02 and 10-03, about 12.6 hours of
-  waiting, one `gh pr create` over a whole night, #312).
+
+#### 8.2.4 `tests/scratch/`
+Is for temporary files that must be under `res://` (a probe test). It is gitignored but not gdignored, so `tools\run.cmd
+test tests/scratch/<file>` and `check res://tests/scratch/<file>` run what is there; full `check` (its UID lint too, #264),
+`test` and `lint` runs leave it out, so a half-written probe or a leftover `.gd.uid` never turns `verify` red. Godot
+still imports it: no `class_name` and no uid copied from a project file there (a `.tscn`/`.tres` header, or a suite's
+`.gd.uid` copied with it): Godot gives the uid to whichever file it scans last, so the import and the UID lint both fail
+on a copy. Never create a link or junction there: the guard judges a delete by its text path, and PowerShell 5.1
+`Remove-Item -Recurse` on a junction deletes what it points to.
+
+#### 8.2.5 `git reset`
+Asks with `--hard`, `--merge` or `--keep`, or when it moves the branch to another commit (`git reset HEAD~1`, `git reset --soft
+origin/main`, `git reset v0.1.0`), in a repository anywhere in the project but the own worktree, `tools/out/` included;
+`-C`, `--git-dir` and `--work-tree` name that repository. Unstaging passes: `git reset`, `git reset -q`, `git reset --
+<paths>`, `git reset HEAD -- <paths>`, `git reset core`. A lone argument without `--` is a commit when it looks like one
+(a SHA, `~`, `^`, `origin/x`, `refs/x`, `v1.2`, a task branch `net/40-x`, `main`) and a path otherwise, so `git reset
+feature-x` passes.
+
+#### 8.2.6 Other git that discards work or rewrites history
+Passes in the own worktree on the task branch, and in a repository outside the project (a clone in the scratchpad); it
+asks in the main checkout (but a cloud session's on its task branch, above) and in another worktree (`-C`, `cd`,
+`--git-dir`, `--work-tree`, `GIT_DIR`, `GIT_WORK_TREE`; the repository and the working tree are judged apart and the
+worse wins), when a pathspec reaches another checkout (`git checkout -- ../47/core`), and after the same command
+switched away from the task branch (`git checkout main && git reset --hard`, also inside `bash -c`): `checkout` of paths
+or `-f`, `switch -f|--discard-changes`, `restore` (not `--staged` alone), `clean` (not `-n`), `rebase` (`--continue` and
+`--abort` too), `worktree remove|move` of anything but the own worktree's folder or an absolute path outside the project
+(git also takes a worktree's last path parts: `git worktree remove 47`), `update-ref HEAD`. A plain `git switch x` or
+`git checkout x` discards nothing and passes anywhere. Branches and the stash are shared by every checkout, so they are
+judged by name: `branch -d|-D`, `branch -f`, `branch -M|-C`, `checkout -B`, `switch -C`, a rebase that names its branch,
+`update-ref refs/heads/<x>` and a forced switch pass only for the task branch and its helpers; `stash drop|clear` only
+for entries made on them (a human's `start --stash` entry is made on `main` and asks), and never after the same command
+changed the stash (the indices shift); agents use no stash at all, a WIP commit instead (root `CLAUDE.md`, Shell). An
+interactive rebase whose `GIT_SEQUENCE_EDITOR` the command sets to `:` or `true` (a prefix; in bash `export`, in
+PowerShell `$env:`, as that shell's last value; it outranks every other editor setting) opens no todo editor and is
+judged like a plain rebase: `git commit --fixup=HEAD` then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash
+origin/<base>` stays editor-free (a `squash!` commit would still open the message editor) (#104). `git -c
+core.editor=true`, `-c sequence.editor=:` and `GIT_EDITOR=true` do not count, on purpose: a `GIT_SEQUENCE_EDITOR`
+inherited from the environment or a `sequence.editor` in a git config file, which the guard cannot see, would outrank
+them (a publisher that used `-c core.editor=true` on 2026-10-03 waited 23 minutes, #312). Always asks: another
+interactive rebase (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other branches),
+`rebase -x|--exec` (runs commands the guard cannot judge), `update-ref --stdin` and `git -c core.hooksPath=...` (the
+deny rule on `git config *hooksPath*` cannot see it). Rebase options are read as git reads them (#105): a cluster letter
+by letter (`-qi`, `-qx cmd`), an attached value (`-x'cmd'`), a unique prefix of a long option (`--interac`, `--exe=cmd`,
+`--up`), and `rebase.updateRefs` from `git -c` or `--config-env` (any true value, unless `--no-update-refs` follows)
+like `--update-refs`. A nested shell inherits its command's `VAR=value` prefixes (`GIT_SEQUENCE_EDITOR=: bash -c 'git
+rebase -i ...'` passes).
+
+#### 8.2.7 `gh` aimed at another repository (issue #68)
+Asks unless it only reads. The repository is the value of `-R|--repo` (`-Rx/y`, `--repo=x/y`), `GH_REPO` (a prefix,
+`export` or `$env:`), a github.com URL argument (`gh issue comment https://github.com/x/y/issues/1`), `gh repo <sub>
+x/y`, the destination of `gh issue transfer`, or a `gh api repos/x/y/...` endpoint; `{owner}/{repo}` and this project's
+own `origin` (read from `.git/config` by `hooks.GitFiles`, any spelling) are not another repository. Reads: `issue
+view|list|status`, `pr view|list|diff|checks|status`, `release view|list|verify|verify-asset`, `repo view|list|clone`,
+`run view|list|watch`, `workflow view|list`, `label list`, `cache list`, `ruleset view|list|check`, every `gh search`,
+and `gh api` GET or HEAD (`-X GET|HEAD`, or no `-X` and no `-f`, `-F` or `--input` field: fields without `-X` make it a
+POST). Everything else there asks, `gh issue create --repo godotengine/godot` included. The values of text options
+(`--body`, `--title`, `-f`, `--jq`) never name the repository, and an option is never taken as the value of another one
+(`gh pr create -d -R x/y`). A value it cannot compute (`$env:GH_REPO = (Get-Content f)`, `-R "$R"`) counts as another
+repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a `gh` command run in a clone of
+another repository without naming it. Sibling repositories of this project (`prime-game-art`, `prime-game-ui`) are other
+repositories too: a session that manages one runs in that repository's checkout, never in `D:\prime-game`, where each of
+its `gh` writes there asks (30 asks on 2026-10-02 and 10-03, about 12.6 hours of waiting, one `gh pr create` over a
+whole night, #312).
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
   `git -C D:/prime-game clean -fdx` ask there.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
@@ -939,571 +945,587 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
 
 ## 11. Godot specifics
 
-- **Stack** ([ADR](decisions/2026-09-29-technical-stack-from-the-brief.md)): Godot 4.7.2 standard build (not .NET),
-  typed GDScript, GdUnit4, gdtoolkit, ENet behind a transport abstraction, Opus voice (M1 spike decides the addon).
-  Native Windows first, never WSL: the agent runs the Godot `*_console.exe`, humans the regular exe. Binary assets go
-  through Git LFS, `addons/` stays outside it ([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)).
-- **Editor convention** ([ADR](decisions/2026-09-28-godot-editor-save-first-convention.md)): nobody edits by hand
-  while an agent works. Before asking the agent for anything, Scene → **Save All Scenes** (Ctrl+Shift+Alt+S;
-  Ukrainian UI «Зберегти всі сцени»). If Godot asks about files changed on disk, always choose **Reload from disk**
-  (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні зміни»). The agent reminds the human; nothing blocks. Headless runs next to an open editor were verified in M0.
-- **`.tscn` / `.tres`** ([ADR](decisions/2026-09-29-hand-written-scenes-then-normalize.md)): the agent hand-writes
-  readable text and never copies a uid or a `.uid` sidecar; `tools\run.cmd normalize <files>` **[applied]**
-  re-saves them in headless editor context (`--headless -e -s`, after the first file-system scan), which adds the
-  header uid and node `unique_id`s the editor would. A second run leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
-  after a parse error, without an error: `normalize` compares property keys before and after, and on a loss restores
-  the file and fails. `check` fails on UID problems, on files left modified by `--import`, and on an `ext_resource`
-  uid that resolves to a different file than its `path=`. Godot 4.7.2 sometimes dies of an access violation (exit
-  3221225477, 0xC0000005) while it shuts down after `check_project.gd` printed a clean summary (#442: 2 of 326 check
-  steps, the summary their last line, none of the shutdown lines every run prints after it): `check` passes such a run
-  with a `GODOT CRASHED AT EXIT` warning and keeps its output in `tools/out/logs/check-exit-crash.log`. A crash before
-  the summary, after an error or with another exit code stays red, and nothing is retried.
-- **`shot <scene>` [applied]:** a real window at `--position -30000,-30000` (off-screen), never headless or minimized
-  (Godot then never draws), a 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
-  one that frames all its geometry, plus a light if it has none. It prints the driver it drew with (`renderer: vulkan
-  forward_plus`; the runner's `--no-header` hides Godot's own line). Desktop only: CI never runs it, and the designer
-  gets the PNG to drag into the PR (`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
-- **`run <scene.tscn | script.gd>` [applied]:** runs a scene, or a `-s` script that extends `SceneTree`, with the
-  pinned Godot; arguments after `--` reach `OS.get_cmdline_user_args()`. `--headless` uses `GODOT_BIN`; a window
-  uses `GODOT_GUI_BIN` (else `GODOT_BIN`), and `--offscreen` puts it at `shot`'s off-screen position. `--seconds N`
-  (default 60) kills the process tree; `--instances N` (up to 8) starts N copies at once, each with
-  `PRIME_INSTANCE=<i>` in its environment and its own log `tools/out/logs/run/<name>-<i>.log` (the next run of the
-  same name replaces them). `--audio dummy` (default) or `default`; `--headless --audio default` keeps the real
-  audio driver (`--display-driver headless`). Fails when an instance exits non-zero, times out or prints an
-  `ERROR:` / `SCRIPT ERROR:` line (Godot exits 0 after both), and names the instance and its first error lines. A
-  scene that never calls `quit()` therefore fails at `--seconds`: read its log. The agent's own checks run
-  `--headless` (never a window while a human uses the machine). It imports the project first when the import is not
-  current (the next item). `tools/run/probe.gd` is its smoke test.
-- **The import before a launch [applied]** (#174): `host`, `join`, `run` (and through it `perf` and `bots`),
-  `playcheck`, `shot` and `verify`'s `game` step import the project before they start Godot when a file Godot sees
-  changed after the last import through the runner, since only an import rebuilds the global class cache (a game
-  started after a `git switch` that brought a new `class_name` printed `Identifier "MousePointer" not declared` in
-  the engineer's playtest). No `check` is needed after a `git switch`, a pull or new scripts or assets. One line
-  says which: `import: current (1489 project files unchanged since the last import, 0.03s)`, or
-  `import: res://client/app/game.gd changed after the last import; importing the project first`, then
-  `import: done in 11.3s`. Every import through the runner (`check`, `test`, `mutants`, these and the `.gd` post-edit
-  hook's) records when it started in `.godot/runner_import.stamp`, or the time of the newest `.uid` or `.import` file
-  it wrote itself, never a time after the import ended; the
-  test compares the modification times of the files Godot sees (no hidden folders, none with a `.gdignore`, no
-  Markdown, Python or shell scripts) with it: git gives every file a switch, pull or rebase writes the time it
-  arrived. Measured on the engineer's PC: 0.03 to 0.04 s for the test, against 9.9 s for a quick import that
-  finds nothing to do (11.3 s after one changed script, 17.7 s after a `git switch`), so the import is not always
-  on. A file dated in the future (clock skew, or copied with its original time) makes every launch import, with a
-  `warn` line that names it: `touch` it. An import by the editor is not recorded: the next
-  launch through the runner imports once. A linked worktree's `override.cfg` (#182) is written before the test and
-  the import, so the import uses the worktree's own `user://`.
-- **`mutants <spec.json> [--seconds N]` [applied]** (#184; item 4 (b) of the
-  [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), the tool of `issue-task`'s
-  `test_review`): shows that a change's tests fail when its code is wrong. Each mutant of the spec names a tracked
-  `file` under `core/ server/ net/ client/ voice/`, the 1-based `line` on which `original` (exact text, which must
-  start there once) begins, its `replacement`, and the `tests` (files or folders under `tests/`) that should catch it;
-  `mutants --help` prints the format. A mutant on a `class_name` or `extends` line is refused: the scratch tree is
-  imported once, so its global class cache would be stale. It refuses a dirty worktree (the mutants run HEAD) and runs nothing on an
-  invalid spec. A run never writes the task's tree, so a run killed half-way (a 600 s Bash limit, a stopped
-  workflow) cannot leave a planted fault for the publisher to commit: it makes the scratch worktree
-  `tools/out/mutants/tree-<checkout folder>` (`git worktree add --detach` of HEAD; a start first removes one a killed
-  run left), copies the checkout's `.godot` import cache and its files' modification times in (Godot then rechecks
-  nothing: the import takes about 7.5 s, 10 to 11 s afresh), imports it once, runs every named test once without a
-  mutant (a red baseline makes every mutant an `error`), then plants each mutant there, runs its tests (`test` without
-  the import) and restores the file: `killed` (a named test failed; they are listed), `survived` (a finding, not a
-  failure) or `error` (the mutant does not compile, `--seconds` (default 300) ran out, or the tests could not judge;
-  the reason and the log). At the end it removes the scratch worktree (and its `user://` folder, §11), also after an
-  exception, and confirms the task's `git status` unchanged. A `tree-*` folder that `git worktree remove` leaves is
-  deleted with `common.force_rmtree` (#453; the runner tests clean up with it too): git's read-only files are made
-  writable, a path a git process removes meanwhile counts as deleted, and every other error is reported. A lock in
-  `tools/out/mutants/` allows one run per checkout (the OS releases it when a run is killed). The table is printed
-  and written to `tools/out/mutants/<spec name>.md` after every mutant, with each test run's output and Godot's log in
-  `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever the results; 1: an invalid spec, or a run
-  that could not start or finish (a dirty tree, another run, a failed import), nothing left behind; 2: the scratch
-  worktree could not be removed or the task's tree changed: run no more mutants and tell the human (`git worktree
-  list` shows it; the next run removes it first). One mutant takes about 17 to 19 s with small suites (setup about
-  9 s, baseline and mutant about 4 s each), several or tests that name all of `tests/` far longer (two full runs:
-  596 s while other worktrees verified), so every agent runs `mutants` in the background and polls `wait <log>` (the
-  "Bounded waits" of §11; `mutants --help` prints both lines, #435); the report file shows the progress meanwhile.
-  The runner's own git commands are not the session's shell commands, so the guard judges only `tools\run.cmd mutants
-  <spec>`, which passes from a task worktree and the main checkout; a hand-typed `git worktree remove` of the scratch
-  tree asks (§8.2).
-- **`host` and `join` [applied]** (3i, #103; windows since #149; `docs/ARCHITECTURE.md` §4.6 and §4.7, the M4 ADR's
-  E20): the game over ENet. `host [--port P] [--clients N] [--local] [--seconds S]` hosts on every interface, or on
-  127.0.0.1 only with `--local` (no firewall prompt), and with `--clients N` (up to 7) starts N clients that join it
-  on 127.0.0.1 once it hosts. `join <address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a
-  placeholder ("not a decision"). Each process gets `PRIME_INSTANCE` (1 the host, 2 and on the clients in tile order),
-  so each window keeps its own settings file (`user://settings.cfg`, `settings_2.cfg`, ...; the M5 ADR §1.7).
-  - **Windows** (the default for a human): each process is the game, `client/app/game.tscn`, started with the
-    command line `LaunchOptions` reads (`--host [--local]` or `--join=<address>`, `--port=`, the stop and alive files
-    below), so it skips the menu and goes straight to the lobby. A host and its `--clients` are tiled over the primary
-    screen (`--position`, `--resolution`); a windowed host on every interface prints what to type on another PC. A
-    host that cannot listen stays at its menu with the reason, and its clients do not start. A window never welcomed
-    into a lobby (it could not host, or its join ended) fails the run with the reason, though the game exits 0.
-  - **`--headless`**: M3's `tools/run/headless_session.gd` (a `HostSession` and its own `ClientSession` of the base
-    mode). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase, and
-    the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
-    budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
-    once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
-    answer). Exit 1 is a refused or unanswered join, a client stopped before `Welcome` or ended by anything but its
-    host, or a host that cannot start or ends for an error.
-  - **An agent's shell** (`CLAUDECODE` is set) gets `--headless` by default, so an unattended run never opens a window
-    on a human's screen; `--windows` opens them there, and agents never pass it. A human who asks an agent for
-    windows ("запусти хост і двох клієнтів") gets the command to run in their own PowerShell, starting with `cd`.
-  - The runner echoes every process's lines live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a
-    player: client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until
-    Ctrl+C, `--seconds S` or every process ending (every window closed); the stop is clean (a stop file each process
-    polls: the host closes, so the clients see `host_lost` at once), and a process still running 10 s later is
-    killed (the report names its last line and when it came; one that stopped says how long it took). Each process
-    also stops by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner
-    leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error line. The agent's own
-    checks pass `--local --seconds S` (never without `--seconds` in the foreground). On Windows, Ctrl+C in
-    `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already stopped, so either answer
-    is fine. Its selftest runs a headless host and two local clients to the full lobby
-    roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
-    scene headless through its command line (CI below).
-- **`bots [scenario ...]` [applied]** (#102; `docs/ARCHITECTURE.md` §4.6, §9.7): plays every bot scenario in
-  `content/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot, in one headless process
-  over the loopback on a simulated clock (60 steps per simulated second: the six MVP scenarios take about 8 s), and
-  asserts the information-leak test (§5 there) for every bot, a lurker and a refused bot. `--instances N` (N > 1) plays one
-  scenario of N bots over ENet on 127.0.0.1 on a free port, one process per bot, on the real clock; `--seconds`
-  overrides the timeout (300, over ENet 180). It runs `tests/harness/bots/bots_main.gd` through `run`, so `run`'s
-  failure rules apply. A failed scenario prints its seed and each failure (the bot, its step, its last events) and
-  writes the command log that replays it (`ReplayFiles.read`, then `Match.replay`) to `tools/out/bots/<scenario>/`,
-  next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over ENet a scenario step that
-  needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is timing-dependent
-  (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself
-  (ARCHITECTURE §4.6).
-  `bots --chaos [--seed N] [--runs K] [--long] [--enet]` (#188; `docs/ARCHITECTURE.md` §4.6 "Chaos bots") runs the
-  chaos bots instead: `tests/harness/chaos/chaos_main.gd`, a hostile player and a malformed peer against the host
-  beside honest bots, for K seeds from N (without `--seed` a random one, printed first, so a failed night run names
-  the seed that replays it); per seed a baseline with the chaos peers idle, the chaos run and one with hidden roles
-  swapped, in one process over the loopback; `--long` is the match in which the hostile also dies, `--enet` one run
-  over ENet on 127.0.0.1 on a free port (the invariants only). A failure prints `CHAOS seed <n>: FAILED` and each
-  broken rule (the input, the phase and life state, what was expected and what came).
-- **`perf [--bots N] [--seconds S] [--enet] [--baseline FILE]` [applied]** (#187; item 6 of the [AI productivity
-  ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)): the host's cost with 10 bots, measured
-  from the harness (`tests/harness/perf/`, ARCHITECTURE §9.7); nothing in `server/` or `net/` changes. One seeded
-  match (every bot readies, walks a spoke across the greybox, the round ends by time up after S seconds, default 60)
-  in one headless process: over the loopback on the simulated clock at `--fixed-fps 60` (about 10 s for a 20 s
-  round), or with `--enet` over real sockets on 127.0.0.1 on the real clock (the round's length and more). It writes
-  `tools/out/perf/<date>.json` (UTC; `-enet` over ENet, `-<N>b<S>s` for a run other than 10 bots and 60 s) and
-  `summary.md`: p50/p95/max of the host step (`Time.get_ticks_usec` around `HostSession.step`, steps that ran a tick;
-  inside it the harness's meter only appends to a buffer, folded after), `TIME_PHYSICS_PROCESS` (read about once a
-  second, host and bots together; how the engine refreshes it between reads is not documented), events per tick, each
-  `Snapshot`'s payload bytes per remote peer per tick, frame bytes per remote peer per second down (all, snapshots,
-  the bots' synthetic voice) and up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets
-  and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceDown`). It compares
-  with `--baseline`, else `tools/out/perf/baseline.json`, else the newest earlier report of the same transport, bots
-  and round, and lists every metric that moved by more than 20% (a placeholder, not a decision); only a failed match
-  fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to
-  pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
-  with a release host's cost.
-- **`wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n>
-  [--workflow NAME] [--session ID] [--out FILE]` [applied]** (#277, #278; round 2 of the AI productivity track, a
-  cheaper manager): a manager session's workflow runs and their handover data, read-only from its transcript and the
-  journals, and with `--since` the whole wave comment, so status gathering and wave reports cost the manager one
-  command. Sources: the manager's `<session>.jsonl` in one pass (each Workflow call's input `{name or scriptPath or
-  script, args, resumeFromRunId}`, paired by `tool_use_id` with its result's `toolUseResult` `{runId, taskId,
-  workflowName}` or the "Run ID: wf_..." in its text; each task notification, from its queue `enqueue` record or its
-  user record, paired by `<tool-use-id>`; the API calls and the title) and each run's `journal.jsonl` through
-  `metrics.read_run`. A notification's `<result>` is cut at about 8 kB, so PR, CI, published, not fixed, needs engineer
-  and human steps come only from the journal (the publisher's result, else the pr-rebase fix's, else the rebase's; human
-  steps from every agent, each once); the notification gives the status (completed, failed, killed) and whether its
-  result says `"stopped"`. `--since T` writes a wave comment's body (default `tools/out/wave/wave-<session8>.md`, UTF-8;
-  it prints the path and its own run time) with eleven sections in this order, each a function in `wave.py`'s
-  `SECTIONS`: a title (`--title`, default "Wave report since T") with a header line (the plan issue `--plan`, the base,
-  the window); the manager's own judgement from `--notes FILE` as written (decisions, batched questions, the order from
-  here; a BOM and CRLF are dropped); the PRs merged into the base (`--base`, default main) since T (number, title,
-  branch, merge time and commit, closing issues or the branch's issue); the runs finished since T (a "relaunch fresh,
-  never resume" flag when the outcome has published false, a publisher stopped on `mutants` exit 2, issue-task stopped
-  on a red implementer, a pr-rebase rebase is red or unpublished, or the result says stopped; other workflows, such as a
-  read-only scouting run, are listed by their name with no issue), the running runs (title, worktree, branch, base, the
-  agent working now: each `started` with no `result`, and the minutes since the launch and since the newest write to the
-  run's journal or agent transcripts, which tell a live run from one whose session died); the open PRs into the base and
-  those stacked on them (issues, base, draft, a CI cell from `statusCheckRollup`: red beats pending, else green, "none"
-  when nothing reported; `mergeStateStatus`); merge safety (`merge-check --base B` with its printed lines captured: its
-  exit code and verdict line, and only when it flagged something or failed its tables and details exactly as printed;
-  `--no-merge-check` skips it and its `git fetch`); the cost (what `metrics --since T --session <this session>
-  --compact` prints, computed in memory with no metrics file written, plus with `--stage-since S` the stage's `total API
-  list $` and `% of a Max 20x week` lines; `COST_EXTRAS` in `wave.py` takes more lines over metrics' JSON record, the
-  hook for #314); housekeeping (below); the handover args of each running run and of each failed, killed or stopped one
-  that no later launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`,
-  `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
-  context, the mean API list $ per call of its first and last 20 calls, and any records it skipped). A section says
-  "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
-  body is still written and `wave` exits 0. Housekeeping, from `git worktree list --porcelain` in the main checkout: one
-  fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-done <n>`; for the manager's
-  `release-m<k>` worktree its `git worktree remove` and `git branch -D`) for each worktree whose branch's PR merged and
-  whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
-  running run of this session there, its HEAD at the merged head and no live Claude session in it; the manager runs
-  those itself (orchestrate-stage §8, the trust ADR). The section's first line, which the manager lifts into its chat
-  message, names only what needs the engineer, a worktree a live session holds: `For you: close the Claude session in
-  worktree <n> (...), then run its block below.` (`For you: nothing.` when none; the ready blocks stay out of it,
-  #343). The other cases are one-line waits (after `release/m<k>` reaches main, a run still running there, HEAD not
-  the merged head). It also names the issues still open whose PR reached main since T. One `gh pr list --state merged
-  --search sort:updated-desc` (the 500 most recently updated, every base; gh's default order is by creation) serves
-  the merged section and housekeeping (gh's `merged:>=` search is date-only, so mergedAt is filtered here); when gh
-  returns all 500, the merged section names the oldest update among them, before which a merged PR (and its worktree)
-  may be missing. A body over 60,000 characters (GitHub's limit is 65,536) moves its handover data, each run's block
-  whole, to `<out>-2.md` (and `-3.md`, ...), posted as the next comments; the first body says so, every path is printed,
-  a part one run's args alone push over 65,536 gets a warn, and a part left from an earlier run is named, never deleted.
-  A run is finished when its latest launch has a notification or its journal reached the script's end (issue-task: a
-  publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or
-  every reviewer answered with no blocker or major left to fix). `--args <n>` prints only the JSON of issue n's newest
-  launch on stdout (the run, workflow and time on stderr; `--workflow issue-task` or `pr-rebase` picks one; `--out` also
-  saves it, best for Cyrillic from PowerShell 5.1) and exits 1 when n has none; the `--since` flags are refused with it,
-  and it reads nothing beyond the transcript. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It
-  writes only its `--out` file(s) and posts, edits and launches nothing: `gh` is only read, and merge-check's `git
-  fetch` (with any PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity
-  manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
-  `args-<n>.json` files, in #279.
-- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]
-  [--track NAME ... [--budget PCT ...]]` [applied]**
-  (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
-  baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
-  reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
-  path with every character but letters and digits replaced by `-` (`D--prime-game`), plus
-  `<key>--claude-worktrees-<n>/`. The main checkout is the parent of `git rev-parse --path-format=absolute
-  --git-common-dir`, so every worktree gets the same answer (workflow agents log under their parent session's folder
-  anyway). Per session: its own `<session>.jsonl` (the manager), the subagents it ran by hand, and each workflow run
-  under `subagents/workflows/wf_*/` (`journal.jsonl`, `agent-*.jsonl`, `*.meta.json`). Usage is deduplicated by message
-  id; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a rerun
-  with a past `--until` gives the same tables while sessions keep working. A session's rows are labelled by its first 8
-  characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
-  `tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role
-  (from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
-  issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review` and `skeptic`; any other is "other"),
-  local `verify` by step with its verify-slot wait and runs over the limit (#185) (from the summaries agents printed,
-  the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify`
-  writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
-  as N, and the `test` shards that did not end with exit 0, #273), review findings by reviewer (a task's blockers and
-  majors count only its diff reviewers', as in the baseline), the prompt cache after waits, manager sessions with their
-  % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
-  by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
-  call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
-  window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
-  lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
-  `metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
-  weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
-  0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
-  range #307 measured, the limit counting cache reads at 60 to 100% of their list $ ((list $ without cache reads, plus
-  0.6 or 1 times the cache-read $) / $21.5 or $25.5; `WEEK_BRACKET`). At 1, $25.5 is #304's full list $ per 1% (66% at
-  2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change). The calibration readings, 66%
-  and 77%, both round to the reading at the central weight. It covers only this checkout's sessions (the main checkout
-  and its worktrees) that ran a workflow or that `--session` names; the weekly counter counts every session of the
-  account (`--track`, below, reads every session of three checkouts). API list $ is a weight (one price table in
-  `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
-  empty window, which also writes an empty report over an older one. Its quality scorecard (#314), so a cost change
-  (#303, #308's publisher trial, effort levels) is judged by quality too, has three tables, per finished `issue-task`
-  run, per session (a wave with `--since <wave start>`; medians) and per role setting (role, model and effort from each
-  agent's transcript; a clean run's publisher also as "publisher (clean run)"), and `quality` in `metrics.json`. From
-  the journal: the diff reviewers' and test review's blockers and majors, the skeptics' refutations, "clean" (none left
-  open, not stopped by mutants, not a design task: #315's rule, derived because a run's return value is not
-  journaled), the publisher's `fixed`, `not_fixed`,
-  `needs_engineer` and PR, and its fix rounds (`publish` calls minus one). From `gh`, read-only and by default
-  (`--no-gh` skips it; a failure is a note, never an exit code): the PR's state, its CI rounds (one per head SHA of
-  `ci.yml`'s pull_request runs on its branch; red rounds, those after the run, and "green on the first CI round"),
-  Found-by follow-up issues (a lower bound: only those whose "Found by" line names the task) and later `revert` or
-  `fix` PRs naming it in the title or in a sentence that reverts or repairs it (not under Merge order or
-  Verification); a first round re-run to green is unknown, since `gh` shows only the last attempt. Unknown is `?` (null), never 0: no PR, an older result shape, skeptics not run, a PR of another
-  repository, no CI run, or `gh` not read; medians and sums say how many are known. The compact `quality:` line ends
-  with the API list $ per PR green on its first CI round (the merged count beside it). A caller of `metrics.build`
-  (wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
-  the GitHub half. Its section "Instructions and docs per agent role" (#337) is the instruction-diet ADR's method (#313,
-  "How it was measured"), so the diet's issues are measured against one baseline. Per role: agents, the median
-  launch-loaded, path-loaded and read tokens, the list $ split into first writes, re-writes after a lapsed cache and
-  reads, its share of the role's $, the points at w = 0, 0.5 and the central 0.75 ((non-read $ + w x cache-read $) /
-  $15.3, $20.3 or $23.0, `POINT_WEIGHTS`, the last from `WEEK_CENTRAL`, for the window) and the files loaded twice in
-  one agent (either copy, before a compaction). Then the cost by file, the duplicates, ARCHITECTURE's and
-  AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row each; `--since <wave start>` for a
-  single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
-  `instructions` in `metrics.json`, and one compact line. **`--track NAME ...`** (#409, P1 of the four-track budget
-  design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
-  session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and its siblings with the folder
-  name plus `-ui` and `-art` (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), each with its
-  worktrees; the session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
-  its time in the window (a run in flight or one begun before the reset counts in part) and each message id once
-  across every file. A session's track is, the first that holds: `--session <id>=<track>` (under `--track`
-  `--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
-  orchestrate-stage skill's §10 template and §7's handover carry one; any case, the key also `Трек:` for a translated
-  kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's
-  default (`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track
-  (`all`: every track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the
-  bracket, its list $ and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the
-  engineer's, N1 of the design, so there is no default) `of <budget>% this week; plan to date <budget x days since
-  --since / 7, at most the budget>%`; then every session's total, which the manager holds against the weekly counter
-  (`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
-  or translated shows there). That total covers only the three checkouts: the counter also counts the account's
-  sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
-  Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %). It writes
-  `tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
-  labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%.
-- **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
-  windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
-  (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`), names its
-  players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more windows join it,
-  and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a `BotScenario`'s
-  scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup window 1 sends as the
-  host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps: `wait
-  phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`, Esc menu and
-  pointer, never `HostSession`, the match or `core/` (invariant 2); `wait text <field> is|has|lacks <text>` and `wait
-  shown <field> on|off` (#275), what its own Ui and current camera draw (the fields: `FIELDS` in
-  `tools/runner/playcheck.py`, the same keys as the window's `GameView`; whitespace runs count as one space, a hidden
-  field reads as ""); `press <action>` (its key through `Input.parse_input_event`), `hold`/`release`
-  (`Input.action_press`), `button <text>` (the one visible, enabled Button with that text takes the focus and gets
-  `ui_accept`'s key; none or several fail the step), `aim item <kind>` until `aim off` (#276: each frame the window
-  turns its own player, `PlayerController.look`, to face the nearest resting item of that kind in its own `ClientModel`;
-  paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
-  `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,
-  stable part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario
-  edit, and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
-  (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit at `shot`'s
-  off-screen position with the dummy audio driver, never headless. The game gets a pointer that only remembers, and
-  playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse (`use`, spectate
-  cycling) is out of its reach, and `aim` is the only way to turn. PNGs: `tools/out/playcheck/<scenario>/<shot>.png`
-  (`gh` cannot upload them: the PR lists their paths and says what each shows); logs:
-  `tools/out/logs/playcheck/<scenario>/`. A run fails on a wait past its timeout (the window prints the step's line and
-  what it saw, and saves `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not
-  done within `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started
-  through the stop file (else a kill: a window after 30 s, since its renderer's exit can wait seconds on the GPU
-  driver when every core is busy, #354; the bots after 10 s). Under a full-PC load it can also fail for reasons that
-  are not bugs (ARCHITECTURE §4.7 `playcheck`, "Known load limits", #406): run it again once the load ends before
-  debugging it. Desktop only: CI and `verify` never run it; an agent
-  may (off-screen windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked
-  up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a
-  second round, #276).
-- **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
-  `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
-- **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
-  `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
-  `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
-  `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-  `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), and `hook` (for Claude
-  Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
-  rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
-  Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
-  runner takes the machine paths from the Claude settings (§2).
-- **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
-  (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
-  pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
-  seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
-  `verify` on the merged tree is the check there (§7.1). A second job, `python-min` (#349), sets up the pinned
-  minimum Python (`pins --get python_min`, 3.11), checks it runs that version, compiles every runner file and runs
-  `selftest --group python` (199 s on 3.11 in a cloud session, beside `verify`; Actions minutes cost nothing on a
-  public repository): `verify`'s 3.12 never ran the stated minimum, and 3.12-only code broke `verify` in a cloud
-  session on 3.11 (#345). It is a required check of `main` like `verify` (§8.5), so neither `merge` nor a human's
-  merge button takes a PR while it is red. `verify` (#179) runs `doctor --quick`
-  first (red: nothing else runs), then two lanes at once, each a process of its own and serial inside: the Python lane
-  (`lint`, then `selftest`: the runner tests that start no Godot, each test in one of the worker processes, a quarter of
-  the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
-  `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
-  imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots`
-  and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
-  output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
-  clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
-  it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
-  `selftest --group python|godot` runs one group without it). The
-  summary keeps the serial order (`doctor`, `lint`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
-  `bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
-  test count.
-  Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
-  `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
-  at HEAD), `status`, `seconds`, `steps` (name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`,
-  `selftest` (run, skipped) and `slot` (below; null without one). Since #273 a red step adds `failure`, its first `FAIL`
-  line with the reason under it when a step that runs the game (`check`, `enet` to `game`) printed one (the first engine
-  error line, or the first line under a `BOTS`/`CHAOS` FAILED header, such as `bots-enet`'s "a Correction outside a
-  placement", #284); the `test` step adds `shards` (each GdUnit4 process's `shard`, `rc` and `seconds`, plus `results:
-  false` when it wrote no `results.xml`, such as a crash's 3221225477, `timed_out` and an `error` that kept it from
-  starting; shard 1 is the one process of a run without shards) and, when red, `failed_tests` (`test` as
-  `<suite>::<test>`, with the failure's `message` on one line, or `orphans` for a leak) and `failed_tests_more` past 20.
-  A message is cut at 240 characters, so a red record stays about 1 KB; `metrics` lists the red runs' failing tests,
-  first failure lines and shard exits.
-  **Processes Windows could not start (#441):** on the engineer's PC, Godot, git, Python and PowerShell sometimes exit
-  with 3221225794 (0xC0000142, STATUS_DLL_INIT_FAILED) a fraction of a second after their start, before they print a
-  line: Windows failed them while it loaded their DLLs, so none of their code ran. In 11 of about 420 agents' verify
-  logs (10-01 to 10-05) it hit every process that started during a window of 0.5 s to several minutes, at one to three
-  verify runs at once (row 15 of the weekly budget ADR), and the same tree passed on a rerun; which per-session resource
-  ran short (commit, desktop heap or another) is not known yet. `run` in `tools/runner/common.py` (every `run` instance,
-  GdUnit4 shard, `check` import and the runner's git and gh calls) starts such a process once more after 10 s, with a
-  `NOT STARTED, restarted once` warning that carries the machine's load at that moment (processes, threads, handles,
-  commit, free RAM, USER and GDI objects: the evidence to find the shortage), then `RESTARTED` or `NOT STARTED again`;
-  once a restart was refused too, that runner process restarts nothing more, and one of several instances that run
-  together (`enet`, `freeze`, `bots-enet`) is not restarted, since its late start would fail the others. A process that
-  printed a line or lived 10 s is never started again, whatever it returned, so no step that ran is retried. A start
-  that stayed refused is reported as `could not start: ... run verify again` (also by `game`'s host and client, which
-  are not restarted), each step's record adds `not_started` ({`refused`, `restarted`, `recovered`}) and the summary a
-  `NOT STARTED` line. Tests: `tools/runner/tests/test_not_started.py`.
-  **Verify slots (#185):** on a PC, after `doctor`, `verify` takes one of N
-  machine-wide slots for its lanes, so the tracks' runs queue instead of starving each other (and `freeze` and `stall`):
-  a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots` (elsewhere
-  `~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The
-  operating system frees a slot's lock when its process ends however it ends, so a killed run's slot is taken over at
-  once (the next run names it: "left by a run that ended without releasing it"). While every slot is held the run prints
-  every minute which worktrees, branches and pids hold them. The wait is bounded (default 600 s since #388; 95 s
-  before, to fit an agent's 600 s foreground call, which agents no longer make: they run verify and publish in the
-  background and poll them with `wait`, below). With 95 s, 7 of the 59 runs left in the verify history files (to
-  2026-10-04) ran over the limit, all on 2026-10-04 with three or four tracks verifying at once, and they were slow
-  (median 603 s against 359 s slotted); for the five whose holders the files name, a slot freed 207 to 536 s after the
-  wait began. 600 s covers them all and is about one whole verify on the loaded PC (45 of 51 slotted runs took less):
-  a longer wait means a stuck holder. After the wait the run goes ahead without a slot, with `OVER THE LIMIT` in
-  its output, its summary's last line and its record (`over`). A slot never skips or weakens a step. N is 2, measured on
-  the engineer's PC with #182's shards (the PR of #185): one or two runs at once took 315 to 386 s each, three 431 to
-  441 s, four 452 s; two runs of 4 shards and 4 selftest workers fill the 16 logical CPUs, while a third or fourth makes
-  every run a third longer and `test` red more often (freeze, stall, enet and bots-enet stayed green).
-  `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR` override the
-  defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
-  **Load runs (#388):** an agent that tests something under load on purpose (as #318 and #354 did with 32 hand-written
-  busy loops on 16 logical CPUs, which the slots could not see while the other tracks' verify runs went on beside them)
-  runs `load [--loops N] [--seconds S]` (default 2 loops per logical CPU for 600 s; at most 256 loops and 1140 s). It
-  first takes a slot like a verify (the same wait and waiting line), so one verify fewer runs beside it and every
-  waiting run names it (`slot 2: load run in <worktree> (...)`; its holder file has `kind: load`); past the wait it
-  starts nothing and exits 1 (a load is no gate, and it would push the slotted runs over the limit). Taking a slot
-  was chosen over `verify` counting load runs as extra holders: the same operating-system lock frees a killed load's
-  slot at once, there is one count to reason about, and nothing else has to find and judge the load's processes. One
-  slot makes the load visible but does not shield the verify that still runs beside it: a default load busies every
-  logical CPU (a slot stands for half the PC), so that verify is expected to run slow and may go red on `freeze` or
-  `stall`; rerun it after the load instead of debugging it. A load taking both slots would shield it, but would hold
-  every other verify for up to 1140 s, past the 600 s wait, so they would run over the limit anyway. Each
-  loop is its own Python process that ends by itself at most S seconds after it starts, and the runner stops any loop
-  that outlives S by 5 s. A killed `load` frees its slot at once while its loops run out their time without one, so S
-  is at most 1140 s: the 600 s wait, S, the 5 s grace and a 55 s start margin fit the 30-minute default limit of a
-  background command, which therefore never kills a `load`. The agent starts it in the background (a log under its
-  scratch folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with
-  `wait <log>`.
-  **`slots` (#416):** `--status` shows holders, waiters and the last hour's runs without a slot (launch nothing while
-  one waits or runs over the limit); `--quiet <hours>` (at most 24; `off`) leaves new verify and load runs one slot
-  machine-wide: a run already in a slot finishes there, a run already waiting joins the window.
-  Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
-  The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (`error` when the slot folder failed: the run
-  then goes ahead without a slot, a slot never stops the gate; `quiet`, the window's note, when the run started in a
-  quiet window), its `seconds` leave the wait out, and the summary's last
-  line adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over
-  the limit. A lane process and its workers carry `PRIME_VERIFY_INSIDE`, so a runner test that reaches the real lanes
-  fails instead of starting `verify` inside `verify`; a runner test that starts Godot carries `@starts_godot`
-  (`runner.verify`). `bots` is `bots` (every scenario in one process, about 8 s) and `bots-enet` is `bots
-  dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario ends by time up on a 40 s clock
-  that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos` (#188, about 6 s) is `bots --chaos --seed
-  188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `game` (#149, about 5 s) starts
-  `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
-  (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
-  file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
-  `run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
-  5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
-  `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
-  both sides and a backlog taken in one poll, #95; about 13 to 25 s, since the drops depend on the round trip) is
-  `run tests/integration/net/enet_stall.gd --headless --seconds 60`, one process whose hosts take `<p>` to
-  `<p> + 2`. Each gets
-  `-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral ranges), so
-  worktrees verifying at once very rarely share a port (if they do, the host fails with
-  `host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
-  (GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
-  branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
-- **Bounded waits: `wait <log> [--max S]` and `wait --verified` [applied]** (#303; #302's token research): a workflow
-  agent or subagent writes its prompt cache with a 5-minute lifetime (a main or manager session has 1 hour), so a
-  tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54
-  that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly
-  all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
-  300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
-  shell's `timeout` or `wait --max`, never only with the tool's own timeout. Since #388 every agent, a main or manager
-  session too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can
-  reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
-  (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
-  the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
-  `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the job in the Bash tool with
-  `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
-  run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
-  the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
-  `tools/run.sh wait <log>` (PowerShell: `tools\run.cmd wait <log>`) with the tool's timeout at 300000, since the
-  default 120000 would cut a 240 s wait short. `wait` polls every 3 s for at most S seconds (default 240, 1 to 270;
-  else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
-  `exit=<n>`: the marker is the job's final write, a line still being written (no newline yet) is never read, and a
-  bare `exit=0` in a step's output is no result. Then it prints the summary (from the last `verify summary` line,
-  which `publish` prints too, or `merge-train summary`, else the last 20 lines) and `wait: <log> finished: exit=<n> (whole log: <path>)`, and
-  exits n. Not finished: one line, `wait: still running after S s (<path>: <k> lines, last written <t> s ago); call
-  wait again, never start the job again`, and 124; the job runs on (a second `verify` in one worktree would fight
-  the first over `tools/out/` and the slots). No log after a 10 s grace (the background shell may not have created
-  it yet), or a log deleted during the wait: `wait: no log at <path> ...` and 2; a log it cannot read (a folder, a
-  locked file): `wait: cannot read <path>: ...` and 2. Every line `wait` writes itself starts with `wait: `, which tells
-  its own 2 from a job's (`mutants` exits 2 too). It reads UTF-16 and UTF-8 (BOM or none), CRLF, and on Windows the Git
-  Bash form `/c/...` of a path; a Git Bash-only path such as `/tmp` is not visible to Windows Python, and the
-  missing-log line says so. A log that has not grown for 10 minutes points at a background task that died (no marker is
-  ever written): check it. CI: `timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with
-  the tool's timeout at 300000 (its default 120000 would cut the 240 s short; in PowerShell `timeout` is Windows' own
-  program), repeated while rc is 124 (the timeout) or 8 (pending); rc 1 with "no checks reported" means the run has not
-  registered yet. `wait --verified` (no log) exits 0 when the newest record of `tools/out/logs/verify-history.jsonl`
-  passed at HEAD with a clean tree (`tree` set) and the tree is still clean, else 1 with the reason: a publisher then
-  skips its standalone `verify`, since `publish` runs one. On a branch whose base predates `wait`, the agents run these
-  commands in the foreground as before. Tests: `tools/runner/tests/test_wait.py` (a fake clock; the launch line and
-  `wait` through Git Bash, cmd and PowerShell 5.1; the commands pass the permission model outside bypass). The rule is
-  one Shell bullet of root CLAUDE.md, the commands are `bounded_waits` (§7.1).
-- **An own `user://` per worktree [applied]** (#182): Godot names `user://` after the project, so every checkout of
-  "PrimeGame" shared one folder, and two worktrees' `test` runs cleared each other's GdUnit4 files in `user://tmp`.
-  Before every Godot start (`require_godot`, and a windowed `run`) the runner writes a gitignored `override.cfg` into
-  a linked worktree (one whose `.git` is a file: a task's `.claude/worktrees/<n>`, a scratch worktree) with
-  `application/config/use_custom_user_dir=true` and `custom_user_dir_name="Godot/app_userdata/PrimeGame-<folder>-<6
-  hex of its path>"`. Godot 4.7.2 joins the name to the app-data folder, so worktree 182's `user://` is
-  `%APPDATA%\Godot\app_userdata\PrimeGame-182-7f974f` (Linux: under `~/.local/share/godot/app_userdata/`). The main
-  checkout and a clone (CI, a cloud session) have a `.git` folder and get no file: the humans' settings and saves stay
-  in Godot's default `%APPDATA%\Godot\app_userdata\PrimeGame`. An export gets that default folder too: it packs a
-  non-resource file only when a preset's include filter names it (there is no preset yet), and an exported game reads
-  an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is left alone, with a warning.
-  `worktree-done <n>` deletes the removed worktree's folder (#202) once `git worktree remove` succeeded, or when it
-  finishes a removal left half done, and says so in one line; never the default `PrimeGame` folder or another
-  worktree's (a missing folder is fine; one a Godot still holds open stays, with a warning). Saving
-  project settings in a worktree's editor (`ProjectSettings.save()`) copies both keys into `project.godot` (probed on
-  4.7.2), which would move every checkout's and export's `user://`: `check` fails on them; delete the two lines.
-- **`test` in shards [applied]** (#182): `test` with no paths runs the suites in K GdUnit4 processes at once, K =
-  half the logical CPUs, at most 4 (`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K`
-  or `PRIME_TEST_SHARDS=K` sets K (1: the one process of before); `test <paths>`, `test --repeat N` and
-  `gdunit.main(paths)` stay one process. The shards are balanced by the last per-suite times
-  (`tools/out/logs/gdunit-times.json`, merged after every run; a fresh worktree reads the newest one of another
-  checkout, CI restores it from the Actions cache): the longest suite first, each to the least loaded shard. A
-  shard is one GdUnit4 process given its scripts one by one (`-a <file>`; together every `.gd` file a one-process
-  run's folder scan loads), with `APPDATA` (Linux: `XDG_DATA_HOME`) set to `tools/out/gdunit-user/shard-<i>`, which
-  gives it a `user://` of its own; its report goes to `tools/out/gdunit/shard-<i>/`, its log to
-  `tools/out/logs/test-shard<i>.log`, and `test.log` holds every shard's log in turn. Each shard is judged as a
-  one-process run (exit code, `results.xml`, orphans named), a shard whose `user://` stayed empty fails, and the
-  merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
-  declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
-  processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
-- **The frame-bound suites at fixed fps [applied, the default without paths]** (#280, #341): suites run with the
-  engine's `--fixed-fps 60` (placed before `-s`, since GdUnit4's command tool skips every argument before its own
-  script): each frame counts as 1/60 s of game time however fast it runs, so a suite that steps physics frames on a
-  simulated clock (`NetPair`'s, or the test's own over the `LoopbackHub`) runs as fast as the CPU allows. `test` with
-  no paths, so `verify` and CI too (#341), runs `gdunit.FIXED_FPS_SUITES`, the 9 frame-bound client suites, so, in
-  shards of their own within the same K (`gdunit.split_shards` picks how many), and the rest real-time; with one
-  process at a time (`--shards 1`, `PRIME_TEST_SHARDS=1`, 2 or 3 CPUs, no per-process `user://`) in a second process
-  after the rest, so every machine's `verify` runs CI's clock. `test --real-time` runs every suite real-time. `test <paths> --fixed-fps` (also with `--repeat N`) runs every named suite so; named paths and `--repeat`
-  are real-time without it. Seconds at fixed fps go to the `fixed_fps` map of `gdunit-times.json`, never into the
-  real-time one. Measured on the engineer's PC, 2026-10-04
-  (the tables, the load and the break list are in #280's comment): the 9 took 284 s real-time and 22.7 s at fixed fps
-  (medians of 10 runs each, all 90 green; beside another session's 100 % CPU load a CPU-bound one gained only 2.3x);
-  the whole `test` step took 119.4 s real-time and 62.2 s with the flag (mean of 3 each, alternated, 4 shards, a quiet
-  PC), 139.5 s and 90.7 s with `selftest` beside it as in verify, 226 s and 145 s in 2 shards (CI's count). Run with
-  every suite at fixed fps, only `voice_views_audio_test` breaks (it listens to the real audio mix for a wall-clock
-  time, so GdUnit4's 5-minute test timeout, counted in game time, runs out); the other 164 suites took 121 s real-time
-  and 119 s so. What it hides is the #222 class: at fixed fps a frame runs exactly one physics step, never several,
-  so a load bug there and `.claude/rules/tests.md`'s `OS.delay_msec` recipe (a named path) need a real-time run.
-  The engineer made it the default of `verify` and CI (option (b) on PR #323, the pipeline-v2 ADR's amendment of
-  #341); the nightly `flaky` job's `test --repeat 3` stays real-time and keeps covering that class, and
-  `test_github_workflows.py` pins both. A third CI process for the fixed shard (K+1) was declined for now.
-- **The real app-data folder stays clean [applied]** (#233): a worktree's `user://` folder outlives the worktree,
-  and by 2026-10-02 22:30 UTC 62 such folders had piled up in `%APPDATA%\Godot\app_userdata\`, a new one with every
-  `selftest` and every scratch worktree. Each source and its fix (found by listing a temporary app-data folder before
-  and after one `selftest` and one `merge-check --trial`): the runner tests that start Godot in a throwaway project
-  (`RealUserDirTest`'s settings save made `PrimeGame-182-<hash>`, `RealNormalizeTest` the folder `n` and Godot's
-  editor settings, `RealRunTest` the folder `r`; PR #224's `RealStaleCacheTest` wrote into the main checkout's own
-  `PrimeGame` folder) run in a class marked `@starts_godot`, which now points `APPDATA`
-  (Linux: `XDG_DATA_HOME`) at a temporary folder of the class's own and deletes it after the class
-  (`common.temp_app_data`; `PYTHONUSERBASE` keeps a Python child's user site-packages); `selftest` gives its
-  workers a stand-in app-data folder and fails, naming the files and any empty `user://` folder, when a test wrote to
-  it (one that starts Godot outside a `@starts_godot` class: outside `selftest` that would have been the real folder;
-  only `selftest` has this check, so a direct `python -m unittest` run still writes there). The scratch worktrees of
-  `merge` and `merge-check --trial` (`PrimeGame-<label>-<random>-<hash>`: a new path, so a new folder, every run) and
-  of `mutants` (`PrimeGame-tree-<checkout>-<hash>`) delete the folder their Godot runs made when they remove the tree
-  (`common.remove_own_user_dir`: only a `<project>-<folder>-<6 hex>` folder in `app_userdata/`, never the default
-  `PrimeGame` folder nor the running checkout's own; one a Godot still holds stays, with a warning; a tree that could
-  not be removed keeps its folder). The folders left before the fix are a human's one-time cleanup (the PR of #233
-  lists them).
-- **No Godot MCP server** before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
-  from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
-  `docs.godotengine.org/en/4.7/`.
+### 11.1 Stack ([ADR](decisions/2026-09-29-technical-stack-from-the-brief.md))
+Godot 4.7.2 standard build (not .NET), typed GDScript, GdUnit4, gdtoolkit, ENet behind a transport abstraction, Opus
+voice (M1 spike decides the addon). Native Windows first, never WSL: the agent runs the Godot `*_console.exe`, humans
+the regular exe. Binary assets go through Git LFS, `addons/` stays outside it
+([ADR](decisions/2026-09-29-git-lfs-for-binary-assets.md)).
+
+### 11.2 Editor convention ([ADR](decisions/2026-09-28-godot-editor-save-first-convention.md))
+Nobody edits by hand while an agent works. Before asking the agent for anything, Scene → **Save All Scenes**
+(Ctrl+Shift+Alt+S; Ukrainian UI «Зберегти всі сцени»). If Godot asks about files changed on disk, always choose **Reload
+from disk** (Ukrainian UI: **«Джерело отримання»**; never «Ігнорувати зовнішні зміни»). The agent reminds the human;
+nothing blocks. Headless runs next to an open editor were verified in M0.
+
+### 11.3 `.tscn` / `.tres` ([ADR](decisions/2026-09-29-hand-written-scenes-then-normalize.md))
+The agent hand-writes readable text and never copies a uid or a `.uid` sidecar; `tools\run.cmd normalize <files>` **[applied]**
+re-saves them in headless editor context (`--headless -e -s`, after the first file-system scan), which adds the header
+uid and node `unique_id`s the editor would. A second run leaves the file byte-identical. Godot drops a property it does
+not know (a typo), one at its default, and any line after a parse error, without an error: `normalize` compares property
+keys before and after, and on a loss restores the file and fails. `check` fails on UID problems, on files left modified
+by `--import`, and on an `ext_resource` uid that resolves to a different file than its `path=`. Godot 4.7.2 sometimes dies of an access violation (exit
+3221225477, 0xC0000005) while it shuts down after `check_project.gd` printed a clean summary (#442: 2 of 326 check
+steps, the summary their last line, none of the shutdown lines every run prints after it): `check` passes such a run
+with a `GODOT CRASHED AT EXIT` warning and keeps its output in `tools/out/logs/check-exit-crash.log`. A crash before
+the summary, after an error or with another exit code stays red, and nothing is retried.
+
+### 11.4 `shot <scene>` [applied]
+A real window at `--position -30000,-30000` (off-screen), never headless or minimized (Godot then never draws), a 60 s
+watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets one that frames all its geometry,
+plus a light if it has none. It prints the driver it drew with (`renderer: vulkan forward_plus`; the runner's
+`--no-header` hides Godot's own line). Desktop only: CI never runs it, and the designer gets the PNG to drag into the PR
+(`gh` cannot upload images). `tools/shot/probe.tscn` is its smoke test.
+
+### 11.5 `run <scene.tscn | script.gd>` [applied]
+Runs a scene, or a `-s` script that extends `SceneTree`, with the pinned Godot; arguments after `--` reach
+`OS.get_cmdline_user_args()`. `--headless` uses `GODOT_BIN`; a window uses `GODOT_GUI_BIN` (else `GODOT_BIN`), and
+`--offscreen` puts it at `shot`'s off-screen position. `--seconds N` (default 60) kills the process tree; `--instances
+N` (up to 8) starts N copies at once, each with `PRIME_INSTANCE=<i>` in its environment and its own log
+`tools/out/logs/run/<name>-<i>.log` (the next run of the same name replaces them). `--audio dummy` (default) or
+`default`; `--headless --audio default` keeps the real audio driver (`--display-driver headless`). Fails when an
+instance exits non-zero, times out or prints an `ERROR:` / `SCRIPT ERROR:` line (Godot exits 0 after both), and names
+the instance and its first error lines. A scene that never calls `quit()` therefore fails at `--seconds`: read its log.
+The agent's own checks run `--headless` (never a window while a human uses the machine). It imports the project first
+when the import is not current (the next item). `tools/run/probe.gd` is its smoke test.
+
+### 11.6 The import before a launch [applied] (#174)
+`host`, `join`, `run` (and through it `perf` and `bots`), `playcheck`, `shot` and `verify`'s `game` step import the
+project before they start Godot when a file Godot sees changed after the last import through the runner, since only an
+import rebuilds the global class cache (a game started after a `git switch` that brought a new `class_name` printed
+`Identifier "MousePointer" not declared` in the engineer's playtest). No `check` is needed after a `git switch`, a pull
+or new scripts or assets. One line says which: `import: current (1489 project files unchanged since the last import,
+0.03s)`, or `import: res://client/app/game.gd changed after the last import; importing the project first`, then `import:
+done in 11.3s`. Every import through the runner (`check`, `test`, `mutants`, these and the `.gd` post-edit hook's)
+records when it started in `.godot/runner_import.stamp`, or the time of the newest `.uid` or `.import` file it wrote
+itself, never a time after the import ended; the test compares the modification times of the files Godot sees (no hidden
+folders, none with a `.gdignore`, no Markdown, Python or shell scripts) with it: git gives every file a switch, pull or
+rebase writes the time it arrived. Measured on the engineer's PC: 0.03 to 0.04 s for the test, against 9.9 s for a quick
+import that finds nothing to do (11.3 s after one changed script, 17.7 s after a `git switch`), so the import is not
+always on. A file dated in the future (clock skew, or copied with its original time) makes every launch import, with a
+`warn` line that names it: `touch` it. An import by the editor is not recorded: the next launch through the runner
+imports once. A linked worktree's `override.cfg` (#182) is written before the test and the import, so the import uses
+the worktree's own `user://`.
+
+### 11.7 `mutants <spec.json> [--seconds N]` [applied]
+(#184; item 4 (b) of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), the
+tool of `issue-task`'s `test_review`): shows that a change's tests fail when its code is wrong. Each mutant of the spec
+names a tracked `file` under `core/ server/ net/ client/ voice/`, the 1-based `line` on which `original` (exact text,
+which must start there once) begins, its `replacement`, and the `tests` (files or folders under `tests/`) that should
+catch it; `mutants --help` prints the format. A mutant on a `class_name` or `extends` line is refused: the scratch tree
+is imported once, so its global class cache would be stale. It refuses a dirty worktree (the mutants run HEAD) and runs
+nothing on an invalid spec. A run never writes the task's tree, so a run killed half-way (a 600 s Bash limit, a stopped
+workflow) cannot leave a planted fault for the publisher to commit: it makes the scratch worktree
+`tools/out/mutants/tree-<checkout folder>` (`git worktree add --detach` of HEAD; a start first removes one a killed run
+left), copies the checkout's `.godot` import cache and its files' modification times in (Godot then rechecks nothing:
+the import takes about 7.5 s, 10 to 11 s afresh), imports it once, runs every named test once without a mutant (a red
+baseline makes every mutant an `error`), then plants each mutant there, runs its tests (`test` without the import) and
+restores the file: `killed` (a named test failed; they are listed), `survived` (a finding, not a failure) or `error`
+(the mutant does not compile, `--seconds` (default 300) ran out, or the tests could not judge; the reason and the log).
+At the end it removes the scratch worktree (and its `user://` folder, §11), also after an exception, and confirms the
+task's `git status` unchanged. A `tree-*` folder that `git worktree remove` leaves is deleted with
+`common.force_rmtree` (#453; the runner tests clean up with it too): git's read-only files are made writable, a path a
+git process removes meanwhile counts as deleted, and every other error is reported. A lock in `tools/out/mutants/`
+allows one run per checkout (the OS releases it when a run is killed). The table is printed and written to `tools/out/mutants/<spec name>.md` after every mutant, with each test
+run's output and Godot's log in `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever the results; 1: an invalid spec, or a run
+that could not start or finish (a dirty tree, another run, a failed import), nothing left behind; 2: the scratch
+worktree could not be removed or the task's tree changed: run no more mutants and tell the human (`git worktree
+list` shows it; the next run removes it first). One mutant takes about 17 to 19 s with small suites (setup about
+9 s, baseline and mutant about 4 s each), several or tests that name all of `tests/` far longer (two full runs:
+596 s while other worktrees verified), so every agent runs `mutants` in the background and polls `wait <log>` (the
+"Bounded waits" of §11; `mutants --help` prints both lines, #435); the report file shows the progress meanwhile.
+The runner's own git commands are not the session's shell commands, so the guard judges only `tools\run.cmd mutants
+<spec>`, which passes from a task worktree and the main checkout; a hand-typed `git worktree remove` of the scratch
+tree asks (§8.2).
+
+### 11.8 `host` and `join` [applied]
+(3i, #103; windows since #149; `docs/ARCHITECTURE.md` §4.6 and §4.7, the M4 ADR's E20): the game over ENet. `host
+[--port P] [--clients N] [--local] [--seconds S]` hosts on every interface, or on 127.0.0.1 only with `--local` (no
+firewall prompt), and with `--clients N` (up to 7) starts N clients that join it on 127.0.0.1 once it hosts. `join
+<address> [--port P] [--seconds S]` joins a host. The default port, 24600, is a placeholder ("not a decision"). Each
+process gets `PRIME_INSTANCE` (1 the host, 2 and on the clients in tile order), so each window keeps its own settings
+file (`user://settings.cfg`, `settings_2.cfg`, ...; the M5 ADR §1.7).
+- **Windows** (the default for a human): each process is the game, `client/app/game.tscn`, started with the
+  command line `LaunchOptions` reads (`--host [--local]` or `--join=<address>`, `--port=`, the stop and alive files
+  below), so it skips the menu and goes straight to the lobby. A host and its `--clients` are tiled over the primary
+  screen (`--position`, `--resolution`); a windowed host on every interface prints what to type on another PC. A
+  host that cannot listen stays at its menu with the reason, and its clients do not start. A window never welcomed
+  into a lobby (it could not host, or its join ended) fails the run with the reason, though the game exits 0.
+- **`--headless`**: M3's `tools/run/headless_session.gd` (a `HostSession` and its own `ClientSession` of the base
+  mode). Each process prints `session:` lines: the roster (`Player1 [1] ready, Player2 [<peer>]`), the phase, and
+  the counters (the transport's rejects and LATEST merges, the client's undecodable messages; on the host the
+  budgets' `over_budget`, `bad_payloads`, `malformed_disconnects` and `voice_dropped`) when they change, at most
+  once a second; a refused join says why in words (`wrong_version`, `wrong_content`, `joins_closed`, `full`, no
+  answer). Exit 1 is a refused or unanswered join, a client stopped before `Welcome` or ended by anything but its
+  host, or a host that cannot start or ends for an error.
+- **An agent's shell** (`CLAUDECODE` is set) gets `--headless` by default, so an unattended run never opens a window
+  on a human's screen; `--windows` opens them there, and agents never pass it. A human who asks an agent for
+  windows ("запусти хост і двох клієнтів") gets the command to run in their own PowerShell, starting with `cd`.
+- The runner echoes every process's lines live as `[host]`, `[client 2]` or `[join]` (a label is a process, not a
+  player: client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until
+  Ctrl+C, `--seconds S` or every process ending (every window closed); the stop is clean (a stop file each process
+  polls: the host closes, so the clients see `host_lost` at once), and a process still running 10 s later is
+  killed (the report names its last line and when it came; one that stopped says how long it took). Each process
+  also stops by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner
+  leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error line. The agent's own
+  checks pass `--local --seconds S` (never without `--seconds` in the foreground). On Windows, Ctrl+C in
+  `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already stopped, so either answer
+  is fine. Its selftest runs a headless host and two local clients to the full lobby
+  roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
+  scene headless through its command line (CI below).
+
+### 11.9 `bots [scenario ...]` [applied] (#102; `docs/ARCHITECTURE.md` §4.6, §9.7)
+Plays every bot scenario in `content/scenarios/` (or those named) through `HostSession` and one `ClientSession` per bot,
+in one headless process over the loopback on a simulated clock (60 steps per simulated second: the six MVP scenarios
+take about 8 s), and asserts the information-leak test (§5 there) for every bot, a lurker and a refused bot.
+`--instances N` (N > 1) plays one scenario of N bots over ENet on 127.0.0.1 on a free port, one process per bot, on the
+real clock; `--seconds` overrides the timeout (300, over ENet 180). It runs `tests/harness/bots/bots_main.gd` through
+`run`, so `run`'s failure rules apply. A failed scenario prints its seed and each failure (the bot, its step, its last
+events) and writes the command log that replays it (`ReplayFiles.read`, then `Match.replay`) to
+`tools/out/bots/<scenario>/`, next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over
+ENet a scenario step that needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is
+timing-dependent (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself
+(ARCHITECTURE §4.6). `bots --chaos [--seed N] [--runs K] [--long] [--enet]` (#188; `docs/ARCHITECTURE.md` §4.6 "Chaos
+bots") runs the chaos bots instead: `tests/harness/chaos/chaos_main.gd`, a hostile player and a malformed peer against
+the host beside honest bots, for K seeds from N (without `--seed` a random one, printed first, so a failed night run
+names the seed that replays it); per seed a baseline with the chaos peers idle, the chaos run and one with hidden roles
+swapped, in one process over the loopback; `--long` is the match in which the hostile also dies, `--enet` one run over
+ENet on 127.0.0.1 on a free port (the invariants only). A failure prints `CHAOS seed <n>: FAILED` and each broken rule
+(the input, the phase and life state, what was expected and what came).
+
+### 11.10 `perf [--bots N] [--seconds S] [--enet] [--baseline FILE]` [applied]
+(#187; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md)): the
+host's cost with 10 bots, measured from the harness (`tests/harness/perf/`, ARCHITECTURE §9.7); nothing in `server/` or
+`net/` changes. One seeded match (every bot readies, walks a spoke across the greybox, the round ends by time up after S
+seconds, default 60) in one headless process: over the loopback on the simulated clock at `--fixed-fps 60` (about 10 s
+for a 20 s round), or with `--enet` over real sockets on 127.0.0.1 on the real clock (the round's length and more). It
+writes `tools/out/perf/<date>.json` (UTC; `-enet` over ENet, `-<N>b<S>s` for a run other than 10 bots and 60 s) and
+`summary.md`: p50/p95/max of the host step (`Time.get_ticks_usec` around `HostSession.step`, steps that ran a tick;
+inside it the harness's meter only appends to a buffer, folded after), `TIME_PHYSICS_PROCESS` (read about once a second,
+host and bots together; how the engine refreshes it between reads is not documented), events per tick, each `Snapshot`'s
+payload bytes per remote peer per tick, frame bytes per remote peer per second down (all, snapshots, the bots' synthetic
+voice) and up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets and their headroom (the
+1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceDown`). It compares with `--baseline`, else
+`tools/out/perf/baseline.json`, else the newest earlier report of the same transport, bots and round, and lists every
+metric that moved by more than 20% (a placeholder, not a decision); only a failed match fails it. Not a `verify` step:
+the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to pin the comparison. The pinned Godot
+is a debug build (unoptimised GDScript): compare runs with each other, not with a release host's cost.
+
+### 11.11 `wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n> [--workflow NAME] [--session ID] [--out FILE]` [applied]
+(#277, #278; round 2 of the AI productivity track, a cheaper manager): a manager session's workflow runs and their
+handover data, read-only from its transcript and the journals, and with `--since` the whole wave comment, so status
+gathering and wave reports cost the manager one command. Sources: the manager's `<session>.jsonl` in one pass (each
+Workflow call's input `{name or scriptPath or script, args, resumeFromRunId}`, paired by `tool_use_id` with its result's
+`toolUseResult` `{runId, taskId, workflowName}` or the "Run ID: wf_..." in its text; each task notification, from its
+queue `enqueue` record or its user record, paired by `<tool-use-id>`; the API calls and the title) and each run's
+`journal.jsonl` through `metrics.read_run`. A notification's `<result>` is cut at about 8 kB, so PR, CI, published, not
+fixed, needs engineer and human steps come only from the journal (the publisher's result, else the pr-rebase fix's, else
+the rebase's; human steps from every agent, each once); the notification gives the status (completed, failed, killed)
+and whether its result says `"stopped"`. `--since T` writes a wave comment's body (default
+`tools/out/wave/wave-<session8>.md`, UTF-8; it prints the path and its own run time) with eleven sections in this order,
+each a function in `wave.py`'s `SECTIONS`: a title (`--title`, default "Wave report since T") with a header line (the
+plan issue `--plan`, the base, the window); the manager's own judgement from `--notes FILE` as written (decisions,
+batched questions, the order from here; a BOM and CRLF are dropped); the PRs merged into the base (`--base`, default
+main) since T (number, title, branch, merge time and commit, closing issues or the branch's issue); the runs finished
+since T (a "relaunch fresh, never resume" flag when the outcome has published false, a publisher stopped on `mutants`
+exit 2, issue-task stopped on a red implementer, a pr-rebase rebase is red or unpublished, or the result says stopped;
+other workflows, such as a read-only scouting run, are listed by their name with no issue), the running runs (title,
+worktree, branch, base, the agent working now: each `started` with no `result`, and the minutes since the launch and
+since the newest write to the run's journal or agent transcripts, which tell a live run from one whose session died);
+the open PRs into the base and those stacked on them (issues, base, draft, a CI cell from `statusCheckRollup`: red beats
+pending, else green, "none" when nothing reported; `mergeStateStatus`); merge safety (`merge-check --base B` with its
+printed lines captured: its exit code and verdict line, and only when it flagged something or failed its tables and
+details exactly as printed; `--no-merge-check` skips it and its `git fetch`); the cost (what `metrics --since T --session
+<this session>
+--compact` prints, computed in memory with no metrics file written, plus with `--stage-since S` the stage's `total API
+list $` and `% of a Max 20x week` lines; `COST_EXTRAS` in `wave.py` takes more lines over metrics' JSON record, the
+hook for #314); housekeeping (below); the handover args of each running run and of each failed, killed or stopped one
+that no later launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`,
+`ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
+context, the mean API list $ per call of its first and last 20 calls, and any records it skipped). A section says
+"None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
+body is still written and `wave` exits 0. Housekeeping, from `git worktree list --porcelain` in the main checkout: one
+fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-done <n>`; for the manager's
+`release-m<k>` worktree its `git worktree remove` and `git branch -D`) for each worktree whose branch's PR merged and
+whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
+running run of this session there, its HEAD at the merged head and no live Claude session in it; the manager runs
+those itself (orchestrate-stage §8, the trust ADR). The section's first line, which the manager lifts into its chat
+message, names only what needs the engineer, a worktree a live session holds: `For you: close the Claude session in
+worktree <n> (...), then run its block below.` (`For you: nothing.` when none; the ready blocks stay out of it,
+#343). The other cases are one-line waits (after `release/m<k>` reaches main, a run still running there, HEAD not
+the merged head). It also names the issues still open whose PR reached main since T. One `gh pr list --state merged
+--search sort:updated-desc` (the 500 most recently updated, every base; gh's default order is by creation) serves
+the merged section and housekeeping (gh's `merged:>=` search is date-only, so mergedAt is filtered here); when gh
+returns all 500, the merged section names the oldest update among them, before which a merged PR (and its worktree)
+may be missing. A body over 60,000 characters (GitHub's limit is 65,536) moves its handover data, each run's block
+whole, to `<out>-2.md` (and `-3.md`, ...), posted as the next comments; the first body says so, every path is printed,
+a part one run's args alone push over 65,536 gets a warn, and a part left from an earlier run is named, never deleted.
+A run is finished when its latest launch has a notification or its journal reached the script's end (issue-task: a
+publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or
+every reviewer answered with no blocker or major left to fix). `--args <n>` prints only the JSON of issue n's newest
+launch on stdout (the run, workflow and time on stderr; `--workflow issue-task` or `pr-rebase` picks one; `--out` also
+saves it, best for Cyrillic from PowerShell 5.1) and exits 1 when n has none; the `--since` flags are refused with it,
+and it reads nothing beyond the transcript. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It
+writes only its `--out` file(s) and posts, edits and launches nothing: `gh` is only read, and merge-check's `git
+fetch` (with any PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity
+manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
+`args-<n>.json` files, in #279.
+
+### 11.12 `metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh] [--track NAME ... [--budget PCT ...]]` [applied]
+(#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
+baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
+reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's path
+with every character but letters and digits replaced by `-` (`D--prime-game`), plus `<key>--claude-worktrees-<n>/`. The
+main checkout is the parent of `git rev-parse --path-format=absolute
+--git-common-dir`, so every worktree gets the same answer (workflow agents log under their parent session's folder
+anyway). Per session: its own `<session>.jsonl` (the manager), the subagents it ran by hand, and each workflow run
+under `subagents/workflows/wf_*/` (`journal.jsonl`, `agent-*.jsonl`, `*.meta.json`). Usage is deduplicated by message
+id; a run counts when its first line is at or after `--since` and its last before `--until` (default now), so a rerun
+with a past `--until` gives the same tables while sessions keep working. A session's rows are labelled by its first 8
+characters, or `--session dd93bf79=M4` (sessions given one label form one stage). It prints and writes
+`tools/out/metrics/metrics.md` and `.json`: per finished `issue-task` run and per session (a stage), per agent role
+(from the label: `implement`, `publish`, `review:code`, `review:netcode`, `review:godot-api`, `rebase`, `fix`, and
+issue-task v2's `plan`, `review:plan`, `review:netcode-second`, `test-review` and `skeptic`; any other is "other"),
+local `verify` by step with its verify-slot wait and runs over the limit (#185) (from the summaries agents printed,
+the managers' own runs and `tools/out/logs/verify-history.jsonl` of the main checkout and its worktrees when `verify`
+writes it, #179; from that file also the red runs' failing tests, each red step's first failure line with its numbers
+as N, and the `test` shards that did not end with exit 0, #273), review findings by reviewer (a task's blockers and
+majors count only its diff reviewers', as in the baseline), the prompt cache after waits, manager sessions with their
+% of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
+by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
+call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
+window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
+lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
+`metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
+weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
+0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
+range #307 measured, the limit counting cache reads at 60 to 100% of their list $ ((list $ without cache reads, plus
+0.6 or 1 times the cache-read $) / $21.5 or $25.5; `WEEK_BRACKET`). At 1, $25.5 is #304's full list $ per 1% (66% at
+2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change). The calibration readings, 66%
+and 77%, both round to the reading at the central weight. It covers only this checkout's sessions (the main checkout
+and its worktrees) that ran a workflow or that `--session` names; the weekly counter counts every session of the
+account (`--track`, below, reads every session of three checkouts). API list $ is a weight (one price table in
+`metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
+empty window, which also writes an empty report over an older one. Its quality scorecard (#314), so a cost change
+(#303, #308's publisher trial, effort levels) is judged by quality too, has three tables, per finished `issue-task`
+run, per session (a wave with `--since <wave start>`; medians) and per role setting (role, model and effort from each
+agent's transcript; a clean run's publisher also as "publisher (clean run)"), and `quality` in `metrics.json`. From
+the journal: the diff reviewers' and test review's blockers and majors, the skeptics' refutations, "clean" (none left
+open, not stopped by mutants, not a design task: #315's rule, derived because a run's return value is not
+journaled), the publisher's `fixed`, `not_fixed`,
+`needs_engineer` and PR, and its fix rounds (`publish` calls minus one). From `gh`, read-only and by default
+(`--no-gh` skips it; a failure is a note, never an exit code): the PR's state, its CI rounds (one per head SHA of
+`ci.yml`'s pull_request runs on its branch; red rounds, those after the run, and "green on the first CI round"),
+Found-by follow-up issues (a lower bound: only those whose "Found by" line names the task) and later `revert` or
+`fix` PRs naming it in the title or in a sentence that reverts or repairs it (not under Merge order or
+Verification); a first round re-run to green is unknown, since `gh` shows only the last attempt. Unknown is `?` (null), never 0: no PR, an older result shape, skeptics not run, a PR of another
+repository, no CI run, or `gh` not read; medians and sums say how many are known. The compact `quality:` line ends
+with the API list $ per PR green on its first CI round (the merged count beside it). A caller of `metrics.build`
+(wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
+the GitHub half. Its section "Instructions and docs per agent role" (#337) is the instruction-diet ADR's method (#313,
+"How it was measured"), so the diet's issues are measured against one baseline. Per role: agents, the median
+launch-loaded, path-loaded and read tokens, the list $ split into first writes, re-writes after a lapsed cache and
+reads, its share of the role's $, the points at w = 0, 0.5 and the central 0.75 ((non-read $ + w x cache-read $) /
+$15.3, $20.3 or $23.0, `POINT_WEIGHTS`, the last from `WEEK_CENTRAL`, for the window) and the files loaded twice in
+one agent (either copy, before a compaction). Then the cost by file, the duplicates, ARCHITECTURE's and
+AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row each; `--since <wave start>` for a
+single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
+`instructions` in `metrics.json`, and one compact line. **`--track NAME ...`** (#409, P1 of the four-track budget
+design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
+session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and its siblings with the folder
+name plus `-ui` and `-art` (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), each with its
+worktrees; the session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
+its time in the window (a run in flight or one begun before the reset counts in part) and each message id once
+across every file. A session's track is, the first that holds: `--session <id>=<track>` (under `--track`
+`--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
+orchestrate-stage skill's §10 template and §7's handover carry one; any case, the key also `Трек:` for a translated
+kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's
+default (`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track
+(`all`: every track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the
+bracket, its list $ and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the
+engineer's, N1 of the design, so there is no default) `of <budget>% this week; plan to date <budget x days since
+--since / 7, at most the budget>%`; then every session's total, which the manager holds against the weekly counter
+(`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
+or translated shows there). That total covers only the three checkouts: the counter also counts the account's
+sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
+Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %). It writes
+`tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
+labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%.
+
+### 11.13 `playcheck [scenario ...]` [applied] (#186, P9 of the AI productivity ADR, item 8)
+The real game in off-screen windows running scripted steps, with screenshots at named steps, for the UI and camera bugs
+only a playtest saw before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar:
+`tools/runner/playcheck.py`), names its players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free
+port), up to two more windows join it, and the players after them are bots, one headless process
+(`tests/harness/playcheck/`) playing a `BotScenario`'s scripts over ENet (`bots <file.tres>`); its `role`, `setting` and
+`clock` lines are the setup window 1 sends as the host's own client. Each window (`tools/playcheck/playcheck_window.gd`)
+runs its own steps: `wait phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`,
+`ClientModel`, Esc menu and pointer, never `HostSession`, the match or `core/` (invariant 2); `wait text <field>
+is|has|lacks <text>` and `wait shown <field> on|off` (#275), what its own Ui and current camera draw (the fields:
+`FIELDS` in `tools/runner/playcheck.py`, the same keys as the window's `GameView`; whitespace runs count as one space, a
+hidden field reads as ""); `press <action>` (its key through `Input.parse_input_event`), `hold`/`release`
+(`Input.action_press`), `button <text>` (the one visible, enabled Button with that text takes the focus and gets
+`ui_accept`'s key; none or several fail the step), `aim item <kind>` until `aim off` (#276: each frame the window turns
+its own player, `PlayerController.look`, to face the nearest resting item of that kind in its own `ClientModel`; paired
+like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
+`Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short, stable
+part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario edit, and a
+timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field (it reads as
+""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit at `shot`'s off-screen position
+with the dummy audio driver, never headless. The game gets a pointer that only remembers, and playcheck presses keys
+only, so the real mouse is never captured; what needs a captured mouse (`use`, spectate cycling) is out of its reach,
+and `aim` is the only way to turn. PNGs: `tools/out/playcheck/<scenario>/<shot>.png` (`gh` cannot upload them: the PR
+lists their paths and says what each shows); logs: `tools/out/logs/playcheck/<scenario>/`. A run fails on a wait past
+its timeout (the window prints the step's line and what it saw, and saves `failed-window-<n>.png`), an engine error line
+or a non-zero exit of any process, a window not done within `--seconds` (default 300; it names the last step) or a
+missing PNG, and stops every process it started through the stop file (else a kill: a window after 30 s, since its
+renderer's exit can wait seconds on the GPU driver when every core is busy, #354; the bots after 10 s). Under a full-PC
+load it can also fail for reasons that are not bugs (ARCHITECTURE §4.7 `playcheck`, "Known load limits", #406): run it
+again once the load ends before debugging it. Desktop only: CI and `verify` never run it; an agent may (off-screen
+windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked up, swapped to the belt
+and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a second round, #276).
+
+### 11.14 Warnings [applied]
+`untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`, `unsafe_call_argument` = Error; the rest stay
+Warn and are reported by `check`; `inferred_declaration` stays off.
+
+### 11.15 Runner [applied] ([ADR](decisions/2026-09-29-python-task-runner.md))
+Python core `tools/run.py` with `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far:
+`doctor`, `lint`, `check`, `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`,
+`publish`, `merge-check`, `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`,
+`wave`, `metrics`, `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), and
+`hook` (for Claude Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins
+and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher,
+not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell)
+the runner takes the machine paths from the Claude settings (§2).
+
+### 11.16 CI [applied]
+`.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR (whatever its base,
+`release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the pins. The game targets
+Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem seen only on Linux is low
+priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's `verify` on the merged tree is
+the check there (§7.1). A second job, `python-min` (#349), sets up the pinned minimum Python (`pins --get python_min`,
+3.11), checks it runs that version, compiles every runner file and runs `selftest --group python` (199 s on 3.11 in a
+cloud session, beside `verify`; Actions minutes cost nothing on a public repository): `verify`'s 3.12 never ran the
+stated minimum, and 3.12-only code broke `verify` in a cloud session on 3.11 (#345). It is a required check of `main`
+like `verify` (§8.5), so neither `merge` nor a human's merge button takes a PR while it is red. `verify` (#179) runs
+`doctor --quick` first (red: nothing else runs), then two lanes at once, each a process of its own and serial inside:
+the Python lane (`lint`, then `selftest`: the runner tests that start no Godot, each test in one of the worker
+processes, a quarter of the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the
+Godot lane (`check`, then `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a
+fresh checkout has imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`,
+below), `bots` and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step
+fails it; each step's output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After
+both lanes: the clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a
+decorator skipped it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
+`selftest --group python|godot` runs one group without it). The summary keeps the serial order (`doctor`, `lint`,
+`check`, `test`, `enet`, `freeze`, `stall`, `bots`, `bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then
+each lane's wall time, the CPU count and the test count. Each run appends a line to
+`tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`, `branch`, `head`, `tree` (HEAD's tree
+hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/` at HEAD), `status`, `seconds`, `steps`
+(name, lane, status, seconds), `lanes` (wall seconds), `cpus`, `workers`, `selftest` (run, skipped) and `slot` (below;
+null without one). Since #273 a red step adds `failure`, its first `FAIL` line with the reason under it when a step that
+runs the game (`check`, `enet` to `game`) printed one (the first engine error line, or the first line under a
+`BOTS`/`CHAOS` FAILED header, such as `bots-enet`'s "a Correction outside a placement", #284); the `test` step adds
+`shards` (each GdUnit4 process's `shard`, `rc` and `seconds`, plus `results: false` when it wrote no `results.xml`, such
+as a crash's 3221225477, `timed_out` and an `error` that kept it from starting; shard 1 is the one process of a run
+without shards) and, when red, `failed_tests` (`test` as `<suite>::<test>`, with the failure's `message` on one line, or
+`orphans` for a leak) and `failed_tests_more` past 20. A message is cut at 240 characters, so a red record stays about 1
+KB; `metrics` lists the red runs' failing tests, first failure lines and shard exits.
+**Processes Windows could not start (#441):** on the engineer's PC, Godot, git, Python and PowerShell sometimes exit
+with 3221225794 (0xC0000142, STATUS_DLL_INIT_FAILED) a fraction of a second after their start, before they print a
+line: Windows failed them while it loaded their DLLs, so none of their code ran. In 11 of about 420 agents' verify
+logs (10-01 to 10-05) it hit every process that started during a window of 0.5 s to several minutes, at one to three
+verify runs at once (row 15 of the weekly budget ADR), and the same tree passed on a rerun; which per-session resource
+ran short (commit, desktop heap or another) is not known yet. `run` in `tools/runner/common.py` (every `run` instance,
+GdUnit4 shard, `check` import and the runner's git and gh calls) starts such a process once more after 10 s, with a
+`NOT STARTED, restarted once` warning that carries the machine's load at that moment (processes, threads, handles,
+commit, free RAM, USER and GDI objects: the evidence to find the shortage), then `RESTARTED` or `NOT STARTED again`;
+once a restart was refused too, that runner process restarts nothing more, and one of several instances that run
+together (`enet`, `freeze`, `bots-enet`) is not restarted, since its late start would fail the others. A process that
+printed a line or lived 10 s is never started again, whatever it returned, so no step that ran is retried. A start
+that stayed refused is reported as `could not start: ... run verify again` (also by `game`'s host and client, which
+are not restarted), each step's record adds `not_started` ({`refused`, `restarted`, `recovered`}) and the summary a
+`NOT STARTED` line. Tests: `tools/runner/tests/test_not_started.py`.
+**Verify slots (#185):** on a PC,
+after `doctor`, `verify` takes one of N machine-wide slots for its lanes, so the tracks' runs queue instead of starving
+each other (and `freeze` and `stall`): a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots` (elsewhere
+`~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The
+operating system frees a slot's lock when its process ends however it ends, so a killed run's slot is taken over at once
+(the next run names it: "left by a run that ended without releasing it"). While every slot is held the run prints every
+minute which worktrees, branches and pids hold them. The wait is bounded (default 600 s since #388; 95 s before, to fit
+an agent's 600 s foreground call, which agents no longer make: they run verify and publish in the background and poll
+them with `wait`, below). With 95 s, 7 of the 59 runs left in the verify history files (to 2026-10-04) ran over the
+limit, all on 2026-10-04 with three or four tracks verifying at once, and they were slow (median 603 s against 359 s
+slotted); for the five whose holders the files name, a slot freed 207 to 536 s after the wait began. 600 s covers them
+all and is about one whole verify on the loaded PC (45 of 51 slotted runs took less): a longer wait means a stuck
+holder. After the wait the run goes ahead without a slot, with `OVER THE LIMIT` in its output, its summary's last line
+and its record (`over`). A slot never skips or weakens a step. N is 2, measured on the engineer's PC with #182's shards
+(the PR of #185): one or two runs at once took 315 to 386 s each, three 431 to 441 s, four 452 s; two runs of 4 shards
+and 4 selftest workers fill the 16 logical CPUs, while a third or fourth makes every run a third longer and `test` red
+more often (freeze, stall, enet and bots-enet stayed green). `PRIME_VERIFY_SLOTS` (0: no limit),
+`PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR` override the defaults; CI and a verify inside a verify
+(`PRIME_VERIFY_INSIDE`) take no slot.
+**Load runs (#388):** an agent that tests something under load on purpose (as #318 and #354 did with 32 hand-written
+busy loops on 16 logical CPUs, which the slots could not see while the other tracks' verify runs went on beside them)
+runs `load [--loops N] [--seconds S]` (default 2 loops per logical CPU for 600 s; at most 256 loops and 1140 s). It
+first takes a slot like a verify (the same wait and waiting line), so one verify fewer runs beside it and every
+waiting run names it (`slot 2: load run in <worktree> (...)`; its holder file has `kind: load`); past the wait it
+starts nothing and exits 1 (a load is no gate, and it would push the slotted runs over the limit). Taking a slot
+was chosen over `verify` counting load runs as extra holders: the same operating-system lock frees a killed load's
+slot at once, there is one count to reason about, and nothing else has to find and judge the load's processes. One
+slot makes the load visible but does not shield the verify that still runs beside it: a default load busies every
+logical CPU (a slot stands for half the PC), so that verify is expected to run slow and may go red on `freeze` or
+`stall`; rerun it after the load instead of debugging it. A load taking both slots would shield it, but would hold
+every other verify for up to 1140 s, past the 600 s wait, so they would run over the limit anyway. Each
+loop is its own Python process that ends by itself at most S seconds after it starts, and the runner stops any loop
+that outlives S by 5 s. A killed `load` frees its slot at once while its loops run out their time without one, so S
+is at most 1140 s: the 600 s wait, S, the 5 s grace and a 55 s start margin fit the 30-minute default limit of a
+background command, which therefore never kills a `load`. The agent starts it in the background (a log under its
+scratch folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with
+`wait <log>`.
+**`slots` (#416):** `--status` shows holders, waiters and the last hour's runs without a slot (launch nothing while
+one waits or runs over the limit); `--quiet <hours>` (at most 24; `off`) leaves new verify and load runs one slot
+machine-wide: a run already in a slot finishes there, a run already waiting joins the window.
+Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
+The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (`error` when the slot folder failed: the run
+then goes ahead without a slot, a slot never stops the gate; `quiet`, the window's note, when the run started in a
+quiet window), its `seconds` leave the wait out, and the summary's last
+line adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over
+the limit. A lane process and its workers carry `PRIME_VERIFY_INSIDE`, so a runner test that reaches the real lanes
+fails instead of starting `verify` inside `verify`; a runner test that starts Godot carries `@starts_godot`
+(`runner.verify`). `bots` is `bots` (every scenario in one process, about 8 s) and `bots-enet` is `bots
+dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario ends by time up on a 40 s clock
+that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos` (#188, about 6 s) is `bots --chaos --seed
+188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `game` (#149, about 5 s) starts
+`client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
+(`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
+file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is
+`run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3 --seconds 90`, and `freeze` (a
+5.2 s main-thread freeze of the host, then of a client, #70; about 16 s) is
+`run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
+both sides and a backlog taken in one poll, #95; about 13 to 25 s, since the drops depend on the round trip) is
+`run tests/integration/net/enet_stall.gd --headless --seconds 60`, one process whose hosts take `<p>` to
+`<p> + 2`. Each gets
+`-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral ranges), so
+worktrees verifying at once very rarely share a port (if they do, the host fails with
+`host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`
+(GdUnit4's snake_case convention). Tested once (KICKOFF §4): a deliberately failing commit on the throwaway
+branch `tooling/2-ci-red-probe` turned CI red on 2026-09-28; repeat it after a structural change to `ci.yml`.
+
+### 11.17 Bounded waits: `wait <log> [--max S]` and `wait --verified` [applied] (#303; #302's token research)
+A workflow agent or subagent writes its prompt cache with a 5-minute lifetime (a main or manager session has 1 hour), so
+a tool call that blocks longer makes its next call write the whole context again. From 10-02 10:30 UTC to 10-03 20:54
+that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly all
+on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to 300 s, 64
+in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the shell's
+`timeout` or `wait --max`, never only with the tool's own timeout. Since #388 every agent, a main or manager session
+too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can reach 600 s,
+where a foreground call is killed. A foreground `sleep N` followed by another command (`sleep 60; cat <log>`) is refused
+by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in the week to 2026-10-04, 26 by workflow agents, #312;
+their prompts get this rule through #326): wait with `wait <log>`, `run_in_background` or Monitor with an until-loop
+instead. The agent starts the job in the Bash tool with `run_in_background` (its timeout 3600000 for `mutants`; the
+default 30 minutes covers the rest), with a new log per run under its scratch folder: `cd <worktree> && tools/run.sh
+verify > <log> 2>&1; echo "exit=$?" >> <log>` (in the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?`
+is a boolean). It then calls `tools/run.sh wait <log>` (PowerShell: `tools\run.cmd wait <log>`) with the tool's timeout
+at 300000, since the default 120000 would cut a 240 s wait short. `wait` polls every 3 s for at most S seconds (default
+240, 1 to 270; else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
+`exit=<n>`: the marker is the job's final write, a line still being written (no newline yet) is never read, and a bare
+`exit=0` in a step's output is no result. Then it prints the summary (from the last `verify summary` line, which
+`publish` prints too, or `merge-train summary`, else the last 20 lines) and `wait: <log> finished: exit=<n> (whole log:
+<path>)`, and exits n. Not finished: one line, `wait: still running after S s (<path>: <k> lines, last written <t> s
+ago); call wait again, never start the job again`, and 124; the job runs on (a second `verify` in one worktree would
+fight the first over `tools/out/` and the slots). No log after a 10 s grace (the background shell may not have created
+it yet), or a log deleted during the wait: `wait: no log at <path> ...` and 2; a log it cannot read (a folder, a locked
+file): `wait: cannot read <path>: ...` and 2. Every line `wait` writes itself starts with `wait: `, which tells its own
+2 from a job's (`mutants` exits 2 too). It reads UTF-16 and UTF-8 (BOM or none), CRLF, and on Windows the Git Bash form
+`/c/...` of a path; a Git Bash-only path such as `/tmp` is not visible to Windows Python, and the missing-log line says
+so. A log that has not grown for 10 minutes points at a background task that died (no marker is ever written): check it.
+CI: `timeout 240 gh pr checks <pr> --watch --interval 30; echo rc=$?` in the Bash tool with the tool's timeout at 300000
+(its default 120000 would cut the 240 s short; in PowerShell `timeout` is Windows' own program), repeated while rc is
+124 (the timeout) or 8 (pending); rc 1 with "no checks reported" means the run has not registered yet. `wait --verified`
+(no log) exits 0 when the newest record of `tools/out/logs/verify-history.jsonl` passed at HEAD with a clean tree
+(`tree` set) and the tree is still clean, else 1 with the reason: a publisher then skips its standalone `verify`, since
+`publish` runs one. On a branch whose base predates `wait`, the agents run these commands in the foreground as before.
+Tests: `tools/runner/tests/test_wait.py` (a fake clock; the launch line and `wait` through Git Bash, cmd and PowerShell
+5.1; the commands pass the permission model outside bypass). The rule is one Shell bullet of root CLAUDE.md, the
+commands are `bounded_waits` (§7.1).
+
+### 11.18 An own `user://` per worktree [applied] (#182)
+Godot names `user://` after the project, so every checkout of "PrimeGame" shared one folder, and two worktrees' `test`
+runs cleared each other's GdUnit4 files in `user://tmp`. Before every Godot start (`require_godot`, and a windowed
+`run`) the runner writes a gitignored `override.cfg` into a linked worktree (one whose `.git` is a file: a task's
+`.claude/worktrees/<n>`, a scratch worktree) with `application/config/use_custom_user_dir=true` and
+`custom_user_dir_name="Godot/app_userdata/PrimeGame-<folder>-<6 hex of its path>"`. Godot 4.7.2 joins the name to the
+app-data folder, so worktree 182's `user://` is `%APPDATA%\Godot\app_userdata\PrimeGame-182-7f974f` (Linux: under
+`~/.local/share/godot/app_userdata/`). The main checkout and a clone (CI, a cloud session) have a `.git` folder and get
+no file: the humans' settings and saves stay in Godot's default `%APPDATA%\Godot\app_userdata\PrimeGame`. An export gets
+that default folder too: it packs a non-resource file only when a preset's include filter names it (there is no preset
+yet), and an exported game reads an `override.cfg` placed beside its binary. A hand-made `override.cfg` in a worktree is
+left alone, with a warning. `worktree-done <n>` deletes the removed worktree's folder (#202) once `git worktree remove`
+succeeded, or when it finishes a removal left half done, and says so in one line; never the default `PrimeGame` folder
+or another worktree's (a missing folder is fine; one a Godot still holds open stays, with a warning). Saving project
+settings in a worktree's editor (`ProjectSettings.save()`) copies both keys into `project.godot` (probed on 4.7.2),
+which would move every checkout's and export's `user://`: `check` fails on them; delete the two lines.
+
+### 11.19 `test` in shards [applied] (#182)
+`test` with no paths runs the suites in K GdUnit4 processes at once, K = half the logical CPUs, at most 4
+(`gdunit.SHARD_CAP`: CI's 4 vCPUs give 2, the engineer's 16 give 4). `--shards K` or `PRIME_TEST_SHARDS=K` sets K (1:
+the one process of before); `test <paths>`, `test --repeat N` and `gdunit.main(paths)` stay one process. The shards are
+balanced by the last per-suite times (`tools/out/logs/gdunit-times.json`, merged after every run; a fresh worktree reads
+the newest one of another checkout, CI restores it from the Actions cache): the longest suite first, each to the least
+loaded shard. A shard is one GdUnit4 process given its scripts one by one (`-a <file>`; together every `.gd` file a
+one-process run's folder scan loads), with `APPDATA` (Linux: `XDG_DATA_HOME`) set to `tools/out/gdunit-user/shard-<i>`,
+which gives it a `user://` of its own; its report goes to `tools/out/gdunit/shard-<i>/`, its log to
+`tools/out/logs/test-shard<i>.log`, and `test.log` holds every shard's log in turn. Each shard is judged as a
+one-process run (exit code, `results.xml`, orphans named), a shard whose `user://` stayed empty fails, and the merged
+`tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that declares a
+test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4 processes; a one-process
+scan finds 137 suites with 1206 test functions`). One import runs before the shards.
+
+### 11.20 The frame-bound suites at fixed fps [applied, the default without paths] (#280, #341)
+Suites run with the engine's `--fixed-fps 60` (placed before `-s`, since GdUnit4's command tool skips every argument
+before its own script): each frame counts as 1/60 s of game time however fast it runs, so a suite that steps physics
+frames on a simulated clock (`NetPair`'s, or the test's own over the `LoopbackHub`) runs as fast as the CPU allows.
+`test` with no paths, so `verify` and CI too (#341), runs `gdunit.FIXED_FPS_SUITES`, the 9 frame-bound client suites,
+so, in shards of their own within the same K (`gdunit.split_shards` picks how many), and the rest real-time; with one
+process at a time (`--shards 1`, `PRIME_TEST_SHARDS=1`, 2 or 3 CPUs, no per-process `user://`) in a second process after
+the rest, so every machine's `verify` runs CI's clock. `test --real-time` runs every suite real-time. `test <paths> --fixed-fps`
+(also with `--repeat N`) runs every named suite so; named paths and `--repeat` are real-time without it. Seconds at
+fixed fps go to the `fixed_fps` map of `gdunit-times.json`, never into the real-time one. Measured on the engineer's PC,
+2026-10-04 (the tables, the load and the break list are in #280's comment): the 9 took 284 s real-time and 22.7 s at
+fixed fps (medians of 10 runs each, all 90 green; beside another session's 100 % CPU load a CPU-bound one gained only
+2.3x); the whole `test` step took 119.4 s real-time and 62.2 s with the flag (mean of 3 each, alternated, 4 shards, a
+quiet PC), 139.5 s and 90.7 s with `selftest` beside it as in verify, 226 s and 145 s in 2 shards (CI's count). Run with
+every suite at fixed fps, only `voice_views_audio_test` breaks (it listens to the real audio mix for a wall-clock time,
+so GdUnit4's 5-minute test timeout, counted in game time, runs out); the other 164 suites took 121 s real-time and 119 s
+so. What it hides is the #222 class: at fixed fps a frame runs exactly one physics step, never several, so a load bug
+there and `.claude/rules/tests.md`'s `OS.delay_msec` recipe (a named path) need a real-time run. The engineer made it
+the default of `verify` and CI (option (b) on PR #323, the pipeline-v2 ADR's amendment of
+#341); the nightly `flaky` job's `test --repeat 3` stays real-time and keeps covering that class, and
+`test_github_workflows.py` pins both. A third CI process for the fixed shard (K+1) was declined for now.
+
+### 11.21 The real app-data folder stays clean [applied] (#233)
+A worktree's `user://` folder outlives the worktree, and by 2026-10-02 22:30 UTC 62 such folders had piled up in
+`%APPDATA%\Godot\app_userdata\`, a new one with every `selftest` and every scratch worktree. Each source and its fix
+(found by listing a temporary app-data folder before and after one `selftest` and one `merge-check --trial`): the runner
+tests that start Godot in a throwaway project (`RealUserDirTest`'s settings save made `PrimeGame-182-<hash>`,
+`RealNormalizeTest` the folder `n` and Godot's editor settings, `RealRunTest` the folder `r`; PR #224's
+`RealStaleCacheTest` wrote into the main checkout's own `PrimeGame` folder) run in a class marked `@starts_godot`, which
+now points `APPDATA` (Linux: `XDG_DATA_HOME`) at a temporary folder of the class's own and deletes it after the class
+(`common.temp_app_data`; `PYTHONUSERBASE` keeps a Python child's user site-packages); `selftest` gives its workers a
+stand-in app-data folder and fails, naming the files and any empty `user://` folder, when a test wrote to it (one that
+starts Godot outside a `@starts_godot` class: outside `selftest` that would have been the real folder; only `selftest`
+has this check, so a direct `python -m unittest` run still writes there). The scratch worktrees of `merge` and
+`merge-check --trial` (`PrimeGame-<label>-<random>-<hash>`: a new path, so a new folder, every run) and of `mutants`
+(`PrimeGame-tree-<checkout>-<hash>`) delete the folder their Godot runs made when they remove the tree
+(`common.remove_own_user_dir`: only a `<project>-<folder>-<6 hex>` folder in `app_userdata/`, never the default
+`PrimeGame` folder nor the running checkout's own; one a Godot still holds stays, with a warning; a tree that could not
+be removed keeps its folder). The folders left before the fix are a human's one-time cleanup (the PR of #233 lists
+them).
+
+### 11.22 No Godot MCP server
+Before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come from `check`, the engine API dump
+that `doctor` generates into `tools/out/godot-api/4.7.2/`, and `docs.godotengine.org/en/4.7/`.
 
 ## 12. The designer's agent
 
