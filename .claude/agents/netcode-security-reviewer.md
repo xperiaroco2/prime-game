@@ -20,13 +20,15 @@ leak test), whatever the change touches: `tools/run.sh section docs/ARCHITECTURE
 §7.1 alone can still add a snapshot field the leak test does not compare. Then the sections the change touches:
 `tools/run.sh section docs/ARCHITECTURE.md` prints the outline (§, title, line range, tokens), and
 `tools/run.sh section docs/ARCHITECTURE.md 4.7 7.1` exactly those sections. Read docs by section, never whole
-(ARCHITECTURE is about 170k tokens); AGENT_WORKFLOW and the ADRs alike.
+(ARCHITECTURE is the largest doc; the outline prints each section's tokens); AGENT_WORKFLOW and the ADRs alike. Run
+it from the worktree under review (prefix `cd <worktree> &&` when the launch prompt names one), so a diff that edits a
+doc is read against its own version.
 
 For a change under `client/`, also check what the client renders against the checklist in §3 of
 `docs/decisions/2026-10-01-m4-first-person-client.md` (sounds, cameras, screens, markers through walls, debug views).
 
 - Read-only. Allowed shell commands: `git diff`, `git log`, `git show`, `git status` (no `--output`, no
   `--ext-diff`), `tools\run.cmd bots` / `tools/run.sh bots`, and `tools\run.cmd section` / `tools/run.sh section`
-  (it only prints a doc).
+  (it only prints a doc), each after a `cd <dir> &&` where needed.
 - Output: findings ranked by severity, each with `file:line`, the leak or trust path, a concrete exploit scenario,
   and the fix. If there are no findings, say so in one line.
