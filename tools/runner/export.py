@@ -45,9 +45,10 @@ TEMPLATES = (
     "windows_debug_x86_64.exe",
     "windows_debug_x86_64_console.exe",
 )
-# The license notices both zips carry (#419; Apache 2.0 §4 and BSD-3 want them beside the binaries): CREDITS.md and
-# every LICENSE* file of the addons whose libraries a build ships, under licenses/<addon>/ (one folder per addon, as
-# TwoVoIP's LICENSE would collide with another addon's). export_presets.cfg keeps the unshipped addons out of a build.
+# The license notices both zips carry (#419): CREDITS.md and every LICENSE* file of the addons whose libraries a build
+# ships, under licenses/<addon>/ (one folder per addon, as TwoVoIP's LICENSE would collide with another addon's). Only
+# the addons' own files: the BSD-3 libraries built into TwoVoIP's (Opus, RNNoise, SpeexDSP) are only named in
+# CREDITS.md. export_presets.cfg keeps the unshipped addons out of a build.
 SHIPPED_ADDONS = ("twovoip", "webrtc_native")
 UNSHIPPED_ADDONS = ("gdUnit4",)
 NOTICES = (
@@ -271,15 +272,15 @@ def changed_byte(text: bytes) -> bytes:
     return text[:at] + letter + text[at + 1 :]
 
 
-def zip_files(archive: Path) -> dict[str, str]:
-    """The zip's files by their path under its one top folder."""
+def zip_files(archive: Path, top: str) -> dict[str, str]:
+    """The zip's files by their path under `top/`; a file outside it keeps its whole name, so it matches nothing."""
     with zipfile.ZipFile(archive) as files:
-        return {name.split("/", 1)[-1]: name for name in files.namelist() if not name.endswith("/")}
+        return {name.removeprefix(f"{top}/"): name for name in files.namelist() if not name.endswith("/")}
 
 
-def missing_notices(archive: Path) -> list[str]:
-    """The NOTICES a zip (release or debug) lacks."""
-    files = zip_files(archive)
+def missing_notices(archive: Path, top: str) -> list[str]:
+    """The NOTICES a zip (release or debug, its files under `top/`) lacks."""
+    files = zip_files(archive, top)
     return [notice for notice in NOTICES if notice not in files]
 
 
@@ -287,12 +288,14 @@ def check_release(archive: Path, templates: Path) -> list[str]:
     """What makes the zip not a release build: files, the .exe against the templates, the extensions' libraries, the
     license notices."""
     problems = []
-    names = zip_files(archive)
-    if set(names) != RELEASE_FILES:
-        problems.append(f"files {sorted(names)}, not {sorted(RELEASE_FILES)}")
-    missing = missing_notices(archive)
+    names = zip_files(archive, GAME)
+    missing = missing_notices(archive, GAME)
     if missing:
         problems.append(f"no license notices {missing}")
+    stray = sorted(set(names) - RELEASE_FILES)
+    absent = sorted(RELEASE_FILES - set(names) - set(missing))
+    if stray or absent:
+        problems.append(f"files {stray} not expected, {absent} missing")
     with zipfile.ZipFile(archive) as files:
         exe = files.read(names[f"{GAME}.exe"]) if f"{GAME}.exe" in names else b""
     if exe != (templates / "windows_release_x86_64.exe").read_bytes():
@@ -312,7 +315,7 @@ def add_notices(tree: Path, folder: Path) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(credits, folder / "CREDITS.md")
     for addon in SHIPPED_ADDONS:
-        licenses = sorted((tree / "addons" / addon).glob("LICENSE*"))
+        licenses = sorted(path for path in (tree / "addons" / addon).glob("LICENSE*") if path.is_file())
         if not licenses:
             raise Failure(f"addons/{addon} has no LICENSE* file, and a build ships its library")
         target = folder / "licenses" / addon
@@ -444,7 +447,7 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
         f"{release_zip.name} is a release build "
         "(the release template's .exe, the release TwoVoIP and webrtc-native libraries, the license notices)"
     )
-    missing = missing_notices(debug_zip)
+    missing = missing_notices(debug_zip, f"{GAME}-debug")
     if missing:
         raise Failure(f"{debug_zip.name} has no license notices {missing}")
     ok(f"{debug_zip.name} carries the license notices ({len(NOTICES)} files)")

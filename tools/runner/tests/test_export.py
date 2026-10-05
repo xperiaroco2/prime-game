@@ -134,14 +134,30 @@ class ReleaseCheckTest(unittest.TestCase):
                 files = self.release_files()
                 del files[notice]
                 problems = export.check_release(self.build(files), self.templates)
-                self.assertTrue(any(notice in problem for problem in problems), problems)
-                self.assertEqual(export.missing_notices(self.dir / "game.zip"), [notice])
+                self.assertEqual(problems, [f"no license notices {[notice]}"])
+                self.assertEqual(export.missing_notices(self.dir / "game.zip", "PrimeGame"), [notice])
 
     def test_a_notice_moved_out_of_its_folder_fails(self) -> None:
         files = self.release_files()
         files["LICENSE.mbedtls"] = files.pop("licenses/webrtc_native/LICENSE.mbedtls")
         problems = export.check_release(self.build(files), self.templates)
-        self.assertTrue(any("licenses/webrtc_native/LICENSE.mbedtls" in problem for problem in problems), problems)
+        self.assertEqual(
+            problems,
+            [
+                "no license notices ['licenses/webrtc_native/LICENSE.mbedtls']",
+                "files ['LICENSE.mbedtls'] not expected, [] missing",
+            ],
+        )
+
+    def test_files_outside_the_top_folder_fail(self) -> None:
+        archive = self.build(self.release_files())
+        other = self.dir / "other.zip"
+        export.write_zip(self.dir / "build", other, "Elsewhere")
+        problems = export.check_release(other, self.templates)
+        self.assertIn("no license notices", problems[0])
+        self.assertIn("Elsewhere/PrimeGame.exe", problems[1])
+        self.assertEqual(export.missing_notices(other, "Elsewhere"), [])
+        self.assertEqual(export.check_release(archive, self.templates), [])
 
     def test_the_notices_are_copied_from_the_tree_under_licenses_per_addon(self) -> None:
         tree = self.dir / "tree"
