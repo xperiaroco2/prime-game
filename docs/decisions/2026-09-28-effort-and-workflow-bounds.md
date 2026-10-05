@@ -2,7 +2,7 @@
 
 - **Status:** Accepted; launch approval and "one workflow per stage" amended by
   [2026-09-30-orchestrator-session.md](2026-09-30-orchestrator-session.md); efforts amended 2026-10-04 (#302
-  decision 3, option (c); #308)
+  decision 3, option (c); #308); the publisher trial made a standing rule 2026-10-05 (the weekly budget ADR's N5 (a))
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -50,6 +50,11 @@ ultracode run for foundation work and puts small tooling changes at medium.
     `tools\run.cmd metrics`, against comparable earlier clean runs with Opus publishers. A trial run that needed a
     relaunch counts as a failure of the trial (its first run's numbers), not as a second trial run. The manager reports
     on #302 after the wave; the engineer keeps or drops it. No keep-or-drop threshold is set in advance.
+- **Amended 2026-10-05** (the engineer's answer N5 (a) to the
+  [weekly budget ADR](2026-10-05-weekly-budget-across-four-tracks.md), [PR #403 comment
+  5992271562](https://github.com/xperiaroco2/prime-game/pull/403#issuecomment-5992271562)): the engineer keeps the
+  cheaper publisher. The manager passes `models.publish_clean: "sonnet"` on every non-design `issue-task` launch, not
+  only in one wave; it is judged again at the next reset with `metrics`' quality scorecard.
 
 ## Alternatives
 - High only for runner, guard and hooks; medium for other tooling (KICKOFF-literal for small changes).
