@@ -1468,7 +1468,8 @@ model folds none (§4.6); such an arrival still counts for the jitter.
 - **Placement:** `Welcome`'s spot teleports the local player on `ClientSession.welcomed`, from
   `model.spots[own_peer]` (`Welcome` fires no `corrected`), and every `Correction` (a placement, a knockdown, a
   respawn, a failed check) through `ClientSession.corrected`. A teleport keeps the body's yaw and the head's pitch;
-  only the own `Respawned` levels the look (#191, below).
+  only the own `Respawned` (#191) and a `PlayersPlaced` naming the own player (`End -> Lobby` and the deal, #240)
+  level the look (§4.7.13).
 - **The lobby** (#169): the player walks it like the round, with the lobby HUD in a corner (the keys' hint "Esc: menu
   · F: ready", the roster with ready flags, the countdown) and nothing to click. The Esc menu's Lobby tab has the
   roster, the Ready toggle and the settings; the `ready` key (F, a placeholder) toggles Ready without the menu.
@@ -1538,7 +1539,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 #### 4.7.6 Movement on the network
 - **Claims:** every physics step the controller calls `set_motion` (its position and velocity; as the facing, the
   camera's 3D look vector, at most 89° up or down; whether it sprints, gives movement input and stands on the floor)
-  and `count_jump` at a jump, and `set_facing` when it turns outside the step (the respawn's level look, #191);
+  and `count_jump` at a jump, and `set_facing` when it turns outside the step (the level look of a respawn or a
+  placement, #191, #240);
   `ClientSession` sends one claim per 20 Hz client tick (§4.6). The facing's pitch needs
   no wire or `core/` change (E22): `Strike.horizontal`, `Swung` and `PutDownInFront` flatten it, and `MovementRule`
   only requires it finite; the snapshot's avatar then carries it, for remote heads and the spectate camera. Snapshots
@@ -1859,7 +1861,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `client/dev/spectate_preview.tscn`.
 - Not headless: the feel of spectating; the engineer repeats the spectating part of the one-PC playtest.
 
-#### 4.7.13 Built in #191, the player looked up after a respawn (an M5 filler)
+#### 4.7.13 Built in #191 and #240, the player looked up after a respawn or a new match (fillers)
 - `client/player/player_controller.gd`: the own `Respawned` (the controller's session events) calls
   `look_level()`: the head's pitch 0, the body's yaw kept (the engineer's answer on #191, no protocol change), and
   `ClientSession.set_facing` (new: the next `MoveClaim`'s facing, nothing else of `set_motion`'s report) with that
@@ -1878,6 +1880,17 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   (the dead and the left neither turn nor tilt; `look_level()`), `client_session_claims_test.gd` (`set_facing`).
 - Not headless: the mouse itself (headless keeps no mouse mode, so the tests call `look()`, which the mouse's
   `_unhandled_input` calls); the respawn part of the one-PC playtest.
+- #240: a player who died looking up and was next placed by a new match, not a respawn, kept that pitch. A
+  `PlayersPlaced` that names the own player (`End -> Lobby`'s and the deal's, the only two, both naming everyone
+  present) now calls `look_level()` as the own `Respawned` does (`PlayerController._places_level`; the engineer's
+  answer on #240, option (b): every placement into a round starts level, the yaw kept). It comes right before the
+  placement's `Correction`, so that `Correction`'s facing is level too. A `Correction` alone (a refused claim, a
+  knockdown), a revive, and another player's respawn or placement keep the look.
+- Tests (#240): `life_network_test.gd` (a joiner who died looking up, the round won before its respawn, is level
+  with the yaw it had after `End -> Lobby`'s placement and its `Correction`'s facing; it looks up in the lobby and
+  the next deal levels it again; seen failing first), `player_controller_downed_test.gd` (only a `PlayersPlaced`
+  naming the own player or the own `Respawned` levels; another's keep the look). `NetPair.win()` ends the round
+  (the fixture's crew win) for it.
 
 #### 4.7.14 What the client renders
 What the client renders follows the ADR's checklist (its §3), which `netcode-security-reviewer` checks on every
