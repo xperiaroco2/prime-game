@@ -58,6 +58,7 @@ func test_the_facade_reports_a_refused_start_and_a_debug_build_counters() -> voi
 				&"session_ms",
 				&"voice_relayed",
 				&"voice_sent",
+				&"voice_batches",
 				&"voice_dropped",
 				&"voice_over_budget",
 				&"voice_relay_usec",

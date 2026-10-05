@@ -12,7 +12,7 @@ extends RefCounted
 
 ## The protocol version: the same number as core/'s JoinRules.PROTOCOL_VERSION (a test pins them).
 ## Every change to a row (a kind, lane, direction, cap, field, its type or its order) bumps it.
-const VERSION := 7
+const VERSION := 8
 
 ## Frozen rows (§4.3): any client can send its version and read Rejected(wrong_version).
 const HELLO := 1
@@ -36,6 +36,9 @@ const MAX_TASK_TYPES := 16
 const MAX_SHORTFALLS := 32
 ## One 20 ms Opus frame.
 const MAX_OPUS := 500
+## A VoiceBatch's frames: as many 1-byte frames as fit its 1024-byte cap behind its tick and
+## count (each takes speaker 4, seq 2, length 2 and its bytes). The cap bounds it first.
+const MAX_BATCH_FRAMES := 113
 
 ## Built once per build kind: the rows never change at run time.
 static var _built: Dictionary[bool, WireSchema] = {}
@@ -391,15 +394,24 @@ static func _state_and_voice() -> Array[WireRow]:
 		2 + MAX_OPUS,
 		[_u16("seq"), WireField.opus("opus", MAX_OPUS)]
 	)
-	var voice_down := _row(
-		113,
-		&"VoiceDown",
+	# One poll's relayed frames for one listener (M5-4b, #374); kind 113, the single-frame
+	# VoiceDown of protocol 7, is retired. Each frame decodes to a VoiceDown (DecodedView).
+	var frame := (
+		WireField
+		. record(
+			"",
+			[_peer("speaker"), _u16("seq"), WireField.sized_opus("opus", MAX_OPUS)],
+		)
+	)
+	var voice_batch := _row(
+		114,
+		&"VoiceBatch",
 		NetKindTable.Direction.HOST_TO_CLIENT,
 		NetKindTable.Lane.VOICE,
-		10 + MAX_OPUS,
-		[_peer("speaker"), _u16("seq"), _of("tick", _tick()), WireField.opus("opus", MAX_OPUS)]
+		NetKindTable.MAX_UNRELIABLE_PAYLOAD,
+		[_of("tick", _tick()), WireField.list("frames", frame, MAX_BATCH_FRAMES)]
 	)
-	return [snapshot, voice_up, voice_down]
+	return [snapshot, voice_up, voice_batch]
 
 
 static func _row(

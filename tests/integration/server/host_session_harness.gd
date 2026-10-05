@@ -105,8 +105,12 @@ class RawClient:
 
 	func _on_packet(_from: int, kind: int, payload: PackedByteArray) -> void:
 		var message := schema.decode(kind, payload)
-		if message != null:
-			received.append(message)
+		if message == null:
+			return
+		received.append(message)
+		# Each frame of a VoiceBatch also as the VoiceDown it stands for (M5-4b).
+		if message.name == DecodedView.VOICE_BATCH:
+			received.append_array(DecodedView.voice_downs(message))
 
 
 func _init(

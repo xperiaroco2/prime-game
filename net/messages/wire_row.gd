@@ -50,10 +50,15 @@ func field_named(field_name: String) -> WireField:
 ## Where the field named `field_name` starts in every payload of this row: the sum of the fixed
 ## sizes of the fields before it. -1 when it is no payload field of a fixed size, or a field
 ## before it varies in size. Lets a caller patch that field in an encoded payload without a byte
-## index of its own (the host's voice relay writes each listener's seq, VoiceDownEncoder).
+## index of its own (the host's voice relay writes each listener's seq, VoiceBatchEncoder).
 func fixed_offset(field_name: String) -> int:
+	return offset_among(fields, field_name)
+
+
+## fixed_offset() over any fields in wire order: a row's, or a RECORD's parts.
+static func offset_among(in_order: Array[WireField], field_name: String) -> int:
 	var at := 0
-	for field: WireField in fields:
+	for field: WireField in in_order:
 		var size := field.fixed_size()
 		if field.slot == WireField.Slot.FIELD and field.name == field_name:
 			return at if size > 0 else -1

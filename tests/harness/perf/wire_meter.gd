@@ -7,7 +7,7 @@ extends RefCounted
 ## a network.
 ##
 ## Down (host to client): frame bytes (payload plus NetFrame's header) of every message sent, of the
-## VoiceDown messages alone, and each Snapshot's payload bytes (its row's cap is a payload cap). Up
+## VoiceBatch messages alone, and each Snapshot's payload bytes (its row's cap is a payload cap). Up
 ## (client to host): the payload bytes of every message that is not voice, and the voice frames,
 ## the units of the host's per-peer budgets (PeerBudget, E7).
 ##
@@ -24,7 +24,7 @@ const RECORD := 4
 var tick := 0
 ## Peer -> {tick: frame bytes sent to it}.
 var down: Dictionary[int, Dictionary] = {}
-## Peer -> {tick: frame bytes of the VoiceDown messages sent to it}.
+## Peer -> {tick: frame bytes of the VoiceBatch messages sent to it}.
 var down_voice: Dictionary[int, Dictionary] = {}
 ## Peer -> {tick: payload bytes of the Snapshot sent to it}.
 var snapshots: Dictionary[int, Dictionary] = {}
@@ -42,7 +42,7 @@ var _pending := PackedInt64Array()
 
 func _init(schema: WireSchema) -> void:
 	_snapshot_kind = schema.kind_of(&"Snapshot")
-	_voice_down_kind = schema.kind_of(&"VoiceDown")
+	_voice_down_kind = schema.kind_of(&"VoiceBatch")
 	_voice_up_kind = schema.kind_of(&"VoiceUp")
 
 

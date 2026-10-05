@@ -114,7 +114,7 @@ static func debug_commands() -> Array[WireMessage]:
 	]
 
 
-## A snapshot in the shape of Snapshots.for_peer's avatars, and the two voice frames.
+## A snapshot in the shape of Snapshots.for_peer's avatars, and the voice rows.
 static func state_and_voice() -> Array[WireMessage]:
 	var avatars := {
 		2: _avatar(Vector3(1, 0, 1), false, false, -1, -1),
@@ -128,8 +128,22 @@ static func state_and_voice() -> Array[WireMessage]:
 		WireMessage.new(&"Snapshot", {"tick": 99, "avatars": avatars}),
 		WireMessage.new(&"Snapshot", {"tick": 0, "avatars": {}}),
 		WireMessage.new(&"VoiceUp", {"seq": 0xFFFF, "opus": PackedByteArray([1])}),
-		WireMessage.new(&"VoiceDown", {"speaker": 4, "seq": 0, "tick": 7, "opus": frame}),
+		_batch(7, [{"speaker": 4, "seq": 0, "opus": frame}]),
+		_batch(0xFFFFFFFE, [] as Array[Dictionary]),
+		_batch(
+			7,
+			[
+				{"speaker": 0x7FFFFFFF, "seq": 0xFFFF, "opus": PackedByteArray([1])},
+				{"speaker": 2, "seq": 9, "opus": frame.slice(0, 45)},
+				{"speaker": 2, "seq": 10, "opus": frame.slice(0, 2)},
+			]
+		),
 	]
+
+
+## A VoiceBatch (M5-4b): one poll's frames for one listener, each speaker, seq and bytes.
+static func _batch(tick: int, frames: Array[Dictionary]) -> WireMessage:
+	return WireMessage.new(&"VoiceBatch", {"tick": tick, "frames": frames})
 
 
 ## Every sample as a message: the events by their name and to_dict().

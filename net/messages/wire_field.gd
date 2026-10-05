@@ -35,6 +35,9 @@ enum Type {
 	OPTIONAL,
 	## A setting of ChangeSettings: u8 0 then s32 (a whole number), or u8 1 then list<id>.
 	SETTING,
+	## An Opus frame anywhere in a payload: a u16 length, then that many bytes (the batched voice
+	## row's frames, M5-4b); OPUS is the rest of the payload and only a row's last field.
+	SIZED_OPUS,
 }
 
 ## Where a decoded field goes: the payload's Dictionary, or a WireMessage slot outside it (the
@@ -101,6 +104,7 @@ const DECODED_TYPES := {
 	Type.MAP: TYPE_DICTIONARY,
 	Type.RECORD: TYPE_DICTIONARY,
 	Type.OPUS: TYPE_PACKED_BYTE_ARRAY,
+	Type.SIZED_OPUS: TYPE_PACKED_BYTE_ARRAY,
 	Type.SETTING: TYPE_NIL,
 	Type.FLAGS: TYPE_NIL,
 	Type.OPTIONAL: TYPE_NIL,
@@ -111,7 +115,7 @@ var type: Type
 var slot := Slot.FIELD
 ## ITEM, STATION, TICK: -1 (none) is allowed, as all ones on the wire.
 var optional := false
-## LIST, MAP: the most entries; SETTING: the most ids in a set; OPUS: the most bytes.
+## LIST, MAP: the most entries; SETTING: the most ids in a set; OPUS, SIZED_OPUS: the most bytes.
 var max_count := 0
 ## LIST: each entry; MAP: each value.
 var element: WireField
@@ -222,6 +226,13 @@ static func opus(field_name: String, most: int) -> WireField:
 	return field
 
 
+## An Opus frame of 1 to `most` bytes behind its u16 length, where more follows it.
+static func sized_opus(field_name: String, most: int) -> WireField:
+	var field := of(field_name, Type.SIZED_OPUS)
+	field.max_count = most
+	return field
+
+
 ## Whether `text` is a wire id: 1 to 32 bytes of `a-z`, `0-9` and `_`.
 static func is_id(text: String) -> bool:
 	if text.length() < 1 or text.length() > ID_MAX:
@@ -305,6 +316,14 @@ func fixed_size() -> int:
 	return -1
 
 
+## RECORD: where the part named `part_name` starts in every encoding of this record (as
+## WireRow.fixed_offset does for a row's fields); -1 otherwise.
+func fixed_offset(part_name: String) -> int:
+	if type != Type.RECORD:
+		return -1
+	return WireRow.offset_among(parts, part_name)
+
+
 ## The most bytes this field can take at the wire's maxima.
 func max_size() -> int:
 	if FIXED_SIZES.has(type):
@@ -316,8 +335,8 @@ func max_size() -> int:
 			return 1 + max_count * (key.max_size() + element.max_size())
 		Type.SETTING:
 			return 1 + maxi(4, 1 + max_count * (1 + ID_MAX))
-		Type.OPUS:
-			return max_count
+		Type.OPUS, Type.SIZED_OPUS:
+			return max_count + (2 if type == Type.SIZED_OPUS else 0)
 	var total := 1 if type == Type.OPTIONAL else 0
 	for part: WireField in parts:
 		total += part.max_size()
@@ -403,6 +422,9 @@ func _write_value(value: Variant, writer: WireWriter) -> String:
 			writer.f32(value as float)
 		Type.OPUS:
 			writer.raw(value as PackedByteArray)
+		Type.SIZED_OPUS:
+			writer.u16((value as PackedByteArray).size())
+			writer.raw(value as PackedByteArray)
 		Type.VEC3:
 			var vector: Vector3 = value
 			for axis: int in 3:
@@ -414,7 +436,7 @@ func _write_value(value: Variant, writer: WireWriter) -> String:
 	return ""
 
 
-## BOOL, F32, VEC3, COLOUR and OPUS: whether the decoder would take the value.
+## BOOL, F32, VEC3, COLOUR, OPUS and SIZED_OPUS: whether the decoder would take the value.
 func _is_plain(value: Variant) -> bool:
 	match type:
 		Type.BOOL:
@@ -580,6 +602,8 @@ func _read_value(reader: WireReader) -> Variant:
 		return _read_string(reader)
 	if type in CONTAINERS:
 		return _read_container(reader)
+	if type == Type.SIZED_OPUS:
+		return _read_sized_opus(reader)
 	return _read_plain(reader)
 
 
@@ -621,6 +645,16 @@ func _read_plain(reader: WireReader) -> Variant:
 		reader.fail("%s: an Opus frame of %d bytes" % [name, reader.left()])
 		return PackedByteArray()
 	return reader.rest()
+
+
+## A u16 length of 1 to max_count, then that many bytes.
+func _read_sized_opus(reader: WireReader) -> PackedByteArray:
+	var size := reader.u16()
+	if not reader.failed and not _is_opus_size(size):
+		reader.fail("%s: an Opus frame of %d bytes" % [name, size])
+	if reader.failed:
+		return PackedByteArray()
+	return reader.raw(size)
 
 
 func _read_container(reader: WireReader) -> Variant:
