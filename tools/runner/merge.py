@@ -1557,7 +1557,8 @@ def open_needs(body: str) -> list[str]:
         heading = HEADING_RE.match(lines[i - 1].strip())
         level = len(heading.group(1)) if heading else 0
         section = [label.group(1).strip(" \t*_:")]
-        in_item = False  # whether the last block is a top-level item, as _unanswered splits them
+        # Whether the last block is a top-level item, as _unanswered splits them (the label's rest may be one).
+        in_item = bool(ITEM_RE.match(section[0]))
         while i < len(lines) and not _ends_needs(lines[i], level, in_item):
             if ITEM_RE.match(lines[i]):
                 in_item = True

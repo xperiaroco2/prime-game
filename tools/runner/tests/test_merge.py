@@ -1302,6 +1302,15 @@ class GateTextTest(unittest.TestCase):
                 answered_first = item.replace("**N3, the PC:**", f"**N3, the PC:** Answered: {LINK}")
                 problems = merge.open_needs(body.format(answered_first + second))
                 self.assertEqual(problems, ["item 2 (\"N4, lean agent types:\") has no \"Answered: <GitHub link>\""])
+        # The first item may sit on the label's own line: its indented bold line stays in it too.
+        for label in ("**Needs the engineer:**", "Needs the engineer:"):
+            with self.subTest(label + " 1."):
+                body = f"{label} 1. N3\n   **Recommended (b).**\n   Answered: {LINK}\n\n## Verification\nx\n"
+                self.assertEqual(merge.open_needs(body), [])
+                self.assertEqual(
+                    merge.open_needs(body.replace(f"   Answered: {LINK}\n", "")),
+                    ["item 1 (\"N3\") has no \"Answered: <GitHub link>\""],
+                )
 
     def test_exceptions(self) -> None:
         def reasons(path: str, body: str = "", status: str = "M", **kw: bool) -> list[str]:
