@@ -66,6 +66,11 @@ var room_content := 0
 ## Tests: only IPv4 host candidates are signalled, rewritten to 127.0.0.1, so every packet stays
 ## on the loopback (the container's own address works too, but tests keep off the network).
 var local_candidates := false
+## Joiner: the protocol and content hash this game runs, for the version check against `found`
+## (§2.5, M6-7): set, a `found` naming another ends the join before any offer is applied, as
+## JOIN_WRONG_VERSION or JOIN_WRONG_CONTENT. -1: no check (Hello still decides).
+var expect_protocol := -1
+var expect_content := 0
 ## Joiner: the host's protocol and content hash from the service's `found` (advisory, §2.5), -1
 ## before it.
 var found_protocol := -1
@@ -90,6 +95,8 @@ var _ice_servers: Array = []
 var _join_started_ms := 0
 var _signal_opened := false
 var _client_id := 0
+## Client: `found` named another version; the join is failing and applies no offer.
+var _found_refused := false
 ## When poll() last ran; -1 before the first.
 var _last_poll_ms := -1
 
@@ -207,6 +214,12 @@ func room_code() -> String:
 	return _room_code
 
 
+## Whether the socket to the signalling service is open (or opening): false once it closed or
+## failed, so a host's lobby can say that no code is coming (M6-7).
+func signalling_open() -> bool:
+	return _signaller != null
+
+
 ## Host: also closes or reopens the room at the service, so a code typed while the match runs is
 ## answered "the match has started".
 func set_refuse_new_connections(refuse: bool) -> void:
@@ -248,6 +261,8 @@ func _backend_join(address: String, _port: int) -> Error:
 	if err != OK:
 		return err
 	_join_started_ms = Time.get_ticks_msec()
+	found_protocol = -1
+	found_content = 0
 	_signaller.join_room(address)
 	return OK
 
@@ -295,8 +310,8 @@ func _backend_close() -> void:
 	_client_id = 0
 	_signal_opened = false
 	_last_poll_ms = -1
-	found_protocol = -1
-	found_content = 0
+	_found_refused = false
+	# found_protocol and found_content stay: the menu names them after a join ends on them.
 
 
 ## The reason was sent before this call; poll() closes the RELIABLE channel next, then the
@@ -709,11 +724,21 @@ func _on_candidate(joiner: int, mid: String, index: int, cand: String) -> void:
 func _on_room_found(protocol: int, content: int) -> void:
 	found_protocol = protocol
 	found_content = content
+	if _signaller == null or role() != Role.CLIENT or expect_protocol < 0 or _found_refused:
+		return
+	if protocol != expect_protocol:
+		_found_refused = true
+		_fail_join(JOIN_WRONG_VERSION)
+	elif content != expect_content:
+		_found_refused = true
+		_fail_join(JOIN_WRONG_CONTENT)
 
 
 ## Joiner: one offer per attempt; the connection answers it (session_description_created).
 func _on_offer(_id: int, sdp: String, ice_servers: Array) -> void:
 	if _signaller == null or role() != Role.CLIENT or not _conns.is_empty() or _client_id != 0:
+		return
+	if _found_refused:
 		return
 	var conn := _new_connection(HOST_ID, 0, ice_servers)
 	if conn == null:

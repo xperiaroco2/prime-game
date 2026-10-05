@@ -106,6 +106,14 @@ class OptionsTest(unittest.TestCase):
         joiner = hostjoin.join_parts("k7m2qx", None, stop=stop, signal="ws://10.0.0.2:24600")
         self.assertEqual(joiner[0].user_args, ["--join=k7m2qx", "--signal=ws://10.0.0.2:24600", *files])
 
+    def test_the_copied_constants_match_the_games(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        options = (root / "client/app/launch_options.gd").read_text(encoding="utf-8")
+        codec = (root / "net/signal/signal_codec.gd").read_text(encoding="utf-8")
+        self.assertIn(f"const DEFAULT_PORT := {hostjoin.GAME_PORT}\n", options)
+        self.assertIn(f'const CODE_ALPHABET := "{hostjoin.CODE_ALPHABET}"', codec)
+        self.assertIn(f"const CODE_LENGTH := {hostjoin.CODE_LENGTH}\n", codec)
+
     def test_room_codes_are_the_games(self) -> None:
         for _ in range(20):
             self.assertTrue(hostjoin.is_code(hostjoin.room_code()))

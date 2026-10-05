@@ -11,8 +11,7 @@ const MAX_WAIT_MS := 15000
 
 
 func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
-	var host := _game(["--signal=lan", "--no-replay"])
-	host.options.room = CODE  # a fixed code, on a free port (0)
+	var host := _lan_host()
 	assert_bool(host.host_with_code(0, LaunchOptions.LOCALHOST)).is_true()
 	var service := "ws://127.0.0.1:%d" % host.room().lan.port()
 	assert_bool(await _until(func() -> bool: return host.room().code() == CODE)).is_true()
@@ -32,6 +31,52 @@ func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
 		for text: String in _texts(game.ui):
 			assert_str(text).override_failure_message(text).not_contains("127.0.0.1")
 	joiner.leave()
+	host.leave()
+	await get_tree().process_frame
+
+
+func test_a_found_of_another_version_ends_the_join_before_any_offer() -> void:
+	var service := LanSignalling.new([], func() -> String: return CODE)
+	assert_int(service.listen(0, LaunchOptions.LOCALHOST)).is_equal(OK)
+	var url := "ws://127.0.0.1:%d" % service.port()
+	var other := WebRtcTransport.new(NetKindTable.game())
+	other.signal_url = url
+	other.local_candidates = true
+	other.room_protocol = WireSchema.VERSION + 1
+	assert_int(other.host(0, 4)).is_equal(OK)
+	var room_open := func() -> bool:
+		service.poll()
+		other.poll()
+		return other.room_code() == CODE
+	assert_bool(await _until(room_open)).is_true()
+	var joiner := _game(["--signal=%s" % url])
+	joiner.join_code(CODE)
+	var ended := func() -> bool:
+		service.poll()
+		other.poll()
+		return joiner.client() == null
+	assert_bool(await _until(ended)).is_true()
+	assert_str(String(joiner.last_reason)).is_equal("wrong_version")
+	assert_str(joiner.ui.menu.reason_label.text).contains(
+		"the host runs protocol %d, this game %d" % [WireSchema.VERSION + 1, WireSchema.VERSION]
+	)
+	other.close()
+	service.stop()
+
+
+func test_a_host_without_a_code_service_says_to_host_direct() -> void:
+	var host := _game(["--signal="])
+	assert_bool(host.host_with_code(0, LaunchOptions.LOCALHOST)).is_false()
+	assert_str(host.ui.menu.reason_label.text).contains("use Host Direct")
+
+
+func test_the_host_lobby_says_when_its_code_service_is_gone() -> void:
+	var host := _lan_host()
+	assert_bool(host.host_with_code(0, LaunchOptions.LOCALHOST)).is_true()
+	assert_bool(await _until(func() -> bool: return host.room().code() == CODE)).is_true()
+	host.room().lan.stop()
+	var gone := func() -> bool: return host.ui.lobby_hud.code_label.text == JoinProgress.CODE_GONE
+	assert_bool(await _until(gone)).is_true()
 	host.leave()
 	await get_tree().process_frame
 
@@ -67,6 +112,15 @@ func test_a_code_join_without_a_service_says_to_use_direct() -> void:
 	assert_str(joiner.ui.menu.reason_label.text).contains("Direct (LAN or VPN)")
 
 
+## A Game set to host a room with CODE whose signalling it serves (as --code --signal=lan
+## --room=CODE), on a free port: host_with_code(0, ...) takes one the command line cannot.
+func _lan_host() -> Game:
+	var host := _game(["--no-replay"])
+	host.options.signal_url = LaunchOptions.LAN_SIGNAL
+	host.options.room = CODE
+	return host
+
+
 func _game(args: Array[String]) -> Game:
 	var game := GAME.instantiate() as Game
 	game.read_command_line = false
@@ -81,7 +135,7 @@ func _game(args: Array[String]) -> Game:
 	return game
 
 
-## Every Label's and LineEdit's text under `ui` but the menu's own fields (what the player typed).
+## Every Label's text under `ui`.
 func _texts(ui: Node) -> Array[String]:
 	var texts: Array[String] = []
 	for node: Node in ui.find_children("*", "Label", true, false):

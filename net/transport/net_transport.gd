@@ -58,6 +58,10 @@ const JOIN_SERVICE_REFUSED := &"service_refused"
 ## WebRTC: the connection failed or did not open within the join timeout: no direct path between
 ## the two machines.
 const JOIN_UNREACHABLE := &"host_unreachable"
+## WebRTC: the service's `found` named another protocol version or content hash than the joiner
+## expects (the M6 design §2.5; advisory, before any ICE); a Rejected Hello's reasons too.
+const JOIN_WRONG_VERSION := &"wrong_version"
+const JOIN_WRONG_CONTENT := &"wrong_content"
 
 var rejects := NetRejects.new()
 ## Valid LATEST messages dropped because a newer one of the same kind from the same peer came in

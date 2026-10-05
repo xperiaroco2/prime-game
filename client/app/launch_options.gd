@@ -129,6 +129,8 @@ func _check(menu_allowed: bool, local: bool) -> String:
 func _check_code() -> String:
 	if (by_code or not room.is_empty()) and not hosting:
 		return "%s and %s are for the host only" % [CODE_ARG, ROOM_ARG]
+	if signal_url == LAN_SIGNAL and not (hosting and by_code):
+		return "%s%s is for a %s host only" % [SIGNAL_ARG, LAN_SIGNAL, CODE_ARG]
 	if not room.is_empty() and (signal_url != LAN_SIGNAL or not SignalCodec.is_code(room)):
 		return "%s<CODE> takes a code, with %s%s only" % [ROOM_ARG, SIGNAL_ARG, LAN_SIGNAL]
 	if joining:

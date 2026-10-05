@@ -89,6 +89,7 @@ func test_code_arguments() -> void:
 		"for the host only": PackedStringArray(["--join=K7M2QX", "--code"]),
 		"takes a code": PackedStringArray(["--host", "--code", "--room=K7M2QX"]),
 		"1 to 65535": PackedStringArray(["--join=host:0"]),
+		"for a --code host only": PackedStringArray(["--join=K7M2QX", "--signal=lan"]),
 	}
 	for expected: String in cases:
 		var options := LaunchOptions.parse(cases[expected])

@@ -169,6 +169,11 @@ func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	if _client != null:
 		return false
 	var service := options.signal_url if options != null else JoinTarget.SERVICE_URL
+	if service.is_empty():
+		_cannot_host(
+			"this build has no code service yet: use Host Direct under Direct (LAN or VPN)"
+		)
+		return false
 	var lan_code := options.room if options != null else ""
 	var room := CodeRoom.open(_schema.kind_table(), mode, service, port, bind, lan_code)
 	if not room.problem.is_empty():
@@ -217,13 +222,15 @@ func join_target(target: JoinTarget) -> void:
 	if not target.problem.is_empty():
 		ui.menu.set_reason(target.problem)
 		return
+	_own_content = ClientSession.content_of(mode)
 	var transport := (
-		_new_transport() if make_transport.is_valid() else target.transport(_schema.kind_table())
+		_new_transport()
+		if make_transport.is_valid()
+		else target.transport(_schema.kind_table(), WireSchema.VERSION, _own_content)
 	)
 	_start_client(transport)
 	_target = target
 	_join_transport = transport
-	_own_content = ClientSession.content_of(mode)
 	ui.connecting.set_target(JoinProgress.target_text(target))
 	print("session: joining %s" % target.label())
 	if transport.join(target.join_address(), target.port) != OK:
@@ -374,8 +381,6 @@ func _process(_delta: float) -> void:
 	ui.reads_device_input = device_input
 	if _client != null:
 		_refresh_join()
-		if _client == null:
-			return  # the version check ended the join
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
@@ -596,7 +601,9 @@ func _end_session(reason: StringName, detail := "") -> void:
 		return
 	_ending = true
 	last_reason = reason
-	print("session: ended: %s" % EndReasons.text(reason))
+	if detail.is_empty():
+		detail = _found_detail(reason)
+	print("session: ended: %s%s" % [EndReasons.text(reason), ": " + detail if detail else ""])
 	if _host != null:
 		# Leaving the tree closes the session: every client sees host_lost.
 		remove_child(_host)
@@ -628,23 +635,26 @@ func _end_session(reason: StringName, detail := "") -> void:
 	_ending = false
 
 
-## A join under way: the version check against the service's `found` (it ends the join with both
-## versions named), and the connecting screen's step. Then the room's code to whoever knows it:
-## the host from its transport (a line saying it is gone once the service went away), a code
-## joiner the code it typed, a Direct joiner none.
+## Both versions in words when a code join ended on the service's `found` (the transport's
+## version check, before any ICE); "" for any other end, a Rejected Hello's included.
+func _found_detail(reason: StringName) -> String:
+	var webrtc := _join_transport as WebRtcTransport
+	if webrtc == null:
+		return ""
+	var found := webrtc.found_protocol
+	var own := WireSchema.VERSION
+	if JoinProgress.found_mismatch(found, webrtc.found_content, own, _own_content) != reason:
+		return ""
+	return JoinProgress.found_detail(reason, found, webrtc.found_content, own, _own_content)
+
+
+## A join under way: the connecting screen's step. Then the room's code to whoever knows it: the
+## host from its room (waiting for the service, then the code, or a line saying none is coming),
+## a code joiner the code it typed, a Direct joiner none.
 func _refresh_join() -> void:
 	var webrtc := _join_transport as WebRtcTransport
 	if _target != null and not _client.is_welcomed():
 		var found := webrtc.found_protocol if webrtc != null else -1
-		if webrtc != null:
-			var own := WireSchema.VERSION
-			var why := JoinProgress.found_mismatch(found, webrtc.found_content, own, _own_content)
-			if not why.is_empty():
-				var detail := JoinProgress.found_detail(
-					why, found, webrtc.found_content, own, _own_content
-				)
-				_end_session(why, detail)
-				return
 		var connected := _join_transport.own_id() != 0
 		ui.connecting.set_step(JoinProgress.step_text(_target.is_code(), found, connected))
 	var code := ""
@@ -652,7 +662,7 @@ func _refresh_join() -> void:
 		code = _room.code()
 	elif _target != null and _target.is_code():
 		code = _target.code
-	var line := JoinProgress.code_text(code, _room != null and _room.gone())
+	var line := JoinProgress.code_text(code, _room != null and _room.gone(), _room != null)
 	ui.lobby_hud.show_code(line)
 	ui.esc.lobby.show_code(line, code)
 

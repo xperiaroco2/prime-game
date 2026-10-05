@@ -10,9 +10,6 @@ var lan: LanSignalling
 ## What went wrong in open(); empty when nothing did.
 var problem := ""
 
-## The room had a code: its turning empty means the service went away (no reclaim).
-var _had_code := false
-
 
 ## A room for `mode` through `service` (a URL, or LaunchOptions.LAN_SIGNAL served on `port` and
 ## `bind`, 0 for any free one, handing out `lan_code` when given), on the game's `kinds`.
@@ -49,14 +46,13 @@ func poll() -> void:
 
 ## The room's code; empty before the service made the room, and after it went away.
 func code() -> String:
-	var now := transport.room_code()
-	_had_code = _had_code or not now.is_empty()
-	return now
+	return transport.room_code()
 
 
-## The room had a code and it is gone: nobody new can join with it.
+## The socket to the service closed or could not open: no code is coming, or the one there was is
+## gone (no reclaim), and nobody new can join with a code.
 func gone() -> bool:
-	return _had_code and transport.room_code().is_empty()
+	return not transport.signalling_open()
 
 
 func stop() -> void:

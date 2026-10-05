@@ -2390,9 +2390,10 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   one backend, so a code host takes no Direct joiner and a Direct host has no code. A failed join returns to the menu
   with its reason; the fields keep what was typed.
 - **The connecting screen** names the target the player typed and the step (`JoinProgress`): finding the game (a
-  code, before `found`), connecting, joined (connected, before `Welcome`). **The version check:** a code join whose
-  `found` names another protocol or content hash ends at once as `wrong_version` or `wrong_content`, with the host's
-  and the own named after the words ("another build" for the content); advisory only, `Hello` still decides.
+  code, before `found`), connecting, joined (connected, before `Welcome`). **The version check** is the joiner's
+  `WebRtcTransport`'s (`expect_protocol`, `expect_content`, which `JoinTarget.transport` sets): a `found` naming
+  another protocol or content hash fails the join as `wrong_version` or `wrong_content` before any offer is applied,
+  and the menu names the host's and the own ("another build" for the content); advisory only, `Hello` still decides.
 - **Failures in words** (`EndReasons`): `no_room`, `joins_closed`, `wrong_version`, `wrong_content` ("another
   build"), `service_unreachable` (use Direct) and `host_unreachable`, which also covers a full host (it answers a
   joiner nothing, so the join times out after 15 s) and names the playit.gg fallback under Direct.

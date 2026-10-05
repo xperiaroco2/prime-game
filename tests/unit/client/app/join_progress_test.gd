@@ -51,7 +51,8 @@ func test_the_lobby_code_line() -> void:
 	assert_str(P.code_text("K7M2QX", false)).is_equal("Code: K7M2QX")
 	assert_str(P.code_text("", false)).is_empty()
 	assert_str(P.code_text("", true)).is_equal(P.CODE_GONE)
-	assert_str(P.CODE_GONE).contains("gone")
+	assert_str(P.CODE_GONE).contains("Host Direct")
+	assert_str(P.code_text("", false, true)).is_equal(P.CODE_WAITING)
 
 
 func test_each_join_failure_in_plain_words() -> void:

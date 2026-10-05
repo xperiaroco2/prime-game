@@ -16,7 +16,9 @@ const STEP_WORDS: Dictionary[Step, String] = {
 	Step.JOINED: "Joined: waiting for the host",
 }
 ## The lobby's line for a host whose code service went away (its room is gone, no reclaim).
-const CODE_GONE := "Code: gone (the code service closed): nobody new can join with it"
+const CODE_GONE := "Code: none (the code service closed or is unreachable): use Host Direct"
+## The lobby's line for a host whose code service has not made the room yet.
+const CODE_WAITING := "Code: waiting for the code service"
 
 
 ## The step of a join to a code (`by_code`) whose service answered `found_protocol` (-1: not yet),
@@ -68,9 +70,12 @@ static func found_detail(
 	return ""
 
 
-## The lobby's code line: "Code: ABCDEF" to whoever knows the code, CODE_GONE for a host whose
-## service went away, "" (hidden) for a Direct game.
-static func code_text(code: String, gone: bool) -> String:
+## The lobby's code line: "Code: ABCDEF" to whoever knows the code; for a code host, CODE_WAITING
+## before the service made the room and CODE_GONE once its service closed or could not be reached;
+## "" (hidden) for a Direct game.
+static func code_text(code: String, gone: bool, waiting := false) -> String:
 	if gone:
 		return CODE_GONE
-	return "" if code.is_empty() else "Code: %s" % code
+	if code.is_empty():
+		return CODE_WAITING if waiting else ""
+	return "Code: %s" % code

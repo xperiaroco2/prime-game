@@ -73,7 +73,9 @@ func _initialize() -> void:
 		enet.bind_address = _options.bind
 		_transport = enet
 	else:
-		_transport = _options.target.transport(schema.kind_table())
+		_transport = _options.target.transport(
+			schema.kind_table(), WireSchema.VERSION, ClientSession.content_of(mode)
+		)
 	if _options.hosting:
 		_start_host(mode, schema)
 	else:

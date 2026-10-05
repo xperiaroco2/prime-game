@@ -101,11 +101,15 @@ func label() -> String:
 
 
 ## The transport that joins this target, with `kinds`: a WebRtcTransport for a code, an
-## EnetTransport for an address. Its join(join_address(), port) starts the join.
-func transport(kinds: NetKindTable) -> NetTransport:
+## EnetTransport for an address. Its join(join_address(), port) starts the join. A code join
+## checks the service's `found` against `protocol` and `content` (the joiner's own; -1: no check)
+## and ends before any ICE when they differ.
+func transport(kinds: NetKindTable, protocol := -1, content := 0) -> NetTransport:
 	if is_code():
 		var webrtc := WebRtcTransport.new(kinds)
 		webrtc.signal_url = service_url
+		webrtc.expect_protocol = protocol
+		webrtc.expect_content = content
 		# A service on this machine (the runner's --signal=lan host, the tests): the host is here too,
 		# so host candidates on 127.0.0.1 only, as in every headless test.
 		webrtc.local_candidates = service_url.begins_with("ws://127.0.0.1:")
