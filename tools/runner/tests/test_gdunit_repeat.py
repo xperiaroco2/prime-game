@@ -7,6 +7,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from runner import cli, common, gdunit
@@ -112,8 +113,11 @@ class SummarizeTest(unittest.TestCase):
 class RepeatTest(unittest.TestCase):
     """repeat() with Godot replaced by a stub that writes each run's results.xml as GdUnit4 would."""
 
-    def run_repeat(self, runs: list[tuple[int, str, bool]], count: int) -> tuple[int, Path, list[str], str]:
+    def run_repeat(
+        self, runs: list[tuple[int, str, bool]], count: int, **kwargs: Any
+    ) -> tuple[int, Path, list[str], str]:
         calls: list[str] = []
+        self.args: list[list[str]] = []
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "tests" / "unit").mkdir(parents=True)
@@ -123,6 +127,7 @@ class RepeatTest(unittest.TestCase):
             def fake_godot(args: list[str], *, timeout: float, log: str, echo: bool = False) -> common.Result:
                 rc, xml, timed_out = runs[len(calls)]
                 calls.append(log)
+                self.args.append(args)
                 if xml:
                     (report_dir / "report_1").mkdir(parents=True)
                     (report_dir / "report_1" / "results.xml").write_text(xml, encoding="utf-8")
@@ -138,7 +143,7 @@ class RepeatTest(unittest.TestCase):
                 contextlib.redirect_stdout(out),
                 contextlib.redirect_stderr(out),
             ):
-                rc = gdunit.repeat(count, run_import=False)
+                rc = gdunit.repeat(count, run_import=False, **kwargs)
             kept = sorted(p.relative_to(runs_dir).as_posix() for p in runs_dir.rglob("*") if p.is_file())
             summary = json.loads((runs_dir / "summary.json").read_text(encoding="utf-8"))
             self.assertTrue((runs_dir / "summary.md").is_file())
@@ -172,6 +177,34 @@ class RepeatTest(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertEqual(self.summary["runs"][1]["note"], f"timed out after {gdunit.TIMEOUT}s")
 
+    def test_without_the_flag_no_run_gets_engine_args(self) -> None:
+        xml = results_xml({"tests/unit/a_test": {"test_ok": PASS}})
+        self.assertEqual(self.run_repeat([(0, xml, False)] * 2, 2, paths=["tests/unit"])[0], 0)
+        self.assertTrue(all("--fixed-fps" not in args for args in self.args))
+        self.assertNotIn("engine_args", self.summary)
+
+    def test_the_first_line_names_the_clock_flag_given_as_plain_test_does(self) -> None:
+        xml = results_xml({"tests/unit/a_test": {"test_ok": PASS}})
+        for flag, line in [(None, "test --repeat 1"), (False, "test --repeat 1 --real-time"),
+                           (True, "test --repeat 1 --fixed-fps (60)")]:  # fmt: skip
+            printed = self.run_repeat([(0, xml, False)], 1, paths=["tests/unit"], fixed_fps=flag)[3]
+            self.assertIn(line, printed.splitlines())
+
+    def test_repeat_with_the_flag_passes_engine_args_to_every_run(self) -> None:
+        xml = results_xml({"tests/unit/a_test": {"test_ok": PASS}})
+        rc, _, _, printed = self.run_repeat([(0, xml, False)] * 2, 2, paths=["tests/unit"], fixed_fps=True)
+        self.assertEqual(rc, 0, printed)
+        self.assertEqual(len(self.args), 2)
+        for args in self.args:
+            at = args.index("--fixed-fps")
+            self.assertEqual(args[at : at + 2], ["--fixed-fps", "60"])
+            self.assertLess(at, args.index("-s"))
+        self.assertEqual(self.summary["engine_args"], ["--fixed-fps", "60"])
+
+    def test_repeat_with_the_flag_needs_paths(self) -> None:
+        with self.assertRaisesRegex(common.Failure, "needs the paths"):
+            gdunit.repeat(2, run_import=False, fixed_fps=True)
+
     def test_repeat_below_one_is_refused(self) -> None:
         with self.assertRaises(common.Failure):
             gdunit.repeat(0, run_import=False)
@@ -184,6 +217,13 @@ class CliTest(unittest.TestCase):
             self.assertEqual(cli.main(["test"]), 0)
         rep.assert_called_once_with(3, paths=["tests/unit"])
         main.assert_called_once_with(paths=None)
+
+    def test_the_clock_flags_reach_repeat_only_when_given(self) -> None:
+        with mock.patch.object(gdunit, "repeat", return_value=0) as rep:
+            self.assertEqual(cli.main(["test", "--repeat", "2", "tests/unit", "--fixed-fps"]), 0)
+            self.assertEqual(cli.main(["test", "--repeat", "2", "--real-time"]), 0)
+        self.assertEqual(rep.call_args_list, [mock.call(2, paths=["tests/unit"], fixed_fps=True),
+                                              mock.call(2, paths=None, fixed_fps=False)])  # fmt: skip
 
 
 if __name__ == "__main__":

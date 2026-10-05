@@ -11,6 +11,15 @@ const OUT_OF_REACH := &"out_of_reach"
 @export var reach_m := 0.0
 
 
+## It needs an item (Items.target_of), and also reads the actor (the default).
+func needs_target() -> bool:
+	return true
+
+
+func target_facts() -> Array[StringName]:
+	return [Facts.ITEM_RESTED]
+
+
 func _test(ctx: MatchContext) -> bool:
 	var actor := ctx.actor_state()
 	var item := Items.target_of(ctx)

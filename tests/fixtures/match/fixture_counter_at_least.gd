@@ -14,6 +14,11 @@ static func of(counter_key: StringName, why: StringName = &"fixture_no") -> Fixt
 	return condition
 
 
+## It reads peer 0's counter, not the actor: the fixture mode's win conditions hold it.
+func reads_actor_state() -> bool:
+	return false
+
+
 func _test(ctx: MatchContext) -> bool:
 	return ctx.state.counter(0, key) >= at_least
 

@@ -43,6 +43,8 @@ jobs:
       - name: Remove the TwoVoIP extension
         run: rm addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
+      # Its test step runs the frame-bound client suites (gdunit.FIXED_FPS_SUITES) at --fixed-fps 60 in shards of
+      # their own and the rest in real time (#341); nightly.yml's flaky job keeps all of them real-time.
       - name: verify
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh verify
 

@@ -8,9 +8,16 @@ lock, `slot-<i>.json` names its holder (worktree, branch, pid, since): the waiti
 holder file that was never cleared when its slot is taken again names a run that ended without releasing it (a
 reclaimed slot).
 
-The wait is bounded (max_wait): an agent's foreground shell call dies at 600 s, and a verify that first waited
-longer would be killed before it ended. After max_wait the run goes ahead without a slot, with a loud warning that
-the summary and the history record repeat: a slot never skips or weakens a step, it only orders the runs.
+The wait is bounded (max_wait, #388: about one whole verify run on a loaded PC, so a slot frees within it unless a
+holder is stuck). After max_wait the run goes ahead without a slot, with a loud warning that the summary and the
+history record repeat: a slot never skips or weakens a step, it only orders the runs. Agents therefore run verify
+in the background and poll it with `wait` (#303): a foreground shell call dies at 600 s, before a long wait and the
+run after it end.
+
+A load run (`load`, #388: bounded busy loops an agent starts on purpose to test under load, as #318 and #354 did)
+takes a slot too, so the verify runs see it: while it runs, one verify fewer runs beside it, and the waiting line
+names it ("load run in ..."). Past max_wait a load run does not start: unlike a verify, it is no gate, and it would
+make the verify runs beside it run over the limit.
 """
 
 from __future__ import annotations
@@ -34,19 +41,28 @@ DIR_VAR = "PRIME_VERIFY_SLOTS_DIR"
 # selftest's four workers, beside the other sessions' runs): k verify runs at once took 316 s (k = 1), 315 and 386 s
 # (k = 2), 431 and 441 s (k = 3) and 452 s (k = 4) per batch, so 11, 19 to 23, 25 and 32 runs an hour. Two at once
 # cost a run little and fill the 16 logical CPUs (2 x (4 shards + 4 workers)); a third or fourth makes every run a
-# third longer (450 s leaves no room for a wait in an agent's 600 s call) and `test`, whose load-sensitive suites
-# already fail under the other sessions' load, red more often. freeze, stall, enet and bots-enet stayed green.
+# third longer and `test`, whose load-sensitive suites already fail under the other sessions' load, red more often.
+# freeze, stall, enet and bots-enet stayed green.
 DEFAULT_COUNT = 2
-# An agent's foreground shell call (Claude Code's Bash tool) is killed at 600 s, and agents run verify (and publish,
-# which runs it) in the foreground: the longest wait plus a verify run must end before that, with a margin for a
-# slower run, doctor and the git facts. A run waits the whole DEFAULT_WAIT only when it then goes ahead without a
-# slot, beside DEFAULT_COUNT slotted runs: VERIFY_OVER is the slowest verify measured with DEFAULT_COUNT + 1 runs at
-# once (above), rounded up, and VERIFY_RUN the slowest with DEFAULT_COUNT.
-AGENT_CALL_LIMIT = 600.0
-MARGIN = 60.0
-VERIFY_RUN = 390.0
-VERIFY_OVER = 445.0
-DEFAULT_WAIT = 95.0
+# The longest wait (#388). Until then it was 95 s, so that the wait and a verify fit an agent's foreground shell call
+# (600 s); since #303 agents run verify and publish in the background and poll them with `wait`, so the wait no longer
+# has to fit one call. With 95 s, `metrics` counted 11 runs over the limit in the agents' verify summaries to
+# 2026-10-04 22:00 UTC, and the verify history files left (59 runs) 7, all on 2026-10-04 with three or four tracks
+# verifying at once. Those seven were slow: 388 to 895 s (median 603 s) against a median of 359 s for the 51 slotted
+# runs, and two were red (stall, selftest). For each of the five over-limit runs whose holders are in the history
+# files, a slot freed NEEDED seconds after its wait began (the end of the earlier of the holders' runs): the longest
+# wait covers all of them with a margin. A wait never needs longer than the rest of one holder's run, at most a whole
+# verify on a loaded PC (45 of the 51 slotted runs took under 600 s); past that a holder is likely stuck, and the run
+# goes ahead, as before. A run started in the background (Claude Code's default limit for a background command: 30
+# minutes, BACKGROUND_LIMIT) still ends within it after the whole wait and the slowest green slotted run measured
+# (SLOWEST_GREEN, 2026-10-04, three runs at once).
+NEEDED = (207.0, 229.0, 341.0, 522.0, 536.0)
+SLOWEST_GREEN = 960.0
+BACKGROUND_LIMIT = 1800.0
+DEFAULT_WAIT = 600.0
+# What a slot's holder is: a verify run, or a load run (`load`).
+VERIFY = "verify"
+LOAD = "load"
 # How often a waiting run tries the slots again, and how often it says who holds them.
 POLL = 2.0
 REPORT_EVERY = 60.0
@@ -117,10 +133,11 @@ class Holder:
     branch: str | None = None
     pid: int | None = None
     since: str = "?"
+    kind: str = VERIFY  # VERIFY or LOAD: what holds the slot
 
     def line(self) -> str:
         what = f"{self.worktree} ({self.branch or 'detached'}, pid {self.pid}, since {self.since})"
-        return f"slot {self.slot}: {what}"
+        return f"slot {self.slot}: {'load run in ' if self.kind == LOAD else ''}{what}"
 
 
 @dataclass
@@ -164,7 +181,8 @@ class Taken:
 
 
 class Pool:
-    """`count` slots in `where`. Clock, sleep and say are injectable so a test waits without waiting."""
+    """`count` slots in `where`, waited on by a run of `kind` (VERIFY or LOAD). Clock, sleep and say are injectable so
+    a test waits without waiting."""
 
     def __init__(
         self,
@@ -172,6 +190,7 @@ class Pool:
         count: int,
         max_wait: float,
         *,
+        kind: str = VERIFY,
         me: dict[str, object] | None = None,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
@@ -181,7 +200,10 @@ class Pool:
     ) -> None:
         if count < 1:
             raise ValueError(f"a pool needs at least one slot, not {count}")
+        if kind not in (VERIFY, LOAD):
+            raise ValueError(f"a slot is held by a {VERIFY} or a {LOAD} run, not {kind!r}")
         self.where = where
+        self.kind = kind
         self.count = count
         self.max_wait = max_wait
         self.me = me or {}
@@ -192,6 +214,10 @@ class Pool:
         self.every = every
         self._fd: int | None = None
         self._slot: int | None = None
+
+    @property
+    def what(self) -> str:
+        return "load run" if self.kind == LOAD else "verify"
 
     def _lock_path(self, slot: int) -> Path:
         return self.where / f"slot-{slot}.lock"
@@ -214,6 +240,7 @@ class Pool:
             branch=data.get("branch") if isinstance(data.get("branch"), str) else None,
             pid=pid if isinstance(pid, int) else None,
             since=str(data.get("since", "?")),
+            kind=LOAD if data.get("kind") == LOAD else VERIFY,  # a holder file without a kind is a verify's
         )
 
     def holders(self) -> list[Holder]:
@@ -238,20 +265,23 @@ class Pool:
             self._fd, self._slot = fd, slot
             since = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
             with contextlib.suppress(OSError):  # the holder file only names the holder; the lock is the slot
-                self._write_holder(slot, {**self.me, "pid": os.getpid(), "since": since})
+                self._write_holder(slot, {**self.me, "kind": self.kind, "pid": os.getpid(), "since": since})
             return slot, left
         return None
 
     def acquire(self) -> Taken:
         """Wait for a slot, saying every `every` seconds who holds them; after max_wait, or when the slot folder
-        fails, go ahead without one (a slot only orders the runs: it never stops the gate)."""
+        fails, go ahead without one (a slot only orders the runs: it never stops the gate). A load run's caller does
+        not start after max_wait (`Taken.over`; the warning says so)."""
         started = self.clock()
         next_report = started
         while True:
             try:
                 got = self.try_take()
             except OSError as exc:
-                self.say(f"  WARN  the verify slots in {self.where} failed ({exc}); this verify runs without a slot")
+                self.say(
+                    f"  WARN  the verify slots in {self.where} failed ({exc}); this {self.what} runs without a slot"
+                )
                 return Taken(self.count, None, self.clock() - started, error=f"{type(exc).__name__}: {exc}")
             now = self.clock()
             if got is not None:
@@ -265,17 +295,23 @@ class Pool:
                 return taken
             if now - started >= self.max_wait:
                 holders = self.holders()
+                if self.kind == LOAD:
+                    outcome = "does not start: it would make the verify runs beside it run over the limit"
+                else:
+                    outcome = (
+                        f"runs OVER THE LIMIT, beside {self.count} others, so the timing-sensitive steps (freeze, "
+                        "stall) are less reliable"
+                    )
                 self.say(
-                    f"  WARN  no verify slot after {now - started:.0f}s (all {self.count} held); this verify runs "
-                    f"OVER THE LIMIT, beside {self.count} others, so the timing-sensitive steps (freeze, stall) are "
-                    f"less reliable. Holders: {'; '.join(h.line() for h in holders)}"
+                    f"  WARN  no verify slot after {now - started:.0f}s (all {self.count} held); this {self.what} "
+                    f"{outcome}. Holders: {'; '.join(h.line() for h in holders)}"
                 )
                 return Taken(self.count, None, now - started, holders=holders)
             if now >= next_report:
                 held = "; ".join(h.line() for h in self.holders())
                 self.say(
-                    f"verify: waiting for a slot ({self.count} of {self.count} held; waited {now - started:.0f}s, at "
-                    f"most {self.max_wait:.0f}s): {held}"
+                    f"{self.kind}: waiting for a slot ({self.count} of {self.count} held; waited "
+                    f"{now - started:.0f}s, at most {self.max_wait:.0f}s): {held}"
                 )
                 next_report = now + self.every
             self.sleep(min(self.poll, started + self.max_wait - now))
@@ -307,9 +343,10 @@ def for_verify(
     ci: bool = False,
     inside: bool = False,
     say: Callable[[str], None] = print,
+    kind: str = VERIFY,
 ) -> tuple[Pool | None, str]:
-    """The pool a verify run waits on, or None with the reason: CI (one run per runner), a verify inside a verify
-    (the outer run holds the slot), or COUNT_VAR=0."""
+    """The pool a verify run (or a load run, `kind` LOAD) waits on, or None with the reason: CI (one run per runner),
+    a run inside a verify (the outer run holds the slot), or COUNT_VAR=0."""
     if ci:
         return None, "no limit on CI"
     if inside:
@@ -322,4 +359,4 @@ def for_verify(
     if count == 0:
         return None, f"no limit ({COUNT_VAR}=0)"
     wait = setting(env, WAIT_VAR, DEFAULT_WAIT)
-    return Pool(folder(env), count, wait, me=me, say=say), ""
+    return Pool(folder(env), count, wait, kind=kind, me=me, say=say), ""

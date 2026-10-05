@@ -26,9 +26,10 @@ export const meta = {
 //   plan     the plan issue whose body no agent edits (default 30)
 //   manager  who runs this, for the agents' first line (default 'the manager session')
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
-// by default. With none of them every agent's prompt, label, phase, schema and options are byte-identical to the
-// script before v2 (tools/runner/tests/test_workflows.py snapshots them), so other managers' launches and resumes are
-// unchanged. The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// by default but bounded_waits (on since #411). With none of them and bounded_waits false every agent's prompt, label,
+// phase, schema and options are byte-identical to the script before v2 (tools/runner/tests/test_workflows.py snapshots
+// them, and the default too), so a launch or resume with the earlier args and bounded_waits false is unchanged. The
+// agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents
 //   test_review   true: after the reviews one agent plants 3 to 5 mutants in the diff's production code with
@@ -45,10 +46,11 @@ export const meta = {
 //                 implementer runs `tools\run.cmd playcheck <scenario>` (P9, #186) and returns the PNGs, the code
 //                 reviewer reads them, and the rules line on Godot windows also allows playcheck. Missing on the
 //                 task's branch: reported in the result and the PR. +0 agents
-//   bounded_waits true: the implementer, the test reviewer and the full publisher run verify, publish and mutants in
-//                 the background and poll them with `tools\run.cmd wait` (#303), and wait on CI in calls of at most
-//                 240 s, so no tool call outlasts their 5-minute prompt cache; the publisher skips a standalone
-//                 verify that `wait --verified` shows done. Without `wait` on the branch: the foreground. +0 agents
+//   bounded_waits true, the default (#411; missing or null is true): the implementer, the test reviewer and the full
+//                 publisher run verify, publish and mutants in the background and poll them with `tools\run.cmd wait`
+//                 (#303), and wait on CI in calls of at most 240 s, so no tool call outlasts their 5-minute prompt
+//                 cache; the publisher skips a standalone verify that `wait --verified` shows done. Without `wait` on
+//                 the branch: the foreground. false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
 //                 falls back to today's default), plan (falls back to implement's), plan_review, review, netcode,
 //                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
@@ -70,6 +72,11 @@ export const meta = {
 //                 docs/decisions/2026-10-04-lean-workflow-agent-types.md). Only agentType is appended to their
 //                 options; prompts, efforts and models stay. Opt-in until the A/B on #302; .claude/agents/ in the
 //                 manager's checkout must have both files. +0 agents
+// Returns a compact result (#386), not the agents' results: n, stopped (why, when the run stopped), the PR (pr, pr_url,
+// published, ci_green, closes_issue), the implementer's verify_green, complete and summary line, needs_engineer and
+// human_steps in full, not_fixed and merge_notes a line each, fixed as a count, the reviews' findings by severity, and
+// what each v2 option adds (plan, test_review, skeptic, visual, publish_clean); `full` points to the run's journal.jsonl,
+// which holds every agent's whole result. 1.1 to 2 kB on 8 real runs (median 1.25 kB), where the whole was 8 to 17 kB.
 // Resume after a crash or a stop: relaunch with resumeFromRunId and the SAME args (the prompts depend only on args
 // and earlier results, and each prompt tells its agent to check what an earlier attempt already did).
 
@@ -108,7 +115,8 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 }
 // true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
-const BOUNDED = flag('bounded_waits')
+// On unless a launch passes false (#411): a missing or null arg is the default.
+const BOUNDED = flag('bounded_waits') || A.bounded_waits === undefined || A.bounded_waits === null
 const LEAN = flag('lean')
 const V = A.visual
 const SCENES = V === true
@@ -362,6 +370,7 @@ log(`#${N}: implemented, verify ${impl.verify_green ? 'green' : 'RED'}, ${(impl.
 const shots = VISUAL ? (impl.playcheck || { available: false, pngs: [], notes: 'the implementer reported no playcheck run' }) : null
 
 let reviews = []
+let labels = []
 let testReview = null
 let testReviewSkipped = ''
 let skeptic = null
@@ -390,7 +399,7 @@ if (impl.verify_green) {
     : shots.available && (shots.pngs || []).length
       ? `\n\nVisual check (visual): the implementer's \`tools\\run.cmd playcheck\` screenshots: ${shots.pngs.join(', ')}. Read each PNG (Read shows images) and compare it with what the issue asks for: the wrong camera or player, a HUD or menu that is missing, misplaced or shows another player's state, text cut off or overlapping. Each such problem is a finding, with the PNG's path as its file.`
       : `\n\nVisual check (visual): no playcheck screenshots (${shots.notes || 'none returned'}). That is not a finding of yours: the publisher reports it.`
-  const labels = ['code-reviewer']
+  labels = ['code-reviewer']
   const thunks = [() => agent(base + codeFocus + visualFocus, asReviewer({ label: `review:code:#${N}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
   if (netcode) {
     labels.push('netcode-security-reviewer')
@@ -462,12 +471,78 @@ if (impl.verify_green) {
   openSerious = SKEPTICS ? skeptic.stood.length + skeptic.unchecked.length : serious.length
 }
 
+// The compact result (#386): the harness prints a run's return value into the manager's context, and each later call of
+// the manager reads it again. It keeps every field the manager acts on (orchestrate-stage §4) and cuts each long text
+// to a line or a count; the agents' full results stay in the run's journal.jsonl, a result line per agent.
+const FULL = 'whole results: ~/.claude/projects/<project>/<manager session>/subagents/workflows/<run id>/journal.jsonl (orchestrate-stage §4)'
+const line = (s, max = 160) => {
+  const t = s === undefined || s === null ? '' : String(s).trim()
+  const first = t.split('\n')[0].trim()
+  return first.length > max ? `${first.slice(0, max - 1).trimEnd()}…` : first.length < t.length ? `${first} …` : first
+}
+const lines = (a, max) => (Array.isArray(a) ? a.map(s => line(typeof s === 'string' ? s : JSON.stringify(s), max)) : [])
+const SEVERITIES = ['blocker', 'major', 'minor', 'nit']
+const tally = (list, key, order) => {
+  const c = {}
+  for (const x of list || []) { const k = String(x && x[key]); c[k] = (c[k] || 0) + 1 }
+  return Object.fromEntries([...order.filter(k => c[k]), ...Object.keys(c).filter(k => !order.includes(k))].map(k => [k, c[k]]))
+}
+const briefReviews = (by, rs) => rs.map((r, i) => ({ by: by[i], ...tally(r.findings, 'severity', SEVERITIES) }))
+const pick = (o, keys) => Object.fromEntries(keys.filter(k => o && o[k] !== undefined && o[k] !== null).map(k => [k, o[k]]))
+// A list's "None" or empty entries say nothing.
+const items = a => (Array.isArray(a) ? a.filter(x => !(typeof x === 'string' && /^(none\.?)?$/i.test(x.trim()))) : [])
+
+// issue-task's own result: the implementer's verdict, the reviews' counts, the publisher's fields and each v2 option's.
+const brief = (stopped, pub, extra) => {
+  const out = { n: N }
+  if (stopped) out.stopped = stopped
+  if (pub) {
+    Object.assign(out, pick({ pr: pub.pr_number, ...pub }, ['pr', 'pr_url', 'published', 'ci_green', 'closes_issue']))
+    // Only when not as usual: a missing handoff or board move is the manager's to do.
+    if (pub.handoff_posted === false) out.handoff_posted = false
+    if (pub.board_in_review === false) out.board_in_review = false
+    if (pub.stopped_by_mutants === true) out.stopped_by_mutants = true
+  }
+  Object.assign(out, pick(impl, ['verify_green', 'complete']))
+  out.summary = line(impl.summary)
+  // Where no publisher ran, the relaunch's notes need the red verify tail and what is left, both in full (only a stop
+  // carries them); after a publisher, the PR ("Part of") and not_fixed say what is left.
+  if (!pub) {
+    if (!impl.verify_green && impl.verify_tail) out.verify_tail = impl.verify_tail
+    if (items(impl.left).length) out.left = items(impl.left)
+  }
+  // In full: the manager explains each one to the engineer, and copies each step's command as is. The publisher's
+  // list carries the implementer's into the PR, so the implementer's counts only where the publisher's has no item
+  // (none returned, or an empty list: its schema does not ask it to repeat the implementer's).
+  const pubNeeds = pub ? items(pub.needs_engineer) : []
+  out.needs_engineer = pubNeeds.length ? pubNeeds : items(impl.needs_engineer)
+  if (pub) {
+    out.human_steps = pub.human_steps || []
+    out.not_fixed = lines(items(pub.not_fixed))
+    out.fixed = items(pub.fixed).length
+    if (pub.merge_notes) out.merge_notes = line(pub.merge_notes)
+  }
+  if (items(impl.proposed_issues).length) out.proposed_issues = lines(items(impl.proposed_issues), 100)
+  if (items(impl.provisional_content).length) out.provisional_content = lines(items(impl.provisional_content), 120)
+  out.reviews = briefReviews(labels, reviews)
+  if (planned) out.plan = { summary: line(planned.plan.summary), critique: tally(planned.critique.findings, 'severity', SEVERITIES) }
+  if (testReviewSkipped) out.test_review = { skipped: testReviewSkipped }
+  else if (testReview) {
+    out.test_review = { available: testReview.available, exit_2: testReview.exit_2, mutants: tally(testReview.mutants, 'result', ['killed', 'survived', 'error', 'equivalent']), findings: tally(testReview.findings, 'severity', SEVERITIES), ...(testReview.notes ? { notes: line(testReview.notes) } : {}) }
+  }
+  if (SKEPTICS && skeptic) out.skeptic = { refuted: skeptic.refuted.length, stood: skeptic.stood.length, unchecked: skeptic.unchecked.length }
+  if (VISUAL) out.visual = { ...shots, ...(shots.notes ? { notes: line(shots.notes) } : {}) }
+  Object.assign(out, extra)
+  out.full = FULL
+  return out
+}
+
 // A red implementer stops the run here: no fresh agent has read the final code, so nothing may be published
 // (definition of done, step 2). The manager relaunches a fresh run with the failure in notes (a resume would replay
 // the cached red result); the implementer continues from the worktree's commits.
 if (!impl.verify_green) {
   log(`#${N}: verify RED after the implementer; nothing reviewed or published`)
-  return { n: N, impl, reviews: [], pub: null, stopped: 'verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes', ...(planned ? { plan: planned } : {}) }
+  return brief('verify red after the implementer: nothing reviewed or published; relaunch issue-task (not a resume) with the failure in notes', null, {})
 }
 
 phase('Publish')
@@ -528,14 +603,7 @@ const pub = stoppedByMutants
 
 if (!pub) throw new Error(`#${N}: the publisher returned nothing; resume this run with the same args`)
 if (pub.published && !reviews.length) throw new Error(`#${N}: published with no fresh review; review PR ${pub.pr_url || ''} before a merge`)
-const out = { n: N, impl, reviews, pub }
-if (planned) out.plan = planned
-if (TEST_REVIEW) out.test_review = testReviewSkipped ? { skipped: testReviewSkipped } : testReview
-if (SKEPTICS) out.skeptic = skeptic
-if (VISUAL) out.visual = shots
-if (TRIAL) out.publish_clean = { applied: PUB_ROLE === 'publish_clean', why: TRIAL_WHY, open: openSerious, model: set(MODELS, PUB_ROLE) || null, effort: FULL_PUB_EFFORT }
 // A resume replays the cached exit 2 (the test review's or the publisher's own rerun), so it would stop again.
-if (stoppedByMutants || pub.stopped_by_mutants === true) {
-  out.stopped = `tools\\run.cmd mutants exited 2 ${stoppedByMutants ? 'in the test review' : 'in a rerun by the publisher'}: its scratch worktree could not be removed; nothing published (see the comment on the issue). Once the engineer removes the leftover worktree, relaunch issue-task (not a resume: a resume replays the cached exit 2) with the stop in notes`
-}
-return out
+return brief(stoppedByMutants || pub.stopped_by_mutants === true
+  ? `tools\\run.cmd mutants exited 2 ${stoppedByMutants ? 'in the test review' : 'in a rerun by the publisher'}: its scratch worktree could not be removed; nothing published (see the comment on the issue). Once the engineer removes the leftover worktree, relaunch issue-task (not a resume: a resume replays the cached exit 2) with the stop in notes`
+  : null, pub, TRIAL ? { publish_clean: { applied: PUB_ROLE === 'publish_clean', why: TRIAL_WHY, open: openSerious, model: set(MODELS, PUB_ROLE) || null, effort: FULL_PUB_EFFORT } } : {})

@@ -216,7 +216,7 @@ func test_a_negated_cost_in_a_reaction_is_reported_once() -> void:
 
 
 func test_a_cost_that_does_not_say_is_refused_and_named_by_its_base() -> void:
-	# Cost.reads_actor_state defaults to true, so a cost that forgets to say is refused at load;
+	# Condition.reads_actor_state defaults to true, so a cost that forgets to say is refused at load;
 	# one without a class_name is named by the class it extends.
 	var mode := _reacting_on_the_clock([CostWithNoName.new()])
 	var errors := Array(ModeCheck.run(mode).errors)
@@ -233,8 +233,9 @@ func test_a_reaction_may_hold_a_cost_that_reads_no_player_state() -> void:
 
 
 func test_every_cost_in_core_reads_the_actors_player_state() -> void:
-	# The costs of core/ and whether a reaction may hold them (Cost.reads_actor_state). A new cost
-	# in core/ fails this test until it is listed here and in ARCHITECTURE §9.2. It finds costs by
+	# The costs of core/ and whether a reaction may hold them (Condition.reads_actor_state). A new cost
+	# in core/ fails this test until it is listed here, in mode_check_actor_test.gd's guard of every
+	# condition and in ARCHITECTURE §9.4 ("Where"). It finds costs by
 	# class_name, as every core/ part has one (§9.4); one without keeps the default and is refused
 	# (test_a_cost_that_does_not_say_is_refused_and_named_by_its_base).
 	var expected: Dictionary[StringName, bool] = {&"Cooldown": true, &"StaminaCost": true}

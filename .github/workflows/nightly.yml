@@ -144,6 +144,8 @@ jobs:
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh doctor --quick
 
       # Every run is kept (tools/out/gdunit-runs/run-<i>/) and compared per suite and per test (summary.json, .md).
+      # In real time, frame-bound suites too: verify runs those at fixed fps, where a frame never runs several
+      # physics steps, the #222 class this job keeps covering (#341). No clock flag, so an older ref runs it.
       - name: GdUnit4 three times
         run: GODOT_BIN=$HOME/godot/godot tools/run.sh test --repeat 3
 

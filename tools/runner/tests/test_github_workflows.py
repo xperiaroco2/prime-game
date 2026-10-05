@@ -17,8 +17,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from runner import cli
+from runner import cli, gdunit
 from runner.common import git_bash
 
 try:
@@ -223,6 +224,24 @@ class GithubWorkflowsTest(unittest.TestCase):
         self.assertIn(last, keep)
         self.assertLess(names.index("The last night's report"), names.index("perf"))
         self.assertLess(names.index("perf"), names.index("Keep this report for the next night"))
+
+    def test_ci_tests_the_frame_bound_suites_at_fixed_fps_and_the_nightly_flaky_job_in_real_time(self) -> None:
+        # #341, the engineer's option (b) on PR #323. CI runs plain `verify` (test_ci_keeps_its_triggers_...), whose
+        # test step takes gdunit.FIXED_FPS_SUITES at fixed fps (test_gdunit_shards, the verify pin). The flaky job's
+        # `test --repeat` stays real-time, the run that still meets the #222 class (several physics steps a frame).
+        ci = [step.get("run", "") for step in load(GITHUB / "workflows" / "ci.yml")["jobs"]["verify"]["steps"]]
+        self.assertFalse([run for run in ci if "--real-time" in run or "tools/run.sh test" in run], ci)
+        steps = load(GITHUB / "workflows" / "nightly.yml")["jobs"]["flaky"]["steps"]
+        runs = [step["run"] for step in steps if "tools/run.sh test" in step.get("run", "")]
+        self.assertEqual(len(runs), 1, runs)
+        argv = runs[0].split("tools/run.sh ", 1)[1].split()
+        args = cli.build_parser().parse_args(argv)
+        self.assertEqual((args.command, args.paths), ("test", []))
+        self.assertIsNotNone(args.repeat)
+        self.assertIn(args.fixed_fps, (None, False), "the nightly flaky job must stay real-time (#341)")
+        with mock.patch.object(gdunit, "repeat", return_value=0) as repeat:
+            self.assertEqual(cli.main(argv), 0)
+        self.assertIn(repeat.call_args.kwargs.get("fixed_fps"), (None, False))
 
 
 # A stub of gh for the `refs` step: canned output instead of GitHub's API (and of gh's --jq, which it skips). Each

@@ -13,6 +13,11 @@ static func of(role_id: StringName) -> FixtureRoleAllLeft:
 	return condition
 
 
+## It reads every player of the role, not the actor: a win condition holds it.
+func reads_actor_state() -> bool:
+	return false
+
+
 func _test(ctx: MatchContext) -> bool:
 	var found := false
 	for peer: int in ctx.state.peers():

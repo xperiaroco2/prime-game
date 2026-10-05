@@ -36,7 +36,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--shards",
         type=int,
         metavar="K",
-        help="K GdUnit4 processes at once (1: one process). Default: with no paths, from the CPU count; with paths, 1",
+        help="K GdUnit4 processes at once (1: one at a time). Default: with no paths, from the CPU count; with paths, 1",
+    )
+    clock = p.add_mutually_exclusive_group()
+    clock.add_argument(
+        "--fixed-fps",
+        dest="fixed_fps",
+        action="store_const",
+        const=True,
+        help="suites on a simulated clock (the engine's --fixed-fps 60): every named one. With no paths this is the "
+        "default (verify's and CI's, #341): gdunit.FIXED_FPS_SUITES in shards of their own, the rest real-time",
+    )
+    clock.add_argument(
+        "--real-time",
+        dest="fixed_fps",
+        action="store_const",
+        const=False,
+        help="every suite in real time (the default for named paths and --repeat, so the nightly flaky job): the #222 "
+        "class, several physics steps in one frame under load, shows only so",
     )
 
     sub.add_parser("verify", help="everything CI runs, in the same order (definition of done)")
@@ -100,6 +117,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--enet", action="store_true", help="real sockets on 127.0.0.1 and the real clock (default loopback)")
     p.add_argument("--baseline", help="report to compare with (default tools/out/perf/baseline.json, else the last)")
 
+    p = sub.add_parser(
+        "load",
+        help="bounded busy loops to test under load, in a verify slot (waits like verify; none free in time: exit 1)",
+    )
+    p.add_argument("--loops", type=int, help="busy processes, 1 to 256 (default 2 per logical CPU)")
+    p.add_argument("--seconds", type=float, default=600.0, help="how long they run, up to 1140 (default 600)")
+
     p = sub.add_parser("board", help="the GitHub project board")
     board_sub = p.add_subparsers(dest="board_command", required=True, metavar="board_command")
     p = board_sub.add_parser("move", help="put an issue on the board in a column (agents use only these two)")
@@ -129,6 +153,21 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--base", required=True, help="release/<x>, or main (a PR through the gate, #300)")
     p.add_argument("--sync-main", action="store_true", help="merge origin/main into the base instead of a PR")
     p.add_argument("--dry-run", action="store_true", help="print the gate's verdict and merge nothing")
+    p = sub.add_parser(
+        "merge-train",
+        help="merge PRs into main one by one: publish each in its worktree (a red verify retried once), wait for its "
+        "CI, then merge's gate; a PR that fails is skipped with the reason (a background job: poll it with wait)",
+    )
+    p.add_argument("prs", nargs="+", type=int, help="the PRs to merge, in this order")
+    p.add_argument("--base", required=True, help="main (the only base it merges into)")
+    p.add_argument("--dry-run", action="store_true", help="print the plan and each gate's verdict now; merge nothing")
+    p.add_argument(
+        "--recent",
+        type=int,
+        default=10,
+        metavar="M",
+        help="a worktree whose last commit is younger than M minutes counts as held by a live run (0: off; default 10)",
+    )
 
     p = sub.add_parser("start", help="put the checkout on the task branch of an issue; assign it; board In progress")
     p.add_argument("issue", type=int, help="issue number")
@@ -221,6 +260,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", help="folder for metrics.md and metrics.json (default tools/out/metrics)")
     p.add_argument("--compact", action="store_true", help="print only the summary of at most ten lines (wave comments)")
     p.add_argument("--no-gh", action="store_true", help="skip GitHub: the quality scorecard's CI, PR signals unknown")
+    p.add_argument(
+        "--track",
+        nargs="+",
+        action="extend",
+        default=[],
+        metavar="NAME",
+        help="each track's %% of the week since --since (the reset), over the main checkout's, -ui's and -art's "
+        "sessions; a session's track: --session ID=TRACK, else its kickoff's 'Track: <name>' line, else its checkout's "
+        "(-ui: ui, -art: art), else untracked; 'all' names every track found",
+    )
+    p.add_argument(
+        "--budget",
+        nargs="+",
+        action="extend",
+        type=float,
+        default=[],
+        metavar="PCT",
+        help="with --track: each named track's budget in %% of the week, in their order, and its plan to date "
+        "(budget x days since --since / 7)",
+    )
 
     p = sub.add_parser(
         "wave",
@@ -235,6 +294,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--out", help="the body's file (default tools/out/wave/wave-<session8>.md); with --args, also the JSON's"
     )
+    p.add_argument("--base", metavar="B", help="--since: whose merges, open PRs and merge-check to report (default main)")
+    p.add_argument("--plan", type=int, metavar="N", help="--since: the plan issue, named in the header")
+    p.add_argument("--title", metavar="T", help="--since: the body's title (default 'Wave report since <T>')")
+    p.add_argument("--notes", metavar="FILE", help="--since: the manager's own text, placed under the title")
+    p.add_argument("--stage-since", metavar="T", help="--since: add the stage's total API list $ and %% of the week")
+    p.add_argument(
+        "--no-merge-check", dest="merge_check", action="store_false", help="--since: skip merge-check (no git fetch)"
+    )
 
     p = sub.add_parser("pins", help="print pinned tool versions as JSON")
     p.add_argument("--get", choices=sorted(pins.ALL), help="print one value only")
@@ -242,6 +309,10 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("permissions", help="replay local transcripts through the permission rules and the guard")
     p.add_argument("--before", default="origin/main", help="the revision to compare with (default origin/main)")
     p.add_argument("--projects", default="", help="transcript folders glob under ~/.claude/projects")
+    p.add_argument("--since", default="", help="only calls from this day on (YYYY-MM-DD)")
+    p.add_argument("--mode", choices=["bypass", "default"], default="bypass", help="the permission mode to model")
+    p.add_argument("--list", action="store_true", help="list each cause that stops a call, with examples")
+    p.add_argument("--observed", action="store_true", help="the prompts, denials and blocks the transcripts record")
 
     p = sub.add_parser("hook", help="Claude Code hooks (run by .claude/hooks/run-hook.sh, input on stdin)")
     p.add_argument("name", choices=["guard", "gd-edit"])
@@ -286,12 +357,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "test":
             from . import gdunit
 
+            fixed = {"fixed_fps": args.fixed_fps} if args.fixed_fps is not None else {}
             if args.repeat is not None:
                 if args.shards is not None:
                     raise Failure("--repeat runs one process per run; drop --shards")
-                return gdunit.repeat(args.repeat, paths=args.paths or None)
+                return gdunit.repeat(args.repeat, paths=args.paths or None, **fixed)
             shards = {"shards": args.shards} if args.shards is not None else {}
-            return gdunit.main(paths=args.paths or None, **shards)
+            return gdunit.main(paths=args.paths or None, **shards, **fixed)
         if args.command == "verify":
             from . import verify
 
@@ -329,6 +401,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import perf
 
             return perf.main(bots=args.bots, seconds=args.seconds, enet=args.enet, baseline=args.baseline)
+        if args.command == "load":
+            from . import load
+
+            return load.main(args.loops, args.seconds)
         if args.command == "board":
             from . import board
 
@@ -345,6 +421,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import merge
 
             return merge.merge(args.pr, base=args.base, sync_main=args.sync_main, dry_run=args.dry_run)
+        if args.command == "merge-train":
+            from . import train
+
+            return train.main(args.prs, base=args.base, dry_run=args.dry_run, recent_minutes=args.recent)
         if args.command == "start":
             from . import start
 
@@ -420,21 +500,25 @@ def main(argv: list[str] | None = None) -> int:
 
             return metrics.main(
                 args.session, since=args.since, until=args.until, ci=args.ci, out=args.out, compact=args.compact,
-                no_gh=args.no_gh,
+                no_gh=args.no_gh, track=args.track, budget=args.budget,
             )
         if args.command == "wave":
             from . import wave
 
             return wave.main(
-                session=args.session, since=args.since, args_issue=args.args, out=args.out, workflow=args.workflow
-            )
+                session=args.session, since=args.since, args_issue=args.args, out=args.out, workflow=args.workflow,
+                base=args.base, plan=args.plan, title=args.title, notes=args.notes, stage_since=args.stage_since,
+                merge_check=args.merge_check,
+            )  # fmt: skip
         if args.command == "pins":
             print(pins.ALL[args.get] if args.get else json.dumps(pins.ALL, indent=2))
             return 0
         if args.command == "permissions":
             from . import permissions
 
-            return permissions.main(["--before", args.before, "--projects", args.projects])
+            extra = ["--list"] * args.list + ["--observed"] * args.observed
+            forwarded = ["--before", args.before, "--projects", args.projects, "--since", args.since]
+            return permissions.main(forwarded + ["--mode", args.mode] + extra)
         if args.command == "hook":
             from . import hooks
 

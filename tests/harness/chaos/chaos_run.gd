@@ -252,12 +252,12 @@ func _note_chaos_sent(peer: int, packets: Array[ChaosFrames.Packet]) -> void:
 
 
 func play_frame(at_tick: int) -> void:
-	if over_enet and not _all_connected():
-		# Over ENet the joins take a few frames: bot 1 would be ready alone and start the
-		# countdown before its setup. This waits for peer ids only; BotsEnet's bot 1 waits until
-		# every bot that joins at the start is in its lobby (_lobby_full, #284), a stronger gate.
-		malformed.poll()
-		return
+	if over_enet:
+		for bot: ScenarioBot in bots:
+			_join_again(bot)
+		if not _may_play():
+			malformed.poll()
+			return
 	super(at_tick)
 	malformed.poll()
 	if chaos_mode == Mode.CHAOS and failures.is_empty():
@@ -267,11 +267,35 @@ func play_frame(at_tick: int) -> void:
 	_claimed_tick = _hostile_client.last_claim_tick()
 
 
-func _all_connected() -> bool:
+## Over ENet the joins take frames: the bots play once bot 1's lobby is full (NetPlay._lobby_full,
+## as BotsEnet's bot 1 waits, #318), or once a bot that joins at the start lost its join for good
+## (refused, not joined again), so that _lost reports it. Over the loopback they play at once.
+func _may_play() -> bool:
+	if not over_enet or _lobby_full(bots[0]):
+		return true
 	for bot: ScenarioBot in bots:
-		if not bot.joins_late() and not peers.has_bot(bot.number):
-			return false
-	return true
+		var client: BotClient = clients.get(bot.number)
+		if not bot.joined and not bot.joins_late() and client != null and client.is_ended():
+			return true
+	return false
+
+
+## A join over ENet is judged on the real clock (EnetTransport's JOIN_TIMEOUT_MS is real time), not
+## this runner's simulated one, which moves one frame per frame however long the frame took.
+func _join_clock_usec() -> int:
+	return Time.get_ticks_usec() if over_enet else now_usec
+
+
+func _log_label() -> String:
+	return "CHAOS seed %d" % chaos_seed
+
+
+func _fail_time_limit() -> void:
+	super()
+	if over_enet and not bots.is_empty():
+		var waited := _lobby_wait(bots[0])
+		if not waited.is_empty():
+			failures.append(waited)
 
 
 func _play() -> void:

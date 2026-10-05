@@ -11,10 +11,10 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from unittest import mock
 
-from runner import cli, metrics, wave
+from runner import cli, metrics, sessions, wave
 from runner.common import Failure
 
 T0 = datetime(2026, 10, 3, 8, 0, tzinfo=timezone.utc)
@@ -146,6 +146,111 @@ class Project:
         return wave.render(wave.Wave(s, wave.build_runs(s), metrics.parse_time(since), now))
 
 
+MAIN = "D:/prime-game"
+
+
+def sha(n: int) -> str:
+    return hashlib.sha1(str(n).encode()).hexdigest()
+
+
+def merged_pr(n: int, head: str, merged_at: str, *, base: str = "main", title: str = "", issues: list[int] = (),
+              oid: str = "", updated_at: str = "") -> dict:  # fmt: skip
+    """One row of `gh pr list --state merged --json` as GitHub returns it."""
+    refs = [{"id": f"I_{i}", "number": i, "url": f"https://github.com/o/r/issues/{i}"} for i in issues]
+    return {"number": n, "title": title or f"title {n}", "headRefName": head, "baseRefName": base,
+            "mergedAt": merged_at[:19] + "Z", "mergeCommit": {"oid": sha(n)}, "closingIssuesReferences": refs,
+            "headRefOid": oid or sha(n + 1000), "updatedAt": (updated_at or merged_at)[:19] + "Z"}  # fmt: skip
+
+
+# merge-check's printed output (merge.check), clean and flagged, in its real shape.
+CLEAN_CHECK = """merge-check
+  ok    fetched origin
+  ok    3 open PRs: main (3)
+
+### main (origin/main at c1dbd37293): #315, #316, #317
+
+| check | textual | semantic |
+|---|---|---|
+| #315 onto main | clean | clean |
+
+merge-check: clean (0 textual conflicts and 0 overlaps in 6 checks)"""
+FLAGGED_CHECK = """merge-check
+  ok    fetched origin
+  ok    2 open PRs: main (2)
+
+### main (origin/main at c1dbd37293): #316, #317
+
+| check | textual | semantic |
+|---|---|---|
+| #316 onto main | clean | clean |
+| #316 + #317 | conflict: CLAUDE.md | overlap: wave.main |
+
+#316 + #317:
+- wave.main (tools/runner/wave.py:700 changed; used at tools/runner/cli.py:398)
+
+merge-check: 1 textual conflicts and 1 overlaps in 3 checks. Order the merges so the side that removes or changes a \
+symbol goes first and the other is rebased on it, or run merge-check --trial <pr>... to see whether verify stays green.
+Across bases: name the pair on both tracks' plan issues."""
+
+
+def open_pr(n: int, head: str, *, base: str = "main", issues: list[int] = (), rollup: list[dict] = (),
+            draft: bool = False, state: str = "CLEAN") -> dict:  # fmt: skip
+    refs = [{"number": i} for i in issues]
+    return {"number": n, "title": f"title {n}", "headRefName": head, "baseRefName": base, "isDraft": draft,
+            "statusCheckRollup": list(rollup), "mergeStateStatus": state, "closingIssuesReferences": refs}  # fmt: skip
+
+
+class FakeSources(wave.Sources):
+    """Everything wave reads beyond the transcripts, from the test: gh's JSON per query, merge-check's printed output
+    and exit, `git worktree list --porcelain`, the live sessions per worktree folder name and the open issues."""
+
+    def __init__(self, merged: list[dict] | None = None, open_prs: list[dict] | None = None, check_out: str = "",
+                 rc: int = 0, porcelain: str = "", alive: dict[str, list] | None = None,
+                 open_issues: list[int] | None = None, fail: dict[str, Exception] | None = None) -> None:  # fmt: skip
+        self.merged, self.open_prs, self.check_out, self.rc = merged or [], open_prs or [], check_out, rc
+        self.porcelain, self.alive, self.open_issues = porcelain, alive or {}, open_issues or []
+        self.fail = fail or {}
+        self.gh_calls: list[tuple[str, ...]] = []
+        self.checks: list[tuple[list[int], str]] = []
+
+    def raise_for(self, what: str) -> None:
+        if what in self.fail:
+            raise self.fail[what]
+
+    def gh_json(self, *args: str) -> object:
+        self.gh_calls.append(args)
+        if args[:2] == ("pr", "list") and "merged" in args:
+            self.raise_for("merged")
+            return self.merged
+        if args[:2] == ("pr", "list"):
+            self.raise_for("open")
+            return self.open_prs
+        if args[:2] == ("issue", "list"):
+            self.raise_for("issues")
+            return [{"number": n} for n in self.open_issues]
+        raise AssertionError(f"unexpected gh call {args}")
+
+    def check(self, numbers: list[int], base: str) -> int:
+        self.checks.append((numbers, base))
+        if self.check_out:
+            print(self.check_out)
+        self.raise_for("check")
+        return self.rc
+
+    def worktree_list(self, main: Path) -> str:
+        self.raise_for("worktrees")
+        return self.porcelain
+
+    def alive_in(self, path: Path) -> list:
+        return self.alive.get(path.name, [])
+
+    def history(self, main: Path) -> list[Path]:
+        return []
+
+    def main_checkout(self) -> Path:
+        return Path(MAIN)
+
+
 class WaveTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -156,8 +261,10 @@ class WaveTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def main(self, **kw: object) -> tuple[int, str, str]:
+        """wave.main on this test's transcript folder; GitHub, merge-check, git and the sessions are FakeSources."""
         self.p.write()
         out, err = io.StringIO(), io.StringIO()
+        kw.setdefault("sources", FakeSources())
         with redirect_stdout(out), redirect_stderr(err):
             rc = wave.main(session=kw.pop("session", SID), dirs=[self.p.dir], now=NOW, **kw)
         return rc, out.getvalue(), err.getvalue()
@@ -520,10 +627,440 @@ class WaveTest(unittest.TestCase):
         args = cli.build_parser().parse_args(["wave", "--since", "2026-10-03T14:00:00Z", "--session", "abc",
                                               "--out", "x.md"])  # fmt: skip
         self.assertEqual((args.since, args.session, args.out, args.args), ("2026-10-03T14:00:00Z", "abc", "x.md", None))
+        self.assertEqual((args.base, args.plan, args.title, args.notes, args.stage_since, args.merge_check),
+                         (None, None, None, None, None, True))  # fmt: skip
         self.assertEqual(cli.build_parser().parse_args(["wave", "--args", "231"]).args, 231)
-        for bad in (["wave", "--since", "x", "--args", "1"], ["wave"]):
+        args = cli.build_parser().parse_args(["wave", "--since", "T", "--base", "release/m5", "--plan", "302", "--title",
+                                              "Wave 3", "--notes", "n.md", "--stage-since", "S",
+                                              "--no-merge-check"])  # fmt: skip
+        self.assertEqual((args.base, args.plan, args.title, args.notes, args.stage_since, args.merge_check),
+                         ("release/m5", 302, "Wave 3", "n.md", "S", False))  # fmt: skip
+        for bad in (["wave", "--since", "x", "--args", "1"], ["wave"], ["wave", "--since", "x", "--plan", "p"]):
             with self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
                 cli.build_parser().parse_args(bad)
+
+    def test_since_flags_refused_with_args(self) -> None:
+        self.p.launch(0, "t1", "wf_a", issue_args(5))
+        self.p.write()
+        for flag in (["--base", "main"], ["--plan", "302"], ["--title", "W"], ["--notes", "n.md"],
+                     ["--stage-since", SINCE], ["--no-merge-check"]):  # fmt: skip
+            out = io.StringIO()
+            with mock.patch.object(wave.agents_check, "project_dirs", return_value=[self.p.dir]), \
+                    mock.patch.object(wave.metrics, "main_checkout", return_value=self.root), \
+                    redirect_stdout(out):  # fmt: skip
+                self.assertEqual(cli.main(["wave", "--args", "5", "--session", SID, *flag]), 1, flag)
+            self.assertIn(f"{flag[0]} goes with --since", out.getvalue())
+        with self.assertRaises(Failure) as caught:
+            self.main(since=SINCE, stage_since="yesterday")
+        self.assertIn("yesterday", str(caught.exception))
+
+    def test_args_reads_no_github(self) -> None:
+        self.p.launch(0, "t1", "wf_a", issue_args(5))
+        boom = mock.Mock(side_effect=AssertionError("--args reads no source"))
+        with mock.patch.multiple(wave.Sources, gh_json=boom, check=boom, worktree_list=boom, alive_in=boom,
+                                 history=boom, main_checkout=boom):  # fmt: skip
+            rc, out, _ = self.main(args_issue=5, sources=wave.Sources())
+        self.assertEqual((rc, json.loads(out)), (0, issue_args(5)))
+
+    def section(self, body: str, heading: str) -> str:
+        """The text of one '## ' section of a body, its heading line included."""
+        part = body.split(f"\n## {heading}")[1]
+        return f"## {heading}" + part.split("\n## ")[0].split("\n---\n")[0]
+
+    def test_merged_rows_from_gh_json(self) -> None:
+        merged = [
+            merged_pr(311, "tooling/305-keep-warm", at(60), title="feat: a | b"),
+            merged_pr(300, "tooling/299-early", at(-30)),
+            merged_pr(320, "release/m5", at(120)),
+            merged_pr(310, "tooling/303-waits", at(30), issues=[283, 290]),
+            merged_pr(321, "core/250-items", at(90), base="release/m5"),
+        ]
+        src = FakeSources(merged=merged)
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), sources=src, merge_check=False)
+        self.assertIn(("pr", "list", "--state", "merged", "--search", "sort:updated-desc", "--limit",
+                       str(wave.MERGED_LIMIT), "--json", wave.MERGED_FIELDS), src.gh_calls)  # fmt: skip
+        self.assertIn("updatedAt", wave.MERGED_FIELDS.split(","))
+        body = target.read_text(encoding="utf-8")
+        part = self.section(body, "Merged into main since")
+        rows = [line for line in part.splitlines() if line.startswith("| #")]
+        self.assertEqual([r.split(" | ")[0] for r in rows], ["| #310", "| #311", "| #320"], "by mergedAt, from since")
+        self.assertEqual(rows[0], f"| #310 | title 310 | tooling/303-waits | {at(30)[:19]}Z | {sha(310)[:10]} | "
+                         "#283, #290 |", "the closing issues")  # fmt: skip
+        self.assertIn("| #311 | feat: a \\| b | tooling/305-keep-warm |", rows[1])
+        self.assertTrue(rows[1].endswith(" | #305 |"), "no closing issue: the issue from the branch")
+        self.assertTrue(rows[2].endswith(" | — |"), "release/m5 names no issue")
+        self.main(since=SINCE, out=str(target), sources=FakeSources(merged=merged), merge_check=False,
+                  base="release/m5")  # fmt: skip
+        part = self.section(target.read_text(encoding="utf-8"), "Merged into release/m5 since")
+        self.assertEqual([line.split(" | ")[0] for line in part.splitlines() if line.startswith("| #")], ["| #321"])
+        self.main(since="2026-10-03T13:00:00Z", out=str(target), sources=FakeSources(merged=merged),
+                  merge_check=False)  # fmt: skip
+        self.assertIn("None.", self.section(target.read_text(encoding="utf-8"), "Merged into main since"))
+
+    def test_merged_note_at_the_limit(self) -> None:
+        """gh lists the most recently updated merged PRs; at its limit, a PR merged before the oldest update may be
+        missing. Judged by gh's raw row count (a row without mergedAt counts too), not by the parsed rows."""
+        target = self.root / "w.md"
+        no_merge_time = {**merged_pr(312, "tooling/12-x", at(25)), "mergedAt": None}
+
+        def note(rows: list[dict]) -> str:
+            self.main(since=SINCE, out=str(target), sources=FakeSources(merged=rows), merge_check=False)
+            part = self.section(target.read_text(encoding="utf-8"), "Merged into main since")
+            return "\n".join(line for line in part.splitlines() if line.startswith("gh returned"))
+
+        with mock.patch.object(wave, "MERGED_LIMIT", 3):
+            cut = [merged_pr(310, "tooling/10-x", at(60)), no_merge_time,
+                   merged_pr(311, "tooling/11-x", at(20), updated_at=at(30))]  # fmt: skip
+            self.assertEqual(note(cut), f"gh returned its limit of 3 merged PRs, the most recently updated, back to an "
+                             f"update at {at(25)[:19]}Z: a PR merged before then may be missing here and in "
+                             "housekeeping.")  # fmt: skip
+            whole = [merged_pr(310, "tooling/10-x", at(60)), merged_pr(311, "tooling/11-x", at(20)),
+                     merged_pr(309, "tooling/9-x", at(-90), updated_at=at(-10))]  # fmt: skip
+            self.assertEqual(note(whole), "", "the oldest update is before since: every PR merged since is listed")
+            self.assertEqual(note(cut[:2]), "", "under the limit gh listed them all")
+
+    def test_open_pr_ci_cell(self) -> None:
+        def run_(name: str, status: str = "COMPLETED", conclusion: str = "SUCCESS") -> dict:
+            return {"__typename": "CheckRun", "name": name, "status": status, "conclusion": conclusion}
+
+        def ctx(name: str, state: str) -> dict:
+            return {"__typename": "StatusContext", "context": name, "state": state}
+
+        self.assertEqual(wave.ci_cell([]), "none")
+        self.assertEqual(wave.ci_cell([run_("verify"), run_("lint", conclusion="NEUTRAL"),
+                                       run_("docs", conclusion="SKIPPED"), ctx("ext", "SUCCESS")]), "green")
+        self.assertEqual(wave.ci_cell([run_("verify", conclusion="FAILURE"), run_("lint")]), "red: verify")
+        self.assertEqual(wave.ci_cell([run_("verify", status="IN_PROGRESS", conclusion=""),
+                                       run_("lint", status="QUEUED", conclusion="")]), "pending: verify, lint")
+        self.assertEqual(wave.ci_cell([ctx("ext", "PENDING")]), "pending: ext")
+        self.assertEqual(wave.ci_cell([ctx("ext", "ERROR"), run_("verify", status="IN_PROGRESS", conclusion="")]),
+                         "red: ext", "red beats pending")  # fmt: skip
+        self.assertEqual(wave.ci_cell([run_("verify", conclusion="CANCELLED"), run_("verify", conclusion="FAILURE")]),
+                         "red: verify", "a name once")  # fmt: skip
+        prs = [
+            open_pr(316, "tooling/300-autonomy", issues=[300], rollup=[run_("verify")], state="CLEAN"),
+            open_pr(318, "tooling/301-child", base="tooling/300-autonomy", draft=True, state="BLOCKED"),
+            open_pr(317, "net/284-bots", rollup=[run_("verify", status="IN_PROGRESS", conclusion="")],
+                    state="UNSTABLE"),
+            open_pr(330, "core/250-items", base="release/m5"),
+        ]  # fmt: skip
+        src = FakeSources(open_prs=prs)
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), sources=src, merge_check=False)
+        self.assertIn(("pr", "list", "--state", "open", "--limit", "200", "--json", wave.OPEN_FIELDS), src.gh_calls)
+        part = self.section(target.read_text(encoding="utf-8"), "Open PRs")
+        rows = [line for line in part.splitlines() if line.startswith("| #")]
+        self.assertEqual(rows, [
+            "| #316 | title 316 | #300 | main | no | green | CLEAN |",
+            "| #317 | title 317 | #284 | main | no | pending: verify | UNSTABLE |",
+            "| #318 | title 318 | #301 | tooling/300-autonomy | yes | none | BLOCKED |",
+        ], "into main and stacked on a PR into main; not into release/m5")  # fmt: skip
+        self.main(since=SINCE, out=str(target), sources=FakeSources(), merge_check=False)
+        self.assertIn("None.", self.section(target.read_text(encoding="utf-8"), "Open PRs"))
+        failing = FakeSources(fail={"open": Failure("gh pr list failed: HTTP 502")})
+        rc, out, _ = self.main(since=SINCE, out=str(target), sources=failing, merge_check=False)
+        self.assertEqual(rc, 0, "a source that fails still writes the body")
+        self.assertIn("Unavailable: gh pr list failed: HTTP 502", self.section(target.read_text(encoding="utf-8"),
+                                                                                "Open PRs"))  # fmt: skip
+        self.assertIn("warn  wave: open PRs unavailable: gh pr list failed: HTTP 502", out)
+
+    def test_merge_check_capture_clean(self) -> None:
+        src = FakeSources(check_out=CLEAN_CHECK, rc=0)
+        target = self.root / "w.md"
+        rc, out, _ = self.main(since=SINCE, out=str(target), sources=src)
+        self.assertEqual((rc, src.checks), (0, [([], "main")]))
+        self.assertNotIn("open PRs: main", out, "merge-check's own lines are captured, not printed")
+        part = self.section(target.read_text(encoding="utf-8"), "Merge safety")
+        self.assertEqual(part, "## Merge safety\n\n`merge-check --base main`: exit 0.\n\n"
+                         "merge-check: clean (0 textual conflicts and 0 overlaps in 6 checks)\n")  # fmt: skip
+
+        class RealCheck(FakeSources):
+            check = wave.Sources.check
+
+        with mock.patch.object(wave.merge, "fetch", lambda: wave.merge.ok("fetched origin")), \
+                mock.patch.object(wave.merge, "open_prs", return_value=[]):  # fmt: skip
+            self.main(since=SINCE, out=str(target), sources=RealCheck(), base="release/m5")
+        part = self.section(target.read_text(encoding="utf-8"), "Merge safety")
+        self.assertEqual(part, "## Merge safety\n\n`merge-check --base release/m5`: exit 0.\n\n"
+                         "no open PRs to check into release/m5\n")  # fmt: skip
+
+    def test_merge_check_capture_flagged(self) -> None:
+        src = FakeSources(check_out=FLAGGED_CHECK, rc=1)
+        target = self.root / "w.md"
+        rc, _, _ = self.main(since=SINCE, out=str(target), sources=src)
+        self.assertEqual(rc, 0, "a flagged merge-check is data in the body, not wave's exit code")
+        part = self.section(target.read_text(encoding="utf-8"), "Merge safety")
+        printed = FLAGGED_CHECK.split("\n\n", 1)[1]  # from '### main' on, as merge-check printed it
+        self.assertTrue(printed.startswith("### main"))
+        self.assertEqual(part, f"## Merge safety\n\n`merge-check --base main`: exit 1.\n\n{printed}\n")
+        self.assertNotIn("fetched origin", part)
+        failing = FakeSources(check_out="merge-check\n  ok    fetched origin\n  warn  origin/m9 is gone",
+                              fail={"check": Failure("gh not found")})  # fmt: skip
+        rc, out, _ = self.main(since=SINCE, out=str(target), sources=failing)
+        self.assertEqual(rc, 0)
+        part = self.section(target.read_text(encoding="utf-8"), "Merge safety")
+        self.assertEqual(part, "## Merge safety\n\n`merge-check --base main`: exit 1.\n\nmerge-check failed: gh not found"
+                         "\n\n  warn  origin/m9 is gone\n")  # fmt: skip
+        self.assertIn("warn  wave: merge-check failed: gh not found", out)
+        self.assertIn("## Handover data", target.read_text(encoding="utf-8"), "the rest of the body is written")
+        skipped = FakeSources(check_out=CLEAN_CHECK)
+        self.main(since=SINCE, out=str(target), sources=skipped, merge_check=False)
+        self.assertEqual(skipped.checks, [])
+        self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Merge safety"),
+                         "## Merge safety\n\nSkipped (--no-merge-check).\n")  # fmt: skip
+
+    def test_cost_block(self) -> None:
+        self.p.add(assistant(-30, "m-early", u=usage(inp=999, out=50)))  # 07:30, before --since
+        self.p.launch(10, "t1", "wf_a", issue_args(5), notice="completed")
+        journal(self.p.run_dir("wf_a"), [("k1", "implement:#5", "Implement", {"verify_green": True}),
+                                         ("k2", "publish:#5", "Publish", PUBLISHED)])  # fmt: skip
+        write_lines(self.p.run_dir("wf_a") / "agent-a-k1.jsonl",
+                    [assistant(12, "a1", u=usage(inp=10, write=1000, read=5000, out=200))])  # fmt: skip
+        write_lines(self.p.run_dir("wf_a") / "agent-a-k2.jsonl", [assistant(38, "a2", u=usage(inp=10, out=100))])
+        self.p.write()
+
+        def compact(since: str) -> list[str]:
+            t = metrics.parse_time(since)
+            return metrics.build(metrics.collect([self.p.dir], {SID: None}, t, NOW), [], None, t, NOW)[2]
+
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("```text\n" + "\n".join(compact(SINCE)) + "\n```", part, "metrics' own compact lines")
+        self.assertIn("1 finished issue-task runs", part)
+        self.assertNotIn("stage since", part)
+        stage = "2026-10-03T07:00:00Z"
+        want = [line for line in compact(stage) if line.startswith(("total API list $", "% of a Max 20x week"))]
+        self.assertEqual(len(want), 2)
+        self.assertNotEqual(want[0], next(x for x in compact(SINCE) if x.startswith("total API")), "07:30 counts")
+        self.main(since=SINCE, out=str(target), merge_check=False, stage_since=stage)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("\n".join(compact(SINCE)) + f"\n\nstage since {stage}:\n" + "\n".join(want) + "\n```", part)
+        extra = [lambda record: [f"an extra line since {record['since']}"]]
+        with mock.patch.object(wave, "COST_EXTRAS", extra):
+            self.main(since=SINCE, out=str(target), merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("\n".join(compact(SINCE)) + f"\nan extra line since {SINCE}\n```", part, "the #314 hook")
+        late = "2026-10-03T11:30:00Z"  # nothing of the session after it
+        self.main(since=late, out=str(target), merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("None.", part)
+        self.assertNotIn("```", part)
+        self.p.add(assistant(215, "m-late", u=usage(inp=5, out=5)))  # 11:35: one call in the window
+        self.main(since=late, out=str(target), merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Cost")
+        self.assertIn("```text\n" + "\n".join(compact(late)) + "\n```", part)
+
+    def test_cd_main_keeps_the_root(self) -> None:
+        # A POSIX-flavoured path is how the main checkout reaches housekeeping on Linux; Python 3.11 used to turn it
+        # into the drive-relative "D:prime-game".
+        for main in (PurePosixPath(MAIN), PureWindowsPath(MAIN), Path(MAIN)):
+            self.assertEqual(wave.cd_main(main), "cd D:\\prime-game; ", repr(main))
+
+    def test_housekeeping_filters(self) -> None:
+        def wt(name: str, branch: str | None, head: str) -> str:
+            path = MAIN if name == "main" else f"{MAIN}/.claude/worktrees/{name}"
+            return f"worktree {path}\nHEAD {head}\n" + (f"branch refs/heads/{branch}\n" if branch else "detached\n")
+
+        porcelain = "\n".join([
+            wt("main", "main", sha(1)),
+            wt("305", "tooling/305-keep-warm", sha(1405)),  # merged into main: ready
+            wt("300", "tooling/300-autonomy", sha(7)),  # an open PR: not listed
+            wt("278", "tooling/278-wave", sha(1378)),  # merged, but a run of this session works there
+            wt("250", "core/250-items", sha(1350)),  # merged into release/m5, which is not on main yet
+            wt("251", "core/251-x", sha(1351)),  # merged into release/m4, which merged into main later: ready
+            wt("260", "tooling/260-x", sha(1360)),  # merged; a live Claude session sits there
+            wt("262", "tooling/262-x", sha(9)),  # merged, but its HEAD moved on since
+            wt("264", "tooling/264-child", sha(1364)),  # merged into its parent, which merged into main: ready
+            wt("266", "tooling/266-child", sha(1366)),  # merged into a parent that is still open
+            wt("release-m4", "release/m4", sha(1340)),  # the manager's release worktree, its PR merged: ready
+            wt("playtest-m4", None, sha(8)),  # detached, not a task's: not listed
+        ])  # fmt: skip
+        merged = [
+            merged_pr(405, "tooling/305-keep-warm", at(60)),
+            merged_pr(378, "tooling/278-wave", at(70)),
+            merged_pr(350, "core/250-items", at(30), base="release/m5"),
+            merged_pr(351, "core/251-x", at(20), base="release/m4"),
+            merged_pr(340, "release/m4", at(100)),
+            merged_pr(360, "tooling/260-x", at(65)),
+            merged_pr(362, "tooling/262-x", at(66)),
+            merged_pr(364, "tooling/264-child", at(40), base="tooling/265-parent"),
+            merged_pr(365, "tooling/265-parent", at(80)),
+            merged_pr(366, "tooling/266-child", at(50), base="tooling/267-parent"),
+        ]
+        self.p.launch(0, "t1", "wf_x", issue_args(278))
+        journal(self.p.run_dir("wf_x"), [("k1", "implement:#278", "Implement", None)])
+        solo = sessions.Session(4242, "s-260", f"{MAIN}/.claude/worktrees/260", "idle", NOW - 600, "solo")
+        src = FakeSources(merged=merged, porcelain=porcelain, alive={"260": [solo]}, open_issues=[305, 250, 251, 264, 9])
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), sources=src, merge_check=False)
+        part = self.section(target.read_text(encoding="utf-8"), "Housekeeping")
+
+        def block(command: str) -> str:
+            return f"```powershell\ncd D:\\prime-game; {command}\n```"
+
+        lines = part.splitlines()
+        self.assertEqual(lines[2], "For you: close the Claude session in worktree 260 ('solo' (pid 4242, idle, last "
+                         "update 10 min ago)), then run its block below.",
+                         "the ready blocks are the manager's own steps (the trust ADR)")  # fmt: skip
+        self.assertIn("Ready to remove: worktree 305, worktree 251, worktree 264, worktree release-m4 (the work is on "
+                      "main; no run of this session and no live Claude session there; HEAD at the merged head). The "
+                      "manager runs each block itself (orchestrate-stage §8):", part)  # fmt: skip
+        for n in (251, 264, 305, 260):
+            self.assertIn(block(f"tools\\run.cmd worktree-done {n}"), part)
+        self.assertEqual(part.count("```powershell"), 6, "four worktree-done blocks and the release worktree's two")
+        self.assertIn(block("git worktree remove .claude/worktrees/release-m4"), part)
+        self.assertIn(block("git branch -D release/m4"), part)
+        self.assertLess(part.index("worktree-done 305"), part.index("Held by a live Claude session"))
+        self.assertGreater(part.index("worktree-done 260"), part.index("Held by a live Claude session"))
+        for n in (250, 262, 266, 278, 300):
+            self.assertNotIn(f"worktree-done {n}", part)
+        notes = [line for line in lines if line.startswith("- worktree ")]
+        self.assertIn("- worktree 250: PR #350 merged into release/m5; after release/m5 reaches main.", notes)
+        self.assertIn("- worktree 266: PR #366 merged into tooling/267-parent; after tooling/267-parent reaches main.",
+                      notes)  # fmt: skip
+        self.assertIn("- worktree 278: run wf_x still running there.", notes)
+        self.assertIn(f"- worktree 262: HEAD {sha(9)[:10]} is not PR #362's merged head {sha(1362)[:10]}: check "
+                      "before removing.", notes)  # fmt: skip
+        self.assertNotIn("300", "\n".join(notes))
+        self.assertNotIn("playtest", part)
+        self.assertIn(f"Issues still open whose PR reached main since {SINCE} (close each once its acceptance criteria "
+                      "are met): #251 (PR #351 via release/m4), #264 (PR #364 via tooling/265-parent), #305 (PR #405).",
+                      part)  # fmt: skip
+        self.assertIn(("issue", "list", "--state", "open", "--limit", "1000", "--json", "number"), src.gh_calls)
+        self.main(since=SINCE, out=str(target), sources=FakeSources(porcelain=wt("main", "main", sha(1))),
+                  merge_check=False)  # fmt: skip
+        self.assertEqual(self.section(target.read_text(encoding="utf-8"), "Housekeeping"),
+                         "## Housekeeping\n\nFor you: nothing.\n\nNone.\n")  # fmt: skip
+        only_ready = FakeSources(merged=merged, porcelain="\n".join([wt("main", "main", sha(1)),
+                                                                     wt("305", "tooling/305-keep-warm", sha(1405))]))
+        self.main(since=SINCE, out=str(target), sources=only_ready, merge_check=False)
+        only_ready_part = self.section(target.read_text(encoding="utf-8"), "Housekeeping")
+        self.assertEqual(only_ready_part.splitlines()[2], "For you: nothing.",
+                         "a ready block alone needs nobody but the manager")  # fmt: skip
+        self.assertIn(block("tools\\run.cmd worktree-done 305"), only_ready_part)
+        failing = FakeSources(merged=merged, fail={"worktrees": Failure("git worktree list failed: no git")})
+        self.main(since=SINCE, out=str(target), sources=failing, merge_check=False)
+        self.assertIn("Unavailable: git worktree list failed: no git",
+                      self.section(target.read_text(encoding="utf-8"), "Housekeeping"))  # fmt: skip
+        no_gh = FakeSources(porcelain=porcelain, fail={"merged": Failure("gh: HTTP 502")})
+        self.main(since=SINCE, out=str(target), sources=no_gh, merge_check=False)
+        self.assertIn("Unavailable: merged PRs: gh: HTTP 502",
+                      self.section(target.read_text(encoding="utf-8"), "Housekeeping"))  # fmt: skip
+
+    def test_for_you_names_only_held_worktrees(self) -> None:
+        held = [("worktree 260", "'a' (pid 1)", ["x"]), ("worktree release-m4", "'b' (pid 2)", ["y", "z"])]
+        ready = [("worktree 305", ["w"])]
+        self.assertEqual(wave.for_you(wave.Housekeeping(ready=ready, held=held)),
+                         "For you: close the Claude sessions in worktrees 260 and release-m4 ('a' (pid 1); 'b' (pid "
+                         "2)), then run their blocks below.")  # fmt: skip
+        self.assertEqual(wave.for_you(wave.Housekeeping(ready=ready, waiting=["worktree 9: later."], issues=["#9"])),
+                         "For you: nothing.", "ready blocks, waits and open issues are the manager's")  # fmt: skip
+
+    HEADINGS = ["## Merged into main since", "## Finished runs since", "## Running", "## Open PRs", "## Merge safety",
+                "## Cost", "## Housekeeping", "## Handover data", "\n---\n"]  # fmt: skip
+
+    def assert_order(self, body: str, needles: list[str]) -> None:
+        places = [body.find(x) for x in needles]
+        self.assertNotIn(-1, places, dict(zip(needles, places)))
+        self.assertEqual(places, sorted(places), dict(zip(needles, places)))
+
+    def test_section_order(self) -> None:
+        self.p.launch(10, "t1", "wf_done", issue_args(9), notice="completed")
+        journal(self.p.run_dir("wf_done"), [("k1", "publish:#9", "Publish", PUBLISHED)])
+        self.p.launch(20, "t2", "wf_open", issue_args(6))
+        journal(self.p.run_dir("wf_open"), [("k2", "implement:#6", "Implement", None)])
+        notes = self.root / "notes.md"
+        notes.write_text("The manager's own notes.\n", encoding="utf-8")
+        porcelain = f"worktree {MAIN}/.claude/worktrees/9\nHEAD {sha(1409)}\nbranch refs/heads/tooling/9-task\n"
+        src = FakeSources(merged=[merged_pr(409, "tooling/9-task", at(30))], porcelain=porcelain,
+                          open_prs=[open_pr(410, "tooling/6-task")], check_out=CLEAN_CHECK)  # fmt: skip
+        target = self.root / "w.md"
+        rc, out, _ = self.main(since=SINCE, out=str(target), sources=src, title="Wave 3", notes=str(notes))
+        body = target.read_text(encoding="utf-8")
+        self.assertEqual(rc, 0)
+        self.assert_order(body, ["# Wave 3", "The manager's own notes.", *self.HEADINGS])
+        self.assertTrue(body.split("\n---\n")[-1].lstrip().startswith(f"Session {SID}"), "the footer is last")
+        for missing in ("Not read.", "Unavailable", "None."):
+            self.assertNotIn(missing, body)
+        self.assertIn("worktree-done 9", self.section(body, "Housekeeping"))
+        self.assertIn(f"wave: 1 finished since {SINCE}, 1 running, 0 finished before; wrote {target} in ", out)
+        empty = FakeSources(check_out="merge-check\n  ok    fetched origin\n  ok    no open PRs to check into main")
+        self.p.lines = self.p.lines[:1]
+        self.main(since=SINCE, out=str(target), sources=empty)
+        body = target.read_text(encoding="utf-8")
+        self.assert_order(body, ["# Wave report since", *self.HEADINGS])
+        for heading in ("Merged into main since", "Finished runs since", "Running", "Open PRs", "Cost", "Housekeeping"):
+            self.assertIn("None.", self.section(body, heading), heading)
+        self.assertIn("no open PRs to check into main", self.section(body, "Merge safety"))
+        bare = self.p.body()  # a Wave built without the sources: each of their sections says so
+        self.assert_order(bare, self.HEADINGS)
+        for heading in ("Merged into main since", "Open PRs", "Merge safety", "Cost", "Housekeeping"):
+            self.assertIn("Not read.", self.section(bare, heading), heading)
+
+    def test_split_over_limit(self) -> None:
+        big = ["x" * 25000, "y" * 25000, "z" * 25000]
+        for i, notes in enumerate(big):
+            self.p.launch(i, f"t{i}", f"wf_{i}", issue_args(i + 1, notes=notes))
+            journal(self.p.run_dir(f"wf_{i}"), [(f"k{i}", f"implement:#{i + 1}", "Implement", None)])
+        target = self.root / "w.md"
+        _, out, _ = self.main(since=SINCE, out=str(target), merge_check=False)
+        first = target.read_text(encoding="utf-8")
+        parts = [self.root / "w-2.md", self.root / "w-3.md"]
+        self.assertLess(len(first), wave.SPLIT_LIMIT)
+        self.assert_order(first, self.HEADINGS)
+        self.assertIn("Moved to the next 2 comments (w-2.md, w-3.md): the args of 3 runs", first)
+        for notes in big:
+            self.assertNotIn(notes, first)
+        texts = [p.read_text(encoding="utf-8") for p in parts]
+        self.assertTrue(texts[0].startswith(f"## Handover data, part 2 of 3 (session {SID} "), texts[0][:100])
+        self.assertTrue(texts[1].startswith(f"## Handover data, part 3 of 3 (session {SID} "), texts[1][:100])
+        for t in texts:
+            self.assertLessEqual(len(t), wave.SPLIT_LIMIT)
+        blocks = [json.loads(b.split("\n```")[0]) for t in texts for b in t.split("```json\n")[1:]]
+        self.assertEqual(blocks, [issue_args(i + 1, notes=n) for i, n in enumerate(big)])
+        for p in [target, *parts]:
+            self.assertIn(str(p), out)
+        self.assertNotIn("warn", out)
+        self.p.launch(9, "t9", "wf_9", issue_args(9, notes="w" * 70000))
+        journal(self.p.run_dir("wf_9"), [("k9", "implement:#9", "Implement", None)])
+        _, out, _ = self.main(since=SINCE, out=str(target), merge_check=False)
+        parts.append(self.root / "w-4.md")
+        alone = parts[-1].read_text(encoding="utf-8")
+        self.assertIn('"' + "w" * 70000 + '"', alone, "the 70,000 characters in w-4.md")
+        self.assertEqual(alone.count("```json"), 1, "alone in w-4.md")
+        self.assertIn("warn  w-4.md has 70", out)
+        self.assertIn("over GitHub's comment limit of 65536", out, "one run's args alone are too long to post")
+        self.p.lines = self.p.lines[:1]
+        _, out, _ = self.main(since=SINCE, out=str(target), merge_check=False)
+        self.assertIn("No run is running.", target.read_text(encoding="utf-8"))
+        self.assertTrue(all(p.exists() for p in parts), "an earlier part is never deleted")
+        for p in parts:
+            self.assertIn(f"warn  {p} is from an earlier run of wave, not part of this body", out)
+        self.assertNotIn("w-5.md", out)
+
+    def test_notes_and_title(self) -> None:
+        notes = self.root / "notes.md"
+        text = "Decisions:\r\n1. Кирилиця «лапки» stays.\r\n\r\nOrder from here: #279 then #204.\r\n"
+        notes.write_bytes(b"\xef\xbb\xbf" + text.encode("utf-8"))
+        target = self.root / "w.md"
+        self.main(since=SINCE, out=str(target), title="Wave 3: a cheaper manager", plan=302, notes=str(notes),
+                  merge_check=False)  # fmt: skip
+        body = target.read_text(encoding="utf-8")
+        head = body.split("\n## ")[0]
+        self.assertTrue(head.startswith("# Wave 3: a cheaper manager\n\n"), head)
+        self.assertIn("Plan #302; base main; since 2026-10-03T08:00:00Z", head)
+        self.assertIn("\n\nDecisions:\n1. Кирилиця «лапки» stays.\n\nOrder from here: #279 then #204.\n", head)
+        self.assertNotIn("﻿", body)
+        self.assertNotIn(b"\r", target.read_bytes())
+        self.main(since=SINCE, out=str(target), merge_check=False)
+        body = target.read_text(encoding="utf-8")
+        self.assertTrue(body.startswith("# Wave report since 2026-10-03T08:00:00Z\n"), body[:80])
+        self.assertNotIn("Plan #", body.split("\n## ")[0])
+        with self.assertRaises(Failure) as caught:
+            self.main(since=SINCE, out=str(target), notes=str(self.root / "missing.md"))
+        self.assertIn("missing.md", str(caught.exception))
 
 
 if __name__ == "__main__":

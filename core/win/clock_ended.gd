@@ -6,5 +6,10 @@ extends Condition
 ## dissidents' "time up"; win conditions check facts only, so it never rejects an intent.
 
 
+## It reads the match clock, not the actor: a win condition may hold it.
+func reads_actor_state() -> bool:
+	return false
+
+
 func _test(ctx: MatchContext) -> bool:
 	return ctx.state.clock_ended

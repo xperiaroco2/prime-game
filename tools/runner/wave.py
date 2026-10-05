@@ -30,9 +30,30 @@ Rules:
 - Handover data holds the args of each running run, and of each finished run since --since that failed, was killed or
   stopped, unless a later launch took its place: a resume of it, or a later launch of the same issue and workflow under
   another run id (a fresh relaunch; shown as "relaunched as <run>").
-Read-only: it writes only its --out file (default tools/out/wave/wave-<sid8>.md; with --args only an --out given),
-runs no gh and launches nothing. Sections are separate functions returning Markdown lines (SECTIONS), so a follow-up
-(#278) adds sections without touching these.
+
+The whole wave comment (#278): `--since` also reads, through Sources (tests replace it), each source on its own (one
+that fails shows "Unavailable: <error>" in its section and a warn line; the rest of the body is still written):
+- one `gh pr list --state merged --search sort:updated-desc` (the MERGED_LIMIT most recently updated, every base; at
+  the limit the section names how far back it reached): the PRs merged into --base since --since (gh's merged:>=
+  search is date-only, so the window is filtered by mergedAt here), and for housekeeping the PRs whose work reached
+  main through a release or a parent branch (that branch's own PR into main merged at or after them);
+- `gh pr list --state open`: the PRs into --base and those stacked on them, with a one-word CI cell
+  (statusCheckRollup: red beats pending, else green; none when nothing reported) and mergeStateStatus;
+- merge.check([], base) with its printed lines captured: the verdict always, its tables and details as printed only
+  when it flagged something or failed; --no-merge-check skips it;
+- metrics.collect, read_history and build in memory for this session since --since (and --stage-since): metrics' own
+  compact lines (no metrics file is written; COST_EXTRAS adds lines over metrics' JSON record);
+- `git worktree list --porcelain` in the main checkout, sessions.alive_in and `gh issue list --state open`: a fenced
+  PowerShell block per command for each task worktree (and the manager's release-m<k> worktree) whose work is on
+  main, with no running run of this session there, HEAD at the merged head and no live Claude session in it; a
+  "For you:" line naming only what a live session holds (#343: the manager runs the ready blocks itself), then the
+  ready blocks; waits as one-line notes; the issues still open whose PR reached main since --since.
+The body's sections, in order (SECTIONS): title and header, --notes, merged, finished runs, running, open PRs, merge
+safety, cost, housekeeping, handover data, footer. Over SPLIT_LIMIT characters the handover data moves, each run's
+block whole, to <out>-2.md, <out>-3.md, ..., posted as the next comments.
+Read-only: it writes only its --out file(s) (default tools/out/wave/wave-<sid8>.md; with --args only an --out given)
+and posts, edits and launches nothing; merge-check's `git fetch` (and the PR heads it fetches) is its only write, to
+the shared git dir. `--args` reads no source beyond the transcript.
 """
 
 from __future__ import annotations
@@ -45,23 +66,48 @@ import sys
 import time
 from collections import Counter
 from collections.abc import Callable
+from contextlib import redirect_stdout
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePath, PureWindowsPath
+from typing import Any
 
-from . import agents_check, metrics
-from .common import OUT, Failure, ensure_out, say
+from . import agents_check, common, merge, metrics, sessions
+from .common import OUT, Failure, ensure_out, say, warn
 
 RELAUNCH = "relaunch fresh, never resume"
 RUN_ID = re.compile(r"Run ID:\s*(wf_[\w-]+)")
 # "stopped" as a key of the workflow's own result; an escaped \"stopped\" sits inside an agent's string and is not one.
 STOPPED = re.compile(r'(?<!\\)"stopped"\s*:\s*"((?:[^"\\]|\\.)*)')
-# GitHub's limit on a comment body, in characters.
+# GitHub's limit on a comment body, in characters; over SPLIT_LIMIT the handover data moves to the next comments.
 COMMENT_LIMIT = 65536
+SPLIT_LIMIT = 60000
 FOOTER_CALLS = 20
 # A workflow's notification says so in its summary ('Dynamic workflow "…" completed'); the other notifications in a
 # manager's queue (background shells, monitors, its subagents' tasks) are not runs and are passed over.
 WORKFLOW_NOTE = re.compile(r"\bworkflow\b", re.I)
 REVIEW_ROLES = ("code-reviewer", "netcode-security-reviewer", "netcode-second-reviewer", "godot-api-checker")
+# The branch every task's work finally lands in: worktree-done checks against origin/main.
+MAIN = "main"
+# One `gh pr list --state merged` serves the merged section (filtered by base and mergedAt here: gh's merged:>= search
+# is date-only) and housekeeping (every base, for PRs that reached main through a release or a parent branch).
+# gh lists PRs by creation date unless a search sorts them: by update, a PR merged lately comes first however old it is.
+MERGED_LIMIT = 500
+MERGED_SEARCH = "sort:updated-desc"
+MERGED_FIELDS = (
+    "number,title,headRefName,baseRefName,mergedAt,mergeCommit,closingIssuesReferences,headRefOid,updatedAt"
+)
+OPEN_FIELDS = "number,title,headRefName,baseRefName,isDraft,statusCheckRollup,mergeStateStatus,closingIssuesReferences"
+# The issue of a task branch <area>/<n>-<slug> (merge.TASK_BRANCH_RE's shape).
+TASK_BRANCH = re.compile(r"^[a-z][a-z0-9]*/(\d+)-")
+# The stage window's lines of metrics' compact summary (--stage-since), by their start; when none matches (metrics
+# reworded them), the stage window's whole summary is shown.
+STAGE_LINES = ("total API list $", "% of a Max 20x week")
+# More cost lines, each a function of metrics' JSON record for --since (build's second value); #314's quality line
+# may go here when it is not one of metrics' compact lines already (those flow through unchanged).
+COST_EXTRAS: list[Callable[[dict], list[str]]] = []
+RELEASE_WORKTREE = re.compile(r"^release-m(\d+)$")
+CI_PASS = {"SUCCESS", "NEUTRAL", "SKIPPED"}
+CI_PENDING = {"PENDING", "EXPECTED", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
 
 
 @dataclass
@@ -130,13 +176,132 @@ class Run:
 
 
 @dataclass
+class MergedPR:
+    number: int
+    title: str
+    head: str
+    base: str
+    merged_at: float
+    merge_commit: str
+    issues: list[int]
+    head_oid: str
+
+
+@dataclass
+class OpenPR:
+    number: int
+    title: str
+    head: str
+    base: str
+    draft: bool
+    ci: str
+    merge_state: str
+    issues: list[int]
+
+
+@dataclass
+class MergeCheck:
+    """merge-check's exit code, its verdict line and, when it flagged something or failed, its output as printed."""
+
+    rc: int
+    verdict: str
+    detail: list[str]
+    error: str | None = None
+    skipped: bool = False
+
+
+@dataclass
+class Cost:
+    """metrics' compact lines for this session since --since (None: nothing of it in the window), the stage window's
+    total lines (--stage-since) and COST_EXTRAS' lines."""
+
+    window: list[str] | None
+    stage: list[str] | None = None
+    stage_since: float | None = None
+    extra: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Worktree:
+    path: Path
+    branch: str  # "" when detached
+    head: str
+
+    @property
+    def name(self) -> str:
+        return self.path.name
+
+    @property
+    def n(self) -> int | None:
+        """The issue of a task worktree .claude/worktrees/<n>."""
+        inside = self.path.parent.name == "worktrees" and self.path.parent.parent.name == ".claude"
+        return int(self.name) if inside and self.name.isdigit() else None
+
+    @property
+    def release(self) -> str | None:
+        """The k of a manager's .claude/worktrees/release-m<k> on release/m<k>."""
+        m = RELEASE_WORKTREE.match(self.name)
+        inside = self.path.parent.name == "worktrees" and self.path.parent.parent.name == ".claude"
+        return m.group(1) if inside and m and self.branch == f"release/m{m.group(1)}" else None
+
+
+@dataclass
+class Housekeeping:
+    """What the worktrees and the merged PRs give: blocks to run now, blocks a live session holds, waits and the
+    issues still open whose work reached main since --since."""
+
+    ready: list[tuple[str, list[str]]] = field(default_factory=list)  # (worktree label, commands)
+    held: list[tuple[str, str, list[str]]] = field(default_factory=list)  # (label, the sessions, commands)
+    waiting: list[str] = field(default_factory=list)
+    issues: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Wave:
-    """What every section gets."""
+    """What every section gets. A source's field is None when it was not read and a str (its error) when reading it
+    failed; Wave(session, runs, since, now) alone renders every section."""
 
     session: Session
     runs: list[Run]
     since: float
     now: float
+    base: str = MAIN
+    plan: int | None = None
+    title: str | None = None
+    notes: str | None = None
+    merged: list[MergedPR] | str | None = None  # every base, oldest first
+    merged_cut: float | None = None  # read_merged's cut: gh's limit reached, a PR merged before it may be missing
+    open_prs: list[OpenPR] | str | None = None  # into base and stacked on those
+    merge_check: MergeCheck | None = None
+    cost: Cost | str | None = None
+    housekeeping: Housekeeping | str | None = None
+
+
+class Sources:
+    """Everything `wave --since` reads beyond the transcripts and the journals (tests replace it). Each is a read:
+    gh's JSON, merge-check (its git fetch is its only write, to the shared git dir), `git worktree list`, the live
+    Claude sessions, the verify history files and the main checkout."""
+
+    def gh_json(self, *args: str) -> Any:
+        return merge.gh_json(*args)
+
+    def check(self, numbers: list[int], base: str) -> int:
+        return merge.check(numbers, base=base)
+
+    def worktree_list(self, main: Path) -> str:
+        res = common.run(["git", "worktree", "list", "--porcelain"], timeout=60, cwd=main)
+        if res.rc != 0 or res.timed_out:
+            raise Failure(f"git worktree list failed: {res.out.strip()[-300:]}")
+        return res.out
+
+    def alive_in(self, path: Path) -> list:
+        return sessions.alive_in(path)
+
+    def history(self, main: Path) -> list[Path]:
+        return metrics.history_paths(main)
+
+    def main_checkout(self) -> Path:
+        return metrics.main_checkout()
 
 
 # --- reading the transcript ---------------------------------------------------------------------------------------
@@ -461,6 +626,265 @@ def latest_launch(s: Session, n: int, workflow: str | None = None) -> Launch:
     )
 
 
+# --- GitHub -------------------------------------------------------------------------------------------------------
+
+
+def issue_from_branch(branch: str) -> int | None:
+    m = TASK_BRANCH.match(branch)
+    return int(m.group(1)) if m else None
+
+
+def issues_of(d: dict) -> list[int]:
+    """A PR's closing issues, else the issue of its task branch (a PR into a release branch links none)."""
+    refs = d.get("closingIssuesReferences") if isinstance(d.get("closingIssuesReferences"), list) else []
+    found = [int(r["number"]) for r in refs if isinstance(r, dict) and isinstance(r.get("number"), int)]
+    if found:
+        return found
+    n = issue_from_branch(str(d.get("headRefName") or ""))
+    return [n] if n is not None else []
+
+
+def rows_of(data: Any, what: str) -> list[dict]:
+    if not isinstance(data, list):
+        raise Failure(f"gh pr list {what}: not a list but {type(data).__name__}")
+    return [d for d in data if isinstance(d, dict) and isinstance(d.get("number"), int)]
+
+
+def read_merged(gh: Callable[..., Any]) -> tuple[list[MergedPR], float | None]:
+    """The MERGED_LIMIT most recently updated merged PRs into any base, oldest merge first, and the cut: the oldest
+    update among them when gh returned its whole limit (a PR merged before it may be missing; merging updates a PR, so
+    every PR merged after it is listed), else None."""
+    data = gh("pr", "list", "--state", "merged", "--search", MERGED_SEARCH, "--limit", str(MERGED_LIMIT), "--json",
+              MERGED_FIELDS)  # fmt: skip
+    rows = rows_of(data, "--state merged")
+    cut = None
+    if len(data) >= MERGED_LIMIT:
+        updates = [t for t in (metrics.stamp(d.get("updatedAt")) for d in rows) if t is not None]
+        cut = min(updates) if updates else None
+    found = []
+    for d in rows:
+        t = metrics.stamp(d.get("mergedAt"))
+        if t is None:
+            continue
+        commit = d.get("mergeCommit") if isinstance(d.get("mergeCommit"), dict) else {}
+        found.append(MergedPR(d["number"], str(d.get("title") or ""), str(d.get("headRefName") or ""),
+                              str(d.get("baseRefName") or ""), t, str(commit.get("oid") or ""), issues_of(d),
+                              str(d.get("headRefOid") or "")))  # fmt: skip
+    return sorted(found, key=lambda p: (p.merged_at, p.number)), cut
+
+
+def ci_cell(rollup: object) -> str:
+    """A PR's statusCheckRollup in one word and the checks behind it: red (any failed) beats pending, else green;
+    none when no check reported."""
+    checks = [c for c in rollup if isinstance(c, dict)] if isinstance(rollup, list) else []
+    if not checks:
+        return "none"
+    red: list[str] = []
+    pending: list[str] = []
+    for c in checks:
+        name = str(c.get("name") or c.get("context") or "?")
+        if c.get("__typename") == "StatusContext" or ("state" in c and "status" not in c):
+            state = str(c.get("state") or "").upper()
+        elif str(c.get("status") or "").upper() != "COMPLETED":
+            state = "PENDING"
+        else:
+            state = str(c.get("conclusion") or "").upper()
+        if state in CI_PENDING:
+            pending.append(name)
+        elif state not in CI_PASS:
+            red.append(name)
+    if red:
+        return "red: " + ", ".join(dict.fromkeys(red))
+    if pending:
+        return "pending: " + ", ".join(dict.fromkeys(pending))
+    return "green"
+
+
+def read_open(gh: Callable[..., Any], base: str) -> list[OpenPR]:
+    """The open PRs into base, and those stacked on one of them (they land in base too), by number."""
+    prs = [
+        OpenPR(d["number"], str(d.get("title") or ""), str(d.get("headRefName") or ""), str(d.get("baseRefName") or ""),
+               bool(d.get("isDraft")), ci_cell(d.get("statusCheckRollup")), str(d.get("mergeStateStatus") or ""),
+               issues_of(d))
+        for d in rows_of(gh("pr", "list", "--state", "open", "--limit", "200", "--json", OPEN_FIELDS), "--state open")
+    ]  # fmt: skip
+    lands, grew = {base}, True
+    while grew:
+        grew = False
+        for p in prs:
+            if p.base in lands and p.head not in lands:
+                lands.add(p.head)
+                grew = True
+    return sorted((p for p in prs if p.base in lands), key=lambda p: p.number)
+
+
+# --- merge-check --------------------------------------------------------------------------------------------------
+
+STATUS_PREFIX = re.compile(r"^  (?:ok|warn|FAIL|skip) +")
+
+
+def capture_merge_check(check: Callable[[list[int], str], int], base: str) -> MergeCheck:
+    """merge-check --base B with its printed lines captured (merge.check prints through `say`; its git and gh calls
+    capture their own output). The verdict: its last 'merge-check:' line, else its last line without the status
+    prefix. The detail: everything but its title and its 'ok' progress lines, kept only when it flagged or failed."""
+    buf = io.StringIO()
+    error = None
+    try:
+        with redirect_stdout(buf):
+            rc = int(check([], base))
+    except Exception as exc:  # a Failure (gh missing, a PR head not on origin) or a bug: the body is still written
+        rc, error = 1, str(exc).strip() or type(exc).__name__
+        warn(f"wave: merge-check failed: {error}")
+    lines = buf.getvalue().rstrip().splitlines()
+    if lines and lines[0].strip() == "merge-check":
+        lines = lines[1:]
+    verdict = next((line.strip() for line in reversed(lines) if line.startswith("merge-check:")), "")
+    if not verdict:
+        last = next((line for line in reversed(lines) if line.strip()), "")
+        verdict = STATUS_PREFIX.sub("", last).strip() or "(merge-check printed nothing)"
+    if error is not None:
+        verdict = f"merge-check failed: {error}"
+    detail = [line for line in lines if not line.startswith("  ok    ")]
+    while detail and not detail[0].strip():
+        detail.pop(0)
+    return MergeCheck(rc, verdict, detail if rc != 0 or error is not None else [], error)
+
+
+# --- cost ---------------------------------------------------------------------------------------------------------
+
+
+def metrics_window(dirs: list[Path], sid: str, since: float, now: float, history: list[Path]) -> tuple[dict, dict,
+                                                                                                         list[str]]:  # fmt: skip
+    """What `metrics --since <since> --session <sid> --compact` computes, in memory (no metrics file is written):
+    (collect's data, build's JSON record, build's compact lines)."""
+    data = metrics.collect(dirs, {sid: None}, since, now)
+    _, record, compact = metrics.build(data, metrics.read_history(history, since, now), None, since, now)
+    return data, record, compact
+
+
+def nothing_in(data: dict) -> bool:
+    """No API call of the session's own, no hand-run subagent and no counted run in the window (collect lists a named
+    session even then, with zero lines)."""
+    own = any(s["manager"] and s["manager"]["api_calls"] for s in data["sessions"])
+    return not own and not any(s["hand"] for s in data["sessions"]) and not any(r["counted"] for r in data["runs"])
+
+
+def cost_of(dirs: list[Path], sid: str, since: float, stage_since: float | None, now: float,
+            history: list[Path]) -> Cost:  # fmt: skip
+    data, record, compact = metrics_window(dirs, sid, since, now, history)
+    cost = Cost(None if nothing_in(data) else compact)
+    if cost.window is not None:
+        cost.extra = [line for extra in COST_EXTRAS for line in extra(record)]
+    if stage_since is not None:
+        stage = metrics_window(dirs, sid, stage_since, now, history)[2]
+        cost.stage = [line for line in stage if line.startswith(STAGE_LINES)] or stage
+        cost.stage_since = stage_since
+    return cost
+
+
+# --- housekeeping -------------------------------------------------------------------------------------------------
+
+
+def parse_worktrees(text: str) -> list[Worktree]:
+    """`git worktree list --porcelain`: blocks of 'worktree <path>', 'HEAD <sha>', 'branch refs/heads/<b>' or
+    'detached', separated by blank lines."""
+    found = []
+    for chunk in re.split(r"\n\s*\n", text.replace("\r\n", "\n")):
+        fields = dict(line.split(" ", 1) if " " in line else (line, "") for line in chunk.strip().splitlines())
+        if fields.get("worktree"):
+            branch = fields.get("branch", "").removeprefix("refs/heads/")
+            found.append(Worktree(Path(fields["worktree"]), branch, fields.get("HEAD", "")))
+    return found
+
+
+def landing(pr: MergedPR, by_head: dict[str, list[MergedPR]], seen: tuple[int, ...] = ()) -> tuple[MergedPR | None,
+                                                                                                   str]:  # fmt: skip
+    """The PR that took pr's work into main (pr itself when its base is main) and MAIN, else None and the branch the
+    work waits in: a release branch or a parent task branch whose own PR into main has not merged since."""
+    if pr.base == MAIN:
+        return pr, MAIN
+    later = [q for q in by_head.get(pr.base, []) if q.merged_at >= pr.merged_at and q.number not in seen]
+    if not later:
+        return None, pr.base
+    return landing(min(later, key=lambda q: q.merged_at), by_head, (*seen, pr.number))
+
+
+def same_path(a: object, b: Path) -> bool:
+    return str(a).replace("\\", "/").rstrip("/").lower() == b.as_posix().rstrip("/").lower()
+
+
+def running_in(wt: Worktree, runs: list[Run]) -> Run | None:
+    """A running run of this session in the worktree: its args.wt is that folder, or args.n its issue."""
+    for r in runs:
+        if not r.finished and ((wt.n is not None and issue_of(r.args) == wt.n) or same_path((r.args or {}).get("wt"),
+                                                                                             wt.path)):  # fmt: skip
+            return r
+    return None
+
+
+def cd_main(main: PurePath) -> str:
+    """The PowerShell prefix that enters the main checkout. Built from the path's text: Python 3.11 builds a
+    PureWindowsPath from another path's parts, so a POSIX-flavoured "D:/prime-game" (the Linux CI) became the
+    drive-relative "D:prime-game"; 3.12 and later read the text."""
+    return f"cd {PureWindowsPath(str(main))}; "
+
+
+def housekeeping_of(worktrees: list[Worktree], merged: list[MergedPR], runs: list[Run], alive_in: Callable[[Path],
+                    list], main: Path, open_issues: set[int], since: float, now: float) -> Housekeeping:  # fmt: skip
+    """Per task worktree (.claude/worktrees/<n>) and manager release worktree (release-m<k>) whose branch has a
+    merged PR: a block when its work is on main, no run of this session works there, its HEAD is the merged head and
+    no live Claude session sits there; held when one does; else a wait. Worktrees with no merged PR are left out."""
+    cd = cd_main(main)
+    by_head: dict[str, list[MergedPR]] = {}
+    for p in merged:
+        by_head.setdefault(p.head, []).append(p)
+    h = Housekeeping()
+    for wt in worktrees:
+        if (wt.n is None and wt.release is None) or not wt.branch or wt.branch not in by_head:
+            continue
+        pr = by_head[wt.branch][-1]  # the newest merged PR of the branch
+        label = f"worktree {wt.name}"
+        top, waits = landing(pr, by_head)
+        run_there = running_in(wt, runs)
+        if top is None:
+            h.waiting.append(f"{label}: PR #{pr.number} merged into {pr.base}; after {waits} reaches main.")
+        elif run_there is not None:
+            h.waiting.append(f"{label}: run {run_there.run_id} still running there.")
+        elif wt.head != pr.head_oid:
+            # Ahead (a commit after the merge) or behind (the remote branch got a commit): either way, look first.
+            h.waiting.append(f"{label}: HEAD {wt.head[:10]} is not PR #{pr.number}'s merged head {pr.head_oid[:10]}: "
+                             "check before removing.")  # fmt: skip
+        else:
+            if wt.n is not None:
+                commands = [f"{cd}tools\\run.cmd worktree-done {wt.n}"]
+            else:
+                # -D, not -d (as start.py's own branch delete): -d compares with the main checkout's local HEAD,
+                # often behind origin/main, and refuses; landing() and the HEAD check above proved the work is on main.
+                commands = [f"{cd}git worktree remove .claude/worktrees/{wt.name}", f"{cd}git branch -D {wt.branch}"]
+            live = alive_in(wt.path)
+            if live:
+                who = ", ".join(s.describe(now) if hasattr(s, "describe") else str(s) for s in live)
+                h.held.append((label, who, commands))
+            else:
+                h.ready.append((label, commands))
+    issues: dict[int, str] = {}
+    for p in merged:
+        top, _ = landing(p, by_head)
+        if top is not None and top.merged_at >= since:
+            for n in p.issues:
+                if n in open_issues and n not in issues:
+                    issues[n] = f"#{n} (PR #{p.number}" + (f" via {p.base})" if p.base != MAIN else ")")
+    h.issues = [issues[n] for n in sorted(issues)]
+    return h
+
+
+def read_open_issues(gh: Callable[..., Any]) -> set[int]:
+    data = gh("issue", "list", "--state", "open", "--limit", "1000", "--json", "number")
+    if not isinstance(data, list):
+        raise Failure(f"gh issue list: not a list but {type(data).__name__}")
+    return {d["number"] for d in data if isinstance(d, dict) and isinstance(d.get("number"), int)}
+
+
 # --- sections -----------------------------------------------------------------------------------------------------
 
 
@@ -534,6 +958,141 @@ def step_lines(step: object) -> list[str]:
     if isinstance(step, str):
         return [f"- {step}", ""]
     return ["", *fence(json.dumps(step, indent=1, ensure_ascii=False), "json"), ""]
+
+
+def header_section(w: Wave) -> list[str]:
+    title = w.title or f"Wave report since {metrics.iso(w.since)}"
+    plan = f"Plan #{w.plan}; " if w.plan is not None else ""
+    return [f"# {cell(title)}", "",
+            f"{plan}base {w.base}; since {metrics.iso(w.since)}; written {metrics.iso(w.now)} from session "
+            f"{w.session.sid[:8]}.", ""]  # fmt: skip
+
+
+def notes_section(w: Wave) -> list[str]:
+    """The manager's own judgement (--notes), as written: decisions, batched questions, the order from here."""
+    return [w.notes.strip("\n"), ""] if w.notes and w.notes.strip() else []
+
+
+def source_state(value: object) -> list[str] | None:
+    """The body of a section whose source was not read or failed, else None."""
+    if value is None:
+        return ["Not read.", ""]
+    if isinstance(value, str):
+        return [f"Unavailable: {cell(value)}", ""]
+    return None
+
+
+def issues_cell(issues: list[int]) -> str:
+    return ", ".join(f"#{n}" for n in issues) or "—"
+
+
+def merged_section(w: Wave) -> list[str]:
+    md = [f"## Merged into {w.base} since {metrics.iso(w.since)}", ""]
+    state = source_state(w.merged)
+    if state is not None or not isinstance(w.merged, list):
+        return md + (state or [])
+    rows = [[f"#{p.number}", p.title, p.head, metrics.iso(p.merged_at), p.merge_commit[:10], issues_cell(p.issues)]
+            for p in w.merged if p.base == w.base and p.merged_at >= w.since]  # fmt: skip
+    md += [table(["PR", "title", "branch", "merged", "merge commit", "issues"], rows), ""] if rows else ["None.", ""]
+    if w.merged_cut is not None and w.merged_cut > w.since:
+        md += [f"gh returned its limit of {MERGED_LIMIT} merged PRs, the most recently updated, back to an update at "
+               f"{metrics.iso(w.merged_cut)}: a PR merged before then may be missing here and in housekeeping.",
+               ""]  # fmt: skip
+    return md
+
+
+def open_prs_section(w: Wave) -> list[str]:
+    md = ["## Open PRs", ""]
+    state = source_state(w.open_prs)
+    if state is not None or not isinstance(w.open_prs, list):
+        return md + (state or [])
+    if not w.open_prs:
+        return [*md, "None.", ""]
+    rows = [[f"#{p.number}", p.title, issues_cell(p.issues), p.base, yes_no(p.draft), p.ci, p.merge_state]
+            for p in w.open_prs]  # fmt: skip
+    return [*md, table(["PR", "title", "issues", "base", "draft", "CI", "merge state"], rows), "",
+            f"Into {w.base}, and stacked on one of those.", ""]  # fmt: skip
+
+
+def merge_section(w: Wave) -> list[str]:
+    md = ["## Merge safety", ""]
+    m = w.merge_check
+    if m is None:
+        return [*md, "Not read.", ""]
+    if m.skipped:
+        return [*md, "Skipped (--no-merge-check).", ""]
+    md += [f"`merge-check --base {w.base}`: exit {m.rc}.", ""]
+    if m.error is not None:
+        return [*md, m.verdict, "", *([*m.detail, ""] if m.detail else [])]
+    return [*md, *(m.detail or [m.verdict]), ""]
+
+
+def cost_section(w: Wave) -> list[str]:
+    md = ["## Cost", ""]
+    state = source_state(w.cost)
+    if state is not None or not isinstance(w.cost, Cost):
+        return md + (state or [])
+    c, sid8 = w.cost, w.session.sid[:8]
+    block: list[str] = []
+    if c.window is None:
+        md += [f"None. Session {sid8} made no API call and counted no run since {metrics.iso(w.since)}.", ""]
+    else:
+        md += [f"`metrics --since {metrics.iso(w.since)} --session {sid8} --compact`:", ""]
+        block += [*c.window, *c.extra]
+    if c.stage is not None:
+        block += [*([""] if block else []), f"stage since {metrics.iso(c.stage_since)}:", *c.stage]
+    return md + (["```text", *block, "```", ""] if block else [])
+
+
+def powershell(commands: list[str]) -> list[str]:
+    """One fenced PowerShell block per command (root CLAUDE.md: commands for a human)."""
+    return [line for c in commands for line in [*fence(c, "powershell"), ""]]
+
+
+def names_of(labels: list[str]) -> str:
+    """'worktree 305' or 'worktrees 305, 251 and release-m4'."""
+    names = [label.removeprefix("worktree ") for label in labels]
+    if len(names) == 1:
+        return f"worktree {names[0]}"
+    return f"worktrees {', '.join(names[:-1])} and {names[-1]}"
+
+
+def for_you(h: Housekeeping) -> str:
+    """The section's first line, for the manager to lift into chat: only what needs the engineer, the worktrees a live
+    session holds, else nothing. The ready blocks are the manager's own steps (the trust ADR: it runs worktree-done
+    itself when no live session sits there), so they stay out of this line."""
+    if not h.held:
+        return "For you: nothing."
+    who = "; ".join(sessions_ for _, sessions_, _ in h.held)
+    plural = len(h.held) > 1
+    return (f"For you: close the Claude session{'s' if plural else ''} in {names_of([lb for lb, _, _ in h.held])} "
+            f"({who}), then run {'their blocks' if plural else 'its block'} below.")  # fmt: skip
+
+
+def housekeeping_section(w: Wave) -> list[str]:
+    md = ["## Housekeeping", ""]
+    state = source_state(w.housekeeping)
+    if state is not None or not isinstance(w.housekeeping, Housekeeping):
+        return md + (state or [])
+    h = w.housekeeping
+    md += [for_you(h), ""]
+    if not (h.ready or h.held or h.waiting or h.issues):
+        return [*md, "None.", ""]
+    if h.ready:
+        md += [f"Ready to remove: {', '.join(label for label, _ in h.ready)} (the work is on main; no run of this "
+               "session and no live Claude session there; HEAD at the merged head). The manager runs each block itself "
+               "(orchestrate-stage §8):", ""]  # fmt: skip
+        md += [line for _, commands in h.ready for line in powershell(commands)]
+    if h.held:
+        md += ["Held by a live Claude session (worktree-done refuses while one sits there):", ""]
+        for label, who, commands in h.held:
+            md += [f"- {label}: {who}; close it, then:", "", *powershell(commands)]
+    if h.waiting:
+        md += ["Not yet:", "", *(f"- {line}" for line in h.waiting), ""]
+    issues = ", ".join(h.issues) if h.issues else "none"
+    md += [f"Issues still open whose PR reached main since {metrics.iso(w.since)} (close each once its acceptance "
+           f"criteria are met): {issues}.", ""]  # fmt: skip
+    return md
 
 
 def finished_since(w: Wave) -> list[Run]:
@@ -616,23 +1175,25 @@ def handover_block(r: Run, s: Session) -> list[str]:
     return [head, "", *fence(json.dumps(r.args, indent=1, ensure_ascii=False), "json"), "</details>", ""]
 
 
-def handover_section(w: Wave) -> list[str]:
-    md = ["## Handover data", ""]
-    running = [r for r in w.runs if not r.finished]
-    for r in running:
-        md += handover_block(r, w.session)
+def handover_chunks(w: Wave) -> list[list[str]]:
+    """One block per running run, then one per finished run that needs a resume or a fresh relaunch (the first of
+    those under its heading); the unit a split moves as a whole."""
+    chunks = [handover_block(r, w.session) for r in w.runs if not r.finished]
     again = [
         r
         for r in finished_since(w)
         if (r.stopped or r.status in ("failed", "killed")) and not r.resumed_as and not r.relaunched_as
     ]
-    if again:
-        md += ["### Finished runs that need a resume or a fresh relaunch", ""]
-        for r in again:
-            md += handover_block(r, w.session)
-    if not running and not again:
-        md += ["No run is running.", ""]
-    return md
+    for i, r in enumerate(again):
+        head = ["### Finished runs that need a resume or a fresh relaunch", ""] if i == 0 else []
+        chunks.append([*head, *handover_block(r, w.session)])
+    return chunks
+
+
+def handover_section(w: Wave) -> list[str]:
+    chunks = handover_chunks(w)
+    return ["## Handover data", "", *(line for chunk in chunks for line in chunk), *([] if chunks else
+                                                                                       ["No run is running.", ""])]  # fmt: skip
 
 
 def mean_usd(calls: list[dict]) -> float:
@@ -653,11 +1214,56 @@ def footer_section(w: Wave) -> list[str]:
     return [*md, ""]
 
 
-SECTIONS: list[Callable[[Wave], list[str]]] = [finished_section, running_section, handover_section, footer_section]
+SECTIONS: list[Callable[[Wave], list[str]]] = [
+    header_section, notes_section, merged_section, finished_section, running_section, open_prs_section,
+    merge_section, cost_section, housekeeping_section, handover_section, footer_section,
+]  # fmt: skip
 
 
-def render(w: Wave) -> str:
-    return "\n".join(line for section in SECTIONS for line in section(w)).rstrip("\n") + "\n"
+def render(w: Wave, sections: list[Callable[[Wave], list[str]]] | None = None) -> str:
+    return "\n".join(line for section in sections or SECTIONS for line in section(w)).rstrip("\n") + "\n"
+
+
+def part_path(out: Path, k: int) -> Path:
+    """The k-th comment's file next to out: w.md -> w-2.md."""
+    return out.with_name(f"{out.stem}-{k}{out.suffix}")
+
+
+def render_parts(w: Wave, out: Path) -> list[tuple[Path, str]]:
+    """The body as one file, or, over SPLIT_LIMIT characters, the body with its handover data moved to <out>-2.md,
+    <out>-3.md, ... (each run's block whole, each file at most SPLIT_LIMIT unless one block alone is longer), each
+    posted as the next comment."""
+    body = render(w)
+    chunks = handover_chunks(w)
+    if len(body) <= SPLIT_LIMIT or not chunks:
+        return [(out, body)]
+    groups: list[list[list[str]]] = []
+    size = 0
+    for chunk in chunks:
+        n = sum(len(line) + 1 for line in chunk)
+        if not groups or size + n > SPLIT_LIMIT - 1000:  # room for the part's heading
+            groups.append([])
+            size = 0
+        groups[-1].append(chunk)
+        size += n
+    paths = [part_path(out, k) for k in range(2, len(groups) + 2)]
+    many = len(groups) > 1
+
+    def pointer(_: Wave) -> list[str]:
+        return ["## Handover data", "",
+                f"Moved to the next {len(groups)} comment{'s' if many else ''} ({', '.join(p.name for p in paths)}): the "
+                f"args of {len(chunks)} run{'s' if len(chunks) != 1 else ''}, posted right after this one as "
+                f"{'they are' if many else 'it is'} (this body with them would have {len(body)} characters, over "
+                f"{SPLIT_LIMIT}).", ""]  # fmt: skip
+
+    s = w.session
+    title = f' "{s.title}"' if s.title else ""
+    parts = [(out, render(w, [pointer if f is handover_section else f for f in SECTIONS]))]
+    for k, (path, group) in enumerate(zip(paths, groups), start=2):
+        lines = [f"## Handover data, part {k} of {len(groups) + 1} (session {s.sid}{title})", "",
+                 *(line for chunk in group for line in chunk)]  # fmt: skip
+        parts.append((path, "\n".join(lines).rstrip("\n") + "\n"))
+    return parts
 
 
 # --- the command --------------------------------------------------------------------------------------------------
@@ -679,6 +1285,55 @@ def find_transcript(session: str | None, dirs: list[Path]) -> tuple[Path, str]:
     return found[0], found[0].stem
 
 
+def attempt(what: str, read: Callable[[], Any]) -> Any:
+    """A source's value, or its error as a str (the section says it is unavailable; the rest of the body is still
+    written). Exception, not BaseException: Ctrl+C still stops the command."""
+    try:
+        return read()
+    except Exception as exc:
+        text = str(exc).strip() or type(exc).__name__
+        warn(f"wave: {what} unavailable: {text}")
+        return text
+
+
+def gather(w: Wave, src: Sources, merge_check: bool, dirs: list[Path], stage_since: float | None) -> None:
+    """Every source beyond the transcripts, each on its own: one that fails leaves the others."""
+    main = attempt("the main checkout", src.main_checkout)
+    merged = attempt("merged PRs", lambda: read_merged(src.gh_json))
+    w.merged, w.merged_cut = merged if isinstance(merged, tuple) else (merged, None)
+    w.open_prs = attempt("open PRs", lambda: read_open(src.gh_json, w.base))
+    if merge_check:
+        w.merge_check = capture_merge_check(src.check, w.base)
+    else:
+        w.merge_check = MergeCheck(0, "", [], skipped=True)
+
+    def cost() -> Cost:
+        history = src.history(main) if isinstance(main, Path) else []
+        return cost_of(dirs, w.session.sid, w.since, stage_since, w.now, history)
+
+    w.cost = attempt("cost", cost)
+
+    def housekeeping() -> Housekeeping:
+        if isinstance(main, str):
+            raise Failure(f"the main checkout: {main}")
+        if not isinstance(w.merged, list):
+            raise Failure(f"merged PRs: {w.merged}")
+        worktrees = parse_worktrees(src.worktree_list(main))
+        issues = read_open_issues(src.gh_json)
+        return housekeeping_of(worktrees, w.merged, w.runs, src.alive_in, main, issues, w.since, w.now)
+
+    w.housekeeping = attempt("housekeeping", housekeeping)
+
+
+def read_notes(path: Path) -> str:
+    """--notes as UTF-8 text with LF line ends (a file PowerShell 5.1 wrote may start with a BOM and use CRLF)."""
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise Failure(f"wave: --notes {path}: cannot read it ({exc.strerror or exc})") from None
+    return raw.decode("utf-8-sig", errors="replace").replace("\r\n", "\n")
+
+
 def default_out(sid: str) -> Path:
     return OUT / "wave" / f"wave-{sid[:8]}.md"
 
@@ -695,15 +1350,31 @@ def main(
     args_issue: int | None = None,
     out: str | None = None,
     workflow: str | None = None,
+    base: str | None = None,
+    plan: int | None = None,
+    title: str | None = None,
+    notes: str | None = None,
+    stage_since: str | None = None,
+    merge_check: bool = True,
     *,
     dirs: list[Path] | None = None,
     now: float | None = None,
+    sources: Sources | None = None,
 ) -> int:
+    started = time.monotonic()
     if (since is None) == (args_issue is None):
         raise Failure("wave: pass either --since T (the wave comment) or --args N (one issue's args)")
     if workflow is not None and args_issue is None:
         raise Failure("wave: --workflow goes with --args")
+    if args_issue is not None:
+        given = {"--base": base, "--plan": plan, "--title": title, "--notes": notes, "--stage-since": stage_since,
+                 "--no-merge-check": None if merge_check else True}  # fmt: skip
+        extra = [flag for flag, value in given.items() if value is not None]
+        if extra:
+            raise Failure(f"wave: {', '.join(extra)} goes with --since, not with --args")
     t_since = metrics.parse_time(since) if since is not None else None
+    t_stage = metrics.parse_time(stage_since) if stage_since is not None else None
+    notes_text = read_notes(Path(notes)) if notes is not None else None
     if dirs is None:
         dirs = agents_check.project_dirs(metrics.main_checkout())
     path, sid = find_transcript(session, dirs)
@@ -721,17 +1392,27 @@ def main(
         sys.stdout.flush()
         return 0
     assert t_since is not None
-    w = Wave(session=s, runs=build_runs(s), since=t_since, now=time.time() if now is None else now)
-    body = render(w)
+    w = Wave(session=s, runs=build_runs(s), since=t_since, now=time.time() if now is None else now,
+             base=base or MAIN, plan=plan, title=title, notes=notes_text)  # fmt: skip
+    gather(w, sources or Sources(), merge_check, dirs, t_stage)
     if out:
         target = Path(out)
     else:
         ensure_out()
         target = default_out(sid)
-    write_text(target, body)
+    parts = render_parts(w, target)
+    for path, text in parts:
+        write_text(path, text)
     done = finished_since(w)
     say(f"wave: {len(done)} finished since {metrics.iso(t_since)}, {sum(not r.finished for r in w.runs)} running, "
-        f"{sum(r.finished for r in w.runs) - len(done)} finished before; wrote {target}")  # fmt: skip
-    if len(body) > COMMENT_LIMIT:
-        say(f"  warn  the body has {len(body)} characters, over GitHub's comment limit of {COMMENT_LIMIT}")
+        f"{sum(r.finished for r in w.runs) - len(done)} finished before; wrote {', '.join(str(p) for p, _ in parts)} "
+        f"in {time.monotonic() - started:.1f} s")  # fmt: skip
+    for path, text in parts:
+        if len(text) > COMMENT_LIMIT:
+            warn(f"{path.name} has {len(text)} characters, over GitHub's comment limit of {COMMENT_LIMIT}: it cannot be "
+                 "posted as one comment")  # fmt: skip
+    k = len(parts) + 1
+    while part_path(target, k).exists():
+        warn(f"{part_path(target, k)} is from an earlier run of wave, not part of this body")
+        k += 1
     return 0

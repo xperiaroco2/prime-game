@@ -31,7 +31,7 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | Shell | PowerShell 5.1 is the agent's primary shell. No `&&`/`||`: chain with `; if ($LASTEXITCODE -eq 0) { … }`. Structured arguments go in files, not inline JSON | [M0] root `CLAUDE.md` |
 | Machine paths | `GODOT_BIN`, `GODOT_GUI_BIN`, `PYTHON_BIN`, `GDTOOLKIT_DIR` in the `env` of each human's `~/.claude/settings.json`, so every session, worktree, hook and subagent sees them ([ADR](decisions/2026-09-28-machine-env-in-user-settings.md)). A human's own terminal needs no Windows variables for them: before any command the runner fills each one the process environment lacks from the `env` of the project's `.claude/settings.local.json`, then of `~/.claude/settings.json` (`$CLAUDE_CONFIG_DIR/settings.json` when that is set), and `tools\run.cmd` finds `PYTHON_BIN` there before Python starts. The process environment wins; `doctor` says where each came from and warns when none has it | [applied] engineer |
 | Personal settings | Each human's `~/.claude/settings.json` holds `"language"` and `"permissions": {"defaultMode": "acceptEdits"}`. Personal rules go in `~/.claude/CLAUDE.md`. Nothing personal in shared files | [applied] engineer |
-| `.claude/settings.local.json` | Personal permission approvals only; gitignored and untracked | [applied] |
+| `.claude/settings.local.json` | Personal permission approvals, plus in the main checkout on Windows the `claudeMdExcludes` patterns that the full `doctor` adds (§3 "Which copy loads", #385, #406); gitignored and untracked | [applied] |
 | Godot import scope | `docs/.gdignore` keeps the editor from importing anything under `docs/` | [applied] |
 | Auto mode | Not yet. Revisit after the M0 guard tests pass (§14) | — |
 
@@ -74,7 +74,9 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   a green `verify`.
 - **Task branches**: the container starts on its own branch; switch to the task branch from its base
   (`git fetch origin <base>; git switch -c <area>/<n>-<slug> origin/<base>`, then `git branch --unset-upstream`, so
-  nothing tracks the base).
+  nothing tracks the base). On its task branch the clone is the session's own worktree for the guard (#381, §8.2):
+  `reset`, `rebase`, `checkout -- <path>` and `clean` there pass without a prompt, which nobody would answer. Before
+  #381 the M6-3 session waited 30 minutes on `git reset --soft HEAD~2`. On `main` or `release/*` they still ask.
 - **Agents:** the subagents in `.claude/agents/` run there (#345: `code-reviewer` on its diff, and `agents-check`
   passed on its transcript). The Workflow tool is offered, under the `small` size guideline; #345's session launched
   none.
@@ -88,7 +90,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 | File | Loaded | Content | Budget |
 |---|---|---|---|
-| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction | Hard rules, **architecture invariants**, exact runner commands, PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
+| Root `CLAUDE.md` (engineer-owned) | Always; re-injected after compaction (which copy: "Which copy loads" below) | Hard rules, **architecture invariants**, exact runner commands, PowerShell rules, ownership map, skill routing, definition of done, stop-and-ask list, memory guardrail, dictation glossary | ≤ 150 lines, counting unscoped rule files |
 | `core/ server/ net/ client/ voice/` `CLAUDE.md` | When a file there is read | Engineer area rules | ≤ 100 lines each |
 | `content/ levels/` `CLAUDE.md` (designer-owned) | Same | How to author mechanics and maps without engine code | ≤ 100 lines each |
 | `.claude/rules/*.md` with `paths:` | When a matching file is touched | `gdscript.md`, `tests.md`, `godot-resources.md` | ≤ 60 lines each |
@@ -96,6 +98,40 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 - Invariants live in root because nested files drop out after compaction
   ([ADR](decisions/2026-09-29-instruction-files-and-budgets.md)).
+- **Which copy loads** (Claude Code 2.1.284, probed in #336). A session started in the main checkout (the manager,
+  its workflow agents, and a task session that works in a worktree through `cd`/`Set-Location`, §4.1) loads main's
+  root `CLAUDE.md` at launch. A Read of a file under `.claude/worktrees/<n>/` then also loads that worktree's root
+  `CLAUDE.md` (a second copy, about 6k tokens at #336), its area `CLAUDE.md`, and both main's and the worktree's copy
+  of each matching rule. A session started inside a worktree loads only the worktree's copies: its root `CLAUDE.md`
+  at launch, never main's, and its area files and rules by path. So `claudeMdExcludes` with
+  `**/.claude/worktrees/*/CLAUDE.md` in the tracked `.claude/settings.json` is wrong: the tracked file is also each
+  worktree's own settings, and in a session started inside a worktree the pattern matches the only root `CLAUDE.md`
+  it has (a probe session started there with it loaded none).
+- **[applied] The exclude lives in the main checkout's `.claude/settings.local.json`** (#385, the engineer's option
+  (a) on PR #360). On Windows Claude Code reads the local settings file of the folder a session starts in
+  (code.claude.com/docs/en/settings, "Where Claude Code keeps the local file"; elsewhere a worktree session uses the
+  main checkout's file instead). #385's probes, Claude Code 2.1.284, in a replica of this layout (a main checkout
+  with the same root, area and rule files and a `git worktree add` under `.claude/worktrees/1`), the exclude only in
+  main's `settings.local.json`: a session started in the worktree still loaded the worktree's root `CLAUDE.md` at
+  launch (with the exclude also in the worktree's own `settings.local.json` it loaded none, so the pattern does
+  match); a session started in the main checkout that Read worktree files loaded main's root `CLAUDE.md` at launch
+  and, by path, the worktree's area files and both copies of each rule, but no worktree root `CLAUDE.md`.
+  `tools\run.cmd doctor` (the full one; `onboard` runs it) adds the pattern to that file, merged into what is there
+  (never to a file under `.claude/worktrees/`, should git fail to name the main checkout); `doctor --quick` (and so `verify`) only warns when it is missing. Neither touches it in CI or off Windows, where
+  it would take a worktree session's only root `CLAUDE.md`. So a workflow agent reads a worktree's root `CLAUDE.md`
+  only by Read.
+- **[applied] The rules too (#406).** The same file also gets `**/.claude/worktrees/*/.claude/rules/**`, through the
+  same `doctor` code. Without it a main-started agent that Reads worktree files loads main's and the worktree's copy
+  of each matching rule (since 2026-09-28: `gdscript.md` 168, `tests.md` 166 and `godot-resources.md` 18 extra loads,
+  about $5.9, #385's `metrics`). #406's probes, Claude Code 2.1.284, the same replica with both patterns: a session
+  started in the worktree, the patterns only in main's file, loaded the worktree's root `CLAUDE.md` and all 3 of its
+  rules by path (with the patterns also in the worktree's own file it loaded no rule, so the pattern does match); a
+  session started in the main checkout that Read a worktree `.gd`, test and `.tscn` loaded main's copy of each of the
+  3 rules once (main's `tests/**` rule matches a worktree's `tests/` file) and no worktree copy, where without the
+  patterns it loaded both copies of each. So a main-started agent follows main's rules: a task branch's own edit of
+  a rule, or a rule it adds, reaches that agent only by Read (a task that changes a rule says so in its prompt).
+  `godot-resources.md` names `**/project.godot` rather than `project.godot` so that main's copy also matches a
+  worktree's (not probed, #406's review).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
@@ -138,8 +174,9 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots` and `bots-enet`, §11). A workflow agent or subagent (a 5-minute prompt cache) runs it in the
-   background and polls it with `wait` in calls of at most 240 s (§11, "Bounded waits").
+   matches too (`bots` and `bots-enet`, §11). Every agent runs it in the background and polls it with `wait <log>`
+   (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
+   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
    can leak) or `tests/harness/` (the information-leak test) changed; plus
@@ -148,10 +185,11 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 4. In the engineer's sessions (`gh api user` is the engineer's account, the `*` owner in `.github/CODEOWNERS`) no
    question: publish once 1 to 3 hold ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
    In the designer's sessions, or when unsure, one question: **"Publish now? (push + PR + handoff comment)"**.
-5. `tools\run.cmd publish`: rebase on the open PR's base (else the `start --base` parent, else `origin/main`), re-run
-   `verify`, push the task branch with a lease (§8.3). Under `bounded_waits` (§7.1) the publishing agents of
-   `issue-task` and `pr-rebase` run no standalone `verify` before `publish` when `tools\run.cmd wait --verified` exits
-   0 (the newest verify passed at HEAD with a clean tree), since `publish` runs it anyway.
+5. `tools\run.cmd publish`, in the background with `wait <log>` like `verify`: rebase on the open PR's base (else the
+   `start --base` parent, else `origin/main`), re-run `verify`, push the task branch with a lease (§8.3). Under
+   `bounded_waits` (§7.1) the publishing agents of `issue-task` and `pr-rebase` run no standalone `verify` before
+   `publish` when `tools\run.cmd wait --verified` exits 0 (the newest verify passed at HEAD with a clean tree), since
+   `publish` runs it anyway.
 6. Open the PR from the template: `Closes #42`, summary, verification commands and output, `shot` screenshots for
    visual changes, docs updated yes/no, `--reviewer <other human>` if the other owner's paths are touched.
 7. Handoff comment on the issue (done / left / decisions / gotchas); board item → **In review** via the runner.
@@ -289,30 +327,41 @@ Rules for every workflow run:
   carry one line each for the two calls that stopped them most (#312, #326): read the hooks path with
   `git rev-parse --git-path hooks` (§8.1), and wait with `wait <log>`, `run_in_background` or Monitor, never a
   foreground `sleep N; cat <log>` (§11, "Bounded waits"); the test pins both lines, identical in the two scripts.
+  Both return a compact result (#386), because the harness prints a run's return value into the manager's context
+  and every later call reads it again: the fields the skill's §4 acts on (the PR, CI, published, `stopped` and why,
+  `needs_engineer` and `human_steps` in full, `not_fixed` and `merge_notes` a line each, the reviews' findings by
+  severity, each v2 option's summary) and `full`, the path of the run's journal
+  (`~/.claude/projects/<project>/<manager-session-id>/subagents/workflows/<run-id>/journal.jsonl`), which keeps every
+  agent's whole result: a `result` line has the `key` of its agent's `started` line, which names the label (after a
+  resume, the last counts). A stop keeps what its relaunch needs in full (a red implementer's verify tail and what it
+  left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
+  shrank from 89k to 11k characters (about 1,250 a run).
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
-  optional `issue-task` args, all off by default, so a launch or a resume with the earlier args gets the earlier
-  agents byte for byte (`tools/runner/tests/workflow_snapshots/` holds their prompts and options for representative
-  arg sets). `plan_review: true`: a plan agent and a fresh critique of its plan before the implementer, summarized
-  in the PR (+2 agents). `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's
-  production code with `tools\run.cmd mutants` (#184), each in a scratch worktree; a survived mutant is a finding,
-  and the publisher stops and reports when `mutants` exits 2; the result's `stopped` then says to relaunch, not
-  resume (+1; none for a design task or a diff without `core/ server/ net/ client/ voice/` code). `second_review:
-  true`: a second `netcode-security-reviewer` with an attacker's lens wherever the netcode review is routed (+1).
-  `skeptic: true` or a number: a read-only agent tries to refute each blocker or major finding before the publisher
-  (a number caps the agents); refuted ones are listed in the PR with the reason (+1 each). `visual: true` (the
-  scenarios the notes name), a scenario or a list: the implementer runs `tools\run.cmd playcheck` (#186), the code
-  reviewer reads the PNGs, and the rule on Godot windows also allows `playcheck` (+0). `efforts` and `models`: per
-  role (implement, plan, plan_review, review, netcode, second_review, godot, test_review, skeptic, publish,
-  publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an effort or a model only when one is
-  set, and no default names a model (the model-guard ADR); a model beyond the shared list goes only into a launch's
-  `models`, where the kickoff allows it (its amendment A, §5). `publish_clean` (#308, a one-wave trial; falls back to
-  `publish`) is the full publisher of a run with no blocker or major left open after the reviews, the test review
-  and the skeptics, never of a design task; the result's `publish_clean` says whether it applied. A missing
-  `mutants` or `playcheck` on the task's branch is reported in the result and the PR, and the run goes on.
-  `bounded_waits: true` (#303; `issue-task` and `pr-rebase`, +0): each agent that runs `verify`, `publish`, `mutants`
-  or a CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI
-  commands of §11 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows
-  done). The root CLAUDE.md rule reaches every workflow agent without it once on main; the arg adds the commands.
+  optional `issue-task` args, all off by default but `bounded_waits` (on since #411), so a launch or a resume with the
+  earlier args and `bounded_waits: false` gets the earlier agents byte for byte
+  (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
+  sets; the folder above it, the same cases as launched by default). `plan_review: true`: a plan agent and a fresh
+  critique of its plan before the implementer, summarized in the PR (+2 agents). `test_review: true`: after the
+  reviews one agent plants 3 to 5 faults in the diff's production code with `tools\run.cmd mutants` (#184), each in a
+  scratch worktree; a survived mutant is a finding, and the publisher stops and reports when `mutants` exits 2; the
+  result's `stopped` then says to relaunch, not resume (+1; none for a design task or a diff without `core/ server/
+  net/ client/ voice/` code). `second_review: true`: a second `netcode-security-reviewer` with an attacker's lens
+  wherever the netcode review is routed (+1). `skeptic: true` or a number: a read-only agent tries to refute each
+  blocker or major finding before the publisher (a number caps the agents); refuted ones are listed in the PR with the
+  reason (+1 each). `visual: true` (the scenarios the notes name), a scenario or a list: the implementer runs
+  `tools\run.cmd playcheck` (#186), the code reviewer reads the PNGs, and the rule on Godot windows also allows
+  `playcheck` (+0). `efforts` and `models`: per role (implement, plan, plan_review, review, netcode, second_review,
+  godot, test_review, skeptic, publish, publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an
+  effort or a model only when one is set, and no default names a model (the model-guard ADR); a model beyond the
+  shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A, §5). `publish_clean`
+  (#308, a one-wave trial; falls back to `publish`) is the full publisher of a run with no blocker or major left open
+  after the reviews, the test review and the skeptics, never of a design task; the result's `publish_clean` says
+  whether it applied. A missing `mutants` or `playcheck` on the task's branch is reported in the result and the PR,
+  and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`, +0; the default since #411, `false` turns
+  it off for a resume of an earlier run launched without it): each agent that runs `verify`, `publish`, `mutants` or a
+  CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI commands
+  of §11 "Bounded waits" (its publishing agents also skip a standalone verify that `wait --verified` shows done). The
+  root CLAUDE.md rule reaches every workflow agent without it once on main; the arg adds the commands.
   `pr-rebase` takes `second_review`, `skeptic`, `bounded_waits`, `efforts` and `models` (roles rebase, review,
   netcode, second_review, skeptic, fix); when skeptics refute every blocker or major, no fix agent runs and the
   result's `note` asks the manager to list the refuted findings with their reasons in the PR body. The kickoff's
@@ -388,13 +437,40 @@ Rules for every workflow run:
     revert PR (`git revert -m 1 <merge>` on a task branch), merges it through the same gate and says so. "стоп мерджі"
     from the engineer returns merges into `main` to the engineer until the engineer says otherwise (recorded on the plan
     issue and #170). A solo session merges only where the engineer said so, from the main checkout.
+  - **A list into `main`: `merge-train`** (#387). Each merge leaves the other open PRs behind `main`, so they go in
+    series: on 2026-10-04 the manager drove 9 merges by hand, about 20 minutes each. `tools\run.cmd merge-train <pr>...
+    --base main` (from the main checkout, in the background with a log ending `exit=<n>`, polled with `wait`) takes the
+    PRs in the order given with no manager turn between them. Before the train, the manager's own check (trust ADR) for
+    every PR in the list: no open blocker or major in its findings table and `not_fixed`; the gate does not read them.
+    For each: the PR read (every `gh` call bounded); skipped with the reason when not open into `main`, its head is not
+    a task branch, the gate would refuse it whatever a publish does (a draft, not the engineer's PR or session, an
+    exception, an open "Needs the engineer": read by the gate's own code before any verify), no worktree has its branch
+    checked out (`git worktree list`), or a live run holds that worktree (a verify slot holder there, a Claude Code
+    session there that is busy or was updated within `--recent` minutes, a rebase, merge, cherry-pick, revert or bisect
+    in progress, uncommitted changes, a HEAD that is not the PR's head, or a commit younger than `--recent` minutes,
+    default 10; `--recent 0` once the manager knows the run ended). Then the way, printed: `main` already in the head,
+    no publish; a history with merge commits (which `publish`'s rebase can trip on), `git merge origin/main` in the
+    worktree, its `verify`, a fast-forward push of the task branch (a conflict is aborted, a red verify undoes the merge
+    commit); otherwise the worktree's own `publish`. A red `verify` is retried once and the retry logged (a timeout on a
+    busy PC is the usual cause); a rebase or merge conflict, a second red or any other stop skips the PR, and a publish
+    that pushed nothing has its rebase undone (`git reset --keep` to the PR's head), so a later run takes the PR again.
+    Then CI: GitHub shows the pushed head, and the checks are read from the JSON of `gh pr checks` (its exit code is
+    non-zero both while a check is pending and when one failed): a failed or cancelled check (a new required job too, as
+    "runner on the minimum Python" was) skips at once, all green goes on, no verdict in 40 minutes skips. Then `merge
+    <pr> --base main` (the same code: the gate as above, its `wave:` line). A final `merge-train summary` lists the
+    merged and skipped PRs (exit 0 only when all merged); a git call that hangs skips its PR, and the summary is printed
+    even when the train stops on an unexpected error. `--dry-run` prints each PR's worktree and way, or why it would be
+    skipped, and each gate's verdict now, and changes nothing. It never pushes `main` and never merges a gate exception.
 - **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7, the
   engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170) sends
   its PRs straight into `main`, each merged by its manager through the gate (Git flow above, "Into `main`"; how a
   milestone takes `main` in: Git flow above). At most about six task workflows run at once across all tracks (three per
   stage). Each kickoff states its budget as a percentage of the weekly limit, and its manager reports its own spend in
   every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`, plus the stage's
-  running total (`--since <stage start>`): a run counts in the window it started in. Shared files (N5 (c)):
+  running total (`--since <stage start>`): a run counts in the window it started in. A track's spend this week against
+  its budget, over every session of the track, the UI and art checkouts' included: `tools\run.cmd metrics --since <the
+  weekly reset> --track <name> [--budget <%>]` (#409; a session's track is its `--session <id>=<track>` label, else
+  the `Track:` line of its kickoff, the skill's §10, else its checkout's, else untracked). Shared files (N5 (c)):
   `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an issue there, landing
   between the other managers' waves: a mid-wave change breaks their resumes); `tools/runner/` and this file may be
   changed by any track between waves, after `merge-check`. `merge-check` also pairs each PR with every open PR into
@@ -439,11 +515,16 @@ Rules for every workflow run:
 edit tooling, clean up its scratchpad and `tests/scratch/`) and stops only for the rare items below
 ([ADR](decisions/2026-09-28-unattended-work-permissions.md)). **Test for a new ask or deny rule:** "can an agent work
 alone overnight?" Replay the latest unattended run's transcripts against the new rule
-(`tools\run.cmd permissions --before origin/main` replays every local transcript through the rules and the guard of
-`origin/main` and of the checkout, in bypass mode); a rule that would have stopped routine work is judged by its
-target in the guard (§8.2) instead of by its text
+(`tools\run.cmd permissions --before origin/main` replays this project's transcripts, the main checkout's and its
+worktrees', through the rules and the guard of `origin/main` and of the checkout, in bypass mode; `--since
+YYYY-MM-DD` keeps the calls from that day on, `--mode default` models a mode that prompts, `--list` names each cause
+with examples, and `--observed` reports what the transcripts record instead: the guard's asks, deny rule denials,
+Claude Code's own blocks and the human's rejections, with roles and waits, but not an ask rule's prompt that the human
+approved, which leaves no trace: the replay's "ask rules" count holds those); a rule that would have stopped routine
+work is judged by its target in the guard (§8.2) instead of by its text
 ([intervention](interventions/2026-09-30-engineer-night-run-blocked-by-prompts.md)). `runner.permissions` models
-Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow), and its selftests
+Claude Code's matcher (subcommands, wrappers, `*`, deny before ask before allow, its documented read-only commands and
+a guess at git's read-only forms, which a `cd` elsewhere in the same call takes away), and its selftests
 (`tests/test_permissions.py`) check the lists with the guard: reads of other repositories pass in every mode, writes
 there ask, and every `Bash(...)` rule has its `PowerShell(...)` twin. **Inside its own worktree and
 task branch an agent has full freedom**: every git operation and every delete there runs without a prompt, and it
@@ -465,13 +546,16 @@ stops only for design and other human-reserved decisions and for what reaches be
   stopped every read. The guard asks for it (§8.2). Work-discarding or history-rewriting git (`reset`, `checkout`,
   `switch -f|--discard-changes`, `restore`, `clean`, `rebase`, `stash drop|clear`, `branch -d|-D`, `worktree`, `git -c`)
   and recursive deletes have no text rule since #51 (and #47 for `rm -r` and `git reset`): the guard asks by where they
-  act (§8.2), so they are free in the agent's own worktree and on its task branch, and ask in the main checkout, in
-  another worktree and on another branch.
+  act (§8.2), so they are free in the agent's own worktree and on its task branch, and ask in the main checkout (but
+  a cloud session's on its task branch, #381), in another worktree and on another branch.
 - **Deny:** force pushes; pushes to `main` in any spelling, including a bare `git push`, `git push [-u] origin` with
   no branch and any push naming `HEAD` (always push an explicit branch name); `--no-verify`, remote deletes,
   `--prune`, `--mirror`, `--all`, `git config` on `hooksPath` or `--unset`, `--upload-pack`,
   `--output`, **`gh pr merge` and `mcp__ccd_pr__set_auto_merge`**, `gh repo delete`, `gh auth token`,
-  token-printing `gh auth status`.
+  token-printing `gh auth status`. A deny rule matches reads too and denies the whole call: read the hooks path with
+  `git rev-parse --git-path hooks` (it prints `.claude/githooks`) or `doctor`, never `git config --get core.hooksPath`
+  (10 denied calls in the week to 2026-10-04, #312), and the merge help with `gh help pr merge`, never
+  `gh pr merge --help`.
 - Godot, Python and gdtoolkit run without a prompt **only through the runner**; their raw forms prompt in modes that
   prompt.
 - `GH_PROMPT_DISABLED=1` is set in the shared `env`.
@@ -492,7 +576,9 @@ pipeline (`Get-ChildItem addons | Remove-Item`, `| xargs rm`), `for` loops over 
 and `$(...)` bodies, and the inline code of interpreters and .NET calls (`python -c`, a heredoc fed to Python,
 `node -e`, `[IO.File]::WriteAllText`). Text rules cannot see these writes: Claude Code checks a redirect or `tee`
 target against Edit allow and deny rules, not ask rules. The file tools need no guard, because `Edit(...)` rules
-cover Edit, Write and NotebookEdit.
+cover Edit, Write and NotebookEdit. So a test of what happens without an addon runs in a scratch clone outside the
+project (`git clone` into the scratchpad, then remove the addon there), never by moving `addons/` in the worktree,
+which asks at every step (5 asks in one task on 2026-10-03, #312).
 
 It also judges two kinds of command by what they act on, where a text rule would stop an unattended agent: commands
 that lose work, by where they act (its own scratch folder, issue #47, or its own worktree, issue #51), and `gh`
@@ -503,8 +589,20 @@ commands, by the repository they name (issue #68, a read of another repository m
   checkout (a manager's task session) owns the first worktree its command enters with `cd`, `Set-Location` or
   `git -C` (`cd D:/prime-game/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same
   command asks), unless another live Claude session works in that worktree (`sessions.active_on`): then it owns
-  none. The main checkout is never owned: the designer's sessions and the engineer's `start --here` sessions keep
-  every prompt. The task branch is known by the worktree's identity: the branch checked out in
+  none. On a desktop the main checkout is never owned: the designer's sessions and the engineer's `start --here`
+  sessions keep every prompt. **A cloud session** (§2.1; `CLAUDE_CODE_REMOTE` true and not CI, the test `doctor`
+  uses: `common.cloud_session`, which `hooks.cloud_session` mirrors without importing `common`) whose working
+  directory is in no worktree owns the main checkout while a task branch (`<area>/<n>-<slug>`, `guard.TASK_BRANCH_RE`)
+  is checked out there (issue #381): the same rules as a worktree on its task branch, with `<n>` taken from that
+  branch. No worktree folder pins `<n>` there, so any task branch checked out counts, a parent's after a switch too.
+  `.git`, `.claude`, `.claude/worktrees` and any glob that may name them (`.[^.]*`, `*`, `{s..t}`, an extglob) stay
+  outside it, and so do `git clean -x|-X|-e|-ff` (ignored files: `.claude/settings.local.json`, the other worktrees as
+  nested repositories), `git stash -a` and magic pathspecs (`:(top)x`); git work in another worktree still asks.
+  `git clean -en` is `-e n`, no dry run (in every checkout since #381). On `main`, `release/*`, any other branch or a
+  detached HEAD it asks as on a desktop; a rebase stopped on a conflict keeps its branch (`hooks.GitFiles` reads
+  `rebase-merge|rebase-apply/head-name`). The pre-push hook and the push rules (no `main`, no force push by hand) are
+  unchanged. `tools/run.sh permissions` judges the replayed calls as this machine's sessions: a cloud container's
+  replay sees the cloud rule. The task branch is known by the worktree's identity: the branch checked out in
   `.claude/worktrees/<n>` when its name is `<area>/<n>-<slug>`, as `start` makes it. Another branch checked out
   there (a parent, a spike) is not the task's, so work that discards on it asks, whatever an earlier call did; a
   detached HEAD moves no branch and stays free. Its helpers are branches named `<task branch>-x`,
@@ -553,7 +651,8 @@ commands, by the repository they name (issue #68, a read of another repository m
   SHA, `~`, `^`, `origin/x`, `refs/x`, `v1.2`, a task branch `net/40-x`, `main`) and a path otherwise, so
   `git reset feature-x` passes.
 - **Other git that discards work or rewrites history** passes in the own worktree on the task branch, and in a
-  repository outside the project (a clone in the scratchpad); it asks in the main checkout and in another worktree
+  repository outside the project (a clone in the scratchpad); it asks in the main checkout (but a cloud session's on
+  its task branch, above) and in another worktree
   (`-C`, `cd`, `--git-dir`, `--work-tree`, `GIT_DIR`, `GIT_WORK_TREE`; the repository and the working tree are
   judged apart and the worse wins), when a pathspec reaches another checkout (`git checkout -- ../47/core`), and
   after the same command switched away from the task branch (`git checkout main && git reset --hard`, also inside
@@ -571,7 +670,10 @@ commands, by the repository they name (issue #68, a read of another repository m
   `GIT_SEQUENCE_EDITOR` the command sets to `:` or `true` (a prefix; in bash `export`, in PowerShell `$env:`, as that
   shell's last value; it outranks every other editor setting) opens no todo editor and is judged like a plain
   rebase: `git commit --fixup=HEAD` then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` stays
-  editor-free (a `squash!` commit would still open the message editor) (#104). Always asks: another
+  editor-free (a `squash!` commit would still open the message editor) (#104). `git -c core.editor=true`,
+  `-c sequence.editor=:` and `GIT_EDITOR=true` do not count, on purpose: a `GIT_SEQUENCE_EDITOR` inherited from the
+  environment or a `sequence.editor` in a git config file, which the guard cannot see, would outrank them (a publisher
+  that used `-c core.editor=true` on 2026-10-03 waited 23 minutes, #312). Always asks: another
   interactive rebase (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other
   branches), `rebase -x|--exec` (runs commands the guard cannot judge), `update-ref --stdin` and
   `git -c core.hooksPath=...` (the deny rule on `git config *hooksPath*` cannot see it).
@@ -591,7 +693,10 @@ commands, by the repository they name (issue #68, a read of another repository m
   `--jq`) never name the repository, and an option is never taken as the value of another one
   (`gh pr create -d -R x/y`). A value it cannot compute (`$env:GH_REPO = (Get-Content f)`, `-R "$R"`) counts as another
   repository. Out of scope: GraphQL mutations (a node ID does not say its repository) and a `gh` command run in a clone
-  of another repository without naming it.
+  of another repository without naming it. Sibling repositories of this project (`prime-game-art`, `prime-game-ui`)
+  are other repositories too: a session that manages one runs in that repository's checkout, never in
+  `D:\prime-game`, where each of its `gh` writes there asks (30 asks on 2026-10-02 and 10-03, about 12.6 hours of
+  waiting, one `gh pr create` over a whole night, #312).
 - In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
   `git -C D:/prime-game clean -fdx` ask there.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
@@ -633,6 +738,27 @@ commands, by the repository they name (issue #68, a read of another repository m
   issue comment on this repository whose body held `-R`, `gh release --help`). Two calls still ask, now through the
   guard: `gh issue create --repo godotengine/godot` (an upstream bug report) and a `gh issue create -R` probe of a
   missing repository. The other 16 guard prompts are unchanged (§8.2 above).
+- What blocked agents in the week to 2026-10-04 (#312), from `tools\run.cmd permissions --observed --since
+  2026-09-29` over this project's transcripts (about 910 of them and 24,800 shell calls on 2026-10-04; the earlier
+  replays above also read the `D--prime-game-art` and `-ui` folders, this one does not): 109 stopped calls, nearly
+  all in bypass mode. 58 guard
+  asks: the 30 `gh` writes to the sibling repositories (above); 20 git commands that discard work, of which 11 came
+  from a manager's shell standing in a worktree and from `git stash drop` on 2026-09-30 (fixed by the 2026-10-01
+  intervention and the no-stash rule), 1 from a no-op editor rebase before #104 landed, 1 from `-c core.editor`
+  (above), 2 from custom sequence editors, and 5 were right (`branch -d|-D`, `reset --hard` of a release branch or in
+  a loop over another repository's worktrees, `worktree remove --force` in a loop); 8 writes to `addons/` (the TwoVoIP
+  install, and the missing-addon test above). 13 deny rule denials: 10 hooksPath reads (§8.1), `gh pr merge --help`,
+  and two pushes without a branch. 30 of Claude Code's own blocks: 28 foreground `sleep`s (§11, "Bounded waits"), and 2
+  `Remove-Item` on a "system path", one right (`D:\c`) and one false: a PowerShell command held `Remove-Item $out` and
+  a cmd.exe `/c` argument, which Claude Code read as its target; put such code in a `.ps1` file in the scratchpad
+  and run it with `powershell -File`. The human said no 8 times. No stop called for an allow rule or a guard change:
+  each was right or a wrong command pattern. The fixes for the wrong patterns are documented here; workflow agents
+  read their workflow prompt instead, which gets the hooks-path and `sleep` rules through #326. Outside bypass the
+  model (`--mode default`, an upper bound) asks for about 12,800 of the calls: `$PYTHON_BIN` about 3,400, git reads
+  (`diff`, `status`, `show`) about 2,200, nearly all after a `cd` into a worktree (Claude Code prompts for git after a
+  `cd` elsewhere, and workflow agents start every command that way), `sed`, PowerShell filters and loops. Allow rules
+  for the plain filters (`cut`, `tr`, `printf`, `date`, `Select-Object` and the like) and `mkdir` would remove about
+  1,500 of them, so unattended work stays in bypass mode.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
@@ -881,11 +1007,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
     player: client 2 may become Player3) and keeps each in `tools/out/logs/session/<label>.log`. They run until
     Ctrl+C, `--seconds S` or every process ending (every window closed); the stop is clean (a stop file each process
     polls: the host closes, so the clients see `host_lost` at once), and a process still running 10 s later is
-    killed. Each process also stops by itself once the runner's alive file (touched every second) is gone or 10 s
-    old, so a killed runner leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error
-    line. The agent's own checks pass `--local --seconds S` (never without `--seconds` in the foreground). On
-    Windows, Ctrl+C in `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already
-    stopped, so either answer is fine. Its selftest runs a headless host and two local clients to the full lobby
+    killed (the report names its last line and when it came; one that stopped says how long it took). Each process
+    also stops by itself once the runner's alive file (touched every second) is gone or 10 s old, so a killed runner
+    leaves no session holding the port. Fails like `run`: a non-zero exit or an engine error line. The agent's own
+    checks pass `--local --seconds S` (never without `--seconds` in the foreground). On Windows, Ctrl+C in
+    `tools\run.cmd` ends with cmd's `Terminate batch job (Y/N)?`: the session has already stopped, so either answer
+    is fine. Its selftest runs a headless host and two local clients to the full lobby
     roster and builds the windowed command lines without starting Godot; `verify`'s `game` step runs the game
     scene headless through its command line (CI below).
 - **`bots [scenario ...]` [applied]** (#102; `docs/ARCHITECTURE.md` §4.6, §9.7): plays every bot scenario in
@@ -924,36 +1051,67 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to
   pin the comparison. The pinned Godot is a debug build (unoptimised GDScript): compare runs with each other, not
   with a release host's cost.
-- **`wave --since T | --args <n> [--workflow NAME] [--session ID] [--out FILE]` [applied]** (#277; round 2 of the AI
-  productivity track, a cheaper manager): a manager session's workflow runs and their handover data, read-only from
-  its transcript and the journals, so status gathering and wave reports cost the manager one command. Sources: the
-  manager's `<session>.jsonl` in one pass (each Workflow call's input `{name or scriptPath or script, args,
-  resumeFromRunId}`, paired by `tool_use_id` with its result's `toolUseResult` `{runId, taskId, workflowName}` or the
-  "Run ID: wf_..." in its text; each task notification, from its queue `enqueue` record or its user record, paired by
-  `<tool-use-id>`; the API calls and the title) and each run's `journal.jsonl` through `metrics.read_run`. A
-  notification's `<result>` is cut at about 8 kB, so PR, CI, published, not fixed, needs engineer and human steps come
-  only from the journal (the publisher's result, else the pr-rebase fix's, else the rebase's; human steps from every
-  agent, each once); the notification gives the status (completed, failed, killed) and whether its result says
-  `"stopped"`. `--since T` writes a wave comment's body (default `tools/out/wave/wave-<session8>.md`, UTF-8; it prints
-  the path) with four sections, each a function in `wave.py`'s `SECTIONS` (#278 adds more): the runs finished since T
-  (a "relaunch fresh, never resume" flag when the outcome has published false, a publisher stopped on `mutants`
-  exit 2, issue-task stopped on a red implementer, a pr-rebase rebase is red or unpublished, or the result says
-  stopped; other workflows, such as a read-only scouting run, are listed by their name with no issue), the running
-  runs (title, worktree, branch, base, the agent working now: each `started` with no `result`, and the minutes since
-  the launch and since the newest write to the run's journal or agent transcripts, which tell a live run from one
-  whose session died), the handover args of each running run and of each failed, killed or stopped one that no later
-  launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`, `ensure_ascii=False`; a
-  resume without args inherits its run's), and a footer (the
-  session's age, its last call's context, the mean API list $ per call of its first and last 20 calls, and any
-  records it skipped). A run is finished when its latest launch has a notification or its journal reached the
-  script's end (issue-task: a publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a
-  red or unpublished rebase, or every reviewer answered with no blocker or major left to fix). `--args <n>` prints
-  only the JSON of issue n's newest launch on stdout (the run, workflow and time on stderr; `--workflow issue-task`
-  or `pr-rebase` picks one; `--out` also saves it, best for Cyrillic from PowerShell 5.1) and exits 1 when n has
-  none. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It writes only its `--out` file, runs
-  no `gh` and launches nothing. The orchestrate-stage skill moves onto it, replacing its `args-<n>.json` files, in
-  #279.
-- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]` [applied]**
+- **`wave --since T [--base B] [--plan N] [--title T] [--notes FILE] [--stage-since T] [--no-merge-check] | --args <n>
+  [--workflow NAME] [--session ID] [--out FILE]` [applied]** (#277, #278; round 2 of the AI productivity track, a
+  cheaper manager): a manager session's workflow runs and their handover data, read-only from its transcript and the
+  journals, and with `--since` the whole wave comment, so status gathering and wave reports cost the manager one
+  command. Sources: the manager's `<session>.jsonl` in one pass (each Workflow call's input `{name or scriptPath or
+  script, args, resumeFromRunId}`, paired by `tool_use_id` with its result's `toolUseResult` `{runId, taskId,
+  workflowName}` or the "Run ID: wf_..." in its text; each task notification, from its queue `enqueue` record or its
+  user record, paired by `<tool-use-id>`; the API calls and the title) and each run's `journal.jsonl` through
+  `metrics.read_run`. A notification's `<result>` is cut at about 8 kB, so PR, CI, published, not fixed, needs engineer
+  and human steps come only from the journal (the publisher's result, else the pr-rebase fix's, else the rebase's; human
+  steps from every agent, each once); the notification gives the status (completed, failed, killed) and whether its
+  result says `"stopped"`. `--since T` writes a wave comment's body (default `tools/out/wave/wave-<session8>.md`, UTF-8;
+  it prints the path and its own run time) with eleven sections in this order, each a function in `wave.py`'s
+  `SECTIONS`: a title (`--title`, default "Wave report since T") with a header line (the plan issue `--plan`, the base,
+  the window); the manager's own judgement from `--notes FILE` as written (decisions, batched questions, the order from
+  here; a BOM and CRLF are dropped); the PRs merged into the base (`--base`, default main) since T (number, title,
+  branch, merge time and commit, closing issues or the branch's issue); the runs finished since T (a "relaunch fresh,
+  never resume" flag when the outcome has published false, a publisher stopped on `mutants` exit 2, issue-task stopped
+  on a red implementer, a pr-rebase rebase is red or unpublished, or the result says stopped; other workflows, such as a
+  read-only scouting run, are listed by their name with no issue), the running runs (title, worktree, branch, base, the
+  agent working now: each `started` with no `result`, and the minutes since the launch and since the newest write to the
+  run's journal or agent transcripts, which tell a live run from one whose session died); the open PRs into the base and
+  those stacked on them (issues, base, draft, a CI cell from `statusCheckRollup`: red beats pending, else green, "none"
+  when nothing reported; `mergeStateStatus`); merge safety (`merge-check --base B` with its printed lines captured: its
+  exit code and verdict line, and only when it flagged something or failed its tables and details exactly as printed;
+  `--no-merge-check` skips it and its `git fetch`); the cost (what `metrics --since T --session <this session>
+  --compact` prints, computed in memory with no metrics file written, plus with `--stage-since S` the stage's `total API
+  list $` and `% of a Max 20x week` lines; `COST_EXTRAS` in `wave.py` takes more lines over metrics' JSON record, the
+  hook for #314); housekeeping (below); the handover args of each running run and of each failed, killed or stopped one
+  that no later launch of its issue and workflow has replaced (the args exactly as passed, `indent=1`,
+  `ensure_ascii=False`; a resume without args inherits its run's); and a footer (the session's age, its last call's
+  context, the mean API list $ per call of its first and last 20 calls, and any records it skipped). A section says
+  "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
+  body is still written and `wave` exits 0. Housekeeping, from `git worktree list --porcelain` in the main checkout: one
+  fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-done <n>`; for the manager's
+  `release-m<k>` worktree its `git worktree remove` and `git branch -D`) for each worktree whose branch's PR merged and
+  whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
+  running run of this session there, its HEAD at the merged head and no live Claude session in it; the manager runs
+  those itself (orchestrate-stage §8, the trust ADR). The section's first line, which the manager lifts into its chat
+  message, names only what needs the engineer, a worktree a live session holds: `For you: close the Claude session in
+  worktree <n> (...), then run its block below.` (`For you: nothing.` when none; the ready blocks stay out of it,
+  #343). The other cases are one-line waits (after `release/m<k>` reaches main, a run still running there, HEAD not
+  the merged head). It also names the issues still open whose PR reached main since T. One `gh pr list --state merged
+  --search sort:updated-desc` (the 500 most recently updated, every base; gh's default order is by creation) serves
+  the merged section and housekeeping (gh's `merged:>=` search is date-only, so mergedAt is filtered here); when gh
+  returns all 500, the merged section names the oldest update among them, before which a merged PR (and its worktree)
+  may be missing. A body over 60,000 characters (GitHub's limit is 65,536) moves its handover data, each run's block
+  whole, to `<out>-2.md` (and `-3.md`, ...), posted as the next comments; the first body says so, every path is printed,
+  a part one run's args alone push over 65,536 gets a warn, and a part left from an earlier run is named, never deleted.
+  A run is finished when its latest launch has a notification or its journal reached the script's end (issue-task: a
+  publisher result, or a red implementer with no publisher; pr-rebase: a fix result, a red or unpublished rebase, or
+  every reviewer answered with no blocker or major left to fix). `--args <n>` prints only the JSON of issue n's newest
+  launch on stdout (the run, workflow and time on stderr; `--workflow issue-task` or `pr-rebase` picks one; `--out` also
+  saves it, best for Cyrillic from PowerShell 5.1) and exits 1 when n has none; the `--since` flags are refused with it,
+  and it reads nothing beyond the transcript. The session defaults to `CLAUDE_CODE_SESSION_ID`; an id prefix works. It
+  writes only its `--out` file(s) and posts, edits and launches nothing: `gh` is only read, and merge-check's `git
+  fetch` (with any PR head it fetches) is its only write, to the shared git dir. The live run on the AI productivity
+  manager (#278's PR) took about 9 s with merge-check. The orchestrate-stage skill moves onto it, replacing its
+  `args-<n>.json` files, in #279.
+- **`metrics [--session ID[=LABEL] ...] [--since T] [--until T] [--ci N] [--out DIR] [--compact] [--no-gh]
+  [--track NAME ... [--budget PCT ...]]` [applied]**
   (#178; item 1 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), whose
   baseline it reproduces): time, tokens and API list $ of the task workflows, read-only from Claude Code transcripts. It
   reads `~/.claude/projects/<key>/` (`CLAUDE_CONFIG_DIR` replaces `~/.claude`), where `<key>` is the main checkout's
@@ -976,17 +1134,17 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   % of a Max 20x week, each manager session's cache re-writes after an idle gap over 1 hour (count, tokens, API list $,
   by what held when the gap began: a keep-alive timer, a run of its own in flight, or a stop; its timers and its last
   call's context; #305, the skill's §7), and the other runs; `--ci N` adds CI from `gh` (the runs of `ci.yml` in the
-  window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most ten
+  window, and the jobs and `verify` steps of the last N green runs). `--compact` prints only its summary of at most 11
   lines (time and API list $ per task and in total, quality, the % of the week, `verify` medians): the manager pastes
-  `metrics --since <wave start> --compact` into each wave comment. The % of the week is at $25.5 list per 1% (#304: 66%
-  at 2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change; the pipeline v2 ADR's
-  amendment), with a bracket beside it: the limit counting cache reads at 60 to 100% of their list $ ((list $ without
-  cache reads, plus 0.6 or 1 times the cache-read $) / $21.5 or $25.5), the range #307 measured (central 75%; the ADR's
-  #307 amendment). The $25.5 counts cache reads at full list $, the bracket's upper end; it was fitted where cache reads
-  were 40% of list $, where it matches the central weight ($23.0 per 1%) within 1%. The compact line prints the report's
-  own share: far from 40%, the % reads high with more cache reads and low with fewer, and the bracket is the better
-  figure. It covers only this checkout's sessions (the main checkout and its worktrees) that ran a workflow or that
-  `--session` names; the weekly counter counts every session of the account. API list $ is a weight (one price table in
+  `metrics --since <wave start> --compact` into each wave comment. The % of the week counts cache reads at the central
+  weight #307 measured (the pipeline v2 ADR's #307 amendment; `WEEK_CENTRAL`, #333): (list $ without cache reads, plus
+  0.75 times the cache-read $) / $23.0 per 1%, whatever the cache reads' share of list $. A bracket beside it is the
+  range #307 measured, the limit counting cache reads at 60 to 100% of their list $ ((list $ without cache reads, plus
+  0.6 or 1 times the cache-read $) / $21.5 or $25.5; `WEEK_BRACKET`). At 1, $25.5 is #304's full list $ per 1% (66% at
+  2026-10-03 20:54 UTC was $1,690 list since the counter restarted at the plan change). The calibration readings, 66%
+  and 77%, both round to the reading at the central weight. It covers only this checkout's sessions (the main checkout
+  and its worktrees) that ran a workflow or that `--session` names; the weekly counter counts every session of the
+  account (`--track`, below, reads every session of three checkouts). API list $ is a weight (one price table in
   `metrics.py`, its source and date beside it), not money spent; no transcripts is a message and exit 0, and so is an
   empty window, which also writes an empty report over an older one. Its quality scorecard (#314), so a cost change
   (#303, #308's publisher trial, effort levels) is judged by quality too, has three tables, per finished `issue-task`
@@ -1004,33 +1162,69 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   repository, no CI run, or `gh` not read; medians and sums say how many are known. The compact `quality:` line ends
   with the API list $ per PR green on its first CI round (the merged count beside it). A caller of `metrics.build`
   (wave's cost block once #278's PR lands) gets the line's journal half; passing `github=metrics.read_github()` adds
-  the GitHub half.
+  the GitHub half. Its section "Instructions and docs per agent role" (#337) is the instruction-diet ADR's method (#313,
+  "How it was measured"), so the diet's issues are measured against one baseline. Per role: agents, the median
+  launch-loaded, path-loaded and read tokens, the list $ split into first writes, re-writes after a lapsed cache and
+  reads, its share of the role's $, the points at w = 0, 0.5 and the central 0.75 ((non-read $ + w x cache-read $) /
+  $15.3, $20.3 or $23.0, `POINT_WEIGHTS`, the last from `WEEK_CENTRAL`, for the window) and the files loaded twice in
+  one agent (either copy, before a compaction). Then the cost by file, the duplicates, ARCHITECTURE's and
+  AGENT_WORKFLOW's list $ by § of today's file, and per manager session (one row each; `--since <wave start>` for a
+  single wave) the open-PR pairs whose `merge-check` output names an ARCHITECTURE conflict (N1 (c)'s trigger);
+  `instructions` in `metrics.json`, and one compact line. **`--track NAME ...`** (#409, P1 of the four-track budget
+  design on #389) with `--since <the weekly reset>`: a track's spend this week against its budget. It reads every
+  session, workflow or not, of the folders of `TRACK_CHECKOUTS`: the main checkout and its siblings with the folder
+  name plus `-ui` and `-art` (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`), each with its
+  worktrees; the session's own lines, its hand-run subagents and its workflow runs' agents, each API call counted by
+  its time in the window (a run in flight or one begun before the reset counts in part) and each message id once
+  across every file. A session's track is, the first that holds: `--session <id>=<track>` (under `--track`
+  `--session` labels and never filters), a `Track: <name>` line in its first user message (the kickoff: the
+  orchestrate-stage skill's §10 template and §7's handover carry one; any case, the key also `Трек:` for a translated
+  kickoff, the name in English; Claude Code's own isMeta lines and tool results are no message), its checkout's
+  default (`-ui`: ui, `-art`: art), else `untracked` (the engineer's reserve). It prints one line per named track
+  (`all`: every track found, `game`, `ui`, `art`, `meta` first): its % of the week at the central weight with the
+  bracket, its list $ and sessions, and with `--budget PCT ...` (one per name, in order; the budgets are the
+  engineer's, N1 of the design, so there is no default) `of <budget>% this week; plan to date <budget x days since
+  --since / 7, at most the budget>%`; then every session's total, which the manager holds against the weekly counter
+  (`get_usage`), with the untracked share and its three largest sessions (a kickoff whose `Track:` line was left out
+  or translated shows there). That total covers only the three checkouts: the counter also counts the account's
+  sessions elsewhere (another project folder, a replay), so the two differ by more than the conversion's error.
+  Without `--compact` a table of the sessions follows (track, where it came from, API calls, list $, %). It writes
+  `tracks.json` (`--out`), never `metrics.md`. On 2026-10-02 10:28 to 2026-10-04 22:33 UTC with the design's sessions
+  labelled it gave its row 2 to the tenth: game 17.6%, UI 13.0%, art 15.8%, meta 37.0%.
 - **`playcheck [scenario ...]` [applied]** (#186, P9 of the AI productivity ADR, item 8): the real game in off-screen
-  windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw
-  before (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`),
-  names its players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more
-  windows join it, and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a
-  `BotScenario`'s scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup
-  window 1 sends as the host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps:
-  `wait phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`,
-  Esc menu and pointer, never `HostSession`, the match or `core/` (invariant 2); `wait text <field> is|has|lacks
-  <text>` and `wait shown <field> on|off` (#275), what its own Ui and current camera draw (the fields: `FIELDS` in
+  windows running scripted steps, with screenshots at named steps, for the UI and camera bugs only a playtest saw before
+  (#168, #169). A scenario, `tools/playcheck/scenarios/<name>.txt` (grammar: `tools/runner/playcheck.py`), names its
+  players: window 1 hosts (`client/app/game.tscn` with `--host --local` on a free port), up to two more windows join it,
+  and the players after them are bots, one headless process (`tests/harness/playcheck/`) playing a `BotScenario`'s
+  scripts over ENet (`bots <file.tres>`); its `role`, `setting` and `clock` lines are the setup window 1 sends as the
+  host's own client. Each window (`tools/playcheck/playcheck_window.gd`) runs its own steps: `wait
+  phase|screen|life|ready|players|event|esc|pointer ...`, read from its own `ClientSession`, `ClientModel`, Esc menu and
+  pointer, never `HostSession`, the match or `core/` (invariant 2); `wait text <field> is|has|lacks <text>` and `wait
+  shown <field> on|off` (#275), what its own Ui and current camera draw (the fields: `FIELDS` in
   `tools/runner/playcheck.py`, the same keys as the window's `GameView`; whitespace runs count as one space, a hidden
   field reads as ""); `press <action>` (its key through `Input.parse_input_event`), `hold`/`release`
   (`Input.action_press`), `button <text>` (the one visible, enabled Button with that text takes the focus and gets
-  `ui_accept`'s key; none or several fail the step), `frames N` and `shot <name>`. A text wait asserts a short, stable
-  part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario edit,
-  and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
-  (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit
-  at `shot`'s off-screen position with the dummy audio driver, never headless. The game gets a pointer that only
-  remembers, and playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse
-  (`use`, spectate cycling) is out of its reach. PNGs: `tools/out/playcheck/<scenario>/<shot>.png` (`gh` cannot
-  upload them: the PR lists their paths and says what each shows); logs: `tools/out/logs/playcheck/<scenario>/`. A
-  run fails on a wait past its timeout (the window prints the step's line and what it saw, and saves
-  `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not done within
-  `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started through
-  the stop file (else a kill). Desktop only: CI and `verify` never run it; an agent may (off-screen windows, like
-  `shot`). Scenarios: `esc_menu` (#169) and `spectate` (#168).
+  `ui_accept`'s key; none or several fail the step), `aim item <kind>` until `aim off` (#276: each frame the window
+  turns its own player, `PlayerController.look`, to face the nearest resting item of that kind in its own `ClientModel`;
+  paired like `hold`), `frames N` and `shot <name>`. A `press` reaches what reads input events and what polls
+  `Input.is_action_just_pressed` in `_process` alike (`interact`, `swap`, `put_down`). A text wait asserts a short,
+  stable part with `has`/`lacks`, never a whole greybox sentence (#150): a wording change stays a one-line scenario
+  edit, and a timeout prints what the window drew (`hud.hand 'Hand: empty'`). `lacks` holds at once on a hidden field
+  (it reads as ""): put a `has` or `wait shown <field> on` on the same field before it. The windows sit at `shot`'s
+  off-screen position with the dummy audio driver, never headless. The game gets a pointer that only remembers, and
+  playcheck presses keys only, so the real mouse is never captured; what needs a captured mouse (`use`, spectate
+  cycling) is out of its reach, and `aim` is the only way to turn. PNGs: `tools/out/playcheck/<scenario>/<shot>.png`
+  (`gh` cannot upload them: the PR lists their paths and says what each shows); logs:
+  `tools/out/logs/playcheck/<scenario>/`. A run fails on a wait past its timeout (the window prints the step's line and
+  what it saw, and saves `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not
+  done within `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started
+  through the stop file (else a kill: a window after 30 s, since its renderer's exit can wait seconds on the GPU
+  driver when every core is busy, #354; the bots after 10 s). Under a full-PC load it can also fail for reasons that
+  are not bugs (ARCHITECTURE §4.7 `playcheck`, "Known load limits", #406): run it again once the load ends before
+  debugging it. Desktop only: CI and `verify` never run it; an agent
+  may (off-screen windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked
+  up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a
+  second round, #276).
 - **Warnings [applied]:** `untyped_declaration`, `unsafe_method_access`, `unsafe_property_access`,
   `unsafe_call_argument` = Error; the rest stay Warn and are reported by `check`; `inferred_declaration` stays off.
 - **Runner [applied]** ([ADR](decisions/2026-09-29-python-task-runner.md)): Python core `tools/run.py` with
@@ -1083,15 +1277,38 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `~/.cache/prime-game/verify-slots`), outside every checkout, so the main checkout and every worktree share them. The
   operating system frees a slot's lock when its process ends however it ends, so a killed run's slot is taken over at
   once (the next run names it: "left by a run that ended without releasing it"). While every slot is held the run prints
-  every minute which worktrees, branches and pids hold them. The wait is bounded (default 95 s): an agent's foreground
-  shell call dies at 600 s, and the wait plus the run that then goes ahead over the limit (about 445 s, three runs at
-  once) and a 60 s margin must end before it; after the wait the run goes ahead without a slot, with `OVER THE LIMIT` in
+  every minute which worktrees, branches and pids hold them. The wait is bounded (default 600 s since #388; 95 s
+  before, to fit an agent's 600 s foreground call, which agents no longer make: they run verify and publish in the
+  background and poll them with `wait`, below). With 95 s, 7 of the 59 runs left in the verify history files (to
+  2026-10-04) ran over the limit, all on 2026-10-04 with three or four tracks verifying at once, and they were slow
+  (median 603 s against 359 s slotted); for the five whose holders the files name, a slot freed 207 to 536 s after the
+  wait began. 600 s covers them all and is about one whole verify on the loaded PC (45 of 51 slotted runs took less):
+  a longer wait means a stuck holder. After the wait the run goes ahead without a slot, with `OVER THE LIMIT` in
   its output, its summary's last line and its record (`over`). A slot never skips or weakens a step. N is 2, measured on
   the engineer's PC with #182's shards (the PR of #185): one or two runs at once took 315 to 386 s each, three 431 to
   441 s, four 452 s; two runs of 4 shards and 4 selftest workers fill the 16 logical CPUs, while a third or fourth makes
-  every run a third longer (no room left for a wait in a 600 s call) and `test` red more often (freeze, stall, enet and
-  bots-enet stayed green). `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and
-  `PRIME_VERIFY_SLOTS_DIR` override the defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
+  every run a third longer and `test` red more often (freeze, stall, enet and bots-enet stayed green).
+  `PRIME_VERIFY_SLOTS` (0: no limit), `PRIME_VERIFY_SLOT_WAIT` (seconds) and `PRIME_VERIFY_SLOTS_DIR` override the
+  defaults; CI and a verify inside a verify (`PRIME_VERIFY_INSIDE`) take no slot.
+  **Load runs (#388):** an agent that tests something under load on purpose (as #318 and #354 did with 32 hand-written
+  busy loops on 16 logical CPUs, which the slots could not see while the other tracks' verify runs went on beside them)
+  runs `load [--loops N] [--seconds S]` (default 2 loops per logical CPU for 600 s; at most 256 loops and 1140 s). It
+  first takes a slot like a verify (the same wait and waiting line), so one verify fewer runs beside it and every
+  waiting run names it (`slot 2: load run in <worktree> (...)`; its holder file has `kind: load`); past the wait it
+  starts nothing and exits 1 (a load is no gate, and it would push the slotted runs over the limit). Taking a slot
+  was chosen over `verify` counting load runs as extra holders: the same operating-system lock frees a killed load's
+  slot at once, there is one count to reason about, and nothing else has to find and judge the load's processes. One
+  slot makes the load visible but does not shield the verify that still runs beside it: a default load busies every
+  logical CPU (a slot stands for half the PC), so that verify is expected to run slow and may go red on `freeze` or
+  `stall`; rerun it after the load instead of debugging it. A load taking both slots would shield it, but would hold
+  every other verify for up to 1140 s, past the 600 s wait, so they would run over the limit anyway. Each
+  loop is its own Python process that ends by itself at most S seconds after it starts, and the runner stops any loop
+  that outlives S by 5 s. A killed `load` frees its slot at once while its loops run out their time without one, so S
+  is at most 1140 s: the 600 s wait, S, the 5 s grace and a 55 s start margin fit the 30-minute default limit of a
+  background command, which therefore never kills a `load`. The agent starts it in the background (a log under its
+  scratch folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with
+  `wait <log>`.
+  Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
   The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (and `error` when the slot folder failed: the run
   then goes ahead without a slot, a slot never stops the gate), its `seconds` leave the wait out, and the summary's last
   line adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over
@@ -1143,7 +1360,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   that happened 261 times (46.5M tokens, $233 of list $, 13.3 of the 66 limit points used, net of the polls), nearly
   all on `verify`, `publish`, `mutants` and `gh pr checks --watch`; the edge is sharp: 0 misses in 69 gaps of 240 to
   300 s, 64 in 91 gaps of 300 to 360 s. So such an agent blocks no tool call over 240 s, and bounds a call with the
-  shell's `timeout` or `wait --max`, never only with the tool's own timeout. It starts the job in the Bash tool with
+  shell's `timeout` or `wait --max`, never only with the tool's own timeout. Since #388 every agent, a main or manager
+  session too, runs `verify`, `publish` and `mutants` in the background with `wait`: a verify slot's wait alone can
+  reach 600 s, where a foreground call is killed. A foreground `sleep N` followed by another command
+  (`sleep 60; cat <log>`) is refused by Claude Code itself (`Blocked: sleep 60 followed by ...`, 28 times in
+  the week to 2026-10-04, 26 by workflow agents, #312; their prompts get this rule through #326): wait with
+  `wait <log>`, `run_in_background` or Monitor with an until-loop instead. The agent starts the job in the Bash tool with
   `run_in_background` (its timeout 3600000 for `mutants`; the default 30 minutes covers the rest), with a new log per
   run under its scratch folder: `cd <worktree> && tools/run.sh verify > <log> 2>&1; echo "exit=$?" >> <log>` (in
   the Bash tool only: PowerShell 5.1's `*>` writes UTF-16 and its `$?` is a boolean). It then calls
@@ -1152,7 +1374,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   else exit 2) and reads only. The job is finished only when the LAST complete non-empty line of the log is
   `exit=<n>`: the marker is the job's final write, a line still being written (no newline yet) is never read, and a
   bare `exit=0` in a step's output is no result. Then it prints the summary (from the last `verify summary` line,
-  which `publish` prints too, else the last 20 lines) and `wait: <log> finished: exit=<n> (whole log: <path>)`, and
+  which `publish` prints too, or `merge-train summary`, else the last 20 lines) and `wait: <log> finished: exit=<n> (whole log: <path>)`, and
   exits n. Not finished: one line, `wait: still running after S s (<path>: <k> lines, last written <t> s ago); call
   wait again, never start the job again`, and 124; the job runs on (a second `verify` in one worktree would fight
   the first over `tools/out/` and the slots). No log after a 10 s grace (the background shell may not have created
@@ -1200,6 +1422,27 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   merged `tools/out/gdunit/results.xml` is counted against a one-process scan of the same folders: every suite that
   declares a test function ran exactly once, with each of them (`137 suites and 1206 test cases ran in 4
   processes; a one-process scan finds 137 suites with 1206 test functions`). One import runs before the shards.
+- **The frame-bound suites at fixed fps [applied, the default without paths]** (#280, #341): suites run with the
+  engine's `--fixed-fps 60` (placed before `-s`, since GdUnit4's command tool skips every argument before its own
+  script): each frame counts as 1/60 s of game time however fast it runs, so a suite that steps physics frames on a
+  simulated clock (`NetPair`'s, or the test's own over the `LoopbackHub`) runs as fast as the CPU allows. `test` with
+  no paths, so `verify` and CI too (#341), runs `gdunit.FIXED_FPS_SUITES`, the 9 frame-bound client suites, so, in
+  shards of their own within the same K (`gdunit.split_shards` picks how many), and the rest real-time; with one
+  process at a time (`--shards 1`, `PRIME_TEST_SHARDS=1`, 2 or 3 CPUs, no per-process `user://`) in a second process
+  after the rest, so every machine's `verify` runs CI's clock. `test --real-time` runs every suite real-time. `test <paths> --fixed-fps` (also with `--repeat N`) runs every named suite so; named paths and `--repeat`
+  are real-time without it. Seconds at fixed fps go to the `fixed_fps` map of `gdunit-times.json`, never into the
+  real-time one. Measured on the engineer's PC, 2026-10-04
+  (the tables, the load and the break list are in #280's comment): the 9 took 284 s real-time and 22.7 s at fixed fps
+  (medians of 10 runs each, all 90 green; beside another session's 100 % CPU load a CPU-bound one gained only 2.3x);
+  the whole `test` step took 119.4 s real-time and 62.2 s with the flag (mean of 3 each, alternated, 4 shards, a quiet
+  PC), 139.5 s and 90.7 s with `selftest` beside it as in verify, 226 s and 145 s in 2 shards (CI's count). Run with
+  every suite at fixed fps, only `voice_views_audio_test` breaks (it listens to the real audio mix for a wall-clock
+  time, so GdUnit4's 5-minute test timeout, counted in game time, runs out); the other 164 suites took 121 s real-time
+  and 119 s so. What it hides is the #222 class: at fixed fps a frame runs exactly one physics step, never several,
+  so a load bug there and `.claude/rules/tests.md`'s `OS.delay_msec` recipe (a named path) need a real-time run.
+  The engineer made it the default of `verify` and CI (option (b) on PR #323, the pipeline-v2 ADR's amendment of
+  #341); the nightly `flaky` job's `test --repeat 3` stays real-time and keeps covering that class, and
+  `test_github_workflows.py` pins both. A third CI process for the fixed shard (K+1) was declined for now.
 - **The real app-data folder stays clean [applied]** (#233): a worktree's `user://` folder outlives the worktree,
   and by 2026-10-02 22:30 UTC 62 such folders had piled up in `%APPDATA%\Godot\app_userdata\`, a new one with every
   `selftest` and every scratch worktree. Each source and its fix (found by listing a temporary app-data folder before
@@ -1293,7 +1536,8 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
 | `nightly.yml`, job `chaos` (#188): `tools/run.sh bots --chaos --long --runs 10` from a random seed (printed), then `bots --chaos --long --enet` | As `flaky` | Artifact `nightly-chaos-<ref>` (the logs; a failed loopback seed is named in `tools/out/logs/chaos-loopback.log`, the ENet run's in `tools/out/logs/run/chaos_main-1.log`); on a failure a comment with the run link on the "Night jobs" issue |
 | The skill `night-audit`: one lens a night by weekday (docs drift, coverage, flaky, dead code) | The engineer's PC: a Desktop local scheduled task in its own worktree, daily after the nightly run | Confirmed findings as issues (`Found by: night-audit <lens>`); a summary comment on the "Night jobs" issue |
 
-- **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run; any failed run fails it.
+- **`test --repeat N`** runs the GdUnit4 suites N times in a row, one process per run, in real time (the #222 class,
+  #341; `verify` runs the frame-bound suites at fixed fps); any failed run fails it.
   Each run's report goes to `tools/out/gdunit-runs/run-<i>/` and its log to `tools/out/logs/test-run<i>.log`;
   `summary.json` (every suite: tests and failures per run; flaky tests; tests failed in every run) and `summary.md` (the same for suites with a
   failure) sit next to them. A test that passed in one run and failed in another is flaky; one with no result in a
