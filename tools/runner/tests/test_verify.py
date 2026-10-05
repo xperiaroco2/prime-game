@@ -35,7 +35,9 @@ GODOT_STEPS = [
     "webrtc-silence",
     "bots",
     "bots-enet",
+    "bots-webrtc",
     "chaos",
+    "chaos-webrtc",
     "game",
 ]
 
@@ -68,7 +70,9 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
         (verify, "webrtc_silence", "webrtc-silence"),
         (verify, "bots_one_process", "bots"),
         (verify, "bots_enet", "bots-enet"),
+        (verify, "bots_webrtc", "bots-webrtc"),
         (verify, "chaos", "chaos"),
+        (verify, "chaos_webrtc", "chaos-webrtc"),
         (verify, "game", "game"),
     ):
         stack.enter_context(mock.patch.object(target, attribute, step(name)))
@@ -879,6 +883,21 @@ class EnetStepTest(unittest.TestCase):
             self.assertEqual(verify.chaos(), 0)
         run.assert_called_once_with(seed=verify.CHAOS_SEED)
         self.assertLess(verify.LANES["godot"].index("bots-enet"), verify.LANES["godot"].index("chaos"))
+
+    def test_the_webrtc_bots_and_chaos_run_the_enet_scenario_and_seed_after_their_enet_twins(self) -> None:
+        with mock.patch.object(verify.bots, "main", return_value=0) as run:
+            self.assertEqual(verify.bots_webrtc(), 0)
+        run.assert_called_once_with(
+            [verify.BOTS_ENET_SCENARIO], instances=verify.BOTS_ENET_INSTANCES, transport="webrtc"
+        )
+        with mock.patch.object(verify.bots, "chaos", return_value=0) as chaos:
+            self.assertEqual(verify.chaos_webrtc(), 0)
+        chaos.assert_called_once_with(seed=verify.CHAOS_SEED, transport="webrtc")
+        godot = verify.LANES["godot"]
+        self.assertEqual(godot.index("bots-webrtc"), godot.index("bots-enet") + 1)
+        self.assertEqual(godot.index("chaos-webrtc"), godot.index("chaos") + 1)
+        self.assertIn("bots-webrtc", verify.REASON_STEPS)
+        self.assertIn("chaos-webrtc", verify.REASON_STEPS)
 
     def test_the_bots_run_every_scenario_in_one_process_then_one_over_enet(self) -> None:
         with mock.patch.object(verify.bots, "main", return_value=0) as run:

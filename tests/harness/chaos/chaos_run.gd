@@ -22,7 +22,12 @@ extends BotsRunner
 ## In one process over the loopback the host's counts are replayed exactly (ChaosBudget) and the
 ## honest bots' decoded views equal a baseline run's with the chaos peers joined but idle
 ## (compare_honest). Over ENet only the invariants hold: no crash, no engine error line, the leak
-## check, the counters, and 4 to 7, which the host's state decides at each call.
+## check, the counters, and 4 to 7, which the host's state decides at each call. Over WebRTC
+## (`webrtc`, M6-6) the same, on BotWebRtc transports with the fault shim on and LanSignalling
+## on the port, paced to the real clock (WebRTC's connections and the shim's delays are real
+## time), plus the leak test's order check (OrderLog) of every peer but the host's own bot: both
+## ways for the honest bots and the watchers, from the host only for the chaos peers (their raw
+## sends bypass the recording).
 
 enum Mode { BASELINE, CHAOS }
 
@@ -31,11 +36,17 @@ const HONEST: Array[int] = [1, 2, 3]
 const ENET_ADDRESS := "127.0.0.1"
 ## Frames run after the match over ENet, so what is in flight arrives before the views are compared.
 const ENET_DRAIN_FRAMES := 120
+## The fault shim's seeds over WebRTC: this plus the chaos seed times SHIM_SEED_STRIDE, plus a count
+## of the run's transports.
+const SHIM_SEED := 188_000
+const SHIM_SEED_STRIDE := 16
 const WireSamples := preload("res://tests/unit/net/messages/wire_samples.gd")
 
 var chaos_mode := Mode.CHAOS
 var chaos_seed := 1
-var over_enet := false
+## Over a network on 127.0.0.1 (ENet, or WebRTC with `webrtc`), not the loopback.
+var over_network := false
+var webrtc := false
 var swapped := false
 var hostile: ChaosHostile
 var malformed: ChaosMalformed
@@ -63,30 +74,45 @@ var _chaos_sent: Dictionary[int, Dictionary] = {}
 ## Host tick -> the hostile's life and the phase after that tick.
 var _life_at: Dictionary[int, int] = {}
 var _phase_at: Dictionary[int, StringName] = {}
+## Over WebRTC: the host's signalling service and transport, the transports made, and when the run
+## started on the real clock (the pace).
+var _signalling: LanSignalling
+var _host_rtc: BotWebRtc
+var _transports_made := 0
+var _real_start_usec := -1
 
 
 func _init(
 	roles_swapped := false,
 	run_mode := Mode.CHAOS,
 	seed_value := 1,
-	enet_port := 0,
-	until_dead := false
+	net_port := 0,
+	until_dead := false,
+	over_webrtc := false
 ) -> void:
 	super(ChaosScenario.build(roles_swapped, until_dead))
 	swapped = roles_swapped
 	chaos_mode = run_mode
 	chaos_seed = seed_value
-	if enet_port > 0:
-		over_enet = true
-		port = enet_port
+	if net_port > 0:
+		over_network = true
+		webrtc = over_webrtc
+		port = net_port
 		one_process = false
 
 
 ## Plays one run to its end and closes it; see `failures`.
 static func play_one(
-	roles_swapped: bool, run_mode: Mode, seed_value: int, enet_port := 0, until_dead := false
+	roles_swapped: bool,
+	run_mode: Mode,
+	seed_value: int,
+	net_port := 0,
+	until_dead := false,
+	over_webrtc := false
 ) -> ChaosRun:
-	var runner := ChaosRun.new(roles_swapped, run_mode, seed_value, enet_port, until_dead)
+	var runner := ChaosRun.new(
+		roles_swapped, run_mode, seed_value, net_port, until_dead, over_webrtc
+	)
 	runner.run()
 	runner.close()
 	return runner
@@ -169,6 +195,8 @@ func close() -> void:
 	if malformed != null:
 		malformed.close()
 	super()
+	if _signalling != null:
+		_signalling.stop()
 
 
 ## The hostile chaos peer's id; 0 before it connected.
@@ -177,7 +205,14 @@ func hostile_peer() -> int:
 
 
 func _make_host_transport() -> NetTransport:
-	if over_enet:
+	if webrtc:
+		_signalling = BotWebRtc.signalling()
+		if _signalling.listen(port, ENET_ADDRESS) != OK:
+			failures.append("cannot serve signalling on %s:%d" % [ENET_ADDRESS, port])
+		_host_rtc = BotWebRtc.new(schema.kind_table(), port, _shim_seed())
+		ledger = _host_rtc.ledger
+		return _host_rtc
+	if over_network:
 		var enet := CountingEnet.new(schema.kind_table())
 		enet.bind_address = ENET_ADDRESS
 		ledger = enet.ledger
@@ -188,8 +223,12 @@ func _make_host_transport() -> NetTransport:
 
 
 func _joining() -> NetTransport:
-	if not over_enet:
+	if not over_network:
 		return super()
+	if webrtc:
+		var rtc := BotWebRtc.new(schema.kind_table(), port, _shim_seed())
+		rtc.join(BotWebRtc.CODE, 0)
+		return rtc
 	var transport := EnetTransport.new(schema.kind_table())
 	transport.join(ENET_ADDRESS, port)
 	return transport
@@ -197,7 +236,12 @@ func _joining() -> NetTransport:
 
 ## A chaos transport joining the host: `take` gets its outbox, `send_raw` its raw sends.
 func _chaos_joining() -> Dictionary:
-	if over_enet:
+	if webrtc:
+		var rtc := BotWebRtc.new(schema.kind_table(), port, _shim_seed())
+		rtc.keep_outbox = true
+		rtc.join(BotWebRtc.CODE, 0)
+		return {"transport": rtc, "take": rtc.take_outbox, "send_raw": rtc.send_raw}
+	if over_network:
 		var enet := ChaosEnet.new(schema.kind_table())
 		enet.join(ENET_ADDRESS, port)
 		return {"transport": enet, "take": enet.take_outbox, "send_raw": enet.send_raw}
@@ -213,7 +257,7 @@ func _join_host(bot: ScenarioBot) -> String:
 	_hostile_client = add_client(bot, joined["transport"] as NetTransport)
 	_take_hostile = joined["take"]
 	if chaos_mode == Mode.CHAOS:
-		var budget: ChaosBudget = null if over_enet else _hostile_budget
+		var budget: ChaosBudget = null if over_network else _hostile_budget
 		hostile = ChaosHostile.new(
 			bot, _hostile_client, schema, joined["send_raw"] as Callable, budget, chaos_seed
 		)
@@ -230,11 +274,47 @@ func _join_everyone() -> void:
 	malformed.active = chaos_mode == Mode.CHAOS
 
 
+## The fault shim's seed for the run's next WebRTC transport.
+func _shim_seed() -> int:
+	_transports_made += 1
+	return SHIM_SEED + chaos_seed * SHIM_SEED_STRIDE + _transports_made
+
+
+## Over WebRTC the host takes joins once the signalling opened its room.
+func _host_ready() -> bool:
+	if _host_rtc == null or not failures.is_empty():
+		return failures.is_empty()
+	if not BotWebRtc.wait_for_room(_signalling, _host_rtc):
+		failures.append("host: the signalling opened no room in %d ms" % BotWebRtc.ROOM_WAIT_MS)
+		return false
+	return true
+
+
+## Over WebRTC each frame waits for the real clock to reach the simulated one: the connections and
+## the fault shim's delays run in real time, and a frame run at once would read a 50 ms delay as
+## dozens of host ticks.
+func _frame_usec(frame: int) -> int:
+	if webrtc:
+		_pace()
+	return super(frame)
+
+
+func _pace() -> void:
+	var real := Time.get_ticks_usec()
+	if _real_start_usec < 0:
+		_real_start_usec = real - (now_usec - START_USEC)
+	var ahead := (now_usec - START_USEC) - (real - _real_start_usec)
+	if ahead > 0:
+		OS.delay_usec(ahead)
+
+
 ## The host just polled what the chaos peers sent in the frame before: replay its bookkeeping.
 func _after_host_step() -> void:
+	if _signalling != null:
+		_signalling.poll()
 	var from_hostile: Array[ChaosFrames.Packet] = _take_hostile.call()
 	var from_malformed: Array[ChaosFrames.Packet] = _take_malformed.call()
-	if over_enet:
+	if over_network:
 		_note_chaos_sent(hostile_peer(), from_hostile)
 		_note_chaos_sent(malformed.peer if malformed != null else 0, from_malformed)
 		return
@@ -252,7 +332,7 @@ func _note_chaos_sent(peer: int, packets: Array[ChaosFrames.Packet]) -> void:
 
 
 func play_frame(at_tick: int) -> void:
-	if over_enet:
+	if over_network:
 		for bot: ScenarioBot in bots:
 			_join_again(bot)
 		if not _may_play():
@@ -271,7 +351,7 @@ func play_frame(at_tick: int) -> void:
 ## as BotsEnet's bot 1 waits, #318), or once a bot that joins at the start lost its join for good
 ## (refused, not joined again), so that _lost reports it. Over the loopback they play at once.
 func _may_play() -> bool:
-	if not over_enet or _lobby_full(bots[0]):
+	if not over_network or _lobby_full(bots[0]):
 		return true
 	for bot: ScenarioBot in bots:
 		var client: BotClient = clients.get(bot.number)
@@ -283,7 +363,7 @@ func _may_play() -> bool:
 ## A join over ENet is judged on the real clock (EnetTransport's JOIN_TIMEOUT_MS is real time), not
 ## this runner's simulated one, which moves one frame per frame however long the frame took.
 func _join_clock_usec() -> int:
-	return Time.get_ticks_usec() if over_enet else now_usec
+	return Time.get_ticks_usec() if over_network else now_usec
 
 
 func _log_label() -> String:
@@ -292,7 +372,7 @@ func _log_label() -> String:
 
 func _fail_time_limit() -> void:
 	super()
-	if over_enet and not bots.is_empty():
+	if over_network and not bots.is_empty():
 		var waited := _lobby_wait(bots[0])
 		if not waited.is_empty():
 			failures.append(waited)
@@ -300,10 +380,12 @@ func _fail_time_limit() -> void:
 
 func _play() -> void:
 	super()
-	if not over_enet or not failures.is_empty():
+	if not over_network or not failures.is_empty():
 		return
 	# Over ENet what is still in flight arrives before the views are compared.
 	for _i in ENET_DRAIN_FRAMES:
+		if webrtc:
+			_pace()
 		now_usec += FRAME_USEC
 		session.step(now_usec)
 		if not session.is_running():
@@ -475,11 +557,42 @@ func _check_after() -> void:
 			label, malformed.peer, malformed.transport, malformed.undecodable, one_process
 		)
 	)
+	if _host_rtc != null:
+		_check_order()
 	_check_malformed_view()
 	_check_voice_rule()
 	_check_roles()
 	if chaos_mode == Mode.CHAOS:
 		_check_chaos_counts()
+
+
+## Over WebRTC, the order check (OrderLog): both ways for the honest remote bots and the
+## watchers; for the chaos peers only what the host sent them (their raw sends bypass `send`).
+func _check_order() -> void:
+	for bot: ScenarioBot in bots.slice(1):
+		var client: BotClient = clients.get(bot.number)
+		if client == null or bot.peer == 0 or not client.transport() is BotWebRtc:
+			continue
+		var own := (client.transport() as BotWebRtc).order.of(NetTransport.HOST_ID)
+		var label := "bot %d" % bot.number
+		if bot.number == HOSTILE:
+			failures.append_array(_order_from_host(label, bot.peer, own))
+		else:
+			failures.append_array(_host_rtc.order.check_client(label, bot.peer, own, true))
+	for watcher: BotWatcher in [lurker, refused]:
+		if watcher.peer != 0:
+			var lists := (watcher.transport as BotWebRtc).order.of(NetTransport.HOST_ID)
+			failures.append_array(
+				_host_rtc.order.check_client(watcher.label, watcher.peer, lists, true)
+			)
+	if malformed.peer != 0:
+		var lists := (malformed.transport as BotWebRtc).order.of(NetTransport.HOST_ID)
+		failures.append_array(_order_from_host("malformed peer", malformed.peer, lists))
+
+
+func _order_from_host(label: String, peer: int, own: OrderLog.Lists) -> PackedStringArray:
+	var mine := _host_rtc.order.of(peer)
+	return OrderLog.problems("host to %s" % label, mine.sent, mine.reliable, own.delivered, true)
 
 
 ## A peer that is not a player and sent intents, voice and a debug kind: whatever view_of says,
@@ -539,7 +652,7 @@ func _check_roles() -> void:
 ## Classes 1 to 3 on the host's counts.
 func _check_chaos_counts() -> void:
 	var hostile_id := hostile_peer()
-	if not over_enet:
+	if not over_network:
 		_check_replayed("hostile", hostile_id, _hostile_budget)
 		_check_replayed("malformed peer", malformed.peer, _malformed_budget)
 		if not _malformed_budget.disconnected:

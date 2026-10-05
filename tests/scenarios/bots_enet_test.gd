@@ -119,6 +119,56 @@ func test_a_bot_that_joins_late_does_not_join_again() -> void:
 	)
 
 
+func test_over_webrtc_a_join_that_found_no_room_joins_again_after_a_short_wait() -> void:
+	# The host's process, or its signalling's room, is not up yet: the service answers at once.
+	for reason: StringName in [NetTransport.JOIN_NO_ROOM, NetTransport.JOIN_SERVICE_UNREACHABLE]:
+		var runner := RemoteBot.new(_scenario([[], []]))
+		var bot := runner.add_bot()
+		runner.now_usec = START_USEC
+		runner._join_host(bot)
+		var first: BotClient = runner.clients[2]
+		first.end_reason = reason
+		runner.now_usec += FRAME_USEC
+		runner._join_again(bot)
+		assert_object(runner.clients[2]).override_failure_message("waits first").is_same(first)
+		runner.now_usec += NetPlay.ROOM_RETRY_USEC
+		runner._join_again(bot)
+		var second: BotClient = runner.clients[2]
+		assert_object(second).override_failure_message(String(reason)).is_not_same(first)
+		second.leave()
+
+
+func test_over_webrtc_a_join_that_reached_the_room_does_not_join_again() -> void:
+	# The match has started, or the room is full: the host's own answer. host_unreachable: the
+	# service answered and the connection never opened, a transport fault the run must not ride out.
+	for reason: StringName in [
+		NetTransport.JOIN_STARTED,
+		NetTransport.JOIN_FULL,
+		NetTransport.JOIN_UNREACHABLE,
+		NetTransport.JOIN_FAILED,
+	]:
+		var runner := RtcRemoteBot.new(_scenario([[], []]))
+		var bot := runner.add_bot()
+		runner.now_usec = START_USEC
+		runner._join_host(bot)
+		var client: BotClient = runner.clients[2]
+		runner.now_usec += WebRtcTransport.JOIN_TIMEOUT_MS * 1000
+		client.end_reason = reason
+		runner._join_again(bot)
+		runner.now_usec += 2 * WebRtcTransport.JOIN_TIMEOUT_MS * 1000
+		runner._join_again(bot)
+		assert_object(runner.clients[2]).override_failure_message(String(reason)).is_same(client)
+		client.leave()
+
+
+## Bot 2's instance over WebRTC, its joins never started (no signalling).
+class RtcRemoteBot:
+	extends RemoteBot
+
+	func _joining() -> NetTransport:
+		return WebRtcTransport.new(schema.kind_table())
+
+
 ## A scenario of one script per bot in the base mode, each a list of steps.
 func _scenario(scripts: Array) -> BotScenario:
 	var scenario := BotScenario.new()

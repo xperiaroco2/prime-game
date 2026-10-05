@@ -4,8 +4,8 @@
 own and serial inside (LANES): the Python lane (`lint`, `signal`: the signalling Worker's tests under Node, then
 `selftest`: the runner tests that start no Godot, in worker processes) and the Godot lane (`check`, then
 `selftest-godot`: the runner tests that start Godot, then `test`, `enet`, `freeze`, `stall`, their WebRTC twins `webrtc`,
-`webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`, `bots-enet`, `chaos` and `game`), so the timing-sensitive
-network runs never overlap.
+`webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`, `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc` and
+`game`), so the timing-sensitive network runs never overlap.
 Every step runs and a red one fails `verify`; each step's output is printed whole when the step ends. After both
 lanes: the clean-tree check, and the runner tests counted against a serial discovery (every test a serial `selftest`
 would run ran once, skipped where it would be skipped). The summary lists the steps in STEP_ORDER (the order of the
@@ -104,7 +104,9 @@ STEP_ORDER = (
     "webrtc-silence",
     "bots",
     "bots-enet",
+    "bots-webrtc",
     "chaos",
+    "chaos-webrtc",
     "game",
     "selftest",
     "selftest-godot",
@@ -127,7 +129,9 @@ LANES: dict[str, tuple[str, ...]] = {
         "webrtc-silence",
         "bots",
         "bots-enet",
+        "bots-webrtc",
         "chaos",
+        "chaos-webrtc",
         "game",
     ),
 }
@@ -219,9 +223,21 @@ def bots_enet() -> int:
     return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES)
 
 
+def bots_webrtc() -> int:
+    """`bots <BOTS_ENET_SCENARIO> --instances 3 --transport webrtc`: the same scenario over WebRTC on a free port (M6-6,
+    #371), with the fault shim on and the leak test's order check; one process per bot, about 50 s."""
+    return bots.main([BOTS_ENET_SCENARIO], instances=BOTS_ENET_INSTANCES, transport="webrtc")
+
+
 def chaos() -> int:
     """`bots --chaos --seed <CHAOS_SEED>`: the chaos bots' short seeded run (the night job runs random seeds)."""
     return bots.chaos(seed=CHAOS_SEED)
+
+
+def chaos_webrtc() -> int:
+    """`bots --chaos --seed <CHAOS_SEED> --transport webrtc`: the short seeded run over WebRTC on a free port (M6-6),
+    one chaos run in one process paced to the real clock, the fault shim on; about 16 s."""
+    return bots.chaos(seed=CHAOS_SEED, transport="webrtc")
 
 
 def game() -> int:
@@ -261,7 +277,9 @@ def steps() -> dict[str, Callable[[], int]]:
         "webrtc-silence": webrtc_silence,
         "bots": bots_one_process,
         "bots-enet": bots_enet,
+        "bots-webrtc": bots_webrtc,
         "chaos": chaos,
+        "chaos-webrtc": chaos_webrtc,
         "game": game,
         "selftest": lambda: selftest("python"),
         "selftest-godot": lambda: selftest("godot"),
@@ -792,7 +810,9 @@ REASON_STEPS = frozenset(
         "webrtc-silence",
         "bots",
         "bots-enet",
+        "bots-webrtc",
         "chaos",
+        "chaos-webrtc",
         "game",
     }
 )

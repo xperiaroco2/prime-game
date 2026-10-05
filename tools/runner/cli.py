@@ -81,8 +81,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max", type=int, default=240, metavar="S", help="seconds to wait, 1 to 270 (default 240)")
     p = sub.add_parser("bots", help="bot scenarios through the network layers and the information-leak test")
     p.add_argument("scenarios", nargs="*", help="scenario file names in content/scenarios/ (default: every one)")
-    p.add_argument("--instances", type=int, default=1, help="over ENet, one process per bot: one scenario of N bots")
-    p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over ENet)")
+    p.add_argument(
+        "--instances", type=int, default=1, help="over the network, one process per bot: one scenario of N bots"
+    )
+    p.add_argument(
+        "--transport",
+        choices=("enet", "webrtc"),
+        help="the network of --instances or --chaos: enet (the default of --instances) or webrtc (M6-6)",
+    )
+    p.add_argument("--seconds", type=int, help="hard timeout of the run (default 300 in one process, 180 over the network)")
     p.add_argument("--chaos", action="store_true", help="the chaos bots: a hostile and a malformed peer against the host")
     p.add_argument("--seed", type=int, help="--chaos: the first seed (default: random, printed)")
     p.add_argument("--runs", type=int, default=1, help="--chaos: seeds to run, from --seed up (default 1)")
@@ -385,10 +392,19 @@ def main(argv: list[str] | None = None) -> int:
             if args.chaos:
                 if args.scenarios or args.instances != 1:
                     raise Failure("--chaos plays its own match: no scenario names and no --instances")
-                return bots.chaos(args.seed, args.runs, long=args.long, enet=args.enet, seconds=args.seconds)
+                return bots.chaos(
+                    args.seed,
+                    args.runs,
+                    long=args.long,
+                    enet=args.enet,
+                    seconds=args.seconds,
+                    transport=args.transport,
+                )
             if args.seed is not None or args.runs != 1 or args.long or args.enet:
                 raise Failure("--seed, --runs, --long and --enet need --chaos")
-            return bots.main(args.scenarios, instances=args.instances, seconds=args.seconds)
+            return bots.main(
+                args.scenarios, instances=args.instances, seconds=args.seconds, transport=args.transport or "enet"
+            )
         if args.command == "mutants":
             from . import mutants
 

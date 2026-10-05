@@ -122,6 +122,10 @@ class Conn:
 	## The fault shim's RELIABLE packets still on their way, oldest first, with their due times.
 	var delayed: Array[PackedByteArray] = []
 	var delayed_due: PackedInt64Array = PackedInt64Array()
+	## The fault shim's late LATEST packets, in the order they were read, with their due times (never
+	## decreasing: a late packet holds back the ones behind it).
+	var late_latest: Array[PackedByteArray] = []
+	var late_latest_due: PackedInt64Array = PackedInt64Array()
 
 	func all_channels_open() -> bool:
 		for channel: WebRTCDataChannel in channels.values():
@@ -143,12 +147,17 @@ class Conn:
 ## Test-only faults on what this side receives (the M6 design §5, M6-6), debug builds only and off
 ## by default: 127.0.0.1 almost never reorders across channels. RELIABLE packets arrive
 ## reliable_delay_ms late, in order (one of them delay_once_ms late instead, holding back the ones
-## behind it, as SCTP would); LATEST packets are dropped and duplicated at the given rates.
+## behind it, as SCTP would); LATEST packets are dropped and duplicated at the given rates, and
+## at the rate latest_late a copy arrives latest_delay_ms late, holding back the LATEST packets
+## behind it (LATEST stays in order among itself): later than a RELIABLE packet sent after it when
+## that exceeds reliable_delay_ms, the case only LaneOrder's "behind" rule handles (M6-6).
 class FaultShim:
 	extends RefCounted
 	var reliable_delay_ms := 0
 	var latest_drop := 0.0
 	var latest_duplicate := 0.0
+	var latest_late := 0.0
+	var latest_delay_ms := 0
 	var rng := RandomNumberGenerator.new()
 	var _delay_once_ms := 0
 
@@ -171,6 +180,12 @@ class FaultShim:
 		if latest_drop > 0.0 and rng.randf() < latest_drop:
 			return 0
 		return 2 if latest_duplicate > 0.0 and rng.randf() < latest_duplicate else 1
+
+	## How late one copy of a LATEST packet arrives: latest_delay_ms at the rate latest_late, else 0.
+	func latest_delay() -> int:
+		if latest_late > 0.0 and rng.randf() < latest_late:
+			return latest_delay_ms
+		return 0
 
 
 ## Turns the fault shim on (null: off). ERR_UNAVAILABLE in a release build.
@@ -293,6 +308,8 @@ func _backend_disconnect(peer_id: int) -> void:
 		_order.forget(peer_id)
 		conn.delayed.clear()
 		conn.delayed_due.clear()
+		conn.late_latest.clear()
+		conn.late_latest_due.clear()
 
 
 func _open_signaller() -> Error:
@@ -411,6 +428,7 @@ func _read(conn: Conn, now: int, since: int) -> void:
 	if not conn.open:
 		return
 	var closing := conn.closing_since_ms >= 0
+	_release_late_latest(conn, now)
 	for lane: NetKindTable.Lane in [
 		NetKindTable.Lane.LATEST, NetKindTable.Lane.RELIABLE, NetKindTable.Lane.VOICE
 	]:
@@ -422,9 +440,11 @@ func _read(conn: Conn, now: int, since: int) -> void:
 				continue
 			match lane:
 				NetKindTable.Lane.LATEST:
-					var copies := 1 if _faults == null else _faults.latest_copies()
-					for _i in copies:
+					if _faults == null:
 						_take_latest(conn, bytes, now)
+					else:
+						for _i in _faults.latest_copies():
+							_shim_latest(conn, bytes, now, since)
 				NetKindTable.Lane.RELIABLE:
 					if _faults == null:
 						_take_reliable(conn, bytes, now)
@@ -487,6 +507,28 @@ func _delay_reliable(conn: Conn, bytes: PackedByteArray, arrived: int) -> void:
 		due = maxi(due, conn.delayed_due[conn.delayed_due.size() - 1])
 	conn.delayed.append(bytes)
 	conn.delayed_due.append(due)
+
+
+## One copy of a LATEST packet read at `now` under the fault shim: late by its delay from `since`,
+## or behind a late one still held, in order; else at once.
+func _shim_latest(conn: Conn, bytes: PackedByteArray, now: int, since: int) -> void:
+	var late := _faults.latest_delay()
+	if late == 0 and conn.late_latest.is_empty():
+		_take_latest(conn, bytes, now)
+		return
+	var due := since + late
+	if not conn.late_latest_due.is_empty():
+		due = maxi(due, conn.late_latest_due[conn.late_latest_due.size() - 1])
+	conn.late_latest.append(bytes)
+	conn.late_latest_due.append(due)
+
+
+## The fault shim's late LATEST packets due by `now`, in the order they were read.
+func _release_late_latest(conn: Conn, now: int) -> void:
+	while not conn.late_latest.is_empty() and conn.late_latest_due[0] <= now:
+		var bytes: PackedByteArray = conn.late_latest.pop_front()
+		conn.late_latest_due.remove_at(0)
+		_take_latest(conn, bytes, now)
 
 
 func _release_delayed(conn: Conn, now: int) -> void:

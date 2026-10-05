@@ -26,6 +26,13 @@ extends NetPlay
 ## The host prints its voice relay counters (HostSession.relay_counters, ARCHITECTURE §4.5) every
 ## RELAY_WINDOW_S seconds of the run and once more at the end with every total (RelayReport): M5-4's
 ## measurement reads them from instance 1's log (`bots voice_load --instances 8`).
+##
+## Over WebRTC (`webrtc`, M6-6: `bots <scenario> --instances N --transport webrtc`) every transport
+## is a BotWebRtc on 127.0.0.1: instance 1 also serves LanSignalling on the port, whose one room is
+## BotWebRtc.CODE, and every bot joins that code (again while the room is not up yet). The fault
+## shim is on, but not for a measurement (BotScenario.measurement): it measures the relay, not the
+## reordering. The leak test runs unchanged, plus the order check (OrderLog) of each bot, the lurker
+## and the refused bot, both ways: each bot's view file carries its own lists.
 
 const ADDRESS := "127.0.0.1"
 const USEC_PER_SECOND := 1000000
@@ -36,10 +43,16 @@ const EXTRA_CLIENTS := 3
 const PEERS_FILE := "peers"
 ## How often the host prints a window of its relay counters.
 const RELAY_WINDOW_S := 5
+## The fault shim's seed: this, plus the instance times SHIM_SEED_STRIDE, plus a count of the
+## instance's transports.
+const SHIM_SEED := 371000
+const SHIM_SEED_STRIDE := 100
 
 ## This process's bot number (PRIME_INSTANCE).
 var instance := 1
 var port := 0
+## Over WebRTC (BotWebRtc and LanSignalling), else ENet.
+var webrtc := false
 var dir := ""
 var session: HostSession
 var game: Match
@@ -58,13 +71,24 @@ var _finished := false
 var _known_peers := 0
 var _relay_before: Dictionary[StringName, int] = {}
 var _next_window_usec := 0
+## Over WebRTC: the host's signalling service and transport; the transports this instance made.
+var _signalling: LanSignalling
+var _host_rtc: BotWebRtc
+var _transports_made := 0
 
 
-func _init(bot_scenario: BotScenario, this_instance: int, on_port: int, out_dir: String) -> void:
+func _init(
+	bot_scenario: BotScenario,
+	this_instance: int,
+	on_port: int,
+	out_dir: String,
+	over_webrtc := false
+) -> void:
 	super(bot_scenario, ScenarioPeers.new())
 	instance = this_instance
 	port = on_port
 	dir = out_dir
+	webrtc = over_webrtc
 	ends_from_bots = instance != 1
 	claims_after_moves = true
 	peers.refresh = _read_peers
@@ -102,6 +126,8 @@ func step(now: int) -> void:
 	@warning_ignore("integer_division")
 	tick_now = (now - _start_usec) * Ticks.RATE / USEC_PER_SECOND
 	if is_host():
+		if _signalling != null:
+			_signalling.poll()
 		session.step(now)
 		if not session.is_running():
 			failures.append(
@@ -119,9 +145,12 @@ func step(now: int) -> void:
 	var bot := bots[0]
 	if not is_host():
 		_join_again(bot)
-	step_clients()
-	if _may_act(bot):
-		play_frame(tick_now)
+	if webrtc and _wrote_view and not is_host():
+		_step_quietly(bot)
+	else:
+		step_clients()
+		if _may_act(bot):
+			play_frame(tick_now)
 	if not _wrote_view and (bot.gone or (bot.finished() and _ended()) or not failures.is_empty()):
 		_write_view()
 	if is_host():
@@ -138,6 +167,17 @@ func step(now: int) -> void:
 		if not _wrote_view:
 			_write_view()
 		_finished = true
+
+
+## Over WebRTC a remote bot that wrote its view file only polls until the host closes: it acts no
+## more (no voice, no intent; its session claims only in a phase that takes claims, and a passing
+## bot wrote its file in End), so no packet of it meets the host's close. A send
+## on a channel the other side just closed prints an engine error line (WebRtcTransport checks the
+## channel's state, which libdatachannel's threads change between the check and the send).
+func _step_quietly(bot: ScenarioBot) -> void:
+	var client: BotClient = clients.get(bot.number)
+	if client != null and not client.is_ended():
+		client.step(now_usec)
 
 
 ## Bot 1 acts once its lobby is full (_lobby_full); a remote bot once it read bot 1's map, or at
@@ -165,6 +205,8 @@ func finish() -> void:
 		lurker.close()
 		refused.close()
 		session.close()
+		if _signalling != null:
+			_signalling.stop()
 	for client: BotClient in clients.values():
 		if not client.is_ended():
 			client.leave()
@@ -180,8 +222,18 @@ func _start_host(bot: ScenarioBot) -> bool:
 		failures.append("level: %s" % error)
 	if not levels.errors.is_empty():
 		return false
-	var transport := EnetTransport.new(schema.kind_table())
-	transport.bind_address = ADDRESS
+	var transport: NetTransport
+	if webrtc:
+		_signalling = BotWebRtc.signalling()
+		if _signalling.listen(port, ADDRESS) != OK:
+			failures.append("cannot serve signalling on %s:%d" % [ADDRESS, port])
+			return false
+		_host_rtc = BotWebRtc.new(schema.kind_table(), port, _shim_seed())
+		transport = _host_rtc
+	else:
+		var enet := EnetTransport.new(schema.kind_table())
+		enet.bind_address = ADDRESS
+		transport = enet
 	session = HostSession.new(transport, schema)
 	session.replay_dir = ""
 	session.hello_deadline_usec = ceili(scenario.time_limit_s + MARGIN_S) * USEC_PER_SECOND
@@ -199,6 +251,9 @@ func _start_host(bot: ScenarioBot) -> bool:
 		for error: String in session.errors:
 			failures.append("host: %s" % error)
 		return false
+	if webrtc and not BotWebRtc.wait_for_room(_signalling, _host_rtc):
+		failures.append("host: the signalling opened no room in %d ms" % BotWebRtc.ROOM_WAIT_MS)
+		return false
 	bot.connected = true
 	add_client(bot, session.own_client)
 	_relay_before = session.relay_counters()
@@ -211,7 +266,7 @@ func _start_host(bot: ScenarioBot) -> bool:
 ## The relay counters' window since the last one (RelayReport.window).
 func _print_relay_window() -> void:
 	var now := session.relay_counters()
-	var line := RelayReport.window(_relay_label(), _relay_before, now)
+	var line := RelayReport.window(_relay_label(), _relay_before, now, _ip_udp_bytes())
 	_relay_before = now
 	if not line.is_empty():
 		_relay_line(line)
@@ -226,6 +281,20 @@ func _relay_label() -> String:
 	return "BOTS %s host relay" % dir.get_file()
 
 
+## The IP and UDP bytes per datagram the upload adds to take_upload's count: over WebRTC none, as
+## its PACKET_OVERHEAD_BYTES already counts them (E56), with SCTP's and DTLS's.
+func _ip_udp_bytes() -> int:
+	return 0 if webrtc else RelayReport.IP_UDP_BYTES
+
+
+## The fault shim's seed for this instance's next transport; 0 (no shim) for a measurement.
+func _shim_seed() -> int:
+	_transports_made += 1
+	if scenario.measurement:
+		return 0
+	return SHIM_SEED + instance * SHIM_SEED_STRIDE + _transports_made
+
+
 func _join_host(bot: ScenarioBot) -> String:
 	add_client(bot, _joining())
 	return ""
@@ -236,6 +305,12 @@ func _log_label() -> String:
 
 
 func _joining() -> NetTransport:
+	if webrtc:
+		var rtc := BotWebRtc.new(schema.kind_table(), port, _shim_seed())
+		var joined_room := rtc.join(BotWebRtc.CODE, 0)
+		if joined_room != OK:
+			failures.append("cannot join room %s: %s" % [BotWebRtc.CODE, error_string(joined_room)])
+		return rtc
 	var transport := EnetTransport.new(schema.kind_table())
 	var joined := transport.join(ADDRESS, port)
 	if joined != OK:
@@ -321,7 +396,10 @@ func _write_view() -> void:
 				label, bot.peer, client.transport(), client.bad_payloads, false
 			)
 		)
-	if not ViewFile.write(dir, bot.number, bot.peer, view, failures):
+	var order := {}
+	if client != null and client.transport() is BotWebRtc:
+		order = (client.transport() as BotWebRtc).order.to_data(NetTransport.HOST_ID)
+	if not ViewFile.write(dir, bot.number, bot.peer, view, failures, order):
 		failures.append("cannot write the view file of bot %d" % bot.number)
 
 
@@ -376,6 +454,10 @@ func _compare() -> void:
 		var view: DecodedView = file["view"]
 		var label := "bot %d" % number
 		failures.append_array(_leaks.check_bot(label, peer, view, true, true))
+		if _host_rtc != null and peer != 0:
+			var lists := OrderLog.from_data(file["order"])
+			failures.append_array(_host_rtc.order.check_client(label, peer, lists))
+			print("%s order, %s" % [_log_label(), _host_rtc.order.summary(label, peer, lists)])
 		if peer != 0:
 			views[label] = view
 	failures.append_array(_leaks.check_tasks(views))
@@ -386,3 +468,14 @@ func _compare() -> void:
 				watcher.label, watcher.peer, watcher.transport, watcher.undecodable, false
 			)
 		)
+		if _host_rtc != null and watcher.peer != 0:
+			var lists := (watcher.transport as BotWebRtc).order.of(NetTransport.HOST_ID)
+			failures.append_array(
+				_host_rtc.order.check_client(watcher.label, watcher.peer, lists, true)
+			)
+			print(
+				(
+					"%s order, %s"
+					% [_log_label(), _host_rtc.order.summary(watcher.label, watcher.peer, lists)]
+				)
+			)
