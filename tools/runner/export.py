@@ -51,7 +51,7 @@ RELEASE_FILES = {
     "libwebrtc_native.windows.template_release.x86_64.dll",
 }
 # Extensions whose `ERROR:` lines a Linux Godot run expects: TwoVoIP ships no Linux library at all; the Windows pack
-# the probe runs holds the webrtc-native extension but only its Windows libraries (the project's Linux one loads).
+# the probe runs holds webrtc-native's `.gdextension` but no Linux library (the project's Linux one loads).
 WINDOWS_ONLY = ("twovoip",)
 PACK_WITHOUT_LINUX = ("twovoip", "webrtc_native")
 PROBE = ROOT / "tools" / "export" / "export_probe.gd"
@@ -383,7 +383,10 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
     problems = check_release(release_zip, templates)
     if problems:
         raise Failure(f"{release_zip.name} is not a release build: " + "; ".join(problems))
-    ok(f"{release_zip.name} is a release build (the release template's .exe, the release TwoVoIP and webrtc-native libraries)")
+    ok(
+        f"{release_zip.name} is a release build "
+        "(the release template's .exe, the release TwoVoIP and webrtc-native libraries)"
+    )
     prove_hash(commit, data, probe(builds / "release" / f"{GAME}.pck", data))
     for archive in (release_zip, debug_zip):
         say(f"EXPORT {archive.relative_to(ROOT).as_posix()} {archive.stat().st_size // (1 << 20)} MB")
