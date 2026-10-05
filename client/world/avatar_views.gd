@@ -10,15 +10,23 @@ extends Node3D
 ## SightHider's group: the downed camera hides those out of the body's eye's sight. A placement
 ## (PlayersPlaced) snaps the players it names; a new map (LoadMatch) and a phase on another level
 ## (End -> Lobby) forget the poses: drawn behind the interpolation delay, the round's would stand
-## a player at its round spot in the lobby and push whoever was placed there (#241). A body whose
-## player the model drops (a new map, the lobby, a leave, a death) leaves the tree at once and is
-## freed after: a queued node stays in the physics space until the end of the physics frame
-## (4.7.2), and the local player's push search runs later in that frame (#242).
+## a player at its round spot in the lobby and push whoever was placed there (#241). A snapshot
+## sent before such a change but arriving after it is kept by neither the buffer nor the model:
+## both floor at the host tick estimated at the change (host_tick(), which the model reads, #251).
+## A body whose player the model drops (a new map, the lobby, a leave, a death) leaves the tree at
+## once and is freed after: a queued node stays in the physics space until the end of the physics
+## frame (4.7.2), and the local player's push search runs later in that frame (#242).
 
 const PHYSICS_PRIORITY := -80
 const BODY := preload("res://client/player/remote_player_body.tscn")
 
-var model: ClientModel
+## Setting it hands it host_tick(), the floor of its snapshots at a cleared match (#251).
+var model: ClientModel:
+	set(value):
+		model = value
+		if model != null:
+			model.host_tick_now = host_tick
+
 ## The poses; the game makes one per session and feeds it every snapshot.
 var buffer: SnapshotBuffer
 ## The client's own copy of the mode's PlayerRules: the bodies' capsules.
@@ -91,11 +99,11 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 		return
 	match event_name:
 		&"LoadMatch":
-			buffer.clear()
+			buffer.clear(host_tick())
 		&"PhaseChanged":
 			var level := _level_now()
 			if _level >= 0 and level != _level:
-				buffer.clear()
+				buffer.clear(host_tick())
 			_level = level
 		&"PlayersPlaced":
 			var tick := maxi(0, host_tick())

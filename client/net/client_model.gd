@@ -8,7 +8,9 @@ extends RefCounted
 ## client's own copy, read for where each phase plays.
 ##
 ## A match's facts (items, stations, bodies, role, tasks, avatars and the like) are cleared on
-## LoadMatch and on entering the lobby: a new level holds none of the old ones.
+## LoadMatch and on entering the lobby: a new level holds none of the old ones. A snapshot sent
+## before that change but arriving after it (the unreliable lane against the reliable one) is not
+## folded (#251): see _snapshot_floor.
 
 ## A player's life as the public events tell it (E25): the client's own words for core/'s life
 ## states, so no client/ file names a core/ state class (client/CLAUDE.md).
@@ -114,8 +116,17 @@ var sprint_available := false
 ## knockdown and a revive (or Round, End, Lobby) folded between two of them still mark what waits
 ## in the microphone as recorded unheard (#241).
 var silencings := 0
+## The estimated host tick now, for _snapshot_floor: AvatarViews sets its host_tick(). A client that
+## draws nothing (a bot) has none and floors at the newest snapshot held.
+var host_tick_now := Callable()
 
 var _mode: GameMode
+## Snapshots of this host tick or older are not folded: clear_match() sets it to the host tick
+## estimated at the change, or to the newest snapshot held if that is higher. The newest held
+## alone is not enough: the late snapshot is usually newer than every one held (tick T-1 delayed
+## past the PhaseChanged of tick T, #251). The host's tick runs on across matches, so a floor never
+## holds back a later match's snapshots. -1 before the first clear.
+var _snapshot_floor := -1
 
 
 func _init(mode: GameMode) -> void:
@@ -226,16 +237,20 @@ func _fold_event(event_name: StringName, fields: Dictionary) -> void:
 
 
 ## Folds one decoded snapshot: its avatars replace the older ones. The model keeps a copy: the
-## DecodedView records the same Dictionary, and a PlayerLeft must not change what was decoded.
+## DecodedView records the same Dictionary, and a PlayerLeft must not change what was decoded. One
+## at or below _snapshot_floor is of a match the model forgot and is not folded.
 func fold_snapshot(fields: Dictionary) -> void:
 	var tick: int = fields["tick"]
-	if tick > snapshot_tick:
+	if tick > snapshot_tick and tick > _snapshot_floor:
 		snapshot_tick = tick
 		avatars = (fields["avatars"] as Dictionary).duplicate(true)
 
 
-## Forgets a match's facts: on LoadMatch and on entering the lobby.
+## Forgets a match's facts: on LoadMatch and on entering the lobby. Raises _snapshot_floor.
 func clear_match() -> void:
+	_snapshot_floor = maxi(_snapshot_floor, snapshot_tick)
+	if host_tick_now.is_valid():
+		_snapshot_floor = maxi(_snapshot_floor, host_tick_now.call() as int)
 	loaded.clear()
 	start_tick = -1
 	role = &""
