@@ -1585,9 +1585,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `PlayersPlaced` names (no blend across a tick within one of the event's estimated tick, since events and
   snapshots travel on different lanes), forgets the poses at `LoadMatch` and at a `PhaseChanged` to another level
   (End → Lobby, #241), keeping no late snapshot of a tick at or below `host_tick()` at that change (#251), and gives
-  the estimated host tick (`host_tick()`, also handed to the model's `host_tick_now`) and the delay. A teleport too far for anyone
-  to walk in the time between two snapshots (30 m/s, a placeholder) also snaps. A body whose player the model drops
-  leaves the tree before it is freed (#242, above).
+  the estimated host tick (`host_tick()`, also handed to the model's `host_tick_now`) and the delay. A teleport too
+  far for anyone to walk in the time between two snapshots (30 m/s, a placeholder) also snaps. A body whose player
+  the model drops leaves the tree before it is freed (#242, above).
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
   count of `Correction`s of refused claims, and `placements`, of those that follow a placing event naming the client
   (`PLACING_EVENTS`: `PlayersPlaced`, `KnockedDown` and `Respawned` (M4-4); a death and a revive send no
