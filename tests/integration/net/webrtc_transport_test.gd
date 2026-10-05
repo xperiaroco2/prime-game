@@ -284,6 +284,19 @@ func test_the_reason_before_a_kick_arrives_when_read_with_the_close() -> void:
 	)
 
 
+## The host's signalling socket going away ends a join still waiting for an offer, not one whose
+## connection is already being made: the service says "the host left" to every joiner first.
+func test_a_join_under_way_outlives_the_hosts_signalling() -> void:
+	var fake_host := await _fake_host()
+	var client := _client()
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.signaller.close()
+	await _idle(200)
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+
+
 ## Ids are never reused in a session: after peer 2 leaves, the next joiner is peer 3.
 func test_a_freed_id_is_not_handed_out_again() -> void:
 	var first := await _admitted_fake()

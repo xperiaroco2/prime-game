@@ -458,6 +458,8 @@ func _take_reliable(conn: Conn, bytes: PackedByteArray, now: int) -> void:
 	if not is_host() and not conn.admitted:
 		var id := _admitted_id(bytes)
 		if id <= HOST_ID:
+			conn.delayed.clear()  # the join is over: nothing behind it is read
+			conn.delayed_due.clear()
 			_lose(conn, JOIN_FAILED)
 			return
 		conn.admitted = true
@@ -609,7 +611,8 @@ func _on_refused(why: String) -> void:
 		SignalCodec.WHY_FULL:
 			_fail_join(JOIN_FULL)
 		SignalCodec.WHY_HOST_LEFT:
-			_fail_join(JOIN_FAILED)
+			if _conns.is_empty():  # a connection under way goes on without the service
+				_fail_join(JOIN_FAILED)
 		SignalCodec.WHY_CANDIDATES, SignalCodec.WHY_TOO_LARGE:
 			pass  # one candidate or message refused: the join may still connect, or times out
 		_:
