@@ -151,8 +151,11 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   sections: the reviewers and the plan's critique read the ARCHITECTURE sections the change touches (a design's: the
   outline, then every section it could contradict), the netcode reviewers (the `second_review` pass too, which audits
   the leak test) always read ARCHITECTURE §5, §4.2 and §4.6 (a change to its §4.7 alone can still add a snapshot field
-  the leak test does not compare), and no prompt asks for root `CLAUDE.md`, which every agent has from its launch. The implementer's default reading list names no area `CLAUDE.md`
-  file and no rule: those load by path when it Reads a file there, as it does before every Edit (a `cat` loads none).
+  the leak test does not compare), and no prompt asks for root `CLAUDE.md`, which every agent has from its launch. The
+  agent files of `code-reviewer` and `netcode-security-reviewer` say the same for a review launched by hand, and allow
+  `section` as their one read-only runner command besides the netcode reviewer's `bots` (#433; `test_agent_files.py`).
+  The implementer's default reading list names no area `CLAUDE.md` file and no rule: those load by path when it Reads a
+  file there, as it does before every Edit (a `cat` loads none).
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
@@ -230,8 +233,8 @@ rules.
 |---|---|---|
 | `godot-api-checker` | Check changes against the pinned Godot 4.7.2 API; flag Godot 3 idioms. Sources: `check`, the engine API dump, `docs.godotengine.org/en/4.7/` only | `sonnet`, effort high |
 | `test-runner` | Run test / lint / check / bots via the runner; return only failures | `haiku` |
-| `code-reviewer` | Review the branch diff against `CLAUDE.md`, `ARCHITECTURE.md` and the content API | `opus`, effort high |
-| `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions | `opus`, effort high |
+| `code-reviewer` | Review the branch diff against `CLAUDE.md`, the ARCHITECTURE sections it touches (`section`) and the content API | `opus`, effort high |
+| `netcode-security-reviewer` | Information leaks, unvalidated intents, host-trust assumptions; always reads ARCHITECTURE §5, §4.2 and §4.6 | `opus`, effort high |
 | `night-skeptic` | Re-check the night audit's candidates against the repo and GitHub runs: CONFIRMED, REFUTED or UNSURE each (§15) | `opus`, effort high |
 | `task-implementer` | `lean: true` only: the implementer, the plan agent and the test reviewer of `issue-task`, in the task worktree, with a lean tool set (no Skill tool: it reads a skill's `SKILL.md`) | `opus`, effort from the workflow's role |
 | `task-publisher` | `lean: true` only: the publisher of `issue-task` and the rebase and fix agents of `pr-rebase`; the implementer's tools plus SendUserFile | `opus`, effort from the workflow's role |
