@@ -1333,10 +1333,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   scratch folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with
   `wait <log>`.
   **`slots` (#416):** `--status` shows holders, waiters and the last hour's runs without a slot (launch nothing while
-  one waits); `--quiet <hours>` (at most 24; `off`) leaves new verify and load runs one slot machine-wide (`quiet`).
+  one waits or runs over the limit); `--quiet <hours>` (at most 24; `off`) leaves new verify and load runs one slot
+  machine-wide: a run already in a slot finishes there, a run already waiting joins the window.
   Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
-  The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (and `error` when the slot folder failed: the run
-  then goes ahead without a slot, a slot never stops the gate), its `seconds` leave the wait out, and the summary's last
+  The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (`error` when the slot folder failed: the run
+  then goes ahead without a slot, a slot never stops the gate; `quiet`, the window's note, when the run started in a
+  quiet window), its `seconds` leave the wait out, and the summary's last
   line adds `(after <s>s waiting for a verify slot)`; `metrics` shows the wait (median and maximum) and the runs over
   the limit. A lane process and its workers carry `PRIME_VERIFY_INSIDE`, so a runner test that reaches the real lanes
   fails instead of starting `verify` inside `verify`; a runner test that starts Godot carries `@starts_godot`

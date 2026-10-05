@@ -24,7 +24,8 @@ the runs waiting for a slot (each waiting run keeps a `waiter-<pid>-<token>.json
 when it goes ahead over the limit, until it ends) and the runs of the last hour that ran without a slot (from the verify
 history files of the main checkout and its worktrees). `slots --quiet <hours>` writes `quiet.json` into the same
 folder, so every checkout of the PC sees it: until its end time a new verify or load run takes one slot (QUIET_SLOTS),
-and its slot line names the quiet window; `slots --quiet off` removes it. The quiet file fails safe: a missing,
+and its slot line names the quiet window (a run already waiting joins the window on its next poll; a run already in a
+slot keeps it); `slots --quiet off` removes it. The quiet file fails safe: a missing,
 unreadable, malformed or expired one, or one ending more than MAX_QUIET_HOURS ahead, is ignored (with a warning), and a
 quiet window only lowers the count, so a run still waits at most max_wait and never waits for ever.
 """
