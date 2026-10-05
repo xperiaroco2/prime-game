@@ -193,7 +193,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots` and `bots-enet`, §11.9). Every agent runs it in the background and polls it with `wait <log>`
+   matches too (`bots` and `bots-enet`, §11.16). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11.17, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
