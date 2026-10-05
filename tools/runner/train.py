@@ -136,7 +136,8 @@ def held(wt: Path, pr: merge.PullRequest, recent_minutes: int) -> str:
     """Why a live run may hold the worktree (orchestrate-stage §2.2), or "" when the train may work in it."""
     for holder in slot_holders():
         if holder.pid and _same(holder.worktree, wt) and sessions.process_alive(holder.pid):
-            return f"a verify holds slot {holder.slot} there (pid {holder.pid}, since {holder.since})"
+            what = "a load run" if holder.kind == slots.LOAD else "a verify"  # a load takes a slot too (#388)
+            return f"{what} holds slot {holder.slot} there (pid {holder.pid}, since {holder.since})"
     me = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     now = time.time()
     for session in sessions.alive_in(wt):
