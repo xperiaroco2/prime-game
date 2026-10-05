@@ -22,8 +22,10 @@ extends RefCounted
 ## player too. RELIABLE and VOICE messages are all delivered.
 
 signal connected(own_id: int)
-## A join failed: no host, refused, full, or no answer within the join timeout.
-signal connect_failed
+## A join failed, for `reason`: one of the JOIN_ constants below, as precise as the backend can
+## tell (ENet and the loopback cannot tell a refusal from no answer: JOIN_FAILED). ClientSession
+## ends with it as its reason.
+signal connect_failed(reason: StringName)
 signal peer_joined(peer_id: int)
 signal peer_left(peer_id: int)
 ## The one signal for "the host is gone": it closed, crashed or timed out. The match is over for
@@ -40,6 +42,22 @@ enum Role { IDLE, HOST, CLIENT }
 const HOST_ID := 1
 ## At most one summary line of rejected packets per interval, so one peer cannot flood the log.
 const REJECT_SUMMARY_INTERVAL_MS := 10000
+## connect_failed's reasons (the M6 design §2.3; EndReasons says each in words). No host, a full
+## or refusing one, no answer within the join timeout, or a bad admission.
+const JOIN_FAILED := &"connect_failed"
+## WebRTC: the signalling service has no room with that code.
+const JOIN_NO_ROOM := &"no_room"
+## WebRTC: the room is closed, its match has started (the reason a Rejected Hello gives too).
+const JOIN_STARTED := &"joins_closed"
+## WebRTC: the room has as many joiners as its host allows (a Rejected Hello's reason too).
+const JOIN_FULL := &"full"
+## WebRTC: the signalling service could not be reached, or closed before the join was answered.
+const JOIN_SERVICE_UNREACHABLE := &"service_unreachable"
+## WebRTC: the service refused the join for another reason (another signalling version, say).
+const JOIN_SERVICE_REFUSED := &"service_refused"
+## WebRTC: the connection failed or did not open within the join timeout: no direct path between
+## the two machines.
+const JOIN_UNREACHABLE := &"host_unreachable"
 
 var rejects := NetRejects.new()
 ## Valid LATEST messages dropped because a newer one of the same kind from the same peer came in
@@ -62,23 +80,41 @@ var _inbox: Array[Inbound] = []
 var _first_pending_reject_ms := -1
 ## Counts closes, so a drain notices a handler that closed and hosted or joined again.
 var _session := 0
-## What send() handed to in-process links other than the host's own client since the last
-## take_upload(): frame bytes and frames, plain ints. take_upload() returns them as a Vector2i,
-## whose ints are 32-bit: right while a caller takes them every tick, as a debug build's
-## HostSession does around its sends (a tick's upload is far below 2^31 bytes; RelayMeter keeps
-## the 64-bit totals). Untaken (a release build) they grow as plain ints and never wrap.
+## What send() handed to in-process links other than the host's own client, and what a backend
+## that counts its own packets added (WebRtcTransport), since the last take_upload(): bytes and
+## packets, plain ints. take_upload() returns them as a Vector2i, whose ints are 32-bit: right
+## while a caller takes them every tick, as a debug build's HostSession does around its sends (a
+## tick's upload is far below 2^31 bytes; RelayMeter keeps the 64-bit totals). Untaken (a release
+## build) they grow as plain ints and never wrap.
 var _upload_bytes := 0
 var _upload_frames := 0
 
 
 class Inbound:
-	enum Type { PACKET, JOINED, LEFT, DISCONNECTED, CONNECTED, CONNECT_FAILED, HOST_LOST }
+	## REJECTED: a packet the backend rejected below NetFrame (`reject`), counted in the inbox's
+	## order. SUPERSEDED: a LATEST frame the backend dropped for a newer one (LaneOrder's full
+	## hold), decoded like any packet and counted in latest_superseded when valid, never delivered.
+	enum Type {
+		PACKET,
+		JOINED,
+		LEFT,
+		DISCONNECTED,
+		CONNECTED,
+		CONNECT_FAILED,
+		HOST_LOST,
+		REJECTED,
+		SUPERSEDED,
+	}
 
 	var type: Type
 	var peer: int
 	var bytes: PackedByteArray
 	var channel: int
 	var mode: MultiplayerPeer.TransferMode
+	## CONNECT_FAILED: connect_failed's reason.
+	var reason := JOIN_FAILED
+	## REJECTED: why.
+	var reject := NetRejects.Reason.NONE
 
 	func _init(
 		item_type: Type,
@@ -247,8 +283,11 @@ func receive_bytes(
 ## What this side sent towards other machines since the last call, as (bytes, datagrams), and
 ## counting starts again (the host's debug counters, ARCHITECTURE §4.5, E47). ENet: its host's
 ## statistics (ENetConnection.pop_statistic), ENet's headers and its own acknowledgements and pings
-## included, IP and UDP not; the loopback: the frames sent to linked peers, a stand-in for tests,
-## one datagram each. The host's own client's link never counts: it never reaches a network.
+## included, IP and UDP not; WebRTC: each packet its channel took (LaneOrder's header included)
+## plus WebRtcTransport.PACKET_OVERHEAD_BYTES, one datagram each (E56; SCTP's acknowledgements are
+## left out, the transport never sees them); the loopback: the frames sent to linked peers, a
+## stand-in for tests, one datagram each. The host's own client's link never counts: it never
+## reaches a network.
 func take_upload() -> Vector2i:
 	var found := Vector2i(_upload_bytes, _upload_frames)
 	_upload_bytes = 0
@@ -303,14 +342,12 @@ func _push(item: Inbound) -> void:
 		_inbox.append(item)
 
 
-func _push_packet(from_peer: int, bytes: PackedByteArray, lane: NetKindTable.Lane) -> void:
+func _push_packet(
+	from_peer: int, bytes: PackedByteArray, lane: NetKindTable.Lane, type := Inbound.Type.PACKET
+) -> void:
 	_push(
 		Inbound.new(
-			Inbound.Type.PACKET,
-			from_peer,
-			bytes,
-			NetKindTable.channel_of(lane),
-			NetKindTable.mode_of(lane)
+			type, from_peer, bytes, NetKindTable.channel_of(lane), NetKindTable.mode_of(lane)
 		)
 	)
 
@@ -353,10 +390,15 @@ func _drain_inbox() -> void:
 					connected.emit(_own_id)
 			Inbound.Type.CONNECT_FAILED:
 				if _role == Role.CLIENT and not _peers.has(HOST_ID):
-					_end_client(connect_failed)
+					_end_client(item.reason)
 			Inbound.Type.HOST_LOST:
 				if _role == Role.CLIENT:
-					_end_client(host_lost if _peers.has(HOST_ID) else connect_failed)
+					_end_client(&"" if _peers.has(HOST_ID) else JOIN_FAILED)
+			Inbound.Type.REJECTED:
+				_count_reject(item.peer, item.reject)
+			Inbound.Type.SUPERSEDED:
+				if _decoded(item.peer, item.bytes, item.channel, item.mode) != null:
+					latest_superseded += 1
 
 
 ## The batch indices of the LATEST packets a newer one supersedes: each valid LATEST message that a
@@ -419,11 +461,15 @@ func _decoded(
 	return frame
 
 
-func _end_client(outcome: Signal) -> void:
+## Ends a client: host_lost, or connect_failed for `failed_reason` when it is not empty.
+func _end_client(failed_reason: StringName) -> void:
 	_backend_close()
 	_reset()
 	_log_rejects(true)
-	outcome.emit()
+	if failed_reason.is_empty():
+		host_lost.emit()
+	else:
+		connect_failed.emit(failed_reason)
 
 
 func _reset() -> void:

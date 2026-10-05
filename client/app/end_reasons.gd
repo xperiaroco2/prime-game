@@ -28,6 +28,15 @@ const WORDS: Dictionary[StringName, String] = {
 		"no answer from the host: check that it runs, the address and the port, and that its"
 		+ " firewall lets UDP in"
 	),
+	&"no_room": "no game has that code: check the code with the host",
+	&"service_unreachable":
+	"the code service could not be reached: join with the host's address under Direct instead",
+	&"service_refused": "the code service refused the join: put both machines on the same build",
+	&"host_unreachable":
+	(
+		"could not reach the host directly: join with the host's address under Direct (LAN or"
+		+ " VPN) instead"
+	),
 	&"host_lost": "the host closed, or the connection was lost",
 	&"unknown_map": "the host asked for a map this game does not have: put both on the same commit",
 	&"load_failed": "the map did not load on this machine",

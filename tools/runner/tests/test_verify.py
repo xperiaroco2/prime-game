@@ -22,7 +22,22 @@ from unittest import mock
 from runner import cli, common, slots, verify
 from runner.common import ROOT, Failure
 
-GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"]
+GODOT_STEPS = [
+    "check",
+    "selftest-godot",
+    "test",
+    "enet",
+    "freeze",
+    "stall",
+    "webrtc",
+    "webrtc-freeze",
+    "webrtc-stall",
+    "webrtc-silence",
+    "bots",
+    "bots-enet",
+    "chaos",
+    "game",
+]
 
 
 def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib.ExitStack:
@@ -47,6 +62,10 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
         (verify, "enet", "enet"),
         (verify, "freeze", "freeze"),
         (verify, "stall", "stall"),
+        (verify, "webrtc", "webrtc"),
+        (verify, "webrtc_freeze", "webrtc-freeze"),
+        (verify, "webrtc_stall", "webrtc-stall"),
+        (verify, "webrtc_silence", "webrtc-silence"),
         (verify, "bots_one_process", "bots"),
         (verify, "bots_enet", "bots-enet"),
         (verify, "chaos", "chaos"),
@@ -834,6 +853,27 @@ class EnetStepTest(unittest.TestCase):
         )
         self.assertTrue((ROOT / verify.STALL_RUN).is_file())
 
+    def test_the_webrtc_twins_run_headless_on_a_port_free_for_tcp_too(self) -> None:
+        cases = (
+            (verify.webrtc, verify.WEBRTC_RUN, 3),
+            (verify.webrtc_freeze, verify.WEBRTC_FREEZE_RUN, 3),
+            (verify.webrtc_stall, verify.WEBRTC_STALL_RUN, 1),
+            (verify.webrtc_silence, verify.WEBRTC_SILENCE_RUN, 1),
+        )
+        for step, target, instances in cases:
+            with (
+                self.subTest(target),
+                mock.patch.object(verify, "free_udp_port", return_value=23459) as pick,
+                mock.patch.object(verify.launch, "main", return_value=0) as run,
+            ):
+                self.assertEqual(step(), 0)
+                pick.assert_called_once_with(tcp=True)
+                run.assert_called_once_with(
+                    target, headless=True, seconds=60, instances=instances, user_args=["--port=23459"]
+                )
+                self.assertTrue((ROOT / target).is_file())
+        self.assertEqual(verify.LANES["godot"].index("webrtc"), verify.LANES["godot"].index("stall") + 1)
+
     def test_the_chaos_step_runs_one_fixed_seed_of_the_short_match(self) -> None:
         with mock.patch.object(verify.bots, "chaos", return_value=0) as run:
             self.assertEqual(verify.chaos(), 0)
@@ -868,6 +908,16 @@ class FreePortTest(unittest.TestCase):
         picks = iter([20000, 20005])
         with mock.patch.object(verify, "_binds", side_effect=lambda port: port not in held):
             self.assertEqual(verify.free_udp_port(lambda _ports: next(picks), count=2), 20005)
+
+    def test_with_tcp_a_port_must_bind_for_tcp_too(self) -> None:
+        tcp_held = {20000}
+        picks = iter([20000, 20005])
+
+        def binds(port: int, kind: int = socket.SOCK_DGRAM) -> bool:
+            return kind != socket.SOCK_STREAM or port not in tcp_held
+
+        with mock.patch.object(verify, "_binds", side_effect=binds):
+            self.assertEqual(verify.free_udp_port(lambda _ports: next(picks), tcp=True), 20005)
 
     def test_the_last_port_of_a_run_stays_in_the_range(self) -> None:
         offered: list[range] = []

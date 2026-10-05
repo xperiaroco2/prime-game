@@ -154,6 +154,14 @@ func test_a_join_nobody_answers_ends_with_connect_failed() -> void:
 	assert_str(String(session.end_reason)).is_equal(String(ClientSession.CONNECT_FAILED))
 
 
+## The transport's reason (a WebRTC join's no_room, say) is the session's end reason.
+func test_a_failed_join_ends_with_the_transports_reason() -> void:
+	var client := LoopbackTransport.new(_harness.schema.kind_table(), _harness.hub)
+	var session := ClientSession.new(client, _harness.mode, _harness.schema)
+	client.connect_failed.emit(NetTransport.JOIN_NO_ROOM)
+	assert_str(String(session.end_reason)).is_equal("no_room")
+
+
 func test_the_welcome_is_recorded_as_core_emitted_it() -> void:
 	var welcome := _harness.welcome()
 	var events := _harness.session.view.events

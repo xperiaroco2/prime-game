@@ -33,8 +33,8 @@ class Recorder:
 	func _on_connected(own_id: int) -> void:
 		events.append("connected %d" % own_id)
 
-	func _on_connect_failed() -> void:
-		events.append("connect_failed")
+	func _on_connect_failed(reason: StringName) -> void:
+		events.append(String(reason))
 
 	func _on_peer_joined(peer_id: int) -> void:
 		events.append("joined %d" % peer_id)

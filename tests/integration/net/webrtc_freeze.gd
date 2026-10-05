@@ -1,8 +1,11 @@
 extends SceneTree
-## A 5.2 s main-thread freeze on the host, then on a client, over EnetTransport on 127.0.0.1, one
-## process each (#70; the #21 probe's -FreezeHost 8:5200). Headless only:
-##   tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>
-## --port is required, so no run takes a fixed port: give it a free UDP port (verify does).
+## A 5.2 s main-thread freeze on the host, then on a client, over WebRtcTransport on 127.0.0.1, one
+## process each: the twin of enet_freeze.gd (the M6 design §2.6, #370). Headless only:
+##   tools\run.cmd run tests/integration/net/webrtc_freeze.gd --headless --instances 3 -- --port=<p>
+## --port is required, so no run takes a fixed port: give it a free port (verify does). The host
+## serves LanSignalling there with a fixed room code; every candidate is a host one on 127.0.0.1.
+## Every side runs the fault shim (WebRtcTransport.FaultShim, the design's §5): RELIABLE 50 ms
+## late, LATEST dropped and duplicated, since 127.0.0.1 almost never reorders across channels.
 ## PRIME_INSTANCE picks the part: 1 hosts; 2 and 3 join. Each process exits 0 when its part held,
 ## else prints an ERROR line and exits 1.
 ##
@@ -17,10 +20,10 @@ extends SceneTree
 ##   lane's rule, NetTransport: a reliable message separates the runs it merges). In the first poll
 ##   after a freeze the backlog arrives, and each run of a peer's poses is merged into its newest:
 ##   at least one pose is merged away, and the one applied is not the backlog's 5 s old head.
-## Until #95 one poll read at most 256 datagrams (one ENet service), so the thawed host's newest
-## pose from each client was about 1 s old on one PC (Windows 11) and up to 3.1 s on the Linux CI
-## runner, where it failed the check; the rest came a poll later. EnetTransport now drains the
-## socket in one poll.
+## WebRTC's own keepalives run on libdatachannel's threads, so a frozen side stays CONNECTED (M6-1);
+## what could drop it is the silence rule (WebRtcTransport.SILENCE_MS), which must see the backlog
+## drained first. LaneOrder holds the backlog's poses that wait for their beats, and the beats
+## release them in the same poll.
 
 const ADDRESS := "127.0.0.1"
 const PORT_ARG := "--port="
@@ -32,6 +35,11 @@ const SETTLE_MS := 1500
 const POSE_EVERY_MS := 50
 const BEAT_EVERY_MS := 100
 const RETRY_JOIN_MS := 500
+const CODE := "FRZRTC"
+const SHIM_SEED := 370
+const SHIM_RELIABLE_DELAY_MS := 50
+const SHIM_LATEST_DROP := 0.1
+const SHIM_LATEST_DUPLICATE := 0.1
 ## The pose applied at the thaw is younger than this: the backlog's head is FREEZE_MS old.
 const THAW_MAX_AGE_MS := FREEZE_MS / 2.0
 const HELLO := 1  # client -> host, reliable: the client's instance number
@@ -46,7 +54,8 @@ var _instance := 0
 var _port := 0
 var _started_ms := 0
 var _done := false
-var _transport: EnetTransport
+var _transport: WebRtcTransport
+var _signalling: LanSignalling
 ## What this side heard from each peer, by peer id.
 var _heard: Dictionary[int, Heard] = {}
 var _beat := 0
@@ -125,7 +134,16 @@ func _initialize() -> void:
 	if _port < 1 or _port > 65535:
 		_fail("give -- %s<a free UDP port between 1 and 65535>, got '%s'" % [PORT_ARG, port_text])
 		return
-	_transport = EnetTransport.new(_kinds)
+	_transport = WebRtcTransport.new(_kinds)
+	_transport.signal_url = "ws://%s:%d" % [ADDRESS, _port]
+	_transport.local_candidates = true
+	var shim := WebRtcTransport.FaultShim.new(SHIM_SEED + _instance)
+	shim.reliable_delay_ms = SHIM_RELIABLE_DELAY_MS
+	shim.latest_drop = SHIM_LATEST_DROP
+	shim.latest_duplicate = SHIM_LATEST_DUPLICATE
+	if _transport.use_faults(shim) != OK:
+		_fail("the fault shim needs a debug build")
+		return
 	_transport.packet_received.connect(_on_packet)
 	if _instance == 1:
 		_start_host()
@@ -153,6 +171,8 @@ func _process(_delta: float) -> bool:
 func _poll() -> void:
 	for heard: Heard in _heard.values():
 		heard.poses_in_run = 0
+	if _signalling != null:
+		_signalling.poll()
 	_transport.poll()
 	if _thawing and not _done:
 		_thawing = false
@@ -243,13 +263,17 @@ func _on_packet(from_peer: int, kind: int, payload: PackedByteArray) -> void:
 
 
 func _start_host() -> void:
-	_transport.bind_address = ADDRESS
-	var err := _transport.host(_port, 4)
+	_signalling = LanSignalling.new([], func() -> String: return CODE)
+	var err := _signalling.listen(_port, ADDRESS)
 	if err != OK:
-		_fail("host on %s:%d failed: %s" % [ADDRESS, _port, error_string(err)])
+		_fail("signalling on %s:%d failed: %s" % [ADDRESS, _port, error_string(err)])
+		return
+	err = _transport.host(0, 4)
+	if err != OK:
+		_fail("host failed: %s" % error_string(err))
 		return
 	_transport.peer_left.connect(_on_host_peer_left)
-	print("NET host listening on %s:%d" % [ADDRESS, _port])
+	print("NET host signalling on ws://%s:%d" % [ADDRESS, _port])
 
 
 func _host_step() -> void:
@@ -310,17 +334,18 @@ func _on_host_peer_left(peer_id: int) -> void:
 	if _left.size() < _peer_of_instance.size():
 		return
 	if _transport.rejects.total() != 0:
-		_fail("%d packet(s) rejected on the host" % _transport.rejects.total())
+		_fail("rejected on the host: %s" % _transport.rejects.totals())
 		return
 	print("NET host both clients stayed through both freezes and left at the end; PASS")
 	_transport.close()
+	_signalling.stop()
 	_pass()
 
 
 func _client_step() -> void:
 	if _transport.role() == NetTransport.Role.IDLE:
 		if Time.get_ticks_msec() >= _next_join_ms:
-			var err := _transport.join(ADDRESS, _port)
+			var err := _transport.join(CODE, 0)
 			if err != OK:
 				_fail("join failed to start: " + error_string(err))
 				return
@@ -361,9 +386,10 @@ func _on_host_lost() -> void:
 	_fail("lost the host in the run, %d ms after its last packet" % silent)
 
 
-func _on_connect_failed(_reason: StringName) -> void:
-	# The clients start with the host: until it listens, a join fails and is tried again.
-	print("NET client %d join failed; retrying" % _instance)
+func _on_connect_failed(reason: StringName) -> void:
+	# The clients start with the host: until its service listens and its room is open, a join
+	# fails and is tried again.
+	print("NET client %d join failed (%s); retrying" % [_instance, reason])
 	_next_join_ms = Time.get_ticks_msec() + RETRY_JOIN_MS
 
 
@@ -373,7 +399,7 @@ func _finish_client() -> void:
 		_fail("heard no beat from the host")
 		return
 	if _transport.rejects.total() != 0:
-		_fail("%d packet(s) rejected on client %d" % [_transport.rejects.total(), _instance])
+		_fail("rejected on client %d: %s" % [_instance, _transport.rejects.totals()])
 		return
 	_transport.close()
 	print("NET client %d stayed connected through the freezes; PASS" % _instance)

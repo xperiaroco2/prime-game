@@ -1,58 +1,57 @@
 extends SceneTree
-## A host and two clients over ENet on 127.0.0.1, one process each (#40). Headless only:
-##   tools\run.cmd run tests/integration/net/enet_host_and_two_clients.gd --headless --instances 3
-## `verify` adds `-- --port=<a random free port>`, so parallel worktrees very rarely share one;
-## without --port it uses DEFAULT_PORT.
+## A host and two clients over WebRTC on 127.0.0.1, one process each: the twin of
+## enet_host_and_two_clients.gd (the M6 design §6, #370). Headless only:
+##   tools\run.cmd run tests/integration/net/webrtc_host_and_two_clients.gd --headless
+##     --instances 3 -- --port=<p>
+## --port is required (verify gives a free one): the host serves LanSignalling there over ws://,
+## with no ICE servers and a fixed room code, and every candidate is a host one on 127.0.0.1.
 ## PRIME_INSTANCE picks the part: 1 hosts and plays through its own loopback client; 2 and 3 join.
 ## Each process exits 0 when its part held, else prints an ERROR line and exits 1.
 ##
-## The script: both clients join and say hello. A raw ENet client in the host's process joins with
-## the forged peer id -5 (a negative target means "everyone but 5" to ENet) and must be turned
-## away. A second in-process client joins and the host disconnects it (disconnect_peer): the host
-## sees peer_left once, the client host_lost. The host sends every peer (its own client too) one
-## message per lane carrying that peer's id (the first ones' upload counted at once, take_upload);
-## each peer checks the id and echoes it. The host starts
-## refusing joins and proves it with a third ENet client in its own process. Client 3 leaves when
-## told to. The host closes; client 2 and the host's own client see host_lost. No packet may be
-## rejected anywhere: that also checks the lanes' channels and modes against real ENet.
+## The script: both clients join with the code and say hello; the host assigned them ids 2 and 3
+## in order. A third client joins in the host's process and the host disconnects it
+## (disconnect_peer) right after a last message: that message arrives first, the host sees
+## peer_left once, the client host_lost. The host sends every peer (its own client too) one message
+## per lane carrying that peer's id (the first ones' upload counted at once, take_upload: frame
+## bytes plus E56's overhead per packet); each peer checks the id and echoes it, so a message sent
+## on another peer's connection fails the run (the design's §5). The host starts refusing joins
+## and proves it with a fourth client in its own process, which the service turns away with
+## joins_closed. Client 3 leaves when told to. The host closes; client 2 and the host's own client
+## see host_lost. No packet may be rejected anywhere.
 
 const ADDRESS := "127.0.0.1"
-const DEFAULT_PORT := 24571
 const PORT_ARG := "--port="
+const CODE := "TWNRTC"
 const DEADLINE_MS := 60000
 const RESEND_MS := 100
 const RETRY_JOIN_MS := 500
 const POLLS_AFTER_LOST := 10
-const FORGED_ID := -5
-const FORGED_WAIT_MS := 3000
 const TALK := 1  # both ways, reliable
-const LATEST := 2  # both ways, unreliable ordered
+const LATEST := 2  # both ways, latest
 const VOICE := 3  # both ways, voice lane
 const COMMAND := 4  # host -> client, reliable
 const LANES: Array[int] = [TALK, LATEST, VOICE]
 
 var _kinds := NetKindTable.new()
 var _instance := 0
-var _port := DEFAULT_PORT
+var _port := 0
 var _started_ms := 0
 var _done := false
 # Host part.
-var _host: EnetTransport
+var _signalling: LanSignalling
+var _host: WebRtcTransport
 var _own: EchoClient
 var _peer_of_instance: Dictionary[int, int] = {}
 var _echoed: Dictionary[String, bool] = {}
 var _last_resend_ms := 0
 var _phase := ""
-var _prober: EnetTransport
+var _prober: WebRtcTransport
 var _prober_result := ""
-var _probe_started_ms := 0
-var _kickee: EnetTransport
+var _kickee: WebRtcTransport
 var _kicked_id := 0
 var _kicked_left := false
 var _kickee_lost := false
 var _kickee_got_bye := false
-var _forger: ENetConnection
-var _forged_started_ms := 0
 # Frames polled after host_lost, to see that it fires only once.
 var _polls_after_lost := 0
 # Client part.
@@ -109,17 +108,17 @@ func _initialize() -> void:
 	_kinds.add(COMMAND, NetKindTable.Lane.RELIABLE, NetKindTable.Direction.HOST_TO_CLIENT, 64)
 	_instance = int(OS.get_environment("PRIME_INSTANCE"))
 	_started_ms = Time.get_ticks_msec()
-	var port_text := str(DEFAULT_PORT)
+	var port_text := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with(PORT_ARG):
 			port_text = arg.trim_prefix(PORT_ARG)
 	_port = port_text.to_int() if port_text.is_valid_int() else 0
 	if _port < 1 or _port > 65535:
-		_fail("%s must be a port between 1 and 65535, got '%s'" % [PORT_ARG, port_text])
+		_fail("give -- %s<a free port between 1 and 65535>, got '%s'" % [PORT_ARG, port_text])
 	elif _instance == 1:
 		_start_host()
 	elif _instance in [2, 3]:
-		_client = EchoClient.new(EnetTransport.new(_kinds), _instance)
+		_client = EchoClient.new(_new_transport(), _instance)
 		_client.transport.connect_failed.connect(_on_client_connect_failed)
 	else:
 		_fail("PRIME_INSTANCE must be 1, 2 or 3 (run with --instances 3), got '%s'" % _instance)
@@ -137,13 +136,25 @@ func _process(_delta: float) -> bool:
 	return false
 
 
+func _new_transport() -> WebRtcTransport:
+	var transport := WebRtcTransport.new(_kinds)
+	transport.signal_url = "ws://%s:%d" % [ADDRESS, _port]
+	transport.local_candidates = true
+	return transport
+
+
 func _start_host() -> void:
-	_host = EnetTransport.new(_kinds)
-	_host.bind_address = ADDRESS
-	var err := _host.host(_port, 4)
+	_signalling = LanSignalling.new([], func() -> String: return CODE)
+	var err := _signalling.listen(_port, ADDRESS)
 	if err != OK:
-		_fail("host on %s:%d failed: %s" % [ADDRESS, _port, error_string(err)])
+		_fail("signalling on %s:%d failed: %s" % [ADDRESS, _port, error_string(err)])
 		return
+	_host = _new_transport()
+	err = _host.host(0, 4)
+	if err != OK:
+		_fail("host failed: %s" % error_string(err))
+		return
+	_host.room_opened.connect(func(code: String) -> void: print("NET host room %s" % code))
 	_host.peer_joined.connect(
 		func(peer_id: int) -> void: print("NET host peer_joined %d" % peer_id)
 	)
@@ -151,10 +162,11 @@ func _start_host() -> void:
 	_host.packet_received.connect(_on_host_packet)
 	_own = EchoClient.new(LoopbackTransport.own_client_of(_host), 1)
 	_phase = "join"
-	print("NET host listening on %s:%d" % [ADDRESS, _port])
+	print("NET host signalling on ws://%s:%d" % [ADDRESS, _port])
 
 
 func _host_step() -> void:
+	_signalling.poll()
 	_host.poll()
 	if _own.transport.role() != NetTransport.Role.IDLE:
 		_own.transport.poll()
@@ -166,9 +178,7 @@ func _host_step() -> void:
 	match _phase:
 		"join":
 			if _peer_of_instance.size() == 3:
-				_start_forged_join()
-		"forged":
-			if _forged_join_turned_away():
+				_check_ids()
 				_start_kick()
 		"kick":
 			_kick_step()
@@ -190,13 +200,10 @@ func _host_step() -> void:
 				print("NET host every peer echoed its own id on every lane")
 				_start_probe()
 		"probe":
-			if _prober_result == "connect_failed":
-				# Refused at once, not by the join timeout: that is what the ADMIT is for.
-				var waited := Time.get_ticks_msec() - _probe_started_ms
-				if waited > EnetTransport.JOIN_TIMEOUT_MS / 2.0:
-					_fail("a refused join failed only after %d ms" % waited)
-					return
-				print("NET host a join while refusing failed after %d ms, as it should" % waited)
+			if _prober_result == String(NetTransport.JOIN_STARTED):
+				print(
+					"NET host a join while refusing failed with %s, as it should" % _prober_result
+				)
 				_prober = null
 				_phase = "leave"
 				_host.send(_peer_of_instance[3], COMMAND, "leave".to_utf8_buffer())
@@ -209,28 +216,38 @@ func _host_step() -> void:
 					_finish_host()
 
 
-## One reliable ping to every peer. Godot's put_packet flushes, so take_upload() right after holds
-## each remote ping's frame in a datagram of its own (ENet's headers on top), and the own client's
-## nothing (ARCHITECTURE §4.5, the host's counters).
+## The host assigns ids from 2 upward in the order the joiners came: two remote clients, 2 and 3.
+func _check_ids() -> void:
+	var remote := [_peer_of_instance[2], _peer_of_instance[3]]
+	remote.sort()
+	if remote != [2, 3]:
+		_fail("the clients got peer ids %s, not 2 and 3" % [remote])
+
+
+## One reliable ping to every peer; take_upload() right after holds each remote ping as its frame
+## plus WebRtcTransport.PACKET_OVERHEAD_BYTES (E56), one packet each, and the own client's nothing.
 func _send_first_pings() -> void:
 	_host.take_upload()
 	var remote_bytes := 0
+	var remote := 0
 	for peer_id: int in _peer_of_instance.values():
 		var payload := ("ping %d" % peer_id).to_utf8_buffer()
 		_host.send(peer_id, TALK, payload)
 		if peer_id != NetTransport.HOST_ID:
-			remote_bytes += payload.size() + NetFrame.HEADER_BYTES
+			remote += 1
+			remote_bytes += (
+				payload.size() + NetFrame.HEADER_BYTES + WebRtcTransport.PACKET_OVERHEAD_BYTES
+			)
 	var upload := _host.take_upload()
-	var remote := _peer_of_instance.size() - 1
-	if upload.y < remote or upload.x < remote_bytes:
+	if upload != Vector2i(remote_bytes, remote):
 		_fail(
 			(
-				"the pings' upload was %d B in %d datagrams, expected at least %d B in %d"
+				"the pings' upload was %d B in %d packets, expected %d B in %d"
 				% [upload.x, upload.y, remote_bytes, remote]
 			)
 		)
 		return
-	print("NET host the first pings went out as %d B in %d datagrams" % [upload.x, upload.y])
+	print("NET host the first pings went out as %d B in %d packets" % [upload.x, upload.y])
 
 
 func _resend_unreliable_pings() -> void:
@@ -244,45 +261,18 @@ func _resend_unreliable_pings() -> void:
 				_host.send(peer_id, kind, ("ping %d" % peer_id).to_utf8_buffer())
 
 
-func _start_forged_join() -> void:
-	_phase = "forged"
-	_forger = ENetConnection.new()
-	var err := _forger.create_host(1)
-	if err != OK:
-		_fail("raw ENet client failed: " + error_string(err))
-		return
-	_forger.connect_to_host(ADDRESS, _port, 3, FORGED_ID)
-	_forged_started_ms = Time.get_ticks_msec()
-
-
-## True once the host disconnected the forged peer; fails if the host admitted it.
-func _forged_join_turned_away() -> bool:
-	for peer_id in _host.peers():
-		if peer_id < NetTransport.HOST_ID:
-			_fail("the host admitted the forged peer id %d" % peer_id)
-			return false
-	var event: Array = _forger.service()
-	while event[0] != ENetConnection.EVENT_NONE:
-		if event[0] == ENetConnection.EVENT_DISCONNECT:
-			print("NET host turned away the forged peer id %d" % FORGED_ID)
-			_forger.destroy()
-			_forger = null
-			return true
-		event = _forger.service()
-	if Time.get_ticks_msec() - _forged_started_ms > FORGED_WAIT_MS:
-		_fail("the forged peer id %d got no answer in %d ms" % [FORGED_ID, FORGED_WAIT_MS])
-	return false
-
-
 func _start_kick() -> void:
 	_phase = "kick"
-	_kickee = EnetTransport.new(_kinds)
+	_kickee = _new_transport()
 	_kickee.packet_received.connect(
 		func(_from: int, kind: int, _payload: PackedByteArray) -> void:
 			_kickee_got_bye = kind == COMMAND
 	)
 	_kickee.host_lost.connect(_on_kickee_host_lost)
-	var err := _kickee.join(ADDRESS, _port)
+	_kickee.connect_failed.connect(
+		func(reason: StringName) -> void: _fail("the kick client could not join: %s" % reason)
+	)
+	var err := _kickee.join(CODE, 0)
 	if err != OK:
 		_fail("kick client failed to start: " + error_string(err))
 
@@ -296,6 +286,9 @@ func _kick_step() -> void:
 	var id := _kickee.own_id()
 	if NetTransport.HOST_ID in _kickee.peers() and id in _host.peers():
 		_kicked_id = id
+		if id != 4:
+			_fail("the third joiner got peer id %d, not 4" % id)
+			return
 		# The last word before the kick must still arrive (a reason, say), as on the loopback.
 		_host.send(id, COMMAND, "bye".to_utf8_buffer())
 		var err := _host.disconnect_peer(id)
@@ -311,13 +304,12 @@ func _on_kickee_host_lost() -> void:
 
 func _start_probe() -> void:
 	_phase = "probe"
-	_prober = EnetTransport.new(_kinds)
-	_probe_started_ms = Time.get_ticks_msec()
+	_prober = _new_transport()
 	_prober.connected.connect(func(_id: int) -> void: _prober_result = "connected")
 	_prober.connect_failed.connect(
 		func(reason: StringName) -> void: _prober_result = String(reason)
 	)
-	var err := _prober.join(ADDRESS, _port)
+	var err := _prober.join(CODE, 0)
 	if err != OK:
 		_fail("probe join failed to start: " + error_string(err))
 
@@ -358,11 +350,17 @@ func _on_host_peer_left(peer_id: int) -> void:
 func _finish_host() -> void:
 	var rejected := _host.rejects.total() + _own.transport.rejects.total()
 	if rejected != 0:
-		_fail("%d packet(s) rejected on the host" % rejected)
+		_fail(
+			(
+				"rejected on the host: %s %s"
+				% [_host.rejects.totals(), _own.transport.rejects.totals()]
+			)
+		)
 		return
 	if _own.host_lost_count != 1:
 		_fail("the host's own client saw host_lost %d times" % _own.host_lost_count)
 		return
+	_signalling.stop()
 	print("NET host own client saw host_lost once; rejected=0; PASS")
 	_pass()
 
@@ -377,7 +375,7 @@ func _client_step() -> void:
 		return
 	if transport.role() == NetTransport.Role.IDLE and not _client.told_to_leave:
 		if Time.get_ticks_msec() >= _next_join_ms:
-			var err := transport.join(ADDRESS, _port)
+			var err := transport.join(CODE, 0)
 			if err != OK:
 				_fail("join failed to start: " + error_string(err))
 				return
@@ -393,9 +391,10 @@ func _client_step() -> void:
 			_pass()
 
 
-func _on_client_connect_failed(_reason: StringName) -> void:
-	# The clients start with the host: until it listens, a join fails and is tried again.
-	print("NET client %d join failed; retrying" % _instance)
+func _on_client_connect_failed(reason: StringName) -> void:
+	# The clients start with the host: until its service listens and its room is open, a join
+	# fails and is tried again.
+	print("NET client %d join failed (%s); retrying" % [_instance, reason])
 	_next_join_ms = Time.get_ticks_msec() + RETRY_JOIN_MS
 
 
@@ -417,7 +416,7 @@ func _finish_client() -> void:
 
 func _check_client_rejects() -> void:
 	if _client.transport.rejects.total() != 0:
-		_fail("%d packet(s) rejected on client %d" % [_client.transport.rejects.total(), _instance])
+		_fail("rejected on client %d: %s" % [_instance, _client.transport.rejects.totals()])
 
 
 func _pass() -> void:

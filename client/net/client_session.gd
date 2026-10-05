@@ -132,7 +132,7 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 	_content = ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 	model = ClientModel.new(mode)
 	_transport.connected.connect(_on_connected)
-	_transport.connect_failed.connect(_end.bind(CONNECT_FAILED))
+	_transport.connect_failed.connect(_end)
 	_transport.host_lost.connect(_on_host_lost)
 	_transport.packet_received.connect(_on_packet)
 	corrected.connect(_count_correction)
