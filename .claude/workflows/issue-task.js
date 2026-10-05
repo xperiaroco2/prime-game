@@ -26,9 +26,10 @@ export const meta = {
 //   plan     the plan issue whose body no agent edits (default 30)
 //   manager  who runs this, for the agents' first line (default 'the manager session')
 // Optional pipeline v2 args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4), all off
-// by default. With none of them every agent's prompt, label, phase, schema and options are byte-identical to the
-// script before v2 (tools/runner/tests/test_workflows.py snapshots them), so other managers' launches and resumes are
-// unchanged. The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
+// by default but bounded_waits (on since #411). With none of them and bounded_waits false every agent's prompt, label,
+// phase, schema and options are byte-identical to the script before v2 (tools/runner/tests/test_workflows.py snapshots
+// them, and the default too), so a launch or resume with the earlier args and bounded_waits false is unchanged. The
+// agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents
 //   test_review   true: after the reviews one agent plants 3 to 5 mutants in the diff's production code with
@@ -45,10 +46,11 @@ export const meta = {
 //                 implementer runs `tools\run.cmd playcheck <scenario>` (P9, #186) and returns the PNGs, the code
 //                 reviewer reads them, and the rules line on Godot windows also allows playcheck. Missing on the
 //                 task's branch: reported in the result and the PR. +0 agents
-//   bounded_waits true: the implementer, the test reviewer and the full publisher run verify, publish and mutants in
-//                 the background and poll them with `tools\run.cmd wait` (#303), and wait on CI in calls of at most
-//                 240 s, so no tool call outlasts their 5-minute prompt cache; the publisher skips a standalone
-//                 verify that `wait --verified` shows done. Without `wait` on the branch: the foreground. +0 agents
+//   bounded_waits true, the default (#411; missing or null is true): the implementer, the test reviewer and the full
+//                 publisher run verify, publish and mutants in the background and poll them with `tools\run.cmd wait`
+//                 (#303), and wait on CI in calls of at most 240 s, so no tool call outlasts their 5-minute prompt
+//                 cache; the publisher skips a standalone verify that `wait --verified` shows done. Without `wait` on
+//                 the branch: the foreground. false: the prompts of before #411, byte for byte. +0 agents
 //   efforts       {role: 'low' | 'medium' | 'high' | 'xhigh' | 'max'}. Roles: implement (falls back to effort, which
 //                 falls back to today's default), plan (falls back to implement's), plan_review, review, netcode,
 //                 second_review, godot, test_review (default 'high'), skeptic, publish (default 'high'),
@@ -113,7 +115,8 @@ if (A.skeptic !== undefined && A.skeptic !== null && typeof A.skeptic !== 'boole
 }
 // true checks every blocker or major (the issue's criterion: one refuting agent each); a number caps the agents.
 const SKEPTICS = A.skeptic === true ? Infinity : (Number.isInteger(A.skeptic) ? A.skeptic : 0)
-const BOUNDED = flag('bounded_waits')
+// On unless a launch passes false (#411): a missing or null arg is the default.
+const BOUNDED = flag('bounded_waits') || A.bounded_waits === undefined || A.bounded_waits === null
 const LEAN = flag('lean')
 const V = A.visual
 const SCENES = V === true
