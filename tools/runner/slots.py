@@ -18,20 +18,31 @@ A load run (`load`, #388: bounded busy loops an agent starts on purpose to test 
 takes a slot too, so the verify runs see it: while it runs, one verify fewer runs beside it, and the waiting line
 names it ("load run in ..."). Past max_wait a load run does not start: unlike a verify, it is no gate, and it would
 make the verify runs beside it run over the limit.
+
+The `slots` command (#416, P2 of the weekly budget ADR) reads and quiets the slots. `slots --status` prints the holders,
+the runs waiting for a slot (each waiting run keeps a `waiter-<pid>-<token>.json` in the folder while it waits, and,
+when it goes ahead over the limit, until it ends) and the runs of the last hour that ran without a slot (from the verify
+history files of the main checkout and its worktrees). `slots --quiet <hours>` writes `quiet.json` into the same
+folder, so every checkout of the PC sees it: until its end time a new verify or load run takes one slot (QUIET_SLOTS),
+and its slot line names the quiet window; `slots --quiet off` removes it. The quiet file fails safe: a missing,
+unreadable, malformed or expired one, or one ending more than MAX_QUIET_HOURS ahead, is ignored (with a warning), and a
+quiet window only lowers the count, so a run still waits at most max_wait and never waits for ever.
 """
 
 from __future__ import annotations
 
 import contextlib
 import json
+import math
 import os
 import time
+import uuid
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from .common import IS_WINDOWS, Failure
+from .common import IS_WINDOWS, ROOT, Failure, git
 
 # The number of slots, the longest wait in seconds, and the folder of the lock files; each overrides the default.
 COUNT_VAR = "PRIME_VERIFY_SLOTS"
@@ -66,6 +77,34 @@ LOAD = "load"
 # How often a waiting run tries the slots again, and how often it says who holds them.
 POLL = 2.0
 REPORT_EVERY = 60.0
+# The quiet window (#416): its file in the slots folder, the slots a run may take while it lasts (one leaves half the
+# PC to the engineer's own use, N3 (b) of the weekly budget ADR), and the longest window `slots --quiet` writes; a
+# file that ends later than that (plus a minute for clocks) was not written by it and is ignored.
+QUIET_FILE = "quiet.json"
+QUIET_SLOTS = 1
+MAX_QUIET_HOURS = 24.0
+# A waiting run's file (#416), and the window of `slots --status`'s runs without a slot.
+WAITER_PREFIX = "waiter-"
+RECENT = 3600.0
+# What a waiter file says the run does: it waits for a slot, or it went ahead without one (a verify past max_wait).
+WAITING = "waiting"
+OVER = "over"
+
+
+def stamp(moment: datetime) -> str:
+    """A UTC time as the slot files write it: 2026-10-05T12:00:00Z."""
+    return moment.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def parse_stamp(text: object) -> datetime | None:
+    """A time the slot files wrote (ISO 8601; without a zone, UTC), or None."""
+    if not isinstance(text, str) or not text.strip():
+        return None
+    try:
+        moment = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 if IS_WINDOWS:
     import msvcrt
@@ -124,6 +163,103 @@ def setting(env: dict[str, str] | os._Environ[str], name: str, default: float) -
     return value
 
 
+def this_checkout() -> dict[str, object]:
+    """This checkout and its branch, as a holder, waiter or quiet file names them."""
+    branch = git("rev-parse", "--abbrev-ref", "HEAD").out.strip()
+    return {"worktree": ROOT.as_posix(), "branch": None if branch in ("", "HEAD") else branch}
+
+
+def configured_count(env: dict[str, str] | os._Environ[str] = os.environ) -> int:
+    """The number of slots: COUNT_VAR, else DEFAULT_COUNT (0: no limit)."""
+    value = setting(env, COUNT_VAR, DEFAULT_COUNT)
+    # float(): DEFAULT_COUNT is an int, and int.is_integer() is new in Python 3.12 (the runner's minimum is 3.11).
+    if not float(value).is_integer():  # 0.5 would truncate to 0, "no limit"
+        raise Failure(f"{COUNT_VAR}={env.get(COUNT_VAR)!r} is not a whole number")
+    return int(value)
+
+
+@dataclass
+class Quiet:
+    """A quiet window (#416): until `until`, a new run takes at most QUIET_SLOTS slots."""
+
+    until: datetime
+    since: str = "?"
+    worktree: str = "?"
+    branch: str | None = None
+
+    def note(self, count: int, configured: int) -> str:
+        return f"quiet window until {stamp(self.until)}: {count} of {configured} slots"
+
+
+def read_quiet(
+    where: Path, *, now: datetime | None = None, say: Callable[[str], None] = print
+) -> Quiet | None:
+    """The quiet window in force, or None. Fails safe: a missing file is no window, and an unreadable, malformed or
+    expired file, or one ending more than MAX_QUIET_HOURS ahead, is ignored with a warning (a quiet file never stops a
+    run, nor holds the PC at one slot for ever)."""
+    now = now or datetime.now(UTC)
+    path = where / QUIET_FILE
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        say(f"  warn  the quiet file {path} cannot be read ({exc}); ignored, no quiet window")
+        return None
+    try:
+        data = json.loads(text)
+    except ValueError:
+        data = None
+    until = parse_stamp(data.get("until")) if isinstance(data, dict) else None
+    if not isinstance(data, dict) or until is None:
+        say(f"  warn  the quiet file {path} names no end time ('until'); ignored, no quiet window")
+        return None
+    if until <= now:
+        say(f"  warn  the quiet window ended at {stamp(until)}; ignored ({path}; slots --quiet off removes it)")
+        return None
+    if until > now + timedelta(hours=MAX_QUIET_HOURS, minutes=1):
+        say(
+            f"  warn  the quiet file {path} ends at {stamp(until)}, more than {MAX_QUIET_HOURS:g} h ahead, which "
+            "slots --quiet never writes; ignored, no quiet window"
+        )
+        return None
+    branch = data.get("branch")
+    since, worktree = str(data.get("since", "?")), str(data.get("worktree", "?"))
+    return Quiet(until, since, worktree, branch if isinstance(branch, str) else None)
+
+
+def write_quiet(
+    where: Path, hours: float, *, now: datetime | None = None, me: dict[str, object] | None = None
+) -> Quiet:
+    """Start a quiet window of `hours` (more than 0, at most MAX_QUIET_HOURS) from now, replacing any other."""
+    if not (math.isfinite(hours) and 0 < hours <= MAX_QUIET_HOURS):
+        raise Failure(f"--quiet {hours:g}: give hours, more than 0 and at most {MAX_QUIET_HOURS:g}, or off")
+    now = now or datetime.now(UTC)
+    me = me or {}
+    branch = me.get("branch")
+    worktree = str(me.get("worktree", "?"))
+    quiet = Quiet(now + timedelta(hours=hours), stamp(now), worktree, branch if isinstance(branch, str) else None)
+    data = {"until": stamp(quiet.until), "since": quiet.since, "slots": QUIET_SLOTS, "worktree": quiet.worktree,
+            "branch": quiet.branch}  # fmt: skip
+    try:
+        where.mkdir(parents=True, exist_ok=True)
+        (where / QUIET_FILE).write_text(json.dumps(data), encoding="utf-8")
+    except OSError as exc:
+        raise Failure(f"could not write the quiet file in {where}: {exc}") from None
+    return quiet
+
+
+def end_quiet(where: Path) -> bool:
+    """End the quiet window: remove its file. False when there was none."""
+    try:
+        (where / QUIET_FILE).unlink()
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise Failure(f"could not remove the quiet file in {where}: {exc}") from None
+    return True
+
+
 @dataclass
 class Holder:
     """Who holds a slot, as its holder file says."""
@@ -141,6 +277,52 @@ class Holder:
 
 
 @dataclass
+class Waiter:
+    """A run waiting for a slot (or, `state` OVER, a verify that went ahead without one), as its waiter file says."""
+
+    path: Path
+    worktree: str = "?"
+    branch: str | None = None
+    pid: int | None = None
+    since: str = "?"
+    kind: str = VERIFY
+    state: str = WAITING
+
+    def line(self, now: datetime | None = None) -> str:
+        started = parse_stamp(self.since)
+        ago = f", {((now or datetime.now(UTC)) - started).total_seconds():.0f} s ago" if started else ""
+        doing = "waiting for a slot" if self.state == WAITING else "running OVER THE LIMIT, without a slot,"
+        what = "load run" if self.kind == LOAD else "verify"
+        who = f"{self.worktree} ({self.branch or 'detached'}, pid {self.pid})"
+        return f"{what} in {who} {doing} since {self.since}{ago}"
+
+
+def read_waiters(where: Path) -> list[Waiter]:
+    """Every waiter file in the folder, oldest first (a blank or unreadable one, caught half-written, is left out)."""
+    found: list[Waiter] = []
+    for path in sorted(where.glob(f"{WAITER_PREFIX}*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8") or "null")
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        pid, branch = data.get("pid"), data.get("branch")
+        found.append(
+            Waiter(
+                path,
+                worktree=str(data.get("worktree", "?")),
+                branch=branch if isinstance(branch, str) else None,
+                pid=pid if isinstance(pid, int) else None,
+                since=str(data.get("since", "?")),
+                kind=LOAD if data.get("kind") == LOAD else VERIFY,
+                state=OVER if data.get("state") == OVER else WAITING,
+            )
+        )
+    return sorted(found, key=lambda w: w.since)
+
+
+@dataclass
 class Taken:
     """The outcome of a wait for a slot: the slot (None: the run went ahead without one), the seconds waited, and the
     holders of slots this run took over from a run that ended without releasing them."""
@@ -151,13 +333,20 @@ class Taken:
     reclaimed: list[Holder] = field(default_factory=list)
     holders: list[Holder] = field(default_factory=list)  # who held every slot when the wait ran out
     error: str | None = None  # the slot folder failed (unwritable, missing): the run went ahead without a slot
+    quiet: str | None = None  # the run started in a quiet window (#416): Quiet.note()
 
     @property
     def over(self) -> bool:
         return self.slot is None
 
+    @property
+    def note(self) -> str:
+        """The slot line's note of a run that started in a quiet window, `(quiet window until ...: 1 of 2 slots)`."""
+        return f" ({self.quiet})" if self.quiet else ""
+
     def record(self) -> dict[str, object]:
-        """The history record's `slot` entry (with `error` only when the slot folder failed)."""
+        """The history record's `slot` entry (with `error` only when the slot folder failed, and `quiet` only in a
+        quiet window)."""
         record: dict[str, object] = {
             "slot": self.slot,
             "of": self.count,
@@ -167,17 +356,19 @@ class Taken:
         }
         if self.error is not None:
             record["error"] = self.error
+        if self.quiet is not None:
+            record["quiet"] = self.quiet
         return record
 
     def summary(self) -> str:
         if self.error is not None:
-            return f"slot: NONE of {self.count}: the verify slots failed ({self.error}); ran without a slot"
+            return f"slot: NONE of {self.count}: the verify slots failed ({self.error}); ran without a slot{self.note}"
         if self.over:
             return (
-                f"slot: NONE of {self.count} after waiting {self.waited:.1f}s: ran over the limit "
+                f"slot: NONE of {self.count}{self.note} after waiting {self.waited:.1f}s: ran over the limit "
                 f"(held by {'; '.join(h.line() for h in self.holders) or 'unknown'})"
             )
-        return f"slot: {self.slot} of {self.count}, waited {self.waited:.1f}s for a verify slot"
+        return f"slot: {self.slot} of {self.count}{self.note}, waited {self.waited:.1f}s for a verify slot"
 
 
 class Pool:
@@ -197,6 +388,7 @@ class Pool:
         say: Callable[[str], None] = print,
         poll: float = POLL,
         every: float = REPORT_EVERY,
+        quiet: Quiet | None = None,
     ) -> None:
         if count < 1:
             raise ValueError(f"a pool needs at least one slot, not {count}")
@@ -204,7 +396,11 @@ class Pool:
             raise ValueError(f"a slot is held by a {VERIFY} or a {LOAD} run, not {kind!r}")
         self.where = where
         self.kind = kind
-        self.count = count
+        # In a quiet window (#416) a run takes at most QUIET_SLOTS of the `count` slots: the first ones, so a run that
+        # took a later slot before the window began holds it to its end, and no new run takes it.
+        self.configured = count
+        self.quiet = quiet
+        self.count = min(count, QUIET_SLOTS) if quiet is not None else count
         self.max_wait = max_wait
         self.me = me or {}
         self.clock = clock
@@ -214,6 +410,12 @@ class Pool:
         self.every = every
         self._fd: int | None = None
         self._slot: int | None = None
+        self._waiter: Path | None = None
+        self._waiting_since = ""
+
+    @property
+    def quiet_note(self) -> str | None:
+        return self.quiet.note(self.count, self.configured) if self.quiet is not None else None
 
     @property
     def what(self) -> str:
@@ -253,6 +455,22 @@ class Pool:
         # for its report. The slot's lock admits one writer, and a reader that sees a half-written file gets None.
         self._holder_path(slot).write_text(json.dumps(data) if data else "", encoding="utf-8")
 
+    def _mark_waiting(self, state: str) -> None:
+        """Write this run's waiter file (#416): it waits for a slot (WAITING), or went ahead without one (OVER). The
+        file only names the run for `slots --status`; a failing write never stops it."""
+        if self._waiter is None:
+            self._waiter = self.where / f"{WAITER_PREFIX}{os.getpid()}-{uuid.uuid4().hex[:8]}.json"
+            self._waiting_since = stamp(datetime.now(UTC))
+        data = {**self.me, "kind": self.kind, "pid": os.getpid(), "since": self._waiting_since, "state": state}
+        with contextlib.suppress(OSError):
+            self._waiter.write_text(json.dumps(data), encoding="utf-8")
+
+    def _clear_waiting(self) -> None:
+        if self._waiter is not None:
+            with contextlib.suppress(OSError):
+                self._waiter.unlink(missing_ok=True)
+            self._waiter = None
+
     def try_take(self) -> tuple[int, Holder | None] | None:
         """Take the first free slot: (slot, the holder it reclaimed from or None), or None when all are held."""
         self.where.mkdir(parents=True, exist_ok=True)
@@ -275,18 +493,22 @@ class Pool:
         not start after max_wait (`Taken.over`; the warning says so)."""
         started = self.clock()
         next_report = started
+        quiet = self.quiet_note
         while True:
             try:
                 got = self.try_take()
             except OSError as exc:
+                self._clear_waiting()
                 self.say(
                     f"  WARN  the verify slots in {self.where} failed ({exc}); this {self.what} runs without a slot"
                 )
-                return Taken(self.count, None, self.clock() - started, error=f"{type(exc).__name__}: {exc}")
+                error = f"{type(exc).__name__}: {exc}"
+                return Taken(self.count, None, self.clock() - started, error=error, quiet=quiet)
             now = self.clock()
             if got is not None:
+                self._clear_waiting()
                 slot, left = got
-                taken = Taken(self.count, slot, now - started, [left] if left else [])
+                taken = Taken(self.count, slot, now - started, [left] if left else [], quiet=quiet)
                 if left:
                     self.say(
                         f"  warn  verify slot {slot} was left by a run that ended without releasing it "
@@ -296,8 +518,10 @@ class Pool:
             if now - started >= self.max_wait:
                 holders = self.holders()
                 if self.kind == LOAD:
+                    self._clear_waiting()
                     outcome = "does not start: it would make the verify runs beside it run over the limit"
                 else:
+                    self._mark_waiting(OVER)  # `slots --status` names it until it ends (release())
                     outcome = (
                         f"runs OVER THE LIMIT, beside {self.count} others, so the timing-sensitive steps (freeze, "
                         "stall) are less reliable"
@@ -306,18 +530,23 @@ class Pool:
                     f"  WARN  no verify slot after {now - started:.0f}s (all {self.count} held); this {self.what} "
                     f"{outcome}. Holders: {'; '.join(h.line() for h in holders)}"
                 )
-                return Taken(self.count, None, now - started, holders=holders)
+                return Taken(self.count, None, now - started, holders=holders, quiet=quiet)
+            if self._waiter is None:
+                self._mark_waiting(WAITING)
             if now >= next_report:
                 held = "; ".join(h.line() for h in self.holders())
                 self.say(
-                    f"{self.kind}: waiting for a slot ({self.count} of {self.count} held; waited "
-                    f"{now - started:.0f}s, at most {self.max_wait:.0f}s): {held}"
+                    f"{self.kind}: waiting for a slot ({self.count} of {self.count} held"
+                    f"{'; ' + quiet if quiet else ''}; waited {now - started:.0f}s, at most {self.max_wait:.0f}s): "
+                    f"{held}"
                 )
                 next_report = now + self.every
             self.sleep(min(self.poll, started + self.max_wait - now))
 
     def release(self) -> None:
-        """Clear the holder file, then free the slot (the system frees it anyway when the process ends)."""
+        """Clear the holder file, then free the slot (the system frees it anyway when the process ends); remove the
+        waiter file of a run that went ahead without a slot."""
+        self._clear_waiting()
         if self._fd is None or self._slot is None:
             return
         with contextlib.suppress(OSError):
@@ -344,19 +573,167 @@ def for_verify(
     inside: bool = False,
     say: Callable[[str], None] = print,
     kind: str = VERIFY,
+    now: datetime | None = None,
 ) -> tuple[Pool | None, str]:
     """The pool a verify run (or a load run, `kind` LOAD) waits on, or None with the reason: CI (one run per runner),
-    a run inside a verify (the outer run holds the slot), or COUNT_VAR=0."""
+    a run inside a verify (the outer run holds the slot), or COUNT_VAR=0. In a quiet window (#416, read_quiet) the
+    pool has QUIET_SLOTS slots."""
     if ci:
         return None, "no limit on CI"
     if inside:
         return None, "no slot inside a verify (the outer run holds one)"
-    value = setting(env, COUNT_VAR, DEFAULT_COUNT)
-    # float(): DEFAULT_COUNT is an int, and int.is_integer() is new in Python 3.12 (the runner's minimum is 3.11).
-    if not float(value).is_integer():  # 0.5 would truncate to 0, "no limit"
-        raise Failure(f"{COUNT_VAR}={env.get(COUNT_VAR)!r} is not a whole number")
-    count = int(value)
+    count = configured_count(env)
     if count == 0:
         return None, f"no limit ({COUNT_VAR}=0)"
     wait = setting(env, WAIT_VAR, DEFAULT_WAIT)
-    return Pool(folder(env), count, wait, kind=kind, me=me, say=say), ""
+    where = folder(env)
+    quiet = read_quiet(where, now=now, say=say)
+    return Pool(where, count, wait, kind=kind, me=me, say=say, quiet=quiet), ""
+
+
+# --- the slots command (#416) --------------------------------------------------------------------------------------
+
+
+def history_runs_without_slot(paths: list[Path], now: datetime, window: float = RECENT) -> list[dict[str, object]]:
+    """The verify runs of the history files that ended within `window` seconds before `now` without a slot (over the
+    limit, or the slot folder failed), oldest first."""
+    from .metrics import read_json_lines
+
+    found: list[tuple[datetime, dict[str, object]]] = []
+    for path in paths:
+        for rec in read_json_lines(path):
+            slot = rec.get("slot")
+            start = parse_stamp(rec.get("start"))
+            if not isinstance(slot, dict) or start is None or not (slot.get("over") or slot.get("error")):
+                continue
+            waited = slot.get("waited") if isinstance(slot.get("waited"), (int, float)) else 0.0
+            seconds = rec.get("seconds") if isinstance(rec.get("seconds"), (int, float)) else 0.0
+            ended = start + timedelta(seconds=float(waited) + float(seconds))  # type: ignore[arg-type]
+            if now - timedelta(seconds=window) <= ended <= now + timedelta(minutes=1):
+                found.append((start, rec))
+    return [rec for _, rec in sorted(found, key=lambda item: item[0])]
+
+
+def _history_paths() -> list[Path]:
+    from . import metrics
+
+    return metrics.history_paths(metrics.main_checkout())
+
+
+def _alive(pid: int) -> bool:
+    from . import sessions
+
+    return sessions.process_alive(pid)
+
+
+def status(
+    env: dict[str, str] | os._Environ[str] = os.environ,
+    *,
+    now: datetime | None = None,
+    alive: Callable[[int], bool] = _alive,
+    histories: Callable[[], list[Path]] = _history_paths,
+    out: Callable[[str], None] = print,
+) -> int:
+    """`slots --status`: the quiet window, who holds each slot, the runs waiting for one (and those that went ahead
+    without one and still run), and the verify runs of the last hour that ran without a slot. A manager launches only
+    when no run waits (N3 (b) of the weekly budget ADR); the last line says whether one does."""
+    now = now or datetime.now(UTC)
+    where = folder(env)
+    count = configured_count(env)
+    wait = setting(env, WAIT_VAR, DEFAULT_WAIT)
+    if count == 0:
+        out(f"slots: no limit on this PC ({COUNT_VAR}=0); folder {where}")
+    else:
+        out(f"slots: {count} machine-wide verify slots, a wait of at most {wait:.0f} s; folder {where}")
+    quiet = read_quiet(where, now=now, say=out)
+    if quiet is None:
+        out("quiet: none (slots --quiet <hours> starts one)")
+    else:
+        left = (quiet.until - now).total_seconds() / 60
+        out(
+            f"quiet: until {stamp(quiet.until)} ({left:.0f} min left): a new verify or load run takes "
+            f"{min(count, QUIET_SLOTS)} of {count} slots; started {quiet.since} in {quiet.worktree} "
+            f"({quiet.branch or 'detached'}); slots --quiet off ends it"
+        )
+    out("holders:")
+    pool = Pool(where, max(count, 1), 0)
+    held = 0
+    for holder in pool.holders()[:count]:
+        if holder.pid is not None and alive(holder.pid):
+            held += 1
+            out(f"  {holder.line()}")
+        elif holder.pid is not None:
+            out(f"  slot {holder.slot}: free (its last holder, pid {holder.pid} in {holder.worktree}, ended without "
+                "releasing it; the next run takes it over)")  # fmt: skip
+        else:
+            out(f"  slot {holder.slot}: free")
+    if count == 0:
+        out("  none (no limit)")
+    waiters: list[Waiter] = []
+    for waiter in read_waiters(where) if where.is_dir() else []:
+        if waiter.pid is not None and alive(waiter.pid):
+            waiters.append(waiter)
+        else:  # its run was killed while it waited or ran: nothing removed it
+            with contextlib.suppress(OSError):
+                waiter.path.unlink(missing_ok=True)
+    waiting = [w for w in waiters if w.state == WAITING]
+    over_now = [w for w in waiters if w.state == OVER]
+    out(f"waiters: {len(waiting) or 'none'}")
+    for waiter in waiting:
+        out(f"  {waiter.line(now)}")
+    if over_now:
+        out(f"running without a slot now: {len(over_now)}")
+        for waiter in over_now:
+            out(f"  {waiter.line(now)}")
+    try:
+        recent = history_runs_without_slot(histories(), now)
+    except (OSError, Failure) as exc:
+        out(f"  warn  the verify history files could not be read ({exc})")
+        recent = []
+    out(f"without a slot in the last hour (verify history): {len(recent) or 'none'}")
+    for rec in recent:
+        slot: dict = rec["slot"]  # type: ignore[assignment]  # history_runs_without_slot keeps only dicts
+        why = "the slot folder failed" if slot.get("error") else "over the limit"
+        out(
+            f"  {rec.get('start')} {rec.get('worktree', '?')} ({rec.get('branch') or 'detached'}): {why}, "
+            f"{rec.get('status', '?')} in {rec.get('seconds', '?')} s after waiting {slot.get('waited', '?')} s"
+        )
+    if waiting:
+        out(f"slots: {len(waiting)} run(s) waiting for a slot ({held} of {count} held): launch nothing now")
+    else:
+        out(f"slots: no run waits for a slot ({held} of {count} held)")
+    return 0
+
+
+def quiet_command(
+    arg: str,
+    env: dict[str, str] | os._Environ[str] = os.environ,
+    *,
+    now: datetime | None = None,
+    me: dict[str, object] | None = None,
+    out: Callable[[str], None] = print,
+) -> int:
+    """`slots --quiet <hours>` starts a quiet window machine-wide (replacing any other); `slots --quiet off` ends it."""
+    where = folder(env)
+    count = configured_count(env)
+    if arg.strip().lower() == "off":
+        if end_quiet(where):
+            out(f"slots: quiet window ended; new verify and load runs take any of the {count} slots again")
+        else:
+            out("slots: no quiet window to end")
+        return 0
+    try:
+        hours = float(arg)
+    except ValueError:
+        raise Failure(f"--quiet {arg!r}: give hours, more than 0 and at most {MAX_QUIET_HOURS:g}, or off") from None
+    quiet = write_quiet(where, hours, now=now, me=me)
+    local = quiet.until.astimezone().strftime("%H:%M")
+    if count == 0:
+        out(f"slots: quiet until {stamp(quiet.until)} ({local} local time); this shell has no limit ({COUNT_VAR}=0)")
+        return 0
+    out(
+        f"slots: quiet until {stamp(quiet.until)} ({local} local time): every checkout's new verify and load runs on "
+        f"this PC take {min(count, QUIET_SLOTS)} of the {count} slots (a run already in a slot finishes there); "
+        "slots --quiet off ends it sooner"
+    )
+    return 0

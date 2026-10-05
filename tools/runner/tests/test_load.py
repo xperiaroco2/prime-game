@@ -88,6 +88,16 @@ class SlotTest(LoadCase):
         self.assertEqual(rc, 0)
         self.assertIn("load: no limit on CI; no verify slot taken", out)
 
+    def test_a_load_in_a_quiet_window_takes_one_slot_and_says_so(self) -> None:
+        # #416: `slots --quiet <hours>` limits a load run to one slot too, and its slot line names the window.
+        slots.write_quiet(self.where, 2)
+        pool, _ = slots.for_verify({}, env={slots.DIR_VAR: str(self.where), slots.COUNT_VAR: "2"}, kind=slots.LOAD)
+        assert pool is not None
+        self.addCleanup(pool.release)
+        rc, out = self.main(1, 5.0, pool=lambda: (pool, ""), loop_runner=lambda n, s: 0)
+        self.assertEqual(rc, 0)
+        self.assertRegex(out, r"load: slot 1 of 1 \(quiet window until \S+Z: 1 of 2 slots\), waited")
+
     def test_the_real_pool_is_a_load_runs(self) -> None:
         pool, why = slots.for_verify({}, env={slots.DIR_VAR: str(self.where)}, kind=slots.LOAD)
         assert pool is not None
