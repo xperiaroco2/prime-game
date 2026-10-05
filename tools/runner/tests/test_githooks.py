@@ -15,23 +15,29 @@ from runner.common import ROOT
 from runner.publish import MARKER
 
 
+def _delete_again(func, target, exc) -> None:  # type: ignore[no-untyped-def]
+    """rmtree's error handler for _rmtree. A refused delete (os.unlink, os.rmdir) is tried once more after adding the
+    write bit to the path's mode. A path that vanished meanwhile counts as deleted. Every other error is raised,
+    including a failed walk step (os.open, os.scandir, ...), which a retry with the path alone cannot redo."""
+    error = exc[1] if isinstance(exc, tuple) else exc  # onerror (3.11) passes sys.exc_info(), onexc the exception
+    try:
+        if func not in (os.unlink, os.rmdir):
+            raise error
+        os.chmod(target, stat.S_IMODE(os.lstat(target).st_mode) | stat.S_IWRITE)  # S_IWRITE alone drops r and x
+        func(target)
+    except FileNotFoundError:
+        if os.path.lexists(target):
+            raise
+
+
 def _rmtree(path: str) -> None:
     """Git makes its object files read-only; Windows refuses to delete those without a chmod. A path that vanishes
     meanwhile (a git process of the test still tidying its object folders, #440) counts as deleted; every other error
     stays."""
-
-    def retry(func, target, _exc):  # type: ignore[no-untyped-def]
-        try:
-            os.chmod(target, stat.S_IWRITE)
-            func(target)
-        except FileNotFoundError:
-            if os.path.lexists(target):
-                raise
-
     if sys.version_info >= (3, 12):
-        shutil.rmtree(path, onexc=retry)
+        shutil.rmtree(path, onexc=_delete_again)
     else:
-        shutil.rmtree(path, onerror=retry)
+        shutil.rmtree(path, onerror=_delete_again)
 
 
 class PrePushTest(unittest.TestCase):
@@ -166,22 +172,30 @@ class RmtreeTest(unittest.TestCase):
                 with self.assertRaises(OSError):
                     _rmtree(str(self.tmp / "remote.git"))
             self.assertTrue((self.objects / "a6" / "obj").exists())
-        with self.subTest(error="FileNotFoundError"):
-            # The walk's own delete is refused, so the retry runs; its delete then says "not found" for a file that
-            # is still there. Python 3.13+ rmtree ignores a "not found" in its walk, so only the retry reaches it.
-            calls: list[str] = []
-
-            def refused_then_not_found(target, *args, **kwargs):  # type: ignore[no-untyped-def]
-                calls.append(str(target))
-                if len(calls) == 1:
-                    raise PermissionError(13, "Access is denied", str(target))
-                raise FileNotFoundError(2, "No such file or directory", str(target))
-
-            with mock.patch.object(os, "unlink", refused_then_not_found):
+        # The handler itself, called as rmtree would: rmtree's own walk handles some errors differently per Python
+        # version and OS (3.13+ ignores a "not found" from the walk, and on Linux a walk step's error reaches the
+        # handler again for the folder), so only a direct call pins these down.
+        obj = str(self.objects / "a6" / "obj")
+        refused = PermissionError(13, "Access is denied", obj)
+        with self.subTest(error="the retry's delete is refused too"):
+            with mock.patch.object(os, "unlink", side_effect=PermissionError(13, "Access is denied", obj)):
+                with self.assertRaises(PermissionError):
+                    _delete_again(os.unlink, obj, refused)
+            mode = os.stat(obj).st_mode
+            self.assertTrue(mode & stat.S_IREAD and mode & stat.S_IWRITE, oct(mode))  # the chmod only adds write
+        with self.subTest(error="not found for a path that is still there"):
+            with mock.patch.object(os, "unlink", side_effect=FileNotFoundError(2, "No such file or directory", obj)):
                 with self.assertRaises(FileNotFoundError):
-                    _rmtree(str(self.tmp / "remote.git"))
-            self.assertEqual(len(calls), 2, calls)  # the walk's delete and the retry's, then the error stops it
-            self.assertTrue((self.objects / "a6" / "obj").exists())
+                    _delete_again(os.unlink, obj, refused)
+            self.assertTrue(os.path.exists(obj))
+        with self.subTest(error="a walk step, not a delete"):
+            folder = str(self.objects / "b7")
+            before = os.stat(folder).st_mode
+            listing = PermissionError(13, "Permission denied", folder)
+            with self.assertRaises(PermissionError) as raised:
+                _delete_again(os.scandir, folder, (PermissionError, listing, None))  # onerror's sys.exc_info()
+            self.assertIs(raised.exception, listing)
+            self.assertEqual(os.stat(folder).st_mode, before)  # no chmod of a folder rmtree could not walk
 
 
 if __name__ == "__main__":
