@@ -1049,10 +1049,10 @@ worktree could not be removed or the task's tree changed: run no more mutants an
 list` shows it; the next run removes it first). One mutant takes about 17 to 19 s with small suites (setup about
 9 s, baseline and mutant about 4 s each), several or tests that name all of `tests/` far longer (two full runs:
 596 s while other worktrees verified), so every agent runs `mutants` in the background and polls `wait <log>` (the
-"Bounded waits" of §11; `mutants --help` prints both lines, #435); the report file shows the progress meanwhile.
+"Bounded waits" of §11.17; `mutants --help` prints both lines, #435); the report file shows the progress meanwhile.
 The runner's own git commands are not the session's shell commands, so the guard judges only `tools\run.cmd mutants
 <spec>`, which passes from a task worktree and the main checkout; a hand-typed `git worktree remove` of the scratch
-tree asks (§8.2).
+tree asks (§8.2.6).
 
 ### 11.8 `host` and `join` [applied]
 (3i, #103; windows since #149; `docs/ARCHITECTURE.md` §4.6 and §4.7, the M4 ADR's
