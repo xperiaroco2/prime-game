@@ -1078,18 +1078,22 @@ class PipelineV2Test(unittest.TestCase):
         self.assertEqual(lean["publish:#7"]["effort"], "low")
 
     def test_lean_options_match_their_snapshots(self) -> None:
+        # Like the main snapshots, each case runs as launched and with bounded_waits false (`unbounded/`): a resume of
+        # a lean run launched before #411 passes false and must replay its old prompts byte for byte.
         jobs, files = [], []
         for name, cases in LEAN_SNAPSHOT_CASES.items():
             for case, args, stub in cases:
-                jobs.append((name, dict(ARGS, **args), stub))
-                files.append(SNAPSHOTS / name.removesuffix(".js") / f"{case}.txt")
+                for extra, folder in (({}, ()), ({"bounded_waits": False}, ("unbounded",))):
+                    jobs.append((name, dict(ARGS, **args, **extra), stub))
+                    files.append(SNAPSHOTS.joinpath(name.removesuffix(".js"), *folder, f"{case}.txt"))
         results = run_jobs(jobs)
         if UPDATE:
             for path, result in zip(files, results):
+                path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(render(result).encode("utf-8"))
             self.fail(f"PRIME_WORKFLOW_SNAPSHOTS=update wrote {len(files)} lean snapshots; review the diff, then rerun without it")
         for path, result in zip(files, results):
-            with self.subTest(snapshot=f"{path.parent.name}/{path.name}"):
+            with self.subTest(snapshot=path.relative_to(SNAPSHOTS).as_posix()):
                 self.assertTrue(path.is_file(), f"missing snapshot {path}")
                 self.assertEqual(render(result), path.read_bytes().decode("utf-8"))
                 self.assertIn('"agentType":"task-', render(result))
