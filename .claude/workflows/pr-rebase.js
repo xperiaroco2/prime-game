@@ -22,8 +22,9 @@ export const meta = {
 // Optional pipeline v2 review args (docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md, item 4),
 // all off by default but bounded_waits (on since #411), as in issue-task.js: with none of them and bounded_waits false
 // every agent's prompt, label, phase, schema and options are byte-identical to the script before v2
-// (tools/runner/tests/test_workflows.py snapshots them, and the default too). The agents each one adds count toward the
-// agent number the kickoff approves (2 to 4 without them):
+// (tools/runner/tests/test_workflows.py snapshots them, and the default too), but for the deliberate changes of the
+// default prompts that rewrote those snapshots (#413's RULES line, #339's netcode sections). The agents each one adds
+// count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -220,6 +221,10 @@ const base = [
   `Check that each conflict resolution keeps both sides' intent and that the fixes for the new base are correct: \`git -C ${WTB} range-diff <old_tip>...<new_tip>\` where the tips are known, and \`git -C ${WTB} diff origin/${BASE}...HEAD\`. One copy of each shared class, used consistently; no lost or duplicate lines in data files; no weakened test.${A.focus ? '\n' + A.focus : ''}`,
   'Report findings with severity (blocker, major, minor, nit), file, line, problem and fix. No findings is a valid answer.',
 ].join('\n\n')
+// #339 (the instruction-diet ADR's N1 (a)), the same sentence as in issue-task.js (test_workflows.py compares the
+// two): the netcode reviewer always reads the sections where a leak shows, whatever the change touches; a change that
+// touches only §4.7 or §7.1 can still add a snapshot field the leak test does not compare.
+const NETCODE_SECTIONS = `Always read ARCHITECTURE §5 (per-peer filtering), §4.2 (each event's audience) and §4.6 (the client, the bots and the leak test), whatever the change touches: \`cd ${WTB} && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6\` (read-only; you may run it). A change to §4.7 or §7.1 alone can still add a snapshot field the leak test does not compare.`
 const labels = ['code-reviewer']
 const thunks = [() => agent(base, asReviewer({ label: `review:code:#${PR}`, phase: 'Review', agentType: 'code-reviewer', schema: REVIEW }, 'review'))]
 // tests/harness/ holds the information-leak test, and client/ renders public data (a rendering leak is an
@@ -227,7 +232,7 @@ const thunks = [() => agent(base, asReviewer({ label: `review:code:#${PR}`, phas
 const netcode = !paths.length || paths.some(p => /^(core|server|net|client|tests\/harness)\//.test(p))
 if (netcode) {
   labels.push('netcode-security-reviewer')
-  thunks.push(() => agent(base + '\n\nFocus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides.', asReviewer({ label: `review:netcode:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
+  thunks.push(() => agent(base + '\n\nFocus: the ARCHITECTURE §5 invariants over view_of, event audiences and snapshots after the merge of both sides. ' + NETCODE_SECTIONS, asReviewer({ label: `review:netcode:#${PR}`, phase: 'Review', agentType: 'netcode-security-reviewer', schema: REVIEW }, 'netcode')))
 }
 // second_review: a second netcode review where leaks matter, with another lens (and, per launch, another model).
 if (netcode && SECOND_REVIEW) {

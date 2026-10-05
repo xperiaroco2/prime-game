@@ -14,9 +14,11 @@ rule covers every other case. `workflow_snapshots/<script>/<case>.txt` holds the
 `bounded_waits` on by default since #411 (their one deliberate change: each agent that waits gained the bounded-waits
 paragraph). A deliberate change of a default prompt rewrites them: run `selftest` once with
 PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
-commit it with the change, and run `selftest` again without the variable. Each snapshot ends with the run's return
-value, which the rule does not cover (a resume replays agents, not the return): #386 made it compact and changed only
-that part of every snapshot.
+commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
+line of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
+root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list); they landed between waves, when
+no run could resume. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays
+agents, not the return): #386 made it compact and changed only that part of every snapshot.
 """
 
 import difflib
@@ -408,6 +410,92 @@ class WorkflowTest(unittest.TestCase):
                 with self.subTest(workflow=name, paths=paths):
                     labels = [c["label"] for c in run_workflow(WORKFLOWS / name, "release/m4", paths)]
                     self.assertEqual(any(label.startswith("review:netcode") for label in labels), routed, labels)
+
+    def test_the_netcode_reviewers_always_read_the_leak_sections(self) -> None:
+        # #339 (the instruction-diet ADR's N1 (a)): reviewers read ARCHITECTURE by section, but the netcode reviewer
+        # always reads §5 (filtering), §4.2 (each event's audience) and §4.6 (the leak test): a change that touches
+        # only §4.7 or §7.1 can still add a snapshot field the leak test does not compare. One sentence, identical in
+        # both scripts, in every netcode review they route (a design task's too) and in no other agent's prompt.
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", base="release/m3"), {"paths": ["core/x.gd"]}),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True), {"paths": ["docs/ARCHITECTURE.md"]}),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **V2), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("pr-rebase.js", dict(ARGS), {"paths": ["client/x.gd"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        sentences: set[str] = set()
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            self.assertIsNone(result["error"])
+            netcode = [e for e in agents(result) if e["label"].startswith("review:netcode:")]
+            self.assertEqual(len(netcode), 1, [e["label"] for e in agents(result)])
+            for event in agents(result):
+                found = re.findall(r"Always read ARCHITECTURE §5[^\n]*?does not compare\.", event["prompt"])
+                with self.subTest(workflow=name, agent=event["label"]):
+                    self.assertEqual(len(found), 1 if event in netcode else 0, found)
+                    sentences.update(found)
+        self.assertEqual(len(sentences), 1, f"the sentence differs between scripts: {sorted(sentences)}")
+        sentence = next(iter(sentences))
+        for part in ("§5 (per-peer filtering)", "§4.2 (each event's audience)", "§4.6 (the client, the bots and the leak test)",
+                     "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6`"):
+            self.assertIn(part, sentence)
+
+    def test_reviewers_read_architecture_by_section_and_never_root_claude_md(self) -> None:
+        # #339: the plan's critique and the reviews named docs/ARCHITECTURE.md (about 170k tokens) and root CLAUDE.md,
+        # which every agent already has from its launch. Now they read the sections the change touches through
+        # `section`, a design's reviewers the outline and every section the design could contradict, and no prompt
+        # asks for root CLAUDE.md again ("Root CLAUDE.md applies in full" in the rules asks for no read).
+        everything = dict(V2, test_review=False)
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **everything), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+            ("issue-task.js", dict(ARGS, branch="docs/7-x", design=True, plan_review=True), {"paths": ["docs/x.md"]}),
+            ("issue-task.js", dict(ARGS, lean=True), {"paths": ["tools/x.py"]}),
+            ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
+        ]
+        outline = "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline"
+        results = run_jobs(jobs)
+        for (name, args, _), result in zip(jobs, results):
+            self.assertIsNone(result["error"])
+            for event in agents(result):
+                label, prompt = event["label"], event["prompt"]
+                with self.subTest(workflow=name, design=args.get("design", False), agent=label):
+                    self.assertNotIn("root claude.md", prompt.lower().replace("root claude.md applies in full", ""))
+                    if not label.startswith(("plan:", "review:")):
+                        continue
+                    # Every mention of the doc is a `section` call on it, never the whole file.
+                    whole = re.findall(r"(?<!section )docs/ARCHITECTURE\.md", prompt)
+                    self.assertEqual(whole, [], prompt[:300])
+                    if name == "issue-task.js" and label.startswith(("review:code", "review:plan", "plan:")):
+                        self.assertIn(outline, prompt)
+                    if label.startswith("review:") and "tools/run.sh section" in prompt:
+                        # The reviewer agent files allow only git commands; the prompt allows `section` too.
+                        self.assertIn("you may run it", prompt)
+        design = {e["label"]: e["prompt"] for e in agents(results[1])}
+        for label in ("review:code:#7", "review:netcode:#7"):
+            self.assertIn("ARCHITECTURE by section: its outline first, then every section the design could contradict, "
+                          "not only the ones it edits", design[label])
+        self.assertIn("every section the plan could contradict", design["review:plan:#7"])
+        code = {e["label"]: e["prompt"] for e in agents(results[0])}
+        self.assertIn("the ARCHITECTURE sections the change touches, by section, never the whole doc", code["review:code:#7"])
+        self.assertIn("the ARCHITECTURE sections the plan touches, by section", code["review:plan:#7"])
+
+    def test_the_default_reading_list_leaves_area_files_to_load_by_path(self) -> None:
+        # #339: the area CLAUDE.md files and .claude/rules/ load by path when the implementer Reads a file there (it
+        # does before every Edit); read again by a tool they cost $17 in the ADR's window, mostly through `cat`. The
+        # default list names neither and reads ARCHITECTURE by section; a manager's `reading` replaces it whole.
+        jobs = [
+            ("issue-task.js", dict(ARGS, plan_review=True), {"paths": ["tools/x.py"]}),
+            ("issue-task.js", dict(ARGS, reading="r"), {"paths": ["tools/x.py"]}),
+        ]
+        default, given = run_jobs(jobs)
+        for event in calls(default, "plan:") + calls(default, "implement:"):
+            read = next(p for p in event["prompt"].split("\n\n") if p.startswith("Read: "))
+            with self.subTest(agent=event["label"]):
+                self.assertNotIn("CLAUDE.md", read)
+                self.assertNotIn(".claude/rules/", read)
+                self.assertIn("the ARCHITECTURE sections it names, by section, never the whole doc", read)
+                self.assertIn("`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md`", read)
+        read = next(p for p in calls(given, "implement:")[0]["prompt"].split("\n\n") if p.startswith("Read: "))
+        self.assertEqual(read, "Read: `gh issue view 7 --comments`; r.")
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
