@@ -102,11 +102,12 @@ def main(fix: bool = False, files: list[str] | None = None) -> int:
 
 
 def instruction_files() -> bool:
-    """CLAUDE.md budgets and rule/agent frontmatter. Returns True when something failed."""
+    """CLAUDE.md budgets, rule/agent/skill frontmatter and skill links. Returns True when something failed."""
     report = instructions.check(ROOT)
     for line in report.errors:
         bad(line)
-    if any("budget" in line for line in report.errors):
+    # A budget error ends ", budget <n>"; a link to budget.md or a budget ADR is no budget problem (#415).
+    if any(", budget " in line for line in report.errors):
         bad("instruction files over budget", instructions.OVER_BUDGET_FIX)
     if report.errors:
         return True

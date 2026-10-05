@@ -243,6 +243,27 @@ class SkillTest(unittest.TestCase):
         reserved = self.problems(SKILL.replace("name: start-task", "name: doctor"), folder="doctor")
         self.assertTrue(any("bundled /doctor" in p for p in reserved), reserved)
 
+    def test_a_relative_link_in_a_skill_must_name_a_file(self) -> None:
+        # #415: SKILL.md points to a supporting file (orchestrate-stage's budget.md), which links the ADRs.
+        links = (
+            "See [budget](budget.md#the-unit), [ADR](../../../docs/decisions/x.md), [web](https://example.com/a.md),\n"
+            "[top](#top) and [mail](mailto:a@b.c).\n```text\n[example](not-there.md)\n```\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(root, "CLAUDE.md", "x\n")
+            write(root, ".claude/skills/start-task/SKILL.md", SKILL + links)
+            write(root, ".claude/skills/start-task/budget.md", "Back to [the skill](SKILL.md); [gone](gone.md).\n")
+            write(root, "docs/decisions/x.md", "x\n")
+            self.assertEqual(instructions.check(root).errors, [".claude/skills/start-task/budget.md:1: link gone.md names no file"])
+            (root / "docs" / "decisions" / "x.md").unlink()
+            (root / ".claude" / "skills" / "start-task" / "budget.md").unlink()
+            errors = instructions.check(root).errors
+        self.assertEqual(errors, [
+            ".claude/skills/start-task/SKILL.md:13: link budget.md#the-unit names no file",
+            ".claude/skills/start-task/SKILL.md:13: link ../../../docs/decisions/x.md names no file",
+        ])
+
     def test_listing_cap_and_missing_file(self) -> None:
         long = SKILL.replace("Use for", "x" * 1600)
         self.assertTrue(any("listing cuts at 1536" in p for p in self.problems(long)))

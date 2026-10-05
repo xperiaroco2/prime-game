@@ -58,7 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
         "lint",
         help="gdformat --check + gdlint; CLAUDE.md budgets and rule/agent frontmatter",
         description="gdformat --check and gdlint on the named .gd files or folders. With none: all project GDScript, "
-        "plus the CLAUDE.md budgets (the lines Claude Code loads) and the frontmatter of rules, skills and agents.",
+        "plus the CLAUDE.md budgets (the lines Claude Code loads), the frontmatter of rules, skills and agents, and the "
+        "relative links in skills.",
     )
     p.add_argument("--fix", action="store_true", help="reformat instead of checking (then strips CR)")
     p.add_argument("files", nargs="*", help="repo-relative .gd files or folders (default: all project GDScript)")
