@@ -369,7 +369,7 @@ Rules for every workflow run:
   godot, test_review, skeptic, publish, publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an
   effort or a model only when one is set, and no default names a model (the model-guard ADR); a model beyond the
   shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A, §5). `publish_clean`
-  (#308, a one-wave trial; falls back to `publish`) is the full publisher of a run with no blocker or major left open
+  (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full publisher of a run with no blocker or major left open
   after the reviews, the test review and the skeptics, never of a design task; the result's `publish_clean` says
   whether it applied. A missing `mutants` or `playcheck` on the task's branch is reported in the result and the PR,
   and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`, +0; the default since #411, `false` turns
@@ -387,19 +387,20 @@ Rules for every workflow run:
   `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5), with no desktop, MCP
   or Skill tools. The ADR's CLI probe measured a lean first call of about 20k tokens before the task prompt, against a
   median of about 57k for a general implementer's whole first call under a desktop manager; the A/B measures the real
-  difference. It appends only `agentType` to their options; prompts, efforts and models stay. Opt-in until the
-  manager's A/B on 3-4 tasks (results on #302) and the engineer's call on the default; the manager's checkout must
-  have both agent files (`agentType` resolves there), and a task whose agents need a skill through the Skill tool
-  stays off it.
+  difference. It appends only `agentType` to their options; prompts, efforts and models stay. Passed on every launch
+  from the reset of 2026-10-06 (the weekly budget ADR's N4 (a)); the default flips after a clean week (P3b). The
+  manager's checkout must have both agent files (`agentType` resolves there), and a task whose agents need a skill
+  through the Skill tool stays off it.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
   150; with the v2 options the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic
   about 30, and a publisher that only reports a stop about 30. Every agent writes temporary files only under its
   issue's scratchpad subfolder `a<n>/`. `issue-task` runs up to five agents (more with the v2 options above), over
-  the `small` guideline, so the kickoff approves that and the stage's budget once; within 15% of the weekly limit per
-  stage or track the manager's restatement is a report and it goes on, above it or for an "ask and wait" item it
-  waits for the human's yes (§7, the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
-  Code tasks wait for the engineer's review of the stage's design PR; before
-  launching anything, the manager lists the runs another session may still own (issues In progress with no PR, fresh
+  the `small` guideline, so the kickoff approves that and the stage's budget once; within the track's weekly budget
+  (the orchestrate-stage skill's `budget.md`; else 15% of the weekly limit) the manager's restatement is a report and
+  it goes on, above it or for an "ask and wait" item it waits for the human's yes (§7, the
+  [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). Code tasks wait for the
+  engineer's review of the stage's design PR; before launching anything, the manager lists the runs
+  another session may still own (issues In progress with no PR, fresh
   worktree commits, a rebase in progress) and asks.
 - **Git flow** ([ADR](decisions/2026-10-01-release-branch-per-milestone.md)): each milestone gets `release/m<k>` from
   `main`, and every task PR of the stage targets it (`start --base release/m<k>`, `publish --base release/m<k>`). Before
@@ -479,11 +480,14 @@ Rules for every workflow run:
 - **Parallel tracks** ([pipeline v2 ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md) item 7, the
   engineer's answers N2 and N5, 2026-10-02): one milestone at a time; beside it the AI productivity track (#170) sends
   its PRs straight into `main`, each merged by its manager through the gate (Git flow above, "Into `main`"; how a
-  milestone takes `main` in: Git flow above). At most about six task workflows run at once across all tracks (three per
-  stage). Each kickoff states its budget as a percentage of the weekly limit, and its manager reports its own spend in
-  every wave comment from `tools\run.cmd metrics --since <wave start> --session <its id> --compact`, plus the stage's
-  running total (`--since <stage start>`): a run counts in the window it started in. A track's spend this week against
-  its budget, over every session of the track, the UI and art checkouts' included: `tools\run.cmd metrics --since <the
+  milestone takes `main` in: Git flow above). At most four task workflows of this repo run at once (by day the game 3
+  and meta 1, at night either track up to 3; one art batch at a time; three per stage), N3 (b) of the
+  [weekly budget ADR](decisions/2026-10-05-weekly-budget-across-four-tracks.md), whose rules the orchestrate-stage
+  skill's `budget.md` holds. Each kickoff states its track and budget as a percentage of the weekly limit, and its
+  manager reports its own spend in every wave comment from `tools\run.cmd metrics --since <wave start> --session
+  <its id> --compact`, plus the stage's running total (`--since <stage start>`): a run counts in the window it
+  started in. A track's spend this week against its budget, over every session of the track, the UI and art
+  checkouts' included: `tools\run.cmd metrics --since <the
   weekly reset> --track <name> [--budget <%>]` (#409; a session's track is its `--session <id>=<track>` label, else
   the `Track:` line of its kickoff, the skill's §10, else its checkout's, else untracked). Shared files (N5 (c)):
   `.claude/workflows/` and the orchestrate-stage skill change only through the tooling track (an issue there, landing
@@ -517,8 +521,9 @@ Rules for every workflow run:
   what an earlier attempt already did, so a fresh run with the same args also continues. Each wave comment on the
   plan issue lists the running runs with their args, so a new manager session can take over from GitHub alone.
   Once a day that handover is deliberate (#279, the engineer's option A): a manager that stops for the human with no
-  run of its own in flight and either its session over 12 hours old or its context over 500k tokens (`wave` prints
-  both) posts a handover wave comment and gives the human the kickoff to paste into a new session (the skill's §7).
+  run of its own in flight and either its session over 12 hours old or its context over 300k tokens (the weekly
+  budget ADR's N6 (b); `wave` prints both) posts a handover wave comment and gives the human the kickoff to
+  paste into a new session (the skill's §7).
 
 ## 8. Permissions, guards and hooks
 
