@@ -1321,11 +1321,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   GdUnit4 shard, `check` import and the runner's git and gh calls) starts such a process once more after 10 s, with a
   `NOT STARTED, restarted once` warning that carries the machine's load at that moment (processes, threads, handles,
   commit, free RAM, USER and GDI objects: the evidence to find the shortage), then `RESTARTED` or `NOT STARTED again`;
-  once a restart was refused too, that runner process restarts nothing more. A process that printed a line or lived 10 s
-  is never started again, whatever it returned, so no step that ran is retried. A start that stayed refused is reported
-  as `could not start: ... run verify again` (also by `game`'s host and client, which are not restarted), each step's
-  record adds `not_started` ({`refused`, `restarted`, `recovered`}) and the summary a `NOT STARTED` line. The restart is
-  a policy that waits for the engineer's word (#441's PR). Tests: `tools/runner/tests/test_not_started.py`.
+  once a restart was refused too, that runner process restarts nothing more, and one of several instances that run
+  together (`enet`, `freeze`, `bots-enet`) is not restarted, since its late start would fail the others. A process that
+  printed a line or lived 10 s is never started again, whatever it returned, so no step that ran is retried. A start
+  that stayed refused is reported as `could not start: ... run verify again` (also by `game`'s host and client, which
+  are not restarted), each step's record adds `not_started` ({`refused`, `restarted`, `recovered`}) and the summary a
+  `NOT STARTED` line. The restart is a policy that waits for the engineer's word (#441's PR). Tests:
+  `tools/runner/tests/test_not_started.py`.
   **Verify slots (#185):** on a PC, after `doctor`, `verify` takes one of N
   machine-wide slots for its lanes, so the tracks' runs queue instead of starving each other (and `freeze` and `stall`):
   a lock file per slot in `%LOCALAPPDATA%\prime-game\verify-slots` (elsewhere
