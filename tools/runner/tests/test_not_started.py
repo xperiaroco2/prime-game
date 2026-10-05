@@ -109,6 +109,13 @@ class RestartTest(unittest.TestCase):
         res, _text, starts = self.run_child(refusals=0)
         self.assertEqual((res.rc, starts), (0, 1), "a start that works still runs")
 
+    def test_a_run_instance_refused_twice_is_reported_as_not_started(self) -> None:
+        res, _text, starts = self.run_child(refusals=5)
+        self.assertEqual((res.rc, starts), (TEST_CODE, 2))
+        self.assertGreaterEqual(res.seconds, common.RESTART_PAUSE, "the seconds count from the first start")
+        problem = launch.Instance(1, ROOT / "tools/out/logs/run/x-1.log", res, 60).problem
+        self.assertTrue(problem.startswith("could not start: exited 66"), problem)
+
     def test_a_process_that_ran_is_never_started_again(self) -> None:
         printed = CHILD.replace("    sys.exit(66)", "    print('a line'); sys.exit(66)")
         res, text, starts = self.run_child(refusals=1, code=printed)
