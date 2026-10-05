@@ -953,7 +953,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   header uid and node `unique_id`s the editor would. A second run leaves the file byte-identical. Godot drops a property it does not know (a typo), one at its default, and any line
   after a parse error, without an error: `normalize` compares property keys before and after, and on a loss restores
   the file and fails. `check` fails on UID problems, on files left modified by `--import`, and on an `ext_resource`
-  uid that resolves to a different file than its `path=`.
+  uid that resolves to a different file than its `path=`. Godot 4.7.2 sometimes dies of an access violation (exit
+  3221225477, 0xC0000005) while it shuts down after `check_project.gd` printed a clean summary (#442: 2 of 326 check
+  steps, the summary their last line, none of the shutdown lines every run prints after it): `check` passes such a run
+  with a `GODOT CRASHED AT EXIT` warning and keeps its output in `tools/out/logs/check-exit-crash.log`. A crash before
+  the summary, after an error or with another exit code stays red, and nothing is retried.
 - **`shot <scene>` [applied]:** a real window at `--position -30000,-30000` (off-screen), never headless or minimized
   (Godot then never draws), a 60 s watchdog, a PNG in `tools/out/shots/`. A scene with no camera (a level piece) gets
   one that frames all its geometry, plus a light if it has none. It prints the driver it drew with (`renderer: vulkan
