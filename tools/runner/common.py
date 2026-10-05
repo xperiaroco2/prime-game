@@ -127,13 +127,15 @@ def run(
     echo: bool = False,
     env: dict[str, str] | None = None,
     on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
+    restart: bool = True,
 ) -> Result:
     """Run cmd with stdout+stderr merged, a hard timeout and a process-tree kill.
 
     The full output is also written to tools/out/logs/<log>.log when log is given. `on_start` gets the process once
     it runs (a caller running several at once keeps them, to stop them all on Ctrl+C). A process that Windows could
     not start (not_started, #441) is started once more after RESTART_PAUSE seconds, loudly; one that ran is never
-    started again, whatever it returned.
+    started again, whatever it returned. `restart` False only names it: an instance that runs together with others
+    (one ENet game on one port), whose late second start would turn into another failure of the whole run.
     """
     first = _run_once(cmd, timeout=timeout, cwd=cwd, log=log, echo=echo, env=env, on_start=on_start)
     if first.timed_out or not not_started(first.rc, first.out, first.seconds):
@@ -143,12 +145,14 @@ def run(
     what += ", so it never ran"
     with STARTS.lock:
         STARTS.refused += 1
-        restart = not STARTS.gave_up
+        gave_up = STARTS.gave_up
+        restart = restart and not gave_up
         if restart:
             STARTS.restarted += 1
     load = f" {machine_load()}".rstrip()
     if not restart:
-        warn(f"NOT STARTED: {what}; not restarted, since a restart in this process failed the same way (#441).{load}")
+        why = "a restart in this process failed the same way" if gave_up else "it runs together with other instances"
+        warn(f"NOT STARTED: {what}; not restarted, since {why} (#441).{load}")
         return first
     warn(f"NOT STARTED, restarted once: {what}; starting it again in {RESTART_PAUSE:g}s (#441).{load}")
     _restart_sleep(RESTART_PAUSE)

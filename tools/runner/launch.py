@@ -151,7 +151,8 @@ def launch(cmds: list[list[str]], *, seconds: int, log_dir: Path, name: str, cwd
     def one(number: int, cmd: list[str]) -> None:
         env = {INSTANCE_ENV: str(number)}
         try:
-            results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=env)
+            # One of several instances (one ENet game on one port) is not restarted: its late start fails the others.
+            results[number] = run(cmd, timeout=seconds, cwd=cwd, echo=len(cmds) == 1, env=env, restart=len(cmds) == 1)
         except Failure as exc:  # the exe could not start: report it once, after the others finished
             failures.append(exc)
 

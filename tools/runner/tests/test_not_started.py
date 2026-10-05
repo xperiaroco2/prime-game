@@ -124,6 +124,25 @@ class RestartTest(unittest.TestCase):
         problem = launch.Instance(1, ROOT / "tools/out/logs/run/x-1.log", res, 60).problem
         self.assertNotIn("restart", problem, "a report names a restart only when one ran")
 
+    def test_one_of_several_instances_is_named_but_not_restarted(self) -> None:
+        self.count.unlink(missing_ok=True)
+        with tempfile.TemporaryDirectory() as logs, contextlib.redirect_stdout(io.StringIO()) as out:
+            cmd = [sys.executable, "-c", CHILD, str(self.count), "1"]
+            instances = launch.launch([cmd, ["git", "--version"]], seconds=60, log_dir=Path(logs), name="x")
+        problems = [instance.problem for instance in instances]
+        self.assertTrue(problems[0].startswith("could not start: exited 66"), problems)
+        self.assertNotIn("restart", problems[0])
+        self.assertEqual(problems[1], "")
+        self.assertEqual(self.count.read_text(), "1", "started once")
+        self.assertIn("not restarted, since it runs together with other instances", out.getvalue())
+        self.pause.assert_not_called()
+        self.assertEqual(common.take_starts(), {"refused": 1, "restarted": 0, "recovered": 0})
+        self.assertFalse(self.starts.gave_up, "a later single start is still restarted")
+        self.count.unlink()
+        with tempfile.TemporaryDirectory() as logs, contextlib.redirect_stdout(io.StringIO()):
+            (instance,) = launch.launch([cmd], seconds=60, log_dir=Path(logs), name="x")
+        self.assertEqual((instance.problem, self.count.read_text()), ("", "2"), "a single instance is restarted")
+
     def test_a_process_that_ran_is_never_started_again(self) -> None:
         printed = CHILD.replace("    sys.exit(66)", "    print('a line'); sys.exit(66)")
         res, text, starts = self.run_child(refusals=1, code=printed)
