@@ -122,7 +122,8 @@ class Conn:
 	## The fault shim's RELIABLE packets still on their way, oldest first, with their due times.
 	var delayed: Array[PackedByteArray] = []
 	var delayed_due: PackedInt64Array = PackedInt64Array()
-	## The fault shim's late LATEST packets, in the order they were read, with their due times.
+	## The fault shim's late LATEST packets, in the order they were read, with their due times (never
+	## decreasing: a late packet holds back the ones behind it).
 	var late_latest: Array[PackedByteArray] = []
 	var late_latest_due: PackedInt64Array = PackedInt64Array()
 
@@ -147,13 +148,15 @@ class Conn:
 ## by default: 127.0.0.1 almost never reorders across channels. RELIABLE packets arrive
 ## reliable_delay_ms late, in order (one of them delay_once_ms late instead, holding back the ones
 ## behind it, as SCTP would); LATEST packets are dropped and duplicated at the given rates, and
-## each copy arrives up to latest_delay_ms late (uniformly, seeded): later than a RELIABLE packet
-## sent after it when that exceeds reliable_delay_ms, which only LaneOrder's "behind" rule handles.
+## at the rate latest_late a copy arrives latest_delay_ms late, holding back the LATEST packets
+## behind it (LATEST stays in order among itself): later than a RELIABLE packet sent after it when
+## that exceeds reliable_delay_ms, the case only LaneOrder's "behind" rule handles (M6-6).
 class FaultShim:
 	extends RefCounted
 	var reliable_delay_ms := 0
 	var latest_drop := 0.0
 	var latest_duplicate := 0.0
+	var latest_late := 0.0
 	var latest_delay_ms := 0
 	var rng := RandomNumberGenerator.new()
 	var _delay_once_ms := 0
@@ -178,9 +181,11 @@ class FaultShim:
 			return 0
 		return 2 if latest_duplicate > 0.0 and rng.randf() < latest_duplicate else 1
 
-	## How late one copy of a LATEST packet arrives: 0 to latest_delay_ms.
+	## How late one copy of a LATEST packet arrives: latest_delay_ms at the rate latest_late, else 0.
 	func latest_delay() -> int:
-		return rng.randi_range(0, latest_delay_ms) if latest_delay_ms > 0 else 0
+		if latest_late > 0.0 and rng.randf() < latest_late:
+			return latest_delay_ms
+		return 0
 
 
 ## Turns the fault shim on (null: off). ERR_UNAVAILABLE in a release build.
@@ -438,9 +443,8 @@ func _read(conn: Conn, now: int, since: int) -> void:
 					var copies := 1 if _faults == null else _faults.latest_copies()
 					for _i in copies:
 						var late := 0 if _faults == null else _faults.latest_delay()
-						if late > 0:
-							conn.late_latest.append(bytes)
-							conn.late_latest_due.append(since + late)
+						if late > 0 or not conn.late_latest.is_empty():
+							_delay_latest(conn, bytes, since + late)
 						else:
 							_take_latest(conn, bytes, now)
 				NetKindTable.Lane.RELIABLE:
@@ -507,18 +511,19 @@ func _delay_reliable(conn: Conn, bytes: PackedByteArray, arrived: int) -> void:
 	conn.delayed_due.append(due)
 
 
+func _delay_latest(conn: Conn, bytes: PackedByteArray, due: int) -> void:
+	if not conn.late_latest_due.is_empty():
+		due = maxi(due, conn.late_latest_due[conn.late_latest_due.size() - 1])
+	conn.late_latest.append(bytes)
+	conn.late_latest_due.append(due)
+
+
 ## The fault shim's late LATEST packets due by `now`, in the order they were read.
 func _release_late_latest(conn: Conn, now: int) -> void:
-	var kept: Array[PackedByteArray] = []
-	var kept_due := PackedInt64Array()
-	for i in conn.late_latest.size():
-		if conn.late_latest_due[i] <= now:
-			_take_latest(conn, conn.late_latest[i], now)
-		else:
-			kept.append(conn.late_latest[i])
-			kept_due.append(conn.late_latest_due[i])
-	conn.late_latest = kept
-	conn.late_latest_due = kept_due
+	while not conn.late_latest.is_empty() and conn.late_latest_due[0] <= now:
+		var bytes: PackedByteArray = conn.late_latest.pop_front()
+		conn.late_latest_due.remove_at(0)
+		_take_latest(conn, bytes, now)
 
 
 func _release_delayed(conn: Conn, now: int) -> void:

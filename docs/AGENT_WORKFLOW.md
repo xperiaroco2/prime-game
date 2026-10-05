@@ -176,7 +176,7 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots` and `bots-enet`, §11). Every agent runs it in the background and polls it with `wait <log>`
+   matches too (`bots`, `bots-enet` and `bots-webrtc`, §11). Every agent runs it in the background and polls it with `wait <log>`
    (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
    workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
@@ -1259,15 +1259,15 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
   `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
   imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), their
-  WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`
-  and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
+  WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`,
+  `bots-enet` and `bots-webrtc`, `chaos` and `chaos-webrtc`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
   output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
   clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
   it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
   `selftest --group python|godot` runs one group without it). The
   summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `enet`, `freeze`, `stall`, `webrtc`,
   `webrtc-freeze`, `webrtc-stall`, `webrtc-silence`, `bots`,
-  `bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
+  `bots-enet`, `bots-webrtc`, `chaos`, `chaos-webrtc`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
   test count.
   Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
   `branch`, `head`, `tree` (HEAD's tree hash with a clean tree, else null), `runner` (the tree hash of `tools/runner/`
@@ -1326,7 +1326,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   (`runner.verify`). `bots` is `bots` (every scenario in one process, about 8 s) and `bots-enet` is `bots
   dissident_kills_the_crew --instances 3` (about 48 s since M4-3, #139: the scenario ends by time up on a 40 s clock
   that it forces, `clock_s`; M4-2's one-minute match took about 67 s). `chaos` (#188, about 6 s) is `bots --chaos --seed
-  188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `game` (#149, about 5 s) starts
+  188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `bots-webrtc` and `chaos-webrtc`
+  (M6-6, #371) are the same scenario and seed over WebRTC with the fault shim on (ARCHITECTURE §4.6): `bots
+  dissident_kills_the_crew --instances 3 --transport webrtc` (about 50 s) and `bots --chaos --seed 188001 --transport
+  webrtc` (one chaos run paced to the real clock, about 16 s); each passed 5 runs in a row beside a `load` of 8 busy
+  loops on a 4-CPU cloud container (2026-10-05). `game` (#149, about 5 s) starts
   `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
   (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
   file with exit 0 and no engine error line (logs in `tools/out/logs/game/`). The `enet` step is

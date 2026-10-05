@@ -390,9 +390,12 @@ dissidents, no crew present only once every crew member left, End widens nothing
   - **The fault shim** (`FaultShim`, `use_faults`, debug builds only and off by default; the design's §5): on what
     that side receives, RELIABLE arrives `reliable_delay_ms` late in order, counted from the poll before it was read
     (so a backlog read after a freeze is not held back again), one packet `delay_next_reliable(ms)` late instead
-    (holding back the ones behind it, as SCTP would), and LATEST is dropped and duplicated at seeded rates. The
-    freeze twin runs with it on (50 ms, 10 % dropped, 10 % duplicated), the stall twin delays one beat by 3 s while
-    LATEST flows, and M6-6 runs the bots with it.
+    (holding back the ones behind it, as SCTP would), and LATEST is dropped and duplicated at seeded rates and each
+    copy arrives up to `latest_delay_ms` late (uniform, seeded; M6-6). The freeze twin runs with it on (50 ms, 10 %
+    dropped, 10 % duplicated), the stall twin delays one beat by 3 s while LATEST flows, and the bots and chaos bots
+    over WebRTC (§4.6) add LATEST up to 200 ms late: more than RELIABLE's 50 ms plus a 20 Hz interval, so a LATEST
+    packet sent just before a reliable one can arrive after it, the one case only `LaneOrder`'s "behind" rule handles
+    (with RELIABLE late alone, the rule removed passed `bots-webrtc`, M6-6).
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the

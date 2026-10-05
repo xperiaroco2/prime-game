@@ -15,13 +15,17 @@ extends WebRtcTransport
 ## The room every harness host opens: LanSignalling hands out only this code (`signalling`).
 const CODE := "BTSRTC"
 const ADDRESS := "127.0.0.1"
-## The fault shim of the runs (the M6 design §5): the freeze twin's rates, and LATEST late by up to
-## SHIM_LATEST_DELAY_MS, more than RELIABLE, so a LATEST message sent just before a reliable one can
-## arrive after it, the case LaneOrder's "behind" rule exists for.
+## The fault shim of the runs (the M6 design §5): the freeze twin's rates, and one LATEST packet in
+## SHIM_LATEST_LATE late by SHIM_LATEST_DELAY_MS (those behind it held back, in order): more than
+## RELIABLE's delay plus a 20 Hz interval, so a LATEST message sent just before a reliable one
+## arrives after it, the case LaneOrder's "behind" rule exists for. LATEST never overtakes LATEST:
+## a lost or overtaken first claim of an epoch is taken as one tick and corrects an honest bot
+## (ARCHITECTURE §7.1), which plain drops already risk.
 const SHIM_RELIABLE_DELAY_MS := 50
 const SHIM_LATEST_DROP := 0.1
 const SHIM_LATEST_DUPLICATE := 0.1
-const SHIM_LATEST_DELAY_MS := 200
+const SHIM_LATEST_LATE := 0.2
+const SHIM_LATEST_DELAY_MS := 120
 ## How long a harness host waits for its room at the start.
 const ROOM_WAIT_MS := 5000
 
@@ -43,6 +47,7 @@ func _init(kinds: NetKindTable, port: int, shim_seed: int) -> void:
 		shim.reliable_delay_ms = SHIM_RELIABLE_DELAY_MS
 		shim.latest_drop = SHIM_LATEST_DROP
 		shim.latest_duplicate = SHIM_LATEST_DUPLICATE
+		shim.latest_late = SHIM_LATEST_LATE
 		shim.latest_delay_ms = SHIM_LATEST_DELAY_MS
 		use_faults(shim)
 
