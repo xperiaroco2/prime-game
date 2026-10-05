@@ -64,6 +64,14 @@ func test_without_an_offset_every_copy_is_encoded_in_full() -> void:
 			fast.with_seq(encoded, down, seq).hex_encode()
 		)
 	assert_int(down.fields["seq"] as int).is_equal(0)
+	# add_frame takes the same slow path: a whole record per frame, never a patch at -1.
+	var batches := encoder.start(7)
+	for seq: int in SEQS:
+		batches.add_frame(encoded, down, seq)
+	var frames: Array[Dictionary] = []
+	for seq: int in SEQS:
+		frames.append(_frame(2, seq, opus))
+	assert_str(batches.finish()[0].hex_encode()).is_equal(_codec(7, frames))
 
 
 func test_records_fill_each_batch_up_to_the_cap_in_order() -> void:
@@ -133,6 +141,8 @@ func test_the_relay_s_frames_reach_each_listener_as_the_codec_would_write_them()
 			for frame in 3:
 				relay.hold(speaker, poll * 3 + frame, _opus(10 + frame, speaker * 7 + poll))
 		var records: Dictionary[int, Array] = {}
+		# The host's path: each listener's batches take the shared record, the seq patched in place.
+		var in_place: Dictionary[int, VoiceBatchEncoder.Batches] = {}
 		var expected: Dictionary[int, Array] = {}
 		for out: VoiceRelay.Outgoing in relay.flush(100 + poll):
 			var encoded := encoder.record(out.message)
@@ -142,8 +152,10 @@ func test_the_relay_s_frames_reach_each_listener_as_the_codec_would_write_them()
 				var seq := out.seqs[i]
 				if not records.has(listener):
 					records[listener] = []
+					in_place[listener] = encoder.start(100 + poll)
 					expected[listener] = []
 				records[listener].append(encoder.with_seq(encoded, out.message, seq))
+				in_place[listener].add_frame(encoded, out.message, seq)
 				var speaker := fields["speaker"] as int
 				expected[listener].append(_frame(speaker, seq, fields["opus"] as PackedByteArray))
 				var key := Vector2i(speaker, listener)
@@ -158,6 +170,9 @@ func test_the_relay_s_frames_reach_each_listener_as_the_codec_would_write_them()
 			var frames: Array[Dictionary] = []
 			frames.assign(expected[listener])
 			assert_str(payloads[0].hex_encode()).is_equal(_codec(100 + poll, frames))
+			var patched := in_place[listener].finish()
+			assert_int(patched.size()).is_equal(1)
+			assert_str(patched[0].hex_encode()).is_equal(_codec(100 + poll, frames))
 	# Speaker 2's streams (to 1, 3 and 4) had 65532 frames before: 65532 to 65535, then 0 to 4.
 	var wrapped := [0xFFFC, 0xFFFD, 0xFFFE, 0xFFFF, 0, 1, 2, 3, 4]
 	for listener: int in [1, 3, 4]:

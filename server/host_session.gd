@@ -392,10 +392,10 @@ func _send_voice() -> void:
 	if _meter != null:
 		_meter.add_other_upload(_transport.take_upload())
 		began = Time.get_ticks_usec()
-	# Each frame's record is encoded once, when a listener is reachable; each listener gets a copy
-	# with its own stream's seq, and its copies go out together in as few VoiceBatches as fit.
+	# Each frame's record is encoded once, when a listener is reachable; each listener's batches
+	# take it with that listener's own stream seq, and go out in as few VoiceBatches as fit.
 	var tick := game.ticked_through()
-	var batched: Dictionary[int, Array] = {}
+	var batched: Dictionary[int, VoiceBatchEncoder.Batches] = {}
 	for out: VoiceRelay.Outgoing in _relay.flush(tick):
 		var encoded := PackedByteArray()
 		for i in out.listeners.size():
@@ -407,16 +407,14 @@ func _send_voice() -> void:
 				if encoded.is_empty():
 					break  # the codec logged why
 			if not batched.has(listener):
-				batched[listener] = []
-			batched[listener].append(_voice_batch.with_seq(encoded, out.message, out.seqs[i]))
+				batched[listener] = _voice_batch.start(tick)
+			batched[listener].add_frame(encoded, out.message, out.seqs[i])
 	var listeners: Array[int] = []
 	listeners.assign(batched.keys())
 	listeners.sort()
 	var kind := _voice_batch.kind
 	for listener: int in listeners:
-		var records: Array[PackedByteArray] = []
-		records.assign(batched[listener])
-		for payload: PackedByteArray in _voice_batch.payloads(tick, records):
+		for payload: PackedByteArray in batched[listener].finish():
 			if _meter == null:
 				_send(listener, kind, payload)
 				continue

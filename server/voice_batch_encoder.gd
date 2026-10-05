@@ -73,25 +73,66 @@ func with_seq(encoded: PackedByteArray, down: WireMessage, seq: int) -> PackedBy
 ## `tick`: as few as the cap and the most frames allow, each filled in order. Empty for no records,
 ## or when the codec refused the tick (it logged why).
 func payloads(tick: int, records: Array[PackedByteArray]) -> Array[PackedByteArray]:
-	var found: Array[PackedByteArray] = []
-	var header := _header(tick)
-	if header.is_empty():
-		return found
-	var payload := PackedByteArray()
-	var count := 0
+	var batches := start(tick)
 	for each: PackedByteArray in records:
-		if count > 0 and (count == max_frames or payload.size() + each.size() > cap):
-			payload[count_at] = count
-			found.append(payload)
-			count = 0
-		if count == 0:
-			payload = header.duplicate()
-		payload.append_array(each)
-		count += 1
-	if count > 0:
-		payload[count_at] = count
-		found.append(payload)
-	return found
+		batches.add(each)
+	return batches.finish()
+
+
+## One listener's batches under `tick`, filled frame by frame (Batches.add_frame).
+func start(tick: int) -> Batches:
+	return Batches.new(self, _header(tick))
+
+
+## One listener's VoiceBatches of one poll, filled in order as its frames come: a record that would
+## pass the cap or the most frames closes the payload and starts the next. With the seq patched in
+## place, a frame costs one append and one u16 write, no copy of its record.
+class Batches:
+	extends RefCounted
+	var _encoder: VoiceBatchEncoder
+	var _header: PackedByteArray
+	var _found: Array[PackedByteArray] = []
+	var _payload := PackedByteArray()
+	var _count := 0
+
+	func _init(encoder: VoiceBatchEncoder, header: PackedByteArray) -> void:
+		_encoder = encoder
+		_header = header
+
+	## `encoded` (VoiceBatchEncoder.record(down)) with the listener's own `seq`.
+	func add_frame(encoded: PackedByteArray, down: WireMessage, seq: int) -> void:
+		if _encoder.seq_offset < 0:
+			add(_encoder.with_seq(encoded, down, seq))
+			return
+		var at := add(encoded)
+		if at >= 0:
+			_payload.encode_u16(at + _encoder.seq_offset, seq)
+
+	## Appends a record as it is; where it starts in the current payload, -1 when the header was
+	## refused (nothing is sent then).
+	func add(record: PackedByteArray) -> int:
+		if _header.is_empty():
+			return -1
+		var full := _count == _encoder.max_frames
+		if _count > 0 and (full or _payload.size() + record.size() > _encoder.cap):
+			_close()
+		if _count == 0:
+			_payload = _header.duplicate()
+		var at := _payload.size()
+		_payload.append_array(record)
+		_count += 1
+		return at
+
+	## Every payload, the last one closed.
+	func finish() -> Array[PackedByteArray]:
+		if _count > 0:
+			_close()
+		return _found
+
+	func _close() -> void:
+		_payload[_encoder.count_at] = _count
+		_found.append(_payload)
+		_count = 0
 
 
 ## What WireSchema writes for a batch of no frames under `tick`: the bytes before the first record.
