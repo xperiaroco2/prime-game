@@ -14,9 +14,10 @@ extends SceneTree
 ##   beat before the stall) and not before.
 ## - Pair 2, the host drops a stalled client the same way: peer_left after SILENCE_MS.
 ## - Pair 3, the fault shim's 3 s case (the design's §5): the host's shim delays one RELIABLE beat
-##   from the client by 3 s while the client's LATEST poses go on at 20 Hz. LaneOrder holds the
-##   poses that wait for it; the peer stays, every beat arrives once and in order, and after the
-##   late beat the poses come again, the newest first.
+##   from the client by 3 s while the client's LATEST poses go on at 20 Hz. No beat arrives in the
+##   delay (the ones behind the late beat wait for it, in order), and no pose sent after it either:
+##   LaneOrder holds them, its full hold drops the older ones (latest_superseded grows). The peer
+##   stays, every beat arrives once and in order, and the poses come again after the late beat.
 
 const ADDRESS := "127.0.0.1"
 const PORT_ARG := "--port="
@@ -35,6 +36,8 @@ const LATE_MS := 1000
 ## Pair 3: how late the shim delivers the one beat, and how long the run watches afterwards.
 const LATE_BEAT_MS := 3000
 const AFTER_LATE_BEAT_MS := 1500
+## Packets already on their way when the delay starts may still arrive this long into it.
+const IN_FLIGHT_MS := 200
 const BEAT := 1  # both ways, reliable: a sequence number
 const POSE := 2  # client -> host, latest: a sequence number
 
@@ -71,6 +74,7 @@ class Pair:
 	var delayed_at_ms := -1
 	var beats_back_ms := -1
 	var poses_after := 0
+	var superseded_at_delay := 0
 	var finished := false
 
 	func poll() -> void:
@@ -205,6 +209,7 @@ func _traffic(pair: Pair, now: int) -> void:
 func _late_beat_step(pair: Pair, now: int) -> void:
 	if pair.delayed_at_ms < 0 and now - pair.connected_ms >= WARM_MS:
 		pair.delayed_at_ms = now
+		pair.superseded_at_delay = pair.host.latest_superseded
 		pair.shim.delay_next_reliable(LATE_BEAT_MS)
 		print(
 			"NET stall %s: the next beat to the host arrives %d ms late" % [pair.name, LATE_BEAT_MS]
@@ -246,8 +251,9 @@ func _on_host_packet(from_peer: int, kind: int, payload: PackedByteArray, pair: 
 		pair.heard_beat = seq
 		if pair.delayed_at_ms >= 0 and pair.beats_back_ms < 0:
 			var waited := Time.get_ticks_msec() - pair.delayed_at_ms
-			if waited < LATE_BEAT_MS - BEAT_EVERY_MS:
-				return  # a beat read before the late one
+			if waited < LATE_BEAT_MS - IN_FLIGHT_MS:
+				_fail("%s: beat %d arrived %d ms into the delay" % [pair.name, seq, waited])
+				return
 			pair.beats_back_ms = Time.get_ticks_msec()
 			print("NET stall %s: the beats came again after %d ms" % [pair.name, waited])
 	elif kind == POSE:
@@ -256,6 +262,10 @@ func _on_host_packet(from_peer: int, kind: int, payload: PackedByteArray, pair: 
 		pair.heard_pose = seq
 		if pair.beats_back_ms >= 0:
 			pair.poses_after += 1
+		elif pair.delayed_at_ms >= 0:
+			var into := Time.get_ticks_msec() - pair.delayed_at_ms
+			if into > IN_FLIGHT_MS:
+				_fail("%s: pose %d arrived %d ms into the delay, not held" % [pair.name, seq, into])
 	else:
 		_fail("%s: the host got kind %d from peer %d" % [pair.name, kind, from_peer])
 
@@ -276,6 +286,9 @@ func _finish() -> void:
 					% [pair.name, pair.stalling, pair.dropped_after_ms, low, high]
 				)
 			)
+			return
+		if pair.stalling == "" and pair.host.latest_superseded <= pair.superseded_at_delay:
+			_fail("%s: the hold dropped no pose in a 3 s delay" % pair.name)
 			return
 		if pair.stalling == "" and (pair.poses_after < 5 or pair.host.peers().size() != 1):
 			_fail(
