@@ -103,6 +103,8 @@ func run() -> void:
 		for error: String in session.errors:
 			failures.append("host: %s" % error)
 		return
+	if not _host_ready():
+		return
 	_join_everyone()
 	_play()
 	if failures.is_empty():
@@ -177,6 +179,12 @@ func _make_host_transport() -> NetTransport:
 ## for a frame to play a stall of the whole process, as a loaded machine gives the ENet runs (#284).
 func _frame_usec(_frame: int) -> int:
 	return FRAME_USEC
+
+
+## Whether the started host can take joins (the chaos run's WebRTC variant waits for its room);
+## false with a failure when it cannot.
+func _host_ready() -> bool:
+	return true
 
 
 ## Right after each host step, before the clients step (the chaos run's hook).

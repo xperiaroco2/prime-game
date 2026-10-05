@@ -6,6 +6,8 @@ extends SceneTree
 ##   (ChaosRun), the honest bots' views of the chaos run must equal the baseline's, and the
 ##   hostile's Rejected streams of the two chaos runs must be equal;
 ## - `--port=<p>`: one chaos run over ENet on 127.0.0.1:<p> in one process, the invariants only;
+##   with `--transport=webrtc` over WebRTC there (M6-6: LanSignalling on the port, the fault
+##   shim on, paced to the real clock, plus the order check);
 ## - `--long`: the match in which the hostile also dies (ChaosScenario's `until_dead`), the night
 ##   job's; without it the round ends while it is downed (`verify`'s, under 15 s).
 ## Prints one line per seed (`CHAOS seed <n>: passed` or `FAILED`, then each failure) and exits 1
@@ -15,6 +17,8 @@ const SEED := 188_001
 const SEED_ARG := "--seed="
 const RUNS_ARG := "--runs="
 const PORT_ARG := "--port="
+const TRANSPORT_ARG := "--transport="
+const WEBRTC := "webrtc"
 ## The long match: the hostile also dies (the night job's).
 const LONG_ARG := "--long"
 const MAX_LISTED := 12
@@ -25,6 +29,7 @@ func _initialize() -> void:
 	var runs := 1
 	var port := 0
 	var long := false
+	var webrtc := false
 	for arg: String in OS.get_cmdline_user_args():
 		if arg == LONG_ARG:
 			long = true
@@ -34,6 +39,8 @@ func _initialize() -> void:
 			runs = arg.trim_prefix(RUNS_ARG).to_int()
 		elif arg.begins_with(PORT_ARG):
 			port = arg.trim_prefix(PORT_ARG).to_int()
+		elif arg.begins_with(TRANSPORT_ARG):
+			webrtc = arg.trim_prefix(TRANSPORT_ARG) == WEBRTC
 	if not OS.is_debug_build():
 		print("CHAOS FAILED: the chaos bots run in debug builds only (ForceRole, the observer)")
 		quit(1)
@@ -42,9 +49,13 @@ func _initialize() -> void:
 	for i in maxi(runs, 1):
 		var seed_value := first_seed + i
 		var started := Time.get_ticks_msec()
-		var problems := run_enet(seed_value, port, long) if port > 0 else run_seed(seed_value, long)
+		var problems := (
+			run_network(seed_value, port, long, webrtc) if port > 0 else run_seed(seed_value, long)
+		)
 		var took := Time.get_ticks_msec() - started
-		var what := "ENet on port %d" % port if port > 0 else "loopback"
+		var what := "loopback"
+		if port > 0:
+			what = "%s on port %d" % ["WebRTC" if webrtc else "ENet", port]
 		if problems.is_empty():
 			print("CHAOS seed %d: passed (%s, %d ms)" % [seed_value, what, took])
 			continue
@@ -89,9 +100,9 @@ static func run_seed(seed_value: int, long: bool) -> PackedStringArray:
 	return problems
 
 
-## One chaos run over ENet; the problems.
-static func run_enet(seed_value: int, port: int, long: bool) -> PackedStringArray:
-	var run := ChaosRun.play_one(false, ChaosRun.Mode.CHAOS, seed_value, port, long)
+## One chaos run over ENet, or WebRTC; the problems.
+static func run_network(seed_value: int, port: int, long: bool, webrtc: bool) -> PackedStringArray:
+	var run := ChaosRun.play_one(false, ChaosRun.Mode.CHAOS, seed_value, port, long, webrtc)
 	if run.failures.is_empty():
 		print(summary(run))
 	return run.failures
