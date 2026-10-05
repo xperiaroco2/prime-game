@@ -53,6 +53,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   `run` still loads the extension until the next `check` (ARCHITECTURE §6, "The addon in the repo"); `verify` runs
   `check` first. `doctor` (also `--quick`, so `verify` stops at once) fails in a cloud session while the `.gdextension`
   is in the working tree or was deleted by hand, and names the fix; it skips the machine paths and `gh` there, as on CI.
+  The webrtc-native extension (`addons/webrtc_native/`, the M6 ADR's E57, #367) is not left out: it ships a Linux
+  x86_64 library, which loads headless, so a cloud session runs `check` and the WebRTC tests with it, as CI does.
 - **As the environment's setup script** (not yet tried): such a script runs before Claude Code starts, and the
   environment caches the resulting filesystem while each session starts from a fresh clone
   (code.claude.com/docs/en/cloud-environments), so the sparse checkout and the sysctl may not reach a later session,
@@ -1238,8 +1240,13 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   PowerShell) the runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
-  pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem
-  seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no CI: the manager's
+  pins. It removes the Windows-only TwoVoIP extension first (the M5 voice ADR's E35 (a)) and loads webrtc-native
+  (the M6 ADR's E57, #367: no deletion step; its smoke test is `tests/unit/net/transport/webrtc_native_addon_test.gd`;
+  if its Linux library ever fails to load there, CI removes it like TwoVoIP and the WebRTC steps print SKIP, leaving
+  them to Windows `verify`; that fallback must also give the smoke suite a skip when the `.gdextension` is absent,
+  which it has none of today). The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra
+  check, and a problem seen only on Linux is low priority (the engineer, 2026-10-01). A push to `release/m<k>` runs no
+  CI: the manager's
   `verify` on the merged tree is the check there (§7.1). A second job, `python-min` (#349), sets up the pinned
   minimum Python (`pins --get python_min`, 3.11), checks it runs that version, compiles every runner file and runs
   `selftest --group python` (199 s on 3.11 in a cloud session, beside `verify`; Actions minutes cost nothing on a
@@ -1336,10 +1343,12 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   Windows x86_64 builds from the two presets of `export_presets.cfg` (`Windows Release`, `Windows Debug`; the pack
   beside the `.exe`, the `.exe`'s icon and metadata left as the template's). Linux only (CI, a cloud session): it
   checks the pinned export templates (`pins.py`, the release's SHA512-SUMS.txt), exports a clean `git archive` tree
-  of the commit (the TwoVoIP extension in it; its `ERROR:` lines on Linux are expected), zips both into
-  `tools/out/export/`, checks that the release zip holds the release template's `.exe` byte for byte, its TwoVoIP
-  library and no console wrapper (only a release template has `OS.is_debug_build()` false, which turns off F3, the
-  dev tools and the debug kinds), and proves the content hash in an export with `tools/export/export_probe.gd` run
+  of the commit (the TwoVoIP extension in it; its `ERROR:` lines on Linux are expected, and webrtc-native's too when
+  the probe below runs the Windows pack, which holds no Linux library), zips both into `tools/out/export/`, checks
+  that the release zip holds the release template's `.exe` byte for byte, the release libraries of TwoVoIP and
+  webrtc-native (#367) and no console wrapper (only a release template has `OS.is_debug_build()` false, which turns
+  off F3, the dev tools and the debug kinds), and proves the content hash in an export with
+  `tools/export/export_probe.gd` run
   on the pack: every level and what it reaches found, a second tree's export equal, one byte changed in each level
   a new hash; and, since the game's levels reach no other file yet, on `ContentFingerprint`'s test fixtures exported
   from that tree: the walk reaches the same five files as in the project, and one byte of a reached resource or of a
@@ -1549,8 +1558,9 @@ agents and the user-settings `env`. M0's `agents-check` makes the routing check 
   out its ref's commit, so a release ref runs its own setup action, `tools/run.sh` and tests (a release's extra
   suites get the same nights as `main`). A step first asks the ref's runner (`--help`) for the options the job
   calls: an older runner fails there, naming what it lacks. Every job also removes the TwoVoIP extension as M5's
-  CI does (`rm -f`, so nothing on a ref without it). The refs' jobs run side by side (`fail-fast: false`); each
-  ref adds its jobs' runner minutes (`main`'s three took about 16 on 2026-10-03), free in this public repository.
+  CI does (`rm -f`, so nothing on a ref without it), and keeps webrtc-native, which loads on Linux (E57, #367).
+  The refs' jobs run side by side (`fail-fast: false`); each ref adds its jobs' runner minutes (`main`'s three took
+  about 16 on 2026-10-03), free in this public repository.
 - **One setup:** `ci.yml` and `nightly.yml` install the pinned Python, Godot and gdtoolkit through the composite action
   `.github/actions/setup-toolchain`, so a pin change still edits only `tools/runner/pins.py`. Each night job is one job
   in `nightly.yml`, a matrix over the refs (checkout of the ref, the setup, the options check, one runner command, an

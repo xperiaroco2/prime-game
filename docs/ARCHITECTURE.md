@@ -321,6 +321,15 @@ dissidents, no crew present only once every crew member left, End widens nothing
   opens, `forget` at once when it leaves or is disconnected, which discards its held packets undelivered, so a
   late packet never brings an old connection's counts back. `count_reliable_sent` counts only packets the channel
   accepted. The class is pure (the caller passes the time); M6-4 (#370) wires it into `WebRtcTransport`.
+- **The WebRTC library** (M6-2, #367; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) E57):
+  webrtc-native 1.2.2 in `addons/webrtc_native/` (the `.gdextension` as shipped and its `.uid`, the Windows and
+  Linux x86_64 libraries, their license files; credits: `docs/credits/webrtc_native.md`). Godot loads it at start
+  in the editor, a Windows export, CI and a cloud session, and it makes its `WebRTCLibPeerConnection` the
+  implementation behind the engine's `WebRTCPeerConnection`. So `WebRtcTransport` (`net/transport/`, M6-4) creates
+  `WebRTCPeerConnection`s and their `WebRTCDataChannel`s with `new()` and `create_data_channel`, names no class of
+  the addon, and is the only code that reaches WebRTC; nothing outside `net/` does. Without the extension those
+  calls return nothing usable (`create_data_channel` gives null): the smoke test
+  `tests/unit/net/transport/webrtc_native_addon_test.gd` fails then, so `verify` catches a lost or unloadable addon.
 - **Joining:** a client counts as connected only when the host's `ADMIT` arrives (a 3-byte frame of kind 0). ENet
   finishes its handshake before the host's code sees the peer, so Godot's `refuse_new_connections` (a silent reset)
   left a refused client "connected" until a timeout. A refusing host disconnects the new peer instead, and the

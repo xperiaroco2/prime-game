@@ -119,6 +119,7 @@ class ReleaseCheckTest(unittest.TestCase):
             "PrimeGame.exe": b"release template",
             "PrimeGame.pck": b"pack",
             "libtwovoip.windows.template_release.x86_64.dll": b"dll",
+            "libwebrtc_native.windows.template_release.x86_64.dll": b"dll",
         }
 
     def test_the_release_templates_exe_and_library_pass(self) -> None:
@@ -129,7 +130,11 @@ class ReleaseCheckTest(unittest.TestCase):
         files["PrimeGame.exe"] = b"debug template"
         problems = export.check_release(self.build(files), self.templates)
         self.assertTrue(any("is the debug template" in problem for problem in problems), problems)
-        for extra in ("PrimeGame.console.exe", "libtwovoip.windows.template_debug.x86_64.dll"):
+        for extra in (
+            "PrimeGame.console.exe",
+            "libtwovoip.windows.template_debug.x86_64.dll",
+            "libwebrtc_native.windows.template_debug.x86_64.dll",
+        ):
             with self.subTest(extra=extra):
                 (self.dir / "build").joinpath(extra).write_bytes(b"x")
                 problems = export.check_release(self.build(self.release_files()), self.templates)
@@ -165,6 +170,15 @@ class HelpersTest(unittest.TestCase):
                 "at: add_message (./editor/export/editor_export_platform.h:270)"
             ],
         )
+
+    def test_the_probe_of_a_windows_pack_expects_webrtc_natives_errors_too(self) -> None:
+        lines = [
+            "ERROR: Can't open dynamic library, file not found: "
+            "'addons/webrtc_native/lib/libwebrtc_native.linux.template_debug.x86_64.so'.",
+            "ERROR: GDExtension dynamic library not found: 'res://addons/webrtc_native/webrtc_native.gdextension'.",
+        ]
+        self.assertEqual(export.unexpected_errors(lines, export.PACK_WITHOUT_LINUX), [])
+        self.assertEqual(len(export.unexpected_errors(lines)), 2, "an export loads the project's Linux library")
 
     def test_a_version_is_a_plain_file_name_part(self) -> None:
         self.assertEqual(export.version_of("HEAD", "v0.6.0"), "v0.6.0")

@@ -40,6 +40,8 @@ jobs:
       # §2, E35 (a)): only its Windows libraries are committed, and Godot prints an ERROR: line for a .gdextension it
       # cannot load. Removing the .gdextension (and its .uid) is enough for Godot to load nothing; the inert libraries
       # stay, so the credits check still finds the files docs/credits/twovoip.md names. Voice is then unavailable (E34).
+      # The webrtc-native extension stays on purpose: it ships a Linux library, which loads headless, and its smoke
+      # test needs it (docs/decisions/2026-10-04-m6-playable-over-the-internet.md, E57; #367).
       - name: Remove the TwoVoIP extension
         run: rm addons/twovoip/twovoip.gdextension addons/twovoip/twovoip.gdextension.uid
 
