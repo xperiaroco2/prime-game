@@ -325,7 +325,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
   opens, `forget` at once when it leaves or is disconnected, which discards its held packets undelivered, so a
   late packet never brings an old connection's counts back. `count_reliable_sent` counts only packets the channel
   accepted. The class is pure (the caller passes the time); `WebRtcTransport` (below) uses it, and its stall clock
-  is the silence rule's (`STALL_MS` is `WebRtcTransport.SILENCE_MS`).
+  is the silence rule's (`STALL_MS` equals `WebRtcTransport.SILENCE_MS`, which a test pins, so the class names no
+  backend).
 - **The WebRTC library** (M6-2, #367; [the M6 design](decisions/2026-10-04-m6-playable-over-the-internet.md) E57):
   webrtc-native 1.2.2 in `addons/webrtc_native/` (the `.gdextension` as shipped and its `.uid`, the Windows and
   Linux x86_64 libraries, their license files; credits: `docs/credits/webrtc_native.md`). Godot loads it at start
@@ -348,7 +349,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
     second one, an answer or candidate it cannot apply, or a failed description closes that connection (an admitted
     peer leaves). The joiner applies one offer per attempt. Half-made connections, and ones the host is closing,
     count against `max_clients` (`connection_count()`); a full or refusing host answers a joiner nothing, and
-    refusing joins also sends `close` to the service (`reopen` when it allows them again), so a code typed during a
+    refusing joins drops the connections still being made and also sends `close` to the service (`reopen` when it allows them again), so a code typed during a
     match is answered `joins_closed`. Once admitted, the client closes its signalling socket, which frees its place in
     the room. Tests set `local_candidates`: only IPv4 host candidates are signalled, rewritten to 127.0.0.1.
   - **Channels:** three negotiated data channels per connection, created by both sides with the same options
@@ -370,7 +371,8 @@ dissidents, no crew present only once every crew member left, End widens nothing
     the inbox, and any other kind-0 packet reaches the inbox, which rejects it (`UNKNOWN_KIND`). After every channel
     was read (the backlog drained first, so a thawed side drops nobody), a peer heard nothing from for `SILENCE_MS`
     (20 s), keepalives included, leaves: `peer_left` on the host, `host_lost` on a client. So does a connection in
-    `FAILED` or `CLOSED`, and a channel not open under a live connection: on a client at once (it is how
+    `FAILED` or `CLOSED` (judged after its channels were read, so what came with the end comes first, as on ENet;
+    the fault shim's late RELIABLE packets too), and a channel not open under a live connection: on a client at once (it is how
     `disconnect_peer` ends it); on the host after `CHANNEL_GRACE_MS` (1 s) with the connection still up, counted as
     `CHANNEL_CLOSED` (a client's own close resets its channels just before its connection ends, and under load the
     host read the first a poll before the second: 1 run in 10). `DISCONNECTED` is transient. A join not admitted
@@ -422,10 +424,11 @@ dissidents, no crew present only once every crew member left, End widens nothing
   (at most 16 times), so the LATEST merge sees the whole backlog.
 - Checked by `tests/unit/net/transport/`, `tests/integration/net/webrtc_transport_test.gd` (WebRTC against forged
   peers in one process: a half-made connection against the maximum, a second answer, an `ADMIT` of the host's id,
-  keepalives and other kind-0 packets, the join's reasons) and seven headless runs on 127.0.0.1, which `verify`, and
+  keepalives and other kind-0 packets, the join's reasons, a peer's last message before its leave, a kick's
+  reason read with the closed channel, ids not reused, a channel closed under a live connection) and seven headless runs on 127.0.0.1, which `verify`, and
   so CI, runs on a free port (`-- --port=<p>`; AGENT_WORKFLOW §11): the three ENet runs below, and their WebRTC
   twins with `LanSignalling` on that port, no ICE servers and host candidates only (M6-4, #370):
-  `webrtc_host_and_two_clients.gd` (`--instances 3`: the ids 2, 3 and 4 in order, `disconnect_peer` after a last
+  `webrtc_host_and_two_clients.gd` (`--instances 3`: the ids 2 and 3, then 4, `disconnect_peer` after a last
   message, every peer's own id on every lane, which caught the design's §5 plant of a swapped id-to-connection map,
   the upload by E56, a join while refusing answered `joins_closed`), `webrtc_freeze.gd` (`--instances 3`, the fault
   shim on), `webrtc_stall.gd` (one process: a stalled host and a stalled client dropped by the silence rule, 20 s

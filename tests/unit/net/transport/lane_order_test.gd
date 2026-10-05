@@ -391,3 +391,7 @@ func _poll(
 static func _named(frame: PackedByteArray) -> String:
 	var prefix := {CLAIM: "L", OTHER: "O", PICKUP: "R"}[frame.decode_u8(0)] as String
 	return "%s%d" % [prefix, frame.decode_u8(NetFrame.HEADER_BYTES)]
+
+
+func test_the_stall_clock_is_the_silence_rule() -> void:
+	assert_int(LaneOrder.STALL_MS).is_equal(WebRtcTransport.SILENCE_MS)

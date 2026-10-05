@@ -13,7 +13,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 
 ## Map
 - `transport/`: `NetTransport` (the interface game code uses), `EnetTransport`, `WebRtcTransport` (M6-4: one
-  connection per client, three negotiated channels, `ADMIT` with the host's id, the keepalive and silence rule, the
+  connection per client, three negotiated channels, `ADMIT` with the id the host assigned, the keepalive and silence rule, the
   debug-only `FaultShim`; ARCHITECTURE §4), `LoopbackTransport` and
   `LoopbackHub`, `NetFrame` (the 3-byte header and the defensive decode), `NetKindTable` (kind → lane, direction,
   payload cap), `LaneOrder` (the 4-byte LATEST header that keeps LATEST in order with RELIABLE on WebRTC, M6 §2.2),

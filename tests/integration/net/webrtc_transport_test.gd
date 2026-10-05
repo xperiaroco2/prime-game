@@ -252,16 +252,72 @@ func test_a_channel_closed_under_a_live_connection_is_a_counted_leave() -> void:
 	assert_int(host.rejects.total()).is_equal(1)
 
 
+## What a peer sent just before its connection ended is read before the leave, as ENet delivers
+## it: the host reads the closed connection and the packet in the same poll.
+func test_a_peers_last_message_comes_before_its_leave() -> void:
+	var joiner := await _admitted_fake()
+	joiner.put(NetKindTable.Lane.RELIABLE, NetFrame.encode(TALK, "last".to_utf8_buffer()))
+	joiner.pc.close()
+	await _idle(200)
+	assert_bool(await _until(_has.bind("host left 2"))).is_true()
+	assert_array(_events.slice(_events.find("host got 2 1 last"))).contains_exactly(
+		["host got 2 1 last", "host left 2"]
+	)
+
+
+## disconnect_peer's reason arrives before host_lost even when the client reads the reason and
+## the closed channel in the same poll.
+func test_the_reason_before_a_kick_arrives_when_read_with_the_close() -> void:
+	var fake_host := await _fake_host()
+	var client := _client()
+	client.host_lost.connect(func() -> void: _events.append("client lost the host"))
+	assert_int(client.join(await _room_of(fake_host), 0)).is_equal(OK)
+	assert_bool(await _until(fake_host.all_open)).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, _admit(2))
+	assert_bool(await _until(_has.bind("client connected 2"))).is_true()
+	fake_host.put(NetKindTable.Lane.RELIABLE, NetFrame.encode(TALK, "reason".to_utf8_buffer()))
+	fake_host.channels[NetKindTable.Lane.RELIABLE].close()
+	await _idle(200)
+	assert_bool(await _until(_has.bind("client lost the host"))).is_true()
+	assert_array(_events.slice(_events.find("client got 1 reason"))).contains_exactly(
+		["client got 1 reason", "client lost the host"]
+	)
+
+
+## Ids are never reused in a session: after peer 2 leaves, the next joiner is peer 3.
+func test_a_freed_id_is_not_handed_out_again() -> void:
+	var first := await _admitted_fake()
+	first.close()
+	assert_bool(await _until(_has.bind("host left 2"))).is_true()
+	var second := _fake()
+	second.signaller.join_room(_transports[0].room_code())
+	assert_bool(await _until(_has.bind("host joined 3"))).is_true()
+
+
 ## A FakePeer joiner the host admitted as peer 2.
 func _admitted_fake() -> FakePeer:
 	var host := _host(4)
 	host.peer_left.connect(func(id: int) -> void: _events.append("host left %d" % id))
+	host.packet_received.connect(
+		func(from: int, kind: int, payload: PackedByteArray) -> void:
+			_events.append("host got %d %d %s" % [from, kind, payload.get_string_from_utf8()])
+	)
 	assert_bool(await _until(func() -> bool: return host.room_code() != "")).is_true()
 	var joiner := _fake()
 	joiner.signaller.join_room(host.room_code())
 	assert_bool(await _until(_has.bind("host joined 2"))).is_true()
 	assert_bool(await _until(joiner.all_open)).is_true()
 	return joiner
+
+
+## Waits `ms` while polling only the fakes, so what they send piles up for one transport poll.
+func _idle(ms: int) -> void:
+	var until := Time.get_ticks_msec() + ms
+	while Time.get_ticks_msec() < until:
+		_server.poll()
+		for fake: FakePeer in _fakes:
+			fake.poll()
+		await get_tree().process_frame
 
 
 func _client() -> WebRtcTransport:

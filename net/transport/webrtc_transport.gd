@@ -74,6 +74,7 @@ var found_content := 0
 var join_timeout_ms := JOIN_TIMEOUT_MS
 
 var _signaller: Signaller = null
+var _keepalive := PackedByteArray(KEEPALIVE)
 var _order := LaneOrder.new()
 var _faults: FaultShim = null
 ## Host: every connection by peer id, half-made and closing ones included. Client: its one
@@ -111,6 +112,9 @@ class Conn:
 	## Host: disconnect_peer was called at this time; -1 otherwise.
 	var closing_since_ms := -1
 	var reliable_closed := false
+	## This poll, before the reads: the connection had ended; every channel was open.
+	var ended_seen := false
+	var channels_seen_open := true
 	## Host: when a channel was first seen closed under the live connection; -1 otherwise.
 	var channel_closed_ms := -1
 	var last_sent_ms := 0
@@ -193,6 +197,11 @@ func room_code() -> String:
 func set_refuse_new_connections(refuse: bool) -> void:
 	var changed := refuse != is_refusing_new_connections()
 	super(refuse)
+	if changed and is_host() and refuse:
+		# Joiners still connecting get no more answers either (the M6 design §2.3).
+		for conn: Conn in _conns.values():
+			if not conn.open:
+				_drop(conn)
 	if changed and is_host() and _signaller != null:
 		if refuse:
 			_signaller.close_room()
@@ -229,8 +238,9 @@ func _backend_join(address: String, _port: int) -> Error:
 
 
 func _backend_poll() -> void:
-	if _signaller != null:
-		_signaller.poll()
+	var signaller := _signaller  # its handlers may drop it during its own poll()
+	if signaller != null:
+		signaller.poll()
 	var now := Time.get_ticks_msec()
 	var since := _last_poll_ms if _last_poll_ms >= 0 else now
 	_last_poll_ms = now
@@ -245,7 +255,7 @@ func _backend_poll() -> void:
 		_fail_join(JOIN_UNREACHABLE)
 	for conn: Conn in _conns.values():
 		if _is_live(conn) and now - conn.last_sent_ms >= KEEPALIVE_MS:
-			_put(conn, NetKindTable.Lane.VOICE, PackedByteArray(KEEPALIVE))
+			_put(conn, NetKindTable.Lane.VOICE, _keepalive)
 
 
 func _backend_send(to_peer: int, bytes: PackedByteArray, lane: NetKindTable.Lane) -> Error:
@@ -281,6 +291,8 @@ func _backend_disconnect(peer_id: int) -> void:
 	if conn != null and conn.closing_since_ms < 0:
 		conn.closing_since_ms = Time.get_ticks_msec()
 		_order.forget(peer_id)
+		conn.delayed.clear()
+		conn.delayed_due.clear()
 
 
 func _open_signaller() -> Error:
@@ -340,7 +352,10 @@ func _step_connection(conn: Conn, now: int) -> void:
 	if conn.closing_since_ms >= 0:
 		_step_closing(conn, now)
 		return
-	if conn.ended():
+	# Seen before the reads: what arrived with the end is read first, and _judge decides after.
+	conn.ended_seen = conn.ended()
+	conn.channels_seen_open = conn.all_channels_open()
+	if conn.ended_seen and not conn.open:
 		_lose(
 			conn,
 			JOIN_UNREACHABLE if conn.state() == WebRTCPeerConnection.STATE_FAILED else JOIN_FAILED
@@ -362,10 +377,10 @@ func _opened(conn: Conn, now: int) -> void:
 		_drop(conn)
 		return
 	_order.add_peer(conn.peer_id)
-	var admit := NetFrame.encode(0, PackedByteArray())
-	admit.encode_u16(1, 4)
-	admit.resize(ADMIT_BYTES)
-	admit.encode_u32(NetFrame.HEADER_BYTES, conn.peer_id)
+	var id := PackedByteArray()
+	id.resize(4)
+	id.encode_u32(0, conn.peer_id)
+	var admit := NetFrame.encode(0, id)
 	if _put(conn, NetKindTable.Lane.RELIABLE, admit) != OK:
 		_drop(conn)
 		return
@@ -416,7 +431,7 @@ func _read(conn: Conn, now: int, since: int) -> void:
 					else:
 						_delay_reliable(conn, bytes, since)
 				NetKindTable.Lane.VOICE:
-					if bytes != PackedByteArray(KEEPALIVE):
+					if bytes != _keepalive:
 						_push_packet(conn.peer_id, bytes, lane)
 			if not _conns.has(conn.peer_id):
 				return  # a bad ADMIT ended the join
@@ -483,11 +498,15 @@ func _release_delayed(conn: Conn, now: int) -> void:
 ## and LaneOrder's stalled peers.
 func _judge(now: int) -> void:
 	for conn: Conn in _conns.values():
-		if not _is_live(conn):
+		if not conn.open or conn.closing_since_ms >= 0:
 			continue
-		if now - conn.last_heard_ms > SILENCE_MS:
+		if conn.ended_seen:
+			_lose(conn, JOIN_FAILED)
+		elif not _is_live(conn):
+			continue
+		elif now - conn.last_heard_ms > SILENCE_MS:
 			_lose(conn, JOIN_UNREACHABLE)
-		elif not conn.all_channels_open():
+		elif not conn.channels_seen_open:
 			# The host closing a client's RELIABLE channel is how it ends that client: at once, no
 			# fault. On the host a client's own close ends its connection within the grace.
 			if not is_host():
@@ -508,6 +527,11 @@ func _judge(now: int) -> void:
 ## half-made one is dropped quietly, its id not reused); on a client host_lost, or connect_failed
 ## for `reason` before ADMIT.
 func _lose(conn: Conn, reason: StringName) -> void:
+	# The fault shim's late RELIABLE packets were sent before the end: they still come first.
+	while not conn.delayed.is_empty() and _conns.has(conn.peer_id):
+		var late: PackedByteArray = conn.delayed.pop_front()
+		conn.delayed_due.remove_at(0)
+		_take_reliable(conn, late, Time.get_ticks_msec())
 	_drop(conn)
 	if is_host():
 		if conn.open:
@@ -569,6 +593,7 @@ func _on_signal_closed() -> void:
 	if _signaller == null:
 		return
 	_signaller = null
+	_room_code = ""  # a host's room is gone with its socket (no reclaim)
 	if role() == Role.CLIENT and _conns.is_empty() and _client_id == 0:
 		_fail_join(JOIN_SERVICE_UNREACHABLE if not _signal_opened else JOIN_FAILED)
 
@@ -585,6 +610,8 @@ func _on_refused(why: String) -> void:
 			_fail_join(JOIN_FULL)
 		SignalCodec.WHY_HOST_LEFT:
 			_fail_join(JOIN_FAILED)
+		SignalCodec.WHY_CANDIDATES, SignalCodec.WHY_TOO_LARGE:
+			pass  # one candidate or message refused: the join may still connect, or times out
 		_:
 			_fail_join(JOIN_SERVICE_REFUSED)
 

@@ -39,11 +39,11 @@ const MAX_PACKET_BYTES := HEADER_BYTES + NetFrame.MAX_PACKET_BYTES
 ## freeze's backlog is 50 to 100 packets, of which only the newest of each kind matters after each
 ## reliable packet they wait for.
 const HOLD_CAP := 8
-## A hold that no release has emptied for this long is a transport fault: the silence rule's
-## (§2.6, WebRtcTransport.SILENCE_MS). A reliable channel loses nothing, so the counts disagree for
-## good only through a bug or a binding that drops packets; an honest reliable packet late by
-## seconds never reaches it.
-const STALL_MS := WebRtcTransport.SILENCE_MS
+## A hold that no release has emptied for this long is a transport fault: the silence rule's 20 s
+## (§2.6; WebRtcTransport.SILENCE_MS, which lane_order_test pins to it, so this class stays free of
+## any backend). A reliable channel loses nothing, so the counts disagree for good only through a
+## bug or a binding that drops packets; an honest reliable packet late by seconds never reaches it.
+const STALL_MS := 20000
 
 const _SERIAL := 0x10000
 const _HALF := 0x8000
