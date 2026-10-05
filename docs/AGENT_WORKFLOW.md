@@ -1047,7 +1047,7 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   second, host and bots together; how the engine refreshes it between reads is not documented), events per tick, each
   `Snapshot`'s payload bytes per remote peer per tick, frame bytes per remote peer per second down (all, snapshots,
   the bots' synthetic voice) and up (not voice, and voice frames), and `MEMORY_STATIC`; next to them the wire budgets
-  and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceDown`). It compares
+  and their headroom (the 1024-byte unreliable cap, E7's per-peer budgets, E11's tick on `VoiceBatch`). It compares
   with `--baseline`, else `tools/out/perf/baseline.json`, else the newest earlier report of the same transport, bots
   and round, and lists every metric that moved by more than 20% (a placeholder, not a decision); only a failed match
   fails it. Not a `verify` step: the nightly job `perf` runs it (§15). Copy a report you trust to `baseline.json` to

@@ -288,7 +288,7 @@ func test_a_loading_deadline_disconnects_the_peer_after_what_was_sent_to_it() ->
 	var expected: Array[StringName] = view.event_names()
 	var got: Array[StringName] = []
 	for message: WireMessage in slow.received:
-		if message.name != &"Snapshot" and message.name != &"VoiceDown":
+		if not message.name in [&"Snapshot", DecodedView.VOICE_BATCH, DecodedView.VOICE_DOWN]:
 			got.append(message.name)
 	assert_array(got).is_equal(expected)
 	assert_array(FixtureBaseMode.directives(_h.session.game)).contains(

@@ -9,9 +9,12 @@ extends RefCounted
 ## - Snapshots and voice, subsets (LATEST and VOICE may drop): each decoded snapshot's avatars are
 ##   view_of's of that tick, and no tick has a second snapshot (DecodedView.repeated_snapshots);
 ##   each frame's speaker is one view_of lets the bot hear under its tick, and the frame is the
-##   speaker's own, unchanged (voice_frame()). In one process (check_voice_streams, check_counters
-##   with `latest`) every speaker's seqs run without a gap and no LATEST message was superseded, so
-##   a snapshot sent before the bot's own in the same step cannot hide.
+##   speaker's own, unchanged (voice_frame()); each frame of a VoiceBatch (M5-4b) is checked as
+##   the VoiceDown it stands for (DecodedView.voice_downs), and no batch is empty, which would
+##   tell a listener that someone spoke without a frame to check. In one process
+##   (check_voice_streams, check_counters with `latest`) every speaker's seqs run without a gap and
+##   no LATEST message was superseded, so a snapshot sent before the bot's own in the same step
+##   cannot hide.
 ## - Invariants: every event for one peer (listed in FOR_ONE, which does not trust the declarations,
 ##   or declaring AUDIENCE_KIND ONLY or SENDER) that the bot decoded names it as its subject; a bot
 ##   whose role does not know its teammates decodes no Teammates, and a Teammates names only players
@@ -30,12 +33,13 @@ extends RefCounted
 ##   the frames it stamps with tick t by the routing refreshed right after tick t (§4.5), from the
 ##   same state, so a bot at the edge gives no false failure.
 ## - A connected peer that is not a player (check_watcher) decodes at most a Rejected, none unless
-##   it sent a Hello, and never a Snapshot or a VoiceDown. The lurker is still connected unless
-##   core/ disconnected it on entering Loading (its DisconnectPeer at the tick of a LoadMatch: the
-##   entry disconnects every waiting newcomer, E14), so a hello deadline, a transport that dropped
-##   it, or core/ cutting it off before any match fails; the refused bot decoded exactly one
-##   Rejected (wrong_version) and core/'s DisconnectPeer disconnected it. A watcher core/
-##   disconnected that is still connected fails (server/ did not carry out the directive).
+##   it sent a Hello, and never a Snapshot or a VoiceBatch, even an empty one. The lurker is still
+##   connected unless core/ disconnected it on entering Loading (its DisconnectPeer at the tick of
+##   a LoadMatch: the entry disconnects every waiting newcomer, E14), so a hello deadline, a
+##   transport that dropped it, or core/ cutting it off before any match fails; the refused bot
+##   decoded exactly one Rejected (wrong_version) and core/'s DisconnectPeer disconnected it. A
+##   watcher core/ disconnected that is still connected fails (server/ did not carry out the
+##   directive).
 ## - Nothing was lost on the way (check_counters): no packet rejected by the transport, no message
 ##   that did not decode.
 
@@ -176,14 +180,23 @@ func check_bot(
 			+ decoded.repeated_snapshots.size()
 			+ decoded.voice.size()
 			+ decoded.voice_seqs.size()
+			+ decoded.voice_batches
 		)
 		if held != 0:
 			(
 				found
 				. append(
 					(
-						"a view with no peer id that decoded something (%d events, %d snapshots, %d voice)"
-						% [decoded.events.size(), decoded.snapshots.size(), decoded.voice.size()]
+						(
+							"a view with no peer id that decoded something (%d events, %d snapshots,"
+							+ " %d voice, %d voice batches)"
+						)
+						% [
+							decoded.events.size(),
+							decoded.snapshots.size(),
+							decoded.voice.size(),
+							decoded.voice_batches,
+						]
 					)
 				)
 			)
@@ -240,6 +253,8 @@ func check_watcher(watcher: BotWatcher) -> PackedStringArray:
 		found.append("decoded %d snapshots" % decoded.snapshots.size())
 	if not decoded.voice.is_empty():
 		found.append("decoded voice of %d speaker-ticks" % decoded.voice.size())
+	if decoded.voice_batches > 0:
+		found.append("decoded %d VoiceBatches" % decoded.voice_batches)
 	return _labelled(watcher.label, watcher.peer, found)
 
 
@@ -428,6 +443,8 @@ func _check_snapshots(view: PeerView, decoded: DecodedView, found: PackedStringA
 func _check_voice(
 	view: PeerView, decoded: DecodedView, peer: int, found: PackedStringArray
 ) -> void:
+	if decoded.empty_batches > 0:
+		found.append("%d empty VoiceBatches" % decoded.empty_batches)
 	for key: Vector2i in decoded.voice:
 		var speaker := key.x
 		var at_tick := key.y

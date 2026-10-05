@@ -3,10 +3,14 @@ extends RefCounted
 ## Everything one client decoded (ARCHITECTURE §4.6), shaped like core/'s PeerView so the leak test
 ## can compare the two: the events in order as (name, fields), each fields Dictionary equal to the
 ## event's to_dict(); the snapshots by tick (a second one of a tick kept apart, never overwriting
-## the first); the voice frames and their seqs by speaker and tick. A record only: ClientModel folds
-## the same messages into what the client knows now.
+## the first); the voice frames and their seqs by speaker and tick, each frame of a VoiceBatch as
+## the VoiceDown it stands for (voice_downs()). A record only: ClientModel folds the same messages
+## into what the client knows now.
 
 const SNAPSHOT := &"Snapshot"
+## The wire's batched voice row (M5-4b), and the name of each frame in it once decoded: no row
+## carries a VoiceDown since protocol 8.
+const VOICE_BATCH := &"VoiceBatch"
 const VOICE_DOWN := &"VoiceDown"
 
 ## The client's peer id once it was welcomed; 0 before.
@@ -24,6 +28,26 @@ var repeated_snapshots: Array[Dictionary] = []
 var voice: Dictionary[Vector2i, Array] = {}
 ## Vector2i(speaker, tick) -> the seq of each of those frames, in the same order.
 var voice_seqs: Dictionary[Vector2i, PackedInt32Array] = {}
+## VoiceBatch messages decoded, and those that held no frame (the host never sends one: the leak
+## test fails on any).
+var voice_batches := 0
+var empty_batches := 0
+
+
+## The frames of a decoded VoiceBatch, in its order, each as a VoiceDown of its speaker, seq, the
+## batch's tick and the bytes.
+static func voice_downs(batch: WireMessage) -> Array[WireMessage]:
+	var found: Array[WireMessage] = []
+	var at_tick := batch.fields["tick"] as int
+	for frame: Dictionary in batch.fields["frames"] as Array:
+		var fields := {
+			"speaker": frame["speaker"] as int,
+			"seq": frame["seq"] as int,
+			"tick": at_tick,
+			"opus": frame["opus"] as PackedByteArray,
+		}
+		found.append(WireMessage.new(VOICE_DOWN, fields))
+	return found
 
 
 func record(message: WireMessage) -> void:
@@ -33,6 +57,13 @@ func record(message: WireMessage) -> void:
 			repeated_snapshots.append(message.fields)
 		else:
 			snapshots[at_tick] = message.fields
+	elif message.name == VOICE_BATCH:
+		voice_batches += 1
+		var downs := voice_downs(message)
+		if downs.is_empty():
+			empty_batches += 1
+		for down: WireMessage in downs:
+			record(down)
 	elif message.name == VOICE_DOWN:
 		var key := Vector2i(message.fields["speaker"] as int, message.fields["tick"] as int)
 		if not voice.has(key):

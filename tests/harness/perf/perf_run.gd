@@ -205,7 +205,8 @@ func to_dict() -> Dictionary:
 		"budgets":
 		{
 			"snapshot_payload_cap": kinds.payload_cap(schema.kind_of(HostSession.SNAPSHOT)),
-			"voice_down_payload_cap": kinds.payload_cap(schema.kind_of(&"VoiceDown")),
+			# The batched row's cap (M5-4b), under the key the baselines already hold.
+			"voice_down_payload_cap": kinds.payload_cap(schema.kind_of(&"VoiceBatch")),
 			"frame_header_bytes": NetFrame.HEADER_BYTES,
 			"peer_bytes_per_second": PeerBudget.BYTES_PER_SECOND,
 			"peer_voice_frames_per_second": PeerBudget.VOICE_FRAMES_PER_SECOND,
