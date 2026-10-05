@@ -1164,7 +1164,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   what it saw, and saves `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not
   done within `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started
   through the stop file (else a kill: a window after 30 s, since its renderer's exit can wait seconds on the GPU
-  driver when every core is busy, #354; the bots after 10 s). Desktop only: CI and `verify` never run it; an agent
+  driver when every core is busy, #354; the bots after 10 s). Under a full-PC load it can also fail for reasons that
+  are not bugs (ARCHITECTURE §4.7 `playcheck`, "Known load limits", #406): run it again once the load ends before
+  debugging it. Desktop only: CI and `verify` never run it; an agent
   may (off-screen windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked
   up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a
   second round, #276).
