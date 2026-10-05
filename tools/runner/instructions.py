@@ -39,6 +39,7 @@ SKILL_BUDGET = 500  # lines of SKILL.md body; the docs advise moving detail to s
 SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 # A Markdown link's target (inline links only); a scheme (https:, mailto:) or a bare #anchor is not a file.
 LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
+CODE_SPAN_RE = re.compile(r"`[^`]*`")
 EXTERNAL_RE = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|#)")
 FALSE = ("false", "no", "off", "0")
 TRUE = ("true", "yes", "on", "1")
@@ -224,17 +225,18 @@ def check(root: Path) -> Report:
 def skill_links(root: Path, folder: Path) -> list[str]:
     """Each relative link in a skill's Markdown files (SKILL.md and its supporting files, which SKILL.md points to and
     the agent reads on demand: orchestrate-stage's budget.md, #415) must name a file or folder that exists, so a
-    renamed supporting file or ADR cannot leave a pointer to nothing. Links inside code fences are examples."""
+    renamed supporting file or ADR cannot leave a pointer to nothing. Links inside code fences (``` or ~~~) and inline
+    code spans are examples."""
     problems = []
     for path in sorted(folder.rglob("*.md")):
         in_code = False
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-            if line.strip().startswith("```"):
+            if line.strip().startswith(("```", "~~~")):
                 in_code = not in_code
                 continue
             if in_code:
                 continue
-            for target in LINK_RE.findall(line):
+            for target in LINK_RE.findall(CODE_SPAN_RE.sub("", line)):
                 if EXTERNAL_RE.match(target):
                     continue
                 if not (path.parent / target.split("#", 1)[0]).exists():

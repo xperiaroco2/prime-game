@@ -248,6 +248,7 @@ class SkillTest(unittest.TestCase):
         links = (
             "See [budget](budget.md#the-unit), [ADR](../../../docs/decisions/x.md), [web](https://example.com/a.md),\n"
             "[top](#top) and [mail](mailto:a@b.c).\n```text\n[example](not-there.md)\n```\n"
+            "Inline `[span](not-there.md)` and a tilde fence:\n~~~text\n[tilde](not-there.md)\n~~~\n"
         )
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
