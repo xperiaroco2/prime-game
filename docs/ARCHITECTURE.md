@@ -1867,7 +1867,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   `ClientSession.set_facing` (new: the next `MoveClaim`'s facing, nothing else of `set_motion`'s report) with that
   look, since the first claim after the respawn can go out in the same session step as its `Correction`, before
   the controller steps again; so other players see a level head from the first claim. A `Correction` alone (a
-  refused claim, a placement, a knockdown) and a revive keep the look. `look()` does nothing while dead or left:
+  refused claim, a knockdown) and a revive keep the look. `look()` does nothing while dead or left:
   before, mouse motion while spectating still turned the hidden body and tilted its head (the controller reads
   the mouse while `Game` only stops its physics step), up to 89°, which the respawn kept, as it kept a downed
   player's look up. `LifeView` is unchanged: the downed camera follows the downed look, the camera above the own
@@ -1883,9 +1883,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - #240: a player who died looking up and was next placed by a new match, not a respawn, kept that pitch. A
   `PlayersPlaced` that names the own player (`End -> Lobby`'s and the deal's, the only two, both naming everyone
   present) now calls `look_level()` as the own `Respawned` does (`PlayerController._places_level`; the engineer's
-  answer on #240, option (b): every placement into a round starts level, the yaw kept). It comes right before the
-  placement's `Correction`, so that `Correction`'s facing is level too. A `Correction` alone (a refused claim, a
-  knockdown), a revive, and another player's respawn or placement keep the look.
+  answer on #240, option (b): every placement (the lobby's and a new round's) starts level, the yaw kept). It
+  comes right before the placement's `Correction`, so that `Correction`'s facing is level too. A `Correction`
+  alone (a refused claim, a knockdown), a revive, and another player's respawn or placement keep the look.
 - Tests (#240): `life_network_test.gd` (a joiner who died looking up, the round won before its respawn, is level
   with the yaw it had after `End -> Lobby`'s placement and its `Correction`'s facing; it looks up in the lobby and
   the next deal levels it again; seen failing first), `player_controller_downed_test.gd` (only a `PlayersPlaced`
