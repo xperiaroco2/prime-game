@@ -42,10 +42,10 @@ One message from the human with `ultracode` in it (template in §10). It must st
   once and never edited); if the kickoff names none, recommend that;
 - the git flow: the release branch `release/m<k>` every task PR targets (or, on the tooling track, PRs into `main`),
   and the order and dependencies: which task stacks on which (`start --base`), which waits for a merge;
-- the concurrency cap (default three tasks at once; across the tracks the PC cap of budget.md) and "one task = one
-  workflow" with per-agent bounds (implementer about 250 tool calls, reviewers about 60, publisher about 150; with
-  the v2 args of §3 the plan agent about 80, its critique about 40, the test reviewer about 60, each skeptic about 30,
-  a publisher that only reports a stop about 30);
+- the concurrency cap (default three tasks at once, fewer where budget.md's PC share is lower: meta by day 1)
+  and "one task = one workflow" with per-agent bounds (implementer about 250 tool calls, reviewers about 60,
+  publisher about 150; with the v2 args of §3 the plan agent about 80, its critique about 40, the test reviewer
+  about 60, each skeptic about 30, a publisher that only reports a stop about 30);
 - explicit approval to exceed the size guideline, with the agent count it approves per workflow (`issue-task` runs
   3 to 5 agents plus those of the v2 args the kickoff names, §3; `small` means fewer than 5), and the `Track:` line,
   whose weekly budget (budget.md) covers the stage: you do not ask before each workflow (root `CLAUDE.md`);
@@ -484,7 +484,7 @@ English (`metrics --track` reads it). Moving state (which issues, which PRs) goe
 
 ```text
 ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
-task = one issue-task workflow, at most three at once (across the tracks the PC cap of budget.md).
+task = one issue-task workflow, at most <n> at once (your track's PC share in budget.md).
 
 Start from: <my review of the design PR #<pr> and its handoff on #<design issue> | the issues below>.
 <If from a design: open the stage's issues from that handoff with my review's changes and report the list and the
