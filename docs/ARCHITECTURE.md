@@ -1093,7 +1093,18 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     countdown after bot 1's Ready (3 of the same 12 runs). Only a join that failed half of `JOIN_TIMEOUT_MS` or
     more after it started is tried again: a host that refuses a join answers at once, before the admission with
     `connect_failed` within a poll or two (§4 "Joining") and after it with `host_lost` (a rejected `Hello`), and
-    both stay failures.
+    both stay failures. Since #318 both live in `NetPlay` (`_lobby_full`, `_join_again`) and the chaos run's ENet
+    variant and the playcheck bots use them too (below and §4.7's `playcheck`): `_lobby_full` asks of one bot that
+    every other player that joins at the start has a known peer id and is in that bot's decoded lobby (its
+    `Welcome`'s positions or a `PlayerJoined`); peer ids alone, which `connected` gives before the `Hello` is
+    admitted, were the weaker gate those two runners had. `_join_again` judges a join on `_join_clock_usec()`,
+    the runner's clock, the real one in a runner on a simulated clock (the chaos run): `JOIN_TIMEOUT_MS` is real
+    time. Tests: `tests/scenarios/chaos_enet_start_test.gd` and `tests/scenarios/playcheck_bots_test.gd`, each the
+    gate (peer ids alone fail it), a rejoin after an unanswered join and none after a join refused at once; the
+    chaos one also drives `play_frame` and the lobby reason of a run out of time. Beside 32 busy loops on 16
+    cores (2026-10-04) `bots --chaos --enet` passed 10 of 10 runs, and `playcheck spectate` 18 of 20: its bots
+    played in all 20, and both reds were a window that did not exit within `hostjoin`'s 10 s grace after the
+    stop (#354; since then a window gets 30 s, §4.7's `playcheck`).
   - `ScenarioBot` matches a `peer` field of an event for one peer whose payload names none (`RoleAssigned`,
     `Damaged`, `SelfStatus`, `Correction`, `Rejected`) against the bot that received it: it is that event's subject.
   - A bot the host disconnects (`core/`'s `DisconnectPeer` in the core runner, its session's end in the bots runner)
@@ -1293,6 +1304,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   the leak check (no superseded-LATEST or voice-seq check: a network bunches and drops), the counters, 4 to 7, and
   each chaos peer's host counts per reason bounded by the chaos packets it sent for that reason (`check_bounded`:
   a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
+  Over ENet the bots play once bot 1's lobby is full, and a bot whose join went unanswered joins again, as in
+  `BotsEnet` (#318; `ChaosRun._may_play`); a join lost for good ends the wait, so that its bot's step fails at once.
   - **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
     baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
     step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
@@ -1335,8 +1348,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   the game reads alike.
   Tests: `tests/unit/tools/headless_session_test.gd` (the roster line, the refusal texts, the exit codes),
   `tests/unit/client/app/launch_options_test.gd` (the arguments) and
-  `tools/runner/tests/test_hostjoin.py` (the supervision, and a real host with two local clients reaching the lobby
-  roster Player1 to Player3).
+  `tools/runner/tests/test_hostjoin.py` (the supervision, each stopped process's time from the stop to its exit, taken
+  at its own exit even while a kill of another process blocks, a killed one's last line and when it came, a grace per process, and a real host with two local clients reaching the
+  lobby roster Player1 to Player3).
   Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and by default in a shell where
   `CLAUDECODE` is set (an agent's); otherwise they open the game in windows (§4.7).
 
@@ -1641,7 +1655,13 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   own level; the hint and the key then apply only if the mode's `InReach` of `PickUp` holds, measured as the host
   measures it (2 m from the feet, not along the ray from the eye 1.6 m higher), so a crate-top item the host would
   refuse gets no hint and a floor item it would accept does. M4-8's target-choice test checks both against a fixture
-  world. The keys send `PickUp(item)`,
+  world. The pick-up hint stops a margin short of that reach (#319): the host measures from the feet of the last
+  `MoveClaim` it accepted, which trail the player's own while walking in, so E at the first hint would otherwise be
+  refused `out_of_reach`. The margin is the walk (the mode's `walk_speed_mps`) in one claim interval and one physics
+  step (`TargetChoice.HINT_MARGIN_S`, 4/60 s, not a decision): 1.7 m of the base mode's 2 m. The raise hint stops
+  the same margin short of the raise's `TargetInReach`, which the host also measures from that claim's feet (#352:
+  `LifeView.raise_hint_reach_of`, through `TargetChoice.hint_reach`). The host's `InReach` and `TargetInReach` are
+  unchanged. The keys send `PickUp(item)`,
   `Raise(target)` and `StopRaise()`, `PutDown(facing)`, `Use(facing)`, `Swap()` and `GiveUp()`; the host checks each
   again (§7.1), and the client predicts nothing of an action's outcome.
 - **The HUD:** health and stamina (`SelfStatus`, the stamina predicted), the hand and belt items by their kinds'
@@ -1671,7 +1691,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   component before normalising; `unit_or()`), which `look_angles` shares.
 - `client/life/`: `LifeView` (`Life` under `World`, 5: after the player, before `SightHider`) picks the camera by
   the own life (the player's, `DownedCamera`, or the spectate camera), runs the life inputs (E pressed on a downed
-  player within the mode's `TargetInReach` from the feet sends `Raise`, its release `StopRaise`, and a raise that
+  player within the mode's `TargetInReach` from the feet, less the walking margin of #352, sends `Raise`, its
+  release `StopRaise`, and a raise that
   starts after E was let go is stopped at once; G held for 1 s sends `GiveUp` once; the left and right mouse
   buttons cycle the spectate target while the mouse is captured) and plays `LiftMusic` while dead. `DownedCamera`
   is the `SpringArm3D` above (its probe 0.2 m, its arm pitch 0 to 80° down, a look further down tilting the
@@ -1700,7 +1721,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   downed joiner trying to crawl holds still and gets 0 `Correction`s (58 without the hold) and stands up
   invulnerable in first person; a joiner who gives up stays off the living however it is driven, watches the host
   from its eyes with the music, follows it to the camera above its body when it goes down, and respawns at a marker
-  in first person, invulnerable on the host's screen, with no `Correction`. `client/dev/life_preview.tscn` is the
+  in first person, invulnerable on the host's screen, with no `Correction`; `life_raise_network_test.gd` (#352: the
+  joiner walks at the downed host's body from three sides and presses E at the first raise hint, on an even and an
+  uneven clock; the host starts every raise; seen failing `out_of_reach` with no margin) and
+  `tests/unit/client/life/life_view_reach_test.gd`. `client/dev/life_preview.tscn` is the
   `shot` of the downed pose, a body, the invulnerable look and the panel.
 - Not headless: the keys and the mouse, the feel of the cameras and the music; the one-PC playtest (the M4 ADR's
   §6) checks them.
@@ -1724,8 +1748,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   front is M4-9's raise target, and E there picks up nothing behind it); the candidate is the ground item (not
   held, not delivered) whose middle the ray passes within 0.3 m of, entered short of that and of 4 m, the one the
   crosshair is closest to first; the hint and E apply only if the item lies within `InReach.reach_m` of `PickUp`
-  (the client's own mode) of the feet and a second ray from the camera to the item's middle meets no world geometry
-  (the host's `InSight`): an item just behind a thin wall or a door jamb is never named.
+  (the client's own mode) of the feet, less the walking margin of #319 (`TargetChoice.hint_reach_of`), and a second
+  ray from the camera to the item's middle meets no world geometry (the host's `InSight`): an item just behind a
+  thin wall or a door jamb is never named.
   Q, the left button and X send `PutDown(facing)`, `Use(facing)` and `Swap()` while the own slots hold something
   (the click that captures the mouse is not a use); only while the own player is living, in the round, with no Esc
   menu. The facing is the camera's look vector.
@@ -1748,7 +1773,10 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   override in `hud.gd`), `tests/unit/client/world/target_choice_test.gd`, `sound_chooser_test.gd` (seen failing on a
   chooser without the range), `tests/integration/client/world/item_interactions_test.gd` (the real controller on a
   fixture floor: a crate-top item 2.08 m from the feet and 1.75 m from the eye gets no hint, floor items 1.3 to
-  1.95 m away get one; seen failing with the reach measured from the eye) and `item_views_test.gd`. The `shot`s:
+  1.7 m away get one and one 1.85 m away none (#319); seen failing with the reach measured from the eye),
+  `item_pick_up_network_test.gd` (#319: a joiner walks at each of three knives over `NetPair` and presses E at the
+  first hint, on an even and an uneven clock; the host accepts every `PickUp`; seen failing `out_of_reach` with no
+  margin) and `item_views_test.gd`. The `shot`s:
   `client/dev/hud_preview.tscn`, `task_screen_preview.tscn`, `items_preview.tscn` and `hand_preview.tscn`.
 - Not headless: the keys, the feel of the hint and the sounds; the one-PC playtest after M4-8 checks them (the M4
   ADR's §6), and a human picks the CC0 sounds.
@@ -1987,24 +2015,53 @@ is|has|lacks <text>` and `wait shown <field> on|off` (#275) read what the window
 the field list is `FIELDS` in `tools/runner/playcheck.py`, with the same keys in the window's `GameView` (a test holds
 them equal). Whitespace runs count as one space and a hidden field reads as "", and scenarios assert short `has` and
 `lacks` parts of the greybox wording (#150). `button <text>` gives the one visible, enabled `Button` of the Ui with
-that text the focus and `ui_accept`'s key, so no mouse event captures the mouse. Keys go in through
-`Input.parse_input_event`, holds through `Input.action_press`, screenshots through
+that text the focus and `ui_accept`'s key, so no mouse event captures the mouse. With no mouse look, `aim item
+<kind>` (until `aim off`, #276) turns the window's own local player and nothing else: each frame it reads the
+nearest item of that kind resting (no holder) in the window's own `ClientModel`, whose positions every client is
+sent, and calls `PlayerController.look` on `Game.player()` to face its middle (`ItemView.centre_of`), as mouse motion
+would. The pick-up hint stops a walking margin short of the host's reach (#319, §4.7 "Interactions"), so a scenario
+presses `interact` the moment the hint shows, with no settle step (`items.txt`, #353). Keys go in through
+`Input.parse_input_event`, before the frame's `_process`, so actions polled there (`interact`, `swap`, `put_down`)
+see them as just pressed; holds through `Input.action_press`, screenshots through
 `Viewport.get_texture().get_image().save_png` after `frame_post_draw`, as `shot` does. The windows sit at `shot`'s
 off-screen position (never headless: Godot then draws nothing), with the dummy audio driver and a `MousePointer`
 that only remembers, so the real mouse is never captured; what needs a captured mouse (`use`, spectate cycling)
 stays with the playtest. Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`) as the host's own
-client once every player is in its roster; peer ids travel as `peer-<n>` files, as over ENet in `bots`. Nothing in
-`client/` changed for it. The stop is `host`'s: the stop file, then a kill. Desktop only; CI and `verify` never run
-it. Usage: `docs/AGENT_WORKFLOW.md` §11.
+client once every player is in its roster (within the scenario's `timeout`, plus `BOTS_START_SECONDS`, 60 s, when
+bots play, #406); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
+process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
+went unanswered (window 1 not listening yet) joins again, `BotsEnet`'s start (#318, §4.6 "bots runner"). Nothing in
+`client/` changed for it. The stop is `host`'s: the stop file, then a kill once a process's grace has passed, 30 s
+for a window (`WINDOW_GRACE_SECONDS`) and `host`'s 10 s for the bots; the report gives each one's time from the stop
+to its exit. A window's grace is longer because its exit can wait seconds on the GPU driver (#354): on a PC whose
+every core runs normal-priority work (32 busy loops on 16 cores), the main thread waits in the renderer's teardown on
+NVIDIA's D3D user-mode driver threads (`nvwgf2umx.dll`), which run at idle priority and stay Ready with no CPU until
+Windows lifts a starved thread, about every 4 s; such windows took up to 9.5 s to exit after `session: stopped`
+(about 75 runs), a headless bots process about 1 s. **Known load limits** (#354's runs of `playcheck spectate`
+before its fix, beside 32 busy loops on 16 cores, PR #394; #406): besides the slow exits, one run each failed with an
+honest bot corrected outside a placement, with a Godot process that exited with 0xC0000142 (Windows'
+STATUS_DLL_INIT_FAILED: it could not start; not investigated further), and with window 2 not finishing its steps
+(`wait life dead`); one more, under the other workflows' load alone, with player 2 never downed though the bot had
+finished its script (the next run passed). Five failed because the bots' process, which starts only once window 1
+hosts, joined so late that window 1's setup timed out after 30 s with 2 of 3 players: since #406, when bots play,
+the setup and, in every other window (window 1 too without a setup), the first wait after its first `press ready`
+wait `BOTS_START_SECONDS` (hostjoin's 60 s for a host to start listening) longer, since the round needs the bots in
+and ready; the other waits keep their timeout. The rest stay known limits: on a PC at full load a red `playcheck` is run again once the
+load ends before it is debugged. Desktop only; CI and `verify` never run it. Usage: `docs/AGENT_WORKFLOW.md` §11.
 Tests: `tools/runner/tests/test_playcheck.py` (the scenario parser and its errors, the plan, the command lines, and
 runs of stand-in processes that pass, time out, fail a step, print an engine error or miss a PNG, each stopping
-every process; the text, shown and button grammar and `FIELDS` against `GameView`'s keys) and
+every process; windows that exit slowly within their grace beside bots killed after theirs; the setup's and the
+first wait after `press ready`'s added wait for the bots' start, #406; the text, shown and button grammar and `FIELDS` against `GameView`'s keys), `tests/scenarios/playcheck_bots_test.gd` (the bots' start,
+#318) and
 `tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at once or fails at its
 timeout and not before, with its line and what the window saw; frames; events matched once through player numbers;
 the setup; `is`/`has`/`lacks`, collapsed whitespace, a hidden field read as "", shown on and off; the `button` step's
-one visible, enabled button or its failure). The scenarios `esc_menu` (#169) and `spectate` (#168) are its own
-checks, run on a desktop; since #275 they assert the Esc tabs, the lobby roster and countdown, the life panel, the
-spectator HUD and the knife in the first-person hand besides their PNGs.
+one visible, enabled button or its failure; `aim` as an action step, the nearest resting item it picks and the
+turn that makes a real `PlayerController` face a target). The scenarios `esc_menu` (#169), `spectate` (#168),
+`items` and `end` (#276) are its own checks, run on a desktop; since #275 they assert the Esc tabs, the lobby
+roster and countdown, the life panel, the spectator HUD and the knife in the first-person hand besides their PNGs,
+and since #276 the Hand and Belt lines through a pick-up, a swap and a put-down, the end screen's winner and its
+host-only Back to lobby, the lobby's cleared ready flags after End and a second round.
 
 **Tests.** The logic lives outside scenes where it can (the flow, the launch options, the end reasons,
 `SnapshotBuffer`, `PredictedStamina`, the countdowns, the spectate targets, the HUD's texts), unit-tested headless in
@@ -2752,8 +2809,10 @@ part is usable in data once its row or entry names the PR that built it. Every n
     reaction, a row's actions: no player runs it) or in a rule that lacks a condition the effect requires
     (`ChannelEffect.required_conditions`: `RaiseDowned` needs `TargetDowned`); a reaction or a win condition holding a
     condition that reads the actor (`Condition.reads_actor_state`, §9.4's "Where" column), which tests no player there
-    (§9.2, #283, #299); an accepted intent that neither the phase class nor any rule handles; two rules on one
-    trigger in one owner; a number outside its part's bounds; an id outside the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
+    (§9.2, #283, #299), or one that reads the rule's target where nothing supplies it (`Condition.needs_target`: a win
+    condition, or a reaction whose fact does not carry it, #379); an accepted intent that neither the phase class
+    nor any rule handles; two rules on one trigger in one owner; a number outside its part's bounds; an id outside
+    the wire's alphabet (3e, #97; §4.3, E5): every `id`, `side`,
     `spawn_tag` and `tag` a part holds, and every condition's rejection reason, is 1 to 32 characters of `a-z`, `0-9`
     and `_` (D1 (a), the designer's answer on #96). A unit test (2a, `tests/unit/content/content_modes_test.gd`) loads
     every mode in `content/modes/` and runs this part (`ModeCheck`).
@@ -2794,8 +2853,14 @@ A **rule** is the unit of behaviour: `trigger`, then `conditions`, then `effects
   cost in a reaction gets only the "negates a cost" error, since it passes there and is never paid. A condition says
   whether it reads the actor (`Condition.reads_actor_state`, true unless the class says otherwise, so a new condition
   that forgets is refused rather than silently never or always passing); §9.4's "Where" column gives the answer of
-  each part of `core/`. One that reads only the match, the fact or the rule's target is allowed everywhere (as the
-  tests' `FixtureCost`, a counter of peer 0). Between
+  each part of `core/`. One that reads only the match or the fact is allowed everywhere (as the tests' `FixtureCost`,
+  a counter of peer 0). One that reads the rule's target (`Condition.needs_target`: the intent's `target` or `item`,
+  the channel's target, the fact's item) finds none in a win condition, which has no intent, channel or fact, nor in a
+  reaction whose fact does not carry it (`Condition.target_facts`: only `item_rested` carries one, its item), so the
+  mode check refuses it there too, with the same names (#379; `mode_check_target_test.gd`). `needs_target` is false
+  unless the class says otherwise: a condition reaches that check only once it said it reads no actor, so its author
+  has already said what it reads, and a default of true would mislabel the many that read no target; the guard test in
+  `mode_check_actor_test.gd` lists the three answers for every condition of `core/`. Between
   the checks and the costs, an **action** (a rule on an intent) that passed stops its actor's running channel
   (`Channels.interrupt`, M4-4): a raiser who picks up, puts down, uses, swaps (M4-5) or lets go of E stops its
   raise, and a refused intent stops nothing. (`outcome_dropped`, §3.1, is sent after an applied intent, not a refusal.)
@@ -2998,13 +3063,14 @@ phase classes come in the task each row names.
 
 In the "Where" column, *actions only* marks a part that reads the actor (`Condition.reads_actor_state`): the mode
 check refuses it in a mode reaction or a win condition, which run for no player (§9.2, #299). *Anywhere* marks one
-that reads no actor: an action, a reaction or a win condition. The mode check does not yet catch a part that needs the
-rule's target, which only an intent, a channel or a fact gives (`TargetDowned`, and `ItemOnGround` in a win condition):
-its row says so.
+that reads no actor and no target: an action, a reaction or a win condition. A part that reads no actor but needs the
+rule's target (`Condition.needs_target`), which only an intent, a channel or a fact gives, is refused by the mode check
+in a win condition and in a reaction whose fact does not carry that target (`Condition.target_facts`), #379: its row
+names the facts that do.
 
 | Part | Passes when | Settings | Rejects with | Where (§9.2) | Built in |
 |---|---|---|---|---|---|
-| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not in a hand or on a belt) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | an action or a reaction (reads no actor; a reaction's item is its fact's); the mode check allows it in a win condition, which has no item, so it never passes there | 2e (#61) |
+| `ItemOnGround` | the rule's item (the intent's `item`) exists, lies on the ground (not in a hand or on a belt) and is interactive (not locked, as a delivered package is) | none | `unavailable`: whether an item is held or delivered is public | an action, or a reaction on `item_rested`, whose fact carries the item (reads no actor; needs an item): the mode check refuses it in a win condition and in a reaction on any other fact, which have no item (#379) | 2e (#61) |
 | `InReach` | the item's rest position is within `reach_m` of the actor's last accepted position, its feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode 2) | `out_of_reach` | actions only: reads the actor | 2e (#61) |
 | `InSight` | the line from the actor's eye (the floor it stands on at its last accepted position, `WorldQuery.stand_floor_below`, raised by `PlayerRules.eye_height_m`, §7.1) to just above the item's rest position is clear (`WorldQuery.line_of_sight`) | none | `blocked` | actions only: reads the actor | 2e (#61) |
 | `HoldsItem` | the actor has an item in hand (a belt item does not count) | none | `empty_hand` | actions only: reads the actor | 2e (#61) |
@@ -3016,7 +3082,7 @@ its row says so.
 | `ClockEnded` | the match clock has reached its end (`MatchState.clock_ended`, set when `Match` raises `clock_ended`); before `StartClock` there is no end | none | (facts only) | anywhere: reads no actor | 2h (#64, `core/win/clock_ended.gd`) |
 | `Cooldown` (cost) | this player never paid this key, or at least `seconds` (in host ticks, toward zero, §3.3) passed since it last did; paying records the tick in `MatchState`'s cooldown table. Per player, not per item: a second knife does not skip it. | `key` (no default: the data names it), `seconds` (0 to 600; 0) | `too_soon`: its own timing | actions only: reads the actor | 2g (#63, `core/combat/cooldown.gd`) |
 | `StaminaCost` (cost) | the actor's stamina, settled first (§7.1), is at least `amount`; paying spends it and emits `SelfStatus` (the actor, at the end of the tick). | `amount` (whole points, 0 to `PlayerRules`' stamina maximum) | `tired`: its own stamina | actions only: reads the actor | 2d (#60) |
-| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | allowed anywhere (reads no actor), but useful only in an action or a channel: a reaction or a win condition has no target, so it never passes there | M4-4 (#140, `core/life/target_downed.gd`) |
+| `TargetDowned` | the rule's target player (`Channels.target_of`: the intent's `target`, or the running channel's) is downed | none | `not_downed`: who is downed is public | an action (and its channel) only (reads no actor; needs a target player): the mode check refuses it in a reaction or a win condition, since no fact carries a target player (#379) | M4-4 (#140, `core/life/target_downed.gd`) |
 | `TargetInReach` | the target lies within `reach_m` of the actor: both last accepted positions, their feet (§7.1) | `reach_m` (0.1 to 10; no default: the data sets it, the base mode's raise 2) | `out_of_reach` | actions only: reads the actor | M4-4 (#140) |
 | `TargetInSight` | the line from the actor's eye (`Items.eye_of`) to just above the target's feet (`Items.lifted`) is clear (§7.1), as `InSight` for an item | none | `blocked` | actions only: reads the actor | M4-4 (#140) |
 | `ChannelFree` | the actor runs no channel and no channel targets the rule's target, apart from the channel being checked again: one channel per actor and one per target (one raiser at a time) | none | `busy`: every channel of the MVP (a raise) is public | actions only: reads the actor | M4-4 (#140, `core/channel/`) |

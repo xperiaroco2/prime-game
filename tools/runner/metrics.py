@@ -64,6 +64,43 @@ Unknown is None in the JSON and "?" in the tables, never 0: a run without a PR, 
 key, skeptics not run while blockers or majors stand, no diff reviewer, a PR of another repository or missing from
 the list, a branch without CI runs, a run list cut before the PR, `gh` skipped or failed. Medians and sums count only
 the known values and say how many are known; PR-level signals count once per PR.
+
+Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, "How it was measured"), so its
+issues A to D are measured against the same baseline. Over the agents total_week counts (the counted runs' workflow
+agents by role, "other workflow agents" for an unknown label; the managers' own lines; their hand-run subagents):
+- the items that enter a context: an `instructions` attachment's files (launch: root CLAUDE.md, the user memory), a
+  `nested_memory` attachment's file (by path: a nested CLAUDE.md, a .claude/rules/ file), the `skill_listing` and
+  `mcp_instructions_delta` attachments (launch), and the result of a tool call that reads a doc (doc_what): Read,
+  Grep, or a Bash or PowerShell command naming a doc path (never one running the runner or `git diff/show/log`); a
+  result naming several docs is split evenly;
+- an item enters at the next API call; it is written to the cache there (at the agent's 5-minute and 1-hour mix, at
+  its most used model's prices), written again by each later call that wrote at least half of its context to the cache
+  (a re-write after a lapsed cache), and read by every other later call, until a compaction or the agent's end;
+  tokens are characters / CHARS_PER_TOKEN; points are (non-read $ + w x cache-read $) / k(w) at POINT_WEIGHTS;
+- a file is loaded twice when an agent loads it again (at launch or by path, the main checkout's or a worktree's
+  copy: the same repository path) before a compaction;
+- ARCHITECTURE and AGENT_WORKFLOW by section of today's file (this checkout's; headings of levels 1 to 3 outside
+  fenced code): each line of a tool's result found in exactly one section starts that section, the lines after it
+  follow it, and the item's $ is split by characters; text before the first such line matches nothing today
+  (changed since) and is reported apart;
+- per manager session (a wave with --since <wave start>): its tool results that are merge-check outputs, and the PR
+  pairs whose rows (`| #A + #B | ...`, across bases with a shared-files cell) name a conflict in ARCHITECTURE in
+  the textual cell: the ADR's N1 (c) trigger. A row lists at most 6 conflicting files (merge-check's cell, then
+  ` ...`): a pair whose ARCHITECTURE conflict comes after the sixth is missed. A session is one row: a window
+  that spans several waves sums them (`--since <wave start>` for one).
+
+A track's spend this week against its budget (#409, P1 of the four-track budget design): `--track NAME ...` (or `all`)
+with `--since <the weekly reset>` reads every session of the folders of TRACK_CHECKOUTS (the main checkout and its -ui
+and -art siblings, each with its worktrees), whether or not it ran a workflow: its own transcript, its hand-run
+subagents and its workflow runs' agents, each API call counted by its time in [--since, --until) (a run in flight or one
+that began before the reset counts in part), each message id once across every file. A session's track is, the first
+that holds: its --session ID=TRACK label (under --track --session labels and never filters), a `Track: <name>` line in
+its first user message (the kickoff, the key also `Трек:`, the name in English; isMeta lines and tool results are
+none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the engineer's reserve). Per named track it prints
+the % of the week (week_percent, with the bracket), and with `--budget PCT ...` (one per name, in order) the budget and
+the plan to date (budget x days since --since / 7, at most the budget); then every session's total for the weekly
+counter, with the untracked share and its largest sessions (a kickoff's Track: line left out or translated). It writes
+tracks.json, not metrics.md: the task report reads only this checkout and keeps its own --session meaning.
 """
 
 from __future__ import annotations
@@ -100,19 +137,18 @@ PRICES = {
     "claude-haiku-4-5": (1.0, 1.25, 2.0, 0.10, 5.0),
 }
 USD_KEYS = ("usd_input", "usd_cache_write", "usd_cache_read", "usd_output")
-# 1% of a Max 20x week in API list $ (#304, measured in #302): Max 20x; 66% at 2026-10-03 20:54 UTC = $1,690 list since
-# the counter restarted at the plan change (2026-10-02 about 10:30 UTC); cache reads are 40% of list $. The ADR's
-# first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x. Re-fitted in #307 over the 44 readings to 77% at
-# 2026-10-04 05:05 UTC: $25.5 (least squares; 25.4 to 25.7 by method).
+# 1% of a Max 20x week in API list $ counting cache reads at full list $ (#304, measured in #302): Max 20x; 66% at
+# 2026-10-03 20:54 UTC = $1,690 list since the counter restarted at the plan change (2026-10-02 about 10:30 UTC); cache
+# reads are 40% of list $. The ADR's first $44 assumed a week 4x Max 5x's; it is 2.1 to 2.2x. Re-fitted in #307 over
+# the 44 readings to 77% at 2026-10-04 05:05 UTC: $25.5 (least squares; 25.4 to 25.7 by method). Since #307 it is the
+# bracket's upper end (WEEK_BRACKET), not the headline (WEEK_CENTRAL).
 WEEK_PERCENT_USD = 25.5
-# The cache reads' share of list $ that WEEK_PERCENT_USD was fitted at. It counts cache reads at full list $, the
-# bracket's upper end: at this share it matches the measured central weight (w = 0.75, $23.0 per 1%) within 1%; far
-# from it, it reads high (more cache reads) or low (fewer), and the bracket is the better figure.
-WEEK_READ_SHARE = 0.4
-# The limits count cache reads at a weight w of their list $, measured in #307 (the ADR's amendment of 2026-10-04):
-# w = 0.75, range 0.6 to 1. The bracket gives (list $ without cache reads + w x cache-read $) / k(w) at the range's
-# ends, k(w) the least-squares fit over the same 44 readings (21.5 at w = 0.6, 23.0 at 0.75); at w = 1 that is full
-# list $, so k(1) is WEEK_PERCENT_USD.
+# The limits count cache reads at a weight w of their list $, measured in #307 (the baseline ADR's amendment of
+# 2026-10-04, docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md): w = 0.75, range 0.6 to 1. A % of
+# the week is (list $ without cache reads + w x cache-read $) / k(w), k(w) the least-squares fit over the same 44
+# readings: $21.5 at w = 0.6, $23.0 at 0.75 and full list $ at w = 1, so k(1) is WEEK_PERCENT_USD. The headline is at
+# the central weight (#333), whatever the cache reads' share of list $; the bracket is the range's ends.
+WEEK_CENTRAL = (0.75, 23.0)
 WEEK_BRACKET = ((0.6, 21.5), (1.0, WEEK_PERCENT_USD))
 
 ROLES = {
@@ -197,6 +233,60 @@ RUN_SIGNALS = ("serious", "refuted", "open", "not_fixed", "needs_engineer", "fix
 PR_SIGNALS = ("ci_red_rounds", "ci_red_after_run")
 GITHUB_SIGNALS = ("pr_state", "merged", "ci_runs", "ci_red_rounds", "ci_red_after_run", "ci_last", "ci_reruns",
                   "green_first", "followups", "fixups")  # fmt: skip
+
+# Instructions and docs per agent role (#337): the instruction-diet ADR's method (#313, PR #325:
+# docs/decisions/2026-10-04-instruction-diet.md, "How it was measured"), so its issues A to D are measured against it.
+# Characters per token: the median of 4,397 context-growth pairs after a lone tool result of 4,000 characters or more.
+CHARS_PER_TOKEN = 2.35
+# Points are % of a Max 20x week, (non-read $ + w x cache-read $) / k(w), at each (w, k(w)): w = 0 and 0.5 from #302's
+# fit (the instruction-diet ADR's two), then the week's central weight (#333) from WEEK_CENTRAL.
+POINT_WEIGHTS = ((0.0, 15.3), (0.5, 20.3), WEEK_CENTRAL)
+# The docs whose list $ is shown by section (§) of today's file: headings of levels 1 to 3, fenced code left out.
+SECTIONED = ("docs/ARCHITECTURE.md", "docs/AGENT_WORKFLOW.md")
+# The main checkout, whose files (and every worktree's copies under .claude/worktrees/<n>/) are the repository's.
+REPO_ROOT = ROOT.parents[2] if ROOT.parent.name == "worktrees" and ROOT.parent.parent.name == ".claude" else ROOT
+WORKTREE_PATH = re.compile(r"/\.claude/worktrees/[^/]+/(.+)$")
+# A shell command's doc paths, once the checkout's and the worktrees' absolute prefixes are cut off.
+DOC_IN_SHELL = re.compile(
+    r"(?<![\w./-])((?:[\w-]+/)*CLAUDE\.md|docs/[\w./-]+\.md|\.claude/(?:rules|skills|agents|workflows)/[\w./-]+\.\w+)"
+)
+# Shell output that is never a doc read: the runner's own output, and git's diffs and logs.
+# `git -C <dir> diff`, `git --no-pager log` and `git -c k=v show` count too: global options may sit before the
+# subcommand.
+NOT_A_READ = re.compile(
+    r"run(\.cmd|\.sh)\s|\bgit(?:\s+(?:-[Cc]\s+\S+|--[\w-]+(?:=\S+)?))*\s+(?:diff|show|log)\b"
+)
+SHELL_SEARCH = re.compile(r"\b(grep|rg|select-string|findstr)\b", re.IGNORECASE)
+READ_LINE = re.compile(r"^\s*(\d+)\t(.*)$")
+# The file a Grep output line starts with (an absolute or relative path with an extension, then `:` or `-` and a
+# line number, a `:`, or the end of the line).
+GREP_PATH = re.compile(r"^((?:[A-Za-z]:)?[^:\n]*?\.\w+)(?:[:-]\d+[:-]|:|$)")
+GREP_LINE = re.compile(r"^(?:.*?[:-])?(\d+)[:-](.*)$")
+# A line that maps to a section: this long at least, so blank lines and short list items do not.
+SECTION_LINE = 25
+# A merge-check table row of a pair (`| #A + #B | textual | semantic |`, across bases with a shared-files cell): the
+# pairs whose textual cell names an ARCHITECTURE conflict are N1 (c)'s trigger.
+MERGE_PAIR = re.compile(r"^\|\s*(#\d+[^|]*\+\s*#\d+[^|]*)\|(.*)\|\s*$")
+# A merge-check output starts with its own line (a log read with `wait` or `cat` too); a doc or a grep that only names
+# the command is none.
+MERGE_HEADER = re.compile(r"^merge-check(?: --trial)?\s*$", re.MULTILINE)
+ARCHITECTURE = "docs/ARCHITECTURE.md"
+# The by-file table and the per-role medians count an item as launch-loaded, loaded by path, or read by a tool.
+HOW_CLASS = {"launch": "launch", "by path": "by path"}
+
+# `metrics --track` (#409, P1 of the design docs/decisions/2026-10-05-weekly-budget-across-four-tracks.md): the
+# checkouts whose transcript folders it reads, each with its worktrees, as suffixes of the main checkout's folder name
+# (D:\prime-game, D:\prime-game-ui, D:\prime-game-art), each with the track of a session there that neither a --session
+# label nor a kickoff's Track: line names (None: untracked).
+TRACK_CHECKOUTS = (("", None), ("-ui", "ui"), ("-art", "art"))
+# A kickoff's track: a line `Track: <name>` in the session's first user message (orchestrate-stage §10's template),
+# any case. The humans translate kickoffs, so the Ukrainian key `Трек:` counts too, but the name stays English (game,
+# ui, art, meta): an unfilled placeholder `<game | ...>` or a translated name names no track.
+TRACK_LINE = re.compile(r"^[ \t]*(?:Track|Трек):[ \t]*([A-Za-z][\w-]*)", re.MULTILINE | re.IGNORECASE)
+# A session no label, kickoff or checkout names: the engineer's reserve.
+UNTRACKED = "untracked"
+# The order of `--track all`'s lines (the design's four tracks); any other name follows alphabetically.
+TRACK_ORDER = ("game", "ui", "art", "meta")
 
 
 # --- time and formatting ------------------------------------------------------------------------------------------
@@ -298,22 +388,25 @@ def usd(t: dict) -> float:
 
 
 def week_percent(spent: float, read: float) -> dict:
-    """% of a Max 20x week for `spent` API list $ of which `read` is cache reads: at WEEK_PERCENT_USD, and the
-    bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 60% and at 100%)."""
-    return {"percent": spent / WEEK_PERCENT_USD, "bracket": [(spent - read + w * read) / k for w, k in WEEK_BRACKET]}
+    """% of a Max 20x week for `spent` API list $ of which `read` is cache reads: at the central weight (WEEK_CENTRAL),
+    and the bracket's two ends (WEEK_BRACKET: the limit counting cache reads at 60% and at 100%)."""
+    def at(w: float, k: float) -> float:
+        return (spent - read + w * read) / k
+
+    return {"percent": at(*WEEK_CENTRAL), "bracket": [at(w, k) for w, k in WEEK_BRACKET]}
 
 
 def week_rate() -> str:
     """The conversion, for a report's note on its % of the week."""
+    w, k = WEEK_CENTRAL
     (w0, k0), (w1, k1) = WEEK_BRACKET
-    return (f"${WEEK_PERCENT_USD} list per 1%, fitted where cache reads were {WEEK_READ_SHARE:.0%} of list $ (far from "
-            f"that share the bracket is the better figure); in brackets, the limit counting cache reads at "
-            f"{w0 * 100:g} to {w1:.0%} ((list $ without cache reads + {w0:g} or {w1:g} x cache-read $) / "
-            f"${k0} or ${k1})")
+    return (f"(list $ without cache reads + {w:g} x cache-read $) / ${k} per 1%, the limit counting cache reads at "
+            f"{w:.0%} of their list $ (#307's central weight); in brackets, at {w0 * 100:g} to {w1:.0%} ((list $ "
+            f"without cache reads + {w0:g} or {w1:g} x cache-read $) / ${k0} or ${k1})")
 
 
 def fmt_week(week: dict) -> str:
-    """'6.3% (5.8 to 6.1%)': the % at WEEK_PERCENT_USD, then the bracket."""
+    """'6.0% (5.8 to 6.1%)': the % at the central weight, then the bracket."""
     lo, hi = week["bracket"]
     return f"{week['percent']:.1f}% ({lo:.1f} to {hi:.1f}%)"
 
@@ -388,6 +481,199 @@ def timer_seconds(block: object) -> float | None:
     return min(float(timer.group(1)), limit_s or BACKGROUND_TIMEOUT)
 
 
+def repo_path(path: object) -> str | None:
+    """A path's place in the repository (the main checkout, or a worktree's copy: the same file); None outside it."""
+    p = str(path or "").replace("\\", "/")
+    copy = WORKTREE_PATH.search(p)
+    if copy:
+        return copy.group(1)
+    root = REPO_ROOT.as_posix().rstrip("/") + "/"
+    return p[len(root):] if p.lower().startswith(root.lower()) else None
+
+
+def doc_what(rel: str | None) -> str | None:
+    """What an instruction or doc file is, for the by-file table; None when it is neither."""
+    if not rel:
+        return None
+    if rel == "CLAUDE.md":
+        return "root CLAUDE.md"
+    if rel.endswith("/CLAUDE.md"):
+        return "area CLAUDE.md"
+    for prefix, what in ((".claude/rules/", ".claude/rules/"), (".claude/skills/", "skills"),
+                         (".claude/agents/", "agent definitions"), (".claude/workflows/", "workflow scripts"),
+                         ("docs/decisions/", "ADRs"), ("docs/history/", "docs/history/"),
+                         ("docs/interventions/", "docs/interventions/")):  # fmt: skip
+        if rel.startswith(prefix):
+            return what
+    if rel in (*SECTIONED, "docs/GDD.md", "docs/ROADMAP.md"):
+        return rel
+    if rel.startswith("docs/") and "." in rel.rsplit("/", 1)[-1]:
+        return "other docs"
+    return None
+
+
+def file_item(path: object, content: object, how: str) -> dict:
+    """An instruction file loaded at launch or by path. One outside the repository is the user memory."""
+    rel = repo_path(path)
+    norm = str(path or "").replace("\\", "/")
+    return {"what": doc_what(rel) or (rel or "user memory"), "how": how, "chars": len(str(content or "")),
+            "file": rel or norm, "copy": ".claude/worktrees/" in norm}  # fmt: skip
+
+
+def attachment_items(att: object) -> list[dict]:
+    """The items an attachment line adds to the context: the files loaded at launch (`instructions`) or by path
+    (`nested_memory`), the skill listing and the MCP servers' instructions."""
+    if not isinstance(att, dict):
+        return []
+    kind = att.get("type")
+    if kind == "instructions":
+        return [file_item(f.get("path"), f.get("content"), "launch") for f in att.get("files") or []
+                if isinstance(f, dict)]  # fmt: skip
+    if kind == "nested_memory":
+        content = att.get("content") if isinstance(att.get("content"), dict) else {}
+        return [file_item(att.get("path"), content.get("content"), "by path")]
+    if kind == "skill_listing":
+        return [{"what": "the skill listing", "how": "launch", "chars": len(str(att.get("content") or "")),
+                 "file": None}]  # fmt: skip
+    if kind == "mcp_instructions_delta":
+        blocks = att.get("addedBlocks") if isinstance(att.get("addedBlocks"), list) else []
+        return [{"what": "MCP server instructions", "how": "launch", "chars": sum(len(str(x)) for x in blocks),
+                 "file": None}]  # fmt: skip
+    return []
+
+
+def shell_docs(cmd: str) -> list[str]:
+    """The repository doc paths a shell command names, with the checkout's and the worktrees' prefixes cut off."""
+    text = cmd.replace("\\", "/")
+    text = re.sub(r"[^\s'\"]*?/\.claude/worktrees/[^/\s'\"]+/", " ", text)
+    text = re.sub(rf"[^\s'\"]*?/{re.escape(REPO_ROOT.name)}/", " ", text, flags=re.IGNORECASE)
+    return list(dict.fromkeys(DOC_IN_SHELL.findall(text)))
+
+
+def doc_targets(name: str, inp: dict) -> list[tuple[str, str, str]]:
+    """The docs a tool call reads, as (repository path, how, how its output is laid out): a Read, a Grep, or a shell
+    command that names a doc (never the runner's output or git's diffs and logs)."""
+    if name == "Read":
+        rel = repo_path(inp.get("file_path"))
+        return [(rel, "Read", "read")] if doc_what(rel) else []
+    if name == "Grep":
+        rel = repo_path(inp.get("path"))
+        if doc_what(rel):
+            return [(rel, "Grep", "grep")]
+        folder = grep_folder(inp.get("path"), rel)
+        return [(folder, "Grep", "folder")] if folder is not None else []
+    if name not in ("Bash", "PowerShell"):
+        return []
+    cmd = str(inp.get("command", ""))
+    if NOT_A_READ.search(cmd):
+        return []
+    words = re.sub(r"^\s*((cd|Set-Location)\s+\S+\s*(&&|;)\s*)+", "", cmd, flags=re.IGNORECASE).split()
+    search = bool(SHELL_SEARCH.search(cmd)) and (words[0].lower() if words else "") not in ("sed", "cat")
+    how, mode = ("shell search", "grep") if search else ("shell read", "plain")
+    return [(rel, how, mode) for rel in shell_docs(cmd) if doc_what(rel)]
+
+
+def grep_folder(path: object, rel: str | None) -> str | None:
+    """The repository folder a Grep searches ("" for the whole checkout, also when it has no path); None for a file
+    or a path outside the repository."""
+    p = str(path or "").replace("\\", "/").rstrip("/")
+    root = bool(re.search(r"(^|/)\.claude/worktrees/[^/]+$", p)) or p.lower() == REPO_ROOT.as_posix().lower()
+    if not p or root:
+        return ""
+    if rel is None and not re.match(r"([A-Za-z]:|/|~)", p):
+        rel = p[2:] if p.startswith("./") else p  # a path relative to the checkout
+    if rel is None or "." in rel.rsplit("/", 1)[-1]:
+        return None
+    return rel
+
+
+def folder_items(folder: str, text: str) -> list[dict]:
+    """A Grep over a folder: each doc its output names, with that file's lines (a `path:line:text` or `path-line-text`
+    line, or a path alone; a line that names none belongs to the file before it). When no file can be told apart in a
+    docs folder, one item of the folder's docs."""
+    if text.lstrip().startswith(("No matches", "No files found")):
+        return []
+    lines: dict[str, list[str]] = {}
+    current = None
+    for line in text.splitlines():
+        if line == "--":
+            continue  # ripgrep's separator between context groups
+        named = GREP_PATH.match(line)
+        if named and " " not in named.group(1):
+            cand = named.group(1).replace("\\", "/")
+            rel = repo_path(cand) or (cand[2:] if cand.startswith("./") else cand)
+            current = rel if doc_what(rel) else None
+        if current:
+            lines.setdefault(current, []).append(line)
+    found = []
+    for rel, rows in lines.items():
+        item = {"what": doc_what(rel), "how": "Grep", "chars": sum(len(x) + 1 for x in rows), "file": rel}
+        if rel in SECTIONED:
+            item |= {"text": "\n".join(rows), "mode": "grep"}
+        found.append(item)
+    other = doc_what(folder.rstrip("/") + "/x.md") if folder else None
+    if not found and other and text.strip():
+        found.append({"what": other, "how": "Grep", "chars": len(text), "file": folder})
+    return found
+
+
+def read_items(targets: list[tuple[str, str, str]], text: str) -> list[dict]:
+    """A tool result's doc items: its characters split evenly over the docs it names. A sectioned doc keeps the text
+    for the section tables when it is the only one."""
+    found = []
+    for rel, how, mode in targets:
+        if mode == "folder":
+            found += folder_items(rel, text)
+            continue
+        item = {"what": doc_what(rel), "how": how, "chars": len(text) // len(targets), "file": rel}
+        if rel in SECTIONED and len(targets) == 1:
+            item |= {"text": text, "mode": mode}
+        found.append(item)
+    return found
+
+
+def architecture_pairs(text: str) -> list[tuple[int, ...]]:
+    """The PR pairs of a merge-check output whose textual cell names a conflict in ARCHITECTURE."""
+    pairs = []
+    for line in text.splitlines():
+        row = MERGE_PAIR.match(line.strip())
+        if not row:
+            continue
+        cells = [c.strip() for c in row.group(2).split("|")]
+        textual = cells[-2] if len(cells) >= 2 else ""
+        if textual.startswith("conflict:") and ARCHITECTURE in textual:
+            pairs.append(tuple(sorted({int(n) for n in re.findall(r"#(\d+)", row.group(1))})))
+    return pairs
+
+
+def price_items(items: list[dict], calls: list[dict], bounds: list[int]) -> None:
+    """Each item's tokens and list $ (the ADR's cost model): written to the cache at the call it entered (at the
+    agent's 5-minute and 1-hour mix), read by every later call until a compaction or the end, and written again by a
+    later call that re-wrote at least half of its context. Priced at the agent's most used model."""
+    model = Counter(u["model"] for u in calls).most_common(1)[0][0] if calls else None
+    price, _known = price_of(model)
+    written = sum(u["cache_creation_input_tokens"] for u in calls)
+    one_hour = sum(min(u["cache_write_1h"], u["cache_creation_input_tokens"]) for u in calls)
+    share = one_hour / written if written else 0.0
+    write_price = share * price[2] + (1 - share) * price[1]
+    rewrote = [u["cache_creation_input_tokens"] >= 0.5 * max(1, total(u) - u["output_tokens"]) for u in calls]
+    for item in items:
+        at = item.pop("at", None)
+        if at is None:  # still pending at the transcript's end (an interrupted agent): no API call took it in
+            item |= {"segment": len(bounds), "tokens": item["chars"] / CHARS_PER_TOKEN, "write": 0.0, "rewrite": 0.0,
+                     "read": 0.0}  # fmt: skip
+            continue
+        end = next((b for b in bounds if b > at), len(calls))
+        reads = max(0, end - at - 1)
+        rewrites = sum(rewrote[at + 1:end])
+        tokens = item["chars"] / CHARS_PER_TOKEN
+        item["segment"] = sum(b <= at for b in bounds)
+        item["tokens"] = tokens
+        item["write"] = tokens * write_price / 1e6 if calls else 0.0
+        item["rewrite"] = tokens * rewrites * write_price / 1e6
+        item["read"] = tokens * (reads - rewrites) * price[3] / 1e6
+
+
 def read_agent(path: Path, since: float | None = None, until: float | None = None) -> dict:
     """One transcript: usage deduplicated by message id, tool calls with their wall time, verify summaries.
 
@@ -402,6 +688,10 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     verifies: list[dict] = []
     timers: dict[str, tuple[float, float]] = {}  # a keep-alive timer's tool-use id: (armed at, its seconds)
     woken: dict[str, float] = {}  # a background task's tool-use id: when its notification came
+    items: list[dict] = []  # instruction and doc items (#337); each enters the context at the next API call
+    pending: list[dict] = []
+    bounds: list[int] = []  # the API calls' indexes at which a compaction began
+    merge_outputs, merge_pairs = 0, []
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -428,6 +718,14 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             timers[b["id"]] = (t, secs)
                 continue
             stamps.append(t)
+            if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
+                bounds.append(len(usage))
+                continue
+            if d.get("type") == "attachment":
+                found = attachment_items(d.get("attachment"))
+                items += found
+                pending += found
+                continue
             if not isinstance(m, dict):
                 continue
             if prompt is None and d.get("type") == "user":
@@ -448,6 +746,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                 if cur is None:
                     cur = usage[mid] = {**{f: 0 for f in TOKEN_FIELDS}, "cache_write_1h": 0, "model": model}
                     first_seen[mid] = t
+                    for item in pending:
+                        item["at"] = len(usage) - 1
+                    pending.clear()
                 for f in TOKEN_FIELDS:
                     cur[f] = max(cur[f], int(u.get(f) or 0))
                 cache = u.get("cache_creation")
@@ -466,6 +767,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                             "t0": t,
                             "t1": None,
                             "kind": cmd_kind(cmd) if cmd else b.get("name"),
+                            "docs": doc_targets(str(b.get("name")), inp),
                         }
             elif d.get("type") == "user" and isinstance(m.get("content"), list):
                 for b in m["content"]:
@@ -473,6 +775,12 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         call = uses[b["tool_use_id"]]
                         call["t1"] = t
                         text = text_of(b.get("content"))
+                        found = read_items(call["docs"], text)
+                        items += found
+                        pending += found
+                        if MERGE_HEADER.search(text):
+                            merge_outputs += 1
+                            merge_pairs += architecture_pairs(text)
                         if call["kind"] in ("verify", "publish") or "verify summary" in text:
                             v = parse_verify(text)
                             if v:
@@ -505,6 +813,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     kinds: dict[str, float] = defaultdict(float)
     for c in calls:
         kinds[c["kind"]] += (c["t1"] or c["t0"]) - c["t0"]
+    price_items(items, list(usage.values()), bounds)  # in the order the calls were first seen, as "at" counts them
     return {
         "start": min(stamps) if stamps else None,
         "end": max(stamps) if stamps else None,
@@ -526,6 +835,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "kind_counts": Counter(c["kind"] for c in calls),
         "tool_seconds": union_seconds([(c["t0"], c["t1"]) for c in calls if c["t1"]]),
         "verifies": unique,
+        "instructions": items,
+        # merge-check outputs among its tool results, and the PR pairs whose rows name an ARCHITECTURE conflict
+        "merge_check": {"outputs": merge_outputs, "pairs": merge_pairs},
     }
 
 
@@ -942,10 +1254,12 @@ def total_week(counted: list[dict], managers: list[dict]) -> dict:
 
 
 def build(
-    data: dict, history: list[dict], ci: dict | None, since: float | None, until: float, *, github: dict | None = None
+    data: dict, history: list[dict], ci: dict | None, since: float | None, until: float, *, github: dict | None = None,
+    docs_root: Path | None = None,
 ) -> tuple[list[str], dict, list[str]]:
     """(the Markdown report, the JSON record, the compact summary). github: read_github's lists for the quality
-    scorecard, {"error": ...} or {"skipped": ...}; None leaves its GitHub signals unknown."""
+    scorecard, {"error": ...} or {"skipped": ...}; None leaves its GitHub signals unknown. docs_root: the checkout
+    whose ARCHITECTURE and AGENT_WORKFLOW give the sections of the instruction tables (default this one)."""
     counted = [r for r in data["runs"] if r["counted"]]
     finished = [r for r in counted if r["kind"] == "issue-task" and r["finished"]]
     tasks = [per_task(r) for r in finished]
@@ -962,6 +1276,8 @@ def build(
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
     md += role_section(counted)
+    instructions = instruction_record(counted, data["sessions"], docs_root)
+    md += instruction_section(instructions)
     by_row = verify_rows(counted, data["sessions"], history)
     md += verify_section(by_row)
     md += review_section(counted)
@@ -977,7 +1293,8 @@ def build(
     if ci is not None:
         md += ci_section(ci)
     week = total_week(counted, managers)
-    compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality)
+    compact = compact_lines(tasks, counted, by_row, history, ci, managers, week, window, quality=quality,
+                            instructions=instructions)  # fmt: skip
     record = {
         "since": iso(since) or None,
         "until": iso(until),
@@ -992,6 +1309,7 @@ def build(
         "ci": ci,
         "manager_rewrites": rewrites,
         "quality": quality,
+        "instructions": instructions,
         "compact": compact,
     }
     return md, record, compact
@@ -1254,7 +1572,7 @@ def manager_section(managers: list[dict], other_sessions: int) -> list[str]:
         for m in managers
     ]
     md = ["## Manager sessions (their own lines and hand-run subagents in the window)", "", table(head, rows), "",
-          f"% of a Max 20x week: manager, hand-run and workflow subagents together at {week_rate()}.", ""]
+          f"% of a Max 20x week: manager, hand-run and workflow subagents together, {week_rate()}.", ""]
     if other_sessions:
         md += [f"{other_sessions} other sessions of this checkout ran no workflow or have nothing in the window "
                "(name one with --session to see it).", ""]
@@ -1337,6 +1655,296 @@ def ci_section(ci: dict) -> list[str]:
         md += [table(["verify step", "seconds (median)", "max"],
                      [[k, f"{med(v):.0f}", f"{max(v):.0f}"] for k, v in ci["steps"].items()]), ""]
     return md
+
+
+# --- instructions and docs per agent role (#337) ------------------------------------------------------------------
+
+
+def how_class(how: str) -> str:
+    """launch, by path, or read (by a tool: Read, Grep, a shell read or search)."""
+    return HOW_CLASS.get(how, "read")
+
+
+def item_usd(item: dict) -> float:
+    return item["write"] + item["rewrite"] + item["read"]
+
+
+def points(non_read: float, read: float) -> list[float]:
+    """% of a Max 20x week at each of POINT_WEIGHTS."""
+    return [(non_read + w * read) / k for w, k in POINT_WEIGHTS]
+
+
+def fmt_points(values: list[float]) -> str:
+    return " / ".join(f"{v:.2f}" for v in values)
+
+
+def weights_label() -> str:
+    """'w = 0 / 0.5 / 0.75': the weights fmt_points prints, in its order."""
+    return "w = " + " / ".join(f"{w:g}" for w, _k in POINT_WEIGHTS)
+
+
+def mark_twice(items: list[dict]) -> None:
+    """Flag each instruction file an agent loaded again (at launch or by path, from either copy: the main checkout's
+    or a worktree's) before a compaction emptied its context."""
+    seen: set[tuple[int, str]] = set()
+    for item in items:
+        if item["how"] in HOW_CLASS and item.get("file"):
+            key = (item["segment"], item["file"])
+            item["twice"] = key in seen
+            seen.add(key)
+
+
+def section_map(path: Path) -> dict | None:
+    """Today's file by section: each heading of levels 1 to 3 outside fenced code starts one, labelled by its
+    number (§4.7) or else its title; its size in characters, and each line of SECTION_LINE characters or more with the
+    sections it appears in. None when the file cannot be read."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    current, fenced = "(before the first heading)", False
+    size: Counter = Counter()
+    titles = {current: current}
+    index: dict[str, set[str]] = defaultdict(set)
+    for line in lines:
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+        heading = None if fenced else re.match(r"^#{1,3}\s+(.*\S)\s*$", line)
+        if heading:
+            title = heading.group(1)
+            number = re.match(r"(\d+(?:\.\d+)*)\.?(?=\s|$)", title)
+            current = f"§{number.group(1)}" if number else title[:60]
+            titles.setdefault(current, title)
+        size[current] += len(line) + 1
+        if len(line.strip()) >= SECTION_LINE:
+            index[line.strip()].add(current)
+    return {"size": dict(size), "titles": titles, "index": dict(index)}
+
+
+def sections_of(index: dict[str, set[str]], text: str, mode: str) -> tuple[Counter, int]:
+    """A tool result's characters by section of today's file: a line found in exactly one section starts it, the lines
+    after it follow it; the characters before the first such line are unmapped (text changed since)."""
+    pattern = READ_LINE if mode == "read" else GREP_LINE if mode == "grep" else None
+    found: Counter = Counter()
+    unmapped, last = 0, None
+    for raw in text.splitlines():
+        hit = pattern.match(raw) if pattern else None
+        body = (hit.group(2) if hit else raw).strip()
+        sections = index.get(body) if len(body) >= SECTION_LINE else None
+        if sections and len(sections) == 1:
+            last = next(iter(sections))
+        if last is None:
+            unmapped += len(raw) + 1
+        else:
+            found[last] += len(raw) + 1
+    return found, unmapped
+
+
+def instruction_agents(counted: list[dict], sessions: list[dict]) -> list[tuple[str, dict]]:
+    """(role, transcript data) of every agent total_week counts: the counted runs' workflow agents by role, the
+    managers' own lines and their hand-run subagents."""
+    agents = []
+    for r in counted:
+        for x in r["agents"]:
+            if x["data"] and x["data"]["start"] is not None:
+                agents.append(("other workflow agents" if x["role"] == "other" else x["role"], x["data"]))
+    for s in sessions:
+        if s["manager"] and s["manager"]["api_calls"]:
+            agents.append(("manager sessions", s["manager"]))
+        agents += [("hand-run subagents", h["data"]) for h in s["hand"]]
+    return agents
+
+
+def top_roles(roles: Counter, spent: float, n: int = 2) -> list[str]:
+    return [f"{role} {value / spent:.0%}" for role, value in roles.most_common(n)] if spent else []
+
+
+def instruction_sections(agents: list[tuple[str, dict]], docs_root: Path) -> dict:
+    """ARCHITECTURE's and AGENT_WORKFLOW's list $ by section of today's file (the text a tool returned, each item's
+    $ split by its characters), and the $ of the text that matches no line of it."""
+    found = {}
+    for doc in SECTIONED:
+        reads = [(i, role, item) for i, (role, d) in enumerate(agents) for item in d.get("instructions") or []
+                 if item.get("file") == doc and "text" in item]  # fmt: skip
+        smap = section_map(docs_root / doc) if reads else None
+        if smap is None:
+            continue
+        rows: dict[str, dict] = {}
+        spent = unmapped = 0.0
+        for i, role, item in reads:
+            got, lost = sections_of(smap["index"], item["text"], item["mode"])
+            chars = sum(got.values()) + lost
+            cost = item_usd(item)
+            spent += cost
+            if not chars:
+                continue
+            unmapped += cost * lost / chars
+            for sec, n in got.items():
+                row = rows.setdefault(sec, {"section": sec, "title": smap["titles"].get(sec, sec),
+                                            "size": smap["size"].get(sec, 0) / CHARS_PER_TOKEN, "tokens": 0.0,
+                                            "agents": set(), "usd": 0.0, "roles": Counter()})  # fmt: skip
+                row["tokens"] += n / CHARS_PER_TOKEN
+                row["agents"].add(i)
+                row["usd"] += cost * n / chars
+                row["roles"][role] += cost * n / chars
+        found[doc] = {
+            "usd": spent, "unmapped_usd": unmapped,
+            "rows": [r | {"agents": len(r["agents"]), "roles": top_roles(r["roles"], r["usd"])}
+                     for r in sorted(rows.values(), key=lambda r: -r["usd"])],
+        }  # fmt: skip
+    return found
+
+
+def instruction_merges(sessions: list[dict]) -> list[dict]:
+    """Per manager session (a wave with --since <wave start>): the merge-check outputs among its tool results, and the
+    PR pairs whose rows name an ARCHITECTURE conflict (the instruction-diet ADR's N1 (c) trigger)."""
+    found = []
+    for s in sessions:
+        checks = (s["manager"] or {}).get("merge_check") or {}
+        if checks.get("outputs"):
+            pairs = Counter(tuple(p) for p in checks["pairs"])
+            found.append({"session": s["id"], "label": s["label"], "outputs": checks["outputs"],
+                          "pairs": [{"prs": list(p), "seen": n} for p, n in sorted(pairs.items())]})  # fmt: skip
+    return found
+
+
+def instruction_record(counted: list[dict], sessions: list[dict], docs_root: Path | None = None) -> dict:
+    """What the instructions and docs cost per agent role, by file and by section, the files loaded twice, and the
+    merge-check ARCHITECTURE conflicts (#337, the instruction-diet ADR's method; the module docstring)."""
+    agents = instruction_agents(counted, sessions)
+    roles: dict[str, dict] = {}
+    files: dict[tuple[str, str], dict] = {}
+    twice: dict[str, dict] = {}
+    for _role, d in agents:
+        mark_twice(d.get("instructions") or [])
+    for role, d in agents:
+        g = roles.setdefault(role, {"role": role, "agents": 0, "tokens": {"launch": [], "by path": [], "read": []},
+                                    "write_usd": 0.0, "rewrite_usd": 0.0, "read_usd": 0.0, "of": 0.0, "twice": 0,
+                                    "twice_usd": 0.0})  # fmt: skip
+        g["agents"] += 1
+        g["of"] += usd(d["tokens"])
+        tokens: Counter = Counter()
+        for item in d.get("instructions") or []:
+            how = how_class(item["how"])
+            tokens[how] += item["tokens"]
+            g["write_usd"] += item["write"]
+            g["rewrite_usd"] += item["rewrite"]
+            g["read_usd"] += item["read"]
+            f = files.setdefault((item["what"], how), {"what": item["what"], "how": how, "loads": 0, "tokens": 0.0,
+                                                       "usd": 0.0, "non_read": 0.0, "roles": Counter()})  # fmt: skip
+            f["loads"] += 1
+            f["tokens"] += item["tokens"]
+            f["usd"] += item_usd(item)
+            f["non_read"] += item["write"] + item["rewrite"]
+            f["roles"][role] += item_usd(item)
+            if item.get("twice"):
+                g["twice"] += 1
+                g["twice_usd"] += item_usd(item)
+                t = twice.setdefault(item["file"], {"file": item["file"], "agents": set(), "loads": 0, "usd": 0.0,
+                                                    "roles": Counter()})  # fmt: skip
+                t["agents"].add(id(d))
+                t["loads"] += 1
+                t["usd"] += item_usd(item)
+                t["roles"][role] += 1
+        for how in g["tokens"]:
+            g["tokens"][how].append(tokens[how])
+    rows = []
+    for g in sorted(roles.values(), key=lambda g: -(g["write_usd"] + g["rewrite_usd"] + g["read_usd"])):
+        spent = g["write_usd"] + g["rewrite_usd"] + g["read_usd"]
+        rows.append({k: v for k, v in g.items() if k != "tokens"} | {
+            "tokens": {how: med(v) for how, v in g["tokens"].items()}, "usd": spent,
+            "share": spent / g["of"] if g["of"] else None,
+            "points": points(g["write_usd"] + g["rewrite_usd"], g["read_usd"]),
+        })  # fmt: skip
+    every = {k: sum(r[k] for r in rows) for k in ("agents", "write_usd", "rewrite_usd", "read_usd", "usd", "of",
+                                                   "twice", "twice_usd")}  # fmt: skip
+    every |= {"share": every["usd"] / every["of"] if every["of"] else None,
+              "points": points(every["write_usd"] + every["rewrite_usd"], every["read_usd"])}  # fmt: skip
+    return {
+        "chars_per_token": CHARS_PER_TOKEN, "weights": [list(w) for w in POINT_WEIGHTS], "roles": rows, "all": every,
+        "files": [f | {"roles": top_roles(f["roles"], f["usd"])} for f in sorted(files.values(),
+                                                                                 key=lambda f: -f["usd"])],
+        "twice": [t | {"agents": len(t["agents"]), "roles": [r for r, _n in t["roles"].most_common(3)]}
+                  for t in sorted(twice.values(), key=lambda t: -t["usd"])],
+        "sections": instruction_sections(agents, docs_root or ROOT),
+        "merge_check": instruction_merges(sessions),
+    }  # fmt: skip
+
+
+def instruction_section(rec: dict) -> list[str]:
+    md = ["## Instructions and docs per agent role (#337)", ""]
+    if not rec["all"]["usd"]:
+        return md + ["No instruction or doc item in the window's transcripts.", ""] + merge_check_lines(rec)
+    head = ["role", "agents", "launch-loaded", "loaded by path", "read", "first writes", "re-writes", "reads",
+            "list $", "of the role's $", f"points ({weights_label()})", "loaded twice (loads, $)"]  # fmt: skip
+    body = [
+        [r["role"], r["agents"], *(fmt_tok(r["tokens"][h]) for h in ("launch", "by path", "read")),
+         *(fmt_usd(r[k]) for k in ("write_usd", "rewrite_usd", "read_usd", "usd")),
+         "?" if r["share"] is None else f"{r['share']:.0%}", fmt_points(r["points"]),
+         f"{r['twice']} ({fmt_usd(r['twice_usd'])})"]
+        for r in rec["roles"]
+    ]  # fmt: skip
+    a = rec["all"]
+    body.append(["all", a["agents"], "", "", "", *(fmt_usd(a[k]) for k in ("write_usd", "rewrite_usd", "read_usd",
+                                                                            "usd")),
+                 "?" if a["share"] is None else f"{a['share']:.0%}", fmt_points(a["points"]),
+                 f"{a['twice']} ({fmt_usd(a['twice_usd'])})"])  # fmt: skip
+    md += [table(head, body), "",
+           "Tokens are medians per agent (characters / " f"{CHARS_PER_TOKEN:g}). An item is written to the cache at "
+           "the call it entered (first writes), written again by each later call that re-wrote at least half of its "
+           "context (re-writes, after a lapsed cache), and read by every other later call until a compaction or the "
+           "agent's end (reads). Points: % of a Max 20x week, (non-read $ + w x cache-read $) / k(w) with "
+           + ", ".join(f"k({w:g}) = {k:g}" for w, k in POINT_WEIGHTS) + ", for the window (not per 7 days). The "
+           "instruction-diet ADR's method (#313, docs/decisions/2026-10-04-instruction-diet.md).", ""]  # fmt: skip
+    rows = [[f["what"], f["how"], f["loads"], fmt_tok(f["tokens"]), fmt_usd(f["usd"]), fmt_usd(f["non_read"]),
+             ", ".join(f["roles"])] for f in rec["files"]]  # fmt: skip
+    md += ["By file:", "", table(["what", "how it gets in", "loads or reads", "tokens in", "list $", "of it non-read",
+                                  "main roles"], rows), ""]  # fmt: skip
+    if rec["twice"]:
+        rows = [[f"`{t['file']}`", t["agents"], t["loads"], fmt_usd(t["usd"]), ", ".join(t["roles"])]
+                for t in rec["twice"]]  # fmt: skip
+        md += ["Files loaded twice in one agent (at launch or by path, either copy, before a compaction):", "",
+               table(["file", "agents", "extra loads", "list $ of the extra loads", "roles"], rows), ""]  # fmt: skip
+    else:
+        md += ["No file was loaded twice in one agent.", ""]
+    for doc, sec in rec["sections"].items():
+        rows = [[r["title"], fmt_tok(r["size"]), fmt_tok(r["tokens"]), r["agents"], fmt_usd(r["usd"]),
+                 ", ".join(r["roles"])] for r in sec["rows"]]  # fmt: skip
+        md += [f"`{doc}` by section of today's file ({fmt_usd(sec['usd'])} read by tools; "
+               f"{fmt_usd(sec['unmapped_usd'])} of it is text that matches no line of today's file):", "",
+               table(["section", "size today (tokens)", "tokens returned", "agents", "list $", "main roles"], rows),
+               ""]  # fmt: skip
+    return md + merge_check_lines(rec)
+
+
+def merge_check_lines(rec: dict) -> list[str]:
+    if not rec["merge_check"]:
+        return ["merge-check and ARCHITECTURE: no manager session read a merge-check output in the window.", ""]
+    rows = [[m["label"], m["outputs"], len(m["pairs"]),
+             ", ".join(" + ".join(f"#{n}" for n in p["prs"]) + (f" ({p['seen']}x)" if p["seen"] > 1 else "")
+                       for p in m["pairs"]) or "none"]
+            for m in rec["merge_check"]]  # fmt: skip
+    return ["Open-PR pairs whose merge-check output names an ARCHITECTURE conflict, per manager session (one row per "
+            "session: a window of several waves sums them, so pass --since <wave start> for one wave; the "
+            "instruction-diet ADR's N1 (c) trigger):", "",
+            table(["session", "merge-check outputs", "pairs", "the pairs (outputs naming them)"], rows), ""]
+
+
+def instruction_compact(rec: dict) -> str | None:
+    """One line for the compact summary; None when the window has no instruction or doc item."""
+    a = rec["all"]
+    if not a["usd"]:
+        return None
+    share = "" if a["share"] is None else f" ({a['share']:.0%} of {fmt_usd(a['of'])})"
+    read = {f["what"]: f["usd"] for f in rec["files"] if f["how"] == "read"}
+    docs = ", ".join(f"{doc.rsplit('/', 1)[-1].removesuffix('.md')} {fmt_usd(read[doc])}" for doc in SECTIONED
+                     if doc in read)  # fmt: skip
+    pairs = sum(len(m["pairs"]) for m in rec["merge_check"])
+    merges = f"{pairs} merge-check pairs with an ARCHITECTURE conflict" if rec["merge_check"] else "no merge-check"
+    return (f"instructions and docs: {fmt_usd(a['usd'])}{share}: first writes {fmt_usd(a['write_usd'])}, re-writes "
+            f"{fmt_usd(a['rewrite_usd'])}, reads {fmt_usd(a['read_usd'])}; points {fmt_points(a['points'])} "
+            f"({weights_label()}); loaded twice {a['twice']} ({fmt_usd(a['twice_usd'])})"
+            + (f"; {docs}" if docs else "") + f"; {merges}")
 
 
 # --- the quality scorecard (#314) ---------------------------------------------------------------------------------
@@ -1700,10 +2308,10 @@ def quality_compact(quality: dict) -> str:
 
 def compact_lines(
     tasks: list[dict], counted: list[dict], by_row: dict[str, list[dict]], history: list[dict], ci: dict | None,
-    managers: list[dict], week: dict, window: str, *, quality: dict | None = None,
+    managers: list[dict], week: dict, window: str, *, quality: dict | None = None, instructions: dict | None = None,
 ) -> list[str]:
-    """At most ten lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
-    (#314), the % of the week, verify."""
+    """At most eleven lines for a wave comment: time and API list $ per task and in total, the quality scorecard's line
+    (#314), the instructions' and docs' line (#337), the % of the week, verify."""
     other = [r for r in counted if r["kind"] != "issue-task" or not r["finished"]]
     lines = [f"metrics, {window}: {len(tasks)} finished issue-task runs, {len(other)} other runs "
              f"({sum(not r['finished'] for r in counted)} unfinished)"]
@@ -1716,18 +2324,20 @@ def compact_lines(
                      f"{calls:.0f} tool calls")
         if quality:
             lines.append(quality["compact"])
+    diet = instruction_compact(instructions) if instructions else None
+    if diet:
+        lines.append(diet)
     task_usd = sum(p["usd"] for p in tasks)
     other_usd = sum(run_usd(r) for r in other)
     man_usd = sum(m["manager_usd"] + m["hand_usd"] for m in managers)
     spent = task_usd + other_usd + man_usd
     lines.append(f"total API list $: tasks {fmt_usd(task_usd)} + other runs {fmt_usd(other_usd)} + managers and their "
                  f"hand-run subagents {fmt_usd(man_usd)} = {fmt_usd(spent)}")
+    w, k = WEEK_CENTRAL
     (w0, _k0), (w1, _k1) = WEEK_BRACKET
     lo, hi = week["bracket"]
-    share = week["read_usd"] / week["usd"] if week["usd"] else 0.0
-    lines.append(f"% of a Max 20x week: {week['percent']:.1f}% at ${WEEK_PERCENT_USD} per 1% (fit at "
-                 f"{WEEK_READ_SHARE:.0%} cache reads, here {share:.0%}); {lo:.1f} to {hi:.1f}% if the limit counts "
-                 f"cache reads at {w0 * 100:g} to {w1:.0%}")
+    lines.append(f"% of a Max 20x week: {week['percent']:.1f}% with cache reads at {w:.0%} of their list $ (${k} per "
+                 f"1%); {lo:.1f} to {hi:.1f}% if the limit counts them at {w0 * 100:g} to {w1:.0%}")
     for name, lst in (("local verify (agents)", agent_verifies(by_row)), ("local verify (history file)", history),
                       ("local verify (managers)", by_row.get("managers", []))):
         if lst:
@@ -1746,7 +2356,233 @@ def compact_lines(
         vt = ci["steps"].get("verify total")
         lines.append(f"CI: {ci['runs']} runs in the window; last {ci['green']} green: {job}"
                      + (f", verify {med(vt):.0f} s" if vt else ""))
-    return lines[:10]
+    return lines[:11]
+
+
+# --- tracks (#409) ------------------------------------------------------------------------------------------------
+
+
+def track_dirs(main: Path, base: Path | None = None) -> list[tuple[Path, str | None]]:
+    """Each TRACK_CHECKOUTS checkout's transcript folders (its worktrees' included) with the checkout's default track.
+    `base`: the config folder (default agents_check.config_dir())."""
+    found: list[tuple[Path, str | None]] = []
+    for suffix, default in TRACK_CHECKOUTS:
+        checkout = main.with_name(main.name + suffix)
+        found += [(d, default) for d in agents_check.project_dirs(checkout, base)]
+    return found
+
+
+def kickoff_track(transcript: Path) -> str | None:
+    """The track a `Track: <name>` line names in a session's first user message (its kickoff), lower case; else None.
+    A tool result, a skill's text Claude Code adds (isMeta) and a line with no text are no message."""
+    if not transcript.is_file():
+        return None
+    with io.open(transcript, encoding="utf-8", errors="replace") as lines:
+        for line in lines:
+            if '"user"' not in line:
+                continue
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(d, dict) or d.get("type") != "user" or d.get("isMeta"):
+                continue
+            m = d.get("message")
+            content = m.get("content") if isinstance(m, dict) else None
+            if isinstance(content, list) and not any(isinstance(b, dict) and b.get("type") == "text" for b in content):
+                continue  # tool results only
+            if not isinstance(content, (str, list)):
+                continue
+            found = TRACK_LINE.search(text_of(content))
+            return found.group(1).lower() if found else None
+    return None
+
+
+def spend_of(path: Path, since: float | None, until: float, seen: set[str]) -> tuple[float, float, int]:
+    """(API list $, its cache-read $, API calls) of one transcript's calls in [since, until): each message id once
+    across every file read (`seen`), each usage field's maximum, at the time of its first line."""
+    usage: dict[str, dict] = {}
+    first: dict[str, float] = {}
+    with io.open(path, encoding="utf-8", errors="replace") as lines:
+        for line in lines:
+            if '"usage"' not in line:
+                continue
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(d, dict) or d.get("type") != "assistant":
+                continue
+            m = d.get("message")
+            if not isinstance(m, dict) or m.get("model") == "<synthetic>":
+                continue
+            t = stamp(d.get("timestamp"))
+            if t is None:
+                continue
+            u = m.get("usage") if isinstance(m.get("usage"), dict) else {}
+            mid = str(m.get("id") or d.get("requestId") or d.get("uuid"))
+            cur = usage.get(mid)
+            if cur is None:
+                cur = usage[mid] = {**{f: 0 for f in TOKEN_FIELDS}, "cache_write_1h": 0, "model": m.get("model")}
+                first[mid] = t
+            for f in TOKEN_FIELDS:
+                cur[f] = max(cur[f], int(u.get(f) or 0))
+            cache = u.get("cache_creation")
+            if isinstance(cache, dict):
+                cur["cache_write_1h"] = max(cur["cache_write_1h"], int(cache.get("ephemeral_1h_input_tokens") or 0))
+    spent = read = 0.0
+    calls = 0
+    for mid, u in usage.items():
+        if mid in seen or first[mid] >= until or (since is not None and first[mid] < since):
+            continue
+        seen.add(mid)
+        cost = usd_of(u)
+        spent += sum(cost.values())
+        read += cost["usd_cache_read"]
+        calls += 1
+    return spent, read, calls
+
+
+def track_spend(
+    dirs: list[tuple[Path, str | None]], labels: dict[str, str | None], since: float | None, until: float
+) -> dict:
+    """Every session of the folders with API calls in [since, until): its own transcript, its hand-run subagents and
+    its workflow runs' agents, and its track by the first that holds: a --session ID=TRACK label, its kickoff's
+    `Track:` line, its checkout's default, else UNTRACKED. Returns {"sessions": [...], "tracks": {name: totals}}."""
+    seen: set[str] = set()
+    sessions = []
+    for folder, default in dirs:
+        names = {p.stem for p in folder.glob("*.jsonl")} | {
+            p.name for p in folder.iterdir() if p.is_dir() and (p / "subagents").is_dir()
+        }
+        for sid in sorted(names):
+            transcript = folder / f"{sid}.jsonl"
+            files = [transcript] if transcript.is_file() else []
+            files += sorted((folder / sid / "subagents").rglob("agent-*.jsonl"))
+            spent = read = 0.0
+            calls = 0
+            for p in files:
+                s, r, c = spend_of(p, since, until, seen)
+                spent, read, calls = spent + s, read + r, calls + c
+            if not calls:
+                continue
+            named = next((k for k in labels if sid == k or sid.startswith(k)), None)
+            if named is not None and labels[named]:
+                track, source = str(labels[named]).lower(), "--session"
+            elif (kicked := kickoff_track(transcript)) is not None:
+                track, source = kicked, "Track: line"
+            elif default:
+                track, source = default, "checkout"
+            else:
+                track, source = UNTRACKED, "none"
+            sessions.append({"id": sid, "folder": folder.name, "track": track, "source": source, "usd": spent,
+                             "read_usd": read, "calls": calls, **week_percent(spent, read)})  # fmt: skip
+    tracks: dict[str, dict] = {}
+    for s in sessions:
+        t = tracks.setdefault(s["track"], {"usd": 0.0, "read_usd": 0.0, "sessions": 0})
+        t["usd"] += s["usd"]
+        t["read_usd"] += s["read_usd"]
+        t["sessions"] += 1
+    for t in tracks.values():
+        t.update(week_percent(t["usd"], t["read_usd"]))
+    return {"sessions": sessions, "tracks": tracks}
+
+
+def track_order(names: list[str]) -> list[str]:
+    """TRACK_ORDER first, then the others alphabetically, UNTRACKED last."""
+    known = [n for n in TRACK_ORDER if n in names]
+    return known + sorted(n for n in names if n not in TRACK_ORDER and n != UNTRACKED) + (
+        [UNTRACKED] if UNTRACKED in names else []
+    )
+
+
+def track_lines(spend: dict, names: list[str], budgets: list[float], since: float, until: float) -> list[str]:
+    """The budget lines: the window, one line per track (its % of the week with the bracket, its budget and the plan to
+    date when a budget is given: budget x days since --since / 7, at most the budget), and every session's total, which
+    the manager holds against the weekly counter (get_usage); the counter also counts the account's sessions outside
+    TRACK_CHECKOUTS (other project folders, replays), so the two differ by more than the conversion's error."""
+    days = (until - since) / 86400
+    tracks = spend["tracks"]
+    if names == ["all"]:
+        names = track_order(list(tracks))
+    lines = [f"tracks, {iso(since)} to {iso(until)} ({days:.1f} days of the week's 7), % of a Max 20x week at the "
+             f"central weight (the bracket in brackets)"]  # fmt: skip
+    empty = {"usd": 0.0, "sessions": 0, **week_percent(0.0, 0.0)}
+    for i, name in enumerate(names):
+        t = tracks.get(name, empty)
+        budget = budgets[i] if budgets else None
+        of = f" of {budget:g}%" if budget is not None else ""
+        line = f"{name}: {fmt_week(t)}{of} this week"
+        if budget is not None:
+            line += f"; plan to date {budget * min(days, 7) / 7:.1f}%"
+        n = t["sessions"]
+        lines.append(f"{line}; list {fmt_usd(t['usd'])} in {n} session{'s' if n != 1 else ''}")
+    every = week_percent(sum(t["usd"] for t in tracks.values()), sum(t["read_usd"] for t in tracks.values()))
+    left = tracks.get(UNTRACKED, empty)
+    lines.append(f"every session of the {len(TRACK_CHECKOUTS)} checkouts: {fmt_week(every)} (untracked "
+                 f"{left['percent']:.1f}%{untracked_named(spend)}), against the weekly counter (get_usage), which "
+                 f"also counts the account's sessions elsewhere")  # fmt: skip
+    return lines
+
+
+def untracked_named(spend: dict, most: int = 3) -> str:
+    """` in N sessions: <id> <id> <id> and K more`, the untracked sessions by spend, so a manager sees a kickoff whose
+    Track: line was left out or translated; empty when there is none."""
+    loose = sorted((s for s in spend["sessions"] if s["track"] == UNTRACKED), key=lambda s: (-s["usd"], s["id"]))
+    if not loose:
+        return ""
+    more = f" and {len(loose) - most} more" if len(loose) > most else ""
+    n = len(loose)
+    return f" in {n} session{'s' if n != 1 else ''}: {' '.join(s['id'][:8] for s in loose[:most])}{more}"
+
+
+def track_table(spend: dict) -> list[str]:
+    """Each session with its track and where the track came from, by track and then by spend."""
+    order = {name: i for i, name in enumerate(track_order(list(spend["tracks"])))}
+    rows = [
+        [s["track"], s["id"][:8], s["folder"], s["source"], s["calls"], fmt_usd(s["usd"]), f"{s['percent']:.2f}%"]
+        for s in sorted(spend["sessions"], key=lambda s: (order[s["track"]], -s["usd"]))
+    ]
+    return [table(["track", "session", "folder", "track from", "API calls", "list $", "% of week"], rows)]
+
+
+def tracks_main(
+    labels: list[str], names: list[str], budgets: list[float], since: str | None, until: str | None, out: str | None,
+    compact: bool, *, checkout: Path | None = None, base: Path | None = None,
+) -> int:
+    """`metrics --track`: the tracks' spend since the reset (--since) against their budgets (module docstring)."""
+    if not since:
+        raise Failure("--track needs --since <the weekly reset> (ISO 8601): the week's spend counts from it")
+    t_since = parse_time(since)
+    t_until = parse_time(until) if until else time.time()
+    if t_since >= t_until:
+        raise Failure(f"--since {since} is not before --until {until or 'now'}")
+    names = [n.strip().lower() for n in names if n.strip()]
+    if "all" in names and names != ["all"]:
+        raise Failure("--track all stands alone: it names every track found")
+    if budgets and names == ["all"]:
+        raise Failure("--budget goes with named tracks (--track game meta --budget 26 12), not with --track all")
+    if budgets and len(budgets) != len(names):
+        raise Failure(f"--budget takes one % per --track name, in their order: {len(names)} names, {len(budgets)} "
+                      f"budgets")  # fmt: skip
+    if any(b < 0 for b in budgets):
+        raise Failure("--budget is a % of the week, 0 or more")
+    dirs = track_dirs(checkout or main_checkout(), base)
+    spend = track_spend(dirs, session_filter(labels), t_since, t_until)
+    lines = track_lines(spend, names, budgets, t_since, t_until)
+    folder = Path(out) if out else OUT / "metrics"
+    folder.mkdir(parents=True, exist_ok=True)
+    record = {"since": iso(t_since), "until": iso(t_until), "folders": [str(d) for d, _ in dirs],
+              "budgets": dict(zip(names, budgets)), "lines": lines, **spend}  # fmt: skip
+    with io.open(folder / "tracks.json", "w", encoding="utf-8", newline="\n") as f:
+        json.dump(record, f, indent=1, default=_json_default)
+        f.write("\n")
+    if compact:
+        say("\n".join(lines))
+    else:
+        say("\n".join([*lines, "", *track_table(spend)]))
+        say(f"\nmetrics: wrote {folder / 'tracks.json'}")
+    return 0
 
 
 def main(
@@ -1761,7 +2597,13 @@ def main(
     history: list[Path] | None = None,
     gh=_gh,
     no_gh: bool = False,
+    track: list[str] | None = None,
+    budget: list[float] | None = None,
 ) -> int:
+    if track:  # --session labels the tracks' sessions instead of choosing the report's
+        return tracks_main(sessions or [], track, budget or [], since, until, out, compact)
+    if budget:
+        raise Failure("--budget goes with --track: one % of the week per track named")
     t_since = parse_time(since) if since else None
     t_until = parse_time(until) if until else time.time()
     if ci < 0:

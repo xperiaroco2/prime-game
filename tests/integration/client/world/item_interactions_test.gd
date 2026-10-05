@@ -2,9 +2,9 @@ extends GdUnitTestSuite
 ## The crosshair's target and the item keys against a fixture world (ARCHITECTURE §4.7,
 ## Interactions; M4-8): the real PlayerController on a floor with a crate, looking through its
 ## own camera. The camera's ray picks the candidate; the hint and E apply only if the base mode's
-## InReach of PickUp (2 m) holds from the feet, as the host measures it: a crate-top item the host
-## would refuse gets no hint, a floor item 1.3 to 2 m away gets one, and a wall hides an item
-## behind it.
+## InReach of PickUp (2 m) holds from the feet, as the host measures it, less the hint's margin
+## (1.7 m, #319): a crate-top item the host would refuse gets no hint, a floor item 1.3 to 1.7 m
+## away gets one, one 1.85 m away none, and a wall hides an item behind it.
 ## The keys send their intents through the ClientSession; the host decides everything.
 
 const World := preload("res://tests/integration/client/player/player_test_world.gd")
@@ -52,8 +52,8 @@ func test_a_crate_top_item_the_host_would_refuse_gets_no_hint() -> void:
 	assert_int(_keys.pick_up()).is_equal(-1)
 
 
-func test_a_floor_item_1_3_to_2_m_away_gets_the_hint_and_e_picks_it_up() -> void:
-	for distance: float in [1.3, 1.6, 1.95]:
+func test_a_floor_item_1_3_to_1_7_m_away_gets_the_hint_and_e_picks_it_up() -> void:
+	for distance: float in [1.3, 1.5, 1.69]:
 		var at := Vector3(0, 0, -distance)
 		_model.items.clear()
 		_spawn(2, at)
@@ -71,7 +71,7 @@ func test_a_floor_item_1_3_to_2_m_away_gets_the_hint_and_e_picks_it_up() -> void
 
 
 func test_an_item_behind_a_wall_gets_no_hint() -> void:
-	var behind := Vector3(0, 0, -1.8)
+	var behind := Vector3(0, 0, -1.6)
 	_spawn(3, behind)
 	_world.call(&"add_box", Vector3(0, 1.0, -1.0), Vector3(2.0, 2.0, 0.1))
 	await _look_at(behind)
@@ -96,7 +96,7 @@ func test_an_item_just_behind_a_thin_wall_is_never_named() -> void:
 
 func test_a_downed_player_in_front_hides_the_item_behind() -> void:
 	# E on a downed player is M4-9's raise: it must not also pick up the item behind them.
-	var behind := Vector3(0, 0, -1.8)
+	var behind := Vector3(0, 0, -1.6)
 	_spawn(8, behind)
 	var downed := _world.call(&"add_remote", Vector3(0, 0, -1.0)) as RemotePlayerBody
 	downed.set_living(false)
@@ -105,6 +105,18 @@ func test_a_downed_player_in_front_hides_the_item_behind() -> void:
 	downed.position = Vector3(3, 0, 0)
 	await _look_at(behind)
 	assert_int(_keys.target()).is_equal(8)
+
+
+func test_a_floor_item_within_the_hints_margin_of_the_reach_gets_no_hint() -> void:
+	# 1.85 m: within the host's 2 m, past the hint's 1.7 m (#319). Walking in, the host's feet
+	# trail the player's; standing, it would accept, but the hint keeps to its margin.
+	var near_edge := Vector3(0, 0, -1.85)
+	_spawn(10, near_edge)
+	await _look_at(near_edge)
+	assert_int(TargetChoice.along_ray(_model, _eye(), _player.look_vector(), 4.0)).is_equal(10)
+	assert_int(_keys.target()).is_equal(-1)
+	assert_str(_keys.hint()).is_empty()
+	assert_int(_keys.pick_up()).is_equal(-1)
 
 
 func test_a_floor_item_beyond_the_reach_gets_no_hint() -> void:

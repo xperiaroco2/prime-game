@@ -103,13 +103,12 @@ func test_a_condition_that_does_not_say_is_refused_and_named_by_its_base() -> vo
 
 
 func test_conditions_that_read_no_actor_pass_in_reactions_and_win_conditions() -> void:
-	# Not TargetDowned, nor ItemOnGround in a win condition: they read no actor, so this check
-	# allows them, but with no intent, channel or fact they find no target there (§9.4 "Where").
+	# Not TargetDowned, nor ItemOnGround where no fact carries its item: they read no actor, but
+	# they read the rule's target, which nothing supplies there (mode_check_target_test.gd, #379).
 	var all_done := AllSubtasksDone.new()
 	all_done.negate = true
 	var conditions: Array[Condition] = [ClockEnded.new(), all_done, NoneAlive.of(&"crew")]
 	_expect_none(_winning_with(conditions))
-	conditions.append(ItemOnGround.new())
 	_expect_none(_reacting_on_the_clock(conditions))
 	# The conditions refused there are fine in an action: the raise holds four of them.
 	_expect_none(FixtureCombatModes.raising())
@@ -141,32 +140,38 @@ func test_an_unnamed_condition_is_named_by_its_nearest_named_base() -> void:
 	assert_str(str(cost[0])).contains("holds the cost a Cost with no class_name,")
 
 
-func test_every_condition_in_core_says_whether_it_reads_the_actor() -> void:
-	# The conditions of core/ and whether they read the actor (Condition.reads_actor_state), so a
-	# mode reaction or a win condition may not hold them (true) or may (false). A new condition in
-	# core/ fails this test until it is listed here and in ARCHITECTURE §9.4. It finds conditions
-	# by class_name, as every core/ part has one (§9.4); one without keeps the default and is
-	# refused (test_a_condition_that_does_not_say_is_refused_and_named_by_its_base).
-	var expected: Dictionary[StringName, bool] = {
-		&"AllSubtasksDone": false,
-		&"CarriesItem": true,
-		&"ChannelFree": true,
-		&"Channeling": true,
-		&"ClockEnded": false,
-		&"Cooldown": true,
-		&"Cost": true,
-		&"HandNotTwoHanded": true,
-		&"HoldsItem": true,
-		&"InReach": true,
-		&"InSight": true,
-		&"ItemOnGround": false,
-		&"NoneAlive": false,
-		&"StaminaCost": true,
-		&"TargetDowned": false,
-		&"TargetInReach": true,
-		&"TargetInSight": true,
+func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target() -> void:
+	# The conditions of core/, each with [whether it reads the actor (Condition.reads_actor_state),
+	# whether it reads the rule's target (Condition.needs_target), the facts that carry that target
+	# (Condition.target_facts)]. A mode reaction or a win condition may not hold one that reads the
+	# actor (#299), nor one that reads the target unless its reaction's fact carries it (#379). A
+	# new condition in core/ fails this test until it is listed here and in ARCHITECTURE §9.4. It
+	# finds conditions by class_name, as every core/ part has one (§9.4); one without keeps the
+	# defaults and is refused (test_a_condition_that_does_not_say_is_refused_and_named_by_its_base).
+	# ChannelFree reads the target when there is one and checks the actor alone without, so it
+	# needs none.
+	var item: Array[StringName] = [Facts.ITEM_RESTED]
+	var none: Array[StringName] = []
+	var expected: Dictionary[StringName, Array] = {
+		&"AllSubtasksDone": [false, false, none],
+		&"CarriesItem": [true, false, none],
+		&"ChannelFree": [true, false, none],
+		&"Channeling": [true, false, none],
+		&"ClockEnded": [false, false, none],
+		&"Cooldown": [true, false, none],
+		&"Cost": [true, false, none],
+		&"HandNotTwoHanded": [true, false, none],
+		&"HoldsItem": [true, false, none],
+		&"InReach": [true, true, item],
+		&"InSight": [true, true, item],
+		&"ItemOnGround": [false, true, item],
+		&"NoneAlive": [false, false, none],
+		&"StaminaCost": [true, false, none],
+		&"TargetDowned": [false, true, none],
+		&"TargetInReach": [true, true, none],
+		&"TargetInSight": [true, true, none],
 	}
-	var found: Dictionary[StringName, bool] = {}
+	var found: Dictionary[StringName, Array] = {}
 	for entry: Dictionary in ProjectSettings.get_global_class_list():
 		var path: String = entry["path"]
 		var class_id: StringName = entry["class"]
@@ -176,10 +181,15 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor() -> void:
 			and _extends(class_id, &"Condition")
 		):
 			var condition := (load(path) as GDScript).new() as Condition
-			found[class_id] = condition.reads_actor_state()
+			found[class_id] = [
+				condition.reads_actor_state(), condition.needs_target(), condition.target_facts()
+			]
 	assert_dict(found).is_equal(expected)
-	# The base class's default: a condition that does not say reads the actor.
+	# The base class's defaults: a condition that does not say reads the actor (so it is refused
+	# where no player acts) and no target, which no fact carries.
 	assert_bool(Condition.new().reads_actor_state()).is_true()
+	assert_bool(Condition.new().needs_target()).is_false()
+	assert_array(Condition.new().target_facts()).is_empty()
 
 
 func _expect_none(mode: GameMode) -> void:

@@ -84,7 +84,7 @@ class ParserTest(unittest.TestCase):
                 "settings": {"match_duration": 5},
                 "clock": 120,
                 "players": 3,
-                "timeout_s": 20.0,
+                "timeout_s": 20.0 + playcheck.BOTS_START_SECONDS,
             },
         )
         self.assertEqual(
@@ -106,6 +106,48 @@ class ParserTest(unittest.TestCase):
         self.assertEqual([step["do"] for step in second], ["wait", "wait", "hold", "wait", "release", "shot"])
         self.assertEqual((second[0]["value"], second[1]["value"]), (False, True))
         json.dumps(plan)  # the windows read it as JSON
+
+    def test_the_setup_wait_adds_the_bots_start_time(self) -> None:
+        """The bots' headless process starts once window 1 hosts, and under load it took more than the scenario's
+        timeout to join, so window 1's setup failed with 2 of 3 players (#354, #406)."""
+        steps = "timeout 25\nrole 1 dissident\nwindow 1\nshot a"
+        with_bots = scenario(with_header(steps, f"players 3\nwindows 2\nbots {BOTS}"))
+        self.assertEqual(with_bots.steps[1][0].do, "setup")
+        self.assertEqual(with_bots.steps[1][0].args["timeout_s"], 25.0 + playcheck.BOTS_START_SECONDS)
+        self.assertEqual(playcheck.BOTS_START_SECONDS, hostjoin.HOST_READY_SECONDS)
+        windows_only = scenario(with_header(steps))
+        self.assertEqual(windows_only.steps[1][0].do, "setup")
+        self.assertEqual(windows_only.steps[1][0].args["timeout_s"], 25.0)
+        # A wait keeps the scenario's timeout: only the setup waits for the bots' process to start.
+        waits = scenario(with_header(steps + "\nwait phase lobby", f"players 3\nwindows 2\nbots {BOTS}"))
+        self.assertEqual((waits.steps[1][2].do, waits.steps[1][2].args["timeout_s"]), ("wait", 25.0))
+
+    def test_a_window_without_the_setup_gives_its_first_wait_after_ready_the_bots_start_time(self) -> None:
+        """Window 2 waits for the round from its own welcome, and the round needs the late bots in and ready too
+        (#406's review): its first wait after `press ready` gets the bots' start time, its other waits do not."""
+        steps = (
+            "timeout 25\nrole 3 dissident\nwindow 1\nwait phase lobby\npress ready\nwait screen round timeout=60\n"
+            "window 2\nwait phase lobby\npress ready\nwait screen round timeout=60\nwait life downed\nshot a"
+        )
+        with_bots = scenario(with_header(steps, f"players 3\nwindows 2\nbots {BOTS}"))
+        first, second = with_bots.steps[1], with_bots.steps[2]
+        self.assertEqual(first[0].do, "setup")
+        # Window 1's setup already waited for every player, so its own round wait keeps its timeout.
+        self.assertEqual([step.args["timeout_s"] for step in first[1:] if step.do == "wait"], [25.0, 60.0])
+        self.assertEqual(
+            [step.args["timeout_s"] for step in second if step.do == "wait"],
+            [25.0, 60.0 + playcheck.BOTS_START_SECONDS, 25.0],
+        )
+        # Without the setup, window 1 waits for the bots the same way.
+        no_setup = scenario(with_header(steps.replace("role 3 dissident\n", ""), f"players 3\nwindows 2\nbots {BOTS}"))
+        self.assertEqual(
+            [step.args["timeout_s"] for step in no_setup.steps[1] if step.do == "wait"],
+            [25.0, 60.0 + playcheck.BOTS_START_SECONDS],
+        )
+        windows_only = scenario(with_header(steps.replace("role 3 dissident\n", "")))
+        self.assertEqual(
+            [step.args["timeout_s"] for step in windows_only.steps[2] if step.do == "wait"], [25.0, 60.0, 25.0]
+        )
 
     def test_without_roles_settings_or_clock_there_is_no_setup_step(self) -> None:
         s = scenario(with_header("window 1\nshot a\nwindow 2\nwait phase lobby"))
@@ -173,6 +215,17 @@ class ParserTest(unittest.TestCase):
             ("players 2\nwindows 2\nwindow 1\nbutton", 4, "`button` needs the button's text"),
             ("players 2\nwindows 2\nwindow 1\nbutton   # Resume", 4, "`button` needs the button's text"),
             ("players 2\nwindows 2\nwindow 1\nbutton Resume timeout=5", 4, "only a wait takes timeout="),
+            ("players 2\nwindows 2\nwindow 1\naim", 4, "an aim is `aim item <kind>`"),
+            ("players 2\nwindows 2\nwindow 1\naim knife", 4, "an aim is `aim item <kind>`"),
+            ("players 2\nwindows 2\nwindow 1\naim item Knife", 4, "an aim is `aim item <kind>`"),
+            ("players 2\nwindows 2\nwindow 1\naim item knife package", 4, "an aim is"),
+            ("players 2\nwindows 2\nwindow 1\naim off now", 4, "an aim is"),
+            ("players 2\nwindows 2\nwindow 1\naim item knife\nshot a", 4, "window 1 aims and never stops"),
+            ("players 2\nwindows 2\nwindow 1\naim off\nshot a", 4, "window 1 has `aim off` without an `aim item`"),
+            ("players 2\nwindows 2\nwindow 1\naim item a\naim item b\naim off\nshot a", 5, "aims again"),
+            ("players 2\nwindows 2\nwindow 1\naim item a\naim off\naim off\nshot a", 6, "`aim off` without"),
+            ("players 2\nwindows 2\nwindow 2\naim item a\naim off\nwindow 1\naim off\nshot a", 7, "window 1 has `aim off`"),
+            ("players 2\nwindows 2\nwindow 1\naim item a timeout=5", 4, "only a wait takes timeout="),
             ("players 2\nwindows 2\nwindow 1\nwait phase lobby", 1, "at least one `shot`"),
             ("players 2\nwindows 2\nwindow 1\nshot a\nwindow 2\nshot a", 1, "shot names must be unique: a"),
         ]
@@ -210,6 +263,16 @@ class ParserTest(unittest.TestCase):
         button = {"line": 8, "text": "button Back to lobby", "do": "button", "label": "Back to lobby"}
         self.assertEqual(first[4].plan(), button)
 
+    def test_aim_item_and_aim_off_become_their_plan_entries_in_pairs(self) -> None:
+        steps = "window 1\naim item knife   # the nearest\nframes 5\naim off\naim item package\naim off\nshot a"
+        first = scenario(with_header(steps)).steps[1]
+        self.assertEqual(first[0].plan(), {"line": 4, "text": "aim item knife", "do": "aim", "kind": "knife"})
+        self.assertEqual(first[2].plan(), {"line": 6, "text": "aim off", "do": "aim", "kind": ""})
+        self.assertEqual([(step.do, step.args.get("kind")) for step in first[3:5]], [("aim", "package"), ("aim", "")])
+        # Each window pairs its own aims.
+        both = scenario(with_header("window 1\naim item knife\naim off\nwindow 2\naim item knife\naim off\nshot a"))
+        self.assertEqual([step.args["kind"] for step in both.steps[2][:2]], ["knife", ""])
+
     def test_every_field_has_a_text_and_a_shown_wait(self) -> None:
         for name in playcheck.FIELDS:
             for wait in (f"wait text {name} has x", f"wait text {name} lacks x y", f"wait shown {name} on"):
@@ -231,6 +294,8 @@ class ParserTest(unittest.TestCase):
         names = playcheck.available()
         self.assertIn("esc_menu", names)
         self.assertIn("spectate", names)
+        self.assertIn("items", names)
+        self.assertIn("end", names)
         for name in names:
             with self.subTest(name=name):
                 s = playcheck.load(name)
@@ -378,6 +443,8 @@ else:
 while not stop.exists():
     time.sleep(0.05)
 say("session: stopped")
+if what == "slowexit":
+    time.sleep(1.5)
 """
 
 
@@ -397,7 +464,9 @@ class RunTest(unittest.TestCase):
         self.out = out.start()
         self.addCleanup(out.stop)
 
-    def run_scenario(self, behaviours: dict[str, str], seconds: int = 30) -> tuple[int, list[hostjoin.Part]]:
+    def run_scenario(
+        self, behaviours: dict[str, str], seconds: int = 30, grace: float = 5, window_grace: float = 5
+    ) -> tuple[int, list[hostjoin.Part]]:
         s = scenario()
         seen: list[hostjoin.Part] = []
 
@@ -408,7 +477,8 @@ class RunTest(unittest.TestCase):
 
         with (
             mock.patch.object(playcheck, "set_commands", fake_commands),
-            mock.patch.object(hostjoin, "GRACE_SECONDS", 5),
+            mock.patch.object(hostjoin, "GRACE_SECONDS", grace),
+            mock.patch.object(playcheck, "WINDOW_GRACE_SECONDS", window_grace),
         ):
             code = playcheck.run_one(s, "godot", seconds, 24999)
         return code, seen
@@ -435,6 +505,25 @@ class RunTest(unittest.TestCase):
         self.assertIn("ok    bots: played", printed)
         self.assertIn("playcheck probe: passed", printed)
         self.assertIn(f"PLAYCHECK {out / 'host_view.png'}", printed)
+        self.assertRegex(printed, r"ok    window 1: its steps done, stopped in \d+\.\ds")
+
+    def test_a_window_gets_its_own_longer_grace_to_exit_and_the_bots_hostjoins(self) -> None:
+        # #354: a window's renderer teardown can take seconds under load after `session: stopped`.
+        behaviours = {"window 1": "slowexit", "window 2": "slowexit", "bots": "slowexit"}
+        code, parts = self.run_scenario(behaviours, grace=0.5, window_grace=10)
+        self.assertEqual(code, 1, self.out.getvalue())
+        self.assert_all_stopped(parts)
+        self.assertEqual([p.grace for p in parts], [10, 10, None])
+        for window in parts[:2]:
+            self.assertEqual(playcheck.problem(window), "", self.out.getvalue())
+            seconds = window.stop_seconds
+            assert seconds is not None
+            self.assertGreaterEqual(seconds, 1.4)
+        self.assertTrue(parts[2].killed)
+        printed = self.out.getvalue()
+        self.assertIn("FAIL  bots: did not stop within 0.5s of the stop and was killed", printed)
+        self.assertIn("its last line came", printed)
+        self.assertNotIn("FAIL  window", printed)
 
     def test_a_step_that_times_out_fails_the_run_with_its_line_and_every_process_stops(self) -> None:
         code, parts = self.run_scenario({"window 2": "fail"})

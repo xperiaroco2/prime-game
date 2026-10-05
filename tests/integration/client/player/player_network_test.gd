@@ -159,7 +159,7 @@ func test_a_downed_crawl_up_the_steps_is_never_corrected() -> void:
 	var session := _pair.client.client()
 	var joiner := _pair.peer_of(_pair.client)
 	# From the round spot to the foot of the stairs, then face them (+X).
-	assert_bool(await _walk_to(player, Vector3(5.0, 0.0, -2.0))).is_true()
+	assert_bool(await _pair.walk_to(player, Vector3(5.0, 0.0, -2.0))).is_true()
 	player.move_input = Vector2.ZERO
 	player.look(angle_difference(player.rotation.y, -PI / 2.0), 0.0)
 	await _pair.frames(10)
@@ -270,19 +270,3 @@ func _until_downed(player: PlayerController) -> bool:
 			return true
 		await _pair.frames(1)
 	return player.is_downed()
-
-
-## Walks `player` toward `target` on the floor, turning to it every frame; false when it is not
-## within 0.2 m after 600 frames. It stops giving input once there.
-func _walk_to(player: PlayerController, target: Vector3) -> bool:
-	for i: int in 600:
-		var to := target - player.global_position
-		to.y = 0.0
-		if to.length() < 0.2:
-			player.move_input = Vector2.ZERO
-			return true
-		player.look(angle_difference(player.rotation.y, atan2(-to.x, -to.z)), 0.0)
-		player.move_input = Vector2(0.0, 1.0)
-		await _pair.frames(1)
-	player.move_input = Vector2.ZERO
-	return false

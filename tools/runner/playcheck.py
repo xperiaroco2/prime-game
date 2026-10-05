@@ -23,7 +23,9 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
     role <player> <id>      ForceRole, sent by window 1 once every player is in its roster (debug builds, E17)
     setting <id> <int>      ChangeSettings, sent by window 1 then
     clock <seconds>         ForceClock (the match clock's length), sent by window 1 then
-    timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT)
+    timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT); with bots, window 1's setup, and in
+                            every other window the first wait after its first `press ready`, waits
+                            BOTS_START_SECONDS longer, for their process to start
 Then a section per window, `window <n>`, and its steps, run in order:
     wait phase <id>                      its model's phase (lobby, countdown, loading, round, end)
     wait screen <screen>                 the screen it shows (SCREENS)
@@ -49,6 +51,11 @@ Then a section per window, `window <n>`, and its steps, run in order:
                                          (whitespace as in `wait text`): it takes the focus (grab_focus) and gets
                                          ui_accept's key as `press` gives it; no mouse event, so nothing captures
                                          the mouse. None, or more than one, fails the step
+    aim item <kind> / aim off            from `aim item` until `aim off` (each aim needs one), every frame the
+                                         window turns its own local player (PlayerController.look) to face the
+                                         middle of the nearest item of <kind> resting in its own ClientModel
+                                         (no holder; item positions are public); with none, it turns nothing.
+                                         The mouse is never captured, so this is the only way to face something
     shot <name>                          the window's viewport as <name>.png ([a-z0-9_], unique in the scenario)
 A wait takes `timeout=<seconds>` as its last word to override the default. A `#` in a line starts its comment, so
 a text to wait for or a button's text holds none.
@@ -62,8 +69,9 @@ on the same field before it.
 A run fails on a step that times out or cannot run (its window prints the step's line and what it saw, saves
 failed-window-<n>.png and exits 1), an engine error line or a non-zero exit of any process, a window that did not
 finish its steps within --seconds, or a missing PNG. Every process it started stops through hostjoin's stop file (a
-killed runner: the alive file) and is killed GRACE_SECONDS later, so no host is left holding the port. It needs a
-desktop session: CI never runs it, and verify does not.
+killed runner: the alive file) and is killed if it still runs WINDOW_GRACE_SECONDS later (a window; the bots:
+hostjoin's GRACE_SECONDS), so no host is left holding the port; the report gives each one's time from the stop to its
+exit. It needs a desktop session: CI never runs it, and verify does not.
 """
 
 from __future__ import annotations
@@ -99,6 +107,15 @@ MAX_CLOCK = 3600
 # The whole run of one scenario: joining, the lobby's countdown, loading and the steps.
 DEFAULT_SECONDS = 300
 MAX_SECONDS = 1800
+# How long a window gets from the stop to its exit before it is killed (hostjoin's GRACE_SECONDS for the bots). A
+# window's renderer teardown waits for the GPU driver's idle-priority threads, which a PC whose cores are all busy runs
+# only when Windows lifts a starved thread, about every 4 s: windows that printed `session: stopped` at once took up
+# to 9.5 s to exit beside 32 busy loops on 16 cores, and #318 saw over 10 s (#354).
+WINDOW_GRACE_SECONDS = 30
+# What window 1's setup wait adds to the scenario's timeout when bots play: their headless process starts only once
+# window 1 hosts, and beside 32 busy loops on 16 cores it joined so late that 5 of #354's runs failed the setup after
+# 30 s with 2 of 3 players (#406). As long as hostjoin gives a host's process to start listening.
+BOTS_START_SECONDS = hostjoin.HOST_READY_SECONDS
 SIZE = "1280x720"
 NAME_RE = re.compile(r"[a-z0-9_]+")
 ID_RE = re.compile(r"[a-z_][a-z0-9_]*")
@@ -297,10 +314,12 @@ class _Parser:
                 raise self.fail("`button` needs the button's text, such as `button Resume`")
             # Not "text": the plan's step has the line's text under that key.
             made = {"label": " ".join(args)}
+        elif verb == "aim":
+            made = {"kind": self.aim(args)}
         elif verb in ("frames", "shot", *ACTIONS):
             raise self.fail(f"`{verb}` takes one word")
         else:
-            raise self.fail(f"unknown step `{verb}` (wait, frames, press, hold, release, button, shot)")
+            raise self.fail(f"unknown step `{verb}` (wait, frames, press, hold, release, button, aim, shot)")
         self.scenario.steps[self.window].append(Step(self.line, text, verb, made))
 
     def wait(self, args: list[str]) -> dict[str, object]:
@@ -344,6 +363,14 @@ class _Parser:
                 "`wait text <field> is|has|lacks <text ...>` or `wait shown <field> on|off`"
             )
         return made
+
+    def aim(self, args: list[str]) -> str:
+        """The item kind of `aim item <kind>`, or "" for `aim off`."""
+        if args == ["off"]:
+            return ""
+        if len(args) == 2 and args[0] == "item" and ID_RE.fullmatch(args[1]):
+            return args[1]
+        raise self.fail("an aim is `aim item <kind>` (an item kind's id, such as `aim item knife`) or `aim off`")
 
     def field(self, rest: list[str], what: str) -> str:
         """The field a `wait text` or `wait shown` names; a mistake lists the fields there are."""
@@ -390,11 +417,31 @@ class _Parser:
         for number, line in self.sections.items():
             if number > s.windows:
                 raise self.fail(f"window {number}: the scenario has {s.windows}", line)
+        has_setup = bool(s.roles or s.settings or s.clock)
         for number, steps in s.steps.items():
             held: dict[str, int] = {}
+            # The line of the `aim item` in force; 0 while the window aims at nothing.
+            aiming = 0
+            # With bots, a window without the setup (which waits for every player) gives its first wait after its
+            # first `press ready` the bots' start time too: the round needs the bots in and ready (#406).
+            late_bots = bool(s.bots) and not (number == 1 and has_setup)
+            after_ready = False
             for step in steps:
                 if step.args.get("timeout_s") is None and step.do == "wait":
                     step.args["timeout_s"] = s.timeout
+                if late_bots and after_ready and step.do == "wait":
+                    step.args["timeout_s"] = float(step.args["timeout_s"]) + BOTS_START_SECONDS
+                    late_bots = False
+                if step.do == "press" and step.args.get("action") == "ready":
+                    after_ready = True
+                if step.do == "aim" and step.args["kind"]:
+                    if aiming:
+                        raise self.fail(f"window {number} aims again before `aim off` (line {aiming})", step.line)
+                    aiming = step.line
+                elif step.do == "aim":
+                    if not aiming:
+                        raise self.fail(f"window {number} has `aim off` without an `aim item` before it", step.line)
+                    aiming = 0
                 action = str(step.args.get("action", ""))
                 if step.do == "hold":
                     if action in held:
@@ -405,15 +452,17 @@ class _Parser:
                         raise self.fail(f"window {number} releases {action}, which it does not hold", step.line)
             for action, line in held.items():
                 raise self.fail(f"window {number} holds {action} and never releases it", line)
+            if aiming:
+                raise self.fail(f"window {number} aims and never stops: `aim off` ends an `aim item`", aiming)
         names = s.shots()
         if not names:
             raise self.fail("a scenario saves at least one `shot`", 1)
         repeated = sorted({name for name in names if names.count(name) > 1})
         if repeated:
             raise self.fail(f"shot names must be unique: {', '.join(repeated)}", 1)
-        if s.roles or s.settings or s.clock:
+        if has_setup:
             setup = {"roles": {str(k): v for k, v in s.roles.items()}, "settings": s.settings, "clock": s.clock}
-            setup.update(players=s.players, timeout_s=s.timeout)
+            setup.update(players=s.players, timeout_s=s.timeout + (BOTS_START_SECONDS if s.bots else 0))
             text = "setup (ForceRole, ForceClock, ChangeSettings)"
             s.steps.setdefault(1, []).insert(0, Step(0, text, "setup", setup))
         return s
@@ -485,6 +534,7 @@ def make_parts(scenario: Scenario, plan_path: Path, port: int, stop: Path) -> li
     for number, part in enumerate(parts, start=1):
         part.label = window_label(number)
         part.user_args = [f"--plan={plan_path}", f"--window={number}", *part.user_args]
+        part.grace = WINDOW_GRACE_SECONDS
         if number == 1:
             part.user_args.append(hostjoin.NO_REPLAY)
     if scenario.bots:
@@ -571,7 +621,9 @@ def report(scenario: Scenario, parts: list[hostjoin.Part], out: Path) -> int:
             failed += 1
             bad(f"{part.label}: {why}{where}", "\n".join(launch.error_lines(part.lines)[1]))
         else:
-            ok(f"{part.label}: {'its steps done' if part.label != 'bots' else 'played'}{where}")
+            stopped = hostjoin.stop_time(part)
+            stopped = f", stopped{stopped}" if stopped else ""
+            ok(f"{part.label}: {'its steps done' if part.label != 'bots' else 'played'}{stopped}{where}")
     if not failed:
         missing = missing_shots(scenario, out)
         if missing:

@@ -29,7 +29,8 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
 
 0. **Which task.** `git branch --show-current` must be a task branch `<area>/<n>-<slug>`; `<n>` is the issue. If it
    is not, stop and ask. Everything must be committed (Conventional Commits, one logical change each).
-1. **Verify.** `tools\run.cmd verify`. Paste its summary (the lines from "verify summary" to the end) for the human.
+1. **Verify.** `tools\run.cmd verify`, in the background with `wait <log>` (root CLAUDE.md, Shell: a slot wait alone
+   can reach 600 s, where a foreground call is killed). Paste its summary (from "verify summary" to the end).
    Red: stop and report the failures. Never weaken, skip or delete a test to make it pass.
 2. **Fresh-context reviews,** chosen from `git diff --name-only origin/<base>...HEAD`, where `<base>` is the open PR's
    base (`gh pr view --json baseRefName`; a stacked PR's parent), else the parent `start --base` recorded
@@ -51,12 +52,13 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    [trust ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). Otherwise, or if
    unsure, **ask exactly once:** "Publish now? (push + PR + handoff comment)". Anything but a yes: stop and summarise
    what is done and what is left.
-5. **Publish.** `tools\run.cmd publish`. It rebases on the PR's base (else the recorded parent, else `main`), runs
-   `verify` again and pushes the task branch with a lease; its line `base origin/<base>` names the PR's base. If it
-   stops (a conflict, red verify, or remote commits the branch never had), report what it said and ask the human. Never
-   push by hand and never force-push. "cannot confirm that the parent … was merged": ask the human to check the
-   parent's PR; only after they confirm the merge, `tools\run.cmd publish --base main`. A task of a stage (its PR
-   targets `release/m<k>`): `tools\run.cmd publish --base release/m<k>`, also on a checkout without `start`'s record.
+5. **Publish.** `tools\run.cmd publish`, in the background with `wait <log>` like `verify`. It rebases on the PR's
+   base (else the recorded parent, else `main`), runs `verify` again and pushes the task branch with a lease; its line
+   `base origin/<base>` names the PR's base. If it stops (a conflict, red verify, or remote commits the branch never
+   had), report what it said and ask the human. Never push by hand and never force-push. "cannot confirm that the
+   parent … was merged": ask the human to check the parent's PR; only after they confirm the merge,
+   `tools\run.cmd publish --base main`. A task of a stage (its PR targets `release/m<k>`):
+   `tools\run.cmd publish --base release/m<k>`, also on a checkout without `start`'s record.
 6. **Pull request.** If `gh pr view` finds none for the branch, fill `.github/pull_request_template.md` in a scratchpad
    file and run `gh pr create --base <base> --title "<conventional title>" --body-file <file>` (`<base>`: the one
    `publish` just reported: `main`, a stage's `release/m<k>` or a stacked PR's parent). Otherwise update it with `gh pr edit --body-file`.

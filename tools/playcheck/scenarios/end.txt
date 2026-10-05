@@ -1,0 +1,59 @@
+# The end of a match and the next one (#276) in the game's real windows. Window 1 hosts and is
+# forced to be the dissident; the match clock is forced to 20 s, and the time_up rule gives the
+# dissidents the win when it ends with a task left. Both windows see the end screen; only the host
+# has Back to lobby (its button, pressed with keys). In the lobby again nobody is ready
+# (MatchState.reset_match on End -> Lobby), and both ready up for a second round. The forced clock
+# is session state, so the second round ends after 20 s too: its shots come well before that.
+# lobby_after_end is where #251 (a round snapshot drawn in the lobby after End) may show.
+# The text waits read short parts of the greybox wording (#150), never whole sentences.
+players 2
+windows 2
+role 1 dissident
+clock 20
+
+window 1
+wait phase lobby
+press ready
+wait screen round timeout=60
+wait text hud.clock has 0:
+wait text hud.clock lacks 10:
+shot round_clock
+wait screen end timeout=60
+wait phase end
+wait text end.winner is The Dissidents won
+wait shown end.back on
+wait pointer free
+shot end_host
+button Back to lobby
+wait screen lobby timeout=30
+wait ready off
+wait ready 2 off
+wait text lobby.countdown is Waiting for everyone
+frames 60
+shot lobby_after_end
+press ready
+wait screen round timeout=60
+wait text hud.role has Role
+shot second_round_host
+
+window 2
+wait phase lobby
+press ready
+wait screen round timeout=60
+wait screen end timeout=60
+wait text end.winner is The Dissidents won
+wait shown end.back off
+shot end_guest
+wait screen lobby timeout=60
+wait ready off
+wait text lobby.roster has not ready
+frames 60
+shot lobby_after_end_guest
+# Window 1 shoots lobby_after_end after its own waits and 60 frames: ready up well after that, so
+# its shot shows nobody ready.
+frames 240
+press ready
+wait screen round timeout=60
+wait text hud.role has Role
+frames 30
+shot second_round_guest

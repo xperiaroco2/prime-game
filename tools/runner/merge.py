@@ -208,16 +208,26 @@ def pr_view(number: int) -> PullRequest:
     return PullRequest.of(gh_json("pr", "view", str(number), "--json", PR_FIELDS))
 
 
-def ci_problems(number: int) -> list[str]:
-    """What keeps the PR's CI from being green: failing or pending checks, or none reported. Empty: green."""
+def checks(number: int) -> tuple[list[dict[str, Any]], str]:
+    """The PR's checks on its head (`name`, `state`, `bucket`: pass, fail, pending, skipping or cancel) and, when gh
+    gave no list, its answer. Read from the JSON, never the exit code: `gh pr checks` exits non-zero both while a check
+    is pending and when one failed or none is reported."""
     res = gh("pr", "checks", str(number), "--json", "name,state,bucket")
     try:
-        checks = json.loads(res.out)
+        found = json.loads(res.out)
     except ValueError:
-        return [res.out.strip()[-300:] or "gh pr checks gave no answer"]
-    if not checks:
+        return [], res.out.strip()[-300:] or "gh pr checks gave no answer"
+    return (found, "") if isinstance(found, list) else ([], res.out.strip()[-300:])
+
+
+def ci_problems(number: int) -> list[str]:
+    """What keeps the PR's CI from being green: failing or pending checks, or none reported. Empty: green."""
+    found, answer = checks(number)
+    if answer:
+        return [answer]
+    if not found:
         return ["no checks reported"]
-    return [f"{c.get('name')}: {c.get('state')}" for c in checks if c.get("bucket") not in ("pass", "skipping")]
+    return [f"{c.get('name')}: {c.get('state')}" for c in found if c.get("bucket") not in ("pass", "skipping")]
 
 
 def _git(*args: str, cwd: Path | None = None, timeout: float = TIMEOUT, env: dict[str, str] | None = None) -> Result:
@@ -1664,21 +1674,8 @@ def gate_notes(pr: PullRequest) -> list[str]:
 def main_gate(pr: PullRequest) -> tuple[list[str], list[str], str]:
     """(refusals, notes, origin/main's tip at the fetch) for a merge of an open PR into main. Every refusal is
     collected, so a dry run shows the whole verdict."""
-    n = pr.label
-    reasons = []
-    if pr.base != "main":
-        reasons.append(f"{n} targets {pr.base}, not main")
-    if pr.draft:
-        reasons.append(f"{n} is a draft")
     view = gh_json("pr", "view", str(pr.number), "--json", GATE_FIELDS)
-    author = str((view.get("author") or {}).get("login", ""))
-    if author != ENGINEER_LOGIN:
-        reasons.append(f"{n} is not authored by the engineer's account {ENGINEER_LOGIN} (author: {author or '?'}): "
-                       "the designer's PRs keep their own flow")  # fmt: skip
-    user = gh_user()
-    if user != ENGINEER_LOGIN:
-        reasons.append(f"gh runs as {user or '?'}, not the engineer's account {ENGINEER_LOGIN}: only the engineer's "
-                       "sessions merge into main")  # fmt: skip
+    reasons = _who_refusals(pr, view)
     problems = ci_problems(pr.number)
     if problems:
         reasons.append(f"CI is not green on its head: {'; '.join(problems)}")
@@ -1696,15 +1693,52 @@ def main_gate(pr: PullRequest) -> tuple[list[str], list[str], str]:
             f"behind main ({REMOTE}/main {tip[:10]} is not in its head, so CI did not test the tree that would land): "
             "rebase it with publish (pr-rebase for a semantic conflict) and wait for its CI"
         )
+    reasons += _content_refusals(pr, view, tip)
+    return reasons, gate_notes(pr), tip
+
+
+def standing_refusals(pr: PullRequest) -> list[str]:
+    """The gate's refusals that neither a publish nor CI changes (the base, a draft, whose PR and session, the
+    exceptions, "Needs the engineer"): merge-train reads them before it spends a verify on a PR the gate would refuse
+    anyway (#387). The same checks as main_gate, which adds CI, GitHub's mergeable state and the head's place."""
+    view = gh_json("pr", "view", str(pr.number), "--json", GATE_FIELDS)
+    reasons = _who_refusals(pr, view)
+    fetch()
+    ensure_head(pr)
+    tip = _sha(f"refs/remotes/{REMOTE}/main")
+    if not tip:
+        raise Failure(f"{REMOTE}/main not found after the fetch")
+    return reasons + _content_refusals(pr, view, tip)
+
+
+def _who_refusals(pr: PullRequest, view: dict[str, Any]) -> list[str]:
+    n = pr.label
+    reasons = []
+    if pr.base != "main":
+        reasons.append(f"{n} targets {pr.base}, not main")
+    if pr.draft:
+        reasons.append(f"{n} is a draft")
+    author = str((view.get("author") or {}).get("login", ""))
+    if author != ENGINEER_LOGIN:
+        reasons.append(f"{n} is not authored by the engineer's account {ENGINEER_LOGIN} (author: {author or '?'}): "
+                       "the designer's PRs keep their own flow")  # fmt: skip
+    user = gh_user()
+    if user != ENGINEER_LOGIN:
+        reasons.append(f"gh runs as {user or '?'}, not the engineer's account {ENGINEER_LOGIN}: only the engineer's "
+                       "sessions merge into main")  # fmt: skip
+    return reasons
+
+
+def _content_refusals(pr: PullRequest, view: dict[str, Any], tip: str) -> list[str]:
+    """The exceptions in the paths the head changes since its fork from main at tip, and open "Needs the engineer"."""
     designer_approved = any(
         (r.get("author") or {}).get("login") == DESIGNER_LOGIN and r.get("state") == "APPROVED"
         for r in view.get("latestReviews") or []
     )
     body = str(view.get("body") or "")
     fork = _out("merge-base", tip, pr.oid).strip()
-    reasons += exception_reasons(changed_paths(fork, pr.oid), body, pr.head, designer_approved)
-    reasons += [f"\"Needs the engineer\": {p}" for p in open_needs(body)]
-    return reasons, gate_notes(pr), tip
+    reasons = exception_reasons(changed_paths(fork, pr.oid), body, pr.head, designer_approved)
+    return reasons + [f"\"Needs the engineer\": {p}" for p in open_needs(body)]
 
 
 def _merge_on_github(pr: PullRequest) -> tuple[str, bool]:

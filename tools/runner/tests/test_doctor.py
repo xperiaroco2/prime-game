@@ -1,8 +1,9 @@
 """doctor's UDP backlog check (#159): a kernel that drops part of the stall step's backlog is warned about early;
-and its cloud TwoVoIP check (#345)."""
+its cloud TwoVoIP check (#345); and the worktrees' root CLAUDE.md exclude (#385)."""
 
 import contextlib
 import io
+import json
 import re
 import subprocess
 import tempfile
@@ -133,3 +134,191 @@ class CloudTwovoipTest(unittest.TestCase):
             ["git", "ls-files", "--", *doctor.TWOVOIP_FILES], cwd=ROOT, capture_output=True, text=True, check=True
         )
         self.assertEqual(tracked.stdout.split(), list(doctor.TWOVOIP_FILES))
+
+
+class ClaudeMdExcludeTest(unittest.TestCase):
+    """#385 and #406: the full doctor adds the worktrees' root CLAUDE.md and rules excludes to the main checkout's
+    settings.local.json, merged into what is there; the quick one only warns. Every case writes a temporary folder,
+    never the real file."""
+
+    PATTERN = "**/.claude/worktrees/*/CLAUDE.md"
+    RULES = "**/.claude/worktrees/*/.claude/rules/**"
+    BOTH = [PATTERN, RULES]
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name).resolve()
+        self.settings = self.root / ".claude" / "settings.local.json"
+
+    def write(self, text: str, encoding: str = "utf-8") -> None:
+        self.settings.parent.mkdir(parents=True, exist_ok=True)
+        self.settings.write_bytes(text.encode(encoding))
+
+    def test_the_patterns_are_the_ones_probed(self) -> None:
+        self.assertEqual(doctor.CLAUDE_MD_EXCLUDES, (self.PATTERN, self.RULES))
+
+    def test_a_missing_file_is_created_with_the_excludes_only(self) -> None:
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings), doctor.ADDED)
+        expected = '{\n  "claudeMdExcludes": [\n    "' + self.PATTERN + '",\n    "' + self.RULES + '"\n  ]\n}\n'
+        self.assertEqual(self.settings.read_bytes().decode("utf-8"), expected)
+        self.assertEqual([p.name for p in self.settings.parent.iterdir()], ["settings.local.json"])
+
+    def test_it_merges_into_what_the_file_holds(self) -> None:
+        self.write(
+            json.dumps(
+                {
+                    "permissions": {"allow": ["Bash(git fetch *)", "PowerShell(tools\\run.cmd doctor --quick)"]},
+                    "claudeMdExcludes": ["**/vendor/CLAUDE.md"],
+                    "env": {"GODOT_BIN": "C:\\Godot\\Gödot.exe"},
+                },
+                indent=2,
+            )
+        )
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings), doctor.ADDED)
+        data = json.loads(self.settings.read_text(encoding="utf-8"))
+        self.assertEqual(list(data), ["permissions", "claudeMdExcludes", "env"])
+        self.assertEqual(data["claudeMdExcludes"], ["**/vendor/CLAUDE.md", *self.BOTH])
+        self.assertEqual(data["permissions"]["allow"][1], "PowerShell(tools\\run.cmd doctor --quick)")
+        self.assertEqual(data["env"]["GODOT_BIN"], "C:\\Godot\\Gödot.exe")
+        self.assertNotIn(b"\r\n", self.settings.read_bytes())
+
+    def test_present_excludes_leave_the_file_untouched(self) -> None:
+        text = '{"claudeMdExcludes": ["' + self.RULES + '", "' + self.PATTERN + '"], "model": "opus"}'
+        self.write(text)
+        for write in (True, False):
+            self.assertEqual(doctor.add_claude_md_exclude(self.settings, write=write), doctor.PRESENT)
+        self.assertEqual(self.settings.read_bytes().decode("utf-8"), text)
+
+    def test_a_byte_order_mark_is_read(self) -> None:
+        self.write('{"model": "opus"}', encoding="utf-8-sig")
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings), doctor.ADDED)
+        self.assertFalse(self.settings.read_bytes().startswith(b"\xef\xbb\xbf"))
+        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8"))["model"], "opus")
+
+    def test_a_file_with_the_root_exclude_only_gets_the_rules_one(self) -> None:
+        """A main checkout the full doctor already ran in before #406 has only #385's pattern."""
+        text = '{"claudeMdExcludes": ["' + self.PATTERN + '"], "model": "opus"}'
+        self.write(text)
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings, write=False), doctor.MISSING)
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), text)
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings), doctor.ADDED)
+        data = json.loads(self.settings.read_text(encoding="utf-8"))
+        self.assertEqual(data, {"claudeMdExcludes": self.BOTH, "model": "opus"})
+
+    def test_without_write_nothing_is_written(self) -> None:
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings, write=False), doctor.MISSING)
+        self.assertFalse(self.settings.parent.exists())
+        self.write('{"model": "opus"}')
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings, write=False), doctor.MISSING)
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), '{"model": "opus"}')
+
+    def test_a_file_it_cannot_merge_into_is_left_alone(self) -> None:
+        for text in ('{"model": ', "[1, 2]", '{"claudeMdExcludes": "**/x/CLAUDE.md"}'):
+            with self.subTest(text=text):
+                self.write(text)
+                with self.assertRaises(ValueError):
+                    doctor.add_claude_md_exclude(self.settings)
+                self.assertEqual(self.settings.read_text(encoding="utf-8"), text)
+
+    def test_a_failed_replace_leaves_no_temporary_file(self) -> None:
+        text = '{"model": "opus"}'
+        self.write(text)
+        with mock.patch.object(doctor.os, "replace", side_effect=PermissionError("in use")):
+            with self.assertRaises(PermissionError):
+                doctor.add_claude_md_exclude(self.settings)
+        self.assertEqual([p.name for p in self.settings.parent.iterdir()], ["settings.local.json"])
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), text)
+
+    def run_check(
+        self, quick: bool, *, windows: bool = True, ci: bool = False, root: Path | None = None
+    ) -> tuple[int, str]:
+        """claude_md_exclude() with self.root as the main checkout, or from `root` (a real worktree of it)."""
+        buffer = io.StringIO()
+        main = root or self.root
+        with (
+            mock.patch.object(doctor, "ROOT", main),
+            mock.patch.object(doctor, "IS_WINDOWS", windows),
+            mock.patch.object(doctor, "IS_CI", ci),
+            mock.patch.object(doctor.metrics, "main_checkout", return_value=self.root) if root is None
+            else contextlib.nullcontext(),
+            contextlib.redirect_stdout(buffer),
+            contextlib.redirect_stderr(buffer),
+        ):  # fmt: skip
+            doc = doctor.Doctor()
+            doc.claude_md_exclude(quick)
+        return doc.failures, buffer.getvalue()
+
+    def test_the_full_doctor_adds_it_and_says_where(self) -> None:
+        failures, out = self.run_check(quick=False)
+        self.assertEqual(failures, 0)
+        self.assertIn(f"claudeMdExcludes: added {self.PATTERN}, {self.RULES} to {self.settings}", out)
+        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), {"claudeMdExcludes": self.BOTH})
+        failures, out = self.run_check(quick=False)
+        self.assertEqual(failures, 0)
+        self.assertIn(f"claudeMdExcludes has {self.PATTERN}, {self.RULES} ({self.settings})", out)
+
+    def test_the_quick_doctor_only_warns(self) -> None:
+        failures, out = self.run_check(quick=True)
+        self.assertEqual(failures, 0)
+        self.assertIn(f"lacks claudeMdExcludes {self.PATTERN}, {self.RULES}, so", out)
+        self.assertIn("run the full doctor once to add them: tools\\run.cmd doctor", out)
+        self.assertFalse(self.settings.exists())
+
+    def test_the_quick_doctor_names_only_the_missing_pattern(self) -> None:
+        self.write('{"claudeMdExcludes": ["' + self.PATTERN + '"]}')
+        failures, out = self.run_check(quick=True)
+        self.assertEqual(failures, 0)
+        self.assertIn(f"lacks claudeMdExcludes {self.RULES}, so", out)
+        self.assertIn("root CLAUDE.md or a rule twice", out)
+
+    def test_a_broken_file_fails_the_full_doctor_and_warns_the_quick_one(self) -> None:
+        self.write('{"model": ')
+        failures, out = self.run_check(quick=False)
+        self.assertEqual(failures, 1)
+        self.assertIn(f"cannot add claudeMdExcludes to {self.settings}", out)
+        failures, out = self.run_check(quick=True)
+        self.assertEqual(failures, 0)
+        self.assertIn(f"cannot add claudeMdExcludes to {self.settings}", out)
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), '{"model": ')
+
+    def test_ci_and_other_systems_are_left_alone(self) -> None:
+        """Off Windows a session started in a worktree reads the main checkout's settings.local.json (Claude Code's
+        settings docs), so there the exclude would take that session's only root CLAUDE.md."""
+        for kwargs in ({"ci": True}, {"windows": False}):
+            with self.subTest(**kwargs):
+                failures, out = self.run_check(quick=False, **kwargs)
+                self.assertEqual(failures, 0)
+                self.assertIn("skip  claudeMdExcludes", out)
+                self.assertFalse(self.settings.exists())
+
+    def test_from_a_worktree_it_writes_the_main_checkouts_file(self) -> None:
+        git = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+        subprocess.run([*git, "init", "-q"], cwd=self.root, check=True)
+        subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "x"], cwd=self.root, check=True)
+        worktree = self.root / ".claude" / "worktrees" / "7"
+        subprocess.run([*git, "worktree", "add", "-q", str(worktree)], cwd=self.root, check=True)
+        failures, _out = self.run_check(quick=False, root=worktree)
+        self.assertEqual(failures, 0)
+        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), {"claudeMdExcludes": self.BOTH})
+        self.assertFalse((worktree / ".claude" / "settings.local.json").exists())
+
+    def test_a_worktree_named_as_the_main_checkout_is_never_written(self) -> None:
+        """main_checkout falls back to the checkout itself when git fails: from a worktree that is the worktree's own
+        settings.local.json, the one a session started there reads on Windows."""
+        worktree = self.root / ".claude" / "Worktrees" / "7"
+        own = worktree / ".claude" / "settings.local.json"
+        with mock.patch.object(doctor.metrics, "main_checkout", return_value=worktree):
+            failures, out = self.run_check(quick=False, root=worktree)
+            self.assertEqual(failures, 1)
+            self.assertIn(f"cannot find the main checkout from {worktree}", out)
+            failures, out = self.run_check(quick=True, root=worktree)
+            self.assertEqual(failures, 0)
+            self.assertIn("Run the full doctor from the main checkout: tools\\run.cmd doctor", out)
+        self.assertFalse(own.exists())
+        self.assertFalse(self.settings.exists())
+
+    def test_in_worktrees_folder(self) -> None:
+        self.assertTrue(doctor.in_worktrees_folder(Path("D:/prime-game/.claude/worktrees/385")))
+        self.assertFalse(doctor.in_worktrees_folder(Path("D:/prime-game")))
+        self.assertFalse(doctor.in_worktrees_folder(Path("D:/prime-game/worktrees/.claude")))

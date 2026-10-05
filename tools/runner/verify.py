@@ -193,6 +193,7 @@ def steps() -> dict[str, Callable[[], int]]:
         "doctor": lambda: doctor.main(quick=True),
         "lint": lambda: lint.main(),
         "check": lambda: check.main(),
+        # As `test` with no paths: gdunit.FIXED_FPS_SUITES at fixed fps in shards of their own, the rest real-time
         "test": lambda: gdunit.main(run_import=False),
         "enet": enet,
         "freeze": freeze,

@@ -29,6 +29,7 @@ var reads_device_input := true
 var listening := true
 
 var _target := -1
+## The reach the hint offers within (TargetChoice.hint_reach_of): the host's, less a margin.
 var _reach_m := 0.0
 ## Whether the mouse was captured at the last _process: the click that captures it (the
 ## controller's _unhandled_input) still reads as just pressed, and must not use the item.
@@ -43,11 +44,11 @@ func setup(client: ClientSession, game_mode: GameMode) -> void:
 	session = client
 	model = client.model if client != null else null
 	mode = game_mode
-	_reach_m = TargetChoice.reach_of(mode) if mode != null else 0.0
+	_reach_m = TargetChoice.hint_reach_of(mode) if mode != null else 0.0
 
 
-## The item the crosshair is on, in reach as the host measures it, or -1 (cast in the last physics
-## step).
+## The item the crosshair is on, within the hint's reach from the feet (the host's, less
+## TargetChoice's margin), or -1 (cast in the last physics step).
 func target() -> int:
 	return _target
 

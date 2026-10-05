@@ -140,8 +140,8 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 
-**Pipeline v2 args** (AGENT_WORKFLOW §7.1), all off by default; the agents each adds count toward the number per
-workflow the kickoff approved:
+**Pipeline v2 args** (AGENT_WORKFLOW §7.1), all off by default but `bounded_waits`; the agents each adds count
+toward the number per workflow the kickoff approved:
 
 | arg | when | adds (tool calls each) |
 |---|---|---|
@@ -150,7 +150,7 @@ workflow the kickoff approved:
 | `second_review: true` | PRs that touch `core/ server/ net/ tests/harness/`, where the kickoff asks for it; with `models.second_review` where it allows a model beyond the shared list there | 1 (60) where the netcode review is routed |
 | `skeptic: <n>` or `true` | design tasks and audits (publishers judged only 8 of 441 findings wrong) | 1 per blocker or major checked (30) |
 | `visual: true`, a scenario or a list | `client/` UI and camera tasks, once `playcheck` (#186) is on the base; the notes name the scenarios | 0 |
-| `bounded_waits: true` | every `issue-task` and `pr-rebase` launch (no tool call of theirs blocks over 240 s, so their 5-minute cache stays warm), once `wait` (#303) is on the task's base (`git show origin/<base>:tools/runner/wait.py`) | 0 |
+| `bounded_waits` | the default since #411 (no tool call of `issue-task` or `pr-rebase` blocks over 240 s, so their 5-minute cache stays warm; on a base without `wait`, #303, the agents wait in the foreground): pass nothing; `false` only to resume a run launched before #411 without the arg | 0 |
 | `efforts: {role: level}` | try `{godot: "medium"}` and compare its majors with `metrics` | 0 |
 | `models: {role: model}` | only where the kickoff allows a model beyond the shared list: `implement` of a stage design or of a task red twice (§4), `second_review`; and, for the #308 trial only, `publish_clean: "sonnet"` on every non-design `issue-task` launch of the one wave the kickoff names (not `pr-rebase`: it has no publisher and rejects the role; none after the wave until the engineer keeps it) | 0 |
 | `lean: true` | `issue-task` and `pr-rebase`: the 3-4 A/B tasks the kickoff names (#332, results on #302), until the engineer turns it on by default; only once `.claude/agents/task-implementer.md` and `task-publisher.md` are in your checkout (the first run's `agent-*.meta.json` shows `agentType` `task-implementer`); not for a task whose agents need a skill through the Skill tool (editing `.claude/workflows/` used `workflow-authoring`) | 0 |
@@ -180,29 +180,29 @@ once it lands"); repeat rules that force fixture updates in every later PR (neut
 in the data); name a task's merge order relative to the other open PRs; name every rename in both tasks' notes (§9).
 
 ## 4. On each completion
-Read the result (`pub.pr_url`, `ci_green`, `needs_engineer`, `human_steps`, `not_fixed`; with v2 args also `plan`
-(the plan and its critique, summarized in the PR), `test_review` (the mutants, or why it was skipped or missing),
-`skeptic` (`refuted`, `stood`, `unchecked`), `visual` (the PNGs: the engineer drags them into the PR) and
-`publish_clean` (`applied`, `why`, `open`, `model`, `effort`)). Merge it
-into its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and
-in which order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a
-concrete scenario of what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End
-every message to the human with one short "For you:" block in their language, numbered, listing only what needs them
-now (a merge the gate refused, a decision, a command), or "nothing"; the rest goes into the wave comment. Copy
-every command of `human_steps` into the chat itself, never only a pointer ("the command is in PR #235's body"): fetch
-a command a step only points to, then one fenced PowerShell block per command, starting with `cd` to its absolute
-folder, run or previewed by you first (root `CLAUDE.md`, "Talking to the humans"). The PR and the wave comment may
-carry it too. Each `human_steps` item (also `reb.human_steps` and `fix.human_steps` of a `pr-rebase` run) is
-`{why, command}`: `command` is that one PowerShell line, which you check starts with `cd <absolute folder>;` and
-copy as is under its `why`; an empty `command` is a click or a decision you tell in plain words; a plain string (a
-run launched before #266) you handle as above. Then fill the free slot.
+Read the compact result (#386): `pr_url`, `published`, `ci_green`, `stopped`, `needs_engineer` and `human_steps` in
+full, `not_fixed` and `merge_notes` cut to a line, `fixed` and `reviews` as counts (findings by severity); with v2
+args also `plan`, `test_review` (mutants by result, or why skipped or missing), `skeptic` (counts), `visual` (PNGs the
+engineer drags into the PR) and `publish_clean`. The whole texts are in the run's `journal.jsonl` (`full` says where;
+a `result` line has the `key` of its agent's `started` line): read it only when a field you act on points there.
+`handoff_posted` or `board_in_review` false: post the handoff or `board move <n> in-review` yourself. Merge it into
+its base when the gate in §5 holds (on the tooling track into `main`), and tell the human what you merged and in which
+order, one line per merge into `main`; explain each "Needs the engineer" item in plain words: a concrete scenario of
+what goes wrong, the options, your recommendation, numbered so they can answer "1A, 2B". End every message to the
+human with one short "For you:" block in their language, numbered, listing only what needs them now (a merge the gate
+refused, a decision, a command), or "nothing"; the rest goes into the wave comment. Copy every `human_steps` command
+into the chat itself, never only a pointer ("it is in PR #235's body"; fetch what a step only points to): one fenced
+PowerShell block each, run or previewed by you first (root `CLAUDE.md`, "Talking to the humans"); the PR and the wave
+comment may carry it too. Each item is `{why, command}`: `command` is one PowerShell line, which you check starts with
+`cd <absolute folder>;` and copy as is under its `why`; an empty `command` is a click or a decision you tell in plain
+words; a plain string (a run before #266) likewise. Then fill the free slot.
 <!-- see docs/interventions/2026-10-03-engineer-commands-in-the-chat.md -->
 
 When something failed (never resume a run whose result has `stopped`: a resume replays the stop):
-- `stopped` (the implementer ended red) or `pub.published` false: say so on the plan issue and in chat, then launch
-  `issue-task` once more as a **fresh** run with the failure added to `notes`; the implementer continues from the
-  worktree's commits. Red again: stop that task and ask the human; where the kickoff allows a model beyond the shared
-  list for a task red twice, offer a third launch with `models.implement` (§3).
+- `stopped` (the implementer ended red) or `published` false: say so on the plan issue and in chat, then launch
+  `issue-task` once more as a **fresh** run with the failure added to `notes` (its issue comment or the journal); the
+  implementer continues from the worktree's commits. Red again: stop that task and ask the human; where the kickoff
+  allows a model beyond the shared list for a task red twice, offer a third launch with `models.implement` (§3).
 - `stopped` after `tools\run.cmd mutants` exited 2 (a scratch worktree could not be removed, or the task's
   `git status` changed during the run): nothing was published. Read the stop comment on the issue. Only when it
   names a leftover worktree under the task worktree's `tools/out/mutants/`, ask the engineer to remove it (a delete
@@ -223,7 +223,7 @@ metrics`, against comparable earlier clean runs with Opus publishers. The engine
 that changes shared design. An answer with two readings that build different things is read back in one sentence
 (AskUserQuestion) before it is recorded; if the human dismisses the question and explains, read back again. An
 answer that changes a published PR: a trivial one inline in its worktree, in a subshell (§9), then
-`publish --base release/m<k>`; otherwise `issue-task`
+`publish --base release/m<k>` in the background with `wait <log>`; otherwise `issue-task`
 again for that issue with the answers in `notes` (its agents find the branch and the PR and continue).
 
 ## 5. Merges and rebases
@@ -274,33 +274,33 @@ taken in a `main` that has them.
 - Never touch a worktree whose workflow is still running, yours or another session's (§2.2).
 - A docs or test-list conflict: resolve inline in that task's worktree, each command in a subshell
   (`(cd <worktree> && git fetch origin && git rebase origin/release/m<k>)`, keep both sides, `verify`, then
-  `(cd <worktree> && tools/run.sh publish --base release/m<k>)`), then a PR comment listing the conflicts. The
-  guard lets a rebase through without a prompt when the command enters the worktree with `cd` (or `git -C`) and it
-  is on its task branch (AGENT_WORKFLOW §8.2, #51); while another live session works in that worktree it asks, so
-  hand such a case to `pr-rebase` when the human is away.
+  `(cd <worktree> && tools/run.sh publish --base release/m<k>)`, both in the background with `wait <log>`), then a
+  PR comment listing the conflicts. The guard lets a rebase through without a prompt when the command enters the
+  worktree with `cd` (or `git -C`) and it is on its task branch (AGENT_WORKFLOW §8.2, #51); while another live
+  session works in that worktree it asks, so hand such a case to `pr-rebase` when the human is away.
 - A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
   with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
   `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models` and `lean` (roles rebase, review, netcode, second_review,
   skeptic, fix; the rules of §3): rebase agent → fresh reviewer(s) → a fix agent only for a blocker or major; 2 to 4
   agents, plus 1 for `second_review` and 1 per skeptic. `why` names what merged and the PRs and handoffs to read;
   `steps` says which side's files and payloads to keep. A result with `stopped` (rebase red or unpublished) gets one
-  fresh relaunch with `reb.problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every
-  blocker and major, so no fix agent ran): add `skeptic.refuted`, each with its reason, to the PR body (`gh pr view <pr>
+  fresh relaunch with its `problems` in `steps`, then goes to the human. A result with `note` (skeptics refuted every
+  blocker and major, so no fix agent ran): add its `refuted`, each with its reason, to the PR body (`gh pr view <pr>
   --json body -q .body` into a file under `<scratchpad>/manager/`, append, `gh pr edit <pr> --body-file <file>`). A fix
   agent that changed netcode-relevant code gets a fresh `netcode-security-reviewer` before the merge (§9).
 - **Into `main`** (the tooling track, #170, and a milestone's closing PR): `tools\run.cmd merge-check --base main`,
-  then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without `--dry-run`. The gate (AGENT_WORKFLOW
-  §7.1 "Into `main`") refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or
-  session, a head behind `main` (send it to `publish` in its worktree, or `pr-rebase` when its `gate: note:` lines
-  name an overlap, then wait for CI), the exceptions (the designer's area without the relay phrase or the designer's
-  approval; `.claude/settings*.json`, `.claude/githooks/`, the guard; an ADR without "Approved by the engineer:
-  <link>"), an unanswered "Needs the engineer" item. An exception goes into your "For you:" block for the engineer
-  to merge; the rest you fix and run again. Merge one PR at a time: each merge leaves the other open PRs behind
-  `main`. After each, one chat line ("merged #N into main as <sha>"), the `wave:` line in the wave comment, and,
-  when a running milestone needs the change, a note on its plan issue (its manager runs `merge --sync-main`). If
-  `main` breaks after your merge: a revert PR (`git revert -m 1 <merge>` on a task branch), merged through the same
-  gate, and tell the engineer. "стоп мерджі": no more merges into `main` until the engineer lifts it; record the stop
-  on your plan issue and on #170.
+  then `tools\run.cmd merge <pr> --base main --dry-run` (seconds), then without it. The gate (AGENT_WORKFLOW §7.1)
+  refuses with every reason: a red, pending or missing CI, a draft, not the engineer's PR or session, a head behind
+  `main` (a background `publish` with `wait <log>` in its worktree, or `pr-rebase` when its `gate: note:` lines name an
+  overlap, then CI), the exceptions (the designer's area without the relay phrase or approval; `.claude/settings*.json`,
+  `.claude/githooks/`, the guard; an ADR without "Approved by the engineer: <link>"), an open "Needs the engineer" item.
+  An exception goes into your "For you:" block; the rest you fix and run again. Each merge leaves the other PRs behind
+  `main`: two or more go through `tools\run.cmd merge-train <pr>... --base main` (#387; `--dry-run` first, then in the
+  background, `wait` on its log): per PR in order, publish in its worktree (a red verify retried once), CI, the gate; a
+  PR that fails is skipped with the reason and the train goes on. After each merge: one chat line ("merged #N into main
+  as <sha>"), the `wave:` line in the wave comment, a note on a running milestone's plan issue that needs it (`merge
+  --sync-main`). `main` broken by your merge: a revert PR (`git revert -m 1 <merge>`) through the same gate; tell the
+  engineer. "стоп мерджі": no merges into `main` until the engineer lifts it; record it on your plan issue and #170.
 - **The stage's end.** When every task is merged, open the PR from `release/m<k>` into `main` (`gh pr create --base
   main --head release/m<k>`; M3: #117): a table of the task PRs with their merge commits, every open "Needs the
   engineer" and "Needs the designer" item, and the issues to close after the merge (`Closes` does not fire from the
@@ -376,9 +376,9 @@ taken in a `main` that has them.
   (#278; before it, your notes above its body): the order from here, the open questions, every `human_steps` command
   still due, the stage's start and `wave`'s handover data (since the session start: every failed run not relaunched,
   not only this wave's). Your "For you:" is the human's single step: paste the §10 kickoff with its "Continue from"
-  line into a new session in `D:\prime-game`. Then a PushNotification; stop with no timer and launch nothing more. The
-  successor takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is no live run) and
-  the stage's yes as given: it restates the order and goes on without waiting (§1's wait does not apply).
+  and `Track:` lines into a new session in `D:\prime-game`. Then a PushNotification; stop with no timer and launch
+  nothing more. The successor takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is
+  no live run) and the stage's yes as given: it restates the order and goes on at once (§1's wait does not apply).
 - **The keep-alive and the handover together**, decided in this order at the end of each turn and on each wake:
   (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes none: the run's end still
   wakes you). (2) No run in flight and a handover due: hand over and arm nothing (a fresh session costs less than a
@@ -483,8 +483,8 @@ taken in a `main` that has them.
   each manager session's re-writes by what held when the gap began: with a timer armed it should be 0.
 
 ## 10. Kickoff template
-The human copies it, fills the placeholders and sends it, in English or in their own language. Moving state (which
-issues, which PRs) goes only in the message, never in this file.
+The human copies it, fills the placeholders and sends it, in English or in their own language; the `Track:` line stays
+English (`metrics --track` reads it). Moving state (which issues, which PRs) goes only in the message, never here.
 
 ```text
 ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
@@ -496,7 +496,7 @@ order.>
 
 <After a handover (§7): Continue from the handover comment <link>; the previous manager session launches nothing
 more, and my yes to the stage's restatement stands: restate the order from there and go on.>
-Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
+Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
 with tools\run.cmd merge after green CI, fresh reviews with no open blocker or major, merge-check and verify on the
