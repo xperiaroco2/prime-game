@@ -161,11 +161,27 @@ class RmtreeTest(unittest.TestCase):
 
     def test_every_other_error_stays_loud(self) -> None:
         # A file that stays: a refused delete, and a "not found" for a path that is still there.
-        for error in (PermissionError(13, "Access is denied"), FileNotFoundError(2, "No such file or directory")):
-            with self.subTest(error=type(error).__name__):
-                with mock.patch.object(os, "unlink", side_effect=error), self.assertRaises(OSError):
+        with self.subTest(error="PermissionError"):
+            with mock.patch.object(os, "unlink", side_effect=PermissionError(13, "Access is denied")):
+                with self.assertRaises(OSError):
                     _rmtree(str(self.tmp / "remote.git"))
-                self.assertTrue((self.objects / "a6" / "obj").exists())
+            self.assertTrue((self.objects / "a6" / "obj").exists())
+        with self.subTest(error="FileNotFoundError"):
+            # The walk's own delete is refused, so the retry runs; its delete then says "not found" for a file that
+            # is still there. Python 3.13+ rmtree ignores a "not found" in its walk, so only the retry reaches it.
+            calls: list[str] = []
+
+            def refused_then_not_found(target, *args, **kwargs):  # type: ignore[no-untyped-def]
+                calls.append(str(target))
+                if len(calls) == 1:
+                    raise PermissionError(13, "Access is denied", str(target))
+                raise FileNotFoundError(2, "No such file or directory", str(target))
+
+            with mock.patch.object(os, "unlink", refused_then_not_found):
+                with self.assertRaises(FileNotFoundError):
+                    _rmtree(str(self.tmp / "remote.git"))
+            self.assertEqual(len(calls), 2, calls)  # the walk's delete and the retry's, then the error stops it
+            self.assertTrue((self.objects / "a6" / "obj").exists())
 
 
 if __name__ == "__main__":
