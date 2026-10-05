@@ -15,7 +15,7 @@ var _had_code := false
 
 
 ## A room for `mode` through `service` (a URL, or LaunchOptions.LAN_SIGNAL served on `port` and
-## `bind`, handing out `lan_code` when given), on the game's `kinds`.
+## `bind`, 0 for any free one, handing out `lan_code` when given), on the game's `kinds`.
 static func open(
 	kinds: NetKindTable, mode: GameMode, service: String, port: int, bind: String, lan_code := ""
 ) -> CodeRoom:
@@ -35,7 +35,7 @@ static func open(
 		room.problem = "the signalling could not listen on TCP port %d" % port
 		return room
 	room.lan = served
-	room.transport.signal_url = "ws://%s:%d" % [LaunchOptions.LOCALHOST, port]
+	room.transport.signal_url = "ws://%s:%d" % [LaunchOptions.LOCALHOST, served.port()]
 	# A --local host: everyone is on this machine, so host candidates on 127.0.0.1 only.
 	room.transport.local_candidates = bind == LaunchOptions.LOCALHOST
 	return room

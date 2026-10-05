@@ -296,6 +296,11 @@ func client() -> ClientSession:
 	return _client
 
 
+## The host's room with a code; null without one.
+func room() -> CodeRoom:
+	return _room
+
+
 func hosting() -> bool:
 	return _host != null
 
