@@ -284,6 +284,17 @@ func test_a_round_snapshot_that_arrives_after_end_to_lobby_is_not_drawn() -> voi
 	)
 
 
+func test_a_replaced_model_no_longer_reads_this_views_host_tick() -> void:
+	var old := _model
+	assert_bool(old.host_tick_now.is_valid()).is_true()
+	var other := ClientModel.new(FixtureBaseMode.mode())
+	_views.model = other
+	assert_bool(old.host_tick_now.is_valid()).is_false()
+	assert_bool(other.host_tick_now == _views.host_tick).is_true()
+	_views.model = null
+	assert_bool(other.host_tick_now.is_valid()).is_false()
+
+
 ## Waits until AvatarViews has run once more (physics_frame comes before the nodes' step).
 func _drawn() -> void:
 	await get_tree().physics_frame

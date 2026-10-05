@@ -20,9 +20,12 @@ extends Node3D
 const PHYSICS_PRIORITY := -80
 const BODY := preload("res://client/player/remote_player_body.tscn")
 
-## Setting it hands it host_tick(), the floor of its snapshots at a cleared match (#251).
+## Setting it hands it host_tick(), the floor of its snapshots at a cleared match (#251); the model
+## it replaces gives it back.
 var model: ClientModel:
 	set(value):
+		if model != null and model.host_tick_now == host_tick:
+			model.host_tick_now = Callable()
 		model = value
 		if model != null:
 			model.host_tick_now = host_tick
