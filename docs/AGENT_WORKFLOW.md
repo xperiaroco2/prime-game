@@ -141,6 +141,13 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   only where nothing else always loaded says it (`bots` is the information-leak test). The runner test
   `tools/runner/tests/test_cli_help.py` fails a name missing on either side, a command without a description, or a
   fact of an old row gone from its `--help`.
+- **Docs by section [applied]** (the instruction-diet ADR's N1 (a), #325; #338): `tools\run.cmd section <doc>` prints a
+  doc's outline (§, title, line range, tokens), `section <doc> <§>...` exactly those sections. § numbers stay stable: a
+  section is never renumbered or moved, since code comments and issues name them. `lint` fails a duplicate § in a doc, a
+  heading without a § under a numbered one in ARCHITECTURE or AGENT_WORKFLOW (a new heading takes the next free number
+  under its parent), and a § reference to those two that resolves to no heading; the doc a § belongs to is the one named
+  with it (scope rules: `tools/runner/refs.py`), and a § with no doc in scope is only counted (`section --refs` lists
+  those).
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
@@ -1037,7 +1044,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   writes the command log that replays it (`ReplayFiles.read`, then `Match.replay`) to `tools/out/bots/<scenario>/`,
   next to each bot's view file `bot-<i>.bin`; every run starts with that folder empty. Over ENet a scenario step that
   needs two events in one poll (an `Expect` with `within_s` 0 after a `WaitFor`) is timing-dependent
-  (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself (§4.6).
+  (`dropped_at_the_loading_deadline` failed once in four runs); a failure there is not a leak by itself
+  (ARCHITECTURE §4.6).
   `bots --chaos [--seed N] [--runs K] [--long] [--enet]` (#188; `docs/ARCHITECTURE.md` §4.6 "Chaos bots") runs the
   chaos bots instead: `tests/harness/chaos/chaos_main.gd`, a hostile player and a malformed peer against the host
   beside honest bots, for K seeds from N (without `--seed` a random one, printed first, so a failed night run names
@@ -1243,11 +1251,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `tools\run.cmd` (immune to the execution policy) and `tools/run.sh`. Commands so far: `doctor`, `lint`, `check`,
   `test`, `verify`, `wait` (below), `selftest`, `pins`, `board`, `start`, `worktree-done`, `publish`, `merge-check`,
   `merge` (§7.1), `normalize`, `shot`, `run`, `agents-check`, `credits`, `host`, `join`, `bots`, `wave`, `metrics`,
-  `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), and `hook` (for Claude Code only).
-  Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins
-  and pass/fail rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL
-  launcher, not Git Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's
-  PowerShell) the runner takes the machine paths from the Claude settings (§2).
+  `mutants`, `playcheck`, `perf` (the last eight above), `permissions` (§8.1), `section` (§3), and `hook` (for Claude
+  Code only). Each one's `--help` says what it does (root `CLAUDE.md` lists only the names, §3). Pins and pass/fail
+  rules: [ADR](decisions/2026-09-28-toolchain-pins.md). On this machine `bash` on PATH is the WSL launcher, not Git
+  Bash; `doctor` finds Git Bash through git's install folder. Outside a Claude Code session (a human's PowerShell) the
+  runner takes the machine paths from the Claude settings (§2).
 - **CI [applied]:** `.github/workflows/ci.yml`, job `verify` on ubuntu-24.04, runs `tools/run.sh verify` on every PR
   (whatever its base, `release/m<k>` included) and on pushes to `main`, with the checksum-checked Godot build from the
   pins. The game targets Windows for now; CI stays on GitHub's free Linux runner as an extra check, and a problem

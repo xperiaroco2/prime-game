@@ -369,6 +369,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
     _view_options(p)
 
+    p = sub.add_parser(
+        "section",
+        help="a doc's outline (§, title, lines, tokens) or exactly the sections named; --refs: § references",
+        description="Print a doc's outline (§, title, line range, token estimate) or exactly the sections named, "
+        "each up to the next heading of the same or a higher level. A doc is a path, ARCHITECTURE, AGENT_WORKFLOW "
+        "or part of an ADR's file name. Read a long doc by section instead of whole. lint fails a duplicate § and a "
+        "§ reference that does not resolve; --refs runs that check and lists each reference with no doc in scope.",
+    )
+    p.add_argument("doc", nargs="?", help="a path, ARCHITECTURE, AGENT_WORKFLOW, or part of an ADR's file name")
+    p.add_argument("sections", nargs="*", help="§ numbers (4.5 or §4.5) or, for unnumbered headings, title words")
+    p.add_argument("--refs", action="store_true", help="lint's § check, listing each reference with no doc in scope")
+
     sub.add_parser(
         "credits",
         help="write CREDITS.md from docs/credits/ (check verifies it and LFS coverage)",
@@ -636,6 +648,13 @@ def main(argv: list[str] | None = None) -> int:
             return hostjoin.join(
                 args.address, port=args.port, seconds=args.seconds, headless=args.headless, windows=args.windows
             )
+        if args.command == "section":
+            from . import refs, section
+
+            if args.refs == bool(args.doc):
+                print("section: give a doc (and sections), or --refs alone", flush=True)
+                return 2
+            return refs.main() if args.refs else section.main(args.doc, args.sections)
         if args.command == "credits":
             from . import credits
 
