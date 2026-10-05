@@ -1332,6 +1332,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   background command, which therefore never kills a `load`. The agent starts it in the background (a log under its
   scratch folder), runs its own steps after the log's `load: running` line, and lets it end or waits for it with
   `wait <log>`.
+  **`slots` (#416):** `--status` shows holders, waiters and the last hour's runs without a slot (launch nothing while
+  one waits); `--quiet <hours>` (at most 24; `off`) leaves new verify and load runs one slot machine-wide (`quiet`).
   Tests: `tools/runner/tests/test_slots.py`, `tools/runner/tests/test_load.py`.
   The record's `slot` is {`slot`, `of`, `waited`, `over`, `reclaimed`} (and `error` when the slot folder failed: the run
   then goes ahead without a slot, a slot never stops the gate), its `seconds` leave the wait out, and the summary's last
