@@ -377,8 +377,9 @@ class WorkflowTest(unittest.TestCase):
 
     def test_every_agent_call_matches_its_snapshot(self) -> None:
         # Compatibility first: another manager's launch or resume with today's args must get today's agents (every
-        # case but publish-clean-main passes no v2 arg). Each case runs twice: as launched (`<case>.txt`, bounded
-        # waits on by default since #411) and with bounded_waits false (`unbounded/<case>.txt`, the text before #411).
+        # case but publish-clean-main passes no v2 arg besides the bounded_waits false of its unbounded/ run). Each
+        # case runs twice: as launched (`<case>.txt`, bounded waits on by default since #411) and with bounded_waits
+        # false (`unbounded/<case>.txt`, the text before #411).
         jobs, files = [], []
         for name, cases in SNAPSHOT_CASES.items():
             for case, args, stub in cases:
