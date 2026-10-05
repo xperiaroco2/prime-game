@@ -23,7 +23,9 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
     role <player> <id>      ForceRole, sent by window 1 once every player is in its roster (debug builds, E17)
     setting <id> <int>      ChangeSettings, sent by window 1 then
     clock <seconds>         ForceClock (the match clock's length), sent by window 1 then
-    timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT)
+    timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT); with bots, window 1's setup, and in
+                            every other window the first wait after its first `press ready`, waits
+                            BOTS_START_SECONDS longer, for their process to start
 Then a section per window, `window <n>`, and its steps, run in order:
     wait phase <id>                      its model's phase (lobby, countdown, loading, round, end)
     wait screen <screen>                 the screen it shows (SCREENS)
@@ -110,6 +112,10 @@ MAX_SECONDS = 1800
 # only when Windows lifts a starved thread, about every 4 s: windows that printed `session: stopped` at once took up
 # to 9.5 s to exit beside 32 busy loops on 16 cores, and #318 saw over 10 s (#354).
 WINDOW_GRACE_SECONDS = 30
+# What window 1's setup wait adds to the scenario's timeout when bots play: their headless process starts only once
+# window 1 hosts, and beside 32 busy loops on 16 cores it joined so late that 5 of #354's runs failed the setup after
+# 30 s with 2 of 3 players (#406). As long as hostjoin gives a host's process to start listening.
+BOTS_START_SECONDS = hostjoin.HOST_READY_SECONDS
 SIZE = "1280x720"
 NAME_RE = re.compile(r"[a-z0-9_]+")
 ID_RE = re.compile(r"[a-z_][a-z0-9_]*")
@@ -411,13 +417,23 @@ class _Parser:
         for number, line in self.sections.items():
             if number > s.windows:
                 raise self.fail(f"window {number}: the scenario has {s.windows}", line)
+        has_setup = bool(s.roles or s.settings or s.clock)
         for number, steps in s.steps.items():
             held: dict[str, int] = {}
             # The line of the `aim item` in force; 0 while the window aims at nothing.
             aiming = 0
+            # With bots, a window without the setup (which waits for every player) gives its first wait after its
+            # first `press ready` the bots' start time too: the round needs the bots in and ready (#406).
+            late_bots = bool(s.bots) and not (number == 1 and has_setup)
+            after_ready = False
             for step in steps:
                 if step.args.get("timeout_s") is None and step.do == "wait":
                     step.args["timeout_s"] = s.timeout
+                if late_bots and after_ready and step.do == "wait":
+                    step.args["timeout_s"] = float(step.args["timeout_s"]) + BOTS_START_SECONDS
+                    late_bots = False
+                if step.do == "press" and step.args.get("action") == "ready":
+                    after_ready = True
                 if step.do == "aim" and step.args["kind"]:
                     if aiming:
                         raise self.fail(f"window {number} aims again before `aim off` (line {aiming})", step.line)
@@ -444,9 +460,9 @@ class _Parser:
         repeated = sorted({name for name in names if names.count(name) > 1})
         if repeated:
             raise self.fail(f"shot names must be unique: {', '.join(repeated)}", 1)
-        if s.roles or s.settings or s.clock:
+        if has_setup:
             setup = {"roles": {str(k): v for k, v in s.roles.items()}, "settings": s.settings, "clock": s.clock}
-            setup.update(players=s.players, timeout_s=s.timeout)
+            setup.update(players=s.players, timeout_s=s.timeout + (BOTS_START_SECONDS if s.bots else 0))
             text = "setup (ForceRole, ForceClock, ChangeSettings)"
             s.steps.setdefault(1, []).insert(0, Step(0, text, "setup", setup))
         return s

@@ -84,7 +84,7 @@ class ParserTest(unittest.TestCase):
                 "settings": {"match_duration": 5},
                 "clock": 120,
                 "players": 3,
-                "timeout_s": 20.0,
+                "timeout_s": 20.0 + playcheck.BOTS_START_SECONDS,
             },
         )
         self.assertEqual(
@@ -106,6 +106,48 @@ class ParserTest(unittest.TestCase):
         self.assertEqual([step["do"] for step in second], ["wait", "wait", "hold", "wait", "release", "shot"])
         self.assertEqual((second[0]["value"], second[1]["value"]), (False, True))
         json.dumps(plan)  # the windows read it as JSON
+
+    def test_the_setup_wait_adds_the_bots_start_time(self) -> None:
+        """The bots' headless process starts once window 1 hosts, and under load it took more than the scenario's
+        timeout to join, so window 1's setup failed with 2 of 3 players (#354, #406)."""
+        steps = "timeout 25\nrole 1 dissident\nwindow 1\nshot a"
+        with_bots = scenario(with_header(steps, f"players 3\nwindows 2\nbots {BOTS}"))
+        self.assertEqual(with_bots.steps[1][0].do, "setup")
+        self.assertEqual(with_bots.steps[1][0].args["timeout_s"], 25.0 + playcheck.BOTS_START_SECONDS)
+        self.assertEqual(playcheck.BOTS_START_SECONDS, hostjoin.HOST_READY_SECONDS)
+        windows_only = scenario(with_header(steps))
+        self.assertEqual(windows_only.steps[1][0].do, "setup")
+        self.assertEqual(windows_only.steps[1][0].args["timeout_s"], 25.0)
+        # A wait keeps the scenario's timeout: only the setup waits for the bots' process to start.
+        waits = scenario(with_header(steps + "\nwait phase lobby", f"players 3\nwindows 2\nbots {BOTS}"))
+        self.assertEqual((waits.steps[1][2].do, waits.steps[1][2].args["timeout_s"]), ("wait", 25.0))
+
+    def test_a_window_without_the_setup_gives_its_first_wait_after_ready_the_bots_start_time(self) -> None:
+        """Window 2 waits for the round from its own welcome, and the round needs the late bots in and ready too
+        (#406's review): its first wait after `press ready` gets the bots' start time, its other waits do not."""
+        steps = (
+            "timeout 25\nrole 3 dissident\nwindow 1\nwait phase lobby\npress ready\nwait screen round timeout=60\n"
+            "window 2\nwait phase lobby\npress ready\nwait screen round timeout=60\nwait life downed\nshot a"
+        )
+        with_bots = scenario(with_header(steps, f"players 3\nwindows 2\nbots {BOTS}"))
+        first, second = with_bots.steps[1], with_bots.steps[2]
+        self.assertEqual(first[0].do, "setup")
+        # Window 1's setup already waited for every player, so its own round wait keeps its timeout.
+        self.assertEqual([step.args["timeout_s"] for step in first[1:] if step.do == "wait"], [25.0, 60.0])
+        self.assertEqual(
+            [step.args["timeout_s"] for step in second if step.do == "wait"],
+            [25.0, 60.0 + playcheck.BOTS_START_SECONDS, 25.0],
+        )
+        # Without the setup, window 1 waits for the bots the same way.
+        no_setup = scenario(with_header(steps.replace("role 3 dissident\n", ""), f"players 3\nwindows 2\nbots {BOTS}"))
+        self.assertEqual(
+            [step.args["timeout_s"] for step in no_setup.steps[1] if step.do == "wait"],
+            [25.0, 60.0 + playcheck.BOTS_START_SECONDS],
+        )
+        windows_only = scenario(with_header(steps.replace("role 3 dissident\n", "")))
+        self.assertEqual(
+            [step.args["timeout_s"] for step in windows_only.steps[2] if step.do == "wait"], [25.0, 60.0, 25.0]
+        )
 
     def test_without_roles_settings_or_clock_there_is_no_setup_step(self) -> None:
         s = scenario(with_header("window 1\nshot a\nwindow 2\nwait phase lobby"))

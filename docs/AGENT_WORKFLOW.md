@@ -31,7 +31,7 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | Shell | PowerShell 5.1 is the agent's primary shell. No `&&`/`||`: chain with `; if ($LASTEXITCODE -eq 0) { … }`. Structured arguments go in files, not inline JSON | [M0] root `CLAUDE.md` |
 | Machine paths | `GODOT_BIN`, `GODOT_GUI_BIN`, `PYTHON_BIN`, `GDTOOLKIT_DIR` in the `env` of each human's `~/.claude/settings.json`, so every session, worktree, hook and subagent sees them ([ADR](decisions/2026-09-28-machine-env-in-user-settings.md)). A human's own terminal needs no Windows variables for them: before any command the runner fills each one the process environment lacks from the `env` of the project's `.claude/settings.local.json`, then of `~/.claude/settings.json` (`$CLAUDE_CONFIG_DIR/settings.json` when that is set), and `tools\run.cmd` finds `PYTHON_BIN` there before Python starts. The process environment wins; `doctor` says where each came from and warns when none has it | [applied] engineer |
 | Personal settings | Each human's `~/.claude/settings.json` holds `"language"` and `"permissions": {"defaultMode": "acceptEdits"}`. Personal rules go in `~/.claude/CLAUDE.md`. Nothing personal in shared files | [applied] engineer |
-| `.claude/settings.local.json` | Personal permission approvals, plus in the main checkout on Windows the `claudeMdExcludes` pattern that the full `doctor` adds (§3 "Which copy loads", #385); gitignored and untracked | [applied] |
+| `.claude/settings.local.json` | Personal permission approvals, plus in the main checkout on Windows the `claudeMdExcludes` patterns that the full `doctor` adds (§3 "Which copy loads", #385, #406); gitignored and untracked | [applied] |
 | Godot import scope | `docs/.gdignore` keeps the editor from importing anything under `docs/` | [applied] |
 | Auto mode | Not yet. Revisit after the M0 guard tests pass (§14) | — |
 
@@ -115,7 +115,19 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   `tools\run.cmd doctor` (the full one; `onboard` runs it) adds the pattern to that file, merged into what is there
   (never to a file under `.claude/worktrees/`, should git fail to name the main checkout); `doctor --quick` (and so `verify`) only warns when it is missing. Neither touches it in CI or off Windows, where
   it would take a worktree session's only root `CLAUDE.md`. So a workflow agent reads a worktree's root `CLAUDE.md`
-  only by Read; the rules still load twice by path (main's copy and the worktree's).
+  only by Read.
+- **[applied] The rules too (#406).** The same file also gets `**/.claude/worktrees/*/.claude/rules/**`, through the
+  same `doctor` code. Without it a main-started agent that Reads worktree files loads main's and the worktree's copy
+  of each matching rule (since 2026-09-28: `gdscript.md` 168, `tests.md` 166 and `godot-resources.md` 18 extra loads,
+  about $5.9, #385's `metrics`). #406's probes, Claude Code 2.1.284, the same replica with both patterns: a session
+  started in the worktree, the patterns only in main's file, loaded the worktree's root `CLAUDE.md` and all 3 of its
+  rules by path (with the patterns also in the worktree's own file it loaded no rule, so the pattern does match); a
+  session started in the main checkout that Read a worktree `.gd`, test and `.tscn` loaded main's copy of each of the
+  3 rules once (main's `tests/**` rule matches a worktree's `tests/` file) and no worktree copy, where without the
+  patterns it loaded both copies of each. So a main-started agent follows main's rules: a task branch's own edit of
+  a rule, or a rule it adds, reaches that agent only by Read (a task that changes a rule says so in its prompt).
+  `godot-resources.md` names `**/project.godot` rather than `project.godot` so that main's copy also matches a
+  worktree's (not probed, #406's review).
 - **[applied]** All files in this table exist (M0 stage 3). `tools\run.cmd lint` (part of `verify`) fails over
   budget. It counts the lines Claude Code loads: frontmatter and block-level HTML comments are left out, so the
   `<!-- see docs/interventions/… -->` notes are free. It also fails on rule frontmatter that would not parse (Claude
@@ -158,8 +170,9 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots` and `bots-enet`, §11). A workflow agent or subagent (a 5-minute prompt cache) runs it in the
-   background and polls it with `wait` in calls of at most 240 s (§11, "Bounded waits").
+   matches too (`bots` and `bots-enet`, §11). Every agent runs it in the background and polls it with `wait <log>`
+   (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
+   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
    can leak) or `tests/harness/` (the information-leak test) changed; plus
@@ -168,10 +181,11 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 4. In the engineer's sessions (`gh api user` is the engineer's account, the `*` owner in `.github/CODEOWNERS`) no
    question: publish once 1 to 3 hold ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
    In the designer's sessions, or when unsure, one question: **"Publish now? (push + PR + handoff comment)"**.
-5. `tools\run.cmd publish`: rebase on the open PR's base (else the `start --base` parent, else `origin/main`), re-run
-   `verify`, push the task branch with a lease (§8.3). Under `bounded_waits` (§7.1) the publishing agents of
-   `issue-task` and `pr-rebase` run no standalone `verify` before `publish` when `tools\run.cmd wait --verified` exits
-   0 (the newest verify passed at HEAD with a clean tree), since `publish` runs it anyway.
+5. `tools\run.cmd publish`, in the background with `wait <log>` like `verify`: rebase on the open PR's base (else the
+   `start --base` parent, else `origin/main`), re-run `verify`, push the task branch with a lease (§8.3). Under
+   `bounded_waits` (§7.1) the publishing agents of `issue-task` and `pr-rebase` run no standalone `verify` before
+   `publish` when `tools\run.cmd wait --verified` exits 0 (the newest verify passed at HEAD with a clean tree), since
+   `publish` runs it anyway.
 6. Open the PR from the template: `Closes #42`, summary, verification commands and output, `shot` screenshots for
    visual changes, docs updated yes/no, `--reviewer <other human>` if the other owner's paths are touched.
 7. Handoff comment on the issue (done / left / decisions / gotchas); board item → **In review** via the runner.
@@ -1153,7 +1167,9 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   what it saw, and saves `failed-window-<n>.png`), an engine error line or a non-zero exit of any process, a window not
   done within `--seconds` (default 300; it names the last step) or a missing PNG, and stops every process it started
   through the stop file (else a kill: a window after 30 s, since its renderer's exit can wait seconds on the GPU
-  driver when every core is busy, #354; the bots after 10 s). Desktop only: CI and `verify` never run it; an agent
+  driver when every core is busy, #354; the bots after 10 s). Under a full-PC load it can also fail for reasons that
+  are not bugs (ARCHITECTURE §4.7 `playcheck`, "Known load limits", #406): run it again once the load ends before
+  debugging it. Desktop only: CI and `verify` never run it; an agent
   may (off-screen windows, like `shot`). Scenarios: `esc_menu` (#169), `spectate` (#168), `items` (a knife picked
   up, swapped to the belt and back and put down, #276) and `end` (a match ended by the clock, Back to lobby and a
   second round, #276).
