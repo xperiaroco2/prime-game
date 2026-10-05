@@ -96,5 +96,22 @@ class FixOnAFolderTest(unittest.TestCase):
             self.assertEqual(seen, [root / "net/a.gd", root / "net/deep/b.gd", root / "tests/c.gd"])
 
 
+class InstructionFilesTest(unittest.TestCase):
+    def failures(self, errors: list[str]) -> list[str]:
+        report = lint.instructions.Report()
+        report.errors = errors
+        bad = mock.Mock()
+        with mock.patch.object(lint.instructions, "check", return_value=report), mock.patch.object(lint, "bad", bad):
+            self.assertTrue(lint.instruction_files())
+        return [c.args[0] for c in bad.call_args_list]
+
+    def test_the_budget_hint_follows_only_a_budget_error(self) -> None:
+        over = ".claude/rules/x.md: 61 lines, budget 60"
+        self.assertEqual(self.failures([over]), [over, "instruction files over budget"])
+        # #415: a broken link to orchestrate-stage's budget.md or the weekly budget ADR is no budget problem.
+        link = ".claude/skills/orchestrate-stage/SKILL.md:1: link budget.md names no file"
+        self.assertEqual(self.failures([link]), [link])
+
+
 if __name__ == "__main__":
     unittest.main()

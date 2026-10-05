@@ -1,4 +1,4 @@
-"""Instruction files for Claude Code: line budgets and frontmatter (docs/AGENT_WORKFLOW.md §3 and §5).
+"""Instruction files for Claude Code: line budgets, frontmatter and skills' links (docs/AGENT_WORKFLOW.md §3 and §5).
 
 Budgets count the lines Claude Code loads: frontmatter and block-level HTML comments are removed before
 injection (code.claude.com/docs/en/memory), so `<!-- see docs/interventions/... -->` notes are free.
@@ -37,6 +37,10 @@ SKILL_NO_FORK = ("start-task", "finish-task")  # they need the conversation (§6
 SKILL_LISTING_CAP = 1536  # description + when_to_use are cut here in the skill listing
 SKILL_BUDGET = 500  # lines of SKILL.md body; the docs advise moving detail to supporting files beyond this
 SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+# A Markdown link's target (inline links only); a scheme (https:, mailto:) or a bare #anchor is not a file.
+LINK_RE = re.compile(r"\]\(([^)\s]+)\)")
+CODE_SPAN_RE = re.compile(r"`[^`]*`")
+EXTERNAL_RE = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|#)")
 FALSE = ("false", "no", "off", "0")
 TRUE = ("true", "yes", "on", "1")
 SKIP = {".git", ".godot", "addons", "tools/out", "docs/history", ".claude/worktrees"}
@@ -212,9 +216,32 @@ def check(root: Path) -> Report:
     skills = sorted(p for p in skills_dir.iterdir() if p.is_dir()) if skills_dir.is_dir() else []
     for folder in skills:
         report.errors += [f"{rel(folder)}/SKILL.md: {problem}" for problem in skill_problems(folder)]
+        report.errors += skill_links(root, folder)
     if skills:
-        report.notes.append(f"{len(skills)} skills: frontmatter, model-invocable, Bash and PowerShell twins")
+        report.notes.append(f"{len(skills)} skills: frontmatter, model-invocable, Bash and PowerShell twins, links")
     return report
+
+
+def skill_links(root: Path, folder: Path) -> list[str]:
+    """Each relative link in a skill's Markdown files (SKILL.md and its supporting files, which SKILL.md points to and
+    the agent reads on demand: orchestrate-stage's budget.md, #415) must name a file or folder that exists, so a
+    renamed supporting file or ADR cannot leave a pointer to nothing. Links inside code fences (``` or ~~~) and inline
+    code spans are examples."""
+    problems = []
+    for path in sorted(folder.rglob("*.md")):
+        in_code = False
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if line.strip().startswith(("```", "~~~")):
+                in_code = not in_code
+                continue
+            if in_code:
+                continue
+            for target in LINK_RE.findall(CODE_SPAN_RE.sub("", line)):
+                if EXTERNAL_RE.match(target):
+                    continue
+                if not (path.parent / target.split("#", 1)[0]).exists():
+                    problems.append(f"{path.relative_to(root).as_posix()}:{number}: link {target} names no file")
+    return problems
 
 
 def control_characters(root: Path) -> list[str]:

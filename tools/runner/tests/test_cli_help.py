@@ -51,6 +51,7 @@ OLD_ROWS = {
         "all project GDScript",
         "CLAUDE.md budgets",
         "frontmatter of rules, skills and agents",
+        "relative links in skills",
     ],
     "load": [
         "busy loops (2 per logical CPU, 600 s",
