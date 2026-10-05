@@ -1349,8 +1349,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   webrtc-native's, under `licenses/<addon>/` beside the `.exe`, one folder per addon since two could both be
   `LICENSE`; and, #422, every file of `docs/credits/licenses/<folder>/` as `licenses/<folder>/`: Godot 4.7.2-stable's
   `LICENSE.txt` and `COPYRIGHT.txt`, since the `.exe` is its template, and the `COPYING` of Opus, RNNoise and SpeexDSP,
-  built into TwoVoIP's library, each verbatim from its primary source, its URL and SHA-256 in that folder's
-  `README.md`; a new Godot pin or TwoVoIP release fetches them again), zips both into `tools/out/export/`, checks
+  built into TwoVoIP's library, each verbatim from its primary source, its URL and SHA-256 in
+  `docs/credits/licenses/README.md`; a new Godot pin or TwoVoIP release fetches them again), zips both into `tools/out/export/`, checks
   that the release zip holds the release template's `.exe` byte for byte, the release libraries of TwoVoIP and
   webrtc-native (#367), exactly the notices of `export.NOTICES` and no console wrapper (only a release template has
   `OS.is_debug_build()` false, which turns off F3, the dev tools and the debug kinds), checks that the debug zip

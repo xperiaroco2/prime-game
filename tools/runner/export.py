@@ -49,9 +49,9 @@ TEMPLATES = (
 # The license notices both zips carry (#419): CREDITS.md and every LICENSE* file of the addons whose libraries a build
 # ships, under licenses/<addon>/ (one folder per addon, as TwoVoIP's LICENSE would collide with another addon's), and
 # the texts of what a build carries outside an addon's own files (#422): Godot's LICENSE.txt and COPYRIGHT.txt (the .exe
-# is its template) and the BSD-3 libraries built into TwoVoIP's (Opus, RNNoise, SpeexDSP), kept verbatim with their
-# sources in BUNDLED_LICENSES/<folder>/ and shipped as licenses/<folder>/. export_presets.cfg keeps the unshipped
-# addons out of a build.
+# is its template) and the BSD-3 libraries built into TwoVoIP's (Opus, RNNoise, SpeexDSP), kept verbatim in
+# BUNDLED_LICENSES/<folder>/ (their sources in its README.md) and shipped as licenses/<folder>/. export_presets.cfg
+# keeps the unshipped addons out of a build.
 SHIPPED_ADDONS = ("twovoip", "webrtc_native")
 UNSHIPPED_ADDONS = ("gdUnit4",)
 BUNDLED_LICENSES = "docs/credits/licenses"

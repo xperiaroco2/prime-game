@@ -2,6 +2,8 @@
 content-hash proof ran in #369's cloud session and run in the release workflow on each tag (they need the 1.3 GB
 templates). The release workflow's shape is checked here too, next to ci.yml's in test_github_workflows.py."""
 
+import hashlib
+import re
 import shutil
 import tempfile
 import unittest
@@ -185,6 +187,10 @@ class ReleaseCheckTest(unittest.TestCase):
         (tree / "CREDITS.md").unlink()
         with self.assertRaises(Failure):
             export.add_notices(tree, self.dir / "again")
+        (tree / "CREDITS.md").write_bytes(b"# Credits\n")
+        (tree / export.BUNDLED_LICENSES / "opus" / "COPYING").unlink()
+        with self.assertRaises(Failure):
+            export.add_notices(tree, self.dir / "once more")
 
     def test_the_debug_template_a_console_wrapper_or_the_debug_library_fail(self) -> None:
         files = self.release_files()
@@ -263,6 +269,14 @@ class NoticesTest(unittest.TestCase):
                 lines = [line for line in sources.splitlines() if f"`{name}`" in line]
                 self.assertEqual(len(lines), 1, f"README.md names `{name}` once, with its source URL")
                 self.assertIn("https://", lines[0])
+                text_hash = hashlib.sha256((ROOT / export.BUNDLED_LICENSES / name).read_bytes()).hexdigest()
+                self.assertIn(text_hash, lines[0], "the text is no longer the primary source's file")
+                # A new Godot pin or TwoVoIP release needs the texts of that version.
+                twovoip = (ROOT / "docs" / "credits" / "twovoip.md").read_text(encoding="utf-8")
+                release = re.search(r"release (v[\d.]+)", twovoip)
+                assert release is not None
+                version = f"{pins.GODOT}-stable" if name.startswith("godot/") else release.group(1)
+                self.assertIn(version, lines[0])
 
     def test_an_unshipped_addon_is_excluded_from_both_presets(self) -> None:
         presets = (ROOT / "export_presets.cfg").read_text(encoding="utf-8")
