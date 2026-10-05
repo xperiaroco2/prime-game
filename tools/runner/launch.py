@@ -25,11 +25,13 @@ from .common import (
     check_godot_version,
     ensure_out,
     ensure_user_dir,
+    not_started,
     ok,
     rel,
     require_godot,
     run,
     say,
+    start_problem,
     warn,
 )
 
@@ -125,6 +127,8 @@ class Instance:
         """Why this instance failed, or '' when it passed."""
         if self.result.timed_out:
             return f"timed out after {self.seconds}s and was killed"
+        if not_started(self.result.rc, self.result.out, self.result.seconds):
+            return start_problem(self.result.rc)
         if self.result.rc != 0:
             return f"exited {self.result.rc}"
         count = self.errors[0]

@@ -388,6 +388,39 @@ class HistoryDetailTest(unittest.TestCase):
         long = verify.first_failure("test", "  FAIL  " + "x" * 1000)
         self.assertEqual(len(long), verify.gdunit.MESSAGE_CAP)
 
+    def test_a_steps_refused_starts_reach_its_record_and_the_summary(self) -> None:
+        # #441: the lane takes the process starts Windows refused during each step into its record, and the summary
+        # adds them up in one NOT STARTED line; a step without any keeps its plain record.
+        def refused(counts: tuple[int, int, int], rc: int) -> mock.MagicMock:
+            def step(*_args: object, **_kwargs: object) -> int:
+                common.STARTS.refused, common.STARTS.restarted, common.STARTS.recovered = counts
+                if rc:
+                    common.bad(f"bots_main #1: {common.start_problem(3221225794)}")
+                return rc
+
+            return mock.MagicMock(side_effect=step)
+
+        with (
+            stub_steps(),
+            mock.patch.object(common, "STARTS", common.Starts()),
+            mock.patch.object(verify, "enet", refused((1, 1, 1), 0)),
+            mock.patch.object(verify, "bots_enet", refused((2, 1, 0), 1)),
+        ):
+            rc, text, record = Verify(self).run(inline_lane)
+        self.assertEqual(rc, 1)
+        steps = {s["name"]: s for s in record["steps"]}  # type: ignore[union-attr]
+        self.assertEqual(steps["enet"]["not_started"], {"refused": 1, "restarted": 1, "recovered": 1})
+        self.assertEqual(steps["bots-enet"]["not_started"], {"refused": 2, "restarted": 1, "recovered": 0})
+        self.assertTrue(steps["bots-enet"]["failure"].startswith("bots_main #1: could not start: exited 3221225794"))
+        self.assertNotIn("not_started", steps["freeze"])
+        summary = text[text.rindex("verify summary") :]
+        self.assertIn("  NOT STARTED: Windows refused 3 process start(s) (exit 3221225794, 0xC0000142) in enet, "
+                      "bots-enet; 2 restarted once, 1 of them ran.", summary)  # fmt: skip
+        with stub_steps(), mock.patch.object(common, "STARTS", common.Starts()):
+            _rc, text, record = Verify(self).run(inline_lane)
+        self.assertNotIn("NOT STARTED", text)
+        self.assertFalse(any("not_started" in s for s in record["steps"]))  # type: ignore[union-attr]
+
     def test_a_red_step_without_any_output_has_no_failure_field(self) -> None:
         record = verify.step_record(verify.StepRun("game", "godot", "FAILED", 1.0, ""))
         self.assertEqual(record, {"name": "game", "lane": "godot", "status": "FAILED", "seconds": 1.0})

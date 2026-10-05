@@ -28,9 +28,11 @@ from .common import (
     git,
     godot,
     kill_tree,
+    not_started,
     ok,
     require_godot,
     say,
+    start_problem,
     warn,
 )
 from .perf import FIXED_FPS
@@ -293,7 +295,9 @@ def _judge(rc: int, out: str, reports: list[Path], log: str, label: str = "") ->
     bad, ok = _labelled(label)
     junit = parse_junit(reports[-1]) if reports else None
     failed = rc != 0
-    if rc not in EXIT_MEANING:
+    if not_started(rc, out):
+        bad(f"GdUnit4 {start_problem(rc)}; log: {log}")
+    elif rc not in EXIT_MEANING:
         bad(f"GdUnit4 crashed or exited unexpectedly (exit {rc}); log: {log}")
     elif rc != 0:
         bad(f"exit {rc}: {EXIT_MEANING[rc]}")

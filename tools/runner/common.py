@@ -15,7 +15,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import pins
@@ -130,8 +130,177 @@ def run(
     """Run cmd with stdout+stderr merged, a hard timeout and a process-tree kill.
 
     The full output is also written to tools/out/logs/<log>.log when log is given. `on_start` gets the process once
-    it runs (a caller running several at once keeps them, to stop them all on Ctrl+C).
+    it runs (a caller running several at once keeps them, to stop them all on Ctrl+C). A process that Windows could
+    not start (not_started, #441) is started once more after RESTART_PAUSE seconds, loudly; one that ran is never
+    started again, whatever it returned.
     """
+    first = _run_once(cmd, timeout=timeout, cwd=cwd, log=log, echo=echo, env=env, on_start=on_start)
+    if first.timed_out or not not_started(first.rc, first.out, first.seconds):
+        return first
+    name = Path(cmd[0]).name
+    what = f"{name} {exit_words(first.rc)} {first.seconds:.1f}s after its start without printing a line"
+    what += ", so it never ran"
+    with STARTS.lock:
+        STARTS.refused += 1
+        restart = not STARTS.gave_up
+        if restart:
+            STARTS.restarted += 1
+    load = f" {machine_load()}".rstrip()
+    if not restart:
+        warn(f"NOT STARTED: {what}; not restarted, since a restart in this process failed the same way (#441).{load}")
+        return first
+    warn(f"NOT STARTED, restarted once: {what}; starting it again in {RESTART_PAUSE:g}s (#441).{load}")
+    _restart_sleep(RESTART_PAUSE)
+    again = _run_once(cmd, timeout=timeout, cwd=cwd, log=log, echo=echo, env=env, on_start=on_start)
+    with STARTS.lock:
+        if not again.timed_out and not_started(again.rc, again.out, again.seconds):
+            STARTS.refused += 1
+            STARTS.gave_up = True
+            refused = True
+        else:
+            STARTS.recovered += 1
+            refused = False
+    if refused:
+        warn(f"NOT STARTED again: {name} {exit_words(again.rc)} on its restart too; this process restarts nothing more")
+    else:
+        warn(f"RESTARTED: {name} started on its second try (exit {again.rc} in {again.seconds:.1f}s)")
+    return Result(again.rc, again.out, again.timed_out, first.seconds + RESTART_PAUSE + again.seconds)
+
+
+# --- processes Windows could not start (#441) ------------------------------------------------------------------------
+# On the engineer's PC, Godot, git, Python and PowerShell sometimes all exit with STATUS_DLL_INIT_FAILED (0xC0000142)
+# a fraction of a second after their start, before they print anything: Windows failed them while it loaded their
+# DLLs, so not one line of theirs ran. It happened in 11 of about 420 verify runs (10-01 to 10-05), always to every
+# process that started in a window of 0.5 s to several minutes, and the same tree passed on a rerun. It is a shortage
+# of a per-session resource of the machine (commit, desktop heap), not the change under test. run() starts such a
+# process once more and every report names it; NOT STARTED's line carries machine_load() to find the shortage.
+# The code as subprocess reports it on Windows, and as a signed 32-bit exit status.
+NOT_STARTED_CODES = (0xC0000142, 0xC0000142 - (1 << 32))
+# A process that printed nothing but ran longer than this was started; a refused start ends within about 2 s.
+NOT_STARTED_SECONDS = 10.0
+RESTART_PAUSE = 10.0
+_restart_sleep = time.sleep  # a test patches this one, not time.sleep for everyone
+
+
+@dataclass
+class Starts:
+    """This process's starts that Windows refused: each refused start, the restarts and the restarts that ran. After
+    a restart that was refused too (`gave_up`) the machine is short of the resource, so nothing is restarted again."""
+
+    refused: int = 0
+    restarted: int = 0
+    recovered: int = 0
+    gave_up: bool = False
+    lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
+
+STARTS = Starts()
+
+
+def not_started(rc: int | None, out: str, seconds: float = 0.0) -> bool:
+    """Whether a process that ended with `rc` never ran: Windows' STATUS_DLL_INIT_FAILED, no output, a short life."""
+    return rc in NOT_STARTED_CODES and not out.strip() and seconds < NOT_STARTED_SECONDS
+
+
+def exit_words(rc: int | None) -> str:
+    """`exited 3221225794 (0xC0000142, ...)` for Windows' could-not-start code, else `exited <rc>`."""
+    if rc in NOT_STARTED_CODES:
+        return f"exited {rc} (0xC0000142, STATUS_DLL_INIT_FAILED: Windows could not start it)"
+    return f"exited {rc}"
+
+
+def start_problem(rc: int | None) -> str:
+    """A report's reason for a process that never ran (not_started): what happened and what to do."""
+    return (
+        f"could not start: {exit_words(rc)} before it printed anything, also on its restart; this PC was short of"
+        " a per-session resource (too many processes at once), not the change: run verify again (#441)"
+    )
+
+
+def take_starts() -> dict[str, int]:
+    """This process's refused starts since the last call ({} when none), and the counts start again from zero; a
+    restart that was refused keeps later ones from restarting (gave_up) until the process ends."""
+    with STARTS.lock:
+        counts = {"refused": STARTS.refused, "restarted": STARTS.restarted, "recovered": STARTS.recovered}
+        STARTS.refused = STARTS.restarted = STARTS.recovered = 0
+    return counts if counts["refused"] else {}
+
+
+def machine_load() -> str:
+    """The machine's load at this moment on Windows, in one line: processes, threads, handles, commit and free memory
+    (GetPerformanceInfo), and the USER and GDI objects of the processes it may query (GetGuiResources: the desktop
+    heap holds the USER objects). '' elsewhere or when Windows does not answer. It starts no process."""
+    if not IS_WINDOWS:
+        return ""
+    try:
+        return _windows_load()
+    except (OSError, AttributeError, ValueError) as exc:
+        return f"machine load unknown ({exc})"
+
+
+def _windows_load() -> str:
+    import ctypes  # Windows only
+    from ctypes import wintypes
+
+    class PerformanceInformation(ctypes.Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD),
+            ("CommitTotal", ctypes.c_size_t),
+            ("CommitLimit", ctypes.c_size_t),
+            ("CommitPeak", ctypes.c_size_t),
+            ("PhysicalTotal", ctypes.c_size_t),
+            ("PhysicalAvailable", ctypes.c_size_t),
+            ("SystemCache", ctypes.c_size_t),
+            ("KernelTotal", ctypes.c_size_t),
+            ("KernelPaged", ctypes.c_size_t),
+            ("KernelNonpaged", ctypes.c_size_t),
+            ("PageSize", ctypes.c_size_t),
+            ("HandleCount", wintypes.DWORD),
+            ("ProcessCount", wintypes.DWORD),
+            ("ThreadCount", wintypes.DWORD),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    info = PerformanceInformation()
+    info.cb = ctypes.sizeof(info)
+    if not kernel32.K32GetPerformanceInfo(ctypes.byref(info), info.cb):
+        raise OSError(ctypes.get_last_error(), "GetPerformanceInfo failed")
+    gib = info.PageSize / (1 << 30)
+    pids = (wintypes.DWORD * 4096)()
+    size = wintypes.DWORD()
+    kernel32.K32EnumProcesses(pids, ctypes.sizeof(pids), ctypes.byref(size))
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    user = gdi = seen = 0
+    for pid in pids[: size.value // ctypes.sizeof(wintypes.DWORD)]:
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            continue
+        try:
+            user += user32.GetGuiResources(wintypes.HANDLE(handle), 1)  # GR_USEROBJECTS
+            gdi += user32.GetGuiResources(wintypes.HANDLE(handle), 0)  # GR_GDIOBJECTS
+            seen += 1
+        finally:
+            kernel32.CloseHandle(wintypes.HANDLE(handle))
+    return (
+        f"Machine: {info.ProcessCount} processes, {info.ThreadCount} threads, {info.HandleCount} handles;"
+        f" commit {info.CommitTotal * gib:.1f} of {info.CommitLimit * gib:.1f} GB,"
+        f" {info.PhysicalAvailable * gib:.1f} of {info.PhysicalTotal * gib:.1f} GB RAM free;"
+        f" {user} USER and {gdi} GDI objects in {seen} processes"
+    )
+
+
+def _run_once(
+    cmd: list[str],
+    *,
+    timeout: float,
+    cwd: Path = ROOT,
+    log: str | None = None,
+    echo: bool = False,
+    env: dict[str, str] | None = None,
+    on_start: Callable[[subprocess.Popen[bytes]], None] | None = None,
+) -> Result:
+    """One start of cmd for run(): its output, exit code, timeout and seconds."""
     started = time.monotonic()
     try:
         proc = subprocess.Popen(
