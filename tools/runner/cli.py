@@ -48,7 +48,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "doctor",
         help="check the environment and print fixes",
-        description="Check the environment and print a fix for each problem. Run it first in every session.",
+        description="Check the environment and print a fix for each problem. Run it first in every session. On "
+        "Windows the full run also adds the worktrees' root CLAUDE.md and rules to the claudeMdExcludes of the main "
+        "checkout's .claude/settings.local.json (#385, #406); --quick only reads them.",
     )
     p.add_argument("--quick", action="store_true", help="only what verify needs (Python, Godot, gdtoolkit, addons)")
 
@@ -73,9 +75,10 @@ def build_parser() -> argparse.ArgumentParser:
         "test",
         help="GdUnit4 tests, headless",
         description="GdUnit4 tests, headless. With no paths, every suite under res://tests in K processes at once "
-        "(--shards); with paths, one process. A run is judged by the exit code and results.xml (reports: "
-        "tools/out/gdunit/), never by the console; orphan nodes fail it. --repeat N: N runs in a row with a "
-        "per-suite comparison (a flaky hunt).",
+        "(--shards), the frame-bound suites at fixed fps in shards of their own, as in verify; with paths, one "
+        "process in real time (--fixed-fps or --real-time chooses the clock). A run is judged by the exit code and "
+        "results.xml (reports: tools/out/gdunit/), never by the console; orphan nodes fail it. --repeat N: N runs in "
+        "a row with a per-suite comparison (a flaky hunt).",
     )
     p.add_argument("paths", nargs="*", help="test files or directories (default: res://tests)")
     p.add_argument(
@@ -109,8 +112,8 @@ def build_parser() -> argparse.ArgumentParser:
         "verify",
         help="everything CI runs, in the same order (definition of done)",
         description="Everything CI runs, in the same order: doctor, then a Python lane and a Godot lane at once. On "
-        "a PC a run first takes one of 2 machine-wide slots, waiting at most 95 s. The definition-of-done gate. An "
-        "agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11).",
+        "a PC a run first takes one of 2 machine-wide slots, waiting at most 600 s. The definition-of-done gate. "
+        "Every agent runs it in the background into a log and polls it with wait (docs/AGENT_WORKFLOW.md §11).",
     )
     p = sub.add_parser(
         "selftest",
@@ -261,6 +264,9 @@ def build_parser() -> argparse.ArgumentParser:
         "merge-train",
         help="merge PRs into main one by one: publish each in its worktree (a red verify retried once), wait for its "
         "CI, then merge's gate; a PR that fails is skipped with the reason (a background job: poll it with wait)",
+        description="A manager's merge of PRs into main one by one, in the order given: publish in each one's "
+        "worktree (a red verify retried once), its CI, then merge's gate; a PR that fails is skipped with the reason "
+        "and the train goes on. A background job: run it into a log and poll it with wait.",
     )
     p.add_argument("prs", nargs="+", type=int, help="the PRs to merge, in this order")
     p.add_argument("--base", required=True, help="main (the only base it merges into)")
@@ -381,7 +387,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser(
         "metrics",
         help="time, tokens and API list $ of the task workflows, from this checkout's transcripts",
-        description="Time, tokens and API list $ per task workflow, from this checkout's transcripts.",
+        description="Time, tokens and API list $ per task workflow, from this checkout's transcripts. --track: each "
+        "track's share of the week against its --budget.",
     )
     p.add_argument(
         "--session",
@@ -425,8 +432,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="a manager's runs and handover args from its transcript and the journals (a wave comment's body; "
         "posts nothing)",
         description="A manager's finished and running runs and handover args, from its transcript and the journals: "
-        "--since T writes a wave comment's body (it posts nothing); --args N prints issue N's latest launch args as "
-        "JSON.",
+        "--since T writes the whole wave comment's body (runs, PRs, merge-check, cost, housekeeping, handover args; "
+        "--base B: whose merges, open PRs and merge-check; it posts nothing); --args N prints issue N's latest "
+        "launch args as JSON.",
     )
     what = p.add_mutually_exclusive_group(required=True)
     what.add_argument("--since", help="ISO 8601 time: write the wave comment's body, with the runs finished since it")
