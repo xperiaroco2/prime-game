@@ -46,6 +46,8 @@ class PredicateTest(unittest.TestCase):
         problem = common.start_problem(REFUSED)
         self.assertTrue(problem.startswith("could not start: exited 3221225794 (0xC0000142"), problem)
         self.assertIn("run verify again", problem)
+        self.assertNotIn("restart", problem, "only a process run() restarted was restarted")
+        self.assertIn("before it printed anything, also on its restart; ", common.start_problem(REFUSED, True))
 
 
 class RestartTest(unittest.TestCase):
@@ -115,6 +117,12 @@ class RestartTest(unittest.TestCase):
         self.assertGreaterEqual(res.seconds, common.RESTART_PAUSE, "the seconds count from the first start")
         problem = launch.Instance(1, ROOT / "tools/out/logs/run/x-1.log", res, 60).problem
         self.assertTrue(problem.startswith("could not start: exited 66"), problem)
+        self.assertIn("also on its restart", problem)
+        self.assertTrue(res.restarted)
+        res, _text, starts = self.run_child(refusals=5)
+        self.assertEqual((starts, res.restarted), (1, False), "gave up: not restarted")
+        problem = launch.Instance(1, ROOT / "tools/out/logs/run/x-1.log", res, 60).problem
+        self.assertNotIn("restart", problem, "a report names a restart only when one ran")
 
     def test_a_process_that_ran_is_never_started_again(self) -> None:
         printed = CHILD.replace("    sys.exit(66)", "    print('a line'); sys.exit(66)")
@@ -164,6 +172,7 @@ class ReportTest(unittest.TestCase):
         part = hostjoin.Part("host", [])
         part.proc = mock.MagicMock(returncode=REFUSED)
         self.assertTrue(part.problem.startswith("could not start: exited 3221225794"), part.problem)
+        self.assertNotIn("restart", part.problem, "the game session's parts are never restarted")
         part.lines = ["session: hosting"]
         self.assertEqual(part.problem, "exited 3221225794 (hosting)")
 
@@ -171,6 +180,10 @@ class ReportTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertTrue(gdunit._judge(REFUSED, "", [], "tools/out/logs/test-shard1.log", "shard 1"))
         self.assertIn("shard 1: GdUnit4 could not start: exited 3221225794 (0xC0000142", out.getvalue())
+        self.assertNotIn("restart", out.getvalue())
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            gdunit._judge(REFUSED, "", [], "x.log", restarted=True)
+        self.assertIn("before it printed anything, also on its restart", out.getvalue())
         with contextlib.redirect_stdout(io.StringIO()) as out:
             gdunit._judge(REFUSED, "Godot started\n", [], "x.log")
         self.assertIn("GdUnit4 crashed or exited unexpectedly (exit 3221225794)", out.getvalue())

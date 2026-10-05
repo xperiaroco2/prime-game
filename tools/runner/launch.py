@@ -129,7 +129,7 @@ class Instance:
             return f"timed out after {self.seconds}s and was killed"
         # No seconds: run() judged each start's life itself, and a restart's result counts from the first start.
         if not_started(self.result.rc, self.result.out):
-            return start_problem(self.result.rc)
+            return start_problem(self.result.rc, self.result.restarted)
         if self.result.rc != 0:
             return f"exited {self.result.rc}"
         count = self.errors[0]

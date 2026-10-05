@@ -86,6 +86,7 @@ class Result:
     out: str
     timed_out: bool
     seconds: float
+    restarted: bool = False  # run() started it a second time, since Windows refused its first start (#441)
 
     @property
     def lines(self) -> list[str]:
@@ -164,7 +165,7 @@ def run(
         warn(f"NOT STARTED again: {name} {exit_words(again.rc)} on its restart too; this process restarts nothing more")
     else:
         warn(f"RESTARTED: {name} started on its second try (exit {again.rc} in {again.seconds:.1f}s)")
-    return Result(again.rc, again.out, again.timed_out, first.seconds + RESTART_PAUSE + again.seconds)
+    return Result(again.rc, again.out, again.timed_out, first.seconds + RESTART_PAUSE + again.seconds, True)
 
 
 # --- processes Windows could not start (#441) ------------------------------------------------------------------------
@@ -209,10 +210,12 @@ def exit_words(rc: int | None) -> str:
     return f"exited {rc}"
 
 
-def start_problem(rc: int | None) -> str:
-    """A report's reason for a process that never ran (not_started): what happened and what to do."""
+def start_problem(rc: int | None, restarted: bool = False) -> str:
+    """A report's reason for a process that never ran (not_started): what happened, whether run() restarted it
+    (Result.restarted), and what to do."""
+    again = ", also on its restart" if restarted else ""
     return (
-        f"could not start: {exit_words(rc)} before it printed anything, also on its restart; this PC was short of"
+        f"could not start: {exit_words(rc)} before it printed anything{again}; this PC was short of"
         " a per-session resource (too many processes at once), not the change: run verify again (#441)"
     )
 
