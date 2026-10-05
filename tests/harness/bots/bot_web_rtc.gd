@@ -9,8 +9,9 @@ extends WebRtcTransport
 ##   CountingEnet);
 ## - sends raw bytes on any lane as a modified client can (send_raw, the chaos peers, as ChaosEnet),
 ##   keeping what it sent in `outbox` when keep_outbox is on.
-## The fault shim (the M6 design §5) is on by default: RELIABLE SHIM_RELIABLE_DELAY_MS late, LATEST
-## dropped and duplicated, seeded per transport, and on a joining side also late.
+## The fault shim (the M6 design §5) is on by default, seeded per transport: RELIABLE
+## SHIM_RELIABLE_DELAY_MS late and LATEST duplicated; on a joining side LATEST also dropped and
+## late.
 
 ## The room every harness host opens: LanSignalling hands out only this code (`signalling`).
 const CODE := "BTSRTC"
@@ -22,7 +23,9 @@ const ADDRESS := "127.0.0.1"
 ## a lost or overtaken first claim of an epoch is taken as one tick and corrects an honest bot
 ## (ARCHITECTURE §7.1), which plain drops already risk. Only clients get late LATEST (snapshots): a
 ## host that drops a late claim behind a reliable PickUp checks the PickUp against the claim before
-## and refuses an honest bot (out_of_reach, 1 of 3 chaos runs), the rule working as designed.
+## and refuses an honest bot (out_of_reach, 1 of 3 chaos runs), the rule working as designed; and
+## a host that loses an epoch's first claim takes the next as one tick and corrects an honest bot
+## (ARCHITECTURE §7.1; 1 of 10 chaos runs under load), so only clients lose LATEST either.
 const SHIM_RELIABLE_DELAY_MS := 50
 const SHIM_LATEST_DROP := 0.1
 const SHIM_LATEST_DUPLICATE := 0.1
@@ -49,7 +52,6 @@ func _init(kinds: NetKindTable, port: int, shim_seed: int) -> void:
 	if shim_seed != 0:
 		var shim := FaultShim.new(shim_seed)
 		shim.reliable_delay_ms = SHIM_RELIABLE_DELAY_MS
-		shim.latest_drop = SHIM_LATEST_DROP
 		shim.latest_duplicate = SHIM_LATEST_DUPLICATE
 		shim.latest_delay_ms = SHIM_LATEST_DELAY_MS
 		if use_faults(shim) == OK:
@@ -72,9 +74,10 @@ static func wait_for_room(service: LanSignalling, host_transport: WebRtcTranspor
 	return not host_transport.room_code().is_empty()
 
 
-## A joining side's shim also makes LATEST late (the host's never does: see SHIM_LATEST_LATE).
+## A joining side's shim also drops LATEST and makes it late (the host's never: SHIM_LATEST_LATE).
 func join(address: String, port: int) -> Error:
 	if _shim != null:
+		_shim.latest_drop = SHIM_LATEST_DROP
 		_shim.latest_late = SHIM_LATEST_LATE
 	return super(address, port)
 

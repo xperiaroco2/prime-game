@@ -1448,8 +1448,9 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
   §2.7). A bot
   whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later,
   one unanswered (`host_unreachable` after 15 s) as over ENet; `joins_closed` and `full` stay refusals. The fault
-  shim (§4 above) is on in every transport, seeded per transport: RELIABLE 50 ms late, LATEST 10 % dropped, 10 %
-  duplicated, and on the clients one in five 120 ms late; not for a measurement (`BotScenario.measurement`, which measures the relay).
+  shim (§4 above) is on in every transport, seeded per transport: RELIABLE 50 ms late, LATEST 10 % duplicated, and
+  on the clients LATEST also 10 % dropped and one in five 120 ms late (a host that loses an epoch's first claim takes
+  the next as one tick, §7.1, and corrected an honest chaos bot in 1 of 10 runs under load); not for a measurement (`BotScenario.measurement`, which measures the relay).
   A remote bot that wrote its view file sends nothing more and only polls until the host closes, since a send that
   meets the other side's close prints an engine `ERROR:` line (the state check and the send race libdatachannel's
   threads). Every check of the leak test runs unchanged, plus the **order check** (`OrderLog`, the design's §5):

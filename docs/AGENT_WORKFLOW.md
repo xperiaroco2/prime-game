@@ -1329,7 +1329,8 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   188001`, the short match's three runs; 20 runs in a row passed (2026-10-02). `bots-webrtc` and `chaos-webrtc`
   (M6-6, #371) are the same scenario and seed over WebRTC with the fault shim on (ARCHITECTURE §4.6): `bots
   dissident_kills_the_crew --instances 3 --transport webrtc` (about 50 s) and `bots --chaos --seed 188001 --transport
-  webrtc` (one chaos run paced to the real clock, about 16 s); each passed 5 runs in a row beside a `load` of 8 busy
+  webrtc` (one chaos run paced to the real clock, about 16 s); `bots-webrtc` passed 5 runs and `chaos-webrtc` 10 in a
+  row (seeds 188001 and 188002) beside a `load` of 8 busy
   loops on a 4-CPU cloud container (2026-10-05). `game` (#149, about 5 s) starts
   `client/app/game.tscn` headless through its command line, a host (`--host --local --no-replay`) and one client
   (`--join=127.0.0.1`) on a free port: both must be welcomed into the lobby, then stop through the runner's stop
