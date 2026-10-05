@@ -170,7 +170,9 @@ func _start(pair: Pair, port: int) -> bool:
 	if err != OK:
 		_fail("%s: join failed to start: %s" % [pair.name, error_string(err)])
 		return false
-	pair.client.connect_failed.connect(_fail.bind("%s: the client could not join" % pair.name))
+	pair.client.connect_failed.connect(
+		_fail.bind("%s: the client could not join" % pair.name).unbind(1)
+	)
 	pair.client.connected.connect(_on_connected.bind(pair).unbind(1))
 	pair.client.packet_received.connect(_on_client_packet.bind(pair))
 	pair.host.packet_received.connect(_on_host_packet.bind(pair))

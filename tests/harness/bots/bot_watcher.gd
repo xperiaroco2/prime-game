@@ -33,7 +33,7 @@ func _init(
 	_hello = hello
 	transport.connected.connect(_on_connected)
 	transport.host_lost.connect(_on_lost)
-	transport.connect_failed.connect(_on_lost)
+	transport.connect_failed.connect(_on_lost.unbind(1))
 	transport.packet_received.connect(_on_packet)
 
 

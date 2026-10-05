@@ -314,7 +314,9 @@ func _start_probe() -> void:
 	_prober = EnetTransport.new(_kinds)
 	_probe_started_ms = Time.get_ticks_msec()
 	_prober.connected.connect(func(_id: int) -> void: _prober_result = "connected")
-	_prober.connect_failed.connect(func() -> void: _prober_result = "connect_failed")
+	_prober.connect_failed.connect(
+		func(reason: StringName) -> void: _prober_result = String(reason)
+	)
 	var err := _prober.join(ADDRESS, _port)
 	if err != OK:
 		_fail("probe join failed to start: " + error_string(err))
@@ -391,7 +393,7 @@ func _client_step() -> void:
 			_pass()
 
 
-func _on_client_connect_failed() -> void:
+func _on_client_connect_failed(_reason: StringName) -> void:
 	# The clients start with the host: until it listens, a join fails and is tried again.
 	print("NET client %d join failed; retrying" % _instance)
 	_next_join_ms = Time.get_ticks_msec() + RETRY_JOIN_MS

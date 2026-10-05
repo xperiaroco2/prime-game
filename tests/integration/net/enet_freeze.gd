@@ -361,7 +361,7 @@ func _on_host_lost() -> void:
 	_fail("lost the host in the run, %d ms after its last packet" % silent)
 
 
-func _on_connect_failed() -> void:
+func _on_connect_failed(_reason: StringName) -> void:
 	# The clients start with the host: until it listens, a join fails and is tried again.
 	print("NET client %d join failed; retrying" % _instance)
 	_next_join_ms = Time.get_ticks_msec() + RETRY_JOIN_MS

@@ -56,7 +56,9 @@ class Counter:
 		transport.connected.connect(
 			func(own_id: int) -> void: events.append("connected %d" % own_id)
 		)
-		transport.connect_failed.connect(func() -> void: events.append("connect_failed"))
+		transport.connect_failed.connect(
+			func(reason: StringName) -> void: events.append(String(reason))
+		)
 		transport.peer_joined.connect(
 			func(peer_id: int) -> void: events.append("joined %d" % peer_id)
 		)
