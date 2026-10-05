@@ -167,8 +167,9 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 
 ### 4.2 Finish: "finish" / `/finish-task` (definition of done)
 1. `tools\run.cmd verify`; paste the tail. Red → stop and report. Never weaken a test. `verify` runs the bot
-   matches too (`bots` and `bots-enet`, §11). A workflow agent or subagent (a 5-minute prompt cache) runs it in the
-   background and polls it with `wait` in calls of at most 240 s (§11, "Bounded waits").
+   matches too (`bots` and `bots-enet`, §11). Every agent runs it in the background and polls it with `wait <log>`
+   (since #388 a slot wait alone can reach 600 s, where a foreground call is killed; `finish-task` step 1, #406); a
+   workflow agent or subagent (a 5-minute prompt cache) in calls of at most 240 s (§11, "Bounded waits").
 2. Fresh-context review: `code-reviewer` for code diffs (bundled `/code-review` at medium, or none, for docs-only and
    content-data diffs); plus `netcode-security-reviewer` if `core/`, `server/`, `net/`, `client/` (what it renders
    can leak) or `tests/harness/` (the information-leak test) changed; plus
@@ -177,10 +178,11 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
 4. In the engineer's sessions (`gh api user` is the engineer's account, the `*` owner in `.github/CODEOWNERS`) no
    question: publish once 1 to 3 hold ([trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)).
    In the designer's sessions, or when unsure, one question: **"Publish now? (push + PR + handoff comment)"**.
-5. `tools\run.cmd publish`: rebase on the open PR's base (else the `start --base` parent, else `origin/main`), re-run
-   `verify`, push the task branch with a lease (§8.3). Under `bounded_waits` (§7.1) the publishing agents of
-   `issue-task` and `pr-rebase` run no standalone `verify` before `publish` when `tools\run.cmd wait --verified` exits
-   0 (the newest verify passed at HEAD with a clean tree), since `publish` runs it anyway.
+5. `tools\run.cmd publish`, in the background with `wait <log>` like `verify`: rebase on the open PR's base (else the
+   `start --base` parent, else `origin/main`), re-run `verify`, push the task branch with a lease (§8.3). Under
+   `bounded_waits` (§7.1) the publishing agents of `issue-task` and `pr-rebase` run no standalone `verify` before
+   `publish` when `tools\run.cmd wait --verified` exits 0 (the newest verify passed at HEAD with a clean tree), since
+   `publish` runs it anyway.
 6. Open the PR from the template: `Closes #42`, summary, verification commands and output, `shot` screenshots for
    visual changes, docs updated yes/no, `--reviewer <other human>` if the other owner's paths are touched.
 7. Handoff comment on the issue (done / left / decisions / gotchas); board item → **In review** via the runner.

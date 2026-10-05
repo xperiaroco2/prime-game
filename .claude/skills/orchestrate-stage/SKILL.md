@@ -223,7 +223,7 @@ metrics`, against comparable earlier clean runs with Opus publishers. The engine
 that changes shared design. An answer with two readings that build different things is read back in one sentence
 (AskUserQuestion) before it is recorded; if the human dismisses the question and explains, read back again. An
 answer that changes a published PR: a trivial one inline in its worktree, in a subshell (§9), then
-`publish --base release/m<k>`; otherwise `issue-task`
+`publish --base release/m<k>` in the background with `wait <log>`; otherwise `issue-task`
 again for that issue with the answers in `notes` (its agents find the branch and the PR and continue).
 
 ## 5. Merges and rebases
@@ -274,10 +274,10 @@ taken in a `main` that has them.
 - Never touch a worktree whose workflow is still running, yours or another session's (§2.2).
 - A docs or test-list conflict: resolve inline in that task's worktree, each command in a subshell
   (`(cd <worktree> && git fetch origin && git rebase origin/release/m<k>)`, keep both sides, `verify`, then
-  `(cd <worktree> && tools/run.sh publish --base release/m<k>)`), then a PR comment listing the conflicts. The
-  guard lets a rebase through without a prompt when the command enters the worktree with `cd` (or `git -C`) and it
-  is on its task branch (AGENT_WORKFLOW §8.2, #51); while another live session works in that worktree it asks, so
-  hand such a case to `pr-rebase` when the human is away.
+  `(cd <worktree> && tools/run.sh publish --base release/m<k>)`, both in the background with `wait <log>`), then a
+  PR comment listing the conflicts. The guard lets a rebase through without a prompt when the command enters the
+  worktree with `cd` (or `git -C`) and it is on its task branch (AGENT_WORKFLOW §8.2, #51); while another live
+  session works in that worktree it asks, so hand such a case to `pr-rebase` when the human is away.
 - A semantic conflict (two PRs creating the same classes, a changed interface): the saved workflow `pr-rebase`
   with args `{n, pr, wt, branch, base, why, steps, focus}` (`base: "release/m<k>"`) and its v2 args
   `second_review`, `skeptic`, `bounded_waits`, `efforts`, `models` and `lean` (roles rebase, review, netcode, second_review,
