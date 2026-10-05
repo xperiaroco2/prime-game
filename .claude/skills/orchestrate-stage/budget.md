@@ -61,17 +61,19 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
   a time (headless Blender and off-screen Godot, outside the verify slots); UI is uncapped (no Godot or Blender in
   its checks).
 - **A launch only while no run waits for a verify slot**, and while the engineer uses the PC he runs
-  `tools\run.cmd slots --quiet <hours>` (one slot for that time). `slots --status` and `slots --quiet` come with #416
-  (P2) and are not built yet: until it lands, the cap above is the rule and the engineer's word in the chat pauses
+  `tools\run.cmd slots --quiet <hours>` (one slot for that time). If `tools\run.cmd slots --help` lists no `--quiet`
+  (`slots --status` and `--quiet` are #416, P2), the cap above is the rule and the engineer's word in the chat pauses
   launches.
 
 ## Args on every launch (N4 (a), N5 (a))
-- **`lean: true`** on every `issue-task` and `pr-rebase` launch from the reset, except a task whose agents need a skill through the
-  Skill tool (§3's row). The default flips in the workflows (P3b) after a clean week: a week of such runs with no task
-  failed for a missing tool ([lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
+- **`lean: true`** on every `issue-task` and `pr-rebase` launch from the reset, except a task whose agents need a skill
+  through the Skill tool (§3's row). The default flips in the workflows (P3b) after a clean week: a week of such
+  runs with no task failed for a missing tool
+  ([lean ADR](../../../docs/decisions/2026-10-04-lean-workflow-agent-types.md)).
 - **`models: {publish_clean: "sonnet"}`** on every non-design `issue-task` launch, from the answer on (never
-  `pr-rebase`: it has no publisher and rejects the role). With `lean`, a clean run's publisher runs as `task-publisher` on Sonnet (the
-  call's model wins); the pair is new, so check the first wave's runs with `tools\run.cmd agents-check` and `metrics`.
+  `pr-rebase`: it has no publisher and rejects the role). With `lean`, a clean run's publisher runs as
+  `task-publisher` on Sonnet (the call's model wins); the pair is new, so check the first wave's runs with
+  `tools\run.cmd agents-check` and `metrics`.
   It is judged again at the next reset with `metrics`' quality scorecard and stays until the engineer drops it
   ([effort ADR](../../../docs/decisions/2026-09-28-effort-and-workflow-bounds.md),
   [model-guard ADR](../../../docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)).
