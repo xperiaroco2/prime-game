@@ -34,7 +34,7 @@ var up: Dictionary[int, Dictionary] = {}
 var up_voice: Dictionary[int, Dictionary] = {}
 
 var _snapshot_kind := 0
-var _voice_down_kind := 0
+var _voice_batch_kind := 0
 var _voice_up_kind := 0
 ## Records not yet folded into the tables, RECORD ints each.
 var _pending := PackedInt64Array()
@@ -42,7 +42,7 @@ var _pending := PackedInt64Array()
 
 func _init(schema: WireSchema) -> void:
 	_snapshot_kind = schema.kind_of(&"Snapshot")
-	_voice_down_kind = schema.kind_of(&"VoiceBatch")
+	_voice_batch_kind = schema.kind_of(&"VoiceBatch")
 	_voice_up_kind = schema.kind_of(&"VoiceUp")
 
 
@@ -52,7 +52,7 @@ func sent(peer: int, kind: int, payload: PackedByteArray) -> void:
 		return
 	var frame := payload.size() + NetFrame.HEADER_BYTES
 	_record(Table.DOWN, peer, frame)
-	if kind == _voice_down_kind:
+	if kind == _voice_batch_kind:
 		_record(Table.DOWN_VOICE, peer, frame)
 	elif kind == _snapshot_kind:
 		_record(Table.SNAPSHOTS, peer, payload.size())

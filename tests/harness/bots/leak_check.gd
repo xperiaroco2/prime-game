@@ -187,8 +187,16 @@ func check_bot(
 				found
 				. append(
 					(
-						"a view with no peer id that decoded something (%d events, %d snapshots, %d voice)"
-						% [decoded.events.size(), decoded.snapshots.size(), decoded.voice.size()]
+						(
+							"a view with no peer id that decoded something (%d events, %d snapshots,"
+							+ " %d voice, %d voice batches)"
+						)
+						% [
+							decoded.events.size(),
+							decoded.snapshots.size(),
+							decoded.voice.size(),
+							decoded.voice_batches,
+						]
 					)
 				)
 			)

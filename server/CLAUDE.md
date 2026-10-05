@@ -60,7 +60,7 @@ Loaded when a file in `server/` is read. The invariants in the root `CLAUDE.md` 
   `Hello`, so nothing overtakes the transport's `ADMIT`.
 - Voice: relay a `VoiceUp` at once, along the routing refreshed after every tick, in each listener's `VoiceBatch` of
   the poll (M5-4b) with the stream's own seq (per speaker and listener, never the speaker's) and `ticked_through()`,
-  each frame encoded once, each listener's seq patched into a copy (`VoiceBatchEncoder`). Never decode Opus. Only present players speak; after a
+  each frame encoded once, each listener's seq written in place (`VoiceBatchEncoder`). Never decode Opus. Only present players speak; after a
   freeze relay only the newest few per speaker. On `peer_left(p)` drop p as speaker and listener at once (ids reused).
 - Budgets per peer (voice frames, reliable intents, bytes of the rest) are refilled for the host time elapsed, before
   the poll; a message over one is dropped before decoding and counted, and nobody is disconnected for its rate. A

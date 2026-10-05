@@ -601,6 +601,7 @@ emitted, which the leak test needs (§4.6).
 | `list<T>` | 1 + Σ | `u8` count, then the items | a count over the field's maximum |
 | `map<K, V>` | 1 + Σ | `u8` count, then key and value pairs, keys strictly ascending (by bytes for `id`, by number for `peer`) | a count over the maximum; a key out of order or repeated |
 | `opus` | the rest | the rest of the payload, opaque: the host never decodes it | empty, or over the cap |
+| `sized_opus` | 2 + n | a u16 length, then that many opaque bytes (a `VoiceBatch` frame's, M5-4b) | 0, or over the field's maximum (500) |
 
 Maxima: 16 players on the wire (the base mode allows 10), so a list or map of players holds at most 16 entries (a
 snapshot's avatars at most 15: never the viewer's own); a map of settings, spawn tags or station kinds at most 32; a
@@ -907,7 +908,7 @@ playback are M5.
 The send path encodes each frame once (#245) and batches per listener (M5-4b, #374): `VoiceRelay.flush` gives one
 `Outgoing` per frame with its listeners in peer-id order and each one's stream seq; `HostSession` encodes the frame's
 record (speaker, seq, length, bytes) once (if any listener is reachable), gives every reachable listener a copy with its
-own seq written at the offset the schema gives (`VoiceBatchEncoder`, `WireField.fixed_offset` of the record:
+own seq written in place in that listener's batch at the offset the schema gives (`VoiceBatchEncoder`, `WireField.fixed_offset` of the record:
 the fixed sizes of the parts before it), then sends each listener, in peer-id order, its copies behind the tick and a
 count in as few `VoiceBatch`es as the cap and `MAX_BATCH_FRAMES` allow, each byte for byte what `WireSchema.encode`
 gives for that batch. A row change that moves the seq behind a part of varying size, or widens it, makes every copy a
@@ -1242,8 +1243,8 @@ match error (§9.7). 3f tests it with a fixture mode whose deal logs an error.
     peer id to `tools/out/bots/<scenario>/bot-<i>.bin` when its script ends (`FileAccess.store_var`: a local file,
     lossless, not the wire); the host waits for them (up to the scenario's time limit) and compares. The host prints
     its relay counters (§4.5 "The host's counters") every 5 s of the run and every total at the end, in instance 1's
-    log (`tools/out/logs/run/bots_main-1.log`): `VoiceDown`s sent per 20 ms, the relay's microseconds per 20 ms and
-    per send, the send alone, and the upload in Mbit/s on the wire (28 B of IP and UDP added per datagram), voice,
+    log (`tools/out/logs/run/bots_main-1.log`): the frames sent and the `VoiceBatch`es carrying them per 20 ms, the
+    relay's microseconds per 20 ms and per send (a batch), the send alone, and the upload in Mbit/s on the wire (28 B of IP and UDP added per datagram), voice,
     snapshots and the rest apart (`RelayReport`, M5-4).
   - The one-process `bots` joins `verify` after `freeze` and `stall`, and so CI (every scenario: about 8 s with the six
     MVP scenarios, a few seconds more with M4-3's respawn scenario);

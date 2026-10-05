@@ -1,9 +1,10 @@
 extends GdUnitTestSuite
 ## The host's debug counters of the voice relay and the upload (ARCHITECTURE §4.5 "The host's
 ## counters"; the M5 ADR's E47 as amended, M5-4): HostSession.relay_counters() counts the frames
-## relayed, the VoiceDowns sent, the backlog dropped and the voice frames over budget, the relay's
-## time, and what went out during the voice sends, the snapshot sends and otherwise, apart. Over
-## the loopback the upload is the frames sent to remote peers; the host's own client never counts.
+## relayed, the frames sent and the VoiceBatches carrying them, the backlog dropped and the voice
+## frames over budget, the relay's time, and what went out during the voice sends, the snapshot
+## sends and otherwise, apart. Over the loopback the upload is the frames sent to remote peers; the
+## host's own client never counts.
 
 const Harness := preload("res://tests/integration/server/host_session_harness.gd")
 

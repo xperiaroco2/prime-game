@@ -138,7 +138,7 @@ func test_it_holds_the_voice_by_speaker_and_tick() -> void:
 	assert_array(speakers[20]).is_equal(PackedInt32Array([1, 3]))
 	assert_array(speakers[21]).is_equal(PackedInt32Array([3]))
 	assert_int(view.voice_batches).is_equal(2)
-	assert_int(view.most_batched).is_equal(3)
+	assert_int(view.empty_batches).is_equal(0)
 	# The signal carries each frame's speaker, seq and tick, in the batch's order (M5-5:
 	# VoiceJitter orders by seq).
 	assert_array(heard).contains_exactly(

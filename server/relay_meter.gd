@@ -13,9 +13,10 @@ extends RefCounted
 ## out in between (events, and ENet's acknowledgements and pings sent while it polls) counts as
 ## other. An acknowledgement or ping that rides in a datagram a send flushes counts with that send.
 
-## Frames the transport took towards their listeners (one per listener a frame went to), and the
-## VoiceBatch messages that carried them (M5-4b: one or a few per listener per poll).
+## Frames the transport took towards their listeners (one per listener a frame went to).
 var sent := 0
+## VoiceBatch messages the transport took, carrying those frames (M5-4b: one per listener per poll
+## that held frames for it, more only past the cap).
 var batches := 0
 ## Microseconds in the relay's flush, encoding and sends, and in the VoiceBatch sends alone.
 var relay_usec := 0

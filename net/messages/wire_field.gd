@@ -336,6 +336,7 @@ func max_size() -> int:
 		Type.SETTING:
 			return 1 + maxi(4, 1 + max_count * (1 + ID_MAX))
 		Type.OPUS, Type.SIZED_OPUS:
+			# SIZED_OPUS adds its u16 length (one arm: gdlint's max-returns).
 			return max_count + (2 if type == Type.SIZED_OPUS else 0)
 	var total := 1 if type == Type.OPTIONAL else 0
 	for part: WireField in parts:

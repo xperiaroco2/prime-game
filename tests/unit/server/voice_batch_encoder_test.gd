@@ -60,9 +60,10 @@ func test_without_an_offset_every_copy_is_encoded_in_full() -> void:
 	var down := _down(2, 0, 7, opus)
 	var encoded := encoder.record(down)
 	for seq: int in SEQS:
-		assert_str(encoder.with_seq(encoded, down, seq).hex_encode()).is_equal(
-			fast.with_seq(encoded, down, seq).hex_encode()
-		)
+		var copy := encoder.with_seq(encoded, down, seq)
+		assert_str(copy.hex_encode()).is_equal(fast.with_seq(encoded, down, seq).hex_encode())
+		var one := encoder.payloads(7, [copy] as Array[PackedByteArray])
+		assert_str(one[0].hex_encode()).is_equal(_codec(7, [_frame(2, seq, opus)]))
 	assert_int(down.fields["seq"] as int).is_equal(0)
 	# add_frame takes the same slow path: a whole record per frame, never a patch at -1.
 	var batches := encoder.start(7)
@@ -97,6 +98,25 @@ func test_records_fill_each_batch_up_to_the_cap_in_order() -> void:
 		at += count
 	assert_int(at).is_equal(frames.size())
 	assert_array(encoder.payloads(9, [] as Array[PackedByteArray])).is_empty()
+	# The host's path across the same payload boundaries: the shared record of each frame, a
+	# listener's own seq (not the record's) patched in place.
+	var batches := encoder.start(9)
+	var patched: Array[Dictionary] = []
+	var i := 0
+	for speaker in range(2, 11):
+		for seq in 5:
+			var opus := _opus(67, speaker * 5 + seq)
+			batches.add_frame(records[i], _down(speaker, seq, 9, opus), 0xFF00 + i)
+			patched.append(_frame(speaker, 0xFF00 + i, opus))
+			i += 1
+	at = 0
+	var in_place := batches.finish()
+	assert_int(in_place.size()).is_equal(4)
+	for payload: PackedByteArray in in_place:
+		var count := payload[encoder.count_at]
+		assert_str(payload.hex_encode()).is_equal(_codec(9, patched.slice(at, at + count)))
+		at += count
+	assert_int(at).is_equal(patched.size())
 
 
 func test_a_batch_holds_at_most_its_row_s_most_frames() -> void:

@@ -709,7 +709,6 @@ static func _copy(view: DecodedView) -> DecodedView:
 	copy.voice_seqs = view.voice_seqs.duplicate()
 	copy.voice_batches = view.voice_batches
 	copy.empty_batches = view.empty_batches
-	copy.most_batched = view.most_batched
 	return copy
 
 

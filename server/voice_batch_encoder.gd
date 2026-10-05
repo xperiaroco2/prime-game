@@ -2,10 +2,11 @@ class_name VoiceBatchEncoder
 extends RefCounted
 ## Builds each listener's VoiceBatch payloads of one poll (ARCHITECTURE §4.5 "Voice relay", the M5
 ## ADR §4's batched row, M5-4b, #374): a relayed frame's record (speaker, seq, length, Opus bytes)
-## is encoded once through WireSchema, each listener's copy gets its own stream's seq written in,
-## and a listener's records go out behind the tick and a count, as many per payload as the row's
-## cap and its most frames allow; a record that does not fit starts the next payload. Every
-## payload is byte for byte what WireSchema.encode gives for the VoiceBatch of its frames.
+## is encoded once through WireSchema, appended to each listener's batch with that listener's own
+## stream's seq written in place, and a listener's records go out behind the tick and a count, as
+## many per payload as the row's cap and its most frames allow; a record that does not fit starts
+## the next payload. Every payload is byte for byte what WireSchema.encode gives for the
+## VoiceBatch of its frames.
 ##
 ## The seq's offset in a record comes from the schema (WireField.fixed_offset), never a byte index
 ## written here: a row change that moves the seq behind a part of varying size, or widens it,
@@ -102,7 +103,9 @@ class Batches:
 	## `encoded` (VoiceBatchEncoder.record(down)) with the listener's own `seq`.
 	func add_frame(encoded: PackedByteArray, down: WireMessage, seq: int) -> void:
 		if _encoder.seq_offset < 0:
-			add(_encoder.with_seq(encoded, down, seq))
+			var whole := _encoder.with_seq(encoded, down, seq)
+			if not whole.is_empty():
+				add(whole)
 			return
 		var at := add(encoded)
 		if at >= 0:
