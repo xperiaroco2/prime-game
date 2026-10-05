@@ -250,6 +250,51 @@ func test_entering_the_lobby_from_the_map_forgets_the_round_poses() -> void:
 	assert_int(_views.buffer.newest_tick()).is_equal(6)
 
 
+func test_a_round_snapshot_that_arrives_after_end_to_lobby_is_not_drawn() -> void:
+	# #251: the round's snapshot of tick 5 is delayed past the PhaseChanged of tick 6 (unreliable
+	# against reliable lanes). It is newer than every snapshot held, so only the host tick
+	# estimated at the change keeps it out of the model and the buffer.
+	var round_spot := Vector3(2, 0, 0)
+	var lobby_spot := Vector3(-4, 0, 0)
+	_model.phase = &"end"
+	for tick: int in range(1, 5):
+		_snapshot(tick, round_spot, Vector3.FORWARD)
+	await _drawn()
+	assert_int(_views.count()).is_equal(1)
+	# Snapshot 5 is late; the change of tick 6 arrives when the snapshot of tick 6 would.
+	_now += 2 * TICK_USEC
+	_views.on_event(&"PlayersPlaced", {"spots": {PEER: lobby_spot}})
+	_model.fold(&"PhaseChanged", {"phase": &"lobby", "end_tick": -1})
+	_views.on_event(&"PhaseChanged", {"phase": &"lobby", "end_tick": -1})
+	_arrive(5, round_spot)
+	assert_bool(_model.avatars.is_empty()).is_true()
+	assert_int(_views.buffer.newest_tick()).is_equal(-1)
+	for frame: int in 4:
+		_now += FRAME_USEC
+		await get_tree().physics_frame
+		assert_int(_living_at(round_spot)).is_equal(0)
+	_now += TICK_USEC
+	_arrive(7, lobby_spot)
+	for frame: int in 4:
+		_now += FRAME_USEC
+		await get_tree().physics_frame
+		assert_int(_living_at(round_spot)).is_equal(0)
+	assert_vector(_views.body_of(PEER).global_position).is_equal_approx(
+		lobby_spot, Vector3.ONE * 1e-3
+	)
+
+
+func test_a_replaced_model_no_longer_reads_this_views_host_tick() -> void:
+	var old := _model
+	assert_bool(old.host_tick_now.is_valid()).is_true()
+	var other := ClientModel.new(FixtureBaseMode.mode())
+	_views.model = other
+	assert_bool(old.host_tick_now.is_valid()).is_false()
+	assert_bool(other.host_tick_now == _views.host_tick).is_true()
+	_views.model = null
+	assert_bool(other.host_tick_now.is_valid()).is_false()
+
+
 ## Waits until AvatarViews has run once more (physics_frame comes before the nodes' step).
 func _drawn() -> void:
 	await get_tree().physics_frame
@@ -266,6 +311,13 @@ func _snapshot(tick: int, at: Vector3, facing: Vector3, invulnerable := false) -
 		"held_item": -1,
 	}
 	_now += TICK_USEC
+	_arrive(tick, at, avatar)
+
+
+## The snapshot of `tick` arrives now (the session's order: the model folds it, then the buffer).
+func _arrive(tick: int, at: Vector3, avatar := {}) -> void:
+	if avatar.is_empty():
+		avatar = {"position": at, "velocity": Vector3.ZERO, "facing": Vector3.FORWARD}
 	var fields := {"tick": tick, "avatars": {PEER: avatar}}
 	_model.fold_snapshot(fields)
 	_views.buffer.add(tick, fields["avatars"] as Dictionary, _now)

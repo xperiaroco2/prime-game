@@ -56,6 +56,8 @@ class Pose:
 	var velocity := Vector3.ZERO
 
 
+## Snapshots of this host tick or older are not kept (clear()): -1 before the first clear.
+var _floor := -1
 ## The snapshots held, oldest first, and their avatars (peer -> fields).
 var _ticks: Array[int] = []
 var _avatars: Array[Dictionary] = []
@@ -73,11 +75,14 @@ var _angles: Dictionary[int, Vector2] = {}
 
 
 ## A snapshot of host tick `tick` arrived at `arrived_usec` on the local clock. A late one still
-## counts for the jitter and is kept in order; a tick already held is not replaced.
+## counts for the jitter and is kept in order; a tick already held is not replaced; one at or below
+## the floor of the last clear() counts for the jitter only.
 func add(tick: int, avatars: Dictionary, arrived_usec: int) -> void:
 	_arrived.append(arrived_usec)
 	_offsets.append(tick - float(arrived_usec) / USEC_PER_TICK)
 	_forget_arrivals(arrived_usec)
+	if tick <= _floor:
+		return
 	var at := _ticks.bsearch(tick)
 	if at < _ticks.size() and _ticks[at] == tick:
 		return
@@ -149,7 +154,11 @@ func snap(peer: int, tick: int) -> void:
 
 
 ## Forgets the snapshots and placements (a new level): the arrivals stay, the host's clock runs on.
-func clear() -> void:
+## From now on a snapshot of host tick `floor_tick` or older, or no newer than the newest held, is
+## not kept: one sent before the change can arrive after it (the unreliable lane against the
+## reliable one, #251) and would draw the old level's poses behind the interpolation delay.
+func clear(floor_tick := -1) -> void:
+	_floor = maxi(_floor, maxi(newest_tick(), floor_tick))
 	_ticks.clear()
 	_avatars.clear()
 	_snaps.clear()
