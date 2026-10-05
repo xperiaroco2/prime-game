@@ -369,9 +369,9 @@ Rules for every workflow run:
   godot, test_review, skeptic, publish, publish_clean); `efforts.implement` falls back to `effort`, a reviewer gets an
   effort or a model only when one is set, and no default names a model (the model-guard ADR); a model beyond the
   shared list goes only into a launch's `models`, where the kickoff allows it (its amendment A, §5). `publish_clean`
-  (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full publisher of a run with no blocker or major left open
-  after the reviews, the test review and the skeptics, never of a design task; the result's `publish_clean` says
-  whether it applied. A missing `mutants` or `playcheck` on the task's branch is reported in the result and the PR,
+  (#308, standing since the weekly budget ADR's N5 (a); falls back to `publish`) is the full publisher of a run with
+  no blocker or major left open after the reviews, the test review and the skeptics, never of a design task; the
+  result's `publish_clean` says whether it applied. A missing `mutants` or `playcheck` on the task's branch is reported in the result and the PR,
   and the run goes on. `bounded_waits` (#303; `issue-task` and `pr-rebase`, +0; the default since #411, `false` turns
   it off for a resume of an earlier run launched without it): each agent that runs `verify`, `publish`, `mutants` or a
   CI watch gets one paragraph, after the steps it replaces, with the exact background launch, `wait` and CI commands
@@ -386,9 +386,9 @@ Rules for every workflow run:
   and `pr-rebase`, +0 agents, off by default) runs the implementer, the plan agent and the test reviewer as
   `task-implementer` and the publisher, the rebase and the fix agents as `task-publisher` (§5), with no desktop, MCP
   or Skill tools. The ADR's CLI probe measured a lean first call of about 20k tokens before the task prompt, against a
-  median of about 57k for a general implementer's whole first call under a desktop manager; the A/B measures the real
-  difference. It appends only `agentType` to their options; prompts, efforts and models stay. Passed on every launch
-  from the reset of 2026-10-06 (the weekly budget ADR's N4 (a)); the default flips after a clean week (P3b). The
+  median of about 57k for a general implementer's whole first call under a desktop manager; the clean week of N4 (a)
+  measures the real difference. It appends only `agentType` to their options; prompts, efforts and models stay.
+  Passed on every launch from the reset of 2026-10-06 (the weekly budget ADR's N4 (a)); the default flips after a clean week (P3b). The
   manager's checkout must have both agent files (`agentType` resolves there), and a task whose agents need a skill
   through the Skill tool stays off it.
 - **Bounds:** at most three tasks at once; implementer about 250 tool calls, reviewers about 60, publisher about
