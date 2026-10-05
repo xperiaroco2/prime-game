@@ -22,7 +22,22 @@ from unittest import mock
 from runner import cli, common, slots, verify
 from runner.common import ROOT, Failure
 
-GODOT_STEPS = ["check", "selftest-godot", "test", "enet", "freeze", "stall", "bots", "bots-enet", "chaos", "game"]
+GODOT_STEPS = [
+    "check",
+    "selftest-godot",
+    "test",
+    "enet",
+    "freeze",
+    "stall",
+    "webrtc",
+    "webrtc-freeze",
+    "webrtc-stall",
+    "webrtc-silence",
+    "bots",
+    "bots-enet",
+    "chaos",
+    "game",
+]
 
 
 def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib.ExitStack:
@@ -47,6 +62,10 @@ def stub_steps(record: list[str] | None = None, failing: str = "") -> contextlib
         (verify, "enet", "enet"),
         (verify, "freeze", "freeze"),
         (verify, "stall", "stall"),
+        (verify, "webrtc", "webrtc"),
+        (verify, "webrtc_freeze", "webrtc-freeze"),
+        (verify, "webrtc_stall", "webrtc-stall"),
+        (verify, "webrtc_silence", "webrtc-silence"),
         (verify, "bots_one_process", "bots"),
         (verify, "bots_enet", "bots-enet"),
         (verify, "chaos", "chaos"),
