@@ -137,10 +137,13 @@ class CloudTwovoipTest(unittest.TestCase):
 
 
 class ClaudeMdExcludeTest(unittest.TestCase):
-    """#385: the full doctor adds the worktrees' root CLAUDE.md exclude to the main checkout's settings.local.json,
-    merged into what is there; the quick one only warns. Every case writes a temporary folder, never the real file."""
+    """#385 and #406: the full doctor adds the worktrees' root CLAUDE.md and rules excludes to the main checkout's
+    settings.local.json, merged into what is there; the quick one only warns. Every case writes a temporary folder,
+    never the real file."""
 
     PATTERN = "**/.claude/worktrees/*/CLAUDE.md"
+    RULES = "**/.claude/worktrees/*/.claude/rules/**"
+    BOTH = [PATTERN, RULES]
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory()
@@ -152,12 +155,12 @@ class ClaudeMdExcludeTest(unittest.TestCase):
         self.settings.parent.mkdir(parents=True, exist_ok=True)
         self.settings.write_bytes(text.encode(encoding))
 
-    def test_the_pattern_is_the_one_probed(self) -> None:
-        self.assertEqual(doctor.CLAUDE_MD_EXCLUDE, self.PATTERN)
+    def test_the_patterns_are_the_ones_probed(self) -> None:
+        self.assertEqual(doctor.CLAUDE_MD_EXCLUDES, (self.PATTERN, self.RULES))
 
-    def test_a_missing_file_is_created_with_the_exclude_only(self) -> None:
+    def test_a_missing_file_is_created_with_the_excludes_only(self) -> None:
         self.assertEqual(doctor.add_claude_md_exclude(self.settings), doctor.ADDED)
-        expected = '{\n  "claudeMdExcludes": [\n    "' + self.PATTERN + '"\n  ]\n}\n'
+        expected = '{\n  "claudeMdExcludes": [\n    "' + self.PATTERN + '",\n    "' + self.RULES + '"\n  ]\n}\n'
         self.assertEqual(self.settings.read_bytes().decode("utf-8"), expected)
         self.assertEqual([p.name for p in self.settings.parent.iterdir()], ["settings.local.json"])
 
@@ -175,13 +178,13 @@ class ClaudeMdExcludeTest(unittest.TestCase):
         self.assertEqual(doctor.add_claude_md_exclude(self.settings), doctor.ADDED)
         data = json.loads(self.settings.read_text(encoding="utf-8"))
         self.assertEqual(list(data), ["permissions", "claudeMdExcludes", "env"])
-        self.assertEqual(data["claudeMdExcludes"], ["**/vendor/CLAUDE.md", self.PATTERN])
+        self.assertEqual(data["claudeMdExcludes"], ["**/vendor/CLAUDE.md", *self.BOTH])
         self.assertEqual(data["permissions"]["allow"][1], "PowerShell(tools\\run.cmd doctor --quick)")
         self.assertEqual(data["env"]["GODOT_BIN"], "C:\\Godot\\Gödot.exe")
         self.assertNotIn(b"\r\n", self.settings.read_bytes())
 
-    def test_a_present_exclude_leaves_the_file_untouched(self) -> None:
-        text = '{"claudeMdExcludes": ["' + self.PATTERN + '"], "model": "opus"}'
+    def test_present_excludes_leave_the_file_untouched(self) -> None:
+        text = '{"claudeMdExcludes": ["' + self.RULES + '", "' + self.PATTERN + '"], "model": "opus"}'
         self.write(text)
         for write in (True, False):
             self.assertEqual(doctor.add_claude_md_exclude(self.settings, write=write), doctor.PRESENT)
@@ -192,6 +195,16 @@ class ClaudeMdExcludeTest(unittest.TestCase):
         self.assertEqual(doctor.add_claude_md_exclude(self.settings), doctor.ADDED)
         self.assertFalse(self.settings.read_bytes().startswith(b"\xef\xbb\xbf"))
         self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8"))["model"], "opus")
+
+    def test_a_file_with_the_root_exclude_only_gets_the_rules_one(self) -> None:
+        """A main checkout the full doctor already ran in before #406 has only #385's pattern."""
+        text = '{"claudeMdExcludes": ["' + self.PATTERN + '"], "model": "opus"}'
+        self.write(text)
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings, write=False), doctor.MISSING)
+        self.assertEqual(self.settings.read_text(encoding="utf-8"), text)
+        self.assertEqual(doctor.add_claude_md_exclude(self.settings), doctor.ADDED)
+        data = json.loads(self.settings.read_text(encoding="utf-8"))
+        self.assertEqual(data, {"claudeMdExcludes": self.BOTH, "model": "opus"})
 
     def test_without_write_nothing_is_written(self) -> None:
         self.assertEqual(doctor.add_claude_md_exclude(self.settings, write=False), doctor.MISSING)
@@ -239,18 +252,25 @@ class ClaudeMdExcludeTest(unittest.TestCase):
     def test_the_full_doctor_adds_it_and_says_where(self) -> None:
         failures, out = self.run_check(quick=False)
         self.assertEqual(failures, 0)
-        self.assertIn(f"claudeMdExcludes: added {self.PATTERN} to {self.settings}", out)
-        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), {"claudeMdExcludes": [self.PATTERN]})
+        self.assertIn(f"claudeMdExcludes: added {self.PATTERN}, {self.RULES} to {self.settings}", out)
+        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), {"claudeMdExcludes": self.BOTH})
         failures, out = self.run_check(quick=False)
         self.assertEqual(failures, 0)
-        self.assertIn(f"claudeMdExcludes has {self.PATTERN} ({self.settings})", out)
+        self.assertIn(f"claudeMdExcludes has {self.PATTERN}, {self.RULES} ({self.settings})", out)
 
     def test_the_quick_doctor_only_warns(self) -> None:
         failures, out = self.run_check(quick=True)
         self.assertEqual(failures, 0)
-        self.assertIn(f"lacks claudeMdExcludes {self.PATTERN}", out)
-        self.assertIn("run the full doctor once to add it: tools\\run.cmd doctor", out)
+        self.assertIn(f"lacks claudeMdExcludes {self.PATTERN}, {self.RULES}, so", out)
+        self.assertIn("run the full doctor once to add them: tools\\run.cmd doctor", out)
         self.assertFalse(self.settings.exists())
+
+    def test_the_quick_doctor_names_only_the_missing_pattern(self) -> None:
+        self.write('{"claudeMdExcludes": ["' + self.PATTERN + '"]}')
+        failures, out = self.run_check(quick=True)
+        self.assertEqual(failures, 0)
+        self.assertIn(f"lacks claudeMdExcludes {self.RULES}, so", out)
+        self.assertIn("root CLAUDE.md or a rule twice", out)
 
     def test_a_broken_file_fails_the_full_doctor_and_warns_the_quick_one(self) -> None:
         self.write('{"model": ')
@@ -280,7 +300,7 @@ class ClaudeMdExcludeTest(unittest.TestCase):
         subprocess.run([*git, "worktree", "add", "-q", str(worktree)], cwd=self.root, check=True)
         failures, _out = self.run_check(quick=False, root=worktree)
         self.assertEqual(failures, 0)
-        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), {"claudeMdExcludes": [self.PATTERN]})
+        self.assertEqual(json.loads(self.settings.read_text(encoding="utf-8")), {"claudeMdExcludes": self.BOTH})
         self.assertFalse((worktree / ".claude" / "settings.local.json").exists())
 
     def test_a_worktree_named_as_the_main_checkout_is_never_written(self) -> None:

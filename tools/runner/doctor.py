@@ -50,7 +50,9 @@ TWOVOIP_FILES = (TWOVOIP_EXTENSION, TWOVOIP_EXTENSION + ".uid")
 # launch, and a Read under .claude/worktrees/<n>/ would load that worktree's copy too. The exclude goes only into the
 # main checkout's untracked settings.local.json: on Windows a session started inside a worktree reads its own
 # .claude/settings.local.json, never main's, so it keeps its only root CLAUDE.md (docs/AGENT_WORKFLOW.md §3).
-CLAUDE_MD_EXCLUDE = "**/.claude/worktrees/*/CLAUDE.md"
+# #406: the same holds for the rules. Such a Read loads main's copy and the worktree's copy of each matching rule;
+# with the second pattern only main's (probed: a worktree-started session still loads the worktree's rules).
+CLAUDE_MD_EXCLUDES = ("**/.claude/worktrees/*/CLAUDE.md", "**/.claude/worktrees/*/.claude/rules/**")
 EXCLUDES_KEY = "claudeMdExcludes"
 PRESENT, ADDED, MISSING = "present", "added", "missing"
 
@@ -147,8 +149,9 @@ class Doctor:
             self.fail("could not set core.hooksPath", res.out.strip())
 
     def claude_md_exclude(self, quick: bool) -> None:
-        """The main checkout's `.claude/settings.local.json` excludes the worktrees' root CLAUDE.md (#385). The full
-        doctor adds it, merged into what the file holds; the quick one (verify's first step) only reads and warns."""
+        """The main checkout's `.claude/settings.local.json` excludes the worktrees' root CLAUDE.md (#385) and rules
+        (#406). The full doctor adds them, merged into what the file holds; the quick one (verify's first step) only
+        reads and warns."""
         if IS_CI:
             skip(f"{EXCLUDES_KEY} (not needed in CI)")
             return
@@ -171,6 +174,7 @@ class Doctor:
             return
         target = main / machine_env.LOCAL_SETTINGS
         try:
+            missing = ", ".join(missing_claude_md_excludes(target))
             state = add_claude_md_exclude(target, write=not quick)
         except (OSError, UnicodeDecodeError, ValueError) as exc:
             text = f"cannot add {EXCLUDES_KEY} to {target}: {exc}"
@@ -181,13 +185,13 @@ class Doctor:
                 self.fail(text, fix)
             return
         if state == PRESENT:
-            ok(f"{EXCLUDES_KEY} has {CLAUDE_MD_EXCLUDE} ({target})")
+            ok(f"{EXCLUDES_KEY} has {', '.join(CLAUDE_MD_EXCLUDES)} ({target})")
         elif state == ADDED:
-            ok(f"{EXCLUDES_KEY}: added {CLAUDE_MD_EXCLUDE} to {target}")
+            ok(f"{EXCLUDES_KEY}: added {missing} to {target}")
         else:
             warn(
-                f"{target} lacks {EXCLUDES_KEY} {CLAUDE_MD_EXCLUDE}, so a workflow agent that reads a worktree file "
-                "loads root CLAUDE.md twice; run the full doctor once to add it: tools\\run.cmd doctor"
+                f"{target} lacks {EXCLUDES_KEY} {missing}, so a workflow agent that reads a worktree file loads root "
+                "CLAUDE.md or a rule twice; run the full doctor once to add them: tools\\run.cmd doctor"
             )
 
     def bash(self) -> None:
@@ -371,11 +375,9 @@ def in_worktrees_folder(path: Path) -> bool:
     return any(parts[i : i + 2] == [".claude", "worktrees"] for i in range(len(parts) - 1))
 
 
-def add_claude_md_exclude(path: Path, write: bool = True) -> str:
-    """Make the settings file at `path` list CLAUDE_MD_EXCLUDE in its claudeMdExcludes. PRESENT: it already does;
-    ADDED: written (a missing file is created; every other key and pattern is kept, in its order); MISSING: it does
-    not and `write` is False. ValueError when the file is not a JSON object or its claudeMdExcludes is not a list:
-    nothing is written then."""
+def _local_settings(path: Path) -> tuple[dict, list]:
+    """The settings file at `path` (empty when missing) and its claudeMdExcludes. ValueError when the file is not a
+    JSON object or its claudeMdExcludes is not a list."""
     data: dict = {}
     if path.is_file():
         data = json.loads(path.read_text(encoding="utf-8-sig"))
@@ -384,11 +386,27 @@ def add_claude_md_exclude(path: Path, write: bool = True) -> str:
     patterns = data.get(EXCLUDES_KEY, [])
     if not isinstance(patterns, list):
         raise ValueError(f"`{EXCLUDES_KEY}` is not a list")
-    if CLAUDE_MD_EXCLUDE in patterns:
+    return data, patterns
+
+
+def missing_claude_md_excludes(path: Path) -> list[str]:
+    """The CLAUDE_MD_EXCLUDES the settings file at `path` does not list, in their order."""
+    _data, patterns = _local_settings(path)
+    return [pattern for pattern in CLAUDE_MD_EXCLUDES if pattern not in patterns]
+
+
+def add_claude_md_exclude(path: Path, write: bool = True) -> str:
+    """Make the settings file at `path` list every CLAUDE_MD_EXCLUDES pattern in its claudeMdExcludes. PRESENT: it
+    already does; ADDED: the missing ones appended and written (a missing file is created; every other key and pattern
+    is kept, in its order); MISSING: some are missing and `write` is False. ValueError when the file is not a JSON
+    object or its claudeMdExcludes is not a list: nothing is written then."""
+    data, patterns = _local_settings(path)
+    missing = [pattern for pattern in CLAUDE_MD_EXCLUDES if pattern not in patterns]
+    if not missing:
         return PRESENT
     if not write:
         return MISSING
-    data[EXCLUDES_KEY] = [*patterns, CLAUDE_MD_EXCLUDE]
+    data[EXCLUDES_KEY] = [*patterns, *missing]
     path.parent.mkdir(parents=True, exist_ok=True)
     # Through a temporary file beside it, so a Claude Code session reading the file never sees half of it.
     scratch = path.with_name(path.name + ".doctor.tmp")
