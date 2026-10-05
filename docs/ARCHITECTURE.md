@@ -1026,7 +1026,13 @@ The API that 3h and 3i use; the rest is in `server/CLAUDE.md` and the class comm
     bot (`load_levels` off) checks the map and acknowledges without loading.
   - "Entering the lobby" is entering a phase whose level is the lobby from one whose level is not (End to Lobby): the
     model then clears a match's facts (items, stations, bodies, loads, role, teammates, tasks, the winner and the
-    avatars), as on `LoadMatch`, and keeps the roster and the settings.
+    avatars), as on `LoadMatch`, and keeps the roster and the settings. It then folds no snapshot of a host tick at
+    or below a floor (#251): the host tick estimated at the change (`host_tick_now`, which `AvatarViews` sets to its
+    `host_tick()`; a bot has none) or the newest snapshot held, the higher. A round snapshot sent before the
+    `PhaseChanged` (unreliable lane) can arrive after it (reliable lane), usually newer than every snapshot held
+    (tick T-1 delayed past the change of tick T), so the newest held alone does not reject it, and the wire carries
+    no tick of the change (`PhaseChanged` has `phase` and `end_tick`; the engineer chose no wire change). The host
+    tick runs on across matches, so the floor never holds back a later match's snapshots.
   - The decoded view is recorded only with `keep_history` on (off by default, like `Match`'s: 12000 snapshots in a
     10-minute match); the bots and the leak test turn it on. The model is always kept. A decoded voice frame costs
     about 250 B there (measured with M5-1's 30 to 60 B frames, #215): the four bots of `crew_delivers_every_package`
@@ -1437,7 +1443,10 @@ the player steps again only from the physics frame after that `PhaseChanged`, wh
 cannot see this one: `avatar_views_test.gd` guards it. The game test did see another: the next lobby snapshot drew
 the others again from the round's poses behind the interpolation delay, at their round spots, where the greybox lobby
 (its markers share the round's coordinates) may have placed the local player, pushed 0.35 m. So `AvatarViews` forgets
-the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`.
+the poses at a `PhaseChanged` to a phase on another level, as at `LoadMatch`. One reordered packet still brought them
+back until #251: a round snapshot sent before the change and arriving after it. `SnapshotBuffer.clear(floor_tick)` now
+keeps no snapshot at or below the host tick estimated at the change (nor at or below the newest it held), and the
+model folds none (§4.6); such an arrival still counts for the jitter.
 
 #### 4.7.4 The flow
 
@@ -1575,7 +1584,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/world/`: `SnapshotBuffer` (pure) and `AvatarViews`, which draws from it at -80, snaps the players a
   `PlayersPlaced` names (no blend across a tick within one of the event's estimated tick, since events and
   snapshots travel on different lanes), forgets the poses at `LoadMatch` and at a `PhaseChanged` to another level
-  (End → Lobby, #241) and gives the estimated host tick (`host_tick()`) and the delay. A teleport too far for anyone
+  (End → Lobby, #241), keeping no late snapshot of a tick at or below `host_tick()` at that change (#251), and gives
+  the estimated host tick (`host_tick()`, also handed to the model's `host_tick_now`) and the delay. A teleport too far for anyone
   to walk in the time between two snapshots (30 m/s, a placeholder) also snaps. A body whose player the model drops
   leaves the tree before it is freed (#242, above).
 - `client/net/client_session.gd`: `snapshot_received(tick, avatars)` for every decoded snapshot, `corrections`, the
