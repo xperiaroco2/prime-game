@@ -484,8 +484,14 @@ class CliTest(unittest.TestCase):
             self.assertIn(key, mutants.HELP)
 
     def test_the_help_says_to_run_it_in_the_background_with_wait(self) -> None:
-        # #435: the root Shell rule (since #303/#388) runs mutants in the background and polls `wait <log>`.
-        for key in ('tools/run.sh mutants <spec> > <log> 2>&1; echo "exit=$?" >> <log>', "tools/run.sh wait <log>"):
+        # #435: the help gives the background form with wait (AGENT_WORKFLOW §11, "Bounded waits").
+        for key in (
+            'tools/run.sh mutants <spec> > <log> 2>&1; echo "exit=$?" >> <log>',
+            "tools/run.sh wait <log>",
+            "Bash tool in the background",
+            "3600000",
+            "300000",
+        ):
             self.assertIn(key, mutants.HELP)
         self.assertNotIn("one mutant per call", mutants.HELP)
 
