@@ -117,6 +117,16 @@ class TracksTest(unittest.TestCase):
             "a1": ("art", "checkout"),
         })
 
+    def test_a_translated_kickoff_keeps_its_track_by_the_key_not_the_name(self) -> None:
+        main = self.root / "projects" / "D--prime-game"
+        write_lines(main / "uk.jsonl", [kickoff(100, "Обсяг: #1\nТрек: meta"), assistant(101, "uk1", ONE)])
+        write_lines(main / "lower.jsonl", [kickoff(100, "track: UI"), assistant(101, "lower1", ONE)])
+        write_lines(main / "name.jsonl", [kickoff(100, "Трек: мета"), assistant(101, "name1", ONE)])
+        got = {s["id"]: (s["track"], s["source"]) for s in self.spend()["sessions"]}
+        self.assertEqual(got["uk"], ("meta", "Track: line"))
+        self.assertEqual(got["lower"], ("ui", "Track: line"))
+        self.assertEqual(got["name"], ("untracked", "none"))  # a translated name: no track
+
     def test_the_ui_folders_session_without_a_track_line_counts_as_ui(self) -> None:
         tracks = self.spend()["tracks"]
         self.assertEqual(tracks["ui"]["sessions"], 1)

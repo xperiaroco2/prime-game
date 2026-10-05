@@ -95,10 +95,11 @@ and -art siblings, each with its worktrees), whether or not it ran a workflow: i
 subagents and its workflow runs' agents, each API call counted by its time in [--since, --until) (a run in flight or one
 that began before the reset counts in part), each message id once across every file. A session's track is, the first
 that holds: its --session ID=TRACK label (under --track --session labels and never filters), a `Track: <name>` line in
-its first user message (the kickoff; isMeta lines and tool results are none), its checkout's default (-ui: ui, -art:
-art), else UNTRACKED (the engineer's reserve). Per named track it prints the % of the week (week_percent, with the
-bracket), and with `--budget PCT ...` (one per name, in order) the budget and the plan to date (budget x days since
---since / 7, at most the budget); then every session's total for the weekly counter. It writes tracks.json, not
+its first user message (the kickoff, the key also `Трек:`, the name in English; isMeta lines and tool results are
+none), its checkout's default (-ui: ui, -art: art), else UNTRACKED (the engineer's reserve). Per named track it prints
+the % of the week (week_percent, with the bracket), and with `--budget PCT ...` (one per name, in order) the budget and
+the plan to date (budget x days since --since / 7, at most the budget); then every session's total for the weekly
+counter. It writes tracks.json, not
 metrics.md: the task report reads only this checkout and keeps its own --session meaning.
 """
 
@@ -278,8 +279,10 @@ HOW_CLASS = {"launch": "launch", "by path": "by path"}
 # (D:\prime-game, D:\prime-game-ui, D:\prime-game-art), each with the track of a session there that neither a --session
 # label nor a kickoff's Track: line names (None: untracked).
 TRACK_CHECKOUTS = (("", None), ("-ui", "ui"), ("-art", "art"))
-# A kickoff's track: a line `Track: <name>` in the session's first user message (orchestrate-stage §10's template).
-TRACK_LINE = re.compile(r"^[ \t]*Track:[ \t]*([A-Za-z][\w-]*)", re.MULTILINE)
+# A kickoff's track: a line `Track: <name>` in the session's first user message (orchestrate-stage §10's template),
+# any case. The humans translate kickoffs, so the Ukrainian key `Трек:` counts too, but the name stays English (game,
+# ui, art, meta): an unfilled placeholder `<game | ...>` or a translated name names no track.
+TRACK_LINE = re.compile(r"^[ \t]*(?:Track|Трек):[ \t]*([A-Za-z][\w-]*)", re.MULTILINE | re.IGNORECASE)
 # A session no label, kickoff or checkout names: the engineer's reserve.
 UNTRACKED = "untracked"
 # The order of `--track all`'s lines (the design's four tracks); any other name follows alphabetically.

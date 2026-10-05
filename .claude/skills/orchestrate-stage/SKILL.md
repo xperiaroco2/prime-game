@@ -483,8 +483,8 @@ taken in a `main` that has them.
   each manager session's re-writes by what held when the gap began: with a timer armed it should be 0.
 
 ## 10. Kickoff template
-The human copies it, fills the placeholders and sends it, in English or in their own language. Moving state (which
-issues, which PRs) goes only in the message, never in this file.
+The human copies it, fills the placeholders and sends it, in English or in their own language; the `Track:` line stays
+English (`metrics --track` reads it). Moving state (which issues, which PRs) goes only in the message, never here.
 
 ```text
 ultracode: orchestrate stage <k> (<milestone>, <theme>) with the skill orchestrate-stage. You are the manager: one
