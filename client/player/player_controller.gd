@@ -21,7 +21,8 @@ extends CharacterBody3D
 ## (`claim_sent`) and follows each SelfStatus from the claim it names, without giving back the
 ## ticks in flight (E24, #155).
 ## The game teleports it at Welcome and at each Correction, keeping its look; the own Respawned
-## alone levels the head and keeps the yaw (look_level, #191). The dead do not look around.
+## (#191) and a PlayersPlaced naming it (End -> Lobby and the deal, #240) alone level the head and
+## keep the yaw (look_level). The dead do not look around.
 ##
 ## The movement numbers (speeds, jump height, capsule, eye and step height, stamina) are the
 ## client's own copy of the mode's PlayerRules, `rules`, set before the controller enters the tree
@@ -184,10 +185,11 @@ func look(yaw: float, pitch: float) -> void:
 	_head.rotation.x = clampf(_head.rotation.x + pitch, -MAX_PITCH, MAX_PITCH)
 
 
-## Levels the head (pitch 0) and keeps the body's yaw, as the own Respawned has it (the engineer's
-## answer on #191: straight ahead, as at the round's start; the respawn marker's facing never
-## reaches the client). The session's next MoveClaim carries the level facing at once: it may go
-## out in the same session step as the respawn's Correction, before this body's next physics step.
+## Levels the head (pitch 0) and keeps the body's yaw, as the own Respawned and the own placement
+## have it (the engineer's answers on #191: straight ahead, as at the round's start, the respawn
+## marker's facing never reaching the client; and on #240). The session's next MoveClaim carries
+## the level facing at once: it may go out in the same session step as the respawn's or the
+## placement's Correction, before this body's next physics step.
 func look_level() -> void:
 	_head.rotation.x = 0.0
 	if session != null:
@@ -347,9 +349,9 @@ func _claim() -> void:
 
 
 func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
-	# Only the own respawn levels the look: a Correction alone (a refused claim, a placement, a
-	# knockdown) and a revive keep it.
-	if event_name == &"Respawned" and (fields["peer"] as int) == session.model.own_peer:
+	# Only the own respawn and the own placement level the look: a Correction alone (a refused
+	# claim, a knockdown) and a revive keep it.
+	if _places_level(event_name, fields):
 		look_level()
 		return
 	var predicted := stamina as PredictedStamina
@@ -360,6 +362,18 @@ func _on_session_event(event_name: StringName, fields: Dictionary) -> void:
 			fields["claim_tick"] as int,
 			session.model.epoch
 		)
+
+
+## Whether the event puts the own player somewhere anew, looking level: its Respawned (#191), or a
+## PlayersPlaced that names it (End -> Lobby and a new match's deal, the engineer's answer on #240:
+## every placement into a round starts level). Each comes right before the Correction that moves it.
+func _places_level(event_name: StringName, fields: Dictionary) -> bool:
+	var own := session.model.own_peer
+	if event_name == &"Respawned":
+		return (fields["peer"] as int) == own
+	if event_name == &"PlayersPlaced":
+		return (fields["spots"] as Dictionary).has(own)
+	return false
 
 
 ## A claim went out: the predicted stamina settles its ticks as the host will.
