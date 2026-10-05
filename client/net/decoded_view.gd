@@ -28,8 +28,10 @@ var repeated_snapshots: Array[Dictionary] = []
 var voice: Dictionary[Vector2i, Array] = {}
 ## Vector2i(speaker, tick) -> the seq of each of those frames, in the same order.
 var voice_seqs: Dictionary[Vector2i, PackedInt32Array] = {}
-## VoiceBatch messages decoded, and the most frames one held.
+## VoiceBatch messages decoded, those that held no frame (the host never sends one: the leak test
+## fails on any), and the most frames one held.
 var voice_batches := 0
+var empty_batches := 0
 var most_batched := 0
 
 
@@ -60,6 +62,8 @@ func record(message: WireMessage) -> void:
 		voice_batches += 1
 		var downs := voice_downs(message)
 		most_batched = maxi(most_batched, downs.size())
+		if downs.is_empty():
+			empty_batches += 1
 		for down: WireMessage in downs:
 			record(down)
 	elif message.name == VOICE_DOWN:

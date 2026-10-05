@@ -105,6 +105,13 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	assert_str(found).contains("tick 999999 that view_of lacks")
 	assert_str(found).contains("voice of 7 under tick 3")
 	assert_str(found).contains("was changed")
+	# Through the wire's batched row (M5-4b): a frame of a speaker it may not hear, an empty batch.
+	var batched := _copy(own)
+	var frames: Array[Dictionary] = [{"speaker": 7, "seq": 0, "opus": LeakCheck.voice_frame(7, 0)}]
+	batched.record(WireMessage.new(&"VoiceBatch", {"tick": 3, "frames": frames}))
+	batched.record(WireMessage.new(&"VoiceBatch", {"tick": 4, "frames": [] as Array[Dictionary]}))
+	found = _text(leaks.check_bot("bot 2", 2, batched, false))
+	assert_str(found).contains("voice of 7 under tick 3").contains("1 empty VoiceBatches")
 	# A peer that is not a player and decoded an everyone event, a snapshot or voice.
 	runner.lurker.view.events.append(own.events[0])
 	runner.lurker.view.snapshots[1] = {"tick": 1, "avatars": {}}
@@ -112,6 +119,12 @@ func test_the_leak_check_fails_on_each_planted_leak() -> void:
 	var lurked := _text(leaks.check_watcher(runner.lurker))
 	assert_str(lurked).contains("a peer that is not a player").contains("snapshots")
 	assert_str(lurked).contains("decoded voice of 1 speaker-ticks")
+	# Even an empty batch tells it that someone spoke.
+	runner.lurker.view.voice.clear()
+	runner.lurker.view.record(
+		WireMessage.new(&"VoiceBatch", {"tick": 4, "frames": [] as Array[Dictionary]})
+	)
+	assert_str(_text(leaks.check_watcher(runner.lurker))).contains("decoded 1 VoiceBatches")
 	# Different task events for two bots present for the whole match.
 	var tasks_a := DecodedView.new()
 	var tasks_b := DecodedView.new()
@@ -694,6 +707,9 @@ static func _copy(view: DecodedView) -> DecodedView:
 	copy.repeated_snapshots = view.repeated_snapshots.duplicate()
 	copy.voice = view.voice.duplicate()
 	copy.voice_seqs = view.voice_seqs.duplicate()
+	copy.voice_batches = view.voice_batches
+	copy.empty_batches = view.empty_batches
+	copy.most_batched = view.most_batched
 	return copy
 
 
