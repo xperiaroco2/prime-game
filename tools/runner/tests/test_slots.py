@@ -426,6 +426,17 @@ class QuietTest(SlotsCase):
         self.assertEqual(self.verify_pool(NOW).count, 2)
         self.assertEqual(self.said, [])
 
+    def test_the_waiting_line_names_a_run_that_holds_slot_2_from_before_the_window(self) -> None:
+        self.pool(count=2, name="a").acquire()
+        self.pool(count=2, name="b").acquire()  # slot 2, taken before the window
+        self.quiet("3")
+        late = self.verify_pool(NOW + timedelta(hours=1), max_wait=30.0)
+        taken = late.acquire()
+        self.assertTrue(taken.over)
+        waiting = [line for line in self.said if line.startswith("verify: waiting for a slot")]
+        self.assertTrue(waiting and "slot 2: D:/wt/b" in waiting[0], self.said)
+        self.assertEqual([h.slot for h in taken.holders], [1, 2])  # the over-the-limit warning names both too
+
     def test_the_hours_are_bounded(self) -> None:
         for arg in ("0", "-1", "24.5", "nan", "inf", "three", ""):
             with self.subTest(arg=arg), self.assertRaisesRegex(Failure, "--quiet"):
