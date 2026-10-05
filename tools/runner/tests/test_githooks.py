@@ -9,17 +9,24 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from runner.common import ROOT
 from runner.publish import MARKER
 
 
 def _rmtree(path: str) -> None:
-    """Git makes its object files read-only; Windows refuses to delete those without a chmod."""
+    """Git makes its object files read-only; Windows refuses to delete those without a chmod. A path that vanishes
+    meanwhile (a git process of the test still tidying its object folders, #440) counts as deleted; every other error
+    stays."""
 
     def retry(func, target, _exc):  # type: ignore[no-untyped-def]
-        os.chmod(target, stat.S_IWRITE)
-        func(target)
+        try:
+            os.chmod(target, stat.S_IWRITE)
+            func(target)
+        except FileNotFoundError:
+            if os.path.lexists(target):
+                raise
 
     if sys.version_info >= (3, 12):
         shutil.rmtree(path, onexc=retry)
@@ -117,6 +124,48 @@ class PrePushTest(unittest.TestCase):
         not_task = self.git("push", "--force-with-lease", "origin", "feature-x", env=MARKER)
         self.assert_blocked(not_task, "a force push")
         self.assertTrue(re.search(r"tools.run\.cmd publish", not_task.stderr))
+
+
+class RmtreeTest(unittest.TestCase):
+    """_rmtree, the cleanup of every runner test that makes git repos in a temp folder (#440)."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="rmtree-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.objects = self.tmp / "remote.git" / "objects"
+        for name in ("a6", "b7"):
+            (self.objects / name).mkdir(parents=True)
+            (self.objects / name / "obj").write_text("x\n", encoding="utf-8")
+            (self.objects / name / "obj").chmod(stat.S_IREAD)  # git's object files are read-only
+
+    def test_a_folder_that_vanishes_mid_delete_counts_as_deleted(self) -> None:
+        # The first delete fails (a read-only file on Windows), and before the retry another git process (a gc of the
+        # test's remote) removes the object folders: the one being deleted and any the walk has not reached yet.
+        unlink = os.unlink
+        raced: list[str] = []
+
+        def racing_unlink(target, *args, **kwargs):  # type: ignore[no-untyped-def]
+            if raced:
+                return unlink(target, *args, **kwargs)
+            for folder in sorted(self.objects.iterdir()):
+                (folder / "obj").chmod(stat.S_IWRITE)
+                unlink(folder / "obj")
+                folder.rmdir()
+                raced.append(folder.name)
+            raise PermissionError(13, "Access is denied", str(target))
+
+        with mock.patch.object(os, "unlink", racing_unlink):
+            _rmtree(str(self.tmp / "remote.git"))
+        self.assertEqual(raced, ["a6", "b7"])
+        self.assertFalse((self.tmp / "remote.git").exists())
+
+    def test_every_other_error_stays_loud(self) -> None:
+        # A file that stays: a refused delete, and a "not found" for a path that is still there.
+        for error in (PermissionError(13, "Access is denied"), FileNotFoundError(2, "No such file or directory")):
+            with self.subTest(error=type(error).__name__):
+                with mock.patch.object(os, "unlink", side_effect=error), self.assertRaises(OSError):
+                    _rmtree(str(self.tmp / "remote.git"))
+                self.assertTrue((self.objects / "a6" / "obj").exists())
 
 
 if __name__ == "__main__":
