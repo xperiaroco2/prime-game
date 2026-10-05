@@ -21,7 +21,7 @@ const ADDRESS := "127.0.0.1"
 const SHIM_RELIABLE_DELAY_MS := 50
 const SHIM_LATEST_DROP := 0.1
 const SHIM_LATEST_DUPLICATE := 0.1
-const SHIM_LATEST_DELAY_MS := 100
+const SHIM_LATEST_DELAY_MS := 200
 ## How long a harness host waits for its room at the start.
 const ROOM_WAIT_MS := 5000
 

@@ -145,9 +145,12 @@ func step(now: int) -> void:
 	var bot := bots[0]
 	if not is_host():
 		_join_again(bot)
-	step_clients()
-	if _may_act(bot):
-		play_frame(tick_now)
+	if webrtc and _wrote_view and not is_host():
+		_step_quietly(bot)
+	else:
+		step_clients()
+		if _may_act(bot):
+			play_frame(tick_now)
 	if not _wrote_view and (bot.gone or (bot.finished() and _ended()) or not failures.is_empty()):
 		_write_view()
 	if is_host():
@@ -164,6 +167,16 @@ func step(now: int) -> void:
 		if not _wrote_view:
 			_write_view()
 		_finished = true
+
+
+## Over WebRTC a remote bot that wrote its view file only polls until the host closes: it sends
+## nothing more (no voice, no claim, no intent), so no packet of it meets the host's close. A send
+## on a channel the other side just closed prints an engine error line (WebRtcTransport checks the
+## channel's state, which libdatachannel's threads change between the check and the send).
+func _step_quietly(bot: ScenarioBot) -> void:
+	var client: BotClient = clients.get(bot.number)
+	if client != null and not client.is_ended():
+		client.step(now_usec)
 
 
 ## Bot 1 acts once its lobby is full (_lobby_full); a remote bot once it read bot 1's map, or at

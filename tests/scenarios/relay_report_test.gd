@@ -25,6 +25,9 @@ func test_a_window_gives_sends_per_20_ms_time_per_send_and_the_upload_on_the_wir
 		"upload voice 1.882, snapshots 0.320, other 0.000, total 2.202 Mbit/s"
 	)
 	assert_str(line).contains("(12250 voice datagrams)")
+	# Over WebRTC take_upload already counts IP and UDP (E56): 68 B x 12250 x 8 / 5 s = 1.333.
+	var webrtc := RelayReport.window("BOTS x host relay", before, now, 0)
+	assert_str(webrtc).contains("upload voice 1.333, snapshots 0.275, other 0.000, total 1.608")
 
 
 func test_a_window_without_time_is_empty_and_without_sends_has_no_time_per_send() -> void:
