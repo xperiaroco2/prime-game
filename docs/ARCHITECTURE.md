@@ -2043,14 +2043,15 @@ honest bot corrected outside a placement, with a Godot process that exited with 
 STATUS_DLL_INIT_FAILED: it could not start; not investigated further), and with window 2 not finishing its steps
 (`wait life dead`); one more, under the other workflows' load alone, with player 2 never downed though the bot had
 finished its script (the next run passed). Five failed because the bots' process, which starts only once window 1
-hosts, joined so late that window 1's setup timed out after 30 s with 2 of 3 players: since #406 the setup waits
-`BOTS_START_SECONDS` (hostjoin's 60 s for a host to start listening) longer when bots play, and the other waits keep
-the scenario's `timeout`. The rest stay known limits: on a PC at full load a red `playcheck` is run again once the
+hosts, joined so late that window 1's setup timed out after 30 s with 2 of 3 players: since #406, when bots play,
+the setup and, in every other window (window 1 too without a setup), the first wait after its first `press ready`
+wait `BOTS_START_SECONDS` (hostjoin's 60 s for a host to start listening) longer, since the round needs the bots in
+and ready; the other waits keep their timeout. The rest stay known limits: on a PC at full load a red `playcheck` is run again once the
 load ends before it is debugged. Desktop only; CI and `verify` never run it. Usage: `docs/AGENT_WORKFLOW.md` §11.
 Tests: `tools/runner/tests/test_playcheck.py` (the scenario parser and its errors, the plan, the command lines, and
 runs of stand-in processes that pass, time out, fail a step, print an engine error or miss a PNG, each stopping
-every process; windows that exit slowly within their grace beside bots killed after theirs; the setup's added wait
-for the bots' start, #406; the text, shown and button grammar and `FIELDS` against `GameView`'s keys), `tests/scenarios/playcheck_bots_test.gd` (the bots' start,
+every process; windows that exit slowly within their grace beside bots killed after theirs; the setup's and the
+first wait after `press ready`'s added wait for the bots' start, #406; the text, shown and button grammar and `FIELDS` against `GameView`'s keys), `tests/scenarios/playcheck_bots_test.gd` (the bots' start,
 #318) and
 `tests/unit/tools/playcheck_steps_test.gd` (the steps over a fake view and clock: a wait passes at once or fails at its
 timeout and not before, with its line and what the window saw; frames; events matched once through player numbers;
