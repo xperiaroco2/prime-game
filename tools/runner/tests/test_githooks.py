@@ -131,7 +131,7 @@ class RmtreeTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="rmtree-"))
-        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.addCleanup(_rmtree, str(self.tmp))  # the read-only files a test leaves need the chmod retry
         self.objects = self.tmp / "remote.git" / "objects"
         for name in ("a6", "b7"):
             (self.objects / name).mkdir(parents=True)
