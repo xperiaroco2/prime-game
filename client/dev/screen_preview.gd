@@ -7,6 +7,8 @@ enum Preview { MENU, CONNECTING, LOBBY, LOADING, END, ESC, ROUND, TASKS }
 
 const MODE := "res://content/modes/base_mode.tres"
 const MAP := "res://levels/greybox/greybox.tscn"
+## A code as the lobby and the connecting screen show one (SignalCodec's alphabet).
+const PREVIEW_CODE := "K7M2QX"
 ## The round's fake facts (M4-8): the match clock's end, the package, the knife and its circle.
 const ROUND_END_TICK := 100 + 20 * 271
 const PACKAGE := 7
@@ -32,6 +34,9 @@ func _ready() -> void:
 	ui.esc.lobby.set_mode(mode)
 	var model := fake_model(mode, hosting)
 	ui.reads_device_input = false
+	var code_line := JoinProgress.code_text(PREVIEW_CODE, false)
+	ui.lobby_hud.show_code(code_line)
+	ui.esc.lobby.show_code(code_line, PREVIEW_CODE)
 	match preview:
 		Preview.MENU:
 			ui.menu.set_reason(
@@ -39,7 +44,8 @@ func _ready() -> void:
 			)
 			ui.show_screen(GameFlow.Screen.MENU)
 		Preview.CONNECTING:
-			ui.connecting.set_address("192.168.0.195:24600")
+			ui.connecting.set_target(JoinProgress.target_text(JoinTarget.of_code(PREVIEW_CODE)))
+			ui.connecting.set_step(JoinProgress.step_text(true, -1, false))
 			ui.show_screen(GameFlow.Screen.CONNECTING)
 		Preview.LOBBY:
 			model.fold(&"PhaseChanged", {"phase": &"countdown", "end_tick": 160})

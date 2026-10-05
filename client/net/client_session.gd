@@ -129,7 +129,7 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 	_transport = transport
 	_mode = mode
 	_schema = schema if schema != null else WireSchema.game(OS.is_debug_build())
-	_content = ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
+	_content = content_of(mode)
 	model = ClientModel.new(mode)
 	_transport.connected.connect(_on_connected)
 	_transport.connect_failed.connect(_end)
@@ -137,6 +137,12 @@ func _init(transport: NetTransport, mode: GameMode, schema: WireSchema = null) -
 	_transport.packet_received.connect(_on_packet)
 	corrected.connect(_count_correction)
 	event_received.connect(_note_placement)
+
+
+## The content hash Hello carries for `mode`: a code host's `open` and a joiner's version check
+## against the service's `found` use the same (the M6 design §2.5).
+static func content_of(mode: GameMode) -> int:
+	return ContentFingerprint.of(ContentHash.of(mode), mode.lobby_level, mode.maps)
 
 
 ## Polls the transport, then advances a threaded load and sends the MoveClaim due by `now_usec`.

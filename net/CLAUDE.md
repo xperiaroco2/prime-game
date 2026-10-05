@@ -18,7 +18,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   `LoopbackHub`, `NetFrame` (the 3-byte header and the defensive decode), `NetKindTable` (kind → lane, direction,
   payload cap), `LaneOrder` (the 4-byte LATEST header that keeps LATEST in order with RELIABLE on WebRTC, M6 §2.2),
   `NetRejects` (counts and the summary line; `server/` adds its drops with `count_rejected`), and the
-  `packet_rejected(peer, reason)` signal per reject. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
+  `packet_rejected(peer, reason)` signal per reject. `JoinTarget` (M6-7): what a player typed (a code or
+  `address[:port]`) and the transport that joins it. Decisions: `docs/ARCHITECTURE.md` §4 "Transport".
 - `messages/`: `WireSchema` (every row of §4.3, the version, `encode`/`decode`; `NetKindTable.game()` is built from
   it), `WireRow` (`fixed_offset`: where a fixed-size field starts, so a caller patches it in place without a byte
   index), `WireField` (a field's wire type, its checks, its write and read), `WireMessage` (a name, the fields, `seq`

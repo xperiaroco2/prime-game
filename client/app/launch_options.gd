@@ -3,7 +3,11 @@ extends RefCounted
 ## The command line after -- (ARCHITECTURE §4.7): the game and tools/run/headless_session.gd read
 ## it alike.
 ##   --host [--local]    host a session; --local listens on 127.0.0.1 only, else on every interface
-##   --join=<address>    join that host
+##   --join=<target>     join that host: a room's code, or address[:port] (JoinTarget.parse)
+##   --code              host with a code: over WebRTC through the signalling service (the M6
+##                       design §2.3); without it the host listens over ENet (Direct)
+##   --signal=<url|lan>  the signalling service (default JoinTarget.SERVICE_URL); "lan": a host
+##                       serves LanSignalling itself on the port (TCP), with --room=<CODE> its code
 ##   --port=<p>          the UDP port (default DEFAULT_PORT)
 ##   --stop-file=<path>  stop cleanly once this file exists (the runner's Ctrl+C and --seconds)
 ##   --alive-file=<path> stop once this file is gone or ALIVE_SECONDS old: the runner touches it
@@ -20,6 +24,11 @@ const PORT_ARG := "--port="
 const STOP_ARG := "--stop-file="
 const ALIVE_ARG := "--alive-file="
 const NO_REPLAY_ARG := "--no-replay"
+const CODE_ARG := "--code"
+const SIGNAL_ARG := "--signal="
+const ROOM_ARG := "--room="
+## --signal=lan: the host serves the signalling itself (LanSignalling).
+const LAN_SIGNAL := "lan"
 const LOCALHOST := "127.0.0.1"
 const EVERY_INTERFACE := "*"
 ## A host, the game's or the headless session's, prints this once it listens; the runner starts
@@ -36,6 +45,14 @@ var bind := EVERY_INTERFACE
 var stop_file := ""
 var alive_file := ""
 var replay := true
+## The host opens a room with a code (--code).
+var by_code := false
+## The signalling service's URL, or LAN_SIGNAL (--signal=).
+var signal_url := JoinTarget.SERVICE_URL
+## The code a LAN_SIGNAL host's service hands out; empty: a random one.
+var room := ""
+## What --join= names, parsed; null without --join=.
+var target: JoinTarget = null
 ## What is wrong with the arguments; empty when nothing is.
 var problem := ""
 
@@ -84,6 +101,12 @@ func _read(args: PackedStringArray, menu_allowed: bool) -> String:
 			alive_file = arg.trim_prefix(ALIVE_ARG)
 		elif arg == NO_REPLAY_ARG:
 			replay = false
+		elif arg == CODE_ARG:
+			by_code = true
+		elif arg.begins_with(SIGNAL_ARG):
+			signal_url = arg.trim_prefix(SIGNAL_ARG)
+		elif arg.begins_with(ROOM_ARG):
+			room = arg.trim_prefix(ROOM_ARG).to_upper()
 		else:
 			return "unknown argument '%s'" % arg
 	bind = LOCALHOST if local else EVERY_INTERFACE
@@ -99,4 +122,19 @@ func _check(menu_allowed: bool, local: bool) -> String:
 		return "%s needs the host's address" % JOIN_ARG
 	if local and not hosting:
 		return "%s is for the host only" % LOCAL_ARG
+	return _check_code()
+
+
+## The code options: --code and --room= are the host's, --join= parses as a JoinTarget.
+func _check_code() -> String:
+	if (by_code or not room.is_empty()) and not hosting:
+		return "%s and %s are for the host only" % [CODE_ARG, ROOM_ARG]
+	if signal_url == LAN_SIGNAL and not (hosting and by_code):
+		return "%s%s is for a %s host only" % [SIGNAL_ARG, LAN_SIGNAL, CODE_ARG]
+	if not room.is_empty() and (signal_url != LAN_SIGNAL or not SignalCodec.is_code(room)):
+		return "%s<CODE> takes a code, with %s%s only" % [ROOM_ARG, SIGNAL_ARG, LAN_SIGNAL]
+	if joining:
+		target = JoinTarget.parse(address, port, signal_url)
+		if not target.problem.is_empty():
+			return "%s: %s" % [JOIN_ARG, target.problem]
 	return ""
