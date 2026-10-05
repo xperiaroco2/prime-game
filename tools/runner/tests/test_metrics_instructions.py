@@ -235,9 +235,13 @@ class InstructionsTest(unittest.TestCase):
         self.assertAlmostEqual(impl["usd"], impl["write_usd"] + impl["rewrite_usd"] + impl["read_usd"])
         self.assertAlmostEqual(impl["share"], impl["usd"] / metrics.usd(self.agent("d-impl")["tokens"]))
         non_read = impl["write_usd"] + impl["rewrite_usd"]
-        self.assertEqual(metrics.POINT_WEIGHTS, ((0.0, 15.3), (0.5, 20.3)))
+        # The third weight is the week's central one (#333), taken from WEEK_CENTRAL, not a copy of its numbers.
+        self.assertEqual(metrics.POINT_WEIGHTS, ((0.0, 15.3), (0.5, 20.3), (0.75, 23.0)))
+        self.assertIs(metrics.POINT_WEIGHTS[-1], metrics.WEEK_CENTRAL)
+        self.assertEqual(len(impl["points"]), 3)
         self.assertAlmostEqual(impl["points"][0], non_read / 15.3)
         self.assertAlmostEqual(impl["points"][1], (non_read + 0.5 * impl["read_usd"]) / 20.3)
+        self.assertAlmostEqual(impl["points"][2], (non_read + 0.75 * impl["read_usd"]) / 23.0)
         # The manager's own lines carry no instruction item (none in its transcript): $0, still a row.
         self.assertEqual(roles["manager sessions"]["usd"], 0.0)
         self.assertEqual(rec["all"]["agents"], 5)
@@ -245,8 +249,9 @@ class InstructionsTest(unittest.TestCase):
         text = "\n".join(_md)
         self.assertIn("## Instructions and docs per agent role (#337)", text)
         self.assertIn("| role | agents | launch-loaded | loaded by path | read | first writes | re-writes | reads | "
-                      "list $ | of the role's $ | points (w = 0 / 0.5) | loaded twice (loads, $) |", text)  # fmt: skip
-        self.assertIn("k(0) = 15.3, k(0.5) = 20.3", text)
+                      "list $ | of the role's $ | points (w = 0 / 0.5 / 0.75) | loaded twice (loads, $) |",
+                      text)  # fmt: skip
+        self.assertIn("k(0) = 15.3, k(0.5) = 20.3, k(0.75) = 23, for the window", text)
 
     def test_files_loaded_twice_in_one_agent(self) -> None:
         _md, record, _compact = self.build()
@@ -326,7 +331,8 @@ class InstructionsTest(unittest.TestCase):
         self.assertEqual(compact.index(line), compact.index(record["quality"]["compact"]) + 1)
         a = record["instructions"]["all"]
         self.assertTrue(line.startswith(f"instructions and docs: {metrics.fmt_usd(a['usd'])} ({a['share']:.0%} of "))
-        self.assertIn(f"points {a['points'][0]:.2f} / {a['points'][1]:.2f} (w = 0 / 0.5); loaded twice 2 (", line)
+        self.assertIn(f"points {a['points'][0]:.2f} / {a['points'][1]:.2f} / {a['points'][2]:.2f} (w = 0 / 0.5 / "
+                      "0.75); loaded twice 2 (", line)  # fmt: skip
         self.assertIn("; ARCHITECTURE $0.00, AGENT_WORKFLOW $0.00; 2 merge-check pairs with an ARCHITECTURE "
                       "conflict", line)  # fmt: skip
 
