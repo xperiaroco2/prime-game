@@ -1258,13 +1258,15 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   tests that start no Godot, each test in one of the worker processes, a quarter of
   the logical CPUs and at least one, since the lane runs beside `freeze` and `stall`) and the Godot lane (`check`, then
   `selftest-godot`: the runner test classes marked `@starts_godot`, after `check` so that a fresh checkout has
-  imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), `bots`
+  imported the project, then `test`, `enet`, `freeze` and `stall` (the headless ENet runs of `net/`, below), their
+  WebRTC twins `webrtc`, `webrtc-freeze`, `webrtc-stall` and `webrtc-silence`, `bots`
   and `bots-enet`, `chaos`, and `game`), so no two Godot runs overlap. Every step runs and any red step fails it; each step's
   output is printed whole when the step ends (`== <step> (<lane> lane, <seconds>, <status>)`). After both lanes: the
   clean-tree check, and the runner tests counted against a serial discovery (each ran once, and a decorator skipped
   it exactly where a serial run skips it; `selftest` alone runs both groups at once with the same check;
   `selftest --group python|godot` runs one group without it). The
-  summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `enet`, `freeze`, `stall`, `bots`,
+  summary keeps the serial order (`doctor`, `lint`, `signal`, `check`, `test`, `enet`, `freeze`, `stall`, `webrtc`,
+  `webrtc-freeze`, `webrtc-stall`, `webrtc-silence`, `bots`,
   `bots-enet`, `chaos`, `game`, `selftest`, `selftest-godot`), then each lane's wall time, the CPU count and the
   test count.
   Each run appends a line to `tools/out/logs/verify-history.jsonl`, which `metrics` reads: `start`, `worktree`,
@@ -1333,7 +1335,10 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   `run tests/integration/net/enet_freeze.gd --headless --instances 3 --seconds 60`; `stall` (ENet's timeouts on
   both sides and a backlog taken in one poll, #95; about 13 to 25 s, since the drops depend on the round trip) is
   `run tests/integration/net/enet_stall.gd --headless --seconds 60`, one process whose hosts take `<p>` to
-  `<p> + 2`. Each gets
+  `<p> + 2`. The WebRTC twins (#370) run `tests/integration/net/webrtc_host_and_two_clients.gd` and
+  `webrtc_freeze.gd` with `--instances 3`, and `webrtc_stall.gd` (about 23 s: the silence rule's 20 s) and
+  `webrtc_silence.gd` (about 31 s) in one process, each with `--seconds 60`; their `<p>` is free for TCP too, since
+  `LanSignalling` listens there. Each gets
   `-- --port=<p>`, a random free UDP port on 127.0.0.1 in 20000–31999 (below the ephemeral ranges), so
   worktrees verifying at once very rarely share a port (if they do, the host fails with
   `host on 127.0.0.1:<p> failed`; run `verify` again). Test suites are named `<name>_test.gd`

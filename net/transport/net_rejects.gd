@@ -62,6 +62,15 @@ func from_peer(peer_id: int) -> int:
 	return _pending_by_peer.get(peer_id, 0)
 
 
+## Every rejection so far by reason, "REASON xN, ...", or "none" (a test's failure message: the
+## summaries may have been logged and taken already).
+func totals() -> String:
+	var reasons := PackedStringArray()
+	for reason: int in _sorted_by_count(_by_reason):
+		reasons.append("%s x%d" % [Reason.find_key(reason), _by_reason[reason]])
+	return ", ".join(reasons) if not reasons.is_empty() else "none"
+
+
 ## Rejections since the last summary.
 func pending() -> int:
 	var sum := 0

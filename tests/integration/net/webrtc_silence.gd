@@ -186,7 +186,7 @@ func _finish() -> void:
 	for client: WebRtcTransport in _clients.values():
 		rejected += client.rejects.total()
 	if rejected != 0:
-		_fail("%d packet(s) rejected" % rejected)
+		_fail("%d packet(s) rejected; the host's: %s" % [rejected, _host.rejects.totals()])
 		return
 	for client: WebRtcTransport in _clients.values():
 		client.close()

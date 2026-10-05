@@ -334,7 +334,7 @@ func _on_host_peer_left(peer_id: int) -> void:
 	if _left.size() < _peer_of_instance.size():
 		return
 	if _transport.rejects.total() != 0:
-		_fail("%d packet(s) rejected on the host" % _transport.rejects.total())
+		_fail("rejected on the host: %s" % _transport.rejects.totals())
 		return
 	print("NET host both clients stayed through both freezes and left at the end; PASS")
 	_transport.close()
@@ -399,7 +399,7 @@ func _finish_client() -> void:
 		_fail("heard no beat from the host")
 		return
 	if _transport.rejects.total() != 0:
-		_fail("%d packet(s) rejected on client %d" % [_transport.rejects.total(), _instance])
+		_fail("rejected on client %d: %s" % [_instance, _transport.rejects.totals()])
 		return
 	_transport.close()
 	print("NET client %d stayed connected through the freezes; PASS" % _instance)

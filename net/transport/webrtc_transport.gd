@@ -46,6 +46,10 @@ const SILENCE_MS := 20000
 ## full or refusing host answers none), or the channels never opened. The host closes a half-made
 ## connection after as long from the joiner's arrival.
 const JOIN_TIMEOUT_MS := 15000
+## A channel closed under a live connection becomes a leave after this long (placeholder): a client
+## closing resets its channels just before its connection ends, and the host may read the first in
+## a poll before the second.
+const CHANNEL_GRACE_MS := 1000
 ## disconnect_peer: the connection closes once the client closed its side, or after this long.
 const CLOSE_WAIT_MS := 5000
 ## take_upload's cost of one packet beyond its bytes (E56, M6-1): 57 B of SCTP and DTLS, 48 B of
@@ -107,6 +111,8 @@ class Conn:
 	## Host: disconnect_peer was called at this time; -1 otherwise.
 	var closing_since_ms := -1
 	var reliable_closed := false
+	## Host: when a channel was first seen closed under the live connection; -1 otherwise.
+	var channel_closed_ms := -1
 	var last_sent_ms := 0
 	var last_heard_ms := 0
 	## The fault shim's RELIABLE packets still on their way, oldest first, with their due times.
@@ -482,10 +488,15 @@ func _judge(now: int) -> void:
 		if now - conn.last_heard_ms > SILENCE_MS:
 			_lose(conn, JOIN_UNREACHABLE)
 		elif not conn.all_channels_open():
-			# The host closing a client's RELIABLE channel is how it ends that client: no fault.
-			if is_host():
+			# The host closing a client's RELIABLE channel is how it ends that client: at once, no
+			# fault. On the host a client's own close ends its connection within the grace.
+			if not is_host():
+				_lose(conn, JOIN_FAILED)
+			elif conn.channel_closed_ms < 0:
+				conn.channel_closed_ms = now
+			elif now - conn.channel_closed_ms >= CHANNEL_GRACE_MS:
 				_note_reject(conn.peer_id, NetRejects.Reason.CHANNEL_CLOSED)
-			_lose(conn, JOIN_FAILED)
+				_lose(conn, JOIN_FAILED)
 	for peer_id in _order.stalled_peers(now):
 		_note_reject(peer_id, NetRejects.Reason.ORDER_STALLED)
 		var conn: Conn = _conns.get(peer_id)

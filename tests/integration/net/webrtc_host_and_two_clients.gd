@@ -350,7 +350,12 @@ func _on_host_peer_left(peer_id: int) -> void:
 func _finish_host() -> void:
 	var rejected := _host.rejects.total() + _own.transport.rejects.total()
 	if rejected != 0:
-		_fail("%d packet(s) rejected on the host" % rejected)
+		_fail(
+			(
+				"rejected on the host: %s %s"
+				% [_host.rejects.totals(), _own.transport.rejects.totals()]
+			)
+		)
 		return
 	if _own.host_lost_count != 1:
 		_fail("the host's own client saw host_lost %d times" % _own.host_lost_count)
@@ -411,7 +416,7 @@ func _finish_client() -> void:
 
 func _check_client_rejects() -> void:
 	if _client.transport.rejects.total() != 0:
-		_fail("%d packet(s) rejected on client %d" % [_client.transport.rejects.total(), _instance])
+		_fail("rejected on client %d: %s" % [_instance, _client.transport.rejects.totals()])
 
 
 func _pass() -> void:

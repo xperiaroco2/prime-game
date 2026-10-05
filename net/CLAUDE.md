@@ -12,7 +12,9 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - State sync and interpolation data for remote players.
 
 ## Map
-- `transport/`: `NetTransport` (the interface game code uses), `EnetTransport`, `LoopbackTransport` and
+- `transport/`: `NetTransport` (the interface game code uses), `EnetTransport`, `WebRtcTransport` (M6-4: one
+  connection per client, three negotiated channels, `ADMIT` with the host's id, the keepalive and silence rule, the
+  debug-only `FaultShim`; ARCHITECTURE §4), `LoopbackTransport` and
   `LoopbackHub`, `NetFrame` (the 3-byte header and the defensive decode), `NetKindTable` (kind → lane, direction,
   payload cap), `LaneOrder` (the 4-byte LATEST header that keeps LATEST in order with RELIABLE on WebRTC, M6 §2.2),
   `NetRejects` (counts and the summary line; `server/` adds its drops with `count_rejected`), and the
@@ -38,6 +40,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
 - Received bytes go through `NetTransport.receive_bytes` and its helper `_decoded` only, whatever the backend, so
   the host's own client decodes exactly what a remote one does (a superseded LATEST packet is checked the same way
   but not delivered). Signals fire from `poll()` only.
+- WebRTC: never write to a channel that is not open (an engine `ERROR:` line); check its ready state first.
+  Keepalive, silence and join timeouts live in `WebRtcTransport` only.
 - ENet timeouts are set in `EnetTransport` and nowhere else. The peer timeout stays at 10 s or more: a windowed
   D3D12 process can freeze 5 s (#21); Vulkan, the Windows driver since #124, did not, but other freezes remain.
 - `EnetTransport.poll` services ENet until the socket is drained: one service reads at most 256 datagrams, and a
@@ -80,6 +84,7 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   and the 5.2 s freeze of the host and of a client,
   `tools\run.cmd run tests/integration/net/enet_freeze.gd --headless --instances 3 -- --port=<p>` (#70), and the
   timeouts and the backlog in one process (#95),
-  `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`. `verify` and CI run all three on
-  a free port.
+  `tools\run.cmd run tests/integration/net/enet_stall.gd --headless -- --port=<p>`. Their WebRTC twins
+  (`webrtc_host_and_two_clients.gd`, `webrtc_freeze.gd` with `--instances 3`; `webrtc_stall.gd`, `webrtc_silence.gd`)
+  take `-- --port=<p>` for `LanSignalling`. `verify` and CI run all seven on a free port.
 - At finish, `netcode-security-reviewer` reviews every `net/` change.

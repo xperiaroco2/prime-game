@@ -227,6 +227,43 @@ func test_keepalives_go_on_voice_and_other_kind_0_packets_are_rejected() -> void
 	assert_int(client.rejects.total()).is_equal(2)
 
 
+## A client's own close resets its channels before the connection ends, and under load the host
+## can read the first in a poll before the second: that is an honest leave, never a reject.
+func test_a_client_closing_its_channels_then_its_connection_leaves_unrejected() -> void:
+	var joiner := await _admitted_fake()
+	joiner.channels[NetKindTable.Lane.LATEST].close()
+	var after := Time.get_ticks_msec() + WebRtcTransport.CHANNEL_GRACE_MS / 4
+	await _until(func() -> bool: return Time.get_ticks_msec() >= after)
+	joiner.pc.close()
+	assert_bool(await _until(_has.bind("host left 2"))).is_true()
+	assert_int(_transports[0].rejects.total()).is_equal(0)
+
+
+## A channel closed under a connection that stays up is a fault: the peer leaves after the grace,
+## counted as CHANNEL_CLOSED.
+func test_a_channel_closed_under_a_live_connection_is_a_counted_leave() -> void:
+	var joiner := await _admitted_fake()
+	var closed_ms := Time.get_ticks_msec()
+	joiner.channels[NetKindTable.Lane.LATEST].close()
+	assert_bool(await _until(_has.bind("host left 2"))).is_true()
+	assert_int(Time.get_ticks_msec() - closed_ms).is_greater_equal(WebRtcTransport.CHANNEL_GRACE_MS)
+	var host := _transports[0]
+	assert_int(host.rejects.of_reason(NetRejects.Reason.CHANNEL_CLOSED)).is_equal(1)
+	assert_int(host.rejects.total()).is_equal(1)
+
+
+## A FakePeer joiner the host admitted as peer 2.
+func _admitted_fake() -> FakePeer:
+	var host := _host(4)
+	host.peer_left.connect(func(id: int) -> void: _events.append("host left %d" % id))
+	assert_bool(await _until(func() -> bool: return host.room_code() != "")).is_true()
+	var joiner := _fake()
+	joiner.signaller.join_room(host.room_code())
+	assert_bool(await _until(_has.bind("host joined 2"))).is_true()
+	assert_bool(await _until(joiner.all_open)).is_true()
+	return joiner
+
+
 func _client() -> WebRtcTransport:
 	var client := _transport()
 	client.join_timeout_ms = SHORT_JOIN_MS

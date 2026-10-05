@@ -286,7 +286,12 @@ func _finish() -> void:
 			)
 			return
 		if pair.host.rejects.total() + pair.client.rejects.total() != 0:
-			_fail("%s: packets were rejected" % pair.name)
+			_fail(
+				(
+					"%s: rejected on the host: %s; on the client: %s"
+					% [pair.name, pair.host.rejects.totals(), pair.client.rejects.totals()]
+				)
+			)
 			return
 	for pair in _pairs:
 		pair.client.close()
