@@ -28,6 +28,10 @@ var seq_offset := -1
 var count_at := 0
 
 var _schema: WireSchema
+## The last header encoded, and its tick: one encoding per poll, not per listener or frame (each
+## WireSchema.encode costs tens of microseconds, M5-4).
+var _header_tick := -1
+var _header_bytes := PackedByteArray()
 
 
 func _init(schema: WireSchema) -> void:
@@ -46,22 +50,20 @@ func _init(schema: WireSchema) -> void:
 ## The record of one relayed frame (`down`: a VoiceDown's speaker, seq and opus), as WireSchema
 ## writes it inside a VoiceBatch; empty when the codec refused it (it logged why).
 func record(down: WireMessage) -> PackedByteArray:
-	var header := _header(0)
 	var one := _schema.encode(_batch(0, [_frame(down.fields, down.fields["seq"] as int)]))
-	if header.is_empty() or one.is_empty():
-		return PackedByteArray()
-	return one.slice(header.size())
+	if one.is_empty():
+		return one
+	return one.slice(count_at + 1)
 
 
 ## A copy of `encoded` (record(down)) with `seq` in place of the frame's seq: byte for byte the
 ## record WireSchema writes for it with that seq. `seq` is a u16 (VoiceRelay renumbers modulo 2^16).
 func with_seq(encoded: PackedByteArray, down: WireMessage, seq: int) -> PackedByteArray:
 	if seq_offset < 0:
-		var header := _header(0)
 		var one := _schema.encode(_batch(0, [_frame(down.fields, seq)]))
-		if header.is_empty() or one.is_empty():
-			return PackedByteArray()
-		return one.slice(header.size())
+		if one.is_empty():
+			return one
+		return one.slice(count_at + 1)
 	var copy := encoded.duplicate()
 	copy.encode_u16(seq_offset, seq)
 	return copy
@@ -94,7 +96,10 @@ func payloads(tick: int, records: Array[PackedByteArray]) -> Array[PackedByteArr
 
 ## What WireSchema writes for a batch of no frames under `tick`: the bytes before the first record.
 func _header(tick: int) -> PackedByteArray:
-	return _schema.encode(_batch(tick, []))
+	if tick != _header_tick:
+		_header_bytes = _schema.encode(_batch(tick, []))
+		_header_tick = tick if not _header_bytes.is_empty() else -1
+	return _header_bytes
 
 
 static func _batch(tick: int, frames: Array[Dictionary]) -> WireMessage:
