@@ -8,11 +8,12 @@ builds"). CI's release workflow runs it on a tag; it runs on Linux (and needs `c
 2. A clean tree of the commit (`git archive`), not the working tree: untracked files never reach a build, and the
    TwoVoIP extension, which a cloud session's sparse checkout leaves out, is in it. On Linux Godot prints `ERROR:`
    lines for that extension (it has Windows libraries only); those are expected, any other fails the export.
-3. Both presets exported (`--export-release` / `--export-debug`) and zipped into tools/out/export/.
+3. Both presets exported (`--export-release` / `--export-debug`), the license notices added (CREDITS.md and the shipped
+   addons' LICENSE* files under licenses/<addon>/, #419) and zipped into tools/out/export/.
 4. The release check: the published zip holds the release template's .exe byte for byte (not the debug one), the
-   release libraries of TwoVoIP and webrtc-native and no console wrapper. OS.is_debug_build() is false only in a
-   release template, and the F3 overlay, the dev tools and the debug wire kinds exist only when it is true
-   (invariant 8).
+   release libraries of TwoVoIP and webrtc-native, exactly the notices of NOTICES and no console wrapper.
+   OS.is_debug_build() is false only in a release template, and the F3 overlay, the dev tools and the debug wire kinds
+   exist only when it is true (invariant 8). The debug zip must carry the same notices.
 5. The content hash in an export (M6 ADR §2.5): tools/export/export_probe.gd runs against the release pack. Every
    level and every file it reaches is found; a second tree of the same commit exported again gives the same hash;
    one byte changed in each level gives another. The game's levels reach no other file yet, so the walk is proven on
@@ -44,11 +45,29 @@ TEMPLATES = (
     "windows_debug_x86_64.exe",
     "windows_debug_x86_64_console.exe",
 )
+# The license notices both zips carry (#419): CREDITS.md and every LICENSE* file of the addons whose libraries a build
+# ships, under licenses/<addon>/ (one folder per addon, as TwoVoIP's LICENSE would collide with another addon's). Only
+# the addons' own files: the BSD-3 libraries built into TwoVoIP's (Opus, RNNoise, SpeexDSP) are only named in
+# CREDITS.md. export_presets.cfg keeps the unshipped addons out of a build.
+SHIPPED_ADDONS = ("twovoip", "webrtc_native")
+UNSHIPPED_ADDONS = ("gdUnit4",)
+NOTICES = (
+    "CREDITS.md",
+    "licenses/twovoip/LICENSE",
+    "licenses/webrtc_native/LICENSE.libdatachannel",
+    "licenses/webrtc_native/LICENSE.libjuice",
+    "licenses/webrtc_native/LICENSE.libsrtp",
+    "licenses/webrtc_native/LICENSE.mbedtls",
+    "licenses/webrtc_native/LICENSE.plog",
+    "licenses/webrtc_native/LICENSE.usrsctp",
+    "licenses/webrtc_native/LICENSE.webrtc-native",
+)
 RELEASE_FILES = {
     f"{GAME}.exe",
     f"{GAME}.pck",
     "libtwovoip.windows.template_release.x86_64.dll",
     "libwebrtc_native.windows.template_release.x86_64.dll",
+    *NOTICES,
 }
 # Extensions whose `ERROR:` lines a Linux Godot run expects: TwoVoIP ships no Linux library at all; the Windows pack
 # the probe runs holds webrtc-native's `.gdextension` but no Linux library (the project's Linux one loads).
@@ -253,13 +272,31 @@ def changed_byte(text: bytes) -> bytes:
     return text[:at] + letter + text[at + 1 :]
 
 
-def check_release(archive: Path, templates: Path) -> list[str]:
-    """What makes the zip not a release build: files, the .exe against the templates, the extensions' libraries."""
-    problems = []
+def zip_files(archive: Path, top: str) -> dict[str, str]:
+    """The zip's files by their path under `top/`; a file outside it keeps its whole name, so it matches nothing."""
     with zipfile.ZipFile(archive) as files:
-        names = {Path(name).name: name for name in files.namelist() if not name.endswith("/")}
-        if set(names) != RELEASE_FILES:
-            problems.append(f"files {sorted(names)}, not {sorted(RELEASE_FILES)}")
+        return {name.removeprefix(f"{top}/"): name for name in files.namelist() if not name.endswith("/")}
+
+
+def missing_notices(archive: Path, top: str) -> list[str]:
+    """The NOTICES a zip (release or debug, its files under `top/`) lacks."""
+    files = zip_files(archive, top)
+    return [notice for notice in NOTICES if notice not in files]
+
+
+def check_release(archive: Path, templates: Path) -> list[str]:
+    """What makes the zip not a release build: files, the .exe against the templates, the extensions' libraries, the
+    license notices."""
+    problems = []
+    names = zip_files(archive, GAME)
+    missing = missing_notices(archive, GAME)
+    if missing:
+        problems.append(f"no license notices {missing}")
+    stray = sorted(set(names) - RELEASE_FILES)
+    absent = sorted(RELEASE_FILES - set(names) - set(missing))
+    if stray or absent:
+        problems.append(f"files {stray} not expected, {absent} missing")
+    with zipfile.ZipFile(archive) as files:
         exe = files.read(names[f"{GAME}.exe"]) if f"{GAME}.exe" in names else b""
     if exe != (templates / "windows_release_x86_64.exe").read_bytes():
         problems.append(f"{GAME}.exe is not the release template windows_release_x86_64.exe")
@@ -268,11 +305,32 @@ def check_release(archive: Path, templates: Path) -> list[str]:
     return problems
 
 
+def add_notices(tree: Path, folder: Path) -> None:
+    """CREDITS.md and every LICENSE* file of the shipped addons, from the exported `tree` into the build `folder`
+    (licenses/<addon>/). The release check then holds them against NOTICES, so a license file added or removed in a
+    shipped addon fails the export until NOTICES follows."""
+    credits = tree / "CREDITS.md"
+    if not credits.is_file():
+        raise Failure("no CREDITS.md in the exported tree: run `credits`")
+    folder.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(credits, folder / "CREDITS.md")
+    for addon in SHIPPED_ADDONS:
+        licenses = sorted(path for path in (tree / "addons" / addon).glob("LICENSE*") if path.is_file())
+        if not licenses:
+            raise Failure(f"addons/{addon} has no LICENSE* file, and a build ships its library")
+        target = folder / "licenses" / addon
+        target.mkdir(parents=True, exist_ok=True)
+        for path in licenses:
+            shutil.copyfile(path, target / path.name)
+
+
 def write_zip(folder: Path, archive: Path, top: str) -> None:
-    """The files of `folder` under `top/`, sorted, with one fixed date: the same files give the same zip."""
+    """The files of `folder` (its subfolders too) under `top/`, sorted, with one fixed date: the same files give the
+    same zip."""
+    files = sorted((p.relative_to(folder).as_posix(), p) for p in folder.rglob("*") if p.is_file())
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as out:
-        for path in sorted(p for p in folder.iterdir() if p.is_file()):
-            info = zipfile.ZipInfo(f"{top}/{path.name}", ZIP_TIME)
+        for name, path in files:
+            info = zipfile.ZipInfo(f"{top}/{name}", ZIP_TIME)
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
             out.writestr(info, path.read_bytes())
@@ -374,6 +432,8 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
         shutil.rmtree(builds)
     export(tree, data, "--export-release", RELEASE, builds / "release" / f"{GAME}.exe", "export-release")
     export(tree, data, "--export-debug", DEBUG, builds / "debug" / f"{GAME}.exe", "export-debug")
+    for build in ("release", "debug"):
+        add_notices(tree, builds / build)
     release_zip = EXPORT / f"{GAME}-{name}-windows-x86_64.zip"
     debug_zip = EXPORT / f"{GAME}-{name}-windows-x86_64-debug.zip"
     for stale in EXPORT.glob(f"{GAME}-*.zip"):
@@ -385,8 +445,12 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
         raise Failure(f"{release_zip.name} is not a release build: " + "; ".join(problems))
     ok(
         f"{release_zip.name} is a release build "
-        "(the release template's .exe, the release TwoVoIP and webrtc-native libraries)"
+        "(the release template's .exe, the release TwoVoIP and webrtc-native libraries, the license notices)"
     )
+    missing = missing_notices(debug_zip, f"{GAME}-debug")
+    if missing:
+        raise Failure(f"{debug_zip.name} has no license notices {missing}")
+    ok(f"{debug_zip.name} carries the license notices ({len(NOTICES)} files)")
     prove_hash(commit, data, probe(builds / "release" / f"{GAME}.pck", data))
     for archive in (release_zip, debug_zip):
         say(f"EXPORT {archive.relative_to(ROOT).as_posix()} {archive.stat().st_size // (1 << 20)} MB")
