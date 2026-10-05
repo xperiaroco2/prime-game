@@ -5,12 +5,17 @@ extends Node
 ## why each session ended. It never calls SceneTree.change_scene_to_*, which would free this root
 ## and the HostNode with it, and there is no autoload.
 ##
-## Hosting: HostNode.host() on an EnetTransport, then the own ClientSession on its own_client.
-## Joining: a ClientSession on an EnetTransport. Everything shown comes from the own ClientModel
+## Hosting: HostNode.host() on an EnetTransport (Direct), or on a WebRtcTransport that opens a room
+## with a code at the signalling service (the M6 design §2.3; --signal=lan serves a LanSignalling
+## here), then the own ClientSession on its own_client. Joining: a JoinTarget (a code or an
+## address) hands over its transport, and the connecting screen names the step and the target;
+## a code join ends early when the service's `found` names another version (JoinProgress). The
+## lobby shows the room's code to whoever knows it: the host from its transport, a joiner the code
+## it typed (the M6 design §3). Everything shown comes from the own ClientModel
 ## and the client's own copy of the mode: the host's player reads nothing of the host's session
 ## (E18; client/app/ names server/ only through the HostNode façade, a source test holds it).
-## The command line after -- (LaunchOptions: --host [--local], --join=, --port=, the runner's stop
-## and alive files) skips the menu.
+## The command line after -- (LaunchOptions: --host [--local] [--code], --join=, --port=,
+## --signal=, the runner's stop and alive files) skips the menu.
 ##
 ## Movement on the network (M4-7): the local PlayerController takes the mode's PlayerRules and
 ## claims to the session; every snapshot goes into a SnapshotBuffer, from which Avatars draws the
@@ -66,6 +71,17 @@ var settings: UserSettings
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
+## The host's room transport while hosting with a code; null otherwise.
+var _room: WebRtcTransport
+## The signalling a --signal=lan host serves itself; null otherwise.
+var _lan_signal: LanSignalling
+## The room had a code: its turning empty means the service went away.
+var _room_had_code := false
+## What this client joined, and the transport it joins with; null for a host or no session.
+var _target: JoinTarget
+var _join_transport: NetTransport
+## This game's content hash, for the version check against `found`.
+var _own_content := 0
 var _client: ClientSession
 var _session_node: SessionNode
 var _buffer: SnapshotBuffer
@@ -98,6 +114,8 @@ func _ready() -> void:
 	ui.esc.lobby.set_mode(mode)
 	ui.menu.host_requested.connect(func(port: int) -> void: host(port))
 	ui.menu.join_requested.connect(join)
+	ui.menu.code_host_requested.connect(func() -> void: host_with_code(ui.menu.port()))
+	ui.menu.code_join_requested.connect(join_code)
 	ui.menu.quit_requested.connect(quit)
 	ui.connecting.cancel_requested.connect(leave)
 	ui.esc.lobby.ready_toggled.connect(set_ready)
@@ -119,10 +137,12 @@ func _ready() -> void:
 	if not options.problem.is_empty():
 		print("session: %s" % options.problem)
 		ui.menu.set_reason(options.problem)
+	elif options.hosting and options.by_code:
+		host_with_code(options.port, options.bind)
 	elif options.hosting:
 		host(options.port, options.bind)
 	elif options.joining:
-		join(options.address, options.port)
+		join_target(options.target)
 	else:
 		ui.menu.port_box.value = options.port
 
@@ -143,13 +163,47 @@ func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	var enet := transport as EnetTransport
 	if enet != null:
 		enet.bind_address = bind
+	return _host_on(transport, port, bind)
+
+
+## Hosts a session whose room has a code, through the signalling service of the launch options
+## (JoinTarget.SERVICE_URL by default); with --signal=lan this game serves it on `port` (TCP),
+## listening on `bind`. False, with the reason on the menu, when it could not start.
+func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
+	if _client != null:
+		return false
+	var room := WebRtcTransport.new(_schema.kind_table())
+	room.signal_url = options.signal_url if options != null else JoinTarget.SERVICE_URL
+	room.room_protocol = WireSchema.VERSION
+	room.room_content = ClientSession.content_of(mode)
+	if room.signal_url == LaunchOptions.LAN_SIGNAL:
+		var code := options.room
+		var lan := (
+			LanSignalling.new([], func() -> String: return code)
+			if not code.is_empty()
+			else LanSignalling.new()
+		)
+		if lan.listen(port, bind) != OK:
+			_cannot_host("the signalling could not listen on TCP port %d" % port)
+			return false
+		_lan_signal = lan
+		room.signal_url = "ws://%s:%d" % [LaunchOptions.LOCALHOST, port]
+		# Everything on this machine or LAN: host candidates only on 127.0.0.1 for --local.
+		room.local_candidates = bind == LaunchOptions.LOCALHOST
+	_room = room
+	_room_had_code = false
+	if _host_on(room, port, bind):
+		return true
+	_drop_room()
+	return false
+
+
+func _host_on(transport: NetTransport, port: int, bind: String) -> bool:
 	var node := HostNode.host(transport, mode, port, clock)
 	if not node.is_running():
 		var why := "; ".join(node.errors)
 		node.free()
-		print("session: cannot host: %s" % why)
-		last_reason = EndReasons.CANNOT_HOST
-		_show_menu(EndReasons.CANNOT_HOST, why)
+		_cannot_host(why)
 		return false
 	if options != null and not options.replay:
 		node.skip_replay()
@@ -162,16 +216,41 @@ func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	return true
 
 
-## Joins the host at `address`:`port`.
+## Joins the host at `address` (a host name or address, ":port" allowed), on `port` otherwise.
 func join(address: String, port: int) -> void:
+	join_target(JoinTarget.of_direct(address, port))
+
+
+## Joins the room with the code the player typed.
+func join_code(code: String) -> void:
+	var service := options.signal_url if options != null else JoinTarget.SERVICE_URL
+	join_target(JoinTarget.of_code(code, service))
+
+
+## Joins `target`; a problem with what was typed stays on the menu.
+func join_target(target: JoinTarget) -> void:
 	if _client != null:
 		return
-	var transport := _new_transport()
+	if not target.problem.is_empty():
+		ui.menu.set_reason(target.problem)
+		return
+	var transport := (
+		_new_transport() if make_transport.is_valid() else target.transport(_schema.kind_table())
+	)
 	_start_client(transport)
-	ui.connecting.set_address("%s:%d" % [address, port])
-	print("session: joining %s:%d" % [address, port])
-	if transport.join(address, port) != OK:
-		_end_session(ClientSession.CONNECT_FAILED)
+	_target = target
+	_join_transport = transport
+	_own_content = ClientSession.content_of(mode)
+	ui.connecting.set_target(JoinProgress.target_text(target))
+	print("session: joining %s" % target.label())
+	if transport.join(target.join_address(), target.port) != OK:
+		_end_session(
+			(
+				NetTransport.JOIN_SERVICE_UNREACHABLE
+				if target.is_code()
+				else ClientSession.CONNECT_FAILED
+			)
+		)
 
 
 func set_ready(on: bool) -> void:
@@ -295,6 +374,8 @@ func voice_control() -> VoiceControl:
 
 func _process(_delta: float) -> void:
 	_check_runner()
+	if _lan_signal != null:
+		_lan_signal.poll()
 	var now := screen()
 	if now != _screen:
 		_screen = now
@@ -304,6 +385,9 @@ func _process(_delta: float) -> void:
 	ui.show_screen(now)
 	ui.reads_device_input = device_input
 	if _client != null:
+		_refresh_join()
+		if _client == null:
+			return  # the version check ended the join
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
 		if now == GameFlow.Screen.ROUND:
 			ui.life.show_hud(_life.hud(_avatars.host_tick()))
@@ -517,8 +601,9 @@ func _on_host_ended(reason: StringName) -> void:
 	_end_session(reason)
 
 
-## Every end comes here: the sessions, the level and the views go, and the menu says why.
-func _end_session(reason: StringName) -> void:
+## Every end comes here: the sessions, the level and the views go, and the menu says why (with
+## `detail` after the reason's words).
+func _end_session(reason: StringName, detail := "") -> void:
 	if _ending or _client == null:
 		return
 	_ending = true
@@ -531,6 +616,9 @@ func _end_session(reason: StringName) -> void:
 		_host = null
 	if not _client.is_ended():
 		_client.leave()
+	_drop_room()
+	_target = null
+	_join_transport = null
 	_session_node.queue_free()
 	_session_node = null
 	_client = null
@@ -548,8 +636,38 @@ func _end_session(reason: StringName) -> void:
 	if _player != null:
 		_player.queue_free()
 		_player = null
-	_show_menu(reason)
+	_show_menu(reason, detail)
 	_ending = false
+
+
+## A join under way: the version check against the service's `found` (it ends the join with both
+## versions named), and the connecting screen's step. Then the room's code to whoever knows it:
+## the host from its transport (a line saying it is gone once the service went away), a code
+## joiner the code it typed, a Direct joiner none.
+func _refresh_join() -> void:
+	var webrtc := _join_transport as WebRtcTransport
+	if _target != null and not _client.is_welcomed():
+		var found := webrtc.found_protocol if webrtc != null else -1
+		if webrtc != null:
+			var own := WireSchema.VERSION
+			var why := JoinProgress.found_mismatch(found, webrtc.found_content, own, _own_content)
+			if not why.is_empty():
+				var detail := JoinProgress.found_detail(
+					why, found, webrtc.found_content, own, _own_content
+				)
+				_end_session(why, detail)
+				return
+		var connected := _join_transport.own_id() != 0
+		ui.connecting.set_step(JoinProgress.step_text(_target.is_code(), found, connected))
+	var code := ""
+	if _room != null:
+		code = _room.room_code()
+		_room_had_code = _room_had_code or not code.is_empty()
+	elif _target != null and _target.is_code():
+		code = _target.code
+	var line := JoinProgress.code_text(code, _room != null and _room_had_code and code.is_empty())
+	ui.lobby_hud.show_code(line)
+	ui.esc.lobby.show_code(line, code)
 
 
 ## The overlay's numbers, while it shows: the own client's, and on the host the session's counters
@@ -630,6 +748,21 @@ func _refresh_voice() -> void:
 	if tab:
 		ui.esc.voice.show_facts(_voice_control.facts())
 	ui.lobby_hud.show_voice_hint(_voice_control.lobby_hint())
+
+
+func _cannot_host(why: String) -> void:
+	print("session: cannot host: %s" % why)
+	last_reason = EndReasons.CANNOT_HOST
+	_show_menu(EndReasons.CANNOT_HOST, why)
+
+
+## The code host's room and its own signalling go with its session.
+func _drop_room() -> void:
+	_room = null
+	_room_had_code = false
+	if _lan_signal != null:
+		_lan_signal.stop()
+		_lan_signal = null
 
 
 func _show_menu(reason: StringName, detail := "") -> void:

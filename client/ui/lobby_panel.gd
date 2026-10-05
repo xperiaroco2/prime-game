@@ -6,13 +6,15 @@ extends VBoxContainer
 ## back. Everyone sees the settings; only the host changes them, and only in a phase that accepts
 ## its ChangeSettings (EscMenuState.may_change_settings): for everyone else they are read-only.
 ## Everything shown comes from the own ClientModel and the own mode. A changed control sends that
-## setting only.
+## setting only. The room's code with Copy, to whoever knows it (the M6 design §3 item 2).
 
 signal ready_toggled(on: bool)
 signal setting_changed(id: StringName, value: Variant)
 
 const READ_ONLY := "The settings below: only the host changes them, in the lobby."
 
+var code_label := Label.new()
+var copy_button := Button.new()
 var roster_label := Label.new()
 var countdown_label := Label.new()
 var ready_button := Button.new()
@@ -25,11 +27,20 @@ var _may_change := false
 var _numbers: Dictionary[StringName, SpinBox] = {}
 ## Setting id -> task type id -> its check box.
 var _bans: Dictionary[StringName, Dictionary] = {}
+## The code Copy puts on the clipboard; empty hides the row.
+var _code := ""
+var _code_row := HBoxContainer.new()
 
 
 func _init() -> void:
 	name = "LobbyPanel"
 	theme_type_variation = &"EscPage"
+	_code_row.add_child(code_label)
+	copy_button.text = "Copy"
+	copy_button.pressed.connect(func() -> void: DisplayServer.clipboard_set(_code))
+	_code_row.add_child(copy_button)
+	_code_row.visible = false
+	add_child(_code_row)
 	add_child(roster_label)
 	add_child(countdown_label)
 	ready_button.toggle_mode = true
@@ -43,6 +54,15 @@ func _init() -> void:
 	shortfalls_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	shortfalls_label.theme_type_variation = &"Shortfalls"
 	add_child(shortfalls_label)
+
+
+## The code line (JoinProgress.code_text) and the `code` Copy puts on the clipboard; Copy shows
+## only with a code, the row only with a line.
+func show_code(text: String, code: String) -> void:
+	_code = code
+	code_label.text = text
+	copy_button.visible = not code.is_empty()
+	_code_row.visible = not text.is_empty()
 
 
 ## Builds the settings' controls from the mode's settings, once per mode.
