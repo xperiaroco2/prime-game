@@ -361,9 +361,10 @@ Rules for every workflow run:
   earlier args and `bounded_waits: false` gets the earlier agents byte for byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
-  prompts that landed between waves and rewrote both folders (#413's rules line, #339's section reads). `plan_review: true`: a plan agent and a fresh
-  critique of its plan before the implementer, summarized in the PR (+2 agents). `test_review: true`: after the
-  reviews one agent plants 3 to 5 faults in the diff's production code with `tools\run.cmd mutants` (#184), each in a
+  prompts that landed between waves and rewrote both folders (#413's rules line, #339's section reads). `plan_review:
+  true`: a plan agent and a fresh critique of its plan before the implementer, summarized in the PR (+2 agents).
+  `test_review: true`: after the reviews one agent plants 3 to 5 faults in the diff's production code with
+  `tools\run.cmd mutants` (#184), each in a
   scratch worktree; a survived mutant is a finding, and the publisher stops and reports when `mutants` exits 2; the
   result's `stopped` then says to relaunch, not resume (+1; none for a design task or a diff without `core/ server/
   net/ client/ voice/` code). `second_review: true`: a second `netcode-security-reviewer` with an attacker's lens
