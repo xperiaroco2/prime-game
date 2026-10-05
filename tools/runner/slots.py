@@ -394,6 +394,8 @@ class Pool:
         poll: float = POLL,
         every: float = REPORT_EVERY,
         quiet: Quiet | None = None,
+        watch_quiet: bool = False,
+        wall: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         if count < 1:
             raise ValueError(f"a pool needs at least one slot, not {count}")
@@ -406,6 +408,10 @@ class Pool:
         self.configured = count
         self.quiet = quiet
         self.count = min(count, QUIET_SLOTS) if quiet is not None else count
+        # A run that waits looks for a quiet window that starts meanwhile (#416), so it does not take a slot the window
+        # has closed to new runs.
+        self.watch_quiet = watch_quiet
+        self.wall = wall
         self.max_wait = max_wait
         self.me = me or {}
         self.clock = clock
@@ -421,6 +427,18 @@ class Pool:
     @property
     def quiet_note(self) -> str | None:
         return self.quiet.note(self.count, self.configured) if self.quiet is not None else None
+
+    def _join_quiet(self) -> None:
+        """A quiet window that began while this run waits limits it too: it takes at most QUIET_SLOTS slots from now
+        on, so it never gets the slot the window closed (its warnings about a bad quiet file were said by for_verify)."""
+        if not self.watch_quiet or self.quiet is not None:
+            return
+        quiet = read_quiet(self.where, now=self.wall(), say=lambda _: None)
+        if quiet is None:
+            return
+        self.quiet = quiet
+        self.count = min(self.configured, QUIET_SLOTS)
+        self.say(f"  {self.kind}: {quiet.note(self.count, self.configured)} began while waiting; waiting for slot 1 only")
 
     @property
     def what(self) -> str:
@@ -499,8 +517,9 @@ class Pool:
         not start after max_wait (`Taken.over`; the warning says so)."""
         started = self.clock()
         next_report = started
-        quiet = self.quiet_note
         while True:
+            self._join_quiet()
+            quiet = self.quiet_note
             try:
                 got = self.try_take()
             except OSError as exc:
@@ -594,7 +613,8 @@ def for_verify(
     wait = setting(env, WAIT_VAR, DEFAULT_WAIT)
     where = folder(env)
     quiet = read_quiet(where, now=now, say=say)
-    return Pool(where, count, wait, kind=kind, me=me, say=say, quiet=quiet), ""
+    wall = {"wall": lambda: now} if now is not None else {}  # a fixed time (a test); else the real one
+    return Pool(where, count, wait, kind=kind, me=me, say=say, quiet=quiet, watch_quiet=True, **wall), ""
 
 
 # --- the slots command (#416) --------------------------------------------------------------------------------------

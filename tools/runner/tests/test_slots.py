@@ -352,6 +352,33 @@ class QuietTest(SlotsCase):
         self.assertIsNone(self.verify_pool(NOW).try_take())
         self.assertEqual(self.pool(count=2, name="reader").holder(2).worktree, "D:/wt/b")  # type: ignore[union-attr]
 
+    def test_a_run_already_waiting_when_the_window_starts_does_not_take_slot_2(self) -> None:
+        self.pool(count=2, name="a").acquire()
+        second = self.pool(count=2, name="b")
+        second.acquire()  # both slots held: the late run waits
+        late = self.verify_pool(NOW, max_wait=30.0)
+        fake = FakeClock()
+        late.clock, late.sleep = fake.clock, fake.sleep
+        fake.at.append((fake.now + 10, lambda: self.quiet("3")))
+        fake.at.append((fake.now + 20, second.release))  # slot 2 frees inside the window
+        taken = late.acquire()
+        self.assertTrue(taken.over, taken.summary())  # it did not take slot 2
+        self.assertEqual((late.count, late.configured), (1, 2))
+        self.assertIn("1 of 2 slots", taken.summary())
+        self.assertTrue(any("began while waiting" in line for line in self.said), self.said)
+        self.assertIsNone(late.holder(2))  # slot 2 stays free for the engineer's own use
+
+    def test_a_run_waiting_when_no_window_starts_still_takes_slot_2(self) -> None:
+        self.pool(count=2, name="a").acquire()
+        second = self.pool(count=2, name="b")
+        second.acquire()
+        late = self.verify_pool(NOW, max_wait=30.0)
+        fake = FakeClock()
+        late.clock, late.sleep = fake.clock, fake.sleep
+        fake.at.append((fake.now + 20, second.release))
+        self.assertEqual(late.acquire().slot, 2)
+        self.assertFalse(any("quiet" in line for line in self.said), self.said)
+
     def test_a_load_run_in_a_quiet_window_takes_one_slot_too(self) -> None:
         self.quiet("2")
         pool = self.verify_pool(NOW, kind=slots.LOAD)
