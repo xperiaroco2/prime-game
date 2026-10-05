@@ -376,9 +376,9 @@ taken in a `main` that has them.
   (#278; before it, your notes above its body): the order from here, the open questions, every `human_steps` command
   still due, the stage's start and `wave`'s handover data (since the session start: every failed run not relaunched,
   not only this wave's). Your "For you:" is the human's single step: paste the §10 kickoff with its "Continue from"
-  line into a new session in `D:\prime-game`. Then a PushNotification; stop with no timer and launch nothing more. The
-  successor takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is no live run) and
-  the stage's yes as given: it restates the order and goes on without waiting (§1's wait does not apply).
+  and `Track:` lines into a new session in `D:\prime-game`. Then a PushNotification; stop with no timer and launch
+  nothing more. The successor takes that comment as §2.2's answer for your runs (a fresh commit in their worktrees is
+  no live run) and the stage's yes as given: it restates the order and goes on at once (§1's wait does not apply).
 - **The keep-alive and the handover together**, decided in this order at the end of each turn and on each wake:
   (1) a run of your own in flight: never hand over; arm the timer (after the 14 wakes none: the run's end still
   wakes you). (2) No run in flight and a handover due: hand over and arm nothing (a fresh session costs less than a
@@ -496,7 +496,7 @@ order.>
 
 <After a handover (§7): Continue from the handover comment <link>; the previous manager session launches nothing
 more, and my yes to the stage's restatement stands: restate the order from there and go on.>
-Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
+Track: <game | ui | art | meta>. Scope: <issues, or "the issues from the handoff">; fillers: <issues>.
 Plan and reports: a comment on #<plan issue> after each wave; never edit its body.
 Git flow: <release/m<k> from main; every task PR targets it (start --base release/m<k>); you merge task PRs into it
 with tools\run.cmd merge after green CI, fresh reviews with no open blocker or major, merge-check and verify on the
