@@ -222,11 +222,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, help="UDP port (default: the game's placeholder port)")
     p.add_argument("--clients", type=int, default=0, help="also start N clients joined on 127.0.0.1 (windows tiled)")
     p.add_argument("--local", action="store_true", help="listen on 127.0.0.1 only (this PC's clients; no firewall)")
+    p.add_argument(
+        "--code",
+        action="store_true",
+        help="host a room with a code over WebRTC, the host serving its signalling on TCP of the port",
+    )
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
     _view_options(p)
 
     p = sub.add_parser("join", help="join a host over ENet in a window (--headless: M3's session); Ctrl+C stops")
-    p.add_argument("address", help="the host's address, such as 192.168.0.195 or 127.0.0.1")
+    p.add_argument("address", help="the host's address[:port] or a room's code, such as 192.168.0.195 or K7M2QX")
+    p.add_argument("--signal", help="with a code: the signalling service, such as ws://192.168.0.195:24600")
     p.add_argument("--port", type=int, help="UDP port (default: the game's placeholder port)")
     p.add_argument("--seconds", type=int, help="stop cleanly after N seconds (default: until Ctrl+C)")
     _view_options(p)
@@ -488,12 +494,18 @@ def main(argv: list[str] | None = None) -> int:
                 seconds=args.seconds,
                 headless=args.headless,
                 windows=args.windows,
+                code=args.code,
             )
         if args.command == "join":
             from . import hostjoin
 
             return hostjoin.join(
-                args.address, port=args.port, seconds=args.seconds, headless=args.headless, windows=args.windows
+                args.address,
+                port=args.port,
+                seconds=args.seconds,
+                headless=args.headless,
+                windows=args.windows,
+                signal=args.signal,
             )
         if args.command == "signal":
             from . import signalling

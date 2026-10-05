@@ -50,6 +50,11 @@ GAME = "client/app/game.tscn"
 # Claude Code sets it in an agent's shell; a human's terminal has none (the M4 ADR's E20).
 AGENT_ENV = "CLAUDECODE"
 LOCALHOST = "127.0.0.1"
+# The game's LaunchOptions.DEFAULT_PORT: a --code host serves its signalling on TCP of the same number.
+GAME_PORT = 24600
+# SignalCodec's code alphabet and length (no 0, O, 1, I, L).
+CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+CODE_LENGTH = 6
 # The host and its local clients are at most `run`'s instances.
 MAX_CLIENTS = launch.MAX_INSTANCES - 1
 MAX_SECONDS = 24 * 3600
@@ -178,16 +183,36 @@ def _tail(port: int | None, stop: Path) -> list[str]:
     return [*port_args, f"--stop-file={stop}", f"--alive-file={alive_file(stop)}"]
 
 
-def host_parts(port: int | None, clients: int, *, local: bool, stop: Path) -> list[Part]:
-    """The host and its `clients` local joiners."""
+def room_code() -> str:
+    """A random room code for a --code host's own signalling (SignalCodec's alphabet)."""
+    import secrets
+
+    return "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
+
+
+def is_code(text: str) -> bool:
+    """What the game's JoinTarget.parse reads as a code: 6 characters of the alphabet, any case."""
+    squeezed = text.strip().replace(" ", "").replace("-", "").upper()
+    return len(squeezed) == CODE_LENGTH and all(c in CODE_ALPHABET for c in squeezed)
+
+
+def host_parts(
+    port: int | None, clients: int, *, local: bool, stop: Path, code: str | None = None
+) -> list[Part]:
+    """The host and its `clients` local joiners; with `code`, a room with that code over WebRTC whose
+    signalling the host serves itself on TCP of its port (the game's --code --signal=lan)."""
     tail = _tail(port, stop)
-    parts = [Part("host", ["--host", *(["--local"] if local else []), *tail])]
-    parts += [Part(f"client {i}", [f"--join={LOCALHOST}", *tail]) for i in range(2, clients + 2)]
+    room = ["--code", "--signal=lan", f"--room={code}"] if code else []
+    parts = [Part("host", ["--host", *(["--local"] if local else []), *room, *tail])]
+    joining = [f"--join={code}", f"--signal=ws://{LOCALHOST}:{port or GAME_PORT}"] if code else [f"--join={LOCALHOST}"]
+    parts += [Part(f"client {i}", [*joining, *tail]) for i in range(2, clients + 2)]
     return parts
 
 
-def join_parts(address: str, port: int | None, *, stop: Path) -> list[Part]:
-    return [Part("join", [f"--join={address}", *_tail(port, stop)])]
+def join_parts(address: str, port: int | None, *, stop: Path, signal: str | None = None) -> list[Part]:
+    """A joiner of `address` (a host's address, or a room's code through the `signal` service)."""
+    service = [f"--signal={signal}"] if signal else []
+    return [Part("join", [f"--join={address}", *service, *_tail(port, stop)])]
 
 
 def check_options(*, port: int | None, clients: int = 0, seconds: int | None = None, address: str | None = None) -> None:
@@ -198,7 +223,7 @@ def check_options(*, port: int | None, clients: int = 0, seconds: int | None = N
     if seconds is not None and not 1 <= seconds <= MAX_SECONDS:
         raise Failure(f"--seconds must be between 1 and {MAX_SECONDS}")
     if address is not None and (not address.strip() or address.startswith("-")):
-        raise Failure("join needs the host's address, such as 192.168.0.195 or 127.0.0.1")
+        raise Failure("join needs the host's address or a room's code, such as 192.168.0.195 or K7M2QX")
 
 
 def windowed(*, headless: bool, windows: bool, env: Mapping[str, str] | None = None) -> bool:
@@ -549,22 +574,36 @@ def host(
     seconds: int | None,
     headless: bool = False,
     windows: bool = False,
+    code: bool = False,
 ) -> int:
     say("host")
     check_options(port=port, clients=clients, seconds=seconds)
     shown = choose_windows(headless=headless, windows=windows)
     stop = stop_file()
-    hint = lan_hint if shown and not local else None
-    parts = host_parts(port, clients, local=local, stop=stop)
+    hint = lan_hint if shown and not local and not code else None
+    room = room_code() if code else None
+    if room:
+        say(f"host: room code {room}; from another machine: join {room} --signal ws://<address>:{port or GAME_PORT}")
+    parts = host_parts(port, clients, local=local, stop=stop, code=room)
     return _run("host", parts, seconds, stop, windows=shown, on_hosting=hint)
 
 
-def join(address: str, *, port: int | None, seconds: int | None, headless: bool = False, windows: bool = False) -> int:
+def join(
+    address: str,
+    *,
+    port: int | None,
+    seconds: int | None,
+    headless: bool = False,
+    windows: bool = False,
+    signal: str | None = None,
+) -> int:
     say("join")
     check_options(port=port, seconds=seconds, address=address)
+    if signal and not is_code(address):
+        raise Failure("--signal is for a room's code, not an address")
     shown = choose_windows(headless=headless, windows=windows)
     stop = stop_file()
-    return _run("join", join_parts(address, port, stop=stop), seconds, stop, windows=shown)
+    return _run("join", join_parts(address, port, stop=stop, signal=signal), seconds, stop, windows=shown)
 
 
 def welcomed(part: Part) -> bool:

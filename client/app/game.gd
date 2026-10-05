@@ -71,12 +71,8 @@ var settings: UserSettings
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
-## The host's room transport while hosting with a code; null otherwise.
-var _room: WebRtcTransport
-## The signalling a --signal=lan host serves itself; null otherwise.
-var _lan_signal: LanSignalling
-## The room had a code: its turning empty means the service went away.
-var _room_had_code := false
+## The host's room while hosting with a code; null otherwise.
+var _room: CodeRoom
 ## What this client joined, and the transport it joins with; null for a host or no session.
 var _target: JoinTarget
 var _join_transport: NetTransport
@@ -172,27 +168,14 @@ func host(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 func host_with_code(port: int, bind := LaunchOptions.EVERY_INTERFACE) -> bool:
 	if _client != null:
 		return false
-	var room := WebRtcTransport.new(_schema.kind_table())
-	room.signal_url = options.signal_url if options != null else JoinTarget.SERVICE_URL
-	room.room_protocol = WireSchema.VERSION
-	room.room_content = ClientSession.content_of(mode)
-	if room.signal_url == LaunchOptions.LAN_SIGNAL:
-		var code := options.room
-		var lan := (
-			LanSignalling.new([], func() -> String: return code)
-			if not code.is_empty()
-			else LanSignalling.new()
-		)
-		if lan.listen(port, bind) != OK:
-			_cannot_host("the signalling could not listen on TCP port %d" % port)
-			return false
-		_lan_signal = lan
-		room.signal_url = "ws://%s:%d" % [LaunchOptions.LOCALHOST, port]
-		# Everything on this machine or LAN: host candidates only on 127.0.0.1 for --local.
-		room.local_candidates = bind == LaunchOptions.LOCALHOST
+	var service := options.signal_url if options != null else JoinTarget.SERVICE_URL
+	var lan_code := options.room if options != null else ""
+	var room := CodeRoom.open(_schema.kind_table(), mode, service, port, bind, lan_code)
+	if not room.problem.is_empty():
+		_cannot_host(room.problem)
+		return false
 	_room = room
-	_room_had_code = false
-	if _host_on(room, port, bind):
+	if _host_on(room.transport, port, bind):
 		return true
 	_drop_room()
 	return false
@@ -374,8 +357,8 @@ func voice_control() -> VoiceControl:
 
 func _process(_delta: float) -> void:
 	_check_runner()
-	if _lan_signal != null:
-		_lan_signal.poll()
+	if _room != null:
+		_room.poll()
 	var now := screen()
 	if now != _screen:
 		_screen = now
@@ -661,11 +644,10 @@ func _refresh_join() -> void:
 		ui.connecting.set_step(JoinProgress.step_text(_target.is_code(), found, connected))
 	var code := ""
 	if _room != null:
-		code = _room.room_code()
-		_room_had_code = _room_had_code or not code.is_empty()
+		code = _room.code()
 	elif _target != null and _target.is_code():
 		code = _target.code
-	var line := JoinProgress.code_text(code, _room != null and _room_had_code and code.is_empty())
+	var line := JoinProgress.code_text(code, _room != null and _room.gone())
 	ui.lobby_hud.show_code(line)
 	ui.esc.lobby.show_code(line, code)
 
@@ -758,11 +740,9 @@ func _cannot_host(why: String) -> void:
 
 ## The code host's room and its own signalling go with its session.
 func _drop_room() -> void:
+	if _room != null:
+		_room.stop()
 	_room = null
-	_room_had_code = false
-	if _lan_signal != null:
-		_lan_signal.stop()
-		_lan_signal = null
 
 
 func _show_menu(reason: StringName, detail := "") -> void:
