@@ -593,6 +593,30 @@ PLAYCHECK_LINE = (
     "- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` or "
     "`tools\\run.cmd playcheck` (both off-screen)."
 )
+# #455: how the test reviewer runs a mutants spec and the publisher a survived mutant again, with bounded waits (the
+# default: in the background, a new log, `wait`) and without (the foreground text of before #411), for ARGS.
+MUTANTS_RUN = {
+    True: (
+        "Run each spec in the background, never in the foreground (a foreground call dies at 600 s, and setup and the "
+        "baseline come before the first mutant): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh mutants "
+        '<spec.json> > <log> 2>&1; echo "exit=$?" >> <log>` in the Bash tool with run_in_background true and its timeout '
+        "3600000, a NEW log under a7/ of your scratchpad for each run (mutants-1.log, mutants-2.log, ...), then "
+        "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in separate calls until it finishes, as the "
+        "bounded waits below say. A spec may hold several mutants (setup and the baseline then run once); one run at a "
+        "time: another mutants run in the same checkout exits 1."
+    ),
+    False: (
+        "Run ONE mutant per `tools\\run.cmd mutants <spec.json>` call (a foreground call dies at 600 s), or start it in "
+        "the background and wait for it."
+    ),
+}
+MUTANTS_RERUN = {
+    True: (
+        "then run that mutant again in the background (a NEW log under a7/ of your scratchpad, then "
+        "`tools/run.sh wait <log>`, as the bounded waits below say) to show it killed"
+    ),
+    False: "then run that mutant again (one per call, or in the background: a foreground call dies at 600 s) to show it killed",
+}
 PNG = "D:/prime-game/.claude/worktrees/7/tools/out/playcheck/spectate/01.png"
 SHOTS = {"available": True, "scenarios": ["spectate"], "exit_codes": [0], "pngs": [PNG]}
 # lean (#332, docs/decisions/2026-10-04-lean-workflow-agent-types.md): the agent type each role's label prefix gets.
@@ -863,8 +887,9 @@ class PipelineV2Test(unittest.TestCase):
                 dict(ARGS, branch="core/7-x", test_review=True),
                 dict(core, queues={"publish": [{"published": False, "handoff_posted": True, "stopped_by_mutants": True}]}),
             ),
+            ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True, bounded_waits=False), core),
         ]
-        ok, absent, exit_2, skeptic, dead, design, tooling, pub_stuck = run_jobs(jobs)
+        ok, absent, exit_2, skeptic, dead, design, tooling, pub_stuck, unbounded = run_jobs(jobs)
         # The publisher's own mutants rerun exited 2: the result says so, like the test review's, with the way on.
         self.assertIn("stopped_by_mutants true", calls(pub_stuck, "publish")[0]["prompt"])
         self.assertIn("stopped_by_mutants", options(calls(pub_stuck, "publish")[0])["schema"]["properties"])
@@ -881,8 +906,23 @@ class PipelineV2Test(unittest.TestCase):
         self.assertEqual(labels[-2:], ["test-review:#7", "publish:#7"])
         self.assertTrue(all(label.startswith(("implement", "review:")) for label in labels[:-2]), labels)
         test_review = calls(ok, "test-review")[0]["prompt"]
-        for text in ("`tools\\run.cmd mutants --help`", "ONE mutant per `tools\\run.cmd mutants <spec.json>` call", "600 s", "exit_2 true"):
+        for text in ("`tools\\run.cmd mutants --help`", "exit_2 true"):
             self.assertIn(text, test_review)
+        # #455: with bounded waits (the default) each spec runs in the background with a new log and `wait`, as
+        # verify and publish do, before the bounded-waits paragraph that gives the commands; the foreground advice of
+        # before #411 is left only to bounded_waits false, and so is the publisher's rerun of a survived mutant.
+        publish = calls(ok, "publish")[0]["prompt"]
+        for prompt, text in ((test_review, MUTANTS_RUN), (publish, MUTANTS_RERUN)):
+            self.assertEqual(prompt.count(text[True]), 1)
+            self.assertNotIn(text[False], prompt)
+            self.assertLess(prompt.index(text[True]), prompt.index("Bounded waits (bounded_waits)"))
+            for foreground in ("ONE mutant per", "one per call"):
+                self.assertNotIn(foreground, prompt)
+        old_review, old_publish = calls(unbounded, "test-review")[0]["prompt"], calls(unbounded, "publish")[0]["prompt"]
+        for prompt, text in ((old_review, MUTANTS_RUN), (old_publish, MUTANTS_RERUN)):
+            self.assertEqual(prompt.count(text[False]), 1)
+            self.assertNotIn(text[True], prompt)
+            self.assertNotIn("Bounded waits (bounded_waits)", prompt)
         # What `mutants` really does (#202): its exit codes, the spec rules it enforces, its per-test-run timeout,
         # and its `not run` result, which the schema's enum lacks.
         for text in (
@@ -1123,7 +1163,8 @@ class PipelineV2Test(unittest.TestCase):
         # #303: a tool call that blocks over 5 minutes (verify, publish, mutants, CI) costs the agent's whole context
         # again. With the arg, each agent that runs one gets one paragraph more, after the steps it replaces. #411 made
         # it the default (a missing or null arg); with bounded_waits false every prompt is the one before (the
-        # unbounded/ snapshots), so a resume of an earlier run with false added is unchanged.
+        # unbounded/ snapshots), so a resume of an earlier run with false added is unchanged. #455 changed one sentence
+        # more where mutants run: the test reviewer's run of a spec and the publisher's rerun of a survived mutant.
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
         stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
         design = {"paths": ["docs/x.md"], "findings": [MAJOR]}
@@ -1155,7 +1196,15 @@ class PipelineV2Test(unittest.TestCase):
                     if not label.startswith(waiting) or (stopped and label.startswith("publish")):
                         self.assertEqual(after["prompt"], before["prompt"])
                         continue
-                    old, new = before["prompt"].split("\n\n"), after["prompt"].split("\n\n")
+                    # #455: the one other text bounded waits change is how mutants run, in the background with `wait`.
+                    prompt = after["prompt"]
+                    if label.startswith("test-review"):
+                        self.assertIn(MUTANTS_RUN[True], prompt)
+                    for text in (MUTANTS_RUN, MUTANTS_RERUN):
+                        if text[True] in prompt:
+                            self.assertEqual(before["prompt"].count(text[False]), 1)
+                            prompt = prompt.replace(text[True], text[False])
+                    old, new = before["prompt"].split("\n\n"), prompt.split("\n\n")
                     self.assertEqual(len(new), len(old) + 1)
                     i = next(i for i, (a, b) in enumerate(zip(old + [None], new)) if a != b)
                     paragraph = new[i]
