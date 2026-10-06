@@ -387,19 +387,24 @@ const items = a => (Array.isArray(a) ? a.filter(x => !(typeof x === 'string' && 
 
 // #470: the reviewers and the test reviewer get a digest of the implementer's report, not the whole of it (6.9k
 // characters at the median of 26 reviewers since 2026-10-05, 7.9k to 9.3k a run in the token audit of 2026-10-06):
-// its summary, the changed paths, and each decision and item for the engineer cut to a line. They review the diff;
-// the publisher still gets the whole report (the PR and the handoff carry its rationale, what is left, the verify tail).
+// its summary, whether it is complete and what it left on purpose (else a reviewer reports each deferred acceptance
+// criterion as a blocker), the changed paths, the content it marked provisional, and each decision and item for the
+// engineer cut to a line. They review the diff; the publisher still gets the whole report (the PR and the handoff
+// carry its rationale, what is left, the verify tail).
 const clip = (s, max) => {
   const t = s === undefined || s === null ? '' : String(s).trim()
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t
 }
 const digest = r => ({
   summary: clip(r.summary, SUMMARY_MAX),
+  complete: r.complete,
   changed_paths: r.changed_paths || [],
+  ...(items(r.provisional_content).length ? { provisional_content: items(r.provisional_content) } : {}),
   ...(items(r.decisions).length ? { decisions: lines(items(r.decisions)) } : {}),
   ...(items(r.needs_engineer).length ? { needs_engineer: lines(items(r.needs_engineer)) } : {}),
+  ...(items(r.left).length ? { left: lines(items(r.left)) } : {}),
 })
-const REPORT = 'The implementer\'s report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change):'
+const REPORT = 'The implementer\'s report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change):'
 
 phase('Implement')
 // plan_review: a plan agent, then a fresh critique of its plan; the implementer builds with both.

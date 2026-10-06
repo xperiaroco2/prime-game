@@ -46,7 +46,7 @@ Issue #7 (t). Branch net/7-x in the worktree D:/prime-game/.claude/worktrees/7; 
 
 Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","changed_paths":["net/protocol/codec.gd"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["net/protocol/codec.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 ### agent review:netcode:#7
@@ -57,7 +57,7 @@ Issue #7 (t). Branch net/7-x in the worktree D:/prime-game/.claude/worktrees/7; 
 
 Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","changed_paths":["net/protocol/codec.gd"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["net/protocol/codec.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 
@@ -70,7 +70,7 @@ Issue #7 (t). Branch net/7-x in the worktree D:/prime-game/.claude/worktrees/7; 
 
 Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and the ARCHITECTURE sections the change touches, by section, never the whole doc (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. You may run `tools\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.
 
-The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","changed_paths":["net/protocol/codec.gd"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["net/protocol/codec.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 ### phase Publish

@@ -393,8 +393,9 @@ Rules for every workflow run:
   left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
   shrank from 89k to 11k characters (about 1,250 a run). What `issue-task`'s agents get of each other's results is cut
   too (#470, the token audit of 2026-10-06): the reviewers and the test reviewer get a digest of the implementer's
-  report (its summary, which the implementer's schema caps at 1,200 characters, the changed paths, and each decision
-  and item for the engineer cut to a line), not the whole report (6.9k characters at the median of 26 reviewers); the
+  report (its summary, which the implementer's schema caps at 1,200 characters, whether it is complete and what it
+  left on purpose, the changed paths, the content it marked provisional, and each decision and item for the engineer
+  cut to a line), not the whole report (6.9k characters at the median of 26 reviewers); the
   publisher gets the whole report but of a `plan_review` run only the plan's summary and the critique (the whole plan
   stays in the journal); and the publisher's prompt carries the docs, intervention and credits steps of `finish-task`
   itself instead of pointing at the skill, which 136 of 177 publishers had read for steps their prompt already listed.

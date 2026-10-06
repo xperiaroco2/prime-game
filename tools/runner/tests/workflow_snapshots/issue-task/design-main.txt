@@ -54,7 +54,7 @@ Issue #7 (t). Branch docs/7-x in the worktree D:/prime-game/.claude/worktrees/7;
 
 Review read-only, adversarially, a DESIGN (documents only): `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and ARCHITECTURE by section: its outline first, then every section the design could contradict, not only the ones it edits (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. Edit nothing.
 
-The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","changed_paths":["docs/ARCHITECTURE.md","docs/decisions/x.md"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["docs/ARCHITECTURE.md","docs/decisions/x.md"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. A design that would let information reach a peer that is not entitled to it, trust a client field, leave an intent unvalidated, or contradict an accepted ADR or the code on main is a blocker or major. No findings is a valid answer.
 
@@ -67,7 +67,7 @@ Issue #7 (t). Branch docs/7-x in the worktree D:/prime-game/.claude/worktrees/7;
 
 Review read-only, adversarially, a DESIGN (documents only): `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files in D:/prime-game/.claude/worktrees/7, against the issue and its comments (`gh issue view 7 --comments`), the ADRs the issue links, the area CLAUDE.md files and ARCHITECTURE by section: its outline first, then every section the design could contradict, not only the ones it edits (`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline (§, title, line range, tokens) and `tools/run.sh section docs/ARCHITECTURE.md 4.5 9.3` exactly those sections, subsections included; AGENT_WORKFLOW and the ADRs alike; read-only, so you may run it). Budget: at most about 60 tool calls. Edit nothing.
 
-The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","changed_paths":["docs/ARCHITECTURE.md","docs/decisions/x.md"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["docs/ARCHITECTURE.md","docs/decisions/x.md"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. A design that would let information reach a peer that is not entitled to it, trust a client field, leave an intent unvalidated, or contradict an accepted ADR or the code on main is a blocker or major. No findings is a valid answer.
 

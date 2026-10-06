@@ -55,7 +55,7 @@ Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/release/
 
 Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. c
 
-The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","changed_paths":["core/match/vote.gd"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/match/vote.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 ### agent review:netcode:#7
@@ -68,7 +68,7 @@ Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/release/
 
 Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. c
 
-The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","changed_paths":["core/match/vote.gd"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/match/vote.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 
@@ -83,7 +83,7 @@ Review read-only: `git -C /d/prime-game/.claude/worktrees/7 diff origin/release/
 
 Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. c
 
-The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","changed_paths":["core/match/vote.gd"]}
+The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff is the change): {"summary":"s","complete":true,"changed_paths":["core/match/vote.gd"]}
 
 Report findings with severity (blocker, major, minor, nit), file, line, the problem and a concrete fix. Blocker: wrong behaviour against an acceptance criterion or an invariant, a leak, a broken test. No findings is a valid answer.
 ### phase Publish

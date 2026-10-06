@@ -1609,8 +1609,9 @@ class CompactResultTest(unittest.TestCase):
 
 # #470: what the later agents get of the implementer's report and the plan (the token audit of 2026-10-06).
 REPORT = (
-    "The implementer's report, as a digest (its summary, the changed paths, and each decision and item for the "
-    "engineer cut to a line; the diff is the change): "
+    "The implementer's report, as a digest (its summary, whether it is complete and what it left, the changed "
+    "paths, the content it marked provisional, and each decision and item for the engineer cut to a line; the diff "
+    "is the change): "
 )
 PLAN_MARKS = {"criteria": ["CRITERION-MARK"], "files": ["FILE-MARK"], "tests": ["TEST-MARK"], "steps": ["STEP-MARK"]}
 
@@ -1624,8 +1625,10 @@ def report_of(prompt: str) -> dict:
 @unittest.skipUnless(NODE, "needs Node on PATH to run the workflow scripts")
 class DigestTest(unittest.TestCase):
     def test_reviewers_get_a_digest_of_the_implementers_report(self) -> None:
-        # Every reviewer and the test reviewer: the summary, the changed paths, the decisions and needs_engineer, each
-        # cut, and nothing else of the report (no verify tail, commits, left, proposed issues or provisional content).
+        # Every reviewer and the test reviewer: the summary, complete, the changed paths, the provisional content, the
+        # decisions, needs_engineer and left (each cut to a line), and nothing else of the report (no verify tail,
+        # commits or proposed issues). A reviewer must see what was left on purpose, or it reports each deferred
+        # acceptance criterion as a blocker.
         args = dict(ARGS, branch="core/7-x", second_review=True, test_review=True)
         stub = {"paths": FULL_IMPL["changed_paths"], "queues": {"implement": [FULL_IMPL]}}
         bare = {"paths": ["core/x.gd"], "queues": {"implement": [implemented(["core/x.gd"], needs_engineer=["None"])]}}
@@ -1638,7 +1641,14 @@ class DigestTest(unittest.TestCase):
                 self.assertNotIn("The implementer reported", prompt)
                 self.assertEqual(prompt.count(REPORT), 1)
                 digest = report_of(prompt)
-                self.assertEqual(list(digest), ["summary", "changed_paths", "decisions", "needs_engineer"])
+                self.assertEqual(
+                    list(digest),
+                    ["summary", "complete", "changed_paths", "provisional_content", "decisions", "needs_engineer", "left"],
+                )
+                self.assertIs(digest["complete"], False)
+                self.assertEqual(digest["provisional_content"], FULL_IMPL["provisional_content"])
+                self.assertEqual(len(digest["left"]), 1)
+                self.assertTrue(len(digest["left"][0]) <= 160 and digest["left"][0].endswith("…"), digest["left"])
                 self.assertLessEqual(len(digest["summary"]), 1200)
                 self.assertTrue(FULL_IMPL["summary"].startswith(digest["summary"].removesuffix("…")))
                 self.assertEqual(digest["changed_paths"], FULL_IMPL["changed_paths"])
@@ -1646,11 +1656,11 @@ class DigestTest(unittest.TestCase):
                 self.assertTrue(all(len(d) <= 160 and d.endswith("…") for d in digest["decisions"]), digest["decisions"])
                 self.assertEqual(digest["needs_engineer"], FULL_IMPL["needs_engineer"])
                 self.assertLessEqual(size(digest), 2500)
-                for text in ("step ok", "abc1234 feat(core)", "provisional_content", "content/roles/x.tres", "verify_tail"):
+                for text in ("step ok", "abc1234 feat(core)", "verify_tail", "proposed_issues"):
                     self.assertNotIn(text, prompt)
-        # Lists with nothing in them stay out; the summary and the paths are always there.
+        # Lists with nothing in them stay out; the summary, complete and the paths are always there.
         for event in calls(plain, "review:") + calls(plain, "test-review"):
-            self.assertEqual(report_of(event["prompt"]), {"summary": "s", "changed_paths": ["core/x.gd"]})
+            self.assertEqual(report_of(event["prompt"]), {"summary": "s", "complete": True, "changed_paths": ["core/x.gd"]})
         # The publisher still gets the whole report: the PR and the handoff carry its rationale, what is left and the
         # verify tail.
         publish = calls(result, "publish")[0]["prompt"]
