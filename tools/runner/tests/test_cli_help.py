@@ -108,7 +108,7 @@ OLD_ROWS = {
         "rebase the task branch on its PR's base (else start --base, else main)",
         "run verify",
         "push the branch with a lease",
-        "unless an identical tree was just verified green",
+        "is skipped, and publish says so, when an identical tree was just verified green",
         "under 2 hours ago",
     ],
     "run": [

@@ -254,7 +254,7 @@ def build_parser() -> argparse.ArgumentParser:
         "push with a lease",
         description="Fetch, rebase the task branch on its PR's base (else start --base, else main), run verify, "
         "push the branch with a lease. The only way a rebased branch goes up. The verify is skipped, and publish says "
-        "so, unless an identical tree was just verified green: the newest verify passed at the same head, tree and "
+        "so, when an identical tree was just verified green: the newest verify passed at the same head, tree and "
         "runner, with a clean tree then and now, under 2 hours ago (wait --verified tells in advance).",
     )
     p.add_argument("--base", help="branch to rebase on (default: the open PR's base, else start --base, else main)")
