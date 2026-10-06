@@ -95,6 +95,8 @@ class GitFiles:
         self.root = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+[\\/]?$", "", root)
         self.common = os.path.join(self.root, ".git")
         self._refs: set[str] | None = None
+        # The temp folder temp_matches lists; empty: the system's (tests point it elsewhere).
+        self.temp: str = ""
 
     def _read(self, *parts: str) -> str:
         try:
@@ -207,11 +209,12 @@ class GitFiles:
     def temp_matches(self, pattern: str) -> list[tuple[str, bool]] | None:
         """What a glob pattern relative to the temp folder matches now (hidden names too), with whether each match is
         or holds a worktree: a `.git` file in it, or a worktree of this repository (`.git/worktrees/*/gitdir`) at or
-        below it (issue #464). None when the temp folder is unknown."""
+        below it (issue #464). A match that is or lies in a symbolic link or junction counts as one too: a recursive
+        delete may follow it out of the temp folder. None when the temp folder is unknown."""
         import glob
         import tempfile
 
-        temp = getattr(self, "temp", "") or tempfile.gettempdir()
+        temp = self.temp or tempfile.gettempdir()
         if not temp or not os.path.isdir(temp):
             return None
         worktrees = []
@@ -223,11 +226,29 @@ class GitFiles:
         found = []
         for path in glob.glob(os.path.join(glob.escape(temp), pattern), include_hidden=True):
             full = os.path.normcase(os.path.abspath(path))
-            holds = os.path.isfile(os.path.join(path, ".git")) or any(
-                w == full or w.startswith(full + os.sep) for w in worktrees
+            relative = os.path.relpath(path, temp)
+            holds = (
+                os.path.isfile(os.path.join(path, ".git"))
+                or any(w == full or w.startswith(full + os.sep) for w in worktrees)
+                or self._linked(temp, relative)
             )
-            found.append((os.path.relpath(path, temp).replace("\\", "/").lower(), holds))
+            found.append((relative.replace("\\", "/").lower(), holds))
         return found
+
+    @staticmethod
+    def _linked(temp: str, relative: str) -> bool:
+        """The path relative to temp, or a folder between them, is a symbolic link or a junction (a reparse point:
+        os.path.isjunction is Python 3.12+)."""
+        path = temp
+        for part in relative.replace("\\", "/").split("/"):
+            path = os.path.join(path, part)
+            try:
+                attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+            except OSError:
+                return False
+            if os.path.islink(path) or attributes & 0x400:  # FILE_ATTRIBUTE_REPARSE_POINT
+                return True
+        return False
 
     def stash_branches(self) -> list[str] | None:
         """The branch each stash entry was made on, newest (`stash@{0}`) first, from the stash's reflog."""

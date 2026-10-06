@@ -351,6 +351,20 @@ class GitFilesTest(unittest.TestCase):
             self.assertEqual(files.temp_matches("linked/*"), [("linked/inner", True)])
             self.assertEqual(files.temp_matches("linked"), [("linked", False)])  # only a worktree of this repository
             self.assertEqual(files.temp_matches("none-*"), [])
+            # A link or junction may lead a recursive delete out of the temp folder: it counts as a worktree.
+            link = temp / "link-x"
+            try:
+                os.symlink(temp / "other", link, target_is_directory=True)
+            except OSError:
+                if os.name != "nt":
+                    raise
+                import _winapi
+
+                _winapi.CreateJunction(str(temp / "other"), str(link))
+            (temp / "other" / "inner").mkdir()
+            self.assertEqual(files.temp_matches("link-*"), [("link-x", True)])
+            self.assertEqual(files.temp_matches("link-x/*"), [("link-x/inner", True)])
+            self.assertEqual(files.temp_matches("othe?"), [("other", False)])
             files.temp = str(Path(tmp) / "missing")
             self.assertIsNone(files.temp_matches("rmtree-*"))
 
