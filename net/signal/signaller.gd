@@ -29,10 +29,11 @@ signal refused(why: String)
 
 enum Role { NONE, HOST, JOINER }
 
-## A socket still connecting this long after connect_to() is given up, and closed fires (a
-## placeholder, not a decision). On Windows a refused TCP connect stays connecting for 20 s and more
-## (Godot 4.7.2, #431), so without it a joiner whose service is down waited for its join timeout
-## and failed as host_unreachable instead of service_unreachable.
+## A socket still connecting this long after connect_to() is given up, and closed fires (5 s, the
+## engineer's choice on #474). On Windows a refused TCP connect stays connecting until the engine's
+## 30 s TCP connect timeout (Godot 4.7.2, #431, #461), and a service that never answers the
+## handshake leaves it connecting on any OS, so without it a joiner whose service is down waited for
+## its join timeout and failed as host_unreachable instead of service_unreachable.
 const CONNECT_TIMEOUT_MS := 5000
 
 ## Received messages dropped as malformed or not meant for this side.
