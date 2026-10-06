@@ -1243,6 +1243,10 @@ OWNER_KEPT = {
     f"gh api repos/{ART}/transfer -f new_owner=o": ART,
     f"gh api repos/{ART}/actions/workflows/ci.yml/dispatches -f ref=main": ART,
     f"gh api repos/{ART}/releases -f tag_name=v1": ART,
+    # A kept kind asks when it names this project's repository too: the rules miss these spellings.
+    "R=xperiaroco2/prime-game; gh pr -R $R merge 5": "$R",
+    "gh pr -R xperiaroco2/prime-game merge 5": "xperiaroco2/prime-game",
+    "GH_REPO=xperiaroco2/prime-game gh repo -R xperiaroco2/prime-game delete --yes": "xperiaroco2/prime-game",
 }
 
 

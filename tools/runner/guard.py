@@ -1978,7 +1978,8 @@ class Analysis:
         `gh api` GET or HEAD). The repository comes from `-R|--repo`, `GH_REPO`, a github.com URL argument,
         `gh repo <sub> owner/name`, the destination of `gh issue transfer`, or a `gh api repos/owner/name/...`
         endpoint. A command that names no repository acts on this project's and is left to the rules; so is one that
-        names a repository of gh's own account, unless it is a kept kind (GH_OWNER_KEPT, issue #464)."""
+        names a repository of gh's own account, unless it is a kept kind (GH_OWNER_KEPT, issue #464); a kept kind
+        other than a `gh api` write asks when it names this project's repository too."""
         group = args[0].lower() if args else ""
         # The subcommand is the first word after the group that is no option: `-R` is a persistent flag of the
         # group, so `gh issue -R o/r view 1` is a read too.
@@ -2008,7 +2009,10 @@ class Analysis:
         if env is not None:
             targets.append(env)
         own = self.repo.github_repo()
-        others = [t for t in targets if own is None or gh_repo_name(self.gh_value(t)) != own]
+        # A kept kind that names this repository asks too: `R=o/this; gh pr -R $R merge 5` slips past the rules' text.
+        # gh api writes to this repository stay with the rules (they ask for PUT, PATCH and DELETE).
+        keep_own = kept and group != "api"
+        others = [t for t in targets if own is None or keep_own or gh_repo_name(self.gh_value(t)) != own]
         if others and not kept:
             # A repository of gh's own account passes like this one (issue #464): the rules judge the command.
             account = self.repo.gh_user()
@@ -2217,7 +2221,8 @@ def reason(findings: list[Finding]) -> str:
         parts.append(f"git that discards work or rewrites history: {'; '.join(gits[:3])}.")
     if ghs:
         parts.append(
-            f"gh that may write to another repository: {'; '.join(ghs[:3])}. Reads of other repositories pass, and"
+            f"gh that may write to another repository, or that names a repository for a change the rules guard:"
+            f" {'; '.join(ghs[:3])}. Reads of other repositories pass, and"
             " so do writes to your gh account's own ones, but merges, deletion, auth, secrets and the other changes"
             " the rules guard."
         )
