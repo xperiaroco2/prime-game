@@ -156,10 +156,8 @@ does (#159, #345). **First command of every cloud session:** `tools/cloud/setup.
   `section` as their one read-only runner command besides the netcode reviewer's `bots` (#433; `test_agent_files.py`).
   The implementer's default reading list names no area `CLAUDE.md` file and no rule: those load by path when it Reads a
   file there, as it does before every Edit (a `cat` loads none). Code too since #468: `section <file>` outlines a .py,
-  .gd or .js file (its top-level symbols and a class's methods, with line ranges) and `section <file> <symbol>` prints
-  one; every issue-task and pr-rebase agent's prompt carries one reading line, the same in both scripts (a code file
-  over 400 lines by outline or `grep -n` first, no re-read of unchanged content, independent reads in one message),
-  the lean agent files say it briefly, and `metrics` counts big whole-file code reads and repeated reads per role.
+  .gd or .js file and `section <file> <symbol>` prints one symbol; the workflows' reading line and `metrics`' code-read
+  table go with it.
 - **Auto memory stays on.** It never holds shared rules or task state. "Запам'ятай / remember" gets one question
   back: *для проєкту (PR) чи тільки для вас?* Project → `/log-intervention`; personal → `~/.claude/CLAUDE.md` after
   the human approves the edit.
