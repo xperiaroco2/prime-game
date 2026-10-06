@@ -13,10 +13,10 @@ origin/main before v2 changed them. The one exception is `publish-clean-main`: i
 publish_clean trial of #308, so the byte-identical rule covers every other case. `workflow_snapshots/<script>/<case>.txt`
 holds the same cases as launched, with `bounded_waits` on by default since #411 (each agent that waits gained the
 bounded-waits paragraph) and `lean` on by default since #458 (the implementing and publishing agents' options gained
-an `agentType` last, as a `lean: true` launch of the week before gave them; it landed with no run in flight, so no
-resume of a run launched without `lean` met it). A deliberate change of a default prompt rewrites them: run `selftest` once with
-PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it wrote), review the diff,
-commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
+an `agentType` last, as a `lean: true` launch of the week before gave them; it lands only with no run in flight, and a
+resume of a run launched without `lean` passes `lean: false`). A deliberate change of a default prompt rewrites them:
+run `selftest` once with PRIME_WORKFLOW_SNAPSHOTS=update (the snapshot test then fails on purpose, naming the files it
+wrote), review the diff, commit it with the change, and run `selftest` again without the variable. Such changes rewrote unbounded/ too: #413's
 and #456's lines of the shared rules, and #339's section reads (the reviewers' and the plan critique's ARCHITECTURE sections, no
 root CLAUDE.md, the netcode reviewers' §5, §4.2 and §4.6, the default reading list); they landed between waves, when
 no run could resume. Each snapshot ends with the run's return value, which the rule does not cover (a resume replays

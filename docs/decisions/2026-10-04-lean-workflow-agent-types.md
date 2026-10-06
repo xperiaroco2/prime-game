@@ -118,9 +118,10 @@ flips at once, with no clean week first. #458 made `lean` true when a launch omi
 `issue-task` and `pr-rebase`; `lean: false` stays accepted and gives the general workflow agent, for a task whose
 agents need a skill through the Skill tool (editing `.claude/workflows/` with `workflow-authoring`). The as-launched
 snapshots gained the `agentType` on purpose; the `unbounded/` snapshots pass `lean: false` and stay byte for byte. It
-landed with no `issue-task` or `pr-rebase` run in flight, since a run launched without `lean` would resume with the
-types appended. The A/B's results (#302 comment 5985172345): every lean run passed the missing-tool and effort
-criteria, first calls 24.4k for the implementers and 29.6k to 32.1k for the publishers.
+lands only with no `issue-task` or `pr-rebase` run in flight, since a run launched without `lean` would resume with
+the types appended (such a resume passes `lean: false`). The A/B's results (#302 comment 5985172345): every lean run
+passed the missing-tool and effort criteria, first calls 24.4k for the implementers
+and 29.6k to 32.1k for the publishers.
 
 ## Alternatives
 - Role packs with `omitClaudeMd` and per-role instructions (#325 O5, N3 (b)): a larger change; later, after this

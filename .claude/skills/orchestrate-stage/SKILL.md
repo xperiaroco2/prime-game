@@ -141,7 +141,7 @@ the human sets it in the session settings; `effortLevel` never goes into shared 
 | `design` | `true` for a docs-only design task: options for the engineer, a proposed issue split, the netcode reviewer, effort xhigh |
 | `effort`, `plan`, `manager` | implementer effort (default high), the plan issue (default 30: set it), your name in prompts ("the M3 manager session") |
 
-**Pipeline v2 args** (AGENT_WORKFLOW §7.1), all off by default but `bounded_waits`; the agents each adds count
+**Pipeline v2 args** (AGENT_WORKFLOW §7.1), off by default but `bounded_waits` and `lean`; the agents each adds count
 toward the number per workflow the kickoff approved:
 
 | arg | when | adds (tool calls each) |

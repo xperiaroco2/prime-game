@@ -389,8 +389,9 @@ Rules for every workflow run:
   left, a red rebase's problems). Re-serialized, the 8 finished `issue-task` runs of 2026-10-04's manager session
   shrank from 89k to 11k characters (about 1,250 a run).
 - **Pipeline v2 options** ([ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md), item 4; #180):
-  optional `issue-task` args, all off by default but `bounded_waits` (on since #411), so a launch or a resume with the
-  earlier args and `bounded_waits: false` gets the earlier agents byte for byte
+  optional `issue-task` args, all off by default but `bounded_waits` (on since #411) and `lean` (on since #458), so a
+  launch or a resume with the earlier args, `bounded_waits: false` and `lean: false` gets the earlier agents byte for
+  byte
   (`tools/runner/tests/workflow_snapshots/<script>/unbounded/` holds their prompts and options for representative arg
   sets; the folder above it, the same cases as launched by default), but for the deliberate changes of the default
   prompts that landed between waves and rewrote both folders (#413's and #456's rules lines, #339's section reads).
