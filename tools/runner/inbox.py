@@ -5,7 +5,8 @@ reads the sessions' half itself. Per repo (default REPOS: the game's, the UI's a
 - `gh pr list --state open` with bodies and files: each open PR's "Needs the engineer" items without "Answered: <GitHub
   link>" (merge.open_needs, the gate's own reading), and, in GATED only (the repo whose gate is merge.py's), the gate's
   exceptions of a ready PR into main by the engineer's account (merge.exception_reasons over gh's file list: a merge
-  only the engineer makes). gh lists at most 100 files a PR; a rename counts as a change of its new path.
+  only the engineer makes). gh lists at most 100 files a PR and only a rename's new path; for a PR with a rename one
+  `gh api repos/<repo>/pulls/<n>/files` adds each old path as a delete, as the gate's `--no-renames` diff sees it.
 - `gh api repos/<repo>/issues/comments?since=T` (newest first, COMMENT_LIMIT a page, a further page only while the
   last was full, at most COMMENT_PAGES; past that a "Truncated:" line names the oldest comment read; issues and PRs
   alike): the last "For you:" (or "Для вас:") block of each thread's latest comment by the engineer's account that
@@ -140,13 +141,26 @@ def needs_of(prs: list[dict[str, Any]]) -> list[str]:
     return found
 
 
-def exceptions_of(prs: list[dict[str, Any]]) -> list[str]:
+def renamed_from(repo: str, number: object) -> list[str]:
+    """The old paths of a PR's renames (gh's `files` has only the new ones)."""
+    files = GH("api", f"repos/{repo}/pulls/{number}/files?per_page=100")
+    return [str(f["previous_filename"]) for f in files if f.get("status") == "renamed" and f.get("previous_filename")]
+
+
+def exceptions_of(prs: list[dict[str, Any]], repo: str = GATED) -> list[str]:
     found = []
     for pr in prs:
         author = (pr.get("author") or {}).get("login")
         if pr.get("baseRefName") != "main" or pr.get("isDraft") or author != merge.ENGINEER_LOGIN:
             continue
-        paths = [(CHANGE_CODES.get(str(f.get("changeType")), "M"), str(f.get("path"))) for f in pr.get("files") or []]
+        files = pr.get("files") or []
+        paths = [(CHANGE_CODES.get(str(f.get("changeType")), "M"), str(f.get("path"))) for f in files]
+        if any(f.get("changeType") == "RENAMED" for f in files):
+            try:
+                paths += [("D", old) for old in renamed_from(repo, pr.get("number"))]
+            except (Failure, OSError, ValueError, TypeError, AttributeError, KeyError) as exc:
+                found.append(f"PR #{pr.get('number')} \"{pr.get('title')}\": renames files whose old paths could not be "
+                             f"read ({exc}); the gate sees them too. {pr.get('url')}")  # fmt: skip
         designer = any(
             (r.get("author") or {}).get("login") == merge.DESIGNER_LOGIN and r.get("state") == "APPROVED"
             for r in pr.get("latestReviews") or []
@@ -190,7 +204,7 @@ def gather(repo: str, since: str) -> RepoInbox:
     try:
         prs = GH("pr", "list", "--repo", repo, "--state", "open", "--limit", str(PR_LIMIT), "--json", PR_JSON)
         box.needs = needs_of(prs)
-        box.exceptions = exceptions_of(prs) if repo == GATED else []
+        box.exceptions = exceptions_of(prs, repo) if repo == GATED else []
     except (Failure, OSError, ValueError, TypeError, AttributeError) as exc:
         box.needs = box.exceptions = f"gh pr list: {exc}"
     try:

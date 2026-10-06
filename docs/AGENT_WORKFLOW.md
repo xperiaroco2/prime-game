@@ -637,7 +637,8 @@ repos/<repo>/issues/comments?since=T` (newest first, 100 a page, a further page 
 500; past that a "Truncated:" line names the oldest comment read). It prints open PRs' "Needs the engineer" items without
 "Answered: <GitHub link>" (the gate's own reading, `merge.open_needs`); in the game repo, the gate's exceptions of
 each ready PR into `main` by the engineer's account (`merge.exception_reasons` over gh's file list: the merges only he
-makes); and the "For you:" blocks of each thread's latest comment by his account that has one (all its blocks
+makes; for a PR with a rename, one `gh api repos/<repo>/pulls/<n>/files` adds each old path as a delete, as the
+gate's `--no-renames` diff sees it); and the "For you:" blocks of each thread's latest comment by his account that has one (all its blocks
 together; a "- " item is read too), with the count of later comments in the window. `--since` defaults to 72 hours
 ago. A source that fails prints "Unavailable: <error>" and exits 1; the rest is still printed.
 

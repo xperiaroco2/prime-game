@@ -160,6 +160,35 @@ class PullRequestsTest(unittest.TestCase):
         found = inbox.exceptions_of([data])
         self.assertIn("docs/decisions/a.md (new), docs/decisions/b.md (deleted)", found[0])
 
+    def test_a_rename_out_of_a_safety_path_is_seen_through_the_old_path(self) -> None:
+        data = pr(10, files=("tools/x.json",))
+        data["files"] = [{"path": "tools/x.json", "changeType": "RENAMED"}]
+        calls: list[str] = []
+
+        def gh(*args: str) -> Any:
+            calls.append(args[1])
+            return [{"filename": "tools/x.json", "status": "renamed", "previous_filename": ".claude/settings.json"}]
+
+        with mock.patch.object(inbox, "GH", gh):
+            found = inbox.exceptions_of([data, pr(11, files=("docs/x.md",))])
+        self.assertEqual(calls, ["repos/xperiaroco2/prime-game/pulls/10/files?per_page=100"])
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("PR #10", found[0])
+        self.assertIn("permission and safety files (.claude/settings.json)", found[0])
+
+    def test_a_rename_whose_old_paths_cannot_be_read_says_so(self) -> None:
+        data = pr(12)
+        data["files"] = [{"path": "docs/y.md", "changeType": "RENAMED"}]
+
+        def gh(*args: str) -> Any:
+            raise Failure("gh api failed: HTTP 502")
+
+        with mock.patch.object(inbox, "GH", gh):
+            found = inbox.exceptions_of([data])
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("PR #12", found[0])
+        self.assertIn("old paths could not be read (gh api failed: HTTP 502)", found[0])
+
 
 class MainTest(unittest.TestCase):
     def run_main(self, gh: Any, repos: list[str] | None = None) -> tuple[int, str, str]:
