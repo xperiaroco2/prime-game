@@ -1014,21 +1014,6 @@ Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record,
 - A client claims when its own copy of the current phase accepts `MoveClaim` from it: a player, living or downed
   by its own life fold, and the host's own player as peer 1 (`AcceptSpec.From`); never while dead, whatever the
   phase accepts (the dead send no intents). Before `Welcome` it claims nothing.
-- **The life fold** (E25, M4-2 #138): `ClientModel.life_of(peer)` is living unless a `KnockedDown` (downed), a
-  `Died` (dead, with its body) or a `PlayerLeft` (left, its body removed, E26) of this match said otherwise, and no
-  `Respawned` (living again, its body removed; M4-3 #139) or `Revived` (living again where it lay; M4-4 #140)
-  undid it; `raiser_of(peer)` and `raised_by(raiser)` follow the raises (`RaiseStarted` until `RaiseStopped`,
-  `Revived`, a leave of either or a new match; M4-4); `is_invulnerable(peer)` reads the newest
-  snapshot's avatar flag (the own player's never arrives);
-  `is_alive(peer)` is `life_of(peer)` living. `ClientModel.Life` is the client's own enum, so no `client/` file
-  names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd` and
-  `client_session_claims_test.gd` (a dead client stops claiming even where every player may).
-- **The slots and the tasks** (E25 for M4-5, #141): each `ClientModel.Item` holds its holder and whether it is
-  `belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
-  (the swapper's two items change places) and `ItemPlaced` or `PackageDelivered` (resting); `hand_item(peer)` and
-  `belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
-  fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
-  Tests: `client_model_test.gd`.
 - It ends (`ended(reason)`, the transport closed) on a `Rejected` before `Welcome` (its reason), `host_lost`,
   `connect_failed`, `unknown_map` (a `LoadMatch` map its own mode does not list), `load_failed` and `left`; since
   M4-6 (#119) a `host_lost` after a `Disconnecting` ends with the `Disconnecting`'s reason (`load_deadline`).
@@ -1057,6 +1042,25 @@ Built in 3g (#101) as `client/net/`: `ClientSession`, `DecodedView` (the record,
 - Tested in `tests/unit/client/net/` against host messages encoded with the codec from `core/`'s own events over a
   `LoopbackHub`; the end-to-end tests against `HostSession` are 3f's (#100,
   `tests/integration/server/host_session_end_to_end_test.gd` and its siblings), the bots 3h's.
+
+##### 4.6.1.1 The life fold (E25, M4-2 #138)
+`ClientModel.life_of(peer)` is living unless a `KnockedDown` (downed), a
+`Died` (dead, with its body) or a `PlayerLeft` (left, its body removed, E26) of this match said otherwise, and no
+`Respawned` (living again, its body removed; M4-3 #139) or `Revived` (living again where it lay; M4-4 #140)
+undid it; `raiser_of(peer)` and `raised_by(raiser)` follow the raises (`RaiseStarted` until `RaiseStopped`,
+`Revived`, a leave of either or a new match; M4-4); `is_invulnerable(peer)` reads the newest
+snapshot's avatar flag (the own player's never arrives);
+`is_alive(peer)` is `life_of(peer)` living. `ClientModel.Life` is the client's own enum, so no `client/` file
+names a `core/` state class. Tests: `tests/unit/client/net/client_model_test.gd` and
+`client_session_claims_test.gd` (a dead client stops claiming even where every player may).
+
+##### 4.6.1.2 The slots and the tasks (E25 for M4-5, #141)
+Each `ClientModel.Item` holds its holder and whether it is
+`belted`, from `ItemPickedUp` (the picked item to the picker's hand, its `belted` item to its belt), `Swapped`
+(the swapper's two items change places) and `ItemPlaced` or `PackageDelivered` (resting); `hand_item(peer)` and
+`belt_item(peer)` read them for every player, the own one included, whose avatar never arrives. `TaskState`
+fills `tasks` (task id to its type's id, done and total: the task screen's rows, E30); a new match clears them.
+Tests: `client_model_test.gd`.
 
 #### 4.6.2 Bots (`tests/harness/`, 3h)
 A bot is a `ClientSession`, a scenario script and an honest mover. The script is the
@@ -1237,51 +1241,53 @@ Compares what each bot b decoded with `view_of(b)`:
   that is not a player decodes at most the `Rejected`s of its own intents; one that sends nothing (the lurker)
   decodes nothing. `keep_history` costs memory (§5), so scenarios stay short, or 3h compares per tick over a
   window and drops what it compared.
-- **Proven once** (3h): inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
-  one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
-  catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
-  fail on each, revert, and record all three in the PR. **Done in 3h (#102)** with `tools\run.cmd bots`: the first
-  failed 5 of the 6 scenarios on the comparison alone (`refusals` has one bot, which gets its own `RoleAssigned`
-  anyway); the second failed on `ScenarioInvariants` through the observer (`peer 2 (crew) learned the role of peer
-  1`); the third failed every scenario, and in `refusals` only on the lurker and the refused bot. In the scenarios
-  with more bots it also reaches a bot that is connected and has not sent its `Hello` yet, a peer that is not a
-  player for that moment. Over ENet (`--instances 3`, `dissident_kills_the_crew`) the first leak failed on the
-  comparison of each of the three bots, the remote ones compared as a prefix. After #115's review two more:
-  `server/` sending peer 1's snapshot to every present peer before each peer's own failed all 6 scenarios on the
-  superseded LATEST messages of every bot (before the fix all 6 passed), and over ENet on bot 1's; the relay
-  forwarding the speaker's own seq failed 4 of 6 on the voice streams (`refusals` has one bot; in
-  `dropped_at_the_loading_deadline` no stream is interrupted). `tests/scenarios/bots_runner_test.gd` sees each check
-  of a bot in `LeakCheck` (events, subject, the three `Teammates` checks, snapshots and a second one of a tick, a
-  dead player's avatar and voice, the voice invariant, an event that reached the dead and not every living peer,
-  voice frames and seqs, seeds, task events, lost packets, a view with no peer, a prefix short of the last
-  `MatchEnded`) and the watcher's checks fail on a planted leak. **M4-2 (#138)** planted `Snapshots.for_peer`
-  sending dead avatars to the dead (the old ghost rule): `bots dissident_kills_the_crew` failed on
-  `ScenarioInvariants` (`peer 2 sees dead 3 in its snapshot`), and with that check switched off on `LeakCheck`
-  alone (`it decoded the avatar of dead 3 at tick 518`, for both dead bots), then passed with the plant reverted.
-  **M4-5 (#141)** added `TaskState` to the task events every bot decodes alike (`LeakCheck.TASK_EVENTS`:
-  `StationPlaced`, `ItemSpawned`, `PackageDelivered`, `TaskState`, `TaskProgress`; also `ScenarioInvariants.TASK_EVENTS`), and
-  planted `TaskState` declared to the living only (`Audience.of_life(ALIVE)`): `bots
-  crew_downed_before_a_delivery`, where a crew bot is downed before another delivers, failed on
-  `ScenarioInvariants` (`TaskState reached [1, 2], not every present player [1, 2, 3]`), with `TaskState` out of
-  its `TASK_EVENTS` on `LeakCheck` alone (`bot 1 and bot 3 decoded different task events in match 0`), and with it
-  out of both lists passed: the check sees the plant only through a bot that is not living as a `TaskState` goes
-  out (at the deal everyone is). The bots' network runner had a bug that scenario's sibling found: a bot that
-  stood erased its last move tick, so a `WalkTo` after a step answered within the walk's last client tick claimed
-  two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
-  now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
-  `Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
-  **M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
-  distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
-  (`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
-  hearing 1), and with that check switched off on `LeakCheck` alone for both bots (`it heard 2 at tick 125 from
-  8.130 m`, 67 and 76 frames beyond the radius), with no routing failure: `view_of` reads the same rule; then
-  passed with the plant reverted. The plant stays as a test: `bots_runner_test.gd` plays the scenario under
-  `FixtureRoundVoicePastItsRadius` (ScenarioInvariants fail; with them left out, through the runner's
-  `_check_invariants` hook, LeakCheck fails both bots while `view_of` allows every frame decoded), and
-  `scenario_runner_test.gd` in the core runner. They also see the distance checks fail on a planted frame or
-  routing beyond 8 m, in 3D, under a radius of 0, on a tick never recorded and from a speaker not present, and agree
-  with `VoiceRule.within` a few float steps either side of the edge (a comparison through a 32-bit `distance_to`
-  fails that sweep).
+
+##### 4.6.4.1 Proven once (3h)
+Inject a leak that the comparison catches (`server/` sends every `RoleAssigned` to everyone),
+one that only the invariants catch (`Teammates` declared *everyone* in `core/`) and one that only the lurker
+catches (`server/` sends *everyone* events to the transport's peers instead of `core/`'s recipients), see the test
+fail on each, revert, and record all three in the PR. **Done in 3h (#102)** with `tools\run.cmd bots`: the first
+failed 5 of the 6 scenarios on the comparison alone (`refusals` has one bot, which gets its own `RoleAssigned`
+anyway); the second failed on `ScenarioInvariants` through the observer (`peer 2 (crew) learned the role of peer
+1`); the third failed every scenario, and in `refusals` only on the lurker and the refused bot. In the scenarios
+with more bots it also reaches a bot that is connected and has not sent its `Hello` yet, a peer that is not a
+player for that moment. Over ENet (`--instances 3`, `dissident_kills_the_crew`) the first leak failed on the
+comparison of each of the three bots, the remote ones compared as a prefix. After #115's review two more:
+`server/` sending peer 1's snapshot to every present peer before each peer's own failed all 6 scenarios on the
+superseded LATEST messages of every bot (before the fix all 6 passed), and over ENet on bot 1's; the relay
+forwarding the speaker's own seq failed 4 of 6 on the voice streams (`refusals` has one bot; in
+`dropped_at_the_loading_deadline` no stream is interrupted). `tests/scenarios/bots_runner_test.gd` sees each check
+of a bot in `LeakCheck` (events, subject, the three `Teammates` checks, snapshots and a second one of a tick, a
+dead player's avatar and voice, the voice invariant, an event that reached the dead and not every living peer,
+voice frames and seqs, seeds, task events, lost packets, a view with no peer, a prefix short of the last
+`MatchEnded`) and the watcher's checks fail on a planted leak. **M4-2 (#138)** planted `Snapshots.for_peer`
+sending dead avatars to the dead (the old ghost rule): `bots dissident_kills_the_crew` failed on
+`ScenarioInvariants` (`peer 2 sees dead 3 in its snapshot`), and with that check switched off on `LeakCheck`
+alone (`it decoded the avatar of dead 3 at tick 518`, for both dead bots), then passed with the plant reverted.
+**M4-5 (#141)** added `TaskState` to the task events every bot decodes alike (`LeakCheck.TASK_EVENTS`:
+`StationPlaced`, `ItemSpawned`, `PackageDelivered`, `TaskState`, `TaskProgress`; also `ScenarioInvariants.TASK_EVENTS`), and
+planted `TaskState` declared to the living only (`Audience.of_life(ALIVE)`): `bots
+crew_downed_before_a_delivery`, where a crew bot is downed before another delivers, failed on
+`ScenarioInvariants` (`TaskState reached [1, 2], not every present player [1, 2, 3]`), with `TaskState` out of
+its `TASK_EVENTS` on `LeakCheck` alone (`bot 1 and bot 3 decoded different task events in match 0`), and with it
+out of both lists passed: the check sees the plant only through a bot that is not living as a `TaskState` goes
+out (at the deal everyone is). The bots' network runner had a bug that scenario's sibling found: a bot that
+stood erased its last move tick, so a `WalkTo` after a step answered within the walk's last client tick claimed
+two ticks of travel in one and was corrected (`two_handed_pickup_with_a_full_belt`, seed 455000000007); standing
+now keeps the walk's own client tick (`NetPlay._stand`), and a dead bot keeps none, so its first walk after
+`Respawned` claims one tick, not its whole death (`crew_walks_after_a_respawn`).
+**M5-1 (#215)** planted `RoundVoice.hears` ignoring its radius (every present living speaker heard at any
+distance, `hearing_radius_m()` still 8): `bots voice_beyond_the_radius` failed on `ScenarioInvariants`
+(`invariant at tick 125: peer 1 hears 2 from 8.130 m, beyond the phase's hearing radius of 8.000 m`, and peer 2
+hearing 1), and with that check switched off on `LeakCheck` alone for both bots (`it heard 2 at tick 125 from
+8.130 m`, 67 and 76 frames beyond the radius), with no routing failure: `view_of` reads the same rule; then
+passed with the plant reverted. The plant stays as a test: `bots_runner_test.gd` plays the scenario under
+`FixtureRoundVoicePastItsRadius` (ScenarioInvariants fail; with them left out, through the runner's
+`_check_invariants` hook, LeakCheck fails both bots while `view_of` allows every frame decoded), and
+`scenario_runner_test.gd` in the core runner. They also see the distance checks fail on a planted frame or
+routing beyond 8 m, in 3D, under a radius of 0, on a tick never recorded and from a speaker not present, and agree
+with `VoiceRule.within` a few float steps either side of the edge (a comparison through a 32-bit `distance_to`
+fails that sweep).
 
 #### 4.6.5 Chaos bots
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
@@ -1344,26 +1350,32 @@ each chaos peer's host counts per reason bounded by the chaos packets it sent fo
 a reject of bot 4's own honest traffic still fails; `OVER_BUDGET` and `UNKNOWN_PEER` are left to the network).
 Over ENet the bots play once bot 1's lobby is full, and a bot whose join went unanswered joins again, as in
 `BotsEnet` (#318; `ChaosRun._may_play`); a join lost for good ends the wait, so that its bot's step fails at once.
-- **Runs:** `tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
-  baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
-  step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
-  about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
-  `--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
-  `--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
-- **Proven** (2026-10-02, seed 188001, each plant reverted): `HostSession` taking no budget failed on the
-  replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
-  (319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
-  malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
-  forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always passing (`--long`) failed
-  class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
-  chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
-  `tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
-  claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
-- **Covered wire rows** (M5 extends them with every new intent or row): the C→H kinds 1 to 13 and 112, the debug
-  kinds 24 and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
-  23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
-  `ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
-  in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
+
+##### 4.6.5.1 Runs
+`tools\run.cmd bots --chaos [--seed N] [--runs K] [--long] [--enet]` (`chaos_main.gd`): per seed the
+baseline, the chaos run and the swapped run; without `--seed` a random one, printed first. `verify`'s `chaos`
+step is `--seed 188001`, the short match (the round ends while bot 4 is downed): three runs of 720 frames in
+about 4 s, 6 s with Godot's start; 20 runs in a row passed (2026-10-02). On protocol v7 (#227, 2026-10-03),
+`--seed 1 --runs 8`, `--long --seed 5` and `--enet --seed 7` passed. The night job `chaos` runs ten seeds of
+`--long` from a random one, then one over ENet (§15 of AGENT_WORKFLOW).
+
+##### 4.6.5.2 Proven (2026-10-02, seed 188001, each plant reverted)
+`HostSession` taking no budget failed on the
+replayed counts (`OVER_BUDGET` 70 expected for the hostile, none counted) and on the oracle's command count
+(319 checked, 283 within budget); `Match` answering a refused `MoveClaim` with `Rejected` failed class 5 (the
+malformed peer's claim answered `not_accepted`); debug kinds taken from every peer failed on the roles (bot 4
+forced crew, now a dissident) and on the `BAD_PAYLOAD` counts; `InReach` always passing (`--long`) failed
+class 4 (the hostile picked up a knife resting far away). Tests: `tests/unit/net/transport/
+chaos_frames_test.gd` (every shape over a `LoopbackHub` is its reject or fails the codec),
+`tests/integration/server/host_session_chaos_test.gd` (what each peer receives for replayed seqs, a hostile
+claim and a burst over budget), `tests/scenarios/chaos_test.gd` (the oracle, the replay, the exemption).
+
+##### 4.6.5.3 Covered wire rows (M5 extends them with every new intent or row)
+The C→H kinds 1 to 13 and 112, the debug
+kinds 24 and 25 (`ForceRole`, `ForceClock`), the H→C kind 32 sent the wrong way, and unassigned kinds (0, 14, 19,
+23, 26, 31, 66, 80, 95, 97, 111, 114, 127, 128, 200, 255). A new intent gets its refusals in
+`ChaosHostile._refused` and `ChaosOracle` (its allowlist row and reasons), a new wire type its malformed shape
+in `ChaosFrames`; a change of §3.2's table changes `ChaosOracle.ACCEPTS` with it.
 
 #### 4.6.6 `host` and `join` (3i)
 `tools\run.cmd host [--port P] [--clients N]` starts a host with its own client and,
