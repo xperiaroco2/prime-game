@@ -19,7 +19,8 @@ weekly counter (the desktop app's `get_usage` tool) is the check.
 
 - The tracks: **game** (the milestones; `D:\prime-game`, PRs into `release/m<k>`), **UI** (`D:\prime-game-ui`), **art**
   (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
-  `main`). The engineer's 5% is his own sessions'. The buffer lies below the 93% stop (below).
+  `main`). The engineer's 5% is his own sessions', the secretary's among them (AGENT_WORKFLOW §7.2, #485), until
+  he says otherwise. The buffer lies below the 93% stop (below).
 - A budget over the trust ADR's 15% is the engineer's yes for the week: within its track's budget a manager launches,
   restates the kickoff as a report and does not ask before each workflow (the trust ADR's amendment of 2026-10-05).
 - What a budget buys is planned at row 8's all-in cost per task, re-measured at each reset: game 0.73% a task, meta
