@@ -621,7 +621,7 @@ what waited for him. One more session, the **secretary**, does that and is no ma
   engineer is at the PC (a background `sleep 3000` timer, re-armed while he wrote in its chat in the last 3 hours):
   what to approve or decide and what to look at, numbered, each item with a link or a ready command. In its chat,
   one short line on what changed. "що нового?" digests at once.
-- **Sources:** `tools\run.cmd inbox` gathers the GitHub half in one call (below); `list_sessions`, `list_events` and
+- **Sources:** `tools\run.cmd inbox` gathers the GitHub half in one call (§11.23); `list_sessions`, `list_events` and
   `search_session_transcripts` give the sessions' half: each session's last "For you:" block and the day's news.
 - **Relays:** `send_message` to the session that asked; a session a scheduled task started is unattended and refuses
   it ("messages can't be delivered there", probed on
@@ -629,18 +629,7 @@ what waited for him. One more session, the **secretary**, does that and is no ma
   comment on the plan issue that session watches, or on the PR the item came from, quoting the engineer's words.
 - **Every manager's "For you:" block stays parseable** (orchestrate-stage §8): the label `For you:` (or `Для вас:`)
   on a line of its own, then numbered items at the line's start, each item's command block indented or fenced under
-  it, or `For you: nothing.`; the same block goes into the wave comment's notes, where `inbox` reads it.
-
-`inbox [--since T] [--repo OWNER/NAME ...]` (`tools/runner/inbox.py`, read-only; tests: `test_inbox.py`): per repo
-(`xperiaroco2/prime-game`, `-ui`, `-art`) one `gh pr list --state open` with bodies and files and one `gh api
-repos/<repo>/issues/comments?since=T` (newest first, 100 a page, a further page while the last was full, up to
-500; past that a "Truncated:" line names the oldest comment read). It prints open PRs' "Needs the engineer" items without
-"Answered: <GitHub link>" (the gate's own reading, `merge.open_needs`); in the game repo, the gate's exceptions of
-each ready PR into `main` by the engineer's account (`merge.exception_reasons` over gh's file list: the merges only he
-makes; for a PR with a rename, one `gh api repos/<repo>/pulls/<n>/files` adds each old path as a delete, as the
-gate's `--no-renames` diff sees it); and the "For you:" blocks of each thread's latest comment by his account that has one (all its blocks
-together; a "- " item is read too), with the count of later comments in the window. `--since` defaults to 72 hours
-ago. A source that fails prints "Unavailable: <error>" and exits 1; the rest is still printed.
+  it, or `For you: nothing.`; the same block goes into the wave comment's notes in English, where `inbox` reads it.
 
 **Approval cards (probed 2026-10-06 ~21:12 UTC, from a workflow agent of the meta manager).** `get_session` has no
 pending-approval field, only `isRunning` and `lastActivityAt`. `list_events` renders a call still waiting for its
@@ -1801,6 +1790,19 @@ lists them).
 Before M4 (§14; [ADR](decisions/2026-09-29-no-godot-mcp-before-m4.md)). API facts come
 from `check`, the engine API dump that `doctor` generates into `tools/out/godot-api/4.7.2/`, and
 `docs.godotengine.org/en/4.7/`.
+
+### 11.23 `inbox [--since T] [--repo OWNER/NAME ...]` [applied] (#485)
+The secretary's GitHub half (§7.2; `tools/runner/inbox.py`, read-only; tests: `test_inbox.py`): per repo
+(`xperiaroco2/prime-game`, `-ui`, `-art`) one `gh pr list --state open` with bodies and files and one `gh api
+repos/<repo>/issues/comments?since=T` (newest first, 100 a page, a further page while the last was full, up to
+500; past that a "Truncated:" line names the oldest comment read). It prints open PRs' "Needs the engineer" items
+without "Answered: <GitHub link>" (the gate's own reading, `merge.open_needs`); in the game repo, the gate's
+exceptions of each ready PR into `main` by the engineer's account (`merge.exception_reasons` over gh's file list:
+the merges only he makes; for a PR with a rename, one `gh api repos/<repo>/pulls/<n>/files` adds each old path as
+a delete, as the gate's `--no-renames` diff sees it); and the "For you:" blocks of each thread's latest comment by
+his account that has one (all its blocks together; a "- " item is read too), with the count of later comments in
+the window. `--since` defaults to 72 hours ago. A source that fails prints "Unavailable: <error>" and exits 1; the
+rest is still printed.
 
 ## 12. The designer's agent
 
