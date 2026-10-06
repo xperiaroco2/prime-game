@@ -9,7 +9,9 @@ The engineer's rule for every track's manager, game, UI, art and meta (approved 
 in place of its route B after the probe in
 [#484 comment 6025677487](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487). Earlier
 probe data: [6025319228](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025319228),
-[6025434392](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025434392).
+[6025434392](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025434392). The approved comment names
+route B and says nothing about nights: route C and §1's night rule are the meta manager's reading of that probe,
+which the engineer confirms in the PR that brought this file (its "Needs the engineer").
 
 ## 1. When, beyond the verdict
 - **The thresholds stay mandatory**, day and night: the context over 300k, the session over 12 hours, changed

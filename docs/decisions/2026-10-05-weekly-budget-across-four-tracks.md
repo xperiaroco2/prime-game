@@ -183,7 +183,9 @@ keep about 9,800 characters (about 2.8k tokens) a completion out of the context.
   ([6025677487](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487)). The successor starts
   in `acceptEdits` at medium effort whatever its predecessor's mode, so while the engineer is away a manager hands
   over only when a threshold forces it. It applies to every track's manager: game, UI, art and meta. How:
-  orchestrate-stage handover.md, AGENT_WORKFLOW §7.1.
+  orchestrate-stage handover.md, AGENT_WORKFLOW §7.1. The approved comment names route B and says nothing about
+  nights: route C and the night rule are the meta manager's reading of the probe, and the engineer confirms them in
+  the "Needs the engineer" of the PR that records this amendment (the merge gate holds it until he answers).
 - **N7, how many managers:** (a) **four**, one per track; (b) three: the meta track's issues run as fillers in the
   game manager's waves (same repo, skill and gate), and a meta session runs only for the weekly report or a design.
   **Recommended (a)** with N6 (b): (b) saves meta's manager cost (5.6% in 2.5 days, less at Q1's pace) but grows the

@@ -574,7 +574,8 @@ Rules for every workflow run:
   forces it. **The successor's start** (#484, route C; the engineer's rule for every track's manager, game, UI, art
   and meta, [#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550),
   with route C in place of its route B after
-  [the probe](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487)): each track's standing
+  [the probe](https://github.com/xperiaroco2/prime-game/issues/484#issuecomment-6025677487); route C and the night
+  rule are the meta manager's reading of the probe, for the engineer to confirm in #484's PR): each track's standing
   kickoff is stored once per stage as the prompt of one ad-hoc Desktop scheduled task, `<track>-manager`: the human's
   stage kickoff with its start lines replaced by a "Continue from the latest handover comment on #<plan>" line and a
   line that names the manager's writes against the app's scheduled-task frame (the skill's `handover.md`). At a
