@@ -106,7 +106,8 @@ tracks.json, not metrics.md: the task report reads only this checkout and keeps 
 
 Code reads per agent role (#468, its before and after numbers). A code read is a read of a repository file that is
 not .md: a Read, or a shell step that is only `cat <file>` or `sed -n <ranges> <files>` (maybe piped on); each step of
-a chain (`;`, `&&`, `||`) counts, and a `cat` of several files none. It is big when it reads one whole file (a Read
+a chain (`;`, `&&`, `||`) counts, and a `cat` or `sed -n` of several files none (a `sed -n` address other than `N` or
+`N,M` is skipped). It is big when it reads one whole file (a Read
 without offset and limit, a `cat`) and returns more than BIG_READ_LINES lines (the reading rule's "a code file over
 400 lines"). It is a re-read when its lines (a Read's line numbers, a `cat`'s 1 to n, a `sed -n`'s ranges) were all
 (whole) or partly (partial) read already by the same agent with no Edit, Write, `sed -i` or `>` redirect into that
@@ -287,7 +288,8 @@ CODE_SHELL_READ = re.compile(
 # A redirection of a step (`2>/dev/null`, `2>&1`, `> out`): its output is not what the step reads.
 REDIRECT = re.compile(r"\s+\d*>>?&?\s*\S+")
 SED_EDIT = re.compile(rf"sed\s+-i\b.*?(?P<path>{SHELL_WORD})\s*$")
-SED_RANGE = re.compile(r"(\d+)(?:,(\d+))?p")
+# One command of a `sed -n` script that prints a plain line range (`5p`, `1,60p`); other addresses are skipped.
+SED_RANGE = re.compile(r"\s*(\d+)(?:,(\d+))?p\s*")
 # Steps after which a read of unchanged-looking content is a fresh read: the tree may have changed under it (git, and
 # the runner commands that rebase or rewrite files).
 TREE_CHANGE = re.compile(
@@ -672,8 +674,12 @@ def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int
             if len(paths) == 1 and paths[0] and not piped:  # several files: no line numbers to tell them apart
                 reads.append((paths[0], True, []))
             continue
-        ranges = [(int(a), int(b or a)) for a, b in SED_RANGE.findall(match.group("script"))]
-        reads += [(rel, False, ranges) for rel in paths if rel and ranges]
+        if len(paths) != 1 or not paths[0]:  # without -s, sed numbers several files' lines as one stream
+            continue
+        script = match.group("script").strip("'\"").split(";")
+        ranges = [(int(m[1]), int(m[2] or m[1])) for m in map(SED_RANGE.fullmatch, script) if m]
+        if ranges:
+            reads.append((paths[0], False, ranges))
     return reads
 
 

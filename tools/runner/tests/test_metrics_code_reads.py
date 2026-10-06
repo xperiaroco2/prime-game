@@ -51,6 +51,16 @@ class CodeReadTest(unittest.TestCase):
         self.assertEqual(metrics.code_edits(f"cd {WT} && sed -i 's/a;b/c/' tools/x.py && sed -n 3p tools/x.py"),
                          ["tools/x.py"])
 
+    def test_only_plain_sed_ranges_of_one_file_count(self) -> None:
+        # Relative (+3), stepped (~2) and `$` addresses are no line range: skipped, never misread as one.
+        for script in ("'/x/,+3p'", "'10,+5p'", "'1~2p'", "'10,$p'"):
+            with self.subTest(script=script):
+                self.assertEqual(metrics.code_read("Bash", {"command": f"sed -n {script} tools/x.py"}), [])
+        mixed = metrics.code_read("Bash", {"command": "sed -n '1,5p;/x/p; 9p' tools/x.py"})
+        self.assertEqual(mixed, [("tools/x.py", False, [(1, 5), (9, 9)])])
+        # Without -s, sed numbers the lines of several files as one stream.
+        self.assertEqual(metrics.code_read("Bash", {"command": "sed -n 1,5p a/b.py c/d.py"}), [])
+
     def test_a_redirect_into_a_code_file_is_an_edit(self) -> None:
         heredoc = f"cd {WT} && cat > tools/x.py <<'EOF'\nprint(1) > other.py\nEOF"
         self.assertEqual(metrics.code_edits(heredoc), ["tools/x.py"])
