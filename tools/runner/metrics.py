@@ -103,6 +103,18 @@ the % of the week (week_percent, with the bracket), and with `--budget PCT ...` 
 the plan to date (budget x days since --since / 7, at most the budget); then every session's total for the weekly
 counter, with the untracked share and its largest sessions (a kickoff's Track: line left out or translated). It writes
 tracks.json, not metrics.md: the task report reads only this checkout and keeps its own --session meaning.
+
+Code reads per agent role (#468, its before and after numbers). A code read is a read of a repository file that is
+not .md: a Read, or a shell step that is only `cat <file>` or `sed -n <ranges> <files>` (maybe piped on); each step of
+a chain (`;`, `&&`, `||`) counts, and a `cat` of several files none. It is big when it reads one whole file (a Read
+without offset and limit, a `cat`) and returns more than BIG_READ_LINES lines (the reading rule's "a code file over
+400 lines"). It is a re-read when its lines (a Read's line numbers, a `cat`'s 1 to n, a `sed -n`'s ranges) were all
+(whole) or partly (partial) read already by the same agent with no Edit, Write or `sed -i` of that file, no
+`git rebase/checkout/switch/reset/pull/merge` and no compaction in between; results under REPEAT_MIN_CHARS characters
+("File unchanged since last read") are none. Tokens are characters / CHARS_PER_TOKEN, a Read's line-number prefixes
+included as the audit counted them; a re-read's tokens are those of its repeated lines (a shell result's characters
+split evenly over its lines). The table gives per role the agents, tool calls and API list $ per agent and those
+counts. Docs stay #337's tables above.
 """
 
 from __future__ import annotations
@@ -261,6 +273,22 @@ NOT_A_READ = re.compile(
     r"run(\.cmd|\.sh)\s|\bgit(?:\s+(?:-[Cc]\s+\S+|--[\w-]+(?:=\S+)?))*\s+(?:diff|show|log)\b"
 )
 SHELL_SEARCH = re.compile(r"\b(grep|rg|select-string|findstr)\b", re.IGNORECASE)
+# A shell command's leading `cd <dir> &&` or `Set-Location <dir>;` steps.
+CD_PREFIX = re.compile(r"^\s*((cd|Set-Location)\s+\S+\s*(&&|;)\s*)+", re.IGNORECASE)
+# #468: a whole code read over this many lines is big; a result this short ("File unchanged") is no re-read.
+BIG_READ_LINES = 400
+REPEAT_MIN_CHARS = 200
+SHELL_WORD = r"(?:'[^']+'|\"[^\"]+\"|[^\s'\"<>]+)"
+# One step of a shell command that only reads files: `cat [-n] <files>` or `sed -n <script> <files>`.
+CODE_SHELL_READ = re.compile(
+    rf"(?P<how>cat(?:\s+-n)?|sed\s+-n\s+(?P<script>'[^']*'|\"[^\"]*\"|\S+))(?P<paths>(?:\s+{SHELL_WORD})+)\s*"
+)
+# A redirection of a step (`2>/dev/null`, `2>&1`, `> out`): its output is not what the step reads.
+REDIRECT = re.compile(r"\s+\d*>>?&?\s*\S+")
+SED_EDIT = re.compile(rf"sed\s+-i\b.*?(?P<path>{SHELL_WORD})\s*$")
+SED_RANGE = re.compile(r"(\d+)(?:,(\d+))?p")
+# Steps after which a read of unchanged-looking content is a fresh read: the tree may have changed under it.
+TREE_CHANGE = re.compile(r"\bgit\s+(?:-C\s+\S+\s+)?(?:rebase|checkout|switch|reset|pull|merge)\b")
 READ_LINE = re.compile(r"^\s*(\d+)\t(.*)$")
 # The file a Grep output line starts with (an absolute or relative path with an extension, then `:` or `-` and a
 # line number, a `:`, or the end of the line).
@@ -575,10 +603,80 @@ def doc_targets(name: str, inp: dict) -> list[tuple[str, str, str]]:
     cmd = str(inp.get("command", ""))
     if NOT_A_READ.search(cmd):
         return []
-    words = re.sub(r"^\s*((cd|Set-Location)\s+\S+\s*(&&|;)\s*)+", "", cmd, flags=re.IGNORECASE).split()
+    words = CD_PREFIX.sub("", cmd).split()
     search = bool(SHELL_SEARCH.search(cmd)) and (words[0].lower() if words else "") not in ("sed", "cat")
     how, mode = ("shell search", "grep") if search else ("shell read", "plain")
     return [(rel, how, mode) for rel in shell_docs(cmd) if doc_what(rel)]
+
+
+def shell_steps(cmd: str) -> list[tuple[str, bool]]:
+    """A shell command's steps, split at `;`, `&&`, `||` and newlines outside quotes: (the step up to its first `|`,
+    whether it pipes on)."""
+    steps: list[tuple[str, bool]] = []
+    buf: list[str] = []
+    piped, quote, i = False, "", 0
+    while i < len(cmd):
+        ch = cmd[i]
+        if quote:
+            quote = "" if ch == quote else quote
+        elif ch in "'\"":
+            quote = ch
+        elif cmd.startswith(("&&", "||"), i) or ch in ";\n":
+            steps.append(("".join(buf).strip(), piped))
+            buf, piped = [], False
+            i += 2 if ch in "&|" else 1
+            continue
+        elif ch == "|":
+            piped = True
+        if not piped:
+            buf.append(ch)
+        i += 1
+    steps.append(("".join(buf).strip(), piped))
+    return [step for step in steps if step[0]]
+
+
+def _shell_path(word: str) -> str | None:
+    path = word.strip("'\"").replace("\\", "/")
+    rel = repo_path(path) if re.match(r"^(/|[A-Za-z]:)", path) else path.removeprefix("./")
+    if not rel or rel.lower().endswith(".md") or "." not in rel.rsplit("/", 1)[-1]:
+        return None
+    return rel
+
+
+def code_read(name: str, inp: dict) -> list[tuple[str, bool, list[tuple[int, int]] | None]]:
+    """The reads of repository code files, anything but a .md, in one tool call (#468): (the path, whether it reads the
+    whole file, the line ranges: None for a Read, whose result numbers its lines; [] for a `cat`, all of them)."""
+    if name == "Read":
+        rel = repo_path(inp.get("file_path"))
+        if not rel or rel.lower().endswith(".md"):
+            return []
+        return [(rel, inp.get("offset") is None and inp.get("limit") is None, None)]
+    if name not in ("Bash", "PowerShell"):
+        return []
+    reads = []
+    for step, piped in shell_steps(str(inp.get("command", ""))):
+        match = CODE_SHELL_READ.fullmatch(REDIRECT.sub("", step))
+        if not match:
+            continue
+        paths = [_shell_path(w) for w in re.findall(SHELL_WORD, match.group("paths"))]
+        if match.group("how").startswith("cat"):
+            if len(paths) == 1 and paths[0] and not piped:  # several files: no line numbers to tell them apart
+                reads.append((paths[0], True, []))
+            continue
+        ranges = [(int(a), int(b or a)) for a, b in SED_RANGE.findall(match.group("script"))]
+        reads += [(rel, False, ranges) for rel in paths if rel and ranges]
+    return reads
+
+
+def code_edits(cmd: str) -> list[str]:
+    """The repository code files a shell command edits in place (`sed -i`)."""
+    edits = []
+    for step, _piped in shell_steps(cmd):
+        match = SED_EDIT.fullmatch(step)
+        rel = _shell_path(match.group("path")) if match else None
+        if rel:
+            edits.append(rel)
+    return edits
 
 
 def grep_folder(path: object, rel: str | None) -> str | None:
@@ -700,6 +798,8 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
     pending: list[dict] = []
     bounds: list[int] = []  # the API calls' indexes at which a compaction began
     merge_outputs, merge_pairs = 0, []
+    code_reads = {"big": 0, "big_tokens": 0.0, "repeat": 0, "partial": 0, "repeat_tokens": 0.0}
+    code_seen: dict[str, set[int]] = {}  # a code file: its line numbers read since it last changed (#468)
     with io.open(path, encoding="utf-8", errors="replace") as lines:
         for line in lines:
             try:
@@ -728,6 +828,7 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
             stamps.append(t)
             if d.get("type") == "system" and d.get("subtype") == "compact_boundary":
                 bounds.append(len(usage))
+                code_seen.clear()
                 continue
             if d.get("type") == "attachment":
                 found = attachment_items(d.get("attachment"))
@@ -770,12 +871,18 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         secs = timer_seconds(b)
                         if secs is not None and b["id"] not in timers:
                             timers[b["id"]] = (t, secs)
+                        changed = [repo_path(inp.get("file_path"))] if b.get("name") in ("Edit", "Write") else []
+                        if TREE_CHANGE.search(cmd):
+                            code_seen.clear()
+                        for rel in changed + (code_edits(cmd) if cmd else []):
+                            code_seen.pop(rel, None)
                         uses[b["id"]] = {
                             "name": b.get("name"),
                             "t0": t,
                             "t1": None,
                             "kind": cmd_kind(cmd) if cmd else b.get("name"),
                             "docs": doc_targets(str(b.get("name")), inp),
+                            "code": code_read(str(b.get("name")), inp),
                         }
             elif d.get("type") == "user" and isinstance(m.get("content"), list):
                 for b in m["content"]:
@@ -783,6 +890,9 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
                         call = uses[b["tool_use_id"]]
                         call["t1"] = t
                         text = text_of(b.get("content"))
+                        if call["code"] and not call.get("counted"):
+                            call["counted"] = True
+                            count_code_read(call["code"], text, code_seen, code_reads)
                         found = read_items(call["docs"], text)
                         items += found
                         pending += found
@@ -846,7 +956,39 @@ def read_agent(path: Path, since: float | None = None, until: float | None = Non
         "instructions": items,
         # merge-check outputs among its tool results, and the PR pairs whose rows name an ARCHITECTURE conflict
         "merge_check": {"outputs": merge_outputs, "pairs": merge_pairs},
+        "code_reads": code_reads,
     }
+
+
+def count_code_read(reads: list[tuple], text: str, seen: dict[str, set[int]], counts: dict) -> None:
+    """One tool call's code reads into the #468 counters: big (one whole file, over BIG_READ_LINES lines) and re-read
+    (its lines all or partly read since the file last changed; a shell result's characters split evenly over its
+    lines)."""
+    lines = text.split("\n")
+    if len(reads) == 1 and reads[0][1] and len(lines) > BIG_READ_LINES:
+        counts["big"] += 1
+        counts["big_tokens"] += len(text) / CHARS_PER_TOKEN
+    if len(text) < REPEAT_MIN_CHARS:
+        return
+    chars: dict[tuple[str, int], float] = {}  # each (file, line) read: its characters
+    for rel, _whole, ranges in reads:
+        if ranges is None:
+            for line in lines:
+                match = READ_LINE.match(line)
+                if match:
+                    chars[(rel, int(match.group(1)))] = len(line) + 1
+        else:
+            numbers = range(1, len(lines) + 1) if not ranges else {n for a, b in ranges for n in range(a, b + 1)}
+            chars.update(((rel, n), 0.0) for n in numbers)
+    shared = [key for key, size in chars.items() if not size]
+    for key in shared:
+        chars[key] = len(text) / len(shared)
+    again = [key for key in chars if key[1] in seen.get(key[0], ())]
+    if again:
+        counts["repeat" if len(again) == len(chars) else "partial"] += 1
+        counts["repeat_tokens"] += sum(chars[key] for key in again) / CHARS_PER_TOKEN
+    for rel, number in chars:
+        seen.setdefault(rel, set()).add(number)
 
 
 def role_of(label: str) -> str:
@@ -1290,6 +1432,7 @@ def build(
     stages = stage_rows(tasks, labels)
     md += stage_section(stages)
     md += role_section(counted)
+    md += code_read_section(counted)
     instructions = instruction_record(counted, data["sessions"], docs_root)
     md += instruction_section(instructions)
     by_row = verify_rows(counted, data["sessions"], history)
@@ -1426,6 +1569,45 @@ def role_section(counted: list[dict]) -> list[str]:
         md += [f"Models without a price in PRICES (weighed at {next(iter(PRICES))}'s): "
                f"{', '.join(sorted(unpriced))}.", ""]
     return md
+
+
+def code_read_section(counted: list[dict]) -> list[str]:
+    """#468's numbers per agent role: tool calls and API list $ per agent, big whole-file code reads and repeated
+    reads (count, tokens, per agent). Nothing when no agent ran."""
+    roles: dict[str, dict] = defaultdict(lambda: {"n": 0, "calls": 0, "tok": Counter(), "reads": Counter()})
+    for r in counted:
+        for x in r["agents"]:
+            d = x["data"]
+            if not d or d["start"] is None:
+                continue
+            g = roles[x["role"]]
+            g["n"] += 1
+            g["calls"] += d["tool_calls"]
+            g["tok"].update(d["tokens"])
+            g["reads"].update(d.get("code_reads") or {})
+    if not roles:
+        return []
+    rows = []
+    for role, g in sorted(roles.items(), key=lambda kv: -usd(kv[1]["tok"])):
+        n, reads = g["n"], g["reads"]
+        rows.append([
+            role, n, f"{g['calls'] / n:.1f}", fmt_usd(usd(g["tok"]) / n),
+            f"{reads['big']} ({reads['big'] / n:.2f})", fmt_tok(reads["big_tokens"]),
+            f"{reads['repeat']} / {reads['partial']} ({(reads['repeat'] + reads['partial']) / n:.2f})",
+            fmt_tok(reads["repeat_tokens"]),
+        ])
+    head = ["role", "agents", "tool calls per agent", "API list $ per agent", "big whole-file code reads (per agent)",
+            "their tokens", "re-reads, whole / partial (per agent)", "re-read tokens"]
+    return [
+        "## Code reads per agent role (#468)",
+        "",
+        f"A whole read of a code file over {BIG_READ_LINES} lines is big; a re-read reads lines of a code file the "
+        "agent read already, with no edit, rebase, checkout or compaction in between (all of them: whole; some: "
+        "partial).",
+        "",
+        table(head, rows),
+        "",
+    ]
 
 
 def verify_rows(counted: list[dict], sessions: list[dict], history: list[dict]) -> dict[str, list[dict]]:
