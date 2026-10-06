@@ -10,6 +10,10 @@ var direction := NetKindTable.Direction.BOTH
 var lane := NetKindTable.Lane.RELIABLE
 var cap: int
 var fields: Array[WireField] = []
+## The MatchCommand a decoded message of this row becomes on the host: its own name, but for a
+## twin row that carries another row's command on another lane (MoveClaimReliable is MoveClaim,
+## #429). An event's is its own name too.
+var command: StringName
 ## How big it gets depends on the content (ids, settings, map paths, max_players, shortfalls):
 ## WireBudget computes its worst case per game mode (§4.3, E16).
 var content_sized := false
@@ -25,6 +29,7 @@ func _init(
 ) -> void:
 	kind = row_kind
 	name = row_name
+	command = row_name
 	direction = row_direction
 	lane = row_lane
 	cap = row_cap

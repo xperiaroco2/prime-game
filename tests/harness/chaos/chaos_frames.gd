@@ -60,9 +60,9 @@ const FUTURE_TICKS := 5000
 ## Kinds no row of the table has (0 is the transport's ADMIT, never a client's).
 ## The Claim shapes a chaos peer draws at random: the ones before NEAR_ITEM.
 const RANDOM_CLAIMS := Claim.NEAR_ITEM
-const UNASSIGNED: Array[int] = [0, 14, 19, 23, 26, 31, 66, 80, 95, 97, 111, 113, 127, 128, 200, 255]
-## MoveClaim's layout (§4.3, protocol v7): the first float of position, velocity and facing, and
-## the flags (jumps, sprint_ticks and moved_ticks follow them).
+const UNASSIGNED: Array[int] = [0, 15, 19, 23, 26, 31, 66, 80, 95, 97, 111, 113, 127, 128, 200, 255]
+## MoveClaim's layout (§4.3), its RELIABLE twin's too: the first float of position, velocity and
+## facing, and the flags (jumps, sprint_ticks and moved_ticks follow them).
 const CLAIM_FLOATS_AT := 8
 const CLAIM_FLOATS := 9
 const CLAIM_FLAGS_AT := 44

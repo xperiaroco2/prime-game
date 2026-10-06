@@ -119,7 +119,8 @@ func test_decoded_intents_hold_the_declared_variant_types() -> void:
 		assert_object(decoded).override_failure_message(str(message.name)).is_not_null()
 		if decoded == null:
 			continue
-		var declared: Dictionary = Intents.FIELDS[message.name]
+		# A twin row (MoveClaimReliable, #429) decodes to the args of the command it becomes.
+		var declared: Dictionary = Intents.FIELDS[schema.row_named(message.name).command]
 		for key: Variant in decoded.fields:
 			var where := "%s.%s" % [message.name, key]
 			assert_bool(declared.has(key)).override_failure_message(where).is_true()
@@ -129,6 +130,26 @@ func test_decoded_intents_hold_the_declared_variant_types() -> void:
 				. override_failure_message(where)
 				. is_equal(type_string(type))
 			)
+
+
+## Every row becomes the command (or event) of its own name, but MoveClaim's RELIABLE twin (#429),
+## which becomes MoveClaim: its fields are exactly MoveClaim's, with no wire-only one, so core/
+## reads it as any claim.
+func test_only_the_claims_twin_becomes_a_command_of_another_name() -> void:
+	var schema := WireSchema.game(true)
+	for row: WireRow in schema.rows():
+		if row.name == &"MoveClaimReliable":
+			continue
+		assert_str(row.command).override_failure_message(str(row.name)).is_equal(row.name)
+	var twin := schema.row_named(&"MoveClaimReliable")
+	assert_object(twin).is_not_null()
+	if twin == null:
+		return
+	assert_str(twin.command).is_equal(Intents.MOVE_CLAIM)
+	assert_bool(Intents.ALL.has(twin.command)).is_true()
+	assert_array(_wire_only(twin.fields)).is_empty()
+	var drift := _type_drift(_arg_types(twin.fields), Intents.FIELDS[Intents.MOVE_CLAIM])
+	assert_str(drift).is_empty()
 
 
 func test_the_join_refusals_of_3e_are_reject_reasons_that_fit_the_wire() -> void:
