@@ -703,25 +703,34 @@ judged apart and the worse wins), when a pathspec reaches another checkout (`git
 after the same command switched away from the task branch (`git checkout main && git reset --hard`, also inside
 `bash -c`):
 `checkout` of paths or `-f`, `switch -f|--discard-changes`, `restore` (not `--staged` alone), `clean` (not `-n`),
-`rebase` (`--continue` and `--abort` too), `worktree remove|move` of anything but the own worktree's folder or an
-absolute path outside the project (git also takes a worktree's last path parts: `git worktree remove 47`),
-`update-ref HEAD`. A plain `git switch x` or
+`rebase` (`--continue` and `--abort` too), `worktree remove|move` of anything but the own worktree's folder, an
+absolute path inside it (a nested worktree, also `.../51/tools/out/measure/w$i` in a loop, #457) or an
+absolute path outside the project (git also takes a worktree's last path parts: `git worktree remove 47`, so a
+relative `tools/out/measure/w1` asks), `update-ref HEAD`. A pathspec the guard cannot resolve (`core/$f.gd` in a
+loop, `$(git diff --name-only)`) is judged by the folder before its unknown part, because git refuses a pathspec
+outside its repository (#457); a `..` after the unknown part, a folder or unknown part in or naming `.claude`,
+`.git` or `addons` (`.claude/$f`, `$(ls .claude)`: it may be a protected path), and a cloud session's main
+checkout keep the ask.
+A plain `git switch x` or
 `git checkout x` discards nothing and passes anywhere. Branches and the stash are shared by every checkout, so
 they are judged by name: `branch -d|-D`, `branch -f`, `branch -M|-C`, `checkout -B`, `switch -C`, a rebase that
-names its branch, `update-ref refs/heads/<x>` and a forced switch pass only for the task branch and its helpers;
+names its branch (not `HEAD` or `@`: git then rebases a detached HEAD and moves no branch),
+`update-ref refs/heads/<x>` and a forced switch pass only for the task branch and its helpers;
 `stash drop|clear` only for entries made on them (a human's `start --stash` entry is made on `main` and asks),
 and never after the same command changed the stash (the indices shift); agents use no stash at all, a WIP commit
-instead (root `CLAUDE.md`, Shell). An interactive rebase whose
-`GIT_SEQUENCE_EDITOR` the command sets to `:` or `true` (a prefix; in bash `export`, in PowerShell `$env:`, as that
-shell's last value; it outranks every other editor setting) opens no todo editor and is judged like a plain
-rebase: `git commit --fixup=HEAD` then `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` stays
-editor-free (a `squash!` commit would still open the message editor) (#104). `git -c core.editor=true`,
-`-c sequence.editor=:` and `GIT_EDITOR=true` do not count, on purpose: a `GIT_SEQUENCE_EDITOR` inherited from the
-environment or a `sequence.editor` in a git config file, which the guard cannot see, would outrank them (a publisher
-that used `-c core.editor=true` on 2026-10-03 waited 23 minutes, #312). Always asks: another
-interactive rebase (`-i`, `--edit-todo`: an agent cannot use the editor), `rebase --update-refs` (moves other
-branches), `rebase -x|--exec` (runs commands the guard cannot judge), `update-ref --stdin` and
-`git -c core.hooksPath=...` (the deny rule on `git config *hooksPath*` cannot see it).
+instead (root `CLAUDE.md`, Shell). An interactive rebase (`-i`, `--edit-todo`) is judged like any other rebase,
+whatever editor it names (#457, [intervention](interventions/2026-10-06-engineer-git-free-in-own-worktree.md):
+the engineer, 2026-10-06, "git is protected on GitHub"; it reverses #104's editor ask, after which a publisher's
+`-c core.editor=true` waited 23 minutes on 2026-10-03 and #445's fix agent's `sed` sequence editor a night).
+Claude Code's Bash and PowerShell tools set `GIT_EDITOR=true`, and this machine sets no `sequence.editor`, so no
+editor opens; agents still write `git commit --fixup=<sha>` then
+`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/<base>` (root `CLAUDE.md`, Shell), because a machine
+whose git config names a `sequence.editor` (`code --wait`) would open it and the call would run to its timeout:
+`git rebase --abort` in the own worktree then ends it. Always asks: `rebase --update-refs` (moves other
+branches), `rebase -x|--exec` (runs commands, a push among them, that the deny rules cannot see; a sequence
+editor is such a command too, and passes since #457: the pre-push hook and GitHub's branch protection still stop a
+push to `main` and a force push), `update-ref --stdin` and `git -c core.hooksPath=...` (the deny rule on
+`git config *hooksPath*` cannot see it).
 Rebase options are read as git reads them (#105): a cluster letter by letter (`-qi`, `-qx cmd`), an attached
 value (`-x'cmd'`), a unique prefix of a long option (`--interac`, `--exe=cmd`, `--up`), and `rebase.updateRefs`
 from `git -c` or `--config-env` (any true value, unless `--no-update-refs` follows) like `--update-refs`. A nested
@@ -810,6 +819,21 @@ waiting, one `gh pr create` over a whole night, #312).
   `cd` elsewhere, and workflow agents start every command that way), `sed`, PowerShell filters and loops. Allow rules
   for the plain filters (`cut`, `tr`, `printf`, `date`, `Select-Object` and the like) and `mkdir` would remove about
   1,500 of them, so unattended work stays in bypass mode.
+- Git in the own worktree (#457), from `tools\run.cmd permissions --observed --since 2026-09-28` on 2026-10-06 (1,183
+  transcripts): 66 guard asks, of them 22 git. 6 protected nothing and pass now: 5 interactive rebases with an
+  editor setting in the agent's own worktree on its task branch (2026-10-01 to 10-06, about 9.8 hours of waiting,
+  9.4 of them one night of #445's fix agent) and a `git checkout --ours core/events/$f.gd` loop (2026-09-30). One
+  more, a `GIT_SEQUENCE_EDITOR=:` rebase before #104, passed already. 6 came from a manager's shell standing in
+  another worktree on 2026-09-30 (the 2026-10-01 rule above removed the cause; the guard cannot tell it from a
+  session that wanders into another task's worktree, so they still ask). Kept: 4 `git stash drop` (the stash is
+  shared), `branch -d|-D` of a release branch and of another task's branch from the main checkout, a relative
+  `git worktree remove --force tools/out/measure/w$i` loop (the absolute path passes now), `reset --hard` in a loop
+  over another repository's worktrees, and `reset --hard` of `release/m3` in its worktree. The other 44: 30 `gh`
+  writes to the sibling repositories (above), 10 writes to `addons/`, 3 to `.claude/settings*.json`, and one
+  filtered `Remove-Item -Recurse` in `$env:TEMP` (8.8 hours). The replay (`tools\run.cmd permissions --since
+  2026-09-28`, 33,381 calls, bypass mode): 70 prompts before, 64 after (68 and 62 guard), 38 denied in both, no crash;
+  the 6 that pass are the six above, and no call that was silent before asks now. The replay reads today's branches:
+  a deleted worktree's call reads as a detached HEAD, which is free, so it may undercount the asks of the past.
 
 ### 8.3 Pre-push hook and publishing [applied]
 Committed at `.claude/githooks/pre-push`; `doctor` sets `core.hooksPath` to `.claude/githooks` (the agent's own
