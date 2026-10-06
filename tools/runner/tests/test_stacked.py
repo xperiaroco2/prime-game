@@ -11,8 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from runner import publish, start
-from runner.common import ROOT, Failure
-from runner.tests.test_githooks import _rmtree
+from runner.common import ROOT, Failure, force_rmtree
 from runner.tests.test_start import git
 
 PARENT = "core/32-parent"
@@ -25,7 +24,7 @@ class Repos(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="stacked-"))
-        self.addCleanup(_rmtree, str(self.tmp))
+        self.addCleanup(force_rmtree, str(self.tmp))
         hooks = self.tmp / "hooks"
         hooks.mkdir()
         shutil.copy(ROOT / ".claude" / "githooks" / "pre-push", hooks / "pre-push")

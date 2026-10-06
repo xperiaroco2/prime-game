@@ -1008,9 +1008,11 @@ check `verify` is added **after the CI PR has merged**. Code-owner review stays 
   the import) and restores the file: `killed` (a named test failed; they are listed), `survived` (a finding, not a
   failure) or `error` (the mutant does not compile, `--seconds` (default 300) ran out, or the tests could not judge;
   the reason and the log). At the end it removes the scratch worktree (and its `user://` folder, §11), also after an
-  exception, and confirms the task's `git status` unchanged. A lock in `tools/out/mutants/` allows one run per
-  checkout (the OS releases it when a run is killed). The table is printed and written to
-  `tools/out/mutants/<spec name>.md` after every mutant, with each test run's output and Godot's log in
+  exception, and confirms the task's `git status` unchanged. A `tree-*` folder that `git worktree remove` leaves is
+  deleted with `common.force_rmtree` (#453; the runner tests clean up with it too): git's read-only files are made
+  writable, a path a git process removes meanwhile counts as deleted, and every other error is reported. A lock in
+  `tools/out/mutants/` allows one run per checkout (the OS releases it when a run is killed). The table is printed
+  and written to `tools/out/mutants/<spec name>.md` after every mutant, with each test run's output and Godot's log in
   `<spec name>-<step>.log` beside it. Exit 0: the run completed, whatever the results; 1: an invalid spec, or a run
   that could not start or finish (a dirty tree, another run, a failed import), nothing left behind; 2: the scratch
   worktree could not be removed or the task's tree changed: run no more mutants and tell the human (`git worktree

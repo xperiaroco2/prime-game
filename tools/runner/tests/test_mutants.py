@@ -6,6 +6,7 @@ import inspect
 import io
 import json
 import os
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -13,9 +14,8 @@ from pathlib import Path
 from unittest import mock
 
 from runner import check, cli, common, gdunit, guard, mutants, permissions
-from runner.common import ROOT
+from runner.common import ROOT, force_rmtree
 from runner.mutants import ERROR, KILLED, SURVIVED, Outcome
-from runner.tests.test_githooks import _rmtree
 
 SOURCE = "extends RefCounted\n\n\nfunc allowed(tick: int, paid_at: int) -> bool:\n\treturn tick - paid_at >= 10\n"
 TEST = "extends GdUnitTestSuite\n"
@@ -44,7 +44,7 @@ class RepoCase(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="mutants-")).resolve()
-        self.addCleanup(_rmtree, self.tmp)
+        self.addCleanup(force_rmtree, self.tmp)
         self.work = self.tmp / "work"
         self.work.mkdir()
         git(self.work, "init", "-q", "-b", "main")
@@ -181,7 +181,7 @@ class RunTest(RepoCase):
         (old / "core" / "x.gd").write_text("x\n", encoding="utf-8")
         gone = self.work / "tools" / "out" / "mutants" / "tree-gone"
         git(self.work, "worktree", "add", "-q", "--detach", str(gone), "HEAD")
-        _rmtree(gone)
+        force_rmtree(gone)
         for tree in (self.tree, old, gone):  # each one's user:// folder too
             self.plant_user_dir(tree)
         if self.users is not None:
@@ -252,6 +252,33 @@ class RunTest(RepoCase):
             self.assertEqual(self.run_spec(BOUNDARY), mutants.LEFTOVER)
         self.assertIn("could not be removed (exit 2)", self.out.getvalue())
         self.assertIn("EXIT 2: the scratch worktree could not be removed", self.report())
+
+    def test_a_leftover_whose_folders_vanish_mid_delete_counts_as_removed(self) -> None:
+        # A leftover tree's read-only object files (git's), and a git process of the killed run that removes its
+        # object folders between the refused delete and the retry (#453): removed, no warning, nothing left.
+        objects = self.work / "tools" / "out" / "mutants" / "tree-old" / "objects"
+        for name in ("a6", "b7"):
+            (objects / name).mkdir(parents=True)
+            (objects / name / "obj").write_text("x\n", encoding="utf-8")
+            (objects / name / "obj").chmod(stat.S_IREAD)
+        unlink = os.unlink
+        raced: list[str] = []
+
+        def racing_unlink(target, *args, **kwargs):  # type: ignore[no-untyped-def]
+            if raced:
+                return unlink(target, *args, **kwargs)
+            for folder in sorted(objects.iterdir()):
+                (folder / "obj").chmod(stat.S_IWRITE)
+                unlink(folder / "obj")
+                folder.rmdir()
+                raced.append(folder.name)
+            raise PermissionError(13, "Access is denied", str(target))
+
+        with mock.patch.object(os, "unlink", racing_unlink):
+            self.assertEqual(mutants.remove_trees(self.work), [])
+        self.assertEqual(raced, ["a6", "b7"])
+        self.assertFalse(objects.parent.exists())
+        self.assertNotIn("cannot delete", self.out.getvalue())
 
     def test_a_leftover_that_cannot_be_removed_at_the_start_exits_2(self) -> None:
         with mock.patch.object(mutants, "remove_trees", return_value=["tools/out/mutants/tree-work"]):
