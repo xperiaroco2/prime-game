@@ -5,7 +5,8 @@ extends GdUnitTestSuite
 ## hand. LanSignalling listens on a free port (0), so shards never clash. Waits are bounded: a
 ## condition polled frame by frame, never a sleep.
 
-## The longest wait for one condition; a pass takes well under a second.
+## The longest wait for one condition, unless a test names its own; a pass takes well under a
+## second.
 const MAX_WAIT_MS := 5000
 ## The joins these tests expect to give up do so after this long, not JOIN_TIMEOUT_MS.
 const SHORT_JOIN_MS := 1500
@@ -143,6 +144,10 @@ func test_a_join_with_an_unknown_code_fails_with_no_room() -> void:
 	assert_bool(await _until(_has.bind("client failed no_room"))).is_true()
 
 
+## Nothing listens at the service's port. On Linux the refused connect closes the socket at once;
+## on Windows the engine never reports it before its 30 s TCP connect timeout (the OS knows in
+## about 2 s, #461), so the Signaller's connect timeout ends it, as service_unreachable all the
+## same.
 func test_a_join_with_no_service_fails_as_unreachable() -> void:
 	var closed := TCPServer.new()
 	assert_int(closed.listen(0, "127.0.0.1")).is_equal(OK)
@@ -154,6 +159,42 @@ func test_a_join_with_no_service_fails_as_unreachable() -> void:
 	client.signal_connect_timeout_ms = SHORT_JOIN_MS >> 1
 	assert_int(client.join("ABCDEF", 0)).is_equal(OK)
 	assert_bool(await _until(_has.bind("client failed service_unreachable"))).is_true()
+
+
+## A service that takes the TCP connection and never answers the WebSocket handshake: the socket
+## never opens, on every OS. The Signaller's connect timeout ends the join, long before the join
+## timeout (#461).
+func test_a_service_that_never_opens_ends_the_join_after_the_connect_timeout() -> void:
+	var silent := TCPServer.new()
+	assert_int(silent.listen(0, "127.0.0.1")).is_equal(OK)
+	var client := _client()
+	client.signal_url = "ws://127.0.0.1:%d" % silent.get_local_port()
+	client.signal_connect_timeout_ms = SHORT_JOIN_MS
+	client.join_timeout_ms = MAX_WAIT_MS * 2
+	var started_ms := Time.get_ticks_msec()
+	assert_int(client.join("ABCDEF", 0)).is_equal(OK)
+	assert_bool(await _until(_has.bind("client failed service_unreachable"))).is_true()
+	assert_int(Time.get_ticks_msec() - started_ms).is_greater_equal(SHORT_JOIN_MS)
+	silent.stop()
+
+
+## With the shipped timeouts a silent service ends the join as service_unreachable after
+## Signaller.CONNECT_TIMEOUT_MS, before JOIN_TIMEOUT_MS could call the host unreachable (#461).
+func test_a_silent_service_ends_a_default_join_as_service_unreachable() -> void:
+	var silent := TCPServer.new()
+	assert_int(silent.listen(0, "127.0.0.1")).is_equal(OK)
+	var client := _client()
+	client.signal_url = "ws://127.0.0.1:%d" % silent.get_local_port()
+	client.join_timeout_ms = WebRtcTransport.JOIN_TIMEOUT_MS
+	assert_int(client.signal_connect_timeout_ms).is_equal(Signaller.CONNECT_TIMEOUT_MS)
+	assert_int(Signaller.CONNECT_TIMEOUT_MS).is_less(WebRtcTransport.JOIN_TIMEOUT_MS)
+	var started_ms := Time.get_ticks_msec()
+	assert_int(client.join("ABCDEF", 0)).is_equal(OK)
+	var failed := _has.bind("client failed service_unreachable")
+	assert_bool(await _until(failed, Signaller.CONNECT_TIMEOUT_MS + MAX_WAIT_MS)).is_true()
+	assert_int(Time.get_ticks_msec() - started_ms).is_greater_equal(Signaller.CONNECT_TIMEOUT_MS)
+	assert_bool(_has("client failed host_unreachable")).is_false()
+	silent.stop()
 
 
 func test_a_code_the_service_would_refuse_is_not_sent() -> void:
@@ -558,8 +599,8 @@ func _has(line: String) -> bool:
 	return line in _events
 
 
-func _until(condition: Callable) -> bool:
-	var deadline := Time.get_ticks_msec() + MAX_WAIT_MS
+func _until(condition: Callable, max_wait_ms := MAX_WAIT_MS) -> bool:
+	var deadline := Time.get_ticks_msec() + max_wait_ms
 	while Time.get_ticks_msec() < deadline:
 		_server.poll()
 		for transport: WebRtcTransport in _transports:

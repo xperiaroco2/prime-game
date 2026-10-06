@@ -1,5 +1,5 @@
-"""`export [--version V] [--rev R]`: the friends' Windows builds (#369; M6 ADR E59, D20; AGENT_WORKFLOW §11 "Exported
-builds"). CI's release workflow runs it on a tag; it runs on Linux (and needs `curl`).
+"""`export [--version V] [--rev R]`: the friends' Windows builds (#369; M6 ADR E59, D20; AGENT_WORKFLOW
+§11.23). CI's release workflow runs it on a tag; it runs on Linux (and needs `curl`).
 
 1. The pinned export templates: the release's .tpz is downloaded once into ~/godot-download (where tools/cloud/setup.sh
    keeps the editor zip) and checked against pins.GODOT_TEMPLATES_SHA512 on every run. Its Windows x86_64 templates go
